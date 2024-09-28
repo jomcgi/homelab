@@ -1,0 +1,7 @@
+commonLabels:
+  app: anaesthetic-calc
+
+resources:
+  - ./deployment.yaml
+  - ./service.yaml
+  - ./namespace.yaml

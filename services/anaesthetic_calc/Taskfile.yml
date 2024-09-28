@@ -1,0 +1,13 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f services/anaesthetic_calc/skaffold.yaml --default-repo registry.localhost
+  deploy:
+    deps: [build]
+    cmds:
+      - skaffold run -f services/anaesthetic_calc/skaffold.yaml --default-repo registry.localhost
+  delete:
+    cmds:
+      - skaffold delete -f services/anaesthetic_calc/skaffold.yaml

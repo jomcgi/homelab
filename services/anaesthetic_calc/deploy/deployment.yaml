@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: anaesthetic-calc
+  labels:
+    app: anaesthetic-calc
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: anaesthetic-calc
+  template:
+    metadata:
+      labels:
+        app: anaesthetic-calc
+    spec:
+      containers:
+      - name: anaesthetic-calc
+        image: jomcgi/anaesthetic-calc:latest
+        ports:
+        - containerPort: 9090
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"

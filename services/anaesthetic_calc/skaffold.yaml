@@ -1,0 +1,22 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: homelab-services
+
+build:
+  local:
+    push: true
+    useDockerCLI: true
+  artifacts:
+    - image: anaesthetic-calc
+      context: ./services/anaesthetic_calc
+
+manifests:
+  kustomize:
+    paths:
+    - ./services/anaesthetic_calc/deploy
+
+deploy:
+  kubectl:
+    defaultNamespace: anaesthetic-calc
+        
