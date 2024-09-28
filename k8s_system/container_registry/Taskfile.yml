@@ -1,0 +1,13 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f k8s_system/container_registry/skaffold.yaml
+  deploy:
+    deps: [build]
+    cmds:
+      - skaffold run -f k8s_system/container_registry/skaffold.yaml
+  delete:
+    cmds:
+      - skaffold delete -f k8s_system/container_registry/skaffold.yaml
