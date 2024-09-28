@@ -7,6 +7,7 @@ build:
   local:
     push: true
     useDockerCLI: true
+    useBuildkit: false
   artifacts:
     - image: anaesthetic-calc
       context: ./services/anaesthetic_calc
