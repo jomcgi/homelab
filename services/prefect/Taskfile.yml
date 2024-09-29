@@ -1,0 +1,16 @@
+version: '3'
+
+vars:
+  SERVICE: prefect
+  CHART: prefect/prefect-server
+  VERSION: 2024.9.20135602
+
+tasks:
+  install:
+    cmds:
+      - helm install {{.SERVICE}} {{.CHART}} --namespace {{.SERVICE}} --create-namespace --version {{.VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.SERVICE}} {{.CHART}} -f services/{{.SERVICE}}/values.yaml -f services/{{.SERVICE}}/override.yaml --namespace {{.SERVICE}}
+  uninstall:
+      - helm uninstall {{.SERVICE}} --namespace {{.SERVICE}}
