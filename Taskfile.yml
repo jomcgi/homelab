@@ -1,6 +1,8 @@
 version: '3'
 
 includes:
-  container-registry: ./k8s_system/container_registry
+  container_registry: ./k8s_system/container_registry
   netdata: ./k8s_system/netdata
+  uptime_kuma: ./k8s_system/uptime-kuma
   calc: ./services/anaesthetic_calc
+  prefect: ./services/prefect

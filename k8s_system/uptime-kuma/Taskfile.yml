@@ -1,0 +1,18 @@
+version: '3'
+
+vars:
+  UK_SERVICE: uptime-kuma
+  UK_REPO: https://helm.irsigler.cloud
+  UK_CHART: uptime-kuma/uptime-kuma
+  UK_ERSION: 2.20.0
+
+tasks:
+  install:
+    cmds:
+      - helm repo add {{.UK_SERVICE}} {{.UK_REPO}}
+      - helm install {{.UK_SERVICE}} {{.UK_CHART}} --namespace {{.UK_SERVICE}} --create-namespace --version {{.UK_VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.UK_SERVICE}} {{.UK_CHART}} -f k8s_system/{{.UK_SERVICE}}/values.yaml -f k8s_system/{{.UK_SERVICE}}/override.yaml --namespace {{.UK_SERVICE}}
+  uninstall:
+      - helm uninstall {{.UK_SERVICE}} --namespace {{.UK_SERVICE}}
