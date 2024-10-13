@@ -2,6 +2,5 @@ commonLabels:
   app: anaesthetic-calc
 
 resources:
-  - ./app
-  - ./api
-  - ./namespace.yaml
+  - ./deployment.yaml
+  - ./service.yaml

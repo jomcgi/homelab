@@ -29,4 +29,4 @@ master.key
 setup/cluster/*cluster.yml
 .aider*
 .mypy_cache
-
+__pycache__

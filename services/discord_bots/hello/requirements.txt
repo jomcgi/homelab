@@ -1,0 +1,4 @@
+discord
+unidecode 
+pydantic-settings
+fastapi[standard]

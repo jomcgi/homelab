@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from calc_types import (
     LocalAnaestheticDose,
     LocalAnaestheticDrug,

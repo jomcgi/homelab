@@ -1,13 +1,16 @@
 version: '3'
 
+vars:
+  AC_SKAFFOLD_PATH: services/anaesthetic_calc/skaffold.yaml
+
 tasks:
   build:
     cmds:
-      - skaffold build -f services/anaesthetic_calc/skaffold.yaml --default-repo registry.localhost
+      - skaffold build -f {{.AC_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
   deploy:
     deps: [build]
     cmds:
-      - skaffold run -f services/anaesthetic_calc/skaffold.yaml --default-repo registry.localhost
+      - skaffold run -f {{.AC_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
   delete:
     cmds:
-      - skaffold delete -f services/anaesthetic_calc/skaffold.yaml
+      - skaffold delete -f {{.AC_SKAFFOLD_PATH}}

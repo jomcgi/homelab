@@ -1,24 +1,27 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: anaesthetic-calc
+  name: horoscope-bot
   labels:
-    app: anaesthetic-calc
+    app: horoscope-bot
 spec:
   replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
   selector:
     matchLabels:
-      app: anaesthetic-calc
+      app: horoscope-bot
   template:
     metadata:
       labels:
-        app: anaesthetic-calc
+        app: horoscope-bot
     spec:
       containers:
-      - name: anaesthetic-calc
-        image: jomcgi/anaesthetic-calc:latest
-        ports:
-        - containerPort: 9090
+      - name: horoscope-bot
+        image: horoscope-bot
         resources:
           limits:
             cpu: "500m"

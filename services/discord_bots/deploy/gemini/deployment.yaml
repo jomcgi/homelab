@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gemini-bot
+  labels:
+    app: gemini-bot
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: gemini-bot
+  template:
+    metadata:
+      labels:
+        app: gemini-bot
+    spec:
+      containers:
+      - name: gemini-bot
+        image: gemini-bot
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"

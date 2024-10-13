@@ -1,13 +1,12 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: anaesthetic-calc-service
+  name: calc-api-service
 spec:
   selector:
-    app: anaesthetic-calc
+    app: calc-api
   ports:
     - protocol: TCP
       port: 80
       targetPort: 9090
-      nodePort: 30251
   type: LoadBalancer
