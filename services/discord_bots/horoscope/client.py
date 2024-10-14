@@ -46,11 +46,11 @@ class HoroscopeBot(DiscordBot):
             return
         if message.channel.name not in ["bot-test", "general"]:
             return
-        if message.content.startswith("!gemini"):
+        if not message.content.lower().startswith("!horoscope"):
             return
         star_sign = _extract_star_sign(message.content)
         if star_sign is None:
-            return
+            await message.channel.send("Please specify a valid star sign.")
 
         horoscope = _get_horoscope_messages(star_sign)
         for horoscope_message in horoscope:
