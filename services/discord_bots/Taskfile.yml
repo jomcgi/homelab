@@ -11,6 +11,9 @@ tasks:
     deps: [build]
     cmds:
       - skaffold run -f {{.DB_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}} --tail
+  dev:
+    cmds:
+      - skaffold dev -f {{.DB_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
   delete:
     cmds:
       - skaffold delete -f {{.DB_SKAFFOLD_PATH}}

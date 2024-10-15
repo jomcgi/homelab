@@ -63,6 +63,7 @@ def _create_greetings_list() -> list[str]:
         "Salut",  # Romanian
         "Kumusta",  # Tagalog
         "Nomoshkar",  # Bengali
+        "habari",  # Kiswahili
     ]
     return [
         _strip_all_non_alphabet_characters(

@@ -1,0 +1,10 @@
+commonLabels:
+  app: lgtm
+
+resources:
+  - ./namespace.yaml
+  - ./service.yaml
+  # - ./deployment.yaml
+  # - ./ingress.yaml
+  # - ./persistent_volume.yaml
+  # 

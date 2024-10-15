@@ -11,3 +11,4 @@ includes:
   calc: ./services/anaesthetic_calc
   prefect: ./services/prefect
   discord_bots: ./services/discord_bots
+  lgtm: ./k8s_system/lgtm

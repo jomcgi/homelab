@@ -52,18 +52,42 @@ def create_discord_intents() -> discord.Intents:
     return intents
 
 
-def chunk_string(text: str, max_chunk_size=1990) -> list[str]:
-    words = text.split()
-    chunks = []
-    current_chunk = []
+def _remove_leading_whitespace(text: str) -> str:
+    return "\n".join(line.lstrip() for line in text.splitlines())
 
-    for word in words:
-        if len(" ".join(current_chunk)) + len(word) + 1 <= max_chunk_size:
-            current_chunk.append(word)
-        else:
+
+def chunk_string(text: str, max_chunk_size=1990) -> list[str]:
+    text = text.replace("\n\n\n", "\n\n").replace("\n\n", "\n")
+    lines = text.split("\n")
+    chunks: list[str] = []
+    current_chunk: list[str] = []
+    current_length = 0
+
+    for line in lines:
+        words = line.split(" ")
+        for word in words:
+            word = word.strip()
+            word = word.replace("\n", "")
+            if word == "":
+                continue
+            if current_length + len(word) + 1 <= max_chunk_size:
+                current_chunk.append(word)
+                current_length += len(word) + 1
+            else:
+                chunks.append(" ".join(current_chunk))
+                current_chunk = [word]
+                current_length = len(word)
+
+        if current_chunk:
+            current_chunk[-1] += "\n"
+            current_length += 1
+
+        if current_length > max_chunk_size:
             chunks.append(" ".join(current_chunk))
-            current_chunk = [word]
+            current_chunk = []
+            current_length = 0
 
     if current_chunk:
         chunks.append(" ".join(current_chunk))
-    return chunks
+
+    return [_remove_leading_whitespace(chunk) for chunk in chunks]
