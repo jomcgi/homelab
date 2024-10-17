@@ -1,0 +1,18 @@
+version: '3'
+
+vars:
+  AC_SERVICE: alloy-collector
+  AC_REPO: https://grafana.github.io/helm-charts
+  AC_CHART: grafana/alloy
+  AC_VERSION: 0.7.0
+
+tasks:
+  install:
+    cmds:
+      - helm repo add grafana {{.AC_REPO}}
+      - helm install {{.AC_SERVICE}} {{.AC_CHART}} --namespace {{.AC_SERVICE}} --create-namespace --version {{.AC_VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.AC_SERVICE}} {{.AC_CHART}} -f ./k8s_system/{{.AC_SERVICE}}/values.yaml -f ./k8s_system/{{.AC_SERVICE}}/override.yaml --namespace {{.AC_SERVICE}}
+  uninstall:
+      - helm uninstall {{.AC_SERVICE}} --namespace {{.AC_SERVICE}}

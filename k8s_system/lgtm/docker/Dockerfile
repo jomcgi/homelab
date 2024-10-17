@@ -14,7 +14,7 @@ ENV OPENTELEMETRY_COLLECTOR_VERSION=v0.111.0
 # TARGETARCH is automatically detected and set by the Docker daemon during the build process. If the build starts
 # on an amd64 architecture, than the TARGETARCH will be set to `amd64`.
 # More details on the variables can be found here: https://docs.docker.com/desktop/extensions-sdk/extensions/multi-arch/
-ARG TARGETARCH
+ARG TARGETARCH=amd64
 ENV TARGETARCH=${TARGETARCH}
 
 RUN mkdir /otel-lgtm
@@ -69,5 +69,5 @@ COPY otelcol-config.yaml .
 COPY run-otelcol.sh .
 COPY run-all.sh .
 RUN find . -maxdepth 1 -type f | xargs dos2unix
-
+RUN chmod +x *.sh
 CMD /otel-lgtm/run-all.sh

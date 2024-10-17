@@ -1,0 +1,18 @@
+logging {
+  level = "info"
+  format = "logfmt"
+}
+
+otelcol.exporter.otlp "lgtm-exporter" {
+  client {
+    endpoint = "http://lgtm.lgtm.svc.cluster.local:4318"
+  }
+}
+
+service {
+  pipelines {
+    logs = ["lgtm-exporter"]
+  }
+}
+
+# discover all standard k8s metadata

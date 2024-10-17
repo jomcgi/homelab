@@ -2,9 +2,6 @@ commonLabels:
   app: lgtm
 
 resources:
+  - ./lgtm
+  - ./otel
   - ./namespace.yaml
-  - ./service.yaml
-  # - ./deployment.yaml
-  # - ./ingress.yaml
-  # - ./persistent_volume.yaml
-  # 

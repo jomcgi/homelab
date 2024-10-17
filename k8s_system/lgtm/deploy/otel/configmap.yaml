@@ -1,0 +1,45 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+  namespace: lgtm
+data:
+  otel-collector-config: |
+    receivers:
+      otlp:
+        protocols:
+          grpc:
+          http:
+      filelog:
+        include: [ /var/log/containers/*.log ]
+        exclude: [ /var/log/containers/*kube-system*.log ]
+        start_at: beginning
+        operators:
+          - type: json_parser
+            timestamp:
+              parse_from: time
+              layout: '%Y-%m-%dT%H:%M:%S.%LZ'
+    
+    exporters:
+      otlp/http:
+        endpoint: "http://lgtm.lgtm.svc.cluster.local:4318"
+        tls:
+          insecure: true
+    
+    processors:
+      batch:
+    
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp]
+        metrics:
+          receivers: [otlp]
+          processors: [batch]
+          exporters: [otlp]
+        logs:
+          receivers: [filelog, otlp]
+          processors: [batch]
+          exporters: [otlp]

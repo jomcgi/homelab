@@ -12,3 +12,4 @@ includes:
   prefect: ./services/prefect
   discord_bots: ./services/discord_bots
   lgtm: ./k8s_system/lgtm
+  alloy-collector: ./k8s_system/alloy-collector

@@ -7,7 +7,7 @@ tasks:
   deploy:
     deps: [build]
     cmds:
-      - skaffold run -f k8s_system/lgtm/skaffold.yaml
+      - skaffold run -f k8s_system/lgtm/skaffold.yaml --tail
   delete:
     cmds:
       - skaffold delete -f k8s_system/lgtm/skaffold.yaml
