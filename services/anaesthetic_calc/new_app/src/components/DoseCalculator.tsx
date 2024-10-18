@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -9,11 +9,46 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { AlertCircle, RefreshCw } from "lucide-react";
+import { AlertCircle, RefreshCw, Trash2, Moon, Sun } from "lucide-react";
+
+// Theme context
+const ThemeContext = createContext({
+  theme: 'light',
+  toggleTheme: () => {},
+});
+
+// Theme provider component
+const ThemeProvider = ({ children }) => {
+  const [theme, setTheme] = useState('light');
+
+  const toggleTheme = useCallback(() => {
+    setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }, [theme]);
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
+
 
 const LocalAnaestheticDrug = {
-  LIDOCAINE: { name: "Lidocaine", maxDose: 3.0 },
-  BUPIVACAINE: { name: "Bupivacaine", maxDose: 2.0 },
+  LIDOCAINE: { name: "Lidocaine", maxDose: 4.5, concentrations: [0.5, 1] },
+  BUPIVACAINE: {
+    name: "Bupivacaine",
+    maxDose: 2.0,
+    concentrations: [0.25, 0.5],
+  },
+  ROPIVACAINE: {
+    name: "Ropivacaine",
+    maxDose: 3.0,
+    concentrations: [0.2, 0.75],
+  },
 };
 
 interface DrugDose {
@@ -31,6 +66,7 @@ const initialPatient: Patient = { weight: 0, doses: [] };
 const initialDose: DrugDose = { drugName: "", concentration: 0, doseInMl: 0 };
 
 export default function DoseCalculator() {
+  const { theme, toggleTheme } = useContext(ThemeContext);
   const [patient, setPatient] = useState<Patient>(initialPatient);
   const [newDose, setNewDose] = useState<DrugDose>(initialDose);
 
@@ -64,6 +100,14 @@ export default function DoseCalculator() {
     });
   }, [patient.doses, patient.weight]);
 
+  const unsafeDosesCount = useMemo(() => {
+    return cumulativeSafety.filter((safe) => !safe).length;
+  }, [cumulativeSafety]);
+
+  const canAddDose = useMemo(() => {
+    return unsafeDosesCount === 0;
+  }, [unsafeDosesCount]);
+
   const handleAddDose = () => {
     if (!patient.weight) {
       alert("Please enter patient weight before adding a dose.");
@@ -85,14 +129,40 @@ export default function DoseCalculator() {
     setNewDose(initialDose);
   };
 
+  const handleDeleteDose = (index: number) => {
+    const updatedDoses = patient.doses.filter((_, i) => i !== index);
+    setPatient({ ...patient, doses: updatedDoses });
+  };
 
+  // const DosesAdministered = ({ patient, handleDeleteDose, isDoseSafe, cumulativeSafety }) => {
+  //   const containerRef = useRef(null);
+  //   const headerRef = useRef(null);
+  //   const [contentHeight, setContentHeight] = useState('auto');
+
+  //   useEffect(() => {
+  //     const updateHeight = () => {
+  //       if (containerRef.current && headerRef.current) {
+  //         const containerHeight = containerRef.current.clientHeight;
+  //         const headerHeight = headerRef.current.clientHeight;
+  //         const newContentHeight = containerHeight - headerHeight;
+  //         setContentHeight(`${newContentHeight}px`);
+  //       }
+  //     };
+
+  //     updateHeight();
+  //     window.addEventListener('resize', updateHeight);
+
+  //     return () => window.removeEventListener('resize', updateHeight);
+  //   }, []);
 
   return (
     <div className="container mx-auto p-4">
       <Card className="mb-4">
         <CardHeader>
           <CardTitle className="flex justify-between items-center flex-wrap gap-2">
-            <span className="text-lg sm:text-xl">Local Anaesthetic Dose Calculator</span>
+            <span className="text-lg sm:text-xl">
+              Local Anaesthetic Dose Calculator
+            </span>
             <Button variant="outline" size="sm" onClick={handleReset}>
               <RefreshCw className="mr-2 h-4 w-4" /> Reset
             </Button>
@@ -152,18 +222,29 @@ export default function DoseCalculator() {
                 >
                   Concentration (%)
                 </label>
-                <Input
-                  id="concentration"
-                  type="number"
-                  value={newDose.concentration || ""}
-                  onChange={(e) =>
+                <Select
+                  value={newDose.concentration.toString()}
+                  onValueChange={(value) =>
                     setNewDose({
                       ...newDose,
-                      concentration: parseFloat(e.target.value) || 0,
+                      concentration: parseFloat(value),
                     })}
-                  className="w-full"
-                  placeholder="Enter concentration"
-                />
+                  disabled={!newDose.drugName}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select concentration" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {newDose.drugName &&
+                      LocalAnaestheticDrug[
+                        newDose.drugName as keyof typeof LocalAnaestheticDrug
+                      ].concentrations.map((conc) => (
+                        <SelectItem key={conc} value={conc.toString()}>
+                          {conc}%
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <label
@@ -186,7 +267,11 @@ export default function DoseCalculator() {
                 />
               </div>
               <div className="flex items-end">
-                <Button onClick={handleAddDose} className="w-full">
+                <Button
+                  onClick={handleAddDose}
+                  className="w-full"
+                  disabled={!canAddDose}
+                >
                   Add Dose
                 </Button>
               </div>
@@ -194,53 +279,69 @@ export default function DoseCalculator() {
           </div>
         </CardContent>
       </Card>
-    <Card className="h-[55vh] flex flex-col">
-      <CardHeader>
-        <CardTitle>Doses Administered</CardTitle>
-      </CardHeader>
-      <CardContent className="flex-grow overflow-hidden">
-        {patient.doses.length === 0 ? (
-          <p>No doses administered yet.</p>
-        ) : (
-          <div className="h-full overflow-y-auto pr-2">
-            <ul className="space-y-2">
-              {patient.doses.map((dose, index) => {
-                const isSafe = cumulativeSafety[index];
-                return (
-                  <li
-                    key={index}
-                    className={`flex items-center justify-between p-2 rounded ${
-                      isSafe ? "bg-green-100" : "bg-red-100"
-                    }`}
-                  >
-                    <span>
-                      {LocalAnaestheticDrug[dose.drugName].name} {dose.concentration}% {dose.doseInMl}ml
-                      {!isSafe && (
-                        <span className="ml-2 text-red-600">(Unsafe)</span>
-                      )}
-                    </span>
-                    {!isSafe && <AlertCircle className="text-red-500" />}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
-        )}
-        <div className="mt-4">
-          <p
-            className={`font-bold ${
-              isDoseSafe(patient.doses, patient.weight)
-                ? "text-green-600"
-                : "text-red-600"
-            }`}
-          >
-            {isDoseSafe(patient.doses, patient.weight)
-              ? "Safe Total Dose"
-              : "Unsafe Total Dose"}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+      <Card className="flex flex-col">
+        <CardHeader className="flex-shrink-0">
+          <CardTitle>Doses Administered</CardTitle>
+        </CardHeader>
+        <CardContent className="flex-grow overflow-y-auto">
+          {patient.doses.length === 0
+            ? <p>No doses administered yet.</p>
+            : (
+              <div className="h-full overflow-y-auto">
+                <ul className="space-y-2">
+                  {patient.doses.map((dose, index) => {
+                    const isSafe = cumulativeSafety[index];
+                    return (
+                      <li
+                        key={index}
+                        className={`flex items-center justify-between p-2 rounded ${
+                          isSafe ? "bg-green-100" : "bg-red-100"
+                        }`}
+                      >
+                        <span>
+                          {LocalAnaestheticDrug[
+                            dose.drugName as keyof typeof LocalAnaestheticDrug
+                          ].name} {dose.concentration}% {dose.doseInMl}ml
+                          {!isSafe && (
+                            <span className="ml-2 text-red-600">(Unsafe)</span>
+                          )}
+                        </span>
+                        <div className="flex items-center">
+                          {!isSafe && (
+                            <AlertCircle className="text-red-500 mr-2" />
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleDeleteDose(index)}
+                            className="p-1"
+                          >
+                            <Trash2 className="h-4 w-4 text-red-500" />
+                          </Button>
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            )}
+          {patient.doses.length > 0 && (
+            <div className="mt-4">
+              <p
+                className={`font-bold ${
+                  isDoseSafe(patient.doses, patient.weight)
+                    ? "text-green-600"
+                    : "text-red-600"
+                }`}
+              >
+                {isDoseSafe(patient.doses, patient.weight)
+                  ? "Safe Total Dose"
+                  : "Unsafe Total Dose"}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
