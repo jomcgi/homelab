@@ -43,7 +43,7 @@ def configure_structlog():
             structlog.processors.CallsiteParameterAdder(),
             structlog.processors.UnicodeDecoder(),
             structlog.processors.add_log_level,
-            structlog.processors.structlog.processors.dict_tracebacks,
+            structlog.processors.dict_tracebacks,
             structlog.processors.JSONRenderer(),
         ]
     )
