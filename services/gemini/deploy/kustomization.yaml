@@ -1,0 +1,6 @@
+commonLabels:
+  app: gemini
+
+resources:
+  - ./api
+  - ./namespace.yaml

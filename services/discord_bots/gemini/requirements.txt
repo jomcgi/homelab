@@ -1,5 +1,0 @@
-discord
-pydantic-settings
-fastapi[standard]
-google-generativeai
-pillow

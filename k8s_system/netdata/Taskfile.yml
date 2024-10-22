@@ -1,9 +1,0 @@
-version: '3'
-
-tasks:
-  install:
-    cmds:
-      - helm install netdata netdata/netdata --namespace netdata --create-namespace
-  upgrade:
-    cmds:
-      - helm upgrade netdata netdata/netdata -f k8s_system/netdata/values.yaml -f k8s_system/netdata/override.yaml --namespace netdata

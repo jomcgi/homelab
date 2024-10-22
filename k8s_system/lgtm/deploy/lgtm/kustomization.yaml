@@ -1,6 +1,0 @@
-commonLabels:
-  app: lgtm
-
-resources:
-  - ./service.yaml
-  - ./deployment.yaml

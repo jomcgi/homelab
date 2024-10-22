@@ -5,11 +5,13 @@ vars:
 
 includes:
   container_registry: ./k8s_system/container_registry
-  netdata: ./k8s_system/netdata
   uptime_kuma: ./k8s_system/uptime-kuma
   uptime_kuma_public: ./services/uptime_kuma_public
   calc: ./services/anaesthetic_calc
-  prefect: ./services/prefect
-  discord_bots: ./services/discord_bots
-  lgtm: ./k8s_system/lgtm
-  alloy-collector: ./k8s_system/alloy-collector
+  loki: ./k8s_system/loki
+  kube-prometheus: ./k8s_system/kube-prometheus
+  promtail: ./k8s_system/promtail
+  gemini: ./services/gemini
+  discord: ./services/discord
+  tempo: ./k8s_system/tempo
+  otel: ./k8s_system/otel

@@ -1,0 +1,13 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: monitoring
+
+manifests:
+  kustomize:
+    paths:
+    - ./k8s_system/kube-prometheus/deploy
+deploy:
+  kubectl:
+
+        

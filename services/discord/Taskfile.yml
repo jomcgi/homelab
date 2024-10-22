@@ -1,0 +1,19 @@
+version: '3'
+
+vars:
+  DI_SKAFFOLD_PATH: services/discord/skaffold.yaml
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f {{.DI_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
+  deploy:
+    deps: [build]
+    cmds:
+      - skaffold run -f {{.DI_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}} --tail
+  dev:
+    cmds:
+      - skaffold dev -f {{.DI_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
+  delete:
+    cmds:
+      - skaffold delete -f {{.DI_SKAFFOLD_PATH}}

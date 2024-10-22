@@ -1,0 +1,35 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gemini
+  labels:
+    app: gemini
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: gemini
+  template:
+    metadata:
+      labels:
+        app: gemini
+    spec:
+      containers:
+      - name: gemini
+        image:  gemini
+        ports:
+        - containerPort: 9090
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        env:
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-opentelemetry-collector.otel-collector.svc.cluster.local:4318

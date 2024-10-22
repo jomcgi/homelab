@@ -1,7 +1,0 @@
-commonLabels:
-  app: lgtm
-
-resources:
-  - ./lgtm
-  - ./otel
-  - ./namespace.yaml

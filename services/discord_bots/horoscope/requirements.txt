@@ -1,5 +1,0 @@
-discord
-pydantic-settings
-fastapi[standard]
-requests
-beautifulsoup4

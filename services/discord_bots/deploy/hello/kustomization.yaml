@@ -1,6 +1,0 @@
-commonLabels:
-  app: hello-bot
-
-resources:
-  - ./deployment.yaml
-  - ./service.yaml

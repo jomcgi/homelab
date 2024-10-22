@@ -1,6 +1,0 @@
-commonLabels:
-  app: otel
-
-resources:
-  - ./configmap.yaml
-  - ./daemonset.yaml

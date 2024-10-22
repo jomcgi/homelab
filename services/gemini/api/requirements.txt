@@ -1,0 +1,9 @@
+pydantic-settings
+fastapi[standard]
+google-generativeai
+structlog
+aiohttp
+opentelemetry-api
+opentelemetry-exporter-otlp-proto-http
+opentelemetry-instrumentation-fastapi
+opentelemetry-sdk

@@ -1,6 +1,0 @@
-commonLabels:
-  app: horoscope-bot
-
-resources:
-  - ./deployment.yaml
-  - ./service.yaml

@@ -1,0 +1,19 @@
+version: '3'
+
+vars:
+  PR_SERVICE: promtail
+  PR_REPO: https://grafana.github.io/helm-charts
+  PR_CHART: grafana/promtail
+  PR_VERSION: 6.16.5
+
+tasks:
+  install:
+    cmds:
+      - helm repo add grafana {{.PR_REPO}}
+      - helm install {{.PR_SERVICE}} {{.PR_CHART}} --namespace {{.PR_SERVICE}} --values ./k8s_system/{{.PR_SERVICE}}/values.yaml --create-namespace --version {{.PR_VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.PR_SERVICE}} {{.PR_CHART}} -f ./k8s_system/{{.PR_SERVICE}}/values.yaml -f ./k8s_system/{{.PR_SERVICE}}/override.yaml --namespace {{.PR_SERVICE}}
+  uninstall:
+      - helm uninstall {{.PR_SERVICE}} --namespace {{.PR_SERVICE}}
+      - kubectl delete namespace {{.PR_SERVICE}}

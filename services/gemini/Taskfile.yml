@@ -1,0 +1,16 @@
+version: '3'
+
+vars:
+  GE_SKAFFOLD_PATH: services/gemini/skaffold.yaml
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f {{.GE_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
+  deploy:
+    deps: [build]
+    cmds:
+      - skaffold run -f {{.GE_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}} --tail
+  delete:
+    cmds:
+      - skaffold delete -f {{.GE_SKAFFOLD_PATH}}

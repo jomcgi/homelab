@@ -1,0 +1,6 @@
+commonLabels:
+  app: discord
+
+resources:
+  - ./chat
+  - ./namespace.yaml

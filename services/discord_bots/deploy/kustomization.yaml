@@ -1,8 +1,0 @@
-commonLabels:
-  app: discord-bots
-
-resources:
-  - ./gemini
-  - ./hello
-  - ./horoscope
-  - ./namespace.yaml
