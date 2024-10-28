@@ -57,6 +57,11 @@ def extract_command(message: str) -> COMMAND_HANDLER | None:
     pattern = r"^!([\w]+)"
     match = re.match(pattern, message.lower())
     if not match:
+        _add_to_current_span(
+            {
+                "discord.bot.command": "not_found",
+            }
+        )
         return
     potential_command = match.group(1)
     try:

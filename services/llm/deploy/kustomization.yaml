@@ -1,5 +1,5 @@
 commonLabels:
-  app: gemini
+  app: llm
 
 resources:
   - ./api

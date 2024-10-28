@@ -12,4 +12,18 @@ stringData:
   grafana.ini: |
     [date_formats]
     default_timezone = UTC
+
+    [auth.anonymous]
+    # enable anonymous access
+    enabled = true
+    # specify organization name that should be used for unauthenticated users
+    org_name = Main Org.
+    org_role = Viewer
+
+    [security]
+    admin_user = jomcgi
+    admin_password = Killjoy123!
+
+    [dashboards]
+    default_home_dashboard_path = /grafana-dashboard-definitions/1/chat-summary/chat-summary.json
 type: Opaque

@@ -1,0 +1,16 @@
+version: '3'
+
+vars:
+  LL_SKAFFOLD_PATH: services/llm/skaffold.yaml
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f {{.LL_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
+  deploy:
+    deps: [build]
+    cmds:
+      - skaffold run -f {{.LL_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}} --tail
+  delete:
+    cmds:
+      - skaffold delete -f {{.LL_SKAFFOLD_PATH}}

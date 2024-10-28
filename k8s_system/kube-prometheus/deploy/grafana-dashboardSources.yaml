@@ -5,11 +5,21 @@ data:
         "apiVersion": 1,
         "providers": [
             {
-                "folder": "Default",
+                "folder": "K8S",
                 "folderUid": "",
                 "name": "0",
                 "options": {
                     "path": "/grafana-dashboard-definitions/0"
+                },
+                "orgId": 1,
+                "type": "file"
+            },
+            {
+                "folder": "Discord",
+                "folderUid": "",
+                "name": "1",
+                "options": {
+                    "path": "/grafana-dashboard-definitions/1"
                 },
                 "orgId": 1,
                 "type": "file"

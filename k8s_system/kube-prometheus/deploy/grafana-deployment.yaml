@@ -41,11 +41,11 @@ spec:
             port: http
         resources:
           limits:
-            cpu: 200m
-            memory: 200Mi
+            cpu: 750m
+            memory: 750Mi
           requests:
-            cpu: 100m
-            memory: 100Mi
+            cpu: 500m
+            memory: 500Mi
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -147,6 +147,15 @@ spec:
           readOnly: false
         - mountPath: /grafana-dashboard-definitions/0/workload-total
           name: grafana-dashboard-workload-total
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/1/chat-summary
+          name: grafana-dashboard-chat-summary
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/1/trace-view
+          name: grafana-dashboard-trace-view
+          readOnly: false
+        - mountPath: /grafana-dashboard-definitions/1/pod-summary
+          name: grafana-dashboard-pod-summary
           readOnly: false
         - mountPath: /etc/grafana
           name: grafana-config
@@ -252,6 +261,15 @@ spec:
       - configMap:
           name: grafana-dashboard-workload-total
         name: grafana-dashboard-workload-total
+      - configMap:
+          name: grafana-dashboard-chat-summary
+        name: grafana-dashboard-chat-summary
+      - configMap:
+          name: grafana-dashboard-trace-view
+        name: grafana-dashboard-trace-view
+      - configMap:
+          name: grafana-dashboard-pod-summary
+        name: grafana-dashboard-pod-summary
       - name: grafana-config
         secret:
           secretName: grafana-config

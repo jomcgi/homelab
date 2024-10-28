@@ -11,7 +11,7 @@ includes:
   loki: ./k8s_system/loki
   kube-prometheus: ./k8s_system/kube-prometheus
   promtail: ./k8s_system/promtail
-  gemini: ./services/gemini
   discord: ./services/discord
   tempo: ./k8s_system/tempo
   otel: ./k8s_system/otel
+  llm: ./services/llm

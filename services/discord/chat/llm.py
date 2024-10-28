@@ -5,6 +5,7 @@ import structlog
 from opentelemetry.instrumentation.aiohttp_client import create_trace_config
 from services.discord.chat.instrumentation import _add_to_current_span
 import opentelemetry.trace as trace
+from pydantic_core import ValidationError
 
 logger = structlog.get_logger(__name__)
 
@@ -70,13 +71,21 @@ class LLMResponse(BaseModel):
     metadata: LLMResponseMetadata
 
 
-async def infer(content: list[str | MediaContent]) -> LLMResponse:
+async def infer(
+    prompt: str,
+    content: list[str | MediaContent],
+    model: Literal["anthropic", "gemini"],
+) -> LLMResponse:
     """Infer the response to the message"""
-    model_url = "http://gemini.gemini.svc.cluster.local:80/infer"
+    model_url = f"http://llm.llm.svc.cluster.local:80/infer/{model}"
     data = [
         media.model_dump() if isinstance(media, MediaContent) else media
         for media in content
     ]
+    payload = {
+        "prompt": prompt,
+        "content": data,
+    }
 
     async with aiohttp.ClientSession(
         trace_configs=[
@@ -85,6 +94,16 @@ async def infer(content: list[str | MediaContent]) -> LLMResponse:
             )
         ]
     ) as session:
-        async with session.post(model_url, json=data) as response:
+        async with session.post(model_url, json=payload) as response:
             result = await response.json()
-    return LLMResponse.model_validate(result)
+    try:
+        return LLMResponse.model_validate(result)
+    except ValidationError as e:
+        logger.error(
+            "Failed to validate response",
+            response=response,
+            result=result,
+            exc_info=e,
+        )
+        response.raise_for_status()
+        raise

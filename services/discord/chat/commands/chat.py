@@ -7,6 +7,7 @@ from services.discord.chat.instrumentation import _add_to_current_span
 import services.discord.chat.llm as llm
 from services.discord.chat.personas import ChatPersona
 import structlog
+import re
 
 logger = structlog.get_logger(__name__)
 
@@ -53,14 +54,13 @@ async def _send_chat_response(
 
 async def _generate_response(
     message: discord.Message,
-    prompt: str,
+    persona: ChatPersona,
 ):
     content: list[llm.MediaContent | str] = [
-        f"Prompt: {prompt}",
         *_get_valid_attachments(message.attachments),
-        f"User Message: {message.content}",
+        f"User Message: {re.sub(f"(?i)^!{persona.name}", "", message.content)}",
     ]
-    response = await llm.infer(content)
+    response = await llm.infer(persona.value, content, "gemini")
     await _send_chat_response(message, response)
 
 
@@ -78,7 +78,7 @@ async def _chat_command(message: discord.Message) -> None:
             "discord.bot.persona": persona.name,
         }
     )
-    await _generate_response(message, prompt=persona.value)
+    await _generate_response(message, persona=persona)
     logger.info(
         "Finished processing !chat command",
         persona=persona.name,
@@ -102,7 +102,7 @@ def _create_persona_func(persona: ChatPersona) -> COMMAND_HANDLER:
                 content=message.content,
                 persona=persona.name,
             )
-            await _generate_response(message, prompt=persona.value)
+            await _generate_response(message, persona=persona)
             logger.info(
                 "Finished processing persona command",
                 persona=persona.name,

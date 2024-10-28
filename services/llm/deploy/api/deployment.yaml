@@ -1,9 +1,9 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: gemini
+  name: llm
   labels:
-    app: gemini
+    app: llm
 spec:
   replicas: 1
   strategy:
@@ -12,15 +12,15 @@ spec:
       maxSurge: 2
   selector:
     matchLabels:
-      app: gemini
+      app: llm
   template:
     metadata:
       labels:
-        app: gemini
+        app: llm
     spec:
       containers:
-      - name: gemini
-        image:  gemini
+      - name: llm
+        image:  llm
         ports:
         - containerPort: 9090
         resources:
@@ -33,3 +33,9 @@ spec:
         env:
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: http://otel-opentelemetry-collector.otel-collector.svc.cluster.local:4318
+        envFrom:
+        - configMapRef:
+            name: gemini
+        - configMapRef:
+            name: anthropic
+        

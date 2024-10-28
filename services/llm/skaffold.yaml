@@ -1,7 +1,7 @@
 apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
-  name: gemini
+  name: llm
 
 build:
   local:
@@ -10,15 +10,15 @@ build:
     useBuildkit: false
     concurrency: 2
   artifacts:
-    - image: gemini
-      context: ./services/gemini/api
+    - image: llm
+      context: ./services/llm/api
 
 manifests:
   kustomize:
     paths:
-    - ./services/gemini/deploy
+    - ./services/llm/deploy
 
 deploy:
   kubectl:
-    defaultNamespace: gemini
+    defaultNamespace: llm
         

@@ -35,3 +35,14 @@ image:
 
 command:
   name: otelcol-k8s
+
+presets:
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+    extractAllPodAnnotations: true
+
+resources:
+  limits:
+    cpu: 250m
+    memory: 512Mi
