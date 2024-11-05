@@ -1,0 +1,5 @@
+commonLabels:
+  app: discord-banter-bank
+
+resources:
+  - ./deployment.yaml

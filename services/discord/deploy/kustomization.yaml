@@ -2,5 +2,6 @@ commonLabels:
   app: discord
 
 resources:
+  - ./banter_bank
   - ./chat
   - ./namespace.yaml

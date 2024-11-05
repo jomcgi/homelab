@@ -11,7 +11,7 @@ from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
 from api.claude import anthropic_inference
 
-from api.google import gemini_inference
+from api.google import google_inference
 from api.health import HealthResponse, get_health
 from api.log_config import configure_structlog
 from api.types import LLMResponse
@@ -36,7 +36,7 @@ app.add_api_route(
 
 app.add_api_route(
     path="/infer/gemini",
-    endpoint=gemini_inference,
+    endpoint=google_inference,
     methods=["POST"],
     status_code=200,
     response_model=LLMResponse,

@@ -1,3 +1,4 @@
+from functools import cached_property
 import aiohttp
 from pydantic import BaseModel
 from fastapi import HTTPException
@@ -34,6 +35,7 @@ class InputMediaContent(BaseModel):
     url: str
     mime_type: str
 
+    @cached_property
     async def retrieve_data(
         self, session: aiohttp.ClientSession
     ) -> dict[str, str | bytes]:
@@ -78,6 +80,9 @@ class LLMResponse(BaseModel):
 
     text: str
     metadata: LLMResponseMetadata
+
+    def model_post_init(self, __context) -> None:
+        _add_to_current_span({"gen_ai.response.text": self.text[:50]})
 
 
 class LLMRequest(BaseModel):
