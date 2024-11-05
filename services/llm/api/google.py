@@ -12,6 +12,7 @@ from google.generativeai.types.safety_types import HarmBlockThreshold, HarmCateg
 from pydantic_settings import BaseSettings, SettingsConfigDict
 import opentelemetry.trace as trace
 from api.types import InputMediaContent, LLMRequest, LLMResponse, LLMResponseMetadata
+from api.search import get_search_context
 
 logging.basicConfig(level=logging.INFO)
 logger = structlog.get_logger(__name__)
@@ -97,6 +98,9 @@ async def gemini_inference(request: LLMRequest) -> LLMResponse:
         *attachments,
         *[item for item in request.content if not isinstance(item, InputMediaContent)],
     ]
+
+    search_context = await get_search_context(formatted_content)
+    formatted_content.append(f"Context from Google Search: {search_context}")
 
     model_metadata = {
         "gen_ai.request.model": GEMINI_CONFIG.MODEL_NAME,

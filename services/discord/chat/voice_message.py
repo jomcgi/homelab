@@ -1,7 +1,10 @@
 import discord
 import structlog
 from services.discord.chat.format_text import _format_text_for_discord
-from services.discord.chat.instrumentation import _add_to_current_span
+from services.discord.chat.instrumentation import (
+    _add_to_current_span,
+    _reply_with_trace_info,
+)
 import services.discord.chat.llm as llm
 
 logger = structlog.get_logger(__name__)
@@ -46,8 +49,12 @@ async def _transcribe_voice_message(
         logger.info(
             "Responding with transcribed message.",
         )
-        for chunk in formatted_transcription:
-            await message.reply(chunk)
+        if len(formatted_transcription) > 1:
+            for chunk in formatted_transcription[:-1]:
+                await message.reply(chunk)
+            await _reply_with_trace_info(message, formatted_transcription[-1])
+        else:
+            await _reply_with_trace_info(message, formatted_transcription[0])
         logger.info(
             "Transcribed message sent.",
         )

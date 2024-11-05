@@ -3,7 +3,10 @@ import discord
 from typing import get_args
 from services.discord.chat.commands.types import COMMAND_HANDLER
 from services.discord.chat.format_text import _format_text_for_discord
-from services.discord.chat.instrumentation import _add_to_current_span
+from services.discord.chat.instrumentation import (
+    _add_to_current_span,
+    _reply_with_trace_info,
+)
 import services.discord.chat.llm as llm
 from services.discord.chat.personas import ChatPersona
 import structlog
@@ -42,11 +45,15 @@ async def _send_chat_response(
         "Responding with chat messages",
         response=formatted_response,
     )
-    for chunk in formatted_response:
-        await message.reply(
-            chunk,
-            mention_author=True,
-        )
+    if len(formatted_response) > 1:
+        for chunk in formatted_response[:-1]:
+            await message.reply(
+                chunk,
+                mention_author=True,
+            )
+        await _reply_with_trace_info(message, formatted_response[-1])
+    else:
+        await _reply_with_trace_info(message, formatted_response[0])
     logger.info(
         "Chat messages sent",
     )

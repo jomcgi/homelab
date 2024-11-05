@@ -8,3 +8,4 @@ opentelemetry-exporter-otlp-proto-http
 opentelemetry-instrumentation-fastapi
 opentelemetry-sdk
 anthropic
+duckduckgo_search

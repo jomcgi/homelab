@@ -4,7 +4,10 @@ import structlog
 
 from services.discord.chat.commands.chat import _chat_command, _create_persona_func
 from services.discord.chat.commands.types import COMMAND_HANDLER
-from services.discord.chat.instrumentation import _add_to_current_span
+from services.discord.chat.instrumentation import (
+    _add_to_current_span,
+    _reply_with_trace_info,
+)
 from services.discord.chat.personas import ChatPersona
 
 
@@ -18,9 +21,9 @@ async def _help_command(message: discord.Message) -> None:
             "discord.bot.command": "help",
         }
     )
-    await message.reply(
-        HELP_MESSAGE,
-        mention_author=True,
+    await _reply_with_trace_info(
+        message=message,
+        response=HELP_MESSAGE,
     )
 
 

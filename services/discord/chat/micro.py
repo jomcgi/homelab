@@ -1,6 +1,9 @@
 import json
 import discord
-from services.discord.chat.instrumentation import _add_to_current_span
+from services.discord.chat.instrumentation import (
+    _add_to_current_span,
+    _reply_with_trace_info,
+)
 from services.discord.chat.prompts import HAPPY_PROMPT
 import services.discord.chat.llm as llm
 from pydantic import BaseModel
@@ -211,7 +214,7 @@ async def _handle_microaggression(
             f"Microagression Detected: {microagression}",
         ]
         response = await llm.infer(MICRO, content, "gemini")
-        await message.reply(response.text)
+        await _reply_with_trace_info(message, response.text)
         _add_to_current_span({"discord.bot.microaggression.handled": "true"})
     except Exception as e:
         logger.exception("Error handling microaggression", exc_info=e)

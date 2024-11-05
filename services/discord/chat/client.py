@@ -3,7 +3,10 @@ import structlog
 from services.discord.chat.commands.handler import (
     extract_command,
 )
-from services.discord.chat.instrumentation import _add_to_current_span
+from services.discord.chat.instrumentation import (
+    _add_to_current_span,
+    _reply_with_trace_info,
+)
 from services.discord.chat.micro import _detect_microaggression, _handle_microaggression
 from services.discord.chat.voice_message import (
     _retrieve_voice_message,
@@ -40,20 +43,6 @@ def _message_contextvars(
         channel_name=message.channel.name,
         server_id=message.guild.id,
         server_name=message.guild.name,
-    )
-
-
-async def _send_error_response(message: discord.Message) -> None:
-    span = trace.get_current_span()
-    span_ctx = span.get_span_context()
-    trace_id = trace.format_trace_id(span_ctx.trace_id)
-    start = int(message.created_at.timestamp() * 1000) - 300000
-    end = int(discord.utils.utcnow().timestamp() * 1000) + 300000
-    dashboard_url = "https://grafana.jomcgi.dev/d/ce1n5j1xiggzkf/trace-view?orgId=1"
-    error_url = f"{dashboard_url}&var-trace_id={trace_id}&from={start}&to={end}"
-    await message.reply(
-        "Error occured generating response.",
-        embed=discord.Embed(title="View error details", url=error_url),
     )
 
 
@@ -125,4 +114,6 @@ class ChatBot(DiscordBot):
 
                 except Exception as e:
                     logger.exception("Error processing message", exc_info=e)
-                    await _send_error_response(message)
+                    await _reply_with_trace_info(
+                        message, "Error occured generating response."
+                    )
