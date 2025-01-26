@@ -8,6 +8,7 @@ from services.discord.chat.instrumentation import (
     _reply_with_trace_info,
 )
 from services.discord.chat.micro import _detect_microaggression, _handle_microaggression
+from services.discord.chat.url import url_context
 from services.discord.chat.voice_message import (
     _retrieve_voice_message,
     _transcribe_voice_message,
@@ -87,12 +88,20 @@ class ChatBot(DiscordBot):
                                 voice_attachment, message
                             ):
                                 message.content = transcription + message.content
-
+                    try:
+                        url_string_summary, url_attachments = url_context(
+                            message.content
+                        )
+                        if url_string_summary:
+                            message.content += url_string_summary
+                    except Exception as e:
+                        logger.exception("Error fetching URL", exc_info=e)
+                        url_attachments = []
                     if command := extract_command(message.content):
                         with tracer.start_as_current_span(
                             "discord.bot.command",
                         ):
-                            await command(message)
+                            await command(message, url_attachments)
                             return
                     if message.content:
                         _add_to_current_span(
@@ -106,7 +115,9 @@ class ChatBot(DiscordBot):
                             if micro_agression := await _detect_microaggression(
                                 message.content
                             ):
-                                await _handle_microaggression(message, micro_agression)
+                                await _handle_microaggression(
+                                    message, micro_agression, url_attachments
+                                )
                             else:
                                 _add_to_current_span(
                                     {"discord.bot.microaggression.detected": "false"}

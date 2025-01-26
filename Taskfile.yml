@@ -15,3 +15,4 @@ includes:
   tempo: ./k8s_system/tempo
   otel: ./k8s_system/otel
   llm: ./services/llm
+  file_organizer_2000: ./services/file_organizer_2000

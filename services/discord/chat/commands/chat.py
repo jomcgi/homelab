@@ -62,16 +62,20 @@ async def _send_chat_response(
 async def _generate_response(
     message: discord.Message,
     persona: ChatPersona,
+    media_content: list[llm.MediaContent],
 ):
     content: list[llm.MediaContent | str] = [
         *_get_valid_attachments(message.attachments),
+        *media_content,
         f"User Message: {re.sub(f"(?i)^!{persona.name}", "", message.content)}",
     ]
     response = await llm.infer(persona.value, content, "gemini")
     await _send_chat_response(message, response)
 
 
-async def _chat_command(message: discord.Message) -> None:
+async def _chat_command(
+    message: discord.Message, media_content: list[llm.MediaContent]
+) -> None:
     """Chat with a random persona"""
 
     logger.info(
@@ -85,7 +89,7 @@ async def _chat_command(message: discord.Message) -> None:
             "discord.bot.persona": persona.name,
         }
     )
-    await _generate_response(message, persona=persona)
+    await _generate_response(message, persona=persona, media_content=media_content)
     logger.info(
         "Finished processing !chat command",
         persona=persona.name,
@@ -93,7 +97,10 @@ async def _chat_command(message: discord.Message) -> None:
 
 
 def _create_persona_func(persona: ChatPersona) -> COMMAND_HANDLER:
-    async def _persona_command(message: discord.Message) -> None:
+
+    async def _persona_command(
+        message: discord.Message, media_content: list[llm.MediaContent]
+    ) -> None:
         """Chat with AI as a specific persona"""
         _add_to_current_span(
             {
@@ -109,7 +116,9 @@ def _create_persona_func(persona: ChatPersona) -> COMMAND_HANDLER:
                 content=message.content,
                 persona=persona.name,
             )
-            await _generate_response(message, persona=persona)
+            await _generate_response(
+                message, persona=persona, media_content=media_content
+            )
             logger.info(
                 "Finished processing persona command",
                 persona=persona.name,

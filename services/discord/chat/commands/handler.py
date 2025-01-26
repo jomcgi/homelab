@@ -8,13 +8,16 @@ from services.discord.chat.instrumentation import (
     _add_to_current_span,
     _reply_with_trace_info,
 )
+from services.discord.chat.llm import MediaContent
 from services.discord.chat.personas import ChatPersona
 
 
 logger = structlog.get_logger(__name__)
 
 
-async def _help_command(message: discord.Message) -> None:
+async def _help_command(
+    message: discord.Message, media_content: list[MediaContent]
+) -> None:
     """Display help message"""
     _add_to_current_span(
         {

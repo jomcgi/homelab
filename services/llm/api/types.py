@@ -34,15 +34,18 @@ class InputMediaContent(BaseModel):
 
     url: str
     mime_type: str
+    _data: dict[str, str | bytes] | None = None
 
-    @cached_property
     async def retrieve_data(
         self, session: aiohttp.ClientSession
     ) -> dict[str, str | bytes]:
-        return MediaContent(
-            data=await get_content_from_url(session, self.url),
-            mime_type=self.mime_type,
-        ).model_dump()
+        """Retrieve media content data"""
+        if self._data is None:
+            self._data = MediaContent(
+                data=await get_content_from_url(session, self.url),
+                mime_type=self.mime_type,
+            ).model_dump()
+        return self._data
 
 
 class LLMResponseMetadata(BaseModel):

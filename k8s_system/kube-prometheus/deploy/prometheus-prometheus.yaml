@@ -32,11 +32,14 @@ spec:
   podMonitorSelector: {}
   probeNamespaceSelector: {}
   probeSelector: {}
-  replicas: 2
+  replicas: 1
   resources:
     requests:
-      memory: 950Mi
+      memory: 1Gi
       cpu: 600m
+    limits:
+      memory: 2Gi
+      cpu: 1
   ruleNamespaceSelector: {}
   ruleSelector: {}
   scrapeConfigNamespaceSelector: {}

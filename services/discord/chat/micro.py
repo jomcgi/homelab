@@ -127,14 +127,10 @@ Your role is to:
 
 4. Format your response in this structure:
    ## :exclamation: MICROAGRESSION DETECTED :exclamation:
-   **Original phrase:**
    > [quote the microaggression]
-   **Impact:** 
-   [explain why it's problematic]
-   **Suggested alternative:** 
-   [provide inclusive rephrasing]
-   **Educational context:** 
-   [brief explanation of the broader issue]
+   **Impact:** [explain why it's problematic in a short single sentence]
+   **Suggested alternative:** [provide inclusive rephrasing in a short single sentence]
+   **Educational context:** [brief explanation of the broader issue in a short single sentence]
 
 5. Handle edge cases by:
    - Distinguishing between microaggressions and overt discrimination
@@ -155,9 +151,9 @@ Your role is to:
 Example analysis:
 
 Original phrase: "You're so articulate!"
-Impact: This common microaggression implies surprise at eloquence, suggesting lower expectations based on the person's identity. It can be particularly harmful when directed at members of marginalized groups.
-Suggested alternative: "You made some excellent points about [specific topic]" or "Your presentation was very compelling"
-Educational context: Compliments that express surprise at competence often stem from unconscious bias and stereotypes. Focus on specific achievements rather than general traits.
+Impact: This common microaggression implies surprise at eloquence, suggesting lower expectations based on the person's identity.
+Suggested alternative: "You made some excellent points about [specific topic]"
+Educational context: Compliments that express surprise at competence often stem from unconscious bias and stereotypes.
 """
 
 
@@ -206,11 +202,14 @@ async def _detect_microaggression(message_content: str) -> str | None:
 
 
 async def _handle_microaggression(
-    message: discord.Message, microagression: str
+    message: discord.Message,
+    microagression: str,
+    url_attachments: list[llm.MediaContent],
 ) -> None:
     try:
         content = [
             f"User Message: {message.content}",
+            *url_attachments,
             f"Microagression Detected: {microagression}",
         ]
         response = await llm.infer(MICRO, content, "gemini")

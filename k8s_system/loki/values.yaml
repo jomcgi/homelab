@@ -40,8 +40,8 @@ singleBinary:
       cpu: 3
       memory: 2Gi
     requests:
-      cpu: 2
-      memory: 1Gi
+      cpu: 1
+      memory: 512Mi
   extraEnv:
     # Keep a little bit lower than memory limits
     - name: GOMEMLIMIT
@@ -60,9 +60,8 @@ gateway:
       requiredDuringSchedulingIgnoredDuringExecution: null
 
 chunksCache:
-  # default is 500MB, with limited memory keep this smaller
-  writebackSizeLimit: 10MB
-  allocatedMemory: 1024
+  writebackSizeLimit: 256MB
+  allocatedMemory: 512
 
 # Enable minio for storage
 minio:

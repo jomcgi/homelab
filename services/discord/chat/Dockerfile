@@ -9,9 +9,12 @@ COPY /services/discord/chat/requirements.txt .
 
 USER root
 
-RUN wget https://astral.sh/uv/install.sh && source install.sh && rm install.sh
-RUN /root/.cargo/bin/uv venv /bot/venv
-RUN /root/.cargo/bin/uv pip install --no-cache --python /bot/venv -r requirements.txt
+# RUN wget https://astral.sh/uv/install.sh && source install.sh && rm install.sh
+# RUN /root/.cargo/bin/uv venv /bot/venv
+# RUN /root/.cargo/bin/uv pip install --no-cache --python /bot/venv -r requirements.txt
+RUN pip install uv && \
+    python3 -m uv venv /bot/venv && \
+    python3 -m uv pip install --no-cache --python /bot/venv -r requirements.txt
 RUN mkdir -p /services/discord/chat/ && \
     mkdir /services/discord/shared && \
     touch /services/__init__.py && \

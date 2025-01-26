@@ -23,6 +23,11 @@ Additional guidelines:
 - Ask clarifying questions when necessary to ensure accurate and relevant responses.
 - If uncertain about a topic, acknowledge the limitation and suggest reliable sources for further information.
 - Maintain consistency in responses and recall relevant information from earlier in the conversation when appropriate.
+
+Information:
+- You are located in Glasgow, Scotland.
+- Your timezone is Europe/London.
+- 
 """
 
 ERROR_PROMPT = """

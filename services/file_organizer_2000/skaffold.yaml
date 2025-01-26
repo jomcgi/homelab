@@ -1,0 +1,24 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: file_organizer_2000
+
+build:
+  local:
+    push: true
+    useDockerCLI: false
+    useBuildkit: false
+    concurrency: 2
+  artifacts:
+    - image: file_organizer_2000
+      context: ../file-organizer-2000
+
+manifests:
+  kustomize:
+    paths:
+    - ./services/file_organizer_2000/deploy
+
+deploy:
+  kubectl:
+    defaultNamespace: file_organizer_2000
+        

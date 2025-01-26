@@ -6,11 +6,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      app: banter-bank
+      app: banter-bank-postgres
   template:
     metadata:
       labels:
-        app: banter-bank
+        app: banter-bank-postgres
     spec:
       containers:
         - name: postgres
@@ -18,13 +18,59 @@ spec:
           ports:
             - containerPort: 5432
           env:
-            - name: POSTGRES_PASSWORD
-              value: "password"
             - name: POSTGRES_HOST_AUTH_METHOD
               value: trust
+            - name: POSTGRES_DB
+              value: postgres
+            - name: POSTGRES_USER
+              value: postgres
           volumeMounts:
             - name: postgres-data
               mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            tcpSocket:
+              port: 5432
+            initialDelaySeconds: 15
+            periodSeconds: 20
       volumes:
         - name: postgres-data
           emptyDir: {}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: banter-bank-api
+  labels:
+    app: banter-bank-api
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxUnavailable: 1
+      maxSurge: 2
+  selector:
+    matchLabels:
+      app: banter-bank-api
+  template:
+    metadata:
+      labels:
+        app: banter-bank-api
+    spec:
+      containers:
+      - name: banter-bank-api
+        image: banter-bank-api
+        ports:
+        - containerPort: 9090
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"

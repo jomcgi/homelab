@@ -85,7 +85,20 @@ async def gemini_inference(
         GEMINI_CONFIG.MODEL_NAME,
         system_instruction=prompt,
     )
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(
+        headers={
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.5",
+            "DNT": "1",
+            "Connection": "keep-alive",
+            "Upgrade-Insecure-Requests": "1",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-User": "?1",
+        }
+    ) as session:
         retrieve_file_tasks = [
             item.retrieve_data(session)
             for item in content
@@ -110,7 +123,7 @@ async def gemini_inference(
     ), structlog.contextvars.bound_contextvars(
         **model_metadata,
     ):
-
+        logger.info("Formatted content", content=formatted_content)
         response = await model.generate_content_async(
             formatted_content,
             request_options=helper_types.RequestOptions(timeout=300),

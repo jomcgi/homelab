@@ -1,12 +1,10 @@
-discord
 pydantic-settings
 fastapi[standard]
 structlog
 opentelemetry-api
 opentelemetry-exporter-otlp-proto-http
 opentelemetry-instrumentation-fastapi
-opentelemetry-instrumentation-aiohttp-client
 opentelemetry-sdk
-urlextract
-beautifulsoup4
-linkpreview
+sqlmodel
+sqlalchemy[asyncio]
+asyncpg

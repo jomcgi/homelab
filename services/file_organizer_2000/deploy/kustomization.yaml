@@ -1,0 +1,7 @@
+commonLabels:
+  app: file_organizer_2000
+
+resources:
+  - ./deployment.yaml
+  - ./service.yaml
+  - ./namespace.yaml
