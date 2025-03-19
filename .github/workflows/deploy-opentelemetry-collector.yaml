@@ -20,5 +20,4 @@ jobs:
         env:
           HONEYCOMB_API_KEY: ${{ secrets.HONEYCOMB_API_KEY }}
         run: |
-          skaffold run -f cluster/opentelemetry-collector/skaffold.yaml \
-            -set-value "config.exporters.otlp.headers.x-honeycomb-team=$HONEYCOMB_API_KEY"
+          skaffold run -f cluster/opentelemetry-collector/skaffold.yaml
