@@ -49,8 +49,3 @@ livenessProbe:
   periodSeconds: 10
 readinessProbe:
   periodSeconds: 10
-
-# Reference external config
-configMap:
-  create: false
-  existingName: "otel-collector-config"
