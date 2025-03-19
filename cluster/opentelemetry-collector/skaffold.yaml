@@ -1,0 +1,45 @@
+apiVersion: skaffold/v3alpha1
+kind: Config
+metadata:
+  name: opentelemetry-collector
+deploy:
+  helm:
+    releases:
+      - name: my-opentelemetry-collector
+        remoteChart: open-telemetry/opentelemetry-collector
+        setValues:
+
+          mode: daemonset
+          image.repository: otel/opentelemetry-collector-k8s
+          command.name: otelcol-k8s
+          
+          resources.requests.cpu: 250m
+          resources.limits.memory: 256Mi
+          resources.requests.memory: 256Mi
+          useGOMEMLIMIT: "true"
+          
+          ports.otlp.enabled: "true"
+          ports.otlp-http.enabled: "true"
+          ports.jaeger-compact.enabled: "false"
+          ports.jaeger-thrift.enabled: "false"
+          ports.jaeger-grpc.enabled: "false"
+          ports.zipkin.enabled: "false"
+          ports.metrics.enabled: "true"
+
+          serviceMonitor.enabled: "true"
+          
+          presets.logsCollection.enabled: "true"
+          presets.kubernetesAttributes.enabled: "true"
+          presets.hostMetrics.enabled: "true"
+          presets.kubeletMetrics.enabled: "true"
+          
+          securityContext.runAsNonRoot: "true"
+          securityContext.runAsUser: 10001
+          securityContext.readOnlyRootFilesystem: "true"
+          
+          livenessProbe.periodSeconds: 10
+          readinessProbe.periodSeconds: 10
+          
+        createNamespace: true
+        namespace: opentelemetry
+        wait: true

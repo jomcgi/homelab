@@ -1,4 +1,4 @@
-name: Container Registry
+name: Opentelemetry Collector
 
 on:
   push:
@@ -16,6 +16,6 @@ jobs:
     
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy Container Registry
+      - name: Deploy Opentelemetry Collector
         run: |
-          skaffold run -f cluster/container-registry/skaffold.yaml
+          skaffold run -f cluster/opentelemetry-collector/skaffold.yaml
