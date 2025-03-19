@@ -6,11 +6,14 @@ metadata:
 build:
   local:
     push: true
-    useDockerCLI: true
+    useDockerCLI: false
     useBuildkit: false
+    concurrency: 2
   artifacts:
     - image: anaesthetic-calc
-      context: ./services/anaesthetic_calc
+      context: ./services/anaesthetic_calc/app
+    - image: calc-api
+      context: ./services/anaesthetic_calc/api
 
 manifests:
   kustomize:

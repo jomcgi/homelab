@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gemini
+  namespace: llm
+data:
+  GEMINI_API_KEY: "AIzaSyAZ7vtxrojMJSrXBs7oKJe4ehTEON1rVcQ"
+  GEMINI_MODEL_NAME: "gemini-1.5-flash"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: anthropic
+  namespace: llm
+data:
+  ANTHROPIC_API_KEY: "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"
+  ANTHROPIC_MODEL_NAME: "claude-3-haiku-20240307"

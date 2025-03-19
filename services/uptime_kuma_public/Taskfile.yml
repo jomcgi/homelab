@@ -1,0 +1,12 @@
+version: '3'
+
+vars:
+  UKP_SKAFFOLD_PATH: services/uptime_kuma_public/skaffold.yaml
+
+tasks:
+  deploy:
+    cmds:
+      - skaffold run -f {{.UKP_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
+  delete:
+    cmds:
+      - skaffold delete -f {{.UKP_SKAFFOLD_PATH}}

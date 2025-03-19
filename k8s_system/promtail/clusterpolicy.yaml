@@ -1,0 +1,18 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-deployment-name-label
+spec:
+  rules:
+  - name: add-name-label-to-pods
+    match:
+      resources:
+        kinds:
+        - Deployment
+    mutate:
+      patchStrategicMerge:
+        spec:
+          template:
+            metadata:
+              labels:
+                +(name): "{{request.object.metadata.name}}"

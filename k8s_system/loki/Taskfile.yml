@@ -1,0 +1,19 @@
+version: '3'
+
+vars:
+  LO_SERVICE: loki
+  LO_REPO: https://grafana.github.io/helm-charts
+  LO_CHART: grafana/loki
+  LO_VERSION: 6.10.2
+
+tasks:
+  install:
+    cmds:
+      - helm repo add grafana {{.LO_REPO}}
+      - helm install {{.LO_SERVICE}} {{.LO_CHART}} --namespace {{.LO_SERVICE}} --values ./k8s_system/{{.LO_SERVICE}}/values.yaml --create-namespace --version {{.LO_VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.LO_SERVICE}} {{.LO_CHART}} -f ./k8s_system/{{.LO_SERVICE}}/values.yaml -f ./k8s_system/{{.LO_SERVICE}}/override.yaml --namespace {{.LO_SERVICE}}
+  uninstall:
+      - helm uninstall {{.LO_SERVICE}} --namespace {{.LO_SERVICE}}
+      - kubectl delete namespace {{.LO_SERVICE}}

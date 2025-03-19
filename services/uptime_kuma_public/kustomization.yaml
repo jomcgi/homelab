@@ -1,0 +1,5 @@
+commonLabels:
+  app: uptime-kuma
+
+resources:
+  - ./ingress.yaml

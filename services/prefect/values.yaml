@@ -1,3 +1,0 @@
-service:
-  nodePort: 30200
-  type: NodePort

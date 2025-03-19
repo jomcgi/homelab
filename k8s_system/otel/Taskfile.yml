@@ -1,0 +1,19 @@
+version: '3'
+
+vars:
+  OT_SERVICE: otel-collector
+  OT_REPO: https://open-telemetry.github.io/opentelemetry-helm-charts
+  OT_CHART: otel/opentelemetry-collector
+  OT_VERSION: 0.108.0
+
+tasks:
+  install:
+    cmds:
+      - helm repo add otel {{.OT_REPO}}
+      - helm install otel {{.OT_CHART}} --namespace {{.OT_SERVICE}} --values ./k8s_system/otel/values.yaml --create-namespace --version {{.OT_VERSION}} --set image.repository="otel/opentelemetry-collector-k8s"
+  upgrade:
+    cmds:
+      - helm upgrade otel {{.OT_CHART}} -f ./k8s_system/otel/values.yaml -f ./k8s_system/otel/override.yaml --namespace {{.OT_SERVICE}}
+  uninstall:
+      - helm uninstall otel --namespace {{.OT_SERVICE}}
+      - kubectl delete namespace {{.OT_SERVICE}}

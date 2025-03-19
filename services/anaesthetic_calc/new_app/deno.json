@@ -1,0 +1,13 @@
+{
+  "tasks": {
+    "dev": "next dev --help",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "importMap": "./import_map.json",
+  "compilerOptions": {
+    "jsx": "react-jsx",
+    "jsxImportSource": "react"
+  }
+}

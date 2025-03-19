@@ -1,0 +1,6 @@
+commonLabels:
+  app: discord-chat
+
+resources:
+  - ./deployment.yaml
+  - ./service.yaml

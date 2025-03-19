@@ -1,16 +1,13 @@
-from typing import NamedTuple
 import mesop as me
-from calc_types import LocalAnaestheticDose, LocalAnaestheticDrug
-from dataclasses import field
 import pandas as pd
-
+from calc_types import LocalAnaestheticDose, LocalAnaestheticDrug
 from calculator import (
     calculated_max_allowed_for_current_drug,
     check_if_dose_is_dangerous,
 )
 
-
 print("starting server")
+
 
 @me.stateclass
 class InputState:
@@ -50,12 +47,12 @@ def on_click_add_dose(e: me.ClickEvent):
     security_policy=me.SecurityPolicy(dangerously_disable_trusted_types=True),
 )
 def calculator():
-    me.html(
-        html="""
-<link rel="preconnect" href="https://rsms.me/">
-<link rel="stylesheet" href="https://rsms.me/inter/inter.css">
-"""
-    )
+    #     me.html(
+    #         html="""
+    # <link rel="preconnect" href="https://rsms.me/">
+    # <link rel="stylesheet" href="https://rsms.me/inter/inter.css">
+    # """
+    #     )
     input_state = me.state(InputState)
     with me.box(
         style=me.Style(
@@ -139,7 +136,6 @@ def calculator():
                         grid_auto_columns="1fr",
                     )
                 ):
-
                     with me.box():
                         me.text(
                             text="Dose in ml:",
@@ -222,7 +218,6 @@ def calculator():
             ),
         )
         with me.box(style=me.Style(display="flex", gap=50)):
-
             df = pd.DataFrame(
                 input_state.doses,
                 columns=LocalAnaestheticDose._fields,

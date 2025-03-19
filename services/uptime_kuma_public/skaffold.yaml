@@ -1,0 +1,14 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: homelab-services
+
+manifests:
+  kustomize:
+    paths:
+    - ./services/uptime_kuma_public
+
+deploy:
+  kubectl:
+    defaultNamespace: uptime-kuma
+        

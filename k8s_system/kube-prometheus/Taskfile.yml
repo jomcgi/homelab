@@ -1,0 +1,15 @@
+version: '3'
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f k8s_system/kube-prometheus/skaffold.yaml
+  deploy:
+    deps: [build]
+    cmds:
+      - kubectl apply --server-side -f k8s_system/kube-prometheus/deploy/setup
+      - kubectl wait --for condition=Established --all CustomResourceDefinition --namespace=monitoring
+      - skaffold run -f k8s_system/kube-prometheus/skaffold.yaml
+  delete:
+    cmds:
+      - skaffold delete -f k8s_system/kube-prometheus/skaffold.yaml

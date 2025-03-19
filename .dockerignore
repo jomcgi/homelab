@@ -1,0 +1,5 @@
+.yaml
+__pycache__
+node_modules
+.next
+services/anaesthetic_calc/new_app

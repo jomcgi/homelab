@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: discord-chat
+  labels:
+    app: discord-chat
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: discord-chat
+  template:
+    metadata:
+      labels:
+        app: discord-chat
+    spec:
+      containers:
+      - name: discord-chat
+        image: discord-chat
+        resources:
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+        env:
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: http://otel-opentelemetry-collector.otel-collector.svc.cluster.local:4318

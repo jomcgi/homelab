@@ -1,0 +1,24 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: llm
+
+build:
+  local:
+    push: true
+    useDockerCLI: false
+    useBuildkit: false
+    concurrency: 2
+  artifacts:
+    - image: llm
+      context: ./services/llm/api
+
+manifests:
+  kustomize:
+    paths:
+    - ./services/llm/deploy
+
+deploy:
+  kubectl:
+    defaultNamespace: llm
+        

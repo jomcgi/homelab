@@ -1,0 +1,18 @@
+version: '3'
+
+vars:
+  NG_SERVICE: ingress-nginx
+  NG_REPO: https://kubernetes.github.io/ingress-nginx
+  NG_CHART: ingress-nginx/ingress-nginx
+  NG_ERSION: 4.11.2
+
+tasks:
+  install:
+    cmds:
+      - helm repo add {{.NG_SERVICE}} {{.NG_REPO}}
+      - helm install {{.NG_SERVICE}} {{.NG_CHART}} --namespace {{.NG_SERVICE}} --create-namespace --version {{.NG_VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.NG_SERVICE}} {{.NG_CHART}} -f k8s_system/{{.NG_SERVICE}}/values.yaml -f k8s_system/{{.NG_SERVICE}}/override.yaml --namespace {{.NG_SERVICE}}
+  uninstall:
+      - helm uninstall {{.NG_SERVICE}} --namespace {{.NG_SERVICE}}

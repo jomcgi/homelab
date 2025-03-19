@@ -1,8 +1,18 @@
 version: '3'
 
+vars:
+  CONTAINER_REGISTRY: registry.localhost
+
 includes:
   container_registry: ./k8s_system/container_registry
-  netdata: ./k8s_system/netdata
   uptime_kuma: ./k8s_system/uptime-kuma
+  uptime_kuma_public: ./services/uptime_kuma_public
   calc: ./services/anaesthetic_calc
-  prefect: ./services/prefect
+  loki: ./k8s_system/loki
+  kube-prometheus: ./k8s_system/kube-prometheus
+  promtail: ./k8s_system/promtail
+  discord: ./services/discord
+  tempo: ./k8s_system/tempo
+  otel: ./k8s_system/otel
+  llm: ./services/llm
+  file_organizer_2000: ./services/file_organizer_2000

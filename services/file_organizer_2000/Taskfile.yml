@@ -1,0 +1,16 @@
+version: '3'
+
+vars:
+  FO_SKAFFOLD_PATH: services/file_organizer_2000/skaffold.yaml
+
+tasks:
+  build:
+    cmds:
+      - skaffold build -f {{.FO_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}}
+  deploy:
+    deps: [build]
+    cmds:
+      - skaffold run -f {{.FO_SKAFFOLD_PATH}} --default-repo {{.CONTAINER_REGISTRY}} --insecure-registry {{.CONTAINER_REGISTRY}} --tail
+  delete:
+    cmds:
+      - skaffold delete -f {{.FO_SKAFFOLD_PATH}}

@@ -1,0 +1,30 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: homelab-services
+
+build:
+  local:
+    push: true
+    useDockerCLI: false
+    useBuildkit: false
+    concurrency: 4
+  artifacts:
+    - image: discord-chat
+      context: .
+      docker:
+        dockerfile: ./services/discord/chat/Dockerfile
+    - image: banter-bank-api
+      context: .
+      docker:
+        dockerfile: ./services/discord/banter_bank/api/Dockerfile
+
+manifests:
+  kustomize:
+    paths:
+    - ./services/discord/deploy
+
+deploy:
+  kubectl:
+    defaultNamespace: discord
+        

@@ -1,0 +1,22 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: db-setup
+spec:
+  template:
+    spec:
+      initContainers:
+      - name: wait-for-pg
+        image: pgvector/pgvector:pg16
+        command:
+        - /bin/sh
+        - -c
+        - |
+          until pg_isready -h banter-bank-postgres-service -p 5432; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 1
+          done
+          echo "PostgreSQL is ready!"
+      containers:
+      - name: run-migrations
+        image: banter-bank-migrations

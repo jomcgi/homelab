@@ -1,0 +1,19 @@
+version: '3'
+
+vars:
+  TE_SERVICE: tempo
+  TE_REPO: https://grafana.github.io/helm-charts
+  TE_CHART: grafana/tempo
+  TE_VERSION: 1.10.3
+
+tasks:
+  install:
+    cmds:
+      - helm repo add grafana {{.TE_REPO}}
+      - helm install {{.TE_SERVICE}} {{.TE_CHART}} --namespace {{.TE_SERVICE}} --values ./k8s_system/{{.TE_SERVICE}}/values.yaml --create-namespace --version {{.TE_VERSION}}
+  upgrade:
+    cmds:
+      - helm upgrade {{.TE_SERVICE}} {{.TE_CHART}} -f ./k8s_system/{{.TE_SERVICE}}/values.yaml -f ./k8s_system/{{.TE_SERVICE}}/override.yaml --namespace {{.TE_SERVICE}}
+  uninstall:
+      - helm uninstall {{.TE_SERVICE}} --namespace {{.TE_SERVICE}}
+      - kubectl delete namespace {{.TE_SERVICE}}

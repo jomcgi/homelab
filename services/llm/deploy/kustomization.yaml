@@ -1,0 +1,6 @@
+commonLabels:
+  app: llm
+
+resources:
+  - ./api
+  - ./namespace.yaml
