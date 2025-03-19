@@ -1,13 +1,9 @@
-name: Connect to Homelab via Cloudflare Tunnel
+name: Connect to Homelab via Cloudflare WARP
 
 on:
-  # Triggers the workflow on push events for all branches
   push:
-  
-  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
-# Concurrency group to cancel in-progress jobs when a new workflow is triggered
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -17,82 +13,38 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      # Checks-out your repository
       - uses: actions/checkout@v3
       
-      # Check DNS resolution
-      - name: Check DNS resolution
-        run: |
-          echo "Checking DNS resolution..."
-          nslookup irnbru-gh-action.jomcgi.dev
-          dig irnbru-gh-action.jomcgi.dev
+      # Set up Cloudflare WARP
+      - name: Setup Cloudflare WARP
+        uses: Boostport/setup-cloudflare-warp@v1
+        with:
+          organization: your-organization # Replace with your Cloudflare Zero Trust organization
+          auth_client_id: ${{ secrets.CLOUDFLARE_AUTH_CLIENT_ID }}
+          auth_client_secret: ${{ secrets.CLOUDFLARE_AUTH_CLIENT_SECRET }}
       
-      # Check Cloudflare tunnel connectivity
-      - name: Check Cloudflare tunnel connectivity
+      # Verify WARP connection
+      - name: Verify WARP connection
         run: |
-          echo "Checking tunnel connectivity..."
-          curl -v https://irnbru-gh-action.jomcgi.dev || true
+          echo "Verifying WARP connection..."
+          warp-cli status
+          curl -v https://irnbru-gh-action.jomcgi.dev
       
-      # Set up SSH key for connection with verbose output
+      # Connect to your homelab through WARP
+      - name: Connect to Homelab
+        run: |
+          echo "Connecting to homelab via Cloudflare WARP..."
+          
+          # You can now use SSH as normal, the connection will go through WARP
+          ssh -i ~/.ssh/id_rsa -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10" jomcgi@irnbru-gh-action.jomcgi.dev "echo 'Hello from GitHub Actions!'; hostname; date; uptime"
+      
+      # Set up SSH key if still needed
       - name: Set up SSH key
+        if: always()
         env:
           SSH_PRIVATE_KEY: ${{ secrets.IRNBRU_SSH_PRIVATE_KEY }}
         run: |
           mkdir -p ~/.ssh
-          echo "SSH directory created"
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          echo "Private key written to file"
           chmod 600 ~/.ssh/id_rsa
-          echo "Permissions set on private key"
-          
-          # Try without specifying RSA as it might be deprecated
           ssh-keyscan irnbru-gh-action.jomcgi.dev >> ~/.ssh/known_hosts
-          echo "Host key added to known_hosts"
-          
-          # Verify the key is valid
-          ssh-keygen -l -f ~/.ssh/id_rsa || echo "Invalid key format"
-          
-          # Print known_hosts content (redacted)
-          echo "Known hosts file exists: $(test -f ~/.ssh/known_hosts && echo 'Yes' || echo 'No')"
-          echo "Known hosts file size: $(wc -l ~/.ssh/known_hosts | cut -d' ' -f1) lines"
-      
-      # Test SSH connection with verbose output
-      - name: Test SSH connection
-        if: always()  # Run even if previous step failed
-        run: |
-          echo "Testing SSH connection with verbose output..."
-          ssh -v -i ~/.ssh/id_rsa -o "ConnectTimeout=5" jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
-      
-      # Connect to your homelab through the established Cloudflare Tunnel
-      - name: Connect to Homelab
-        continue-on-error: true  # Allow the workflow to continue even if this step fails
-        run: |
-          echo "Connecting to homelab via Cloudflare Tunnel..."
-          
-          # Try with different SSH options
-          ssh -i ~/.ssh/id_rsa -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10" jomcgi@irnbru-gh-action.jomcgi.dev "echo 'Hello from GitHub Actions!'; hostname; date; uptime"
-          
-          echo "Connection attempt completed"
-      
-      # Attempt alternative connection method
-      - name: Alternative connection attempt
-        if: always()  # Run even if previous steps failed
-        run: |
-          echo "Trying alternative connection method..."
-          
-          # Try with port specification (in case it's not standard port 22)
-          ssh -v -i ~/.ssh/id_rsa -o "ConnectTimeout=5" -p 22 jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
-          
-          # Try with explicit key path and different port
-          ssh -v -i ~/.ssh/id_rsa -o "ConnectTimeout=5" -p 2222 jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
-      
-      # Summarize all findings
-      - name: Summarize findings
-        if: always()
-        run: |
-          echo "==== Debug Information Summary ===="
-          echo "SSH directory exists: $(test -d ~/.ssh && echo 'Yes' || echo 'No')"
-          echo "Private key exists: $(test -f ~/.ssh/id_rsa && echo 'Yes' || echo 'No')"
-          echo "Private key permissions: $(ls -la ~/.ssh/id_rsa 2>/dev/null || echo 'File not found')"
-          echo "Known hosts file exists: $(test -f ~/.ssh/known_hosts && echo 'Yes' || echo 'No')"
-          echo "=================================="
