@@ -19,7 +19,7 @@ jobs:
       - name: Setup Cloudflare WARP
         uses: Boostport/setup-cloudflare-warp@v1
         with:
-          organization: your-organization # Replace with your Cloudflare Zero Trust organization
+          organization: jomcgi
           auth_client_id: ${{ secrets.CLOUDFLARE_AUTH_CLIENT_ID }}
           auth_client_secret: ${{ secrets.CLOUDFLARE_AUTH_CLIENT_SECRET }}
       
