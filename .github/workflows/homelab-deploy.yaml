@@ -27,7 +27,7 @@ jobs:
       - name: Verify WARP connection
         run: |
           echo "Verifying WARP connection..."
-          warp-cli status
+          warp-cli status --accept-tos
           curl -v https://irnbru-gh-action.jomcgi.dev
       
       # Connect to your homelab through WARP
