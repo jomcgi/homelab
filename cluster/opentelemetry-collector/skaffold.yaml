@@ -32,6 +32,12 @@ deploy:
           presets.kubernetesAttributes.enabled: "true"
           presets.hostMetrics.enabled: "true"
           presets.kubeletMetrics.enabled: "true"
+
+          config.exporters.otlp.endpoint: "api.honeycomb.io:443"
+          
+          "config.service.pipelines.traces.exporters[0]": "otlp"
+          "config.service.pipelines.metrics.exporters[0]": "otlp"
+          "config.service.pipelines.logs.exporters[0]": "otlp"
           
           securityContext.runAsNonRoot: "true"
           securityContext.runAsUser: 10001

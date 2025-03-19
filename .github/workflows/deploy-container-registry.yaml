@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
   workflow_dispatch:
 
 concurrency:
@@ -11,7 +14,18 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  test-container-registry:
+    if: github.event_name == 'pull_request'
+    runs-on: self-hosted
+    
+    steps:
+      - uses: actions/checkout@v3
+      - name: Test Container Registry
+        run: |
+          skaffold diagnose -f cluster/container-registry/skaffold.yaml
+
   deploy-container-registry:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: self-hosted
     
     steps:
