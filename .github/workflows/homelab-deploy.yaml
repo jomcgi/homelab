@@ -1,0 +1,37 @@
+name: Connect to Homelab via Cloudflare Tunnel
+
+on:
+  # Triggers the workflow on push events for all branches
+  push:
+  
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  connect-to-homelab:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # Checks-out your repository
+      - uses: actions/checkout@v3
+      
+      # Set up SSH key for connection
+      - name: Set up SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.IRNBRU_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -t rsa irnbru-gh-action.jomcgi.dev >> ~/.ssh/known_hosts
+      
+      # Connect to your homelab through the established Cloudflare Tunnel
+      - name: Connect to Homelab
+        run: |
+          echo "Connecting to homelab via Cloudflare Tunnel..."
+          
+          # Run your commands on the homelab server
+          ssh jomcgi@irnbru-gh-action.jomcgi.dev "echo 'Hello from GitHub Actions!'; hostname; date; uptime"
+          
+          # You can add more commands here to deploy or run tasks on your server
+          echo "Connection successful!"
