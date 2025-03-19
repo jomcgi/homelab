@@ -1,4 +1,4 @@
-name: Self-Hosted Runner Job
+name: Container Registry
 
 on:
   # Triggers the workflow on push events for all branches
@@ -19,22 +19,6 @@ jobs:
       # Checks-out your repository
       - uses: actions/checkout@v3
 
-      # Run commands directly on the runner
-      - name: Run local commands
+      - name: Deploy Container Registry
         run: |
-          echo "Running on the self-hosted runner..."
-          echo "Current directory: $(pwd)"
-          echo "Hostname: $(hostname)"
-          echo "Date: $(date)"
-          echo "Uptime: $(uptime)"
-          
-          # Example: Install software (uncomment if needed)
-          sudo apt-get update
-          # sudo apt-get install -y your-package-name
-          
-          # Example: Run a service or application
-          # cd your-app-directory
-          # npm install
-          # npm run build
-          
-          echo "Job completed successfully!"
+          skaffold run -f cluster/container_registry/skaffold.yaml
