@@ -5,10 +5,10 @@ metadata:
 deploy:
   helm:
     releases:
-      # - valueFiles:
-      #     - ./values.yaml
+      # - 
       - name: my-opentelemetry-collector
         remoteChart: open-telemetry/opentelemetry-collector
         createNamespace: true
         namespace: opentelemetry
         wait: true
+        valueFiles: [./cluster/opentelemetry-collector/values.yaml]
