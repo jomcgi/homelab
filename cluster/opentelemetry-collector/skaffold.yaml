@@ -5,8 +5,8 @@ metadata:
 deploy:
   helm:
     releases:
-      - valueFiles:
-          - ./values.yaml
+      # - valueFiles:
+      #     - ./values.yaml
       - name: my-opentelemetry-collector
         remoteChart: open-telemetry/opentelemetry-collector
         createNamespace: true
