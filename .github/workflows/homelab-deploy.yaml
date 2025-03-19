@@ -7,6 +7,11 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Concurrency group to cancel in-progress jobs when a new workflow is triggered
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   connect-to-homelab:
     runs-on: ubuntu-latest
@@ -56,7 +61,7 @@ jobs:
         if: always()  # Run even if previous step failed
         run: |
           echo "Testing SSH connection with verbose output..."
-          ssh -v jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
+          ssh -v -i ~/.ssh/id_rsa -o "ConnectTimeout=5" jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
       
       # Connect to your homelab through the established Cloudflare Tunnel
       - name: Connect to Homelab
@@ -65,7 +70,7 @@ jobs:
           echo "Connecting to homelab via Cloudflare Tunnel..."
           
           # Try with different SSH options
-          ssh -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10" jomcgi@irnbru-gh-action.jomcgi.dev "echo 'Hello from GitHub Actions!'; hostname; date; uptime"
+          ssh -i ~/.ssh/id_rsa -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10" jomcgi@irnbru-gh-action.jomcgi.dev "echo 'Hello from GitHub Actions!'; hostname; date; uptime"
           
           echo "Connection attempt completed"
       
@@ -76,10 +81,10 @@ jobs:
           echo "Trying alternative connection method..."
           
           # Try with port specification (in case it's not standard port 22)
-          ssh -v -p 22 jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
+          ssh -v -i ~/.ssh/id_rsa -o "ConnectTimeout=5" -p 22 jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
           
-          # Try with explicit key path
-          ssh -v -i ~/.ssh/id_rsa jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
+          # Try with explicit key path and different port
+          ssh -v -i ~/.ssh/id_rsa -o "ConnectTimeout=5" -p 2222 jomcgi@irnbru-gh-action.jomcgi.dev "echo test" || true
       
       # Summarize all findings
       - name: Summarize findings
