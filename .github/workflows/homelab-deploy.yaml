@@ -18,7 +18,15 @@ jobs:
     steps:
       # Checks-out your repository
       - uses: actions/checkout@v3
-      
+
+    - name: Debug permissions
+      run: |
+        whoami
+        id
+        ls -la /var/lib/apt/lists/
+        ls -la /var/cache/apt/
+        sudo -l
+
       # Run commands directly on the runner
       - name: Run local commands
         run: |
