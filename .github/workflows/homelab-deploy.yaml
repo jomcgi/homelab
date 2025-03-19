@@ -1,8 +1,7 @@
 name: Container Registry
 
 on:
-  # Triggers the workflow on push events for all branches
-  push:
+  push: main
   
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
