@@ -29,7 +29,7 @@ jobs:
           echo "Uptime: $(uptime)"
           
           # Example: Install software (uncomment if needed)
-          sudo apt-get update
+          apt-get update
           # sudo apt-get install -y your-package-name
           
           # Example: Run a service or application
