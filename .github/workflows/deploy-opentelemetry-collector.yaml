@@ -21,6 +21,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Deploy Opentelemetry Collector
         env:
-          HONEYCOMB_API_KEY: ${{ secrets.HONEYCOMB_API_KEY }}
+          GRAFANA_CLOUD_USERNAME: ${{ secrets.GRAFANA_CLOUD_USERNAME }}
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
         run: |
           skaffold run -f cluster/opentelemetry-collector/skaffold.yaml
