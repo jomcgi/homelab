@@ -1,7 +1,10 @@
-name: Connect to Homelab via Cloudflare WARP
+name: Self-Hosted Runner Job
 
 on:
+  # Triggers the workflow on push events for all branches
   push:
+  
+  # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 concurrency:
@@ -9,42 +12,29 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  connect-to-homelab:
+  local-job:
     runs-on: self-hosted
     
     steps:
+      # Checks-out your repository
       - uses: actions/checkout@v3
       
-      # Set up Cloudflare WARP
-      - name: Setup Cloudflare WARP
-        uses: Boostport/setup-cloudflare-warp@v1
-        with:
-          organization: jomcgi
-          auth_client_id: ${{ secrets.CLOUDFLARE_AUTH_CLIENT_ID }}
-          auth_client_secret: ${{ secrets.CLOUDFLARE_AUTH_CLIENT_SECRET }}
-      
-      # Verify WARP connection
-      - name: Verify WARP connection
+      # Run commands directly on the runner
+      - name: Run local commands
         run: |
-          echo "Verifying WARP connection..."
-          warp-cli status --accept-tos
-          curl -v https://irnbru-gh-action.jomcgi.dev
-      
-      # Connect to your homelab through WARP
-      - name: Connect to Homelab
-        run: |
-          echo "Connecting to homelab via Cloudflare WARP..."
+          echo "Running on the self-hosted runner..."
+          echo "Current directory: $(pwd)"
+          echo "Hostname: $(hostname)"
+          echo "Date: $(date)"
+          echo "Uptime: $(uptime)"
           
-          # You can now use SSH as normal, the connection will go through WARP
-          ssh -i ~/.ssh/id_rsa -o "StrictHostKeyChecking=accept-new" -o "ConnectTimeout=10" jomcgi@irnbru-gh-action.jomcgi.dev "echo 'Hello from GitHub Actions!'; hostname; date; uptime"
-      
-      # Set up SSH key if still needed
-      - name: Set up SSH key
-        if: always()
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.IRNBRU_SSH_PRIVATE_KEY }}
-        run: |
-          mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
-          chmod 600 ~/.ssh/id_rsa
-          ssh-keyscan irnbru-gh-action.jomcgi.dev >> ~/.ssh/known_hosts
+          # Example: Install software (uncomment if needed)
+          sudo apt-get update
+          # sudo apt-get install -y your-package-name
+          
+          # Example: Run a service or application
+          # cd your-app-directory
+          # npm install
+          # npm run build
+          
+          echo "Job completed successfully!"
