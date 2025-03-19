@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    paths:
+      - '.github/workflows/deploy-container-register.yaml'
+      - 'cluster/container-register/**'
   workflow_dispatch:
 
 concurrency:
