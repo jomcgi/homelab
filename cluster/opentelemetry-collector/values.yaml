@@ -49,3 +49,7 @@ livenessProbe:
   periodSeconds: 10
 readinessProbe:
   periodSeconds: 10
+
+configMap:
+  create: true
+  existingPath: "./cluster/opentelemetry-collector/config.yaml"
