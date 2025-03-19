@@ -11,4 +11,4 @@ deploy:
         createNamespace: true
         namespace: opentelemetry
         wait: true
-        valueFiles: [./cluster/opentelemetry-collector/values.yaml]
+        valuesFiles: [./cluster/opentelemetry-collector/values.yaml]
