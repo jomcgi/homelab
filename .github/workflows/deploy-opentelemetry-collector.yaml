@@ -11,7 +11,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-container-registry:
+  deploy-opentelemetry-collector:
     runs-on: self-hosted
     
     steps:
