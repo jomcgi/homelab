@@ -30,9 +30,8 @@ data:
       otlp:
         endpoint: "api.honeycomb.io:443" # US instance
         # endpoint: "api.eu1.honeycomb.io:443" # EU instance
-        verbosity: detailed
         headers:
-          "x-honeycomb-team": $HONEYCOMB_API_KEY
+          "x-honeycomb-team": ${env:HONEYCOMB_API_KEY}
     
     service:
       pipelines:
