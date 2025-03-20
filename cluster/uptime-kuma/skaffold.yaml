@@ -6,8 +6,7 @@ deploy:
   helm:
     releases:
       - name: uptime-kuma
-        remoteChart: uptime-kuma/uptime-kuma
-        repo: https://helm.irsigler.cloud
+        chart: uptime-kuma/uptime-kuma
         version: 2.21.2
         namespace: uptime-kuma
         createNamespace: true
