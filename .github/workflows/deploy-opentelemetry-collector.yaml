@@ -20,7 +20,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
       - name: Deploy Opentelemetry Collector
-        env:
-          GH_ACTIONS_WEBHOOK_SECRET: ${{ secrets.GH_ACTIONS_WEBHOOK_SECRET }}
         run: |
           skaffold run -f cluster/opentelemetry-collector/skaffold.yaml
+        env:
+          GH_ACTIONS_WEBHOOK_SECRET: ${{ secrets.GH_ACTIONS_WEBHOOK_SECRET }}
