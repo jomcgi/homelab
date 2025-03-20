@@ -1,0 +1,23 @@
+name: Deploy Uptime Kuma
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-uptime-kuma.yaml'
+      - 'cluster/uptime-kuma/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-uptime-kuma:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy Uptime Kuma
+        run: |
+          skaffold run -f cluster/uptime-kuma/skaffold.yaml

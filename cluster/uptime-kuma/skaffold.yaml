@@ -1,0 +1,15 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: uptime-kuma
+deploy:
+  helm:
+    releases:
+      - name: uptime-kuma
+        remoteChart: uptime-kuma/uptime-kuma
+        repo: https://helm.irsigler.cloud
+        version: 2.20.0
+        namespace: uptime-kuma
+        createNamespace: true
+        valuesFiles:
+          - cluster/uptime-kuma/values.yaml
