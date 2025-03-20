@@ -5,12 +5,17 @@ metadata:
   labels:
     app: otel-collector
 spec:
-  # type: NodePort
-  # ports:
-  # - port: 8080
-  #   targetPort: 8080
-  #   protocol: TCP
-  #   name: webhook
-  #   nodePort: 30080 # Custom NodePort for gh webhook
+  type: NodePort
+  ports:
+  - port: 4317
+    targetPort: 4317
+    nodePort: 30317
+    protocol: TCP
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    nodePort: 30318
+    protocol: TCP
+    name: otlp-http
   selector:
     app: otel-collector
