@@ -1,0 +1,13 @@
+apiVersion: skaffold/v4beta1
+kind: Config
+metadata:
+  name: otel-collector
+
+manifests:
+  kustomize:
+    paths:
+    - ./cluster/otel-collector
+
+deploy:
+  kubectl:
+    defaultNamespace: opentelemetry
