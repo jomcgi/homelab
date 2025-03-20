@@ -24,4 +24,4 @@ jobs:
           GRAFANA_CLOUD_USERNAME: ${{ secrets.GRAFANA_CLOUD_USERNAME }}
           GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
         run: |
-          skaffold run -f cluster/opentelemetry-collector/skaffold.yaml
+          skaffold delete -f cluster/opentelemetry-collector/skaffold.yaml
