@@ -16,7 +16,7 @@ data:
               endpoint: 0.0.0.0:19418
               path: /events
               health_path: /health
-              secret: ${GH_ACTIONS_WEBHOOK_SECRET}
+              secret: ${GITHUB_WEBHOOK_SECRET}
               required_headers:
                   X-GitHub-Event: "*"
                   X-GitHub-Delivery: "*"

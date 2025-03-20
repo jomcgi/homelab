@@ -27,7 +27,7 @@ spec:
         - containerPort: 19418 # github-webook
           name: github-webook
         env:
-        - name: GH_ACTIONS_WEBHOOK_SECRET
+        - name: GITHUB_WEBHOOK_SECRET
           valueFrom:
             secretKeyRef:
               name: otel-collector-secrets
