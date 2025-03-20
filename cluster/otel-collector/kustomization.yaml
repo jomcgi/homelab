@@ -12,7 +12,7 @@ resources:
 secretGenerator:
 - name: otel-collector-secrets
   literals:
-  - webhook-secret=${GH_ACTIONS_WEBHOOK_SECRET}
+  - github-webhook-secret=${GH_ACTIONS_WEBHOOK_SECRET}
 
 commonLabels:
   app.kubernetes.io/name: otel-collector
