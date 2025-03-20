@@ -26,6 +26,13 @@ spec:
           name: otlp-http
         - containerPort: 19418 # github-webook
           name: github-webook
+        env:
+        - name: HONEYCOMB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: otel-collector-secrets
+              key: honeycomb-api-key
+
         volumeMounts:
         - name: config
           mountPath: /conf

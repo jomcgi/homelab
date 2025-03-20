@@ -22,3 +22,5 @@ jobs:
       - name: Deploy Opentelemetry Collector
         run: |
           skaffold run -f cluster/otel-collector/skaffold.yaml
+        env:
+          HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
