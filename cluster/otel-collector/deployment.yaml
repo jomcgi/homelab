@@ -27,18 +27,15 @@ spec:
         - containerPort: 19418 # github-webook
           name: github-webook
         volumeMounts:
+        - name: config
+          mountPath: /conf
         - name: honeycomb-api
           mountPath: /etc/honeycomb
           readOnly: true
-        volumes:
-        - name: honeycomb-api
-          secret:
-            secretName: otel-collector-secrets
-
-        volumeMounts:
-        - name: config
-          mountPath: /conf
       volumes:
       - name: config
         configMap:
           name: otel-collector-config
+      - name: honeycomb-api
+        secret:
+          secretName: otel-collector-secrets
