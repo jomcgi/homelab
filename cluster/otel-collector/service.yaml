@@ -17,5 +17,10 @@ spec:
     nodePort: 30318
     protocol: TCP
     name: otlp-http
+  - port: 19418
+    targetPort: 19418
+    nodePort: 30319
+    protocol: TCP
+    name: github-webook
   selector:
     app: otel-collector

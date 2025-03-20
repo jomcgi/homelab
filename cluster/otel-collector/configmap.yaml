@@ -11,6 +11,17 @@ data:
             endpoint: 0.0.0.0:4318
           grpc:
             endpoint: 0.0.0.0:4317
+      github:
+          webhook:
+              endpoint: 0.0.0.0:19418
+              path: /events
+              health_path: /health
+              secret: ${env:GH_ACTIONS_WEBHOOK_SECRET}
+              required_headers:
+                  X-GitHub-Event: "*"
+                  X-GitHub-Delivery: "*"
+                  User-Agent: "GitHub-Hookshot/*"
+                  X-Hub-Signature-256: "*"
     
     processors:
       batch:
@@ -24,6 +35,6 @@ data:
     service:
       pipelines:
         traces:
-          receivers: [otlp]
+          receivers: [otlp, github]
           processors: [batch]
           exporters: [debug]

@@ -24,10 +24,8 @@ spec:
           name: otlp-grpc
         - containerPort: 4318 # OTLP HTTP
           name: otlp-http
-        # - containerPort: 8080 # Webhook
-        #   name: webhook
-        # - containerPort: 13133 # Health Check
-        #   name: health
+        - containerPort: 19418 # github-webook
+          name: github-webook
         env:
         - name: GH_ACTIONS_WEBHOOK_SECRET
           value: "${GH_ACTIONS_WEBHOOK_SECRET}"
