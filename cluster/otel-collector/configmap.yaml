@@ -12,8 +12,18 @@ data:
           grpc:
             endpoint: 0.0.0.0:4317
       github:
+          initial_delay: 1s
+          collection_interval: 100000s
           scrapers:
-              scraper:
+            scraper:
+              metrics:
+                git.repository.contributor.count:
+                  enabled: true
+                git.repository.cve.count:
+                  enabled: true
+              github_org: myfancyorg
+              search_query: "org:myfancyorg topic:o11yalltheway"
+              endpoint: "https://selfmanagedenterpriseserver.com"
           webhook:
               endpoint: 0.0.0.0:19418
               path: /events
