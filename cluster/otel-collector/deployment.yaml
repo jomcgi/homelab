@@ -26,12 +26,6 @@ spec:
           name: otlp-http
         - containerPort: 19418 # github-webook
           name: github-webook
-        env:
-        - name: GITHUB_WEBHOOK_SECRET
-          valueFrom:
-            secretKeyRef:
-              name: otel-collector-secrets
-              key: github-webhook-secret
         volumeMounts:
         - name: config
           mountPath: /conf

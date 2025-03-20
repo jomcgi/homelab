@@ -7,8 +7,6 @@ manifests:
   kustomize:
     paths:
     - ./cluster/otel-collector
-    buildArgs:
-    - --enable-alpha-plugins
 
 deploy:
   kubectl:
