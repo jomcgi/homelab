@@ -7,31 +7,7 @@ resources:
 - namespace.yaml
 - deployment.yaml
 - service.yaml
-
-configMapGenerator:
-- name: otel-collector-config
-  files:
-  - config.yaml=otel-config-template.yaml
-
-secretGenerator:
-- name: otel-collector-secrets
-  literals:
-  - honeycomb-api-key=${HONEYCOMB_API_SECRET}
-
-replacements:
-- source:
-    kind: Secret
-    name: otel-collector-secrets
-    fieldPath: data.honeycomb-api-key
-  targets:
-  - select:
-      kind: ConfigMap
-      name: otel-collector-config
-    fieldPaths:
-    - data.config\.yaml
-    options:
-      delimiter: '${env:HONEYCOMB_API_KEY}'
-      index: 0
+- configmap.yaml
 
 commonLabels:
   app.kubernetes.io/name: otel-collector
