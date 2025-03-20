@@ -28,7 +28,10 @@ spec:
           name: github-webook
         env:
         - name: GH_ACTIONS_WEBHOOK_SECRET
-          value: "${GH_ACTIONS_WEBHOOK_SECRET}"
+          valueFrom:
+            secretKeyRef:
+              name: otel-collector-secrets
+              key: github-webhook-secret
         volumeMounts:
         - name: config
           mountPath: /conf

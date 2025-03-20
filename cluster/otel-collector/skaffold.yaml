@@ -11,5 +11,3 @@ manifests:
 deploy:
   kubectl:
     defaultNamespace: opentelemetry
-    envVars:
-      - GH_ACTIONS_WEBHOOK_SECRET
