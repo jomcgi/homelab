@@ -1,14 +1,8 @@
-apiVersion: skaffold/v3alpha1
+apiVersion: skaffold/v4beta1
 kind: Config
 metadata:
   name: opentelemetry-collector
+
 deploy:
-  helm:
-    releases:
-      # - 
-      - name: my-opentelemetry-collector
-        remoteChart: open-telemetry/opentelemetry-collector
-        createNamespace: true
-        namespace: opentelemetry
-        wait: true
-        valuesFiles: [./cluster/opentelemetry-collector/values.yaml]
+  kustomize:
+    paths: ["./cluster/opentelemetry-collector"]
