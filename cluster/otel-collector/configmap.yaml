@@ -34,9 +34,9 @@ data:
         trace_statements:
           - context: span
             statements:
-              - set(attributes["uptime.status"], attributes["status.code"] == 2 ? "down" : "up")
-              - set(attributes["uptime.message"], attributes["status.code"] == 2 ? "Failed deployment: " + attributes["cicd.pipeline.run.url.full"] : "Successful deployment: " + attributes["cicd.pipeline.run.url.full"])
-    
+              - set(attributes["uptime.status"], "down")
+              - set(attributes["uptime.message"], "CI/CD deployment status")
+
     exporters:
       otlp:
         endpoint: "api.honeycomb.io:443" # US instance
