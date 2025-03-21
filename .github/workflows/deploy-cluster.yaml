@@ -1,11 +1,11 @@
-name: Deploy Infrastructure Services
+name: Deploy Cluster
 
 on:
   push:
     branches:
       - main
     paths:
-      - '.github/workflows/deploy-infra-services.yaml'
+      - '.github/workflows/deploy-cluster.yaml'
       - 'cluster/**'
   workflow_dispatch:
 
