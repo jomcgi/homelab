@@ -25,8 +25,9 @@ data:
         send_batch_size: 1024
       filter/non-gh-workflow-traces:
         error_mode: ignore
-        spans:
-          - 'resource.attributes["cicd.pipeline.run.url.full"] == nil'
+        traces:
+          span:
+            - resource.attributes["cicd.pipeline.run.url.full"] == nil
       attributes/github-add-uptime:
         actions:
           - key: resource.attributes.UPTIME_STATUS
