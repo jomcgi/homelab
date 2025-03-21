@@ -13,11 +13,11 @@ data:
             endpoint: 0.0.0.0:4317
       github:
         scrapers:
-            scraper:
+          scraper:
         webhook:
-            endpoint: 0.0.0.0:19418
-            path: /events
-            health_path: /health
+          endpoint: 0.0.0.0:19418
+          path: /events
+          health_path: /health
     
     processors:
       batch:
@@ -59,7 +59,7 @@ data:
           receivers: [otlp, github]
           processors: [batch]
           exporters: [otlp]
-        github-action-uptime:
+        uptime-kuma-gh-actions:
           receivers: [github]
           processors: [filter-pipeline-url, add-uptime-to-github-traces, batch]
           exporters: [uptime-kuma-gh-actions]
