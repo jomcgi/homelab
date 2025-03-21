@@ -50,6 +50,8 @@ data:
         timeout: 5s
         headers:
           Content-Type: "application/json"
+      debug:
+        verbosity: detailed
 
     service:
       pipelines:
@@ -60,4 +62,4 @@ data:
         traces/github-uptime-kuma:
           receivers: [github]
           processors: [filter/github-pipeline-url-exists, attributes/github-add-uptime]
-          exporters: [otlphttp/github-uptime-kuma]
+          exporters: [otlphttp/github-uptime-kuma, debug]
