@@ -25,14 +25,14 @@ spec:
         readinessProbe:
           httpGet:
             path: /health
-            port: github-webook
+            port: 19418
           initialDelaySeconds: 5
           periodSeconds: 10
           timeoutSeconds: 5
         livenessProbe:
           httpGet:
             path: /health
-            port: github-webook
+            port: 19418
           initialDelaySeconds: 15
           periodSeconds: 20
         args:
