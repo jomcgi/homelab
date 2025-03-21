@@ -48,6 +48,7 @@ data:
         timeout: 5s
         headers:
           Content-Type: "application/json"
+        encoding: json
       debug:
         verbosity: detailed
 
