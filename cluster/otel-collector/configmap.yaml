@@ -12,12 +12,12 @@ data:
           grpc:
             endpoint: 0.0.0.0:4317
       github:
-           scrapers:
-               scraper:
-           webhook:
-               endpoint: 0.0.0.0:19418
-               path: /events
-               health_path: /health
+        scrapers:
+            scraper:
+        webhook:
+            endpoint: 0.0.0.0:19418
+            path: /events
+            health_path: /health
     
     processors:
       batch:
@@ -43,7 +43,7 @@ data:
         # endpoint: "api.eu1.honeycomb.io:443" # EU instance
         headers:
           "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}
-      github-actions-uptime:
+      uptime-kuma-gh-actions:
         endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb"
         timeout: 5s
         method: POST
@@ -59,7 +59,7 @@ data:
           receivers: [otlp, github]
           processors: [batch]
           exporters: [otlp]
-      github_action_uptime:
-        receivers: [github]
-        processors: [filter-pipeline-url, add-uptime-to-github-traces, batch]
-        exporters: [github-actions-uptime]
+        github-action-uptime:
+          receivers: [github]
+          processors: [filter-pipeline-url, add-uptime-to-github-traces, batch]
+          exporters: [uptime-kuma-gh-actions]
