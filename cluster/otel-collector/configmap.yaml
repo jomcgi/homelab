@@ -46,7 +46,7 @@ data:
         headers:
           "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}
       otlphttp/github-uptime-kuma:
-        endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb?status=down&msg=CI%2FCD%20deployment%20status"
+        traces_endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb?status=down&msg=CI%2FCD%20deployment%20status"
         timeout: 5s
         headers:
           Content-Type: "application/json"
