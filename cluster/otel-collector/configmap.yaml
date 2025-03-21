@@ -23,19 +23,6 @@ data:
       batch:
         timeout: 1s
         send_batch_size: 1024
-      filter/non-gh-workflow-traces:
-        error_mode: ignore
-        traces:
-          span:
-            - resource.attributes["cicd.pipeline.run.url.full"] == nil
-      attributes/github-add-uptime:
-        actions:
-          - key: resource.attributes.UPTIME_STATUS
-            value: "down"
-            action: insert
-          - key: resource.attributes.UPTIME_MESSAGE
-            value: "CI/CD deployment status"
-            action: insert
     
     exporters:
       otlp/honeycomb:
@@ -43,14 +30,6 @@ data:
         # endpoint: "api.eu1.honeycomb.io:443" # EU instance
         headers:
           "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}
-      otlphttp/github-uptime-kuma:
-        traces_endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb?status=up&msg=CI%2FCD%20deployment%20status"
-        timeout: 5s
-        headers:
-          Content-Type: "application/json"
-        encoding: json
-      debug:
-        verbosity: detailed
 
     service:
       pipelines:
@@ -58,11 +37,3 @@ data:
           receivers: [otlp, github]
           processors: [batch]
           exporters: [otlp/honeycomb]
-        traces/github-uptime-kuma:
-          receivers: [github]
-          processors: [filter/non-gh-workflow-traces, attributes/github-add-uptime]
-          # processors: [attributes/github-add-uptime]
-          exporters: [otlphttp/github-uptime-kuma, debug]
-      telemetry:
-        logs:
-          level: DEBUG
