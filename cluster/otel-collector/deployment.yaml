@@ -22,7 +22,6 @@ spec:
       containers:
       - name: otel-collector
         image: otel/opentelemetry-collector-contrib:latest
-        imagePullPolicy: Always
         readinessProbe:
           httpGet:
             path: /health
