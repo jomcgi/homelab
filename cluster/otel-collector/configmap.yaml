@@ -23,13 +23,13 @@ data:
       batch:
         timeout: 1s
         send_batch_size: 1024
-      # filter/github-pipeline-url-exists:
-      #   spans:
-      #     include:
-      #       match_type: strict
-      #       attributes:
-      #         - key: cicd.pipeline.run.url.full
-      #           value: exists
+      filter/github-pipeline-url-exists:
+        spans:
+          include:
+            match_type: strict
+            attributes:
+              - key: cicd.pipeline.run.url.full
+                exists: true
       attributes/github-add-uptime:
         actions:
           - key: resource.attributes.UPTIME_STATUS
@@ -61,6 +61,6 @@ data:
           exporters: [otlp/honeycomb]
         traces/github-uptime-kuma:
           receivers: [github]
-          # processors: [filter/github-pipeline-url-exists, attributes/github-add-uptime]
-          processors: [attributes/github-add-uptime]
+          processors: [filter/github-pipeline-url-exists, attributes/github-add-uptime]
+          # processors: [attributes/github-add-uptime]
           exporters: [otlphttp/github-uptime-kuma, debug]
