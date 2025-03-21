@@ -45,15 +45,11 @@ data:
         # endpoint: "api.eu1.honeycomb.io:443" # EU instance
         headers:
           "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}
-      otlp/github-uptime-kuma:
-        endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb"
+      otlphttp/github-uptime-kuma:
+        endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb?status=down&msg=CI%2FCD%20deployment%20status"
         timeout: 5s
-        method: POST
         headers:
           Content-Type: "application/json"
-        query_params:
-          status: "down"
-          msg: "CI/CD deployment status"
 
     service:
       pipelines:
