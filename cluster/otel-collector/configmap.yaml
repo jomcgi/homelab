@@ -60,4 +60,4 @@ data:
         traces/github-uptime-kuma:
           receivers: [github]
           processors: [filter/github-pipeline-url-exists, attributes/github-add-uptime]
-          exporters: [otlp/github-uptime-kuma]
+          exporters: [otlphttp/github-uptime-kuma]
