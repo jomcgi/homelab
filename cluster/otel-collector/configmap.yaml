@@ -30,12 +30,14 @@ data:
             attributes:
               - key: cicd.pipeline.run.url.full
                 value: exists
-      add_uptime_to_github_traces:
-        trace_statements:
-          - context: span
-            statements:
-              - set(resource["UPTIME_STATUS"], "down")
-              - set(resource["UPTIME_MESSAGE"], "CI/CD deployment status")
+      add_uptime_status:
+        actions:
+          - key: resource.attributes.UPTIME_STATUS
+            value: "down"
+            action: insert
+          - key: resource.attributes.UPTIME_MESSAGE
+            value: "CI/CD deployment status"
+            action: insert
     
     exporters:
       otlp:
@@ -43,7 +45,7 @@ data:
         # endpoint: "api.eu1.honeycomb.io:443" # EU instance
         headers:
           "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}
-      uptime_kuma_gh_actions:
+      http:
         endpoint: "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001/api/push/6jsi0iFnCb"
         timeout: 5s
         method: POST
@@ -59,7 +61,7 @@ data:
           receivers: [otlp, github]
           processors: [batch]
           exporters: [otlp]
-        uptime_kuma_gh_actions:
+        uptime_kuma:
           receivers: [github]
-          processors: [filter_pipeline_url, add_uptime_to_github_traces, batch]
-          exporters: [uptime_kuma_gh_actions]
+          processors: [filter_pipeline_url, add_uptime_status, batch]
+          exporters: [http]
