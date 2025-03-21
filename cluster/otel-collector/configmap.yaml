@@ -57,7 +57,7 @@ data:
           receivers: [otlp, github]
           processors: [batch]
           exporters: [otlp/honeycomb]
-        uptime-kuma:
+        traces/github-uptime-kuma:
           receivers: [github]
           processors: [filter/github-pipeline-url-exists, attributes/github-add-uptime]
           exporters: [otlp/github-uptime-kuma]
