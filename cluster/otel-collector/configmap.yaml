@@ -25,11 +25,7 @@ data:
         send_batch_size: 1024
       filter/github-pipeline-url-exists:
         spans:
-          include:
-            match_type: strict
-            attributes:
-              - key: cicd.pipeline.run.url.full
-                exists: true
+          - attributes["cicd.pipeline.run.url.full"] != nil
       attributes/github-add-uptime:
         actions:
           - key: resource.attributes.UPTIME_STATUS
