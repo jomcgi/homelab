@@ -63,6 +63,6 @@ data:
           processors: [filter/non-gh-workflow-traces, attributes/github-add-uptime]
           # processors: [attributes/github-add-uptime]
           exporters: [otlphttp/github-uptime-kuma, debug]
-        telemetry:
-          logs:
-            level: DEBUG
+      telemetry:
+        logs:
+          level: DEBUG
