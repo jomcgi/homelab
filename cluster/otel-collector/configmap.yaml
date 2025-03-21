@@ -34,8 +34,8 @@ data:
         trace_statements:
           - context: span
             statements:
-              - set(attributes["uptime.status"], "down")
-              - set(attributes["uptime.message"], "CI/CD deployment status")
+              - set(resource["UPTIME_STATUS"], "down")
+              - set(resource["UPTIME_MESSAGE"], "CI/CD deployment status")
 
     exporters:
       otlp:
@@ -50,8 +50,8 @@ data:
         headers:
           Content-Type: "application/json"
         query_params:
-          status: "${attributes.uptime.status}"
-          msg: "${attributes.uptime.message}"
+          status: "${UPTIME_STATUS}"
+          msg: "${UPTIME_MESSAGE}"
 
     service:
       pipelines:
