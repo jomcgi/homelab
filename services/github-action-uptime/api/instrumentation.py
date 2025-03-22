@@ -7,6 +7,7 @@ from enum import Enum
 import logging
 import structlog
 from structlog.types import EventDict, WrappedLogger
+import os
 
 
 class _LogEventFields(Enum):
@@ -56,6 +57,8 @@ def _configure_structlog():
 def _instrument() -> None:
     tracer_provider = TracerProvider(resource=Resource.create())
     collector_exporter = OTLPSpanExporter()
+    if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", None):
+        collector_exporter = OTLPSpanExporter()
     tracer_provider.add_span_processor(BatchSpanProcessor(collector_exporter))
     # Sampling for this trace can be configured by exposing environment variables
     # OTEL_TRACES_SAMPLER=traceidratio
