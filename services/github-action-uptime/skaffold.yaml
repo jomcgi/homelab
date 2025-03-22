@@ -11,7 +11,7 @@ build:
       skipUnusedStages: true
       reproducible: true
       cache:
-        repo: container-registry-service.container-registry.svc.cluster.local:5000
+        cacheCopyLayers: true
   cluster:
     dockerConfig:
       secretName: docker-cfg
