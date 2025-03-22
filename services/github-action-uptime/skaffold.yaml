@@ -9,7 +9,7 @@ build:
     context: api
     kaniko:
       skipUnusedStages: true
-      cache: true
+      cache: {}
   cluster:
     dockerConfig:
       secretName: docker-cfg
