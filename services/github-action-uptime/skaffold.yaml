@@ -5,7 +5,7 @@ metadata:
 
 build:
   artifacts:
-  - image: github-action-uptime
+  - image: container-registry-service.container-registry.svc.cluster.local:5000/github-action-uptime
     context: api
     kaniko: {}
   cluster:
