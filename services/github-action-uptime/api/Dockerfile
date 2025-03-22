@@ -9,9 +9,13 @@ COPY requirements.txt .
 
 USER root
 
-RUN wget https://astral.sh/uv/install.sh && source install.sh && rm install.sh
-RUN /root/.cargo/bin/uv venv /api/venv
-RUN /root/.cargo/bin/uv pip install --no-cache --python /api/venv -r requirements.txt
+RUN wget https://astral.sh/uv/install.sh && \
+    sh install.sh && \
+    rm install.sh && \
+    source $HOME/.local/bin/env
+
+RUN uv venv /api/venv
+RUN uv pip install --no-cache --python /api/venv -r requirements.txt
 
 FROM cgr.dev/chainguard/python:latest
 
