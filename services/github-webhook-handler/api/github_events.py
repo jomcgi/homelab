@@ -42,7 +42,11 @@ async def otel_collector_githubreceiver(request: Request) -> None:
         try:
             await client.post(
                 HANDLER_SETTINGS.otel_github_receiver_url,
-                json=payload)
+                json=payload,
+                headers=request.headers,
+                auth=request.auth,
+                cookies=request.cookies,
+                )
         except Exception as e:
             print(e)
             pass
