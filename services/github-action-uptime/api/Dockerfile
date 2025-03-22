@@ -26,5 +26,5 @@ ENV PATH="/venv/bin:$PATH"
 
 COPY --from=builder /api/venv /venv
 COPY . .
-    
+
 ENTRYPOINT ["python", "-m", "fastapi", "run", "main.py", "--port", "9090"]
