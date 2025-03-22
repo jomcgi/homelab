@@ -4,7 +4,7 @@ commonLabels:
 namespace: container-registry
 
 resources:
-  - ./namespace.yaml
+  - ./container-registry/namespace.yaml
   - ./deployment.yaml
   - ./ingress.yaml
   - ./persistent_volume.yaml
