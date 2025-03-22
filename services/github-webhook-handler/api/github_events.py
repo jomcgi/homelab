@@ -1,7 +1,7 @@
 from typing import Any
 from fastapi import Request
 import requests
-from settings import GITHUB_UPTIME_SETTINGS
+from settings import HANDLER_SETTINGS
 import asyncio
 import httpx
 
@@ -29,12 +29,12 @@ async def uptime_kuma_failure(
 async def uptime_kuma_push_monitor(request: Request) -> None:
     gh_payload = await request.json()
     workflow_run = gh_payload["workflow_run"]
-    if kuma_endpoint := GITHUB_UPTIME_SETTINGS.workflow_mapping.get(workflow_run["name"]) is None:
+    if kuma_endpoint := HANDLER_SETTINGS.workflow_mapping.get(workflow_run["name"]) is None:
         return
     if workflow_run["status"] != "completed":
         return
-    url = f"{GITHUB_UPTIME_SETTINGS.uptime_kuma_url}/api/push/{kuma_endpoint}"
-    if workflow_run["conclusion"] not in GITHUB_UPTIME_SETTINGS.up_statuses:
+    url = f"{HANDLER_SETTINGS.uptime_kuma_url}/api/push/{kuma_endpoint}"
+    if workflow_run["conclusion"] not in HANDLER_SETTINGS.up_statuses:
         await uptime_kuma_failure(workflow_run, url)
     else:
         await uptime_kuma_success(workflow_run, url)
