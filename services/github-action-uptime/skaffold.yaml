@@ -8,10 +8,13 @@ build:
   - image: container-registry-service.container-registry.svc.cluster.local:5000/github-action-uptime
     context: api
     kaniko:
+      insecure: true
+      insecurePull: true
       skipUnusedStages: true
       reproducible: true
       cache:
         cacheCopyLayers: true
+        
   cluster:
     dockerConfig:
       secretName: docker-cfg
