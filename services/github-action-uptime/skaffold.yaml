@@ -7,7 +7,9 @@ build:
   artifacts:
   - image: container-registry-service.container-registry.svc.cluster.local:5000/github-action-uptime
     context: api
-    kaniko: {}
+    kaniko:
+      skipUnusedStages: true
+      cache: true
   cluster:
     dockerConfig:
       secretName: docker-cfg
