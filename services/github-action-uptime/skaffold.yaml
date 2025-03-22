@@ -9,7 +9,9 @@ build:
     context: api
     kaniko:
       skipUnusedStages: true
-      cache: {}
+      reproducible: true
+      cache:
+        repo: container-registry-service.container-registry.svc.cluster.local:5000
   cluster:
     dockerConfig:
       secretName: docker-cfg
