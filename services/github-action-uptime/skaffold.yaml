@@ -16,6 +16,8 @@ build:
       reproducible: true
       cache:
         cacheCopyLayers: true
+      tags:
+      - latest
         
   cluster:
     dockerConfig:
