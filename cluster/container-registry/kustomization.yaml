@@ -1,6 +1,8 @@
 commonLabels:
   app: container-registry
 
+namespace: container-registry
+
 resources:
   - ./namespace.yaml
   - ./deployment.yaml

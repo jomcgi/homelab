@@ -14,29 +14,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-uptime-kuma:
+  deploy-cluster:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy Uptime Kuma
-        run: |
-          skaffold run -f cluster/uptime-kuma/skaffold.yaml
-
-  deploy-opentelemetry-collector:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy Opentelemetry Collector
+      - name: Deploy Cluster
         run: |
           kubectl create secret generic otel-collector-secrets --from-literal=honeycomb-api-key=$HONEYCOMB_API_SECRET -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
-          skaffold run -f cluster/otel-collector/skaffold.yaml
+          skaffold run -f cluster/skaffold.yaml
         env:
           HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
-
-  deploy-container-registry:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy Container Registry
-        run: |
-          skaffold run -f cluster/container-registry/skaffold.yaml

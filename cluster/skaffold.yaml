@@ -1,0 +1,22 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: cluster
+
+manifests:
+  kustomize:
+    paths:
+    - ./cluster/container-registry
+    - ./cluster/otel-collector
+
+deploy:
+  kubectl:
+  helm:
+    releases:
+      - name: uptime-kuma
+        remoteChart: uptime-kuma/uptime-kuma
+        version: 2.21.2
+        namespace: uptime-kuma
+        createNamespace: true
+        valuesFiles:
+          - cluster/uptime-kuma/values.yaml

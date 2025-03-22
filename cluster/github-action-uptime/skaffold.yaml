@@ -1,0 +1,24 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: github-action-uptime
+
+build:
+  local:
+    push: true
+    useDockerCLI: false
+    useBuildkit: false
+    concurrency: 2
+  artifacts:
+    - image: github-action-uptime
+      context: ./cluster/github-actions-uptime/api
+
+manifests:
+  kustomize:
+    paths:
+    - ./cluster/github-actions-uptime/deploy
+
+deploy:
+  kubectl:
+    defaultNamespace: github-actions-uptime
+        
