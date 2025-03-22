@@ -9,8 +9,8 @@ UP_STATUSES = ["skipped", "cancelled", "success"]
 
 UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
 
-def uptime(request: Request) -> None:
-    gh_payload = request.json()
+async def uptime(request: Request) -> None:
+    gh_payload = await request.json()
     assert "workflow_run" in gh_payload
     workflow_run = gh_payload["workflow_run"]
     if workflow_run["status"] != "completed":

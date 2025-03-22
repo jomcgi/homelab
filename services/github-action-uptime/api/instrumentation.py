@@ -56,7 +56,7 @@ def _configure_structlog():
 
 def _instrument() -> None:
     tracer_provider = TracerProvider(resource=Resource.create())
-    if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", None):
+    if os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", None) is not None:
         collector_exporter = OTLPSpanExporter()
         tracer_provider.add_span_processor(BatchSpanProcessor(collector_exporter))
     # Sampling for this trace can be configured by exposing environment variables
