@@ -44,7 +44,6 @@ async def otel_collector_githubreceiver(request: Request) -> None:
                 HANDLER_SETTINGS.otel_github_receiver_url,
                 json=payload,
                 headers=request.headers,
-                auth=request.auth,
                 cookies=request.cookies,
                 )
         except Exception as e:
