@@ -11,6 +11,7 @@ UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
 
 async def uptime(request: Request) -> None:
     gh_payload = await request.json()
+    assert isinstance(gh_payload, dict)
     assert "workflow_run" in gh_payload
     workflow_run = gh_payload["workflow_run"]
     if workflow_run["status"] != "completed":
