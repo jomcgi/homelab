@@ -6,8 +6,7 @@ metadata:
 manifests:
   kustomize:
     paths:
-    - ./cluster/otel-collector
+    - .
 
 deploy:
-  kubectl:
-    defaultNamespace: opentelemetry
+  kubectl: {}

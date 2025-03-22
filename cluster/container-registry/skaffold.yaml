@@ -6,9 +6,8 @@ metadata:
 manifests:
   kustomize:
     paths:
-    - ./cluster/container-registry
+    - .
 deploy:
-  kubectl:
-    defaultNamespace: container-registry
+  kubectl: {}
 
         

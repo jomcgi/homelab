@@ -1,4 +1,4 @@
-name: Deploy Cluster
+name: Deploy Homelab
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     paths:
       - '.github/workflows/deploy-cluster.yaml'
       - 'cluster/**'
+      - 'services/**'
   workflow_dispatch:
 
 concurrency:
@@ -21,6 +22,14 @@ jobs:
       - name: Deploy Cluster
         run: |
           kubectl create secret generic otel-collector-secrets --from-literal=honeycomb-api-key=$HONEYCOMB_API_SECRET -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
-          skaffold run -f cluster/skaffold.yaml
+          skaffold run -f cluster/skaffold.yaml --build-concurrency=0
         env:
           HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
+  deploy-services:
+    runs-on: self-hosted
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy Services
+        run: |
+          skaffold build -f services/skaffold.yaml --build-concurrency=0
+    needs: deploy-cluster
