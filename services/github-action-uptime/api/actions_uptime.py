@@ -1,10 +1,8 @@
 from fastapi import Request
 import requests
+from settings import GITHUB_UPTIME_SETTINGS
 
-UP_STATUSES = ["skipped", "cancelled", "success"]
-
-UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
-UPTIME_KUMA_URL = "http://localhost:30333"
+# UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
 
 async def uptime(request: Request) -> None:
     gh_payload = await request.json()
@@ -14,9 +12,12 @@ async def uptime(request: Request) -> None:
     if workflow_run["status"] != "completed":
         return
     if workflow_run["name"] != "Deploy Homelab":
-        return  
-    url = f"{UPTIME_KUMA_URL}/api/push/6jsi0iFnCb"
-    if workflow_run["conclusion"] not in UP_STATUSES:
+        return
+    kuma_endpoint = GITHUB_UPTIME_SETTINGS.workflow_mapping.get(workflow_run["name"])
+    if kuma_endpoint is None:
+        return
+    url = f"{GITHUB_UPTIME_SETTINGS.uptime_kuma_url}/api/push/{kuma_endpoint}"
+    if workflow_run["conclusion"] not in GITHUB_UPTIME_SETTINGS.up_statuses:
         message = f"Workflow {workflow_run['name']} failed - {workflow_run['url']}"
         requests.get(url, params={  
             "status": "down",

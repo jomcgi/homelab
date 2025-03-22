@@ -10,14 +10,12 @@ from health import HealthResponse, get_health
 from instrumentation import _instrument, _configure_structlog
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 from actions_uptime import uptime
+from settings import GITHUB_UPTIME_SETTINGS
 
 logging.basicConfig(level=logging.INFO)
 logger = structlog.get_logger(__name__)
 
-app = FastAPI(
-    # on_startup=[_instrument, _configure_structlog],
-)
-# FastAPIInstrumentor.instrument_app(app, excluded_urls="health")
+app = FastAPI()
 
 app.add_api_route(
     path="/health",
@@ -35,4 +33,4 @@ app.add_api_route(
 )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=9090)
+    uvicorn.run(app, host="0.0.0.0", port=GITHUB_UPTIME_SETTINGS.port)
