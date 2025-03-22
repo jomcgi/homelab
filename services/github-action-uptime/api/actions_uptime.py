@@ -7,7 +7,8 @@ WORKFLOW_MAPPING = {
 
 UP_STATUSES = ["skipped", "cancelled", "success"]
 
-UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
+# UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
+UPTIME_KUMA_URL = "http://localhost:30333"
 
 async def uptime(request: Request) -> None:
     gh_payload = await request.json()
