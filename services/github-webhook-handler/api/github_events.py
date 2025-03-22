@@ -38,18 +38,20 @@ async def uptime_kuma_push_monitor(request: Request) -> None:
 
 async def otel_collector_githubreceiver(request: Request) -> None:
     payload = await request.json()
+    headers = dict(request.headers)
+    headers.pop('content-length', None)
+    
     async with httpx.AsyncClient() as client:
         try:
             await client.post(
                 HANDLER_SETTINGS.otel_github_receiver_url,
                 json=payload,
-                headers=request.headers,
+                headers=headers,
                 cookies=request.cookies,
-                )
+            )
         except Exception as e:
             print("Failed to post to otel collector")
             print(e)
-            pass
     
 
 async def handle_events(request: Request) -> None:
