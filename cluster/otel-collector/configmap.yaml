@@ -29,7 +29,7 @@ data:
         endpoint: "api.honeycomb.io:443" # US instance
         # endpoint: "api.eu1.honeycomb.io:443" # EU instance
         headers:
-          "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}
+          "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}  
 
     service:
       pipelines:
