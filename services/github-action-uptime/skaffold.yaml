@@ -10,7 +10,7 @@ build:
     kaniko: {}
   cluster:
     dockerConfig:
-      path: ~/.docker/config.json
+      secretName: docker-cfg
 
 manifests:
   kustomize:
