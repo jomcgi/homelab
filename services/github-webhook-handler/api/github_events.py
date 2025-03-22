@@ -1,0 +1,59 @@
+from typing import Any
+from fastapi import Request
+import requests
+from settings import GITHUB_UPTIME_SETTINGS
+import asyncio
+import httpx
+
+# UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
+
+async def uptime_kuma_success(
+    workflow_run: dict[str, str], url: str
+) -> None:
+    message = f"Workflow {workflow_run['name']} succeeded - {workflow_run['url']}"
+    async with httpx.AsyncClient() as client:
+        await client.get(url, params={
+            "status": "up",
+            "message": message})
+        
+async def uptime_kuma_failure(
+    workflow_run: dict[str, str], url: str
+) -> None:
+    message = f"Workflow {workflow_run['name']} failed - {workflow_run['url']}"
+    async with httpx.AsyncClient() as client:
+        await client.get(url, params={
+            "status": "down",
+            "message": message})    
+
+
+async def uptime_kuma_push_monitor(request: Request) -> None:
+    gh_payload = await request.json()
+    workflow_run = gh_payload["workflow_run"]
+    if kuma_endpoint := GITHUB_UPTIME_SETTINGS.workflow_mapping.get(workflow_run["name"]) is None:
+        return
+    if workflow_run["status"] != "completed":
+        return
+    url = f"{GITHUB_UPTIME_SETTINGS.uptime_kuma_url}/api/push/{kuma_endpoint}"
+    if workflow_run["conclusion"] not in GITHUB_UPTIME_SETTINGS.up_statuses:
+        await uptime_kuma_failure(workflow_run, url)
+    else:
+        await uptime_kuma_success(workflow_run, url)
+        
+
+async def otel_collector_githubreceiver(request: Request) -> None:
+    payload = await request.json()
+    async with httpx.AsyncClient() as client:
+        try:
+            await client.post(
+                "http://otel-collector.otel-collector.svc.cluster.local:19418/events",
+                json=payload)
+        except Exception as e:
+            print(e)
+            pass
+    
+
+async def handle_events(request: Request) -> None:
+    uptime_kuma_push = uptime_kuma_push_monitor(request)
+    otel_collector_post = otel_collector_githubreceiver(request)
+    await asyncio.gather(uptime_kuma_push, otel_collector_post)
+

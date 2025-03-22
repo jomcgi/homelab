@@ -9,8 +9,8 @@ from fastapi import FastAPI
 from health import HealthResponse, get_health
 from instrumentation import _instrument, _configure_structlog
 from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from actions_uptime import uptime
-from settings import GITHUB_UPTIME_SETTINGS
+from github_events import handle_events
+from settings import HANDLER_SETTINGS
 
 logging.basicConfig(level=logging.INFO)
 logger = structlog.get_logger(__name__)
@@ -27,10 +27,10 @@ app.add_api_route(
 
 app.add_api_route(
     path="/events",
-    endpoint=uptime,
+    endpoint=handle_events,
     methods=["POST"],
     status_code=200,
 )
 
 if __name__ == "__main__":
-    uvicorn.run(app, host="0.0.0.0", port=GITHUB_UPTIME_SETTINGS.port)
+    uvicorn.run(app, host="0.0.0.0", port=HANDLER_SETTINGS.port)

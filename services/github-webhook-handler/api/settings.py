@@ -1,7 +1,7 @@
 from pydantic_settings import BaseSettings
 
 
-class GithubUptimeSettings(BaseSettings):
+class GithubWebhookHandlerSettings(BaseSettings):
     """Settings for the Uptime service"""
 
     uptime_port: int = 9090
@@ -11,4 +11,4 @@ class GithubUptimeSettings(BaseSettings):
     uptime_kuma_url: str = "http://localhost:30333"
     up_statuses: list[str] = ["skipped", "cancelled", "success"]
     
-GITHUB_UPTIME_SETTINGS = GithubUptimeSettings()
+HANDLER_SETTINGS = GithubWebhookHandlerSettings()
