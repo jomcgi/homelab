@@ -47,6 +47,7 @@ async def otel_collector_githubreceiver(request: Request) -> None:
                 cookies=request.cookies,
                 )
         except Exception as e:
+            print("Failed to post to otel collector")
             print(e)
             pass
     
