@@ -1,11 +1,7 @@
-from typing import Any
 from fastapi import Request
-import requests
 from settings import HANDLER_SETTINGS
 import asyncio
 import httpx
-
-# UPTIME_KUMA_URL = "http://uptime-kuma.uptime-kuma.svc.cluster.local:3001"
 
 async def uptime_kuma_success(
     workflow_run: dict[str, str], url: str
@@ -45,7 +41,7 @@ async def otel_collector_githubreceiver(request: Request) -> None:
     async with httpx.AsyncClient() as client:
         try:
             await client.post(
-                "http://otel-collector.otel-collector.svc.cluster.local:19418/events",
+                HANDLER_SETTINGS.otel_github_receiver_url,
                 json=payload)
         except Exception as e:
             print(e)
