@@ -15,9 +15,9 @@ logging.basicConfig(level=logging.INFO)
 logger = structlog.get_logger(__name__)
 
 app = FastAPI(
-    on_startup=[_instrument, _configure_structlog],
+    # on_startup=[_instrument, _configure_structlog],
 )
-FastAPIInstrumentor.instrument_app(app, excluded_urls="health")
+# FastAPIInstrumentor.instrument_app(app, excluded_urls="health")
 
 app.add_api_route(
     path="/health",
