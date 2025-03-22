@@ -25,7 +25,8 @@ async def uptime_kuma_failure(
 async def uptime_kuma_push_monitor(request: Request) -> None:
     gh_payload = await request.json()
     workflow_run = gh_payload["workflow_run"]
-    if kuma_endpoint := HANDLER_SETTINGS.workflow_mapping.get(workflow_run["name"]) is None:
+    if kuma_endpoint := HANDLER_SETTINGS.workflow_mapping.get(workflow_run["name"], None) is None:
+        print(f"No mapping for {workflow_run['name']}")
         return
     if workflow_run["status"] != "completed":
         return
