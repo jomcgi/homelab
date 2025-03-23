@@ -14,8 +14,7 @@ async def uptime_kuma_success(
         async with httpx.AsyncClient(timeout=5.0) as client:  # Set 5-second timeout
             await client.get(url, params={
                 "status": "up",
-                "message": message})
-            logger.info("Successfully sent success status to Uptime Kuma", url=url)
+                "msg": message})
     except httpx.ConnectTimeout:
         logger.error("Connection timeout when sending success to Uptime Kuma", url=url)
     except Exception as e:
@@ -29,8 +28,7 @@ async def uptime_kuma_failure(
         async with httpx.AsyncClient(timeout=5.0) as client:  # Set 5-second timeout
             await client.get(url, params={
                 "status": "down",
-                "message": message})
-            logger.info("Successfully sent failure status to Uptime Kuma", url=url)
+                "msg": message})
     except httpx.ConnectTimeout:
         logger.error("Connection timeout when sending failure to Uptime Kuma", url=url)
     except Exception as e:
@@ -40,7 +38,7 @@ async def uptime_kuma_failure(
 
 async def handle_events(request: Request) -> None:
     payload = await request.json()
-    logger.info("Received GitHub webhook event")
+    logger.debug("Received GitHub webhook event")
     try:
         workflow_run = payload["workflow_run"]
     except KeyError:
@@ -57,7 +55,7 @@ async def handle_events(request: Request) -> None:
         return
     
     url = f"{HANDLER_SETTINGS.uptime_kuma_url}/api/push/{kuma_endpoint}"
-    logger.info(f"Sending status to Uptime Kuma", 
+    logger.debug(f"Sending status to Uptime Kuma", 
                 workflow=workflow_run["name"], 
                 conclusion=workflow_run["conclusion"], 
                 url=url)
