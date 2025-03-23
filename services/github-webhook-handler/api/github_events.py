@@ -36,8 +36,11 @@ async def uptime_kuma_failure(
     except Exception as e:
         logger.error("Failed to send failure to Uptime Kuma", url=url, error=str(e))
 
+    
 
-async def uptime_kuma_push_monitor(payload: dict) -> None:
+async def handle_events(request: Request) -> None:
+    payload = await request.json()
+    logger.info("Received GitHub webhook event")
     try:
         workflow_run = payload["workflow_run"]
     except KeyError:
@@ -63,37 +66,3 @@ async def uptime_kuma_push_monitor(payload: dict) -> None:
         await uptime_kuma_failure(workflow_run, url)
     else:
         await uptime_kuma_success(workflow_run, url)
-        
-
-async def otel_collector_githubreceiver(payload: dict, request: Request) -> None:
-    headers = dict(request.headers)
-    headers.pop('content-length', None)
-    
-    try:
-        async with httpx.AsyncClient(timeout=5.0) as client:  # Set 5-second timeout
-            await client.post(
-                HANDLER_SETTINGS.otel_github_receiver_url,
-                json=payload,
-                headers=headers,
-                cookies=request.cookies,
-            )
-            logger.info("Successfully sent payload to OpenTelemetry collector")
-    except httpx.ConnectTimeout:
-        logger.error("Connection timeout when sending to OpenTelemetry collector")
-    except Exception as e:
-        logger.error("Failed to post to OpenTelemetry collector", error=str(e))
-    
-
-async def handle_events(request: Request) -> None:
-    payload = await request.json()
-    logger.info("Received GitHub webhook event")
-    
-    uptime_kuma_push = uptime_kuma_push_monitor(payload)
-    otel_collector_post = otel_collector_githubreceiver(payload, request)
-    
-    # Execute both tasks and continue even if one fails
-    await asyncio.gather(
-        uptime_kuma_push, 
-        otel_collector_post, 
-        return_exceptions=True
-    )
