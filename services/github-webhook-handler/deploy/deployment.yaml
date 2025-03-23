@@ -31,7 +31,7 @@ spec:
             memory: 50Mi
           limits:
             cpu: 150m
-            memory: 50mi
+            memory: 50Mi
         envFrom:
         - configMapRef:
             name: github-webhook-handler-config
