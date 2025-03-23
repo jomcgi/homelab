@@ -4,6 +4,8 @@ metadata:
   name: github-action-uptime
 
 build:
+  tagPolicy:
+    gitCommit: {}
   artifacts:
   - image: github-action-uptime
     context: api
