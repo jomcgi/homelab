@@ -18,14 +18,14 @@ spec:
       - name: container-registry
         image: registry:2.8
         ports:
-        - containerPort: 5000
+        - containerPort: 30500
           protocol: TCP
         volumeMounts:
         - name: storage
           mountPath: /var/lib/registry
         env:
         - name: REGISTRY_HTTP_ADDR
-          value: :5000
+          value: :30500
         - name: REGISTRY_STORAGE_FILESYSTEM_ROOTDIRECTORY
           value: /var/lib/registry
       volumes:
