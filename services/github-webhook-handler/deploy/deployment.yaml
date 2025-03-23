@@ -21,7 +21,7 @@ spec:
     spec:
       containers:
       - name: webhook-handler
-        image: container-registry-service.container-registry.svc.cluster.local:5000/github-action-uptime
+        image: github-action-uptime
         ports:
         - containerPort: 9090 # github-webhook
           name: github-webhook
