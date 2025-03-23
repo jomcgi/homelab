@@ -27,4 +27,5 @@ ENV PATH="/venv/bin:$PATH"
 COPY --from=builder /api/venv /venv
 COPY . .
 
-ENTRYPOINT ["python", "-m", "fastapi", "run", "main.py", "--port", "9090"]
+# ENTRYPOINT ["python", "-m", "fastapi", "run", "main.py", "--port", "9090"]
+ENTRYPOINT ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "9090"]
