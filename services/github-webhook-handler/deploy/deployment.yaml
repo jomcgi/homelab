@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: webhook-handler
+  labels:
+    app: webhook-handler
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: webhook-handler
+  template:
+    metadata:
+      labels:
+        app: webhook-handler
+    spec:
+      containers:
+      - name: webhook-handler
+        image: container-registry-service.container-registry.svc.cluster.local:5000/github-action-uptime
+        args:
+        - --config=/conf/config.yaml
+        ports:
+        - containerPort: 19418 # github-webhook
+          name: github-webhook
+        resources:
+          requests:
+            cpu: 50m
+            memory: 50Mi
+          limits:
+            cpu: 150m
+            memory: 50mi
+        envFrom:
+        - configMapRef:
+            name: github-webhook-handler-config
