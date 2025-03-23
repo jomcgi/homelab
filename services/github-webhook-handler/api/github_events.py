@@ -54,7 +54,7 @@ async def otel_collector_githubreceiver(payload: dict, request: Request) -> None
             )
         except Exception as e:
             print("Failed to post to otel collector")
-            print(e)
+            # print(e)
     
 
 async def handle_events(request: Request) -> None:
