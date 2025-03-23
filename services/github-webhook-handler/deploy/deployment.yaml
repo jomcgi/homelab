@@ -29,10 +29,10 @@ spec:
         resources:
           requests:
             cpu: 50m
-            memory: 50Mi
+            memory: 500Mi
           limits:
             cpu: 150m
-            memory: 50Mi
+            memory: 500Mi
         envFrom:
         - configMapRef:
             name: github-webhook-handler-config
