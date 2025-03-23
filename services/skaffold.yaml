@@ -6,7 +6,7 @@ requires:
 
 profiles:
 - name: default
-  deploy:
+  build:
     cluster:
       dockerConfig:
         secretName: docker-cfg
