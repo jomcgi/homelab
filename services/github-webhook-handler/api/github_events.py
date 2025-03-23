@@ -92,14 +92,8 @@ async def handle_events(request: Request) -> None:
     otel_collector_post = otel_collector_githubreceiver(payload, request)
     
     # Execute both tasks and continue even if one fails
-    results = await asyncio.gather(
+    await asyncio.gather(
         uptime_kuma_push, 
         otel_collector_post, 
         return_exceptions=True
     )
-    
-    # Log any exceptions that were returned
-    for i, result in enumerate(results):
-        if isinstance(result, Exception):
-            service_name = "uptime_kuma_push" if i == 0 else "otel_collector_post"
-            logger.error(f"Error in {service_name}", error=str(result))
