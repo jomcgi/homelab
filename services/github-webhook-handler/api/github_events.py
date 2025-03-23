@@ -22,9 +22,8 @@ async def uptime_kuma_failure(
             "message": message})    
 
 
-async def uptime_kuma_push_monitor(request: Request) -> None:
-    gh_payload = await request.json()
-    workflow_run = gh_payload["workflow_run"]
+async def uptime_kuma_push_monitor(payload: dict) -> None:
+    workflow_run = payload["workflow_run"]
     kuma_endpoint = HANDLER_SETTINGS.workflow_mapping.get(workflow_run["name"], None)
     if kuma_endpoint is None:
         print(f"No mapping for {workflow_run['name']}")
@@ -38,8 +37,7 @@ async def uptime_kuma_push_monitor(request: Request) -> None:
         await uptime_kuma_success(workflow_run, url)
         
 
-async def otel_collector_githubreceiver(request: Request) -> None:
-    payload = await request.json()
+async def otel_collector_githubreceiver(payload: dict, request: Request) -> None:
     headers = dict(request.headers)
     headers.pop('content-length', None)
     
@@ -57,7 +55,10 @@ async def otel_collector_githubreceiver(request: Request) -> None:
     
 
 async def handle_events(request: Request) -> None:
-    uptime_kuma_push = uptime_kuma_push_monitor(request)
-    otel_collector_post = otel_collector_githubreceiver(request)
+    payload = await request.json()
+    
+    uptime_kuma_push = uptime_kuma_push_monitor(payload)
+    otel_collector_post = otel_collector_githubreceiver(payload, request)
+    
     await asyncio.gather(uptime_kuma_push, otel_collector_post)
 
