@@ -9,14 +9,6 @@ profiles:
   activation:
   - command: run
   build:
-    artifacts:
-      kaniko:
-        skipUnusedStages: true
-        reproducible: true
-        cache:
-          cacheCopyLayers: true
-        tags:
-        - latest
     cluster:
       dockerConfig:
         secretName: docker-cfg
