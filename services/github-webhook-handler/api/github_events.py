@@ -23,7 +23,10 @@ async def uptime_kuma_failure(
 
 
 async def uptime_kuma_push_monitor(payload: dict) -> None:
-    workflow_run = payload["workflow_run"]
+    try:
+        workflow_run = payload["workflow_run"]
+    except KeyError:
+        return
     kuma_endpoint = HANDLER_SETTINGS.workflow_mapping.get(workflow_run["name"], None)
     if kuma_endpoint is None:
         print(f"No mapping for {workflow_run['name']}")
