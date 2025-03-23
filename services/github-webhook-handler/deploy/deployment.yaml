@@ -22,6 +22,7 @@ spec:
       containers:
       - name: webhook-handler
         image: github-action-uptime
+        imagePullPolicy: Always
         ports:
         - containerPort: 9090 # github-webhook
           name: github-webhook
