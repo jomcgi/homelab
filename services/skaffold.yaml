@@ -2,3 +2,11 @@ apiVersion: skaffold/v4beta12
 kind: Config
 requires:
 - path: ./github-webhook-handler
+
+
+profiles:
+- name: default
+  deploy:
+    cluster:
+      dockerConfig:
+        secretName: docker-cfg
