@@ -22,7 +22,7 @@ jobs:
       - name: Deploy Cluster
         run: |
           kubectl create secret generic otel-collector-secrets --from-literal=honeycomb-api-key=$HONEYCOMB_API_SECRET -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
-          skaffold run -f cluster/skaffold.yaml --build-concurrency=0 --default-repo=container-registry-service.container-registry.svc.cluster.local:50000
+          skaffold run -f cluster/skaffold.yaml --build-concurrency=0 --default-repo=localhost:30500
         env:
           HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
   deploy-services:
@@ -31,5 +31,5 @@ jobs:
       - uses: actions/checkout@v3
       - name: Deploy Services
         run: |
-          skaffold run -f services/skaffold.yaml --build-concurrency=0 --default-repo=container-registry-service.container-registry.svc.cluster.local:50000
+          skaffold run -f services/skaffold.yaml --build-concurrency=0 --default-repo=localhost:30500
     needs: deploy-cluster
