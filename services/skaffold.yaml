@@ -6,7 +6,16 @@ requires:
 
 profiles:
 - name: default
+  activation:
+  - command: run
   build:
+    kaniko:
+      skipUnusedStages: true
+      reproducible: true
+      cache:
+        cacheCopyLayers: true
+      tags:
+      - latest
     cluster:
       dockerConfig:
         secretName: docker-cfg
