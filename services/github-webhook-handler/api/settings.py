@@ -8,7 +8,7 @@ class GithubWebhookHandlerSettings(BaseSettings):
     workflow_mapping: dict[str, str] = {
         "Deploy Homelab": "6jsi0iFnCb",
     }
-    uptime_kuma_url: str = "http://localhost:30334"
+    uptime_kuma_url: str = "http://localhost:30333"
     up_statuses: list[str] = ["skipped", "cancelled", "success"]
     
 HANDLER_SETTINGS = GithubWebhookHandlerSettings()
