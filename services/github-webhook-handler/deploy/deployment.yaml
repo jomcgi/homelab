@@ -35,7 +35,7 @@ spec:
             port: 9090
           initialDelaySeconds: 15
           periodSeconds: 20
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 9090 # github-webhook
           name: github-webhook
