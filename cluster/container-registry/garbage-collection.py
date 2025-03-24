@@ -154,6 +154,9 @@ def main():
     
     for repository in repositories:
         tags = get_tags(registry_url, repository)
+        if not tags:
+            logger.info(f"Repository {repository} has no tags")
+            continue
         logger.info(f"Repository {repository} has {len(tags)} tags")
         
         # Check if 'latest' tag exists
