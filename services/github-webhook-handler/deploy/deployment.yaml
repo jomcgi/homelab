@@ -22,6 +22,19 @@ spec:
       containers:
       - name: webhook-handler
         image: github-action-uptime
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 9090
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 9090
+          initialDelaySeconds: 15
+          periodSeconds: 20
         imagePullPolicy: Always
         ports:
         - containerPort: 9090 # github-webhook
