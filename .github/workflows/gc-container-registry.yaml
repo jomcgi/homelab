@@ -4,6 +4,12 @@ on:
   schedule:
     - cron: '0 0 * * *'
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/gc-container-registry.yaml'
+      - 'bin/container_registry_garbage_collection.py'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
