@@ -16,5 +16,5 @@ jobs:
       - uses: actions/checkout@v3
       - name: Garbage Collect Container Registry
         run:
-          python3 cluster/container-registry/garbage-collection.py --days 3 --no-dry-run
+          ./bin/container_registry_garbage_collection.py --days 3 --no-dry-run
   
