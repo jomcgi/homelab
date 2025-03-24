@@ -4,3 +4,4 @@ requires:
 - path: ./container-registry
 - path: ./otel-collector
 - path: ./uptime-kuma
+- path: ./coredns
