@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-cluster:
+  deploy-homelab:
     runs-on: self-hosted
     steps:
       - uses: actions/checkout@v3
@@ -25,11 +25,6 @@ jobs:
           skaffold run -f cluster/skaffold.yaml --build-concurrency=0 --default-repo=registry.localhost:30500 --insecure-registry registry.localhost:30500
         env:
           HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
-  deploy-services:
-    runs-on: self-hosted
-    steps:
-      - uses: actions/checkout@v3
       - name: Deploy Services
         run: |
           skaffold run -f services/skaffold.yaml --build-concurrency=0 --default-repo=registry.localhost:30500 --insecure-registry registry.localhost:30500
-    needs: deploy-cluster
