@@ -173,9 +173,6 @@ def main():
             if is_older_than_days(registry_url, repository, tag, delete_older_than_days):
                 logger.info(f"Image {repository}:{tag} is older than {delete_older_than_days} days")
                 should_delete = True
-            elif not has_latest:
-                logger.info(f"Image {repository}:{tag} has no 'latest' tag")
-                should_delete = True
             
             if should_delete:
                 if delete_tag(registry_url, repository, tag, dry_run):
