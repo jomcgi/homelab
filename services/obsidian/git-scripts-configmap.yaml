@@ -117,7 +117,7 @@ data:
     echo "----> Starting Git sync service for $GIT_VAULT_DIR every 5 minutes..."
 
     GIT_BRANCH=${GIT_BRANCH:-"main"} # Or "master", or make it an env variable
-    GIT_SSH_CMD="ssh -o UserKnownHostsFile=/config/.ssh/known_hosts -o StrictHostKeyChecking=yes"
+    GIT_SSH_CMD="ssh -i /config/.ssh/id_ed25519 -o IdentitiesOnly=yes"
     # *** ADDED: Configure safe directory for the sync script's user context ***
     # This ensures the non-root user running the sync service also trusts the directory
     echo "----> Configuring safe directory for sync service user: $GIT_VAULT_DIR"
