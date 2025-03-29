@@ -1,0 +1,132 @@
+# git-scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sync-scripts
+  namespace: obsidian
+data:
+  99-git-setup.sh: |
+    #!/usr/bin/with-contenv bash
+    # Runs once on container startup
+
+    set -e # Exit immediately if a command exits with a non-zero status.
+
+    echo "----> Setting up Git SSH configuration..."
+
+    # Check if GIT_VAULT_DIR is set
+    if [ -z "$GIT_VAULT_DIR" ]; then
+      echo "ERROR: GIT_VAULT_DIR environment variable is not set. Exiting setup."
+      exit 1
+    fi
+
+    # Check if the vault directory exists
+    if [ ! -d "$GIT_VAULT_DIR" ]; then
+      echo "ERROR: Vault directory '$GIT_VAULT_DIR' does not exist. Create the vault in Obsidian first. Exiting setup."
+      # Note: Can't proceed if the vault isn't there yet.
+      # The sync script will also fail, which is okay until the vault is created.
+      exit 0 # Exit gracefully so container doesn't crash loop if vault is missing initially
+    fi
+
+    # Setup SSH
+    mkdir -p /config/.ssh
+    cp /etc/git-secret/id_ed25519 /config/.ssh/id_ed25519
+    cp /etc/git-secret/known_hosts /config/.ssh/known_hosts
+    chmod 700 /config/.ssh
+    chmod 600 /config/.ssh/id_ed25519
+    chmod 644 /config/.ssh/known_hosts
+
+    # Configure Git user
+    # Use variables or defaults if not set
+    GIT_USER_EMAIL=${GIT_USER_EMAIL:-"obsidian-bot@example.com"}
+    GIT_USER_NAME=${GIT_USER_NAME:-"Obsidian Sync Bot"}
+    git config --global user.email "$GIT_USER_EMAIL"
+    git config --global user.name "$GIT_USER_NAME"
+    echo "----> Git user configured as '$GIT_USER_NAME <$GIT_USER_EMAIL>'"
+
+    # Navigate to vault directory
+    cd "$GIT_VAULT_DIR"
+
+    # Initialize Git repo if it doesn't exist
+    if [ ! -d ".git" ]; then
+      echo "----> Initializing Git repository in $GIT_VAULT_DIR..."
+      git init
+      git remote add origin git@github.com:jomcgi/obsidian.git
+      # Optional: Add initial commit if needed, or let the sync script handle it
+      # git add .
+      # git commit -m "Initial commit from container"
+      # git push -u origin main # Or your default branch
+    else
+      echo "----> Git repository already initialized in $GIT_VAULT_DIR."
+      # Ensure remote is set correctly (in case it was removed)
+      if ! git remote get-url origin > /dev/null 2>&1; then
+        echo "----> Adding missing remote 'origin'."
+        git remote add origin git@github.com:jomcgi/obsidian.git
+      fi
+    fi
+
+    # Ensure correct ownership (s6 runs as root initially, but PUID/PGID apply later)
+    # This assumes PUID/PGID are set correctly in the deployment
+    # The chown in the linuxserver entrypoint should handle the /config dir itself.
+    # We might need to chown .ssh specifically if issues arise.
+    # chown -R abc:abc /config/.ssh # 'abc' is the default user in linuxserver images
+
+    echo "----> Git SSH setup complete."
+
+  git-sync-run.sh: |
+    #!/usr/bin/with-contenv bash
+    # Runs as a background service
+
+    set -e # Exit script if any command fails (s6 will restart it)
+
+    # Check if GIT_VAULT_DIR is set
+    if [ -z "$GIT_VAULT_DIR" ]; then
+      echo "ERROR: GIT_VAULT_DIR environment variable not set. Sync service cannot run."
+      sleep 3600 # Sleep for a long time to avoid spamming logs
+      exit 1
+    fi
+
+    # Check if the vault directory exists before starting loop
+    if [ ! -d "$GIT_VAULT_DIR" ]; then
+      echo "WARNING: Vault directory '$GIT_VAULT_DIR' does not exist yet. Waiting..."
+      sleep 60 # Wait a bit and let s6 restart the service
+      exit 1 # Exit so it retries after waiting
+    fi
+
+    # Check if it's a git repository
+    if ! git -C "$GIT_VAULT_DIR" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
+        echo "ERROR: '$GIT_VAULT_DIR' is not a Git repository. Run setup script or initialize manually."
+        sleep 3600
+        exit 1
+    fi
+
+    echo "----> Starting Git sync service for $GIT_VAULT_DIR every 5 minutes..."
+
+    GIT_BRANCH=${GIT_BRANCH:-"main"} # Or "master", or make it an env variable
+
+    while true; do
+      cd "$GIT_VAULT_DIR"
+      echo "---> Performing sync cycle at $(date)"
+
+      # Optional: Pull changes first (use with caution, may cause merge conflicts)
+      # echo "---> Pulling changes from remote..."
+      # git pull origin "$GIT_BRANCH" --rebase # Try to rebase local changes on top
+
+      echo "---> Checking for local changes..."
+      # Add all changes (including deletions)
+      git add -A
+
+      # Check if there are changes to commit
+      if git diff --staged --quiet; then
+        echo "---> No changes to commit."
+      else
+        echo "---> Committing changes..."
+        git commit -m "Automated sync: $(date)"
+
+        echo "---> Pushing changes to origin/$GIT_BRANCH..."
+        git push origin "$GIT_BRANCH"
+        echo "---> Push successful."
+      fi
+
+      echo "---> Sync cycle complete. Sleeping for 300 seconds..."
+      sleep 300 # Sleep for 5 minutes
+    done

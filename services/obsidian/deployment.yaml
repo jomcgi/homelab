@@ -1,3 +1,4 @@
+# deployment.yaml (MODIFIED)
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -30,18 +31,41 @@ spec:
               value: "1000"
             - name: TZ
               value: "Etc/UTC"
+            - name: DOCKER_MODS
+              value: "linuxserver/mods:universal-package-install"
+            - name: INSTALL_PACKAGES
+              value: "git|openssh-client"
+            - name: GIT_VAULT_DIR
+              value: "/config/jomcgi"
+            - name: GIT_USER_EMAIL
+              value: "jomcgi@jomcgi.dev"
+            - name: GIT_USER_NAME
+              value: "jomcgi"
+            - name: GIT_BRANCH
+              value: "main"
           volumeMounts:
             - name: config-volume
               mountPath: /config
             - name: dshm
               mountPath: /dev/shm
+            - name: git-ssh-key
+              mountPath: /etc/git-secret
+              readOnly: true
+            - name: git-scripts
+              mountPath: /etc/cont-init.d/99-git-setup.sh
+              subPath: 99-git-setup.sh
+              readOnly: true
+            - name: git-sync-service-script
+              mountPath: /etc/services.d/git-sync/run
+              subPath: git-sync-run.sh
+              readOnly: true
           resources:
             requests:
-              memory: "512Mi"
+              memory: "500Mi"
               cpu: "250m"
             limits:
-              memory: "2Gi"
-              cpu: "1"
+              memory: "500Mi"
+              cpu: "250m"
       volumes:
         - name: config-volume
           persistentVolumeClaim:
@@ -50,3 +74,15 @@ spec:
           emptyDir:
             medium: Memory
             sizeLimit: 1Gi
+        - name: git-ssh-key
+          secret:
+            secretName: git-ssh-secret
+            defaultMode: 0400
+        - name: git-scripts
+          configMap:
+            name: git-sync-scripts
+            defaultMode: 0755
+        - name: git-sync-service-script
+          configMap:
+            name: git-sync-scripts
+            defaultMode: 0755
