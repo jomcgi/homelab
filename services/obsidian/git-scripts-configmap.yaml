@@ -21,11 +21,15 @@ data:
 
     # Check if the vault directory exists
     if [ ! -d "$GIT_VAULT_DIR" ]; then
-      echo "ERROR: Vault directory '$GIT_VAULT_DIR' does not exist. Create the vault in Obsidian first. Exiting setup."
-      # Note: Can't proceed if the vault isn't there yet.
-      # The sync script will also fail, which is okay until the vault is created.
-      exit 0 # Exit gracefully so container doesn't crash loop if vault is missing initially
+      echo "WARNING: Vault directory '$GIT_VAULT_DIR' does not exist. Create the vault in Obsidian first. Skipping Git setup for now."
+      # Exit gracefully, the sync script will wait.
+      exit 0
     fi
+
+    # *** ADDED: Configure Git safe directory EARLY ***
+    # Do this globally before any repo-specific commands that might check ownership
+    echo "----> Configuring safe directory: $GIT_VAULT_DIR"
+    git config --global --add safe.directory "$GIT_VAULT_DIR"
 
     # Setup SSH
     mkdir -p /config/.ssh
@@ -36,7 +40,6 @@ data:
     chmod 644 /config/.ssh/known_hosts
 
     # Configure Git user
-    # Use variables or defaults if not set
     GIT_USER_EMAIL=${GIT_USER_EMAIL:-"obsidian-bot@example.com"}
     GIT_USER_NAME=${GIT_USER_NAME:-"Obsidian Sync Bot"}
     git config --global user.email "$GIT_USER_EMAIL"
@@ -50,28 +53,40 @@ data:
     if [ ! -d ".git" ]; then
       echo "----> Initializing Git repository in $GIT_VAULT_DIR..."
       git init
+      # *** MOVED: Configure safe directory again specifically after init (belt-and-suspenders) ***
+      # git config --global --add safe.directory "$GIT_VAULT_DIR" # Already done globally above
+      echo "----> Setting remote 'origin'..."
       git remote add origin git@github.com:jomcgi/obsidian.git
-      # Optional: Add initial commit if needed, or let the sync script handle it
-      # git add .
-      # git commit -m "Initial commit from container"
-      # git push -u origin main # Or your default branch
+      echo "----> Git repository initialized."
+      # Optional: You might want an initial commit here if the directory isn't empty
+      # if [ -n "$(ls -A)" ]; then
+      #   echo "----> Creating initial commit..."
+      #   git add -A
+      #   git commit -m "Initial commit from container setup"
+      #   # Don't push here, let the sync script handle the first push
+      # fi
     else
       echo "----> Git repository already initialized in $GIT_VAULT_DIR."
-      # Ensure remote is set correctly (in case it was removed)
+      # *** ADDED: Ensure safe directory is configured even if repo exists ***
+      # git config --global --add safe.directory "$GIT_VAULT_DIR" # Already done globally above
+      # Ensure remote is set correctly
       if ! git remote get-url origin > /dev/null 2>&1; then
         echo "----> Adding missing remote 'origin'."
         git remote add origin git@github.com:jomcgi/obsidian.git
+      else
+         echo "----> Remote 'origin' already set to $(git remote get-url origin)"
       fi
     fi
 
     # Ensure correct ownership (s6 runs as root initially, but PUID/PGID apply later)
-    # This assumes PUID/PGID are set correctly in the deployment
-    # The chown in the linuxserver entrypoint should handle the /config dir itself.
-    # We might need to chown .ssh specifically if issues arise.
-    # chown -R abc:abc /config/.ssh # 'abc' is the default user in linuxserver images
+    # The linuxserver base image's chown mechanism should handle /config,
+    # but explicitly chowning .ssh is good practice if issues arise later.
+    # echo "----> Ensuring SSH key ownership..."
+    # chown $(id -u abc):$(id -g abc) /config/.ssh /config/.ssh/* || echo "Warn: Could not chown .ssh files"
 
     echo "----> Git SSH setup complete."
 
+  # --- git-sync-run.sh remains the same ---
   git-sync-run.sh: |
     #!/usr/bin/with-contenv bash
     # Runs as a background service
@@ -85,23 +100,27 @@ data:
       exit 1
     fi
 
-    # Check if the vault directory exists before starting loop
-    if [ ! -d "$GIT_VAULT_DIR" ]; then
-      echo "WARNING: Vault directory '$GIT_VAULT_DIR' does not exist yet. Waiting..."
-      sleep 60 # Wait a bit and let s6 restart the service
-      exit 1 # Exit so it retries after waiting
-    fi
+    # Wait for the vault directory to exist before starting loop
+    while [ ! -d "$GIT_VAULT_DIR" ]; do
+      echo "WARNING: Vault directory '$GIT_VAULT_DIR' does not exist yet. Waiting 60s..."
+      sleep 60
+    done
 
-    # Check if it's a git repository
-    if ! git -C "$GIT_VAULT_DIR" rev-parse --is-inside-work-tree > /dev/null 2>&1; then
-        echo "ERROR: '$GIT_VAULT_DIR' is not a Git repository. Run setup script or initialize manually."
-        sleep 3600
-        exit 1
+    # Wait for the .git directory to exist (robust check)
+    while ! git -C "$GIT_VAULT_DIR" rev-parse --is-inside-work-tree > /dev/null 2>&1; do
+        echo "WARNING: '$GIT_VAULT_DIR' is not ready as a Git repository yet. Waiting 30s..."
+        sleep 30
     fi
 
     echo "----> Starting Git sync service for $GIT_VAULT_DIR every 5 minutes..."
 
     GIT_BRANCH=${GIT_BRANCH:-"main"} # Or "master", or make it an env variable
+
+    # *** ADDED: Configure safe directory for the sync script's user context ***
+    # This ensures the non-root user running the sync service also trusts the directory
+    echo "----> Configuring safe directory for sync service user: $GIT_VAULT_DIR"
+    git config --global --add safe.directory "$GIT_VAULT_DIR"
+
 
     while true; do
       cd "$GIT_VAULT_DIR"
@@ -120,6 +139,7 @@ data:
         echo "---> No changes to commit."
       else
         echo "---> Committing changes..."
+        # Use the globally configured user name/email
         git commit -m "Automated sync: $(date)"
 
         echo "---> Pushing changes to origin/$GIT_BRANCH..."
