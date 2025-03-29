@@ -32,7 +32,7 @@ jobs:
           ssh-keyscan github.com > github_known_hosts
           kubectl create secret generic obsidian-repo-deploy-key \
             --namespace=obsidian \
-            --from-literal=id_ed25519="$OBSIDIAN_REPO_DEPLOY_KEY" \
+            --from-literal=id_ed25519="$(printf '%s\n' "$OBSIDIAN_REPO_DEPLOY_KEY")" \
             --from-file=known_hosts=./github_known_hosts \
             --dry-run=client -o yaml | kubectl apply -f -
 
