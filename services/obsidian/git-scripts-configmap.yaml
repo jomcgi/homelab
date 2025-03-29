@@ -110,7 +110,7 @@ data:
     while ! git -C "$GIT_VAULT_DIR" rev-parse --is-inside-work-tree > /dev/null 2>&1; do
         echo "WARNING: '$GIT_VAULT_DIR' is not ready as a Git repository yet. Waiting 30s..."
         sleep 30
-    fi
+    done
 
     echo "----> Starting Git sync service for $GIT_VAULT_DIR every 5 minutes..."
 
