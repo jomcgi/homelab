@@ -76,7 +76,7 @@ spec:
             sizeLimit: 1Gi
         - name: git-ssh-key
           secret:
-            secretName: git-ssh-secret
+            secretName: obsidian-repo-deploy-key
             defaultMode: 0400
         - name: git-scripts
           configMap:
