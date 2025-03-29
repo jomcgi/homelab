@@ -29,7 +29,7 @@ jobs:
             --from-literal=honeycomb-api-key="$HONEYCOMB_API_SECRET" \
             -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
           
-          ssh-keyscan -t rsa github.com >> known_hosts
+          ssh-keyscan -t rsa github.com > github_known_hosts
           printf '%s\n' "$OBSIDIAN_REPO_DEPLOY_KEY" > ./id_ed25519_key
 
           kubectl create secret generic obsidian-repo-deploy-key \
