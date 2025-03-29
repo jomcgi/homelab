@@ -5,6 +5,6 @@ namespace: obsidian
 
 resources:
   - namespace.yaml
-  - persistent_volume_claim.yaml
+  - persistent_volume.yaml
   - deployment.yaml
   - service.yaml
