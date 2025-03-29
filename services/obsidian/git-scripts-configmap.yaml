@@ -49,6 +49,8 @@ data:
     # Navigate to vault directory
     cd "$GIT_VAULT_DIR"
 
+    git config --global init.defaultBranch main
+
     # Initialize Git repo if it doesn't exist
     if [ ! -d ".git" ]; then
       echo "----> Initializing Git repository in $GIT_VAULT_DIR..."
@@ -115,7 +117,7 @@ data:
     echo "----> Starting Git sync service for $GIT_VAULT_DIR every 5 minutes..."
 
     GIT_BRANCH=${GIT_BRANCH:-"main"} # Or "master", or make it an env variable
-
+    GIT_SSH_CMD="ssh -o UserKnownHostsFile=/config/.ssh/known_hosts -o StrictHostKeyChecking=yes"
     # *** ADDED: Configure safe directory for the sync script's user context ***
     # This ensures the non-root user running the sync service also trusts the directory
     echo "----> Configuring safe directory for sync service user: $GIT_VAULT_DIR"
@@ -139,11 +141,18 @@ data:
         echo "---> No changes to commit."
       else
         echo "---> Committing changes..."
-        # Use the globally configured user name/email
         git commit -m "Automated sync: $(date)"
 
-        echo "---> Pushing changes to origin/$GIT_BRANCH..."
-        git push origin "$GIT_BRANCH"
+        # Check if upstream is set for the current branch
+        if git rev-parse --abbrev-ref "$GIT_BRANCH@{upstream}" > /dev/null 2>&1; then
+          # Upstream is set, just push
+          echo "---> Pushing changes to existing upstream origin/$GIT_BRANCH..."
+          GIT_SSH_COMMAND="$GIT_SSH_CMD" git push origin "$GIT_BRANCH"
+        else
+          # Upstream is not set, use -u on the first push
+          echo "---> Pushing changes and setting upstream origin/$GIT_BRANCH..."
+          GIT_SSH_COMMAND="$GIT_SSH_CMD" git push -u origin "$GIT_BRANCH"
+        fi
         echo "---> Push successful."
       fi
 
