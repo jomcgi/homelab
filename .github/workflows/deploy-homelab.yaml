@@ -31,6 +31,7 @@ jobs:
           kubectl create secret generic obsidian-repo-deploy-key \
             --namespace=obsidian \
             --from-literal=id_ed25519="$OBSIDIAN_REPO_DEPLOY_KEY" \
+            --from-file=known_hosts=./github_known_hosts
             --dry-run=client -o yaml | kubectl apply -f -
           skaffold run -f skaffold.yaml \
             --build-concurrency=0 \
