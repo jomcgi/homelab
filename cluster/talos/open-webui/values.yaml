@@ -261,6 +261,9 @@ extraEnvVars:
   - name: WEBUI_AUTH
     value: "false"
 
+  - name: HOST
+    value: "0.0.0.0"
+
 # -- Configure runtime class
 # ref: <https://kubernetes.io/docs/concepts/containers/runtime-class/>
 runtimeClassName: ""
