@@ -241,7 +241,7 @@ service:
 enableOpenaiApi: true
 
 # -- Point this directly to Google's OpenAI-compatible Gemini endpoint
-openaiBaseApiUrl: "https://generativelanguage.googleapis.com/v1beta/openai/"
+openaiBaseApiUrl: "https://generativelanguage.googleapis.com/v1beta/openai"
 
 openaiBaseApiUrls:
   []
