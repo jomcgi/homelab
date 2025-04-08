@@ -175,7 +175,7 @@ copyAppData:
   resources: {}
 
 managedCertificate:
-  enabled: true
+  enabled: false
   name: "talk-jomcgi-dev-cert" # You can override this name if needed
   domains:
     - talk.jomcgi.dev # update to your real domain
