@@ -1,0 +1,5 @@
+
+namespace: cloudflare-tunnel
+
+resources:
+  - ./store.yaml

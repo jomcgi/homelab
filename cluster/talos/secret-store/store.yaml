@@ -1,0 +1,21 @@
+apiVersion: external-secrets.io/v1beta1
+kind: SecretStore
+metadata:
+  name: secret-store
+  namespace: external-secrets
+  annotations:
+    external-secrets.io/provider: "github"
+    external-secrets.io/secret-store-name: "secret-store"
+spec:
+  provider:
+    provider type: github
+    github:
+      appID: "1208014"
+      auth:
+        privateKey:
+          name: github-app-private-key
+          key: privateKey.pem
+      installationID: "**installation ID goes here**"
+      organization: "Github **organization name goes here**"
+      #repository: "Optional. set this for repository/environment secrets"
+      #environment: "Optional. set this for environment secrets"

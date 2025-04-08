@@ -27,9 +27,18 @@ jobs:
           skaffold run -f cluster/talos/crd/skaffold.yaml
         env:
           KUBECONFIG: /home/jomcgi/.kube/talos
-      - name: Deploy Cluster Service
+      - name: Create Secret Store
+        run: |
+          kubectl create secret generic github-app-private-key \
+            --namespace=external-secrets \
+            --from-literal=privateKey.pem="$GH_APP_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f -
+          skaffold run -f cluster/talos/crd/external-secrets/skaffold.yaml
+        env:
+          GH_APP_KEY: ${{ secrets.GH_SECRET_STORE_KEY }}
+          KUBECONFIG: /home/jomcgi/.kube/talos          
+      - name: Deploy Cluster Services
         run:
-          skaffold run -f cluster/talos/skaffold.yaml \
-            --build-concurrency=0
+          skaffold run -f cluster/talos/skaffold.yaml
         env:
           KUBECONFIG: /home/jomcgi/.kube/talos
