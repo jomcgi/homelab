@@ -1,0 +1,35 @@
+
+name: Deploy Talos Cluster
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-talos-cluster.yaml'
+      - 'cluster/talos/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-talos-cluster:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy Cluster CRDs
+        run:
+          skaffold run -f cluster/talos/crd/skaffold.yaml
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+      - name: Deploy Cluster Service
+        run:
+          skaffold run -f cluster/talos/skaffold.yaml \
+            --build-concurrency=0
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
