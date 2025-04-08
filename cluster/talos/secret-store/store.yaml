@@ -14,5 +14,6 @@ spec:
         privateKey:
           name: github-app-private-key
           key: privateKey.pem
+          namespace: external-secrets
       installationID: "64130365"
       organization: "Github"
