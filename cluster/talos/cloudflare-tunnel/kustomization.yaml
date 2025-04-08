@@ -5,3 +5,4 @@ resources:
   - ./configmap.yaml
   - ./deployment.yaml
   - ./namespace.yaml
+  - ./tunnel-credentials-external-secret.yaml
