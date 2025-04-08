@@ -11,4 +11,4 @@ deploy:
         namespace: external-secrets
         createNamespace: true
         valuesFiles:
-          - cluster/external-secrets/values.yaml
+          - values.yaml
