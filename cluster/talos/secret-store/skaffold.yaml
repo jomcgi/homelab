@@ -2,11 +2,11 @@ apiVersion: skaffold/v4beta11
 kind: Config
 metadata:
   name: secret-store
-  namespace: external-secrets
+  
 
 manifests:
   kustomize:
     paths:
-    - .
+    - cluster/talos/secret-store
 deploy:
   kubectl: {}
