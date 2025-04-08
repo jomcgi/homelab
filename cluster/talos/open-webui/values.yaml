@@ -175,10 +175,10 @@ copyAppData:
   resources: {}
 
 managedCertificate:
-  enabled: false
-  name: "mydomain-chat-cert" # You can override this name if needed
+  enabled: true
+  name: "talk-jomcgi-dev-cert" # You can override this name if needed
   domains:
-    - chat.example.com # update to your real domain
+    - talk.jomcgi.dev # update to your real domain
 
 ingress:
   enabled: false
@@ -257,6 +257,12 @@ extraEnvVars:
 
   - name: OPENAI_MODELS
     value: "gemini-2.5-pro-preview-03-25"
+
+  - name: HOST
+    value: "talk.jomcgi.dev"
+
+  - name: WEBUI_AUTH
+    value: "false"
 
 # -- Configure runtime class
 # ref: <https://kubernetes.io/docs/concepts/containers/runtime-class/>
