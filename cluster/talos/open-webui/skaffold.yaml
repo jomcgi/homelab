@@ -7,7 +7,7 @@ deploy:
     releases:
       - name: open-webui
         remoteChart: open-webui/open-webui
-        version: 6.1.0
+        version: 5.26.0
         namespace: open-webui
         createNamespace: true
         valuesFiles:

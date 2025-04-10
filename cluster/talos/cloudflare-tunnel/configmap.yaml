@@ -10,5 +10,5 @@ data:
     no-autoupdate: true
     ingress:
     - hostname: talk.jomcgi.dev
-      service: http://open-webui.open-webui:80
+      service: http://open-webui.open-webui.svc.cluster.local:80
     - service: http_status:404
