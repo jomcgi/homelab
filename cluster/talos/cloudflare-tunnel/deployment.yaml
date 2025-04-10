@@ -23,7 +23,7 @@ spec:
         - --config
         - /etc/cloudflared/config/config.yaml
         - run
-        - 04873bbf-d461-405f-86c3-161deb6b182b
+        - 55d9c8bd-b6bf-4f67-bd5e-9219caf9c746
         livenessProbe:
           httpGet:
             # Cloudflared has a /ready endpoint which returns 200 if and only if

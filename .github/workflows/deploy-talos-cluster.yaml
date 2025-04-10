@@ -32,7 +32,7 @@ jobs:
           kubectl create namespace cloudflare-tunnel --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic cloudflare-tunnel-credentials \
             --namespace=cloudflare-tunnel \
-            --from-file=credentials.json=/home/jomcgi/.cloudflared/04873bbf-d461-405f-86c3-161deb6b182b.json \
+            --from-file=credentials.json=/home/jomcgi/.cloudflared/55d9c8bd-b6bf-4f67-bd5e-9219caf9c746.json \
             --dry-run=client -o yaml | kubectl apply -f -
 
           kubectl create namespace open-webui --dry-run=client -o yaml | kubectl apply -f -
