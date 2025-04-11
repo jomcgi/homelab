@@ -1,0 +1,51 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: testpvc # This name must match what's in your Pod YAML
+spec:
+  # storageClassName: standard # Or your specific StorageClass
+  accessModes:
+    - ReadWriteOnce # Or ReadWriteMany, ReadOnlyMany depending on your storage
+  resources:
+    requests:
+      storage: 1Gi # Or the size you need
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pvc-general-test-pod # You can change this name
+spec:
+  # --- NO nodeName specified: Let the scheduler choose a suitable node ---
+
+  # --- Define the volume using your existing PVC ---
+  volumes:
+    - name: test-storage
+      persistentVolumeClaim:
+        claimName: testpvc # Replace with your PVC name
+
+  # --- Define a simple container that mounts the volume and tests write access ---
+  containers:
+    - name: test-container
+      image: busybox:latest # Using a small image like busybox or alpine
+      # Command attempts to write a file, prints status, then sleeps
+      command: ["/bin/sh", "-c"]
+      args:
+        - > # Using YAML multiline string for clarity
+          echo "Attempting to write to /mnt/data/test_$(date +%s).txt on node $(hostname)..." &&
+          echo "Test data from pvc-general-test-pod at $(date)" > /mnt/data/test_$(date +%s).txt &&
+          if [ $? -eq 0 ]; then
+            echo "SUCCESS: Write to PVC mount successful.";
+          else
+            echo "FAILURE: Could not write to PVC mount.";
+            exit 1; # Exit if write failed
+          fi &&
+          echo "Sleeping..." &&
+          sleep 3600
+      # --- Mount the volume inside the container ---
+      volumeMounts:
+        - name: test-storage # Must match the volume name above
+          mountPath: /mnt/data # The path inside the container
+
+  # --- Optional: Specify Restart Policy ---
+  # Default is 'Always', 'Never' or 'OnFailure' might be suitable for a test
+  restartPolicy: Never

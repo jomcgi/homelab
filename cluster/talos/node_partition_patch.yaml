@@ -1,0 +1,17 @@
+machine:
+  disks:
+    - device: /dev/nvme0n1
+      partitions:
+        - mountpoint: /var/lib/rook
+          size: 200GB
+  # ...elided...
+  kubelet:
+    extraMounts:
+      - destination: /var/lib/rook # Destination is the absolute path where the mount will be placed in the container.
+        type: bind # Type specifies the mount kind.
+        source: /var/lib/rook # Source specifies the source path of the mount.
+        # Options are fstab style mount options.
+        options:
+          - rbind
+          - rshared
+          - rw

@@ -1,0 +1,14 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: rook-ceph
+deploy:
+  helm:
+    releases:
+      - name: rook-ceph
+        remoteChart: rook-release/rook-ceph
+        version: v1.16.6
+        namespace: rook-ceph
+        createNamespace: true
+        valuesFiles:
+          - values.yaml
