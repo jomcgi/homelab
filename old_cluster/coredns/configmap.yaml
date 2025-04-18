@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns-custom
+  namespace: kube-system
+data:
+  registry.server: |
+    registry.localhost {
+        hosts {
+              192.168.4.73 registry.localhost
+              fallthrough
+        }
+    }

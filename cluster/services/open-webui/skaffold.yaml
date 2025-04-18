@@ -1,0 +1,22 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: open-webui
+
+manifests:
+  kustomize:
+    paths:
+    - .
+
+deploy:
+  kubectl: {}
+  helm:
+    releases:
+      - name: open-webui
+        remoteChart: open-webui/open-webui
+        version: 5.26.0
+        namespace: open-webui
+        createNamespace: true
+        valuesFiles:
+          - cluster/talos/open-webui/values.yaml
+  

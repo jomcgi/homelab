@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-collector-config
+data:
+  config.yaml: |
+    receivers:
+      otlp:
+        protocols:
+          http:
+            endpoint: 0.0.0.0:4318
+          grpc:
+            endpoint: 0.0.0.0:4317
+      github:
+        scrapers:
+          scraper:
+        webhook:
+          endpoint: 0.0.0.0:19418
+          path: /events
+          health_path: /health
+    
+    processors:
+      batch:
+        timeout: 1s
+        send_batch_size: 1024
+    
+    exporters:
+      otlp/honeycomb:
+        endpoint: "api.honeycomb.io:443" # US instance
+        # endpoint: "api.eu1.honeycomb.io:443" # EU instance
+        headers:
+          "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}  
+
+    service:
+      pipelines:
+        traces:
+          receivers: [otlp, github]
+          processors: [batch]
+          exporters: [otlp/honeycomb]

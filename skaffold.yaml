@@ -1,5 +1,5 @@
 apiVersion: skaffold/v4beta12
 kind: Config
 requires:
-- path: ./cluster
+- path: ./old_cluster
 - path: ./services

@@ -1,4 +1,0 @@
-service:
-  nodePort: 30333
-  type: NodePort
-namespaceOverride: "uptime-kuma"

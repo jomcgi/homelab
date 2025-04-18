@@ -1,5 +1,0 @@
-
-namespace: kube-system
-
-resources:
-  - ./configmap.yaml

@@ -1,5 +1,0 @@
-apiVersion: skaffold/v4beta12
-kind: Config
-requires:
-- path: ./external-secrets
-# - path: ./rook-ceph-operator

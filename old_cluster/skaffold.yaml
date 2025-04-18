@@ -1,0 +1,7 @@
+apiVersion: skaffold/v4beta12
+kind: Config
+requires:
+- path: ./container-registry
+- path: ./otel-collector
+- path: ./uptime-kuma
+- path: ./coredns

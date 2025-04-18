@@ -9,7 +9,7 @@ on:
       - main
     paths:
       - '.github/workflows/deploy-talos-cluster.yaml'
-      - 'cluster/talos/**'
+      - 'cluster/**/**'
   workflow_dispatch:
 
 concurrency:
@@ -24,9 +24,10 @@ jobs:
       - uses: actions/checkout@v3
       - name: Deploy Cluster CRDs
         run:
-          skaffold run -f cluster/talos/crd/skaffold.yaml
+          skaffold run -f cluster/crd/skaffold.yaml
         env:
           KUBECONFIG: /home/jomcgi/.kube/talos
+
       - name: Create Secrets
         run: |
           kubectl create namespace cloudflare-tunnel --dry-run=client -o yaml | kubectl apply -f -
@@ -40,14 +41,12 @@ jobs:
             --namespace=open-webui \
             --from-literal=api-key="$GEMINI_API_KEY" \
             --dry-run=client -o yaml | kubectl apply -f -
-          
-          skaffold run -f cluster/talos/secret-store/skaffold.yaml
-
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          KUBECONFIG: /home/jomcgi/.kube/talos          
+          KUBECONFIG: /home/jomcgi/.kube/talos
+        
       - name: Deploy Cluster Services
         run:
-          skaffold run -f cluster/talos/skaffold.yaml
+          skaffold run -f cluster/services/skaffold.yaml
         env:
           KUBECONFIG: /home/jomcgi/.kube/talos
