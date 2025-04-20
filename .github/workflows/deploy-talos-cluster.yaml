@@ -47,6 +47,7 @@ jobs:
             --from-literal=honeycomb-api-key="$HONEYCOMB_API_SECRET" \
             -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
         env:
+          HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KUBECONFIG: /home/jomcgi/.kube/talos
         
