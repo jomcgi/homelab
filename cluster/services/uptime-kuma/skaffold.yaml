@@ -11,4 +11,4 @@ deploy:
         namespace: uptime-kuma
         createNamespace: true
         valuesFiles:
-          - cluster/uptime-kuma/values.yaml
+          - values.yaml

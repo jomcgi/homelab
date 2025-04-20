@@ -13,4 +13,6 @@ data:
       service: http://open-webui.open-webui.svc.cluster.local:80
     - hostname: longhorn.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+    - hostname: status.jomcgi.dev
+      service: http://uptime-kuma.uptime-kuma.svc.cluster.local:3001
     - service: http_status:404

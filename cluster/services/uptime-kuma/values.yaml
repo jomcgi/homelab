@@ -1,4 +1,13 @@
 service:
-  nodePort: 30333
-  type: NodePort
+  type: ClusterIP
+  port: 3001
 namespaceOverride: "uptime-kuma"
+
+volume:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  storageClassName: longhorn
+
+strategy:
+  type: RollingUpdate

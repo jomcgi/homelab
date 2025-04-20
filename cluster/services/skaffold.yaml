@@ -3,3 +3,4 @@ kind: Config
 requires:
 - path: ./cloudflare-tunnel
 - path: ./open-webui
+- path: ./uptime-kuma

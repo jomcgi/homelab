@@ -3,13 +3,7 @@ kind: Config
 metadata:
   name: open-webui
 
-manifests:
-  kustomize:
-    paths:
-    - .
-
 deploy:
-  kubectl: {}
   helm:
     releases:
       - name: open-webui
@@ -18,5 +12,5 @@ deploy:
         namespace: open-webui
         createNamespace: true
         valuesFiles:
-          - cluster/talos/open-webui/values.yaml
+          - values.yaml
   
