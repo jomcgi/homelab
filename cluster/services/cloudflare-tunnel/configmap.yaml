@@ -16,9 +16,5 @@ data:
     - hostname: status.jomcgi.dev
       service: http://uptime-kuma.uptime-kuma.svc.cluster.local:3001
     - hostname: github.jomcgi.dev
-      path: /events/
-      service: http://otel-collector.otel-collector.svc.cluster.local:19418/events
-    # - hostname: github.jomcgi.dev
-    #   path: /uptime
-    #   service: http://otel-collector.otel-collector.svc.cluster.local:19418/uptime
+      service: http://otel-collector.opentelemetry.svc.cluster.local:19418
     - service: http_status:404
