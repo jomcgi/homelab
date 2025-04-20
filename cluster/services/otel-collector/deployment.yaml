@@ -24,26 +24,26 @@ spec:
         image: otel/opentelemetry-collector-contrib:latest
         readinessProbe:
           httpGet:
-            path: /health
-            port: 19418
+            port: 13133
           initialDelaySeconds: 5
           periodSeconds: 10
           timeoutSeconds: 5
         livenessProbe:
           httpGet:
-            path: /health
-            port: 19418
+            port: 13133
           initialDelaySeconds: 15
           periodSeconds: 20
         args:
         - --config=/conf/config.yaml
         ports:
-        - containerPort: 4317 # OTLP gRPC
+        - containerPort: 4317
           name: otlp-grpc
-        - containerPort: 4318 # OTLP HTTP
+        - containerPort: 4318
           name: otlp-http
-        - containerPort: 19418 # github-webhook
+        - containerPort: 19418
           name: github-webhook
+        - containerPort: 13133
+          name: health-check
         resources:
           requests:
             cpu: 200m

@@ -4,6 +4,9 @@ metadata:
   name: otel-collector-config
 data:
   config.yaml: |
+    extensions:
+      health_check:
+        endpoint: 0.0.0.0:13133
     receivers:
       otlp:
         protocols:
@@ -25,14 +28,16 @@ data:
         send_batch_size: 1024
     
     exporters:
+      debug:
       otlp/honeycomb:
-        endpoint: "api.honeycomb.io:443"
+        endpoint: "api.honeycomb.io:443" # US instance
         headers:
           "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}  
 
     service:
+      extensions: [health_check]
       pipelines:
         traces:
           receivers: [otlp, github]
           processors: [batch]
-          exporters: [otlp/honeycomb]
+          exporters: [otlp/honeycomb, debug]
