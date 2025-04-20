@@ -5,21 +5,10 @@ metadata:
   labels:
     app: otel-collector
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
-  - port: 4317
-    targetPort: 4317
-    nodePort: 30317
-    protocol: TCP
-    name: otlp-grpc
-  - port: 4318
-    targetPort: 4318
-    nodePort: 30318
-    protocol: TCP
-    name: otlp-http
   - port: 19418
     targetPort: 19418
-    nodePort: 30319
     protocol: TCP
     name: github-webook
   selector:

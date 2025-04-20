@@ -15,4 +15,10 @@ data:
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: status.jomcgi.dev
       service: http://uptime-kuma.uptime-kuma.svc.cluster.local:3001
+    - hostname: github.jomcgi.dev
+      path: /events/
+      service: http://otel-collector.otel-collector.svc.cluster.local:19418/events
+    # - hostname: github.jomcgi.dev
+    #   path: /uptime
+    #   service: http://otel-collector.otel-collector.svc.cluster.local:19418/uptime
     - service: http_status:404
