@@ -19,4 +19,6 @@ data:
       service: http://otel-collector.opentelemetry.svc.cluster.local:19418
     - hostname: cicd.jomcgi.dev
       service: http://webhook-handler.github-webhook.svc.cluster.local:9090
+    - hostname: obsidian.jomcgi.dev
+      service: http://obsidian-service.obsidian.svc.cluster.local:3000
     - service: http_status:404
