@@ -17,7 +17,7 @@ build:
       verbose: debug
   cluster:
     dockerConfig:
-      path: /home/jomcgi/.docker/config.json
+      secret: docker-cfg
 
 manifests:
   kustomize:
