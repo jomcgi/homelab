@@ -8,6 +8,7 @@ resources:
 - deployment.yaml
 - service.yaml
 - configmap.yaml
+- service_account.yaml
 
 commonLabels:
   app.kubernetes.io/name: otel-collector

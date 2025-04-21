@@ -2,6 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: otel-collector
+  namespace: opentelemetry
   labels:
     app: otel-collector
 spec:
@@ -19,6 +20,7 @@ spec:
       labels:
         app: otel-collector
     spec:
+      serviceAccountName: otel-collector
       containers:
       - name: otel-collector
         image: otel/opentelemetry-collector-contrib:latest
