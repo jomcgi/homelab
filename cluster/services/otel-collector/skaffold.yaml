@@ -9,4 +9,5 @@ manifests:
     - .
 
 deploy:
+  statusCheckDeadlineSeconds: 300
   kubectl: {}

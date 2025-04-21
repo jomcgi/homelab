@@ -5,7 +5,7 @@ metadata:
   labels:
     app: webhook-handler
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
   - port: 9090
     targetPort: 9090

@@ -3,6 +3,7 @@ kind: Config
 metadata:
   name: uptime-kuma
 deploy:
+  statusCheckDeadlineSeconds: 300
   helm:
     releases:
       - name: uptime-kuma

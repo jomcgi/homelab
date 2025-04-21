@@ -6,3 +6,4 @@ requires:
 - path: ./uptime-kuma
 - path: ./otel-collector
 - path: ./github-webhook-handler
+- path: ./obsidian

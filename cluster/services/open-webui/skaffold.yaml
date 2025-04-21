@@ -4,6 +4,7 @@ metadata:
   name: open-webui
 
 deploy:
+  statusCheckDeadlineSeconds: 300
   helm:
     releases:
       - name: open-webui

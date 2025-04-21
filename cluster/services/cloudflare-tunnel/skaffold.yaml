@@ -8,5 +8,6 @@ manifests:
     paths:
     - .
 deploy:
+  statusCheckDeadlineSeconds: 300
   kubectl:
     defaultNamespace: cloudflare-tunnel
