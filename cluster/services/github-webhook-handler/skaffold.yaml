@@ -1,0 +1,29 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: github-action-uptime
+
+build:
+  artifacts:
+  - image: jomcgi/homelab
+    context: api
+    kaniko:
+      skipUnusedStages: true
+      reproducible: true
+      cache:
+        cacheCopyLayers: true
+      tags:
+      - github-action-uptime
+      verbose: debug
+  cluster:
+    dockerConfig:
+      secretName: docker-cfg
+
+manifests:
+  kustomize:
+    paths:
+    - deploy
+
+deploy:
+  kubectl: {}
+        
