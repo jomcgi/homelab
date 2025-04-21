@@ -1,0 +1,161 @@
+# git-scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sync-scripts
+  namespace: obsidian
+data:
+  99-git-setup.sh: |
+    #!/usr/bin/with-contenv bash
+    # Runs once on container startup
+
+    set -e # Exit immediately if a command exits with a non-zero status.
+
+    echo "----> Setting up Git SSH configuration..."
+
+    # Check if GIT_VAULT_DIR is set
+    if [ -z "$GIT_VAULT_DIR" ]; then
+      echo "ERROR: GIT_VAULT_DIR environment variable is not set. Exiting setup."
+      exit 1
+    fi
+
+    # Check if the vault directory exists
+    if [ ! -d "$GIT_VAULT_DIR" ]; then
+      echo "WARNING: Vault directory '$GIT_VAULT_DIR' does not exist. Create the vault in Obsidian first. Skipping Git setup for now."
+      # Exit gracefully, the sync script will wait.
+      exit 0
+    fi
+
+    # *** ADDED: Configure Git safe directory EARLY ***
+    # Do this globally before any repo-specific commands that might check ownership
+    echo "----> Configuring safe directory: $GIT_VAULT_DIR"
+    git config --global --add safe.directory "$GIT_VAULT_DIR"
+
+    # Setup SSH
+    mkdir -p /config/.ssh
+    cp /etc/git-secret/id_ed25519 /config/.ssh/id_ed25519
+    cp /etc/git-secret/known_hosts /config/.ssh/known_hosts
+    chmod 700 /config/.ssh
+    chmod 600 /config/.ssh/id_ed25519
+    chmod 644 /config/.ssh/known_hosts
+
+    # Configure Git user
+    GIT_USER_EMAIL=${GIT_USER_EMAIL:-"obsidian-bot@example.com"}
+    GIT_USER_NAME=${GIT_USER_NAME:-"Obsidian Sync Bot"}
+    git config --global user.email "$GIT_USER_EMAIL"
+    git config --global user.name "$GIT_USER_NAME"
+    echo "----> Git user configured as '$GIT_USER_NAME <$GIT_USER_EMAIL>'"
+
+    # Navigate to vault directory
+    cd "$GIT_VAULT_DIR"
+
+    git config --global init.defaultBranch main
+
+    # Initialize Git repo if it doesn't exist
+    if [ ! -d ".git" ]; then
+      echo "----> Initializing Git repository in $GIT_VAULT_DIR..."
+      git init
+      # *** MOVED: Configure safe directory again specifically after init (belt-and-suspenders) ***
+      # git config --global --add safe.directory "$GIT_VAULT_DIR" # Already done globally above
+      echo "----> Setting remote 'origin'..."
+      git remote add origin git@github.com:jomcgi/obsidian.git
+      echo "----> Git repository initialized."
+      # Optional: You might want an initial commit here if the directory isn't empty
+      # if [ -n "$(ls -A)" ]; then
+      #   echo "----> Creating initial commit..."
+      #   git add -A
+      #   git commit -m "Initial commit from container setup"
+      #   # Don't push here, let the sync script handle the first push
+      # fi
+    else
+      echo "----> Git repository already initialized in $GIT_VAULT_DIR."
+      # *** ADDED: Ensure safe directory is configured even if repo exists ***
+      # git config --global --add safe.directory "$GIT_VAULT_DIR" # Already done globally above
+      # Ensure remote is set correctly
+      if ! git remote get-url origin > /dev/null 2>&1; then
+        echo "----> Adding missing remote 'origin'."
+        git remote add origin git@github.com:jomcgi/obsidian.git
+      else
+         echo "----> Remote 'origin' already set to $(git remote get-url origin)"
+      fi
+    fi
+
+    # Ensure correct ownership (s6 runs as root initially, but PUID/PGID apply later)
+    # The linuxserver base image's chown mechanism should handle /config,
+    # but explicitly chowning .ssh is good practice if issues arise later.
+    # echo "----> Ensuring SSH key ownership..."
+    # chown $(id -u abc):$(id -g abc) /config/.ssh /config/.ssh/* || echo "Warn: Could not chown .ssh files"
+
+    echo "----> Git SSH setup complete."
+
+  # --- git-sync-run.sh remains the same ---
+  git-sync-run.sh: |
+    #!/usr/bin/with-contenv bash
+    # Runs as a background service
+
+    set -e # Exit script if any command fails (s6 will restart it)
+
+    # Check if GIT_VAULT_DIR is set
+    if [ -z "$GIT_VAULT_DIR" ]; then
+      echo "ERROR: GIT_VAULT_DIR environment variable not set. Sync service cannot run."
+      sleep 3600 # Sleep for a long time to avoid spamming logs
+      exit 1
+    fi
+
+    # Wait for the vault directory to exist before starting loop
+    while [ ! -d "$GIT_VAULT_DIR" ]; do
+      echo "WARNING: Vault directory '$GIT_VAULT_DIR' does not exist yet. Waiting 60s..."
+      sleep 60
+    done
+
+    # Wait for the .git directory to exist (robust check)
+    while ! git -C "$GIT_VAULT_DIR" rev-parse --is-inside-work-tree > /dev/null 2>&1; do
+        echo "WARNING: '$GIT_VAULT_DIR' is not ready as a Git repository yet. Waiting 30s..."
+        sleep 30
+    done
+
+    echo "----> Starting Git sync service for $GIT_VAULT_DIR every 5 minutes..."
+
+    GIT_BRANCH=${GIT_BRANCH:-"main"} # Or "master", or make it an env variable
+    GIT_SSH_CMD="/usr/bin/ssh -i /config/.ssh/id_ed25519 -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+    # *** ADDED: Configure safe directory for the sync script's user context ***
+    # This ensures the non-root user running the sync service also trusts the directory
+    echo "----> Configuring safe directory for sync service user: $GIT_VAULT_DIR"
+    git config --global --add safe.directory "$GIT_VAULT_DIR"
+
+
+    while true; do
+      cd "$GIT_VAULT_DIR"
+      echo "---> Performing sync cycle at $(date)"
+
+      # Optional: Pull changes first (use with caution, may cause merge conflicts)
+      # echo "---> Pulling changes from remote..."
+      # git pull origin "$GIT_BRANCH" --rebase # Try to rebase local changes on top
+
+      echo "---> Checking for local changes..."
+      # Add all changes (including deletions)
+      git add -A
+
+      # Check if there are changes to commit
+      if git diff --staged --quiet; then
+        echo "---> No changes to commit."
+      else
+        echo "---> Committing changes..."
+        git commit -m "Automated sync: $(date)"
+
+        # Check if upstream is set for the current branch
+        if git rev-parse --abbrev-ref "$GIT_BRANCH@{upstream}" > /dev/null 2>&1; then
+          # Upstream is set, just push
+          echo "---> Pushing changes to existing upstream origin/$GIT_BRANCH..."
+          GIT_SSH_COMMAND="$GIT_SSH_CMD" git push origin "$GIT_BRANCH"
+        else
+          # Upstream is not set, use -u on the first push
+          echo "---> Pushing changes and setting upstream origin/$GIT_BRANCH..."
+          GIT_SSH_COMMAND="$GIT_SSH_CMD" git push -u origin "$GIT_BRANCH"
+        fi
+        echo "---> Push successful."
+      fi
+
+      echo "---> Sync cycle complete. Sleeping for 300 seconds..."
+      sleep 300 # Sleep for 5 minutes
+    done

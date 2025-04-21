@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: obsidian-service
+  namespace: obsidian
+  labels:
+    app: obsidian
+spec:
+  type: ClusterIP
+  selector:
+    app: obsidian
+  ports:
+    - name: http
+      protocol: TCP
+      port: 3000
+      targetPort: http
