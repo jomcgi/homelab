@@ -17,4 +17,6 @@ data:
       service: http://uptime-kuma.uptime-kuma.svc.cluster.local:3001
     - hostname: github.jomcgi.dev
       service: http://otel-collector.opentelemetry.svc.cluster.local:19418
+    - hostname: cicd.jomcgi.dev
+      service: http://webhook-handler.github-webhook.svc.cluster.local:9090
     - service: http_status:404
