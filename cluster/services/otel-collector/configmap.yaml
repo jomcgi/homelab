@@ -7,17 +7,7 @@ data:
     extensions:
       health_check:
         endpoint: 0.0.0.0:13133
-      # k8s_leader_elector:
-      #   auth_type: kubeConfig
-      #   lease_name: otel-collector
-      #   lease_namespace: opentelemetry
     receivers:
-      k8s_cluster:
-        # k8s_leader_elector: k8s_leader_elector
-        auth_type: serviceAccount
-        collection_interval: 3600s
-        node_conditions_to_report: [Ready, MemoryPressure]
-        allocatable_types_to_report: [cpu, memory]
       otlp:
         protocols:
           http:
@@ -46,9 +36,6 @@ data:
     service:
       extensions: [health_check]
       pipelines:
-        # metrics:
-        #   receivers: [k8s_cluster]
-        #   exporters: [otlp/honeycomb]
         traces:
           receivers: [otlp, github]
           processors: [batch]

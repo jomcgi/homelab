@@ -1,0 +1,16 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: grafana-alloy
+
+deploy:
+  helm:
+    releases:
+      - name: grafana-alloy
+        remoteChart: grafana/k8s-monitoring
+        version: 2.0.25
+        namespace: grafana
+        createNamespace: true
+        valuesFiles:
+          - values.yaml
+  

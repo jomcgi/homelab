@@ -1,0 +1,100 @@
+cluster:
+  name: homelab
+destinations:
+  - name: grafana-cloud-metrics
+    type: prometheus
+    url: https://prometheus-prod-55-prod-gb-south-1.grafana.net/api/prom/push
+    auth:
+      type: basic
+      username: "2334347"
+      passwordKey: grafana-cloud-secret
+    secret:
+      create: false
+      name: grafana-cloud-secret
+      namespace: grafana
+  - name: grafana-cloud-logs
+    type: loki
+    url: https://logs-prod-035.grafana.net/loki/api/v1/push
+    auth:
+      type: basic
+      username: "1162851"
+      passwordKey: grafana-cloud-secret
+    secret:
+      create: false
+      name: grafana-cloud-secret
+      namespace: grafana
+  - name: grafana-cloud-traces
+    type: otlp
+    url: https://tempo-prod-25-prod-gb-south-1.grafana.net:443
+    protocol: grpc
+    auth:
+      type: basic
+      username: "1157165"
+      passwordKey: grafana-cloud-secret
+    secret:
+      create: false
+      name: grafana-cloud-secret
+      namespace: grafana
+    metrics:
+      enabled: false
+    logs:
+      enabled: false
+    traces:
+      enabled: true
+clusterMetrics:
+  enabled: true
+  kepler:
+    enabled: true
+annotationAutodiscovery:
+  enabled: true
+prometheusOperatorObjects:
+  enabled: true
+clusterEvents:
+  enabled: true
+podLogs:
+  enabled: true
+applicationObservability:
+  enabled: true
+  receivers:
+    otlp:
+      grpc:
+        enabled: true
+        port: 4317
+      http:
+        enabled: true
+        port: 4318
+    zipkin:
+      enabled: true
+      port: 9411
+integrations:
+  alloy:
+    instances:
+      - name: alloy
+        labelSelectors:
+          app.kubernetes.io/name:
+            - alloy-metrics
+            - alloy-singleton
+            - alloy-logs
+            - alloy-receiver
+alloy-metrics:
+  enabled: true
+alloy-singleton:
+  enabled: true
+alloy-logs:
+  enabled: true
+alloy-receiver:
+  enabled: true
+  alloy:
+    extraPorts:
+      - name: otlp-grpc
+        port: 4317
+        targetPort: 4317
+        protocol: TCP
+      - name: otlp-http
+        port: 4318
+        targetPort: 4318
+        protocol: TCP
+      - name: zipkin
+        port: 9411
+        targetPort: 9411
+        protocol: TCP
