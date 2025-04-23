@@ -11,5 +11,17 @@ spec:
     targetPort: 19418
     protocol: TCP
     name: github-webook
+  - port: 4317
+    targetPort: 4317
+    protocol: TCP
+    name: otlp-grpc
+  - port: 4318
+    targetPort: 4318
+    protocol: TCP
+    name: otlp-http
+  - port: 13133
+    targetPort: 13133
+    protocol: TCP
+    name: health-check
   selector:
     app: otel-collector

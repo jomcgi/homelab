@@ -24,6 +24,9 @@ spec:
         - /etc/cloudflared/config/config.yaml
         - run
         - 55d9c8bd-b6bf-4f67-bd5e-9219caf9c746
+        ports:
+        - containerPort: 2000
+          name: cloudflared
         livenessProbe:
           httpGet:
             # Cloudflared has a /ready endpoint which returns 200 if and only if
