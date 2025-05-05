@@ -11,7 +11,7 @@ def clone_repo():
 
     repo_path = Path(__file__).parent.joinpath("repo")
     if repo_path.exists():
-        subprocess.run(f"rm -rf {repo_path}", shell=True)
+        subprocess.run(["rm", "-rf", str(repo_path)])
     repo_path.mkdir(parents=True, exist_ok=True)
 
     # Clone the repository
