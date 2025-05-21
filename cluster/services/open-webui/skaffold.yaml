@@ -1,0 +1,17 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: open-webui
+
+deploy:
+  statusCheckDeadlineSeconds: 300
+  helm:
+    releases:
+      - name: open-webui
+        remoteChart: open-webui/open-webui
+        version: 5.26.0
+        namespace: open-webui
+        createNamespace: true
+        valuesFiles:
+          - values.yaml
+  

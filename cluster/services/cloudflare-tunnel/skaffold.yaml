@@ -1,0 +1,13 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: cloudflare-tunnel
+
+manifests:
+  kustomize:
+    paths:
+    - .
+deploy:
+  statusCheckDeadlineSeconds: 300
+  kubectl:
+    defaultNamespace: cloudflare-tunnel
