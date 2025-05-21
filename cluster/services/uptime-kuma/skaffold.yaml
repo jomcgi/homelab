@@ -1,0 +1,15 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: uptime-kuma
+deploy:
+  statusCheckDeadlineSeconds: 300
+  helm:
+    releases:
+      - name: uptime-kuma
+        remoteChart: uptime-kuma/uptime-kuma
+        version: 2.21.2
+        namespace: uptime-kuma
+        createNamespace: true
+        valuesFiles:
+          - values.yaml
