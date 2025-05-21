@@ -31,7 +31,6 @@ def find_nearby_walks(
     center_lat: float,
     center_lon: float,
     max_distance_km: float,
-    table_name: str = "walks" # Assuming your table name is 'walks'
 ) -> List[WalkSearchResult]:
     """
     Finds walks within a specified distance from a central point in an SQLite database.
@@ -63,7 +62,7 @@ def find_nearby_walks(
         # check in Python. See the "Optimization: Bounding Box" section below.
         # For simplicity, this example fetches all rows first.
 
-        query = f"SELECT uuid, name, url, distance_km, ascent_m, duration_h, summary, latitude, longitude FROM {table_name}"
+        query = f"SELECT uuid, name, url, distance_km, ascent_m, duration_h, summary, latitude, longitude FROM walks"
         cursor.execute(query)
 
         rows = cursor.fetchall()

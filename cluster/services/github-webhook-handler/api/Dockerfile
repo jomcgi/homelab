@@ -7,7 +7,7 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /api
 COPY requirements.txt .
 
-USER root
+# USER root
 
 RUN wget https://astral.sh/uv/install.sh && \
     sh install.sh && \
