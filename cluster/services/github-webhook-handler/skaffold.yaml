@@ -1,0 +1,30 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: github-action-uptime
+
+build:
+  artifacts:
+  - image: jomcgi/github-webhook-handler
+    context: api
+    kaniko:
+      skipUnusedStages: true
+      reproducible: true
+      cache:
+        cacheCopyLayers: true
+      tags:
+      - latest
+      verbose: debug
+  cluster:
+    dockerConfig:
+      secret: docker-cfg
+
+manifests:
+  kustomize:
+    paths:
+    - deploy
+
+deploy:
+  statusCheckDeadlineSeconds: 300
+  kubectl: {}
+        

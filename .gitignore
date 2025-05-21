@@ -1,0 +1,35 @@
+
+# Editors
+.vscode/
+# Trash
+.DS_Store
+Thumbs.db
+.venv
+# Binaries
+/flux
+*.iso
+# Temp folders
+.temp*
+.private/
+.logs/
+.task/
+# Ansible
+xanmanning.k3s*
+# Sops
+.decrypted~*
+# Kubernetes
+kubeconfig
+# Other
+report.html
+.env
+auth
+master.key
+*.snap
+setup/cluster/*cluster.yml
+.aider*
+.mypy_cache
+__pycache__
+node_modules
+.next
+services/obsidian/repo
+services/obsidian/all_markdown_content.txt
