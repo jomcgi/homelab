@@ -31,5 +31,3 @@ setup/cluster/*cluster.yml
 __pycache__
 node_modules
 .next
-services/obsidian/repo
-services/obsidian/all_markdown_content.txt
