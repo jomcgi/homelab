@@ -55,6 +55,7 @@ spec:
             memory: 1Gi
         securityContext:
           readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
         volumeMounts:
         - name: config
           mountPath: /conf
