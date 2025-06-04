@@ -51,3 +51,5 @@ spec:
         envFrom:
         - configMapRef:
             name: github-webhook-handler-config
+        securityContext:
+          readOnlyRootFilesystem: true
