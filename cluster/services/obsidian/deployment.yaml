@@ -69,6 +69,7 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
       volumes:
         - name: config-volume
           persistentVolumeClaim:
