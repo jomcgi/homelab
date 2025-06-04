@@ -46,6 +46,8 @@ spec:
         - name: creds
           mountPath: /etc/cloudflared/creds
           readOnly: true
+        securityContext:
+          readOnlyRootFilesystem: true
       volumes:
       - name: creds
         secret:

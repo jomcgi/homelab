@@ -66,6 +66,8 @@ spec:
             limits:
               memory: "500Mi"
               cpu: "250m"
+          securityContext:
+            readOnlyRootFilesystem: true
       volumes:
         - name: config-volume
           persistentVolumeClaim:
