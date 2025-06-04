@@ -53,3 +53,4 @@ spec:
             name: github-webhook-handler-config
         securityContext:
           readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
