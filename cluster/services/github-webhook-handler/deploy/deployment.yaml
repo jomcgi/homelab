@@ -58,3 +58,4 @@ spec:
           capabilities:
             drop:
             - ALL
+          runAsUser: 65532
