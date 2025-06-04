@@ -7,8 +7,6 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /api
 COPY requirements.txt .
 
-# USER root
-
 RUN wget https://astral.sh/uv/install.sh && \
     sh install.sh && \
     rm install.sh && \
@@ -26,5 +24,7 @@ ENV PATH="/venv/bin:$PATH"
 
 COPY --from=builder /api/venv /venv
 COPY . .
+
+USER notroot
 
 ENTRYPOINT ["python", "-m", "fastapi", "run", "main.py", "--port", "9090"]
