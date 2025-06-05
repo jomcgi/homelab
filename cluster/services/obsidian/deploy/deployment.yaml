@@ -1,0 +1,57 @@
+# deployment.yaml (MODIFIED)
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obsidian-deployment
+  namespace: obsidian
+  labels:
+    app: obsidian
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: obsidian
+  template:
+    metadata:
+      labels:
+        app: obsidian
+    spec:
+      containers:
+        - name: obsidian
+          image: lscr.io/linuxserver/obsidian:latest
+          ports:
+            - containerPort: 3000
+              name: http
+            - containerPort: 3001
+              name: https
+          env:
+            - name: PUID
+              value: "1000"
+            - name: PGID
+              value: "1000"
+            - name: TZ
+              value: "Etc/UTC"
+            - name: DOCKER_MODS
+              value: "linuxserver/mods:universal-package-install"
+          volumeMounts:
+            - name: vault-dir
+              mountPath: /vault-dir
+          resources:
+            requests:
+              memory: "500Mi"
+              cpu: "250m"
+            limits:
+              memory: "500Mi"
+              cpu: "250m"
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop:
+              - ALL
+      volumes:
+        - name: vault-dir
+          persistentVolumeClaim:
+            claimName: obsidian-vault-pvc
