@@ -8,4 +8,3 @@ resources:
   - persistent_volume.yaml
   - deployment.yaml
   - service.yaml
-  - git-scripts-configmap.yaml
