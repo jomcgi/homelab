@@ -15,6 +15,17 @@ build:
       tags:
       - latest
       verbose: debug
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+          - ALL
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
   cluster:
     dockerConfig:
       secret: docker-cfg
