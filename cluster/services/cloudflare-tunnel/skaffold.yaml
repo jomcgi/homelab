@@ -6,7 +6,7 @@ metadata:
 manifests:
   kustomize:
     paths:
-    - .
+    - cluster/services/cloudflare-tunnel
 deploy:
   statusCheckDeadlineSeconds: 300
   kubectl:
