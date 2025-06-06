@@ -24,11 +24,7 @@ jobs:
       - uses: actions/checkout@v3
       - name: Create Secrets
         run: |
-          kubectl create namespace open-webui --dry-run=client -o yaml | kubectl apply -f -
-          kubectl create secret generic gemini-api-key \
-            --namespace=open-webui \
-            --from-literal=api-key="$GEMINI_API_KEY" \
-            --dry-run=client -o yaml | kubectl apply -f -
+
 
           kubectl create namespace opentelemetry --dry-run=client -o yaml | kubectl apply -f -
           kubectl create secret generic otel-collector-secrets \
@@ -37,7 +33,6 @@ jobs:
 
         env:
           HONEYCOMB_API_SECRET: ${{secrets.HONEYCOMB_API_KEY}}
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           KUBECONFIG: /home/jomcgi/.kube/talos
 
         

@@ -32,6 +32,7 @@ jobs:
             --docker-password=${DOCKER_TOKEN} \
             --dry-run=client -o yaml | kubectl apply --namespace=github-webhook -f -
         env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Deploy GitHub Webhook Handler
