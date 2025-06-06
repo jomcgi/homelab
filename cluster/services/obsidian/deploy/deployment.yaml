@@ -35,7 +35,7 @@ spec:
               value: "linuxserver/mods:universal-package-install"
           volumeMounts:
             - name: vault-dir
-              mountPath: /vault-dir
+              mountPath: /config
           resources:
             requests:
               memory: "500Mi"
@@ -44,13 +44,11 @@ spec:
               memory: "500Mi"
               cpu: "250m"
           securityContext:
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 65532
-            capabilities:
-              drop:
-              - ALL
+            runAsNonRoot: false
+            runAsUser: 0
+            runAsGroup: 0
             seccompProfile:
               type: RuntimeDefault
       volumes:
