@@ -22,12 +22,6 @@ jobs:
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy Cluster CRDs
-        run:
-          skaffold run -f cluster/crd/skaffold.yaml
-        env:
-          KUBECONFIG: /home/jomcgi/.kube/talos
-
       - name: Create Secrets
         run: |
           kubectl create namespace cloudflare-tunnel --dry-run=client -o yaml | kubectl apply -f -
