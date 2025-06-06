@@ -39,8 +39,8 @@ jobs:
           GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
           GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
           GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
-      # - name: Deploy Cluster Services
-      #   run:
-      #     skaffold run -f cluster/services/grafana-cloud/skaffold.yaml
-      #   env:
-      #     KUBECONFIG: /home/jomcgi/.kube/talos
+      - name: Deploy Cluster Services
+        run:
+          skaffold run -f cluster/services/grafana-cloud/skaffold.yaml
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
