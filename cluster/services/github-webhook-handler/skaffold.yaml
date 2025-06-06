@@ -6,7 +6,7 @@ metadata:
 build:
   artifacts:
   - image: jomcgi/github-webhook-handler
-    context: api
+    context: cluster/services/github-webhook-handler/api
     kaniko:
       skipUnusedStages: true
       reproducible: true
@@ -33,7 +33,7 @@ build:
 manifests:
   kustomize:
     paths:
-    - deploy
+    - cluster/services/github-webhook-handler/deploy
 
 deploy:
   statusCheckDeadlineSeconds: 300
