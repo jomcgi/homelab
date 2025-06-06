@@ -1,0 +1,14 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: grafana-cloud
+deploy:
+  helm:
+    releases:
+      - name: grafana-k8s-monitoring
+        remoteChart: grafana/k8s-monitoring
+        version: 2.1.4
+        namespace: grafana
+        createNamespace: true
+        valuesFiles:
+          - cluster/crd/grafana-cloud/values.yaml
