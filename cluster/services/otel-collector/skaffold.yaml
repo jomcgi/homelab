@@ -6,7 +6,7 @@ metadata:
 manifests:
   kustomize:
     paths:
-    - .
+    - cluster/services/otel-collector
 
 deploy:
   statusCheckDeadlineSeconds: 300
