@@ -11,4 +11,4 @@ deploy:
         namespace: grafana
         createNamespace: true
         valuesFiles:
-          - cluster/crd/grafana-cloud/values.yaml
+          - cluster/services/grafana-cloud/values.yaml
