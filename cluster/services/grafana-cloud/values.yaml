@@ -45,7 +45,7 @@ clusterMetrics:
         defaultClusterId: homelab
       prometheus:
         existingSecretName: grafana-cloud-metrics-grafana-k8s-monitoring
-        username_key: username
+        username_key: metrics-username
         password_key: password
         external:
           url: https://prometheus-prod-55-prod-gb-south-1.grafana.net./api/prom
