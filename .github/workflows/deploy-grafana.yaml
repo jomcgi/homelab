@@ -1,0 +1,35 @@
+
+name: Deploy Grafana
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-grafana:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create grafana secrets
+        run: |
+
+          kubectl create namespace grafana --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic grafana-cloud-secret \
+            --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
+            --from-literal=metrics-username="$GRAFANA_CLOUD_METRICS_USERNAME" \
+            --from-literal=logs-username="$GRAFANA_CLOUD_LOGS_USERNAME" \
+            --from-literal=otlp-username="$GRAFANA_CLOUD_OTLP_USERNAME" \
+            -n grafana -o yaml --dry-run=client | kubectl apply -f -
+
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
+          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
+          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
+          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
+      # - name: Deploy Cluster Services
+      #   run:
+      #     skaffold run -f cluster/services/grafana-cloud/skaffold.yaml
+      #   env:
+      #     KUBECONFIG: /home/jomcgi/.kube/talos
