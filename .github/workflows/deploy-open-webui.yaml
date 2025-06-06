@@ -1,0 +1,39 @@
+
+name: Deploy Open Webui
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-open-webui.yaml'
+      - 'cluster/services/open-webui/**/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-open-webui:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Create Open Webui Secrets
+        run: |
+          kubectl create namespace open-webui --dry-run=client -o yaml | kubectl apply -f -
+          kubectl create secret generic gemini-api-key \
+            --namespace=open-webui \
+            --from-literal=api-key="$GEMINI_API_KEY" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          KUBECONFIG: /home/jomcgi/.kube/talos
+      - name: Deploy Open Webui
+        run:
+          skaffold run -f cluster/services/open-webui/skaffold.yaml
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
