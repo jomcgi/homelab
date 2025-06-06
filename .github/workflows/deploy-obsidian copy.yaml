@@ -1,5 +1,5 @@
 
-name: Deploy Homelab
+name: Deploy Uptime Kuma
 
 on:
   schedule:
@@ -8,8 +8,8 @@ on:
     branches:
       - main
     paths:
-      - '.github/workflows/deploy-homelab.yaml'
-      - 'cluster/**/**'
+      - '.github/workflows/deploy-uptime-kuma.yaml'
+      - 'cluster/services/uptime-kuma/**/**'
   workflow_dispatch:
 
 concurrency:
@@ -17,13 +17,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-homelab:
+  deploy-uptime-kuma:
     runs-on: self-hosted
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy Cluster Services
+      - name: Deploy Uptime Kuma
         run:
-          skaffold run -f cluster/services/skaffold.yaml
+          skaffold run -f cluster/services/uptime-kuma/skaffold.yaml
         env:
           KUBECONFIG: /home/jomcgi/.kube/talos
