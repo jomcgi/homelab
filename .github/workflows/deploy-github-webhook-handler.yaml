@@ -1,0 +1,29 @@
+
+name: Deploy GitHub Webhook Handler
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-github-webhook-handler.yaml'
+      - 'cluster/services/github-webhook-handler/**/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-github-webhook-handler:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy GitHub Webhook Handler
+        run:
+          skaffold run -f cluster/services/github-webhook-handler/skaffold.yaml
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
