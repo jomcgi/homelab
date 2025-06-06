@@ -1,6 +1,17 @@
 
 name: Deploy Grafana
 
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-grafana.yaml'
+      - 'cluster/services/grafana-cloud/**/**'
+  workflow_dispatch:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
