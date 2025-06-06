@@ -32,6 +32,11 @@ jobs:
             --from-literal=logs-username="$GRAFANA_CLOUD_LOGS_USERNAME" \
             --from-literal=otlp-username="$GRAFANA_CLOUD_OTLP_USERNAME" \
             -n grafana -o yaml --dry-run=client | kubectl apply -f -
+          kubectl create secret grafana-cloud-metrics-grafana-k8s-monitoring \
+            --namespace=grafana \
+            --from-literal=username="$GRAFANA_CLOUD_METRICS_USERNAME" \
+            --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
+            --dry-run=client -o yaml | kubectl apply -f -
 
         env:
           KUBECONFIG: /home/jomcgi/.kube/talos
