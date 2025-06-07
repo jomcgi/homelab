@@ -1,0 +1,62 @@
+name: Kubernetes Integration Test
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  minikube-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Start Minikube
+        uses: actions/setup-minikube@v2
+        with:
+          driver: docker
+
+      - name: Verify Minikube status
+        run: minikube status
+
+      - name: Install Skaffold
+        run: |
+          curl -Lo skaffold https://storage.googleapis.com/skaffold/releases/v2.16.0/skaffold-linux-amd64
+          chmod +x skaffold
+          sudo mv skaffold /usr/local/bin/
+
+      - name: Verify Skaffold installation
+        run: skaffold version
+
+      - name: Deploy CRDs
+        run: skaffold run --status-check-deadline=300s -f cluster/crd/skaffold.yaml
+
+      - name: Deploy cloudflare-tunnel
+        run: skaffold run --status-check-deadline=300s -f cluster/services/cloudflare-tunnel/skaffold.yaml
+
+      - name: Deploy github-webhook-handler
+        run: skaffold run --status-check-deadline=300s -f cluster/services/github-webhook-handler/skaffold.yaml
+
+      - name: Deploy grafana-cloud
+        run: skaffold run --status-check-deadline=300s -f cluster/services/grafana-cloud/skaffold.yaml
+
+      - name: Deploy obsidian
+        run: skaffold run --status-check-deadline=300s -f cluster/services/obsidian/skaffold.yaml
+
+      - name: Deploy open-webui
+        run: skaffold run --status-check-deadline=300s -f cluster/services/open-webui/skaffold.yaml
+
+      - name: Deploy otel-collector
+        run: skaffold run --status-check-deadline=300s -f cluster/services/otel-collector/skaffold.yaml
+
+      - name: Deploy uptime-kuma
+        run: skaffold run --status-check-deadline=300s -f cluster/services/uptime-kuma/skaffold.yaml
+
+      - name: Run Health and Configuration Checks
+        run: |
+          chmod +x scripts/integration-test-checks.sh
+          scripts/integration-test-checks.sh
+
+      - name: Run integration tests
+        run: echo "Running integration tests..."
