@@ -13,8 +13,15 @@ data:
       service: http://open-webui.open-webui.svc.cluster.local:80
     - hostname: longhorn.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+
+    # Public Status Page (via Nginx filter)
     - hostname: status.jomcgi.dev
+      service: http://nginx-public-status-svc.uptime-kuma.svc.cluster.local:80 # Points to your Nginx filter
+
+    # Admin Uptime Kuma (direct, for SSO)
+    - hostname: uptime-kuma.jomcgi.dev # New subdomain for admin access
       service: http://uptime-kuma.uptime-kuma.svc.cluster.local:3001
+
     - hostname: github.jomcgi.dev
       service: http://otel-collector.opentelemetry.svc.cluster.local:19418
     - hostname: cicd.jomcgi.dev

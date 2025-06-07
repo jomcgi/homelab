@@ -1,0 +1,50 @@
+# nginx-public-status-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-public-status
+  namespace: uptime-kuma # Or your preferred namespace
+  labels:
+    app: nginx-public-status
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx-public-status
+  template:
+    metadata:
+      labels:
+        app: nginx-public-status
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.25.0 # Pinning to a specific stable version
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "250m"
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/default.conf
+          subPath: nginx-public-status-conf.conf # The key in your ConfigMap
+      volumes:
+      - name: nginx-config
+        configMap:
+          name: nginx-public-status-config # Name of your ConfigMap
