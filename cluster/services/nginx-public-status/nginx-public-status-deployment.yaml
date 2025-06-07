@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: nginx
-        image: nginx:latest # Or a specific stable version
+        image: nginx:1.25.0 # Pinning to a specific stable version
         ports:
         - containerPort: 80
         volumeMounts:
