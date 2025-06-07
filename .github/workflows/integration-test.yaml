@@ -28,28 +28,28 @@ jobs:
         run: skaffold version
 
       - name: Deploy CRDs
-        run: skaffold run --status-check-deadline=300s -f cluster/crd/skaffold.yaml
+        run: skaffold run -f cluster/crd/skaffold.yaml
 
       - name: Deploy cloudflare-tunnel
-        run: skaffold run --status-check-deadline=300s -f cluster/services/cloudflare-tunnel/skaffold.yaml
+        run: skaffold run -f cluster/services/cloudflare-tunnel/skaffold.yaml
 
       - name: Deploy github-webhook-handler
-        run: skaffold run --status-check-deadline=300s -f cluster/services/github-webhook-handler/skaffold.yaml
+        run: skaffold run -f cluster/services/github-webhook-handler/skaffold.yaml
 
       - name: Deploy grafana-cloud
-        run: skaffold run --status-check-deadline=300s -f cluster/services/grafana-cloud/skaffold.yaml
+        run: skaffold run -f cluster/services/grafana-cloud/skaffold.yaml
 
       - name: Deploy obsidian
-        run: skaffold run --status-check-deadline=300s -f cluster/services/obsidian/skaffold.yaml
+        run: skaffold run -f cluster/services/obsidian/skaffold.yaml
 
       - name: Deploy open-webui
-        run: skaffold run --status-check-deadline=300s -f cluster/services/open-webui/skaffold.yaml
+        run: skaffold run -f cluster/services/open-webui/skaffold.yaml
 
       - name: Deploy otel-collector
-        run: skaffold run --status-check-deadline=300s -f cluster/services/otel-collector/skaffold.yaml
+        run: skaffold run -f cluster/services/otel-collector/skaffold.yaml
 
       - name: Deploy uptime-kuma
-        run: skaffold run --status-check-deadline=300s -f cluster/services/uptime-kuma/skaffold.yaml
+        run: skaffold run -f cluster/services/uptime-kuma/skaffold.yaml
 
       - name: Run Health and Configuration Checks
         run: |
