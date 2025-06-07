@@ -30,6 +30,15 @@ jobs:
       - name: Install helm
         uses: azure/setup-helm@v4.3.0
 
+      - name: Install helm repos
+        run: |
+          helm repo add external-secrets https://charts.external-secrets.io
+          helm repo add longhorn https://charts.longhorn.io
+          helm repo add grafana https://grafana.github.io/helm-charts
+          helm repo add open-webui https://helm.open-webui.com/
+          helm repo add uptime-kuma https://dirsigler.github.io/uptime-kuma-helm
+          helm repo update
+
       - name: Deploy CRDs
         run: skaffold run -f cluster/crd/skaffold.yaml
 
