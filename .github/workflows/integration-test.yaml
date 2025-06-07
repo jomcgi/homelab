@@ -27,6 +27,9 @@ jobs:
       - name: Verify Skaffold installation
         run: skaffold version
 
+      - name: Install helm
+        uses: azure/setup-helm@v4.3.0
+
       - name: Deploy CRDs
         run: skaffold run -f cluster/crd/skaffold.yaml
 
