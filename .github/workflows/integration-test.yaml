@@ -35,8 +35,8 @@ jobs:
           helm repo add external-secrets https://charts.external-secrets.io
           helm repo add longhorn https://charts.longhorn.io
           helm repo add grafana https://grafana.github.io/helm-charts
-          helm repo add open-webui https://helm.open-webui.com/
-          helm repo add uptime-kuma https://dirsigler.github.io/uptime-kuma-helm
+          helm repo add open-webui https://helm.openwebui.com/
+          helm repo add uptime-kuma https://helm.irsigler.cloud
           helm repo update
 
       - name: Deploy CRDs
