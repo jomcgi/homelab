@@ -1,0 +1,28 @@
+name: Deploy Public Status Nginx
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/deploy-public-status-nginx.yaml'
+      - 'cluster/services/nginx-public-status/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy-public-status-nginx:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v3
+      - name: Deploy Public Status Nginx
+        run: |
+          skaffold run -f cluster/services/nginx-public-status/skaffold.yaml
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
