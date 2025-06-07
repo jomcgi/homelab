@@ -1,0 +1,13 @@
+# nginx-public-status-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-public-status-svc
+  namespace: uptime-kuma # Or your preferred namespace
+spec:
+  selector:
+    app: nginx-public-status
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 80
