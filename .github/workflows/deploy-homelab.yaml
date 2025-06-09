@@ -371,8 +371,6 @@ jobs:
           esac
           
           echo "✅ ${{ matrix.service }} is healthy and ready"
-        env:
-          KUBECONFIG: /home/jomcgi/.kube/talos
 
       - name: Deployment status
         if: always() && matrix.changed == 'true'
@@ -385,7 +383,7 @@ jobs:
           fi
 
   deployment-summary:
-    needs: [determine-mode, detect-changes, deploy-crds, deploy-services]
+    needs: [detect-changes, deploy-crds, deploy-services]
     runs-on: self-hosted
     if: always()
     steps:
@@ -396,7 +394,11 @@ jobs:
           echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "**Commit:** ${{ github.sha }}"
           echo "**Trigger:** ${{ github.event_name }}"
-          echo "**Mode:** ${{ needs.determine-mode.outputs.deploy-mode }}"
+          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
+            echo "**Mode:** 🧪 DRY RUN"
+          else
+            echo "**Mode:** 🚀 LIVE DEPLOYMENT"
+          fi
           
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "**PR:** #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
@@ -412,7 +414,7 @@ jobs:
           # CRD status
           if [[ "${{ needs.detect-changes.outputs.crd-changed }}" == "true" ]]; then
             if [[ "${{ needs.deploy-crds.result }}" == "success" ]]; then
-              if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
+              if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
                 echo "- 🧪 CRDs: Would be deployed successfully"
               else
                 echo "- ✅ CRDs: Deployed successfully"
@@ -427,7 +429,7 @@ jobs:
           # Services status
           if [[ "${{ needs.detect-changes.outputs.services-changed }}" == "true" ]]; then
             if [[ "${{ needs.deploy-services.result }}" == "success" ]]; then
-              if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
+              if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
                 echo "- 🧪 Services: Would be deployed successfully"
               else
                 echo "- ✅ Services: All deployments completed successfully"
@@ -456,14 +458,14 @@ jobs:
           )
           
           deploy_prefix="🚀"
-          if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
+          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
             deploy_prefix="🧪"
           fi
           
           for service_info in "${services[@]}"; do
             IFS=':' read -r service changed <<< "$service_info"
             if [[ "$changed" == "true" ]]; then
-              echo "- $deploy_prefix $service: $([ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ] && echo "Would be deployed" || echo "Deployed")"
+              echo "- $deploy_prefix $service: $([ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ] && echo "Would be deployed" || echo "Deployed")"
             else
               echo "- ⏭️  $service: Skipped (no changes)"
             fi
