@@ -15,5 +15,5 @@ deploy:
         upgradeOnChange: true
         wait: true
         valuesFiles:
-          - values.yaml
+          - cluster/services/open-webui/values.yaml
   
