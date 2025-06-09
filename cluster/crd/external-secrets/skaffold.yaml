@@ -10,5 +10,7 @@ deploy:
         version: 0.15.1
         namespace: external-secrets
         createNamespace: true
+        upgradeOnChange: true
+        wait: true
         valuesFiles:
           - cluster/crd/external-secrets/values.yaml
