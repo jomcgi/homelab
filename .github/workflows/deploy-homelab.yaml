@@ -64,15 +64,14 @@ jobs:
     steps:
       - uses: actions/checkout@v3
         with:
-          fetch-depth: 2
+          fetch-depth: 0  # Fetch full history for reliable change detection
 
       - name: Detect file changes
         uses: dorny/paths-filter@v3
         id: changes
         if: github.event.inputs.services == ''
         with:
-          # For PRs, compare against the base branch
-          base: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
+          # Let paths-filter automatically determine the base for comparison
           filters: |
             crd:
               - 'cluster/crd/**'
