@@ -2,6 +2,11 @@ apiVersion: skaffold/v4beta5
 kind: Config
 metadata:
   name: grafana-cloud
+
+manifests:
+  rawYaml:
+    - cluster/services/grafana-cloud/namespace.yaml
+
 deploy:
   helm:
     releases:
@@ -14,3 +19,5 @@ deploy:
         wait: true
         valuesFiles:
           - cluster/services/grafana-cloud/values.yaml
+  kubectl:
+    defaultNamespace: "grafana"
