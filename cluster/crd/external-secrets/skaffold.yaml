@@ -13,4 +13,4 @@ deploy:
         upgradeOnChange: true
         wait: true
         valuesFiles:
-          - cluster/crd/external-secrets/values.yaml
+          - values.yaml
