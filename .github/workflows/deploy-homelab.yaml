@@ -44,258 +44,79 @@ env:
   SKAFFOLD_ASSUME_YES: true
   # Set dry run mode for PRs, respect manual input for other triggers  
   SKAFFOLD_DRY_RUN: ${{ github.event_name == 'pull_request' || github.event.inputs.dry_run == 'true' }}
+  SKAFFOLD
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  detect-changes:
-    runs-on: self-hosted
-    timeout-minutes: 5
-    outputs:
-      crd-changed: ${{ steps.override.outputs.crd-changed || steps.changes.outputs.crd }}
-      services-changed: ${{ steps.override.outputs.services-changed || steps.changes.outputs.services }}
-      cloudflare-tunnel-changed: ${{ steps.override.outputs.cloudflare-tunnel-changed || steps.changes.outputs.cloudflare-tunnel }}
-      grafana-changed: ${{ steps.override.outputs.grafana-changed || steps.changes.outputs.grafana }}
-      github-webhook-handler-changed: ${{ steps.override.outputs.github-webhook-handler-changed || steps.changes.outputs.github-webhook-handler }}
-      obsidian-changed: ${{ steps.override.outputs.obsidian-changed || steps.changes.outputs.obsidian }}
-      open-webui-changed: ${{ steps.override.outputs.open-webui-changed || steps.changes.outputs.open-webui }}
-      otel-collector-changed: ${{ steps.override.outputs.otel-collector-changed || steps.changes.outputs.otel-collector }}
-      uptime-kuma-changed: ${{ steps.override.outputs.uptime-kuma-changed || steps.changes.outputs.uptime-kuma }}
-      nginx-public-status-changed: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}
-      is-dry-run: ${{ env.SKAFFOLD_DRY_RUN }}
-    steps:
-      - uses: actions/checkout@v3
-        with:
-          fetch-depth: 0  # Fetch full history for reliable change detection
-
-      - name: Detect file changes
-        uses: dorny/paths-filter@v3
-        id: changes
-        if: github.event.inputs.services == ''
-        with:
-          # Let paths-filter automatically determine the base for comparison
-          filters: |
-            crd:
-              - 'cluster/crd/**'
-            services:
-              - 'cluster/services/**'
-            cloudflare-tunnel:
-              - 'cluster/services/cloudflare-tunnel/**'
-            grafana:
-              - 'cluster/services/grafana-cloud/**'
-            github-webhook-handler:
-              - 'cluster/services/github-webhook-handler/**'
-            obsidian:
-              - 'cluster/services/obsidian/**'
-            open-webui:
-              - 'cluster/services/open-webui/**'
-            otel-collector:
-              - 'cluster/services/otel-collector/**'
-            uptime-kuma:
-              - 'cluster/services/uptime-kuma/**'
-            nginx-public-status:
-              - 'cluster/services/nginx-public-status/**'
-
-      - name: Manual service override
-        id: override
-        if: github.event.inputs.services != '' || github.event.inputs.force_crd_deploy == 'true' || github.event.inputs.force_services_deploy == 'true'
-        run: |
-          # Handle manual CRD override
-          if [[ "${{ github.event.inputs.force_crd_deploy }}" == "true" ]]; then
-            echo "crd-changed=true" >> $GITHUB_OUTPUT
-          fi
-          
-          # Handle force all services deployment
-          if [[ "${{ github.event.inputs.force_services_deploy }}" == "true" ]]; then
-            echo "services-changed=true" >> $GITHUB_OUTPUT
-            echo "cloudflare-tunnel-changed=true" >> $GITHUB_OUTPUT
-            echo "grafana-changed=true" >> $GITHUB_OUTPUT
-            echo "github-webhook-handler-changed=true" >> $GITHUB_OUTPUT
-            echo "obsidian-changed=true" >> $GITHUB_OUTPUT
-            echo "open-webui-changed=true" >> $GITHUB_OUTPUT
-            echo "otel-collector-changed=true" >> $GITHUB_OUTPUT
-            echo "uptime-kuma-changed=true" >> $GITHUB_OUTPUT
-            echo "nginx-public-status-changed=true" >> $GITHUB_OUTPUT
-            echo "🚀 Force deployment enabled - all services will be deployed"
-          fi
-          
-          # Handle manual service selection
-          if [[ "${{ github.event.inputs.services }}" != "" ]]; then
-            echo "services-changed=true" >> $GITHUB_OUTPUT
-            
-            # Parse comma-separated services
-            IFS=',' read -ra SERVICES <<< "${{ github.event.inputs.services }}"
-            for service in "${SERVICES[@]}"; do
-              # Trim whitespace
-              service=$(echo "$service" | xargs)
-              case "$service" in
-                "cloudflare-tunnel")
-                  echo "cloudflare-tunnel-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "grafana")
-                  echo "grafana-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "github-webhook-handler")
-                  echo "github-webhook-handler-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "obsidian")
-                  echo "obsidian-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "open-webui")
-                  echo "open-webui-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "otel-collector")
-                  echo "otel-collector-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "uptime-kuma")
-                  echo "uptime-kuma-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                "nginx-public-status")
-                  echo "nginx-public-status-changed=true" >> $GITHUB_OUTPUT
-                  ;;
-                *)
-                  echo "⚠️  Unknown service: $service"
-                  ;;
-              esac
-            done
-          fi
-
-      - name: Display deployment plan
-        run: |
-          echo "## 🚀 Deployment Plan"
-          echo "**Trigger:** ${{ github.event_name }}"
-          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            echo "**Mode:** 🧪 DRY RUN"
-          else
-            echo "**Mode:** 🚀 LIVE DEPLOYMENT"
-          fi
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "**PR:** #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
-            echo "**Base:** ${{ github.event.pull_request.base.ref }} → **Head:** ${{ github.event.pull_request.head.ref }}"
-          fi
-          if [[ "${{ github.event.inputs.force_services_deploy }}" == "true" ]]; then
-            echo "**Override:** 🔄 Force deploying ALL services"
-          elif [[ "${{ github.event.inputs.services }}" != "" ]]; then
-            echo "**Override:** 🎯 Manual service selection: ${{ github.event.inputs.services }}"
-          fi
-          if [[ "${{ github.event.inputs.force_crd_deploy }}" == "true" ]]; then
-            echo "**Override:** 🔄 Force deploying CRDs"
-          fi
-          echo ""
-          echo "### Changes Detected:"
-          echo "- CRDs: ${{ steps.override.outputs.crd-changed || steps.changes.outputs.crd }}"
-          echo "- Services: ${{ steps.override.outputs.services-changed || steps.changes.outputs.services }}"
-          echo ""
-          echo "### Services to Deploy:"
-          echo "- cloudflare-tunnel: ${{ steps.override.outputs.cloudflare-tunnel-changed || steps.changes.outputs.cloudflare-tunnel }}"
-          echo "- grafana: ${{ steps.override.outputs.grafana-changed || steps.changes.outputs.grafana }}"
-          echo "- github-webhook-handler: ${{ steps.override.outputs.github-webhook-handler-changed || steps.changes.outputs.github-webhook-handler }}"
-          echo "- obsidian: ${{ steps.override.outputs.obsidian-changed || steps.changes.outputs.obsidian }}"
-          echo "- open-webui: ${{ steps.override.outputs.open-webui-changed || steps.changes.outputs.open-webui }}"
-          echo "- otel-collector: ${{ steps.override.outputs.otel-collector-changed || steps.changes.outputs.otel-collector }}"
-          echo "- uptime-kuma: ${{ steps.override.outputs.uptime-kuma-changed || steps.changes.outputs.uptime-kuma }}"
-          echo "- nginx-public-status: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}"
-
   deploy-crds:
-    needs: detect-changes
     runs-on: self-hosted
     timeout-minutes: 10
-    if: needs.detect-changes.outputs.crd-changed == 'true'
+    strategy:
+      fail-fast: false
+      max-parallel: 10
+      matrix:
+        include:
+          - service: external-secrets
+            path: cluster/crd/external-secrets/skaffold.yaml
+          - service: longhorn
+            path: cluster/crd/longhorn/skaffold.yaml
     steps:
       - uses: actions/checkout@v3
-      
-      - name: Deploy Cluster CRDs
+      - name: Deploy ${{ matrix.service }}
+        id: deploy
         run: |
           if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            echo "🧪 DRY RUN: Skaffold will show what would be deployed"
+            echo "🧪 DRY RUN: Skaffold will show what would be deployed for ${{ matrix.service }}"
           else
-            echo "🚀 Deploying CRDs..."
+            echo "🚀 Deploying ${{ matrix.service }}..."
           fi
-          skaffold run -f cluster/crd/skaffold.yaml
-          echo "✅ CRD deployment completed"
-
-      - name: Verify CRD readiness
-        if: env.SKAFFOLD_DRY_RUN != 'true'
-        run: |
-          echo "⏳ Waiting for CRDs to become ready..."
-          
-          # Wait for external-secrets CRDs
-          if kubectl get crd secretstores.external-secrets.io >/dev/null 2>&1; then
-            kubectl wait --for condition=established crd/secretstores.external-secrets.io --timeout=300s
-            kubectl wait --for condition=established crd/externalsecrets.external-secrets.io --timeout=300s
-            echo "✅ External Secrets CRDs ready"
-          fi
-          
-          # Wait for longhorn CRDs  
-          if kubectl get crd volumes.longhorn.io >/dev/null 2>&1; then
-            kubectl wait --for condition=established crd/volumes.longhorn.io --timeout=300s
-            kubectl wait --for condition=established crd/engines.longhorn.io --timeout=300s
-            echo "✅ Longhorn CRDs ready"
-          fi
-          
-          echo "✅ All CRDs are ready for dependent resources"
+          skaffold run -f ${{ matrix.path }}
+          echo "✅ ${{ matrix.service }} deployment completed"
 
   deploy-services:
-    needs: [detect-changes, deploy-crds]
+    needs: [deploy-crds]
     runs-on: self-hosted
     timeout-minutes: 15
     if: |
       always() && 
-      needs.detect-changes.outputs.services-changed == 'true' &&
-      (needs.deploy-crds.result == 'success' || needs.deploy-crds.result == 'skipped')
+      needs.deploy-crds.result == 'success'
     strategy:
       fail-fast: false
-      max-parallel: 4
+      max-parallel: 10
       matrix:
         include:
           - service: cloudflare-tunnel
-            changed: ${{ needs.detect-changes.outputs.cloudflare-tunnel-changed }}
             path: cluster/services/cloudflare-tunnel/skaffold.yaml
             secrets-needed: true
-            health-check: true
           - service: grafana
-            changed: ${{ needs.detect-changes.outputs.grafana-changed }}
             path: cluster/services/grafana-cloud/skaffold.yaml
             secrets-needed: true
-            health-check: false
           - service: github-webhook-handler
-            changed: ${{ needs.detect-changes.outputs.github-webhook-handler-changed }}
             path: cluster/services/github-webhook-handler/skaffold.yaml
             secrets-needed: true
-            health-check: true
           - service: obsidian
-            changed: ${{ needs.detect-changes.outputs.obsidian-changed }}
             path: cluster/services/obsidian/skaffold.yaml
             secrets-needed: false
-            health-check: true
           - service: open-webui
-            changed: ${{ needs.detect-changes.outputs.open-webui-changed }}
             path: cluster/services/open-webui/skaffold.yaml
             secrets-needed: true
-            health-check: true
           - service: otel-collector
-            changed: ${{ needs.detect-changes.outputs.otel-collector-changed }}
             path: cluster/services/otel-collector/skaffold.yaml
             secrets-needed: true
-            health-check: true
           - service: uptime-kuma
-            changed: ${{ needs.detect-changes.outputs.uptime-kuma-changed }}
             path: cluster/services/uptime-kuma/skaffold.yaml
             secrets-needed: false
-            health-check: true
           - service: nginx-public-status
-            changed: ${{ needs.detect-changes.outputs.nginx-public-status-changed }}
             path: cluster/services/nginx-public-status/skaffold.yaml
             secrets-needed: false
-            health-check: false
     steps:
       - uses: actions/checkout@v3
-        if: matrix.changed == 'true'
       
       - name: Create secrets for ${{ matrix.service }}
-        if: matrix.changed == 'true' && matrix.secrets-needed && env.SKAFFOLD_DRY_RUN != 'true'
+        if: matrix.secrets-needed && env.SKAFFOLD_DRY_RUN != 'true'
         run: |
           case "${{ matrix.service }}" in
             "cloudflare-tunnel")
@@ -357,7 +178,6 @@ jobs:
           HONEYCOMB_API_SECRET: ${{ secrets.HONEYCOMB_API_KEY }}
 
       - name: Deploy ${{ matrix.service }}
-        if: matrix.changed == 'true'
         id: deploy
         run: |
           if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
@@ -367,216 +187,3 @@ jobs:
           fi
           skaffold run -f ${{ matrix.path }}
           echo "✅ ${{ matrix.service }} deployment completed"
-
-      - name: Verify ${{ matrix.service }} deployment
-        if: matrix.changed == 'true' && matrix.health-check && env.SKAFFOLD_DRY_RUN != 'true'
-        timeout-minutes: 5
-        run: |
-          echo "🔍 Verifying ${{ matrix.service }} deployment..."
-          
-          case "${{ matrix.service }}" in
-            "cloudflare-tunnel")
-              kubectl wait --for=condition=ready pod -l app=cloudflared -n cloudflare-tunnel --timeout=300s
-              ;;
-            "github-webhook-handler")
-              kubectl wait --for=condition=ready pod -l app=webhook-handler -n github-webhook --timeout=300s
-              ;;
-            "obsidian")
-              kubectl wait --for=condition=ready pod -l app=obsidian -n obsidian --timeout=300s
-              ;;
-            "open-webui")
-              kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=open-webui -n open-webui --timeout=300s
-              ;;
-            "otel-collector")
-              kubectl wait --for=condition=ready pod -l app=otel-collector -n opentelemetry --timeout=300s
-              ;;
-            "uptime-kuma")
-              kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=uptime-kuma -n uptime-kuma --timeout=300s
-              ;;
-          esac
-          
-          echo "✅ ${{ matrix.service }} is healthy and ready"
-
-      - name: Deployment status
-        if: always() && matrix.changed == 'true'
-        run: |
-          if [[ "${{ steps.deploy.outcome }}" == "success" ]]; then
-            echo "✅ ${{ matrix.service }} deployment completed successfully"
-          else
-            echo "❌ ${{ matrix.service }} deployment failed"
-            echo "Check the logs above for error details"
-          fi
-
-  deployment-summary:
-    needs: [detect-changes, deploy-crds, deploy-services]
-    runs-on: self-hosted
-    if: always()
-    steps:
-      - name: Generate deployment summary
-        run: |
-          echo "## 📊 Deployment Summary"
-          echo ""
-          echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
-          echo "**Commit:** ${{ github.sha }}"
-          echo "**Trigger:** ${{ github.event_name }}"
-          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            echo "**Mode:** 🧪 DRY RUN"
-          else
-            echo "**Mode:** 🚀 LIVE DEPLOYMENT"
-          fi
-          
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "**PR:** #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
-            echo ""
-            echo "> ℹ️ This is a **dry run** for pull request validation."
-            echo "> No actual changes were made to the cluster."
-            echo "> Merge this PR to trigger the actual deployment."
-          fi
-          
-          echo ""
-          echo "### Results:"
-          
-          # CRD status
-          if [[ "${{ needs.detect-changes.outputs.crd-changed }}" == "true" ]]; then
-            if [[ "${{ needs.deploy-crds.result }}" == "success" ]]; then
-              if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-                echo "- 🧪 CRDs: Would be deployed successfully"
-              else
-                echo "- ✅ CRDs: Deployed successfully"
-              fi
-            else
-              echo "- ❌ CRDs: Deployment failed"
-            fi
-          else
-            echo "- ⏭️  CRDs: No changes detected"
-          fi
-          
-          # Services status
-          if [[ "${{ needs.detect-changes.outputs.services-changed }}" == "true" ]]; then
-            if [[ "${{ needs.deploy-services.result }}" == "success" ]]; then
-              if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-                echo "- 🧪 Services: Would be deployed successfully"
-              else
-                echo "- ✅ Services: All deployments completed successfully"
-              fi
-            elif [[ "${{ needs.deploy-services.result }}" == "failure" ]]; then
-              echo "- ⚠️  Services: Some deployments failed (check individual service logs)"
-            else
-              echo "- ❌ Services: Deployment job failed"
-            fi
-          else
-            echo "- ⏭️  Services: No changes detected"
-          fi
-          
-          echo ""
-          echo "### Individual Service Status:"
-          
-          services=(
-            "cloudflare-tunnel:${{ needs.detect-changes.outputs.cloudflare-tunnel-changed }}"
-            "grafana:${{ needs.detect-changes.outputs.grafana-changed }}"
-            "github-webhook-handler:${{ needs.detect-changes.outputs.github-webhook-handler-changed }}"
-            "obsidian:${{ needs.detect-changes.outputs.obsidian-changed }}"
-            "open-webui:${{ needs.detect-changes.outputs.open-webui-changed }}"
-            "otel-collector:${{ needs.detect-changes.outputs.otel-collector-changed }}"
-            "uptime-kuma:${{ needs.detect-changes.outputs.uptime-kuma-changed }}"
-            "nginx-public-status:${{ needs.detect-changes.outputs.nginx-public-status-changed }}"
-          )
-          
-          deploy_prefix="🚀"
-          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            deploy_prefix="🧪"
-          fi
-          
-          for service_info in "${services[@]}"; do
-            IFS=':' read -r service changed <<< "$service_info"
-            if [[ "$changed" == "true" ]]; then
-              echo "- $deploy_prefix $service: $([ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ] && echo "Would be deployed" || echo "Deployed")"
-            else
-              echo "- ⏭️  $service: Skipped (no changes)"
-            fi
-          done
-          
-          if [[ "${{ needs.deploy-services.result }}" == "failure" ]]; then
-            echo ""
-            echo "### ⚠️  Troubleshooting"
-            echo "Some services failed to deploy. Common issues:"
-            echo "- Check if secrets are properly configured"
-            echo "- Verify CRDs are ready before service deployment"
-            echo "- Check service-specific logs in the deploy-services job"
-            echo "- Ensure self-hosted runner has proper kubeconfig access"
-          fi
-          
-          if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.detect-changes.outputs.services-changed }}" == "true" ]]; then
-            echo ""
-            echo "### 🚀 Ready to Deploy"
-            echo "All validation checks passed! This PR is ready to be merged."
-            echo "Upon merge, the following will be deployed to production:"
-            for service_info in "${services[@]}"; do
-              IFS=':' read -r service changed <<< "$service_info"
-              if [[ "$changed" == "true" ]]; then
-                echo "- $service"
-              fi
-            done
-          fi
-
-      - name: Comment on PR
-        if: github.event_name == 'pull_request'
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const summary = `## 🧪 Deployment Validation Summary
-            
-            **PR #${{ github.event.pull_request.number }}**: ${{ github.event.pull_request.title }}
-            
-            ### 📋 Changes Detected
-            ${{ needs.detect-changes.outputs.crd-changed == 'true' && '✅ CRDs will be updated' || '⏭️ No CRD changes' }}
-            ${{ needs.detect-changes.outputs.services-changed == 'true' && '✅ Services will be updated' || '⏭️ No service changes' }}
-            
-            ### 🎯 Services Ready for Deployment
-            ${[
-              { name: 'cloudflare-tunnel', changed: '${{ needs.detect-changes.outputs.cloudflare-tunnel-changed }}' },
-              { name: 'grafana', changed: '${{ needs.detect-changes.outputs.grafana-changed }}' },
-              { name: 'github-webhook-handler', changed: '${{ needs.detect-changes.outputs.github-webhook-handler-changed }}' },
-              { name: 'obsidian', changed: '${{ needs.detect-changes.outputs.obsidian-changed }}' },
-              { name: 'open-webui', changed: '${{ needs.detect-changes.outputs.open-webui-changed }}' },
-              { name: 'otel-collector', changed: '${{ needs.detect-changes.outputs.otel-collector-changed }}' },
-              { name: 'uptime-kuma', changed: '${{ needs.detect-changes.outputs.uptime-kuma-changed }}' },
-              { name: 'nginx-public-status', changed: '${{ needs.detect-changes.outputs.nginx-public-status-changed }}' }
-            ].filter(s => s.changed === 'true').map(s => `- 🚀 ${s.name}`).join('\n') || '- ⏭️ No services need deployment'}
-            
-            ### ✅ Validation Status
-            - **CRD Validation**: ${{ needs.deploy-crds.result == 'success' && '✅ Passed' || needs.deploy-crds.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}
-            - **Service Validation**: ${{ needs.deploy-services.result == 'success' && '✅ Passed' || needs.deploy-services.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}
-            
-            > **Ready to merge!** 🎉 All validations passed. Merging this PR will trigger the actual deployment to your homelab cluster.
-            `;
-            
-            // Find existing comment
-            const { data: comments } = await github.rest.issues.listComments({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-            });
-            
-            const existingComment = comments.find(comment => 
-              comment.user.type === 'Bot' && 
-              comment.body.includes('🧪 Deployment Validation Summary')
-            );
-            
-            if (existingComment) {
-              // Update existing comment
-              await github.rest.issues.updateComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                comment_id: existingComment.id,
-                body: summary
-              });
-            } else {
-              // Create new comment
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: summary
-              });
-            }
