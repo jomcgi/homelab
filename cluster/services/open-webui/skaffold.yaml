@@ -3,6 +3,10 @@ kind: Config
 metadata:
   name: open-webui
 
+manifests:
+  rawYaml:
+    - cluster/services/open-webui/pvc.yaml
+
 deploy:
   statusCheckDeadlineSeconds: 300
   helm:
@@ -17,6 +21,4 @@ deploy:
         valuesFiles:
           - cluster/services/open-webui/values.yaml
   kubectl:
-    remoteManifests:
-      - path: "cluster/services/open-webui/pvc.yaml"
     defaultNamespace: "open-webui"
