@@ -13,4 +13,4 @@ deploy:
         upgradeOnChange: true
         wait: true
         valuesFiles:
-          - cluster/crd/longhorn/values.yaml
+          - values.yaml
