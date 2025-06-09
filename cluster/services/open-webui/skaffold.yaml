@@ -16,4 +16,7 @@ deploy:
         wait: true
         valuesFiles:
           - cluster/services/open-webui/values.yaml
+  kubectl:
+    manifests:
+      - cluster/services/open-webui/pvc.yaml
   
