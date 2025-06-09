@@ -1,0 +1,449 @@
+# .github/workflows/deploy-homelab.yaml
+name: Deploy Homelab
+
+on:
+  schedule:
+    - cron: '0 0 * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - 'cluster/**'
+      - '.github/workflows/deploy-homelab.yaml'
+  workflow_dispatch:
+    inputs:
+      services:
+        description: 'Comma-separated list of services to deploy (leave empty for auto-detection)'
+        required: false
+        type: string
+        default: ''
+      force_crd_deploy:
+        description: 'Force CRD deployment even if unchanged'
+        required: false
+        type: boolean
+        default: false
+      dry_run:
+        description: 'Perform a dry run without actually deploying'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  detect-changes:
+    runs-on: self-hosted
+    timeout-minutes: 5
+    outputs:
+      crd-changed: ${{ steps.override.outputs.crd-changed || steps.changes.outputs.crd }}
+      services-changed: ${{ steps.override.outputs.services-changed || steps.changes.outputs.services }}
+      cloudflare-tunnel-changed: ${{ steps.override.outputs.cloudflare-tunnel-changed || steps.changes.outputs.cloudflare-tunnel }}
+      grafana-changed: ${{ steps.override.outputs.grafana-changed || steps.changes.outputs.grafana }}
+      github-webhook-handler-changed: ${{ steps.override.outputs.github-webhook-handler-changed || steps.changes.outputs.github-webhook-handler }}
+      obsidian-changed: ${{ steps.override.outputs.obsidian-changed || steps.changes.outputs.obsidian }}
+      open-webui-changed: ${{ steps.override.outputs.open-webui-changed || steps.changes.outputs.open-webui }}
+      otel-collector-changed: ${{ steps.override.outputs.otel-collector-changed || steps.changes.outputs.otel-collector }}
+      uptime-kuma-changed: ${{ steps.override.outputs.uptime-kuma-changed || steps.changes.outputs.uptime-kuma }}
+      nginx-public-status-changed: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}
+    steps:
+      - uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Detect file changes
+        uses: dorny/paths-filter@v3
+        id: changes
+        if: github.event.inputs.services == ''
+        with:
+          filters: |
+            crd:
+              - 'cluster/crd/**'
+            services:
+              - 'cluster/services/**'
+            cloudflare-tunnel:
+              - 'cluster/services/cloudflare-tunnel/**'
+            grafana:
+              - 'cluster/services/grafana-cloud/**'
+            github-webhook-handler:
+              - 'cluster/services/github-webhook-handler/**'
+            obsidian:
+              - 'cluster/services/obsidian/**'
+            open-webui:
+              - 'cluster/services/open-webui/**'
+            otel-collector:
+              - 'cluster/services/otel-collector/**'
+            uptime-kuma:
+              - 'cluster/services/uptime-kuma/**'
+            nginx-public-status:
+              - 'cluster/services/nginx-public-status/**'
+
+      - name: Manual service override
+        id: override
+        if: github.event.inputs.services != '' || github.event.inputs.force_crd_deploy == 'true'
+        run: |
+          # Handle manual CRD override
+          if [[ "${{ github.event.inputs.force_crd_deploy }}" == "true" ]]; then
+            echo "crd-changed=true" >> $GITHUB_OUTPUT
+          fi
+          
+          # Handle manual service selection
+          if [[ "${{ github.event.inputs.services }}" != "" ]]; then
+            echo "services-changed=true" >> $GITHUB_OUTPUT
+            
+            # Parse comma-separated services
+            IFS=',' read -ra SERVICES <<< "${{ github.event.inputs.services }}"
+            for service in "${SERVICES[@]}"; do
+              # Trim whitespace
+              service=$(echo "$service" | xargs)
+              case "$service" in
+                "cloudflare-tunnel")
+                  echo "cloudflare-tunnel-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "grafana")
+                  echo "grafana-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "github-webhook-handler")
+                  echo "github-webhook-handler-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "obsidian")
+                  echo "obsidian-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "open-webui")
+                  echo "open-webui-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "otel-collector")
+                  echo "otel-collector-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "uptime-kuma")
+                  echo "uptime-kuma-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                "nginx-public-status")
+                  echo "nginx-public-status-changed=true" >> $GITHUB_OUTPUT
+                  ;;
+                *)
+                  echo "⚠️  Unknown service: $service"
+                  ;;
+              esac
+            done
+          fi
+
+      - name: Display deployment plan
+        run: |
+          echo "## 🚀 Deployment Plan"
+          echo "**Trigger:** ${{ github.event_name }}"
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "**Mode:** 🧪 DRY RUN"
+          fi
+          echo ""
+          echo "### Changes Detected:"
+          echo "- CRDs: ${{ steps.override.outputs.crd-changed || steps.changes.outputs.crd }}"
+          echo "- Services: ${{ steps.override.outputs.services-changed || steps.changes.outputs.services }}"
+          echo ""
+          echo "### Services to Deploy:"
+          echo "- cloudflare-tunnel: ${{ steps.override.outputs.cloudflare-tunnel-changed || steps.changes.outputs.cloudflare-tunnel }}"
+          echo "- grafana: ${{ steps.override.outputs.grafana-changed || steps.changes.outputs.grafana }}"
+          echo "- github-webhook-handler: ${{ steps.override.outputs.github-webhook-handler-changed || steps.changes.outputs.github-webhook-handler }}"
+          echo "- obsidian: ${{ steps.override.outputs.obsidian-changed || steps.changes.outputs.obsidian }}"
+          echo "- open-webui: ${{ steps.override.outputs.open-webui-changed || steps.changes.outputs.open-webui }}"
+          echo "- otel-collector: ${{ steps.override.outputs.otel-collector-changed || steps.changes.outputs.otel-collector }}"
+          echo "- uptime-kuma: ${{ steps.override.outputs.uptime-kuma-changed || steps.changes.outputs.uptime-kuma }}"
+          echo "- nginx-public-status: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}"
+
+  deploy-crds:
+    needs: detect-changes
+    runs-on: self-hosted
+    timeout-minutes: 10
+    if: needs.detect-changes.outputs.crd-changed == 'true'
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Deploy Cluster CRDs
+        run: |
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🧪 DRY RUN: Would deploy CRDs with:"
+            echo "skaffold run -f cluster/crd/skaffold.yaml --dry-run"
+          else
+            echo "🚀 Deploying CRDs..."
+            skaffold run -f cluster/crd/skaffold.yaml
+            echo "✅ CRDs deployed successfully"
+          fi
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+
+      - name: Verify CRD readiness
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          echo "⏳ Waiting for CRDs to become ready..."
+          
+          # Wait for external-secrets CRDs
+          if kubectl get crd secretstores.external-secrets.io >/dev/null 2>&1; then
+            kubectl wait --for condition=established crd/secretstores.external-secrets.io --timeout=300s
+            kubectl wait --for condition=established crd/externalsecrets.external-secrets.io --timeout=300s
+            echo "✅ External Secrets CRDs ready"
+          fi
+          
+          # Wait for longhorn CRDs  
+          if kubectl get crd volumes.longhorn.io >/dev/null 2>&1; then
+            kubectl wait --for condition=established crd/volumes.longhorn.io --timeout=300s
+            kubectl wait --for condition=established crd/engines.longhorn.io --timeout=300s
+            echo "✅ Longhorn CRDs ready"
+          fi
+          
+          echo "✅ All CRDs are ready for dependent resources"
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+
+  deploy-services:
+    needs: [detect-changes, deploy-crds]
+    runs-on: self-hosted
+    timeout-minutes: 15
+    if: |
+      always() && 
+      needs.detect-changes.outputs.services-changed == 'true' &&
+      (needs.deploy-crds.result == 'success' || needs.deploy-crds.result == 'skipped')
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - service: cloudflare-tunnel
+            changed: ${{ needs.detect-changes.outputs.cloudflare-tunnel-changed }}
+            path: cluster/services/cloudflare-tunnel/skaffold.yaml
+            secrets-needed: true
+            health-check: true
+          - service: grafana
+            changed: ${{ needs.detect-changes.outputs.grafana-changed }}
+            path: cluster/services/grafana-cloud/skaffold.yaml
+            secrets-needed: true
+            health-check: false
+          - service: github-webhook-handler
+            changed: ${{ needs.detect-changes.outputs.github-webhook-handler-changed }}
+            path: cluster/services/github-webhook-handler/skaffold.yaml
+            secrets-needed: true
+            health-check: true
+          - service: obsidian
+            changed: ${{ needs.detect-changes.outputs.obsidian-changed }}
+            path: cluster/services/obsidian/skaffold.yaml
+            secrets-needed: false
+            health-check: true
+          - service: open-webui
+            changed: ${{ needs.detect-changes.outputs.open-webui-changed }}
+            path: cluster/services/open-webui/skaffold.yaml
+            secrets-needed: true
+            health-check: true
+          - service: otel-collector
+            changed: ${{ needs.detect-changes.outputs.otel-collector-changed }}
+            path: cluster/services/otel-collector/skaffold.yaml
+            secrets-needed: true
+            health-check: true
+          - service: uptime-kuma
+            changed: ${{ needs.detect-changes.outputs.uptime-kuma-changed }}
+            path: cluster/services/uptime-kuma/skaffold.yaml
+            secrets-needed: false
+            health-check: true
+          - service: nginx-public-status
+            changed: ${{ needs.detect-changes.outputs.nginx-public-status-changed }}
+            path: cluster/services/nginx-public-status/skaffold.yaml
+            secrets-needed: false
+            health-check: false
+    steps:
+      - uses: actions/checkout@v3
+        if: matrix.changed == 'true'
+      
+      - name: Create secrets for ${{ matrix.service }}
+        if: matrix.changed == 'true' && matrix.secrets-needed && github.event.inputs.dry_run != 'true'
+        run: |
+          case "${{ matrix.service }}" in
+            "cloudflare-tunnel")
+              echo "🔐 Creating Cloudflare Tunnel secrets..."
+              kubectl create namespace cloudflare-tunnel --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret generic cloudflare-tunnel-credentials \
+                --namespace=cloudflare-tunnel \
+                --from-file=credentials.json=/home/jomcgi/.cloudflared/55d9c8bd-b6bf-4f67-bd5e-9219caf9c746.json \
+                --dry-run=client -o yaml | kubectl apply -f -
+              ;;
+            "grafana")
+              echo "🔐 Creating Grafana Cloud secrets..."
+              kubectl create namespace grafana --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret generic grafana-cloud-secret \
+                --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
+                --from-literal=metrics-username="$GRAFANA_CLOUD_METRICS_USERNAME" \
+                --from-literal=logs-username="$GRAFANA_CLOUD_LOGS_USERNAME" \
+                --from-literal=otlp-username="$GRAFANA_CLOUD_OTLP_USERNAME" \
+                -n grafana -o yaml --dry-run=client | kubectl apply -f -
+              kubectl create secret generic grafana-cloud-metrics-grafana-k8s-monitoring \
+                --from-literal=metrics-username="$GRAFANA_CLOUD_METRICS_USERNAME" \
+                --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
+                -n grafana -o yaml --dry-run=client | kubectl apply -f -
+              ;;
+            "github-webhook-handler")
+              echo "🔐 Creating GitHub Webhook Handler secrets..."
+              kubectl create namespace github-webhook --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret docker-registry docker-cfg \
+                --namespace=github-webhook \
+                --docker-server=https://index.docker.io/v1/ \
+                --docker-username=${DOCKER_USERNAME} \
+                --docker-password=${DOCKER_TOKEN} \
+                --dry-run=client -o yaml | kubectl apply --namespace=github-webhook -f -
+              ;;
+            "open-webui")
+              echo "🔐 Creating Open WebUI secrets..."
+              kubectl create namespace open-webui --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret generic gemini-api-key \
+                --namespace=open-webui \
+                --from-literal=api-key="$GEMINI_API_KEY" \
+                --dry-run=client -o yaml | kubectl apply -f -
+              ;;
+            "otel-collector")
+              echo "🔐 Creating OpenTelemetry Collector secrets..."
+              kubectl create namespace opentelemetry --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret generic otel-collector-secrets \
+                --from-literal=honeycomb-api-key="$HONEYCOMB_API_SECRET" \
+                -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
+              ;;
+          esac
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
+          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
+          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
+          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          HONEYCOMB_API_SECRET: ${{ secrets.HONEYCOMB_API_KEY }}
+
+      - name: Deploy ${{ matrix.service }}
+        if: matrix.changed == 'true'
+        id: deploy
+        run: |
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "🧪 DRY RUN: Would deploy ${{ matrix.service }} with:"
+            echo "skaffold run -f ${{ matrix.path }} --dry-run"
+          else
+            echo "🚀 Deploying ${{ matrix.service }}..."
+            skaffold run -f ${{ matrix.path }}
+            echo "✅ ${{ matrix.service }} deployed successfully"
+          fi
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+
+      - name: Verify ${{ matrix.service }} deployment
+        if: matrix.changed == 'true' && matrix.health-check && github.event.inputs.dry_run != 'true'
+        timeout-minutes: 5
+        run: |
+          echo "🔍 Verifying ${{ matrix.service }} deployment..."
+          
+          case "${{ matrix.service }}" in
+            "cloudflare-tunnel")
+              kubectl wait --for=condition=ready pod -l app=cloudflared -n cloudflare-tunnel --timeout=300s
+              ;;
+            "github-webhook-handler")
+              kubectl wait --for=condition=ready pod -l app=webhook-handler -n github-webhook --timeout=300s
+              ;;
+            "obsidian")
+              kubectl wait --for=condition=ready pod -l app=obsidian -n obsidian --timeout=300s
+              ;;
+            "open-webui")
+              kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=open-webui -n open-webui --timeout=300s
+              ;;
+            "otel-collector")
+              kubectl wait --for=condition=ready pod -l app=otel-collector -n opentelemetry --timeout=300s
+              ;;
+            "uptime-kuma")
+              kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=uptime-kuma -n uptime-kuma --timeout=300s
+              ;;
+          esac
+          
+          echo "✅ ${{ matrix.service }} is healthy and ready"
+        env:
+          KUBECONFIG: /home/jomcgi/.kube/talos
+
+      - name: Deployment status
+        if: always() && matrix.changed == 'true'
+        run: |
+          if [[ "${{ steps.deploy.outcome }}" == "success" ]]; then
+            echo "✅ ${{ matrix.service }} deployment completed successfully"
+          else
+            echo "❌ ${{ matrix.service }} deployment failed"
+            echo "Check the logs above for error details"
+          fi
+
+  deployment-summary:
+    needs: [detect-changes, deploy-crds, deploy-services]
+    runs-on: self-hosted
+    if: always()
+    steps:
+      - name: Generate deployment summary
+        run: |
+          echo "## 📊 Deployment Summary"
+          echo ""
+          echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "**Commit:** ${{ github.sha }}"
+          echo "**Trigger:** ${{ github.event_name }}"
+          
+          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "**Mode:** 🧪 DRY RUN (no actual changes made)"
+          fi
+          
+          echo ""
+          echo "### Results:"
+          
+          # CRD status
+          if [[ "${{ needs.detect-changes.outputs.crd-changed }}" == "true" ]]; then
+            if [[ "${{ needs.deploy-crds.result }}" == "success" ]]; then
+              echo "- ✅ CRDs: Deployed successfully"
+            else
+              echo "- ❌ CRDs: Deployment failed"
+            fi
+          else
+            echo "- ⏭️  CRDs: No changes detected"
+          fi
+          
+          # Services status
+          if [[ "${{ needs.detect-changes.outputs.services-changed }}" == "true" ]]; then
+            if [[ "${{ needs.deploy-services.result }}" == "success" ]]; then
+              echo "- ✅ Services: All deployments completed successfully"
+            elif [[ "${{ needs.deploy-services.result }}" == "failure" ]]; then
+              echo "- ⚠️  Services: Some deployments failed (check individual service logs)"
+            else
+              echo "- ❌ Services: Deployment job failed"
+            fi
+          else
+            echo "- ⏭️  Services: No changes detected"
+          fi
+          
+          echo ""
+          echo "### Individual Service Status:"
+          
+          services=(
+            "cloudflare-tunnel:${{ needs.detect-changes.outputs.cloudflare-tunnel-changed }}"
+            "grafana:${{ needs.detect-changes.outputs.grafana-changed }}"
+            "github-webhook-handler:${{ needs.detect-changes.outputs.github-webhook-handler-changed }}"
+            "obsidian:${{ needs.detect-changes.outputs.obsidian-changed }}"
+            "open-webui:${{ needs.detect-changes.outputs.open-webui-changed }}"
+            "otel-collector:${{ needs.detect-changes.outputs.otel-collector-changed }}"
+            "uptime-kuma:${{ needs.detect-changes.outputs.uptime-kuma-changed }}"
+            "nginx-public-status:${{ needs.detect-changes.outputs.nginx-public-status-changed }}"
+          )
+          
+          for service_info in "${services[@]}"; do
+            IFS=':' read -r service changed <<< "$service_info"
+            if [[ "$changed" == "true" ]]; then
+              echo "- 🚀 $service: Deployed"
+            else
+              echo "- ⏭️  $service: Skipped (no changes)"
+            fi
+          done
+          
+          if [[ "${{ needs.deploy-services.result }}" == "failure" ]]; then
+            echo ""
+            echo "### ⚠️  Troubleshooting"
+            echo "Some services failed to deploy. Common issues:"
+            echo "- Check if secrets are properly configured"
+            echo "- Verify CRDs are ready before service deployment"
+            echo "- Check service-specific logs in the deploy-services job"
+            echo "- Ensure self-hosted runner has proper kubeconfig access"
+          fi
