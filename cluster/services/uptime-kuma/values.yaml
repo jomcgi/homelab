@@ -5,7 +5,7 @@ namespaceOverride: "uptime-kuma"
 
 volume:
   enabled: true
-  accessMode: ReadWriteOnce
+  accessMode: ReadWriteMany
   size: 5Gi
   storageClassName: longhorn
 
