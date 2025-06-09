@@ -17,6 +17,6 @@ deploy:
         valuesFiles:
           - cluster/services/open-webui/values.yaml
   kubectl:
-    manifests:
-      - cluster/services/open-webui/pvc.yaml
-  
+    remoteManifests:
+      - path: "cluster/services/open-webui/pvc.yaml"
+    defaultNamespace: "open-webui"
