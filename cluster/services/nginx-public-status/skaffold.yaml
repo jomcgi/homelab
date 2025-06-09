@@ -1,6 +1,12 @@
 apiVersion: skaffold/v2beta29
 kind: Config
+
+
+manifests:
+  kustomize:
+    paths:
+    - cluster/services/nginx-public-status
+
 deploy:
-  kubectl:
-    manifests:
-      - cluster/services/nginx-public-status/kustomization.yaml
+  statusCheckDeadlineSeconds: 300
+  kubectl: {}
