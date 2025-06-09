@@ -4,7 +4,7 @@ service:
 namespaceOverride: "uptime-kuma"
 
 volume:
-  enabled: true
+  enabled: false
   accessMode: ReadWriteMany
   size: 5Gi
   storageClassName: longhorn

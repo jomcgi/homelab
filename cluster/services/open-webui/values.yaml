@@ -119,7 +119,7 @@ podAnnotations: {}
 podLabels: {}
 replicaCount: 1
 strategy:
-  type: Recreate
+  type: RollingUpdate
 # -- Open WebUI image tags can be found here: https://github.com/open-webui/open-webui
 image:
   repository: ghcr.io/open-webui/open-webui
