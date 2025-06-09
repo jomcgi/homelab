@@ -10,5 +10,7 @@ deploy:
         version: 2.1.4
         namespace: grafana
         createNamespace: true
+        upgradeOnChange: true
+        wait: true
         valuesFiles:
           - cluster/services/grafana-cloud/values.yaml

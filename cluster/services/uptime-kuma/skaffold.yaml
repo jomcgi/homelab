@@ -11,5 +11,7 @@ deploy:
         version: 2.21.2
         namespace: uptime-kuma
         createNamespace: true
+        upgradeOnChange: true
+        wait: true
         valuesFiles:
           - cluster/services/uptime-kuma/values.yaml
