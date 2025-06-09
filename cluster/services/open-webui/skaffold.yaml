@@ -12,6 +12,8 @@ deploy:
         version: 5.26.0
         namespace: open-webui
         createNamespace: true
+        upgradeOnChange: true
+        wait: true
         valuesFiles:
           - values.yaml
   
