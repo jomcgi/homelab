@@ -44,7 +44,6 @@ env:
   SKAFFOLD_ASSUME_YES: true
   # Set dry run mode for PRs, respect manual input for other triggers  
   SKAFFOLD_DRY_RUN: ${{ github.event_name == 'pull_request' || github.event.inputs.dry_run == 'true' }}
-  SKAFFOLD
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
