@@ -10,6 +10,12 @@ on:
     paths:
       - 'cluster/**'
       - '.github/workflows/deploy-homelab.yaml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'cluster/**'
+      - '.github/workflows/deploy-homelab.yaml'
   workflow_dispatch:
     inputs:
       services:
@@ -23,7 +29,7 @@ on:
         type: boolean
         default: false
       dry_run:
-        description: 'Perform a dry run without actually deploying'
+        description: 'Perform a dry run without actually deploying (auto-enabled for PRs)'
         required: false
         type: boolean
         default: false
@@ -33,7 +39,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  determine-mode:
+    runs-on: self-hosted
+    timeout-minutes: 2
+    outputs:
+      is-dry-run: ${{ steps.mode.outputs.is-dry-run }}
+      deploy-mode: ${{ steps.mode.outputs.deploy-mode }}
+    steps:
+      - name: Determine deployment mode
+        id: mode
+        run: |
+          # Auto-enable dry run for PRs, respect manual input for other triggers
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "is-dry-run=true" >> $GITHUB_OUTPUT
+            echo "deploy-mode=🧪 DRY RUN (Pull Request)" >> $GITHUB_OUTPUT
+            echo "🧪 Pull Request detected - enabling dry run mode"
+          elif [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+            echo "is-dry-run=true" >> $GITHUB_OUTPUT
+            echo "deploy-mode=🧪 DRY RUN (Manual)" >> $GITHUB_OUTPUT
+            echo "🧪 Manual dry run requested"
+          else
+            echo "is-dry-run=false" >> $GITHUB_OUTPUT
+            echo "deploy-mode=🚀 LIVE DEPLOYMENT" >> $GITHUB_OUTPUT
+            echo "🚀 Live deployment mode"
+          fi
+
   detect-changes:
+    needs: determine-mode
     runs-on: self-hosted
     timeout-minutes: 5
     outputs:
@@ -57,6 +89,8 @@ jobs:
         id: changes
         if: github.event.inputs.services == ''
         with:
+          # For PRs, compare against the base branch
+          base: ${{ github.event.pull_request.base.sha || 'HEAD~1' }}
           filters: |
             crd:
               - 'cluster/crd/**'
@@ -133,8 +167,10 @@ jobs:
         run: |
           echo "## 🚀 Deployment Plan"
           echo "**Trigger:** ${{ github.event_name }}"
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            echo "**Mode:** 🧪 DRY RUN"
+          echo "**Mode:** ${{ needs.determine-mode.outputs.deploy-mode }}"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "**PR:** #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
+            echo "**Base:** ${{ github.event.pull_request.base.ref }} → **Head:** ${{ github.event.pull_request.head.ref }}"
           fi
           echo ""
           echo "### Changes Detected:"
@@ -152,7 +188,7 @@ jobs:
           echo "- nginx-public-status: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}"
 
   deploy-crds:
-    needs: detect-changes
+    needs: [determine-mode, detect-changes]
     runs-on: self-hosted
     timeout-minutes: 10
     if: needs.detect-changes.outputs.crd-changed == 'true'
@@ -161,9 +197,12 @@ jobs:
       
       - name: Deploy Cluster CRDs
         run: |
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
             echo "🧪 DRY RUN: Would deploy CRDs with:"
-            echo "skaffold run -f cluster/crd/skaffold.yaml --dry-run"
+            echo "skaffold run -f cluster/crd/skaffold.yaml"
+            echo ""
+            echo "📁 CRD files that would be deployed:"
+            find cluster/crd -name "*.yaml" -o -name "*.yml" | head -10
           else
             echo "🚀 Deploying CRDs..."
             skaffold run -f cluster/crd/skaffold.yaml
@@ -173,7 +212,7 @@ jobs:
           KUBECONFIG: /home/jomcgi/.kube/talos
 
       - name: Verify CRD readiness
-        if: github.event.inputs.dry_run != 'true'
+        if: needs.determine-mode.outputs.is-dry-run != 'true'
         run: |
           echo "⏳ Waiting for CRDs to become ready..."
           
@@ -196,7 +235,7 @@ jobs:
           KUBECONFIG: /home/jomcgi/.kube/talos
 
   deploy-services:
-    needs: [detect-changes, deploy-crds]
+    needs: [determine-mode, detect-changes, deploy-crds]
     runs-on: self-hosted
     timeout-minutes: 15
     if: |
@@ -253,7 +292,7 @@ jobs:
         if: matrix.changed == 'true'
       
       - name: Create secrets for ${{ matrix.service }}
-        if: matrix.changed == 'true' && matrix.secrets-needed && github.event.inputs.dry_run != 'true'
+        if: matrix.changed == 'true' && matrix.secrets-needed && needs.determine-mode.outputs.is-dry-run != 'true'
         run: |
           case "${{ matrix.service }}" in
             "cloudflare-tunnel")
@@ -319,9 +358,14 @@ jobs:
         if: matrix.changed == 'true'
         id: deploy
         run: |
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
+          if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
             echo "🧪 DRY RUN: Would deploy ${{ matrix.service }} with:"
-            echo "skaffold run -f ${{ matrix.path }} --dry-run"
+            echo "skaffold run -f ${{ matrix.path }}"
+            echo ""
+            echo "📁 Service files that would be deployed:"
+            if [[ -d "$(dirname ${{ matrix.path }})" ]]; then
+              find "$(dirname ${{ matrix.path }})" -name "*.yaml" -o -name "*.yml" | head -10
+            fi
           else
             echo "🚀 Deploying ${{ matrix.service }}..."
             skaffold run -f ${{ matrix.path }}
@@ -331,7 +375,7 @@ jobs:
           KUBECONFIG: /home/jomcgi/.kube/talos
 
       - name: Verify ${{ matrix.service }} deployment
-        if: matrix.changed == 'true' && matrix.health-check && github.event.inputs.dry_run != 'true'
+        if: matrix.changed == 'true' && matrix.health-check && needs.determine-mode.outputs.is-dry-run != 'true'
         timeout-minutes: 5
         run: |
           echo "🔍 Verifying ${{ matrix.service }} deployment..."
@@ -372,7 +416,7 @@ jobs:
           fi
 
   deployment-summary:
-    needs: [detect-changes, deploy-crds, deploy-services]
+    needs: [determine-mode, detect-changes, deploy-crds, deploy-services]
     runs-on: self-hosted
     if: always()
     steps:
@@ -383,9 +427,14 @@ jobs:
           echo "**Timestamp:** $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
           echo "**Commit:** ${{ github.sha }}"
           echo "**Trigger:** ${{ github.event_name }}"
+          echo "**Mode:** ${{ needs.determine-mode.outputs.deploy-mode }}"
           
-          if [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            echo "**Mode:** 🧪 DRY RUN (no actual changes made)"
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            echo "**PR:** #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
+            echo ""
+            echo "> ℹ️ This is a **dry run** for pull request validation."
+            echo "> No actual changes were made to the cluster."
+            echo "> Merge this PR to trigger the actual deployment."
           fi
           
           echo ""
@@ -394,7 +443,11 @@ jobs:
           # CRD status
           if [[ "${{ needs.detect-changes.outputs.crd-changed }}" == "true" ]]; then
             if [[ "${{ needs.deploy-crds.result }}" == "success" ]]; then
-              echo "- ✅ CRDs: Deployed successfully"
+              if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
+                echo "- 🧪 CRDs: Would be deployed successfully"
+              else
+                echo "- ✅ CRDs: Deployed successfully"
+              fi
             else
               echo "- ❌ CRDs: Deployment failed"
             fi
@@ -405,7 +458,11 @@ jobs:
           # Services status
           if [[ "${{ needs.detect-changes.outputs.services-changed }}" == "true" ]]; then
             if [[ "${{ needs.deploy-services.result }}" == "success" ]]; then
-              echo "- ✅ Services: All deployments completed successfully"
+              if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
+                echo "- 🧪 Services: Would be deployed successfully"
+              else
+                echo "- ✅ Services: All deployments completed successfully"
+              fi
             elif [[ "${{ needs.deploy-services.result }}" == "failure" ]]; then
               echo "- ⚠️  Services: Some deployments failed (check individual service logs)"
             else
@@ -429,10 +486,15 @@ jobs:
             "nginx-public-status:${{ needs.detect-changes.outputs.nginx-public-status-changed }}"
           )
           
+          deploy_prefix="🚀"
+          if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
+            deploy_prefix="🧪"
+          fi
+          
           for service_info in "${services[@]}"; do
             IFS=':' read -r service changed <<< "$service_info"
             if [[ "$changed" == "true" ]]; then
-              echo "- 🚀 $service: Deployed"
+              echo "- $deploy_prefix $service: $([ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ] && echo "Would be deployed" || echo "Deployed")"
             else
               echo "- ⏭️  $service: Skipped (no changes)"
             fi
@@ -447,3 +509,78 @@ jobs:
             echo "- Check service-specific logs in the deploy-services job"
             echo "- Ensure self-hosted runner has proper kubeconfig access"
           fi
+          
+          if [[ "${{ github.event_name }}" == "pull_request" && "${{ needs.detect-changes.outputs.services-changed }}" == "true" ]]; then
+            echo ""
+            echo "### 🚀 Ready to Deploy"
+            echo "All validation checks passed! This PR is ready to be merged."
+            echo "Upon merge, the following will be deployed to production:"
+            for service_info in "${services[@]}"; do
+              IFS=':' read -r service changed <<< "$service_info"
+              if [[ "$changed" == "true" ]]; then
+                echo "- $service"
+              fi
+            done
+          fi
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const summary = `## 🧪 Deployment Validation Summary
+            
+            **PR #${{ github.event.pull_request.number }}**: ${{ github.event.pull_request.title }}
+            
+            ### 📋 Changes Detected
+            ${{ needs.detect-changes.outputs.crd-changed == 'true' && '✅ CRDs will be updated' || '⏭️ No CRD changes' }}
+            ${{ needs.detect-changes.outputs.services-changed == 'true' && '✅ Services will be updated' || '⏭️ No service changes' }}
+            
+            ### 🎯 Services Ready for Deployment
+            ${[
+              { name: 'cloudflare-tunnel', changed: '${{ needs.detect-changes.outputs.cloudflare-tunnel-changed }}' },
+              { name: 'grafana', changed: '${{ needs.detect-changes.outputs.grafana-changed }}' },
+              { name: 'github-webhook-handler', changed: '${{ needs.detect-changes.outputs.github-webhook-handler-changed }}' },
+              { name: 'obsidian', changed: '${{ needs.detect-changes.outputs.obsidian-changed }}' },
+              { name: 'open-webui', changed: '${{ needs.detect-changes.outputs.open-webui-changed }}' },
+              { name: 'otel-collector', changed: '${{ needs.detect-changes.outputs.otel-collector-changed }}' },
+              { name: 'uptime-kuma', changed: '${{ needs.detect-changes.outputs.uptime-kuma-changed }}' },
+              { name: 'nginx-public-status', changed: '${{ needs.detect-changes.outputs.nginx-public-status-changed }}' }
+            ].filter(s => s.changed === 'true').map(s => `- 🚀 ${s.name}`).join('\n') || '- ⏭️ No services need deployment'}
+            
+            ### ✅ Validation Status
+            - **CRD Validation**: ${{ needs.deploy-crds.result == 'success' && '✅ Passed' || needs.deploy-crds.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}
+            - **Service Validation**: ${{ needs.deploy-services.result == 'success' && '✅ Passed' || needs.deploy-services.result == 'skipped' && '⏭️ Skipped' || '❌ Failed' }}
+            
+            > **Ready to merge!** 🎉 All validations passed. Merging this PR will trigger the actual deployment to your homelab cluster.
+            `;
+            
+            // Find existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            
+            const existingComment = comments.find(comment => 
+              comment.user.type === 'Bot' && 
+              comment.body.includes('🧪 Deployment Validation Summary')
+            );
+            
+            if (existingComment) {
+              // Update existing comment
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existingComment.id,
+                body: summary
+              });
+            } else {
+              // Create new comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: summary
+              });
+            }
