@@ -34,38 +34,19 @@ on:
         type: boolean
         default: false
 
+env:
+  # Global Skaffold configuration
+  SKAFFOLD_KUBECONFIG: /home/jomcgi/.kube/talos
+  SKAFFOLD_ASSUME_YES: true
+  # Set dry run mode for PRs, respect manual input for other triggers  
+  SKAFFOLD_DRY_RUN: ${{ github.event_name == 'pull_request' || github.event.inputs.dry_run == 'true' }}
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
-  determine-mode:
-    runs-on: self-hosted
-    timeout-minutes: 2
-    outputs:
-      is-dry-run: ${{ steps.mode.outputs.is-dry-run }}
-      deploy-mode: ${{ steps.mode.outputs.deploy-mode }}
-    steps:
-      - name: Determine deployment mode
-        id: mode
-        run: |
-          # Auto-enable dry run for PRs, respect manual input for other triggers
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            echo "is-dry-run=true" >> $GITHUB_OUTPUT
-            echo "deploy-mode=🧪 DRY RUN (Pull Request)" >> $GITHUB_OUTPUT
-            echo "🧪 Pull Request detected - enabling dry run mode"
-          elif [[ "${{ github.event.inputs.dry_run }}" == "true" ]]; then
-            echo "is-dry-run=true" >> $GITHUB_OUTPUT
-            echo "deploy-mode=🧪 DRY RUN (Manual)" >> $GITHUB_OUTPUT
-            echo "🧪 Manual dry run requested"
-          else
-            echo "is-dry-run=false" >> $GITHUB_OUTPUT
-            echo "deploy-mode=🚀 LIVE DEPLOYMENT" >> $GITHUB_OUTPUT
-            echo "🚀 Live deployment mode"
-          fi
-
   detect-changes:
-    needs: determine-mode
     runs-on: self-hosted
     timeout-minutes: 5
     outputs:
@@ -79,6 +60,7 @@ jobs:
       otel-collector-changed: ${{ steps.override.outputs.otel-collector-changed || steps.changes.outputs.otel-collector }}
       uptime-kuma-changed: ${{ steps.override.outputs.uptime-kuma-changed || steps.changes.outputs.uptime-kuma }}
       nginx-public-status-changed: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}
+      is-dry-run: ${{ env.SKAFFOLD_DRY_RUN }}
     steps:
       - uses: actions/checkout@v3
         with:
@@ -167,7 +149,11 @@ jobs:
         run: |
           echo "## 🚀 Deployment Plan"
           echo "**Trigger:** ${{ github.event_name }}"
-          echo "**Mode:** ${{ needs.determine-mode.outputs.deploy-mode }}"
+          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
+            echo "**Mode:** 🧪 DRY RUN"
+          else
+            echo "**Mode:** 🚀 LIVE DEPLOYMENT"
+          fi
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
             echo "**PR:** #${{ github.event.pull_request.number }} - ${{ github.event.pull_request.title }}"
             echo "**Base:** ${{ github.event.pull_request.base.ref }} → **Head:** ${{ github.event.pull_request.head.ref }}"
@@ -188,7 +174,7 @@ jobs:
           echo "- nginx-public-status: ${{ steps.override.outputs.nginx-public-status-changed || steps.changes.outputs.nginx-public-status }}"
 
   deploy-crds:
-    needs: [determine-mode, detect-changes]
+    needs: detect-changes
     runs-on: self-hosted
     timeout-minutes: 10
     if: needs.detect-changes.outputs.crd-changed == 'true'
@@ -197,22 +183,16 @@ jobs:
       
       - name: Deploy Cluster CRDs
         run: |
-          if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
-            echo "🧪 DRY RUN: Would deploy CRDs with:"
-            echo "skaffold run -f cluster/crd/skaffold.yaml"
-            echo ""
-            echo "📁 CRD files that would be deployed:"
-            find cluster/crd -name "*.yaml" -o -name "*.yml" | head -10
+          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
+            echo "🧪 DRY RUN: Skaffold will show what would be deployed"
           else
             echo "🚀 Deploying CRDs..."
-            skaffold run -f cluster/crd/skaffold.yaml
-            echo "✅ CRDs deployed successfully"
           fi
-        env:
-          KUBECONFIG: /home/jomcgi/.kube/talos
+          skaffold run -f cluster/crd/skaffold.yaml
+          echo "✅ CRD deployment completed"
 
       - name: Verify CRD readiness
-        if: needs.determine-mode.outputs.is-dry-run != 'true'
+        if: env.SKAFFOLD_DRY_RUN != 'true'
         run: |
           echo "⏳ Waiting for CRDs to become ready..."
           
@@ -231,11 +211,9 @@ jobs:
           fi
           
           echo "✅ All CRDs are ready for dependent resources"
-        env:
-          KUBECONFIG: /home/jomcgi/.kube/talos
 
   deploy-services:
-    needs: [determine-mode, detect-changes, deploy-crds]
+    needs: [detect-changes, deploy-crds]
     runs-on: self-hosted
     timeout-minutes: 15
     if: |
@@ -292,7 +270,7 @@ jobs:
         if: matrix.changed == 'true'
       
       - name: Create secrets for ${{ matrix.service }}
-        if: matrix.changed == 'true' && matrix.secrets-needed && needs.determine-mode.outputs.is-dry-run != 'true'
+        if: matrix.changed == 'true' && matrix.secrets-needed && env.SKAFFOLD_DRY_RUN != 'true'
         run: |
           case "${{ matrix.service }}" in
             "cloudflare-tunnel")
@@ -344,7 +322,6 @@ jobs:
               ;;
           esac
         env:
-          KUBECONFIG: /home/jomcgi/.kube/talos
           GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
           GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
           GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
@@ -358,24 +335,16 @@ jobs:
         if: matrix.changed == 'true'
         id: deploy
         run: |
-          if [[ "${{ needs.determine-mode.outputs.is-dry-run }}" == "true" ]]; then
-            echo "🧪 DRY RUN: Would deploy ${{ matrix.service }} with:"
-            echo "skaffold run -f ${{ matrix.path }}"
-            echo ""
-            echo "📁 Service files that would be deployed:"
-            if [[ -d "$(dirname ${{ matrix.path }})" ]]; then
-              find "$(dirname ${{ matrix.path }})" -name "*.yaml" -o -name "*.yml" | head -10
-            fi
+          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
+            echo "🧪 DRY RUN: Skaffold will show what would be deployed for ${{ matrix.service }}"
           else
             echo "🚀 Deploying ${{ matrix.service }}..."
-            skaffold run -f ${{ matrix.path }}
-            echo "✅ ${{ matrix.service }} deployed successfully"
           fi
-        env:
-          KUBECONFIG: /home/jomcgi/.kube/talos
+          skaffold run -f ${{ matrix.path }}
+          echo "✅ ${{ matrix.service }} deployment completed"
 
       - name: Verify ${{ matrix.service }} deployment
-        if: matrix.changed == 'true' && matrix.health-check && needs.determine-mode.outputs.is-dry-run != 'true'
+        if: matrix.changed == 'true' && matrix.health-check && env.SKAFFOLD_DRY_RUN != 'true'
         timeout-minutes: 5
         run: |
           echo "🔍 Verifying ${{ matrix.service }} deployment..."
