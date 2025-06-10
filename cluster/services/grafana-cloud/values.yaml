@@ -6,29 +6,23 @@ destinations:
     url: https://prometheus-prod-55-prod-gb-south-1.grafana.net./api/prom/push
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: metrics-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "2334347"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
   - name: grafana-cloud-logs
     type: loki
     url: https://logs-prod-035.grafana.net./loki/api/v1/push
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: logs-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "1162851"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
   - name: grafana-cloud-otlp-endpoint
     type: otlp
     url: https://otlp-gateway-prod-gb-south-1.grafana.net./otlp
     protocol: http
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "1205052"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
     metrics:
       enabled: true
     logs:
@@ -37,20 +31,6 @@ destinations:
       enabled: true
 clusterMetrics:
   enabled: true
-  opencost:
-    enabled: true
-    metricsSource: grafana-cloud-metrics
-    opencost:
-      exporter:
-        defaultClusterId: homelab
-      prometheus:
-        existingSecretName: grafana-cloud-metrics-grafana-k8s-monitoring
-        username_key: metrics-username
-        password_key: password
-        external:
-          url: https://prometheus-prod-55-prod-gb-south-1.grafana.net./api/prom
-  kepler:
-    enabled: true
 annotationAutodiscovery:
   enabled: true
 prometheusOperatorObjects:
@@ -100,10 +80,8 @@ alloy-metrics:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "1205052"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
 alloy-singleton:
   enabled: true
   alloy:
@@ -130,10 +108,8 @@ alloy-singleton:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "1205052"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
 alloy-logs:
   enabled: true
   alloy:
@@ -164,10 +140,8 @@ alloy-logs:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "1205052"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
 alloy-receiver:
   enabled: true
   alloy:
@@ -211,7 +185,5 @@ alloy-receiver:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "1205052"
+      password: glc_eyJvIjoiMTM4MTA4NiIsIm4iOiJzdGFjay0xMjA1MDUyLWludGVncmF0aW9uLWhvbWVsYWItZmxlZXQtaG9tZWxhYi1mbGVldCIsImsiOiIwN2ROUzFMTEFMQzZENkUxMzhJOURhVjMiLCJtIjp7InIiOiJwcm9kLWdiLXNvdXRoLTEifX0=
