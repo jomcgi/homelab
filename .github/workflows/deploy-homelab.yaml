@@ -119,7 +119,7 @@ jobs:
               ;;
             "grafana")
               echo "🔐 Creating Grafana Cloud secrets..."
-              kubectl create namespace grafana --dry-run=client -o yaml | kubectl apply -f -
+              kubectl apply -f cluster/services/grafana-cloud/namespace.yaml
               kubectl create secret generic grafana-cloud-secret \
                 --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
                 --from-literal=metrics-username="$GRAFANA_CLOUD_METRICS_USERNAME" \
