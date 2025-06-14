@@ -111,7 +111,7 @@ alloy-singleton:
       username: "1205052"
       password: "{{ .Values.grafana_cloud_password}}"
 alloy-logs:
-  enabled: true
+  enabled: false
   alloy:
     mounts:
       varlog: true
