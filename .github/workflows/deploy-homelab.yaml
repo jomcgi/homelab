@@ -29,38 +29,38 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-crds:
-    runs-on: self-hosted
-    timeout-minutes: 10
-    strategy:
-      fail-fast: false
-      max-parallel: 10
-      matrix:
-        include:
-          - service: external-secrets
-            path: cluster/crd/external-secrets/skaffold.yaml
-          - service: longhorn
-            path: cluster/crd/longhorn/skaffold.yaml
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy ${{ matrix.service }}
-        id: deploy
-        run: |
-          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            echo "🧪 DRY RUN: Skaffold will show what would be deployed for ${{ matrix.service }}"
-          else
-            echo "🚀 Deploying ${{ matrix.service }}..."
-          fi
-          skaffold run -f ${{ matrix.path }}
-          echo "✅ ${{ matrix.service }} deployment completed"
+  # deploy-crds:
+  #   runs-on: self-hosted
+  #   timeout-minutes: 10
+  #   strategy:
+  #     fail-fast: false
+  #     max-parallel: 10
+  #     matrix:
+  #       include:
+  #         - service: external-secrets
+  #           path: cluster/crd/external-secrets/skaffold.yaml
+  #         - service: longhorn
+  #           path: cluster/crd/longhorn/skaffold.yaml
+  #   steps:
+  #     - uses: actions/checkout@v3
+  #     - name: Deploy ${{ matrix.service }}
+  #       id: deploy
+  #       run: |
+  #         if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
+  #           echo "🧪 DRY RUN: Skaffold will show what would be deployed for ${{ matrix.service }}"
+  #         else
+  #           echo "🚀 Deploying ${{ matrix.service }}..."
+  #         fi
+  #         skaffold run -f ${{ matrix.path }}
+  #         echo "✅ ${{ matrix.service }} deployment completed"
 
   deploy-services:
-    needs: [deploy-crds]
+    # needs: [deploy-crds]
     runs-on: self-hosted
     timeout-minutes: 15
-    if: |
-      always() && 
-      needs.deploy-crds.result == 'success'
+    # if: |
+    #   always() && 
+    #   needs.deploy-crds.result == 'success'
     strategy:
       fail-fast: false
       max-parallel: 10
