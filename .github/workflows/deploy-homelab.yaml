@@ -117,10 +117,6 @@ jobs:
               ;;
           esac
         env:
-          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
-          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
-          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
-          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
@@ -136,3 +132,8 @@ jobs:
           fi
           skaffold run -f ${{ matrix.path }}
           echo "✅ ${{ matrix.service }} deployment completed"
+        env:
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
+          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
+          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
+          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
