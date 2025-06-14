@@ -99,6 +99,13 @@ jobs:
             "grafana")
               echo "🔐 Creating Grafana Cloud secrets..."
               kubectl apply -f cluster/services/grafana-cloud/namespace.yaml
+              kubectl create secret generic grafana-cloud-secrets \
+                --namespace=grafana \
+                --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
+                --from-literal=metrics-username="$GRAFANA_CLOUD_METRICS_USERNAME" \
+                --from-literal=logs-username="$GRAFANA_CLOUD_LOGS_USERNAME" \
+                --from-literal=otlp-username="$GRAFANA_CLOUD_OTLP_USERNAME" \
+                --dry-run=client -o yaml | kubectl apply -f -
               ;;
             "open-webui")
               echo "🔐 Creating Open WebUI secrets..."
@@ -121,6 +128,10 @@ jobs:
           DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           HONEYCOMB_API_SECRET: ${{ secrets.HONEYCOMB_API_KEY }}
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
+          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
+          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
+          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
 
       - name: Deploy ${{ matrix.service }}
         id: deploy
