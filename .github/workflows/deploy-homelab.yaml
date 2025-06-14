@@ -16,34 +16,13 @@ on:
       - 'cluster/**'
       - '.github/workflows/deploy-homelab.yaml'
   workflow_dispatch:
-    inputs:
-      services:
-        description: 'Comma-separated list of services to deploy (leave empty for auto-detection)'
-        required: false
-        type: string
-        default: ''
-      force_crd_deploy:
-        description: 'Force CRD deployment even if unchanged'
-        required: false
-        type: boolean
-        default: false
-      force_services_deploy:
-        description: 'Force service deployment even if unchanged'
-        required: false
-        type: boolean
-        default: false
-      dry_run:
-        description: 'Perform a dry run without actually deploying (auto-enabled for PRs)'
-        required: false
-        type: boolean
-        default: false
+ 
 
 env:
   # Global Skaffold configuration
   SKAFFOLD_KUBECONFIG: /home/jomcgi/.kube/talos
   SKAFFOLD_ASSUME_YES: true
-  # Set dry run mode for PRs, respect manual input for other triggers  
-  SKAFFOLD_DRY_RUN: ${{ github.event_name == 'pull_request' || github.event.inputs.dry_run == 'true' }}
+  SKAFFOLD_DRY_RUN: ${{ github.event_name == 'pull_request' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
