@@ -6,29 +6,23 @@ destinations:
     url: https://prometheus-prod-55-prod-gb-south-1.grafana.net./api/prom/push
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: metrics-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_metrics_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
   - name: grafana-cloud-logs
     type: loki
     url: https://logs-prod-035.grafana.net./loki/api/v1/push
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: logs-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_logs_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
   - name: grafana-cloud-otlp-endpoint
     type: otlp
     url: https://otlp-gateway-prod-gb-south-1.grafana.net./otlp
     protocol: http
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_otlp_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
     metrics:
       enabled: true
     logs:
@@ -86,10 +80,8 @@ alloy-metrics:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_otlp_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
 alloy-singleton:
   enabled: true
   alloy:
@@ -116,10 +108,8 @@ alloy-singleton:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_otlp_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
 alloy-logs:
   enabled: true
   alloy:
@@ -166,10 +156,8 @@ alloy-logs:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_otlp_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
 alloy-receiver:
   enabled: true
   alloy:
@@ -213,7 +201,5 @@ alloy-receiver:
     url: https://fleet-management-prod-023.grafana.net
     auth:
       type: basic
-      usernameFrom: grafana-cloud-secret
-      usernameKey: otlp-username
-      passwordFrom: grafana-cloud-secret
-      passwordKey: password
+      username: "{{ .Values.grafana_cloud_otlp_username}}"
+      password: "{{ .Values.grafana_cloud_password}}"
