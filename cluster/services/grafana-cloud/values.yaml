@@ -61,7 +61,7 @@ alloy-metrics:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
           secretKeyRef:
-            name: "grafana-cloud-secret"
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
             key: "password"
       - name: CLUSTER_NAME
         value: homelab
@@ -89,7 +89,7 @@ alloy-singleton:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
           secretKeyRef:
-            name: "grafana-cloud-secret"
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
             key: "password"
       - name: CLUSTER_NAME
         value: homelab
@@ -133,7 +133,7 @@ alloy-logs:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
           secretKeyRef:
-            name: "grafana-cloud-secret"
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
             key: "password"
       - name: CLUSTER_NAME
         value: homelab
@@ -178,7 +178,7 @@ alloy-receiver:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
           secretKeyRef:
-            name: "grafana-cloud-secret"
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
             key: "password"
       - name: CLUSTER_NAME
         value: homelab
