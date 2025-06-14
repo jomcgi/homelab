@@ -1,7 +1,0 @@
-pydantic-settings
-fastapi[standard]
-structlog
-opentelemetry-api
-opentelemetry-exporter-otlp-proto-http
-opentelemetry-instrumentation-fastapi
-opentelemetry-sdk
