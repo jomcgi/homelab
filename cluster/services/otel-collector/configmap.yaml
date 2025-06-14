@@ -28,10 +28,9 @@ data:
         send_batch_size: 1024
     
     exporters:
-      otlp/honeycomb:
-        endpoint: "api.honeycomb.io:443" # US instance
-        headers:
-          "x-honeycomb-team": ${file:/etc/honeycomb/honeycomb-api-key}  
+      otlp/grafana:
+        endpoint: "http://grafana-k8s-monitoring-alloy-metrics.grafana.svc.cluster.local:4317"
+
 
     service:
       extensions: [health_check]
@@ -39,4 +38,4 @@ data:
         traces:
           receivers: [otlp, github]
           processors: [batch]
-          exporters: [otlp/honeycomb]
+          exporters: [otlp/grafana]
