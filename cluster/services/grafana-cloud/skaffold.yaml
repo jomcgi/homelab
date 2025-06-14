@@ -17,25 +17,25 @@ deploy:
           - cluster/services/grafana-cloud/values.yaml
         setValueTemplates:
           # For destinations block (metrics, logs, otlp)
-          destinations[0].auth.username: '!!str {{.GRAFANA_CLOUD_METRICS_USERNAME}}'
+          destinations[0].auth.username: "{{.GRAFANA_CLOUD_METRICS_USERNAME}}"
           destinations[0].auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
-          destinations[1].auth.username: '!!str {{.GRAFANA_CLOUD_LOGS_USERNAME}}'
+          destinations[1].auth.username: "{{.GRAFANA_CLOUD_LOGS_USERNAME}}"
           destinations[1].auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
-          destinations[2].auth.username: '!!str {{.GRAFANA_CLOUD_OTLP_USERNAME}}'
+          destinations[2].auth.username: "{{.GRAFANA_CLOUD_OTLP_USERNAME}}"
           destinations[2].auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
 
           # For alloy-metrics remoteConfig
-          alloy-metrics.remoteConfig.auth.username: '!!str {{.GRAFANA_CLOUD_OTLP_USERNAME}}'
+          alloy-metrics.remoteConfig.auth.username: "{{.GRAFANA_CLOUD_OTLP_USERNAME}}"
           alloy-metrics.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
 
           # For alloy-singleton remoteConfig
-          alloy-singleton.remoteConfig.auth.username: '!!str {{.GRAFANA_CLOUD_OTLP_USERNAME}}'
+          alloy-singleton.remoteConfig.auth.username: "{{.GRAFANA_CLOUD_OTLP_USERNAME}}"
           alloy-singleton.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
 
           # For alloy-logs remoteConfig
-          alloy-logs.remoteConfig.auth.username: '!!str {{.GRAFANA_CLOUD_OTLP_USERNAME}}'
+          alloy-logs.remoteConfig.auth.username: "{{.GRAFANA_CLOUD_OTLP_USERNAME}}"
           alloy-logs.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
           
           # For alloy-receiver remoteConfig
-          alloy-receiver.remoteConfig.auth.username: '!!str {{.GRAFANA_CLOUD_OTLP_USERNAME}}'
+          alloy-receiver.remoteConfig.auth.username: "{{.GRAFANA_CLOUD_OTLP_USERNAME}}"
           alloy-receiver.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
