@@ -113,6 +113,8 @@ alloy-singleton:
 alloy-logs:
   enabled: true
   alloy:
+    mounts:
+      varlog: true
     extraVolumes:
       - name: journal-log
         hostPath:
