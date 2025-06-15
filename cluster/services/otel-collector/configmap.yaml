@@ -30,7 +30,8 @@ data:
     exporters:
       otlp/grafana:
         endpoint: "grafana-k8s-monitoring-alloy-receiver.grafana.svc.cluster.local:4317"
-
+        tls:
+          insecure: true
 
     service:
       extensions: [health_check]
