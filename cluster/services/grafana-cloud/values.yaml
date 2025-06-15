@@ -112,54 +112,6 @@ alloy-singleton:
       password: "{{ .Values.grafana_cloud_password}}"
 alloy-logs:
   enabled: false
-  alloy:
-    mounts:
-      varlog: true
-    extraVolumes:
-      - name: journal-log
-        hostPath:
-          path: /var/log/journal
-          type: DirectoryOrCreate
-      - name: run-journal-log
-        hostPath:
-          path: /run/log/journal
-          type: DirectoryOrCreate
-    extraVolumeMounts:
-      - name: journal-log
-        mountPath: /var/log/journal
-        readOnly: true
-      - name: run-journal-log
-        mountPath: /run/log/journal
-        readOnly: true
-    extraEnv:
-      - name: GCLOUD_RW_API_KEY
-        valueFrom:
-          secretKeyRef:
-            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
-            key: "password"
-      - name: CLUSTER_NAME
-        value: homelab
-      - name: NAMESPACE
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.namespace
-      - name: POD_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: metadata.name
-      - name: NODE_NAME
-        valueFrom:
-          fieldRef:
-            fieldPath: spec.nodeName
-      - name: GCLOUD_FM_COLLECTOR_ID
-        value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-alloy-logs-$(NODE_NAME)
-  remoteConfig:
-    enabled: true
-    url: https://fleet-management-prod-023.grafana.net
-    auth:
-      type: basic
-      username: "1205052"
-      password: "{{ .Values.grafana_cloud_password}}"
 alloy-receiver:
   enabled: true
   alloy:
