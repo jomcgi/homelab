@@ -29,7 +29,7 @@ data:
     
     exporters:
       otlp/grafana:
-        endpoint: "http://grafana-k8s-monitoring-alloy-receiver.grafana.svc.cluster.local:4317"
+        endpoint: "grafana-k8s-monitoring-alloy-receiver.grafana.svc.cluster.local:4317"
 
 
     service:
