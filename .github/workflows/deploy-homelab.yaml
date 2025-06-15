@@ -2,14 +2,8 @@ name: Deploy Homelab
 
 on:
   schedule:
-    - cron: '0 0 * * *'
+    - cron: '0 * * * *'
   push:
-    branches:
-      - main
-    paths:
-      - 'cluster/**'
-      - '.github/workflows/deploy-homelab.yaml'
-  pull_request:
     branches:
       - main
     paths:
@@ -22,7 +16,6 @@ env:
   # Global Skaffold configuration
   SKAFFOLD_KUBECONFIG: /home/jomcgi/.kube/talos
   SKAFFOLD_ASSUME_YES: true
-  SKAFFOLD_DRY_RUN: ${{ github.event_name == 'pull_request' }}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
