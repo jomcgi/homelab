@@ -5,22 +5,18 @@ from scrape import Walk
 from pydantic import ValidationError
 import uuid
 from pydantic_sqlite import DataBase
+import logging
+from error_handling import (
+    retry_on_failure, handle_network_errors, safe_database_operation,
+    ErrorCollector, log_performance
+)
 
-db = sqlite3.connect("walks.db")
+# Configure logging
+logger = logging.getLogger(__name__)
 
-# session = requests_cache.CachedSession(
-#     cache_name='met_weather_cache.sqlite',
-#     backend='sqlite',
-#     expire_after=3600,  # Cache for 1 hour
-#     allowable_methods=['GET'],
-# )
-
-session = requests.session()
-
-import json
-from typing import List, Dict, Tuple, Optional
+from typing import List, Tuple, Optional
 from datetime import datetime
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 # Inner Models (Details, Summaries)
 
@@ -99,15 +95,21 @@ class WeatherFeature(BaseModel):
     geometry: Geometry
     properties: Properties
 
+@retry_on_failure(max_retries=3, delay=2.0, exceptions=(requests.RequestException,))
+@handle_network_errors
 def get_hourly_weather_forecast(
     latitude: float,
     longitude: float,
+    session: requests.Session = None,
 ) -> WeatherFeature:
   url = f"https://api.met.no/weatherapi/locationforecast/2.0/compact?lat={round(latitude, 4)}&lon={round(longitude, 4)}"
   headers = {
     "User-Agent": "joe@jomcgi.dev",
     "Accept": "application/json",
   }
+  if session is None:
+    session = requests.Session()
+  
   try:
     response = session.get(url, headers=headers)
     response.raise_for_status()  # Raise an error for bad responses
@@ -162,10 +164,15 @@ class HourlyForecast(BaseModel):
             f"{self.latitude},{self.longitude}",))
         self.uuid = str(uuid.uuid4())
 
-def fetch_forecasts():
-  walk_tuples = db.execute(
-      "SELECT * FROM walks"
-  ).fetchall()
+def fetch_forecasts(walks_db_conn: sqlite3.Connection, forecast_db: DataBase, session: requests.Session = None):
+  """Fetch weather forecasts for all walks in the database."""
+  try:
+    walk_tuples = walks_db_conn.execute(
+        "SELECT * FROM walks"
+    ).fetchall()
+  except sqlite3.Error as e:
+    logger.error(f"Database error reading walks: {e}")
+    return
 
   walks = [
       Walk(
@@ -182,14 +189,17 @@ def fetch_forecasts():
       for row in walk_tuples
   ]
 
-  db = DataBase()
-
   for walk in walks:
-      print(f"Walk: {walk.name}, Location: ({walk.latitude}, {walk.longitude})")
-      forecast = get_hourly_weather_forecast(
-          latitude=walk.latitude,
-          longitude=walk.longitude,
-      )
+      logger.debug(f"Fetching forecast for: {walk.name}")
+      try:
+        forecast = get_hourly_weather_forecast(
+            latitude=walk.latitude,
+            longitude=walk.longitude,
+            session=session,
+        )
+      except Exception as e:
+        logger.error(f"Failed to fetch forecast for {walk.name}: {e}")
+        continue
 
       for timeseries in forecast.properties.timeseries:
           try:
@@ -213,16 +223,41 @@ def fetch_forecasts():
                   latitude=forecast.geometry.coordinates[1],
                   longitude=forecast.geometry.coordinates[0],
               )
-              db.add(
+              forecast_db.add(
                 "forecasts",
                 hourly_forecast
               )
           except ValidationError as e:
-              print(f"Validation error: {e}")
+              logger.warning(f"Validation error for {walk.name}: {e}")
               continue
           except KeyError as e:
-              print(f"Key error: {e}")
+              logger.warning(f"Key error for {walk.name}: {e}")
               continue
 
-      
-  db.save("forecasts.sqlite")
+if __name__ == "__main__":
+    from logging_config import setup_logging
+    setup_logging(level="INFO")
+    
+    import requests_cache
+    
+    # Create cached session
+    session = requests_cache.CachedSession(
+        cache_name='met_weather_cache',
+        backend='sqlite',
+        expire_after=3600,  # Cache for 1 hour
+        allowable_methods=['GET'],
+    )
+    
+    # Create forecast database
+    forecast_db = DataBase()
+    
+    # Open walks database connection
+    with sqlite3.connect("walks.db") as walks_db:
+        fetch_forecasts(walks_db, forecast_db, session)
+    
+    # Save forecasts
+    try:
+        forecast_db.save("forecasts.sqlite.db")
+        logger.info("Successfully saved weather forecasts to forecasts.sqlite.db")
+    except Exception as e:
+        logger.error(f"Failed to save forecasts database: {e}")
