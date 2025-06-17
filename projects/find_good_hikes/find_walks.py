@@ -5,6 +5,14 @@ from typing import List, Dict, Any, Tuple
 from hourly_forecast import HourlyForecast
 from scrape import Walk
 from zoneinfo import ZoneInfo
+from weather_scoring import rank_walks_by_weather, WeatherScore
+import logging
+from error_handling import (
+    safe_database_operation, ErrorCollector, log_performance
+)
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 # Define the Walk structure (optional, but good for clarity if you use it later)
 # from pydantic import BaseModel
@@ -25,12 +33,14 @@ class WalkSearchResult(Walk):
     """
     distance_from_center_km: float | None = None
     forecast: list[HourlyForecast] | None = None
+    weather_score: WeatherScore | None = None
 
 
 def find_nearby_walks(
     center_lat: float,
     center_lon: float,
     max_distance_km: float,
+    walks_db_conn: sqlite3.Connection,
 ) -> List[WalkSearchResult]:
     """
     Finds walks within a specified distance from a central point in an SQLite database.
@@ -47,13 +57,11 @@ def find_nearby_walks(
     """
     nearby_walks = []
     center_point: Tuple[float, float] = (center_lat, center_lon)
-    conn = None # Initialize conn to None
-
+    
     try:
-        conn = sqlite3.connect("walks.db") # Connect to your SQLite database
         # Use row_factory for easy dictionary access
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
+        walks_db_conn.row_factory = sqlite3.Row
+        cursor = walks_db_conn.cursor()
 
         # --- Optimization Note ---
         # For very large databases, selecting ALL rows can be slow.
@@ -83,7 +91,6 @@ def find_nearby_walks(
 
             # Calculate distance using haversine
             distance = haversine(center_point, walk_point, unit=Unit.KILOMETERS)
-            print(distance)
             if distance <= max_distance_km:
                 # Add the calculated distance to the result
                 walk.distance_from_center_km = round(distance, 2)
@@ -95,23 +102,20 @@ def find_nearby_walks(
         return nearby_walks
 
     except sqlite3.Error as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return [] # Return empty list on error
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
         return [] # Return empty list on error
-    finally:
-        if conn:
-            conn.close()
     
 
 def fetch_weather(
     nearby_walks: list[WalkSearchResult],
+    forecasts_db_conn: sqlite3.Connection,
 ) -> list[WalkSearchResult]:
     try:
-        db = sqlite3.connect("forecasts.sqlite.db")
-        db.row_factory = sqlite3.Row
-        cursor = db.cursor()
+        forecasts_db_conn.row_factory = sqlite3.Row
+        cursor = forecasts_db_conn.cursor()
         for walk in nearby_walks:
     # time: datetime
     # air_pressure_at_sea_level: Optional[float] = None
@@ -164,10 +168,10 @@ def fetch_weather(
             walk.forecast = forecasts
         return nearby_walks
     except sqlite3.Error as e:
-        print(f"Database error: {e}")
+        logger.error(f"Database error: {e}")
         return []
     except Exception as e:
-        print(f"An error occurred: {e}")
+        logger.error(f"An error occurred: {e}")
         return []
 
 
@@ -179,6 +183,10 @@ def find_walks(
     latitude: float,
     longitude: float,
     max_distance_km: float,
+    walks_db_conn: sqlite3.Connection,
+    forecasts_db_conn: sqlite3.Connection,
+    rank_by_weather: bool = True,
+    hours_ahead: int = 24,
 ) -> List[WalkSearchResult]:
     """
     Finds walks within a specified distance from a central point in an SQLite database.
@@ -196,36 +204,58 @@ def find_walks(
         center_lat=latitude,
         center_lon=longitude,
         max_distance_km=max_distance_km,
+        walks_db_conn=walks_db_conn,
     )
-    walks = fetch_weather(walks)
+    walks = fetch_weather(walks, forecasts_db_conn)
+    
+    # Rank by weather if requested
+    if rank_by_weather:
+        walks = rank_walks_by_weather(walks, hours_ahead)
+        logger.info(f"Ranked walks by weather conditions for next {hours_ahead} hours")
 
     return walks
 
 # --- Example Usage ---
 if __name__ == "__main__":
+    from logging_config import setup_logging
+    setup_logging(level="INFO")
+    
     search_lat = 55.88272269960411 # Latitude of Glasgow
     search_lon = -4.2589411313548515 # Longitude of Glasgow
-    search_radius_km = 25 # Find walks within 15km
+    search_radius_km = 25 # Find walks within 25km
 
-    print(f"Searching for walks within {search_radius_km}km of ({search_lat}, {search_lon})")
-    nearby_walks = find_walks(search_lat, search_lon, search_radius_km)
+    logger.info(f"Searching for walks within {search_radius_km}km of ({search_lat}, {search_lon})")
+    
+    # Open database connections
+    with sqlite3.connect("walks.db") as walks_db, sqlite3.connect("forecasts.sqlite.db") as forecasts_db:
+        nearby_walks = find_walks(
+            latitude=search_lat, 
+            longitude=search_lon, 
+            max_distance_km=search_radius_km, 
+            walks_db_conn=walks_db, 
+            forecasts_db_conn=forecasts_db,
+            rank_by_weather=True,
+            hours_ahead=120  # Look at next 5 days for planning
+        )
 
     if nearby_walks:
-        print(f"\nFound {len(nearby_walks)} walks:")
+        logger.info(f"Found {len(nearby_walks)} walks:")
         for walk in nearby_walks:
-            print("-----------------------")
-            print(f" - {walk.name} ({walk.distance_from_center_km} km away)")
-            print(f"   URL: {walk.url}")
-            print(f"   Summary: {walk.summary}")
-            print(f"   Distance: {walk.distance_km} km")
-            print(f"   Ascent: {walk.ascent_m} m")
-            print(f"   Duration: {walk.duration_h} hours")
-            print(f"   Coordinates: ({walk.latitude}, {walk.longitude})")
-            print(f"   Forecasts:")
+            weather_info = f" (Weather: {walk.weather_score.score:.1f}/100)" if walk.weather_score else ""
+            logger.info(f"Walk: {walk.name} ({walk.distance_from_center_km} km away){weather_info}")
+            if walk.weather_score:
+                logger.info(f"   Weather: {walk.weather_score.explanation}")
+            logger.debug(f"   URL: {walk.url}")
+            logger.debug(f"   Summary: {walk.summary}")
+            logger.debug(f"   Distance: {walk.distance_km} km")
+            logger.debug(f"   Ascent: {walk.ascent_m} m")
+            logger.debug(f"   Duration: {walk.duration_h} hours")
+            logger.debug(f"   Coordinates: ({walk.latitude}, {walk.longitude})")
+            logger.debug(f"   Forecasts:")
             if walk.forecast:
-                for forecast in walk.forecast:
-                    print(f"     - {forecast.time}: {forecast.air_temperature}°C, {forecast.symbol_code}")
+                for forecast in walk.forecast[:6]:  # Show first 6 hours only
+                    logger.debug(f"     - {forecast.time}: {forecast.air_temperature}°C, {forecast.symbol_code}")
             else:
-                print("     No forecasts available.")
+                logger.debug("     No forecasts available.")
     else:
-        print("No walks found within the specified distance.")
+        logger.warning("No walks found within the specified distance")
