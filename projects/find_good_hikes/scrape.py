@@ -13,17 +13,23 @@ from pydantic_sqlite import DataBase
 import time
 from bng_latlon import OSGB36toWGS84
 import os
-session = requests_cache.CachedSession(
-    cache_name='walkhighlands_cache',
-    backend='sqlite',
+import logging
+from error_handling import (
+    retry_on_failure, handle_network_errors, ErrorCollector,
+    log_performance
 )
 
-# os.environ['HTTPS_PROXY'] = os.environ['https_proxy'] = 'http://170.106.104.64:13001/'
+# Configure logging
+logger = logging.getLogger(__name__)
 
+@retry_on_failure(max_retries=3, exceptions=(requests.RequestException,))
+@handle_network_errors
+@log_performance
 def scrape_area_links_from_homepage(
         base_url: str,
-        headers: dict
-):
+        headers: dict,
+        session: requests.Session,
+) -> list[str]:
 
     extracted_links = []
 
@@ -33,7 +39,7 @@ def scrape_area_links_from_homepage(
         
         response = session.get(base_url, headers=headers, timeout=15)
         response.raise_for_status()  # Raise an exception for bad status codes (4xx or 5xx)
-        print("Successfully fetched the page.")
+        logger.debug(f"Successfully fetched page: {base_url}")
 
         # Parse the HTML content
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -42,10 +48,10 @@ def scrape_area_links_from_homepage(
         choose_area_div = soup.find('div', id='choosearea')
 
         if not choose_area_div:
-            print("Error: Could not find the <div id='choosearea'> container.")
+            logger.warning("Could not find the <div id='choosearea'> container")
             return extracted_links # Return empty list
 
-        print("Found <div id='choosearea'>. Searching for links...")
+        logger.debug("Found <div id='choosearea'>. Searching for links...")
 
         # Find all 'a' (anchor) tags within 'td' elements with class 'cell'
         # inside the 'choose_area_div'
@@ -53,10 +59,10 @@ def scrape_area_links_from_homepage(
         link_elements = choose_area_div.select('td.cell a')
 
         if not link_elements:
-            print("No links found matching the selector 'td.cell a' within #choosearea.")
+            logger.warning("No links found matching the selector 'td.cell a' within #choosearea")
             return extracted_links # Return empty list
 
-        print(f"Found {len(link_elements)} potential links.")
+        logger.debug(f"Found {len(link_elements)} potential area links")
 
         # Extract href and text for each link
         for link in link_elements:
@@ -72,19 +78,23 @@ def scrape_area_links_from_homepage(
                 extracted_links.append(absolute_href)
 
             else:
-                print(f"Warning: Found a link tag without href or text: {link}")
+                logger.debug(f"Found a link tag without href or text: {link}")
 
     except requests.exceptions.RequestException as e:
-        print(f"Error during requests to {base_url}: {e}")
+        logger.error(f"Request error for {base_url}: {e}")
     except Exception as e:
-        print(f"An unexpected error occurred: {e}")
+        logger.error(f"Unexpected error: {e}")
 
     return extracted_links
 
+@retry_on_failure(max_retries=3, exceptions=(requests.RequestException,))
+@handle_network_errors
+@log_performance
 def scrape_sub_area_links_from_area(
         base_url: str,
-        headers: dict
-):
+        headers: dict,
+        session: requests.Session,
+) -> list[str]:
     extracted_links = []
 
     try:
@@ -112,10 +122,10 @@ def scrape_sub_area_links_from_area(
         link_elements = choose_area_div.select('td.cell a')
 
         if not link_elements:
-            print("No links found matching the selector 'td.cell a' within #choosearea.")
+            logger.warning("No links found matching the selector 'td.cell a' within #choosearea")
             return extracted_links # Return empty list
 
-        print(f"Found {len(link_elements)} potential links.")
+        logger.debug(f"Found {len(link_elements)} potential area links")
 
         # Extract href and text for each link
         for link in link_elements:
@@ -131,7 +141,7 @@ def scrape_sub_area_links_from_area(
                 extracted_links.append(absolute_href)
 
             else:
-                print(f"Warning: Found a link tag without href or text: {link}")
+                logger.debug(f"Found a link tag without href or text: {link}")
 
     except requests.exceptions.RequestException as e:
         print(f"Error during requests to {base_url}: {e}")
@@ -140,10 +150,14 @@ def scrape_sub_area_links_from_area(
 
     return extracted_links
 
+@retry_on_failure(max_retries=3, exceptions=(requests.RequestException,))
+@handle_network_errors
+@log_performance
 def scrape_walks_from_sub_area(
         base_url: str,
-        headers: dict
-):
+        headers: dict,
+        session: requests.Session,
+) -> list[str]:
     extracted_links = []
     print(f"Scraping: {base_url}")
     try:
@@ -196,7 +210,7 @@ def scrape_walks_from_sub_area(
                 print(f"  -> Adding: {absolute_href} ({name})")
                 extracted_links.append(absolute_href)
             else:
-                print(f"Warning: Found a link tag without href or text: {link}")
+                logger.debug(f"Found a link tag without href or text: {link}")
 
     except requests.exceptions.RequestException as e:
         print(f"Error during requests to {base_url}: {e}")
@@ -246,9 +260,12 @@ def parse_duration(time_str: str) -> timedelta | None:
         return None
 
 # --- Main Scraping Function ---
+@retry_on_failure(max_retries=2, exceptions=(requests.RequestException,))
+@handle_network_errors
 def scrape_walk_data_from_file(
         base_url: str,
         headers: dict,
+        session: requests.Session,
 ) -> Walk | None:
     """
     Extracts walk data (name, summary, stats) from a local HTML file.
@@ -357,7 +374,7 @@ def scrape_walk_data_from_file(
         print(f"An unexpected error occurred during scraping: {e}")
         return None
 
-def scrape_walkhighlands() -> list[Walk]:
+def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
     """
     Scrapes area links from the Walkhighlands homepage.
 
@@ -369,37 +386,110 @@ def scrape_walkhighlands() -> list[Walk]:
               the 'name' and absolute 'url' of an extracted link.
               Returns an empty list if an error occurs or no links are found.
     """
+    if session is None:
+        session = requests.Session()
+        
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.76', 'system': 'Edge 116.0 Win10', 'browser': 'edge', 'version': '116.0', 'os': 'win10'
     }
     base_url = "https://www.walkhighlands.co.uk/"
 
-    area_links = scrape_area_links_from_homepage(base_url, headers)
+    error_collector = ErrorCollector()
+    
+    # Scrape area links with error handling
+    area_links = scrape_area_links_from_homepage(base_url, headers, session)
+    if not area_links:
+        logger.error("Failed to scrape any area links from homepage")
+        return []
+    
+    logger.info(f"Found {len(area_links)} area links")
+    
+    # Scrape sub-area links with error collection
     sub_area_links = []
     for area_link in area_links:
-        sub_area_links += scrape_sub_area_links_from_area(area_link, headers)
+        try:
+            links = scrape_sub_area_links_from_area(area_link, headers, session)
+            if links:
+                sub_area_links.extend(links)
+            else:
+                error_collector.add_error("scrape_sub_area", 
+                                         Exception(f"No sub-area links found"), 
+                                         area_link=area_link)
+        except Exception as e:
+            error_collector.add_error("scrape_sub_area", e, area_link=area_link)
+    
+    if not sub_area_links:
+        logger.error("Failed to scrape any sub-area links")
+        error_collector.log_summary()
+        return []
+    
+    logger.info(f"Found {len(sub_area_links)} sub-area links")
+    
+    # Scrape walk links with error collection
     walk_links = []
     for sub_area_link in sub_area_links:
-        walk_links += scrape_walks_from_sub_area(sub_area_link, headers)
-
+        try:
+            links = scrape_walks_from_sub_area(sub_area_link, headers, session)
+            if links:
+                walk_links.extend(links)
+            else:
+                error_collector.add_error("scrape_walks", 
+                                         Exception(f"No walk links found"), 
+                                         sub_area_link=sub_area_link)
+        except Exception as e:
+            error_collector.add_error("scrape_walks", e, sub_area_link=sub_area_link)
+    
+    if not walk_links:
+        logger.error("Failed to scrape any walk links")
+        error_collector.log_summary()
+        return []
+    
+    logger.info(f"Found {len(walk_links)} walk links")
+    
+    # Scrape individual walk data with error collection
     walks: list[Walk] = []
     for walk_link in walk_links:
-        walk = scrape_walk_data_from_file(walk_link, headers)
-        if walk:
-            walks.append(walk)
+        try:
+            walk = scrape_walk_data_from_file(walk_link, headers, session)
+            if walk:
+                walks.append(walk)
+            else:
+                error_collector.add_error("scrape_walk_data", 
+                                         Exception(f"Failed to extract walk data"), 
+                                         walk_link=walk_link)
+        except Exception as e:
+            error_collector.add_error("scrape_walk_data", e, walk_link=walk_link)
+    
+    # Log summary of any errors encountered
+    error_collector.log_summary()
+    
+    if walks:
+        logger.info(f"Successfully scraped {len(walks)} walks out of {len(walk_links)} attempted")
+    else:
+        logger.error("Failed to scrape any valid walk data")
         
 
     return walks
 
 # --- Main Execution ---
 if __name__ == "__main__":
+    from logging_config import setup_logging
+    setup_logging(level="INFO")
+    
+    # Create cached session
+    session = requests_cache.CachedSession(
+        cache_name='walkhighlands_cache',
+        backend='sqlite',
+    )
+    
     # Use the main URL as the base URL for resolving relative links
-    walks = scrape_walkhighlands()
+    walks = scrape_walkhighlands(session)
     
     if walks:
         db = DataBase()
         for walk in walks:
             db.add("walks", walk)
         db.save("walks.db")
+        logger.info(f"Successfully scraped and saved {len(walks)} walks to walks.db")
     else:
-        print("\nNo area links were successfully extracted.")
+        logger.error("No walks were successfully extracted")
