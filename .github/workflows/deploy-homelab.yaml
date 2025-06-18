@@ -48,7 +48,7 @@ jobs:
           echo "✅ ${{ matrix.service }} deployment completed"
 
   deploy-services:
-    # needs: [deploy-crds]
+    needs: [deploy-crds]
     runs-on: self-hosted
     timeout-minutes: 15
     if: |
