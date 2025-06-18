@@ -1,0 +1,92 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: obsidian-mcp
+  namespace: obsidian-mcp
+  labels:
+    app.kubernetes.io/name: obsidian-mcp
+    app.kubernetes.io/component: server
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: obsidian-mcp
+      app.kubernetes.io/component: server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: obsidian-mcp
+        app.kubernetes.io/component: server
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+      containers:
+      - name: obsidian-mcp
+        image: jomcgi/obsidian-mcp:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop: [ALL]
+          seccompProfile:
+            type: RuntimeDefault
+        env:
+        - name: OBSIDIAN_REPO_URL
+          valueFrom:
+            secretKeyRef:
+              name: obsidian-mcp-config
+              key: repo-url
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: obsidian-mcp-config
+              key: github-token
+              optional: true
+        - name: OBSIDIAN_BRANCH
+          valueFrom:
+            configMapKeyRef:
+              name: obsidian-mcp-config
+              key: branch
+              optional: true
+        - name: OBSIDIAN_PATH_PREFIX
+          valueFrom:
+            configMapKeyRef:
+              name: obsidian-mcp-config
+              key: path-prefix
+              optional: true
+        ports:
+        - containerPort: 8000
+          name: mcp
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: mcp
+          initialDelaySeconds: 30
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: mcp
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 100m
+            memory: 1Gi
+        volumeMounts:
+        - name: cache
+          mountPath: /app/cache
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: cache
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
