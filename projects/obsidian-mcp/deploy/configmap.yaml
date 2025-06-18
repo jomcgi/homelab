@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: obsidian-mcp-config
+  namespace: obsidian-mcp
+  labels:
+    app.kubernetes.io/name: obsidian-mcp
+data:
+  branch: "main"
+  path-prefix: ""
