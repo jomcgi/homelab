@@ -36,9 +36,10 @@ spec:
         env:
         - name: OBSIDIAN_REPO_URL
           valueFrom:
-            secretKeyRef:
+            configMapKeyRef:
               name: obsidian-mcp-config
-              key: repo-url
+              key: repo
+              optional: true
         - name: GITHUB_TOKEN
           valueFrom:
             secretKeyRef:
