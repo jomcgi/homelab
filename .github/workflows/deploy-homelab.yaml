@@ -1,14 +1,15 @@
 name: Deploy Homelab
 
 on:
-  schedule:
-    - cron: '0 * * * *'
-  push:
-    branches:
-      - main
-    paths:
-      - 'cluster/**'
-      - '.github/workflows/deploy-homelab.yaml'
+  # Disabled - replaced by individual service workflows
+  # schedule:
+  #   - cron: '0 * * * *'
+  # push:
+  #   branches:
+  #     - main
+  #   paths:
+  #     - 'cluster/**'
+  #     - '.github/workflows/deploy-homelab.yaml'
   workflow_dispatch:
  
 
