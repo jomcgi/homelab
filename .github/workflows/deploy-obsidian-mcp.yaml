@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  obsidian-mcp:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
@@ -34,7 +34,7 @@ jobs:
             --from-literal=github-token="${{ secrets.OBSIDIAN_GITHUB_PAT }}" \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy Obsidian MCP
+      - name: Skaffold Obsidian MCP
         run: |
           echo "🚀 Deploying obsidian-mcp..."
           skaffold run -f cluster/services/obsidian-mcp/skaffold.yaml
