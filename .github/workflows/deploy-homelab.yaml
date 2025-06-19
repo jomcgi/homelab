@@ -39,11 +39,7 @@ jobs:
       - name: Deploy ${{ matrix.service }}
         id: deploy
         run: |
-          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            echo "🧪 DRY RUN: Skaffold will show what would be deployed for ${{ matrix.service }}"
-          else
-            echo "🚀 Deploying ${{ matrix.service }}..."
-          fi
+          echo "🚀 Deploying ${{ matrix.service }}..."
           skaffold run -f ${{ matrix.path }}
           echo "✅ ${{ matrix.service }} deployment completed"
 
@@ -74,11 +70,14 @@ jobs:
           - service: otel-collector
             path: cluster/services/otel-collector/skaffold.yaml
             secrets-needed: true
+          - service: obsidian-mcp
+            path: cluster/services/obsidian-mcp/skaffold.yaml
+            secrets-needed: true
     steps:
       - uses: actions/checkout@v3
       
       - name: Create secrets for ${{ matrix.service }}
-        if: matrix.secrets-needed && env.SKAFFOLD_DRY_RUN != 'true'
+        if: matrix.secrets-needed
         run: |
           case "${{ matrix.service }}" in
             "cloudflare-tunnel")
@@ -115,25 +114,29 @@ jobs:
                 --from-literal=honeycomb-api-key="$HONEYCOMB_API_SECRET" \
                 -n opentelemetry -o yaml --dry-run=client | kubectl apply -f -
               ;;
+            "obsidian-mcp")
+              echo "🔐 Creating Obsidian MCP secrets..."
+              kubectl create namespace obsidian-mcp --dry-run=client -o yaml | kubectl apply -f -
+              kubectl create secret generic obsidian-mcp-config \
+                --namespace=obsidian-mcp \
+                --from-literal=github-token="${{ secrets.OBSIDIAN_GITHUB_PAT }}" \
+                --dry-run=client -o yaml | kubectl apply -f -
+              ;;
           esac
         env:
           DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
           DOCKER_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          HONEYCOMB_API_SECRET: ${{ secrets.HONEYCOMB_API_KEY }}
           GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
           GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
           GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
           GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
+          OBSIDIAN_GITHUB_PAT: ${{ secrets.OBSIDIAN_GITHUB_PAT }}
 
       - name: Deploy ${{ matrix.service }}
         id: deploy
         run: |
-          if [[ "${{ env.SKAFFOLD_DRY_RUN }}" == "true" ]]; then
-            echo "🧪 DRY RUN: Skaffold will show what would be deployed for ${{ matrix.service }}"
-          else
-            echo "🚀 Deploying ${{ matrix.service }}..."
-          fi
+          echo "🚀 Deploying ${{ matrix.service }}..."
           skaffold run -f ${{ matrix.path }}
           echo "✅ ${{ matrix.service }} deployment completed"
         env:

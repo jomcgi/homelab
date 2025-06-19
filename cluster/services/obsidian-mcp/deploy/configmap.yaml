@@ -7,4 +7,5 @@ metadata:
     app.kubernetes.io/name: obsidian-mcp
 data:
   branch: "main"
-  path-prefix: ""
+  path-prefix: "src/site/notes"
+  repo: "jomcgi/obsidian-public"

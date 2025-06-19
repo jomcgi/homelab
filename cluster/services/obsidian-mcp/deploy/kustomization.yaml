@@ -2,8 +2,6 @@
 namespace: obsidian-mcp
 
 resources:
-  - namespace.yaml
   - configmap.yaml
   - deployment.yaml
   - service.yaml
-  - secret.yaml

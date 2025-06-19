@@ -1,5 +1,19 @@
 {
   "ignore": [
     "**/*.sqlite"
-  ]
+  ],
+  "env": {
+    "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(kubectl:*)",
+      "Bash(skaffold:*)",
+      "Bash(helm:*)",
+      "Bash(git:*)",
+      "Bash(docker:*)",
+      "Bash(talosctl:*)"
+    ]
+  },
+  "cleanupPeriodDays": 60
 }
