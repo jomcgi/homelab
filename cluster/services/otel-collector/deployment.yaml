@@ -65,13 +65,7 @@ spec:
         volumeMounts:
         - name: config
           mountPath: /conf
-        - name: honeycomb-api
-          mountPath: /etc/honeycomb
-          readOnly: true
       volumes:
       - name: config
         configMap:
           name: otel-collector-config
-      - name: honeycomb-api
-        secret:
-          secretName: otel-collector-secrets
