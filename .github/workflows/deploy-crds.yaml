@@ -19,23 +19,23 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy-external-secrets:
+  external-secrets:
     runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy External Secrets CRD
+      - name: Skaffold External Secrets CRD
         run: |
           echo "🚀 Deploying external-secrets CRD..."
           skaffold run -f cluster/crd/external-secrets/skaffold.yaml
           echo "✅ external-secrets CRD deployment completed"
 
-  deploy-longhorn:
+  longhorn:
     runs-on: self-hosted
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v3
-      - name: Deploy Longhorn CRD
+      - name: Skaffold Longhorn CRD
         run: |
           echo "🚀 Deploying longhorn CRD..."
           skaffold run -f cluster/crd/longhorn/skaffold.yaml

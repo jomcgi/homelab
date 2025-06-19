@@ -19,13 +19,13 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  otel-collector:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v3
 
-      - name: Deploy OpenTelemetry Collector
+      - name: Skaffold  OpenTelemetry Collector
         run: |
           echo "🚀 Deploying otel-collector..."
           skaffold run -f cluster/services/otel-collector/skaffold.yaml
