@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  cloudflare-tunnel:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
@@ -34,7 +34,7 @@ jobs:
             --from-file=credentials.json=/home/jomcgi/.cloudflared/55d9c8bd-b6bf-4f67-bd5e-9219caf9c746.json \
             --dry-run=client -o yaml | kubectl apply -f -
 
-      - name: Deploy Cloudflare Tunnel
+      - name: Skaffold Cloudflare Tunnel
         run: |
           echo "🚀 Deploying cloudflare-tunnel..."
           skaffold run -f cluster/services/cloudflare-tunnel/skaffold.yaml

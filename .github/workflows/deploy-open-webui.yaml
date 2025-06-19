@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  open-webui:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
@@ -36,7 +36,7 @@ jobs:
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
-      - name: Deploy Open WebUI
+      - name: Skaffold Open WebUI
         run: |
           echo "🚀 Deploying open-webui..."
           skaffold run -f cluster/services/open-webui/skaffold.yaml

@@ -19,7 +19,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  grafana-cloud:
     runs-on: self-hosted
     timeout-minutes: 15
     steps:
@@ -42,7 +42,7 @@ jobs:
           GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
           GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
 
-      - name: Deploy Grafana Cloud
+      - name: Skaffold Grafana Cloud
         run: |
           echo "🚀 Deploying grafana-cloud..."
           skaffold run -f cluster/services/grafana-cloud/skaffold.yaml
