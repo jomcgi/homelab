@@ -42,6 +42,9 @@ data:
         exemplars:
           enabled: true
         dimensions_cache_size: 1000
+        dimensions:
+          - name: trace.root.name
+            default: null
         metrics_flush_interval: 15s
         metrics_expiration: 5m
         events:
