@@ -2,7 +2,7 @@ name: Deploy Cloudflare Tunnel
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '0,30 * * * *'
   push:
     branches: [main]
     paths:
