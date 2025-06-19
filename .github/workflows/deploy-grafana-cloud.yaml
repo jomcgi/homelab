@@ -2,7 +2,7 @@ name: Deploy Grafana Cloud
 
 on:
   schedule:
-    - cron: '0 * * * *'  # Every hour
+    - cron: '0,30 * * * *'
   push:
     branches: [main]
     paths:
