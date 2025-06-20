@@ -59,7 +59,7 @@ alloy-metrics:
   alloy:
     resources:
       requests:
-        memory: 350Mi
+        memory: 400Mi
     extraEnv:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
@@ -88,6 +88,9 @@ alloy-metrics:
 alloy-singleton:
   enabled: true
   alloy:
+    resources:
+      requests:
+        memory: 150Mi
     extraEnv:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
@@ -118,6 +121,9 @@ alloy-logs:
 alloy-receiver:
   enabled: true
   alloy:
+    resources:
+      requests:
+        memory: 400Mi
     extraPorts:
       - name: otlp-grpc
         port: 4317
