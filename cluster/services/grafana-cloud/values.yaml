@@ -57,6 +57,9 @@ applicationObservability:
 alloy-metrics:
   enabled: true
   alloy:
+    resources:
+      requests:
+        memory: 350Mi
     extraEnv:
       - name: GCLOUD_RW_API_KEY
         valueFrom:
