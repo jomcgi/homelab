@@ -2,7 +2,7 @@ name: Deploy Longhorn CRD
 
 on:
   schedule:
-    - cron: '0,30 * * * *'
+    - cron: '0 0 1,15 * *'
   push:
     branches: [main]
     paths:
