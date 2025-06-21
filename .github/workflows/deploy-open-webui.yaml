@@ -2,7 +2,7 @@ name: Deploy Open WebUI
 
 on:
   schedule:
-    - cron: '0 0 * * *'  # Every day
+    - cron: '0 0 1,15 * *'
   push:
     branches: [main]
     paths:
