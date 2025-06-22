@@ -2,6 +2,7 @@ import sqlite3
 import requests
 from scrape import Walk
 from pydantic import ValidationError
+import json
 import uuid
 from pydantic_sqlite import DataBase
 import logging
@@ -342,7 +343,7 @@ def fetch_single_forecast(walk: Walk, session: requests.Session, cache: WeatherC
         return walk, None, e
 
 def process_forecast_data(walk: Walk, forecast: WeatherFeature, forecast_db: DataBase):
-    """Process forecast data and add to database."""
+    """Process forecast data and add to database, filtering out non-viable forecasts at storage time."""
     for timeseries in forecast.properties.timeseries:
         try:
             next_1_hours = timeseries.data.next_1_hours
@@ -367,13 +368,30 @@ def process_forecast_data(walk: Walk, forecast: WeatherFeature, forecast_db: Dat
                 longitude=forecast.geometry.coordinates[0],
                 last_updated=datetime.now(),
             )
+            
+            # FILTER AT STORAGE TIME - Only store viable forecasts
+            # Skip if it's nighttime
+            if hourly_forecast.is_night:
+                continue
+                
+            # Skip if excessive precipitation (>2mm/hour)
+            if hourly_forecast.precipitation_amount and hourly_forecast.precipitation_amount > 2.0:
+                continue
+                
+            # Skip if excessive wind (>50km/h)
+            if hourly_forecast.wind_speed and hourly_forecast.wind_speed * 3.6 > 50.0:
+                continue
+            
+            # Only store forecasts that meet minimum viability criteria
             forecast_db.add("forecasts", hourly_forecast)
+            
         except ValidationError as e:
             logger.warning(f"Validation error for {walk.name}: {e}")
             continue
         except KeyError as e:
             logger.warning(f"Key error for {walk.name}: {e}")
             continue
+
 
 def fetch_forecasts(walks_db_conn: sqlite3.Connection, forecast_db: DataBase, session: requests.Session = None, cache: WeatherCache = None, max_workers: int = 5, requests_per_second: float = 10.0):
     """Fetch weather forecasts for all walks in the database using concurrent processing with rate limiting."""
