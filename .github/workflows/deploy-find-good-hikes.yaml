@@ -28,5 +28,5 @@ jobs:
       - name: Deploy Find Good Hikes
         run: |
           echo "🚀 Deploying find-good-hikes..."
-          skaffold delete -f cluster/services/find-good-hikes/skaffold.yaml
+          skaffold run -f cluster/services/find-good-hikes/skaffold.yaml
           echo "✅ find-good-hikes deployment completed"
