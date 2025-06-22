@@ -24,8 +24,8 @@ spec:
           type: RuntimeDefault
       initContainers:
       - name: check-data
-        image: find-good-hikes:latest
-        imagePullPolicy: Never
+        image: jomcgi/find-good-hikes
+        imagePullPolicy: IfNotPresent
         command: ["/bin/bash", "-c"]
         args:
         - |
@@ -47,7 +47,7 @@ spec:
           mountPath: /app/data
       containers:
       - name: find-good-hikes
-        image: jomcgi/find-good-hikes:latest
+        image: jomcgi/find-good-hikes
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
