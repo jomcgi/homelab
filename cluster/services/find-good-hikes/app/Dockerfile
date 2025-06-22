@@ -30,15 +30,22 @@ RUN apt-get update && apt-get install -y \
 # Set working directory
 WORKDIR /app
 
-# Copy Python dependencies from builder
-COPY --from=builder /root/.local /home/appuser/.local
+# Copy Python dependencies from builder and fix ownership
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
 
 # Copy application code
 COPY --chown=appuser:appuser . .
 
-# Create required directories
+# Create required directories and copy existing databases
 RUN mkdir -p /app/data /app/static /app/templates && \
     chown -R appuser:appuser /app
+
+# Copy existing walk database to data directory if it exists
+RUN if [ -f /app/walks.db ]; then cp /app/walks.db /app/data/walks.db; fi && \
+    if [ -f /app/forecasts.sqlite.db ]; then cp /app/forecasts.sqlite.db /app/data/forecasts.sqlite.db; fi && \
+    if [ -f /app/walkhighlands_cache.sqlite ]; then cp /app/walkhighlands_cache.sqlite /app/data/walkhighlands_cache.sqlite; fi && \
+    if [ -f /app/met_weather_cache.sqlite ]; then cp /app/met_weather_cache.sqlite /app/data/met_weather_cache.sqlite; fi && \
+    chown -R appuser:appuser /app/data
 
 # Switch to non-root user
 USER appuser
