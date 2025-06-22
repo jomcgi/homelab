@@ -179,13 +179,28 @@ def find_good_weather_windows(forecasts: List[HourlyForecast], min_duration_hour
                 current_window_start = forecast.time
                 current_window_forecasts = [forecast]
             else:
-                current_window_forecasts.append(forecast)
+                # Check if we're crossing into a new day - if so, end current window and start new one
+                if forecast.time.date() != current_window_forecasts[-1].time.date():
+                    # End current window first
+                    if current_window_forecasts:
+                        window_duration = len(current_window_forecasts)
+                        if window_duration >= min_duration_hours:
+                            end_time = current_window_start + timedelta(hours=window_duration)
+                            avg_score = sum(score_forecast(f).score for f in current_window_forecasts) / len(current_window_forecasts)
+                            good_windows.append((current_window_start, end_time, avg_score))
+                    
+                    # Start new window
+                    current_window_start = forecast.time
+                    current_window_forecasts = [forecast]
+                else:
+                    # Same day, continue window
+                    current_window_forecasts.append(forecast)
         else:
             # Bad weather - end current window if it exists
             if current_window_start is not None and current_window_forecasts:
                 window_duration = len(current_window_forecasts)
                 if window_duration >= min_duration_hours:
-                    end_time = current_window_forecasts[-1].time
+                    end_time = current_window_start + timedelta(hours=window_duration)
                     avg_score = sum(score_forecast(f).score for f in current_window_forecasts) / len(current_window_forecasts)
                     good_windows.append((current_window_start, end_time, avg_score))
                 
@@ -196,7 +211,7 @@ def find_good_weather_windows(forecasts: List[HourlyForecast], min_duration_hour
     if current_window_start is not None and current_window_forecasts:
         window_duration = len(current_window_forecasts)
         if window_duration >= min_duration_hours:
-            end_time = current_window_forecasts[-1].time
+            end_time = current_window_start + timedelta(hours=window_duration)
             avg_score = sum(score_forecast(f).score for f in current_window_forecasts) / len(current_window_forecasts)
             good_windows.append((current_window_start, end_time, avg_score))
     
@@ -229,6 +244,12 @@ def find_optimal_window_for_duration(forecasts: List[HourlyForecast], duration_h
     for i in range(len(forecasts) - duration_hours_int + 1):
         window_forecasts = forecasts[i:i + duration_hours_int]
         
+        # Check if window spans multiple days - skip if it does (for daytime hiking)
+        start_date = window_forecasts[0].time.date()
+        end_date = window_forecasts[-1].time.date()
+        if start_date != end_date:
+            continue  # Skip windows that span midnight
+        
         # Calculate average score for this window
         window_scores = [score_forecast(f).score for f in window_forecasts]
         avg_score = sum(window_scores) / len(window_scores)
@@ -236,10 +257,58 @@ def find_optimal_window_for_duration(forecasts: List[HourlyForecast], duration_h
         if avg_score > best_score:
             best_score = avg_score
             start_time = window_forecasts[0].time
-            end_time = window_forecasts[-1].time
+            end_time = start_time + timedelta(hours=duration_hours)
             best_window = (start_time, end_time, avg_score)
     
     return best_window
+
+def find_good_windows_for_duration(forecasts: List[HourlyForecast], duration_hours: float, min_score: float = 50.0) -> List[tuple]:
+    """
+    Find all good time windows of specific duration that meet the minimum score threshold.
+    
+    Args:
+        forecasts: List of hourly forecasts (should be daylight hours only)
+        duration_hours: Required duration for the activity
+        min_score: Minimum weather score threshold (0-100)
+    
+    Returns:
+        List of tuples (start_time, end_time, avg_score) for good windows, sorted by score descending
+    """
+    if not forecasts or duration_hours <= 0:
+        return []
+    
+    # Convert duration to number of hours (round up to ensure we have enough time)
+    duration_hours_int = int(duration_hours + 0.99)  # Round up
+    
+    if len(forecasts) < duration_hours_int:
+        return []
+    
+    good_windows = []
+    
+    # Slide a window of the required duration across all forecasts
+    for i in range(len(forecasts) - duration_hours_int + 1):
+        window_forecasts = forecasts[i:i + duration_hours_int]
+        
+        # Check if window spans multiple days - skip if it does (for daytime hiking)
+        start_date = window_forecasts[0].time.date()
+        end_date = window_forecasts[-1].time.date()
+        if start_date != end_date:
+            continue  # Skip windows that span midnight
+        
+        # Calculate average score for this window
+        window_scores = [score_forecast(f).score for f in window_forecasts]
+        avg_score = sum(window_scores) / len(window_scores)
+        
+        # Only include windows that meet the minimum score threshold
+        if avg_score >= min_score:
+            start_time = window_forecasts[0].time
+            end_time = start_time + timedelta(hours=duration_hours)
+            good_windows.append((start_time, end_time, avg_score))
+    
+    # Sort by score descending (best windows first)
+    good_windows.sort(key=lambda w: w[2], reverse=True)
+    
+    return good_windows
 
 def score_forecast(forecast: HourlyForecast) -> WeatherScore:
     """
@@ -342,9 +411,10 @@ def score_forecast_period(forecasts: List[HourlyForecast], hours_ahead: int = 24
     optimal_window = None
     
     if walk_duration_hours and relevant_forecasts:
-        # Find the best window of exactly the required duration
-        optimal_window = find_optimal_window_for_duration(relevant_forecasts, walk_duration_hours)
-        if optimal_window:
+        # Find multiple good windows of exactly the required duration
+        good_windows = find_good_windows_for_duration(relevant_forecasts, walk_duration_hours, min_score=50.0)
+        if good_windows:
+            optimal_window = good_windows[0]  # Best window for backward compatibility
             start_time, end_time, window_score = optimal_window
             # Format with date if not today
             today = datetime.now(start_time.tzinfo).date()
@@ -360,6 +430,8 @@ def score_forecast_period(forecasts: List[HourlyForecast], hours_ahead: int = 24
             explanation_parts.append(f"Best {walk_duration_hours:.1f}h slot: {date_str} {start_time.strftime('%H:%M')}-{end_time.strftime('%H:%M')} (score {window_score:.0f}/100).")
         else:
             explanation_parts.append(f"No suitable {walk_duration_hours:.1f}h window found.")
+            optimal_window = None
+            good_windows = []
     else:
         # Fall back to general good weather windows analysis
         min_duration = 2.0
@@ -386,6 +458,59 @@ def score_forecast_period(forecasts: List[HourlyForecast], hours_ahead: int = 24
     explanation_parts.append(f"Peak conditions: {best_score.explanation[:40]}...")
     explanation = " ".join(explanation_parts)
     
+    # Extract weather details from all good windows for structured data
+    weather_details = None
+    weather_windows = []
+    
+    if 'good_windows' in locals() and good_windows:
+        # Create detailed weather info for each good window
+        for window_start, window_end, window_score in good_windows:
+            window_forecasts = [f for f in relevant_forecasts 
+                              if window_start <= f.time <= window_end]
+            
+            if window_forecasts:
+                # Get representative forecast from middle of window
+                mid_forecast = window_forecasts[len(window_forecasts)//2]
+                # Handle cloud cover - if it's already > 1, assume it's in percentage, otherwise convert from fraction
+                cloud_fraction = mid_forecast.cloud_area_fraction or 0
+                cloud_percent = cloud_fraction * 100 if cloud_fraction <= 1.0 else cloud_fraction
+                cloud_percent = min(100, max(0, cloud_percent))  # Clamp to 0-100%
+                
+                window_detail = {
+                    'temperature_c': mid_forecast.air_temperature,
+                    'precipitation_mm': mid_forecast.precipitation_amount or 0,
+                    'wind_speed_kmh': (mid_forecast.wind_speed or 0) * 3.6,
+                    'cloud_cover_percent': cloud_percent,
+                    'start_time': window_start,
+                    'end_time': window_end,
+                    'duration_hours': walk_duration_hours or ((window_end - window_start).total_seconds() / 3600),
+                    'score': window_score
+                }
+                weather_windows.append(window_detail)
+        
+        # Keep backward compatibility - weather_details is the best window
+        if weather_windows:
+            weather_details = weather_windows[0].copy()
+            # Remove score from the main weather_details for backward compatibility
+            weather_details.pop('score', None)
+    elif relevant_forecasts:
+        # No optimal window, use first forecast as fallback
+        first_forecast = relevant_forecasts[0]
+        # Handle cloud cover - if it's already > 1, assume it's in percentage, otherwise convert from fraction
+        cloud_fraction = first_forecast.cloud_area_fraction or 0
+        cloud_percent = cloud_fraction * 100 if cloud_fraction <= 1.0 else cloud_fraction
+        cloud_percent = min(100, max(0, cloud_percent))  # Clamp to 0-100%
+        
+        weather_details = {
+            'temperature_c': first_forecast.air_temperature,
+            'precipitation_mm': first_forecast.precipitation_amount or 0,
+            'wind_speed_kmh': (first_forecast.wind_speed or 0) * 3.6,
+            'cloud_cover_percent': cloud_percent,
+            'start_time': None,
+            'end_time': None,
+            'duration_hours': None
+        }
+
     return WeatherScore(
         score=avg_score,
         explanation=explanation,
@@ -394,7 +519,9 @@ def score_forecast_period(forecasts: List[HourlyForecast], hours_ahead: int = 24
             'worst_period': worst_score.factors,
             'num_forecasts': len(relevant_forecasts),
             'walk_duration_hours': walk_duration_hours,
-            'optimal_window': optimal_window
+            'optimal_window': optimal_window,
+            'weather_details': weather_details,
+            'weather_windows': weather_windows
         }
     )
 
