@@ -18,15 +18,15 @@ from typing import List, Optional, Annotated
 from dataclasses import dataclass
 import typer
 from haversine import haversine, Unit
-from datetime import datetime
+from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from hourly_forecast import HourlyForecast
 from scrape import Walk, scrape_walkhighlands
 from weather_scoring import rank_walks_by_weather
-from hourly_forecast import fetch_forecasts
+from hourly_forecast import fetch_forecasts, WeatherCache
 from pydantic_sqlite import DataBase
 from config import get_cache_config, get_database_config, get_db_path
-import requests_cache
+import requests
 import sqlite3
 
 logger = logging.getLogger(__name__)
@@ -38,10 +38,13 @@ class Hike:
     name: str
     distance_km: float
     duration_hours: float
+    ascent_m: int
     url: str
     weather_score: float  # 0-100, higher is better
     weather_summary: str
     distance_from_you_km: float
+    weather_details: dict = None  # Structured weather data for UI formatting
+    weather_windows: list = None  # List of good weather windows for UI
 
 
 class HikeFinder:
@@ -64,7 +67,10 @@ class HikeFinder:
         latitude: float,
         longitude: float,
         radius_km: float = 25.0,
-        max_results: int = 10
+        max_results: int = 10,
+        available_dates: Optional[List[str]] = None,
+        start_after: Optional[str] = None,
+        finish_before: Optional[str] = None
     ) -> List[Hike]:
         """
         Find the best hiking routes near you.
@@ -74,6 +80,9 @@ class HikeFinder:
             longitude: Your longitude  
             radius_km: Search radius in kilometers
             max_results: Maximum number of results
+            available_dates: List of dates you're available (YYYY-MM-DD format)
+            start_after: Earliest acceptable start time (HH:MM format)
+            finish_before: Latest acceptable finish time (HH:MM format)
             
         Returns:
             List of Hike objects, sorted by weather score (best first)
@@ -83,7 +92,7 @@ class HikeFinder:
         """
         try:
             return self._find_hikes_implementation(
-                latitude, longitude, radius_km, max_results
+                latitude, longitude, radius_km, max_results, available_dates, start_after, finish_before
             )
         except Exception as e:
             logger.error(f"Failed to find hikes: {e}")
@@ -102,6 +111,32 @@ class HikeFinder:
             logger.error(f"Failed to update data: {e}")
             raise HikeFinderError(f"Could not update data: {e}") from e
     
+    def update_walks(self) -> None:
+        """
+        Update hiking routes data (one-time setup).
+        
+        Call this once to scrape and save hiking routes.
+        Only needs to be done occasionally when new routes are added.
+        """
+        try:
+            self._update_walks_implementation()
+        except Exception as e:
+            logger.error(f"Failed to update walks: {e}")
+            raise HikeFinderError(f"Could not update walks: {e}") from e
+    
+    def update_weather(self) -> None:
+        """
+        Update weather forecasts only (regular updates).
+        
+        Call this regularly (e.g., hourly) to refresh weather data.
+        Much faster than update_data() as it doesn't scrape routes.
+        """
+        try:
+            self._update_weather_implementation()
+        except Exception as e:
+            logger.error(f"Failed to update weather: {e}")
+            raise HikeFinderError(f"Could not update weather: {e}") from e
+    
     def _setup_logging(self):
         """Configure logging for this module."""
         if not logger.handlers:
@@ -114,7 +149,8 @@ class HikeFinder:
             logger.setLevel(logging.INFO)
     
     def _find_hikes_implementation(
-        self, lat: float, lon: float, radius: float, max_results: int
+        self, lat: float, lon: float, radius: float, max_results: int,
+        available_dates: Optional[List[str]] = None, start_after: Optional[str] = None, finish_before: Optional[str] = None
     ) -> List[Hike]:
         """Internal implementation of find_hikes."""
         
@@ -131,25 +167,34 @@ class HikeFinder:
              sqlite3.connect(forecasts_db_path) as forecasts_db:
             
             walks = self._find_walks_with_weather(
-                lat, lon, radius, walks_db, forecasts_db
+                lat, lon, radius, walks_db, forecasts_db, available_dates, start_after, finish_before
             )
         
         # Convert to simple Hike objects
         hikes = []
         for walk in walks[:max_results]:
+            weather_details = None
+            weather_windows = None
+            if walk.weather_score and walk.weather_score.factors.get('weather_details'):
+                weather_details = walk.weather_score.factors['weather_details']
+                weather_windows = walk.weather_score.factors.get('weather_windows', [])
+            
             hikes.append(Hike(
                 name=walk.name,
                 distance_km=walk.distance_km,
                 duration_hours=walk.duration_h,
+                ascent_m=walk.ascent_m,
                 url=walk.url,
                 weather_score=walk.weather_score.score if walk.weather_score else 0,
                 weather_summary=walk.weather_score.explanation if walk.weather_score else "No weather data",
-                distance_from_you_km=walk.distance_from_center_km or 0
+                distance_from_you_km=walk.distance_from_center_km or 0,
+                weather_details=weather_details,
+                weather_windows=weather_windows
             ))
         
         return hikes
     
-    def _find_walks_with_weather(self, lat, lon, radius, walks_db, forecasts_db):
+    def _find_walks_with_weather(self, lat, lon, radius, walks_db, forecasts_db, available_dates=None, start_after=None, finish_before=None):
         """Find walks near location with weather data and scoring."""
         
         # Create WalkSearchResult class inline to avoid dependencies
@@ -229,17 +274,78 @@ class HikeFinder:
                 # Only include daylight hours in the future
                 if (forecast.time > datetime.now(tz=ZoneInfo("Europe/London")) and 
                     forecast.is_night is False):
+                    
+                    # If available_dates specified, only include forecasts for those dates
+                    if available_dates:
+                        forecast_date = forecast.time.date().strftime("%Y-%m-%d")
+                        if forecast_date not in available_dates:
+                            continue
+                    
+                    # Apply time filtering if specified
+                    if start_after or finish_before:
+                        forecast_hour = forecast.time.hour
+                        forecast_minute = forecast.time.minute
+                        forecast_time_minutes = forecast_hour * 60 + forecast_minute
+                        
+                        # Parse start_after time (HH:MM)
+                        if start_after:
+                            try:
+                                start_hour, start_min = map(int, start_after.split(':'))
+                                start_after_minutes = start_hour * 60 + start_min
+                                if forecast_time_minutes < start_after_minutes:
+                                    continue
+                            except (ValueError, AttributeError):
+                                logger.warning(f"Invalid start_after time format: {start_after}")
+                        
+                        # Parse finish_before time (HH:MM) and calculate if hike would finish in time
+                        if finish_before:
+                            try:
+                                finish_hour, finish_min = map(int, finish_before.split(':'))
+                                finish_before_minutes = finish_hour * 60 + finish_min
+                                
+                                # Calculate when hike would finish if started at forecast time
+                                hike_duration_minutes = walk.duration_h * 60
+                                expected_finish_minutes = forecast_time_minutes + hike_duration_minutes
+                                
+                                # Convert to same day minutes (handle day overflow)
+                                expected_finish_minutes = expected_finish_minutes % (24 * 60)
+                                
+                                if expected_finish_minutes > finish_before_minutes:
+                                    continue
+                            except (ValueError, AttributeError):
+                                logger.warning(f"Invalid finish_before time format: {finish_before}")
+                    
                     forecasts.append(forecast)
             
             walk.forecast = forecasts
         
+        # Filter out walks that don't have sufficient continuous forecast data after time filtering
+        valid_walks = []
+        for walk in nearby_walks:
+            if walk.forecast:
+                # Check if there's a continuous window of at least the hike duration
+                from weather_scoring import find_optimal_window_for_duration
+                optimal_window = find_optimal_window_for_duration(walk.forecast, walk.duration_h)
+                if optimal_window:
+                    valid_walks.append(walk)
+                else:
+                    logger.debug(f"Excluding {walk.name} - no continuous {walk.duration_h}h window available with time constraints")
+            else:
+                # No forecast at all, exclude
+                logger.debug(f"Excluding {walk.name} - no forecast data")
+        
         # Rank by weather
-        ranked_walks = rank_walks_by_weather(nearby_walks, hours_ahead=120)
+        ranked_walks = rank_walks_by_weather(valid_walks, hours_ahead=120)
         
         return ranked_walks
     
     def _update_data_implementation(self):
-        """Internal implementation of update_data."""
+        """Internal implementation of update_data - updates both walks and weather."""
+        self._update_walks_implementation()
+        self._update_weather_implementation()
+    
+    def _update_walks_implementation(self):
+        """Internal implementation for updating hiking routes (one-time setup)."""
         
         logger.info("Updating hiking routes...")
         
@@ -266,21 +372,81 @@ class HikeFinder:
         db.save(walks_db_path)
         
         logger.info(f"Saved {len(walks)} walks to database")
+    
+    def _is_forecast_stale(self, max_age_hours: float = 1.0) -> bool:
+        """Check if forecast data is stale (older than max_age_hours)."""
+        try:
+            db_config = get_database_config()
+            forecasts_db_path = get_db_path(db_config.forecasts_db_path)
+            
+            # Check if forecasts database exists
+            if not Path(forecasts_db_path).exists():
+                logger.info("No forecast database found - forecasts are stale")
+                return True
+                
+            # Connect to forecasts database and check latest update time
+            with sqlite3.connect(forecasts_db_path) as conn:
+                cursor = conn.execute(
+                    "SELECT MAX(last_updated) FROM forecasts WHERE last_updated IS NOT NULL"
+                )
+                result = cursor.fetchone()
+                
+                if not result or not result[0]:
+                    logger.info("No forecast timestamps found - forecasts are stale")
+                    return True
+                    
+                # Parse the timestamp (assuming it's stored as ISO format string)
+                latest_update_str = result[0]
+                try:
+                    latest_update = datetime.fromisoformat(latest_update_str.replace('Z', '+00:00'))
+                except (ValueError, AttributeError):
+                    # Handle different timestamp formats
+                    try:
+                        latest_update = datetime.fromisoformat(latest_update_str)
+                    except (ValueError, AttributeError):
+                        logger.warning(f"Could not parse forecast timestamp: {latest_update_str}")
+                        return True
+                
+                # Check if forecast is stale
+                now = datetime.now()
+                if latest_update.tzinfo:
+                    # Make now timezone-aware if latest_update has timezone info
+                    from zoneinfo import ZoneInfo
+                    now = now.replace(tzinfo=ZoneInfo("UTC"))
+                    
+                age_hours = (now - latest_update).total_seconds() / 3600
+                is_stale = age_hours > max_age_hours
+                
+                logger.info(f"Latest forecast update: {latest_update} ({age_hours:.1f}h ago), stale: {is_stale}")
+                return is_stale
+                
+        except Exception as e:
+            logger.warning(f"Error checking forecast staleness: {e} - assuming stale")
+            return True
+    
+    def _update_weather_implementation(self):
+        """Internal implementation for updating weather forecasts (regular updates)."""
         
-        # Fetch weather forecasts
-        logger.info("Fetching weather forecasts...")
+        logger.info("Fetching latest weather forecasts (using efficient caching)...")
         
-        weather_session = requests_cache.CachedSession(
-            cache_name=cache_config.weather_cache_name,
-            backend='sqlite',
-            expire_after=cache_config.weather_cache_expire_hours * 3600,
-            allowable_methods=['GET'],
-        )
+        # Set up efficient caching with conditional requests
+        db_config = get_database_config()
+        walks_db_path = get_db_path(db_config.walks_db_path)
+        
+        # Check if walks database exists
+        if not Path(walks_db_path).exists():
+            raise HikeFinderError(
+                "No hiking routes found. Run update_walks() first to download routes."
+            )
+        
+        # Create session and cache for weather requests
+        weather_session = requests.Session()
+        weather_cache = WeatherCache()
         
         forecast_db = DataBase()
         
         with sqlite3.connect(walks_db_path) as walks_db:
-            fetch_forecasts(walks_db, forecast_db, weather_session)
+            fetch_forecasts(walks_db, forecast_db, weather_session, weather_cache)
         
         # Save forecasts
         forecasts_db_path = get_db_path(db_config.forecasts_db_path)
@@ -297,12 +463,12 @@ class HikeFinder:
         
         if not walks_db_path.exists():
             raise HikeFinderError(
-                "No hiking data found. Run update_data() first to download routes."
+                "No hiking data found. Run update_walks() first to download routes."
             )
         
         if not forecasts_db_path.exists():
             raise HikeFinderError(
-                "No weather data found. Run update_data() first to download forecasts."
+                "No weather data found. Run update_weather() first to download forecasts."
             )
 
 
