@@ -303,14 +303,29 @@ def find_good_windows_for_duration(forecasts: List[HourlyForecast], duration_hou
         window_scores = [score_forecast(f).score for f in window_forecasts]
         avg_score = sum(window_scores) / len(window_scores)
         
-        # Only include windows that meet the minimum score threshold
+        # Only include windows that meet the minimum score threshold and haven't started yet
         if avg_score >= min_score:
             start_time = window_forecasts[0].time
             end_time = start_time + timedelta(hours=duration_hours)
-            good_windows.append((start_time, end_time, avg_score))
+            
+            # Filter out windows that have already started
+            # Convert times to the same timezone for proper comparison
+            from zoneinfo import ZoneInfo
+            now = datetime.now(tz=ZoneInfo("Europe/London"))
+            
+            # Convert start_time to local timezone if it's in UTC
+            if start_time.tzinfo is None:
+                # Assume UTC if no timezone info
+                start_time = start_time.replace(tzinfo=ZoneInfo("UTC"))
+            
+            # Convert both times to local timezone for comparison
+            start_time_local = start_time.astimezone(ZoneInfo("Europe/London"))
+            
+            if start_time_local > now:
+                good_windows.append((start_time, end_time, avg_score))
     
-    # Sort by score descending (best windows first)
-    good_windows.sort(key=lambda w: w[2], reverse=True)
+    # Sort by time (earliest first) - this groups by day naturally
+    good_windows.sort(key=lambda w: w[0])
     
     return good_windows
 
@@ -415,7 +430,7 @@ def score_forecast_period(forecasts: List[HourlyForecast], hours_ahead: int = 24
     
     if walk_duration_hours and relevant_forecasts:
         # Find multiple good windows of exactly the required duration
-        good_windows = find_good_windows_for_duration(relevant_forecasts, walk_duration_hours, min_score=50.0)
+        good_windows = find_good_windows_for_duration(relevant_forecasts, walk_duration_hours, min_score=30.0)
         if good_windows:
             optimal_window = good_windows[0]  # Best window for backward compatibility
             start_time, end_time, window_score = optimal_window
@@ -491,9 +506,18 @@ def score_forecast_period(forecasts: List[HourlyForecast], hours_ahead: int = 24
                 }
                 weather_windows.append(window_detail)
         
-        # Keep backward compatibility - weather_details is the best window
+        # Sort weather windows: best score first, then the rest by time
         if weather_windows:
-            weather_details = weather_windows[0].copy()
+            # Find the best scoring window
+            best_window = max(weather_windows, key=lambda w: w['score'])
+            other_windows = [w for w in weather_windows if w != best_window]
+            # Sort other windows by start time
+            other_windows.sort(key=lambda w: w['start_time'])
+            # Reorder: best first, then others by time
+            weather_windows = [best_window] + other_windows
+            
+            # Keep backward compatibility - weather_details is the best window
+            weather_details = best_window.copy()
             # Remove score from the main weather_details for backward compatibility
             weather_details.pop('score', None)
     elif relevant_forecasts:
