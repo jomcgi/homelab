@@ -3,9 +3,11 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
+  - pvc.yaml
   - deployment.yaml
   - service.yaml
   - ingress.yaml
+  - cronjob.yaml
 
 namePrefix: ""
 labels:
