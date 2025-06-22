@@ -6,7 +6,7 @@ metadata:
 build:
   artifacts:
     - image: find-good-hikes
-      context: ../../../../projects/find_good_hikes
+      context: cluster/services/find-good-hikes/app
       docker:
         dockerfile: Dockerfile
   local:
@@ -40,3 +40,25 @@ profiles:
       statusCheckDeadlineSeconds: 300
       kubectl:
         defaultNamespace: find-good-hikes
+
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: find-good-hikes
+build:
+  artifacts:
+  - image: jomcgi/find-good-hikes
+    context: cluster/services/find-good-hikes/app
+    kaniko:
+      dockerfile: Dockerfile
+  cluster:
+    dockerConfig:
+      secretName: docker-cfg
+manifests:
+  kustomize:
+    paths:
+    - cluster/services/find-good-hikes/deploy
+deploy:
+  kubectl:
+    defaultNamespace: find-good-hikes
+  statusCheckDeadlineSeconds: 900
