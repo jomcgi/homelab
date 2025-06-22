@@ -8,6 +8,8 @@ build:
     context: cluster/services/find-good-hikes/app
     kaniko:
       dockerfile: Dockerfile
+      buildArgs:
+        CACHE_BUST: "{{.BUILD_TIMESTAMP}}"
   cluster:
     dockerConfig:
       secretName: docker-cfg
