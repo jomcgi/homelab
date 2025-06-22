@@ -10,7 +10,7 @@
             within {{ search_params.radius }}km of 
             ({{ "%.4f"|format(search_params.latitude) }}, {{ "%.4f"|format(search_params.longitude) }})
         </p>
-        <a href="/?latitude={{ search_params.latitude }}&longitude={{ search_params.longitude }}&radius={{ search_params.radius }}&min_duration={{ search_params.min_duration }}&max_duration={{ search_params.max_duration }}&min_distance={{ search_params.min_distance }}&max_distance={{ search_params.max_distance }}&max_ascent={{ search_params.max_ascent }}&min_weather_score={{ search_params.min_weather_score }}&available_dates={{ search_params.available_dates|join(',') }}&start_after={{ search_params.start_after }}&finish_before={{ search_params.finish_before }}" class="back-link">← Search again</a>
+        <a href="/?latitude={{ search_params.latitude }}&longitude={{ search_params.longitude }}&radius={{ search_params.radius }}&min_duration={{ search_params.min_duration }}&max_duration={{ search_params.max_duration }}&min_distance={{ search_params.min_distance }}&max_distance={{ search_params.max_distance }}&max_ascent={{ search_params.max_ascent }}&available_dates={{ search_params.available_dates|join(',') }}&start_after={{ search_params.start_after }}&finish_before={{ search_params.finish_before }}{% if search_params.max_cloud_cover_percent %}&max_cloud_cover_percent={{ search_params.max_cloud_cover_percent }}{% endif %}{% if search_params.max_precipitation_mm %}&max_precipitation_mm={{ search_params.max_precipitation_mm }}{% endif %}{% if search_params.max_wind_speed_kmh %}&max_wind_speed_kmh={{ search_params.max_wind_speed_kmh }}{% endif %}{% if search_params.min_temperature_c %}&min_temperature_c={{ search_params.min_temperature_c }}{% endif %}{% if search_params.max_temperature_c %}&max_temperature_c={{ search_params.max_temperature_c }}{% endif %}" class="back-link">← Search again</a>
     </div>
     
     {% if hikes %}
@@ -147,12 +147,12 @@
                 <h4>Try adjusting your search:</h4>
                 <ul>
                     <li>Increase the search radius</li>
-                    <li>Lower the weather quality requirement</li>
+                    <li>Relax weather requirements (higher cloud cover, allow more rain/wind)</li>
                     <li>Expand the duration or distance ranges</li>
                     <li>Check back later - weather changes daily</li>
                 </ul>
             </div>
-            <a href="/?latitude={{ search_params.latitude }}&longitude={{ search_params.longitude }}&radius={{ search_params.radius }}&min_duration={{ search_params.min_duration }}&max_duration={{ search_params.max_duration }}&min_distance={{ search_params.min_distance }}&max_distance={{ search_params.max_distance }}&max_ascent={{ search_params.max_ascent }}&min_weather_score={{ search_params.min_weather_score }}&available_dates={{ search_params.available_dates|join(',') }}&start_after={{ search_params.start_after }}&finish_before={{ search_params.finish_before }}" class="search-button">← Modify Search</a>
+            <a href="/?latitude={{ search_params.latitude }}&longitude={{ search_params.longitude }}&radius={{ search_params.radius }}&min_duration={{ search_params.min_duration }}&max_duration={{ search_params.max_duration }}&min_distance={{ search_params.min_distance }}&max_distance={{ search_params.max_distance }}&max_ascent={{ search_params.max_ascent }}&available_dates={{ search_params.available_dates|join(',') }}&start_after={{ search_params.start_after }}&finish_before={{ search_params.finish_before }}{% if search_params.max_cloud_cover_percent %}&max_cloud_cover_percent={{ search_params.max_cloud_cover_percent }}{% endif %}{% if search_params.max_precipitation_mm %}&max_precipitation_mm={{ search_params.max_precipitation_mm }}{% endif %}{% if search_params.max_wind_speed_kmh %}&max_wind_speed_kmh={{ search_params.max_wind_speed_kmh }}{% endif %}{% if search_params.min_temperature_c %}&min_temperature_c={{ search_params.min_temperature_c }}{% endif %}{% if search_params.max_temperature_c %}&max_temperature_c={{ search_params.max_temperature_c }}{% endif %}" class="search-button">← Modify Search</a>
         </div>
     {% endif %}
     
@@ -162,7 +162,22 @@
             <li>Duration: {{ search_params.min_duration }}h - {{ search_params.max_duration }}h</li>
             <li>Distance: {{ search_params.min_distance }}km - {{ search_params.max_distance }}km</li>
             <li>Max ascent: {{ search_params.max_ascent }}m</li>
-            <li>Weather requirement: {{ search_params.min_weather_score }}/100 or better</li>
+            {% if search_params.max_cloud_cover_percent %}
+            <li>Max cloud cover: {{ search_params.max_cloud_cover_percent }}%</li>
+            {% endif %}
+            {% if search_params.max_precipitation_mm %}
+            <li>Max rain: {{ search_params.max_precipitation_mm }}mm/hour</li>
+            {% endif %}
+            {% if search_params.max_wind_speed_kmh %}
+            <li>Max wind: {{ search_params.max_wind_speed_kmh }}km/h</li>
+            {% endif %}
+            {% if search_params.min_temperature_c %}
+            <li>Min temperature: {{ search_params.min_temperature_c }}°C</li>
+            {% endif %}
+            {% if search_params.max_temperature_c %}
+            <li>Max temperature: {{ search_params.max_temperature_c }}°C</li>
+            {% endif %}
+            <li><small>Dangerous conditions (heavy rain >2mm/h, strong winds >50km/h) automatically excluded</small></li>
         </ul>
     </div>
 </div>

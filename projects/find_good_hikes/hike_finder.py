@@ -22,12 +22,13 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 from hourly_forecast import HourlyForecast
 from scrape import Walk, scrape_walkhighlands
-from weather_scoring import rank_walks_by_weather
+import requests_cache
 from hourly_forecast import fetch_forecasts, WeatherCache
 from pydantic_sqlite import DataBase
 from config import get_cache_config, get_database_config, get_db_path
 import requests
 import sqlite3
+from weather_scoring import score_forecast_period
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,13 @@ class HikeFinder:
         max_results: int = 10,
         available_dates: Optional[List[str]] = None,
         start_after: Optional[str] = None,
-        finish_before: Optional[str] = None
+        finish_before: Optional[str] = None,
+        max_cloud_cover_percent: Optional[float] = None,
+        allow_rain: bool = True,
+        max_precipitation_mm: Optional[float] = None,
+        max_wind_speed_kmh: Optional[float] = None,
+        min_temperature_c: Optional[float] = None,
+        max_temperature_c: Optional[float] = None
     ) -> List[Hike]:
         """
         Find the best hiking routes near you.
@@ -83,16 +90,24 @@ class HikeFinder:
             available_dates: List of dates you're available (YYYY-MM-DD format)
             start_after: Earliest acceptable start time (HH:MM format)
             finish_before: Latest acceptable finish time (HH:MM format)
+            max_cloud_cover_percent: Maximum acceptable cloud cover (0-100%)
+            allow_rain: Whether to allow any rain at all
+            max_precipitation_mm: Maximum acceptable precipitation per hour
+            max_wind_speed_kmh: Maximum acceptable wind speed
+            min_temperature_c: Minimum acceptable temperature
+            max_temperature_c: Maximum acceptable temperature
             
         Returns:
-            List of Hike objects, sorted by weather score (best first)
+            List of Hike objects, filtered by weather conditions
             
         Raises:
             HikeFinderError: If something goes wrong
         """
         try:
             return self._find_hikes_implementation(
-                latitude, longitude, radius_km, max_results, available_dates, start_after, finish_before
+                latitude, longitude, radius_km, max_results, available_dates, start_after, finish_before,
+                max_cloud_cover_percent, allow_rain, max_precipitation_mm, max_wind_speed_kmh,
+                min_temperature_c, max_temperature_c
             )
         except Exception as e:
             logger.error(f"Failed to find hikes: {e}")
@@ -150,7 +165,9 @@ class HikeFinder:
     
     def _find_hikes_implementation(
         self, lat: float, lon: float, radius: float, max_results: int,
-        available_dates: Optional[List[str]] = None, start_after: Optional[str] = None, finish_before: Optional[str] = None
+        available_dates: Optional[List[str]] = None, start_after: Optional[str] = None, finish_before: Optional[str] = None,
+        max_cloud_cover_percent: Optional[float] = None, allow_rain: bool = True, max_precipitation_mm: Optional[float] = None,
+        max_wind_speed_kmh: Optional[float] = None, min_temperature_c: Optional[float] = None, max_temperature_c: Optional[float] = None
     ) -> List[Hike]:
         """Internal implementation of find_hikes."""
         
@@ -167,7 +184,9 @@ class HikeFinder:
              sqlite3.connect(forecasts_db_path) as forecasts_db:
             
             walks = self._find_walks_with_weather(
-                lat, lon, radius, walks_db, forecasts_db, available_dates, start_after, finish_before
+                lat, lon, radius, walks_db, forecasts_db, available_dates, start_after, finish_before,
+                max_cloud_cover_percent, allow_rain, max_precipitation_mm, max_wind_speed_kmh,
+                min_temperature_c, max_temperature_c
             )
         
         # Convert to simple Hike objects
@@ -194,7 +213,9 @@ class HikeFinder:
         
         return hikes
     
-    def _find_walks_with_weather(self, lat, lon, radius, walks_db, forecasts_db, available_dates=None, start_after=None, finish_before=None):
+    def _find_walks_with_weather(self, lat, lon, radius, walks_db, forecasts_db, available_dates=None, start_after=None, finish_before=None,
+                                max_cloud_cover_percent=None, allow_rain=True, max_precipitation_mm=None,
+                                max_wind_speed_kmh=None, min_temperature_c=None, max_temperature_c=None):
         """Find walks near location with weather data and scoring."""
         
         # Create WalkSearchResult class inline to avoid dependencies
@@ -275,6 +296,34 @@ class HikeFinder:
                 if (forecast.time > datetime.now(tz=ZoneInfo("Europe/London")) and 
                     forecast.is_night is False):
                     
+                    # Apply safety filtering first (exclude dangerous conditions)
+                    if forecast.precipitation_amount and forecast.precipitation_amount > 2.0:
+                        continue  # Skip heavy rain (>2mm/hour)
+                    
+                    if forecast.wind_speed and forecast.wind_speed * 3.6 > 50.0:
+                        continue  # Skip dangerous wind (>50km/h)
+                    
+                    # Apply explicit weather filters
+                    if not allow_rain and forecast.precipitation_amount and forecast.precipitation_amount > 0:
+                        continue  # Skip any rain if not allowed
+                    
+                    if max_precipitation_mm and forecast.precipitation_amount and forecast.precipitation_amount > max_precipitation_mm:
+                        continue  # Skip if exceeds max precipitation
+                    
+                    if max_wind_speed_kmh and forecast.wind_speed and forecast.wind_speed * 3.6 > max_wind_speed_kmh:
+                        continue  # Skip if exceeds max wind speed
+                    
+                    if max_cloud_cover_percent and forecast.cloud_area_fraction:
+                        cloud_percent = forecast.cloud_area_fraction * 100 if forecast.cloud_area_fraction <= 1.0 else forecast.cloud_area_fraction
+                        if cloud_percent > max_cloud_cover_percent:
+                            continue  # Skip if exceeds max cloud cover
+                    
+                    if min_temperature_c and forecast.air_temperature and forecast.air_temperature < min_temperature_c:
+                        continue  # Skip if below min temperature
+                    
+                    if max_temperature_c and forecast.air_temperature and forecast.air_temperature > max_temperature_c:
+                        continue  # Skip if above max temperature
+                    
                     # If available_dates specified, only include forecasts for those dates
                     if available_dates:
                         forecast_date = forecast.time.date().strftime("%Y-%m-%d")
@@ -319,25 +368,60 @@ class HikeFinder:
             
             walk.forecast = forecasts
         
-        # Filter out walks that don't have sufficient continuous forecast data after time filtering
+        # Filter out walks that don't have sufficient continuous forecast data after weather filtering
         valid_walks = []
         for walk in nearby_walks:
             if walk.forecast:
                 # Check if there's a continuous window of at least the hike duration
-                from weather_scoring import find_optimal_window_for_duration
-                optimal_window = find_optimal_window_for_duration(walk.forecast, walk.duration_h)
-                if optimal_window:
+                if self._has_continuous_window(walk.forecast, walk.duration_h):
+                    # Use the proper weather scoring algorithm to find multiple windows
+                    walk.weather_score = score_forecast_period(walk.forecast, hours_ahead=72, walk_duration_hours=walk.duration_h)
                     valid_walks.append(walk)
                 else:
-                    logger.debug(f"Excluding {walk.name} - no continuous {walk.duration_h}h window available with time constraints")
+                    logger.debug(f"Excluding {walk.name} - no continuous {walk.duration_h}h window available with weather constraints")
             else:
                 # No forecast at all, exclude
                 logger.debug(f"Excluding {walk.name} - no forecast data")
         
-        # Rank by weather
-        ranked_walks = rank_walks_by_weather(valid_walks, hours_ahead=120)
+        # Simple sorting by distance from user (closest first)
+        valid_walks.sort(key=lambda w: w.distance_from_center_km or 0)
         
-        return ranked_walks
+        return valid_walks
+    
+    def _has_continuous_window(self, forecasts: List[HourlyForecast], duration_hours: float) -> bool:
+        """Check if there's a continuous window of at least the required duration."""
+        if not forecasts or duration_hours <= 0:
+            return False
+        
+        # Convert duration to number of hours (round up to ensure we have enough time)
+        duration_hours_int = int(duration_hours + 0.99)
+        
+        if len(forecasts) < duration_hours_int:
+            return False
+        
+        # Slide a window of the required duration across all forecasts
+        for i in range(len(forecasts) - duration_hours_int + 1):
+            window_forecasts = forecasts[i:i + duration_hours_int]
+            
+            # Check if window spans multiple days - skip if it does (for daytime hiking)
+            start_date = window_forecasts[0].time.date()
+            end_date = window_forecasts[-1].time.date()
+            if start_date != end_date:
+                continue  # Skip windows that span midnight
+            
+            # Check if forecasts are continuous (within 2 hours of each other)
+            is_continuous = True
+            for j in range(1, len(window_forecasts)):
+                time_diff = (window_forecasts[j].time - window_forecasts[j-1].time).total_seconds() / 3600
+                if time_diff > 2:  # More than 2 hours gap
+                    is_continuous = False
+                    break
+            
+            if is_continuous:
+                return True
+        
+        return False
+    
     
     def _update_data_implementation(self):
         """Internal implementation of update_data - updates both walks and weather."""

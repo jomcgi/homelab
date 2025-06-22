@@ -152,10 +152,14 @@ async def home(
     min_distance: Optional[float] = None,
     max_distance: Optional[float] = None,
     max_ascent: Optional[int] = None,
-    min_weather_score: Optional[float] = None,
     available_dates: Optional[str] = None,
     start_after: Optional[str] = None,
-    finish_before: Optional[str] = None
+    finish_before: Optional[str] = None,
+    max_cloud_cover_percent: Optional[float] = None,
+    max_precipitation_mm: Optional[float] = None,
+    max_wind_speed_kmh: Optional[float] = None,
+    min_temperature_c: Optional[float] = None,
+    max_temperature_c: Optional[float] = None
 ):
     """Display the search form with optional pre-populated values."""
     # Parse available_dates if provided
@@ -175,10 +179,14 @@ async def home(
             "min_distance": min_distance or 3.0,
             "max_distance": max_distance or 15.0,
             "max_ascent": max_ascent or 800,
-            "min_weather_score": min_weather_score or 50.0,
             "available_dates": parsed_available_dates,
             "start_after": start_after or "08:00",
-            "finish_before": finish_before or "16:00"
+            "finish_before": finish_before or "16:00",
+            "max_cloud_cover_percent": max_cloud_cover_percent,
+            "max_precipitation_mm": max_precipitation_mm,
+            "max_wind_speed_kmh": max_wind_speed_kmh,
+            "min_temperature_c": min_temperature_c,
+            "max_temperature_c": max_temperature_c
         }
     })
 
@@ -193,13 +201,33 @@ async def search_hikes(
     min_distance: Annotated[float, Form()] = 3.0,
     max_distance: Annotated[float, Form()] = 15.0,
     max_ascent: Annotated[int, Form()] = 800,
-    min_weather_score: Annotated[float, Form()] = 50.0,
     available_dates: Annotated[List[str], Form()] = [],
     start_after: Annotated[str, Form()] = "08:00",
-    finish_before: Annotated[str, Form()] = "16:00"
+    finish_before: Annotated[str, Form()] = "16:00",
+    max_cloud_cover_percent: Annotated[Optional[str], Form()] = None,
+    max_precipitation_mm: Annotated[Optional[str], Form()] = None,
+    max_wind_speed_kmh: Annotated[Optional[str], Form()] = None,
+    min_temperature_c: Annotated[Optional[str], Form()] = None,
+    max_temperature_c: Annotated[Optional[str], Form()] = None
 ):
     """Search for hikes and display results."""
     try:
+        # Convert empty string inputs to None and parse numbers
+        def parse_optional_float(value: Optional[str]) -> Optional[float]:
+            if value is None or value.strip() == "":
+                return None
+            try:
+                return float(value)
+            except ValueError:
+                return None
+        
+        # Parse weather filter parameters
+        parsed_max_cloud_cover = parse_optional_float(max_cloud_cover_percent)
+        parsed_max_precipitation = parse_optional_float(max_precipitation_mm)
+        parsed_max_wind_speed = parse_optional_float(max_wind_speed_kmh)
+        parsed_min_temperature = parse_optional_float(min_temperature_c)
+        parsed_max_temperature = parse_optional_float(max_temperature_c)
+        
         # Validate coordinates
         if not (-90 <= latitude <= 90):
             raise HTTPException(status_code=400, detail="Latitude must be between -90 and 90")
@@ -226,7 +254,7 @@ async def search_hikes(
             if date_obj > max_date:
                 raise HTTPException(status_code=400, detail=f"Date too far in future (max 7 days): {date_str}")
         
-        # Find hikes using HikeFinder
+        # Find hikes using HikeFinder with weather filters
         all_hikes = hike_finder.find_hikes(
             latitude=latitude,
             longitude=longitude, 
@@ -234,10 +262,16 @@ async def search_hikes(
             max_results=50,  # Get more results for filtering
             available_dates=available_dates,
             start_after=start_after,
-            finish_before=finish_before
+            finish_before=finish_before,
+            max_cloud_cover_percent=parsed_max_cloud_cover,
+            allow_rain=True,  # Remove boolean rain control, use max_precipitation_mm instead
+            max_precipitation_mm=parsed_max_precipitation,
+            max_wind_speed_kmh=parsed_max_wind_speed,
+            min_temperature_c=parsed_min_temperature,
+            max_temperature_c=parsed_max_temperature
         )
         
-        # Filter by preferences and weather
+        # Filter by preferences (weather filtering already done in find_hikes)
         good_hikes = filter_by_preferences(
             all_hikes,
             min_duration=min_duration,
@@ -245,7 +279,7 @@ async def search_hikes(
             min_distance=min_distance,
             max_distance=max_distance,
             max_ascent=max_ascent,
-            min_weather_score=min_weather_score
+            min_weather_score=0.0  # No weather score filtering needed anymore
         )
         
         # Limit final results
@@ -268,10 +302,14 @@ async def search_hikes(
                 "min_distance": min_distance,
                 "max_distance": max_distance,
                 "max_ascent": max_ascent,
-                "min_weather_score": min_weather_score,
                 "available_dates": available_dates,
                 "start_after": start_after,
-                "finish_before": finish_before
+                "finish_before": finish_before,
+                "max_cloud_cover_percent": parsed_max_cloud_cover,
+                "max_precipitation_mm": parsed_max_precipitation,
+                "max_wind_speed_kmh": parsed_max_wind_speed,
+                "min_temperature_c": parsed_min_temperature,
+                "max_temperature_c": parsed_max_temperature
             },
             "total_found": len(all_hikes),
             "filtered_count": len(good_hikes)
