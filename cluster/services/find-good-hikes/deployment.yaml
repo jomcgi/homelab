@@ -22,6 +22,29 @@ spec:
         fsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
+      initContainers:
+      - name: check-data
+        image: find-good-hikes:latest
+        imagePullPolicy: Never
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          if [ ! -f "/app/data/walks.db" ]; then
+            echo "No walks database found. Run this to create initial data:"
+            echo "kubectl create job --from=cronjob/find-good-hikes-scrape-once find-good-hikes-initial-scrape"
+            echo "Proceeding without walks data - app will show empty results until data is loaded"
+          else
+            echo "Walks database found at /app/data/walks.db"
+          fi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+            - ALL
+        volumeMounts:
+        - name: data
+          mountPath: /app/data
       containers:
       - name: find-good-hikes
         image: find-good-hikes:latest
@@ -69,5 +92,6 @@ spec:
           mountPath: /app/data
       volumes:
       - name: data
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: find-good-hikes-data
       restartPolicy: Always
