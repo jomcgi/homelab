@@ -30,13 +30,13 @@ scheduler = AsyncIOScheduler()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Handle application startup and shutdown events."""
-    # Startup: Update forecasts and start scheduler
-    logger.info("Starting up: Updating weather forecasts...")
+    # Startup: Check and update forecasts if needed, then start scheduler
+    logger.info("Starting up: Checking weather forecast freshness...")
     try:
-        # Run initial forecast update
+        # Run initial forecast check/update
         loop = asyncio.get_event_loop()
         await loop.run_in_executor(None, update_forecasts)
-        logger.info("Initial weather forecasts updated successfully")
+        logger.info("Initial weather forecast check completed")
         
         # Start the scheduler for hourly updates
         scheduler.add_job(
@@ -60,11 +60,19 @@ async def lifespan(app: FastAPI):
     scheduler.shutdown(wait=False)
 
 def update_forecasts():
-    """Update weather forecasts synchronously."""
+    """Update weather forecasts synchronously, only if they're stale."""
     try:
         hike_finder = HikeFinder()
-        hike_finder.update_weather()
-        logger.info("Forecast update completed")
+        
+        # Check if forecasts are stale (older than 20 minutes)
+        # This prevents unnecessary updates when container restarts shortly after CI build
+        if hike_finder._is_forecast_stale(max_age_hours=20/60):  # 20 minutes in hours
+            logger.info("Forecast data is stale, updating...")
+            hike_finder.update_weather()
+            logger.info("Forecast update completed")
+        else:
+            logger.info("Forecast data is recent, skipping update")
+            
     except Exception as e:
         logger.error(f"Error updating forecasts: {e}")
         raise
@@ -357,5 +365,6 @@ if __name__ == "__main__":
         "web_app:app",
         host="0.0.0.0",
         port=8000,
-        reload=True
+        reload=True,
+        access_log=False
     )
