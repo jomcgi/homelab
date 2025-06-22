@@ -25,14 +25,24 @@ spec:
       initContainers:
       - name: check-data
         image: jomcgi/find-good-hikes
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         command: ["/bin/bash", "-c"]
         args:
         - |
           if [ ! -f "/app/data/walks.db" ]; then
-            echo "No walks database found. Run this to create initial data:"
-            echo "kubectl create job --from=cronjob/find-good-hikes-scrape-once find-good-hikes-initial-scrape"
-            echo "Proceeding without walks data - app will show empty results until data is loaded"
+            echo "No walks database found in PVC. Checking for baked-in database..."
+            if [ -f "/app/walks.db" ]; then
+              echo "Found baked-in database. Copying to persistent storage..."
+              cp /app/walks.db /app/data/walks.db
+              cp /app/forecasts.sqlite.db /app/data/forecasts.sqlite.db 2>/dev/null || true
+              cp /app/walkhighlands_cache.sqlite /app/data/walkhighlands_cache.sqlite 2>/dev/null || true
+              cp /app/met_weather_cache.sqlite /app/data/met_weather_cache.sqlite 2>/dev/null || true
+              echo "Database files copied to persistent storage"
+            else
+              echo "No baked-in database found. Run this to create initial data:"
+              echo "kubectl create job --from=cronjob/find-good-hikes-scrape-once find-good-hikes-initial-scrape"
+              echo "Proceeding without walks data - app will show empty results until data is loaded"
+            fi
           else
             echo "Walks database found at /app/data/walks.db"
           fi
@@ -48,7 +58,7 @@ spec:
       containers:
       - name: find-good-hikes
         image: jomcgi/find-good-hikes
-        imagePullPolicy: IfNotPresent
+        imagePullPolicy: Always
         ports:
         - containerPort: 8000
           name: http
