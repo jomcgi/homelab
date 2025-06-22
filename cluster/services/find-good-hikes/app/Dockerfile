@@ -19,28 +19,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code and existing databases
 COPY --chown=appuser:appuser . .
 
-# Debug: List files after copy
-RUN echo "=== Files after COPY ===" && \
-    ls -la /app/ && \
-    echo "=== Database files ===" && \
-    find /app -name "*.db" -o -name "*.sqlite*" -exec ls -la {} \; && \
-    echo "=== End debug ==="
-
 # Create data directory and ensure all files are owned by appuser
 RUN mkdir -p /app/data && \
     chown -R appuser:appuser /app
 
-# Debug: Check database accessibility before weather update
-RUN echo "=== Pre-weather debug ===" && \
-    ls -la /app/*.db /app/*.sqlite* && \
-    python -c "from pathlib import Path; print(f'walks.db exists: {Path(\"/app/walks.db\").exists()}'); print(f'walks.db readable: {Path(\"/app/walks.db\").is_file()}')" && \
-    echo "=== End pre-weather debug ==="
-
-# Generate walks database and then update weather forecasts during build
-RUN echo "=== Generating walks database ===" && \
-    python main.py scrape && \
-    echo "=== Updating weather forecasts ===" && \
-    python main.py fetch-weather || echo "Weather update failed, continuing with existing data"
+# Update weather forecasts during build (now with fixed SQLite concurrency)
+RUN python main.py fetch-weather || echo "Weather update failed, continuing with existing data"
 
 # Switch to non-root user
 USER appuser
