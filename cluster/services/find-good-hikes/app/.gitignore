@@ -28,13 +28,13 @@ ENV/
 env/
 .venv/
 
-# Databases
-*.db
-*.sqlite
-*.sqlite3
+# Databases (exclude test databases, but include production data)
+test_*.db
+test_*.sqlite
+test_*.sqlite3
 
-# Cache files
-*_cache.sqlite
+# Cache files (but include production cache data)
+# *_cache.sqlite
 
 # Logs
 *.log
