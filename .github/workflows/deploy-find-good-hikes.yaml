@@ -7,7 +7,6 @@ on:
     branches: [main]
     paths:
       - 'cluster/services/find-good-hikes/**'
-      - 'projects/find_good_hikes/**'
       - '.github/workflows/deploy-find-good-hikes.yaml'
   workflow_dispatch:
 
@@ -29,72 +28,5 @@ jobs:
       - name: Deploy Find Good Hikes
         run: |
           echo "🚀 Deploying find-good-hikes..."
-          skaffold run -f cluster/services/find-good-hikes/skaffold.yaml
+          skaffold delete -f cluster/services/find-good-hikes/skaffold.yaml
           echo "✅ find-good-hikes deployment completed"
-
-      - name: Check deployment status
-        run: |
-          echo "🔍 Checking deployment status..."
-          kubectl wait --for=condition=available --timeout=300s deployment/find-good-hikes -n find-good-hikes
-          echo "📊 Deployment status:"
-          kubectl get pods -n find-good-hikes
-          echo "🌐 Service status:"
-          kubectl get svc -n find-good-hikes
-
-      - name: Setup initial data (if needed)
-        run: |
-          echo "🗃️ Checking if initial data setup is needed..."
-          
-          # Check if walks database exists
-          if ! kubectl exec -n find-good-hikes deployment/find-good-hikes -- test -f /app/data/walks.db 2>/dev/null; then
-            echo "📥 No walks database found, triggering initial data scrape..."
-            kubectl create job --from=cronjob/find-good-hikes-scrape-once find-good-hikes-initial-scrape-${{ github.run_number }} -n find-good-hikes
-            
-            echo "⏳ Waiting for initial data scrape to complete (max 10 minutes)..."
-            kubectl wait --for=condition=complete --timeout=600s job/find-good-hikes-initial-scrape-${{ github.run_number }} -n find-good-hikes || {
-              echo "⚠️ Initial data scrape timed out or failed. Check logs:"
-              kubectl logs job/find-good-hikes-initial-scrape-${{ github.run_number }} -n find-good-hikes || true
-              echo "🔄 Service will continue without initial data. Run the scrape job manually later."
-            }
-          else
-            echo "✅ Walks database found, skipping initial data setup"
-          fi
-
-      - name: Trigger weather update
-        run: |
-          echo "🌤️ Triggering weather forecast update..."
-          kubectl create job --from=cronjob/find-good-hikes-weather-update weather-update-deploy-${{ github.run_number }} -n find-good-hikes
-          
-          echo "⏳ Waiting for weather update to complete..."
-          kubectl wait --for=condition=complete --timeout=300s job/weather-update-deploy-${{ github.run_number }} -n find-good-hikes || {
-            echo "⚠️ Weather update timed out or failed. Check logs:"
-            kubectl logs job/weather-update-deploy-${{ github.run_number }} -n find-good-hikes || true
-            echo "🔄 Weather updates will continue automatically via CronJob"
-          }
-
-      - name: Health check
-        run: |
-          echo "🏥 Performing health check..."
-          sleep 30  # Give the service time to start
-          
-          # Health check via port-forward (since we can't access external URL from runner)
-          kubectl port-forward -n find-good-hikes svc/find-good-hikes 8080:80 &
-          PORTFORWARD_PID=$!
-          sleep 5
-          
-          if curl -f http://localhost:8080/health; then
-            echo "✅ Health check passed"
-          else
-            echo "❌ Health check failed"
-            kubectl logs -n find-good-hikes deployment/find-good-hikes --tail=50
-            exit 1
-          fi
-          
-          kill $PORTFORWARD_PID
-
-      - name: Cleanup old jobs
-        run: |
-          echo "🧹 Cleaning up old jobs..."
-          # Keep only the 3 most recent successful jobs of each type
-          kubectl delete jobs -n find-good-hikes -l app=find-good-hikes --field-selector status.successful=1 || true
-          echo "✅ Cleanup completed"
