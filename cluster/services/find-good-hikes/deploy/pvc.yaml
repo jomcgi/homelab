@@ -7,8 +7,8 @@ metadata:
     app: find-good-hikes
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   resources:
     requests:
-      storage: 1Gi
+      storage: 2Gi
   storageClassName: longhorn
