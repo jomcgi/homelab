@@ -104,49 +104,78 @@ class WeatherCache:
     
     def __init__(self, cache_db_path: str = "met_weather_cache.sqlite"):
         self.cache_db_path = cache_db_path
+        self._lock = threading.Lock()
         self._init_cache_db()
     
     def _init_cache_db(self):
         """Initialize the cache database."""
-        conn = sqlite3.connect(self.cache_db_path)
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS weather_cache (
-                url TEXT PRIMARY KEY,
-                data TEXT,
-                last_modified TEXT,
-                expires TEXT,
-                cached_at REAL
-            )
-        """)
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = sqlite3.connect(self.cache_db_path, timeout=30.0)
+            try:
+                # Enable WAL mode for better concurrency
+                conn.execute("PRAGMA journal_mode=WAL")
+                conn.execute("PRAGMA synchronous=NORMAL")
+                conn.execute("PRAGMA cache_size=10000")
+                conn.execute("PRAGMA temp_store=memory")
+                
+                conn.execute("""
+                    CREATE TABLE IF NOT EXISTS weather_cache (
+                        url TEXT PRIMARY KEY,
+                        data TEXT,
+                        last_modified TEXT,
+                        expires TEXT,
+                        cached_at REAL
+                    )
+                """)
+                conn.commit()
+            finally:
+                conn.close()
     
     def get_cached_data(self, url: str) -> tuple[Optional[dict], Optional[str], Optional[str]]:
         """Get cached data, last_modified, and expires for a URL."""
-        conn = sqlite3.connect(self.cache_db_path)
-        cursor = conn.execute(
-            "SELECT data, last_modified, expires FROM weather_cache WHERE url = ?",
-            (url,)
-        )
-        row = cursor.fetchone()
-        conn.close()
-        
-        if row:
-            import json
-            return json.loads(row[0]), row[1], row[2]
-        return None, None, None
+        with self._lock:
+            conn = sqlite3.connect(self.cache_db_path, timeout=30.0)
+            try:
+                cursor = conn.execute(
+                    "SELECT data, last_modified, expires FROM weather_cache WHERE url = ?",
+                    (url,)
+                )
+                row = cursor.fetchone()
+                
+                if row:
+                    import json
+                    return json.loads(row[0]), row[1], row[2]
+                return None, None, None
+            finally:
+                conn.close()
     
     def store_cached_data(self, url: str, data: dict, last_modified: str, expires: str):
         """Store data in cache with metadata."""
         import json
-        conn = sqlite3.connect(self.cache_db_path)
-        conn.execute("""
-            INSERT OR REPLACE INTO weather_cache 
-            (url, data, last_modified, expires, cached_at)
-            VALUES (?, ?, ?, ?, ?)
-        """, (url, json.dumps(data), last_modified, expires, time.time()))
-        conn.commit()
-        conn.close()
+        with self._lock:
+            conn = sqlite3.connect(self.cache_db_path, timeout=30.0)
+            try:
+                conn.execute("""
+                    INSERT OR REPLACE INTO weather_cache 
+                    (url, data, last_modified, expires, cached_at)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (url, json.dumps(data), last_modified, expires, time.time()))
+                conn.commit()
+            except sqlite3.OperationalError as e:
+                if "database is locked" in str(e).lower():
+                    logger.warning(f"Database locked when caching {url}, retrying...")
+                    time.sleep(0.1)
+                    # Retry once
+                    conn.execute("""
+                        INSERT OR REPLACE INTO weather_cache 
+                        (url, data, last_modified, expires, cached_at)
+                        VALUES (?, ?, ?, ?, ?)
+                    """, (url, json.dumps(data), last_modified, expires, time.time()))
+                    conn.commit()
+                else:
+                    raise
+            finally:
+                conn.close()
 
 @retry_on_failure(max_retries=3, delay=2.0, exceptions=(requests.RequestException,))
 @handle_network_errors
@@ -346,7 +375,7 @@ def process_forecast_data(walk: Walk, forecast: WeatherFeature, forecast_db: Dat
             logger.warning(f"Key error for {walk.name}: {e}")
             continue
 
-def fetch_forecasts(walks_db_conn: sqlite3.Connection, forecast_db: DataBase, session: requests.Session = None, cache: WeatherCache = None, max_workers: int = 20, requests_per_second: float = 19.0):
+def fetch_forecasts(walks_db_conn: sqlite3.Connection, forecast_db: DataBase, session: requests.Session = None, cache: WeatherCache = None, max_workers: int = 5, requests_per_second: float = 10.0):
     """Fetch weather forecasts for all walks in the database using concurrent processing with rate limiting."""
     if cache is None:
         cache = WeatherCache()
@@ -355,6 +384,18 @@ def fetch_forecasts(walks_db_conn: sqlite3.Connection, forecast_db: DataBase, se
     
     try:
         walk_tuples = walks_db_conn.execute("SELECT * FROM walks").fetchall()
+    except sqlite3.OperationalError as e:
+        if "database is locked" in str(e).lower():
+            logger.warning("Database locked when reading walks, retrying after brief delay...")
+            time.sleep(1.0)
+            try:
+                walk_tuples = walks_db_conn.execute("SELECT * FROM walks").fetchall()
+            except sqlite3.Error as retry_e:
+                logger.error(f"Database error reading walks after retry: {retry_e}")
+                return
+        else:
+            logger.error(f"Database error reading walks: {e}")
+            return
     except sqlite3.Error as e:
         logger.error(f"Database error reading walks: {e}")
         return
@@ -368,7 +409,7 @@ def fetch_forecasts(walks_db_conn: sqlite3.Connection, forecast_db: DataBase, se
         for row in walk_tuples
     ]
 
-    logger.info(f"Fetching forecasts for {len(walks)} walks with rate limit of {requests_per_second}/sec and {max_workers} concurrent workers")
+    logger.info(f"Fetching forecasts for {len(walks)} walks with rate limit of {requests_per_second}/sec and {max_workers} concurrent workers (reduced for better database concurrency)")
     
     # Create rate limiter (slightly under 20/sec for safety margin)
     rate_limiter = RateLimiter(requests_per_second)

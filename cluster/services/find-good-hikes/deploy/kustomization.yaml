@@ -3,10 +3,8 @@ kind: Kustomization
 
 resources:
   - namespace.yaml
-  - pvc.yaml
   - deployment.yaml
   - service.yaml
-  - cronjob.yaml
 
 labels:
   - pairs:
