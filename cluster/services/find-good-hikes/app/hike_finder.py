@@ -180,8 +180,13 @@ class HikeFinder:
         forecasts_db_path = get_db_path(db_config.forecasts_db_path)
         
         # Find walks using our internal implementation
-        with sqlite3.connect(walks_db_path) as walks_db, \
-             sqlite3.connect(forecasts_db_path) as forecasts_db:
+        with sqlite3.connect(walks_db_path, timeout=30.0) as walks_db, \
+             sqlite3.connect(forecasts_db_path, timeout=30.0) as forecasts_db:
+            # Enable WAL mode for better concurrent access
+            walks_db.execute("PRAGMA journal_mode=WAL")
+            walks_db.execute("PRAGMA synchronous=NORMAL")
+            forecasts_db.execute("PRAGMA journal_mode=WAL")
+            forecasts_db.execute("PRAGMA synchronous=NORMAL")
             
             walks = self._find_walks_with_weather(
                 lat, lon, radius, walks_db, forecasts_db, available_dates, start_after, finish_before,
@@ -469,7 +474,7 @@ class HikeFinder:
                 return True
                 
             # Connect to forecasts database and check latest update time
-            with sqlite3.connect(forecasts_db_path) as conn:
+            with sqlite3.connect(forecasts_db_path, timeout=30.0) as conn:
                 cursor = conn.execute(
                     "SELECT MAX(last_updated) FROM forecasts WHERE last_updated IS NOT NULL"
                 )
@@ -529,7 +534,10 @@ class HikeFinder:
         
         forecast_db = DataBase()
         
-        with sqlite3.connect(walks_db_path) as walks_db:
+        with sqlite3.connect(walks_db_path, timeout=30.0) as walks_db:
+            # Enable WAL mode for better concurrent access
+            walks_db.execute("PRAGMA journal_mode=WAL")
+            walks_db.execute("PRAGMA synchronous=NORMAL")
             fetch_forecasts(walks_db, forecast_db, weather_session, weather_cache)
         
         # Save forecasts
