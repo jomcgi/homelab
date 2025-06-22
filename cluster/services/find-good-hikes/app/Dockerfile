@@ -1,10 +1,12 @@
 # Single-stage build with baked-in data
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies and uv
 RUN apt-get update && apt-get install -y \
     sqlite3 \
-    && rm -rf /var/lib/apt/lists/*
+    curl \
+    && rm -rf /var/lib/apt/lists/* \
+    && curl -LsSf https://astral.sh/uv/install.sh | sh
 
 # Create non-root user
 RUN groupadd -r appuser && useradd -r -g appuser appuser
@@ -12,9 +14,10 @@ RUN groupadd -r appuser && useradd -r -g appuser appuser
 # Set working directory
 WORKDIR /app
 
-# Copy requirements and install Python dependencies
+# Add uv to PATH and copy requirements
+ENV PATH="/root/.local/bin:$PATH"
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN uv pip install --system --no-cache -r requirements.txt
 
 # Copy application code and existing databases
 COPY --chown=appuser:appuser . .
@@ -22,6 +25,10 @@ COPY --chown=appuser:appuser . .
 # Create data directory and ensure all files are owned by appuser
 RUN mkdir -p /app/data && \
     chown -R appuser:appuser /app
+
+# Cache-busting argument to force weather data updates
+ARG CACHE_BUST=unknown
+RUN echo "Cache bust: ${CACHE_BUST}"
 
 # Update weather forecasts during build (now with fixed SQLite concurrency)
 RUN python main.py fetch-weather || echo "Weather update failed, continuing with existing data"
