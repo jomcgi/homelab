@@ -6,10 +6,8 @@ resources:
   - pvc.yaml
   - deployment.yaml
   - service.yaml
-  - ingress.yaml
   - cronjob.yaml
 
-namePrefix: ""
 labels:
   - pairs:
       app.kubernetes.io/name: find-good-hikes
