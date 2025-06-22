@@ -27,8 +27,8 @@ spec:
               type: RuntimeDefault
           containers:
           - name: update-weather
-            image: find-good-hikes:latest
-            imagePullPolicy: Never
+            image: jomcgi/find-good-hikes
+            imagePullPolicy: IfNotPresent
             command: ["python", "main.py", "fetch-weather"]
             env:
             - name: PYTHONUNBUFFERED
@@ -88,8 +88,8 @@ spec:
               type: RuntimeDefault
           containers:
           - name: scrape-data
-            image: find-good-hikes:latest
-            imagePullPolicy: Never
+            image: jomcig/find-good-hikes
+            imagePullPolicy: IfNotPresent
             command: ["python", "main.py", "update"]  # Full update including scraping
             env:
             - name: PYTHONUNBUFFERED
