@@ -182,11 +182,7 @@ class HikeFinder:
         # Find walks using our internal implementation
         with sqlite3.connect(walks_db_path, timeout=30.0) as walks_db, \
              sqlite3.connect(forecasts_db_path, timeout=30.0) as forecasts_db:
-            # Enable WAL mode for better concurrent access
-            walks_db.execute("PRAGMA journal_mode=WAL")
-            walks_db.execute("PRAGMA synchronous=NORMAL")
-            forecasts_db.execute("PRAGMA journal_mode=WAL")
-            forecasts_db.execute("PRAGMA synchronous=NORMAL")
+            # Read-only mode - no WAL mode needed for web app
             
             walks = self._find_walks_with_weather(
                 lat, lon, radius, walks_db, forecasts_db, available_dates, start_after, finish_before,
