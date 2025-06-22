@@ -47,7 +47,7 @@ spec:
           mountPath: /app/data
       containers:
       - name: find-good-hikes
-        image: find-good-hikes:latest
+        image: jomcgi/find-good-hikes:latest
         imagePullPolicy: IfNotPresent
         ports:
         - containerPort: 8000
@@ -58,7 +58,7 @@ spec:
           value: "8000"
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false  # SQLite needs write access to data directory
+          readOnlyRootFilesystem: false 
           capabilities:
             drop:
             - ALL
