@@ -60,10 +60,14 @@ def scrape(
     cache_config = get_cache_config()
     
     try:
-        # Create cached session for scraping
+        # Create cached session for scraping with proper SQLite configuration
         session = requests_cache.CachedSession(
             cache_name=cache_config.walkhighlands_cache_name,
             backend='sqlite',
+            backend_kwargs={
+                'timeout': 30.0,
+                'check_same_thread': False
+            }
         )
         
         logger.info("Starting scrape of walkhighlands.co.uk")
@@ -106,19 +110,26 @@ def fetch_weather(
             logger.info("Run 'python main.py scrape' first to create the walks database")
             raise typer.Exit(1)
         
-        # Create cached session for weather API
+        # Create cached session for weather API with proper SQLite configuration
         session = requests_cache.CachedSession(
             cache_name=cache_config.weather_cache_name,
             backend='sqlite',
             expire_after=cache_config.weather_cache_expire_hours * 3600,
             allowable_methods=['GET'],
+            backend_kwargs={
+                'timeout': 30.0,
+                'check_same_thread': False
+            }
         )
         
         # Create forecast database
         forecast_db = DataBase()
         
         logger.info("Fetching weather forecasts for all walks")
-        with sqlite3.connect(walks_db_path) as walks_db:
+        with sqlite3.connect(walks_db_path, timeout=30.0) as walks_db:
+            # Enable WAL mode for better concurrent access
+            walks_db.execute("PRAGMA journal_mode=WAL")
+            walks_db.execute("PRAGMA synchronous=NORMAL")
             fetch_forecasts(walks_db, forecast_db, session)
         
         # Save forecasts
@@ -183,7 +194,14 @@ def find(
         # Find walks
         logger.info(f"Searching for walks within {radius}km of ({lat}, {lon})")
         
-        with sqlite3.connect(walks_db_path) as walks_db, sqlite3.connect(forecasts_db_path) as forecasts_db:
+        with sqlite3.connect(walks_db_path, timeout=30.0) as walks_db, \
+             sqlite3.connect(forecasts_db_path, timeout=30.0) as forecasts_db:
+            # Enable WAL mode for better concurrent access
+            walks_db.execute("PRAGMA journal_mode=WAL")
+            walks_db.execute("PRAGMA synchronous=NORMAL")
+            forecasts_db.execute("PRAGMA journal_mode=WAL") 
+            forecasts_db.execute("PRAGMA synchronous=NORMAL")
+            
             walks = find_walks(
                 latitude=lat,
                 longitude=lon,
