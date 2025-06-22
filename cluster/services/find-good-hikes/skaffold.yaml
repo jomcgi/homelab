@@ -12,10 +12,15 @@ build:
   local:
     push: false
 
-deploy:
+manifests:
   kustomize:
     paths:
       - .
+
+deploy:
+  statusCheckDeadlineSeconds: 300
+  kubectl:
+    defaultNamespace: find-good-hikes
 
 profiles:
   - name: dev
@@ -27,7 +32,11 @@ profiles:
             dockerfile: Dockerfile
       local:
         push: false
-    deploy:
+    manifests:
       kustomize:
         paths:
           - .
+    deploy:
+      statusCheckDeadlineSeconds: 300
+      kubectl:
+        defaultNamespace: find-good-hikes
