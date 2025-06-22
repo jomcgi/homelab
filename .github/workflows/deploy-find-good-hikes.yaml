@@ -26,7 +26,11 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Deploy Find Good Hikes
+        env:
+          BUILD_TIMESTAMP: ${{ github.run_number }}-${{ github.run_attempt }}-$(date +%s)
         run: |
           echo "🚀 Deploying find-good-hikes..."
+          export BUILD_TIMESTAMP="${{ github.run_number }}-${{ github.run_attempt }}-$(date +%s)"
+          echo "Cache bust timestamp: $BUILD_TIMESTAMP"
           skaffold run -f cluster/services/find-good-hikes/skaffold.yaml
           echo "✅ find-good-hikes deployment completed"
