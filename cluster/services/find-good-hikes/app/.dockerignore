@@ -37,10 +37,14 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Project specific
-*.sqlite
-*.sqlite.db
-*.db
+# Project specific - exclude test databases but keep production data
+test_*.sqlite
+test_*.db
+# Keep production databases for baking into image:
+# walks.db
+# forecasts.sqlite.db
+# walkhighlands_cache.sqlite
+# met_weather_cache.sqlite
 test_*
 features/
 readme.md
