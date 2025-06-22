@@ -1,0 +1,33 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: find-good-hikes
+
+build:
+  artifacts:
+    - image: find-good-hikes
+      context: ../../../../projects/find_good_hikes
+      docker:
+        dockerfile: Dockerfile
+  local:
+    push: false
+
+deploy:
+  kustomize:
+    paths:
+      - .
+
+profiles:
+  - name: dev
+    build:
+      artifacts:
+        - image: find-good-hikes
+          context: ../../../../projects/find_good_hikes
+          docker:
+            dockerfile: Dockerfile
+      local:
+        push: false
+    deploy:
+      kustomize:
+        paths:
+          - .
