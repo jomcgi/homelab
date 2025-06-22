@@ -75,7 +75,9 @@ def update_forecasts():
             
     except Exception as e:
         logger.error(f"Error updating forecasts: {e}")
-        raise
+        # Don't raise the exception - allow the app to start even if forecast update fails
+        # The app can still serve requests with existing forecast data
+        logger.info("Continuing startup with existing forecast data")
 
 async def scheduled_forecast_update():
     """Async wrapper for scheduled forecast updates."""
@@ -356,6 +358,11 @@ def create_directories():
 if __name__ == "__main__":
     # Setup logging
     logging.basicConfig(level=logging.INFO)
+    
+    # Configure uvicorn logging to reduce noise
+    logging.getLogger("uvicorn").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").setLevel(logging.WARNING)
     
     # Create directories
     create_directories()
