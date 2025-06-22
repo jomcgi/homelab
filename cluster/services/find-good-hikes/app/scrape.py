@@ -6,6 +6,7 @@ from urllib.parse import urljoin
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from pydantic_extra_types.coordinate import Coordinate
+from typing import Optional, List
 from datetime import timedelta
 from timelength import TimeLength
 import uuid
@@ -229,6 +230,7 @@ class Walk(BaseModel):
     summary: str
     latitude: float
     longitude: float
+    viable_dates: Optional[List[str]] = None  # Pre-computed viable hiking dates
 
 
     model_config = ConfigDict(
