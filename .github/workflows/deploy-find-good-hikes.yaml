@@ -2,7 +2,7 @@ name: Deploy Find Good Hikes
 
 on:
   schedule:
-    - cron: '0 0 1,15 * *'  # Deploy on 1st and 15th of each month
+    - cron: '0,30 * * * *'
   push:
     branches: [main]
     paths:
