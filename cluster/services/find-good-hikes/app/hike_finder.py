@@ -29,6 +29,8 @@ from config import get_cache_config, get_database_config, get_db_path
 import requests
 import sqlite3
 from weather_scoring import score_forecast_period
+from database_indexes import create_walks_indexes, create_forecasts_indexes
+from compute_viable_dates import compute_viable_dates_for_all_locations
 
 logger = logging.getLogger(__name__)
 
@@ -214,6 +216,83 @@ class HikeFinder:
         
         return hikes
     
+    def get_viable_dates(self, latitude: float, longitude: float, radius_km: float = 25.0) -> List[str]:
+        """
+        Get all distinct dates that have viable weather conditions for hiking.
+        
+        Args:
+            latitude: Your latitude
+            longitude: Your longitude  
+            radius_km: Search radius in kilometers
+            
+        Returns:
+            List of dates in YYYY-MM-DD format that have viable hiking conditions
+        """
+        try:
+            return self._get_viable_dates_implementation(latitude, longitude, radius_km)
+        except Exception as e:
+            logger.error(f"Failed to get viable dates: {e}")
+            raise HikeFinderError(f"Could not get viable dates: {e}") from e
+    
+    def _get_viable_dates_implementation(self, lat: float, lon: float, radius: float) -> List[str]:
+        """Internal implementation to get viable dates."""
+        # Check if data exists
+        self._ensure_data_exists()
+        
+        # Get database paths
+        db_config = get_database_config()
+        walks_db_path = get_db_path(db_config.walks_db_path)
+        forecasts_db_path = get_db_path(db_config.forecasts_db_path)
+        
+        viable_dates = set()
+        
+        with sqlite3.connect(walks_db_path, timeout=30.0) as walks_db, \
+             sqlite3.connect(forecasts_db_path, timeout=30.0) as forecasts_db:
+            
+            # Find walks within radius
+            walks_db.row_factory = sqlite3.Row
+            cursor = walks_db.cursor()
+            
+            cursor.execute("""
+                SELECT uuid, latitude, longitude 
+                FROM walks
+            """)
+            rows = cursor.fetchall()
+            
+            center_point = (lat, lon)
+            nearby_walk_uuids = []
+            
+            for row in rows:
+                walk_point = (row['latitude'], row['longitude'])
+                distance = haversine(center_point, walk_point, unit=Unit.KILOMETERS)
+                
+                if distance <= radius:
+                    nearby_walk_uuids.append(row['uuid'])
+            
+            if not nearby_walk_uuids:
+                return []
+            
+            # Get all distinct dates from forecasts for nearby walks
+            # Since we now filter at storage time, any forecast in the DB is viable
+            forecasts_db.row_factory = sqlite3.Row
+            cursor = forecasts_db.cursor()
+            
+            # Create placeholders for the IN clause
+            placeholders = ','.join('?' for _ in nearby_walk_uuids)
+            
+            cursor.execute(f"""
+                SELECT DISTINCT DATE(time) as date
+                FROM forecasts 
+                WHERE location_id IN ({placeholders})
+                  AND time > datetime('now')
+                ORDER BY date
+            """, nearby_walk_uuids)
+            
+            rows = cursor.fetchall()
+            viable_dates = [row['date'] for row in rows]
+            
+        return viable_dates
+    
     def _find_walks_with_weather(self, lat, lon, radius, walks_db, forecasts_db, available_dates=None, start_after=None, finish_before=None,
                                 max_cloud_cover_percent=None, allow_rain=True, max_precipitation_mm=None,
                                 max_wind_speed_kmh=None, min_temperature_c=None, max_temperature_c=None):
@@ -293,16 +372,8 @@ class HikeFinder:
                     location_id=row['location_id']
                 )
                 
-                # Only include daylight hours in the future
-                if (forecast.time > datetime.now(tz=ZoneInfo("Europe/London")) and 
-                    forecast.is_night is False):
-                    
-                    # Apply safety filtering first (exclude dangerous conditions)
-                    if forecast.precipitation_amount and forecast.precipitation_amount > 2.0:
-                        continue  # Skip heavy rain (>2mm/hour)
-                    
-                    if forecast.wind_speed and forecast.wind_speed * 3.6 > 50.0:
-                        continue  # Skip dangerous wind (>50km/h)
+                # Only include forecasts in the future (nighttime and safety filtering already done at storage)
+                if forecast.time > datetime.now(tz=ZoneInfo("Europe/London")):
                     
                     # Apply explicit weather filters
                     if not allow_rain and forecast.precipitation_amount and forecast.precipitation_amount > 0:
@@ -456,6 +527,9 @@ class HikeFinder:
         walks_db_path = get_db_path(db_config.walks_db_path)
         db.save(walks_db_path)
         
+        # Create indexes for performance
+        create_walks_indexes(walks_db_path)
+        
         logger.info(f"Saved {len(walks)} walks to database")
     
     def _is_forecast_stale(self, max_age_hours: float = 1.0) -> bool:
@@ -539,6 +613,12 @@ class HikeFinder:
         # Save forecasts
         forecasts_db_path = get_db_path(db_config.forecasts_db_path)
         forecast_db.save(forecasts_db_path)
+        
+        # Create indexes for performance
+        create_forecasts_indexes(forecasts_db_path)
+        
+        # Compute viable dates for all locations
+        compute_viable_dates_for_all_locations()
         
         logger.info("Weather forecasts updated successfully")
     

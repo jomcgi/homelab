@@ -345,6 +345,20 @@ async def search_hikes(
             "error": "An unexpected error occurred. Please try again."
         })
 
+@app.get("/viable-dates")
+async def get_viable_dates(
+    latitude: float,
+    longitude: float,
+    radius: float = 25.0
+):
+    """Get all dates that have viable hiking conditions."""
+    try:
+        viable_dates = hike_finder.get_viable_dates(latitude, longitude, radius)
+        return {"viable_dates": viable_dates}
+    except Exception as e:
+        logger.error(f"Error getting viable dates: {e}")
+        return {"error": str(e), "viable_dates": []}
+
 @app.get("/health")
 async def health_check():
     """Health check endpoint."""

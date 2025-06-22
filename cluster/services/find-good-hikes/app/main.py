@@ -23,6 +23,8 @@ from scrape import scrape_walkhighlands
 from hourly_forecast import fetch_forecasts
 from find_walks import find_walks
 from pydantic_sqlite import DataBase
+from database_indexes import create_walks_indexes, create_forecasts_indexes
+from compute_viable_dates import compute_viable_dates_for_all_locations
 
 import logging
 
@@ -81,6 +83,10 @@ def scrape(
             
             db_path = get_db_path("walks.db")
             db.save(db_path)
+            
+            # Create indexes for performance
+            create_walks_indexes(db_path)
+            
             logger.info(f"Successfully scraped and saved {len(walks)} walks to {db_path}")
             raise typer.Exit(0)
         else:
@@ -135,6 +141,13 @@ def fetch_weather(
         # Save forecasts
         forecasts_db_path = get_db_path(db_config.forecasts_db_path)
         forecast_db.save(forecasts_db_path)
+        
+        # Create indexes for performance
+        create_forecasts_indexes(forecasts_db_path)
+        
+        # Compute viable dates for all locations
+        compute_viable_dates_for_all_locations()
+        
         logger.info(f"Successfully saved weather forecasts to {forecasts_db_path}")
         
     except Exception as e:
