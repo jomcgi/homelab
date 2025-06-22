@@ -52,22 +52,24 @@ def score_precipitation(precip_mm: Optional[float]) -> tuple[float, str]:
     """
     Score precipitation for hiking conditions.
     
-    Any significant rain makes hiking unpleasant.
+    Perfect hiking requires 0mm rain. Even small amounts reduce enjoyment significantly.
     Returns score (0-1) and explanation.
     """
     if precip_mm is None:
-        return 0.8, "No precipitation data"
+        return 0.7, "No precipitation data"
     
     if precip_mm == 0:
-        return 1.0, "No rain"
+        return 1.0, "Perfect - no rain"
+    elif precip_mm <= 0.1:
+        return 0.7, f"Trace amounts ({precip_mm}mm)"
     elif precip_mm <= 0.5:
-        return 0.9, f"Light drizzle ({precip_mm}mm)"
+        return 0.5, f"Light drizzle ({precip_mm}mm)"
+    elif precip_mm <= 1.0:
+        return 0.3, f"Light rain ({precip_mm}mm)"
     elif precip_mm <= 2.0:
-        return 0.6, f"Light rain ({precip_mm}mm)"
-    elif precip_mm <= 5.0:
-        return 0.3, f"Moderate rain ({precip_mm}mm)"
+        return 0.2, f"Moderate rain ({precip_mm}mm)"
     else:
-        return 0.1, f"Heavy rain ({precip_mm}mm)"
+        return 0.05, f"Heavy rain ({precip_mm}mm)"
 
 def score_wind(wind_speed_ms: Optional[float]) -> tuple[float, str]:
     """
@@ -97,7 +99,7 @@ def score_cloud_cover(cloud_fraction: Optional[float]) -> tuple[float, str]:
     """
     Score cloud cover for hiking enjoyment.
     
-    Some clouds are nice for photos, but overcast reduces visibility.
+    Perfect hiking conditions require < 15% cloud cover for maximum sun.
     Returns score (0-1) and explanation.
     """
     if cloud_fraction is None:
@@ -105,14 +107,16 @@ def score_cloud_cover(cloud_fraction: Optional[float]) -> tuple[float, str]:
     
     cloud_percent = cloud_fraction * 100
     
-    if cloud_percent <= 25:
-        return 1.0, f"Clear skies ({cloud_percent:.0f}% clouds)"
+    if cloud_percent < 15:
+        return 1.0, f"Perfect sun ({cloud_percent:.0f}% clouds)"
+    elif cloud_percent <= 25:
+        return 0.85, f"Mostly sunny ({cloud_percent:.0f}% clouds)"
     elif cloud_percent <= 50:
-        return 0.9, f"Partly cloudy ({cloud_percent:.0f}% clouds)"
+        return 0.6, f"Partly cloudy ({cloud_percent:.0f}% clouds)"
     elif cloud_percent <= 75:
-        return 0.7, f"Mostly cloudy ({cloud_percent:.0f}% clouds)"
+        return 0.4, f"Mostly cloudy ({cloud_percent:.0f}% clouds)"
     else:
-        return 0.5, f"Overcast ({cloud_percent:.0f}% clouds)"
+        return 0.2, f"Overcast ({cloud_percent:.0f}% clouds)"
 
 def score_visibility_conditions(symbol_code: Optional[str]) -> tuple[float, str]:
     """
@@ -323,27 +327,26 @@ def score_forecast(forecast: HourlyForecast) -> WeatherScore:
     cloud_score, cloud_desc = score_cloud_cover(forecast.cloud_area_fraction)
     symbol_score, symbol_desc = score_visibility_conditions(forecast.symbol_code)
     
-    # Weight the factors (precipitation and temperature are most important)
+    # Weight the factors (precipitation and cloud cover are most important for perfect hiking days)
     weights = {
-        'precipitation': 0.35,  # Most important - rain ruins hiking
-        'temperature': 0.25,    # Very important for comfort
-        'wind': 0.20,          # Important for safety
-        'visibility': 0.15,     # Weather symbol gives overall picture
-        'clouds': 0.05,        # Least important factor
+        'precipitation': 0.40,  # Most important - rain ruins hiking
+        'clouds': 0.30,        # Very important - need sun for perfect days
+        'wind': 0.15,          # Important for safety
+        'visibility': 0.10,     # Weather symbol gives overall picture
+        'temperature': 0.05,    # Used as differentiator within brackets, not primary factor
     }
     
     # Calculate weighted score
     weighted_score = (
         precip_score * weights['precipitation'] +
-        temp_score * weights['temperature'] +
+        cloud_score * weights['clouds'] +
         wind_score * weights['wind'] +
         symbol_score * weights['visibility'] +
-        cloud_score * weights['clouds']
+        temp_score * weights['temperature']
     ) * 100  # Convert to 0-100 scale
     
-    # Generate explanation
-    factors = [precip_desc, temp_desc, wind_desc, symbol_desc]
-    explanation = f"{symbol_desc}. {temp_desc}. {precip_desc}. {wind_desc}."
+    # Generate explanation (prioritize most important factors first)
+    explanation = f"{precip_desc}. {cloud_desc}. {symbol_desc}. {wind_desc}. {temp_desc}."
     
     factor_breakdown = {
         'precipitation': (precip_score, precip_desc),
@@ -549,8 +552,18 @@ def rank_walks_by_weather(walks_with_forecasts: List, hours_ahead: int = 24) -> 
             walk.weather_score = WeatherScore(0, "No weather data available", {})
             scored_walks.append(walk)
     
-    # Sort by weather score (descending - best weather first)
-    scored_walks.sort(key=lambda w: w.weather_score.score, reverse=True)
+    # Sort by weather score (descending), then by temperature as differentiator within same score brackets
+    def sort_key(walk):
+        primary_score = walk.weather_score.score
+        # Get temperature from weather details if available, otherwise use 0 as neutral
+        temp_differentiator = 0
+        if (walk.weather_score.factors and 
+            walk.weather_score.factors.get('weather_details') and 
+            walk.weather_score.factors['weather_details'].get('temperature_c') is not None):
+            temp_differentiator = walk.weather_score.factors['weather_details']['temperature_c']
+        return (primary_score, temp_differentiator)
+    
+    scored_walks.sort(key=sort_key, reverse=True)
     
     logger.info(f"Ranked {len(scored_walks)} walks by weather conditions")
     for i, walk in enumerate(scored_walks[:5]):  # Log top 5
