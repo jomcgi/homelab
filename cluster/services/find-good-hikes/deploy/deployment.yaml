@@ -38,6 +38,8 @@ spec:
         env:
         - name: PORT
           value: "8000"
+        - name: DATA_DIR
+          value: "/tmp"
         securityContext:
           allowPrivilegeEscalation: false
           readOnlyRootFilesystem: false 
