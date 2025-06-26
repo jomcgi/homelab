@@ -62,16 +62,49 @@ class WalkAsset(BaseModel):
     windows: List[WeatherWindow]
 
 
+class CompactWalkAsset(BaseModel):
+    """Compact walk asset for smaller file size."""
+    n: str  # name
+    u: str  # url
+    s: str  # summary
+    w: List[List[Any]]  # windows as arrays [timestamp, temp, precip, wind, cloud]
+
+
+def create_compact_windows(windows: List[WeatherWindow]) -> List[List[Any]]:
+    """Convert weather windows to compact array format."""
+    compact_windows = []
+    
+    for window in windows:
+        # Parse start time
+        start_dt = date_parser.parse(window.start)
+        
+        # Convert to Unix timestamp (seconds since epoch)
+        timestamp = int(start_dt.timestamp())
+        
+        # Format: [timestamp, temp, precip, wind, cloud]
+        compact_window = [
+            timestamp,
+            round(window.weather['temp_c'], 1),
+            round(window.weather['precip_mm'], 1) if window.weather['precip_mm'] > 0 else 0,
+            round(window.weather['wind_kmh']),  # Round to nearest km/h
+            int(window.weather['cloud_pct'])
+        ]
+        compact_windows.append(compact_window)
+    
+    return compact_windows
+
+
 class ProcessedWalk:
     """Container for processed walk data ready for upload."""
     def __init__(self, walk: Walk, windows: List[WeatherWindow]):
         self.walk = walk
         self.windows = windows
-        self.walk_asset = WalkAsset(
-            name=walk.name,
-            url=walk.url,
-            summary=walk.summary,
-            windows=windows
+        # Use compact format for smaller file size
+        self.walk_asset = CompactWalkAsset(
+            n=walk.name,
+            u=walk.url,
+            s=walk.summary,
+            w=create_compact_windows(windows)
         )
 
 
@@ -99,7 +132,7 @@ class S3Uploader:
         try:
             json_content = json.dumps(
                 data.model_dump() if isinstance(data, BaseModel) else data,
-                indent=2
+                separators=(',', ':')  # No spaces for compact JSON
             )
             
             self.s3_client.put_object(
