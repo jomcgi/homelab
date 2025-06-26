@@ -93,11 +93,28 @@ python generate_and_upload_queue.py
 
 The site uses Cloudflare's infrastructure for maximum performance:
 
-1. **Website**: Deployed to Cloudflare Pages (auto-deploy on push)
-2. **Data**: Updated hourly to Cloudflare R2 via GitHub Actions
-3. **CDN**: Both website and data served through Cloudflare's global network
+### Automated Deployments
 
-See [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) for detailed deployment instructions.
+1. **Website** (Cloudflare Pages):
+   - Automatically deploys on push to `main` branch
+   - GitHub Action: `.github/workflows/deploy-hikes-site.yml`
+   - URL: `https://find-good-hikes.pages.dev` (or your custom domain)
+
+2. **Data Updates** (Cloudflare R2):
+   - Updates every 30 minutes with fresh weather data
+   - GitHub Action: `.github/workflows/update-hike-data.yml`
+   - Served from: `https://hike-assets.jomcgi.dev/jomcgi-hikes/`
+
+### Required GitHub Secrets
+
+- `CLOUDFLARE_API_TOKEN` - API token with Pages:Edit permissions
+- `CLOUDFLARE_ACCOUNT_ID` - Your Cloudflare account ID
+- `CLOUDFLARE_S3_ACCESS_KEY_ID` - R2 access key
+- `CLOUDFLARE_S3_ACCESS_KEY_SECRET` - R2 secret key
+- `CLOUDFLARE_S3_ENDPOINT` - R2 endpoint URL
+- `CLOUDFLARE_R2_PUBLIC_URL` - R2 public URL (optional)
+
+See [CLOUDFLARE_SETUP.md](CLOUDFLARE_SETUP.md) for detailed setup instructions.
 
 ## Features
 
