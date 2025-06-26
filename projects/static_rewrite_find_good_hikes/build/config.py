@@ -32,8 +32,14 @@ FORECAST_DAYS = 7
 HOURS_PER_DAY = 24
 
 # Data source paths (reuse from original project)
-ORIGINAL_PROJECT = Path("/workspaces/homelab/cluster/services/find-good-hikes/app")
+# Try to find the walks.db relative to the repo root
+REPO_ROOT = Path(__file__).parent.parent.parent.parent  # Navigate up to homelab root
+ORIGINAL_PROJECT = REPO_ROOT / "cluster/services/find-good-hikes/app"
 WALKS_DB_PATH = ORIGINAL_PROJECT / "walks.db"
+
+# Fallback to absolute path if relative path doesn't work
+if not WALKS_DB_PATH.exists():
+    WALKS_DB_PATH = Path("/workspaces/homelab/cluster/services/find-good-hikes/app/walks.db")
 
 # Output settings
 INDEX_FILE = DATA_DIR / "index.json"
