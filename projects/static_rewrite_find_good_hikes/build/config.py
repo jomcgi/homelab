@@ -17,7 +17,7 @@ R2_BUCKET_NAME = os.getenv("R2_BUCKET_NAME", "jomcgi-hikes")
 R2_ACCESS_KEY_ID = os.getenv("CLOUDFLARE_S3_ACCESS_KEY_ID")
 R2_SECRET_ACCESS_KEY = os.getenv("CLOUDFLARE_S3_ACCESS_KEY_SECRET")
 R2_ENDPOINT = os.getenv("CLOUDFLARE_S3_ENDPOINT")
-R2_PUBLIC_URL = os.getenv("CLOUDFLARE_R2_PUBLIC_URL", "https://hikes-data.example.com")
+R2_PUBLIC_URL = os.getenv("CLOUDFLARE_R2_PUBLIC_URL", "https://hike-assets.jomcgi.dev")
 
 # Weather API
 MET_NO_API_URL = "https://api.met.no/weatherapi/locationforecast/2.0/compact"

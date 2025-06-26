@@ -29,9 +29,9 @@ A purely static website that helps hikers find routes with good weather conditio
 
 ```
 build/                      # Python data generation pipeline
-├── generate_static_data.py # Main script that creates JSON assets
-├── requirements.txt        # Python dependencies
-└── config.py              # Configuration settings
+├── generate_and_upload_queue.py  # Producer-consumer pipeline
+├── requirements.txt              # Python dependencies
+└── config.py                    # Configuration settings
 
 public/                    # Static website (deployed to GitHub Pages)
 ├── index.html            # Single page application
@@ -43,26 +43,51 @@ public/                    # Static website (deployed to GitHub Pages)
         └── [uuid].json  # Viable weather windows per walk
 
 .github/workflows/
-└── build-static-hikes.yml  # Hourly CI job
+└── update-hike-data.yml  # Updates R2 with fresh data
 ```
 
 ## Local Development
 
-1. **Generate test data**:
+### Testing with R2 Data
+
+1. **Configure R2 URL**:
    ```bash
-   cd build
-   python3 -m venv venv
-   source venv/bin/activate
-   pip install -r requirements.txt
-   python generate_static_data.py
+   # Copy the config template
+   cp public/config.local.js public/config.js
+   
+   # Edit config.js and replace 'YOUR-R2-PUBLIC-URL-HERE' with your actual R2 public URL
+   # You can find this in Cloudflare dashboard: R2 > your bucket > Settings > Public URL
    ```
 
 2. **Run local server**:
    ```bash
+   # Using the provided server script (includes CORS headers)
+   python3 serve.py
+   # Visit http://localhost:8000
+   
+   # Or using Python's built-in server
    cd public
-   python3 -m http.server 8080
-   # Visit http://localhost:8080
+   python3 -m http.server 8000
    ```
+
+### Generate Test Data Locally (Optional)
+
+If you want to test data generation:
+```bash
+cd build
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+
+# Set environment variables for R2
+export CLOUDFLARE_S3_ACCESS_KEY_ID="your-key-id"
+export CLOUDFLARE_S3_ACCESS_KEY_SECRET="your-secret"
+export CLOUDFLARE_S3_ENDPOINT="your-endpoint"
+export CLOUDFLARE_R2_PUBLIC_URL="your-public-url"
+
+# Run the pipeline
+python generate_and_upload_queue.py
+```
 
 ## Deployment
 

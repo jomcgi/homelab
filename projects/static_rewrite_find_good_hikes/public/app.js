@@ -119,6 +119,40 @@ async function loadIndexData() {
     }
 }
 
+function expandCompactWalkData(data) {
+    // Check if it's the new compact format
+    if (data.n !== undefined) {
+        // Convert compact format to standard format
+        const expandedWindows = data.w.map(w => {
+            // w = [timestamp, temp, precip, wind, cloud]
+            const timestamp = w[0];
+            const startDate = new Date(timestamp * 1000); // Convert from seconds to milliseconds
+            const endDate = new Date(startDate.getTime() + 3600000); // +1 hour
+            
+            return {
+                start: startDate.toISOString(),
+                end: endDate.toISOString(),
+                weather: {
+                    temp_c: w[1],
+                    precip_mm: w[2],
+                    wind_kmh: w[3],
+                    cloud_pct: w[4]
+                }
+            };
+        });
+        
+        return {
+            name: data.n,
+            url: data.u,
+            summary: data.s,
+            windows: expandedWindows
+        };
+    }
+    
+    // Already in standard format
+    return data;
+}
+
 async function loadWalkData(walkId) {
     // Check cache first
     if (state.walkCache.has(walkId)) {
@@ -129,7 +163,9 @@ async function loadWalkData(walkId) {
         const response = await fetch(`${CONFIG.dataPath}walks/${walkId}.json`);
         if (!response.ok) return null;
         
-        const data = await response.json();
+        const compactData = await response.json();
+        const data = expandCompactWalkData(compactData);
+        
         state.walkCache.set(walkId, data);
         return data;
     } catch (e) {
