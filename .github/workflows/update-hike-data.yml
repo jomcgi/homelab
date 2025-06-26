@@ -1,0 +1,60 @@
+name: Update Hike Data to R2
+
+on:
+  # schedule:
+  #   # Run every 30 minutes (aligned with other workflows)
+  #   - cron: '0,30 * * * *'
+  push:
+    branches:
+      - main
+    paths:
+      - 'projects/static_rewrite_find_good_hikes/build/**'
+      - '.github/workflows/update-hike-data.yml'
+  workflow_dispatch:  # Allow manual triggering
+
+concurrency:
+  group: update-hike-data
+  cancel-in-progress: false
+
+jobs:
+  update-data:
+    runs-on: self-hosted
+    timeout-minutes: 10
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          cache-dependency-path: 'projects/static_rewrite_find_good_hikes/build/requirements.txt'
+
+      - name: Install dependencies
+        run: |
+          echo "Installing Python dependencies for hike data generation..."
+          cd projects/static_rewrite_find_good_hikes/build
+          pip install -r requirements.txt
+
+      - name: Generate static data
+        run: |
+          echo "Generating static hike data with weather forecasts..."
+          cd projects/static_rewrite_find_good_hikes/build
+          python generate_static_data.py
+        env:
+          TZ: 'Europe/London'
+
+      - name: Upload to Cloudflare R2
+        run: |
+          echo "Uploading generated data to Cloudflare R2..."
+          cd projects/static_rewrite_find_good_hikes/build
+          python upload_to_r2.py
+          echo "Hike data successfully updated in R2!"
+        env:
+          CLOUDFLARE_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_ID }}
+          CLOUDFLARE_S3_ACCESS_KEY_SECRET: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_SECRET }}
+          CLOUDFLARE_S3_ENDPOINT: ${{ secrets.CLOUDFLARE_S3_ENDPOINT }}
+          CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.CLOUDFLARE_R2_PUBLIC_URL }}
+          R2_BUCKET_NAME: jomcgi-hikes
