@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Find Good Hikes - Static</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Find Good Hikes</h1>
+            <p class="tagline">Discover hiking routes with good weather conditions</p>
+        </header>
+
+        <main>
+            <!-- Search Form -->
+            <section class="search-form">
+                <h2>Search Parameters</h2>
+                
+                <div class="form-group">
+                    <h3>Location</h3>
+                    <div class="input-row">
+                        <label>
+                            Latitude:
+                            <input type="number" id="latitude" min="-90" max="90" step="0.0001" value="55.8827" required>
+                        </label>
+                        <label>
+                            Longitude:
+                            <input type="number" id="longitude" min="-180" max="180" step="0.0001" value="-4.2589" required>
+                        </label>
+                        <label>
+                            Radius (km):
+                            <input type="number" id="radius" min="1" max="200" value="25" required>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <h3>Hike Preferences</h3>
+                    <div class="input-row">
+                        <label>
+                            Duration (hours):
+                            <div class="range-inputs">
+                                <input type="number" id="min-duration" min="0" max="24" step="0.5" value="2">
+                                <span>to</span>
+                                <input type="number" id="max-duration" min="0" max="24" step="0.5" value="6">
+                            </div>
+                        </label>
+                        <label>
+                            Distance (km):
+                            <div class="range-inputs">
+                                <input type="number" id="min-distance" min="0" max="50" step="0.5" value="3">
+                                <span>to</span>
+                                <input type="number" id="max-distance" min="0" max="50" step="0.5" value="15">
+                            </div>
+                        </label>
+                        <label>
+                            Max Ascent (m):
+                            <input type="number" id="max-ascent" min="0" max="2000" step="50" value="800">
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <h3>Weather Preferences</h3>
+                    <div class="input-row">
+                        <label>
+                            Max Rain (mm):
+                            <input type="number" id="max-rain" min="0" max="10" step="0.1" value="0.5">
+                        </label>
+                        <label>
+                            Max Wind (km/h):
+                            <input type="number" id="max-wind" min="0" max="80" step="1" value="30">
+                        </label>
+                        <label>
+                            Temperature (°C):
+                            <div class="range-inputs">
+                                <input type="number" id="min-temp" min="-10" max="40" value="5">
+                                <span>to</span>
+                                <input type="number" id="max-temp" min="-10" max="40" value="25">
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <h3>Available Dates</h3>
+                    <div id="date-selector" class="date-selector">
+                        <!-- Dates will be generated dynamically -->
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <h3>Time Window</h3>
+                    <div class="input-row">
+                        <label>
+                            Start after:
+                            <input type="time" id="start-after" value="08:00">
+                        </label>
+                        <label>
+                            Finish before:
+                            <input type="time" id="finish-before" value="16:00">
+                        </label>
+                    </div>
+                </div>
+
+                <button id="search-btn" class="search-btn">Find Hikes</button>
+            </section>
+
+            <!-- Loading indicator -->
+            <div id="loading" class="loading hidden">
+                <div class="spinner"></div>
+                <p>Searching for hikes...</p>
+            </div>
+
+            <!-- Results -->
+            <section id="results" class="results hidden">
+                <h2>Results</h2>
+                <div id="results-summary" class="results-summary"></div>
+                <div id="results-list" class="results-list"></div>
+            </section>
+
+            <!-- Error messages -->
+            <div id="error" class="error hidden"></div>
+        </main>
+
+        <footer>
+            <p class="data-timestamp">Data last updated: <span id="data-timestamp">Loading...</span></p>
+        </footer>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
