@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate static JSON assets for Find Good Hikes."""
+"""Generate and upload static JSON assets for Find Good Hikes in a streaming pipeline."""
 
 import json
 import sqlite3
@@ -10,11 +10,18 @@ from typing import List, Dict, Any, Optional, Tuple
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import time
+import os
+from queue import Queue
+import threading
 
 import requests
 from pydantic import BaseModel
 from dateutil import parser as date_parser
 import pytz
+import boto3
+from botocore.config import Config
+
+# Removed caching - not needed with Met.no's generous rate limits
 
 # Add the original project to path to reuse some modules
 sys.path.insert(0, str(Path(__file__).parent.parent.parent / "cluster/services/find-good-hikes/app"))
@@ -55,6 +62,46 @@ class WalkAsset(BaseModel):
     url: str
     summary: str
     windows: List[WeatherWindow]
+
+
+class S3Uploader:
+    """Handles S3/R2 uploads with connection pooling."""
+    
+    def __init__(self):
+        self.s3_client = boto3.client(
+            's3',
+            endpoint_url=R2_ENDPOINT,
+            aws_access_key_id=R2_ACCESS_KEY_ID,
+            aws_secret_access_key=R2_SECRET_ACCESS_KEY,
+            config=Config(
+                signature_version='s3v4',
+                max_pool_connections=50,  # Match worker count
+                retries={'max_attempts': 2},  # Reduce retries for speed
+                read_timeout=10,
+                connect_timeout=10
+            )
+        )
+        self.bucket_name = R2_BUCKET_NAME
+        
+    def upload_json(self, key: str, data: Any) -> bool:
+        """Upload JSON data to S3/R2."""
+        try:
+            json_content = json.dumps(
+                data.model_dump() if isinstance(data, BaseModel) else data,
+                indent=2
+            )
+            
+            self.s3_client.put_object(
+                Bucket=self.bucket_name,
+                Key=key,
+                Body=json_content,
+                ContentType='application/json',
+                CacheControl='public, max-age=1800'  # 30 minute cache
+            )
+            return True
+        except Exception as e:
+            logger.error(f"Failed to upload {key}: {e}")
+            return False
 
 
 def load_walks_from_db() -> List[Walk]:
@@ -222,6 +269,16 @@ def generate_viable_windows(walk: Walk) -> List[WeatherWindow]:
     return windows
 
 
+def generate_walk_asset(walk: Walk, windows: List[WeatherWindow]) -> WalkAsset:
+    """Generate individual walk asset data."""
+    return WalkAsset(
+        name=walk.name,
+        url=walk.url,
+        summary=walk.summary,
+        windows=windows
+    )
+
+
 def generate_index_json(walks: List[Walk]) -> Dict[str, Any]:
     """Generate the index.json with filterable walk properties."""
     index_data = {
@@ -242,70 +299,104 @@ def generate_index_json(walks: List[Walk]) -> Dict[str, Any]:
     return index_data
 
 
-def generate_walk_asset(walk: Walk, windows: List[WeatherWindow]) -> WalkAsset:
-    """Generate individual walk asset data."""
-    return WalkAsset(
-        name=walk.name,
-        url=walk.url,
-        summary=walk.summary,
-        windows=windows
-    )
-
-
-def save_json_file(path: Path, data: Any) -> None:
-    """Save data as JSON file."""
-    with open(path, 'w', encoding='utf-8') as f:
-        if isinstance(data, BaseModel):
-            json.dump(data.model_dump(), f, indent=2)
-        else:
-            json.dump(data, f, indent=2)
-    logger.info(f"Saved {path}")
-
-
-def process_walk(walk: Walk) -> Tuple[Walk, Optional[List[WeatherWindow]]]:
-    """Process a single walk and return viable windows."""
+def process_and_upload_walk(walk: Walk, uploader: S3Uploader) -> Tuple[bool, int]:
+    """Process a walk and immediately upload if viable."""
     try:
         windows = generate_viable_windows(walk)
-        return (walk, windows)
+        
+        # Only upload if there are viable windows
+        if windows:
+            walk_asset = generate_walk_asset(walk, windows)
+            key = f"walks/{walk.uuid}.json"
+            
+            success = uploader.upload_json(key, walk_asset)
+            return (success, len(windows))
+        
+        return (True, 0)  # No windows but not an error
+        
     except Exception as e:
         logger.error(f"Failed to process walk {walk.name}: {e}")
-        return (walk, None)
+        return (False, 0)
+
+
+def delete_orphaned_files(uploader: S3Uploader, valid_uuids: set):
+    """Delete files in R2 that are no longer in the database."""
+    try:
+        # List all objects in the walks/ prefix
+        paginator = uploader.s3_client.get_paginator('list_objects_v2')
+        pages = paginator.paginate(Bucket=uploader.bucket_name, Prefix='walks/')
+        
+        files_to_delete = []
+        
+        for page in pages:
+            if 'Contents' not in page:
+                continue
+                
+            for obj in page['Contents']:
+                key = obj['Key']
+                # Extract UUID from filename (walks/uuid.json)
+                if key.startswith('walks/') and key.endswith('.json'):
+                    uuid = key[6:-5]  # Remove 'walks/' and '.json'
+                    if uuid not in valid_uuids:
+                        files_to_delete.append({'Key': key})
+        
+        # Delete orphaned files in batches
+        if files_to_delete:
+            logger.info(f"Deleting {len(files_to_delete)} orphaned files from R2")
+            
+            # S3 delete_objects has a limit of 1000 keys per request
+            for i in range(0, len(files_to_delete), 1000):
+                batch = files_to_delete[i:i+1000]
+                uploader.s3_client.delete_objects(
+                    Bucket=uploader.bucket_name,
+                    Delete={'Objects': batch}
+                )
+                
+            logger.info(f"Deleted {len(files_to_delete)} orphaned files")
+            
+    except Exception as e:
+        logger.error(f"Failed to delete orphaned files: {e}")
 
 
 def main():
-    """Main data generation process."""
-    logger.info("Starting static data generation...")
+    """Main streaming pipeline process."""
+    logger.info("Starting streaming data generation and upload pipeline...")
     
     try:
-        # Clean up old walk files to prevent orphaned data
-        if WALKS_DIR.exists():
-            logger.info(f"Cleaning up old walk files in {WALKS_DIR}")
-            import shutil
-            shutil.rmtree(WALKS_DIR)
-            WALKS_DIR.mkdir(parents=True, exist_ok=True)
+        # Initialize uploader
+        uploader = S3Uploader()
         
         # Load walks from database
         walks = load_walks_from_db()
+        valid_uuids = {walk.uuid for walk in walks}
         
-        # Generate index
+        # Generate and upload index
+        logger.info("Generating and uploading index.json...")
         index_data = generate_index_json(walks)
-        save_json_file(INDEX_FILE, index_data)
-        
-        # Process walks in parallel
+        if not uploader.upload_json("index.json", index_data):
+            logger.error("Failed to upload index.json")
+            sys.exit(1)
+            
+        # Process walks in parallel and upload immediately
         total_windows = 0
         walks_with_windows = 0
+        successful_uploads = 0
+        failed_uploads = 0
         processed = 0
         start_time = time.time()
         
-        # Use ThreadPoolExecutor for I/O-bound weather API calls
-        # Limit workers to avoid overwhelming the weather API
-        max_workers = min(20, len(walks))  # Adjust based on API rate limits
+        # Use ThreadPoolExecutor for parallel processing
+        # Increase workers since we're not limited by API rate limits
+        max_workers = min(50, len(walks))  # More aggressive parallelism
         
-        logger.info(f"Processing {len(walks)} walks with {max_workers} parallel workers...")
+        logger.info(f"Processing and uploading {len(walks)} walks with {max_workers} parallel workers...")
         
         with ThreadPoolExecutor(max_workers=max_workers) as executor:
             # Submit all walks for processing
-            future_to_walk = {executor.submit(process_walk, walk): walk for walk in walks}
+            future_to_walk = {
+                executor.submit(process_and_upload_walk, walk, uploader): walk 
+                for walk in walks
+            }
             
             # Process completed results
             for future in as_completed(future_to_walk):
@@ -320,29 +411,39 @@ def main():
                               f"({rate:.1f} walks/sec, ETA: {eta:.0f}s)")
                 
                 try:
-                    walk, windows = future.result()
+                    success, window_count = future.result()
                     
-                    # Only save if there are viable windows
-                    if windows:
-                        walk_asset = generate_walk_asset(walk, windows)
-                        walk_file = WALKS_DIR / f"{walk.uuid}.json"
-                        save_json_file(walk_file, walk_asset)
-                        
-                        total_windows += len(windows)
-                        walks_with_windows += 1
+                    if success:
+                        successful_uploads += 1
+                        if window_count > 0:
+                            total_windows += window_count
+                            walks_with_windows += 1
+                    else:
+                        failed_uploads += 1
                         
                 except Exception as e:
-                    logger.error(f"Failed to process result for walk {walk.name}: {e}")
+                    logger.error(f"Failed to get result for walk {walk.name}: {e}")
+                    failed_uploads += 1
+        
+        # Clean up orphaned files
+        logger.info("Cleaning up orphaned files in R2...")
+        delete_orphaned_files(uploader, valid_uuids)
         
         elapsed_total = time.time() - start_time
-        logger.info(f"Generation complete in {elapsed_total:.1f} seconds!")
+        logger.info(f"Pipeline complete in {elapsed_total:.1f} seconds!")
         logger.info(f"- Total walks: {len(walks)}")
         logger.info(f"- Walks with viable windows: {walks_with_windows}")
         logger.info(f"- Total viable windows: {total_windows}")
+        logger.info(f"- Successful uploads: {successful_uploads}")
+        logger.info(f"- Failed uploads: {failed_uploads}")
         logger.info(f"- Average processing rate: {len(walks)/elapsed_total:.1f} walks/sec")
         
+        if failed_uploads > 0:
+            logger.warning(f"{failed_uploads} uploads failed - check logs for details")
+            sys.exit(1)
+            
     except Exception as e:
-        logger.error(f"Data generation failed: {e}")
+        logger.error(f"Pipeline failed: {e}")
         sys.exit(1)
 
 

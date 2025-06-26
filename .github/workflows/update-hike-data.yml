@@ -38,19 +38,11 @@ jobs:
           cd projects/static_rewrite_find_good_hikes/build
           pip install -r requirements.txt
 
-      - name: Generate static data
+      - name: Generate and upload data
         run: |
-          echo "Generating static hike data with weather forecasts..."
+          echo "Generating and uploading hike data using producer-consumer queue..."
           cd projects/static_rewrite_find_good_hikes/build
-          python generate_static_data.py
-        env:
-          TZ: 'Europe/London'
-
-      - name: Upload to Cloudflare R2
-        run: |
-          echo "Uploading generated data to Cloudflare R2..."
-          cd projects/static_rewrite_find_good_hikes/build
-          python upload_to_r2.py
+          python generate_and_upload_queue.py
           echo "Hike data successfully updated in R2!"
         env:
           CLOUDFLARE_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_ID }}
