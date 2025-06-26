@@ -2,13 +2,12 @@
 // This file can be updated without rebuilding the entire app
 
 window.HIKES_CONFIG = {
-    // R2 data URL - update this to your actual R2 public URL
-    // Example: https://pub-abc123.r2.dev/
-    dataUrl: 'https://hikes-data.example.com/',
+    // R2 data URL with custom domain and bucket path
+    dataUrl: 'https://hike-assets.jomcgi.dev/jomcgi-hikes/',
     
-    // Fallback to local data for development
-    useLocalData: window.location.hostname === 'localhost',
+    // Don't use local data - we have R2 working
+    useLocalData: false,
     
     // Cache duration in minutes
-    cacheMinutes: 60
+    cacheMinutes: 30
 };
