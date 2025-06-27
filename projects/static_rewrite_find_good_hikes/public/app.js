@@ -153,7 +153,12 @@ async function loadIndexData() {
         throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
     }
     
-    const bundle = await response.json();
+    // Assuming a global BrotliDecompress function is available (e.g., from decode-brotli.min.js)
+    // You need to include a Brotli decompressor library in your HTML before this script.
+    // Example: <script src="https://unpkg.com/decode-brotli@1.0.2/decode-brotli.min.js"></script>
+    const brotliBuffer = await response.arrayBuffer();
+    const decompressedString = BrotliDecompress(brotliBuffer);
+    const bundle = JSON.parse(decompressedString);
     
     // Parse bundle into index and walk data
     const { walks, walkMap } = parseBundleData(bundle);
