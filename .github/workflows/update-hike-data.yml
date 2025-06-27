@@ -38,15 +38,14 @@ jobs:
           cd projects/static_rewrite_find_good_hikes/build
           pip install -r requirements.txt
 
-      - name: Generate and upload data
+      - name: Generate bundled data
         run: |
-          echo "Generating and uploading hike data using producer-consumer queue..."
+          echo "Generating bundled hike data..."
           cd projects/static_rewrite_find_good_hikes/build
-          python generate_and_upload_queue.py
-          echo "Hike data successfully updated in R2!"
+          python generate_bundle_direct.py
+          echo "Bundle successfully uploaded to R2!"
         env:
           CLOUDFLARE_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_ID }}
           CLOUDFLARE_S3_ACCESS_KEY_SECRET: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_SECRET }}
           CLOUDFLARE_S3_ENDPOINT: ${{ secrets.CLOUDFLARE_S3_ENDPOINT }}
-          CLOUDFLARE_R2_PUBLIC_URL: ${{ secrets.CLOUDFLARE_R2_PUBLIC_URL }}
           R2_BUCKET_NAME: jomcgi-hikes
