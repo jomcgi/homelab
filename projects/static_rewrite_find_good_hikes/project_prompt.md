@@ -21,7 +21,7 @@
     - Prefetching of nearby walk assets for instant results
     - Pure JavaScript filtering of weather conditions and hike characteristics
   - Asset Structure:
-    - index.json: All walks with filterable properties (coordinates, duration, distance, ascent) + asset references
+    - bundle.json.br: All walks with filterable properties (coordinates, duration, distance, ascent) + asset references, compressed with Brotli.
     - walks/[uuid].json: Individual walk display data with viable weather windows
   - De-scoped for MVP: Real-time weather updates, server-side APIs, databases,  Kubernetes deployment, user authentication
 

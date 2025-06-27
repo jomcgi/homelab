@@ -42,7 +42,7 @@ if not WALKS_DB_PATH.exists():
     WALKS_DB_PATH = Path("/workspaces/homelab/cluster/services/find-good-hikes/app/walks.db")
 
 # Output settings
-INDEX_FILE = DATA_DIR / "index.json"
+
 WALKS_DIR = DATA_DIR / "walks"
 WALKS_DIR.mkdir(parents=True, exist_ok=True)
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
