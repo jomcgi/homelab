@@ -65,7 +65,7 @@ class S3Uploader:
 
 def load_walks_from_db() -> List[Walk]:
     """Load all walks from the SQLite database."""
-    db_path = Path(__file__).parent.parent.parent / "data" / "walks.db"
+    db_path = Path(__file__).parent.parent.parent.parent / "cluster" / "services" / "find-good-hikes" / "app" / "walks.db"
     
     if not db_path.exists():
         logger.error(f"Database not found at {db_path}")
