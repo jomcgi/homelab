@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="results-container">
+<div class="results-container" id="results-section">
     <div class="search-summary">
         <h2>Hiking Results</h2>
         <p>
@@ -201,5 +201,13 @@ function toggleWeatherDetails(expandButton) {
         expandButton.classList.remove('expanded');
     }
 }
+</script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const resultsSection = document.getElementById('results-section');
+        if (resultsSection) {
+            resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
 </script>
 {% endblock %}
