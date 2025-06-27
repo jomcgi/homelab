@@ -1,0 +1,7 @@
+{
+    "contextFileName": [
+        "CLAUDE.md"
+    ],
+    "sandbox": "docker",
+    "autoAccept": true
+}

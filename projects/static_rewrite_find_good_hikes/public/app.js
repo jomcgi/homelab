@@ -26,10 +26,10 @@ function savePreferences() {
         minDistance: document.getElementById('min-distance').value,
         maxDistance: document.getElementById('max-distance').value,
         maxAscent: document.getElementById('max-ascent').value,
-        maxRain: document.getElementById('max-rain').value,
-        maxWind: document.getElementById('max-wind').value,
-        minTemp: document.getElementById('min-temp').value,
-        maxTemp: document.getElementById('max-temp').value,
+        maxRain: document.getElementById('max-precipitation-mm').value,
+        maxWind: document.getElementById('max-wind-speed-kmh').value,
+        minTemp: document.getElementById('min-temperature-c').value,
+        maxTemp: document.getElementById('max-temperature-c').value,
         startAfter: document.getElementById('start-after').value,
         finishBefore: document.getElementById('finish-before').value
     };
@@ -65,113 +65,131 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 
 // Date generation
 function generateDateOptions() {
-    const container = document.getElementById('date-selector');
+    const container = document.getElementById('available-dates');
     container.innerHTML = '';
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    for (let i = 0; i < 7; i++) {
+    for (let i = 0; i < 5; i++) {  // Changed to 5 days to match original
         const date = new Date(today);
         date.setDate(today.getDate() + i);
         
         const dateStr = date.toISOString().split('T')[0];
-        const dayName = date.toLocaleDateString('en-GB', { weekday: 'short' });
+        const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
         const dayNum = date.getDate();
         const month = date.toLocaleDateString('en-GB', { month: 'short' });
         
         const option = document.createElement('div');
-        option.className = 'date-option';
+        option.className = 'checkbox-group';  // Changed to match original class
         option.innerHTML = `
-            <input type="checkbox" id="date-${dateStr}" value="${dateStr}" ${i < 3 ? 'checked' : ''}>
+            <input type="checkbox" id="date-${dateStr}" name="available_dates" value="${dateStr}" ${i < 5 ? 'checked' : ''}>
             <label for="date-${dateStr}">
-                <strong>${dayName}</strong><br>
-                ${dayNum} ${month}
+                ${dayName}, ${month} ${dayNum}
             </label>
         `;
         container.appendChild(option);
     }
 }
 
-// Data loading
-async function loadIndexData() {
-    try {
-        const response = await fetch(CONFIG.dataPath + 'index.json');
-        if (!response.ok) throw new Error('Failed to load index data');
+// Bundle data parsing
+function parseBundleData(bundle) {
+    // Parse the optimized bundle format
+    // Bundle format: { v: 2, g: timestamp, d: [[walk data]...] }
+    // Walk format: [id, lat, lng, dur, dist, asc, name, url, summary, windows]
+    // Window format: [timestamp, temp, precip, wind]
+    
+    const walks = [];
+    const walkMap = new Map();
+    
+    for (const walkData of bundle.d) {
+        const [id, lat, lng, duration_h, distance_km, ascent_m, name, url, summary, windows] = walkData;
         
-        state.indexData = await response.json();
+        // Create index entry
+        walks.push({
+            id,
+            lat,
+            lng,
+            duration_h,
+            distance_km,
+            ascent_m
+        });
         
-        // Update timestamp
-        const timestamp = new Date(state.indexData.generated_at);
-        document.getElementById('data-timestamp').textContent = timestamp.toLocaleString();
-        
-        // Check if data is stale (>2 hours old)
-        const ageHours = (Date.now() - timestamp) / (1000 * 60 * 60);
-        if (ageHours > 2) {
-            showError('Warning: Weather data is more than 2 hours old. Results may be outdated.');
-        }
-        
-        return true;
-    } catch (e) {
-        showError('Failed to load hiking data. Please try again later.');
-        console.error('Failed to load index:', e);
-        return false;
-    }
-}
-
-function expandCompactWalkData(data) {
-    // Check if it's the new compact format
-    if (data.n !== undefined) {
-        // Convert compact format to standard format
-        const expandedWindows = data.w.map(w => {
-            // w = [timestamp, temp, precip, wind, cloud]
-            const timestamp = w[0];
-            const startDate = new Date(timestamp * 1000); // Convert from seconds to milliseconds
+        // Create full walk data with expanded windows
+        const expandedWindows = windows.map(w => {
+            const [timestamp, temp_c, precip_mm, wind_kmh] = w;
+            const startDate = new Date(timestamp * 1000);
             const endDate = new Date(startDate.getTime() + 3600000); // +1 hour
             
             return {
                 start: startDate.toISOString(),
                 end: endDate.toISOString(),
                 weather: {
-                    temp_c: w[1],
-                    precip_mm: w[2],
-                    wind_kmh: w[3],
-                    cloud_pct: w[4]
+                    temp_c,
+                    precip_mm,
+                    wind_kmh,
+                    cloud_pct: 50  // Default value since we removed it for space
                 }
             };
         });
         
-        return {
-            name: data.n,
-            url: data.u,
-            summary: data.s,
+        walkMap.set(id, {
+            name,
+            url,
+            summary,
             windows: expandedWindows
-        };
+        });
     }
     
-    // Already in standard format
-    return data;
+    return { walks, walkMap };
 }
 
+// Data loading
+async function loadIndexData() {
+    const bundlePath = `${CONFIG.dataPath}bundle.json.br`;
+    
+    const response = await fetch(bundlePath);
+    if (!response.ok) {
+        throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
+    }
+    
+    const bundle = await response.json();
+    
+    // Parse bundle into index and walk data
+    const { walks, walkMap } = parseBundleData(bundle);
+    
+    // Set up state
+    state.indexData = {
+        generated_at: bundle.g * 1000,  // Convert to milliseconds
+        walks: walks
+    };
+    
+    // Pre-populate walk cache with all data
+    state.walkCache = walkMap;
+    
+    // Update timestamp
+    const timestamp = new Date(state.indexData.generated_at);
+    document.getElementById('data-timestamp').textContent = timestamp.toLocaleString();
+    
+    // Check if data is stale (>2 hours old)
+    const ageHours = (Date.now() - timestamp) / (1000 * 60 * 60);
+    if (ageHours > 2) {
+        showError('Warning: Weather data is more than 2 hours old. Results may be outdated.');
+    }
+    
+    return true;
+}
+
+
 async function loadWalkData(walkId) {
-    // Check cache first
+    // All walk data is pre-loaded from the bundle
     if (state.walkCache.has(walkId)) {
         return state.walkCache.get(walkId);
     }
     
-    try {
-        const response = await fetch(`${CONFIG.dataPath}walks/${walkId}.json`);
-        if (!response.ok) return null;
-        
-        const compactData = await response.json();
-        const data = expandCompactWalkData(compactData);
-        
-        state.walkCache.set(walkId, data);
-        return data;
-    } catch (e) {
-        console.error(`Failed to load walk ${walkId}:`, e);
-        return null;
-    }
+    // Walk not found in bundled data
+    console.warn(`Walk ${walkId} not found in bundled data`);
+    return null;
 }
 
 // Filtering functions
@@ -233,6 +251,57 @@ function showError(message) {
     setTimeout(() => errorDiv.classList.add('hidden'), 10000);
 }
 
+function groupConsecutiveWindows(windows) {
+    if (!windows || windows.length === 0) {
+        return [];
+    }
+    windows.sort((a, b) => new Date(a.start) - new Date(b.start));
+    const grouped = [];
+    let currentGroup = [windows[0]];
+    for (let i = 1; i < windows.length; i++) {
+        const prevEnd = new Date(currentGroup[currentGroup.length - 1].start).getTime() + 3600000;
+        const currentStart = new Date(windows[i].start).getTime();
+        if (currentStart === prevEnd) {
+            currentGroup.push(windows[i]);
+        } else {
+            grouped.push(currentGroup);
+            currentGroup = [windows[i]];
+        }
+    }
+    grouped.push(currentGroup);
+    return grouped;
+}
+
+function summarizeWindowGroup(group) {
+    const start = new Date(group[0].start);
+    const end = new Date(new Date(group[group.length - 1].start).getTime() + 3600000);
+    let totalTemp = 0;
+    let totalWind = 0;
+    let totalCloud = 0;
+    let maxPrecip = 0;
+    group.forEach(w => {
+        totalTemp += w.weather.temp_c;
+        totalWind += w.weather.wind_kmh;
+        totalCloud += w.weather.cloud_pct;
+        if (w.weather.precip_mm > maxPrecip) {
+            maxPrecip = w.weather.precip_mm;
+        }
+    });
+    const avgTemp = totalTemp / group.length;
+    const avgWind = totalWind / group.length;
+    const avgCloud = totalCloud / group.length;
+    return {
+        start: start,
+        end: end,
+        weather: {
+            temp_c: avgTemp,
+            precip_mm: maxPrecip,
+            wind_kmh: avgWind,
+            cloud_pct: avgCloud
+        }
+    };
+}
+
 function showResults(results) {
     const resultsSection = document.getElementById('results');
     const summaryDiv = document.getElementById('results-summary');
@@ -265,27 +334,34 @@ function showResults(results) {
             windowsByDay[dateStr].push(window);
         });
         
-        const windowsHtml = Object.entries(windowsByDay).map(([day, windows]) => `
+        const windowsHtml = Object.entries(windowsByDay).map(([day, windows]) => {
+            const grouped = groupConsecutiveWindows(windows);
+            const summarized = grouped.map(summarizeWindowGroup);
+
+            return `
             <div class="window-day">
                 <h4>${day}</h4>
                 <div class="window-times">
-                    ${windows.map(w => {
-                        const start = new Date(w.start);
+                    ${summarized.map(w => {
+                        const start = w.start;
+                        const end = w.end;
                         const weather = w.weather;
+                        const startTime = start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        const endTime = end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+                        const displayEndTime = endTime === '00:00' ? '24:00' : endTime;
+
                         return `
                             <div class="window-time">
-                                ${start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                                ${startTime} - ${displayEndTime}
                                 <div class="weather-info">
-                                    ${Math.round(weather.temp_c)}°C, 
-                                    ${weather.precip_mm}mm rain, 
-                                    ${Math.round(weather.wind_kmh)}km/h wind
+                                    🌡️ ${Math.round(weather.temp_c)}°C 💧 ${weather.precip_mm.toFixed(1)}mm 💨 ${Math.round(weather.wind_kmh)}km/h ☁️ ${Math.round(weather.cloud_pct)}%
                                 </div>
                             </div>
                         `;
                     }).join('')}
                 </div>
             </div>
-        `).join('');
+        `}).join('');
         
         return `
             <div class="hike-card">
@@ -324,7 +400,7 @@ async function searchHikes() {
     const userLon = parseFloat(document.getElementById('longitude').value);
     const radius = parseFloat(document.getElementById('radius').value);
     
-    const selectedDates = Array.from(document.querySelectorAll('#date-selector input[type="checkbox"]:checked'))
+    const selectedDates = Array.from(document.querySelectorAll('#available-dates input[type="checkbox"]:checked'))
         .map(cb => cb.value);
     
     if (selectedDates.length === 0) {
@@ -338,10 +414,10 @@ async function searchHikes() {
         minDistance: parseFloat(document.getElementById('min-distance').value),
         maxDistance: parseFloat(document.getElementById('max-distance').value),
         maxAscent: parseInt(document.getElementById('max-ascent').value),
-        maxRain: parseFloat(document.getElementById('max-rain').value),
-        maxWind: parseFloat(document.getElementById('max-wind').value),
-        minTemp: parseFloat(document.getElementById('min-temp').value),
-        maxTemp: parseFloat(document.getElementById('max-temp').value),
+        maxRain: parseFloat(document.getElementById('max-precipitation-mm').value) || 2,  // Default to 2mm if empty
+        maxWind: parseFloat(document.getElementById('max-wind-speed-kmh').value) || 50,  // Default to 50km/h if empty
+        minTemp: parseFloat(document.getElementById('min-temperature-c').value) || -10,  // Default to -10°C if empty
+        maxTemp: parseFloat(document.getElementById('max-temperature-c').value) || 40,   // Default to 40°C if empty
         startAfter: document.getElementById('start-after').value,
         finishBefore: document.getElementById('finish-before').value
     };
@@ -384,6 +460,75 @@ async function searchHikes() {
     }
 }
 
+function getUserLocation() {
+    const locationStatus = document.getElementById('location-status');
+    const latitudeInput = document.getElementById('latitude');
+    const longitudeInput = document.getElementById('longitude');
+    const useLocationBtn = document.getElementById('use-location-btn');
+
+    if (!navigator.geolocation) {
+        locationStatus.innerHTML = '<span class="error">❌ Geolocation not supported by this browser</span>';
+        return;
+    }
+
+    useLocationBtn.disabled = true;
+    useLocationBtn.textContent = '🔄 Getting location...';
+    locationStatus.innerHTML = '<span class="info">📍 Requesting location access...</span>';
+
+    navigator.geolocation.getCurrentPosition(
+        function(position) {
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const accuracy = Math.round(position.coords.accuracy);
+
+            latitudeInput.value = lat.toFixed(6);
+            longitudeInput.value = lon.toFixed(6);
+
+            useLocationBtn.disabled = false;
+            useLocationBtn.textContent = '✅ Location Updated';
+            locationStatus.innerHTML = `<span class="success">✅ Location found (±${accuracy}m accuracy)</span>`;
+
+            // Reset button text after 3 seconds
+            setTimeout(() => {
+                useLocationBtn.textContent = '📍 Use My Location';
+            }, 3000);
+        },
+        function(error) {
+            console.log('Geolocation error:', error);
+            let errorMessage = '';
+            let helpMessage = '';
+            switch(error.code) {
+                case error.PERMISSION_DENIED:
+                    errorMessage = '❌ Location access denied by user';
+                    helpMessage = 'Please allow location access and try again';
+                    break;
+                case error.POSITION_UNAVAILABLE:
+                    errorMessage = '❌ Location information unavailable';
+                    helpMessage = window.location.protocol === 'http:' && window.location.hostname !== 'localhost' 
+                        ? 'Try using HTTPS or localhost' 
+                        : 'Check if location services are enabled';
+                    break;
+                case error.TIMEOUT:
+                    errorMessage = '❌ Location request timed out';
+                    helpMessage = 'Please try again';
+                    break;
+                default:
+                    errorMessage = '❌ Unknown error occurred';
+                    helpMessage = 'Please try again';
+                    break;
+            }
+            useLocationBtn.disabled = false;
+            useLocationBtn.textContent = '📍 Use My Location';
+            locationStatus.innerHTML = `<span class="error">${errorMessage}</span><br><small>${helpMessage}</small>`;
+        },
+        {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 300000 // 5 minutes
+        }
+    );
+}
+
 // Initialize app
 async function init() {
     // Generate date options
@@ -401,6 +546,7 @@ async function init() {
     
     // Set up event listeners
     document.getElementById('search-btn').addEventListener('click', searchHikes);
+    document.getElementById('use-location-btn').addEventListener('click', getUserLocation);
     
     // Allow Enter key to trigger search
     document.addEventListener('keypress', (e) => {
