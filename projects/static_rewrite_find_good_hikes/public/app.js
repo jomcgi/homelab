@@ -297,6 +297,31 @@ function groupConsecutiveWindows(windows) {
     return grouped;
 }
 
+function findBestWindow(windows) {
+    if (!windows || windows.length === 0) return null;
+
+    let bestWindow = null;
+    let bestScore = Infinity;
+
+    for (const window of windows) {
+        const weather = window.weather;
+        // Score based on criteria: precip (lower is better), cloud (lower is better), wind (lower is better)
+        // Prioritize precip, then cloud, then wind
+        let score = (weather.precip_mm * 100) + (weather.cloud_pct * 1) + (weather.wind_kmh * 0.1);
+
+        // Add a penalty for higher precipitation if it's not near zero
+        if (weather.precip_mm > 0.1) {
+            score += 1000; // Significant penalty for noticeable rain
+        }
+
+        if (score < bestScore) {
+            bestScore = score;
+            bestWindow = window;
+        }
+    }
+    return bestWindow;
+}
+
 function summarizeWindowGroup(group) {
     const start = new Date(group[0].start);
     const end = new Date(new Date(group[group.length - 1].start).getTime() + 3600000);
@@ -363,11 +388,25 @@ function showResults(results) {
             const grouped = groupConsecutiveWindows(windows);
             const summarized = grouped.map(summarizeWindowGroup);
 
-            return `
-            <div class="window-day">
-                <h4>${day}</h4>
-                <div class="window-times">
-                    ${summarized.map(w => {
+            const bestWindow = findBestWindow(summarized);
+            const otherWindows = summarized.filter(w => w !== bestWindow);
+
+            const bestWindowHtml = bestWindow ? `
+                <div class="best-weather-window">
+                    <span class="best-time">${bestWindow.start.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} - ${bestWindow.end.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</span>
+                    <div class="weather-info">
+                        🌡️ ${Math.round(bestWindow.weather.temp_c)}°C 💧 ${bestWindow.weather.precip_mm.toFixed(1)}mm 💨 ${Math.round(bestWindow.weather.wind_kmh)}km/h ☁️ ${Math.round(bestWindow.weather.cloud_pct)}%
+                    </div>
+                </div>
+            ` : '';
+
+            const otherWindowsHtml = otherWindows.length > 0 ? `
+                <div class="expand-more" onclick="this.classList.toggle('expanded'); this.nextElementSibling.classList.toggle('hidden');">
+                    <span class="expand-text">Show ${otherWindows.length} other viable windows</span>
+                    <span class="weather-toggle">▼</span>
+                </div>
+                <div class="additional-weather-content hidden">
+                    ${otherWindows.map(w => {
                         const start = w.start;
                         const end = w.end;
                         const weather = w.weather;
@@ -385,6 +424,13 @@ function showResults(results) {
                         `;
                     }).join('')}
                 </div>
+            ` : '';
+
+            return `
+            <div class="window-day">
+                <h4>${day}</h4>
+                ${bestWindowHtml}
+                ${otherWindowsHtml}
             </div>
         `}).join('');
         
