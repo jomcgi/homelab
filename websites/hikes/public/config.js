@@ -9,7 +9,7 @@ const HIKES_CONFIG = {
     useLocalData: false,
     
     // Cache duration in minutes
-    cacheMinutes: 30
+    cacheMinutes: 10
 };
 
 export default HIKES_CONFIG;

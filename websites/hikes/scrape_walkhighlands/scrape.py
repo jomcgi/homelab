@@ -11,9 +11,6 @@ from datetime import timedelta
 from timelength import TimeLength
 import uuid
 from pydantic_sqlite import DataBase
-import time
-from bng_latlon import OSGB36toWGS84
-import os
 import logging
 from error_handling import (
     retry_on_failure, handle_network_errors, ErrorCollector,

@@ -22,7 +22,7 @@ jobs:
     name: Update Hike Data
     defaults:
       run:
-        working-directory: websites/hikes/build
+        working-directory: websites/hikes/update_forecast
     
     steps:
       - name: Checkout repository
@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: 'websites/hikes/build/requirements.txt'
+          cache-dependency-path: 'websites/hikes/update_forecast/requirements.txt'
       - name: Install dependencies
         run: |
           echo "Installing Python dependencies for hike data generation..."
