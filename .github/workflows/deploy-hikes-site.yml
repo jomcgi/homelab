@@ -26,7 +26,8 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy projects/static_rewrite_find_good_hikes/public --project-name=hikeshikes
+          command: pages deploy public --project-name=hikeshikes
+          workingDirectory: projects/static_rewrite_find_good_hikes
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
