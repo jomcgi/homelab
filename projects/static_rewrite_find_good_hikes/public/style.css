@@ -671,9 +671,8 @@ main {
     border-color: var(--accent-blue);
 }
 
-.expand-more.expanded {
-    border-color: var(--accent-blue);
-    background-color: var(--bg-secondary);
+.expand-more.expanded .weather-toggle {
+    transform: rotate(180deg);
 }
 
 .expand-text {
@@ -690,7 +689,13 @@ main {
 
 /* Additional Weather Content */
 .additional-weather-content {
-    margin-top: -0.75rem;
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-primary);
+}
+
+.additional-weather-content.hidden {
+    display: none;
 }
 
 /* Weather Table */
