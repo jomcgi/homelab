@@ -165,7 +165,7 @@ main {
 }
 
 .location-status .success {
-    color: #38a169;
+    color: var(--accent-blue);
     font-weight: 500;
 }
 
@@ -541,9 +541,9 @@ main {
 }
 
 .weather-excellent {
-    background: #c6f6d5;
-    color: #22543d;
-    border: 2px solid #9ae6b4;
+    background: #e0f2f7; /* Light blue */
+    color: #2c5282; /* Darker blue */
+    border: 2px solid #a0d9ef; /* Medium blue */
 }
 
 .weather-good {
@@ -553,9 +553,9 @@ main {
 }
 
 .weather-ok {
-    background: #e6fffa;
-    color: #234e52;
-    border: 2px solid #81e6d9;
+    background: #e6f4f8; /* Light cyan-blue */
+    color: #2c7a7b; /* Dark cyan-blue */
+    border: 2px solid #81e6d9; /* Teal */
 }
 
 .weather-score {
@@ -648,7 +648,7 @@ main {
 }
 
 .best-time {
-    color: var(--accent-green);
+    color: var(--text-primary);
     font-weight: 600;
 }
 
