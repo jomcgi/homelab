@@ -15,6 +15,4 @@ data:
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: github.jomcgi.dev
       service: http://otel-collector.opentelemetry.svc.cluster.local:19418
-    - hostname: hikes.jomcgi.dev
-      service: http://find-good-hikes.find-good-hikes.svc.cluster.local:80
     - service: http_status:404
