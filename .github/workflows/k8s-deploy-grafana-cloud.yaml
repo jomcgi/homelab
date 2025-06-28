@@ -1,0 +1,54 @@
+name: K8S - Deploy Grafana Cloud
+
+on:
+  schedule:
+    - cron: '0 0 1,15 * *'
+  push:
+    branches: [main]
+    paths:
+      - 'cluster/services/grafana-cloud/**'
+      - '.github/workflows/k8s-deploy-grafana-cloud.yaml'
+  workflow_dispatch:
+
+env:
+  SKAFFOLD_KUBECONFIG: /home/jomcgi/.kube/talos
+  SKAFFOLD_ASSUME_YES: true
+
+concurrency:
+  group: deploy-grafana-cloud-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  grafana-cloud:
+    runs-on: self-hosted
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Create Grafana Cloud secrets
+        run: |
+          echo "🔐 Creating Grafana Cloud secrets..."
+          kubectl apply -f cluster/services/grafana-cloud/namespace.yaml
+          kubectl create secret generic grafana-cloud-secrets \
+            --namespace=grafana \
+            --from-literal=password="$GRAFANA_CLOUD_PASSWORD" \
+            --from-literal=metrics-username="$GRAFANA_CLOUD_METRICS_USERNAME" \
+            --from-literal=logs-username="$GRAFANA_CLOUD_LOGS_USERNAME" \
+            --from-literal=otlp-username="$GRAFANA_CLOUD_OTLP_USERNAME" \
+            --dry-run=client -o yaml | kubectl apply -f -
+        env:
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
+          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
+          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
+          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
+
+      - name: Skaffold Grafana Cloud
+        run: |
+          echo "🚀 Deploying grafana-cloud..."
+          skaffold run -f cluster/services/grafana-cloud/skaffold.yaml
+          echo "✅ grafana-cloud deployment completed"
+        env:
+          GRAFANA_CLOUD_PASSWORD: ${{ secrets.GRAFANA_CLOUD_PASSWORD }}
+          GRAFANA_CLOUD_METRICS_USERNAME: ${{ secrets.GRAFANA_CLOUD_METRICS_USERNAME }}
+          GRAFANA_CLOUD_LOGS_USERNAME: ${{ secrets.GRAFANA_CLOUD_LOGS_USERNAME }}
+          GRAFANA_CLOUD_OTLP_USERNAME: ${{ secrets.GRAFANA_CLOUD_OTLP_USERNAME }}
