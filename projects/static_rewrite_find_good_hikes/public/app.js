@@ -48,7 +48,7 @@ function loadPreferences() {
             if (elem) elem.value = value;
         });
     } catch (e) {
-        console.error('Failed to load preferences:', e);
+        // Silently fail if preferences can't be loaded
     }
 }
 
@@ -158,7 +158,6 @@ async function loadIndexData() {
     const bundlePath = `${CONFIG.dataPath}bundle.json`;
     
     try {
-        console.log('Attempting to fetch:', bundlePath);
         const response = await fetch(bundlePath, {
             headers: {
                 'Accept': 'application/json',
@@ -170,14 +169,7 @@ async function loadIndexData() {
             throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
         }
         
-        console.log('Bundle fetch successful');
-        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
-        console.log('Response body stream is decompressed:', !response.headers.get('content-encoding'));
-        
-        // Check if response is properly decompressed
         const text = await response.text();
-        console.log('Response text preview:', text.substring(0, 100));
-        console.log('First character code:', text.charCodeAt(0));
         
         const bundle = JSON.parse(text);
         
@@ -205,7 +197,6 @@ async function loadIndexData() {
         
         return true;
     } catch (error) {
-        console.error('Failed to load data bundle:', error);
         showError(`Failed to load hike data. The server returned an error: ${error.message}. Please try again later.`);
         return false;
     }
@@ -219,7 +210,6 @@ async function loadWalkData(walkId) {
     }
     
     // Walk not found in bundled data
-    console.warn(`Walk ${walkId} not found in bundled data`);
     return null;
 }
 
@@ -477,7 +467,6 @@ function showResults(results) {
     if (anchor) {
         anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } else {
-        console.warn('Results anchor not found, falling back to results section');
         resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
 }
@@ -559,7 +548,6 @@ async function searchHikes() {
         showResults(topResults);
     } catch (e) {
         showError('An error occurred while searching. Please try again.');
-        console.error('Search error:', e);
     } finally {
         showLoading(false);
     }
@@ -599,7 +587,6 @@ function getUserLocation() {
             }, 3000);
         },
         function(error) {
-            console.log('Geolocation error:', error);
             let errorMessage = '';
             let helpMessage = '';
             switch(error.code) {
@@ -636,11 +623,8 @@ function getUserLocation() {
 
 // Initialize app
 async function init() {
-    console.log('Init function starting...');
-    
     // Generate date options
     generateDateOptions();
-    console.log('Date options generated');
     
     // Load saved preferences
     loadPreferences();
@@ -656,21 +640,12 @@ async function init() {
     const searchBtn = document.getElementById('search-btn');
     const locationBtn = document.getElementById('use-location-btn');
     
-    console.log('Search button found:', searchBtn);
-    console.log('Location button found:', locationBtn);
-    
     if (searchBtn) {
         searchBtn.addEventListener('click', searchHikes);
-        console.log('Search button event listener attached');
-    } else {
-        console.error('Search button not found!');
     }
     
     if (locationBtn) {
         locationBtn.addEventListener('click', getUserLocation);
-        console.log('Location button event listener attached');
-    } else {
-        console.error('Location button not found!');
     }
     
     // Allow Enter key to trigger search
@@ -682,13 +657,8 @@ async function init() {
 }
 
 // Start the app
-console.log('Setting up DOMContentLoaded listener...');
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        console.log('DOM loaded (via event), calling init...');
-        init();
-    });
+    document.addEventListener('DOMContentLoaded', init);
 } else {
-    console.log('DOM already loaded, calling init immediately...');
     init();
 }
