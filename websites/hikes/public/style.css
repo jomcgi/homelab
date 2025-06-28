@@ -1,0 +1,923 @@
+/* Good Hikes Finder - Clean, Readable Styling with Dark Mode */
+
+:root {
+    /* Light mode colors */
+    --bg-primary: #f8f9fa;
+    --bg-secondary: #ffffff;
+    --bg-tertiary: #f8f9fa;
+    --bg-quaternary: #edf2f7;
+    --text-primary: #333333;
+    --text-secondary: #4a5568;
+    --text-tertiary: #718096;
+    --border-primary: #e2e8f0;
+    --border-secondary: #cbd5e0;
+    --accent-blue: #3182ce;
+    --accent-green: #3182ce; /* Changed from green to blue */
+    --accent-orange: #ed8936;
+    --shadow: rgba(0,0,0,0.1);
+    --gradient-header: linear-gradient(135deg, #2c5282 0%, #3182ce 100%);
+}
+
+[data-theme="dark"] {
+    /* Dark mode colors */
+    --bg-primary: #1a202c;
+    --bg-secondary: #2d3748;
+    --bg-tertiary: #2d3748;
+    --bg-quaternary: #4a5568;
+    --text-primary: #f7fafc;
+    --text-secondary: #e2e8f0;
+    --text-tertiary: #a0aec0;
+    --border-primary: #4a5568;
+    --border-secondary: #718096;
+    --accent-blue: #63b3ed;
+    --accent-green: #68d391;
+    --accent-orange: #f6ad55;
+    --shadow: rgba(0,0,0,0.3);
+    --gradient-header: linear-gradient(135deg, #2a4365 0%, #2b6cb0 100%);
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    line-height: 1.6;
+    color: var(--text-primary);
+    background-color: var(--bg-primary);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Header */
+header {
+    background: var(--gradient-header);
+    color: white;
+    padding: 2rem 0;
+    text-align: center;
+    box-shadow: 0 2px 4px var(--shadow);
+}
+
+header h1 a {
+    color: white;
+    text-decoration: none;
+    font-size: 2.5rem;
+    font-weight: 700;
+}
+
+header p {
+    margin-top: 0.5rem;
+    opacity: 0.9;
+    font-size: 1.1rem;
+}
+
+/* Main Content */
+main {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1rem;
+}
+
+/* Search Form */
+.search-container {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+/* Date Checkboxes */
+.date-checkboxes {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin: 1rem 0;
+}
+
+.checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.checkbox-group:hover {
+    border-color: var(--accent-blue);
+    background-color: var(--bg-tertiary);
+}
+
+.checkbox-group input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: #3182ce;
+}
+
+.checkbox-group label {
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+}
+
+.checkbox-group input[type="checkbox"]:checked + label {
+    color: var(--accent-blue);
+}
+
+/* Location Controls */
+.location-controls {
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.location-button {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0.5rem;
+}
+
+.location-button:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.location-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.location-status {
+    margin-top: 0.5rem;
+    min-height: 1.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.location-status .success {
+    color: var(--accent-blue);
+    font-weight: 500;
+}
+
+.location-status .error {
+    color: #e53e3e;
+    font-weight: 500;
+}
+
+.location-status .info {
+    color: #3182ce;
+    font-weight: 500;
+}
+
+.search-form {
+    margin-top: 1.5rem;
+}
+
+.form-section {
+    margin-bottom: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-blue);
+}
+
+.form-section h3 {
+    color: var(--text-primary);
+    margin-bottom: 1rem;
+    font-size: 1.1rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.form-group {
+    margin-bottom: 1rem;
+    flex: 1;
+    min-width: 200px;
+}
+
+.form-group label {
+    display: block;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+.form-group input,
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 2px solid var(--border-primary);
+    border-radius: 6px;
+    font-size: 1rem;
+    transition: border-color 0.2s;
+    background: var(--bg-secondary);
+    color: var(--text-primary);
+}
+
+.form-group input:focus,
+.form-group select:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+    box-shadow: 0 0 0 3px rgba(99, 179, 237, 0.2);
+}
+
+.form-group small {
+    display: block;
+    margin-top: 0.25rem;
+    color: var(--text-tertiary);
+    font-size: 0.875rem;
+}
+
+/* Range inputs styling */
+.range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.range-inputs span {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.search-button {
+    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue) 100%);
+    color: white;
+    border: none;
+    padding: 1rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+    text-decoration: none;
+    display: inline-block;
+    text-align: center;
+}
+
+.search-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(56, 161, 105, 0.3);
+}
+
+/* Tips Section */
+.tips {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-quaternary);
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-orange);
+}
+
+.tips h3 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.tips ul {
+    margin-left: 1.5rem;
+}
+
+.tips li {
+    margin-bottom: 0.5rem;
+}
+
+.tips a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+.tips a:hover {
+    text-decoration: underline;
+}
+
+/* Loading and Error States */
+.loading {
+    text-align: center;
+    padding: 3rem;
+}
+
+.spinner {
+    border: 4px solid var(--border-primary);
+    border-top: 4px solid var(--accent-blue);
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+    margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+.hidden {
+    display: none !important;
+}
+
+.error {
+    background: #fed7d7;
+    color: #742a2a;
+    padding: 1rem;
+    border-radius: 8px;
+    margin: 1rem 0;
+    border: 2px solid #fc8181;
+}
+
+/* Date Options */
+.date-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem;
+    border: 2px solid var(--border-primary);
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+.date-option:hover {
+    border-color: var(--accent-blue);
+    background-color: var(--bg-tertiary);
+}
+
+.date-option input[type="checkbox"] {
+    width: 1.2rem;
+    height: 1.2rem;
+    accent-color: #3182ce;
+}
+
+.date-option label {
+    font-weight: 500;
+    cursor: pointer;
+    flex: 1;
+}
+
+.date-option input[type="checkbox"]:checked + label {
+    color: var(--accent-blue);
+}
+
+/* Results Section */
+.results {
+    margin-top: 2rem;
+}
+
+.results-summary {
+    background: var(--bg-secondary);
+    padding: 1rem;
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+.results-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+/* Results Page */
+.results-container {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+}
+
+.search-summary {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid var(--border-primary);
+}
+
+.back-link {
+    color: var(--accent-blue);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* Hike Cards */
+.hikes-list {
+    display: grid;
+    gap: 1.5rem;
+}
+
+.hike-card {
+    border: 2px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 1.5rem;
+    background: var(--bg-secondary);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.hike-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px var(--shadow);
+    border-color: var(--border-secondary);
+}
+
+.hike-name {
+    margin-bottom: 0.5rem;
+}
+
+.hike-link {
+    color: var(--text-primary);
+    text-decoration: none;
+}
+
+.hike-link:hover {
+    color: var(--accent-blue);
+    text-decoration: underline;
+}
+
+.hike-distance {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.hike-summary {
+    margin: 1rem 0;
+    color: var(--text-secondary);
+    line-height: 1.5;
+}
+
+.hike-windows {
+    margin-top: 1rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.hike-windows h4 {
+    margin-bottom: 1rem;
+    color: var(--text-primary);
+}
+
+.window-day {
+    margin-bottom: 1rem;
+}
+
+.window-day:last-child {
+    margin-bottom: 0;
+}
+
+.window-day h4 {
+    color: var(--accent-blue);
+    font-size: 0.95rem;
+    margin-bottom: 0.5rem;
+}
+
+.window-times {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.window-time {
+    padding: 0.5rem;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    border-left: 3px solid var(--accent-green);
+}
+
+.weather-info {
+    font-size: 0.85rem;
+    color: var(--text-tertiary);
+    margin-top: 0.25rem;
+}
+
+.hike-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+}
+
+.hike-header h3 {
+    flex: 1;
+    min-width: 250px;
+}
+
+.hike-header h3 a {
+    color: var(--text-primary);
+    text-decoration: none;
+    font-size: 1.25rem;
+}
+
+.hike-header h3 a:hover {
+    color: var(--accent-blue);
+    text-decoration: underline;
+}
+
+/* Weather Badges */
+.weather-badge {
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    text-align: center;
+    min-width: 100px;
+}
+
+.weather-excellent {
+    background: #e0f2f7; /* Light blue */
+    color: #2c5282; /* Darker blue */
+    border: 2px solid #a0d9ef; /* Medium blue */
+}
+
+.weather-good {
+    background: #fef5e7;
+    color: #744210;
+    border: 2px solid #f6e05e;
+}
+
+.weather-ok {
+    background: #e6f4f8; /* Light cyan-blue */
+    color: #2c7a7b; /* Dark cyan-blue */
+    border: 2px solid #81e6d9; /* Teal */
+}
+
+.weather-score {
+    display: block;
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    opacity: 0.8;
+}
+
+/* Hike Details */
+.hike-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+}
+
+.detail-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.detail-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 80px;
+}
+
+/* Weather Summary */
+.weather-summary {
+    margin-top: 1rem;
+    background: var(--bg-quaternary);
+    border-radius: 8px;
+    border-left: 4px solid var(--accent-blue);
+}
+
+.weather-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    border-radius: 8px;
+}
+
+.weather-header:hover {
+    background-color: var(--bg-tertiary);
+}
+
+.weather-header.expanded {
+    border-bottom: 1px solid var(--border-primary);
+    border-radius: 8px 8px 0 0;
+}
+
+.weather-header h4 {
+    color: var(--text-primary);
+    margin: 0;
+    font-size: 1rem;
+}
+
+.weather-toggle {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    transition: transform 0.2s ease;
+}
+
+.weather-content {
+    padding: 0 1rem 1rem 1rem;
+}
+
+.weather-summary p {
+    color: var(--text-secondary);
+    font-size: 0.95rem;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Best Weather Window */
+.best-weather-window {
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border: 2px solid var(--accent-green);
+    border-radius: 6px;
+    margin-bottom: 0.75rem;
+}
+
+.best-time {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Expand More Button */
+.expand-more {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    background: var(--bg-tertiary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-bottom: 0.75rem;
+}
+
+.expand-more:hover {
+    background-color: var(--bg-secondary);
+    border-color: var(--accent-blue);
+}
+
+.expand-more.expanded .weather-toggle {
+    transform: rotate(180deg);
+}
+
+.expand-text {
+    color: var(--text-primary);
+    font-weight: 500;
+    font-size: 0.9rem;
+}
+
+.weather-toggle {
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    transition: transform 0.2s ease;
+}
+
+/* Additional Weather Content */
+.additional-weather-content {
+    margin-top: 0.5rem;
+    padding-top: 0.5rem;
+    border-top: 1px solid var(--border-primary);
+}
+
+.additional-weather-content.hidden {
+    display: none;
+}
+
+/* Weather Table */
+.weather-table {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.weather-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 0;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.weather-row:last-child {
+    border-bottom: none;
+}
+
+.weather-label {
+    font-weight: 600;
+    color: var(--text-secondary);
+    min-width: 120px;
+    font-size: 0.9rem;
+}
+
+.weather-value {
+    font-weight: 500;
+    color: var(--text-primary);
+    text-align: right;
+    font-size: 0.9rem;
+}
+
+/* Weather Windows */
+.weather-windows {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.weather-window {
+    padding: 0.75rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-primary);
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.weather-window:hover {
+    border-color: var(--accent-blue);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.window-header {
+    margin-bottom: 0.5rem;
+}
+
+.window-time {
+    font-weight: 600;
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+.window-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.window-details .detail {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* No Results */
+.no-results {
+    text-align: center;
+    padding: 3rem 1rem;
+}
+
+.no-results h3 {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.suggestions {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.suggestions h4 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.suggestions ul {
+    margin-left: 1.5rem;
+}
+
+.suggestions li {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+/* Search Filters */
+.search-filters-used {
+    margin-top: 2rem;
+    padding: 1rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    font-size: 0.9rem;
+}
+
+.search-filters-used h4 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.search-filters-used ul {
+    margin-left: 1.5rem;
+}
+
+.search-filters-used li {
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+/* Error Page */
+.error-container {
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 2rem;
+    box-shadow: 0 4px 6px var(--shadow);
+    text-align: center;
+}
+
+.error-message {
+    margin: 2rem 0;
+    padding: 1.5rem;
+    background: #fed7d7;
+    border: 2px solid #fc8181;
+    border-radius: 8px;
+    color: #742a2a;
+}
+
+.error-actions {
+    margin: 2rem 0;
+}
+
+.help-section {
+    margin-top: 2rem;
+    padding: 1.5rem;
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    text-align: left;
+}
+
+.help-section h3 {
+    color: var(--text-primary);
+    margin-bottom: 0.5rem;
+}
+
+.help-section ul {
+    margin-left: 1.5rem;
+}
+
+.help-section li {
+    margin-bottom: 0.5rem;
+    color: var(--text-secondary);
+}
+
+/* Footer */
+footer {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--text-tertiary);
+    border-top: 1px solid var(--border-primary);
+    margin-top: 2rem;
+}
+
+footer a {
+    color: var(--accent-blue);
+    text-decoration: none;
+}
+
+footer a:hover {
+    text-decoration: underline;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    main {
+        padding: 1rem;
+    }
+    
+    .form-row {
+        flex-direction: column;
+    }
+    
+    .form-group {
+        min-width: auto;
+    }
+    
+    .hike-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .weather-badge {
+        text-align: center;
+        min-width: auto;
+    }
+    
+    .hike-details {
+        grid-template-columns: 1fr;
+    }
+    
+    header h1 a {
+        font-size: 2rem;
+    }
+}
