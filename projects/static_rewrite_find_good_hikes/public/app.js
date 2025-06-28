@@ -1,17 +1,5 @@
 // app.js - Find Good Hikes Static Site
-import brotliPromise from 'https://unpkg.com/brotli-wasm@2.0.1/index.web.js';
 import HIKES_CONFIG from './config.js?v=2';
-
-console.log('Imports loaded, initializing brotli...');
-
-// Initialize brotli at module level
-let brotli;
-try {
-    brotli = await brotliPromise;
-    console.log('Brotli initialized successfully');
-} catch (error) {
-    console.error('Failed to initialize brotli:', error);
-}
 
 // State management
 const state = {
@@ -163,12 +151,7 @@ async function loadIndexData() {
     
     try {
         console.log('Attempting to fetch:', bundlePath);
-        const response = await fetch(bundlePath, {
-            mode: 'cors',
-            headers: {
-                'Accept': 'application/octet-stream'
-            }
-        });
+        const response = await fetch(bundlePath);
         
         if (!response.ok) {
             throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
@@ -176,12 +159,7 @@ async function loadIndexData() {
         
         console.log('Bundle fetch successful');
         
-        // Using brotli-wasm library
-        const brotliBuffer = await response.arrayBuffer();
-        const compressedData = new Uint8Array(brotliBuffer);
-        const decompressedBytes = brotli.decompress(compressedData);
-        const decompressedString = new TextDecoder().decode(decompressedBytes);
-        const bundle = JSON.parse(decompressedString);
+        const bundle = await response.json();
         
         // Parse bundle into index and walk data
         const { walks, walkMap } = parseBundleData(bundle);
@@ -208,6 +186,7 @@ async function loadIndexData() {
         return true;
     } catch (error) {
         console.error('Failed to load data bundle:', error);
+        showError(`Failed to load hike data. The server returned an error: ${error.message}. Please try again later.`);
         return false;
     }
 }
