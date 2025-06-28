@@ -65,32 +65,40 @@ function calculateDistance(lat1, lon1, lat2, lon2) {
 }
 
 // Date generation
-function generateDateOptions() {
+function generateDateOptions(viableDates = null) {
     const container = document.getElementById('available-dates');
     container.innerHTML = '';
     
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+
+    let datesToDisplay = [];
+    if (viableDates) {
+        datesToDisplay = viableDates.map(dateStr => new Date(dateStr));
+    } else {
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            datesToDisplay.push(date);
+        }
+    }
     
-    for (let i = 0; i < 5; i++) {  // Changed to 5 days to match original
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        
+    datesToDisplay.forEach(date => {
         const dateStr = date.toISOString().split('T')[0];
         const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
         const dayNum = date.getDate();
         const month = date.toLocaleDateString('en-GB', { month: 'short' });
         
         const option = document.createElement('div');
-        option.className = 'checkbox-group';  // Changed to match original class
+        option.className = 'checkbox-group';
         option.innerHTML = `
-            <input type="checkbox" id="date-${dateStr}" name="available_dates" value="${dateStr}" ${i < 5 ? 'checked' : ''}>
+            <input type="checkbox" id="date-${dateStr}" name="available_dates" value="${dateStr}" checked>
             <label for="date-${dateStr}">
                 ${dayName}, ${month} ${dayNum}
             </label>
         `;
         container.appendChild(option);
-    }
+    });
 }
 
 // Bundle data parsing
@@ -469,7 +477,20 @@ async function searchHikes() {
         
         // Sort by distance and limit results
         results.sort((a, b) => a.distance_from_user - b.distance_from_user);
+        // Sort by distance and limit results
+        results.sort((a, b) => a.distance_from_user - b.distance_from_user);
         const topResults = results.slice(0, 20);
+
+        // Get unique dates from viable windows
+        const viableDates = new Set();
+        topResults.forEach(result => {
+            result.windows.forEach(window => {
+                viableDates.add(new Date(window.start).toISOString().split('T')[0]);
+            });
+        });
+
+        // Update date options based on viable dates
+        generateDateOptions(Array.from(viableDates).sort());
         
         showResults(topResults);
     } catch (e) {
