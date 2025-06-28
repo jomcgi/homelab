@@ -22,7 +22,7 @@ import brotli
 # Add the original project to path to reuse some modules
 # sys.path.insert(0, str(Path(__file__).parent.parent.parent / "cluster/services/find-good-hikes/app"))
 
-from config import *
+# from config import *
 
 # Configure logging
 logging.basicConfig(
@@ -105,7 +105,7 @@ def fetch_weather_forecast(lat: float, lon: float) -> Dict[str, Any]:
     """Fetch weather forecast from met.no API."""
     url = "https://api.met.no/weatherapi/locationforecast/2.0/compact"
     params = {"lat": round(lat, 4), "lon": round(lon, 4)}
-    headers = {"User-Agent": USER_AGENT}
+    headers = {"User-Agent": "hikes.jomcgi.dev (https://github.com/jomcgi/homelab)"}
     
     try:
         response = requests.get(url, params=params, headers=headers, timeout=30)
@@ -153,9 +153,9 @@ def is_weather_viable(weather: Dict[str, Any]) -> bool:
     wind_kmh = wind_ms * 3.6 if wind_ms is not None else 0
     
     # Apply viability thresholds
-    if precip > MAX_PRECIPITATION_MM:
+    if precip > 2.0:
         return False
-    if wind_kmh > MAX_WIND_SPEED_KMH:
+    if wind_kmh > 80.0:
         return False
         
     return True
@@ -192,7 +192,7 @@ def process_walk(walk: Walk) -> Dict[str, Any]:
                 continue
                 
             # Skip if beyond forecast horizon
-            if dt > now + timedelta(days=FORECAST_DAYS):
+            if dt > now + timedelta(days=7):
                 continue
                 
             # Skip night hours
