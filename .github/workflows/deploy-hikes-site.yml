@@ -1,37 +1,37 @@
-# name: Deploy Find Good Hikes to Cloudflare Pages
+name: Deploy Find Good Hikes to Cloudflare Pages
 
-# on:
-#   push:
-#     branches:
-#       - main
-#     paths:
-#       - 'projects/static_rewrite_find_good_hikes/public/**'
-#       - '.github/workflows/deploy-hikes-site.yml'
-#   workflow_dispatch:  # Allow manual deployment
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'projects/static_rewrite_find_good_hikes/public/**'
+      - '.github/workflows/deploy-hikes-site.yml'
+  workflow_dispatch:  # Allow manual deployment
 
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-#     name: Deploy to Cloudflare Pages
-#     permissions:
-#       contents: read
-#       deployments: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Deploy to Cloudflare Pages
+    permissions:
+      contents: read
+      deployments: write
     
-#     steps:
-#       - name: Checkout repository
-#         uses: actions/checkout@v4
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
       
-#       - name: Deploy to Cloudflare Pages
-#         uses: cloudflare/wrangler-action@v3
-#         with:
-#           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-#           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-#           command: pages deploy projects/static_rewrite_find_good_hikes/public --project-name=hikeshikes
-#           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
-#         env:
-#           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy projects/static_rewrite_find_good_hikes/public --project-name=hikeshikes
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       
-#       - name: Output deployment URL
-#         run: |
-#           echo "Site deployed to Cloudflare Pages!"
-#           echo "Visit: https://static-hikes.jomcgi.dev"
+      - name: Output deployment URL
+        run: |
+          echo "Site deployed to Cloudflare Pages!"
+          echo "Visit: https://static-hikes.jomcgi.dev"
