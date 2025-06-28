@@ -156,45 +156,27 @@ function parseBundleData(bundle) {
 // Data loading
 async function loadIndexData() {
     try {
-        // Try to load Brotli-compressed version first
-        let bundle;
-        try {
-            const brotliPath = `${CONFIG.dataPath}bundle.json.br`;
-            const response = await fetch(brotliPath, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Encoding': 'br, gzip, deflate'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load Brotli bundle: ${response.status} ${response.statusText}`);
+        const brotliPath = `${CONFIG.dataPath}bundle.json.br`;
+        const response = await fetch(brotliPath, {
+            headers: {
+                'Accept': 'application/json',
+                'Accept-Encoding': 'br, gzip, deflate'
             }
-            
-            // Decompress Brotli data
-            const brotliBuffer = await response.arrayBuffer();
-            const decompressedString = BrotliDecompress(brotliBuffer);
-            bundle = JSON.parse(decompressedString);
-            
-        } catch (brotliError) {
-            console.warn('Failed to load Brotli bundle, falling back to uncompressed:', brotliError.message);
-            
-            // Fallback to uncompressed JSON
-            const jsonPath = `${CONFIG.dataPath}bundle.json`;
-            const response = await fetch(jsonPath, {
-                headers: {
-                    'Accept': 'application/json',
-                    'Accept-Encoding': 'gzip, deflate'
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Failed to load fallback bundle: ${response.status} ${response.statusText}`);
-            }
-            
-            const text = await response.text();
-            bundle = JSON.parse(text);
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
         }
+        
+        // Decompress Brotli data - FAIL LOUDLY if this doesn't work
+        const brotliBuffer = await response.arrayBuffer();
+        
+        if (!window.BrotliDecompress) {
+            throw new Error('CRITICAL ERROR: Brotli decompression library failed to load. The application cannot function without Brotli support. This is a configuration error that must be fixed.');
+        }
+        
+        const decompressedString = await BrotliDecompress(brotliBuffer);
+        const bundle = JSON.parse(decompressedString);
         
         // Parse bundle into index and walk data
         const { walks, walkMap } = parseBundleData(bundle);

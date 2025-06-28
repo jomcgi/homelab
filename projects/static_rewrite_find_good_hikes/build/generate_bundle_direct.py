@@ -305,14 +305,7 @@ def main():
         logger.info("Uploading bundle to R2...")
         uploader = S3Uploader()
         
-        # Upload both uncompressed and Brotli-compressed versions
-        uploader.s3_client.put_object(
-            Bucket=uploader.bucket_name,
-            Key='bundle.json',
-            Body=json_data.encode('utf-8'),
-            ContentType='application/json'
-        )
-        
+        # Upload ONLY the Brotli-compressed version
         uploader.s3_client.put_object(
             Bucket=uploader.bucket_name,
             Key='bundle.json.br',
@@ -321,7 +314,7 @@ def main():
             ContentEncoding='br'
         )
         
-        logger.info("Bundle successfully uploaded to R2 (both JSON and Brotli versions)!")
+        logger.info("Bundle successfully uploaded to R2 (Brotli version only)!")
         
     except Exception as e:
         logger.error(f"Failed to generate bundle: {e}")
