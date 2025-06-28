@@ -155,23 +155,46 @@ function parseBundleData(bundle) {
 
 // Data loading
 async function loadIndexData() {
-    const bundlePath = `${CONFIG.dataPath}bundle.json`;
-    
     try {
-        const response = await fetch(bundlePath, {
-            headers: {
-                'Accept': 'application/json',
-                'Accept-Encoding': 'br, gzip, deflate'
+        // Try to load Brotli-compressed version first
+        let bundle;
+        try {
+            const brotliPath = `${CONFIG.dataPath}bundle.json.br`;
+            const response = await fetch(brotliPath, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Accept-Encoding': 'br, gzip, deflate'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load Brotli bundle: ${response.status} ${response.statusText}`);
             }
-        });
-        
-        if (!response.ok) {
-            throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
+            
+            // Decompress Brotli data
+            const brotliBuffer = await response.arrayBuffer();
+            const decompressedString = BrotliDecompress(brotliBuffer);
+            bundle = JSON.parse(decompressedString);
+            
+        } catch (brotliError) {
+            console.warn('Failed to load Brotli bundle, falling back to uncompressed:', brotliError.message);
+            
+            // Fallback to uncompressed JSON
+            const jsonPath = `${CONFIG.dataPath}bundle.json`;
+            const response = await fetch(jsonPath, {
+                headers: {
+                    'Accept': 'application/json',
+                    'Accept-Encoding': 'gzip, deflate'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to load fallback bundle: ${response.status} ${response.statusText}`);
+            }
+            
+            const text = await response.text();
+            bundle = JSON.parse(text);
         }
-        
-        const text = await response.text();
-        
-        const bundle = JSON.parse(text);
         
         // Parse bundle into index and walk data
         const { walks, walkMap } = parseBundleData(bundle);
