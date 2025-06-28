@@ -1,0 +1,13 @@
+{
+  "name": "find-good-hikes-static",
+  "version": "1.0.0",
+  "description": "Static site for finding good hiking routes with weather conditions",
+  "scripts": {
+    "serve": "python3 serve.py",
+    "capture-logs": "node scripts/capture-logs.js",
+    "verify": "node scripts/verify.js"
+  },
+  "devDependencies": {
+    "puppeteer": "^22.0.0"
+  }
+}
