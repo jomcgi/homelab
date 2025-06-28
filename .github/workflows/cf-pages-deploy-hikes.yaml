@@ -9,7 +9,7 @@ on:
     paths:
       - 'websites/hikes/**'
       - '.github/workflows/cf-pages-deploy-hikes.yaml'
-  workflow_dispatch:  # Allow manual deployment
+  workflow_dispatch:
 
 jobs:
   update-data:
