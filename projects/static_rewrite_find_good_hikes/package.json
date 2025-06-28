@@ -3,7 +3,8 @@
   "version": "1.0.0",
   "description": "Static site for finding good hiking routes with weather conditions",
   "scripts": {
-    "serve": "python3 -m http.server 8000 -d public"
+    "serve": "python3 -m http.server 8000 -d public",
+    "build": "cd build && python3 generate_bundle_direct.py"
   },
   "devDependencies": {}
 }
