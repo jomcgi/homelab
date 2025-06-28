@@ -30,7 +30,7 @@ jobs:
           workingDirectory: projects/static_rewrite_find_good_hikes
           gitHubToken: ${{ secrets.GITHUB_TOKEN }}
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          WRANGLER_LOG: debug
       
       - name: Output deployment URL
         run: |
