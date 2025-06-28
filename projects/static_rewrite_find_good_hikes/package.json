@@ -3,11 +3,7 @@
   "version": "1.0.0",
   "description": "Static site for finding good hiking routes with weather conditions",
   "scripts": {
-    "serve": "python3 serve.py",
-    "capture-logs": "node scripts/capture-logs.js",
-    "verify": "node scripts/verify.js"
+    "serve": "python3 -m http.server 8000 -d public"
   },
-  "devDependencies": {
-    "puppeteer": "^22.0.0"
-  }
+  "devDependencies": {}
 }
