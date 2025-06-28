@@ -15,6 +15,7 @@ jobs:
   update-data:
     runs-on: self-hosted
     timeout-minutes: 10
+    name: Update Hike Data
     
     steps:
       - name: Checkout repository
