@@ -1,6 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: find-good-hikes
-  labels:
-    name: find-good-hikes

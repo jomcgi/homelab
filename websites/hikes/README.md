@@ -57,7 +57,7 @@ public/                         # Static website files
 
 - **Source**: Norwegian Meteorological Institute (met.no)
 - **Coverage**: 7-day forecast, hourly granularity
-- **Updates**: Every 30m via GitHub Actions
+- **Updates**: Periodic (as needed)
 - **Viability**: Excludes >2mm rain or >80km/h wind
 
 ## Future Enhancements
