@@ -1,7 +1,7 @@
 // Configuration file for Find Good Hikes
 // This file can be updated without rebuilding the entire app
 
-window.HIKES_CONFIG = {
+const HIKES_CONFIG = {
     // R2 data URL with custom domain and bucket path
     dataUrl: 'https://hike-assets.jomcgi.dev/jomcgi-hikes/',
     
@@ -11,3 +11,5 @@ window.HIKES_CONFIG = {
     // Cache duration in minutes
     cacheMinutes: 30
 };
+
+export default HIKES_CONFIG;
