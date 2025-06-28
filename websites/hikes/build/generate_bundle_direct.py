@@ -15,13 +15,12 @@ import os
 import requests
 from pydantic import BaseModel
 from dateutil import parser as date_parser
-import pytz
 import boto3
 from botocore.config import Config
 import brotli
 
 # Add the original project to path to reuse some modules
-sys.path.insert(0, str(Path(__file__).parent.parent.parent / "cluster/services/find-good-hikes/app"))
+# sys.path.insert(0, str(Path(__file__).parent.parent.parent / "cluster/services/find-good-hikes/app"))
 
 from config import *
 
