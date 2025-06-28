@@ -42,7 +42,7 @@ jobs:
         run: |
           echo "Cleaning up old files from R2 bucket..."
           cd projects/static_rewrite_find_good_hikes
-          python scripts/cleanup_r2.py
+          python3 scripts/cleanup_r2.py
         env:
           CLOUDFLARE_S3_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_ID }}
           CLOUDFLARE_S3_ACCESS_KEY_SECRET: ${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_SECRET }}

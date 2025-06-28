@@ -33,11 +33,25 @@ def setup_r2_client():
 def list_all_objects(client, bucket_name):
     """List all objects in the bucket."""
     objects = []
-    paginator = client.get_paginator('list_objects_v2')
-    
-    for page in paginator.paginate(Bucket=bucket_name):
-        if 'Contents' in page:
-            objects.extend(page['Contents'])
+    try:
+        paginator = client.get_paginator('list_objects_v2')
+        
+        for page in paginator.paginate(Bucket=bucket_name):
+            if 'Contents' in page:
+                objects.extend(page['Contents'])
+    except client.exceptions.NoSuchBucket:
+        print(f"❌ Bucket '{bucket_name}' does not exist.")
+        sys.exit(1)
+    except Exception as e:
+        # Try alternative list method
+        print(f"⚠️  ListObjectsV2 failed ({e}), trying legacy ListObjects...")
+        try:
+            response = client.list_objects(Bucket=bucket_name)
+            if 'Contents' in response:
+                objects.extend(response['Contents'])
+        except Exception as e2:
+            print(f"❌ Both list methods failed: {e2}")
+            sys.exit(1)
     
     return objects
 
@@ -62,6 +76,15 @@ def main():
     
     # Set up client
     client = setup_r2_client()
+    
+    # Test bucket access first
+    print("🔗 Testing bucket access...")
+    try:
+        response = client.head_bucket(Bucket=bucket_name)
+        print(f"✅ Successfully connected to bucket '{bucket_name}'")
+    except Exception as e:
+        print(f"❌ Failed to access bucket '{bucket_name}': {e}")
+        sys.exit(1)
     
     # List all objects
     print("📋 Listing all objects...")
