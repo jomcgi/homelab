@@ -12,7 +12,7 @@
     --border-primary: #e2e8f0;
     --border-secondary: #cbd5e0;
     --accent-blue: #3182ce;
-    --accent-green: #38a169;
+    --accent-green: #3182ce; /* Changed from green to blue */
     --accent-orange: #ed8936;
     --shadow: rgba(0,0,0,0.1);
     --gradient-header: linear-gradient(135deg, #2c5282 0%, #3182ce 100%);
@@ -255,7 +255,7 @@ main {
 }
 
 .search-button {
-    background: linear-gradient(135deg, var(--accent-green) 0%, #48bb78 100%);
+    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue) 100%);
     color: white;
     border: none;
     padding: 1rem 2rem;
