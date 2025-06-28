@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - 'websites/hikes/public/**'
+      - 'websites/hikes/**'
       - '.github/workflows/cf-pages-deploy-hikes.yaml'
   workflow_dispatch:  # Allow manual deployment
 
