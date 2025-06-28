@@ -1,16 +1,15 @@
 name: Update Hike Data to R2
 
 on:
-  # schedule:
-  #   # Run every 30 minutes (aligned with other workflows)
-  #   - cron: '0,30 * * * *'
+  schedule:
+    - cron: '0,30 * * * *'
   push:
     branches:
       - main
     paths:
       - 'projects/static_rewrite_find_good_hikes/build/**'
       - '.github/workflows/update-hike-data.yml'
-  workflow_dispatch:  # Allow manual triggering
+  workflow_dispatch:
 
 concurrency:
   group: update-hike-data
