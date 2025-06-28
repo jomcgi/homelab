@@ -1,4 +1,17 @@
 // app.js - Find Good Hikes Static Site
+import brotliPromise from 'https://unpkg.com/brotli-wasm@2.0.1/index.web.js';
+import HIKES_CONFIG from './config.js?v=2';
+
+console.log('Imports loaded, initializing brotli...');
+
+// Initialize brotli at module level
+let brotli;
+try {
+    brotli = await brotliPromise;
+    console.log('Brotli initialized successfully');
+} catch (error) {
+    console.error('Failed to initialize brotli:', error);
+}
 
 // State management
 const state = {
@@ -10,9 +23,9 @@ const state = {
 // Configuration
 const CONFIG = {
     // Use config.js settings or fallback to defaults
-    dataPath: window.HIKES_CONFIG?.useLocalData ? 'data/' : (window.HIKES_CONFIG?.dataUrl || 'https://hikes-data.example.com/'),
+    dataPath: HIKES_CONFIG?.useLocalData ? 'data/' : (HIKES_CONFIG?.dataUrl || 'https://hikes-data.example.com/'),
     localStorageKey: 'find-good-hikes-preferences',
-    cacheMinutes: window.HIKES_CONFIG?.cacheMinutes || 60
+    cacheMinutes: HIKES_CONFIG?.cacheMinutes || 60
 };
 
 // Utility functions
@@ -148,41 +161,55 @@ function parseBundleData(bundle) {
 async function loadIndexData() {
     const bundlePath = `${CONFIG.dataPath}bundle.json.br`;
     
-    const response = await fetch(bundlePath);
-    if (!response.ok) {
-        throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
+    try {
+        console.log('Attempting to fetch:', bundlePath);
+        const response = await fetch(bundlePath, {
+            mode: 'cors',
+            headers: {
+                'Accept': 'application/octet-stream'
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
+        }
+        
+        console.log('Bundle fetch successful');
+        
+        // Using brotli-wasm library
+        const brotliBuffer = await response.arrayBuffer();
+        const compressedData = new Uint8Array(brotliBuffer);
+        const decompressedBytes = brotli.decompress(compressedData);
+        const decompressedString = new TextDecoder().decode(decompressedBytes);
+        const bundle = JSON.parse(decompressedString);
+        
+        // Parse bundle into index and walk data
+        const { walks, walkMap } = parseBundleData(bundle);
+        
+        // Set up state
+        state.indexData = {
+            generated_at: bundle.g * 1000,  // Convert to milliseconds
+            walks: walks
+        };
+        
+        // Pre-populate walk cache with all data
+        state.walkCache = walkMap;
+        
+        // Update timestamp
+        const timestamp = new Date(state.indexData.generated_at);
+        document.getElementById('data-timestamp').textContent = timestamp.toLocaleString();
+        
+        // Check if data is stale (>2 hours old)
+        const ageHours = (Date.now() - timestamp) / (1000 * 60 * 60);
+        if (ageHours > 2) {
+            showError('Warning: Weather data is more than 2 hours old. Results may be outdated.');
+        }
+        
+        return true;
+    } catch (error) {
+        console.error('Failed to load data bundle:', error);
+        return false;
     }
-    
-    // Assuming a global BrotliDecompress function is available (e.g., from decode-brotli.min.js)
-    // You need to include a Brotli decompressor library in your HTML before this script.
-    // Example: <script src="https://unpkg.com/decode-brotli@1.0.2/decode-brotli.min.js"></script>
-    const brotliBuffer = await response.arrayBuffer();
-    const decompressedString = BrotliDecompress(brotliBuffer);
-    const bundle = JSON.parse(decompressedString);
-    
-    // Parse bundle into index and walk data
-    const { walks, walkMap } = parseBundleData(bundle);
-    
-    // Set up state
-    state.indexData = {
-        generated_at: bundle.g * 1000,  // Convert to milliseconds
-        walks: walks
-    };
-    
-    // Pre-populate walk cache with all data
-    state.walkCache = walkMap;
-    
-    // Update timestamp
-    const timestamp = new Date(state.indexData.generated_at);
-    document.getElementById('data-timestamp').textContent = timestamp.toLocaleString();
-    
-    // Check if data is stale (>2 hours old)
-    const ageHours = (Date.now() - timestamp) / (1000 * 60 * 60);
-    if (ageHours > 2) {
-        showError('Warning: Weather data is more than 2 hours old. Results may be outdated.');
-    }
-    
-    return true;
 }
 
 
@@ -393,6 +420,15 @@ function showResults(results) {
     }).join('');
     
     listDiv.innerHTML = hikeCards;
+    
+    // Scroll to results anchor to show the full Results section
+    const anchor = document.getElementById('results-anchor');
+    if (anchor) {
+        anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+        console.warn('Results anchor not found, falling back to results section');
+        resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
 }
 
 // Main search function
@@ -486,8 +522,8 @@ function getUserLocation() {
             const lon = position.coords.longitude;
             const accuracy = Math.round(position.coords.accuracy);
 
-            latitudeInput.value = lat.toFixed(6);
-            longitudeInput.value = lon.toFixed(6);
+            latitudeInput.value = lat.toFixed(4);
+            longitudeInput.value = lon.toFixed(4);
 
             useLocationBtn.disabled = false;
             useLocationBtn.textContent = '✅ Location Updated';
@@ -536,8 +572,11 @@ function getUserLocation() {
 
 // Initialize app
 async function init() {
+    console.log('Init function starting...');
+    
     // Generate date options
     generateDateOptions();
+    console.log('Date options generated');
     
     // Load saved preferences
     loadPreferences();
@@ -550,8 +589,25 @@ async function init() {
     }
     
     // Set up event listeners
-    document.getElementById('search-btn').addEventListener('click', searchHikes);
-    document.getElementById('use-location-btn').addEventListener('click', getUserLocation);
+    const searchBtn = document.getElementById('search-btn');
+    const locationBtn = document.getElementById('use-location-btn');
+    
+    console.log('Search button found:', searchBtn);
+    console.log('Location button found:', locationBtn);
+    
+    if (searchBtn) {
+        searchBtn.addEventListener('click', searchHikes);
+        console.log('Search button event listener attached');
+    } else {
+        console.error('Search button not found!');
+    }
+    
+    if (locationBtn) {
+        locationBtn.addEventListener('click', getUserLocation);
+        console.log('Location button event listener attached');
+    } else {
+        console.error('Location button not found!');
+    }
     
     // Allow Enter key to trigger search
     document.addEventListener('keypress', (e) => {
@@ -562,4 +618,13 @@ async function init() {
 }
 
 // Start the app
-document.addEventListener('DOMContentLoaded', init);
+console.log('Setting up DOMContentLoaded listener...');
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM loaded (via event), calling init...');
+        init();
+    });
+} else {
+    console.log('DOM already loaded, calling init immediately...');
+    init();
+}
