@@ -235,8 +235,14 @@ function filterWindowsByWeather(windows, filters, selectedDates) {
     const endHour = parseInt(filters.finishBefore.split(':')[0]);
     const endMin = parseInt(filters.finishBefore.split(':')[1]);
     
+    const now = new Date();
+
     return windows.filter(window => {
         const startTime = new Date(window.start);
+        
+        // Exclude windows that have already started
+        if (startTime < now) return false;
+
         const dateStr = startTime.toISOString().split('T')[0];
         
         // Check if date is selected
