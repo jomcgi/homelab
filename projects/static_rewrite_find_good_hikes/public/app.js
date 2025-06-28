@@ -155,19 +155,31 @@ function parseBundleData(bundle) {
 
 // Data loading
 async function loadIndexData() {
-    const bundlePath = `${CONFIG.dataPath}bundle.json.br`;
+    const bundlePath = `${CONFIG.dataPath}bundle.json`;
     
     try {
         console.log('Attempting to fetch:', bundlePath);
-        const response = await fetch(bundlePath);
+        const response = await fetch(bundlePath, {
+            headers: {
+                'Accept': 'application/json',
+                'Accept-Encoding': 'br, gzip, deflate'
+            }
+        });
         
         if (!response.ok) {
             throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
         }
         
         console.log('Bundle fetch successful');
+        console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+        console.log('Response body stream is decompressed:', !response.headers.get('content-encoding'));
         
-        const bundle = await response.json();
+        // Check if response is properly decompressed
+        const text = await response.text();
+        console.log('Response text preview:', text.substring(0, 100));
+        console.log('First character code:', text.charCodeAt(0));
+        
+        const bundle = JSON.parse(text);
         
         // Parse bundle into index and walk data
         const { walks, walkMap } = parseBundleData(bundle);
