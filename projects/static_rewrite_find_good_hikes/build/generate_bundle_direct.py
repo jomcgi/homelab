@@ -307,10 +307,9 @@ def main():
         
         uploader.s3_client.put_object(
             Bucket=uploader.bucket_name,
-            Key='bundle.json.br',
-            Body=brotli_data,
-            ContentType='application/json',
-            ContentEncoding='br'
+            Key='bundle.json',
+            Body=json_data.encode('utf-8'),
+            ContentType='application/json'
         )
         
         logger.info("Bundle successfully uploaded to R2!")
