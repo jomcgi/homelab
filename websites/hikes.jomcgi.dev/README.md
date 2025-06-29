@@ -60,10 +60,35 @@ public/                         # Static website files
 - **Updates**: Periodic (as needed)
 - **Viability**: Excludes >2mm rain or >80km/h wind
 
-## Future Enhancements
+## Testing & CI/CD
+
+A comprehensive Playwright test framework validates the static site's critical user interactions and edge cases that could break the hiking search experience. The project uses GitHub Actions for automated testing and deployment.
+
+### Automated Testing Pipeline
+- **CI Integration**: Tests run automatically on every push and pull request
+- **Quality Gates**: Deployment only happens after all tests pass
+- **Fast Feedback**: Developers get immediate notification if changes break functionality
+- **Test Reports**: Detailed reports uploaded for debugging failed tests
+
+### Test Coverage
+- **App Functionality**: Form validation, user interactions, error handling
+- **Geolocation Integration**: Browser location services, permission handling, graceful fallbacks
+- **Search Logic**: Coordinate input, distance calculations, weather filtering with realistic data
+- **Weather Window Logic**: Ensures consecutive weather windows match hike duration requirements
+- **Deployment Health**: Critical asset loading, console error monitoring, basic functionality checks
+
+### Running Tests Locally
+```bash
+npm test              # Run all tests
+npm run test:headed   # Run with visible browser
+npm run test:debug    # Debug mode
+```
+
+See [CI/CD Documentation](docs/ci-deployment.md) for setup details.
+
+## Project ToDo:
 
 - Geocoding for location search
-- Prefetching nearby walks
-- Progressive Web App features
 - Additional data sources (AllTrails, etc.)
-- Weather window grouping optimizations
+- Enhanced UX: When hikes aren't recommended due to weather, show reason ("Only 2 hours of good weather for this 4-hour hike")
+- Smart suggestions: Recommend alternative time windows or shorter hikes when weather doesn't match

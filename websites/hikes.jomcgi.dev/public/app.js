@@ -523,13 +523,22 @@ async function searchHikes() {
             if (!walkData) continue;
             
             const viableWindows = filterWindowsByWeather(walkData.windows, filters, selectedDates);
+            
+            // Check if there are consecutive windows long enough for the hike duration
             if (viableWindows.length > 0) {
-                results.push({
-                    walk,
-                    walkData,
-                    windows: viableWindows,
-                    distance_from_user: walk.distance_from_user
-                });
+                const consecutiveGroups = groupConsecutiveWindows(viableWindows);
+                const validGroups = consecutiveGroups.filter(group => group.length >= walk.duration_h);
+                
+                if (validGroups.length > 0) {
+                    // Flatten valid groups back to individual windows for display
+                    const validWindows = validGroups.flat();
+                    results.push({
+                        walk,
+                        walkData,
+                        windows: validWindows,
+                        distance_from_user: walk.distance_from_user
+                    });
+                }
             }
         }
         
