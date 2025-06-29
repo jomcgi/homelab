@@ -1,0 +1,15 @@
+{
+  "name": "hikes-finder",
+  "version": "1.0.0",
+  "description": "Find hiking routes with good weather conditions in Scotland",
+  "scripts": {
+    "test": "playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium",
+    "test:all": "playwright test --project=chromium",
+    "test:ci": "playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium --reporter=github",
+    "test:headed": "playwright test --project=chromium --headed",
+    "test:debug": "playwright test --project=chromium --debug"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0"
+  }
+}
