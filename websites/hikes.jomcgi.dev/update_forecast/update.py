@@ -139,6 +139,7 @@ def parse_weather_data(forecast_data: Dict[str, Any]) -> List[Dict[str, Any]]:
             'temp_c': instant.get('air_temperature'),
             'wind_speed_ms': instant.get('wind_speed'),
             'precipitation_mm': next_1_hours.get('details', {}).get('precipitation_amount', 0),
+            'cloud_area_fraction': instant.get('cloud_area_fraction'),
         })
         
     return hourly_data
@@ -204,14 +205,15 @@ def process_walk(walk: Walk) -> Dict[str, Any]:
                 continue
                 
             # Add viable window
-            # Format: [timestamp, temp, precip, wind]
+            # Format: [timestamp, temp, precip, wind, cloud]
             timestamp = int(dt.timestamp())
             temp_c = round(weather['temp_c'], 1) if weather['temp_c'] is not None else 0
             precip_mm = round(weather['precipitation_mm'], 1) if weather['precipitation_mm'] > 0 else 0
             wind_ms = weather['wind_speed_ms'] or 0
             wind_kmh = round(wind_ms * 3.6)
+            cloud_pct = round(weather['cloud_area_fraction']) if weather['cloud_area_fraction'] is not None else 50
             
-            windows.append([timestamp, temp_c, precip_mm, wind_kmh])
+            windows.append([timestamp, temp_c, precip_mm, wind_kmh, cloud_pct])
     
     return {
         'walk': walk,
