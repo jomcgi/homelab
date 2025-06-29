@@ -168,12 +168,8 @@ async function loadIndexData() {
             throw new Error(`Failed to load bundle: ${response.status} ${response.statusText}`);
         }
         
-        // Decompress Brotli data - FAIL LOUDLY if this doesn't work
         const brotliBuffer = await response.arrayBuffer();
-        
-        if (!window.BrotliDecompress) {
-            throw new Error('CRITICAL ERROR: Brotli decompression library failed to load. The application cannot function without Brotli support. This is a configuration error that must be fixed.');
-        }
+    
         
         const decompressedString = await BrotliDecompress(brotliBuffer);
         const bundle = JSON.parse(decompressedString);
