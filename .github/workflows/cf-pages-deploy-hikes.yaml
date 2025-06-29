@@ -70,13 +70,6 @@ jobs:
       - name: Run tests
         run: npm run test:ci
 
-      - name: Upload test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report
-          path: websites/hikes.jomcgi.dev/playwright-report/
-          retention-days: 30
 
   deploy:
     runs-on: self-hosted
