@@ -99,6 +99,21 @@ function generateDateOptions(viableDates = null) {
         `;
         container.appendChild(option);
     });
+    
+    // Show no viable dates message if needed
+    if (viableDates && viableDates.length === 0) {
+        const noViableDatesMsg = document.createElement('div');
+        noViableDatesMsg.className = 'no-viable-dates';
+        noViableDatesMsg.innerHTML = `
+            <p style="color: #e74c3c; font-weight: bold; margin: 10px 0;">
+                ⚠️ No viable days found for your current filter combination.
+            </p>
+            <p style="color: #666; font-size: 0.9em;">
+                Try relaxing your weather requirements or changing your time preferences.
+            </p>
+        `;
+        container.appendChild(noViableDatesMsg);
+    }
 }
 
 // Bundle data parsing
@@ -212,6 +227,94 @@ async function loadWalkData(walkId) {
     
     // Walk not found in bundled data
     return null;
+}
+
+// Real-time viable date calculation
+async function calculateViableDates() {
+    if (!state.indexData) return [];
+    
+    try {
+        // Get current filter values
+        const userLat = parseFloat(document.getElementById('latitude').value);
+        const userLon = parseFloat(document.getElementById('longitude').value);
+        const radius = parseFloat(document.getElementById('radius').value);
+        
+        if (isNaN(userLat) || isNaN(userLon) || isNaN(radius)) {
+            return [];
+        }
+        
+        const filters = {
+            minDuration: parseFloat(document.getElementById('min-duration').value),
+            maxDuration: parseFloat(document.getElementById('max-duration').value),
+            minDistance: parseFloat(document.getElementById('min-distance').value),
+            maxDistance: parseFloat(document.getElementById('max-distance').value),
+            maxAscent: parseInt(document.getElementById('max-ascent').value),
+            maxRain: parseFloat(document.getElementById('max-precipitation-mm').value) || 2,
+            maxWind: parseFloat(document.getElementById('max-wind-speed-kmh').value) || 50,
+            minTemp: parseFloat(document.getElementById('min-temperature-c').value) || -10,
+            maxTemp: parseFloat(document.getElementById('max-temperature-c').value) || 40,
+            startAfter: document.getElementById('start-after').value,
+            finishBefore: document.getElementById('finish-before').value
+        };
+        
+        // Get all possible dates for the next 7 days
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const allDates = [];
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() + i);
+            allDates.push(date.toISOString().split('T')[0]);
+        }
+        
+        // Filter walks by location and characteristics
+        let nearbyWalks = filterWalksByLocation(state.indexData.walks, userLat, userLon, radius);
+        nearbyWalks = filterWalksByCharacteristics(nearbyWalks, filters);
+        
+        // Collect viable dates from all matching walks
+        const viableDates = new Set();
+        
+        for (const walk of nearbyWalks.slice(0, 50)) { // Limit to first 50 for performance
+            const walkData = await loadWalkData(walk.id);
+            if (!walkData) continue;
+            
+            const viableWindows = filterWindowsByWeather(walkData.windows, filters, allDates);
+            
+            if (viableWindows.length > 0) {
+                const consecutiveGroups = groupConsecutiveWindows(viableWindows);
+                const validGroups = consecutiveGroups.filter(group => group.length >= walk.duration_h);
+                
+                if (validGroups.length > 0) {
+                    // Add dates from valid groups
+                    validGroups.forEach(group => {
+                        group.forEach(window => {
+                            viableDates.add(new Date(window.start).toISOString().split('T')[0]);
+                        });
+                    });
+                }
+            }
+        }
+        
+        return Array.from(viableDates).sort();
+    } catch (error) {
+        console.warn('Error calculating viable dates:', error);
+        return [];
+    }
+}
+
+// Debounced update of viable dates
+let viableDateUpdateTimer = null;
+async function updateViableDates() {
+    // Clear existing timer
+    if (viableDateUpdateTimer) {
+        clearTimeout(viableDateUpdateTimer);
+    }
+    
+    // Set new timer to avoid excessive calculations
+    viableDateUpdateTimer = setTimeout(async () => {
+        const viableDates = await calculateViableDates();
+        generateDateOptions(viableDates);
+    }, 500); // 500ms delay
 }
 
 // Filtering functions
@@ -657,6 +760,22 @@ async function init() {
     if (locationBtn) {
         locationBtn.addEventListener('click', getUserLocation);
     }
+    
+    // Add event listeners for real-time viable date updates
+    const filterInputs = [
+        'latitude', 'longitude', 'radius',
+        'min-duration', 'max-duration', 'min-distance', 'max-distance', 'max-ascent',
+        'max-precipitation-mm', 'max-wind-speed-kmh', 'min-temperature-c', 'max-temperature-c',
+        'start-after', 'finish-before'
+    ];
+    
+    filterInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('input', updateViableDates);
+            input.addEventListener('change', updateViableDates);
+        }
+    });
     
     // Allow Enter key to trigger search
     document.addEventListener('keypress', (e) => {
