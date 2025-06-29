@@ -105,7 +105,7 @@ function parseBundleData(bundle) {
     // Parse the optimized bundle format
     // Bundle format: { v: 2, g: timestamp, d: [[walk data]...] }
     // Walk format: [id, lat, lng, dur, dist, asc, name, url, summary, windows]
-    // Window format: [timestamp, temp, precip, wind]
+    // Window format: [timestamp, temp, precip, wind, cloud]
     
     const walks = [];
     const walkMap = new Map();
@@ -125,7 +125,7 @@ function parseBundleData(bundle) {
         
         // Create full walk data with expanded windows
         const expandedWindows = windows.map(w => {
-            const [timestamp, temp_c, precip_mm, wind_kmh] = w;
+            const [timestamp, temp_c, precip_mm, wind_kmh, cloud_pct] = w;
             const startDate = new Date(timestamp * 1000);
             const endDate = new Date(startDate.getTime() + 3600000); // +1 hour
             
@@ -136,7 +136,7 @@ function parseBundleData(bundle) {
                     temp_c,
                     precip_mm,
                     wind_kmh,
-                    cloud_pct: 50  // Default value since we removed it for space
+                    cloud_pct: cloud_pct !== undefined ? cloud_pct : 50  // Use actual data or fallback to 50
                 }
             };
         });
