@@ -69,23 +69,31 @@ function generateDateOptions() {
     const container = document.getElementById('available-dates');
     container.innerHTML = '';
     
+    // Use UK timezone for Scotland-based walks
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const ukToday = new Date(today.toLocaleString("en-US", {timeZone: "Europe/London"}));
+    ukToday.setHours(0, 0, 0, 0);
 
     for (let i = 0; i < 7; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        const dateStr = date.toISOString().split('T')[0];
-        const dayName = date.toLocaleDateString('en-GB', { weekday: 'long' });
+        const date = new Date(ukToday);
+        date.setDate(ukToday.getDate() + i);
+        
+        // Use UK timezone for date string to match filtering logic
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const dayName = date.toLocaleDateString('en-GB', { weekday: 'long', timeZone: 'Europe/London' });
         const dayNum = date.getDate();
-        const month = date.toLocaleDateString('en-GB', { month: 'short' });
+        const monthName = date.toLocaleDateString('en-GB', { month: 'short', timeZone: 'Europe/London' });
         
         const option = document.createElement('div');
         option.className = 'checkbox-group';
         option.innerHTML = `
             <input type="checkbox" id="date-${dateStr}" name="available_dates" value="${dateStr}" checked>
             <label for="date-${dateStr}">
-                ${dayName}, ${month} ${dayNum}
+                ${dayName}, ${monthName} ${dayNum}
             </label>
         `;
         container.appendChild(option);
@@ -238,14 +246,19 @@ function filterWindowsByWeather(windows, filters, selectedDates) {
         // Exclude windows that have already started
         if (startTime < now) return false;
 
-        const dateStr = startTime.toISOString().split('T')[0];
+        // Convert UTC window time to UK timezone for date comparison
+        const ukTime = new Date(startTime.toLocaleString("en-US", {timeZone: "Europe/London"}));
+        const year = ukTime.getFullYear();
+        const month = String(ukTime.getMonth() + 1).padStart(2, '0');
+        const day = String(ukTime.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
         
         // Check if date is selected
         if (!selectedDates.includes(dateStr)) return false;
         
-        // Check time constraints
-        const hour = startTime.getHours();
-        const min = startTime.getMinutes();
+        // Check time constraints (use UK timezone)
+        const hour = ukTime.getHours();
+        const min = ukTime.getMinutes();
         if (hour < startHour || (hour === startHour && min < startMin)) return false;
         if (hour >= endHour || (hour === endHour && min >= endMin)) return false;
         
