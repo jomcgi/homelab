@@ -267,6 +267,7 @@ function filterWindowsByWeather(windows, filters, selectedDates) {
         if (weather.precip_mm > filters.maxRain) return false;
         if (weather.wind_kmh > filters.maxWind) return false;
         if (weather.temp_c < filters.minTemp || weather.temp_c > filters.maxTemp) return false;
+        if (weather.cloud_pct > filters.maxCloud) return false;
         
         return true;
     });
@@ -501,10 +502,11 @@ async function searchHikes() {
         minDistance: parseFloat(document.getElementById('min-distance').value),
         maxDistance: parseFloat(document.getElementById('max-distance').value),
         maxAscent: parseInt(document.getElementById('max-ascent').value),
-        maxRain: parseFloat(document.getElementById('max-precipitation-mm').value) || 2,  // Default to 2mm if empty
-        maxWind: parseFloat(document.getElementById('max-wind-speed-kmh').value) || 50,  // Default to 50km/h if empty
-        minTemp: parseFloat(document.getElementById('min-temperature-c').value) || -10,  // Default to -10°C if empty
-        maxTemp: parseFloat(document.getElementById('max-temperature-c').value) || 40,   // Default to 40°C if empty
+        maxRain: (v => isNaN(v) ? 2 : v)(parseFloat(document.getElementById('max-precipitation-mm').value)),
+        maxWind: (v => isNaN(v) ? 50 : v)(parseFloat(document.getElementById('max-wind-speed-kmh').value)),
+        minTemp: (v => isNaN(v) ? -10 : v)(parseFloat(document.getElementById('min-temperature-c').value)),
+        maxTemp: (v => isNaN(v) ? 40 : v)(parseFloat(document.getElementById('max-temperature-c').value)),
+        maxCloud: (v => isNaN(v) ? 100 : v)(parseFloat(document.getElementById('max-cloud-cover-percent').value)),
         startAfter: document.getElementById('start-after').value,
         finishBefore: document.getElementById('finish-before').value
     };
