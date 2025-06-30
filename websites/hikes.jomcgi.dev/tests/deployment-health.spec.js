@@ -1,6 +1,34 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Deployment Health Checks', () => {
+  test.beforeEach(async ({ page }) => {
+    // Mock the fetch request for bundle data
+    await page.route('**/bundle.json.br', async route => {
+      const mockBundle = {
+        v: 2,
+        g: Math.floor(Date.now() / 1000),
+        d: []
+      };
+
+      const mockData = JSON.stringify(mockBundle);
+      const buffer = new TextEncoder().encode(mockData);
+      
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: buffer
+      });
+    });
+
+    // Mock BrotliDecompress function
+    await page.addInitScript(() => {
+      window.BrotliDecompress = async (buffer) => {
+        const decoder = new TextDecoder();
+        return decoder.decode(buffer);
+      };
+    });
+  });
+
   test('should load main page without errors', async ({ page }) => {
     // Monitor console errors
     const errors = [];
