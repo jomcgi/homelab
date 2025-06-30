@@ -5,10 +5,11 @@ export default defineConfig({
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 6 : undefined,
+  workers: process.env.CI ? 6 : 4,
   reporter: 'list',
   use: {
     trace: 'on-first-retry',
+    baseURL: process.env.CI ? 'http://localhost:33999': 'http://localhost:3000',
   },
 
   projects: [
@@ -24,8 +25,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'python3 -m http.server 0 --directory public',
-    url: 'http://localhost:0',
-    reuseExistingServer: !process.env.CI,
+    command: process.env.CI ? 'python3 -m http.server 33999 --directory public': 'python3 -m http.server 3000 --directory public',
+    reuseExistingServer: false,
   },
 });
