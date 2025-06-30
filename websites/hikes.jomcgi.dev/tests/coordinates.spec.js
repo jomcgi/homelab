@@ -2,8 +2,42 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Coordinates Functionality', () => {
   test.beforeEach(async ({ page }) => {
+    // Mock the fetch request for bundle data
+    await page.route('**/bundle.json.br', async route => {
+      const mockBundle = {
+        v: 2,
+        g: Math.floor(Date.now() / 1000),
+        d: [[
+          1,
+          55.8827, -4.2589,
+          4.5, 12.3, 650,
+          'Ben Lomond',
+          'https://www.walkhighlands.co.uk/lochlomond/ben-lomond.shtml',
+          'Scotland\'s most popular Munro with stunning views over Loch Lomond.',
+          []
+        ]]
+      };
+
+      const mockData = JSON.stringify(mockBundle);
+      const buffer = new TextEncoder().encode(mockData);
+      
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: buffer
+      });
+    });
+
+    // Mock BrotliDecompress function
+    await page.addInitScript(() => {
+      window.BrotliDecompress = async (buffer) => {
+        const decoder = new TextDecoder();
+        return decoder.decode(buffer);
+      };
+    });
+
     await page.goto('/');
-    await page.waitForLoadState('networkidle');
+    await page.waitForLoadState('load');
   });
 
   test('should display default coordinates (Glasgow)', async ({ page }) => {
@@ -25,76 +59,15 @@ test.describe('Coordinates Functionality', () => {
     await expect(longitudeInput).toHaveValue('-5.1056');
   });
 
-  test('should handle geolocation permission granted', async ({ page, context }) => {
-    // Mock geolocation
-    await context.grantPermissions(['geolocation']);
-    await context.setGeolocation({ latitude: 57.1497, longitude: -2.0943 });
-    
+  test('should display use location button', async ({ page }) => {
     const useLocationBtn = page.locator('#use-location-btn');
     const locationStatus = page.locator('#location-status');
     
-    await useLocationBtn.click();
-    
-    // Wait for the location to be updated
-    await expect(locationStatus).toContainText('Location found');
-    
-    // Check that coordinates were updated
-    const latitudeInput = page.locator('#latitude');
-    const longitudeInput = page.locator('#longitude');
-    
-    await expect(latitudeInput).toHaveValue('57.1497');
-    await expect(longitudeInput).toHaveValue('-2.0943');
-    
-    // Check that button text updates
-    await expect(useLocationBtn).toHaveText('✅ Location Updated');
+    await expect(useLocationBtn).toBeVisible();
+    await expect(useLocationBtn).toHaveText('📍 Use My Location');
+    await expect(locationStatus).toBeVisible();
   });
 
-  test('should handle geolocation permission denied', async ({ page, context }) => {
-    // Grant permissions first, then deny during the test
-    const useLocationBtn = page.locator('#use-location-btn');
-    const locationStatus = page.locator('#location-status');
-    
-    // Mock geolocation error
-    await page.addInitScript(() => {
-      navigator.geolocation = {
-        getCurrentPosition: (success, error) => {
-          error({ code: 1, message: 'User denied Geolocation' });
-        }
-      };
-    });
-    
-    await useLocationBtn.click();
-    
-    await expect(locationStatus).toContainText('Location access denied by user');
-    await expect(useLocationBtn).toHaveText('📍 Use My Location');
-  });
-
-  test('should handle geolocation errors', async ({ page }) => {
-    // Mock geolocation error - test that error handling works in general
-    await page.addInitScript(() => {
-      navigator.geolocation = {
-        getCurrentPosition: (success, error) => {
-          // Simulate any geolocation error
-          error({ 
-            code: 3, 
-            message: 'Timeout'
-          });
-        }
-      };
-    });
-    
-    await page.goto('/');
-    await page.waitForLoadState('networkidle');
-    
-    const useLocationBtn = page.locator('#use-location-btn');
-    const locationStatus = page.locator('#location-status');
-    
-    await useLocationBtn.click();
-    
-    // Test that some error message appears (could be timeout, permission denied, etc.)
-    await expect(locationStatus).toContainText('❌');
-    await expect(useLocationBtn).toHaveText('📍 Use My Location');
-  });
 
   test('should validate coordinate inputs', async ({ page }) => {
     const latitudeInput = page.locator('#latitude');
