@@ -9,7 +9,7 @@ export default defineConfig({
   reporter: 'list',
   use: {
     trace: 'on-first-retry',
-    baseURL: process.env.CI ? 'http://localhost:33999': 'http://localhost:3000',
+    baseURL: process.env.CI ? 'http://localhost:33999': 'http://localhost:33999',
   },
 
   projects: [
@@ -25,7 +25,7 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: process.env.CI ? 'python3 -m http.server 33999 --directory public': 'python3 -m http.server 3000 --directory public',
+    command: process.env.CI ? 'python3 -m http.server 33999 --directory public': 'python3 -m http.server 33999 --directory public',
     reuseExistingServer: false,
   },
 });
