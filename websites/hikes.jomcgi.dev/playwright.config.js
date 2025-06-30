@@ -25,8 +25,8 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'python3 -m http.server 3000 --directory public',
-    port: 3000,
+    command: 'python3 -m http.server 0 --directory public',
+    port: 0,
     reuseExistingServer: !process.env.CI,
   },
 });
