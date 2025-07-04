@@ -18,9 +18,9 @@ kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manif
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/crds/applicationset-crd.yaml
 kubectl apply -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/crds/appproject-crd.yaml
 
-# Install ArgoCD operator CRDs
-echo "Installing ArgoCD operator CRDs..."
-kubectl apply -f https://raw.githubusercontent.com/argoproj-labs/argocd-operator/master/deploy/crds/argoproj.io_argocds_crd.yaml
+# Install ArgoCD directly (simpler for testing)
+echo "Installing ArgoCD..."
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 
 # Create namespaces
 echo "Creating namespaces..."
