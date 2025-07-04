@@ -17,11 +17,19 @@ helm repo update
 
 # Validate required environment variables
 if [[ -z "${ONEPASSWORD_CONNECT_HOST}" || -z "${ONEPASSWORD_CONNECT_TOKEN}" ]]; then
-    echo "❌ Missing required environment variables:"
+    echo "❌ Missing required 1Password environment variables:"
     echo "   ONEPASSWORD_CONNECT_HOST"
     echo "   ONEPASSWORD_CONNECT_TOKEN"
     echo ""
     echo "Set these in your environment or GitHub Secrets before running."
+    exit 1
+fi
+
+if [[ -z "${GITHUB_TOKEN}" ]]; then
+    echo "❌ Missing GitHub Personal Access Token:"
+    echo "   GITHUB_TOKEN"
+    echo ""
+    echo "Create a GitHub PAT with 'repo' scope and set it as an environment variable."
     exit 1
 fi
 
@@ -36,6 +44,18 @@ helm upgrade --install argocd argo/argo-cd \
 # Wait for ArgoCD to be ready
 echo "⏳ Waiting for ArgoCD to be ready..."
 kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd
+
+# Configure GitHub repository access
+echo "🔐 Configuring GitHub repository access..."
+kubectl create secret generic homelab-repo-secret \
+    --namespace argocd \
+    --from-literal=url=https://github.com/jomcgi/homelab.git \
+    --from-literal=username=jomcgi \
+    --from-literal=password="${GITHUB_TOKEN}" \
+    --dry-run=client -o yaml | kubectl apply -f -
+
+# Label the secret for ArgoCD to recognize it
+kubectl label secret homelab-repo-secret -n argocd argocd.argoproj.io/secret-type=repository
 
 # Install 1Password Connect
 echo "🔐 Installing 1Password Connect..."

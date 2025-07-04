@@ -46,6 +46,7 @@ jobs:
           echo "🚀 Bootstrapping ArgoCD + 1Password with Helm..."
           export ONEPASSWORD_CONNECT_HOST="${{ secrets.ONEPASSWORD_CONNECT_HOST }}"
           export ONEPASSWORD_CONNECT_TOKEN="${{ secrets.ONEPASSWORD_CONNECT_TOKEN }}"
+          export GITHUB_TOKEN="${{ secrets.GITHUB_TOKEN }}"
           
           if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
             echo "🧪 Dry run mode - validating Helm charts..."
@@ -62,6 +63,15 @@ jobs:
               --set connect.connectHost="${ONEPASSWORD_CONNECT_HOST}" \
               --set connect.connectToken="${ONEPASSWORD_CONNECT_TOKEN}" \
               --set operator.create=true
+            
+            # Validate GitHub repository secret
+            echo "Validating GitHub repository secret creation..."
+            kubectl create secret generic homelab-repo-secret \
+              --namespace argocd \
+              --from-literal=url=https://github.com/jomcgi/homelab.git \
+              --from-literal=username=jomcgi \
+              --from-literal=password="${GITHUB_TOKEN}" \
+              --dry-run=client -o yaml
           else
             echo "🎯 Running Helm bootstrap..."
             ./argocd/helm/bootstrap.sh
@@ -98,10 +108,10 @@ jobs:
           echo "🎉 ArgoCD Bootstrap Complete!"
           echo ""
           echo "📋 What was installed:"
-          echo "  ✅ ArgoCD operator and instance"
-          echo "  ✅ 1Password operator with credentials"
+          echo "  ✅ ArgoCD with GitHub repository access"
+          echo "  ✅ 1Password Connect + operator"
           echo "  ✅ ApplicationSet for service discovery"
-          echo "  ✅ Kaniko build hooks"
+          echo "  ✅ GitHub PAT configured for private repo access"
           echo ""
           echo "🔄 Next steps:"
           echo "  1. ArgoCD will now manage all services in cluster/services/*"
