@@ -14,6 +14,13 @@ configs:
     application.instanceLabelKey: argocd.argoproj.io/instance
     exec.enabled: true
     timeout.reconciliation: 180s
+  repositories:
+    homelab-repo:
+      url: https://github.com/jomcgi/homelab.git
+      name: homelab
+      type: git
+      password: ""  # Will be set via secret
+      username: ""  # Will be set via secret
 
 server:
   service:
