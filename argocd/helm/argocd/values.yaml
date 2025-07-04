@@ -1,0 +1,87 @@
+# ArgoCD Helm Values for Homelab
+# Using official ArgoCD Helm chart: https://github.com/argoproj/argo-helm
+
+global:
+  image:
+    tag: "v2.12.3"
+
+configs:
+  params:
+    server.insecure: true
+    application.namespaces: "*"
+  cm:
+    url: "https://argocd.local"
+    application.instanceLabelKey: argocd.argoproj.io/instance
+    exec.enabled: true
+    timeout.reconciliation: 180s
+
+server:
+  service:
+    type: ClusterIP
+  ingress:
+    enabled: false
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+controller:
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 512Mi
+
+repoServer:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+applicationSet:
+  enabled: true
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+redis:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+dex:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+notifications:
+  enabled: true
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
