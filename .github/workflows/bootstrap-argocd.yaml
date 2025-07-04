@@ -1,0 +1,118 @@
+name: Bootstrap ArgoCD GitOps
+
+on:
+  workflow_dispatch:
+    inputs:
+      cluster_context:
+        description: 'Kubernetes cluster context'
+        required: true
+        default: 'talos'
+      dry_run:
+        description: 'Dry run (validate without applying)'
+        required: false
+        default: 'false'
+        type: boolean
+
+env:
+  SKAFFOLD_KUBECONFIG: /home/jomcgi/.kube/talos
+  KUBECTL_VERSION: v1.28.0
+
+concurrency:
+  group: bootstrap-argocd-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  bootstrap:
+    runs-on: self-hosted
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Validate cluster connectivity
+        run: |
+          echo "🔍 Validating cluster connectivity..."
+          kubectl config use-context ${{ github.event.inputs.cluster_context }}
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Install Helm
+        run: |
+          echo "📦 Installing Helm..."
+          curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+      - name: Bootstrap with Helm
+        run: |
+          echo "🚀 Bootstrapping ArgoCD + 1Password with Helm..."
+          export ONEPASSWORD_CONNECT_HOST="${{ secrets.ONEPASSWORD_CONNECT_HOST }}"
+          export ONEPASSWORD_CONNECT_TOKEN="${{ secrets.ONEPASSWORD_CONNECT_TOKEN }}"
+          
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            echo "🧪 Dry run mode - validating Helm charts..."
+            # Add repos and validate
+            helm repo add argo https://argoproj.github.io/argo-helm
+            helm repo add 1password https://1password.github.io/connect-helm-charts
+            helm repo update
+            
+            # Template and validate ArgoCD
+            helm template argocd argo/argo-cd --namespace argocd --values argocd/helm/argocd/values.yaml
+            
+            # Template and validate 1Password
+            helm template onepassword-connect 1password/connect --namespace onepassword \
+              --set connect.connectHost="${ONEPASSWORD_CONNECT_HOST}" \
+              --set connect.connectToken="${ONEPASSWORD_CONNECT_TOKEN}" \
+              --set operator.create=true
+          else
+            echo "🎯 Running Helm bootstrap..."
+            ./argocd/helm/bootstrap.sh
+          fi
+
+      - name: Verify bootstrap
+        if: github.event.inputs.dry_run != 'true'
+        run: |
+          echo "✅ Verifying ArgoCD bootstrap..."
+          
+          # Check ArgoCD components
+          echo "ArgoCD Pods:"
+          kubectl get pods -n argocd
+          
+          # Check 1Password operator
+          echo "1Password Operator:"
+          kubectl get pods -n onepassword-operator
+          
+          # Check ApplicationSet
+          echo "ApplicationSet:"
+          kubectl get applicationset -n argocd
+          
+          # Check discovered applications
+          echo "Discovered Applications:"
+          kubectl get applications -n argocd
+          
+          # Get ArgoCD admin password
+          echo "🔑 ArgoCD Admin Password:"
+          kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d
+          echo ""
+
+      - name: Summary
+        run: |
+          echo "🎉 ArgoCD Bootstrap Complete!"
+          echo ""
+          echo "📋 What was installed:"
+          echo "  ✅ ArgoCD operator and instance"
+          echo "  ✅ 1Password operator with credentials"
+          echo "  ✅ ApplicationSet for service discovery"
+          echo "  ✅ Kaniko build hooks"
+          echo ""
+          echo "🔄 Next steps:"
+          echo "  1. ArgoCD will now manage all services in cluster/services/*"
+          echo "  2. Container builds will happen via Kaniko pre-sync hooks"
+          echo "  3. Secrets will be managed by 1Password operator"
+          echo "  4. You can disable the existing GitHub Actions workflows"
+          echo ""
+          if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
+            echo "🌐 Access ArgoCD UI:"
+            echo "  kubectl port-forward svc/argocd-server -n argocd 8080:443"
+            echo "  https://localhost:8080"
+            echo "  Username: admin"
+            echo "  Password: (see above)"
+          fi
