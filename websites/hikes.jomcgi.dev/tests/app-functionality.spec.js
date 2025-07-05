@@ -74,9 +74,9 @@ test.describe('App Core Functionality', () => {
     const dateCheckboxes = page.locator('#available-dates input[type="checkbox"]');
     await expect(dateCheckboxes).toHaveCount(7);
     
-    // All should be checked by default
+    // All should be unchecked by default
     const checkedBoxes = page.locator('#available-dates input[type="checkbox"]:checked');
-    await expect(checkedBoxes).toHaveCount(7);
+    await expect(checkedBoxes).toHaveCount(0);
   });
 
   test('should allow form input modifications', async ({ page }) => {
