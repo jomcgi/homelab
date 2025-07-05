@@ -91,7 +91,7 @@ function generateDateOptions() {
         const option = document.createElement('div');
         option.className = 'checkbox-group';
         option.innerHTML = `
-            <input type="checkbox" id="date-${dateStr}" name="available_dates" value="${dateStr}" checked>
+            <input type="checkbox" id="date-${dateStr}" name="available_dates" value="${dateStr}">
             <label for="date-${dateStr}">
                 ${dayName}, ${monthName} ${dayNum}
             </label>
