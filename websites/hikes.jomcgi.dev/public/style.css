@@ -1,21 +1,22 @@
 /* Good Hikes Finder - Clean, Readable Styling with Dark Mode */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root {
     /* Light mode colors */
-    --bg-primary: #f8f9fa;
-    --bg-secondary: #ffffff;
-    --bg-tertiary: #f8f9fa;
-    --bg-quaternary: #edf2f7;
-    --text-primary: #333333;
-    --text-secondary: #4a5568;
-    --text-tertiary: #718096;
-    --border-primary: #e2e8f0;
-    --border-secondary: #cbd5e0;
-    --accent-blue: #3182ce;
-    --accent-green: #3182ce; /* Changed from green to blue */
-    --accent-orange: #ed8936;
-    --shadow: rgba(0,0,0,0.1);
-    --gradient-header: linear-gradient(135deg, #2c5282 0%, #3182ce 100%);
+    --bg-primary: #F8F9FA;
+    --bg-secondary: #FFFFFF;
+    --bg-tertiary: #F1F3F5;
+    --bg-quaternary: #E9ECEF;
+    --text-primary: #212529;
+    --text-secondary: #495057;
+    --text-tertiary: #868E96;
+    --border-primary: #DEE2E6;
+    --border-secondary: #CED4DA;
+    --accent-blue: #007BFF;
+    --accent-green: #28A745;
+    --accent-orange: #FD7E14;
+    --shadow: rgba(0, 0, 0, 0.05);
+    --gradient-header: linear-gradient(135deg, #0056b3 0%, #007bff 100%);
 }
 
 [data-theme="dark"] {
@@ -43,7 +44,7 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     line-height: 1.6;
     color: var(--text-primary);
     background-color: var(--bg-primary);
@@ -185,10 +186,10 @@ main {
 
 .form-section {
     margin-bottom: 2rem;
-    padding: 1.5rem;
-    background: var(--bg-tertiary);
-    border-radius: 8px;
-    border-left: 4px solid var(--accent-blue);
+    padding: 2rem;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    border: 1px solid var(--border-primary);
 }
 
 .form-section h3 {
@@ -255,7 +256,7 @@ main {
 }
 
 .search-button {
-    background: linear-gradient(135deg, var(--accent-blue) 0%, var(--accent-blue) 100%);
+    background: var(--accent-blue);
     color: white;
     border: none;
     padding: 1rem 2rem;

@@ -4,7 +4,8 @@
   "description": "Find hiking routes with good weather conditions in Scotland",
   "scripts": {
     "test": "playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium",
-    "test:ci": "playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium --reporter=github"
+    "test:ci": "playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium --reporter=github",
+    "run-server": "python3 -m http.server 3000 --directory public"
   },
   "devDependencies": {
     "@playwright/test": "^1.40.0"
