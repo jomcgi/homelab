@@ -1,8 +1,8 @@
 name: K8S - Deploy Cloudflare Tunnel
 
 on:
-  schedule:
-    - cron: '0,30 * * * *'
+#  schedule:
+#    - cron: '0,30 * * * *'
   push:
     branches: [main]
     paths:
