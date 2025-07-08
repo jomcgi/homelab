@@ -38,8 +38,8 @@ spec:
           mountPath: /etc/cloudflared/config
           readOnly: true
         - name: creds
-          mountPath: /etc/cloudflared/
-          readOnly: true
+          mountPath: /etc/cloudflared/creds/credentials.json
+          subPath: credentials
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
@@ -63,3 +63,5 @@ spec:
           items:
           - key: config.yaml
             path: config.yaml
+
+
