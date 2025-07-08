@@ -16,5 +16,5 @@ data:
     - hostname: github.jomcgi.dev
       service: http://otel-collector.opentelemetry.svc.cluster.local:19418
     - hostname: argocd.jomcgi.dev
-      service: http://argocd-server.argocd.svc.cluster.local:443
+      service: https://argocd-server.argocd.svc.cluster.local:443
     - service: http_status:404
