@@ -9,10 +9,13 @@ data:
     metrics: 0.0.0.0:2000
     no-autoupdate: true
     ingress:
-    - hostname: talk.jomcgi.dev
-      service: http://open-webui.open-webui.svc.cluster.local:80
-    - hostname: longhorn.jomcgi.dev
-      service: http://longhorn-frontend.longhorn.svc.cluster.local:80
-    - hostname: github.jomcgi.dev
-      service: http://otel-collector.opentelemetry.svc.cluster.local:19418
+    # - hostname: talk.jomcgi.dev
+    #   service: http://open-webui.open-webui.svc.cluster.local:80
+    # - hostname: longhorn.jomcgi.dev
+    #   service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+    # - hostname: github.jomcgi.dev
+    #   service: http://otel-collector.opentelemetry.svc.cluster.local:19418
+    # - service: http_status:404
+    - hostname: argocd.jomcgi.dev
+      service: http://argocd-server.argocd.svc.cluster.local:443
     - service: http_status:404
