@@ -19,8 +19,8 @@ spec:
         - tunnel
         - --config
         - /etc/cloudflared/config/config.yaml
-        - --credentials-file
-        - /etc/cloudflared/credentials.json
+        - --credentials-file                                                                                                                                                          │
+        - /etc/cloudflared/creds/credentials.json
         - run
         - 55d9c8bd-b6bf-4f67-bd5e-9219caf9c746
         ports:
