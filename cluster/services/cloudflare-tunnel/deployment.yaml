@@ -6,7 +6,7 @@ spec:
   selector:
     matchLabels:
       app: cloudflared
-  replicas: 2 # You could also consider elastic scaling for this deployment
+  replicas: 2
   template:
     metadata:
       labels:
@@ -17,11 +17,10 @@ spec:
         image: cloudflare/cloudflared:2025.4.0
         args:
         - tunnel
-        # Points cloudflared to the config file, which configures what
-        # cloudflared will actually do. This file is created by a ConfigMap
-        # below.
         - --config
         - /etc/cloudflared/config/config.yaml
+        - --credentials-file
+        - /etc/cloudflared/creds/credentials.json
         - run
         - 55d9c8bd-b6bf-4f67-bd5e-9219caf9c746
         ports:
@@ -29,8 +28,6 @@ spec:
           name: cloudflared
         livenessProbe:
           httpGet:
-            # Cloudflared has a /ready endpoint which returns 200 if and only if
-            # it has an active connection to the edge.
             path: /ready
             port: 2000
           failureThreshold: 1
@@ -40,18 +37,15 @@ spec:
         - name: config
           mountPath: /etc/cloudflared/config
           readOnly: true
-        # Each tunnel has an associated "credentials file" which authorizes machines
-        # to run the tunnel. cloudflared will read this file from its local filesystem,
-        # and it'll be stored in a k8s secret.
         - name: creds
-          mountPath: /etc/cloudflared/creds
-          readOnly: true
+          mountPath: /etc/cloudflared/creds/credentials.json
           subPath: credentials
+          readOnly: true
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
           runAsNonRoot: true
-          runAsUser: 65532 # Non-root user for cloudflared
+          runAsUser: 65532
           capabilities:
             drop:
             - ALL
@@ -61,7 +55,6 @@ spec:
       - name: creds
         secret:
           secretName: cloudflare-tunnel-credentials
-      # Create a config.yaml file from the ConfigMap below.
       - name: config
         configMap:
           name: cloudflared
