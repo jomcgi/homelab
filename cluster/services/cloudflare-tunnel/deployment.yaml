@@ -20,7 +20,7 @@ spec:
         - --config
         - /etc/cloudflared/config/config.yaml
         - --credentials-file
-        - /etc/cloudflared/creds/credentials.json
+        - /etc/cloudflared/credentials.json
         - run
         - 55d9c8bd-b6bf-4f67-bd5e-9219caf9c746
         ports:
@@ -38,8 +38,7 @@ spec:
           mountPath: /etc/cloudflared/config
           readOnly: true
         - name: creds
-          mountPath: /etc/cloudflared/creds/credentials.json
-          subPath: credentials
+          mountPath: /etc/cloudflared/
           readOnly: true
         securityContext:
           readOnlyRootFilesystem: true
@@ -55,6 +54,9 @@ spec:
       - name: creds
         secret:
           secretName: cloudflare-tunnel-credentials
+          items:
+          - key: credentials.json
+            path: credentials.json
       - name: config
         configMap:
           name: cloudflared
