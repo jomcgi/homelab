@@ -52,9 +52,6 @@ spec:
       - name: creds
         secret:
           secretName: cloudflare-tunnel-credentials
-          items:
-          - key: credentials
-            path: credentials.json
       - name: config
         configMap:
           name: cloudflared
