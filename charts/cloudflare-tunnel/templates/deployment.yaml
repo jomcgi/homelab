@@ -1,0 +1,90 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cloudflare-tunnel.fullname" . }}
+  namespace: {{ include "cloudflare-tunnel.namespace" . }}
+  labels:
+    {{- include "cloudflare-tunnel.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "cloudflare-tunnel.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "cloudflare-tunnel.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+      - name: cloudflared
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        args:
+        - tunnel
+        - --config
+        - /etc/cloudflared/config/config.yaml
+        - run
+        {{- if eq .Values.secret.type "onepassword" }}
+        - $(TUNNEL_ID)
+        {{- else }}
+        - {{ .Values.tunnel.id }}
+        {{- end }}
+        {{- if eq .Values.secret.type "onepassword" }}
+        env:
+        - name: TUNNEL_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-tunnel-credentials
+              key: tunnel-id
+        - name: TUNNEL_NAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-tunnel-credentials
+              key: tunnel-name
+        {{- end }}
+        ports:
+        - containerPort: {{ .Values.service.port }}
+          name: cloudflared
+        {{- if .Values.livenessProbe }}
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 10 }}
+        {{- end }}
+        volumeMounts:
+        - name: config
+          mountPath: /etc/cloudflared/config
+          readOnly: true
+        - name: creds
+          mountPath: /etc/cloudflared/creds/credentials.json
+          subPath: credentials
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        {{- with .Values.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+      volumes:
+      - name: creds
+        secret:
+          secretName: {{ if eq .Values.secret.type "external" }}{{ .Values.secret.external.secretName }}{{ else }}cloudflare-tunnel-credentials{{ end }}
+      - name: config
+        configMap:
+          name: {{ include "cloudflare-tunnel.fullname" . }}
+          items:
+          - key: config.yaml
+            path: config.yaml
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

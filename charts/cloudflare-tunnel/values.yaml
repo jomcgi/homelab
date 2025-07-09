@@ -1,0 +1,76 @@
+replicaCount: 2
+
+image:
+  repository: cloudflare/cloudflared
+  tag: "2025.4.0"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: "cloudflared"
+
+serviceAccount:
+  create: false
+  name: ""
+
+tunnel:
+  id: ""  # Will be set from secret when using OnePassword
+  name: ""  # Will be set from secret when using OnePassword
+
+secret:
+  # Options: onepassword, manual, external
+  type: onepassword
+  # For OnePassword operator integration
+  onepassword:
+    itemPath: "vaults/OVERLAY_NAME/items/cloudflare-tunnel"
+  # For manual secret creation (base64 encoded JSON)
+  manual:
+    credentialsJson: ""
+  # For externally managed secrets (secret must exist)
+  external:
+    secretName: "cloudflare-tunnel-credentials"
+
+ingress:
+  routes: []  # Define routes in overlay values
+  catchAll:
+    service: http_status:404
+
+service:
+  type: ClusterIP
+  port: 2000
+
+resources: {}
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+namespace:
+  create: true
+  name: cloudflare-tunnel
+
+podSecurityContext: {}
+
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 65532
+  capabilities:
+    drop:
+    - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+livenessProbe:
+  httpGet:
+    path: /ready
+    port: 2000
+  failureThreshold: 1
+  initialDelaySeconds: 10
+  periodSeconds: 10
+
+metrics:
+  enabled: true
+  address: "0.0.0.0:2000"
