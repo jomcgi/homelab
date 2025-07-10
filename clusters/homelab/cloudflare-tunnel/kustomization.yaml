@@ -3,11 +3,3 @@ kind: Kustomization
 
 resources:
   - ../../base/cloudflare-tunnel
-
-
-configMapGenerator:
-  - name: overlay-config
-    literals:
-      - OVERLAY_NAME=homelab
-    options:
-      disableNameSuffixHash: true
