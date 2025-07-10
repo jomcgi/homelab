@@ -4,7 +4,7 @@ secret:
 
 ingress:
   routes:
-    - hostname: argocd.$(OVERLAY_NAME).jomcgi.dev
+    - hostname: argocd.homelab.jomcgi.dev
       service: https://argocd-server.argocd.svc.cluster.local:443
       originRequest:
         noTLSVerify: true
