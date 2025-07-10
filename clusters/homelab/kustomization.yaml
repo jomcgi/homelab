@@ -8,6 +8,7 @@ resources:
 
 configMapGenerator:
   - name: overlay-config
+    namespace: bootstrap
     literals:
       - overlay-name=homelab
     options:

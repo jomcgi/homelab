@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: cluster-ingress
-  namespace: argocd
+  namespace: bootstrap
 spec:
   project: homelab
   source:
@@ -15,7 +15,7 @@ spec:
         - values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: cloudflare-tunnel
+    namespace: bootstrap
   syncPolicy:
     automated:
       prune: true
