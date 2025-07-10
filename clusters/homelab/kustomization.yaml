@@ -5,6 +5,7 @@ namePrefix: homelab-
 
 resources:
   - ./cloudflare-tunnel
+  - ../bootstrap-namespace.yaml
 
 configMapGenerator:
   - name: overlay-config
