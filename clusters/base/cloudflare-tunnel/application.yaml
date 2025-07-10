@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: cluster-ingress
+  namespace: argocd
+spec:
+  project: homelab
+  source:
+    repoURL: https://github.com/jomcgi/homelab
+    targetRevision: HEAD
+    path: cluster/charts/cloudflare-tunnel
+    helm:
+      releaseName: cluster-ingress
+      valueFiles:
+        - values.yaml
+        - ../../../overlays/homelab/bootstrap/cloudflare-tunnel/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: cloudflare-tunnel
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
