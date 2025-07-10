@@ -23,13 +23,10 @@ secret:
   type: onepassword
   # For OnePassword operator integration
   onepassword:
-    itemPath: "vaults/{{ .Values.overlayName }}/items/cloudflare-tunnel"
+    itemPath: "vaults/k8s-{{ .Values.overlayName }}/items/cloudflare-tunnel"
   # For manual secret creation (base64 encoded JSON)
   manual:
     credentialsJson: ""
-  # For externally managed secrets (secret must exist)
-  external:
-    secretName: "cloudflare-tunnel-credentials"
 
 ingress:
   routes: []  # Define routes in overlay values
