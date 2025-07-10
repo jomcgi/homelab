@@ -1,0 +1,34 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: grafana-cloud
+
+deploy:
+  helm:
+    releases:
+      - name: grafana-k8s-monitoring
+        remoteChart: grafana/k8s-monitoring
+        version: 3.0.1
+        namespace: grafana
+        createNamespace: true
+        upgradeOnChange: true
+        wait: true
+        valuesFiles:
+          - cluster/services/grafana-cloud/values.yaml
+        setValueTemplates:
+          # For destinations block (metrics, logs, otlp)
+          destinations[0].auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
+          destinations[1].auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
+          destinations[2].auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
+
+          # For alloy-metrics remoteConfig
+          alloy-metrics.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
+
+          # For alloy-singleton remoteConfig
+          alloy-singleton.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
+
+          # For alloy-logs remoteConfig
+          alloy-logs.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"
+          
+          # For alloy-receiver remoteConfig s
+          alloy-receiver.remoteConfig.auth.password: "{{.GRAFANA_CLOUD_PASSWORD}}"

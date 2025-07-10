@@ -1,0 +1,16 @@
+apiVersion: skaffold/v4beta5
+kind: Config
+metadata:
+  name: longhorn
+deploy:
+  helm:
+    releases:
+      - name: longhorn
+        remoteChart: longhorn/longhorn
+        version: 1.8.1
+        namespace: longhorn
+        createNamespace: true
+        upgradeOnChange: true
+        wait: true
+        valuesFiles:
+          - cluster/crd/longhorn/values.yaml

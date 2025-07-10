@@ -1,0 +1,21 @@
+apiVersion: skaffold/v4beta11
+kind: Config
+metadata:
+  name: obsidian-mcp
+build:
+  artifacts:
+  - image: jomcgi/obsidian-mcp
+    context: cluster/services/obsidian-mcp/api
+    kaniko:
+      dockerfile: Dockerfile
+  cluster:
+    dockerConfig:
+      secretName: docker-cfg
+manifests:
+  kustomize:
+    paths:
+    - cluster/services/obsidian-mcp/deploy
+deploy:
+  kubectl:
+    defaultNamespace: obsidian-mcp
+  statusCheckDeadlineSeconds: 300

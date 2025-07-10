@@ -1,0 +1,168 @@
+cluster:
+  name: homelab
+destinations:
+  - name: grafana-cloud-metrics
+    type: prometheus
+    url: https://prometheus-prod-55-prod-gb-south-1.grafana.net./api/prom/push
+    auth:
+      type: basic
+      username: "2334347"
+      password: "{{ .Values.grafana_cloud_password}}"
+  - name: grafana-cloud-logs
+    type: loki
+    url: https://logs-prod-035.grafana.net./loki/api/v1/push
+    auth:
+      type: basic
+      username: "1162851"
+      password: "{{ .Values.grafana_cloud_password}}"
+  - name: grafana-cloud-otlp-endpoint
+    type: otlp
+    url: https://otlp-gateway-prod-gb-south-1.grafana.net./otlp
+    protocol: http
+    auth:
+      type: basic
+      username: "1205052"
+      password: "{{ .Values.grafana_cloud_password}}"
+    metrics:
+      enabled: true
+    logs:
+      enabled: true
+    traces:
+      enabled: true
+clusterMetrics:
+  enabled: true
+annotationAutodiscovery:
+  enabled: true
+prometheusOperatorObjects:
+  enabled: true
+clusterEvents:
+  enabled: true
+nodeLogs:
+  enabled: false
+podLogs:
+  enabled: false
+applicationObservability:
+  enabled: true
+  receivers:
+    otlp:
+      grpc:
+        enabled: true
+        port: 4317
+      http:
+        enabled: true
+        port: 4318
+    zipkin:
+      enabled: true
+      port: 9411
+alloy-metrics:
+  enabled: true
+  alloy:
+    resources:
+      requests:
+        memory: 400Mi
+    extraEnv:
+      - name: GCLOUD_RW_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
+            key: "password"
+      - name: CLUSTER_NAME
+        value: homelab
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: GCLOUD_FM_COLLECTOR_ID
+        value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-$(POD_NAME)
+  remoteConfig:
+    enabled: true
+    url: https://fleet-management-prod-023.grafana.net
+    auth:
+      type: basic
+      username: "1205052"
+      password: "{{ .Values.grafana_cloud_password}}"
+alloy-singleton:
+  enabled: true
+  alloy:
+    resources:
+      requests:
+        memory: 150Mi
+    extraEnv:
+      - name: GCLOUD_RW_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
+            key: "password"
+      - name: CLUSTER_NAME
+        value: homelab
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: GCLOUD_FM_COLLECTOR_ID
+        value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-$(POD_NAME)
+  remoteConfig:
+    enabled: true
+    url: https://fleet-management-prod-023.grafana.net
+    auth:
+      type: basic
+      username: "1205052"
+      password: "{{ .Values.grafana_cloud_password}}"
+alloy-logs:
+  enabled: false
+alloy-receiver:
+  enabled: true
+  alloy:
+    resources:
+      requests:
+        memory: 400Mi
+    extraPorts:
+      - name: otlp-grpc
+        port: 4317
+        targetPort: 4317
+        protocol: TCP
+      - name: otlp-http
+        port: 4318
+        targetPort: 4318
+        protocol: TCP
+      - name: zipkin
+        port: 9411
+        targetPort: 9411
+        protocol: TCP
+    extraEnv:
+      - name: GCLOUD_RW_API_KEY
+        valueFrom:
+          secretKeyRef:
+            name: "grafana-cloud-otlp-endpoint-grafana-k8s-monitoring"
+            key: "password"
+      - name: CLUSTER_NAME
+        value: homelab
+      - name: NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+      - name: POD_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.name
+      - name: NODE_NAME
+        valueFrom:
+          fieldRef:
+            fieldPath: spec.nodeName
+      - name: GCLOUD_FM_COLLECTOR_ID
+        value: grafana-k8s-monitoring-$(CLUSTER_NAME)-$(NAMESPACE)-alloy-receiver-$(NODE_NAME)
+  remoteConfig:
+    enabled: true
+    url: https://fleet-management-prod-023.grafana.net
+    auth:
+      type: basic
+      username: "1205052"
+      password: "{{ .Values.grafana_cloud_password}}"
