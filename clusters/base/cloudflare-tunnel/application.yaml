@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jomcgi/homelab
     targetRevision: HEAD
-    path: cluster/charts/cloudflare-tunnel
+    path: charts/cloudflare-tunnel
     helm:
       releaseName: cluster-ingress
       valueFiles:
