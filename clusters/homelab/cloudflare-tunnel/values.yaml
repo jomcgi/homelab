@@ -2,6 +2,10 @@ secret:
   onepassword:
     itemPath: "vaults/k8s-homelab/items/cloudflare-tunnel"
 
+namespace:
+  create: false
+  name: bootstrap
+
 ingress:
   routes:
     - hostname: argocd.homelab.jomcgi.dev
