@@ -1,9 +1,0 @@
-# Additional prod-specific routes beyond the base argocd route
-ingress:
-  routes:
-    - hostname: talk.prod.jomcgi.dev
-      service: http://open-webui.open-webui.svc.cluster.local:80
-    - hostname: longhorn.prod.jomcgi.dev
-      service: http://longhorn-frontend.longhorn.svc.cluster.local:80
-    - hostname: github.prod.jomcgi.dev
-      service: http://otel-collector.opentelemetry.svc.cluster.local:19418

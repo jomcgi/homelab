@@ -1,4 +1,3 @@
-# Cluster-level ingress values for bootstrap
 ingress:
   routes:
     - hostname: argocd.$(OVERLAY_NAME).jomcgi.dev
