@@ -23,7 +23,7 @@ secret:
   type: onepassword
   # For OnePassword operator integration
   onepassword:
-    itemPath: "vaults/k8s-{{ .Values.overlayName }}/items/cloudflare-tunnel"
+    itemPath: ""
   # For manual secret creation (base64 encoded JSON)
   manual:
     credentialsJson: ""
