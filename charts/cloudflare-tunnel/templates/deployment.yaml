@@ -69,7 +69,7 @@ spec:
       volumes:
       - name: creds
         secret:
-          secretName: {{ if eq .Values.secret.type "external" }}{{ .Values.secret.external.secretName }}{{ else }}cloudflare-tunnel-credentials{{ end }}
+          secretName: "cloudflare-tunnel-credentials"
       - name: config
         configMap:
           name: {{ include "cloudflare-tunnel.fullname" . }}
