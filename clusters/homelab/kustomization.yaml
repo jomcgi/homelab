@@ -4,7 +4,7 @@ kind: Kustomization
 namePrefix: homelab-
 
 resources:
-  - ../../overlays/base/bootstrap
+  - ./cloudflare-tunnel
 
 configMapGenerator:
   - name: overlay-config
