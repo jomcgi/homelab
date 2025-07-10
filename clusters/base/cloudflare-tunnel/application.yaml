@@ -2,7 +2,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
   name: cluster-ingress
-  namespace: bootstrap
+  namespace: argocd
 spec:
   project: homelab
   source:
