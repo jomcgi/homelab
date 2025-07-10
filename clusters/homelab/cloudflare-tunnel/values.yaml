@@ -1,0 +1,16 @@
+secret:
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/cloudflare-tunnel"
+
+ingress:
+  routes:
+    - hostname: argocd.$(OVERLAY_NAME).jomcgi.dev
+      service: https://argocd-server.argocd.svc.cluster.local:443
+      originRequest:
+        noTLSVerify: true
+
+    # Add other cluster-level services here:
+    # - hostname: longhorn.$(OVERLAY_NAME).jomcgi.dev
+    #   service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+    # - hostname: prometheus.$(OVERLAY_NAME).jomcgi.dev
+    #   service: http://prometheus-server.monitoring.svc.cluster.local:80
