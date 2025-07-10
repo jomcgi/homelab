@@ -13,7 +13,6 @@ spec:
       releaseName: cluster-ingress
       valueFiles:
         - values.yaml
-        - ../../../overlays/homelab/bootstrap/cloudflare-tunnel/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cloudflare-tunnel
