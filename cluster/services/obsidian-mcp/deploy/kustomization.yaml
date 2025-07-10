@@ -1,7 +1,0 @@
-
-namespace: obsidian-mcp
-
-resources:
-  - configmap.yaml
-  - deployment.yaml
-  - service.yaml
