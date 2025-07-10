@@ -8,7 +8,7 @@ namespace:
 
 ingress:
   routes:
-    - hostname: argocd.homelab.jomcgi.dev
+    - hostname: argocd-homelab.jomcgi.dev
       service: https://argocd-server.argocd.svc.cluster.local:443
       originRequest:
         noTLSVerify: true
