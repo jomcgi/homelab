@@ -14,3 +14,13 @@ configMapGenerator:
       - overlay-name=homelab
     options:
       disableNameSuffixHash: true
+
+patches:
+  - target:
+      kind: Application
+      name: cluster-ingress
+    patch: |-
+      - op: add
+        path: /spec/source/helm/values
+        value: |
+          overlayName: homelab

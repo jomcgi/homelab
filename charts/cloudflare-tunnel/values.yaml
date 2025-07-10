@@ -1,5 +1,7 @@
 replicaCount: 2
 
+overlayName: ""  # Should be set by overlay (e.g., homelab, prod)
+
 image:
   repository: cloudflare/cloudflared
   tag: "2025.4.0"
@@ -21,7 +23,7 @@ secret:
   type: onepassword
   # For OnePassword operator integration
   onepassword:
-    itemPath: "vaults/OVERLAY_NAME/items/cloudflare-tunnel"
+    itemPath: "vaults/{{ .Values.overlayName }}/items/cloudflare-tunnel"
   # For manual secret creation (base64 encoded JSON)
   manual:
     credentialsJson: ""
