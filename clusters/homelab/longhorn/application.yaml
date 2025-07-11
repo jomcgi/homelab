@@ -14,14 +14,6 @@ spec:
       values: |
         preUpgradeChecker:
           jobEnabled: false
-      patches:
-      - patch: |-
-          - op: remove
-            path: /spec/preserveUnknownFields
-        target:
-          group: apiextensions.k8s.io
-          kind: CustomResourceDefinition
-          name: .*\.longhorn\.io
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn
@@ -31,3 +23,8 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+  ignoreDifferences:
+  - group: apiextensions.k8s.io
+    kind: CustomResourceDefinition
+    jsonPointers:
+    - /spec/preserveUnknownFields
