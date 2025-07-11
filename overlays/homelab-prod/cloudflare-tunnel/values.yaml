@@ -1,6 +1,6 @@
 secret:
   onepassword:
-    itemPath: "vaults/k8s-homelab-prod/items/cloudflare-tunnel"
+    itemPath: "vaults/k8s-homelab/items/prod-cloudflare-tunnel"
 
 namespace:
   create: true
