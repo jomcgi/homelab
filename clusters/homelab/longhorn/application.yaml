@@ -12,7 +12,7 @@ spec:
     helm:
       releaseName: longhorn
       valueFiles:
-        - ../../clusters/homelab/longhorn/values.yaml
+        - clusters/homelab/longhorn/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn
