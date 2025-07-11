@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   # Cluster-level resources
   - ./cloudflare-tunnel
+  - ./longhorn
   - ./bootstrap-namespace.yaml
   # Overlays
   - ../../overlays/homelab-prod
