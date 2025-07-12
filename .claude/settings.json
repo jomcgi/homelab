@@ -1,19 +1,32 @@
 {
-  "ignore": [
-    "**/*.sqlite"
-  ],
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
   },
   "permissions": {
     "allow": [
       "Bash(kubectl:*)",
-      "Bash(skaffold:*)",
       "Bash(helm:*)",
       "Bash(git:*)",
       "Bash(docker:*)",
-      "Bash(talosctl:*)"
+      "Bash(talosctl:*)",
+      "Bash(argocd diff:*)",
+      "Bash(pytest:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(kubectl get pods:*)",
+      "Bash(kubectl logs:*)",
+      "Bash(find:*)",
+      "Bash(grep:*)",
+      "WebFetch(domain:docs.anthropic.com)",
+      "Bash(npm run test*)",
+      "mcp__playwright__browser_navigate",
+      "mcp__playwright__browser_install",
+      "WebFetch(domain:argo-cd.readthedocs.io)"
     ]
   },
-  "cleanupPeriodDays": 60
+  "cleanupPeriodDays": 60,
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "playwright"
+  ]
 }

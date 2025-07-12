@@ -1,0 +1,117 @@
+replicaCount: 1
+
+image:
+  repository: cloudflare-operator
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: ClusterIP
+  port: 8080
+
+ingress:
+  enabled: false
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Cloudflare configuration
+cloudflare:
+  # API token for Cloudflare (can be set via existing secret)
+  apiToken: ""
+  # Account ID for Cloudflare Zero Trust
+  accountId: ""
+  
+  # Use existing secret for credentials
+  existingSecret: ""
+  existingSecretKeys:
+    apiToken: "api-token"
+    accountId: "account-id"
+
+# Operator configuration
+operator:
+  # Enable different controllers
+  controllers:
+    service:
+      enabled: true
+    tunnel:
+      enabled: true
+    zerotrust:
+      enabled: true
+    accessPolicy:
+      enabled: true
+  
+  # Reconciliation intervals
+  reconcileInterval: "10m"
+  
+  # Metrics configuration
+  metrics:
+    enabled: true
+    port: 8080
+  
+  # Health probe configuration
+  health:
+    port: 8081
+
+# RBAC configuration
+rbac:
+  create: true
+
+# Policy configuration
+policies:
+  # ConfigMap name for policy templates
+  configMapName: "cloudflare-policies"
+  # Create default policies ConfigMap
+  createDefaults: true
+  # Default policy templates
+  defaults:
+    personal-access:
+      decision: allow
+      include:
+        - emails:
+            - user@example.com
+    team-access:
+      decision: allow
+      include:
+        - emailDomains:
+            - example.com
+
+# Webhook configuration
+webhook:
+  enabled: true
+  port: 9443
+  certManager:
+    enabled: true
