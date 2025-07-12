@@ -34,3 +34,4 @@ node_modules
 **/venv/**
 projects/static_rewrite_find_good_hikes/build/dist
 operators/cloudflare/bin/**
+.mcp.json
