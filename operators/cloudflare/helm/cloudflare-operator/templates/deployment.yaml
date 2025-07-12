@@ -35,29 +35,15 @@ spec:
             - --leader-elect
           env:
             - name: CLOUDFLARE_API_TOKEN
-              {{- if .Values.cloudflare.existingSecret }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.cloudflare.existingSecret }}
                   key: {{ .Values.cloudflare.existingSecretKeys.apiToken }}
-              {{- else }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "cloudflare-operator.fullname" . }}-secret
-                  key: api-token
-              {{- end }}
             - name: CLOUDFLARE_ACCOUNT_ID
-              {{- if .Values.cloudflare.existingSecret }}
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.cloudflare.existingSecret }}
                   key: {{ .Values.cloudflare.existingSecretKeys.accountId }}
-              {{- else }}
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "cloudflare-operator.fullname" . }}-secret
-                  key: account-id
-              {{- end }}
           ports:
             - name: metrics
               containerPort: {{ .Values.operator.metrics.port }}
