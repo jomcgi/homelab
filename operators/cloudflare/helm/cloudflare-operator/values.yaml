@@ -1,8 +1,8 @@
 replicaCount: 1
 
 image:
-  repository: cloudflare-operator
-  tag: "0.1.0"
+  repository: ghcr.io/jomcgi/cloudflare-operator
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 nameOverride: ""
@@ -31,9 +31,6 @@ service:
   type: ClusterIP
   port: 8080
 
-ingress:
-  enabled: false
-
 resources:
   limits:
     cpu: 500m
@@ -50,36 +47,16 @@ affinity: {}
 
 # Cloudflare configuration
 cloudflare:
-  # API token for Cloudflare (can be set via existing secret)
-  apiToken: ""
-  # Account ID for Cloudflare Zero Trust
-  accountId: ""
-  
   # Use existing secret for credentials
-  existingSecret: ""
+  existingSecret: "cloudflare-operator-credentials"
   existingSecretKeys:
     apiToken: "api-token"
     accountId: "account-id"
 
 # Operator configuration
 operator:
-  # Enable different controllers
-  controllers:
-    service:
-      enabled: true
-    tunnel:
-      enabled: true
-    zerotrust:
-      enabled: true
-    accessPolicy:
-      enabled: true
-  
-  # Reconciliation intervals
-  reconcileInterval: "10m"
-  
   # Metrics configuration
   metrics:
-    enabled: true
     port: 8080
   
   # Health probe configuration
@@ -113,5 +90,15 @@ policies:
 webhook:
   enabled: true
   port: 9443
-  certManager:
-    enabled: true
+
+# Custom resources (for advanced users)
+# This allows you to deploy additional resources like secrets from 1Password
+customResources: []
+# Example:
+# customResources:
+#   - apiVersion: onepassword.com/v1
+#     kind: OnePasswordItem
+#     metadata:
+#       name: cloudflare-credentials
+#     spec:
+#       itemPath: vaults/Infrastructure/items/cloudflare-api
