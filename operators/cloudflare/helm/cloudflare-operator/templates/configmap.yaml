@@ -1,0 +1,11 @@
+{{- if .Values.policies.createDefaults }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.policies.configMapName }}
+  labels:
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+data:
+  policies.yaml: |
+    {{- toYaml .Values.policies.defaults | nindent 4 }}
+{{- end }}
