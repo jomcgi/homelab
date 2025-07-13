@@ -7,8 +7,11 @@ import (
 	"strings"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -194,14 +197,19 @@ func (r *ServiceReconciler) handleZeroTrustApplication(ctx context.Context, serv
 func (r *ServiceReconciler) handleTunnel(ctx context.Context, service *corev1.Service) error {
 	log := log.FromContext(ctx)
 	
-	tunnelName := service.Annotations[AnnotationTunnelName]
-	hostname := service.Annotations[AnnotationHostname]
+	log.Info("Updating shared cloudflared configuration", "service", service.Name)
 	
-	log.Info("Handling tunnel configuration", "tunnel", tunnelName, "hostname", hostname)
+	// Ensure shared cloudflared deployment exists
+	if err := r.ensureSharedCloudflaredDeployment(ctx); err != nil {
+		return fmt.Errorf("failed to ensure shared cloudflared deployment: %w", err)
+	}
 	
-	// TODO: Implement tunnel creation with v3 SDK
-	log.Info("📋 Tunnel creation with v3 SDK - coming soon!", "tunnel", tunnelName, "hostname", hostname)
+	// Update tunnel configuration with all annotated services
+	if err := r.updateSharedTunnelConfiguration(ctx); err != nil {
+		return fmt.Errorf("failed to update tunnel configuration: %w", err)
+	}
 	
+	log.Info("✅ Shared cloudflared configuration updated")
 	return nil
 }
 
@@ -242,6 +250,12 @@ func (r *ServiceReconciler) handleDeletion(ctx context.Context, service *corev1.
 	}
 	
 	log.Info("✅ Completed Cloudflare cleanup for service")
+	
+	// Update shared cloudflared configuration after deletion
+	if err := r.updateSharedTunnelConfiguration(ctx); err != nil {
+		log.Error(err, "Failed to update tunnel configuration after service deletion")
+	}
+	
 	return ctrl.Result{}, nil
 }
 
