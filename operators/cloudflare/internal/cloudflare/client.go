@@ -5,13 +5,13 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/cloudflare/cloudflare-go/v3"
+	cfv3 "github.com/cloudflare/cloudflare-go/v3"
 	"github.com/cloudflare/cloudflare-go/v3/option"
 	"github.com/cloudflare/cloudflare-go/v3/zero_trust"
 )
 
 type Client struct {
-	*cloudflare.Client
+	client    *cfv3.Client
 	AccountID string
 }
 
@@ -27,12 +27,12 @@ func NewClient() (*Client, error) {
 	}
 
 
-	client := cloudflare.NewClient(
+	client := cfv3.NewClient(
 		option.WithAPIToken(token),
 	)
 
 	return &Client{
-		Client:    client,
+		client:    client,
 		AccountID: accountID,
 	}, nil
 }
@@ -43,19 +43,19 @@ func (c *Client) CreateAccessApplication(ctx context.Context, hostname, name, po
 	var policies []zero_trust.AccessApplicationNewParamsBodySelfHostedApplicationPolicyUnion
 	if policyID != "" {
 		policyLink := zero_trust.AccessApplicationNewParamsBodySelfHostedApplicationPoliciesAccessAppPolicyLink{
-			ID: cloudflare.F(policyID),
+			ID: cfv3.F(policyID),
 		}
 		policies = append(policies, policyLink)
 	}
 
-	application, err := c.ZeroTrust.Access.Applications.New(ctx, zero_trust.AccessApplicationNewParams{
-		AccountID: cloudflare.F(c.AccountID),
+	application, err := c.client.ZeroTrust.Access.Applications.New(ctx, zero_trust.AccessApplicationNewParams{
+		AccountID: cfv3.F(c.AccountID),
 		Body: zero_trust.AccessApplicationNewParamsBodySelfHostedApplication{
-			Domain:           cloudflare.F(hostname),
-			Type:             cloudflare.F("self_hosted"),
-			Name:             cloudflare.F(name),
-			SessionDuration:  cloudflare.F("24h"),
-			Policies:         cloudflare.F(policies),
+			Domain:           cfv3.F(hostname),
+			Type:             cfv3.F("self_hosted"),
+			Name:             cfv3.F(name),
+			SessionDuration:  cfv3.F("24h"),
+			Policies:         cfv3.F(policies),
 		},
 	})
 	if err != nil {
@@ -78,18 +78,18 @@ func (c *Client) CreateAccessPolicy(ctx context.Context, name string, emails []s
 	var includeRules []zero_trust.AccessRuleUnionParam
 	for _, email := range emails {
 		rule := zero_trust.EmailRuleParam{
-			Email: cloudflare.F(zero_trust.EmailRuleEmailParam{
-				Email: cloudflare.F(email),
+			Email: cfv3.F(zero_trust.EmailRuleEmailParam{
+				Email: cfv3.F(email),
 			}),
 		}
 		includeRules = append(includeRules, rule)
 	}
 
-	policy, err := c.ZeroTrust.Access.Policies.New(ctx, zero_trust.AccessPolicyNewParams{
-		AccountID: cloudflare.F(c.AccountID),
-		Decision:  cloudflare.F(zero_trust.DecisionAllow),
-		Include:   cloudflare.F(includeRules),
-		Name:      cloudflare.F(name),
+	policy, err := c.client.ZeroTrust.Access.Policies.New(ctx, zero_trust.AccessPolicyNewParams{
+		AccountID: cfv3.F(c.AccountID),
+		Decision:  cfv3.F(zero_trust.DecisionAllow),
+		Include:   cfv3.F(includeRules),
+		Name:      cfv3.F(name),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Access policy: %w", err)
@@ -100,8 +100,8 @@ func (c *Client) CreateAccessPolicy(ctx context.Context, name string, emails []s
 
 // DeleteAccessPolicy deletes a Zero Trust Access policy
 func (c *Client) DeleteAccessPolicy(ctx context.Context, policyID string) error {
-	_, err := c.ZeroTrust.Access.Policies.Delete(ctx, policyID, zero_trust.AccessPolicyDeleteParams{
-		AccountID: cloudflare.F(c.AccountID),
+	_, err := c.client.ZeroTrust.Access.Policies.Delete(ctx, policyID, zero_trust.AccessPolicyDeleteParams{
+		AccountID: cfv3.F(c.AccountID),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete Access policy: %w", err)
@@ -112,8 +112,8 @@ func (c *Client) DeleteAccessPolicy(ctx context.Context, policyID string) error 
 
 // DeleteAccessApplication deletes a Zero Trust Access application
 func (c *Client) DeleteAccessApplication(ctx context.Context, appID string) error {
-	_, err := c.ZeroTrust.Access.Applications.Delete(ctx, appID, zero_trust.AccessApplicationDeleteParams{
-		AccountID: cloudflare.F(c.AccountID),
+	_, err := c.client.ZeroTrust.Access.Applications.Delete(ctx, appID, zero_trust.AccessApplicationDeleteParams{
+		AccountID: cfv3.F(c.AccountID),
 	})
 	if err != nil {
 		return fmt.Errorf("failed to delete Access application: %w", err)
