@@ -150,7 +150,9 @@ func (r *ServiceReconciler) handleZeroTrustApplication(ctx context.Context, serv
 		log.Error(err, "Failed to create Cloudflare Access application")
 		// Clean up the policy if we created it and app creation fails
 		if emailsAnnotation != "" || policyRef != "" {
-			r.CloudflareClient.DeleteAccessPolicy(ctx, policyID)
+			if err := r.CloudflareClient.DeleteAccessPolicy(ctx, policyID); err != nil {
+				log.Error(err, "Failed to clean up access policy after app creation failure")
+			}
 		}
 		return err
 	}
@@ -169,9 +171,13 @@ func (r *ServiceReconciler) handleZeroTrustApplication(ctx context.Context, serv
 	if err := r.Update(ctx, service); err != nil {
 		log.Error(err, "Failed to store IDs in annotations")
 		// Clean up resources if annotation fails
-		r.CloudflareClient.DeleteAccessApplication(ctx, app.ID)
+		if err := r.CloudflareClient.DeleteAccessApplication(ctx, app.ID); err != nil {
+			log.Error(err, "Failed to clean up access application after annotation failure")
+		}
 		if emailsAnnotation != "" || policyRef != "" {
-			r.CloudflareClient.DeleteAccessPolicy(ctx, policyID)
+			if err := r.CloudflareClient.DeleteAccessPolicy(ctx, policyID); err != nil {
+				log.Error(err, "Failed to clean up access policy after annotation failure")
+			}
 		}
 		return err
 	}
