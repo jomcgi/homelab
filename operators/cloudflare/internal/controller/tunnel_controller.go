@@ -16,6 +16,10 @@ import (
 	cfapi "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
 )
 
+const (
+	FinalizerTunnelCleanup = "cloudflare.io/tunnel-cleanup"
+)
+
 type TunnelReconciler struct {
 	client.Client
 	Scheme           *runtime.Scheme
@@ -85,12 +89,28 @@ func (r *TunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctr
 		
 		// Store tunnel ID in memory for cleanup on shutdown
 		r.TunnelID = tunnelID
-	} else {
-		// Tunnel secret exists, extract tunnel ID
-		if tunnelIDBytes, ok := tunnelSecret.Data["tunnel-id"]; ok {
-			r.TunnelID = string(tunnelIDBytes)
-			log.V(1).Info("Operator tunnel already configured", "tunnelId", r.TunnelID)
+		return ctrl.Result{RequeueAfter: time.Minute * 10}, nil
+	}
+
+	// Handle deletion with finalizer
+	if tunnelSecret.DeletionTimestamp != nil {
+		return r.handleTunnelDeletion(ctx, tunnelSecret)
+	}
+
+	// Add finalizer if not present
+	if !containsString(tunnelSecret.Finalizers, FinalizerTunnelCleanup) {
+		tunnelSecret.Finalizers = append(tunnelSecret.Finalizers, FinalizerTunnelCleanup)
+		if err := r.Update(ctx, tunnelSecret); err != nil {
+			log.Error(err, "Failed to add tunnel finalizer")
+			return ctrl.Result{}, err
 		}
+		return ctrl.Result{Requeue: true}, nil
+	}
+
+	// Tunnel secret exists, extract tunnel ID
+	if tunnelIDBytes, ok := tunnelSecret.Data["tunnel-id"]; ok {
+		r.TunnelID = string(tunnelIDBytes)
+		log.V(1).Info("Operator tunnel already configured", "tunnelId", r.TunnelID)
 	}
 
 	return ctrl.Result{RequeueAfter: time.Minute * 10}, nil
@@ -105,6 +125,7 @@ func (r *TunnelReconciler) createTunnelSecret(ctx context.Context, tunnelName, t
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
 			Namespace: "default", // Use same namespace as operator for now
+			Finalizers: []string{FinalizerTunnelCleanup},
 			Labels: map[string]string{
 				"app":                          "cloudflare-operator",
 				"cloudflare.io/tunnel-name":    tunnelName,
@@ -126,6 +147,38 @@ func (r *TunnelReconciler) createTunnelSecret(ctx context.Context, tunnelName, t
 
 	log.Info("✅ Created tunnel secret", "secretName", secretName, "tunnelId", tunnelID)
 	return nil
+}
+
+// handleTunnelDeletion handles the deletion of the tunnel secret with finalizer cleanup
+func (r *TunnelReconciler) handleTunnelDeletion(ctx context.Context, tunnelSecret *corev1.Secret) (ctrl.Result, error) {
+	log := log.FromContext(ctx)
+	
+	// Extract tunnel ID from secret
+	tunnelIDBytes, exists := tunnelSecret.Data["tunnel-id"]
+	if !exists {
+		log.Info("No tunnel ID found in secret, skipping tunnel cleanup")
+	} else {
+		tunnelID := string(tunnelIDBytes)
+		log.Info("Deleting Cloudflare tunnel", "tunnelId", tunnelID)
+		
+		// Delete the tunnel from Cloudflare
+		if err := r.CloudflareClient.DeleteTunnel(ctx, tunnelID); err != nil {
+			log.Error(err, "Failed to delete tunnel from Cloudflare", "tunnelId", tunnelID)
+			// Don't block deletion on cleanup failure, but log the error
+		} else {
+			log.Info("✅ Deleted Cloudflare tunnel", "tunnelId", tunnelID)
+		}
+	}
+	
+	// Remove finalizer to allow deletion
+	tunnelSecret.Finalizers = removeString(tunnelSecret.Finalizers, FinalizerTunnelCleanup)
+	if err := r.Update(ctx, tunnelSecret); err != nil {
+		log.Error(err, "Failed to remove tunnel finalizer")
+		return ctrl.Result{}, err
+	}
+	
+	log.Info("✅ Tunnel cleanup complete")
+	return ctrl.Result{}, nil
 }
 
 // CleanupTunnel deletes the tunnel when the operator is shutting down
@@ -160,10 +213,29 @@ func (r *TunnelReconciler) CleanupTunnel(ctx context.Context) error {
 	return nil
 }
 
+// Helper functions
+func containsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeString(slice []string, s string) []string {
+	var result []string
+	for _, item := range slice {
+		if item != s {
+			result = append(result, item)
+		}
+	}
+	return result
+}
+
 func (r *TunnelReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// This would be uncommented when we have the actual CRD type
-	// return ctrl.NewControllerManagedBy(mgr).
-	// 	For(&cloudflareapi.Tunnel{}).
-	// 	Complete(r)
-	return nil
+	// Set up the controller to watch the tunnel secret
+	return ctrl.NewControllerManagedBy(mgr).
+		For(&corev1.Secret{}).
+		Complete(r)
 }
