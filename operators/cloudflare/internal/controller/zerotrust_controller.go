@@ -44,19 +44,6 @@ func (r *ZeroTrustApplicationReconciler) Reconcile(ctx context.Context, req ctrl
 	return ctrl.Result{RequeueAfter: time.Minute * 10}, nil
 }
 
-func (r *ZeroTrustApplicationReconciler) createAccessApplication(ctx context.Context, hostname, policyID string) error {
-	log := log.FromContext(ctx)
-	
-	// TODO: Use the client wrapper's CreateAccessApplication method
-	appName := fmt.Sprintf("k8s-%s", hostname)
-	_, err := r.CloudflareClient.CreateAccessApplication(ctx, hostname, appName, "")
-	if err != nil {
-		return err
-	}
-	
-	log.Info("✅ Created Cloudflare Access application via ZeroTrust controller", "hostname", hostname, "policy", policyID)
-	return nil
-}
 
 func (r *ZeroTrustApplicationReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// This would be uncommented when we have the actual CRD type
