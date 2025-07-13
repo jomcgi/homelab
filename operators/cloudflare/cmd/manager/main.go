@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
+	"time"
 
+	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -20,6 +23,34 @@ var (
 	scheme   = runtime.NewScheme()
 	setupLog = ctrl.Log.WithName("setup")
 )
+
+// TunnelInitializer runs after the manager starts to initialize the tunnel
+type TunnelInitializer struct {
+	reconciler *controller.TunnelReconciler
+	log        logr.Logger
+}
+
+func (t *TunnelInitializer) Start(ctx context.Context) error {
+	// Wait a moment for the manager to be fully ready
+	time.Sleep(3 * time.Second)
+	
+	t.log.Info("Initializing operator tunnel")
+	if _, err := t.reconciler.Reconcile(ctx, ctrl.Request{}); err != nil {
+		t.log.Error(err, "Failed to initialize tunnel")
+		return err
+	}
+	
+	// Keep running to handle tunnel lifecycle
+	<-ctx.Done()
+	
+	// Cleanup tunnel on shutdown
+	t.log.Info("Cleaning up tunnel on shutdown")
+	if err := t.reconciler.CleanupTunnel(ctx); err != nil {
+		t.log.Error(err, "Failed to cleanup tunnel")
+	}
+	
+	return nil
+}
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
@@ -67,6 +98,22 @@ func main() {
 		CloudflareClient: cfClient,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Service")
+		os.Exit(1)
+	}
+
+	// Setup tunnel controller to manage operator's tunnel
+	tunnelReconciler := &controller.TunnelReconciler{
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		CloudflareClient: cfClient,
+	}
+	
+	// Add a runnable to initialize tunnel after manager starts
+	if err := mgr.Add(&TunnelInitializer{
+		reconciler: tunnelReconciler,
+		log:        setupLog,
+	}); err != nil {
+		setupLog.Error(err, "unable to add tunnel initializer")
 		os.Exit(1)
 	}
 
