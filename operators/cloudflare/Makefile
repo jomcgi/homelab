@@ -7,7 +7,22 @@ help: ## Display this help.
 
 .PHONY: test
 test: ## Run tests
+	@echo "Running go tests..."
+	@go test -short -parallel 4 ./...
+
+.PHONY: test-coverage
+test-coverage: ## Run tests with coverage
 	go test ./... -coverprofile cover.out
+
+.PHONY: test-ci
+test-ci: ## Run tests optimized for CI (build verification only since no tests exist)
+	@echo "Running CI tests (fast mode)..."
+	@go test -short -parallel 4 ./...
+
+.PHONY: verify-build
+verify-build: ## Verify all packages build successfully
+	@echo "Verifying all packages build..."
+	@go build ./...
 
 .PHONY: build
 build: ## Build manager binary
