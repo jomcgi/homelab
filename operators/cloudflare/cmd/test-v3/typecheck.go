@@ -13,7 +13,7 @@ import (
 
 func main() {
 	data, err := os.ReadFile("/home/jomcgi/homelab/cloudflare-creds.json")
-	if err \!= nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 	var creds struct {
@@ -34,7 +34,7 @@ func main() {
 			SessionDuration: cloudflare.F("24h"),
 		},
 	})
-	if err \!= nil {
+	if err != nil {
 		log.Printf("Error (expected): %v", err)
 	}
 	fmt.Printf("Type: %T\n", app)
