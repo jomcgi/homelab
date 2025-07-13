@@ -25,9 +25,20 @@ jobs:
         with:
           go-version: '1.21'
           cache-dependency-path: operators/cloudflare/go.sum
+          cache: true
       
-      - name: Run tests
-        run: make test
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+      
+      - name: Verify build
+        run: make verify-build
       
       - name: Run linter
         uses: golangci/golangci-lint-action@v3
