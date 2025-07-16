@@ -1,0 +1,98 @@
+---
+# Dedicated service account for post-delete hook validation
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ include "cloudflare-operator.fullname" . }}-post-delete-sa
+  labels:
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "cloudflare-operator.fullname" . }}-post-delete-role
+  labels:
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "cloudflare-operator.fullname" . }}-post-delete-binding
+  labels:
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "-1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+subjects:
+- kind: ServiceAccount
+  name: {{ include "cloudflare-operator.fullname" . }}-post-delete-sa
+  namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ include "cloudflare-operator.fullname" . }}-post-delete-role
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "cloudflare-operator.fullname" . }}-post-delete-validation
+  labels:
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": post-delete
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": hook-succeeded
+spec:
+  template:
+    metadata:
+      name: {{ include "cloudflare-operator.fullname" . }}-post-delete-validation
+    spec:
+      restartPolicy: Never
+      serviceAccountName: {{ include "cloudflare-operator.fullname" . }}-post-delete-sa
+      containers:
+      - name: validate-cleanup
+        image: bitnami/kubectl:latest
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -c
+        - |
+          echo "=== Post-Delete Validation ==="
+          echo "Checking if tunnel secret was properly cleaned up..."
+          
+          if kubectl get secret cloudflare-operator-tunnel -n {{ .Release.Namespace }} >/dev/null 2>&1; then
+            echo "❌ ERROR: Tunnel secret still exists after deletion"
+            exit 1
+          else
+            echo "✅ Tunnel secret properly cleaned up"
+          fi
+          
+          echo "=== Cleanup validation successful ==="
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532

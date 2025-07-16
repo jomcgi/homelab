@@ -9,9 +9,10 @@ import (
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/api/resource"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -259,25 +260,6 @@ func (r *ServiceReconciler) handleDeletion(ctx context.Context, service *corev1.
 	return ctrl.Result{}, nil
 }
 
-// Helper functions
-func containsString(slice []string, s string) bool {
-	for _, item := range slice {
-		if item == s {
-			return true
-		}
-	}
-	return false
-}
-
-func removeString(slice []string, s string) []string {
-	var result []string
-	for _, item := range slice {
-		if item != s {
-			result = append(result, item)
-		}
-	}
-	return result
-}
 
 // resolvePolicyReference resolves a policy reference name to create a new policy with predefined emails
 func (r *ServiceReconciler) resolvePolicyReference(ctx context.Context, policyRef string) (string, error) {
@@ -333,6 +315,301 @@ func (r *ServiceReconciler) resolvePolicyReference(ctx context.Context, policyRe
 	
 	log.Info("✅ Created policy from template", "policyRef", policyRef, "policyId", policy.ID, "emails", emails)
 	return policy.ID, nil
+}
+
+// ensureSharedCloudflaredDeployment ensures the shared cloudflared deployment exists
+func (r *ServiceReconciler) ensureSharedCloudflaredDeployment(ctx context.Context) error {
+	log := log.FromContext(ctx)
+	
+	deploymentName := "cloudflared"
+	namespace := "default" // TODO: make this configurable
+	
+	// Check if deployment already exists
+	deployment := &appsv1.Deployment{}
+	err := r.Get(ctx, client.ObjectKey{
+		Name:      deploymentName,
+		Namespace: namespace,
+	}, deployment)
+	
+	if err == nil {
+		// Deployment exists, check if it needs updates
+		log.Info("Shared cloudflared deployment already exists", "name", deploymentName)
+		return r.updateCloudflaredDeployment(ctx, deployment)
+	}
+	
+	if !errors.IsNotFound(err) {
+		return fmt.Errorf("failed to get cloudflared deployment: %w", err)
+	}
+	
+	// Create new deployment
+	log.Info("Creating shared cloudflared deployment", "name", deploymentName)
+	
+	// Get ConfigMap data for checksum calculation
+	configMap := &corev1.ConfigMap{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "cloudflared-config", Namespace: namespace}, configMap); err != nil {
+		return fmt.Errorf("failed to get cloudflared config for checksum: %w", err)
+	}
+	configChecksum := calculateConfigMapChecksum(configMap.Data["config.yaml"])
+	
+	replicas := int32(2)
+	deployment = &appsv1.Deployment{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      deploymentName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":                          "cloudflared",
+				"cloudflare.io/managed-by":     "cloudflare-operator",
+			},
+		},
+		Spec: appsv1.DeploymentSpec{
+			Replicas: &replicas,
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app": "cloudflared",
+				},
+			},
+			Template: corev1.PodTemplateSpec{
+				ObjectMeta: metav1.ObjectMeta{
+					Labels: map[string]string{
+						"app": "cloudflared",
+					},
+					Annotations: map[string]string{
+						"cloudflare.io/config-checksum": configChecksum,
+					},
+				},
+				Spec: corev1.PodSpec{
+					Containers: []corev1.Container{
+						{
+							Name:  "cloudflared",
+							Image: "cloudflare/cloudflared:latest",
+							Args: []string{
+								"tunnel",
+								"--config",
+								"/etc/cloudflared/config.yaml",
+								"run",
+							},
+							Env: []corev1.EnvVar{
+								{
+									Name: "TUNNEL_TOKEN",
+									ValueFrom: &corev1.EnvVarSource{
+										SecretKeyRef: &corev1.SecretKeySelector{
+											LocalObjectReference: corev1.LocalObjectReference{
+												Name: "cloudflare-operator-tunnel",
+											},
+											Key: "token",
+										},
+									},
+								},
+							},
+							VolumeMounts: []corev1.VolumeMount{
+								{
+									Name:      "config",
+									MountPath: "/etc/cloudflared",
+									ReadOnly:  true,
+								},
+							},
+							Resources: corev1.ResourceRequirements{
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("128Mi"),
+								},
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("50m"),
+									corev1.ResourceMemory: resource.MustParse("64Mi"),
+								},
+							},
+							SecurityContext: &corev1.SecurityContext{
+								AllowPrivilegeEscalation: &[]bool{false}[0],
+								Capabilities: &corev1.Capabilities{
+									Drop: []corev1.Capability{"ALL"},
+								},
+								ReadOnlyRootFilesystem: &[]bool{true}[0],
+								RunAsNonRoot:          &[]bool{true}[0],
+								RunAsUser:             &[]int64{65532}[0],
+							},
+						},
+					},
+					Volumes: []corev1.Volume{
+						{
+							Name: "config",
+							VolumeSource: corev1.VolumeSource{
+								ConfigMap: &corev1.ConfigMapVolumeSource{
+									LocalObjectReference: corev1.LocalObjectReference{
+										Name: "cloudflared-config",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	
+	if err := r.Create(ctx, deployment); err != nil {
+		return fmt.Errorf("failed to create cloudflared deployment: %w", err)
+	}
+	
+	log.Info("✅ Created shared cloudflared deployment", "name", deploymentName)
+	return nil
+}
+
+// updateCloudflaredDeployment updates the cloudflared deployment if needed
+func (r *ServiceReconciler) updateCloudflaredDeployment(ctx context.Context, deployment *appsv1.Deployment) error {
+	log := log.FromContext(ctx)
+	
+	// Get current ConfigMap to calculate checksum
+	configMap := &corev1.ConfigMap{}
+	if err := r.Get(ctx, client.ObjectKey{Name: "cloudflared-config", Namespace: deployment.Namespace}, configMap); err != nil {
+		return fmt.Errorf("failed to get cloudflared config for checksum: %w", err)
+	}
+	
+	newChecksum := calculateConfigMapChecksum(configMap.Data["config.yaml"])
+	currentChecksum := deployment.Spec.Template.ObjectMeta.Annotations["cloudflare.io/config-checksum"]
+	
+	// If checksum changed, update the deployment to trigger rollout
+	if currentChecksum != newChecksum {
+		log.Info("ConfigMap changed, updating deployment to trigger rollout", 
+			"name", deployment.Name, 
+			"oldChecksum", currentChecksum, 
+			"newChecksum", newChecksum)
+		
+		if deployment.Spec.Template.ObjectMeta.Annotations == nil {
+			deployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		}
+		deployment.Spec.Template.ObjectMeta.Annotations["cloudflare.io/config-checksum"] = newChecksum
+		
+		return r.Update(ctx, deployment)
+	}
+	
+	log.Info("Cloudflared deployment is up to date", "name", deployment.Name)
+	return nil
+}
+
+// updateSharedTunnelConfiguration updates the tunnel configuration with all annotated services
+func (r *ServiceReconciler) updateSharedTunnelConfiguration(ctx context.Context) error {
+	log := log.FromContext(ctx)
+	
+	// Get all services with cloudflare annotations
+	serviceList := &corev1.ServiceList{}
+	if err := r.List(ctx, serviceList); err != nil {
+		return fmt.Errorf("failed to list services: %w", err)
+	}
+	
+	// Build ingress rules from annotated services
+	var ingressRules []map[string]interface{}
+	
+	for _, service := range serviceList.Items {
+		hostname, hasHostname := service.Annotations[AnnotationHostname]
+		if !hasHostname {
+			continue
+		}
+		
+		// Build service URL
+		serviceURL := fmt.Sprintf("http://%s.%s.svc.cluster.local:%d", 
+			service.Name, service.Namespace, service.Spec.Ports[0].Port)
+		
+		rule := map[string]interface{}{
+			"hostname": hostname,
+			"service":  serviceURL,
+		}
+		
+		ingressRules = append(ingressRules, rule)
+		log.Info("Added ingress rule", "hostname", hostname, "service", serviceURL)
+	}
+	
+	// Add catch-all rule
+	ingressRules = append(ingressRules, map[string]interface{}{
+		"service": "http_status:404",
+	})
+	
+	// Get tunnel information from secret
+	tunnelSecret := &corev1.Secret{}
+	if err := r.Get(ctx, client.ObjectKey{
+		Name:      "cloudflare-operator-tunnel",
+		Namespace: "default",
+	}, tunnelSecret); err != nil {
+		return fmt.Errorf("failed to get tunnel secret: %w", err)
+	}
+	
+	tunnelID := string(tunnelSecret.Data["tunnel-id"])
+	
+	// Create tunnel configuration
+	config := map[string]interface{}{
+		"tunnel":           tunnelID,
+		"credentials-file": "/dev/null", // Use TUNNEL_TOKEN instead
+		"ingress":          ingressRules,
+	}
+	
+	// Create or update ConfigMap
+	configMap := &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "cloudflared-config",
+			Namespace: "default",
+			Labels: map[string]string{
+				"app":                      "cloudflared",
+				"cloudflare.io/managed-by": "cloudflare-operator",
+			},
+		},
+		Data: map[string]string{
+			"config.yaml": r.marshalYAML(config),
+		},
+	}
+	
+	// Check if ConfigMap exists
+	existingConfigMap := &corev1.ConfigMap{}
+	err := r.Get(ctx, client.ObjectKey{
+		Name:      "cloudflared-config",
+		Namespace: "default",
+	}, existingConfigMap)
+	
+	if errors.IsNotFound(err) {
+		// Create new ConfigMap
+		if err := r.Create(ctx, configMap); err != nil {
+			return fmt.Errorf("failed to create cloudflared config: %w", err)
+		}
+		log.Info("✅ Created cloudflared configuration", "rules", len(ingressRules)-1)
+	} else if err != nil {
+		return fmt.Errorf("failed to get existing config: %w", err)
+	} else {
+		// Update existing ConfigMap
+		existingConfigMap.Data = configMap.Data
+		if err := r.Update(ctx, existingConfigMap); err != nil {
+			return fmt.Errorf("failed to update cloudflared config: %w", err)
+		}
+		log.Info("✅ Updated cloudflared configuration", "rules", len(ingressRules)-1)
+	}
+	
+	return nil
+}
+
+// marshalYAML converts a map to YAML string (simple implementation)
+func (r *ServiceReconciler) marshalYAML(data map[string]interface{}) string {
+	// Simple YAML marshaling for our use case
+	yaml := ""
+	
+	if tunnel, ok := data["tunnel"].(string); ok {
+		yaml += fmt.Sprintf("tunnel: %s\n", tunnel)
+	}
+	
+	if credsFile, ok := data["credentials-file"].(string); ok {
+		yaml += fmt.Sprintf("credentials-file: %s\n", credsFile)
+	}
+	
+	yaml += "\ningress:\n"
+	
+	if ingress, ok := data["ingress"].([]map[string]interface{}); ok {
+		for _, rule := range ingress {
+			if hostname, hasHostname := rule["hostname"].(string); hasHostname {
+				yaml += fmt.Sprintf("- hostname: %s\n", hostname)
+				yaml += fmt.Sprintf("  service: %s\n", rule["service"])
+			} else {
+				yaml += fmt.Sprintf("- service: %s\n", rule["service"])
+			}
+		}
+	}
+	
+	return yaml
 }
 
 func (r *ServiceReconciler) SetupWithManager(mgr ctrl.Manager) error {
