@@ -36,6 +36,24 @@ run: ## Run a controller from your host
 docker-build: ## Build docker image with the manager
 	docker build -t ${IMG} .
 
+.PHONY: minikube-build
+minikube-build: ## Build docker image for minikube
+	eval $$(minikube docker-env) && docker build -t ${IMG} .
+
+.PHONY: minikube-deploy
+minikube-deploy: minikube-build ## Build and restart operator in minikube
+	kubectl rollout restart deployment cloudflare-operator
+
+.PHONY: debug-deploy
+debug-deploy: ## Build with timestamp tag, load to minikube, and deploy for debugging
+	$(eval DEBUG_TAG := debug-$(shell date +%s))
+	@echo "Building debug version: $(DEBUG_TAG)"
+	docker build -t cloudflare-operator:$(DEBUG_TAG) .
+	minikube image load cloudflare-operator:$(DEBUG_TAG)
+	kubectl set image deployment/cloudflare-operator manager=cloudflare-operator:$(DEBUG_TAG) -n cloudflare
+	kubectl rollout status deployment/cloudflare-operator -n cloudflare --timeout=60s
+	@echo "✅ Deployed debug version: $(DEBUG_TAG)"
+
 .PHONY: docker-push
 docker-push: ## Push docker image with the manager
 	docker push ${IMG}
