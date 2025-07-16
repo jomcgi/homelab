@@ -12,6 +12,7 @@ rules:
   - services
   - configmaps
   - secrets
+  - pods
   verbs:
   - get
   - list
@@ -24,6 +25,18 @@ rules:
   - apps
   resources:
   - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - batch
+  resources:
+  - jobs
   verbs:
   - get
   - list

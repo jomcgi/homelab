@@ -9,10 +9,12 @@ COPY cmd/ cmd/
 COPY internal/ internal/
 
 RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o manager cmd/manager/main.go
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o tunnel-cleanup cmd/tunnel-cleanup/main.go
 
 FROM gcr.io/distroless/static:nonroot
 WORKDIR /
 COPY --from=builder /workspace/manager .
+COPY --from=builder /workspace/tunnel-cleanup .
 USER 65532:65532
 
 ENTRYPOINT ["/manager"]

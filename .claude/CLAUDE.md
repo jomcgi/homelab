@@ -2,9 +2,9 @@
 
 ## Project Philosophy
 
-This repository embodies the principles from **"A Philosophy of Software Design"** by John Ousterhout:
-
 > **Complexity is the silent killer of engineering velocity and reliability.**
+
+-- _"A Philosophy of Software Design by John Ousterhout_
 
 Every decision in this codebase prioritizes:
 - **Simplicity over cleverness**
@@ -22,31 +22,44 @@ This is a **security-first Kubernetes homelab** running on Talos Linux, designed
 ### Core Infrastructure
 
 ```
+External Ingress        Applications             Observability
 ┌─────────────────┐    ┌───────────────────┐    ┌─────────────────┐
-│ Cloudflare      │    │ Talos Kubernetes  │    │ Observability   │
-│ Tunnel          │───▶│ Cluster           │───▶│ (Grafana Cloud) │
-│ (Zero Trust)    │    │ - Service A       │    │ - Metrics       │
-└─────────────────┘    │ - Service B       │    │ - Logs          │
-                       └───────────────────┘    │ - Traces        │
+│ Cloudflare      │    │ Talos K8S Cluster │    │ Grafana Cloud   │
+│ Tunnel          │───>│ - Service A       │───>│ - Metrics       │
+│ (Zero Trust)    │    │ - Service B       │    │ - Logs          │
+└─────────────────┘    └───────────────────┘    │ - Traces        │
                                                 └─────────────────┘
 ```
 
 ## Directory Structure
 
 ```
-cluster/
-├── crd/                    # Custom Resource Definitions
-│   ├── external-secrets/   # Secrets management
-│   └── longhorn/          # Persistent storage
-└── services/              # Application deployments
-    ├── cloudflare-tunnel/ # Secure ingress
-    ├── grafana-cloud/     # Observability
-    ├── obsidian/          # Note-taking
-    ├── open-webui/        # AI chat interface
-    └── otel-collector/    # Telemetry collection
+charts/                     # Helm charts
+└── cloudflare-tunnel/      # Main tunnel chart
 
-projects/                  # Side projects
-└── find_good_hikes/      # Weather + walking route finder
+clusters/                   # ArgoCD cluster configurations
+└── homelab/                # Production cluster config
+    ├── cloudflare-tunnel/  # Tunnel application
+    └── longhorn/           # Storage application
+
+operators/                  # Custom Kubernetes operators
+└── cloudflare/             # Cloudflare operator
+    └── helm/               # Operator Helm chart
+
+overlays/                   # Kustomize overlays
+├── base/                   # Base configurations
+└── homelab-prod/           # Production overlays
+
+websites/                   # Static websites
+└── hikes.jomcgi.dev/       # Hiking route finder (static)
+
+old/                        # Legacy services (migrating to ArgoCD)
+├── crd/                    # Custom Resource Definitions
+└── services/               # Previous service deployments
+    ├── grafana-cloud/      # Observability (to be migrated)
+    ├── obsidian-mcp/       # Note-taking (to be migrated)
+    ├── open-webui/         # AI chat interface (to be migrated)
+    └── otel-collector/     # Telemetry collection (to be migrated)
 ```
 
 ## Security Model
@@ -55,7 +68,7 @@ projects/                  # Side projects
 - **No direct internet exposure** - All traffic via Cloudflare Tunnel
 - **Least privilege** - Services run as non-root with read-only filesystems
 - **Network policies** - Microsegmentation where needed
-- **Secret management** - External Secrets Operator with proper RBAC
+- **Secret management** - 1Password operator with OnePasswordItem CRDs
 
 ### Container Security
 Every container follows these principles:
@@ -72,9 +85,10 @@ securityContext:
 
 ## Deployment Strategy
 
-### GitOps with Skaffold
-- **Declarative deployments** via Helm + Kustomize
-- **Automated CI/CD** with GitHub Actions
+### GitOps with ArgoCD
+- **Declarative deployments** via Helm charts and Kustomize overlays
+- **Automated sync** with ArgoCD Applications pointing to Git repository
+- **Self-healing** deployments with automatic drift detection
 - **Health checks** and **readiness probes** on everything
 - **Resource limits** prevent resource exhaustion
 
@@ -94,20 +108,57 @@ We test **actual behavior**, not implementation details:
 
 ## Key Services
 
-### Cloudflare Tunnel
+### Currently Deployed
+
+#### Cloudflare Tunnel
 - **Zero Trust ingress** - No open firewall ports
 - **Automatic HTTPS** with Cloudflare certificates
 - **DDoS protection** and **WAF** built-in
+- **Deployed via**: ArgoCD Application with Helm chart
 
-### Open WebUI
+#### Longhorn Storage
+- **Distributed persistent storage** for Kubernetes
+- **Automated backups** and **disaster recovery**
+- **High availability** with replica management
+- **Deployed via**: ArgoCD Application
+
+#### Cloudflare Operator
+- **Custom Kubernetes operator** for Cloudflare resource management
+- **Automated tunnel provisioning** and **DNS management**
+- **Deployed via**: Helm chart in operators/ directory
+
+#### 1Password Operator
+- **Secret management** via OnePasswordItem CRDs
+- **Secure credential storage** in 1Password vaults
+- **Automatic secret synchronization** to Kubernetes secrets
+- **Bootstrapped manually** during cluster setup
+
+### Static Websites
+
+#### Hikes Route Finder (hikes.jomcgi.dev)
+- **Pure static site** hosted on Cloudflare Pages
+- **Cloudflare R2 backend** for data storage
+- **No server-side dependencies** - maximum simplicity
+- **Comprehensive Playwright testing** for reliability
+
+### Services Under Migration
+
+The following services are preserved in `old/services/` and will be migrated to ArgoCD:
+
+#### Observability Stack (Planned)
+- **Grafana Cloud integration** for metrics, logs, traces
+- **OpenTelemetry Collector** for telemetry aggregation
+- **Prometheus-compatible** metrics from all services
+
+#### Open WebUI (Planned)
 - **Local AI interface** with Google Gemini integration
 - **No authentication** (secured by Cloudflare Access)
 - **Persistent storage** via Longhorn
 
-### Observability Stack
-- **Metrics, logs, traces** sent to Grafana Cloud
-- **OpenTelemetry Collector** for telemetry aggregation
-- **Prometheus-compatible** metrics from all services
+#### Obsidian MCP (Planned)
+- **Note-taking service** with MCP integration
+- **API backend** for Obsidian integration
+- **Search capabilities** across knowledge base
 
 ## Design Principles
 
@@ -131,11 +182,11 @@ We **define errors out of existence** where possible:
 ## Common Tasks
 
 ### Adding a New Service
-1. Create namespace and basic manifests in `cluster/services/<name>/`
-2. Add Skaffold configuration for deployment
-3. Update GitHub Actions workflow for CI/CD
+1. Create Helm chart in `charts/<name>/` or add to existing chart
+2. Create ArgoCD Application in `clusters/homelab/<name>/`
+3. Configure Kustomize overlays in `overlays/` if needed
 4. Add health checks and observability
-5. Test the complete deployment path
+5. Test the complete deployment path with ArgoCD sync
 
 ### Security Review Checklist
 - [ ] Service runs as non-root user
@@ -143,7 +194,7 @@ We **define errors out of existence** where possible:
 - [ ] No privilege escalation
 - [ ] Resource limits defined
 - [ ] Network policies applied (if needed)
-- [ ] Secrets properly managed
+- [ ] Secrets managed via 1Password OnePasswordItem CRDs
 - [ ] Ingress via Cloudflare Tunnel only
 
 ### Observability Requirements
@@ -156,11 +207,14 @@ Every service must:
 ## Development Workflow
 
 1. **Make changes** in feature branch
-2. **Test locally** with Skaffold: `skaffold dev`
-3. **Verify deployment** works end-to-end
-4. **Check observability** - metrics, logs, traces
+2. **Test locally** with Minikube:
+   - `minikube start` to spin up local cluster
+   - Apply Helm charts: `helm install <service> charts/<service>/`
+   - Test with port-forwarding: `kubectl port-forward svc/<service> 8080:80`
+3. **Verify deployment** works end-to-end in local environment
+4. **Check observability** - metrics, logs, traces (when available)
 5. **Create PR** - GitHub Actions runs integration tests
-6. **Merge** - Automatic deployment to production
+6. **Merge** - ArgoCD automatically syncs changes to production cluster
 
 ## Anti-Patterns to Avoid
 

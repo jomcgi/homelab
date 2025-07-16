@@ -40,20 +40,42 @@ func (t *TunnelInitializer) Start(ctx context.Context) error {
 		return err
 	}
 	
-	// Keep running to handle tunnel lifecycle
+	t.log.Info("Tunnel initialization complete, TunnelInitializer shutting down")
+	
+	// Wait for shutdown signal, but don't do any more reconciliation
 	<-ctx.Done()
 	
-	// Cleanup tunnel on shutdown
-	t.log.Info("Cleaning up tunnel on shutdown")
-	if err := t.reconciler.CleanupTunnel(ctx); err != nil {
-		t.log.Error(err, "Failed to cleanup tunnel")
-	}
+	// The pre-delete hook will handle cleanup, so TunnelInitializer doesn't need to
+	t.log.Info("TunnelInitializer received shutdown signal")
 	
 	return nil
 }
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
+}
+
+// setupSignalHandlers sets up context-based shutdown handling for tunnel cleanup
+func setupSignalHandlers(ctx context.Context, tunnelReconciler *controller.TunnelReconciler) {
+	go func() {
+		<-ctx.Done()
+		setupLog.Info("🔄 SHUTDOWN HANDLER: Context canceled, starting tunnel cleanup")
+		
+		// Create a context with timeout for emergency cleanup
+		cleanupCtx, cancel := context.WithTimeout(context.Background(), 900*time.Second) // 15 minutes for cleanup
+		defer cancel()
+		
+		setupLog.Info("🔄 SHUTDOWN HANDLER: Starting emergency tunnel cleanup with 15-minute timeout")
+		
+		// Perform emergency tunnel cleanup
+		if err := tunnelReconciler.EmergencyCleanup(cleanupCtx); err != nil {
+			setupLog.Error(err, "❌ SHUTDOWN HANDLER: Failed to clean up tunnel during emergency shutdown")
+		} else {
+			setupLog.Info("✅ SHUTDOWN HANDLER: Tunnel cleanup completed successfully")
+		}
+		
+		setupLog.Info("🔄 SHUTDOWN HANDLER: Tunnel cleanup complete")
+	}()
 }
 
 func main() {
@@ -101,11 +123,31 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Get operator namespace
+	operatorNamespace := os.Getenv("NAMESPACE")
+	if operatorNamespace == "" {
+		operatorNamespace = "cloudflare" // Default to cloudflare namespace
+	}
+	
+	// Get operator pod name for ownership
+	operatorPodName := os.Getenv("HOSTNAME")
+	if operatorPodName == "" {
+		operatorPodName = "cloudflare-operator-pod" // Fallback name
+	}
+	
 	// Setup tunnel controller to manage operator's tunnel
 	tunnelReconciler := &controller.TunnelReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
 		CloudflareClient: cfClient,
+		Namespace:        operatorNamespace,
+		OperatorPodName:  operatorPodName,
+	}
+	
+	// Register tunnel controller with manager to watch for secret events
+	if err := tunnelReconciler.SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Tunnel")
+		os.Exit(1)
 	}
 	
 	// Add a runnable to initialize tunnel after manager starts
@@ -126,8 +168,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set up shutdown handling first
+	ctx := ctrl.SetupSignalHandler()
+	
+	// Set up custom SIGTERM handler for tunnel cleanup that works with controller-runtime
+	setupSignalHandlers(ctx, tunnelReconciler)
+	
 	setupLog.Info("starting manager")
-	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
+	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
