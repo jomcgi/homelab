@@ -18,7 +18,7 @@ concurrency:
 jobs:
   update-data:
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 2
     name: Update Hike Data
     defaults:
       run:
@@ -47,7 +47,7 @@ jobs:
 
   test:
     runs-on: self-hosted
-    timeout-minutes: 10
+    timeout-minutes: 3
     name: Test hikes.jomcgi.dev
     defaults:
       run:
@@ -74,6 +74,7 @@ jobs:
   deploy:
     runs-on: self-hosted
     name: Deploy hikes.jomcgi.dev
+    timeout-minutes: 3
     needs: [test]
     permissions:
       contents: read
