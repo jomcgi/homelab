@@ -11,18 +11,20 @@ spec:
       {{- include "cloudflare-operator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        # Force restart when secrets change
+        checksum/secret: {{ (lookup "v1" "Secret" .Release.Namespace .Values.cloudflare.existingSecret).data | toJson | sha256sum }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "cloudflare-operator.selectorLabels" . | nindent 8 }}
     spec:
       {{- if .Values.serviceAccount.create }}
       serviceAccountName: {{ include "cloudflare-operator.serviceAccountName" . }}
       {{- end }}
-      # Allow enough time for graceful shutdown and tunnel cleanup
-      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 360 }}
+      # Graceful shutdown configuration
+      terminationGracePeriodSeconds: {{ .Values.terminationGracePeriodSeconds | default 300 }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
@@ -40,6 +42,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.namespace
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name  # Use pod name instead of hostname
             - name: CLOUDFLARE_API_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -57,23 +63,28 @@ spec:
             - name: health
               containerPort: {{ .Values.operator.health.port }}
               protocol: TCP
-            {{- if .Values.webhook.enabled }}
-            - name: webhook
-              containerPort: {{ .Values.webhook.port }}
-              protocol: TCP
-            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
               port: health
             initialDelaySeconds: 15
             periodSeconds: 20
+            # Don't restart during cleanup
+            failureThreshold: 10
           readinessProbe:
             httpGet:
               path: /readyz
               port: health
             initialDelaySeconds: 5
             periodSeconds: 10
+          # Add preStop hook as additional safety
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - /bin/sh
+                - -c
+                - sleep 15  # Give time for endpoints to update
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
@@ -82,15 +93,3 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
