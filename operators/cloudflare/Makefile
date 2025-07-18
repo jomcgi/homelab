@@ -89,3 +89,38 @@ fmt: ## Run go fmt against code
 .PHONY: vet
 vet: ## Run go vet against code
 	go vet ./...
+
+.PHONY: test-setup
+test-setup: ## Complete test setup: wipe minikube, build image, load to minikube, deploy with secrets
+	@echo "🔄 Starting complete test setup..."
+	@echo "1/6 Wiping minikube cluster..."
+	minikube delete || true
+	@echo "2/6 Starting fresh minikube cluster..."
+	minikube start
+	@echo "3/6 Building operator image..."
+	make build
+	make docker-build
+	@echo "4/6 Loading image to minikube..."
+	minikube image load cloudflare-operator:latest
+	@echo "5/6 Creating namespace and secrets..."
+	kubectl create namespace cloudflare
+	@echo "Deploying secret for operator"; \
+	kubectl create secret generic cloudflare-creds \
+		--from-literal=api-token=$$(cat /home/jomcgi/homelab/cloudflare-creds.json | jq -r '.token') \
+		--from-literal=account-id=$$(cat /home/jomcgi/homelab/cloudflare-creds.json | jq -r '.account_id') \
+		-n cloudflare;
+	@echo "6/6 Deploying operator..."
+	helm install cloudflare-operator ./helm/cloudflare-operator --namespace cloudflare
+	@echo "✅ Test setup complete! Operator deployed and running."
+	@echo "📋 Next steps:"
+	@echo "  - Check status: kubectl get pods -n cloudflare"
+	@echo "  - View logs: kubectl logs -n cloudflare -l app.kubernetes.io/name=cloudflare-operator"
+	@echo "  - Test removal: make test-cleanup"
+
+.PHONY: test-cleanup
+test-cleanup: ## Test operator removal and cleanup
+	@echo "🧹 Testing operator removal..."
+	helm uninstall cloudflare-operator -n cloudflare
+	@echo "📋 Checking cleanup results..."
+	kubectl get all,secrets -n cloudflare
+	@echo "✅ Cleanup test complete!"
