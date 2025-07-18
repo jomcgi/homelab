@@ -1,13 +1,11 @@
 replicaCount: 1
 
-# Graceful shutdown configuration
-# Allow 20 minutes for tunnel cleanup during pod termination
-terminationGracePeriodSeconds: 1200
+terminationGracePeriodSeconds: 300
 
 image:
   repository: cloudflare-operator
   tag: "latest"
-  pullPolicy: Never
+  pullPolicy: IfNotPresent
 
 nameOverride: ""
 fullnameOverride: ""

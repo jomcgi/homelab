@@ -24,58 +24,70 @@ var (
 	setupLog = ctrl.Log.WithName("setup")
 )
 
-// TunnelInitializer runs after the manager starts to initialize the tunnel
-type TunnelInitializer struct {
-	reconciler *controller.TunnelReconciler
-	log        logr.Logger
-}
-
-func (t *TunnelInitializer) Start(ctx context.Context) error {
-	// Wait a moment for the manager to be fully ready
-	time.Sleep(3 * time.Second)
-	
-	t.log.Info("Initializing operator tunnel")
-	if _, err := t.reconciler.Reconcile(ctx, ctrl.Request{}); err != nil {
-		t.log.Error(err, "Failed to initialize tunnel")
-		return err
-	}
-	
-	t.log.Info("Tunnel initialization complete, TunnelInitializer shutting down")
-	
-	// Wait for shutdown signal, but don't do any more reconciliation
-	<-ctx.Done()
-	
-	// The pre-delete hook will handle cleanup, so TunnelInitializer doesn't need to
-	t.log.Info("TunnelInitializer received shutdown signal")
-	
-	return nil
-}
-
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 }
 
-// setupSignalHandlers sets up context-based shutdown handling for tunnel cleanup
-func setupSignalHandlers(ctx context.Context, tunnelReconciler *controller.TunnelReconciler) {
+// TunnelInitializer handles one-time tunnel setup at startup
+type TunnelInitializer struct {
+	tunnelReconciler *controller.TunnelReconciler
+	log              logr.Logger
+}
+
+// Start initializes the tunnel and returns immediately
+func (t *TunnelInitializer) Start(ctx context.Context) error {
+	// Create a separate goroutine for initialization
 	go func() {
-		<-ctx.Done()
-		setupLog.Info("🔄 SHUTDOWN HANDLER: Context canceled, starting tunnel cleanup")
-		
-		// Create a context with timeout for emergency cleanup
-		cleanupCtx, cancel := context.WithTimeout(context.Background(), 900*time.Second) // 15 minutes for cleanup
+		// Use a timeout context for initialization
+		initCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		
-		setupLog.Info("🔄 SHUTDOWN HANDLER: Starting emergency tunnel cleanup with 15-minute timeout")
-		
-		// Perform emergency tunnel cleanup
-		if err := tunnelReconciler.EmergencyCleanup(cleanupCtx); err != nil {
-			setupLog.Error(err, "❌ SHUTDOWN HANDLER: Failed to clean up tunnel during emergency shutdown")
+		t.log.Info("Initializing operator tunnel")
+		if _, err := t.tunnelReconciler.Reconcile(initCtx, ctrl.Request{}); err != nil {
+			t.log.Error(err, "Failed to initialize tunnel")
+			os.Exit(1)
 		} else {
-			setupLog.Info("✅ SHUTDOWN HANDLER: Tunnel cleanup completed successfully")
+			t.log.Info("Tunnel initialization complete")
 		}
-		
-		setupLog.Info("🔄 SHUTDOWN HANDLER: Tunnel cleanup complete")
 	}()
+	
+	// Return immediately so we don't block the manager
+	return nil
+}
+
+// CleanupManager handles graceful shutdown of resources
+type CleanupManager struct {
+	tunnelReconciler *controller.TunnelReconciler
+	log              logr.Logger
+}
+
+// NeedLeaderElection implements manager.LeaderElectionRunnable
+func (c *CleanupManager) NeedLeaderElection() bool {
+	// Cleanup should run regardless of leader election
+	return false
+}
+
+// Start waits for shutdown and performs cleanup
+func (c *CleanupManager) Start(ctx context.Context) error {
+	// Wait for shutdown signal
+	<-ctx.Done()
+	
+	c.log.Info("🔄 Received shutdown signal, starting graceful cleanup")
+	
+	// Create a new context with timeout for cleanup
+	// This ensures cleanup completes even if the parent context is cancelled
+	cleanupCtx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+	
+	// Perform tunnel cleanup
+	if err := c.tunnelReconciler.EmergencyCleanup(cleanupCtx); err != nil {
+		c.log.Error(err, "❌ Failed to clean up tunnel during shutdown")
+		// Return error to signal unsuccessful cleanup
+		return err
+	}
+	
+	c.log.Info("✅ Graceful cleanup completed successfully")
+	return nil
 }
 
 func main() {
@@ -95,12 +107,17 @@ func main() {
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
 
+	// Set up the context that will be cancelled on SIGTERM/SIGINT
+	ctx := ctrl.SetupSignalHandler()
+
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
 		Scheme:                 scheme,
 		Metrics:                metricsserver.Options{BindAddress: metricsAddr},
 		HealthProbeBindAddress: probeAddr,
 		LeaderElection:         enableLeaderElection,
 		LeaderElectionID:       "cloudflare-operator-leader-election",
+		// Add graceful shutdown timeout
+		GracefulShutdownTimeout: &[]time.Duration{5 * time.Minute}[0],
 	})
 	if err != nil {
 		setupLog.Error(err, "unable to start manager")
@@ -114,6 +131,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Set up service controller
 	if err = (&controller.ServiceReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
@@ -123,19 +141,18 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Get operator namespace
+	// Get operator configuration
 	operatorNamespace := os.Getenv("NAMESPACE")
 	if operatorNamespace == "" {
-		operatorNamespace = "cloudflare" // Default to cloudflare namespace
+		operatorNamespace = "cloudflare"
 	}
 	
-	// Get operator pod name for ownership
 	operatorPodName := os.Getenv("HOSTNAME")
 	if operatorPodName == "" {
-		operatorPodName = "cloudflare-operator-pod" // Fallback name
+		operatorPodName = "cloudflare-operator-pod"
 	}
 	
-	// Setup tunnel controller to manage operator's tunnel
+	// Set up tunnel controller
 	tunnelReconciler := &controller.TunnelReconciler{
 		Client:           mgr.GetClient(),
 		Scheme:           mgr.GetScheme(),
@@ -144,21 +161,30 @@ func main() {
 		OperatorPodName:  operatorPodName,
 	}
 	
-	// Register tunnel controller with manager to watch for secret events
 	if err := tunnelReconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Tunnel")
 		os.Exit(1)
 	}
 	
-	// Add a runnable to initialize tunnel after manager starts
+	// Add tunnel initializer (non-blocking)
 	if err := mgr.Add(&TunnelInitializer{
-		reconciler: tunnelReconciler,
-		log:        setupLog,
+		tunnelReconciler: tunnelReconciler,
+		log:              setupLog.WithName("initializer"),
 	}); err != nil {
 		setupLog.Error(err, "unable to add tunnel initializer")
 		os.Exit(1)
 	}
+	
+	// Add cleanup manager for graceful shutdown
+	if err := mgr.Add(&CleanupManager{
+		tunnelReconciler: tunnelReconciler,
+		log:              setupLog.WithName("cleanup"),
+	}); err != nil {
+		setupLog.Error(err, "unable to add cleanup manager")
+		os.Exit(1)
+	}
 
+	// Set up health checks
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
 		setupLog.Error(err, "unable to set up health check")
 		os.Exit(1)
@@ -168,15 +194,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Set up shutdown handling first
-	ctx := ctrl.SetupSignalHandler()
-	
-	// Set up custom SIGTERM handler for tunnel cleanup that works with controller-runtime
-	setupSignalHandlers(ctx, tunnelReconciler)
-	
 	setupLog.Info("starting manager")
 	if err := mgr.Start(ctx); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+	
+	setupLog.Info("manager stopped gracefully")
 }
