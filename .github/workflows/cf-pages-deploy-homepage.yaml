@@ -14,36 +14,10 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
-    runs-on: self-hosted
-    timeout-minutes: 5
-    name: Build jomcgi.dev
-    defaults:
-      run:
-        working-directory: websites/jomcgi.dev
-    
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'websites/jomcgi.dev/package-lock.json'
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build site
-        run: npm run build
-
   deploy:
     runs-on: self-hosted
-    name: Deploy jomcgi.dev
-    timeout-minutes: 3
-    needs: [build]
+    name: Build and Deploy jomcgi.dev
+    timeout-minutes: 5
     permissions:
       contents: read
       deployments: write
@@ -60,6 +34,7 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+        working-directory: websites/jomcgi.dev
 
       - name: Build site
         run: npm run build
