@@ -1,85 +1,79 @@
-<!-- Template Instructions:
-- Replace all [bracketed] placeholders
-- Provide concrete examples for each behavior test
-- Ensure stack choices match user's environment
+<!-- 
+CLAUDE TEMPLATE: Project Implementation Plan
+
+Instructions for Claude:
+- Replace ALL [bracketed] placeholders with specific details
+- Keep sections brief and actionable
+- Every todo must have a clear verification step
+- Focus on MVP - be aggressive about cutting scope
 -->
 
-### Project Prompt: [Project Name]
+# [Project Name] - Implementation Plan
 
-**0. Context & Constraints:**
-*   **Current Environment:** [Existing infrastructure/stack]
-*   **User Profile:** [Experience level and goals]
-*   **Hard Constraints:** [Time, budget, hardware limitations]
+## 1. Context & Problem
+**Environment:** [Current stack, tools, infrastructure]  
+**Experience:** [User's skill level with relevant technologies]  
+**Constraints:** [Time, budget, technical limitations]  
+**Problem:** [One sentence - what pain does this solve?]
 
-**1. Core Value Proposition:**
-*   **Problem:** [Clearly state the user's problem.]
-*   **Solution:** [Describe the project's solution in one sentence.]
-*   **Value:** [Explain the primary benefit for the user, e.g., saves time, reduces errors, provides new insight.]
+## 2. Solution & Success
+**MVP Solution:** [One paragraph - what are we building?]
 
-**2. Intended Use Case:**
-*   **Primary User:** [Description of the target user.]
-*   **Scenario:** [A short story of how the user will interact with the product to solve their problem.]
+**Success Looks Like:**
+- [ ] [Specific, measurable outcome #1]
+- [ ] [Specific, measurable outcome #2]
+- [ ] [User can do X that they couldn't before]
 
-**3. MVP Scope & Key Features:**
-*   [A bulleted list of the absolute minimum required features.]
-*   [List of features explicitly de-scoped for the MVP.]
+## 3. Technical Approach
 
-**4. Technical Constraints & Considerations:**
-*   **Stack:** [Required or forbidden technologies.]
-*   **Key Design Principle:** [A guiding principle for the implementation, e.g., "Simplicity over feature-completeness," or "State should be managed immutably."]
+### Core Features (MVP)
+1. [Feature]: [One line description]
+2. [Feature]: [One line description]
+3. [Feature]: [One line description]
 
-**5. Acceptance Criteria & Testing Plan:**
-*   [A list of testable behaviors in a "Behavior: Test" format.]
-*   **Behavior 1:** [e.g., User creates a new item.]
-    *   **Test:** [e.g., Verify the item appears in the user's list and is saved to the database.]
-*   **Behavior 2:** [e.g., User attempts to delete a non-existent item.]
-    *   **Test:** [e.g., Verify the system does not throw an error and the state remains unchanged (demonstrating 'defining errors out of existence').]
+### Explicitly Not Doing (v1)
+- [Deferred feature/complexity]
+- [Deferred feature/complexity]
 
-**6. Validation & Experimentation Plan:**
-*   **Proof of Concept:** [What to build in Week 1 to validate feasibility]
-*   **Alpha Testing:** [How to test with yourself/close collaborators]
-*   **Beta Rollout:** [Gradual expansion plan if applicable]
-*   **Rollback Plan:** [How to revert if things go wrong]
+### Architecture Decision
+[One paragraph explaining the key technical approach and why]
 
-**7. Call to Action: Implementation Strategy**
-*   **Your Task:** Implement the project described in this brief.
-*   **Process:**
-    1.  **Plan First:** Propose a high-level technical plan. This should include the proposed file structure, key components/modules, and main data structures. **Do not write any implementation code yet.**
-    2.  **Await Approval:** Present the plan for review. I will provide feedback or approve it.
-    3.  **Execute Step-by-Step:** Once the plan is approved, begin implementing the project, focusing on one MVP feature at a time.
-
-**8. Architecture Visualization:**
-```mermaid
-graph LR
-    A[User Input] --> B[Core Process]
-    B --> C[Output/Result]
+```
+# Example structure (if helpful)
+src/
+  components/   # [what goes here]
+  utils/        # [what goes here]
+  ...
 ```
 
-**9. Learning & Iteration Plan:**
-*   **Week 1 Checkpoint:** What will you measure and adjust?
-*   **Month 1 Review:** What architectural decisions to revisit?
-*   **Success Criteria Evolution:** How might requirements change as you learn?
+### Key Technical Risks
+- **[Risk]:** [Mitigation approach or spike needed]
 
+## 4. Implementation Checklist
 
-**10. Rapid Validation Plan:**
-*   **Hour 1-2:** [Minimal test to validate core assumption]
-*   **Day 1:** [Working prototype of core feature]
-*   **Week 1:** [Full MVP with basic monitoring]
+### Phase 1: Foundation (Day 1-2)
+- [ ] Set up [specific tech] project with [specific config]
+- [ ] Create [core data model/schema] with fields: [list]
+- [ ] Implement [basic feature] that [specific behavior]
+- [ ] **Verify:** [How to test this works]
 
-**11. Risk Mitigation:**
-*   **Technical Risks:** [Identified unknowns and spike plans]
-*   **Operational Risks:** [Failure modes and recovery plans]
+### Phase 2: Core Features (Day 3-5)
+- [ ] Build [feature] allowing users to [action]
+- [ ] Add [feature] with validation for [edge case]
+- [ ] Connect [integration] to enable [capability]
+- [ ] **Verify:** [How to test this works]
 
-**12. Success Metrics Dashboard:**
-*   **North Star:** [Primary success metric]
-*   **Leading Indicators:** [3-5 early warning metrics]
-*   **SLOs:** [If applicable, specific service objectives]
+### Phase 3: Polish & Deploy (Day 6-7)
+- [ ] Add error handling for [common failure modes]
+- [ ] Write tests for [critical paths]
+- [ ] Deploy to [environment] with [method]
+- [ ] **Verify:** [Success metric is met]
 
-**13. Learning Objectives:**
-*   **Technical Skills:** [What you'll learn by building this]
-*   **Architectural Insights:** [Patterns to validate/discover]
+## 5. Quick Start
 
-**14. Implementation Hints:**
-*   **Start here:** [First concrete step]
-*   **Watch out for:** [Common pitfall based on dialogue]
-*   **If stuck:** [Fallback approach]
+**First Command:** `[exact command to run]`  
+**Then:** [Next 2-3 concrete steps]  
+**If Stuck:** [Most likely issue and fix]
+
+---
+*Note: This plan assumes [key assumption]. If this changes, revisit [specific section].*
