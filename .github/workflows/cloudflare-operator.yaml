@@ -1,4 +1,4 @@
-name: Build Cloudflare Operator
+name: C
 
 on:
   push:
