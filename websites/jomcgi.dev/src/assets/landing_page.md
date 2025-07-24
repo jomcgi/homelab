@@ -6,4 +6,4 @@ As a Senior Platform Engineer, I build and operate reliable, cost-effective dist
 
 ### Other Pages
 * [Notes](https://notes.jomcgi.dev)
-* [Homelab Cluster Metrics](https://jomcgi.grafana.net/public-dashboards/ef7dcc4808674cbbaed99eddf66ad410)
+* [~~Homelab Cluster Metrics~~](https://jomcgi.grafana.net/public-dashboards/ef7dcc4808674cbbaed99eddf66ad410) (homelab in transit from Scotland to Vancouver)
