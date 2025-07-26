@@ -1,0 +1,12 @@
+apiVersion: tunnels.tunnels.cloudflare.io/v1
+kind: CloudflareTunnel
+metadata:
+  name: test-tunnel
+  namespace: default
+spec:
+  accountId: "7c56b458cd657d96b095c63d181c051f"
+  name: "test-tunnel-k8s"
+  ingress:
+    - hostname: "test.example.com"
+      service: "http://nginx:80"
+    - service: "http_status:404"

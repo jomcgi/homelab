@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "cloudflare-operator.fullname" . }}-controller-manager
+  namespace: {{ .Release.Namespace }}
+  labels:
+    control-plane: controller-manager
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.controllerManager.replicas }}
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      {{- include "cloudflare-operator.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+        {{- with .Values.controllerManager.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        control-plane: controller-manager
+        {{- include "cloudflare-operator.selectorLabels" . | nindent 8 }}
+        {{- with .Values.controllerManager.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "cloudflare-operator.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.controllerManager.podSecurityContext | nindent 8 }}
+      containers:
+      - command:
+        - /manager
+        args:
+        - --leader-elect
+        - --health-probe-bind-address={{ .Values.controllerManager.healthProbeBindAddress }}
+        {{- if ne .Values.controllerManager.metrics.bindAddress "0" }}
+        - --metrics-bind-address={{ .Values.controllerManager.metrics.bindAddress }}
+        {{- end }}
+        {{- if .Values.controllerManager.enableDaemon }}
+        - --enable-daemon
+        {{- end }}
+        image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
+        name: manager
+        securityContext:
+          {{- toYaml .Values.controllerManager.securityContext | nindent 10 }}
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: {{ .Values.controllerManager.livenessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.controllerManager.livenessProbe.periodSeconds }}
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: {{ .Values.controllerManager.readinessProbe.initialDelaySeconds }}
+          periodSeconds: {{ .Values.controllerManager.readinessProbe.periodSeconds }}
+        resources:
+          {{- toYaml .Values.controllerManager.resources | nindent 10 }}
+        env:
+        - name: CLOUDFLARE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.controllerManager.env.cloudflareApiToken.secretName }}
+              key: {{ .Values.controllerManager.env.cloudflareApiToken.secretKey }}
+        - name: CLOUDFLARE_ACCOUNT_ID
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.controllerManager.env.cloudflareAccountId.secretName }}
+              key: {{ .Values.controllerManager.env.cloudflareAccountId.secretKey }}
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 5"]
+      terminationGracePeriodSeconds: 60
+      {{- with .Values.controllerManager.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerManager.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.controllerManager.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
