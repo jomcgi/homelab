@@ -17,6 +17,7 @@ limitations under the License.
 package cloudflare
 
 import (
+	"errors"
 	"net/http"
 	"testing"
 
@@ -83,7 +84,7 @@ var _ = Describe("TunnelClient", func() {
 		})
 
 		It("should return false for non-Cloudflare errors", func() {
-			err := &http.ProtocolError{ErrorString: "test error"}
+			err := errors.New("test error")
 			Expect(IsRetryableError(err)).To(BeFalse())
 		})
 	})
@@ -113,7 +114,7 @@ var _ = Describe("TunnelClient", func() {
 		})
 
 		It("should return false for non-Cloudflare errors", func() {
-			err := &http.ProtocolError{ErrorString: "test error"}
+			err := errors.New("test error")
 			Expect(IsNotFoundError(err)).To(BeFalse())
 		})
 	})

@@ -1,0 +1,132 @@
+# Default values for cloudflare-operator
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Controller manager configuration
+controllerManager:
+  # Container image configuration
+  image:
+    repository: jomcgi/cloudflare-operator:latest
+    tag: latest
+    pullPolicy: IfNotPresent
+  
+  # Resources configuration
+  resources:
+    limits:
+      cpu: 500m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi
+  
+  # Replica count
+  replicas: 1
+  
+  # Pod annotations
+  podAnnotations: {}
+  
+  # Pod labels
+  podLabels: {}
+  
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - "ALL"
+  
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+  
+  # Node selector
+  nodeSelector: {}
+  
+  # Tolerations
+  tolerations: []
+  
+  # Affinity
+  affinity: {}
+  
+  # Environment variables
+  env:
+    # Cloudflare API credentials
+    cloudflareApiToken:
+      secretName: cloudflare-credentials
+      secretKey: CLOUDFLARE_API_TOKEN
+    cloudflareAccountId:
+      secretName: cloudflare-credentials
+      secretKey: CLOUDFLARE_ACCOUNT_ID
+  
+  # Health probe configuration
+  healthProbeBindAddress: ":8081"
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+  
+  # Metrics configuration
+  metrics:
+    bindAddress: "0"
+  
+  # Enable daemon mode to auto-create default tunnel
+  enableDaemon: true
+
+# Service Account configuration
+serviceAccount:
+  # Specifies whether a service account should be created
+  create: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use.
+  # If not set, a name is generated using the fullname template
+  name: ""
+
+# RBAC configuration
+rbac:
+  # Specifies whether RBAC resources should be created
+  create: true
+
+# Custom Resource Definitions
+crds:
+  # Specifies whether CRDs should be installed
+  install: true
+
+# Namespace configuration
+# Note: The namespace is determined by the helm install -n flag
+# Set createNamespace to true if you want Helm to create the namespace
+createNamespace: false
+
+# Image pull secrets
+imagePullSecrets: []
+
+# Cloudflare credentials configuration
+cloudflareCredentials:
+  # Create the secret (set to false if secret already exists or using external secret operator)
+  create: true
+  # Secret name
+  secretName: cloudflare-credentials
+  # API token (only used if create is true)
+  apiToken: ""
+  # Account ID (only used if create is true)
+  accountId: ""
+
+# Extra resources to deploy (e.g., 1Password secrets)
+# Example:
+# extraResources:
+#   - apiVersion: onepassword.com/v1
+#     kind: OnePasswordItem
+#     metadata:
+#       name: cloudflare-credentials
+#     spec:
+#       itemPath: "vaults/Infrastructure/items/Cloudflare-API"
+extraResources: []
+

@@ -1,0 +1,11 @@
+cloudflareCredentials:
+  create: false
+  secretName: cloudflare-credentials
+
+extraResources:
+  - apiVersion: onepassword.com/v1
+    kind: OnePasswordItem
+    metadata:
+      name: cloudflare-credentials
+    spec:
+      itemPath: "vaults/k8s-homelab/items/cloudflare"

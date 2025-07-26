@@ -66,10 +66,10 @@ var _ = Describe("CloudflareTunnel Controller", func() {
 
 				// Remove finalizers to allow deletion
 				resource.Finalizers = []string{}
-				k8sClient.Update(ctx, resource)
+				Expect(k8sClient.Update(ctx, resource)).To(Succeed())
 
 				// Delete the resource
-				k8sClient.Delete(ctx, resource)
+				Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 
 				// Wait for resource to be deleted
 				Eventually(func() bool {
@@ -125,11 +125,11 @@ var _ = Describe("CloudflareTunnel Controller", func() {
 			resource := createTestResource()
 
 			By("Setting up mock tunnel creation")
-			mockCFClient.CreateTunnelFunc = func(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, error) {
+			mockCFClient.CreateTunnelFunc = func(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error) {
 				return &cloudflare.Tunnel{
 					ID:   "test-tunnel-id",
 					Name: name,
-				}, nil
+				}, "test-tunnel-id", nil
 			}
 
 			controllerReconciler := &CloudflareTunnelReconciler{
@@ -166,8 +166,8 @@ var _ = Describe("CloudflareTunnel Controller", func() {
 			resource := createTestResource()
 
 			By("Setting up mock tunnel creation error")
-			mockCFClient.CreateTunnelFunc = func(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, error) {
-				return nil, &cloudflare.Error{
+			mockCFClient.CreateTunnelFunc = func(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error) {
+				return nil, "", &cloudflare.Error{
 					StatusCode:    400,
 					ErrorMessages: []string{"Invalid request"},
 				}
