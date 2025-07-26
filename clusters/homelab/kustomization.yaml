@@ -6,6 +6,7 @@ resources:
   - ./cloudflare-tunnel
   - ./longhorn
   - ./bootstrap-namespace.yaml
+  - ./cloudflare-operator
   # Overlays
   - ../../overlays/homelab-prod
 
