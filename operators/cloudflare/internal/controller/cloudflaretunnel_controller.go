@@ -127,7 +127,9 @@ func (r *CloudflareTunnelReconciler) handleDeletion(ctx context.Context, tunnel 
 				Reason:  tunnelsv1.ReasonAPIError,
 				Message: fmt.Sprintf("Failed to delete tunnel: %v", err),
 			})
-			r.Status().Update(ctx, tunnel)
+			if err := r.Status().Update(ctx, tunnel); err != nil {
+				log.Error(err, "Failed to update tunnel status")
+			}
 
 			// Retry deletion after backoff
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
@@ -183,7 +185,9 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 			Message: fmt.Sprintf("Failed to create tunnel: %v", err),
 		})
 
-		r.Status().Update(ctx, tunnel)
+		if err := r.Status().Update(ctx, tunnel); err != nil {
+			log.Error(err, "Failed to update tunnel status")
+		}
 		return r.handleAPIError(err)
 	}
 
@@ -203,10 +207,12 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 				Reason:  tunnelsv1.ReasonAPIError,
 				Message: fmt.Sprintf("Failed to get tunnel token: %v", err),
 			})
-			r.Status().Update(ctx, tunnel)
+			if err := r.Status().Update(ctx, tunnel); err != nil {
+				log.Error(err, "Failed to update tunnel status")
+			}
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
-		
+
 		// Log token details for debugging
 		tokenPreviewLen := 10
 		if len(tunnelToken) < tokenPreviewLen {
@@ -223,7 +229,9 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 				Reason:  tunnelsv1.ReasonAPIError,
 				Message: fmt.Sprintf("Failed to create tunnel secret: %v", err),
 			})
-			r.Status().Update(ctx, tunnel)
+			if err := r.Status().Update(ctx, tunnel); err != nil {
+				log.Error(err, "Failed to update tunnel status")
+			}
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 		tunnel.Status.TunnelSecret = secretName
@@ -238,7 +246,9 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 				Reason:  tunnelsv1.ReasonAPIError,
 				Message: fmt.Sprintf("Failed to create daemon deployment: %v", err),
 			})
-			r.Status().Update(ctx, tunnel)
+			if err := r.Status().Update(ctx, tunnel); err != nil {
+				log.Error(err, "Failed to update tunnel status")
+			}
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 
@@ -300,7 +310,9 @@ func (r *CloudflareTunnelReconciler) updateTunnelStatus(ctx context.Context, tun
 			Message: fmt.Sprintf("Failed to get tunnel status: %v", err),
 		})
 
-		r.Status().Update(ctx, tunnel)
+		if err := r.Status().Update(ctx, tunnel); err != nil {
+			log.Error(err, "Failed to update tunnel status")
+		}
 		return r.handleAPIError(err)
 	}
 
@@ -351,9 +363,9 @@ func (r *CloudflareTunnelReconciler) updateTunnelConfiguration(ctx context.Conte
 	log.Info("Updating tunnel configuration", "tunnelID", tunnel.Status.TunnelID, "ingress_rules", len(tunnel.Spec.Ingress))
 
 	// Convert ingress rules to Cloudflare format
-	var ingressRules []cloudflare.UnvalidatedIngressRule
+	ingressRules := make([]cloudflare.UnvalidatedIngressRule, 0, len(tunnel.Spec.Ingress)+1)
 	hasCatchAll := false
-	
+
 	for _, rule := range tunnel.Spec.Ingress {
 		ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
 			Hostname: rule.Hostname,
@@ -387,7 +399,9 @@ func (r *CloudflareTunnelReconciler) updateTunnelConfiguration(ctx context.Conte
 			Message: fmt.Sprintf("Failed to update tunnel configuration: %v", err),
 		})
 
-		r.Status().Update(ctx, tunnel)
+		if err := r.Status().Update(ctx, tunnel); err != nil {
+			log.Error(err, "Failed to update tunnel status")
+		}
 		return r.handleAPIError(err)
 	}
 
@@ -609,18 +623,18 @@ func (r *CloudflareTunnelReconciler) ensureDaemonDeployment(ctx context.Context,
 	}
 
 	if tunnel.Spec.Daemon.Annotations != nil {
-		if deployment.Spec.Template.ObjectMeta.Annotations == nil {
-			deployment.Spec.Template.ObjectMeta.Annotations = make(map[string]string)
+		if deployment.Spec.Template.Annotations == nil {
+			deployment.Spec.Template.Annotations = make(map[string]string)
 		}
 		for k, v := range tunnel.Spec.Daemon.Annotations {
-			deployment.Spec.Template.ObjectMeta.Annotations[k] = v
+			deployment.Spec.Template.Annotations[k] = v
 		}
 	}
 
 	if tunnel.Spec.Daemon.Labels != nil {
 		for k, v := range tunnel.Spec.Daemon.Labels {
-			deployment.Spec.Template.ObjectMeta.Labels[k] = v
-			deployment.ObjectMeta.Labels[k] = v
+			deployment.Spec.Template.Labels[k] = v
+			deployment.Labels[k] = v
 		}
 	}
 
@@ -645,7 +659,7 @@ func (r *CloudflareTunnelReconciler) ensureDaemonDeployment(ctx context.Context,
 	} else {
 		// Update existing deployment
 		existing.Spec = deployment.Spec
-		existing.ObjectMeta.Labels = deployment.ObjectMeta.Labels
+		existing.Labels = deployment.Labels
 		if err := r.Update(ctx, existing); err != nil {
 			return "", fmt.Errorf("failed to update deployment: %w", err)
 		}

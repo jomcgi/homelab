@@ -30,9 +30,9 @@ import (
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
@@ -236,7 +236,7 @@ func main() {
 
 	// Auto-create tunnel if daemon mode is enabled
 	if enableDaemon {
-		if err := createDefaultTunnel(mgr, reconciler, cfClient); err != nil {
+		if err := createDefaultTunnel(mgr); err != nil {
 			setupLog.Error(err, "unable to create default tunnel")
 			os.Exit(1)
 		}
@@ -275,9 +275,11 @@ func main() {
 	}
 }
 
-func createDefaultTunnel(mgr ctrl.Manager, reconciler *controller.CloudflareTunnelReconciler, cfClient *cfclient.TunnelClient) error {
+func createDefaultTunnel(
+	mgr ctrl.Manager,
+) error {
 	setupLog.Info("Creating default tunnel with daemon enabled")
-	
+
 	// Get account ID from environment or discover it
 	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
 	if accountID == "" {
@@ -288,31 +290,38 @@ func createDefaultTunnel(mgr ctrl.Manager, reconciler *controller.CloudflareTunn
 	go func() {
 		// Wait for manager to be ready
 		<-mgr.Elected()
-		
+
 		ctx := context.TODO()
-		
+
 		// Check if default tunnel already exists
 		tunnelList := &tunnelsv1.CloudflareTunnelList{}
 		if err := mgr.GetClient().List(ctx, tunnelList); err != nil {
 			setupLog.Error(err, "failed to list existing tunnels")
 			return
 		}
-		
+
 		// Don't create if any tunnel already exists
 		if len(tunnelList.Items) > 0 {
 			setupLog.Info("Tunnel already exists, skipping auto-creation", "count", len(tunnelList.Items))
 			return
 		}
-		
-		// Use UUID suffix to avoid naming collisions
-		id := uuid.New().String()[:8] // First 8 chars of UUID
+
+		// Use full UUID to avoid naming collisions
+		id := uuid.New().String()
 		tunnelName := fmt.Sprintf("k8s-daemon-%s", id)
-		
+
+		// Get the current namespace from the manager
+		operatorNs := os.Getenv("POD_NAMESPACE")
+		if operatorNs == "" {
+			setupLog.Error(nil, "POD_NAMESPACE environment variable not set")
+			return
+		}
+
 		// Create default tunnel
 		defaultTunnel := &tunnelsv1.CloudflareTunnel{
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "default-daemon-tunnel",
-				Namespace: "cloudflare-system",
+				Namespace: operatorNs,
 			},
 			Spec: tunnelsv1.CloudflareTunnelSpec{
 				Name:      tunnelName,
@@ -329,14 +338,14 @@ func createDefaultTunnel(mgr ctrl.Manager, reconciler *controller.CloudflareTunn
 				},
 			},
 		}
-		
+
 		if err := mgr.GetClient().Create(ctx, defaultTunnel); err != nil {
 			setupLog.Error(err, "failed to create default tunnel")
 			return
 		}
-		
+
 		setupLog.Info("Successfully created default tunnel", "name", defaultTunnel.Name, "tunnelName", tunnelName)
 	}()
-	
+
 	return nil
 }

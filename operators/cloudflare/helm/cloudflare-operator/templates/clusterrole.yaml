@@ -1,0 +1,66 @@
+{{- if .Values.rbac.create }}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "cloudflare-operator.fullname" . }}-manager-role
+  labels:
+    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.tunnels.cloudflare.io
+  resources:
+  - cloudflaretunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.tunnels.cloudflare.io
+  resources:
+  - cloudflaretunnels/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tunnels.tunnels.cloudflare.io
+  resources:
+  - cloudflaretunnels/status
+  verbs:
+  - get
+  - patch
+  - update
+{{- end }}
