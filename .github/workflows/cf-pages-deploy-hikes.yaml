@@ -18,6 +18,7 @@ concurrency:
 jobs:
   update-data:
     # runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 2
     name: Update Hike Data
     defaults:
