@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   update-data:
-    runs-on: self-hosted
+    # runs-on: self-hosted
     timeout-minutes: 2
     name: Update Hike Data
     defaults:
