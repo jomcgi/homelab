@@ -47,7 +47,8 @@ jobs:
           R2_BUCKET_NAME: jomcgi-hikes
 
   test:
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: ubuntu-latest
     timeout-minutes: 3
     name: Test hikes.jomcgi.dev
     defaults:
@@ -73,7 +74,8 @@ jobs:
 
 
   deploy:
-    runs-on: self-hosted
+    # runs-on: self-hosted
+    runs-on: ubuntu-latest
     name: Deploy hikes.jomcgi.dev
     timeout-minutes: 3
     needs: [test]
