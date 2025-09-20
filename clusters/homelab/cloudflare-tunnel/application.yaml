@@ -13,6 +13,7 @@ spec:
       releaseName: cluster-ingress
       valueFiles:
         - values.yaml
+        - cloudflare-tunnel/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: bootstrap
