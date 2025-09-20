@@ -1,0 +1,104 @@
+# n8n custom values for homelab deployment
+
+# Basic configuration
+replicaCount: 1
+
+image:
+  repository: n8nio/n8n
+  pullPolicy: IfNotPresent
+  tag: ""  # Uses chart default if not specified
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+
+# Ingress will be handled by Cloudflare Tunnel
+ingress:
+  enabled: false
+
+# Resource limits following homelab standards
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 100m
+    memory: 256Mi
+
+# Security context following homelab standards
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false  # n8n needs write access for workflows
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  fsGroup: 1000
+
+# Persistence using Longhorn
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 10Gi
+
+# n8n specific configuration
+n8n:
+  # Basic setup
+  encryptionKey: ""  # Will be set via 1Password secret
+
+  # Database - using SQLite with persistent storage
+  database:
+    type: sqlite
+
+  # Disable basic auth as we'll use Cloudflare Access
+  basicAuth:
+    enabled: false
+
+  # Environment configuration
+  env:
+    # Execution mode
+    EXECUTIONS_MODE: regular
+
+    # Timezone
+    GENERIC_TIMEZONE: America/Los_Angeles
+    TZ: America/Los_Angeles
+
+    # Security
+    N8N_SECURE_COOKIE: "false"  # Behind Cloudflare proxy
+
+    # Workflow settings
+    EXECUTIONS_DATA_SAVE_ON_ERROR: all
+    EXECUTIONS_DATA_SAVE_ON_SUCCESS: all
+    EXECUTIONS_DATA_SAVE_ON_PROGRESS: true
+    EXECUTIONS_DATA_SAVE_MANUAL_EXECUTIONS: true
+
+# Health checks
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 30
+
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false  # Single replica, no PDB needed
+
+# Autoscaling disabled for homelab
+autoscaling:
+  enabled: false
