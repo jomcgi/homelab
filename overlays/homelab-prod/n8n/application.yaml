@@ -6,7 +6,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://8gears.container-registry.com/library
+    repoURL: 8gears.container-registry.com/library
     targetRevision: 1.0.15
     chart: n8n
     helm:
