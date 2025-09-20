@@ -4,7 +4,7 @@ metadata:
   name: cloudflare-operator
   namespace: argocd
 spec:
-  project: homelab
+  project: default
   source:
     repoURL: https://github.com/jomcgi/homelab
     targetRevision: main
