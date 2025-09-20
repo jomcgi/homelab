@@ -14,5 +14,7 @@ ingress:
         noTLSVerify: true
     - hostname: longhorn-homelab.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+    - hostname: n8n-homelab.jomcgi.dev
+      service: http://n8n.n8n.svc.cluster.local:80
     # - hostname: prometheus.$(OVERLAY_NAME).jomcgi.dev
     #   service: http://prometheus-server.monitoring.svc.cluster.local:80
