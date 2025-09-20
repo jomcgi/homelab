@@ -4,7 +4,7 @@ kind: Kustomization
 resources:
   # Cluster-level resources
   - ./cloudflare-tunnel
-  - ./longhorn
+  # - ./longhorn
   - ./bootstrap-namespace.yaml
   - ./cloudflare-operator
   # Overlays
