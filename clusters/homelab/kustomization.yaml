@@ -5,8 +5,7 @@ resources:
   # Cluster-level resources
   - ./cloudflare-tunnel
   - ./longhorn
-  - ./bootstrap-namespace.yaml
-  - ./cloudflare-operator
   # Overlays
-  - ../../overlays/homelab-prod
+  - ../../overlays/dev
+  - ../../overlays/prod
 
