@@ -8,13 +8,13 @@ namespace:
 
 ingress:
   routes:
-    - hostname: argocd-homelab.jomcgi.dev
+    - hostname: argocd.jomcgi.dev
       service: https://argocd-server.argocd.svc.cluster.local:443
       originRequest:
         noTLSVerify: true
-    - hostname: longhorn-homelab.jomcgi.dev
+    - hostname: longhorn.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
-    - hostname: n8n-homelab.jomcgi.dev
+    - hostname: n8n.jomcgi.dev
       service: http://n8n.n8n.svc.cluster.local:80
     # - hostname: prometheus.$(OVERLAY_NAME).jomcgi.dev
     #   service: http://prometheus-server.monitoring.svc.cluster.local:80
