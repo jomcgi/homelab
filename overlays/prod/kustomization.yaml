@@ -4,5 +4,4 @@ kind: Kustomization
 namePrefix: prod-
 
 resources:
-  - ./cloudflare-tunnel
   - ./n8n
