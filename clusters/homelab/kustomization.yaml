@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   # Cluster-level resources
+  - ./argocd
   - ./cloudflare-tunnel
   - ./longhorn
   # Overlays
