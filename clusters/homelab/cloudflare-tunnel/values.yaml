@@ -3,8 +3,8 @@ secret:
     itemPath: "vaults/k8s-homelab/items/cluster-cloudflare-tunnel"
 
 namespace:
-  create: false
-  name: bootstrap
+  create: true
+  name: ingress
 
 ingress:
   routes:
@@ -16,5 +16,3 @@ ingress:
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: n8n.jomcgi.dev
       service: http://n8n.n8n.svc.cluster.local:80
-    # - hostname: prometheus.$(OVERLAY_NAME).jomcgi.dev
-    #   service: http://prometheus-server.monitoring.svc.cluster.local:80
