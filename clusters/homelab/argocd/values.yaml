@@ -1,0 +1,292 @@
+# ArgoCD Configuration for Homelab
+# Security-first approach with Cloudflare Tunnel ingress
+
+## Global configuration
+global:
+  domain: argocd.jomcgi.dev
+
+  logging:
+    format: json
+    level: info  # Use 'debug' for troubleshooting
+
+  # Security context for all pods
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+    fsGroup: 999
+    seccompProfile:
+      type: RuntimeDefault
+
+  # Single-node homelab doesn't need complex scheduling
+  nodeSelector:
+    kubernetes.io/os: linux
+
+  # Conservative resource defaults for homelab
+  priorityClassName: ""
+
+  # Tolerations to allow running on control plane nodes (common in homelabs)
+  tolerations:
+    - key: node-role.kubernetes.io/control-plane
+      operator: Exists
+      effect: NoSchedule
+    - key: node-role.kubernetes.io/master
+      operator: Exists
+      effect: NoSchedule
+
+  # No complex affinity rules needed for homelab
+  affinity:
+    podAntiAffinity: soft
+
+## ArgoCD Configuration
+configs:
+  cm:
+    # URL configuration for UI
+    url: "https://argocd.jomcgi.dev"
+
+    # Disable internal TLS since Cloudflare handles it
+    server.insecure: true
+
+    # Enable admin user for initial setup
+    admin.enabled: true
+
+    # Repository credentials can be added later via UI or declaratively
+    repositories: |
+      - url: https://github.com/jomcgi/homelab.git
+        type: git
+
+    # Resource customizations for better drift detection
+    resource.compareoptions: |
+      ignoreAggregatedRoles: true
+
+    # Application reconciliation timeout
+    timeout.reconciliation: 180s
+
+    # Enable progressive syncs for safer deployments
+    application.sync.options: |
+      PrunePropagationPolicy=background
+      CreateNamespace=true
+      ServerSideApply=true
+
+  params:
+    # Server configuration
+    server.insecure: true  # TLS handled by Cloudflare
+    server.disable.auth: false
+    server.enable.gzip: true
+
+    # Controller tuning for homelab scale
+    controller.status.processors: 20
+    controller.operation.processors: 10
+    controller.self.heal.timeout.seconds: 5
+    controller.repo.server.timeout.seconds: 60
+
+    # ApplicationSet controller
+    applicationsetcontroller.policy: sync
+    applicationsetcontroller.enable.progressive.syncs: true
+
+  rbac:
+    # Basic RBAC for admin user
+    policy.default: role:readonly
+    policy.csv: |
+      p, role:admin, applications, *, */*, allow
+      p, role:admin, clusters, *, *, allow
+      p, role:admin, repositories, *, *, allow
+      p, role:admin, certificates, *, *, allow
+      p, role:admin, projects, *, *, allow
+      g, argocd-admins, role:admin
+    scopes: '[groups]'
+
+  # Secret configuration
+  secret:
+    createSecret: true
+    # Admin password will be set manually after installation
+    argocdServerAdminPassword: ""
+
+## Application Controller
+controller:
+  replicas: 1  # Single replica for homelab
+
+  # Resource limits for homelab
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Security context
+  containerSecurityContext:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+  # Metrics for observability
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8082"
+
+## Dex (Disabled - using Cloudflare Access)
+dex:
+  enabled: false
+
+## Redis
+redis:
+  enabled: true
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 999
+
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+  # Metrics for observability
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9121"
+
+## Redis-HA (Disabled for homelab - single Redis is sufficient)
+redis-ha:
+  enabled: false
+
+## Server
+server:
+  replicas: 1  # Single replica for homelab
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: 300m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # Security context
+  containerSecurityContext:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    servicePortHttp: 80
+    servicePortHttps: 443
+    servicePortGrpc: 443
+
+  # Ingress disabled - using Cloudflare Tunnel
+  ingress:
+    enabled: false
+
+  # Metrics for observability
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8083"
+
+  # Extra environment variables for server
+  env:
+    - name: ARGOCD_SERVER_INSECURE
+      value: "true"
+
+## Repo Server
+reposerver:
+  replicas: 1  # Single replica for homelab
+
+  resources:
+    limits:
+      cpu: 300m
+      memory: 384Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # Security context
+  containerSecurityContext:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+  # Metrics for observability
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8084"
+
+## ApplicationSet Controller
+applicationsetcontroller:
+  enabled: true
+  replicas: 1
+
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # Security context
+  containerSecurityContext:
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+
+  # Metrics for observability
+  metrics:
+    enabled: true
+    service:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8085"
+
+## Notifications controller (Optional - enable if needed)
+notifications:
+  enabled: false
+
+  # Can be configured later for Slack, Discord, etc.
+  # secret:
+  #   create: true
+  #   items:
+  #     slack-token: <your-token>
+
+## Network Policies (Optional - for additional security)
+networkPolicy:
+  create: false  # Enable if you want network segmentation
+  defaultDenyIngress: false
