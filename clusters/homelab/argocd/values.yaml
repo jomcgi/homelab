@@ -143,6 +143,18 @@ controller:
       - apiGroups: ["apps"]
         resources: ["*"]
         verbs: ["*"]
+      # Batch resources (Jobs, CronJobs)
+      - apiGroups: ["batch"]
+        resources: ["*"]
+        verbs: ["*"]
+      # API extensions (CRDs)
+      - apiGroups: ["apiextensions.k8s.io"]
+        resources: ["*"]
+        verbs: ["*"]
+      # ArgoCD resources
+      - apiGroups: ["argoproj.io"]
+        resources: ["*"]
+        verbs: ["*"]
       # Networking resources
       - apiGroups: ["networking.k8s.io"]
         resources: ["*"]
