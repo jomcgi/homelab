@@ -237,8 +237,8 @@ server:
     servicePortGrpc: 443
 
   # Ingress disabled - using Cloudflare Tunnel
-  ingress:
-    enabled: false
+  # ingress:
+  #   enabled: false
 
   # Metrics for observability
   metrics:
@@ -323,6 +323,6 @@ notifications:
   #     slack-token: <your-token>
 
 ## Network Policies (Optional - for additional security)
-networkPolicy:
-  create: false  # Enable if you want network segmentation
-  defaultDenyIngress: false
+# networkPolicy:
+#   create: false  # Enable if you want network segmentation
+#   defaultDenyIngress: false
