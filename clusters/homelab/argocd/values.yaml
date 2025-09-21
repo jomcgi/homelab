@@ -131,6 +131,42 @@ controller:
         prometheus.io/scrape: "true"
         prometheus.io/port: "8082"
 
+  # Enable custom ClusterRole rules for cross-namespace management
+  clusterRoleRules:
+    enabled: true
+    rules:
+      # Core resources
+      - apiGroups: [""]
+        resources: ["*"]
+        verbs: ["*"]
+      # Apps resources
+      - apiGroups: ["apps"]
+        resources: ["*"]
+        verbs: ["*"]
+      # Networking resources
+      - apiGroups: ["networking.k8s.io"]
+        resources: ["*"]
+        verbs: ["*"]
+      # RBAC resources
+      - apiGroups: ["rbac.authorization.k8s.io"]
+        resources: ["*"]
+        verbs: ["*"]
+      # Custom resources (1Password, Cloudflare, etc.)
+      - apiGroups: ["onepassword.com"]
+        resources: ["*"]
+        verbs: ["*"]
+      - apiGroups: ["cloudflare.com"]
+        resources: ["*"]
+        verbs: ["*"]
+      # Storage resources (Longhorn)
+      - apiGroups: ["longhorn.io"]
+        resources: ["*"]
+        verbs: ["*"]
+      # Cert-manager resources
+      - apiGroups: ["cert-manager.io"]
+        resources: ["*"]
+        verbs: ["*"]
+
 ## Dex (Disabled - using Cloudflare Access)
 dex:
   enabled: false
