@@ -13,7 +13,7 @@ spec:
     helm:
       releaseName: signoz
       valueFiles:
-        - values.yaml
+        - clusters/homelab/signoz/values.yaml
 
   destination:
     server: https://kubernetes.default.svc
@@ -23,15 +23,11 @@ spec:
     automated:
       prune: true
       selfHeal: true
-      allowEmpty: false
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
     retry:
       limit: 5
       backoff:
         duration: 5s
         factor: 2
-        maxDuration: 3m
+        maxDuration: 10m
 
   revisionHistoryLimit: 10
