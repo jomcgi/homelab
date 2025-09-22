@@ -5,4 +5,3 @@ namespace: signoz
 
 resources:
   - application.yaml
-  - namespace.yaml
