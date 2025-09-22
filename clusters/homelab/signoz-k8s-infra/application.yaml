@@ -11,8 +11,8 @@ spec:
     chart: k8s-infra
     helm:
       releaseName: k8s-infra
-      valueFiles:
-        - values.yaml
+      values: |
+        otelCollectorEndpoint: signoz-otel-collector.signoz.svc.cluster.local:4317
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
@@ -20,5 +20,5 @@ spec:
     automated:
       prune: true
       selfHeal: true
-    syncOptions:  
+    syncOptions:
       - CreateNamespace=true
