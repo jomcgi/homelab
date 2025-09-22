@@ -26,7 +26,7 @@ spec:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: signoz
+  name: signoz-k8s-infra
   namespace: argocd
 spec:
   project: default
@@ -35,7 +35,7 @@ spec:
     targetRevision: 0.14.1
     chart: k8s-infra
     helm:
-      releaseName: signoz
+      releaseName: k8s-infra
       valueFiles:
         - infra-values.yaml
   destination:
