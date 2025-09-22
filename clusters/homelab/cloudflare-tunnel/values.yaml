@@ -6,6 +6,7 @@ namespace:
   create: true
   name: ingress
 
+
 ingress:
   routes:
     - hostname: argocd.jomcgi.dev
