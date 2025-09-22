@@ -22,3 +22,28 @@ spec:
       selfHeal: true
     syncOptions:  
       - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://charts.signoz.io
+    targetRevision: 0.14.1
+    chart: k8s-infra
+    helm:
+      releaseName: signoz
+      valueFiles:
+        - infra-values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: signoz
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:  
+      - CreateNamespace=true
