@@ -12,6 +12,10 @@ ingress:
       service: https://argocd-server.argocd.svc.cluster.local:443
       originRequest:
         noTLSVerify: true
+    - hostname: argocd-github.jomcgi.dev
+      service: https://argocd-server.argocd.svc.cluster.local:443/api/webhook
+      originRequest:
+        noTLSVerify: true
     - hostname: longhorn.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: n8n.jomcgi.dev
