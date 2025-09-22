@@ -1,0 +1,221 @@
+# SigNoz Values for Homelab
+# Observability platform with logs, traces and metrics
+
+# Global configuration
+global:
+  storageClass: longhorn
+  clusterName: homelab
+
+# SigNoz configuration
+signoz:
+  replicaCount: 1
+
+  # Environment variables
+  env:
+    dot_metrics_enabled: true
+    signoz_alertmanager_provider: signoz
+    signoz_alertmanager_signoz_external_url: https://signoz.jomcgi.dev
+    signoz_emailing_enabled: false
+    signoz_prometheus_active_query_tracker_enabled: false
+    signoz_telemetrystore_provider: clickhouse
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+    internalPort: 8085
+
+  # Ingress disabled - using Cloudflare Tunnel
+  ingress:
+    enabled: false
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  # Persistence for internal SQLite
+  persistence:
+    enabled: true
+    storageClass: longhorn
+    size: 5Gi
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+# Schema Migrator
+schemaMigrator:
+  enabled: true
+  enableReplication: false
+
+# OpenTelemetry Collector configuration
+otelCollector:
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 1Gi
+      cpu: 1000m
+
+  # Service configuration
+  service:
+    type: ClusterIP
+
+  # Ingress disabled - using internal communication
+  ingress:
+    enabled: false
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+
+  # Enable commonly used ports
+  ports:
+    otlp:
+      enabled: true
+    otlp-http:
+      enabled: true
+    jaeger-thrift:
+      enabled: true
+    jaeger-grpc:
+      enabled: true
+    zipkin:
+      enabled: false
+    metrics:
+      enabled: true
+    logsheroku:
+      enabled: true
+    logsjson:
+      enabled: true
+
+# ClickHouse configuration (using internal installation)
+clickhouse:
+  enabled: true
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 2Gi
+      cpu: 500m
+    limits:
+      memory: 4Gi
+      cpu: 2000m
+
+  # Persistence
+  persistence:
+    enabled: true
+    storageClass: longhorn
+    size: 20Gi
+
+  # Security configuration
+  securityContext:
+    enabled: true
+    runAsUser: 101
+    runAsGroup: 101
+    fsGroup: 101
+
+# Query Service configuration
+queryService:
+  enabled: true
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8080
+
+  # Security context
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+# Alert Manager configuration
+alertManager:
+  enabled: true
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 128Mi
+      cpu: 50m
+    limits:
+      memory: 256Mi
+      cpu: 200m
+
+  # Persistence
+  persistence:
+    enabled: true
+    storageClass: longhorn
+    size: 1Gi
+
+# Zookeeper configuration (required by ClickHouse)
+zookeeper:
+  enabled: true
+  replicaCount: 1
+
+  # Resource limits
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m
+
+  # Persistence
+  persistence:
+    enabled: true
+    storageClass: longhorn
+    size: 5Gi
+
+# Disable components not needed for homelab
+signoz-otel-gateway:
+  enabled: false
+
+redpanda:
+  enabled: false
