@@ -9,6 +9,16 @@ spec:
     repoURL: https://charts.signoz.io
     targetRevision: 0.92.0
     chart: signoz
+    helm:
+      releaseName: signoz
+      valueFiles:
+        - values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:  
+      - CreateNamespace=true
