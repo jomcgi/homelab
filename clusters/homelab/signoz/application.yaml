@@ -7,16 +7,8 @@ spec:
   project: default
   source:
     repoURL: https://charts.signoz.io
-    chart: signoz
     targetRevision: 0.92.0
-    helm:
-      releaseName: signoz
+    chart: signoz
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
