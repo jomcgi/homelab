@@ -6,6 +6,7 @@ resources:
   - ./argocd
   - ./cloudflare-tunnel
   - ./longhorn
+  - ./signoz
   # Overlays
   - ../../overlays/dev
   - ../../overlays/prod
