@@ -6,15 +6,14 @@ namespace:
   create: true
   name: ingress
 
-
 ingress:
   routes:
     - hostname: argocd.jomcgi.dev
       service: https://argocd-server.argocd.svc.cluster.local:443
       originRequest:
         noTLSVerify: true
-    - hostname: argocd-github.jomcgi.dev
-      service: https://argocd-server.argocd.svc.cluster.local:443/api/webhook
+    # - hostname: argocd-github.jomcgi.dev
+    #   service: https://argocd-server.argocd.svc.cluster.local:443/api/webhook
     - hostname: longhorn.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: n8n.jomcgi.dev
