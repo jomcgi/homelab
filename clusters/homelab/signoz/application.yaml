@@ -19,7 +19,7 @@ spec:
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: platform
+    namespace: signoz
 
   syncPolicy:
     automated:
