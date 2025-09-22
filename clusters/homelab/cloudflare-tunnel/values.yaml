@@ -18,3 +18,5 @@ ingress:
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: n8n.jomcgi.dev
       service: http://n8n.n8n.svc.cluster.local:80
+    - hostname: signoz.jomcgi.dev
+      service: http://signoz.signoz.svc.cluster.local:8080
