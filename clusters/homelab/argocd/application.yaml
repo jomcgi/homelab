@@ -8,13 +8,13 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://argoproj.github.io/argo-helm
-    targetRevision: 8.5.3
-    chart: argo-cd
+    repoURL: https://github.com/jomcgi/homelab.git
+    targetRevision: HEAD
+    path: charts/argocd
     helm:
       releaseName: argocd
       valueFiles:
-        - values.yaml
+        - ../../clusters/homelab/argocd/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
