@@ -7,7 +7,6 @@ resources:
   - ./cloudflare-tunnel
   - ./longhorn
   - ./signoz
-  - ./signoz-k8s-infra
   # Overlays
   - ../../overlays/dev
   - ../../overlays/prod
