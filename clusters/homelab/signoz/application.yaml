@@ -6,13 +6,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.signoz.io
-    targetRevision: 0.92.0
-    chart: signoz
+    repoURL: https://github.com/jomcgi/homelab.git
+    targetRevision: HEAD
+    path: charts/signoz
     helm:
       releaseName: signoz
       valueFiles:
-        - values.yaml
+        - ../../clusters/homelab/signoz/values.yaml
+      ignoreMissingValueFiles: true
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
