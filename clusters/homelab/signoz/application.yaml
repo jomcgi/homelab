@@ -12,6 +12,7 @@ spec:
     helm:
       releaseName: signoz
       valueFiles:
+        - values.yaml
         - ../../clusters/homelab/signoz/values.yaml
       ignoreMissingValueFiles: true
   destination:
