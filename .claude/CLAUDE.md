@@ -181,6 +181,12 @@ We **define errors out of existence** where possible:
 
 ## Common Tasks
 
+### Spec Workflow Commands
+Use the Claude Code spec workflow tool for structured development:
+- **Check task status**: `npx @pimzino/claude-code-spec-workflow get-tasks <spec-name>`
+- **Complete task**: `npx @pimzino/claude-code-spec-workflow get-tasks <spec-name> <task-id> --mode complete`
+- **Spec status**: `npx @pimzino/claude-code-spec-workflow spec-status <spec-name>`
+
 ### Adding a New Service
 1. Create Helm chart in `charts/<name>/` or add to existing chart
 2. Create ArgoCD Application in `clusters/homelab/<name>/`
