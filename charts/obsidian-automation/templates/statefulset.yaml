@@ -1,0 +1,359 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: {{ include "obsidian-automation.fullname" . }}
+  namespace: {{ include "obsidian-automation.namespace" . }}
+  labels:
+    {{- include "obsidian-automation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: obsidian
+  annotations:
+    {{- with .Values.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  serviceName: {{ include "obsidian-automation.fullname" . }}
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "obsidian-automation.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/onepassworditem.yaml") . | sha256sum }}
+        {{- if .Values.observability.metrics.enabled }}
+        prometheus.io/scrape: {{ index .Values.observability.metrics.annotations "prometheus.io/scrape" | quote }}
+        prometheus.io/port: {{ index .Values.observability.metrics.annotations "prometheus.io/port" | quote }}
+        prometheus.io/path: {{ index .Values.observability.metrics.annotations "prometheus.io/path" | quote }}
+        {{- end }}
+        {{- with .Values.annotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "obsidian-automation.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: obsidian
+    spec:
+      serviceAccountName: {{ include "obsidian-automation.serviceAccountName" . }}
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.playwrightAuth.enabled }}
+      initContainers:
+      - name: playwright-auth
+        image: "{{ .Values.images.playwright.repository }}:{{ .Values.images.playwright.tag }}"
+        imagePullPolicy: {{ .Values.images.playwright.pullPolicy }}
+        command:
+        - /bin/bash
+        - -c
+        - |
+{{ .Values.playwrightAuth.script | indent 10 }}
+        env:
+        {{- range $key, $value := .Values.playwrightAuth.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- if eq .Values.secrets.type "onepassword" }}
+        - name: OBSIDIAN_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "obsidian-automation.secretName" . }}
+              key: email
+        - name: OBSIDIAN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "obsidian-automation.secretName" . }}
+              key: password
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        resources:
+          {{- toYaml .Values.playwrightAuth.resources | nindent 10 }}
+        volumeMounts:
+        {{- range .Values.playwrightAuth.volumeMounts }}
+        - name: {{ .name }}
+          mountPath: {{ .mountPath }}
+          readOnly: {{ .readOnly }}
+        {{- end }}
+      {{- end }}
+      containers:
+      # Main Obsidian container
+      - name: obsidian
+        image: "{{ .Values.images.obsidian.repository }}:{{ .Values.images.obsidian.tag }}"
+        imagePullPolicy: {{ .Values.images.obsidian.pullPolicy }}
+        ports:
+        - name: web
+          containerPort: 3001
+          protocol: TCP
+        - name: api
+          containerPort: 27124
+          protocol: TCP
+        env:
+        {{- range $key, $value := .Values.obsidian.env }}
+        - name: {{ $key }}
+          value: {{ $value | quote }}
+        {{- end }}
+        {{- if eq .Values.secrets.type "onepassword" }}
+        - name: OBSIDIAN_EMAIL
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "obsidian-automation.secretName" . }}
+              key: email
+        - name: OBSIDIAN_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "obsidian-automation.secretName" . }}
+              key: password
+        - name: OBSIDIAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "obsidian-automation.secretName" . }}
+              key: api-key
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        resources:
+          {{- toYaml .Values.obsidian.resources | nindent 10 }}
+        volumeMounts:
+        {{- range .Values.obsidian.volumeMounts }}
+        - name: {{ .name }}
+          mountPath: {{ .mountPath }}
+          readOnly: {{ .readOnly }}
+        {{- end }}
+        {{- if .Values.obsidian.livenessProbe }}
+        livenessProbe:
+          {{- toYaml .Values.obsidian.livenessProbe | nindent 10 }}
+        {{- end }}
+        {{- if .Values.obsidian.readinessProbe }}
+        readinessProbe:
+          {{- toYaml .Values.obsidian.readinessProbe | nindent 10 }}
+        {{- end }}
+
+      {{- if .Values.syncMonitor.enabled }}
+      # Sync monitor sidecar container
+      - name: sync-monitor
+        image: "{{ .Values.images.syncMonitor.repository }}:{{ .Values.images.syncMonitor.tag }}"
+        imagePullPolicy: {{ .Values.images.syncMonitor.pullPolicy }}
+        ports:
+        - name: metrics
+          containerPort: 8080
+          protocol: TCP
+        - name: health
+          containerPort: 8081
+          protocol: TCP
+        command:
+        - /bin/sh
+        - -c
+        - |
+          # Initialize synthetic test failure counter
+          SYNTHETIC_FAILURES=0
+          LAST_SYNC_CHECK=$(date +%s)
+
+          # Function to check sync status (Requirement 5.4, 6.1)
+          check_sync_status() {
+            # Try to call Obsidian REST API to verify it's responsive
+            if curl -f -s -X GET http://localhost:27124/health >/dev/null 2>&1; then
+              # API is responsive, reset failure counter
+              SYNTHETIC_FAILURES=0
+              echo "healthy"
+              return 0
+            else
+              # API is not responsive, increment failure counter
+              SYNTHETIC_FAILURES=$((SYNTHETIC_FAILURES + 1))
+              echo "unhealthy failures=$SYNTHETIC_FAILURES"
+              return 1
+            fi
+          }
+
+          # Start background health/ready server on port 8081
+          while true; do
+            REQUEST=$(echo -e "GET / HTTP/1.1\r\n\r\n" | nc -l -p 8081 -q 1)
+            REQUEST_PATH=$(echo "$REQUEST" | head -n1 | cut -d' ' -f2)
+
+            # Check sync status
+            SYNC_STATUS=$(check_sync_status)
+            SYNC_HEALTHY=$?
+
+            if [[ "$REQUEST_PATH" == "/health" ]]; then
+              # Health endpoint - always returns OK if process is running
+              echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nOK" | nc -l -p 8081 -q 0
+            elif [[ "$REQUEST_PATH" == "/ready" ]]; then
+              # Ready endpoint - depends on sync status (Requirement 5.4)
+              if [ $SYNC_HEALTHY -eq 0 ] || [ $SYNTHETIC_FAILURES -lt 3 ]; then
+                # Ready if sync is healthy OR failures < 3
+                echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nReady - $SYNC_STATUS" | nc -l -p 8081 -q 0
+              else
+                # Not ready after 3 consecutive failures (Requirement 5.4)
+                echo -e "HTTP/1.1 503 Service Unavailable\r\nContent-Type: text/plain\r\n\r\nNot Ready - Sync check failed $SYNTHETIC_FAILURES times" | nc -l -p 8081 -q 0
+              fi
+            else
+              # Default response
+              echo -e "HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\nSync Monitor Active" | nc -l -p 8081 -q 0
+            fi
+          done &
+
+          # Start metrics collection and server
+          while true; do
+            # Create metrics file
+            cat > /tmp/metrics.prom << EOF
+          # HELP obsidian_sync_monitor_info Information about the sync monitor
+          # TYPE obsidian_sync_monitor_info gauge
+          obsidian_sync_monitor_info{version="1.0.0"} 1
+
+          # HELP obsidian_vault_files_total Total number of markdown files in vaults
+          # TYPE obsidian_vault_files_total gauge
+          obsidian_vault_files_total $(find /vaults -name "*.md" -type f 2>/dev/null | wc -l || echo 0)
+
+          # HELP obsidian_session_valid Whether the Obsidian session is valid
+          # TYPE obsidian_session_valid gauge
+          obsidian_session_valid $([ -f "/session/session.json" ] && echo 1 || echo 0)
+
+          # HELP obsidian_sync_check_timestamp_seconds Last time sync status was checked
+          # TYPE obsidian_sync_check_timestamp_seconds gauge
+          obsidian_sync_check_timestamp_seconds $(date +%s)
+
+          # HELP obsidian_config_files_total Total number of configuration files
+          # TYPE obsidian_config_files_total gauge
+          obsidian_config_files_total $(find /config -type f 2>/dev/null | wc -l || echo 0)
+          EOF
+
+            # Serve metrics on port 8080
+            while true; do
+              {
+                echo "HTTP/1.1 200 OK"
+                echo "Content-Type: text/plain"
+                echo "Content-Length: $(wc -c < /tmp/metrics.prom)"
+                echo ""
+                cat /tmp/metrics.prom
+              } | nc -l -p 8080 -q 1
+            done &
+
+            sleep {{ .Values.syncMonitor.interval }}
+          done
+        env:
+        - name: SYNC_CHECK_INTERVAL
+          value: {{ .Values.syncMonitor.interval | quote }}
+        {{- if eq .Values.secrets.type "onepassword" }}
+        - name: OBSIDIAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "obsidian-automation.secretName" . }}
+              key: api-key
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        resources:
+          {{- toYaml .Values.syncMonitor.resources | nindent 10 }}
+        volumeMounts:
+        {{- range .Values.syncMonitor.volumeMounts }}
+        - name: {{ .name }}
+          mountPath: {{ .mountPath }}
+          readOnly: {{ .readOnly }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+      {{- end }}
+
+      volumes:
+      {{- if .Values.tmpVolumes.tmp.enabled }}
+      - name: tmp
+        emptyDir:
+          {{- if .Values.tmpVolumes.tmp.sizeLimit }}
+          sizeLimit: {{ .Values.tmpVolumes.tmp.sizeLimit }}
+          {{- end }}
+      {{- end }}
+
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+
+  {{- if or .Values.persistence.vaults.enabled .Values.persistence.config.enabled .Values.persistence.session.enabled }}
+  volumeClaimTemplates:
+  {{- if .Values.persistence.vaults.enabled }}
+  - metadata:
+      name: vaults
+      labels:
+        {{- include "obsidian-automation.labels" . | nindent 8 }}
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/part-of: obsidian-automation
+      {{- with .Values.persistence.vaults.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      accessModes:
+      - {{ .Values.persistence.vaults.accessMode }}
+      {{- if .Values.persistence.vaults.storageClass }}
+      storageClassName: {{ .Values.persistence.vaults.storageClass | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.persistence.vaults.size }}
+  {{- end }}
+
+  {{- if .Values.persistence.config.enabled }}
+  - metadata:
+      name: config
+      labels:
+        {{- include "obsidian-automation.labels" . | nindent 8 }}
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/part-of: obsidian-automation
+      {{- with .Values.persistence.config.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      accessModes:
+      - {{ .Values.persistence.config.accessMode }}
+      {{- if .Values.persistence.config.storageClass }}
+      storageClassName: {{ .Values.persistence.config.storageClass | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.persistence.config.size }}
+  {{- end }}
+
+  {{- if .Values.persistence.session.enabled }}
+  - metadata:
+      name: session
+      labels:
+        {{- include "obsidian-automation.labels" . | nindent 8 }}
+        app.kubernetes.io/component: storage
+        app.kubernetes.io/part-of: obsidian-automation
+      {{- with .Values.persistence.session.annotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+    spec:
+      accessModes:
+      - {{ .Values.persistence.session.accessMode }}
+      {{- if .Values.persistence.session.storageClass }}
+      storageClassName: {{ .Values.persistence.session.storageClass | quote }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.persistence.session.size }}
+  {{- end }}
+  {{- end }}
