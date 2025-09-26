@@ -183,7 +183,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: configMap patterns from existing charts_
   - _Requirements: 1.1, 1.2, 3.1, 3.4_
 
-- [ ] 12. Create authentication script logic in configmap.yaml data section
+- [x] 12. Create authentication script logic in configmap.yaml data section
   - File: charts/obsidian-automation/templates/configmap.yaml (modify existing)
   - Implement Playwright script for Obsidian web UI login
   - Add session state persistence to /session volume
