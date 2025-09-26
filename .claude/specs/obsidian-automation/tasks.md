@@ -203,7 +203,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: ServiceMonitor patterns from existing services_
   - _Requirements: 5.5, observability from tech.md_
 
-- [ ] 14. Create sync monitor application structure in charts/obsidian-automation/monitor/
+- [x] 14. Create sync monitor application structure in charts/obsidian-automation/monitor/
   - Files: charts/obsidian-automation/monitor/main.go, monitor/go.mod
   - Initialize Go module for sync monitoring sidecar
   - Create basic HTTP server for health and metrics endpoints
