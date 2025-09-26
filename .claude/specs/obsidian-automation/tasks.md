@@ -40,7 +40,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 1. Helm Chart Foundation
 
-- [ ] 1. Create Helm chart structure in charts/obsidian-automation/Chart.yaml
+- [x] 1. Create Helm chart structure in charts/obsidian-automation/Chart.yaml
   - File: charts/obsidian-automation/Chart.yaml
   - Create chart metadata with obsidian-automation name and description
   - Set version 1.0.0, appVersion matching Obsidian version
@@ -49,7 +49,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: charts/n8n/Chart.yaml, charts/cloudflare-tunnel/Chart.yaml_
   - _Requirements: 9.5_
 
-- [ ] 2. Create base values configuration in charts/obsidian-automation/values.yaml
+- [x] 2. Create base values configuration in charts/obsidian-automation/values.yaml
   - File: charts/obsidian-automation/values.yaml
   - Define default resource limits (2GB RAM, 2 CPU cores)
   - Configure storage specifications for vault/config/session volumes
@@ -58,7 +58,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: charts/n8n/values.yaml_
   - _Requirements: 8.1, 8.2, 9.1, 9.5_
 
-- [ ] 3. Create production values override in charts/obsidian-automation/values.prod.yaml
+- [x] 3. Create production values override in charts/obsidian-automation/values.prod.yaml
   - File: charts/obsidian-automation/values.prod.yaml
   - Override resource limits for production workload
   - Configure Longhorn storage class and sizes
@@ -69,7 +69,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 2. 1Password Integration
 
-- [ ] 4. Create OnePasswordItem template in charts/obsidian-automation/templates/onepassworditem.yaml
+- [x] 4. Create OnePasswordItem template in charts/obsidian-automation/templates/onepassworditem.yaml
   - File: charts/obsidian-automation/templates/onepassworditem.yaml
   - Define OnePasswordItem CRD for Obsidian Sync credentials
   - Reference vault path for email and password fields
@@ -80,7 +80,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 3. StatefulSet and Storage
 
-- [ ] 5. Create StatefulSet template in charts/obsidian-automation/templates/statefulset.yaml
+- [x] 5. Create StatefulSet template in charts/obsidian-automation/templates/statefulset.yaml
   - File: charts/obsidian-automation/templates/statefulset.yaml
   - Define StatefulSet with single replica for session persistence
   - Configure volumeClaimTemplates for vault-data, config-data, session-data
@@ -89,7 +89,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: structure.md labels/annotations patterns_
   - _Requirements: 3.3, 9.1, 9.5_
 
-- [ ] 6. Add initContainer for Playwright authentication to statefulset.yaml
+- [x] 6. Add initContainer for Playwright authentication to statefulset.yaml
   - File: charts/obsidian-automation/templates/statefulset.yaml (modify existing)
   - Configure Playwright initContainer with Microsoft image
   - Mount session volume and authentication scripts
@@ -98,7 +98,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: existing initContainer patterns from research_
   - _Requirements: 1.1, 1.3, 1.4_
 
-- [ ] 7a. Configure Obsidian container image and ports in statefulset.yaml
+- [x] 7a. Configure Obsidian container image and ports in statefulset.yaml
   - File: charts/obsidian-automation/templates/statefulset.yaml (modify existing)
   - Add Obsidian container with LinuxServer image
   - Configure container ports 3001 (web UI) and 27124 (REST API)
@@ -107,7 +107,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: container patterns from existing StatefulSets_
   - _Requirements: 2.1_
 
-- [ ] 7b. Add volume mounts for persistent storage in statefulset.yaml
+- [x] 7b. Add volume mounts for persistent storage in statefulset.yaml
   - File: charts/obsidian-automation/templates/statefulset.yaml (modify existing)
   - Mount vault-data volume to /vaults path
   - Mount config-data volume to /config path
@@ -116,7 +116,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: volume mount patterns from charts/n8n_
   - _Requirements: 3.3, 9.5_
 
-- [ ] 7c. Apply security context to Obsidian container in statefulset.yaml
+- [x] 7c. Apply security context to Obsidian container in statefulset.yaml
   - File: charts/obsidian-automation/templates/statefulset.yaml (modify existing)
   - Set runAsNonRoot: true, runAsUser: 1000, fsGroup: 1000
   - Configure readOnlyRootFilesystem: true with tmpfs mounts
@@ -125,7 +125,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: security context from structure.md_
   - _Requirements: 8.1, 8.2, 8.3, 8.4_
 
-- [ ] 8a. Add sync monitor sidecar container configuration in statefulset.yaml
+- [x] 8a. Add sync monitor sidecar container configuration in statefulset.yaml
   - File: charts/obsidian-automation/templates/statefulset.yaml (modify existing)
   - Add sync-monitor container with custom Go image
   - Configure container ports 8080 for metrics endpoint
@@ -154,7 +154,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 4. Services and Networking
 
-- [ ] 9. Create Service template in charts/obsidian-automation/templates/service.yaml
+- [x] 9. Create Service template in charts/obsidian-automation/templates/service.yaml
   - File: charts/obsidian-automation/templates/service.yaml
   - Expose REST API port 27124 and metrics port 8080
   - Configure ClusterIP service for internal cluster access
@@ -163,7 +163,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: existing service templates from other charts_
   - _Requirements: 2.1, 2.4_
 
-- [ ] 10. Create NetworkPolicy template in charts/obsidian-automation/templates/networkpolicy.yaml
+- [x] 10. Create NetworkPolicy template in charts/obsidian-automation/templates/networkpolicy.yaml
   - File: charts/obsidian-automation/templates/networkpolicy.yaml
   - Define ingress rules for Cloudflare Tunnel and metrics scraping
   - Configure egress rules for DNS, Obsidian Sync, and 1Password operator

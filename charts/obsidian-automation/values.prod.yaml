@@ -1,0 +1,212 @@
+# Production values override for obsidian-automation
+# Following homelab production patterns and optimizing for production workloads
+
+# Production environment identification
+overlayName: "prod"
+
+# Main Obsidian container - production resource optimization
+obsidian:
+  # Environment variables optimized for production
+  env:
+    TZ: "America/Los_Angeles"  # Production timezone
+    TITLE: "Obsidian Automation - Production"
+
+  # Production resource allocation - higher than base but within cluster constraints
+  # Based on requirement 9.1 but optimized for production performance
+  resources:
+    limits:
+      cpu: 3000m      # Increased from 2000m for better production performance
+      memory: 4Gi     # Increased from 2Gi for production workload
+    requests:
+      cpu: 200m       # Increased from 100m for consistent performance
+      memory: 1Gi     # Increased from 512Mi for better startup performance
+
+  # Production health checks - more aggressive timing for faster failure detection
+  livenessProbe:
+    httpGet:
+      path: /
+      port: 8080
+    initialDelaySeconds: 45    # Slightly longer for production startup
+    periodSeconds: 15          # More frequent checks
+    timeoutSeconds: 10         # Longer timeout for production loads
+    failureThreshold: 2        # Faster failure detection
+
+  readinessProbe:
+    httpGet:
+      path: /
+      port: 8080
+    initialDelaySeconds: 15    # Faster readiness detection
+    periodSeconds: 5
+    timeoutSeconds: 5
+    failureThreshold: 2        # Faster failure detection
+
+# Playwright authentication - production resource allocation
+playwrightAuth:
+  # Higher resource limits for production authentication workflows
+  resources:
+    limits:
+      cpu: 1500m      # Increased from 1000m for better performance
+      memory: 2Gi     # Increased from 1Gi for complex authentication
+    requests:
+      cpu: 200m       # Increased from 100m
+      memory: 512Mi   # Increased from 256Mi
+
+# Sync monitor - production monitoring configuration
+syncMonitor:
+  # More frequent monitoring in production
+  interval: 30        # Reduced from 60 seconds for better monitoring
+
+  # Enhanced resource allocation for production monitoring
+  resources:
+    limits:
+      cpu: 200m       # Increased from 100m
+      memory: 256Mi   # Increased from 128Mi
+    requests:
+      cpu: 20m        # Increased from 10m
+      memory: 64Mi    # Increased from 32Mi
+
+# Session checker - production schedule optimization
+sessionChecker:
+  # More frequent session validation in production
+  schedule: "*/30 * * * *"    # Every 30 minutes instead of hourly
+
+  # Enhanced resource allocation
+  resources:
+    limits:
+      cpu: 1000m      # Increased from 500m
+      memory: 512Mi   # Increased from 256Mi
+    requests:
+      cpu: 100m       # Increased from 50m
+      memory: 128Mi   # Increased from 64Mi
+
+# Production persistent volume configuration
+# Following requirement 9.5 with production-optimized sizes
+persistence:
+  # Vault storage - increased for production data volume
+  vaults:
+    size: 20Gi        # Increased from 10Gi for production vault size
+    annotations:
+      # Production backup annotations for Longhorn
+      backup.longhorn.io/backup-target: "s3://homelab-backups"
+      backup.longhorn.io/schedule: "0 2 * * *"
+
+  # Configuration storage - adequate for production configs
+  config:
+    size: 2Gi         # Increased from 1Gi for production configs
+    annotations:
+      backup.longhorn.io/backup-target: "s3://homelab-backups"
+      backup.longhorn.io/schedule: "0 3 * * *"
+
+  # Session storage - adequate for production sessions
+  session:
+    size: 2Gi         # Increased from 1Gi for production session data
+    annotations:
+      backup.longhorn.io/backup-target: "s3://homelab-backups"
+      backup.longhorn.io/schedule: "0 4 * * *"
+
+# Enhanced temporary volume for production
+tmpVolumes:
+  tmp:
+    sizeLimit: 1Gi    # Increased from 500Mi for production workloads
+
+# Production secret management
+secrets:
+  type: onepassword
+  onepassword:
+    vaultId: "k8s-homelab"  # Production vault
+    itemPath: "obsidian-automation/prod-credentials"
+    secretName: "obsidian-automation-prod-secrets"
+
+# Production observability configuration
+observability:
+  # Enhanced metrics collection for production
+  metrics:
+    enabled: true
+    port: 9090
+    path: /metrics
+    annotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9090"
+      prometheus.io/path: "/metrics"
+      # Production-specific annotations
+      grafana.io/dashboard: "obsidian-automation-prod"
+
+  # Production logging configuration
+  logging:
+    level: info           # Info level for production (not debug)
+    format: json          # Structured logging for production
+
+  # Enable tracing for production observability
+  tracing:
+    enabled: true
+    jaegerEndpoint: "http://jaeger-collector:14268/api/traces"
+
+# Production labels for resource identification
+labels:
+  environment: "production"
+  tier: "automation"
+  backup.longhorn.io/backup: "enabled"
+
+# Production annotations
+annotations:
+  "deployment.kubernetes.io/revision": "1"
+  "kubectl.kubernetes.io/last-applied-configuration": ""
+
+# Production environment variables
+environment:
+  NODE_ENV: "production"
+  LOG_LEVEL: "info"
+  MONITORING_ENABLED: "true"
+
+# Enable network policies for production microsegmentation
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # Allow ingress from Cloudflare Tunnel
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: cloudflare-tunnel
+      ports:
+        - protocol: TCP
+          port: 8080
+
+  # Allow egress for external services and DNS
+  egress:
+    - to: []  # Allow all egress - can be restricted further if needed
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS
+        - protocol: TCP
+          port: 53   # DNS
+        - protocol: UDP
+          port: 53   # DNS
+
+# Production node selection - prefer nodes with more resources
+nodeSelector:
+  node-type: "worker"  # Prefer worker nodes for production workloads
+
+# Production tolerations if needed
+tolerations:
+  - key: "production-workload"
+    operator: "Equal"
+    value: "true"
+    effect: "NoSchedule"
+
+# Production affinity - prefer spreading across nodes
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - obsidian-automation
+          topologyKey: kubernetes.io/hostname
