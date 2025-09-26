@@ -1,0 +1,36 @@
+{{- if .Values.observability.metrics.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "obsidian-automation.fullname" . }}
+  namespace: {{ include "obsidian-automation.namespace" . }}
+  labels:
+    {{- include "obsidian-automation.labels" . | nindent 4 }}
+  {{- with .Values.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  endpoints:
+    - path: {{ .Values.observability.metrics.path }}
+      port: metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      honorLabels: true
+      metricRelabelings:
+        # Add namespace label for multi-tenant monitoring
+        - sourceLabels: [__name__]
+          targetLabel: namespace
+          replacement: {{ include "obsidian-automation.namespace" . }}
+        # Add service label for better identification
+        - sourceLabels: [__name__]
+          targetLabel: service
+          replacement: {{ include "obsidian-automation.fullname" . }}
+  selector:
+    matchLabels:
+      {{- include "obsidian-automation.selectorLabels" . | nindent 6 }}
+  # Ensure ServiceMonitor targets the correct namespace
+  namespaceSelector:
+    matchNames:
+      - {{ include "obsidian-automation.namespace" . }}
+{{- end }}
