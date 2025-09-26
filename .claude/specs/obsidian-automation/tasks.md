@@ -174,7 +174,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 5. Authentication Scripts
 
-- [ ] 11. Create ConfigMap for authentication scripts in charts/obsidian-automation/templates/configmap.yaml
+- [x] 11. Create ConfigMap for authentication scripts in charts/obsidian-automation/templates/configmap.yaml
   - File: charts/obsidian-automation/templates/configmap.yaml
   - Define Playwright authentication script in JavaScript
   - Include session persistence and API validation logic
