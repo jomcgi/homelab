@@ -488,11 +488,11 @@ observability:
   # Prometheus metrics
   metrics:
     enabled: true
-    port: 9090
+    port: 8080
     path: /metrics
     annotations:
       prometheus.io/scrape: "true"
-      prometheus.io/port: "9090"
+      prometheus.io/port: "8080"
       prometheus.io/path: "/metrics"
 
   # Logging configuration

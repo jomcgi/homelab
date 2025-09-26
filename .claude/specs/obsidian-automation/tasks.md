@@ -194,7 +194,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 6. Monitoring and Observability
 
-- [ ] 13. Create ServiceMonitor template in charts/obsidian-automation/templates/servicemonitor.yaml
+- [x] 13. Create ServiceMonitor template in charts/obsidian-automation/templates/servicemonitor.yaml
   - File: charts/obsidian-automation/templates/servicemonitor.yaml
   - Configure Prometheus scraping for metrics port 8080
   - Set scrape interval and timeout appropriate for sync monitoring
