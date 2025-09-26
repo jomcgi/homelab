@@ -1,0 +1,89 @@
+# GolangCI-Lint configuration for Obsidian Sync Monitor
+
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+  go: '1.24'
+
+linters:
+  enable:
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - typecheck
+    - unused
+    - goimports
+    - gofmt
+    - gocritic
+    - gocyclo
+    - revive
+    - gosec
+    - unconvert
+    - misspell
+    - prealloc
+    - bodyclose
+    - noctx
+    - rowserrcheck
+    - sqlclosecheck
+    - structcheck
+    - varcheck
+    - deadcode
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - experimental
+      - opinionated
+      - performance
+      - style
+    disabled-checks:
+      - dupImport
+      - ifElseChain
+      - octalLiteral
+      - whyNoLint
+      - wrapperFunc
+
+  revive:
+    rules:
+      - name: exported
+        arguments: [checkPrivateReceivers, sayRepetitiveInsteadOfStutters]
+
+  gosec:
+    excludes:
+      - G204 # Subprocess launched with variable
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gosec
+        - gocyclo
+
+    # Exclude known linters from generated files
+    - path: ".*\\.pb\\.go"
+      linters:
+        - gofmt
+        - goimports
+        - golint
+        - gosec
+        - revive
+
+    # Exclude linters for main.go setup code
+    - path: main\.go
+      linters:
+        - gocyclo
+
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+output:
+  format: colored-line-number
+  print-issued-lines: true
+  print-linter-name: true
