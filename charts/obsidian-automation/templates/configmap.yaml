@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "obsidian-automation.fullname" . }}-scripts
+  namespace: {{ include "obsidian-automation.namespace" . }}
+  labels:
+    {{- include "obsidian-automation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: configuration
+data:
+  {{- if .Values.playwrightAuth.enabled }}
+  auth.sh: |
+{{ .Values.playwrightAuth.script | indent 4 }}
+  {{- end }}
+
+  sync-monitor.sh: |
+{{ .Values.syncMonitor.script | indent 4 }}
+
+  session-check.sh: |
+{{ .Values.sessionChecker.script | indent 4 }}
