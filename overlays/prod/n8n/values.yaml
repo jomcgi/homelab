@@ -3,5 +3,11 @@ n8n:
     config:
       WEBHOOK_URL: "http://n8n.jomcgi.dev"
     persistence:
+      enabled: true
+      type: dynamic
+      storageClass: longhorn
+      annotations:
+        helm.sh/resource-policy: keep  # Prevent deletion on helm uninstall
+      accessModes:
+        - ReadWriteOnce
       size: 15Gi
-      storageClass: "longhorn"
