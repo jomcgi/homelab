@@ -1,45 +1,6 @@
-replicaCount: 1
-
-service:
-  type: ClusterIP
-  port: 80
-
-ingress:
-  enabled: false
-
-resources:
-  limits:
-    cpu: 1000m
-    memory: 1Gi
-  requests:
-    cpu: 100m
-    memory: 256Mi
-
-securityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
-  capabilities:
-    drop:
-      - ALL
-  readOnlyRootFilesystem: false
-
-podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
-
-persistence:
-  enabled: true
-  storageClass: "longhorn"
-  size: 10Gi
-
-n8n:
-  database:
-    type: sqlite
-
-podDisruptionBudget:
-  enabled: true
-
-autoscaling:
-  enabled: false
+main:
+  # Persistence using Longhorn
+  persistence:
+    enabled: true
+    storageClass: "longhorn"
+    size: 10Gi
