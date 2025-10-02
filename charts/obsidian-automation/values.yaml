@@ -20,6 +20,10 @@ images:
     repository: curlimages/curl
     tag: "8.5.0"
     pullPolicy: IfNotPresent
+  sessionMaintenance:
+    repository: bitnami/kubectl  # Kubectl image with curl support
+    tag: "1.28"
+    pullPolicy: IfNotPresent
 
 nameOverride: ""
 fullnameOverride: "obsidian-automation"
@@ -351,51 +355,26 @@ syncMonitor:
       sleep {{ .Values.syncMonitor.interval }}
     done
 
-# Session checker CronJob
-sessionChecker:
+# Session maintenance CronJob (Requirements 4.1, 4.2, 4.3)
+sessionMaintenance:
   enabled: true
 
-  # CronJob schedule - check every hour
-  schedule: "0 * * * *"
+  # CronJob configuration
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 1
+  startingDeadlineSeconds: 300
 
-  # Resource limits
+  # API check timeout in seconds
+  apiTimeout: 10
+
+  # Resource limits for the CronJob container
   resources:
     limits:
-      cpu: 500m
-      memory: 256Mi
+      cpu: 100m
+      memory: 128Mi
     requests:
-      cpu: 50m
-      memory: 64Mi
-
-  # Volume mounts
-  volumeMounts:
-    - name: session
-      mountPath: /session
-      readOnly: false
-    - name: tmp
-      mountPath: /tmp
-      readOnly: false
-
-  # Session validation script
-  script: |
-    #!/bin/bash
-    set -e
-
-    echo "Starting session validation at $(date)"
-
-    # Check if session file exists and is valid
-    if [ -f "/session/session.json" ]; then
-      # Parse session timestamp (implementation depends on session format)
-      echo "Session file found, validating..."
-
-      # If session is expired or invalid, trigger re-authentication
-      # This logic will be refined during template implementation
-      echo "Session validation completed"
-    else
-      echo "No session file found, authentication may be needed"
-    fi
-
-    echo "Session check completed at $(date)"
+      cpu: 10m
+      memory: 32Mi
 
 # Persistent volume configuration per requirement 9.5
 persistence:
