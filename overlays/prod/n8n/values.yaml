@@ -1,5 +1,4 @@
-
-main:
-  config:
-    WEBHOOK_URL: "http://n8n.jomcgi.dev"
-    
+n8n:
+  main:
+    config:
+      WEBHOOK_URL: "http://n8n.jomcgi.dev"
