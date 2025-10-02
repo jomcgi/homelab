@@ -255,6 +255,3 @@ data:
 
   sync-monitor.sh: |
 {{ .Values.syncMonitor.script | indent 4 }}
-
-  session-check.sh: |
-{{ .Values.sessionChecker.script | indent 4 }}
