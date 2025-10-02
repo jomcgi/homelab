@@ -47,6 +47,11 @@ persistence:
   storageClass: "longhorn"
   size: 10Gi
 
+main:
+  # See https://docs.n8n.io/hosting/configuration/environment-variables/ for all values.
+  config:
+    WEBHOOK_URL: "http://webhook.jomcgi.dev"
+
 # n8n specific configuration
 n8n:
   # Basic setup
