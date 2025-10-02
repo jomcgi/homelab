@@ -2,3 +2,6 @@ n8n:
   main:
     config:
       WEBHOOK_URL: "http://n8n.jomcgi.dev"
+    persistence:
+      size: 15Gi
+      storageClass: "longhorn"
