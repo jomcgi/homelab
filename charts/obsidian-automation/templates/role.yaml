@@ -1,0 +1,19 @@
+{{- if .Values.serviceAccount.create -}}
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "obsidian-automation.fullname" . }}-session-maintenance
+  namespace: {{ include "obsidian-automation.namespace" . }}
+  labels:
+    {{- include "obsidian-automation.labels" . | nindent 4 }}
+    app.kubernetes.io/component: rbac
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - pods
+  verbs:
+  - get
+  - list
+  - delete
+{{- end }}

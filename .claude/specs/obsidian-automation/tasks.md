@@ -212,7 +212,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: Go patterns from existing operators_
   - _Requirements: 5.1, 5.3, observability requirements_
 
-- [ ] 15a. Add REST API client for Obsidian communication in monitor/main.go
+- [x] 15a. Add REST API client for Obsidian communication in monitor/main.go
   - File: charts/obsidian-automation/monitor/main.go (modify existing)
   - Create HTTP client with proper authentication headers
   - Add functions for GET/POST requests to Obsidian REST API
@@ -241,7 +241,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 7. Session Maintenance
 
-- [ ] 16. Create CronJob template in charts/obsidian-automation/templates/cronjob.yaml
+- [x] 16. Create CronJob template in charts/obsidian-automation/templates/cronjob.yaml
   - File: charts/obsidian-automation/templates/cronjob.yaml
   - Configure CronJob to run every 6 hours for session validation
   - Use curl image to check REST API health endpoint
@@ -252,7 +252,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
 
 ### 8. RBAC and Security
 
-- [ ] 17. Create ServiceAccount template in charts/obsidian-automation/templates/serviceaccount.yaml
+- [x] 17. Create ServiceAccount template in charts/obsidian-automation/templates/serviceaccount.yaml
   - File: charts/obsidian-automation/templates/serviceaccount.yaml
   - Define service account for CronJob pod management operations
   - Add appropriate labels and annotations
@@ -261,7 +261,7 @@ Tasks follow structure.md conventions with proper Helm chart organization in `ch
   - _Leverage: ServiceAccount patterns from existing deployments_
   - _Requirements: 4.2_
 
-- [ ] 18. Create RBAC templates in charts/obsidian-automation/templates/rbac.yaml
+- [x] 18. Create RBAC templates in charts/obsidian-automation/templates/rbac.yaml
   - File: charts/obsidian-automation/templates/rbac.yaml
   - Define Role with pod deletion permissions in namespace
   - Create RoleBinding linking ServiceAccount to Role
