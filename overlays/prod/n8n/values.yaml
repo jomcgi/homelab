@@ -102,3 +102,7 @@ podDisruptionBudget:
 # Autoscaling disabled for homelab
 autoscaling:
   enabled: false
+
+main:
+  extraEnv:
+    WEBHOOK_URL: https://n8n.jomcgi.dev
