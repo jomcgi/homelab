@@ -13,6 +13,7 @@ spec:
       releaseName: n8n
       valueFiles:
         - values.yaml
+        - ../../overlays/prod/n8n/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: n8n
