@@ -1,0 +1,5 @@
+
+
+configs:
+  params:
+    otlp.address: "signoz-otel-collector.signoz.svc.cluster.local:4317"
