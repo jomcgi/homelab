@@ -34,12 +34,29 @@
             flex: 1;
         }
 
+        .hero-images {
+            display: flex;
+            gap: 20px;
+            flex-direction: row;
+            flex-shrink: 0;
+            align-items: center;
+        }
+
         .hero-image {
             width: 300px;
             height: auto;
             border-radius: 20px;
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
-            flex-shrink: 0;
+        }
+
+        .image-label {
+            text-align: center;
+            font-size: 0.875rem;
+            color: #8b6f47;
+            margin-top: 8px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
         }
 
         h1 {
@@ -48,6 +65,7 @@
             color: #2c1810;
             margin-bottom: 40px;
             letter-spacing: -1px;
+            white-space: nowrap;
         }
 
         .countdown {
@@ -67,6 +85,8 @@
             display: block;
             line-height: 1;
             letter-spacing: -2px;
+            font-variant-numeric: tabular-nums;
+            min-width: 2ch;
         }
 
         .time-label {
@@ -242,10 +262,23 @@
             box-shadow: 0 2px 20px rgba(0, 0, 0, 0.06);
         }
 
-        @media (max-width: 768px) {
+        @media (max-width: 1100px) {
             .hero-section {
                 flex-direction: column;
                 gap: 30px;
+            }
+
+            .hero-images {
+                width: 100%;
+                flex-direction: row;
+                justify-content: center;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero-images {
+                flex-direction: column;
+                align-items: center;
             }
 
             .hero-image {
@@ -300,7 +333,14 @@
                 </div>
             </div>
 
-            <img id="frankImage" class="hero-image" src="/assets/frank.png" alt="Frank arriving in Vancouver" />
+            <div class="hero-images">
+                <div>
+                    <img id="frankImage" class="hero-image" src="/assets/frank.png" alt="Frank arriving in Vancouver" />
+                </div>
+                <div>
+                    <img class="hero-image" src="/assets/joanna.png" alt="Hosts Joe and Anna" />
+                </div>
+            </div>
         </div>
 
         <div class="trip-details">
@@ -496,18 +536,6 @@
                             <p><strong>Spring (Apr-Jun):</strong> Best for bears foraging after hibernation. <strong>Fall (Sep-Oct):</strong> Elk rutting season with bugling, bighorn sheep mating battles. <strong>Summer:</strong> Grizzlies move higher (harder to see from roads).</p>
                         </div>
 
-                        <div class="activity">
-                            <h3>⚠️ Critical Safety</h3>
-                            <p><strong>Safe viewing distances:</strong> 30 meters for elk/sheep/goats, 100 meters for bears. If animal moves, you're too close.</p>
-                            <ul>
-                                <li>Carry bear spray at ALL times—keep accessible on body</li>
-                                <li>Make noise continuously when hiking—call out, clap, sing</li>
-                                <li>Travel in groups of 4+ during daylight on marked trails</li>
-                                <li>If bear is defensive: speak calmly, back away slowly, PLAY DEAD if contact</li>
-                                <li>If bear is predatory (rare): act aggressively, FIGHT BACK if contact</li>
-                                <li>Elk warning signs: grinding teeth, laid back ears, lowered antlers</li>
-                            </ul>
-                        </div>
                     </div>
                 </div>
             </div>
