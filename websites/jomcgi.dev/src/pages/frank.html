@@ -309,10 +309,15 @@
     <div class="container">
         <div class="hero-section">
             <div class="hero-content">
-                <h1>Frank Arrives</h1>
+                <h1 id="mainTitle">Frank Arrives</h1>
+                <p id="subtitleText" style="color: #8b6f47; font-size: 1.125rem; margin-bottom: 20px; font-weight: 500;"></p>
 
                 <div id="countdownSection">
                     <div class="countdown">
+                        <div class="time-unit">
+                            <span class="time-value" id="days">00</span>
+                            <span class="time-label">Days</span>
+                        </div>
                         <div class="time-unit">
                             <span class="time-value" id="hours">00</span>
                             <span class="time-label">Hours</span>
@@ -624,36 +629,52 @@
         // Countdown dates
         const arrivalDate = new Date('2025-10-11T19:11:00-07:00');
         const departureDate = new Date('2025-10-17T17:00:00-07:00');
-        let countingToArrival = true;
 
         function updateCountdown() {
             const now = new Date();
-            let targetDate = countingToArrival ? arrivalDate : departureDate;
-            const diff = targetDate - now;
+            
+            // Before arrival
+            if (now < arrivalDate) {
+                const diff = arrivalDate - now;
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            if (diff <= 0) {
-                if (countingToArrival) {
-                    // Switch to counting down to departure
-                    countingToArrival = false;
-                    document.querySelector('.hero-content h1').textContent = 'Frank Leaves';
-                    updateCountdown(); // Recalculate immediately
-                    return;
-                } else {
-                    // Frank has left
-                    document.getElementById('countdownSection').style.display = 'none';
-                    document.getElementById('arrivedMessage').style.display = 'block';
-                    document.getElementById('arrivedMessage').textContent = 'Safe travels, Frank! 👋';
-                    return;
-                }
+                document.getElementById('mainTitle').textContent = 'Frank Arrives';
+                document.getElementById('subtitleText').textContent = '';
+                document.getElementById('days').textContent = String(days).padStart(2, '0');
+                document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+                document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+                document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+                document.querySelector('#days').parentElement.querySelector('.time-label').textContent = 'Days';
+                document.getElementById('countdownSection').style.display = 'block';
+                document.getElementById('arrivedMessage').style.display = 'none';
             }
+            // After arrival, before departure - COUNT UP
+            else if (now >= arrivalDate && now < departureDate) {
+                const diff = now - arrivalDate;
+                const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+                const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+                const seconds = Math.floor((diff % (1000 * 60)) / 1000);
 
-            const hours = Math.floor(diff / (1000 * 60 * 60));
-            const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-            document.getElementById('hours').textContent = String(hours).padStart(2, '0');
-            document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
-            document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+                document.getElementById('mainTitle').textContent = 'Welcome, Frank! 🎉';
+                document.getElementById('subtitleText').textContent = 'Enjoying Vancouver for...';
+                document.getElementById('days').textContent = String(days).padStart(2, '0');
+                document.getElementById('hours').textContent = String(hours).padStart(2, '0');
+                document.getElementById('minutes').textContent = String(minutes).padStart(2, '0');
+                document.getElementById('seconds').textContent = String(seconds).padStart(2, '0');
+                document.querySelector('#days').parentElement.querySelector('.time-label').textContent = 'Days';
+                document.getElementById('countdownSection').style.display = 'block';
+                document.getElementById('arrivedMessage').style.display = 'none';
+            }
+            // After departure
+            else {
+                document.getElementById('countdownSection').style.display = 'none';
+                document.getElementById('arrivedMessage').style.display = 'block';
+                document.getElementById('arrivedMessage').textContent = 'Safe travels, Frank! 👋';
+            }
         }
 
         updateCountdown();
