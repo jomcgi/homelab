@@ -1,3 +1,10 @@
-# SigNoz configuration values
-
-# Configure k8s-infra subchart
+signoz:
+  clickhouse:
+    resources:
+        requests:
+          cpu: 400m
+          memory: 4Gi
+        limits:
+          memory: 4Gi
+    persistence:
+      size: 50Gi
