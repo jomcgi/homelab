@@ -1,0 +1,25 @@
+---
+extends: default
+
+rules:
+  # Indentation: 2 spaces (project standard)
+  indentation:
+    spaces: 2
+    indent-sequences: true
+    check-multi-line-strings: false
+
+  # Line length: 120 characters (balances readability with flexibility)
+  line-length:
+    max: 120
+    allow-non-breakable-words: true
+    allow-non-breakable-inline-mappings: true
+
+  # Comments: require 1 space from content
+  comments:
+    min-spaces-from-content: 1
+
+  # Disable overly strict rules
+  comments-indentation: disable  # Allow flexible comment positioning
+  document-start: disable  # Don't require --- at start of every file
+  truthy:
+    allowed-values: ['true', 'false', 'yes', 'no']  # Allow common boolean values
