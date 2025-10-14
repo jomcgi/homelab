@@ -1,0 +1,14 @@
+{
+  "filePath": ".spec-workflow/specs/pre-commit-linting/tasks.md",
+  "currentVersion": 1,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-10-04T21:31:42.268Z",
+      "trigger": "initial",
+      "approvalId": "approval_1759613502267_ha9hlfghs",
+      "approvalTitle": "Pre-commit Linting Tasks Breakdown"
+    }
+  ]
+}

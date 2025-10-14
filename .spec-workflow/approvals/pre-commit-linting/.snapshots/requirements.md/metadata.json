@@ -1,0 +1,14 @@
+{
+  "filePath": ".spec-workflow/specs/pre-commit-linting/requirements.md",
+  "currentVersion": 1,
+  "snapshots": [
+    {
+      "version": 1,
+      "filename": "snapshot-001.json",
+      "timestamp": "2025-10-04T21:24:26.775Z",
+      "trigger": "initial",
+      "approvalId": "approval_1759613066774_n74u03723",
+      "approvalTitle": "Pre-commit Linting Requirements Document"
+    }
+  ]
+}
