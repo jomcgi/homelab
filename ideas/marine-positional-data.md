@@ -1,4 +1,4 @@
-# AIS Streaming Implementation Guide - Quick Reference
+C# AIS Streaming Implementation Guide - Quick Reference
 
 ## Resource Allocation (per node)
 - **NATS JetStream**: 3GB RAM, 4 CPU cores
