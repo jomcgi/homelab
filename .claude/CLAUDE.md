@@ -52,14 +52,8 @@ overlays/                   # Kustomize overlays
 
 websites/                   # Static websites
 └── hikes.jomcgi.dev/       # Hiking route finder (static)
+└── jomcgi.dev/frank        #
 
-old/                        # Legacy services (migrating to ArgoCD)
-├── crd/                    # Custom Resource Definitions
-└── services/               # Previous service deployments
-    ├── grafana-cloud/      # Observability (to be migrated)
-    ├── obsidian-mcp/       # Note-taking (to be migrated)
-    ├── open-webui/         # AI chat interface (to be migrated)
-    └── otel-collector/     # Telemetry collection (to be migrated)
 ```
 
 ## Security Model
