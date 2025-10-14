@@ -29,5 +29,4 @@ repos:
           )$
         args:
           - lint
-          - --config=.kube-linter.yaml
 
