@@ -3,10 +3,10 @@ signoz:
     resources:
         requests:
           cpu: 400m
-          memory: 5Gi
+          memory: 12Gi
         limits:
           cpu: 2
-          memory: 5Gi
+          memory: 12Gi
     persistence:
       size: 50Gi
       retention:
