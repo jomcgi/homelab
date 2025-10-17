@@ -5,7 +5,7 @@ signoz:
           cpu: 400m
           memory: 12Gi
         limits:
-          cpu: 2
+          cpu: 8
           memory: 12Gi
     persistence:
       size: 50Gi
