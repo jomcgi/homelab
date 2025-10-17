@@ -3,8 +3,13 @@ signoz:
     resources:
         requests:
           cpu: 400m
-          memory: 4Gi
+          memory: 5Gi
         limits:
-          memory: 4Gi
+          cpu: 2
+          memory: 5Gi
     persistence:
       size: 50Gi
+      retention:
+        logs: 7
+        traces: 7
+        metrics: 7
