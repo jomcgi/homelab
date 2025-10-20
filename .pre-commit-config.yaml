@@ -27,6 +27,4 @@ repos:
             clusters/.*\.yaml|
             overlays/.*\.yaml
           )$
-        args:
-          - lint
 
