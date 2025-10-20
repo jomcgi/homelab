@@ -24,3 +24,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - Replace=true  # Required for large CRDs that exceed annotation size limit
