@@ -11,6 +11,19 @@ controller:
   serviceAccountName: "arc-controller"
   secretName: "gh-arc-secret"
 
+# Secret configuration for GitHub authentication
+secret:
+  # Type of secret: "onepassword" or "manual"
+  type: "onepassword"
+
+  # 1Password configuration (when type=onepassword)
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/gh-arc"
+
+  # Manual secret configuration (when type=manual)
+  # manual:
+  #   githubToken: "ghp_your_token_here"
+
 # Runner configuration
 runners:
   name: "homelab-runners"
