@@ -1,15 +1,40 @@
 signoz:
   clickhouse:
     resources:
-        requests:
-          cpu: 400m
-          memory: 4Gi
-        limits:
-          cpu: 4
-          memory: 8Gi
+      requests:
+        cpu: 400m
+        memory: 4Gi
+      limits:
+        cpu: 4
+        memory: 8Gi
     persistence:
       size: 50Gi
       retention:
         logs: 7
         traces: 7
         metrics: 7
+  zookeeper:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 1Gi
+      limits:
+        cpu: 1
+        memory: 1.5Gi
+  otelCollector:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 350Mi
+      limits:
+        cpu: 1
+        memory: 500Mi
+  k8sInfra:
+    otelAgent:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 300Mi
+        limits:
+          cpu: 500m
+          memory: 400Mi
