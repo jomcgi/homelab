@@ -13,7 +13,7 @@ spec:
       releaseName: obsidian-automation
       valueFiles:
         - values.yaml
-        - ../../clusters/homelab/obsidian-automation/values.yaml
+        - ../../overlays/dev/obsidian-automation/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: obsidian-automation
