@@ -11,7 +11,7 @@ spec:
     path: operators/cloudflare/helm/cloudflare-operator
     helm:
       valueFiles:
-        - ../../../overlays/dev/cloudflare-operator/values.yaml
+        - ../../../../overlays/dev/cloudflare-operator/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: cloudflare
