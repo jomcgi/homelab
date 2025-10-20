@@ -1,5 +1,10 @@
 # Environment-specific values for gh-arc-runners
 
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/gh-arc"
+
 github:
   configUrl: "https://github.com/jomcgi/homelab"
 
