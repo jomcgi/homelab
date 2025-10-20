@@ -1,0 +1,15 @@
+# Environment-specific values for gh-arc-controller
+
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/gh-arc"
+
+gha-runner-scale-set-controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi

@@ -1,6 +1,6 @@
 apiVersion: v2
-name: gh-arc
-description: GitHub Actions Runner Controller with runner scale sets for homelab
+name: gh-arc-runners
+description: GitHub Actions Runner Scale Set for homelab
 type: application
 version: 0.1.0
 appVersion: "0.9.3"
@@ -10,14 +10,10 @@ keywords:
   - github
   - actions
   - runner
-  - controller
 home: https://github.com/actions/actions-runner-controller
 sources:
   - https://github.com/actions/actions-runner-controller
 dependencies:
-  - name: gha-runner-scale-set-controller
-    version: 0.9.3
-    repository: oci://ghcr.io/actions/actions-runner-controller-charts
   - name: gha-runner-scale-set
     version: 0.9.3
     repository: oci://ghcr.io/actions/actions-runner-controller-charts

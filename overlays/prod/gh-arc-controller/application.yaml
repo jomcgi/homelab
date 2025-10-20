@@ -1,23 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: gh-arc
+  name: gh-arc-controller
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab
     targetRevision: HEAD
-    path: charts/gh-arc
+    path: charts/gh-arc-controller
     helm:
-      releaseName: gh-arc
+      releaseName: gh-arc-controller
       valueFiles:
         - values.yaml
-        - ../../clusters/homelab/gh-arc/values.yaml
+        - ../../overlays/prod/gh-arc-controller/values.yaml
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: gh-arc-runners
+    namespace: gh-arc-controller
   syncPolicy:
     automated:
       prune: true
