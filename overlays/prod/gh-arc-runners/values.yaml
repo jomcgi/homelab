@@ -1,0 +1,36 @@
+# Environment-specific values for gh-arc-runners
+
+github:
+  configUrl: "https://github.com/jomcgi/homelab"
+
+controller:
+  namespace: "gh-arc-controller"
+  serviceAccountName: "arc-controller"
+  secretName: "gh-arc-secret"
+
+runners:
+  name: "homelab-runners"
+  minRunners: 0
+  maxRunners: 3
+
+gha-runner-scale-set:
+  githubConfigUrl: "https://github.com/jomcgi/homelab"
+  runnerScaleSetName: "homelab-runners"
+  minRunners: 0
+  maxRunners: 3
+
+  controllerServiceAccount:
+    namespace: "gh-arc-controller"
+    name: "arc-controller"
+
+  template:
+    spec:
+      containers:
+      - name: runner
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
