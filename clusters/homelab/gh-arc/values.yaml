@@ -1,0 +1,52 @@
+# Environment-specific values for gh-arc in homelab
+
+# Secret configuration - using 1Password
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/gh-arc"
+
+# GitHub configuration
+github:
+  configUrl: "https://github.com/jomcgi/homelab"
+
+# Runner scale set configuration
+runners:
+  name: "homelab-runners"
+  minRunners: 0
+  maxRunners: 3
+
+# Controller resource limits
+gha-runner-scale-set-controller:
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# Runner scale set overrides
+gha-runner-scale-set:
+  githubConfigUrl: "https://github.com/jomcgi/homelab"
+  githubConfigSecret: "gh-arc-secret"
+  runnerScaleSetName: "homelab-runners"
+  minRunners: 0
+  maxRunners: 3
+
+  # Controller is in the same namespace for simplified deployment
+  controllerServiceAccount:
+    namespace: "gh-arc-runners"
+    name: "arc-controller"
+
+  template:
+    spec:
+      containers:
+      - name: runner
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
