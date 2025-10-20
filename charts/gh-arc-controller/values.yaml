@@ -13,14 +13,16 @@ secret:
 gha-runner-scale-set-controller:
   replicaCount: 1
 
-  securityContext:
+  # Pod-level security context
+  podSecurityContext:
     runAsNonRoot: true
     runAsUser: 1000
     fsGroup: 1000
     seccompProfile:
       type: RuntimeDefault
 
-  containerSecurityContext:
+  # Container-level security context
+  securityContext:
     readOnlyRootFilesystem: true
     allowPrivilegeEscalation: false
     capabilities:
