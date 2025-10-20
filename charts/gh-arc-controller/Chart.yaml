@@ -1,0 +1,20 @@
+apiVersion: v2
+name: gh-arc-controller
+description: GitHub Actions Runner Controller for homelab
+type: application
+version: 0.1.0
+appVersion: "0.9.3"
+maintainers:
+  - name: homelab
+keywords:
+  - github
+  - actions
+  - runner
+  - controller
+home: https://github.com/actions/actions-runner-controller
+sources:
+  - https://github.com/actions/actions-runner-controller
+dependencies:
+  - name: gha-runner-scale-set-controller
+    version: 0.9.3
+    repository: oci://ghcr.io/actions/actions-runner-controller-charts

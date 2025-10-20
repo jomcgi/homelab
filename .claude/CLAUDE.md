@@ -37,18 +37,41 @@ External Ingress        Applications             Observability
 charts/                     # Helm charts
 └── cloudflare-tunnel/      # Main tunnel chart
 
-clusters/                   # ArgoCD cluster configurations
-└── homelab/                # Production cluster config
-    ├── cloudflare-tunnel/  # Tunnel application
-    └── longhorn/           # Storage application
+clusters/                   # Cluster entry points
+└── homelab/                # Production cluster
+    └── kustomization.yaml  # References overlays (dev, prod, cluster-critical)
 
 operators/                  # Custom Kubernetes operators
 └── cloudflare/             # Cloudflare operator
     └── helm/               # Operator Helm chart
 
-overlays/                   # Kustomize overlays
-├── base/                   # Base configurations
-└── homelab-prod/           # Production overlays
+overlays/                   # Environment-based deployments
+├── cluster-critical/       # Critical infrastructure (argocd, longhorn, signoz)
+│   ├── kustomization.yaml
+│   ├── argocd/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   └── values.yaml
+│   └── longhorn/
+│       ├── application.yaml
+│       ├── kustomization.yaml
+│       └── values.yaml
+├── prod/                   # Production services
+│   ├── kustomization.yaml
+│   ├── cloudflare-tunnel/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   └── values.yaml
+│   └── gh-arc-controller/
+│       ├── application.yaml
+│       ├── kustomization.yaml
+│       └── values.yaml
+└── dev/                    # Development services
+    ├── kustomization.yaml
+    └── obsidian-automation/
+        ├── application.yaml
+        ├── kustomization.yaml
+        └── values.yaml
 
 websites/                   # Static websites
 └── hikes.jomcgi.dev/       # Hiking route finder (static)
@@ -85,6 +108,16 @@ securityContext:
 - **Self-healing** deployments with automatic drift detection
 - **Health checks** and **readiness probes** on everything
 - **Resource limits** prevent resource exhaustion
+
+**Application Discovery Pattern:**
+Services are organized by environment in `overlays/<env>/<service>/`:
+- `application.yaml` - ArgoCD Application manifest pointing to the Helm chart
+- `kustomization.yaml` - Makes the application discoverable by ArgoCD
+- `values.yaml` - Environment-specific Helm value overrides
+
+ArgoCD automatically discovers and deploys applications by syncing `clusters/homelab/kustomization.yaml`,
+which references environment overlays (cluster-critical, prod, dev). Each overlay's kustomization.yaml
+lists the services in that environment.
 
 ### Testing Philosophy
 We test **actual behavior**, not implementation details:
@@ -182,11 +215,26 @@ Use the Claude Code spec workflow tool for structured development:
 - **Spec status**: `npx @pimzino/claude-code-spec-workflow spec-status <spec-name>`
 
 ### Adding a New Service
-1. Create Helm chart in `charts/<name>/` or add to existing chart
-2. Create ArgoCD Application in `clusters/homelab/<name>/`
-3. Configure Kustomize overlays in `overlays/` if needed
-4. Add health checks and observability
-5. Test the complete deployment path with ArgoCD sync
+1. Create Helm chart in `charts/<name>/` with default values
+2. Choose the appropriate overlay environment:
+   - `overlays/cluster-critical/` - Core infrastructure (argocd, longhorn, monitoring)
+   - `overlays/prod/` - Production services
+   - `overlays/dev/` - Development/experimental services
+3. Create service directory in `overlays/<env>/<name>/` with:
+   - `application.yaml` - ArgoCD Application pointing to your chart
+     ```yaml
+     valueFiles:
+       - values.yaml  # Chart defaults
+       - ../../overlays/<env>/<name>/values.yaml  # Environment overrides
+     ```
+   - `kustomization.yaml` - Reference to application.yaml
+   - `values.yaml` - Environment-specific Helm value overrides
+4. Add the service to `overlays/<env>/kustomization.yaml` resources list
+5. Add health checks and observability to the chart
+6. Test the complete deployment path:
+   - `helm template <service> charts/<service>/ --namespace <namespace>` to verify rendering
+   - Commit and push to Git
+   - ArgoCD automatically discovers and syncs the new application to the cluster
 
 ### Security Review Checklist
 - [ ] Service runs as non-root user

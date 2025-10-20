@@ -1,0 +1,45 @@
+# Controller chart values
+# This chart deploys only the GitHub Actions Runner Controller
+
+# Secret configuration
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/gh-arc"
+  manual:
+    githubToken: ""
+
+# Controller configuration
+gha-runner-scale-set-controller:
+  replicaCount: 1
+
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  containerSecurityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  serviceAccount:
+    create: true
+    name: "arc-controller"
+
+  metrics:
+    controllerManagerAddr: ":8080"
+    listenerAddr: ":8080"
+    listenerEndpoint: "/metrics"

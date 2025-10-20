@@ -1,0 +1,92 @@
+# Runners chart values
+# This chart deploys the GitHub Actions Runner Scale Set
+
+# GitHub configuration
+github:
+  configUrl: "https://github.com/jomcgi/homelab"
+
+# Controller configuration (in separate namespace)
+controller:
+  namespace: "gh-arc-controller"
+  serviceAccountName: "arc-controller"
+  secretName: "gh-arc-secret"
+
+# Runner configuration
+runners:
+  name: "homelab-runners"
+  minRunners: 0
+  maxRunners: 3
+
+# Runner scale set configuration
+gha-runner-scale-set:
+  githubConfigUrl: "https://github.com/jomcgi/homelab"
+
+  # Reference secret in controller namespace
+  githubConfigSecret: "gh-arc-secret"
+
+  runnerScaleSetName: "homelab-runners"
+  minRunners: 0
+  maxRunners: 3
+
+  containerMode:
+    type: "kubernetes"
+
+  # Reference controller in separate namespace
+  controllerServiceAccount:
+    namespace: "gh-arc-controller"
+    name: "arc-controller"
+
+  template:
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+
+      containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["/home/runner/run.sh"]
+
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: false
+
+        resources:
+          limits:
+            cpu: "2"
+            memory: 4Gi
+          requests:
+            cpu: "500m"
+            memory: 1Gi
+
+        volumeMounts:
+        - name: work
+          mountPath: /home/runner/_work
+
+      volumes:
+      - name: work
+        emptyDir: {}
+
+  listenerTemplate:
+    spec:
+      containers:
+      - name: listener
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
