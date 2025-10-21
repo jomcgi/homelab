@@ -33,7 +33,6 @@ gha-runner-scale-set:
       containers:
       - name: runner
         image: ghcr.io/actions/actions-runner:latest
-        command: ["/home/runner/run.sh"]
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
