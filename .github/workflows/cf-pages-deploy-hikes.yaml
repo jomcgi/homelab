@@ -18,7 +18,7 @@ concurrency:
 jobs:
   update-data:
     runs-on: homelab-runners
-    timeout-minutes: 2
+    timeout-minutes: 5
     name: Update Hike Data
     defaults:
       run:
@@ -48,7 +48,7 @@ jobs:
   deploy:
     runs-on: homelab-runners
     name: Deploy hikes.jomcgi.dev
-    timeout-minutes: 3
+    timeout-minutes: 5
     permissions:
       contents: read
       deployments: write
