@@ -6,6 +6,11 @@ secret:
     itemPath: "vaults/k8s-homelab/items/gh-arc"
 
 gha-runner-scale-set-controller:
+  flags:
+    excludeLabelPropagationPrefixes:
+      - "argocd.argoproj.io"
+      - "app.kubernetes.io"
+
   resources:
     limits:
       cpu: 500m
