@@ -41,9 +41,6 @@ gha-runner-scale-set:
   minRunners: 0
   maxRunners: 3
 
-  containerMode:
-    type: "kubernetes"
-
   # Reference controller in separate namespace
   controllerServiceAccount:
     namespace: "gh-arc-controller"
