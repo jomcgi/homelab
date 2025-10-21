@@ -49,43 +49,6 @@ gha-runner-scale-set:
     namespace: "gh-arc-controller"
     name: "arc-controller"
 
-  template:
-    spec:
-      securityContext:
-        runAsNonRoot: true
-        runAsUser: 1000
-        fsGroup: 1000
-        seccompProfile:
-          type: RuntimeDefault
-
-      containers:
-      - name: runner
-        image: ghcr.io/actions/actions-runner:latest
-        command: ["/home/runner/run.sh"]
-
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          readOnlyRootFilesystem: false
-
-        resources:
-          limits:
-            cpu: "2"
-            memory: 4Gi
-          requests:
-            cpu: "500m"
-            memory: 1Gi
-
-        volumeMounts:
-        - name: work
-          mountPath: /home/runner/_work
-
-      volumes:
-      - name: work
-        emptyDir: {}
-
   listenerTemplate:
     spec:
       containers:
