@@ -27,18 +27,3 @@ gha-runner-scale-set:
   controllerServiceAccount:
     namespace: "gh-arc-controller"
     name: "arc-controller"
-
-  containerMode:
-    type: "kubernetes"
-
-  template:
-    spec:
-      containers:
-      - name: runner
-        resources:
-          limits:
-            cpu: "2"
-            memory: 4Gi
-          requests:
-            cpu: "500m"
-            memory: 1Gi
