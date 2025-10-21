@@ -28,17 +28,13 @@ gha-runner-scale-set:
     namespace: "gh-arc-controller"
     name: "arc-controller"
 
+  containerMode:
+    type: "kubernetes"
+
   template:
     spec:
       containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:latest
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          readOnlyRootFilesystem: false
         resources:
           limits:
             cpu: "2"
@@ -46,9 +42,3 @@ gha-runner-scale-set:
           requests:
             cpu: "500m"
             memory: 1Gi
-        volumeMounts:
-        - name: work
-          mountPath: /home/runner/_work
-      volumes:
-      - name: work
-        emptyDir: {}
