@@ -1,0 +1,157 @@
+## FreshRSS configuration
+## This is a security-first Helm chart for FreshRSS RSS feed aggregator
+## Designed to run behind Cloudflare Tunnel with zero direct internet exposure
+
+image:
+  repository: freshrss/freshrss
+  pullPolicy: IfNotPresent
+  # Overrides the image tag (default is "latest" for stable release)
+  tag: "latest"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+## Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## Pod Security Context
+podSecurityContext:
+  fsGroup: 33  # www-data group for Debian-based image
+  runAsNonRoot: true
+  runAsUser: 33  # www-data user
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # FreshRSS needs to write to specific directories
+  runAsNonRoot: true
+  runAsUser: 33
+  capabilities:
+    drop:
+      - ALL
+
+## FreshRSS Environment Configuration
+freshrss:
+  # Timezone for the server (http://php.net/timezones)
+  timezone: "UTC"
+
+  # Cron job to refresh feeds at specified minutes (e.g., '1,31' for twice per hour)
+  # Set to empty string to disable built-in cron
+  cronMinutes: "1,31"
+
+  # Environment mode: 'production' or 'development'
+  environment: "production"
+
+  # Copy logs to syslog (On/Off)
+  copyLogToSyslog: "On"
+
+  # Copy syslog to stderr for docker logs (On/Off)
+  copySyslogToStderr: "On"
+
+  # Internal Apache listening address and port (for advanced users)
+  listen: "0.0.0.0:80"
+
+  # Optional: Auto-install parameters (executed only at first run)
+  # Leave empty to use Web UI installation (recommended)
+  install:
+    enabled: false
+    # Example configuration (uncomment and configure if needed):
+    # apiEnabled: true
+    # baseUrl: "https://freshrss.example.net"
+    # dbType: "sqlite"  # sqlite, pgsql, or mysql
+    # dbBase: ""
+    # dbHost: ""
+    # dbUser: ""
+    # dbPassword: ""
+    # defaultUser: "admin"
+    # language: "en"
+
+  # Optional: Auto-create user (executed only at first run)
+  user:
+    enabled: false
+    # Example configuration (uncomment and configure if needed):
+    # username: "admin"
+    # password: ""
+    # email: ""
+    # apiPassword: ""
+    # language: "en"
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+## Persistence configuration using Longhorn storage
+persistence:
+  # Data volume for FreshRSS configuration and SQLite database
+  data:
+    enabled: true
+    storageClass: "longhorn"
+    accessMode: ReadWriteOnce
+    size: 5Gi
+    annotations: {}
+
+  # Extensions volume for third-party FreshRSS extensions
+  extensions:
+    enabled: true
+    storageClass: "longhorn"
+    accessMode: ReadWriteOnce
+    size: 1Gi
+    annotations: {}
+
+## Resource limits (required by homelab policy)
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+## Liveness probe
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Readiness probe
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}
+
+## Deployment strategy
+strategy:
+  type: Recreate  # Recreate strategy for stateful applications with persistent storage

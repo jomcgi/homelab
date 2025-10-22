@@ -1,0 +1,162 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "freshrss.fullname" . }}
+  labels:
+    {{- include "freshrss.labels" . | nindent 4 }}
+spec:
+  replicas: 1  # Single replica due to persistent storage
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "freshrss.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "freshrss.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "freshrss.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: TZ
+          value: {{ .Values.freshrss.timezone | quote }}
+        - name: CRON_MIN
+          value: {{ .Values.freshrss.cronMinutes | quote }}
+        - name: FRESHRSS_ENV
+          value: {{ .Values.freshrss.environment | quote }}
+        - name: COPY_LOG_TO_SYSLOG
+          value: {{ .Values.freshrss.copyLogToSyslog | quote }}
+        - name: COPY_SYSLOG_TO_STDERR
+          value: {{ .Values.freshrss.copySyslogToStderr | quote }}
+        - name: LISTEN
+          value: {{ .Values.freshrss.listen | quote }}
+        {{- if .Values.freshrss.install.enabled }}
+        - name: FRESHRSS_INSTALL
+          value: |
+            {{- if .Values.freshrss.install.apiEnabled }}
+            --api-enabled
+            {{- end }}
+            {{- if .Values.freshrss.install.baseUrl }}
+            --base-url {{ .Values.freshrss.install.baseUrl }}
+            {{- end }}
+            {{- if .Values.freshrss.install.dbType }}
+            --db-type {{ .Values.freshrss.install.dbType }}
+            {{- end }}
+            {{- if .Values.freshrss.install.dbBase }}
+            --db-base {{ .Values.freshrss.install.dbBase }}
+            {{- end }}
+            {{- if .Values.freshrss.install.dbHost }}
+            --db-host {{ .Values.freshrss.install.dbHost }}
+            {{- end }}
+            {{- if .Values.freshrss.install.dbUser }}
+            --db-user {{ .Values.freshrss.install.dbUser }}
+            {{- end }}
+            {{- if .Values.freshrss.install.dbPassword }}
+            --db-password {{ .Values.freshrss.install.dbPassword }}
+            {{- end }}
+            {{- if .Values.freshrss.install.defaultUser }}
+            --default-user {{ .Values.freshrss.install.defaultUser }}
+            {{- end }}
+            {{- if .Values.freshrss.install.language }}
+            --language {{ .Values.freshrss.install.language }}
+            {{- end }}
+        {{- end }}
+        {{- if .Values.freshrss.user.enabled }}
+        - name: FRESHRSS_USER
+          value: |
+            {{- if .Values.freshrss.user.username }}
+            --user {{ .Values.freshrss.user.username }}
+            {{- end }}
+            {{- if .Values.freshrss.user.password }}
+            --password {{ .Values.freshrss.user.password }}
+            {{- end }}
+            {{- if .Values.freshrss.user.email }}
+            --email {{ .Values.freshrss.user.email }}
+            {{- end }}
+            {{- if .Values.freshrss.user.apiPassword }}
+            --api-password {{ .Values.freshrss.user.apiPassword }}
+            {{- end }}
+            {{- if .Values.freshrss.user.language }}
+            --language {{ .Values.freshrss.user.language }}
+            {{- end }}
+        {{- end }}
+        {{- if .Values.livenessProbe.enabled }}
+        livenessProbe:
+          {{- omit .Values.livenessProbe "enabled" | toYaml | nindent 10 }}
+        {{- end }}
+        {{- if .Values.readinessProbe.enabled }}
+        readinessProbe:
+          {{- omit .Values.readinessProbe "enabled" | toYaml | nindent 10 }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        {{- if .Values.persistence.data.enabled }}
+        - name: data
+          mountPath: /var/www/FreshRSS/data
+        {{- end }}
+        {{- if .Values.persistence.extensions.enabled }}
+        - name: extensions
+          mountPath: /var/www/FreshRSS/extensions
+        {{- end }}
+        # Temporary writable directories required by FreshRSS
+        - name: tmp
+          mountPath: /tmp
+        - name: apache-run
+          mountPath: /var/run/apache2
+        - name: apache-lock
+          mountPath: /var/lock/apache2
+      volumes:
+      {{- if .Values.persistence.data.enabled }}
+      - name: data
+        persistentVolumeClaim:
+          claimName: {{ include "freshrss.fullname" . }}-data
+      {{- end }}
+      {{- if .Values.persistence.extensions.enabled }}
+      - name: extensions
+        persistentVolumeClaim:
+          claimName: {{ include "freshrss.fullname" . }}-extensions
+      {{- end }}
+      # Temporary emptyDir volumes for writable directories
+      - name: tmp
+        emptyDir: {}
+      - name: apache-run
+        emptyDir: {}
+      - name: apache-lock
+        emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

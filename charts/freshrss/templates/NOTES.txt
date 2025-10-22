@@ -1,0 +1,41 @@
+FreshRSS has been deployed successfully!
+
+1. Get the application URL by running these commands:
+{{- if contains "ClusterIP" .Values.service.type }}
+  export POD_NAME=$(kubectl get pods --namespace {{ .Release.Namespace }} -l "app.kubernetes.io/name={{ include "freshrss.name" . }},app.kubernetes.io/instance={{ .Release.Name }}" -o jsonpath="{.items[0].metadata.name}")
+  echo "Visit http://127.0.0.1:8080 to access FreshRSS"
+  kubectl --namespace {{ .Release.Namespace }} port-forward $POD_NAME 8080:80
+{{- end }}
+
+2. Configuration:
+   - FreshRSS will be accessible via Cloudflare Tunnel once configured
+   - No authentication is configured in FreshRSS (secured by Cloudflare Access)
+   - Automatic feed refresh is configured for: {{ .Values.freshrss.cronMinutes }}
+
+3. Complete the installation:
+{{- if .Values.freshrss.install.enabled }}
+   - Auto-install is enabled. FreshRSS should be ready to use.
+{{- else }}
+   - Visit the FreshRSS web interface to complete setup
+   - Choose SQLite as the database (default, already persistent via PVC)
+   - Create your admin user through the web interface
+{{- end }}
+
+4. Persistent storage:
+{{- if .Values.persistence.data.enabled }}
+   - Data volume: {{ include "freshrss.fullname" . }}-data ({{ .Values.persistence.data.size }})
+{{- end }}
+{{- if .Values.persistence.extensions.enabled }}
+   - Extensions volume: {{ include "freshrss.fullname" . }}-extensions ({{ .Values.persistence.extensions.size }})
+{{- end }}
+
+5. CLI commands:
+   List users:
+     kubectl exec -n {{ .Release.Namespace }} --user www-data deployment/{{ include "freshrss.fullname" . }} -- cli/list-users.php
+
+   Create user:
+     kubectl exec -n {{ .Release.Namespace }} --user www-data deployment/{{ include "freshrss.fullname" . }} -- cli/create-user.php --user USERNAME --password PASSWORD
+
+For more information, visit:
+- Documentation: https://freshrss.github.io/FreshRSS/
+- Repository: https://github.com/FreshRSS/FreshRSS

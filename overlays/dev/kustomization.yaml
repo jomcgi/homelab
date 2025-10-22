@@ -1,3 +1,4 @@
 resources:
   - ./cloudflare-operator
+  - ./freshrss
   - ./obsidian-automation
