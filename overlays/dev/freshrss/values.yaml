@@ -1,0 +1,33 @@
+## Dev environment overrides for FreshRSS
+
+## FreshRSS Configuration
+freshrss:
+  # Use development mode for additional logging in dev environment
+  environment: "development"
+
+  # More frequent feed refresh for development (every 15 minutes)
+  cronMinutes: "*/15"
+
+  # US timezone for dev
+  timezone: "America/New_York"
+
+## Smaller storage requirements for dev environment
+persistence:
+  data:
+    size: 2Gi  # Smaller than production
+  extensions:
+    size: 512Mi  # Smaller than production
+
+## Lower resource limits for dev environment
+resources:
+  limits:
+    cpu: 250m
+    memory: 256Mi
+  requests:
+    cpu: 50m
+    memory: 64Mi
+
+## Add dev-specific labels
+podLabels:
+  environment: dev
+  app: freshrss
