@@ -181,6 +181,25 @@ kubectl exec -n freshrss deployment/freshrss --user www-data -- cli/create-user.
 kubectl exec -n freshrss deployment/freshrss --user www-data -- cli/actualize-script.php
 ```
 
+### Backup and Migration
+
+**Important**: PVCs persist through pod restarts but are **deleted** if the PVC itself is deleted. Always maintain backups!
+
+```bash
+# Export feeds (OPML)
+kubectl exec -n freshrss deployment/freshrss -- \
+  php cli/export-opml-for-user.php --user admin > feeds-backup.opml
+
+# Full backup (feeds + articles + settings)
+kubectl exec -n freshrss deployment/freshrss -- \
+  php cli/export-zip-for-user.php --user admin > freshrss-full-backup.zip
+
+# Import OPML (via web UI)
+# Settings → Subscription Management → Import → feeds-backup.opml
+```
+
+**For complete backup and disaster recovery procedures**, see [BACKUP.md](./BACKUP.md).
+
 ### Upgrading
 
 ```bash
