@@ -19,10 +19,10 @@ serviceAccount:
   name: ""
 
 ## Pod Security Context
+## Note: FreshRSS container runs as root for initialization (timezone, PHP/Apache config, cron setup)
+## Apache web server itself runs as www-data internally for security
 podSecurityContext:
   fsGroup: 33  # www-data group for Debian-based image
-  runAsNonRoot: true
-  runAsUser: 33  # www-data user
   seccompProfile:
     type: RuntimeDefault
 
@@ -30,8 +30,6 @@ podSecurityContext:
 securityContext:
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: false  # FreshRSS needs to write to specific directories
-  runAsNonRoot: true
-  runAsUser: 33
   capabilities:
     drop:
       - ALL
