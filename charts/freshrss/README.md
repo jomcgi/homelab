@@ -102,24 +102,28 @@ helm install freshrss ./charts/freshrss -n freshrss --create-namespace -f auto-i
 
 ### Security Configuration
 
-The chart includes security hardening by default:
+The chart includes security hardening while allowing necessary initialization:
 
 ```yaml
 securityContext:
   allowPrivilegeEscalation: false
-  runAsNonRoot: true
-  runAsUser: 33  # www-data
+  readOnlyRootFilesystem: false
   capabilities:
     drop:
       - ALL
 
 podSecurityContext:
   fsGroup: 33
-  runAsNonRoot: true
-  runAsUser: 33
   seccompProfile:
     type: RuntimeDefault
 ```
+
+**Security Trade-offs:**
+- Container runs as root for initialization (timezone, PHP/Apache config, cron setup)
+- Apache web server runs as www-data internally for security
+- Read-only root filesystem is disabled (FreshRSS needs to write configs)
+- All capabilities are dropped to minimize attack surface
+- This follows the official FreshRSS Docker image design
 
 ## Architecture Integration
 
