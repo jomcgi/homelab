@@ -7,7 +7,7 @@ fullnameOverride: ""
 controllerManager:
   # Container image configuration
   image:
-    repository: jomcgi/cloudflare-operator
+    repository: ghcr.io/jomcgi/cloudflare-operator
     tag: latest
     pullPolicy: IfNotPresent
   
