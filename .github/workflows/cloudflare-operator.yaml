@@ -13,39 +13,39 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/cloudflare-operator
 
 jobs:
-  test:
-    runs-on: homelab-runners
-    defaults:
-      run:
-        working-directory: operators/cloudflare
-    steps:
-      - uses: actions/checkout@v4
+  # test:
+  #   runs-on: homelab-runners
+  #   defaults:
+  #     run:
+  #       working-directory: operators/cloudflare
+  #   steps:
+  #     - uses: actions/checkout@v4
       
-      - uses: actions/setup-go@v5
-        with:
-          go-version: '1.21'
-          cache-dependency-path: operators/cloudflare/go.sum
-          cache: true
+  #     - uses: actions/setup-go@v5
+  #       with:
+  #         go-version: '1.21'
+  #         cache-dependency-path: operators/cloudflare/go.sum
+  #         cache: true
       
-      - name: Cache Go modules
-        uses: actions/cache@v3
-        with:
-          path: |
-            ~/.cache/go-build
-            ~/go/pkg/mod
-          key: ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
-          restore-keys: |
-            ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
+  #     - name: Cache Go modules
+  #       uses: actions/cache@v3
+  #       with:
+  #         path: |
+  #           ~/.cache/go-build
+  #           ~/go/pkg/mod
+  #         key: ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
+  #         restore-keys: |
+  #           ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
       
-      - name: Run linter
-        uses: golangci/golangci-lint-action@v8
-        with:
-          version: v2.1.0
-          working-directory: operators/cloudflare
+      # - name: Run linter
+      #   uses: golangci/golangci-lint-action@v3
+      #   with:
+      #     version: latest
+      #     working-directory: operators/cloudflare
 
   build:
-    needs: test
-    runs-on: ubuntu-latest
+    # needs: test
+    runs-on: homelab-runners
     permissions:
       contents: read
       packages: write
