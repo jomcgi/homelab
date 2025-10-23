@@ -38,9 +38,9 @@ jobs:
             ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
       
       - name: Run linter
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v8
         with:
-          version: latest
+          version: v2.1.0
           working-directory: operators/cloudflare
 
   build:
