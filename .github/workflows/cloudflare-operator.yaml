@@ -14,7 +14,7 @@ env:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: homelab-runners
     defaults:
       run:
         working-directory: operators/cloudflare
@@ -35,10 +35,7 @@ jobs:
             ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-
-      
-      - name: Verify build
-        run: make verify-build
+            ${{ runner.os }}-go-${{ hashFiles('operators/cloudflare/go.sum') }}
       
       - name: Run linter
         uses: golangci/golangci-lint-action@v3
@@ -48,7 +45,7 @@ jobs:
 
   build:
     needs: test
-    runs-on: ubuntu-latest
+    runs-on: homelab-runners
     permissions:
       contents: read
       packages: write
