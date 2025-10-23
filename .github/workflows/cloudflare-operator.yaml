@@ -45,7 +45,7 @@ jobs:
 
   build:
     needs: test
-    runs-on: homelab-runners
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
