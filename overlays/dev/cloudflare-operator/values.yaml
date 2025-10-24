@@ -7,7 +7,7 @@ cloudflareCredentials:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
-    tag: sha-8687034  # Will be updated automatically by ArgoCD Image Updater
+    tag: latest  # Will be updated automatically by ArgoCD Image Updater
     pullPolicy: Always
 
 # Enable OpenTelemetry tracing to SignoZ (cluster-critical namespace)
