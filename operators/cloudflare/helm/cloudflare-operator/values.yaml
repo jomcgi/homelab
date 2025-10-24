@@ -80,13 +80,30 @@ controllerManager:
   # Enable daemon mode to auto-create default tunnel
   enableDaemon: true
 
-  # OpenTelemetry tracing configuration
+  # OpenTelemetry tracing configuration using standard OTEL environment variables
+  # See: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
   tracing:
-    enabled: false
-    # OTLP endpoint (e.g., "otel-collector.observability.svc.cluster.local:4317")
-    otlpEndpoint: ""
-    # Sample rate (0.0-1.0, default 1.0 = 100% sampling)
-    sampleRate: 1.0
+    # OTEL_EXPORTER_OTLP_ENDPOINT - The OTLP endpoint (e.g., "otel-collector.observability.svc:4317")
+    # If empty, tracing is disabled
+    endpoint: ""
+
+    # OTEL_SERVICE_NAME - Service name (default: "cloudflare-operator")
+    serviceName: "cloudflare-operator"
+
+    # OTEL_SERVICE_VERSION - Service version (default: "dev")
+    serviceVersion: ""
+
+    # OTEL_TRACES_SAMPLER - Sampler type (default: "parentbased_traceidratio")
+    # Options: always_on, always_off, traceidratio, parentbased_always_on,
+    #          parentbased_always_off, parentbased_traceidratio
+    sampler: "parentbased_traceidratio"
+
+    # OTEL_TRACES_SAMPLER_ARG - Sampler argument (default: "1.0" = 100%)
+    # For traceidratio samplers, this is the sampling probability (0.0-1.0)
+    samplerArg: "1.0"
+
+    # OTEL_SDK_DISABLED - Set to "true" to completely disable the SDK (default: "false")
+    disabled: false
 
 # Service Account configuration
 serviceAccount:

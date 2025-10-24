@@ -45,13 +45,6 @@ spec:
         {{- if .Values.controllerManager.enableDaemon }}
         - --enable-daemon
         {{- end }}
-        {{- if .Values.controllerManager.tracing.enabled }}
-        - --enable-tracing
-        {{- if .Values.controllerManager.tracing.otlpEndpoint }}
-        - --otlp-endpoint={{ .Values.controllerManager.tracing.otlpEndpoint }}
-        {{- end }}
-        - --tracing-sample-rate={{ .Values.controllerManager.tracing.sampleRate }}
-        {{- end }}
         image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
         name: manager
@@ -86,6 +79,31 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- if .Values.controllerManager.tracing.endpoint }}
+        # OpenTelemetry standard environment variables
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: {{ .Values.controllerManager.tracing.endpoint | quote }}
+        {{- end }}
+        {{- if .Values.controllerManager.tracing.serviceName }}
+        - name: OTEL_SERVICE_NAME
+          value: {{ .Values.controllerManager.tracing.serviceName | quote }}
+        {{- end }}
+        {{- if .Values.controllerManager.tracing.serviceVersion }}
+        - name: OTEL_SERVICE_VERSION
+          value: {{ .Values.controllerManager.tracing.serviceVersion | quote }}
+        {{- end }}
+        {{- if .Values.controllerManager.tracing.sampler }}
+        - name: OTEL_TRACES_SAMPLER
+          value: {{ .Values.controllerManager.tracing.sampler | quote }}
+        {{- end }}
+        {{- if .Values.controllerManager.tracing.samplerArg }}
+        - name: OTEL_TRACES_SAMPLER_ARG
+          value: {{ .Values.controllerManager.tracing.samplerArg | quote }}
+        {{- end }}
+        {{- if .Values.controllerManager.tracing.disabled }}
+        - name: OTEL_SDK_DISABLED
+          value: "true"
+        {{- end }}
         lifecycle:
           preStop:
             exec:
