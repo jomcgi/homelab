@@ -1,0 +1,50 @@
+# Default values for ArgoCD Image Updater
+# These are sensible defaults that can be overridden per environment
+
+argocd-image-updater:
+  # Image updater configuration
+  config:
+    # Supported registries
+    registries:
+      - name: ghcr
+        prefix: ghcr.io
+        api_url: https://ghcr.io
+        credentials: secret:argocd/argocd-image-updater-token#github_token
+        default: true
+
+  # Git write-back configuration
+  authScripts:
+    enabled: true
+    scripts:
+      git-creds.sh: |
+        #!/bin/sh
+        # Use GitHub token from 1Password (read:packages + repo write)
+        echo "username=argocd-image-updater"
+        echo "password=$ARGOCD_IMAGE_UPDATER_TOKEN"
+
+  # Environment variables for Git credentials
+  env:
+    - name: ARGOCD_IMAGE_UPDATER_TOKEN
+      valueFrom:
+        secretKeyRef:
+          name: argocd-image-updater-token
+          key: github_token
+
+  # Service account with write access to ArgoCD Applications
+  serviceAccount:
+    create: true
+
+  # Metrics for observability
+  metrics:
+    enabled: true
+    serviceMonitor:
+      enabled: false
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: 100m
+      memory: 128Mi
+    requests:
+      cpu: 10m
+      memory: 64Mi

@@ -1,3 +1,4 @@
+{{- if .Values.policies.ghcrSecretSync.enabled }}
 ---
 # ClusterPolicy: Generate GHCR pull secret in all namespaces
 # Clones the read-only GHCR token from argocd namespace to all application namespaces
@@ -6,7 +7,6 @@ kind: ClusterPolicy
 metadata:
   name: sync-ghcr-pull-secret
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: Sync GHCR Pull Secret to All Namespaces
     policies.kyverno.io/category: Secret Management
     policies.kyverno.io/severity: medium
@@ -38,13 +38,13 @@ spec:
         apiVersion: v1
         kind: Secret
         name: ghcr-pull-secret
-        namespace: "{{request.object.metadata.name}}"
+        namespace: "{{`{{request.object.metadata.name}}`}}"
         synchronize: true
         data:
           type: kubernetes.io/dockerconfigjson
           data:
             .dockerconfigjson: >-
-              {{
+              {{`{{
                 $secret := lookup("v1", "Secret", "argocd", "ghcr-pull-secret")
               }}
               {{
@@ -52,16 +52,18 @@ spec:
               }}
               {{
                 $auth := printf("jomcgi:%s", $token) | base64_encode
-              }}
+              }}`}}
               {
                 "auths": {
                   "ghcr.io": {
                     "username": "jomcgi",
-                    "password": "{{ $token }}",
-                    "auth": "{{ $auth }}"
+                    "password": "{{`{{ $token }}`}}",
+                    "auth": "{{`{{ $auth }}`}}"
                   }
                 }
               }
+{{- end }}
+{{- if .Values.policies.ghcrImagePullSecretInjection.enabled }}
 ---
 # ClusterPolicy: Auto-inject imagePullSecrets into all pods
 # Automatically adds ghcr-pull-secret to all pods cluster-wide
@@ -70,7 +72,6 @@ kind: ClusterPolicy
 metadata:
   name: inject-ghcr-pull-secret
   annotations:
-    argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: Inject GHCR Pull Secret into Pods
     policies.kyverno.io/category: Image Registry
     policies.kyverno.io/severity: medium
@@ -100,7 +101,7 @@ spec:
       # Only inject if imagePullSecrets is not already set
       preconditions:
         all:
-        - key: "{{ request.object.spec.imagePullSecrets[] || `[]` | length(@) }}"
+        - key: "{{`{{ request.object.spec.imagePullSecrets[] || `}}[]{{` | length(@) }}`}}"
           operator: Equals
           value: 0
       mutate:
@@ -108,3 +109,4 @@ spec:
           spec:
             imagePullSecrets:
               - name: ghcr-pull-secret
+{{- end }}
