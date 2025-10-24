@@ -98,7 +98,7 @@ kyverno:
 policies:
   # Enable GHCR secret sync policy
   ghcrSecretSync:
-    enabled: false
+    enabled: true
 
   # Enable GHCR imagePullSecrets injection policy
   ghcrImagePullSecretInjection:
