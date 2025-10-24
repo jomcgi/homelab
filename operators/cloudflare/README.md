@@ -103,11 +103,32 @@ flowchart TB
 ### TODO
 
 #### Missing Features
-* ???
+* Deployment/Service annotation watching - No automatic tunnel creation from app annotations
+* DNS Record CRD and controller - No automated DNS management
+* Zero Trust Application CRD and controller - No automated Access app creation
+* Access Policy CRD and controller - No policy management
+* ConfigMap-based tunnel routing - Currently uses Cloudflare API config only
+* Kubernetes Ingress support - No standard Ingress controller implementation
+* Prometheus metrics export - No observability metrics
+* Multiple tunnel support per app - One-to-one mapping only
 
 #### Tasks to complete
 Keep these tasks small, iterative and isolated.
 They should be listed in the order that they should be implemented.
 
-1. ???
+1. **Add Deployment annotation controller** - Watch Deployments with `cloudflare.ingress.hostname`, create CloudflareTunnel CRDs automatically
+2. **Add RBAC for Deployment watching** - Grant `apps/deployments [get;list;watch]` and `core/services [get;list]` permissions
+3. **Implement Service discovery** - Find Service for Deployment by label selector, build `http://svc:port` URL
+4. **Add owner references** - Link CloudflareTunnel to Deployment for automatic cleanup
+5. **Create DNS Record CRD** - Define API types for DNS record management
+6. **Add DNS Record controller** - Create CNAME records pointing to tunnel endpoints
+7. **Create Zero Trust Application CRD** - Define API types for Access applications
+8. **Add Zero Trust Application controller** - Create Access apps for hostnames
+9. **Create Access Policy CRD** - Define API types for Access policies
+10. **Add Access Policy controller** - Link policies to applications
+11. **Add ConfigMap generation** - Generate routing ConfigMap from ingress rules
+12. **Switch daemon to ConfigMap config** - Update cloudflared to use `configSource: kubernetes`
+13. **Add Ingress controller** - Watch standard Kubernetes Ingress resources
+14. **Add Prometheus metrics** - Export controller metrics on `:8080/metrics`
+15. **Add integration tests** - Test complete annotation → tunnel → access flow
 
