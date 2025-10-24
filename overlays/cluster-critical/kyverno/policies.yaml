@@ -6,6 +6,7 @@ kind: ClusterPolicy
 metadata:
   name: sync-ghcr-pull-secret
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: Sync GHCR Pull Secret to All Namespaces
     policies.kyverno.io/category: Secret Management
     policies.kyverno.io/severity: medium
@@ -69,6 +70,7 @@ kind: ClusterPolicy
 metadata:
   name: inject-ghcr-pull-secret
   annotations:
+    argocd.argoproj.io/sync-wave: "1"
     policies.kyverno.io/title: Inject GHCR Pull Secret into Pods
     policies.kyverno.io/category: Image Registry
     policies.kyverno.io/severity: medium
