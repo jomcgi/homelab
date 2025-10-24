@@ -2,8 +2,11 @@ cloudflareCredentials:
   create: false
   secretName: cloudflare-credentials
 
+# Explicitly set imagePullSecrets for private GHCR images
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
 # Container image - updated automatically by ArgoCD Image Updater
-# imagePullSecrets injected automatically by Kyverno cluster-wide policy
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
@@ -27,3 +30,11 @@ extraResources:
       name: cloudflare-credentials
     spec:
       itemPath: "vaults/k8s-homelab/items/cloudflare"
+
+  # GHCR pull secret for private container images
+  - apiVersion: onepassword.com/v1
+    kind: OnePasswordItem
+    metadata:
+      name: ghcr-pull-secret
+    spec:
+      itemPath: "vaults/k8s-homelab/items/ghcr-docker-config"
