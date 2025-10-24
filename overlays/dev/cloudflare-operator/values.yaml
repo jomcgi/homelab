@@ -10,18 +10,16 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
-    tag: latest  # Will be updated automatically by ArgoCD Image Updater
+    tag: sha-56b7066  # OTEL v1.38.0 with fixed schema conflict
     pullPolicy: Always
 
-# Disable OpenTelemetry tracing temporarily due to schema conflict
+# Enable OpenTelemetry tracing to SignoZ (OTEL upgraded to v1.38.0)
   tracing:
-    disabled: true
-    # TODO: Fix OpenTelemetry schema version conflict (1.26.0 vs 1.20.0)
-    # endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
-    # serviceName: "cloudflare-operator"
-    # serviceVersion: "dev"
-    # sampler: "parentbased_traceidratio"
-    # samplerArg: "1.0"
+    endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+    serviceName: "cloudflare-operator"
+    serviceVersion: "dev"
+    sampler: "parentbased_traceidratio"
+    samplerArg: "1.0"
 
 extraResources:
   - apiVersion: onepassword.com/v1
