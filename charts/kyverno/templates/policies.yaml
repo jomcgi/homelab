@@ -67,6 +67,7 @@ spec:
   background: true
   rules:
     - name: inject-image-pull-secret
+      skipBackgroundRequests: true
       match:
         any:
         - resources:
