@@ -41,10 +41,9 @@ spec:
         name: ghcr-pull-secret
         namespace: "{{`{{request.object.metadata.name}}`}}"
         synchronize: true
-        data:
-          type: kubernetes.io/dockerconfigjson
-          data:
-            .dockerconfigjson: "{{`{{ $secret := lookup(\"v1\", \"Secret\", \"argocd\", \"ghcr-pull-secret\") }} {{ $token := $secret.data.github_token | base64_decode }} {{ $auth := printf(\"jomcgi:%s\", $token) | base64_encode }} { \"auths\": { \"ghcr.io\": { \"username\": \"jomcgi\", \"password\": \"{{ $token }}\", \"auth\": \"{{ $auth }}\" } } }`}}"
+        clone:
+          namespace: argocd
+          name: ghcr-pull-secret
 {{- end }}
 {{- if .Values.policies.ghcrImagePullSecretInjection.enabled }}
 ---
