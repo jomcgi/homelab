@@ -10,13 +10,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://argoproj.github.io/argo-helm
-    targetRevision: 0.11.0
-    chart: argocd-image-updater
+    repoURL: https://github.com/jomcgi/homelab
+    targetRevision: HEAD
+    path: charts/argocd-image-updater
     helm:
       releaseName: argocd-image-updater
       valueFiles:
         - values.yaml
+        - ../../overlays/cluster-critical/argocd-image-updater/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd

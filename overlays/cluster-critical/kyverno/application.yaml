@@ -10,13 +10,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://kyverno.github.io/kyverno
-    targetRevision: 3.3.4
-    chart: kyverno
+    repoURL: https://github.com/jomcgi/homelab
+    targetRevision: HEAD
+    path: charts/kyverno
     helm:
       releaseName: kyverno
       valueFiles:
         - values.yaml
+        - ../../overlays/cluster-critical/kyverno/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
