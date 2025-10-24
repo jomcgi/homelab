@@ -19,7 +19,7 @@ spec:
   generateExisting: true
   rules:
     - name: sync-ghcr-secret
-      skipBackgroundRequests: true
+      skipBackgroundRequests: false
       match:
         any:
         - resources:
@@ -85,7 +85,7 @@ spec:
       # Only inject if imagePullSecrets is not already set
       preconditions:
         all:
-        - key: "{{`{{ request.object.spec.imagePullSecrets || `}}`[]`{{` | length(@) }}`}}"
+        - key: "{{`{{ request.object.spec.imagePullSecrets || [] | length(@) }}`}}"
           operator: Equals
           value: 0
       mutate:
