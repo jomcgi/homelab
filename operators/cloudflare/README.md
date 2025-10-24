@@ -2,7 +2,9 @@
 Manage cluster ingress via annotations using cloudflare tunnels.
 
 ## Desired state (WIP)
-Example annotations:
+This operator is a work in progress.
+
+#### Example annotations
 ```
 metadata:
   annotations:
@@ -10,7 +12,7 @@ metadata:
     cloudflare.zero-trust.policy: joe-only
 ```
 
-Control flow:
+#### Control flow
 ```mermaid
 flowchart TB
     %% Main Components
@@ -98,4 +100,14 @@ flowchart TB
     style Note1 fill:#fff9c4,stroke:#f57f17,stroke-width:2px
 ```
 
-## TODO (missing features / tasks to complete)
+### TODO
+
+#### Missing Features
+* ???
+
+#### Tasks to complete
+Keep these tasks small, iterative and isolated.
+They should be listed in the order that they should be implemented.
+
+1. ???
+
