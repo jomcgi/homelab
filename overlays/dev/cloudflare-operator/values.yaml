@@ -2,11 +2,8 @@ cloudflareCredentials:
   create: false
   secretName: cloudflare-credentials
 
-# GHCR image pull secret (uses read-only token from 1Password)
-imagePullSecrets:
-  - name: ghcr-pull-secret
-
 # Container image - updated automatically by ArgoCD Image Updater
+# imagePullSecrets injected automatically by Kyverno cluster-wide policy
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
