@@ -2,6 +2,15 @@
 Manage cluster ingress via annotations using cloudflare tunnels.
 
 ## Desired state (WIP)
+Example annotations:
+```
+metadata:
+  annotations:
+    cloudflare.ingress.hostname: test-ingress.jomcgi.dev
+    cloudflare.zero-trust.policy: joe-only
+```
+
+Control flow:
 ```mermaid
 flowchart TB
     %% Main Components
