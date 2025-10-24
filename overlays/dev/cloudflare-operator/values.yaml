@@ -2,6 +2,10 @@ cloudflareCredentials:
   create: false
   secretName: cloudflare-credentials
 
+# GHCR image pull secret (uses read-only token from 1Password)
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
 # Container image - updated automatically by ArgoCD Image Updater
 controllerManager:
   image:

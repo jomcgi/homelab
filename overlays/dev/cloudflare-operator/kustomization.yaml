@@ -3,3 +3,4 @@ kind: Kustomization
 
 resources:
   - ./application.yaml
+  - ./ghcr-dockerconfig-secret.yaml
