@@ -1,0 +1,108 @@
+---
+# ClusterPolicy: Generate GHCR pull secret in all namespaces
+# Clones the read-only GHCR token from argocd namespace to all application namespaces
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: sync-ghcr-pull-secret
+  annotations:
+    policies.kyverno.io/title: Sync GHCR Pull Secret to All Namespaces
+    policies.kyverno.io/category: Secret Management
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Secret
+    policies.kyverno.io/description: >-
+      This policy generates a docker-registry secret for GHCR in each namespace
+      by reading the GitHub token from the 1Password-synced secret in argocd namespace.
+      This allows all pods to pull private images from ghcr.io without per-namespace configuration.
+spec:
+  generateExisting: true
+  rules:
+    - name: sync-ghcr-secret
+      match:
+        any:
+        - resources:
+            kinds:
+              - Namespace
+            namespaceSelector:
+              matchExpressions:
+                - key: kubernetes.io/metadata.name
+                  operator: NotIn
+                  values:
+                    - kube-system
+                    - kube-public
+                    - kube-node-lease
+                    - argocd
+                    - kyverno
+      generate:
+        apiVersion: v1
+        kind: Secret
+        name: ghcr-pull-secret
+        namespace: "{{request.object.metadata.name}}"
+        synchronize: true
+        data:
+          type: kubernetes.io/dockerconfigjson
+          data:
+            .dockerconfigjson: >-
+              {{
+                $secret := lookup("v1", "Secret", "argocd", "ghcr-pull-secret")
+              }}
+              {{
+                $token := $secret.data.github_token | base64_decode
+              }}
+              {{
+                $auth := printf("jomcgi:%s", $token) | base64_encode
+              }}
+              {
+                "auths": {
+                  "ghcr.io": {
+                    "username": "jomcgi",
+                    "password": "{{ $token }}",
+                    "auth": "{{ $auth }}"
+                  }
+                }
+              }
+---
+# ClusterPolicy: Auto-inject imagePullSecrets into all pods
+# Automatically adds ghcr-pull-secret to all pods cluster-wide
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-ghcr-pull-secret
+  annotations:
+    policies.kyverno.io/title: Inject GHCR Pull Secret into Pods
+    policies.kyverno.io/category: Image Registry
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/subject: Pod
+    policies.kyverno.io/description: >-
+      This policy automatically injects imagePullSecrets into all pods to enable
+      pulling private images from ghcr.io. It only affects pods that don't already
+      have imagePullSecrets configured, preserving explicit configuration.
+spec:
+  background: true
+  rules:
+    - name: inject-image-pull-secret
+      match:
+        any:
+        - resources:
+            kinds:
+              - Pod
+            namespaceSelector:
+              matchExpressions:
+                - key: kubernetes.io/metadata.name
+                  operator: NotIn
+                  values:
+                    - kube-system
+                    - kube-public
+                    - kube-node-lease
+                    - kyverno
+      # Only inject if imagePullSecrets is not already set
+      preconditions:
+        all:
+        - key: "{{ request.object.spec.imagePullSecrets[] || `[]` | length(@) }}"
+          operator: Equals
+          value: 0
+      mutate:
+        patchStrategicMerge:
+          spec:
+            imagePullSecrets:
+              - name: ghcr-pull-secret

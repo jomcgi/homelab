@@ -3,6 +3,14 @@ kind: Application
 metadata:
   name: cloudflare-operator
   namespace: argocd
+  annotations:
+    # ArgoCD Image Updater configuration
+    # Automatically updates cloudflare-operator to newest image from GitHub Container Registry
+    argocd-image-updater.argoproj.io/image-list: operator=ghcr.io/jomcgi/cloudflare-operator
+    argocd-image-updater.argoproj.io/operator.update-strategy: newest-build
+    argocd-image-updater.argoproj.io/operator.allow-tags: regexp:^sha-[0-9a-f]{7}$
+    argocd-image-updater.argoproj.io/write-back-method: git
+    argocd-image-updater.argoproj.io/git-branch: main
 spec:
   project: default
   source:
