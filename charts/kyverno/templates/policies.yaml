@@ -1,7 +1,7 @@
 {{- if .Values.policies.ghcrSecretSync.enabled }}
 ---
 # ClusterPolicy: Generate GHCR pull secret in all namespaces
-# Clones the read-only GHCR token from argocd namespace to all application namespaces
+# Clones the dockerconfigjson secret from argocd namespace to all application namespaces
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -13,7 +13,7 @@ metadata:
     policies.kyverno.io/subject: Secret
     policies.kyverno.io/description: >-
       This policy generates a docker-registry secret for GHCR in each namespace
-      by reading the GitHub token from the 1Password-synced secret in argocd namespace.
+      by cloning the ghcr-docker-config secret from the argocd namespace.
       This allows all pods to pull private images from ghcr.io without per-namespace configuration.
 spec:
   generateExisting: true
@@ -43,7 +43,7 @@ spec:
         synchronize: true
         clone:
           namespace: argocd
-          name: ghcr-pull-secret
+          name: ghcr-docker-config
 {{- end }}
 {{- if .Values.policies.ghcrImagePullSecretInjection.enabled }}
 ---
