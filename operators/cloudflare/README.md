@@ -103,11 +103,47 @@ flowchart TB
 ### TODO
 
 #### Missing Features
-* ???
+* Deployment/Service annotation watching - No automatic tunnel creation from app annotations
+* DNS Record CRD and controller - No automated DNS management
+* Zero Trust Application CRD and controller - No automated Access app creation
+* Access Policy CRD and controller - No policy management
+* ConfigMap-based tunnel routing - Currently uses Cloudflare API config only
+* Kubernetes Ingress support - No standard Ingress controller implementation
+* Prometheus metrics export - No observability metrics
+* Multiple tunnel support per app - One-to-one mapping only
 
 #### Tasks to complete
 Keep these tasks small, iterative and isolated.
 They should be listed in the order that they should be implemented.
 
-1. ???
+**Phase 1: Shared Tunnel Infrastructure**
+1. **Ensure shared tunnel creation on startup** - Operator creates one CloudflareTunnel CRD if not exists (may already work with `--enable-daemon`)
+2. **Switch to ConfigMap-based routing** - Update CloudflareTunnel controller to generate ConfigMap from ingress rules
+3. **Update cloudflared daemon config** - Mount ConfigMap, use `--config` flag instead of Cloudflare API config
+
+**Phase 2: Deployment Annotation Watching**
+4. **Create Deployment annotation controller scaffold** - Watch Deployments with `cloudflare.ingress.hostname`
+5. **Add RBAC for Deployment watching** - Grant `apps/deployments [get;list;watch]` and `core/services [get;list]` permissions
+6. **Implement Service discovery** - Find Service for Deployment by label selector, build `http://svc:port` URL
+
+**Phase 3: DNS Management**
+7. **Create DNS Record CRD** - Define API types for DNS record management (hostname, target, proxied)
+8. **Add DNS Record controller** - Create CNAME records pointing to tunnel endpoint when DNSRecord CRD created
+9. **Integration: Deployment → DNS Record** - Deployment controller creates DNSRecord CRD from annotation
+
+**Phase 4: Zero Trust Integration**
+10. **Create Zero Trust Application CRD** - Define API types for Access applications
+11. **Add Zero Trust Application controller** - Create Access apps in Cloudflare when ZTApp CRD created
+12. **Create Access Policy CRD** - Define API types for Access policies (email, IP, geo rules)
+13. **Add Access Policy controller** - Link policies to applications in Cloudflare
+14. **Integration: Deployment → ZT App** - Deployment controller creates ZTApp CRD from `cloudflare.zero-trust.policy` annotation
+
+**Phase 5: ConfigMap Routing Updates**
+15. **Update ConfigMap on DNS Record creation** - Add ingress rule to shared tunnel's ConfigMap when DNSRecord created
+16. **Add finalizers for cleanup** - Remove ConfigMap entries when DNSRecord deleted
+
+**Phase 6: Observability & Testing**
+17. **Add Prometheus metrics** - Export controller metrics on `:8080/metrics`
+18. **Add integration tests** - Test complete annotation → DNS → ZT → ConfigMap → tunnel flow
+19. **Add Ingress controller** - Watch standard Kubernetes Ingress resources (future)
 
