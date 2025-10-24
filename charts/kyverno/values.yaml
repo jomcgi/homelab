@@ -1,0 +1,105 @@
+# Default values for Kyverno
+# These are sensible defaults that can be overridden per environment
+
+kyverno:
+  # Admission controller configuration
+  admissionController:
+    replicas: 1
+    resources:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    securityContext:
+      runAsNonRoot: true
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities:
+        drop:
+        - ALL
+      seccompProfile:
+        type: RuntimeDefault
+
+  # Background controller for existing resources
+  backgroundController:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  # Cleanup controller for policy reports
+  cleanupController:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 100m
+        memory: 128Mi
+      requests:
+        cpu: 20m
+        memory: 64Mi
+
+  # Reports controller for policy results
+  reportsController:
+    enabled: true
+    replicas: 1
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi
+
+  # Features
+  features:
+    autoUpdateWebhooks:
+      enabled: true
+    policyExceptions:
+      enabled: true
+      namespace: kyverno
+
+  # Metrics and monitoring
+  metricsService:
+    enabled: true
+
+  # CRD installation
+  crds:
+    install: true
+
+  # Namespace exclusions
+  config:
+    excludeKyvernoNamespace: true
+    resourceFilters:
+      - '[*,kube-system,*]'
+      - '[*,kube-public,*]'
+      - '[*,kube-node-lease,*]'
+      - '[Event,*,*]'
+      - '[Node,*,*]'
+      - '[APIService,*,*]'
+      - '[TokenReview,*,*]'
+      - '[SubjectAccessReview,*,*]'
+      - '[SelfSubjectAccessReview,*,*]'
+      - '[Binding,*,*]'
+      - '[ReplicaSet,*,*]'
+      - '[AdmissionReport,*,*]'
+      - '[ClusterAdmissionReport,*,*]'
+      - '[BackgroundScanReport,*,*]'
+      - '[ClusterBackgroundScanReport,*,*]'
+
+# ClusterPolicies are deployed as part of this chart
+policies:
+  # Enable GHCR secret sync policy
+  ghcrSecretSync:
+    enabled: true
+
+  # Enable GHCR imagePullSecrets injection policy
+  ghcrImagePullSecretInjection:
+    enabled: true
