@@ -1,135 +1,92 @@
 # cloudflare
-// TODO(user): Add simple overview of use/purpose
+Manage cluster ingress via annotations using cloudflare tunnels.
 
-## Description
-// TODO(user): An in-depth paragraph about your project and overview of use
-
-## Getting Started
-
-### Prerequisites
-- go version v1.24.0+
-- docker version 17.03+.
-- kubectl version v1.11.3+.
-- Access to a Kubernetes v1.11.3+ cluster.
-
-### To Deploy on the cluster
-**Build and push your image to the location specified by `IMG`:**
-
-```sh
-make docker-build docker-push IMG=<some-registry>/cloudflare:tag
+## Desired state (WIP)
+```mermaid
+flowchart TB
+    %% Main Components
+    Deploy[Kubernetes Deployment<br/>with Annotations]
+    Controller[Cloudflare Operator<br/>Controller Daemon]
+    
+    %% CRDs and State
+    DNSRecord[DNS Record CRD]
+    ZTApp[Zero Trust App CRD]
+    Policy[Access Policy CRD]
+    Ingress[Ingress CRD]
+    ConfigMap[ConfigMap<br/>Routing Rules]
+    Tunnel[Cloudflared Tunnel<br/>Deployment]
+    
+    %% External State
+    CFState[(Cloudflare State<br/>DNS/ZT/Policies)]
+    
+    %% Control Loop Start - Monitoring
+    Deploy -.->|"Watch events<br/>(annotations changed)"| Controller
+    DNSRecord -.->|"Watch CRD status"| Controller
+    ZTApp -.->|"Watch CRD status"| Controller
+    Policy -.->|"Watch CRD status"| Controller
+    Ingress -.->|"Watch CRD status"| Controller
+    CFState -.->|"Verify external state<br/>(API polling delay)"| Controller
+    
+    %% Decision Point
+    Controller --> Decision{Reconcile?<br/>Desired ≠ Actual}
+    
+    %% No Action Path
+    Decision -->|"States match<br/>(stable)"| Wait[Wait for next event]
+    Wait -.->|"Requeue 30-60s"| Controller
+    
+    %% Control Actions - Ordered Sequence
+    Decision -->|"Drift detected"| Step1[1. Create/Update<br/>DNS Record CRD]
+    Step1 ==> DNSRecord
+    DNSRecord ==> |"Sync to Cloudflare"| CFState
+    
+    DNSRecord --> Step2[2. Create/Update<br/>Zero Trust App CRD]
+    Step2 ==> ZTApp
+    ZTApp ==> |"Sync to Cloudflare"| CFState
+    
+    ZTApp --> Step3{3. Find Policy<br/>joe-only exists?}
+    Step3 -->|"Yes"| Step4[4. Apply Policy<br/>to ZT App]
+    Step3 -->|"No"| Error[Create Policy CRD<br/>or Error]
+    
+    Step4 ==> Policy
+    Policy ==> |"Link in Cloudflare"| CFState
+    
+    Policy --> Step5[5. Create Ingress<br/>for Deployment]
+    Step5 ==> Ingress
+    
+    Ingress --> Step6[6. Update ConfigMap<br/>with routing]
+    Step6 ==> ConfigMap
+    
+    ConfigMap -.->|"Mounted by"| Tunnel
+    Tunnel -.->|"Routes traffic using"| CFState
+    
+    %% Finalizer Cleanup Loop
+    Deploy -.->|"Deletion event"| Finalizer{Finalizers<br/>present?}
+    Finalizer -->|"Yes"| Cleanup[Cleanup External State<br/>in order]
+    Cleanup ==> DeleteCF[Delete from Cloudflare]
+    DeleteCF ==> DeleteCRDs[Delete CRDs]
+    DeleteCRDs --> RemoveFinalizer[Remove Finalizers]
+    RemoveFinalizer -.->|"Allow deletion"| Deploy
+    
+    Finalizer -->|"No"| Deploy
+    
+    %% Feedback consolidation
+    CFState -.->|"State feedback<br/>(DNS propagation delay 2-5min)"| Controller
+    
+    %% Styling
+    classDef monitor fill:#e1f5ff,stroke:#0066cc,stroke-width:2px
+    classDef decision fill:#fff4e1,stroke:#ff9900,stroke-width:2px
+    classDef action fill:#e8f5e9,stroke:#2e7d32,stroke-width:2px
+    classDef external fill:#f3e5f5,stroke:#7b1fa2,stroke-width:2px
+    classDef feedback fill:#fff3e0,stroke:#ef6c00,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class Controller,Wait monitor
+    class Decision,Finalizer,Step3 decision
+    class Step1,Step2,Step4,Step5,Step6,Cleanup,DeleteCF,DeleteCRDs,RemoveFinalizer action
+    class CFState,Tunnel external
+    
+    %% Notes
+    Note1[/"⚙️ STABILIZING LOOP: Controller corrects drift<br/>⏱️ DELAYS: CF API calls, DNS propagation 2-5min<br/>🔒 FINALIZERS: Prevent orphaned external resources"/]
+    style Note1 fill:#fff9c4,stroke:#f57f17,stroke-width:2px
 ```
 
-**NOTE:** This image ought to be published in the personal registry you specified.
-And it is required to have access to pull the image from the working environment.
-Make sure you have the proper permission to the registry if the above commands don’t work.
-
-**Install the CRDs into the cluster:**
-
-```sh
-make install
-```
-
-**Deploy the Manager to the cluster with the image specified by `IMG`:**
-
-```sh
-make deploy IMG=<some-registry>/cloudflare:tag
-```
-
-> **NOTE**: If you encounter RBAC errors, you may need to grant yourself cluster-admin
-privileges or be logged in as admin.
-
-**Create instances of your solution**
-You can apply the samples (examples) from the config/sample:
-
-```sh
-kubectl apply -k config/samples/
-```
-
->**NOTE**: Ensure that the samples has default values to test it out.
-
-### To Uninstall
-**Delete the instances (CRs) from the cluster:**
-
-```sh
-kubectl delete -k config/samples/
-```
-
-**Delete the APIs(CRDs) from the cluster:**
-
-```sh
-make uninstall
-```
-
-**UnDeploy the controller from the cluster:**
-
-```sh
-make undeploy
-```
-
-## Project Distribution
-
-Following the options to release and provide this solution to the users.
-
-### By providing a bundle with all YAML files
-
-1. Build the installer for the image built and published in the registry:
-
-```sh
-make build-installer IMG=<some-registry>/cloudflare:tag
-```
-
-**NOTE:** The makefile target mentioned above generates an 'install.yaml'
-file in the dist directory. This file contains all the resources built
-with Kustomize, which are necessary to install this project without its
-dependencies.
-
-2. Using the installer
-
-Users can just run 'kubectl apply -f <URL for YAML BUNDLE>' to install
-the project, i.e.:
-
-```sh
-kubectl apply -f https://raw.githubusercontent.com/<org>/cloudflare/<tag or branch>/dist/install.yaml
-```
-
-### By providing a Helm Chart
-
-1. Build the chart using the optional helm plugin
-
-```sh
-operator-sdk edit --plugins=helm/v1-alpha
-```
-
-2. See that a chart was generated under 'dist/chart', and users
-can obtain this solution from there.
-
-**NOTE:** If you change the project, you need to update the Helm Chart
-using the same command above to sync the latest changes. Furthermore,
-if you create webhooks, you need to use the above command with
-the '--force' flag and manually ensure that any custom configuration
-previously added to 'dist/chart/values.yaml' or 'dist/chart/manager/manager.yaml'
-is manually re-applied afterwards.
-
-## Contributing
-// TODO(user): Add detailed information on how you would like others to contribute to this project
-
-**NOTE:** Run `make help` for more information on all potential `make` targets
-
-More information can be found via the [Kubebuilder Documentation](https://book.kubebuilder.io/introduction.html)
-
-## License
-
-Copyright 2025.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-
+## TODO (missing features / tasks to complete)
