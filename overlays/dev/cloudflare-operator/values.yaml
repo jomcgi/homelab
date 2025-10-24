@@ -2,8 +2,14 @@ cloudflareCredentials:
   create: false
   secretName: cloudflare-credentials
 
-# Enable OpenTelemetry tracing to SignoZ (cluster-critical namespace)
+# Container image - updated automatically by ArgoCD Image Updater
 controllerManager:
+  image:
+    repository: ghcr.io/jomcgi/cloudflare-operator
+    tag: sha-ef80781  # Will be updated automatically by ArgoCD Image Updater
+    pullPolicy: Always
+
+# Enable OpenTelemetry tracing to SignoZ (cluster-critical namespace)
   tracing:
     # Send traces to SignoZ OTEL collector
     endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"

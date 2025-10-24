@@ -1,0 +1,41 @@
+# ArgoCD Image Updater configuration
+# Watches container registries and updates ArgoCD Applications with new image tags
+
+config:
+  # Configure supported registries
+  registries:
+    - name: ghcr
+      prefix: ghcr.io
+      api_url: https://ghcr.io
+      credentials: pullsecret:argocd/ghcr-credentials
+      default: true
+
+# Git write-back configuration
+# Image Updater will commit updated image tags to Git
+authScripts:
+  enabled: true
+  scripts:
+    git-creds.sh: |
+      #!/bin/sh
+      # Use ArgoCD's repo credentials
+      echo "username=argocd-image-updater"
+      echo "password=$ARGOCD_TOKEN"
+
+# Service account with write access to ArgoCD Applications
+serviceAccount:
+  create: true
+
+# Metrics for observability
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false
+
+# Resource limits
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 10m
+    memory: 64Mi

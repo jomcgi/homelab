@@ -8,8 +8,8 @@ controllerManager:
   # Container image configuration
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
-    tag: latest
-    pullPolicy: IfNotPresent
+    tag: sha-ef80781  # Use SHA tags for precise version tracking
+    pullPolicy: Always
   
   # Resources configuration
   resources:
