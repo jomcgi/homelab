@@ -49,6 +49,7 @@ import (
 	tunnelsv1 "github.com/jomcgi/homelab/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/controller"
+	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -74,6 +75,9 @@ func main() {
 	var secureMetrics bool
 	var enableHTTP2 bool
 	var enableDaemon bool
+	var enableTracing bool
+	var otlpEndpoint string
+	var tracingSampleRate float64
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -94,6 +98,12 @@ func main() {
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
 	flag.BoolVar(&enableDaemon, "enable-daemon", false,
 		"If set, automatically create a default tunnel with daemon enabled")
+	flag.BoolVar(&enableTracing, "enable-tracing", false,
+		"If set, enable OpenTelemetry tracing")
+	flag.StringVar(&otlpEndpoint, "otlp-endpoint", "",
+		"OTLP endpoint for tracing (e.g., localhost:4317)")
+	flag.Float64Var(&tracingSampleRate, "tracing-sample-rate", 1.0,
+		"Tracing sample rate (0.0-1.0, default 1.0 = 100%)")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -101,6 +111,36 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
+
+	// Initialize OpenTelemetry tracing if enabled
+	if enableTracing || otlpEndpoint != "" {
+		setupLog.Info("initializing OpenTelemetry tracing",
+			"otlpEndpoint", otlpEndpoint,
+			"sampleRate", tracingSampleRate)
+
+		tp, err := telemetry.InitializeTracing(context.Background(), telemetry.Config{
+			Enabled:        true,
+			OTLPEndpoint:   otlpEndpoint,
+			ServiceName:    "cloudflare-operator",
+			ServiceVersion: "v1.0.0",
+			SampleRate:     tracingSampleRate,
+		})
+		if err != nil {
+			setupLog.Error(err, "failed to initialize tracing")
+			os.Exit(1)
+		}
+		setupLog.Info("OpenTelemetry tracing initialized successfully")
+
+		// Ensure graceful shutdown of tracer provider
+		defer func() {
+			setupLog.Info("shutting down tracer provider")
+			if err := telemetry.Shutdown(context.Background(), tp); err != nil {
+				setupLog.Error(err, "failed to shutdown tracer provider")
+			}
+		}()
+	} else {
+		setupLog.Info("OpenTelemetry tracing disabled")
+	}
 
 	// if the enable-http2 flag is false (the default), http/2 should be disabled
 	// due to its vulnerabilities. More specifically, disabling http/2 will
@@ -379,7 +419,7 @@ func createDefaultTunnel(
 
 			// Don't retry if it's a conflict error (already exists)
 			if errors.IsAlreadyExists(createErr) {
-				log.Info("tunnel CRD already exists (created by another replica)",
+				log.V(1).Info("tunnel CRD already exists (created by another replica)",
 					"crdName", crdName,
 				)
 				return

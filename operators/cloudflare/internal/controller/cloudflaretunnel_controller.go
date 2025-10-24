@@ -40,6 +40,10 @@ import (
 
 	tunnelsv1 "github.com/jomcgi/homelab/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
+	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const (
@@ -52,6 +56,7 @@ type CloudflareTunnelReconciler struct {
 	client.Client
 	Scheme   *runtime.Scheme
 	CFClient cfclient.TunnelClientInterface
+	tracer   trace.Tracer
 }
 
 // +kubebuilder:rbac:groups=tunnels.tunnels.cloudflare.io,resources=cloudflaretunnels,verbs=get;list;watch;create;update;patch;delete
@@ -64,32 +69,66 @@ type CloudflareTunnelReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	// Start span for reconciliation
+	ctx, span := r.tracer.Start(ctx, "Reconcile",
+		trace.WithAttributes(
+			attribute.String("k8s.resource.name", req.Name),
+			attribute.String("k8s.resource.namespace", req.Namespace),
+		),
+	)
+	defer span.End()
+
 	log := logf.FromContext(ctx)
 
 	// Fetch the CloudflareTunnel instance
 	var tunnel tunnelsv1.CloudflareTunnel
 	if err := r.Get(ctx, req.NamespacedName, &tunnel); err != nil {
 		if errors.IsNotFound(err) {
-			log.Info("CloudflareTunnel resource not found. Ignoring since object must be deleted")
+			log.V(1).Info("CloudflareTunnel resource not found, ignoring since object must be deleted")
+			span.SetStatus(codes.Ok, "resource not found")
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "Failed to get CloudflareTunnel")
+		log.Error(err, "failed to get CloudflareTunnel")
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get resource")
 		return ctrl.Result{}, err
 	}
 
+	// Add resource information to span
+	span.SetAttributes(
+		attribute.String("tunnel.name", tunnel.Spec.Name),
+		attribute.String("tunnel.id", tunnel.Status.TunnelID),
+		attribute.String("account.id", tunnel.Spec.AccountID),
+	)
+
 	// Handle deletion
 	if tunnel.DeletionTimestamp != nil {
-		return r.handleDeletion(ctx, &tunnel)
+		result, err := r.handleDeletion(ctx, &tunnel)
+		if err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "deletion failed")
+		} else {
+			span.SetStatus(codes.Ok, "resource deleted")
+		}
+		return result, err
 	}
 
 	// Add finalizer if not present
 	if !controllerutil.ContainsFinalizer(&tunnel, FinalizerName) {
 		controllerutil.AddFinalizer(&tunnel, FinalizerName)
+		span.AddEvent("finalizer added")
 		return ctrl.Result{}, r.Update(ctx, &tunnel)
 	}
 
 	// Handle creation/update
-	return r.handleCreateOrUpdate(ctx, &tunnel)
+	result, err := r.handleCreateOrUpdate(ctx, &tunnel)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "reconciliation failed")
+	} else {
+		span.SetStatus(codes.Ok, "reconciliation successful")
+	}
+	return result, err
 }
 
 // handleDeletion handles the deletion of a CloudflareTunnel
@@ -213,12 +252,10 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 		}
 
-		// Log token details for debugging
-		tokenPreviewLen := 10
-		if len(tunnelToken) < tokenPreviewLen {
-			tokenPreviewLen = len(tunnelToken)
-		}
-		log.Info("Got tunnel token", "tokenLength", len(tunnelToken), "tokenPrefix", tunnelToken[:tokenPreviewLen], "isJWT", strings.HasPrefix(tunnelToken, "eyJ"))
+		// Log token metadata for debugging (never log the actual token)
+		log.V(1).Info("retrieved tunnel token from Cloudflare",
+			"tokenLength", len(tunnelToken),
+			"isJWT", strings.HasPrefix(tunnelToken, "eyJ"))
 
 		secretName, err := r.ensureTunnelSecret(ctx, tunnel, tunnelToken)
 		if err != nil {
@@ -473,7 +510,7 @@ func (r *CloudflareTunnelReconciler) ensureTunnelSecret(ctx context.Context, tun
 			if err := r.Create(ctx, secret); err != nil {
 				return "", fmt.Errorf("failed to create secret: %w", err)
 			}
-			log.Info("Created tunnel secret", "secret", secretName)
+			log.V(1).Info("created tunnel secret", "secret", secretName)
 		} else {
 			return "", fmt.Errorf("failed to get secret: %w", err)
 		}
@@ -484,7 +521,7 @@ func (r *CloudflareTunnelReconciler) ensureTunnelSecret(ctx context.Context, tun
 		if err := r.Update(ctx, existing); err != nil {
 			return "", fmt.Errorf("failed to update secret: %w", err)
 		}
-		log.Info("Updated tunnel secret", "secret", secretName)
+		log.V(1).Info("updated tunnel secret", "secret", secretName)
 	}
 
 	return secretName, nil
@@ -652,7 +689,7 @@ func (r *CloudflareTunnelReconciler) ensureDaemonDeployment(ctx context.Context,
 			if err := r.Create(ctx, deployment); err != nil {
 				return "", fmt.Errorf("failed to create deployment: %w", err)
 			}
-			log.Info("Created daemon deployment", "deployment", deploymentName)
+			log.V(1).Info("created daemon deployment", "deployment", deploymentName)
 		} else {
 			return "", fmt.Errorf("failed to get deployment: %w", err)
 		}
@@ -663,7 +700,7 @@ func (r *CloudflareTunnelReconciler) ensureDaemonDeployment(ctx context.Context,
 		if err := r.Update(ctx, existing); err != nil {
 			return "", fmt.Errorf("failed to update deployment: %w", err)
 		}
-		log.Info("Updated daemon deployment", "deployment", deploymentName)
+		log.V(1).Info("updated daemon deployment", "deployment", deploymentName)
 	}
 
 	return deploymentName, nil
@@ -747,6 +784,9 @@ func (r *CloudflareTunnelReconciler) deleteTunnelSecret(ctx context.Context, tun
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CloudflareTunnelReconciler) SetupWithManager(mgr ctrl.Manager) error {
+	// Initialize tracer
+	r.tracer = telemetry.GetTracer("cloudflare-tunnel-controller")
+
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tunnelsv1.CloudflareTunnel{}).
 		Named("cloudflaretunnel").

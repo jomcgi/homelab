@@ -45,6 +45,13 @@ spec:
         {{- if .Values.controllerManager.enableDaemon }}
         - --enable-daemon
         {{- end }}
+        {{- if .Values.controllerManager.tracing.enabled }}
+        - --enable-tracing
+        {{- if .Values.controllerManager.tracing.otlpEndpoint }}
+        - --otlp-endpoint={{ .Values.controllerManager.tracing.otlpEndpoint }}
+        {{- end }}
+        - --tracing-sample-rate={{ .Values.controllerManager.tracing.sampleRate }}
+        {{- end }}
         image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
         name: manager

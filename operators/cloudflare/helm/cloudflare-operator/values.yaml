@@ -80,6 +80,14 @@ controllerManager:
   # Enable daemon mode to auto-create default tunnel
   enableDaemon: true
 
+  # OpenTelemetry tracing configuration
+  tracing:
+    enabled: false
+    # OTLP endpoint (e.g., "otel-collector.observability.svc.cluster.local:4317")
+    otlpEndpoint: ""
+    # Sample rate (0.0-1.0, default 1.0 = 100% sampling)
+    sampleRate: 1.0
+
 # Service Account configuration
 serviceAccount:
   # Specifies whether a service account should be created
