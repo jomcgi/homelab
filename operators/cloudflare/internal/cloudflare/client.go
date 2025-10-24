@@ -25,6 +25,10 @@ import (
 	"net/http"
 
 	"github.com/cloudflare/cloudflare-go"
+	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
 	"golang.org/x/time/rate"
 )
 
@@ -41,6 +45,7 @@ type TunnelClientInterface interface {
 type TunnelClient struct {
 	api     *cloudflare.API
 	limiter *rate.Limiter
+	tracer  trace.Tracer
 }
 
 // NewTunnelClient creates a new rate-limited Cloudflare client
@@ -56,18 +61,31 @@ func NewTunnelClient(apiToken string) (*TunnelClient, error) {
 	return &TunnelClient{
 		api:     api,
 		limiter: limiter,
+		tracer:  telemetry.GetTracer("cloudflare-api-client"),
 	}, nil
 }
 
 // CreateTunnel creates a new tunnel in Cloudflare and returns both the tunnel and its secret
 func (c *TunnelClient) CreateTunnel(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error) {
+	ctx, span := c.tracer.Start(ctx, "cloudflare.CreateTunnel",
+		trace.WithAttributes(
+			attribute.String("account.id", accountID),
+			attribute.String("tunnel.name", name),
+		),
+	)
+	defer span.End()
+
 	if err := c.limiter.Wait(ctx); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "rate limiter wait failed")
 		return nil, "", err
 	}
 
 	// Generate a random tunnel secret (32 bytes, base64 encoded)
 	secret := make([]byte, 32)
 	if _, err := rand.Read(secret); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to generate secret")
 		return nil, "", fmt.Errorf("failed to generate tunnel secret: %w", err)
 	}
 	tunnelSecret := base64.StdEncoding.EncodeToString(secret)
@@ -77,37 +95,67 @@ func (c *TunnelClient) CreateTunnel(ctx context.Context, accountID, name string)
 		Secret: tunnelSecret,
 	})
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "cloudflare API call failed")
 		return nil, "", fmt.Errorf("failed to create tunnel %s: %w", name, err)
 	}
 
+	span.SetAttributes(attribute.String("tunnel.id", tunnel.ID))
+	span.SetStatus(codes.Ok, "tunnel created")
 	return &tunnel, tunnelSecret, nil
 }
 
 // GetTunnel retrieves tunnel information from Cloudflare
 func (c *TunnelClient) GetTunnel(ctx context.Context, accountID, tunnelID string) (*cloudflare.Tunnel, error) {
+	ctx, span := c.tracer.Start(ctx, "cloudflare.GetTunnel",
+		trace.WithAttributes(
+			attribute.String("account.id", accountID),
+			attribute.String("tunnel.id", tunnelID),
+		),
+	)
+	defer span.End()
+
 	if err := c.limiter.Wait(ctx); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "rate limiter wait failed")
 		return nil, err
 	}
 
 	tunnel, err := c.api.GetTunnel(ctx, cloudflare.AccountIdentifier(accountID), tunnelID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "cloudflare API call failed")
 		return nil, fmt.Errorf("failed to get tunnel %s: %w", tunnelID, err)
 	}
 
+	span.SetStatus(codes.Ok, "tunnel retrieved")
 	return &tunnel, nil
 }
 
 // DeleteTunnel deletes a tunnel from Cloudflare
 func (c *TunnelClient) DeleteTunnel(ctx context.Context, accountID, tunnelID string) error {
+	ctx, span := c.tracer.Start(ctx, "cloudflare.DeleteTunnel",
+		trace.WithAttributes(
+			attribute.String("account.id", accountID),
+			attribute.String("tunnel.id", tunnelID),
+		),
+	)
+	defer span.End()
+
 	if err := c.limiter.Wait(ctx); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "rate limiter wait failed")
 		return err
 	}
 
 	err := c.api.DeleteTunnel(ctx, cloudflare.AccountIdentifier(accountID), tunnelID)
 	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "cloudflare API call failed")
 		return fmt.Errorf("failed to delete tunnel %s: %w", tunnelID, err)
 	}
 
+	span.SetStatus(codes.Ok, "tunnel deleted")
 	return nil
 }
 

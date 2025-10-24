@@ -117,7 +117,7 @@ Keep these tasks small, iterative and isolated.
 They should be listed in the order that they should be implemented.
 
 ##### Shared Tunnel Infrastructure
-1. [ ] **Ensure shared tunnel creation on startup** - Operator creates one CloudflareTunnel CRD if not exists (may already work with `--enable-daemon`)
+1. [x] **Ensure shared tunnel creation on startup** - Operator creates one CloudflareTunnel CRD if not exists (implemented with `--enable-daemon`)
 2. [ ] **Switch to ConfigMap-based routing** - Update CloudflareTunnel controller to generate ConfigMap from ingress rules
 3. [ ] **Update cloudflared daemon config** - Mount ConfigMap, use `--config` flag instead of Cloudflare API config
 

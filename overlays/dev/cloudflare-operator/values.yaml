@@ -2,6 +2,17 @@ cloudflareCredentials:
   create: false
   secretName: cloudflare-credentials
 
+# Enable OpenTelemetry tracing to SignoZ (cluster-critical namespace)
+controllerManager:
+  tracing:
+    # Send traces to SignoZ OTEL collector
+    endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+    serviceName: "cloudflare-operator"
+    serviceVersion: "dev"
+    # Use parent-based sampling with 100% rate for dev
+    sampler: "parentbased_traceidratio"
+    samplerArg: "1.0"
+
 extraResources:
   - apiVersion: onepassword.com/v1
     kind: OnePasswordItem
