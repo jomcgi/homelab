@@ -19,6 +19,7 @@ spec:
   generateExisting: true
   rules:
     - name: sync-ghcr-secret
+      skipBackgroundRequests: true
       match:
         any:
         - resources:
@@ -43,25 +44,7 @@ spec:
         data:
           type: kubernetes.io/dockerconfigjson
           data:
-            .dockerconfigjson: >-
-              {{`{{
-                $secret := lookup("v1", "Secret", "argocd", "ghcr-pull-secret")
-              }}
-              {{
-                $token := $secret.data.github_token | base64_decode
-              }}
-              {{
-                $auth := printf("jomcgi:%s", $token) | base64_encode
-              }}`}}
-              {
-                "auths": {
-                  "ghcr.io": {
-                    "username": "jomcgi",
-                    "password": "{{`{{ $token }}`}}",
-                    "auth": "{{`{{ $auth }}`}}"
-                  }
-                }
-              }
+            .dockerconfigjson: "{{`{{ $secret := lookup(\"v1\", \"Secret\", \"argocd\", \"ghcr-pull-secret\") }} {{ $token := $secret.data.github_token | base64_decode }} {{ $auth := printf(\"jomcgi:%s\", $token) | base64_encode }} { \"auths\": { \"ghcr.io\": { \"username\": \"jomcgi\", \"password\": \"{{ $token }}\", \"auth\": \"{{ $auth }}\" } } }`}}"
 {{- end }}
 {{- if .Values.policies.ghcrImagePullSecretInjection.enabled }}
 ---
