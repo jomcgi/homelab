@@ -477,9 +477,11 @@ func waitForTunnelReady(ctx context.Context, client client.Client, name, namespa
 			if tunnel.Status.Ready {
 				log.Info("tunnel is ready",
 					"tunnelID", tunnel.Status.TunnelID,
-					"secret", tunnel.Status.TunnelSecret,
 					"daemonReplicas", tunnel.Status.DaemonStatus.Replicas,
 					"readyReplicas", tunnel.Status.DaemonStatus.ReadyReplicas,
+				)
+				log.V(1).Info("tunnel secret details",
+					"secretName", tunnel.Status.TunnelSecret,
 				)
 				return nil
 			}
