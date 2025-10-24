@@ -593,6 +593,8 @@ func (r *CloudflareTunnelReconciler) ensureDaemonDeployment(ctx context.Context,
 							Args: []string{
 								"tunnel",
 								"--no-autoupdate",
+								"--metrics",
+								"127.0.0.1:2000",
 								"run",
 								"--token",
 								"$(TUNNEL_TOKEN)",
@@ -612,23 +614,37 @@ func (r *CloudflareTunnelReconciler) ensureDaemonDeployment(ctx context.Context,
 							},
 							LivenessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/ready",
-										Port: intstr.FromInt(2000),
+									Exec: &corev1.ExecAction{
+										Command: []string{
+											"cloudflared",
+											"tunnel",
+											"--metrics",
+											"127.0.0.1:2000",
+											"ready",
+										},
 									},
 								},
-								InitialDelaySeconds: 10,
+								InitialDelaySeconds: 30,
 								PeriodSeconds:       10,
+								TimeoutSeconds:      5,
+								FailureThreshold:    3,
 							},
 							ReadinessProbe: &corev1.Probe{
 								ProbeHandler: corev1.ProbeHandler{
-									HTTPGet: &corev1.HTTPGetAction{
-										Path: "/ready",
-										Port: intstr.FromInt(2000),
+									Exec: &corev1.ExecAction{
+										Command: []string{
+											"cloudflared",
+											"tunnel",
+											"--metrics",
+											"127.0.0.1:2000",
+											"ready",
+										},
 									},
 								},
 								InitialDelaySeconds: 10,
 								PeriodSeconds:       5,
+								TimeoutSeconds:      5,
+								FailureThreshold:    3,
 							},
 						},
 					},

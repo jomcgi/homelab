@@ -63,22 +63,31 @@ securityContext:
     type: RuntimeDefault
 
 livenessProbe:
-  httpGet:
-    path: /ready
-    port: 2000
+  exec:
+    command:
+      - cloudflared
+      - tunnel
+      - --metrics
+      - 127.0.0.1:2000
+      - ready
   failureThreshold: 3  # Allow 3 failures before restarting
   initialDelaySeconds: 30  # Give tunnel time to connect
   periodSeconds: 10
   timeoutSeconds: 5
 
 readinessProbe:
-  httpGet:
-    path: /ready
-    port: 2000
+  exec:
+    command:
+      - cloudflared
+      - tunnel
+      - --metrics
+      - 127.0.0.1:2000
+      - ready
   failureThreshold: 3
   initialDelaySeconds: 10
   periodSeconds: 5
+  timeoutSeconds: 5
 
 metrics:
   enabled: true
-  address: "0.0.0.0:2000"
+  address: "127.0.0.1:2000"
