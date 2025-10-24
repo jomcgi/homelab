@@ -75,7 +75,7 @@ overlays/                   # Environment-based deployments
 
 websites/                   # Static websites
 └── hikes.jomcgi.dev/       # Hiking route finder (static)
-└── jomcgi.dev/frank        #
+└── jomcgi.dev/frank        # Frank x Vancouver trip site
 
 ```
 

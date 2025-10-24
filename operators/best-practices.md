@@ -1,25 +1,3 @@
-# Building Production-Ready Kubernetes Operators in Go: A Comprehensive Guide
-
-Based on extensive research of current best practices, production examples, and industry patterns, this report provides actionable guidance for developing Kubernetes operators in Go that manage stateful external resources.
-
-## 1. Go Frameworks for Kubernetes Operators
-
-### Framework Comparison and Recommendations
-
-**Kubebuilder** emerges as the most recommended framework for building production operators. Maintained by Kubernetes SIG API Machinery, it provides best-in-class code generation, automatic CRD and RBAC generation from code annotations, and built-in integration testing with envtest. Version 4.1.1 offers a mature, battle-tested foundation used by operators like CloudNativePG (5,000+ stars) and numerous CNCF projects.
-
-**Operator SDK** builds on Kubebuilder but adds enterprise features including Operator Lifecycle Manager (OLM) integration, multi-language support (Go, Ansible, Helm), and the scorecard tool for best practices validation. Choose Operator SDK when you need enterprise governance, plan to publish to OperatorHub, or require multi-language support.
-
-**Key Decision Matrix:**
-- **Simple operators with fine-grained control**: Kubebuilder
-- **Enterprise environments with OLM**: Operator SDK  
-- **Infrastructure management**: Crossplane
-- **Rapid prototyping**: Metacontroller
-
-**controller-runtime**, the foundation for both Kubebuilder and Operator SDK, provides the core reconciliation loop, client interfaces, and caching mechanisms. All major frameworks leverage this library, making it the de facto standard for operator development.
-
-## 2. Stateful Operator Best Practices
-
 ### Reconciliation Patterns
 
 The reconciliation loop must be **idempotent and level-based**, deriving desired state from current specifications rather than reacting to events. Implement generation-based tracking to detect configuration drift:
@@ -112,7 +90,6 @@ securityContext:
 - Integrate with external secret managers (Vault, External Secrets Operator)
 - Implement secret rotation mechanisms
 
-## 4. OpenTelemetry Integration
 
 ### Complete Tracing Setup
 
@@ -174,57 +151,6 @@ func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 ```
 
-## 5. Helm Chart Best Practices
-
-### Chart Structure
-
-Organize operator Helm charts with proper separation of concerns:
-
-```
-operator-chart/
-├── Chart.yaml
-├── values.yaml
-├── values.schema.json
-├── crds/                    # CRDs (not templated in Helm 3)
-├── templates/
-│   ├── deployment.yaml
-│   ├── rbac.yaml
-│   ├── webhook/
-│   └── certificates/
-```
-
-### Production Values Configuration
-
-```yaml
-operator:
-  replicas: 2
-  leaderElection:
-    enabled: true
-  resources:
-    limits:
-      cpu: 500m
-      memory: 512Mi
-    requests:
-      cpu: 100m
-      memory: 128Mi
-
-webhook:
-  enabled: true
-  failurePolicy: "Fail"
-
-certificates:
-  certManager:
-    enabled: true
-
-monitoring:
-  serviceMonitor:
-    enabled: true
-```
-
-### CRD Management Strategy
-
-Place CRDs in the `crds/` directory. They are installed once and never upgraded by Helm. For upgradeable CRDs, implement pre-upgrade hooks or use separate CRD management.
-
 ## 6. Well-Written Operator Examples
 
 **CloudNativePG** demonstrates excellence in PostgreSQL operator design:
@@ -245,9 +171,7 @@ Place CRDs in the `crds/` directory. They are installed once and never upgraded 
 - IRSA authentication support
 - Code generation from AWS APIs
 
-## 7. Comprehensive Testing Strategies
-
-### Testing Pyramid
+### Testing
 
 **Unit Tests** (80-90% coverage):
 ```go
@@ -276,8 +200,6 @@ var _ = BeforeSuite(func() {
 ```
 
 **E2E Tests** with Kind/K3s for complete validation including external integrations and upgrade scenarios.
-
-## 8. Rate Limiting and Resource Management
 
 ### Implement Rate Limiting
 
@@ -317,8 +239,6 @@ func (r *ExampleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 }
 ```
 
-## 9. Status Reporting and Conditions
-
 ### Standard Condition Implementation
 
 Follow Kubernetes conventions for status conditions:
@@ -345,15 +265,3 @@ func (r *ResourceReconciler) updateConditions(ctx context.Context, resource *v1a
     return r.Status().Update(ctx, resource)
 }
 ```
-
-## Key Recommendations
-
-1. **Framework Choice**: Start with Kubebuilder for most use cases, upgrade to Operator SDK for enterprise features
-2. **Security First**: Implement comprehensive RBAC, run as non-root, use network policies
-3. **Observability**: Integrate OpenTelemetry from the start with proper trace correlation
-4. **Testing**: Maintain 80%+ unit test coverage, use EnvTest for integration tests
-5. **Production Readiness**: Implement HA with leader election, comprehensive monitoring, and GitOps-ready Helm charts
-6. **Rate Limiting**: Protect external APIs with client-side rate limiting and circuit breakers
-7. **Error Handling**: Classify errors properly and implement appropriate retry strategies
-
-This comprehensive approach, based on patterns from successful production operators, ensures your Kubernetes operators are secure, observable, testable, and production-ready.
