@@ -42,18 +42,25 @@ spec:
         data:
           type: kubernetes.io/dockerconfigjson
           data:
-            .dockerconfigjson: |-
-              {{ `{{- with (lookup "v1" "Secret" "argocd" "ghcr-pull-secret") }}
+            .dockerconfigjson: >-
+              {{
+                $secret := lookup("v1", "Secret", "argocd", "ghcr-pull-secret")
+              }}
+              {{
+                $token := $secret.data.github_token | base64_decode
+              }}
+              {{
+                $auth := printf("jomcgi:%s", $token) | base64_encode
+              }}
               {
                 "auths": {
                   "ghcr.io": {
                     "username": "jomcgi",
-                    "password": "{{ .data.github_token | base64_decode }}",
-                    "auth": "{{ printf "jomcgi:%s" (.data.github_token | base64_decode) | base64_encode }}"
+                    "password": "{{ $token }}",
+                    "auth": "{{ $auth }}"
                   }
                 }
               }
-              {{- end }}` }}
 ---
 # ClusterPolicy: Auto-inject imagePullSecrets into all pods
 # Automatically adds ghcr-pull-secret to all pods cluster-wide
