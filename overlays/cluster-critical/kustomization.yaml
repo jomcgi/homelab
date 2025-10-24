@@ -3,5 +3,7 @@ kind: Kustomization
 
 resources:
   - ./argocd
+  - ./argocd-image-updater
+  - ./kyverno
   - ./longhorn
   - ./signoz
