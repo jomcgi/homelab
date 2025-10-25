@@ -237,21 +237,69 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 	}
 
 	// Create tunnel via Cloudflare API
-	cfTunnel, _, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnelName)
+	cfTunnel, tunnelSecret, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnelName)
 	if err != nil {
-		log.Error(err, "Failed to create tunnel")
+		// Check if the error is because tunnel name already exists (code 1013)
+		if strings.Contains(err.Error(), "(1013)") || strings.Contains(err.Error(), "already have a tunnel with this name") {
+			log.Info("Tunnel name already exists, attempting to adopt existing tunnel", "tunnelName", tunnelName)
 
-		meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-			Type:    tunnelsv1.TypeDegraded,
-			Status:  metav1.ConditionTrue,
-			Reason:  tunnelsv1.ReasonAPIError,
-			Message: fmt.Sprintf("Failed to create tunnel: %v", err),
-		})
+			// List all tunnels to find the one with this name
+			tunnels, listErr := r.CFClient.ListTunnels(ctx, tunnel.Spec.AccountID)
+			if listErr != nil {
+				log.Error(listErr, "Failed to list tunnels for adoption")
+				meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
+					Type:    tunnelsv1.TypeDegraded,
+					Status:  metav1.ConditionTrue,
+					Reason:  tunnelsv1.ReasonAPIError,
+					Message: fmt.Sprintf("Failed to adopt tunnel: %v", listErr),
+				})
+				if err := r.Status().Update(ctx, tunnel); err != nil {
+					log.Error(err, "Failed to update tunnel status")
+				}
+				return r.handleAPIError(listErr)
+			}
 
-		if err := r.Status().Update(ctx, tunnel); err != nil {
-			log.Error(err, "Failed to update tunnel status")
+			// Find the tunnel with the matching name
+			var existingTunnel *cloudflare.Tunnel
+			for i := range tunnels {
+				if tunnels[i].Name == tunnelName {
+					existingTunnel = &tunnels[i]
+					break
+				}
+			}
+
+			if existingTunnel == nil {
+				log.Error(fmt.Errorf("tunnel not found"), "Tunnel name exists but not found in list", "tunnelName", tunnelName)
+				meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
+					Type:    tunnelsv1.TypeDegraded,
+					Status:  metav1.ConditionTrue,
+					Reason:  tunnelsv1.ReasonAPIError,
+					Message: fmt.Sprintf("Tunnel name exists but not found: %s", tunnelName),
+				})
+				if err := r.Status().Update(ctx, tunnel); err != nil {
+					log.Error(err, "Failed to update tunnel status")
+				}
+				return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+			}
+
+			log.Info("Successfully adopted existing tunnel", "tunnelName", tunnelName, "tunnelID", existingTunnel.ID)
+			cfTunnel = existingTunnel
+			// Note: We don't have the secret for an adopted tunnel, but it should already exist in the cluster
+			tunnelSecret = "" // Will need to retrieve from existing secret
+		} else {
+			// Different error, handle as before
+			log.Error(err, "Failed to create tunnel")
+			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
+				Type:    tunnelsv1.TypeDegraded,
+				Status:  metav1.ConditionTrue,
+				Reason:  tunnelsv1.ReasonAPIError,
+				Message: fmt.Sprintf("Failed to create tunnel: %v", err),
+			})
+			if err := r.Status().Update(ctx, tunnel); err != nil {
+				log.Error(err, "Failed to update tunnel status")
+			}
+			return r.handleAPIError(err)
 		}
-		return r.handleAPIError(err)
 	}
 
 	// Update status with tunnel ID
