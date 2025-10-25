@@ -91,3 +91,30 @@ readinessProbe:
 metrics:
   enabled: true
   address: "127.0.0.1:2000"
+
+# Envoy proxy sidecar for tracing and observability
+envoy:
+  enabled: false
+  image:
+    repository: envoyproxy/envoy
+    tag: "v1.31-latest"
+    pullPolicy: IfNotPresent
+  # Admin interface
+  admin:
+    port: 9901
+  # Proxy listener port
+  proxy:
+    port: 8000
+  # OpenTelemetry tracing configuration
+  tracing:
+    enabled: true
+    # SigNoz OTEL collector endpoint
+    otlpEndpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+    serviceName: "cloudflare-tunnel"
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
