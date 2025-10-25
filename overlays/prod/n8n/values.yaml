@@ -11,14 +11,20 @@ workflowSync:
     tag: "latest"  # TODO: Pin to specific version after first build
     pullPolicy: IfNotPresent
 
-  # Image pull secrets for private GHCR images
+  # Image pull secrets for private GHCR images (managed by 1Password)
   imagePullSecrets:
-    - name: prod-ghcr-pull-secret
+    - name: ghcr-pull-secret
+      onepassword:
+        type: onepassword
+        itemPath: "vaults/k8s-homelab/items/n8n-workflow-sync"
 
-  # API key secret (create via: kubectl create secret generic n8n-api-key --from-literal=api-key=YOUR_KEY -n n8n)
+  # API key secret (managed by 1Password)
   apiKeySecret:
     name: "n8n-api-key"
     key: "api-key"
+    type: onepassword
+    onepassword:
+      itemPath: "vaults/k8s-homelab/items/n8n-workflow-sync"
 
   # Workflow definitions
   workflows:

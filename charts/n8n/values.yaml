@@ -21,14 +21,31 @@ workflowSync:
 
   # Image pull secrets for private container registry
   imagePullSecrets: []
-  # Example:
+  # Example for manually created secret:
   # imagePullSecrets:
   #   - name: ghcr-pull-secret
+  # Example for 1Password-managed secret:
+  # imagePullSecrets:
+  #   - name: ghcr-pull-secret
+  #     onepassword:
+  #       type: onepassword
+  #       itemPath: "vaults/k8s-homelab/items/n8n-workflow-sync"
 
-  # API key secret reference
+  # API key secret configuration
   apiKeySecret:
     name: "n8n-api-key"
     key: "api-key"
+
+    # Secret type: "onepassword" (recommended) or "manual"
+    # When using "onepassword", a OnePasswordItem will be created
+    # When using "manual", you must create the secret yourself
+    type: "manual"
+
+    # OnePassword configuration (only used when type is "onepassword")
+    onepassword:
+      # Path to the 1Password item containing the api-key field
+      # Example: "vaults/k8s-homelab/items/n8n-workflow-sync"
+      itemPath: ""
 
   # Workflow definitions (managed as ConfigMaps)
   # Each workflow creates a ConfigMap named "n8n-workflow-{name}"
