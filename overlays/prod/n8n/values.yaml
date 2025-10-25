@@ -1,7 +1,48 @@
+# Enable workflow GitOps sync with Go syncer
+workflowSync:
+  enabled: true
+  managedSuffix: " [git-managed]"
+  managedTag: "gitops-managed"
+  logLevel: "info"
+
+  # Use specific image tag in production (update after CI/CD build)
+  image:
+    repository: ghcr.io/jomcgi/homelab/n8n-workflow-syncer
+    tag: "latest"  # TODO: Pin to specific version after first build
+    pullPolicy: IfNotPresent
+
+  # API key secret (create via: kubectl create secret generic n8n-api-key --from-literal=api-key=YOUR_KEY -n n8n)
+  apiKeySecret:
+    name: "n8n-api-key"
+    key: "api-key"
+
+  # Workflow ConfigMaps to sync
+  workflowConfigMaps:
+    - n8n-workflow-joe-phone-tracker
+
+  # OpenTelemetry tracing to SigNoz
+  telemetry:
+    enabled: true
+    otlpEndpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+
+  # Drift detection (re-sync every 30 minutes to catch manual changes)
+  driftDetection:
+    enabled: true
+    schedule: "*/30 * * * *"
+
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+
 n8n:
   main:
     config:
       WEBHOOK_URL: "http://n8n.jomcgi.dev"
+
     persistence:
       enabled: true
       type: dynamic
