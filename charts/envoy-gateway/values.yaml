@@ -1,0 +1,5 @@
+# Default values for envoy-gateway
+# This wraps the upstream gateway-helm chart with custom defaults
+# Cluster-specific overrides should go in overlays/<env>/envoy/values.yaml
+
+gateway-helm: {}

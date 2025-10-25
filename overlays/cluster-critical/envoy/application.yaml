@@ -6,17 +6,15 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: oci://docker.io/envoyproxy
-    chart: gateway-helm
-    targetRevision: v1.4.2
+    repoURL: https://github.com/jomcgi/homelab.git
+    targetRevision: HEAD
+    path: charts/envoy-gateway
     helm:
       releaseName: envoy-gateway
-      values: |
-        # Envoy Gateway configuration
-        config:
-          envoyGateway:
-            gateway:
-              controllerName: gateway.envoyproxy.io/gatewayclass-controller
+      valueFiles:
+        - values.yaml
+        - ../../overlays/cluster-critical/envoy/values.yaml
+      ignoreMissingValueFiles: true
   destination:
     server: https://kubernetes.default.svc
     namespace: envoy
