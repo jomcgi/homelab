@@ -24,6 +24,9 @@ ingress:
 # Enable Envoy proxy sidecar with tracing to SigNoz
 envoy:
   enabled: true
+  # Enable transparent proxy to intercept all outbound traffic
+  transparentProxy:
+    enabled: true
   tracing:
     enabled: true
     serviceName: "cloudflare-tunnel-ingress"

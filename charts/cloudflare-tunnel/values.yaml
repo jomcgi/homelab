@@ -105,6 +105,24 @@ envoy:
   # Proxy listener port
   proxy:
     port: 8000
+  # Transparent proxy for intercepting outbound traffic
+  transparentProxy:
+    enabled: false
+    # Port for transparent proxy listener (standard Istio port)
+    port: 15001
+    # Init container image with iptables
+    iptablesImage: "docker.io/istio/proxyv2:1.20.0"
+  # Envoy container security context
+  securityContext:
+    runAsUser: 65534
+    runAsNonRoot: true
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+      - ALL
+    seccompProfile:
+      type: RuntimeDefault
   # OpenTelemetry tracing configuration
   tracing:
     enabled: true
