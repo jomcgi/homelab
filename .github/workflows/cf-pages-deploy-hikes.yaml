@@ -18,7 +18,7 @@ concurrency:
 jobs:
   update-data:
     runs-on: homelab-runners
-    timeout-minutes: 5
+    timeout-minutes: 10
     name: Update Hike Data
     defaults:
       run:
