@@ -1,8 +1,4 @@
-# Cluster-specific values for envoy-gateway
-# These override the defaults in charts/envoy-gateway/values.yaml
-
 gateway-helm:
-  # Add cluster-specific configuration here
   config:
     envoyGateway:
       gateway:
