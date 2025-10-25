@@ -7,7 +7,7 @@ config:
     - name: ghcr
       prefix: ghcr.io
       api_url: https://ghcr.io
-      credentials: secret:argocd/argocd-image-updater-token#github_token
+      credentials: pullsecret:argocd/ghcr-docker-config
       default: true
 
 # Git write-back configuration
