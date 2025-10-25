@@ -72,15 +72,16 @@ affinity: {}
 
 # Application configuration
 config:
-  # Obsidian API connection settings
-  obsidian:
-    # URL of the Obsidian Local REST API
-    # Should point to the service running the Obsidian plugin
-    apiUrl: "http://obsidian-service:27123"
-    # API key for authenticating with Obsidian
-    # Stored in 1Password and synced via OnePasswordItem
-    apiKeySecretName: "obsidian-api-credentials"
-    apiKeySecretKey: "api-key"
+  # Obsidian API URL (via Cloudflare Tunnel)
+  obsidianApiUrl: "https://obsidian.jomcgi.dev"
+
+  # Cloudflare service token for bypassing Access authentication
+  # Cloudflare Access will inject Obsidian API credentials automatically
+  # Stored in 1Password and synced via OnePasswordItem
+  cloudflare:
+    secretName: "cloudflare-service-token"
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
 
   # Service settings
   service:
@@ -100,4 +101,4 @@ config:
 # 1Password secret management
 onePassword:
   enabled: true
-  itemPath: "vaults/homelab/items/obsidian-api"
+  itemPath: "vaults/homelab/items/cloudflare-service-token-obsidian"

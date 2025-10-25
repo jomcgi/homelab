@@ -15,18 +15,28 @@ This service acts as a smart proxy between n8n and Obsidian, providing:
 ## Architecture
 
 ```
-┌─────────┐         ┌────────────────────┐         ┌──────────────┐
-│   n8n   │────────>│ n8n-obsidian-api   │────────>│   Obsidian   │
-│Workflow │  HTTP   │   (This Service)   │  HTTP   │ REST API     │
-└─────────┘         └────────────────────┘         └──────────────┘
-                            │
-                            │ gRPC (OTLP)
-                            ▼
+┌─────────┐         ┌────────────────────┐         ┌──────────────────┐         ┌──────────────┐
+│   n8n   │────────>│ n8n-obsidian-api   │────────>│ Cloudflare       │────────>│   Obsidian   │
+│Workflow │  HTTP   │   (This Service)   │  HTTPS  │ Tunnel + Access  │  HTTP   │ REST API     │
+└─────────┘         └────────────────────┘         └──────────────────┘         └──────────────┘
+                            │                              │
+                            │                              │ Injects Obsidian
+                            │ gRPC (OTLP)                  │ API credentials
+                            ▼                              ▼
                     ┌────────────────┐
                     │  OpenTelemetry │
                     │    Collector   │
                     └────────────────┘
 ```
+
+### Authentication Flow
+
+1. **n8n → This Service**: Standard HTTP requests within cluster
+2. **This Service → Cloudflare**: Uses service token headers (`CF-Access-Client-Id`, `CF-Access-Client-Secret`)
+3. **Cloudflare Access**: Validates service token, injects Obsidian API credentials
+4. **Cloudflare → Obsidian**: Authenticated request with Obsidian API key
+
+This architecture means **we don't manage Obsidian API keys** - Cloudflare handles that for us!
 
 ### Why This Design?
 
@@ -36,6 +46,7 @@ Instead of having n8n directly interact with the Obsidian API:
 3. **Type safety** - Python's type system catches errors at dev time
 4. **Observability** - All operations traced automatically
 5. **Business logic** - Complex operations encapsulated in service
+6. **Leverage Cloudflare** - Authentication and credential injection handled by Cloudflare Access
 
 ## API Endpoints
 
@@ -130,8 +141,9 @@ DELETE /notes/n8n/temp/scratch.md
 
 | Variable | Description | Default | Required |
 |----------|-------------|---------|----------|
-| `OBSIDIAN_API_URL` | URL of Obsidian Local REST API | `http://127.0.0.1:27123` | Yes |
-| `OBSIDIAN_API_KEY` | API key for Obsidian authentication | - | Yes |
+| `OBSIDIAN_API_URL` | URL of Obsidian API via Cloudflare Tunnel | `https://obsidian.jomcgi.dev` | Yes |
+| `CLOUDFLARE_CLIENT_ID` | Cloudflare service token client ID | - | Yes |
+| `CLOUDFLARE_CLIENT_SECRET` | Cloudflare service token client secret | - | Yes |
 | `SERVICE_HOST` | Host to bind service to | `0.0.0.0` | No |
 | `SERVICE_PORT` | Port to listen on | `8080` | No |
 | `LOG_LEVEL` | Logging level | `INFO` | No |
@@ -147,33 +159,44 @@ Key settings:
 
 ```yaml
 config:
-  obsidian:
-    apiUrl: "http://obsidian-service:27123"
-    apiKeySecretName: "obsidian-api-credentials"
-    apiKeySecretKey: "api-key"
+  # Obsidian API URL via Cloudflare Tunnel
+  obsidianApiUrl: "https://obsidian.jomcgi.dev"
+
+  # Cloudflare service token credentials
+  cloudflare:
+    secretName: "cloudflare-service-token"
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
 
   opentelemetry:
     enabled: true
     otlpEndpoint: "http://signoz-otel-collector:4317"
 
+# 1Password integration for Cloudflare service token
 onePassword:
   enabled: true
-  itemPath: "vaults/homelab/items/obsidian-api"
+  itemPath: "vaults/homelab/items/cloudflare-service-token-obsidian"
 ```
 
 ## Deployment
 
 ### Prerequisites
 
-1. **Obsidian with Local REST API plugin**
-   - Install [Obsidian Local REST API](https://github.com/coddingtonbear/obsidian-local-rest-api) plugin
-   - Configure and note the API key
+1. **Obsidian with Local REST API plugin** (already configured)
+   - Running at `obsidian.jomcgi.dev` via Cloudflare Tunnel
+   - Cloudflare Access configured to inject Obsidian API credentials
 
-2. **1Password Operator** (for secrets management)
-   - Create item in 1Password: `vaults/homelab/items/obsidian-api`
-   - Add field: `api-key` with Obsidian API key
+2. **Cloudflare Service Token** (for bypassing Access)
+   - Create a service token in Cloudflare Access for the Obsidian application
+   - Note the `Client ID` and `Client Secret`
 
-3. **ArgoCD** (for GitOps deployment)
+3. **1Password Operator** (for secrets management)
+   - Create item in 1Password: `vaults/homelab/items/cloudflare-service-token-obsidian`
+   - Add fields:
+     - `client-id`: Cloudflare service token client ID
+     - `client-secret`: Cloudflare service token client secret
+
+4. **ArgoCD** (for GitOps deployment)
 
 ### Deploy to Kubernetes
 
@@ -203,10 +226,11 @@ The service is deployed via ArgoCD using GitOps:
 # Build Docker image
 docker build -t n8n-obsidian-api:latest services/n8n-obsidian-api/
 
-# Run locally
+# Run locally (pointing to production Obsidian via Cloudflare)
 docker run -p 8080:8080 \
-  -e OBSIDIAN_API_URL=http://host.docker.internal:27123 \
-  -e OBSIDIAN_API_KEY=your-api-key \
+  -e OBSIDIAN_API_URL=https://obsidian.jomcgi.dev \
+  -e CLOUDFLARE_CLIENT_ID=your-client-id \
+  -e CLOUDFLARE_CLIENT_SECRET=your-client-secret \
   n8n-obsidian-api:latest
 ```
 
@@ -225,8 +249,9 @@ source venv/bin/activate  # or `venv\Scripts\activate` on Windows
 pip install -e ".[dev]"
 
 # Set environment variables
-export OBSIDIAN_API_URL="http://localhost:27123"
-export OBSIDIAN_API_KEY="your-api-key"
+export OBSIDIAN_API_URL="https://obsidian.jomcgi.dev"
+export CLOUDFLARE_CLIENT_ID="your-client-id"
+export CLOUDFLARE_CLIENT_SECRET="your-client-secret"
 
 # Run development server
 uvicorn app.main:app --reload --port 8080
@@ -351,8 +376,9 @@ kubectl logs -n n8n -l app.kubernetes.io/name=n8n-obsidian-api
 ```
 
 Common issues:
-- Missing `OBSIDIAN_API_KEY` - Check 1Password secret sync
-- Cannot reach Obsidian API - Verify `OBSIDIAN_API_URL`
+- Missing Cloudflare credentials - Check 1Password secret sync
+- Cannot reach Obsidian API - Verify `OBSIDIAN_API_URL` points to `https://obsidian.jomcgi.dev`
+- Cloudflare Access errors - Verify service token is valid
 
 ### Path restriction errors
 
@@ -368,12 +394,15 @@ Error: `PathRestrictionError: Write operations only allowed in /n8n/`
 
 ### Obsidian API connection fails
 
-1. **Check Obsidian is running** with Local REST API plugin enabled
-2. **Verify API URL** is correct in Helm values
+1. **Check Cloudflare service token** is valid and not expired
+2. **Verify service token** has access to the Obsidian application in Cloudflare Access
 3. **Test connection** manually:
    ```bash
-   curl http://obsidian-service:27123/ -H "Authorization: Bearer YOUR_KEY"
+   curl https://obsidian.jomcgi.dev/ \
+     -H "CF-Access-Client-Id: YOUR_CLIENT_ID" \
+     -H "CF-Access-Client-Secret: YOUR_CLIENT_SECRET"
    ```
+4. **Check Cloudflare Access logs** for authentication failures
 
 ## API Documentation
 

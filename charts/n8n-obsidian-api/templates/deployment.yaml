@@ -42,11 +42,16 @@ spec:
             configMapKeyRef:
               name: {{ include "n8n-obsidian-api.fullname" . }}
               key: obsidian-api-url
-        - name: OBSIDIAN_API_KEY
+        - name: CLOUDFLARE_CLIENT_ID
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.config.obsidian.apiKeySecretName }}
-              key: {{ .Values.config.obsidian.apiKeySecretKey }}
+              name: {{ .Values.config.cloudflare.secretName }}
+              key: {{ .Values.config.cloudflare.clientIdKey }}
+        - name: CLOUDFLARE_CLIENT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.config.cloudflare.secretName }}
+              key: {{ .Values.config.cloudflare.clientSecretKey }}
         - name: SERVICE_HOST
           valueFrom:
             configMapKeyRef:

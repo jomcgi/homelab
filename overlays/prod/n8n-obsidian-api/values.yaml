@@ -1,12 +1,14 @@
 # Production overrides for n8n-obsidian-api
 
 config:
-  obsidian:
-    # TODO: Update with actual Obsidian service URL
-    # This should point to wherever the Obsidian Local REST API is running
-    apiUrl: "http://obsidian-service.default:27123"
-    apiKeySecretName: "obsidian-api-credentials"
-    apiKeySecretKey: "api-key"
+  # Obsidian API URL via Cloudflare Tunnel
+  obsidianApiUrl: "https://obsidian.jomcgi.dev"
+
+  # Cloudflare service token for bypassing Access
+  cloudflare:
+    secretName: "cloudflare-service-token"
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
 
   opentelemetry:
     enabled: true
@@ -16,7 +18,7 @@ config:
     otlpEndpoint: ""
 
 # 1Password integration
+# Create this item with fields: client-id, client-secret
 onePassword:
   enabled: true
-  # TODO: Create this item in 1Password vault
-  itemPath: "vaults/homelab/items/obsidian-api"
+  itemPath: "vaults/homelab/items/cloudflare-service-token-obsidian"

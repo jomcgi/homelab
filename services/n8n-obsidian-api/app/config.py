@@ -12,9 +12,13 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
-    # Obsidian API settings
-    obsidian_api_url: str = "http://127.0.0.1:27123"
-    obsidian_api_key: str
+    # Obsidian API settings (via Cloudflare Tunnel)
+    obsidian_api_url: str = "https://obsidian.jomcgi.dev"
+
+    # Cloudflare service token for bypassing Access
+    # (Cloudflare Access injects Obsidian API credentials automatically)
+    cloudflare_client_id: str
+    cloudflare_client_secret: str
 
     # Service settings
     service_host: str = "0.0.0.0"

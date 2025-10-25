@@ -19,7 +19,8 @@ async def get_obsidian_client() -> ObsidianClient:
     """Dependency that provides an Obsidian API client."""
     async with ObsidianClient(
         base_url=settings.obsidian_api_url,
-        api_key=settings.obsidian_api_key,
+        cloudflare_client_id=settings.cloudflare_client_id,
+        cloudflare_client_secret=settings.cloudflare_client_secret,
     ) as client:
         yield client
 

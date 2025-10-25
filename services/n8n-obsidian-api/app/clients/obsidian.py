@@ -21,7 +21,10 @@ class PathRestrictionError(Exception):
 
 class ObsidianClient:
     """
-    Type-safe client for Obsidian Local REST API.
+    Type-safe client for Obsidian Local REST API via Cloudflare Tunnel.
+
+    Uses Cloudflare service tokens to bypass Cloudflare Access authentication.
+    Cloudflare Access then injects Obsidian API credentials automatically.
 
     Enforces path restrictions:
     - Write operations (PUT, POST, PATCH, DELETE) only allowed in /n8n/
@@ -32,21 +35,30 @@ class ObsidianClient:
     CONTENT_TYPE_JSON = "application/vnd.olrapi.note+json"
     CONTENT_TYPE_MARKDOWN = "text/markdown"
 
-    def __init__(self, base_url: str, api_key: str, timeout: float = 30.0):
+    def __init__(
+        self,
+        base_url: str,
+        cloudflare_client_id: str,
+        cloudflare_client_secret: str,
+        timeout: float = 30.0,
+    ):
         """
         Initialize Obsidian API client.
 
         Args:
-            base_url: Base URL of Obsidian Local REST API (e.g., "http://127.0.0.1:27123")
-            api_key: Bearer token for authentication
+            base_url: Base URL of Obsidian API via Cloudflare Tunnel (e.g., "https://obsidian.jomcgi.dev")
+            cloudflare_client_id: Cloudflare service token client ID
+            cloudflare_client_secret: Cloudflare service token client secret
             timeout: Request timeout in seconds
         """
         self.base_url = base_url.rstrip("/")
         self._client = httpx.AsyncClient(
             base_url=self.base_url,
-            headers={"Authorization": f"Bearer {api_key}"},
+            headers={
+                "CF-Access-Client-Id": cloudflare_client_id,
+                "CF-Access-Client-Secret": cloudflare_client_secret,
+            },
             timeout=timeout,
-            verify=False,  # Obsidian uses self-signed certs
         )
 
     async def __aenter__(self):

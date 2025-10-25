@@ -5,7 +5,7 @@ metadata:
   labels:
     {{- include "n8n-obsidian-api.labels" . | nindent 4 }}
 data:
-  obsidian-api-url: {{ .Values.config.obsidian.apiUrl | quote }}
+  obsidian-api-url: {{ .Values.config.obsidianApiUrl | quote }}
   service-host: {{ .Values.config.service.host | quote }}
   service-port: {{ .Values.config.service.port | quote }}
   log-level: {{ .Values.config.service.logLevel | quote }}
