@@ -29,11 +29,69 @@ data:
             "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
         filter_chains:
         - filters:
-          - name: envoy.filters.network.tcp_proxy
+          - name: envoy.filters.network.http_connection_manager
             typed_config:
-              "@type": type.googleapis.com/envoy.extensions.filters.network.tcp_proxy.v3.TcpProxy
-              stat_prefix: transparent_proxy_tcp
-              cluster: original_dst_cluster
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: transparent_proxy_http
+              codec_type: AUTO
+              {{- if .Values.envoy.tracing.enabled }}
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: {{ .Values.envoy.tracing.serviceName }}
+                custom_tags:
+                - tag: destination.service
+                  metadata:
+                    kind:
+                      request: {}
+                    metadata_key:
+                      key: envoy.lb
+                      path:
+                      - key: destination_host
+                - tag: destination.path
+                  metadata:
+                    kind:
+                      request: {}
+                    metadata_key:
+                      key: envoy.lb
+                      path:
+                      - key: destination_path
+              {{- end }}
+              route_config:
+                name: transparent_route
+                virtual_hosts:
+                - name: passthrough
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: original_dst_cluster
+                      timeout: 0s
+              http_filters:
+              - name: envoy.filters.http.header_to_metadata
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config
+                  request_rules:
+                  - header: ":authority"
+                    on_header_present:
+                      metadata_namespace: envoy.lb
+                      key: destination_host
+                      type: STRING
+                  - header: ":path"
+                    on_header_present:
+                      metadata_namespace: envoy.lb
+                      key: destination_path
+                      type: STRING
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
       {{- end }}
       # Metrics listener (existing)
       - name: cloudflare_metrics_listener
