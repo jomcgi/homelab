@@ -32,6 +32,9 @@ workflowSync:
       definition: |
         {
           "name": "Joe Phone Tracker",
+          "settings": {
+            "executionOrder": "v1"
+          },
           "nodes": [
             {
               "parameters": {
