@@ -35,7 +35,10 @@ External Ingress        Applications             Observability
 
 ```
 charts/                     # Helm charts
-└── cloudflare-tunnel/      # Main tunnel chart
+├── cloudflare-tunnel/      # Cloudflare tunnel chart
+└── n8n/                    # N8N workflow automation
+    ├── WORKFLOWS.md        # Workflow GitOps documentation
+    └── templates/          # Helm templates
 
 clusters/                   # Cluster entry points
 └── homelab/                # Production cluster
@@ -62,10 +65,16 @@ overlays/                   # Environment-based deployments
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   └── gh-arc-controller/
+│   ├── gh-arc-controller/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   └── values.yaml
+│   └── n8n/
 │       ├── application.yaml
 │       ├── kustomization.yaml
-│       └── values.yaml
+│       ├── values.yaml
+│       └── workflows/       # Environment-specific workflow ConfigMaps
+│           └── *.yaml       # Workflow definitions
 └── dev/                    # Development services
     ├── kustomization.yaml
     └── obsidian-automation/
@@ -160,6 +169,14 @@ We test **actual behavior**, not implementation details:
 - **Automatic secret synchronization** to Kubernetes secrets
 - **Bootstrapped manually** during cluster setup
 
+#### N8N Workflow Automation
+- **Workflow automation platform** for integrations and automations
+- **GitOps-managed workflows** via ConfigMaps and initContainer sync
+- **Persistent storage** via Longhorn (15Gi)
+- **API-based deployment** with name-based matching and tagging
+- **Ingress**: `n8n.jomcgi.dev` via Cloudflare Tunnel
+- **Deployed via**: ArgoCD Application with Helm chart
+
 ### Static Websites
 
 #### Hikes Route Finder (hikes.jomcgi.dev)
@@ -235,6 +252,79 @@ Use the Claude Code spec workflow tool for structured development:
    - `helm template <service> charts/<service>/ --namespace <namespace>` to verify rendering
    - Commit and push to Git
    - ArgoCD automatically discovers and syncs the new application to the cluster
+
+### Managing N8N Workflows
+
+N8N workflows are managed as Kubernetes ConfigMaps and automatically synced to n8n via an initContainer.
+
+#### Adding a New Workflow
+
+1. **Export from n8n UI**: Download workflow as JSON from n8n
+2. **Clean instance data**:
+   ```bash
+   cat workflow.json | jq 'del(.id) |
+     walk(if type == "object" then del(.webhookId) else . end) |
+     del(.meta.instanceId)' > cleaned-workflow.json
+   ```
+3. **Create ConfigMap** in `overlays/prod/n8n/workflows/<name>.yaml`:
+   ```yaml
+   apiVersion: v1
+   kind: ConfigMap
+   metadata:
+     name: n8n-workflow-<name>
+     namespace: n8n
+     labels:
+       app.kubernetes.io/name: n8n
+       app.kubernetes.io/component: workflow
+       workflow-sync: "enabled"
+   data:
+     <name>.json: |
+       # Paste cleaned workflow JSON here (indented 4 spaces)
+   ```
+4. **Add to kustomization**: Update `overlays/prod/n8n/kustomization.yaml`:
+   ```yaml
+   resources:
+     - ./workflows/<name>.yaml
+   ```
+5. **Add to Helm values**: Update `overlays/prod/n8n/values.yaml` projected volume:
+   ```yaml
+   extraVolumes:
+     - name: workflows
+       projected:
+         sources:
+           - configMap:
+               name: n8n-workflow-<name>
+   ```
+6. **Commit and push**: ArgoCD syncs, restart n8n pod to import workflow
+
+#### Workflow Naming Convention
+
+- **In Git**: `"name": "My Workflow"`
+- **In n8n**: `My Workflow [git-managed]`
+- **Tag**: Automatically tagged with `gitops-managed`
+
+This makes it clear which workflows are managed by Git vs created in the UI.
+
+#### Updating a Workflow
+
+1. Edit the workflow JSON in the ConfigMap
+2. Commit and push changes
+3. Restart n8n pod: `kubectl rollout restart deployment/n8n -n n8n`
+
+The initContainer will update the workflow on startup (matched by name).
+
+#### First-Time Setup
+
+Generate n8n API key and create secret:
+```bash
+# 1. Open n8n UI: Settings > n8n API > Create API key
+# 2. Create secret
+kubectl create secret generic n8n-api-key \
+  --from-literal=api-key=YOUR_KEY \
+  --namespace=n8n
+```
+
+See `charts/n8n/WORKFLOWS.md` for complete documentation.
 
 ### Security Review Checklist
 - [ ] Service runs as non-root user
