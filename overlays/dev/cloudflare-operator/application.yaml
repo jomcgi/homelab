@@ -5,7 +5,6 @@ metadata:
   namespace: argocd
   annotations:
     # ArgoCD Image Updater configuration
-    # Automatically updates cloudflare-operator to newest image from GitHub Container Registry
     argocd-image-updater.argoproj.io/image-list: operator=ghcr.io/jomcgi/cloudflare-operator
     argocd-image-updater.argoproj.io/operator.update-strategy: newest-build
     argocd-image-updater.argoproj.io/operator.allow-tags: regexp:^sha-[0-9a-f]{7}$
