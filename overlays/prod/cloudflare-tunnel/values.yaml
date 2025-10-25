@@ -20,3 +20,10 @@ ingress:
       service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
       service: http://signoz.signoz.svc.cluster.local:8080
+
+# Enable Envoy proxy sidecar with tracing to SigNoz
+envoy:
+  enabled: true
+  tracing:
+    enabled: true
+    serviceName: "cloudflare-tunnel-ingress"
