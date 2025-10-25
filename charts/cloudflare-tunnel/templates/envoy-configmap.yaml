@@ -59,7 +59,7 @@ data:
                   "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
 
       clusters:
-      {{- $metricsParts := splitn ":" 2 .Values.metrics.address }}
+      {{- $metricsParts := splitList ":" .Values.metrics.address }}
       {{- $metricsHost := index $metricsParts 0 }}
       {{- $metricsPort := index $metricsParts 1 | default 2000 }}
       - name: cloudflare_metrics
@@ -76,7 +76,7 @@ data:
                     address: {{ $metricsHost }}
                     port_value: {{ $metricsPort | int }}
       {{- if .Values.envoy.tracing.enabled }}
-      {{- $otlpParts := splitn ":" 2 .Values.envoy.tracing.otlpEndpoint }}
+      {{- $otlpParts := splitList ":" .Values.envoy.tracing.otlpEndpoint }}
       {{- $otlpHost := index $otlpParts 0 }}
       {{- $otlpPort := index $otlpParts 1 | default 4317 }}
       - name: otel_collector
