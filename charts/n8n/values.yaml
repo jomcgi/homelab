@@ -19,6 +19,12 @@ workflowSync:
     tag: "latest"  # Override with specific version in production
     pullPolicy: IfNotPresent
 
+  # Image pull secrets for private container registry
+  imagePullSecrets: []
+  # Example:
+  # imagePullSecrets:
+  #   - name: ghcr-pull-secret
+
   # API key secret reference
   apiKeySecret:
     name: "n8n-api-key"
