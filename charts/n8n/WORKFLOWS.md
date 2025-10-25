@@ -225,19 +225,67 @@ ArgoCD will automatically:
 
 ## Setup Requirements
 
-### 1. Generate n8n API Key
+### 1. Create 1Password Item
+
+The n8n workflow sync requires a 1Password item at `vaults/k8s-homelab/items/n8n-workflow-sync` with the following fields:
+
+#### Required Fields:
+
+1. **api-key** (or "API Key"):
+   - Type: Password or Text
+   - Value: Your n8n API key (generated from n8n UI)
+   - Note: Field name will be transformed to `api-key` in the Kubernetes secret
+
+2. **.dockerconfigjson**:
+   - Type: File
+   - Value: Docker config JSON for GitHub Container Registry authentication
+   - Format:
+     ```json
+     {
+       "auths": {
+         "ghcr.io": {
+           "auth": "BASE64_ENCODED_USERNAME:TOKEN"
+         }
+       }
+     }
+     ```
+   - Used by: imagePullSecrets to pull the private workflow syncer image
+
+#### Generate n8n API Key
+
 ```bash
 # 1. Open n8n UI at n8n.jomcgi.dev
 # 2. Go to Settings > n8n API
 # 3. Click "Create an API key"
 # 4. Copy the generated key
+# 5. Add it to the 1Password item as "API Key" or "api-key" field
 ```
 
-### 2. Create Kubernetes Secret
+#### Field Name Transformation Rules
+
+The 1Password operator transforms field names to valid Kubernetes secret keys:
+- Whitespace → dash (`-`)
+- Lowercase conversion
+- Invalid characters removed
+
+Examples:
+- "API Key" → "api-key"
+- "api-key" → "api-key"
+- "n8n API Key" → "n8n-api-key"
+
+### 2. Verify 1Password Operator Created Secrets
+
+The secrets are automatically created by the 1Password operator from the OnePasswordItem CRDs:
+
 ```bash
-kubectl create secret generic n8n-api-key \
-  --from-literal=api-key=YOUR_API_KEY_HERE \
-  --namespace=n8n
+# Check if secrets exist
+kubectl get onepassworditems -n n8n
+kubectl get secrets -n n8n n8n-api-key
+kubectl get secrets -n n8n ghcr-pull-secret
+
+# Verify secret keys
+kubectl get secret n8n-api-key -n n8n -o jsonpath='{.data}' | jq 'keys'
+# Should output: ["api-key"]
 ```
 
 ### 3. Verify Sync
