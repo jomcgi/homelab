@@ -1,0 +1,76 @@
+{{- if .Values.workflowSync.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "n8n.fullname" . }}-workflow-sync-{{ .Release.Revision }}
+  labels:
+    {{- include "n8n.labels" . | nindent 4 }}
+    app.kubernetes.io/component: workflow-sync
+  annotations:
+    # ArgoCD PostSync hook - runs after successful sync
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "n8n.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: workflow-sync
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: {{ include "n8n.fullname" . }}
+      containers:
+        - name: workflow-sync
+          image: {{ .Values.workflowSync.image.repository }}:{{ .Values.workflowSync.image.tag | default "latest" }}
+          imagePullPolicy: {{ .Values.workflowSync.image.pullPolicy | default "IfNotPresent" }}
+          env:
+            - name: N8N_URL
+              value: "http://{{ include "n8n.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:80"
+            - name: N8N_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.workflowSync.apiKeySecret.name | default "n8n-api-key" }}
+                  key: {{ .Values.workflowSync.apiKeySecret.key | default "api-key" }}
+            - name: WORKFLOW_DIR
+              value: "/workflows"
+            - name: MANAGED_SUFFIX
+              value: {{ .Values.workflowSync.managedSuffix | quote }}
+            - name: MANAGED_TAG
+              value: {{ .Values.workflowSync.managedTag | quote }}
+            - name: LOG_LEVEL
+              value: {{ .Values.workflowSync.logLevel | default "info" | quote }}
+            {{- if .Values.workflowSync.telemetry.enabled }}
+            - name: ENABLE_TELEMETRY
+              value: "true"
+            - name: OTLP_ENDPOINT
+              value: {{ .Values.workflowSync.telemetry.otlpEndpoint | quote }}
+            {{- else }}
+            - name: ENABLE_TELEMETRY
+              value: "false"
+            {{- end }}
+          volumeMounts:
+            - name: workflows
+              mountPath: /workflows
+              readOnly: true
+          resources:
+            {{- toYaml .Values.workflowSync.resources | nindent 12 }}
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 65532
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            seccompProfile:
+              type: RuntimeDefault
+      volumes:
+        - name: workflows
+          projected:
+            sources:
+              {{- range .Values.workflowSync.workflowConfigMaps }}
+              - configMap:
+                  name: {{ . }}
+              {{- end }}
+{{- end }}
