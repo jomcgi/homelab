@@ -59,24 +59,6 @@ spec:
         resources:
           {{- toYaml . | nindent 10 }}
         {{- end }}
-        livenessProbe:
-          httpGet:
-            path: /ready
-            port: {{ .Values.envoy.admin.port }}
-            scheme: HTTP
-            host: 127.0.0.1
-          initialDelaySeconds: 10
-          periodSeconds: 10
-          timeoutSeconds: 5
-        readinessProbe:
-          httpGet:
-            path: /ready
-            port: {{ .Values.envoy.admin.port }}
-            scheme: HTTP
-            host: 127.0.0.1
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 3
       {{- end }}
       - name: cloudflared
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
