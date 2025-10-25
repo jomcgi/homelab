@@ -1,4 +1,4 @@
-# Production overrides for n8n-obsidian-api
+# Development overrides for n8n-obsidian-api
 
 config:
   # Obsidian API URL via Cloudflare Tunnel
