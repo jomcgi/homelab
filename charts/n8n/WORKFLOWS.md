@@ -232,9 +232,11 @@ The n8n workflow sync requires a 1Password item at `vaults/k8s-homelab/items/n8n
 #### Required Fields:
 
 1. **api-key** (or "API Key"):
+   - **IMPORTANT**: Field must be named exactly `api-key` or `API Key` (NOT `n8n-api-key`)
    - Type: Password or Text
    - Value: Your n8n API key (generated from n8n UI)
-   - Note: Field name will be transformed to `api-key` in the Kubernetes secret
+   - Note: "API Key" will be transformed to `api-key` in the Kubernetes secret
+   - The application expects the secret key to be `api-key`, so the 1Password field name matters!
 
 2. **.dockerconfigjson**:
    - Type: File
@@ -325,6 +327,36 @@ If someone manually edits a workflow in the n8n UI, the CronJob will:
 4. Emit metrics for alerting
 
 ## Troubleshooting
+
+### Error: secret "n8n-api-key" not found
+
+This error occurs when the 1Password operator hasn't created the secret. Check:
+
+1. **Verify 1Password item exists**:
+   - Path: `vaults/k8s-homelab/items/n8n-workflow-sync`
+   - Must contain field named `api-key` or `API Key` (NOT `n8n-api-key`)
+   - Must contain file field `.dockerconfigjson`
+
+2. **Check 1Password operator is running**:
+   ```bash
+   kubectl get pods -n onepassword-operator
+   ```
+
+3. **Check OnePasswordItem status**:
+   ```bash
+   kubectl get onepassworditems -n n8n
+   kubectl describe onepassworditem n8n-api-key -n n8n
+   ```
+   Look for errors in the Events section.
+
+4. **Verify secret was created**:
+   ```bash
+   kubectl get secret n8n-api-key -n n8n
+   kubectl get secret n8n-api-key -n n8n -o jsonpath='{.data}' | jq 'keys'
+   ```
+   Should output: `["api-key"]`
+
+5. **Common fix**: Rename the 1Password field from `n8n-api-key` to `api-key` or `API Key`
 
 ### PostSync Job Failed
 ```bash
