@@ -43,6 +43,8 @@ spec:
         - name: envoy-config
           mountPath: /etc/envoy
           readOnly: true
+        - name: envoy-tmp
+          mountPath: /tmp
         securityContext:
           readOnlyRootFilesystem: true
           allowPrivilegeEscalation: false
@@ -143,6 +145,10 @@ spec:
           items:
           - key: envoy.yaml
             path: envoy.yaml
+      - name: envoy-tmp
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
