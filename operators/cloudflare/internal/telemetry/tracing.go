@@ -28,7 +28,6 @@ import (
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
-	semconv "go.opentelemetry.io/otel/semconv/v1.27.0"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -93,13 +92,13 @@ func InitializeTracing(ctx context.Context) (*sdktrace.TracerProvider, error) {
 		return nil, fmt.Errorf("failed to create OTLP exporter: %w", err)
 	}
 
-	// Create resource with service information
+	// Create resource with service information using schemaless attributes
+	// to avoid schema version conflicts between dependencies
 	res, err := resource.Merge(
 		resource.Default(),
-		resource.NewWithAttributes(
-			semconv.SchemaURL,
-			semconv.ServiceName(serviceName),
-			semconv.ServiceVersion(serviceVersion),
+		resource.NewSchemaless(
+			attribute.String("service.name", serviceName),
+			attribute.String("service.version", serviceVersion),
 			attribute.String("k8s.operator.type", "custom-controller"),
 			attribute.String("k8s.operator.name", "cloudflare-operator"),
 		),
