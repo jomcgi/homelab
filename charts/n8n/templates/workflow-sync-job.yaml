@@ -69,8 +69,8 @@ spec:
         - name: workflows
           projected:
             sources:
-              {{- range .Values.workflowSync.workflowConfigMaps }}
+              {{- range .Values.workflowSync.workflows }}
               - configMap:
-                  name: {{ . }}
+                  name: n8n-workflow-{{ .name }}
               {{- end }}
 {{- end }}
