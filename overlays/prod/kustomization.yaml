@@ -8,3 +8,4 @@ resources:
   - ./gh-arc-controller
   - ./gh-arc-runners
   - ./n8n
+  - ./n8n-obsidian-api

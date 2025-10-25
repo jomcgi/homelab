@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "n8n-obsidian-api.fullname" . }}
+  labels:
+    {{- include "n8n-obsidian-api.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "n8n-obsidian-api.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "n8n-obsidian-api.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "n8n-obsidian-api.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.config.service.port }}
+          protocol: TCP
+        env:
+        - name: OBSIDIAN_API_URL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: obsidian-api-url
+        - name: OBSIDIAN_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.config.obsidian.apiKeySecretName }}
+              key: {{ .Values.config.obsidian.apiKeySecretKey }}
+        - name: SERVICE_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: service-host
+        - name: SERVICE_PORT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: service-port
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: log-level
+        - name: OTEL_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: otel-enabled
+        - name: OTEL_SERVICE_NAME
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: otel-service-name
+        {{- if .Values.config.opentelemetry.otlpEndpoint }}
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "n8n-obsidian-api.fullname" . }}
+              key: otel-otlp-endpoint
+        {{- end }}
+        livenessProbe:
+          {{- toYaml .Values.livenessProbe | nindent 10 }}
+        readinessProbe:
+          {{- toYaml .Values.readinessProbe | nindent 10 }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

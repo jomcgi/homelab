@@ -1,0 +1,265 @@
+"""Type-safe client for Obsidian Local REST API with path restrictions."""
+
+import logging
+from pathlib import Path
+from typing import Any
+
+import httpx
+from opentelemetry import trace
+
+from app.models import NoteJson, PatchOperation, PatchTargetType
+
+logger = logging.getLogger(__name__)
+tracer = trace.get_tracer(__name__)
+
+
+class PathRestrictionError(Exception):
+    """Raised when attempting to write outside allowed paths."""
+
+    pass
+
+
+class ObsidianClient:
+    """
+    Type-safe client for Obsidian Local REST API.
+
+    Enforces path restrictions:
+    - Write operations (PUT, POST, PATCH, DELETE) only allowed in /n8n/
+    - Read operations (GET) allowed anywhere in the vault
+    """
+
+    WRITE_ALLOWED_PREFIX = "n8n/"
+    CONTENT_TYPE_JSON = "application/vnd.olrapi.note+json"
+    CONTENT_TYPE_MARKDOWN = "text/markdown"
+
+    def __init__(self, base_url: str, api_key: str, timeout: float = 30.0):
+        """
+        Initialize Obsidian API client.
+
+        Args:
+            base_url: Base URL of Obsidian Local REST API (e.g., "http://127.0.0.1:27123")
+            api_key: Bearer token for authentication
+            timeout: Request timeout in seconds
+        """
+        self.base_url = base_url.rstrip("/")
+        self._client = httpx.AsyncClient(
+            base_url=self.base_url,
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=timeout,
+            verify=False,  # Obsidian uses self-signed certs
+        )
+
+    async def __aenter__(self):
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        """Async context manager exit."""
+        await self.close()
+
+    async def close(self):
+        """Close the HTTP client."""
+        await self._client.aclose()
+
+    def _validate_write_path(self, path: str) -> None:
+        """
+        Validate that a path is allowed for write operations.
+
+        Args:
+            path: File path relative to vault root
+
+        Raises:
+            PathRestrictionError: If path is not in allowed write directory
+        """
+        # Normalize the path
+        normalized = Path(path).as_posix()
+
+        # Remove leading slashes
+        normalized = normalized.lstrip("/")
+
+        if not normalized.startswith(self.WRITE_ALLOWED_PREFIX):
+            raise PathRestrictionError(
+                f"Write operations only allowed in /{self.WRITE_ALLOWED_PREFIX} "
+                f"(attempted: {path})"
+            )
+
+    @tracer.start_as_current_span("obsidian.get_note")
+    async def get_note(self, path: str, as_json: bool = True) -> NoteJson | str:
+        """
+        Read a note from the vault.
+
+        Args:
+            path: Path to note relative to vault root
+            as_json: If True, return structured NoteJson; if False, return raw markdown
+
+        Returns:
+            NoteJson object if as_json=True, else markdown string
+
+        Raises:
+            httpx.HTTPStatusError: If note doesn't exist or other API error
+        """
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.path", path)
+        span.set_attribute("obsidian.operation", "read")
+
+        headers = {}
+        if as_json:
+            headers["Accept"] = self.CONTENT_TYPE_JSON
+
+        response = await self._client.get(f"/vault/{path}", headers=headers)
+        response.raise_for_status()
+
+        if as_json:
+            return NoteJson(**response.json())
+        return response.text
+
+    @tracer.start_as_current_span("obsidian.create_or_update_note")
+    async def create_or_update_note(self, path: str, content: str) -> None:
+        """
+        Create a new note or update an existing one.
+
+        Args:
+            path: Path to note relative to vault root (must be in /n8n/)
+            content: Markdown content
+
+        Raises:
+            PathRestrictionError: If path is not in /n8n/
+            httpx.HTTPStatusError: If API request fails
+        """
+        self._validate_write_path(path)
+
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.path", path)
+        span.set_attribute("obsidian.operation", "create_or_update")
+
+        response = await self._client.put(
+            f"/vault/{path}",
+            content=content,
+            headers={"Content-Type": self.CONTENT_TYPE_MARKDOWN},
+        )
+        response.raise_for_status()
+
+    @tracer.start_as_current_span("obsidian.append_to_note")
+    async def append_to_note(self, path: str, content: str) -> None:
+        """
+        Append content to an existing note or create if it doesn't exist.
+
+        Args:
+            path: Path to note relative to vault root (must be in /n8n/)
+            content: Markdown content to append
+
+        Raises:
+            PathRestrictionError: If path is not in /n8n/
+            httpx.HTTPStatusError: If API request fails
+        """
+        self._validate_write_path(path)
+
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.path", path)
+        span.set_attribute("obsidian.operation", "append")
+
+        response = await self._client.post(
+            f"/vault/{path}",
+            content=content,
+            headers={"Content-Type": self.CONTENT_TYPE_MARKDOWN},
+        )
+        response.raise_for_status()
+
+    @tracer.start_as_current_span("obsidian.patch_note")
+    async def patch_note(
+        self,
+        path: str,
+        content: str,
+        operation: PatchOperation,
+        target_type: PatchTargetType,
+        target: str,
+    ) -> None:
+        """
+        Patch a note relative to a heading, block, or frontmatter field.
+
+        Args:
+            path: Path to note relative to vault root (must be in /n8n/)
+            content: Content to insert
+            operation: append, prepend, or replace
+            target_type: heading, block, or frontmatter
+            target: Target identifier (heading name, block ID, or frontmatter key)
+
+        Raises:
+            PathRestrictionError: If path is not in /n8n/
+            httpx.HTTPStatusError: If API request fails
+        """
+        self._validate_write_path(path)
+
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.path", path)
+        span.set_attribute("obsidian.operation", "patch")
+        span.set_attribute("obsidian.patch.operation", operation.value)
+        span.set_attribute("obsidian.patch.target_type", target_type.value)
+
+        response = await self._client.patch(
+            f"/vault/{path}",
+            content=content,
+            headers={
+                "Content-Type": self.CONTENT_TYPE_MARKDOWN,
+                "Operation": operation.value,
+                "Target-Type": target_type.value,
+                "Target": target,
+            },
+        )
+        response.raise_for_status()
+
+    @tracer.start_as_current_span("obsidian.delete_note")
+    async def delete_note(self, path: str) -> None:
+        """
+        Delete a note from the vault.
+
+        Args:
+            path: Path to note relative to vault root (must be in /n8n/)
+
+        Raises:
+            PathRestrictionError: If path is not in /n8n/
+            httpx.HTTPStatusError: If note doesn't exist or API request fails
+        """
+        self._validate_write_path(path)
+
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.path", path)
+        span.set_attribute("obsidian.operation", "delete")
+
+        response = await self._client.delete(f"/vault/{path}")
+        response.raise_for_status()
+
+    @tracer.start_as_current_span("obsidian.update_frontmatter")
+    async def update_frontmatter(self, path: str, key: str, value: Any) -> None:
+        """
+        Update a single frontmatter field in a note.
+
+        Args:
+            path: Path to note relative to vault root (must be in /n8n/)
+            key: Frontmatter field key
+            value: Value to set (will be JSON-serialized)
+
+        Raises:
+            PathRestrictionError: If path is not in /n8n/
+            httpx.HTTPStatusError: If API request fails
+        """
+        self._validate_write_path(path)
+
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.path", path)
+        span.set_attribute("obsidian.operation", "update_frontmatter")
+        span.set_attribute("obsidian.frontmatter.key", key)
+
+        import json
+
+        response = await self._client.patch(
+            f"/vault/{path}",
+            content=json.dumps(value),
+            headers={
+                "Content-Type": "application/json",
+                "Operation": "replace",
+                "Target-Type": "frontmatter",
+                "Target": key,
+            },
+        )
+        response.raise_for_status()

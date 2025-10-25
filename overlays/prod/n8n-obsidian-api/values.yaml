@@ -1,0 +1,22 @@
+# Production overrides for n8n-obsidian-api
+
+config:
+  obsidian:
+    # TODO: Update with actual Obsidian service URL
+    # This should point to wherever the Obsidian Local REST API is running
+    apiUrl: "http://obsidian-service.default:27123"
+    apiKeySecretName: "obsidian-api-credentials"
+    apiKeySecretKey: "api-key"
+
+  opentelemetry:
+    enabled: true
+    serviceName: "n8n-obsidian-api"
+    # TODO: Configure OTLP endpoint once SigNoz is deployed
+    # otlpEndpoint: "http://signoz-otel-collector.signoz:4317"
+    otlpEndpoint: ""
+
+# 1Password integration
+onePassword:
+  enabled: true
+  # TODO: Create this item in 1Password vault
+  itemPath: "vaults/homelab/items/obsidian-api"
