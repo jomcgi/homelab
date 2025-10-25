@@ -14,6 +14,9 @@ spec:
     metadata:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- if .Values.envoy.enabled }}
+        checksum/envoy-config: {{ include (print $.Template.BasePath "/envoy-configmap.yaml") . | sha256sum }}
+        {{- end }}
       labels:
         {{- include "cloudflare-tunnel.selectorLabels" . | nindent 8 }}
     spec:
@@ -22,6 +25,53 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       containers:
+      {{- if .Values.envoy.enabled }}
+      - name: envoy
+        image: "{{ .Values.envoy.image.repository }}:{{ .Values.envoy.image.tag }}"
+        imagePullPolicy: {{ .Values.envoy.image.pullPolicy }}
+        args:
+        - -c
+        - /etc/envoy/envoy.yaml
+        ports:
+        - containerPort: {{ .Values.envoy.proxy.port }}
+          name: envoy-proxy
+          protocol: TCP
+        - containerPort: {{ .Values.envoy.admin.port }}
+          name: envoy-admin
+          protocol: TCP
+        volumeMounts:
+        - name: envoy-config
+          mountPath: /etc/envoy
+          readOnly: true
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        {{- with .Values.envoy.resources }}
+        resources:
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: {{ .Values.envoy.admin.port }}
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: {{ .Values.envoy.admin.port }}
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+      {{- end }}
       - name: cloudflared
         image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
         imagePullPolicy: {{ .Values.image.pullPolicy }}
@@ -82,6 +132,14 @@ spec:
           items:
           - key: config.yaml
             path: config.yaml
+      {{- if .Values.envoy.enabled }}
+      - name: envoy-config
+        configMap:
+          name: {{ include "cloudflare-tunnel.fullname" . }}-envoy
+          items:
+          - key: envoy.yaml
+            path: envoy.yaml
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
