@@ -212,7 +212,17 @@ func (r *CloudflareTunnelReconciler) handleCreateOrUpdate(ctx context.Context, t
 func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	log.Info("Creating CloudflareTunnel", "tunnel", tunnel.Spec.Name, "account", tunnel.Spec.AccountID)
+	// Auto-generate unique tunnel name if not specified
+	tunnelName := tunnel.Spec.Name
+	if tunnelName == "" {
+		// Use CRD name + short UID prefix for globally unique name
+		// Format: {crd-name}-{first-8-chars-of-uid}
+		uidPrefix := string(tunnel.UID)[:8]
+		tunnelName = fmt.Sprintf("%s-%s", tunnel.Name, uidPrefix)
+		log.Info("Auto-generating unique tunnel name", "tunnelName", tunnelName)
+	}
+
+	log.Info("Creating CloudflareTunnel", "tunnel", tunnelName, "account", tunnel.Spec.AccountID)
 
 	// Set progressing condition
 	meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
@@ -227,7 +237,7 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 	}
 
 	// Create tunnel via Cloudflare API
-	cfTunnel, _, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnel.Spec.Name)
+	cfTunnel, _, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnelName)
 	if err != nil {
 		log.Error(err, "Failed to create tunnel")
 
@@ -821,23 +831,21 @@ func (r *CloudflareTunnelReconciler) shouldManageTunnel(req ctrl.Request) bool {
 func (r *CloudflareTunnelReconciler) ensureDefaultTunnel(ctx context.Context, namespacedName types.NamespacedName) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
 
-	// Use predictable tunnel name for easier identification
-	tunnelName := fmt.Sprintf("cloudflare-operator-%s", r.DaemonNamespace)
-
 	log.Info("creating default daemon tunnel",
 		"crdName", namespacedName.Name,
-		"tunnelName", tunnelName,
 		"namespace", namespacedName.Namespace,
 	)
 
-	// Create default tunnel
+	// Create default tunnel - note that the tunnel name in Cloudflare will be generated
+	// uniquely based on the CRD's UID after creation, so we use a placeholder here
 	defaultTunnel := &tunnelsv1.CloudflareTunnel{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      namespacedName.Name,
 			Namespace: namespacedName.Namespace,
 		},
 		Spec: tunnelsv1.CloudflareTunnelSpec{
-			Name:      tunnelName,
+			// Name will be auto-generated as {crdName}-{uid-prefix} by the reconciler
+			Name:      "", // Empty name signals auto-generation
 			AccountID: r.DaemonAccountID,
 			Daemon: &tunnelsv1.DaemonConfig{
 				Enabled:  true,
@@ -863,9 +871,8 @@ func (r *CloudflareTunnelReconciler) ensureDefaultTunnel(ctx context.Context, na
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
-	log.Info("default daemon tunnel created successfully",
+	log.Info("default daemon tunnel CRD created successfully, will auto-generate unique tunnel name during reconciliation",
 		"crdName", namespacedName.Name,
-		"tunnelName", tunnelName,
 	)
 
 	// Requeue immediately to reconcile the newly created tunnel
