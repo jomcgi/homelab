@@ -24,6 +24,53 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if and .Values.envoy.enabled .Values.envoy.transparentProxy.enabled }}
+      initContainers:
+      - name: iptables-init
+        image: "{{ .Values.envoy.transparentProxy.iptablesImage }}"
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsUser: 0
+          runAsNonRoot: false
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Setting up iptables rules for transparent proxy..."
+
+          # Envoy user ID (same as envoy container)
+          ENVOY_UID={{ .Values.envoy.securityContext.runAsUser | default 65534 }}
+          ENVOY_PORT={{ .Values.envoy.transparentProxy.port }}
+
+          # Create a new chain for Envoy redirect
+          iptables -t nat -N ENVOY_REDIRECT || true
+          iptables -t nat -F ENVOY_REDIRECT
+
+          # Redirect all TCP traffic to Envoy transparent proxy port
+          iptables -t nat -A ENVOY_REDIRECT -p tcp -j REDIRECT --to-port ${ENVOY_PORT}
+
+          # Create chain for outbound traffic
+          iptables -t nat -N ENVOY_OUTPUT || true
+          iptables -t nat -F ENVOY_OUTPUT
+
+          # Don't redirect traffic from Envoy itself (prevent loops)
+          iptables -t nat -A ENVOY_OUTPUT -m owner --uid-owner ${ENVOY_UID} -j RETURN
+
+          # Don't redirect localhost traffic
+          iptables -t nat -A ENVOY_OUTPUT -d 127.0.0.1/32 -j RETURN
+
+          # Redirect all other outbound TCP traffic to Envoy
+          iptables -t nat -A ENVOY_OUTPUT -p tcp -j ENVOY_REDIRECT
+
+          # Apply to all OUTPUT traffic
+          iptables -t nat -A OUTPUT -j ENVOY_OUTPUT
+
+          echo "iptables rules configured successfully"
+          iptables -t nat -L -n -v
+      {{- end }}
       containers:
       {{- if .Values.envoy.enabled }}
       - name: envoy
@@ -39,22 +86,21 @@ spec:
         - containerPort: {{ .Values.envoy.admin.port }}
           name: envoy-admin
           protocol: TCP
+        {{- if .Values.envoy.transparentProxy.enabled }}
+        - containerPort: {{ .Values.envoy.transparentProxy.port }}
+          name: tproxy
+          protocol: TCP
+        {{- end }}
         volumeMounts:
         - name: envoy-config
           mountPath: /etc/envoy
           readOnly: true
         - name: envoy-tmp
           mountPath: /tmp
+        {{- with .Values.envoy.securityContext }}
         securityContext:
-          readOnlyRootFilesystem: true
-          allowPrivilegeEscalation: false
-          runAsNonRoot: true
-          runAsUser: 65534
-          capabilities:
-            drop:
-            - ALL
-          seccompProfile:
-            type: RuntimeDefault
+          {{- toYaml . | nindent 10 }}
+        {{- end }}
         {{- with .Values.envoy.resources }}
         resources:
           {{- toYaml . | nindent 10 }}
