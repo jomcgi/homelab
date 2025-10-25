@@ -35,7 +35,10 @@ External Ingress        Applications             Observability
 
 ```
 charts/                     # Helm charts
-└── cloudflare-tunnel/      # Main tunnel chart
+├── cloudflare-tunnel/      # Cloudflare tunnel chart
+└── n8n/                    # N8N workflow automation
+    ├── WORKFLOWS.md        # Workflow GitOps documentation
+    └── templates/          # Helm templates
 
 clusters/                   # Cluster entry points
 └── homelab/                # Production cluster
@@ -70,9 +73,8 @@ overlays/                   # Environment-based deployments
 │       ├── application.yaml
 │       ├── kustomization.yaml
 │       ├── values.yaml
-│       └── workflows/       # GitOps-managed workflows
-│           ├── README.md
-│           └── *.yaml       # Workflow ConfigMaps
+│       └── workflows/       # Environment-specific workflow ConfigMaps
+│           └── *.yaml       # Workflow definitions
 └── dev/                    # Development services
     ├── kustomization.yaml
     └── obsidian-automation/
@@ -322,7 +324,7 @@ kubectl create secret generic n8n-api-key \
   --namespace=n8n
 ```
 
-See `overlays/prod/n8n/workflows/README.md` for complete documentation.
+See `charts/n8n/WORKFLOWS.md` for complete documentation.
 
 ### Security Review Checklist
 - [ ] Service runs as non-root user
