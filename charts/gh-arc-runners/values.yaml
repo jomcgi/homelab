@@ -46,6 +46,25 @@ gha-runner-scale-set:
     namespace: "gh-arc-controller"
     name: "arc-controller"
 
+  # Enable Docker-in-Docker for building container images
+  containerMode:
+    type: "dind"
+
+  # Runner pod template
+  template:
+    spec:
+      containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest
+        command: ["/home/runner/run.sh"]
+        resources:
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+          requests:
+            cpu: 500m
+            memory: 1Gi
+
   listenerTemplate:
     spec:
       containers:
