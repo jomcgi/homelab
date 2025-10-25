@@ -11,6 +11,10 @@ workflowSync:
     tag: "latest"  # TODO: Pin to specific version after first build
     pullPolicy: IfNotPresent
 
+  # Image pull secrets for private GHCR images
+  imagePullSecrets:
+    - name: ghcr-pull-secret
+
   # API key secret (create via: kubectl create secret generic n8n-api-key --from-literal=api-key=YOUR_KEY -n n8n)
   apiKeySecret:
     name: "n8n-api-key"
