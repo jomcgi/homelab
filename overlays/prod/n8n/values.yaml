@@ -1,7 +1,17 @@
+# Enable workflow GitOps sync
+workflowSync:
+  enabled: true
+  managedSuffix: " [git-managed]"
+  managedTag: "gitops-managed"
+  # API key will be read from N8N_API_KEY environment variable in initContainer
+  # Configure via n8n UI: Settings > n8n API > Generate API Key
+  # Then create secret: kubectl create secret generic n8n-api-key --from-literal=api-key=YOUR_KEY -n n8n
+
 n8n:
   main:
     config:
       WEBHOOK_URL: "http://n8n.jomcgi.dev"
+
     persistence:
       enabled: true
       type: dynamic
@@ -11,3 +21,42 @@ n8n:
       accessModes:
         - ReadWriteOnce
       size: 15Gi
+
+    # Init container to sync workflows from Git to n8n
+    initContainers:
+      - name: workflow-sync
+        image: alpine:3.19
+        command: ["/bin/sh", "-c"]
+        args:
+          - |
+            # Install required tools
+            apk add --no-cache curl jq
+            # Run workflow sync script
+            /scripts/sync-workflows.sh
+        env:
+          - name: N8N_URL
+            value: "http://localhost:5678"
+          - name: N8N_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: n8n-api-key
+                key: api-key
+          - name: WORKFLOW_DIR
+            value: "/workflows"
+        volumeMounts:
+          - name: workflow-sync-script
+            mountPath: /scripts
+          - name: workflows
+            mountPath: /workflows
+
+    # Volumes for workflow sync
+    extraVolumes:
+      - name: workflow-sync-script
+        configMap:
+          name: n8n-workflow-sync
+          defaultMode: 0755
+      - name: workflows
+        projected:
+          sources:
+            - configMap:
+                name: n8n-workflow-joe-phone-tracker

@@ -1,6 +1,31 @@
-main:
-  # Persistence using Longhorn
-  persistence:
-    enabled: true
-    storageClass: "longhorn"
-    size: 10Gi
+# Workflow GitOps Sync Configuration
+workflowSync:
+  # Enable workflow sync from ConfigMaps to n8n via initContainer
+  enabled: false
+  # Suffix appended to workflow names to indicate GitOps management
+  # Example: "my-workflow" becomes "my-workflow [git-managed]"
+  managedSuffix: " [git-managed]"
+  # Tag added to all managed workflows for identification
+  managedTag: "gitops-managed"
+  # API key for n8n API access (should be overridden in overlays)
+  apiKey: ""
+
+n8n:
+  main:
+    # Persistence using Longhorn
+    persistence:
+      enabled: true
+      storageClass: "longhorn"
+      size: 10Gi
+
+    # Init container for workflow sync
+    # This will be populated when workflowSync.enabled=true
+    initContainers: []
+
+    # Extra volumes for workflow ConfigMaps
+    # This will be populated when workflowSync.enabled=true
+    extraVolumes: []
+
+    # Extra volume mounts for workflow access
+    # This will be populated when workflowSync.enabled=true
+    extraVolumeMounts: []
