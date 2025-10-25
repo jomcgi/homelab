@@ -24,9 +24,18 @@ workflowSync:
     name: "n8n-api-key"
     key: "api-key"
 
-  # List of workflow ConfigMap names to sync
-  # Example: ["n8n-workflow-joe-phone-tracker", "n8n-workflow-other"]
-  workflowConfigMaps: []
+  # Workflow definitions (managed as ConfigMaps)
+  # Each workflow creates a ConfigMap named "n8n-workflow-{name}"
+  workflows: []
+  # Example:
+  # workflows:
+  #   - name: joe-phone-tracker
+  #     definition: |
+  #       {
+  #         "name": "Joe Phone Tracker",
+  #         "nodes": [...],
+  #         ...
+  #       }
 
   # OpenTelemetry configuration
   telemetry:
