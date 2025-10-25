@@ -36,6 +36,7 @@ import (
 type TunnelClientInterface interface {
 	CreateTunnel(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error)
 	GetTunnel(ctx context.Context, accountID, tunnelID string) (*cloudflare.Tunnel, error)
+	ListTunnels(ctx context.Context, accountID string) ([]cloudflare.Tunnel, error)
 	DeleteTunnel(ctx context.Context, accountID, tunnelID string) error
 	UpdateTunnelConfiguration(ctx context.Context, accountID, tunnelID string, config cloudflare.TunnelConfiguration) error
 	GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error)
@@ -130,6 +131,33 @@ func (c *TunnelClient) GetTunnel(ctx context.Context, accountID, tunnelID string
 
 	span.SetStatus(codes.Ok, "tunnel retrieved")
 	return &tunnel, nil
+}
+
+// ListTunnels lists all tunnels for an account
+func (c *TunnelClient) ListTunnels(ctx context.Context, accountID string) ([]cloudflare.Tunnel, error) {
+	ctx, span := c.tracer.Start(ctx, "cloudflare.ListTunnels",
+		trace.WithAttributes(
+			attribute.String("account.id", accountID),
+		),
+	)
+	defer span.End()
+
+	if err := c.limiter.Wait(ctx); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "rate limiter wait failed")
+		return nil, err
+	}
+
+	tunnels, _, err := c.api.ListTunnels(ctx, cloudflare.AccountIdentifier(accountID), cloudflare.TunnelListParams{})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "cloudflare API call failed")
+		return nil, fmt.Errorf("failed to list tunnels: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int("tunnel.count", len(tunnels)))
+	span.SetStatus(codes.Ok, "tunnels listed")
+	return tunnels, nil
 }
 
 // DeleteTunnel deletes a tunnel from Cloudflare
