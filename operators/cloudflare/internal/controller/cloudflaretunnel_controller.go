@@ -237,7 +237,7 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 	}
 
 	// Create tunnel via Cloudflare API
-	cfTunnel, tunnelSecret, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnelName)
+	cfTunnel, _, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnelName)
 	if err != nil {
 		// Check if the error is because tunnel name already exists (code 1013)
 		if strings.Contains(err.Error(), "(1013)") || strings.Contains(err.Error(), "already have a tunnel with this name") {
@@ -284,8 +284,7 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 
 			log.Info("Successfully adopted existing tunnel", "tunnelName", tunnelName, "tunnelID", existingTunnel.ID)
 			cfTunnel = existingTunnel
-			// Note: We don't have the secret for an adopted tunnel, but it should already exist in the cluster
-			tunnelSecret = "" // Will need to retrieve from existing secret
+			// Note: Tunnel secret/token will be retrieved via GetTunnelToken below regardless of create vs adopt
 		} else {
 			// Different error, handle as before
 			log.Error(err, "Failed to create tunnel")
