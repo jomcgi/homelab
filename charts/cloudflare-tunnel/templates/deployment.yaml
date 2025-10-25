@@ -61,6 +61,8 @@ spec:
           httpGet:
             path: /ready
             port: {{ .Values.envoy.admin.port }}
+            scheme: HTTP
+            host: 127.0.0.1
           initialDelaySeconds: 10
           periodSeconds: 10
           timeoutSeconds: 5
@@ -68,6 +70,8 @@ spec:
           httpGet:
             path: /ready
             port: {{ .Values.envoy.admin.port }}
+            scheme: HTTP
+            host: 127.0.0.1
           initialDelaySeconds: 5
           periodSeconds: 5
           timeoutSeconds: 3
