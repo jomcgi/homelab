@@ -73,6 +73,9 @@ data:
                     address: 127.0.0.1
                     port_value: {{ .Values.service.port }}
       {{- if .Values.envoy.tracing.enabled }}
+      {{- $otlpParts := splitn ":" 2 .Values.envoy.tracing.otlpEndpoint }}
+      {{- $otlpHost := index $otlpParts 0 }}
+      {{- $otlpPort := index $otlpParts 1 | default "4317" }}
       - name: otel_collector
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
@@ -88,7 +91,7 @@ data:
             - endpoint:
                 address:
                   socket_address:
-                    address: {{ .Values.envoy.tracing.otlpEndpoint | replace ":4317" "" }}
-                    port_value: 4317
+                    address: {{ $otlpHost }}
+                    port_value: {{ $otlpPort | int }}
       {{- end }}
 {{- end }}
