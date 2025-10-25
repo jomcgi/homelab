@@ -13,7 +13,7 @@ workflowSync:
 
   # Image pull secrets for private GHCR images
   imagePullSecrets:
-    - name: ghcr-pull-secret
+    - name: prod-ghcr-pull-secret
 
   # API key secret (create via: kubectl create secret generic n8n-api-key --from-literal=api-key=YOUR_KEY -n n8n)
   apiKeySecret:
