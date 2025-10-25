@@ -20,26 +20,18 @@ import (
 	"context"
 	"crypto/tls"
 	"flag"
-	"fmt"
 	"os"
 	"path/filepath"
-	"time"
-
-	"github.com/go-logr/logr"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 
-	"k8s.io/apimachinery/pkg/api/errors"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/certwatcher"
-	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/filters"
@@ -263,17 +255,35 @@ func main() {
 		Scheme:   mgr.GetScheme(),
 		CFClient: cfClient,
 	}
+
+	// Configure daemon mode if enabled
+	if enableDaemon {
+		accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
+		if accountID == "" {
+			setupLog.Error(nil, "CLOUDFLARE_ACCOUNT_ID environment variable is required for daemon mode")
+			os.Exit(1)
+		}
+
+		operatorNs := os.Getenv("POD_NAMESPACE")
+		if operatorNs == "" {
+			setupLog.Error(nil, "POD_NAMESPACE environment variable is required for daemon mode")
+			os.Exit(1)
+		}
+
+		reconciler.DaemonEnabled = true
+		reconciler.DaemonAccountID = accountID
+		reconciler.DaemonNamespace = operatorNs
+
+		setupLog.Info("daemon mode enabled, will ensure default tunnel exists",
+			"namespace", operatorNs,
+			"accountID", accountID,
+			"checkInterval", "30s",
+		)
+	}
+
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CloudflareTunnel")
 		os.Exit(1)
-	}
-
-	// Auto-create tunnel if daemon mode is enabled
-	if enableDaemon {
-		if err := createDefaultTunnel(mgr); err != nil {
-			setupLog.Error(err, "unable to create default tunnel")
-			os.Exit(1)
-		}
 	}
 	// +kubebuilder:scaffold:builder
 
@@ -306,192 +316,5 @@ func main() {
 	if err := mgr.Start(ctrl.SetupSignalHandler()); err != nil {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
-	}
-}
-
-func createDefaultTunnel(
-	mgr ctrl.Manager,
-) error {
-	setupLog.Info("daemon mode enabled, will create default tunnel after manager is ready")
-
-	// Validate required environment variables early
-	accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
-	if accountID == "" {
-		return fmt.Errorf("CLOUDFLARE_ACCOUNT_ID environment variable is required for daemon mode")
-	}
-
-	operatorNs := os.Getenv("POD_NAMESPACE")
-	if operatorNs == "" {
-		return fmt.Errorf("POD_NAMESPACE environment variable is required for daemon mode")
-	}
-
-	// Start a goroutine to create the tunnel after manager starts
-	go func() {
-		// Wait for manager to be ready and elected as leader
-		<-mgr.Elected()
-
-		// Use background context with timeout for tunnel creation
-		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
-		defer cancel()
-
-		log := setupLog.WithValues(
-			"namespace", operatorNs,
-			"accountID", accountID,
-		)
-
-		log.Info("manager ready, checking for existing tunnels")
-
-		// Check if default tunnel already exists
-		tunnelList := &tunnelsv1.CloudflareTunnelList{}
-		if err := mgr.GetClient().List(ctx, tunnelList); err != nil {
-			log.Error(err, "failed to list existing tunnels")
-			return
-		}
-
-		// Don't create if any tunnel already exists (idempotent)
-		if len(tunnelList.Items) > 0 {
-			log.Info("tunnel already exists, skipping auto-creation",
-				"existingTunnels", len(tunnelList.Items),
-			)
-			return
-		}
-
-		// Use predictable tunnel name for easier identification
-		// Format: cloudflare-operator-<namespace>
-		tunnelName := fmt.Sprintf("cloudflare-operator-%s", operatorNs)
-		crdName := "default-daemon-tunnel"
-
-		log.Info("creating default tunnel CRD",
-			"crdName", crdName,
-			"tunnelName", tunnelName,
-		)
-
-		// Create default tunnel
-		defaultTunnel := &tunnelsv1.CloudflareTunnel{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      crdName,
-				Namespace: operatorNs,
-			},
-			Spec: tunnelsv1.CloudflareTunnelSpec{
-				Name:      tunnelName,
-				AccountID: accountID,
-				Daemon: &tunnelsv1.DaemonConfig{
-					Enabled:  true,
-					Replicas: func() *int32 { r := int32(1); return &r }(),
-					Image:    "cloudflare/cloudflared:latest",
-				},
-				Ingress: []tunnelsv1.TunnelIngress{
-					{
-						Service: "http_status:404", // Default catch-all only
-					},
-				},
-			},
-		}
-
-		// Retry logic with exponential backoff for tunnel creation
-		maxRetries := 3
-		var createErr error
-		for attempt := 0; attempt < maxRetries; attempt++ {
-			if attempt > 0 {
-				backoff := time.Duration(1<<uint(attempt-1)) * time.Second
-				log.Info("retrying tunnel creation after backoff",
-					"attempt", attempt+1,
-					"maxRetries", maxRetries,
-					"backoffSeconds", backoff.Seconds(),
-				)
-				time.Sleep(backoff)
-			}
-
-			createErr = mgr.GetClient().Create(ctx, defaultTunnel)
-			if createErr == nil {
-				break // Success!
-			}
-
-			// Don't retry if it's a conflict error (already exists)
-			if errors.IsAlreadyExists(createErr) {
-				log.V(1).Info("tunnel CRD already exists (created by another replica)",
-					"crdName", crdName,
-				)
-				return
-			}
-
-			log.Error(createErr, "failed to create tunnel CRD",
-				"attempt", attempt+1,
-				"maxRetries", maxRetries,
-			)
-		}
-
-		if createErr != nil {
-			log.Error(createErr, "failed to create tunnel CRD after all retries",
-				"totalAttempts", maxRetries,
-			)
-			return
-		}
-
-		log.Info("tunnel CRD created successfully, waiting for reconciliation",
-			"crdName", crdName,
-			"tunnelName", tunnelName,
-		)
-
-		// Wait for tunnel to be reconciled and ready
-		if err := waitForTunnelReady(ctx, mgr.GetClient(), crdName, operatorNs, log); err != nil {
-			log.Error(err, "tunnel creation succeeded but failed to become ready",
-				"crdName", crdName,
-			)
-			return
-		}
-
-		log.Info("default tunnel is ready and active",
-			"crdName", crdName,
-			"tunnelName", tunnelName,
-		)
-	}()
-
-	return nil
-}
-
-// waitForTunnelReady waits for the tunnel to be reconciled and ready
-func waitForTunnelReady(ctx context.Context, client client.Client, name, namespace string, log logr.Logger) error {
-	// Poll for up to 2 minutes with 5 second intervals
-	timeout := time.After(2 * time.Minute)
-	ticker := time.NewTicker(5 * time.Second)
-	defer ticker.Stop()
-
-	for {
-		select {
-		case <-ctx.Done():
-			return fmt.Errorf("context cancelled while waiting for tunnel readiness")
-		case <-timeout:
-			return fmt.Errorf("timeout waiting for tunnel to become ready after 2 minutes")
-		case <-ticker.C:
-			tunnel := &tunnelsv1.CloudflareTunnel{}
-			if err := client.Get(ctx, types.NamespacedName{
-				Name:      name,
-				Namespace: namespace,
-			}, tunnel); err != nil {
-				log.Error(err, "failed to get tunnel status")
-				continue
-			}
-
-			// Check if tunnel is ready
-			if tunnel.Status.Ready {
-				log.Info("tunnel is ready",
-					"tunnelID", tunnel.Status.TunnelID,
-					"daemonReplicas", tunnel.Status.DaemonStatus.Replicas,
-					"readyReplicas", tunnel.Status.DaemonStatus.ReadyReplicas,
-				)
-				log.V(1).Info("tunnel secret details",
-					"secretName", tunnel.Status.TunnelSecret,
-				)
-				return nil
-			}
-
-			// Log current status for debugging
-			log.V(1).Info("waiting for tunnel to become ready",
-				"ready", tunnel.Status.Ready,
-				"tunnelID", tunnel.Status.TunnelID,
-				"observedGeneration", tunnel.Status.ObservedGeneration,
-			)
-		}
 	}
 }
