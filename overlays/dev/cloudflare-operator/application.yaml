@@ -9,6 +9,8 @@ metadata:
     argocd-image-updater.argoproj.io/image-list: operator=ghcr.io/jomcgi/cloudflare-operator
     argocd-image-updater.argoproj.io/operator.update-strategy: newest-build
     argocd-image-updater.argoproj.io/operator.allow-tags: regexp:^sha-[0-9a-f]{7}$
+    argocd-image-updater.argoproj.io/operator.helm.image-name: controllerManager.image.repository
+    argocd-image-updater.argoproj.io/operator.helm.image-tag: controllerManager.image.tag
     argocd-image-updater.argoproj.io/write-back-method: argocd
 spec:
   project: default

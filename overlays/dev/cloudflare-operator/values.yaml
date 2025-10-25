@@ -10,7 +10,7 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
-    tag: sha-56b7066  # OTEL v1.38.0 with fixed schema conflict
+    tag: sha-79ea7a3  # OTEL v1.38.0 with fixed schema conflict
     pullPolicy: Always
 
 # Enable OpenTelemetry tracing to SignoZ (OTEL upgraded to v1.38.0)
