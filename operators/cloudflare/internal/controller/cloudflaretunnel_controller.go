@@ -32,10 +32,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/workqueue"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	tunnelsv1 "github.com/jomcgi/homelab/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
@@ -56,6 +58,11 @@ type CloudflareTunnelReconciler struct {
 	Scheme   *runtime.Scheme
 	CFClient cfclient.TunnelClientInterface
 	tracer   trace.Tracer
+
+	// Daemon mode configuration
+	DaemonEnabled   bool
+	DaemonAccountID string
+	DaemonNamespace string
 }
 
 // +kubebuilder:rbac:groups=tunnels.tunnels.cloudflare.io,resources=cloudflaretunnels,verbs=get;list;watch;create;update;patch;delete
@@ -83,6 +90,14 @@ func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Req
 	var tunnel tunnelsv1.CloudflareTunnel
 	if err := r.Get(ctx, req.NamespacedName, &tunnel); err != nil {
 		if errors.IsNotFound(err) {
+			// If daemon mode is enabled and this is the default tunnel, ensure it exists
+			if r.DaemonEnabled && r.shouldManageTunnel(req) {
+				log.Info("default daemon tunnel not found, creating it",
+					"namespace", req.Namespace,
+					"name", req.Name,
+				)
+				return r.ensureDefaultTunnel(ctx, req.NamespacedName)
+			}
 			log.V(1).Info("CloudflareTunnel resource not found, ignoring since object must be deleted")
 			span.SetStatus(codes.Ok, "resource not found")
 			return ctrl.Result{}, nil
@@ -797,13 +812,112 @@ func (r *CloudflareTunnelReconciler) deleteTunnelSecret(ctx context.Context, tun
 	return nil
 }
 
+// shouldManageTunnel checks if this reconciliation request is for the default daemon tunnel
+func (r *CloudflareTunnelReconciler) shouldManageTunnel(req ctrl.Request) bool {
+	return req.Namespace == r.DaemonNamespace && req.Name == "default-daemon-tunnel"
+}
+
+// ensureDefaultTunnel creates the default daemon tunnel if it doesn't exist
+func (r *CloudflareTunnelReconciler) ensureDefaultTunnel(ctx context.Context, namespacedName types.NamespacedName) (ctrl.Result, error) {
+	log := logf.FromContext(ctx)
+
+	// Use predictable tunnel name for easier identification
+	tunnelName := fmt.Sprintf("cloudflare-operator-%s", r.DaemonNamespace)
+
+	log.Info("creating default daemon tunnel",
+		"crdName", namespacedName.Name,
+		"tunnelName", tunnelName,
+		"namespace", namespacedName.Namespace,
+	)
+
+	// Create default tunnel
+	defaultTunnel := &tunnelsv1.CloudflareTunnel{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      namespacedName.Name,
+			Namespace: namespacedName.Namespace,
+		},
+		Spec: tunnelsv1.CloudflareTunnelSpec{
+			Name:      tunnelName,
+			AccountID: r.DaemonAccountID,
+			Daemon: &tunnelsv1.DaemonConfig{
+				Enabled:  true,
+				Replicas: func() *int32 { r := int32(1); return &r }(),
+				Image:    "cloudflare/cloudflared:latest",
+			},
+			Ingress: []tunnelsv1.TunnelIngress{
+				{
+					Service: "http_status:404", // Default catch-all only
+				},
+			},
+		},
+	}
+
+	if err := r.Create(ctx, defaultTunnel); err != nil {
+		if errors.IsAlreadyExists(err) {
+			log.V(1).Info("default tunnel already exists (race condition)")
+			// Requeue to reconcile the newly created tunnel
+			return ctrl.Result{Requeue: true}, nil
+		}
+		log.Error(err, "failed to create default tunnel")
+		// Retry after backoff
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+	}
+
+	log.Info("default daemon tunnel created successfully",
+		"crdName", namespacedName.Name,
+		"tunnelName", tunnelName,
+	)
+
+	// Requeue immediately to reconcile the newly created tunnel
+	return ctrl.Result{Requeue: true}, nil
+}
+
 // SetupWithManager sets up the controller with the Manager.
 func (r *CloudflareTunnelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	// Initialize tracer
 	r.tracer = telemetry.GetTracer("cloudflare-tunnel-controller")
 
-	return ctrl.NewControllerManagedBy(mgr).
+	builder := ctrl.NewControllerManagedBy(mgr).
 		For(&tunnelsv1.CloudflareTunnel{}).
-		Named("cloudflaretunnel").
-		Complete(r)
+		Named("cloudflaretunnel")
+
+	// If daemon mode is enabled, add periodic reconciliation for the default tunnel
+	if r.DaemonEnabled {
+		// Enqueue the default tunnel for reconciliation every 30 seconds
+		builder = builder.WatchesRawSource(
+			&periodicEnqueueSource{
+				period: 30 * time.Second,
+				object: types.NamespacedName{
+					Name:      "default-daemon-tunnel",
+					Namespace: r.DaemonNamespace,
+				},
+			},
+		)
+	}
+
+	return builder.Complete(r)
+}
+
+// periodicEnqueueSource is a source that periodically enqueues a specific object for reconciliation
+type periodicEnqueueSource struct {
+	period time.Duration
+	object types.NamespacedName
+}
+
+func (s *periodicEnqueueSource) Start(ctx context.Context, queue workqueue.TypedRateLimitingInterface[reconcile.Request]) error {
+	go func() {
+		ticker := time.NewTicker(s.period)
+		defer ticker.Stop()
+
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				// Enqueue the object for reconciliation
+				queue.Add(reconcile.Request{NamespacedName: s.object})
+			}
+		}
+	}()
+	return nil
 }
