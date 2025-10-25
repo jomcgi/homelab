@@ -61,7 +61,7 @@ data:
       clusters:
       {{- $metricsParts := splitn ":" 2 .Values.metrics.address }}
       {{- $metricsHost := index $metricsParts 0 }}
-      {{- $metricsPort := index $metricsParts 1 | default "2000" }}
+      {{- $metricsPort := index $metricsParts 1 | default 2000 }}
       - name: cloudflare_metrics
         connect_timeout: 1s
         type: STRICT_DNS
@@ -78,7 +78,7 @@ data:
       {{- if .Values.envoy.tracing.enabled }}
       {{- $otlpParts := splitn ":" 2 .Values.envoy.tracing.otlpEndpoint }}
       {{- $otlpHost := index $otlpParts 0 }}
-      {{- $otlpPort := index $otlpParts 1 | default "4317" }}
+      {{- $otlpPort := index $otlpParts 1 | default 4317 }}
       - name: otel_collector
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
