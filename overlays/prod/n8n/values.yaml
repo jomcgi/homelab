@@ -372,6 +372,8 @@ n8n:
   main:
     config:
       WEBHOOK_URL: "http://n8n.jomcgi.dev"
+      # Enable the public API for workflow sync
+      N8N_API_ENABLED: "true"
 
     persistence:
       enabled: true
