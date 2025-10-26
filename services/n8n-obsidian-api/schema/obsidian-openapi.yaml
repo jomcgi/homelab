@@ -214,7 +214,7 @@ paths:
       summary: |
         Partially update content in an existing note.
       description: |
-        Inserts content into an existing note relative to a heading, block refeerence, or frontmatter field within that document.
+        Inserts content into an existing note relative to a heading, block reference, or frontmatter field within that document.
       tags:
         - "Vault Files"
       parameters:
