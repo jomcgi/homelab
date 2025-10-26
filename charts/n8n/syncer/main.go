@@ -10,9 +10,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/jomcgi/homelab/charts/n8n/syncer/internal/n8n"
 	"github.com/jomcgi/homelab/charts/n8n/syncer/internal/sync"
 	"github.com/jomcgi/homelab/charts/n8n/syncer/internal/telemetry"
+	"github.com/jomcgi/homelab/pkg/n8n"
 )
 
 const (
@@ -90,17 +90,21 @@ func main() {
 	}
 
 	// Create N8N client
-	n8nClient := n8n.NewClient(*n8nURL, *n8nAPIKey)
+	n8nClient, err := n8n.NewObservableClient(*n8nURL, *n8nAPIKey)
+	if err != nil {
+		slog.Error("failed to create n8n client", "error", err)
+		os.Exit(1)
+	}
 
 	// Create syncer
-	syncer, err := sync.NewSyncer(sync.Config{
+	syncer, syncErr := sync.NewSyncer(sync.Config{
 		WorkflowDir:   *workflowDir,
 		ManagedSuffix: *managedSuffix,
 		ManagedTag:    *managedTag,
 		N8NClient:     n8nClient,
 	})
-	if err != nil {
-		slog.Error("failed to create syncer", "error", err)
+	if syncErr != nil {
+		slog.Error("failed to create syncer", "error", syncErr)
 		os.Exit(1)
 	}
 
