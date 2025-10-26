@@ -12,11 +12,11 @@ config:
   obsidianApiUrl: "https://obsidian.jomcgi.dev"
 
   # Cloudflare service token for bypassing Access
-  # Note: 1Password operator normalizes field names (CF_CLIENT_ACCESS_ID -> cf_client_access_id)
+  # Note: Field names match exactly what's in 1Password (uppercase)
   cloudflare:
     secretName: "n8n-obsidian-api-credentials"
-    clientIdKey: "cf_client_access_id"
-    clientSecretKey: "cf_client_access_secret"
+    clientIdKey: "CF_CLIENT_ACCESS_ID"
+    clientSecretKey: "CF_ACCESS_CLIENT_SECRET"
 
   opentelemetry:
     enabled: true
