@@ -7,10 +7,16 @@ on:
       - claude/**
     paths:
       - 'charts/n8n/syncer/**'
+      - 'pkg/n8n/**'
+      - 'go.mod'
+      - 'go.sum'
       - '.github/workflows/n8n-syncer.yaml'
   pull_request:
     paths:
       - 'charts/n8n/syncer/**'
+      - 'pkg/n8n/**'
+      - 'go.mod'
+      - 'go.sum'
       - '.github/workflows/n8n-syncer.yaml'
 
 env:
@@ -55,7 +61,7 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./charts/n8n/syncer
+          context: .
           file: ./charts/n8n/syncer/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}

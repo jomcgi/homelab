@@ -1,6 +1,6 @@
 module github.com/jomcgi/homelab
 
-go 1.24.7
+go 1.22
 
 require (
 	github.com/getkin/kin-openapi v0.133.0
