@@ -5,7 +5,15 @@ image:
   pullPolicy: IfNotPresent
   tag: "latest"
 
+# Image pull secrets for private container registry
 imagePullSecrets: []
+# Example for 1Password-managed secret:
+# imagePullSecrets:
+#   - name: ghcr-pull-secret
+#     onepassword:
+#       type: onepassword
+#       itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 nameOverride: ""
 fullnameOverride: ""
 

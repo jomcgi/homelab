@@ -19,9 +19,11 @@ spec:
       labels:
         {{- include "n8n-obsidian-api.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
+      {{- if .Values.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ .name }}
+        {{- end }}
       {{- end }}
       serviceAccountName: {{ include "n8n-obsidian-api.serviceAccountName" . }}
       securityContext:
