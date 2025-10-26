@@ -1,6 +1,92 @@
-main:
-  # Persistence using Longhorn
-  persistence:
-    enabled: true
-    storageClass: "longhorn"
-    size: 10Gi
+# Workflow GitOps Sync Configuration
+workflowSync:
+  # Enable workflow sync from ConfigMaps to n8n
+  enabled: false
+
+  # Suffix appended to workflow names to indicate GitOps management
+  # Example: "my-workflow" becomes "my-workflow [git-managed]"
+  managedSuffix: " [git-managed]"
+
+  # Tag added to all managed workflows for identification
+  managedTag: "gitops-managed"
+
+  # Log level (debug, info, warn, error)
+  logLevel: "info"
+
+  # Docker image for workflow syncer
+  image:
+    repository: ghcr.io/jomcgi/homelab/n8n-workflow-syncer
+    tag: "latest"  # Override with specific version in production
+    pullPolicy: IfNotPresent
+
+  # Image pull secrets for private container registry
+  imagePullSecrets: []
+  # Example for manually created secret:
+  # imagePullSecrets:
+  #   - name: ghcr-pull-secret
+  # Example for 1Password-managed secret:
+  # imagePullSecrets:
+  #   - name: ghcr-pull-secret
+  #     onepassword:
+  #       type: onepassword
+  #       itemPath: "vaults/k8s-homelab/items/n8n-workflow-sync"
+
+  # API key secret configuration
+  apiKeySecret:
+    name: "n8n-api-key"
+    key: "api-key"
+
+    # Secret type: "onepassword" (recommended) or "manual"
+    # When using "onepassword", a OnePasswordItem will be created
+    # When using "manual", you must create the secret yourself
+    type: "manual"
+
+    # OnePassword configuration (only used when type is "onepassword")
+    onepassword:
+      # Path to the 1Password item containing the api-key field
+      # Example: "vaults/k8s-homelab/items/n8n-workflow-sync"
+      itemPath: ""
+
+  # Workflow definitions (managed as ConfigMaps)
+  # Each workflow creates a ConfigMap named "n8n-workflow-{name}"
+  workflows: []
+  # Example:
+  # workflows:
+  #   - name: joe-phone-tracker
+  #     definition: |
+  #       {
+  #         "name": "Joe Phone Tracker",
+  #         "nodes": [...],
+  #         ...
+  #       }
+
+  # OpenTelemetry configuration
+  telemetry:
+    enabled: false
+    # OTLP endpoint (e.g., "signoz-otel-collector.signoz.svc.cluster.local:4317")
+    otlpEndpoint: ""
+
+  # Drift detection via CronJob
+  driftDetection:
+    enabled: false
+    # Schedule in cron format (default: every 30 minutes)
+    schedule: "*/30 * * * *"
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 3
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: "100m"
+      memory: "128Mi"
+    limits:
+      cpu: "500m"
+      memory: "256Mi"
+
+n8n:
+  main:
+    # Persistence using Longhorn
+    persistence:
+      enabled: true
+      storageClass: "longhorn"
+      size: 10Gi
