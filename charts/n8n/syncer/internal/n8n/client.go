@@ -37,9 +37,22 @@ type Workflow struct {
 	Connections map[string]any         `json:"connections"`
 	Settings    map[string]any         `json:"settings,omitempty"`
 	StaticData  map[string]any         `json:"staticData,omitempty"`
-	Tags        []map[string]any       `json:"tags,omitempty"`
+	Tags        []map[string]any       `json:"tags,omitempty"` // Tags are read-only in workflow create/update - use UpdateWorkflowTags instead
 	PinData     map[string]any         `json:"pinData,omitempty"`
 	VersionId   string                 `json:"versionId,omitempty"`
+}
+
+// Tag represents an N8N tag
+type Tag struct {
+	ID        string `json:"id,omitempty"`
+	Name      string `json:"name"`
+	CreatedAt string `json:"createdAt,omitempty"`
+	UpdatedAt string `json:"updatedAt,omitempty"`
+}
+
+// TagList represents the response from listing tags
+type TagList struct {
+	Data []Tag `json:"data"`
 }
 
 // WorkflowList represents the response from listing workflows
@@ -242,4 +255,213 @@ func (c *Client) UpdateWorkflow(ctx context.Context, id string, workflow *Workfl
 		"id", updated.ID)
 
 	return &updated, nil
+}
+
+// ListTags retrieves all tags from N8N
+func (c *Client) ListTags(ctx context.Context) ([]Tag, error) {
+	ctx, span := c.tracer.Start(ctx, "n8n.ListTags")
+	defer span.End()
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.baseURL+"/api/v1/tags", nil)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create request")
+		return nil, fmt.Errorf("create list tags request: %w", err)
+	}
+
+	req.Header.Set("X-N8N-API-KEY", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "list tags request failed")
+		return nil, fmt.Errorf("list tags request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		span.SetStatus(codes.Error, fmt.Sprintf("unexpected status: %d", resp.StatusCode))
+		span.SetAttributes(attribute.String("response.body", string(body)))
+		return nil, fmt.Errorf("list tags returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var result TagList
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decode response")
+		return nil, fmt.Errorf("decode tag list: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int("tag.count", len(result.Data)))
+	span.SetStatus(codes.Ok, "tags listed successfully")
+	slog.InfoContext(ctx, "listed tags", "count", len(result.Data))
+
+	return result.Data, nil
+}
+
+// CreateTag creates a new tag in N8N
+func (c *Client) CreateTag(ctx context.Context, tag *Tag) (*Tag, error) {
+	ctx, span := c.tracer.Start(ctx, "n8n.CreateTag",
+		trace.WithAttributes(attribute.String("tag.name", tag.Name)))
+	defer span.End()
+
+	body, err := json.Marshal(tag)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to marshal tag")
+		return nil, fmt.Errorf("marshal tag: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.baseURL+"/api/v1/tags", bytes.NewReader(body))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create request")
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("X-N8N-API-KEY", c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "create tag request failed")
+		return nil, fmt.Errorf("create tag request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusCreated {
+		body, _ := io.ReadAll(resp.Body)
+		span.SetStatus(codes.Error, fmt.Sprintf("unexpected status: %d", resp.StatusCode))
+		span.SetAttributes(attribute.String("response.body", string(body)))
+		return nil, fmt.Errorf("create tag returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var created Tag
+	if err := json.NewDecoder(resp.Body).Decode(&created); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decode response")
+		return nil, fmt.Errorf("decode created tag: %w", err)
+	}
+
+	span.SetAttributes(attribute.String("tag.id", created.ID))
+	span.SetStatus(codes.Ok, "tag created successfully")
+	slog.InfoContext(ctx, "created tag",
+		"name", created.Name,
+		"id", created.ID)
+
+	return &created, nil
+}
+
+// GetWorkflowTags retrieves tags for a specific workflow
+func (c *Client) GetWorkflowTags(ctx context.Context, workflowID string) ([]Tag, error) {
+	ctx, span := c.tracer.Start(ctx, "n8n.GetWorkflowTags",
+		trace.WithAttributes(attribute.String("workflow.id", workflowID)))
+	defer span.End()
+
+	url := fmt.Sprintf("%s/api/v1/workflows/%s/tags", c.baseURL, workflowID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create request")
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("X-N8N-API-KEY", c.apiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "get workflow tags request failed")
+		return nil, fmt.Errorf("get workflow tags request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		span.SetStatus(codes.Error, fmt.Sprintf("unexpected status: %d", resp.StatusCode))
+		span.SetAttributes(attribute.String("response.body", string(body)))
+		return nil, fmt.Errorf("get workflow tags returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var tags []Tag
+	if err := json.NewDecoder(resp.Body).Decode(&tags); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decode response")
+		return nil, fmt.Errorf("decode workflow tags: %w", err)
+	}
+
+	span.SetAttributes(attribute.Int("tag.count", len(tags)))
+	span.SetStatus(codes.Ok, "workflow tags retrieved successfully")
+	slog.InfoContext(ctx, "got workflow tags",
+		"workflow_id", workflowID,
+		"count", len(tags))
+
+	return tags, nil
+}
+
+// UpdateWorkflowTags updates the tags for a specific workflow
+func (c *Client) UpdateWorkflowTags(ctx context.Context, workflowID string, tagIDs []string) ([]Tag, error) {
+	ctx, span := c.tracer.Start(ctx, "n8n.UpdateWorkflowTags",
+		trace.WithAttributes(
+			attribute.String("workflow.id", workflowID),
+			attribute.Int("tag.count", len(tagIDs))))
+	defer span.End()
+
+	// Build the request body as an array of objects with just the ID field
+	type tagIDWrapper struct {
+		ID string `json:"id"`
+	}
+	tagWrappers := make([]tagIDWrapper, len(tagIDs))
+	for i, id := range tagIDs {
+		tagWrappers[i] = tagIDWrapper{ID: id}
+	}
+
+	body, err := json.Marshal(tagWrappers)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to marshal tag IDs")
+		return nil, fmt.Errorf("marshal tag IDs: %w", err)
+	}
+
+	url := fmt.Sprintf("%s/api/v1/workflows/%s/tags", c.baseURL, workflowID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, url, bytes.NewReader(body))
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create request")
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("X-N8N-API-KEY", c.apiKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "update workflow tags request failed")
+		return nil, fmt.Errorf("update workflow tags request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		span.SetStatus(codes.Error, fmt.Sprintf("unexpected status: %d", resp.StatusCode))
+		span.SetAttributes(attribute.String("response.body", string(body)))
+		return nil, fmt.Errorf("update workflow tags returned status %d: %s", resp.StatusCode, string(body))
+	}
+
+	var updatedTags []Tag
+	if err := json.NewDecoder(resp.Body).Decode(&updatedTags); err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to decode response")
+		return nil, fmt.Errorf("decode updated tags: %w", err)
+	}
+
+	span.SetStatus(codes.Ok, "workflow tags updated successfully")
+	slog.InfoContext(ctx, "updated workflow tags",
+		"workflow_id", workflowID,
+		"tag_count", len(updatedTags))
+
+	return updatedTags, nil
 }
