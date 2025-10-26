@@ -5,10 +5,11 @@ config:
   obsidianApiUrl: "https://obsidian.jomcgi.dev"
 
   # Cloudflare service token for bypassing Access
+  # Note: 1Password operator normalizes field names (CF_CLIENT_ACCESS_ID -> cf_client_access_id)
   cloudflare:
-    secretName: "cloudflare-service-token"
-    clientIdKey: "client-id"
-    clientSecretKey: "client-secret"
+    secretName: "n8n-obsidian-api-credentials"
+    clientIdKey: "cf_client_access_id"
+    clientSecretKey: "cf_client_access_secret"
 
   opentelemetry:
     enabled: true
@@ -18,7 +19,8 @@ config:
     otlpEndpoint: ""
 
 # 1Password integration
-# Create this item with fields: client-id, client-secret
+# Uses existing item with fields: CF_CLIENT_ACCESS_ID, CF_CLIENT_ACCESS_SECRET
+# These credentials are used to bypass Cloudflare Access when calling the Obsidian API
 onePassword:
   enabled: true
-  itemPath: "vaults/homelab/items/cloudflare-service-token-obsidian"
+  itemPath: "vaults/k8s-homelab/items/obsidian-cloudflare"
