@@ -315,6 +315,70 @@ func (c *ObservableClient) UpdateWorkflowTags(ctx context.Context, workflowID st
 	return *resp.JSON200, nil
 }
 
+// ActivateWorkflow activates a workflow with tracing and logging
+func (c *ObservableClient) ActivateWorkflow(ctx context.Context, workflowID string) (*Workflow, error) {
+	ctx, span := c.tracer.Start(ctx, "n8n.ActivateWorkflow",
+		trace.WithAttributes(attribute.String("workflow.id", workflowID)))
+	defer span.End()
+
+	resp, err := c.PostWorkflowsIdActivateWithResponse(ctx, workflowID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to activate workflow")
+		return nil, fmt.Errorf("activate workflow: %w", err)
+	}
+
+	if resp.JSON200 == nil {
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("activate workflow failed: %s", errMsg)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "activate workflow failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"workflow_id", workflowID)
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "workflow activated successfully")
+	c.logger.InfoContext(ctx, "activated workflow",
+		"workflow_id", workflowID)
+
+	return resp.JSON200, nil
+}
+
+// DeactivateWorkflow deactivates a workflow with tracing and logging
+func (c *ObservableClient) DeactivateWorkflow(ctx context.Context, workflowID string) (*Workflow, error) {
+	ctx, span := c.tracer.Start(ctx, "n8n.DeactivateWorkflow",
+		trace.WithAttributes(attribute.String("workflow.id", workflowID)))
+	defer span.End()
+
+	resp, err := c.PostWorkflowsIdDeactivateWithResponse(ctx, workflowID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to deactivate workflow")
+		return nil, fmt.Errorf("deactivate workflow: %w", err)
+	}
+
+	if resp.JSON200 == nil {
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("deactivate workflow failed: %s", errMsg)
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "deactivate workflow failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"workflow_id", workflowID)
+		return nil, err
+	}
+
+	span.SetStatus(codes.Ok, "workflow deactivated successfully")
+	c.logger.InfoContext(ctx, "deactivated workflow",
+		"workflow_id", workflowID)
+
+	return resp.JSON200, nil
+}
+
 // HealthCheck verifies the n8n API is accessible by attempting to list workflows
 func (c *ObservableClient) HealthCheck(ctx context.Context) error {
 	ctx, span := c.tracer.Start(ctx, "n8n.HealthCheck")
