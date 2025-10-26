@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.24-alpine AS builder
+FROM golang:1.22-alpine AS builder
 
 WORKDIR /workspace
 
@@ -31,7 +31,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
 
 # Copy the binary
-COPY --from=builder /app/syncer /syncer
+COPY --from=builder /workspace/charts/n8n/syncer/syncer /syncer
 
 # Use non-root user
 USER nonroot:nonroot
