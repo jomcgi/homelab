@@ -78,10 +78,11 @@ config:
   # Cloudflare service token for bypassing Access authentication
   # Cloudflare Access will inject Obsidian API credentials automatically
   # Stored in 1Password and synced via OnePasswordItem
+  # Note: 1Password operator normalizes field names to lowercase
   cloudflare:
-    secretName: "cloudflare-service-token"
-    clientIdKey: "client-id"
-    clientSecretKey: "client-secret"
+    secretName: "n8n-obsidian-api-credentials"
+    clientIdKey: "cf_client_access_id"
+    clientSecretKey: "cf_client_access_secret"
 
   # Service settings
   service:
@@ -101,4 +102,5 @@ config:
 # 1Password secret management
 onePassword:
   enabled: true
-  itemPath: "vaults/homelab/items/cloudflare-service-token-obsidian"
+  # itemPath format: vaults/<vault-name>/items/<item-name>
+  itemPath: "vaults/k8s-homelab/items/obsidian-cloudflare"
