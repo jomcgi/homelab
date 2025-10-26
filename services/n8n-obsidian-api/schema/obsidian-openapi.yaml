@@ -1,0 +1,309 @@
+openapi: "3.0.2"
+info:
+  title: "Local REST API for Obsidian"
+  version: "1.0"
+  description: |
+    You can use this interface for trying out your Local REST API in Obsidian.
+
+    Before trying the below tools, you will want to make sure you press the "Authorize" button below and provide the API Key you are shown when you open the "Local REST API" section of your Obsidian settings.  All requests to the API require a valid API Key; so you won't get very far without doing that.
+
+    When using this tool you may see browser security warnings due to your browser not trusting the self-signed certificate the plugin will generate on its first run.  If you do, you can make those errors disappear by adding the certificate as a "Trusted Certificate" in your browser or operating system's settings.
+servers:
+  - description: "HTTPS (Secure Mode)"
+    url: "https://{host}:{port}"
+    variables:
+      host:
+        default: "127.0.0.1"
+        description: "Binding host"
+      port:
+        default: "27124"
+        description: "HTTPS port"
+  - description: "HTTP (Insecure Mode)"
+    url: "http://{host}:{port}"
+    variables:
+      host:
+        default: "127.0.0.1"
+        description: "Binding host"
+      port:
+        default: "27123"
+        description: "HTTP port"
+security:
+  - apiKeyAuth: []
+components:
+  securitySchemes:
+    apiKeyAuth:
+      description: |
+        Find your API Key in your Obsidian settings
+        in the "Local REST API" section under "Plugins".
+      scheme: "bearer"
+      type: "http"
+  schemas:
+    Error:
+      type: "object"
+      properties:
+        errorCode:
+          type: "number"
+          description: |
+            A 5-digit error code uniquely identifying this particular type of error.
+          example: 40149
+        message:
+          type: "string"
+          description: "Message describing the error."
+          example: "A brief description of the error."
+    NoteJson:
+      type: "object"
+      required:
+        - "tags"
+        - "frontmatter"
+        - "stat"
+        - "path"
+        - "content"
+      properties:
+        path:
+          type: "string"
+        content:
+          type: "string"
+        tags:
+          type: "array"
+          items:
+            type: "string"
+        frontmatter:
+          type: "object"
+        stat:
+          type: "object"
+          required:
+            - "ctime"
+            - "mtime"
+            - "size"
+          properties:
+            ctime:
+              type: "number"
+            mtime:
+              type: "number"
+            size:
+              type: "number"
+paths:
+  "/vault/{filename}":
+    get:
+      summary: |
+        Return the content of a single file in your vault.
+      description: |
+        Returns the content of the file at the specified path in your vault should the file exist.
+
+        If you specify the header `Accept: application/vnd.olrapi.note+json`, will return a JSON representation of your note including parsed tag and frontmatter data as well as filesystem metadata.  See "responses" below for details.
+      tags:
+        - "Vault Files"
+      parameters:
+        - description: |
+            Path to the relevant file (relative to your vault root).
+          in: "path"
+          name: "filename"
+          required: true
+          schema:
+            type: "string"
+            format: "path"
+      responses:
+        "200":
+          description: "Success"
+          content:
+            text/markdown:
+              schema:
+                type: "string"
+                example: |
+                  # This is my document
+
+                  something else here
+            "application/vnd.olrapi.note+json":
+              schema:
+                "$ref": "#/components/schemas/NoteJson"
+        "404":
+          description: "File does not exist"
+    put:
+      summary: |
+        Create a new file in your vault or update the content of an existing one.
+      description: |
+        Creates a new file in your vault or updates the content of an existing one if the specified file already exists.
+      tags:
+        - "Vault Files"
+      parameters:
+        - description: |
+            Path to the relevant file (relative to your vault root).
+          in: "path"
+          name: "filename"
+          required: true
+          schema:
+            type: "string"
+            format: "path"
+      requestBody:
+        description: "Content of the file you would like to upload."
+        required: true
+        content:
+          text/markdown:
+            schema:
+              type: "string"
+              example: |
+                # This is my document
+
+                something else here
+          "*/*":
+            schema:
+              type: "string"
+      responses:
+        "204":
+          description: "Success"
+        "400":
+          description: |
+            Incoming file could not be processed.  Make sure you have specified a reasonable file name, and make sure you have set a reasonable 'Content-Type' header; if you are uploading a note, 'text/markdown' is likely the right choice.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+        "405":
+          description: |
+            Your path references a directory instead of a file; this request method is valid only for updating files.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    post:
+      summary: |
+        Append content to a new or existing file.
+      description: |
+        Appends content to the end of an existing note. If the specified file does not yet exist, it will be created as an empty file.
+
+        If you would like to insert text relative to a particular heading, block reference, or frontmatter field instead of appending to the end of the file, see 'patch'.
+      tags:
+        - "Vault Files"
+      parameters:
+        - description: |
+            Path to the relevant file (relative to your vault root).
+          in: "path"
+          name: "filename"
+          required: true
+          schema:
+            type: "string"
+            format: "path"
+      requestBody:
+        description: "Content you would like to append."
+        required: true
+        content:
+          text/markdown:
+            schema:
+              type: "string"
+              example: |
+                # This is my document
+
+                something else here
+      responses:
+        "204":
+          description: "Success"
+        "400":
+          description: "Bad Request"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+        "405":
+          description: |
+            Your path references a directory instead of a file; this request method is valid only for updating files.
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    patch:
+      summary: |
+        Partially update content in an existing note.
+      description: |
+        Inserts content into an existing note relative to a heading, block reference, or frontmatter field within that document.
+      tags:
+        - "Vault Files"
+      parameters:
+        - description: "Patch operation to perform"
+          in: "header"
+          name: "Operation"
+          required: true
+          schema:
+            type: "string"
+            enum:
+              - "append"
+              - "prepend"
+              - "replace"
+        - description: "Type of target to patch"
+          in: "header"
+          name: "Target-Type"
+          required: true
+          schema:
+            type: "string"
+            enum:
+              - "heading"
+              - "block"
+              - "frontmatter"
+        - description: |
+            Target to patch; this value can be URL-Encoded and *must*
+            be URL-Encoded if it includes non-ASCII characters.
+          in: "header"
+          name: "Target"
+          required: true
+          schema:
+            type: "string"
+        - description: |
+            Path to the relevant file (relative to your vault root).
+          in: "path"
+          name: "filename"
+          required: true
+          schema:
+            type: "string"
+            format: "path"
+      requestBody:
+        description: "Content you would like to insert."
+        required: true
+        content:
+          text/markdown:
+            schema:
+              type: "string"
+              example: |
+                # This is my document
+
+                something else here
+          application/json:
+            schema:
+              type: "string"
+              example: "['one', 'two']"
+      responses:
+        "200":
+          description: "Success"
+        "400":
+          description: "Bad Request; see response message for details."
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+        "404":
+          description: "Does not exist"
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"
+    delete:
+      summary: |
+        Delete a particular file in your vault.
+      tags:
+        - "Vault Files"
+      parameters:
+        - description: |
+            Path to the relevant file (relative to your vault root).
+          in: "path"
+          name: "filename"
+          required: true
+          schema:
+            type: "string"
+            format: "path"
+      responses:
+        "204":
+          description: "Success"
+        "404":
+          description: "File does not exist."
+          content:
+            application/json:
+              schema:
+                "$ref": "#/components/schemas/Error"

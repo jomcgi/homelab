@@ -1,0 +1,24 @@
+# Development overrides for n8n-obsidian-api
+
+config:
+  # Obsidian API URL via Cloudflare Tunnel
+  obsidianApiUrl: "https://obsidian.jomcgi.dev"
+
+  # Cloudflare service token for bypassing Access
+  cloudflare:
+    secretName: "cloudflare-service-token"
+    clientIdKey: "client-id"
+    clientSecretKey: "client-secret"
+
+  opentelemetry:
+    enabled: true
+    serviceName: "n8n-obsidian-api"
+    # TODO: Configure OTLP endpoint once SigNoz is deployed
+    # otlpEndpoint: "http://signoz-otel-collector.signoz:4317"
+    otlpEndpoint: ""
+
+# 1Password integration
+# Create this item with fields: client-id, client-secret
+onePassword:
+  enabled: true
+  itemPath: "vaults/homelab/items/cloudflare-service-token-obsidian"
