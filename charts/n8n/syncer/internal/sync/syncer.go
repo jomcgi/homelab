@@ -32,9 +32,10 @@ type Config struct {
 
 // Syncer handles workflow synchronization
 type Syncer struct {
-	config  Config
-	tracer  trace.Tracer
-	metrics *metrics
+	config       Config
+	tracer       trace.Tracer
+	metrics      *metrics
+	managedTagID string // Cached ID of the managed tag
 }
 
 // metrics holds OpenTelemetry metrics
@@ -299,9 +300,6 @@ func (s *Syncer) syncWorkflow(ctx context.Context, wf *n8n.Workflow, existingMap
 	managedName := s.getManagedName(wf.Name)
 	wf.Name = managedName
 
-	// Add managed tag
-	s.addManagedTag(wf)
-
 	slog.InfoContext(ctx, "syncing workflow",
 		"original_name", strings.TrimSuffix(managedName, s.config.ManagedSuffix),
 		"managed_name", managedName)
@@ -321,6 +319,14 @@ func (s *Syncer) syncWorkflow(ctx context.Context, wf *n8n.Workflow, existingMap
 			return fmt.Errorf("update workflow: %w", err)
 		}
 
+		// Ensure the workflow has the managed tag (in case it was removed manually)
+		if err := s.ensureWorkflowHasManagedTag(ctx, existing.ID); err != nil {
+			slog.WarnContext(ctx, "failed to ensure managed tag on updated workflow",
+				"workflow_id", existing.ID,
+				"error", err)
+			// Don't fail the sync if tags can't be added
+		}
+
 		span.SetStatus(codes.Ok, "workflow updated")
 		return nil
 	}
@@ -329,9 +335,7 @@ func (s *Syncer) syncWorkflow(ctx context.Context, wf *n8n.Workflow, existingMap
 	slog.InfoContext(ctx, "creating new workflow")
 	span.SetAttributes(attribute.String("operation", "create"))
 
-	// n8n API doesn't allow tags to be set during workflow creation (tags field is read-only on POST)
-	// Save tags and remove them before creating
-	tags := wf.Tags
+	// Tags cannot be set during workflow creation - they must be added via the dedicated tags API
 	wf.Tags = nil
 
 	created, err := s.config.N8NClient.CreateWorkflow(ctx, wf)
@@ -341,21 +345,16 @@ func (s *Syncer) syncWorkflow(ctx context.Context, wf *n8n.Workflow, existingMap
 		return fmt.Errorf("create workflow: %w", err)
 	}
 
-	// After creation, update the workflow with tags using PUT endpoint
-	if len(tags) > 0 {
-		created.Tags = tags
-		_, err := s.config.N8NClient.UpdateWorkflow(ctx, created.ID, created)
-		if err != nil {
-			slog.WarnContext(ctx, "failed to add tags to newly created workflow",
-				"workflow_id", created.ID,
-				"error", err)
-			// Don't fail the sync if tags can't be added - the workflow is created successfully
-		} else {
-			slog.InfoContext(ctx, "added tags to newly created workflow", "workflow_id", created.ID)
-		}
+	span.SetAttributes(attribute.String("workflow.id", created.ID))
+
+	// Add the managed tag to the newly created workflow
+	if err := s.ensureWorkflowHasManagedTag(ctx, created.ID); err != nil {
+		slog.WarnContext(ctx, "failed to add managed tag to workflow",
+			"workflow_id", created.ID,
+			"error", err)
+		// Don't fail the sync if tags can't be added - the workflow is created successfully
 	}
 
-	span.SetAttributes(attribute.String("workflow.id", created.ID))
 	span.SetStatus(codes.Ok, "workflow created")
 	return nil
 }
@@ -378,17 +377,104 @@ func (s *Syncer) getManagedName(originalName string) string {
 	return originalName + s.config.ManagedSuffix
 }
 
-// addManagedTag adds the managed tag to a workflow
-func (s *Syncer) addManagedTag(wf *n8n.Workflow) {
-	// Check if tag already exists
-	for _, tag := range wf.Tags {
-		if name, ok := tag["name"].(string); ok && name == s.config.ManagedTag {
-			return
+// getOrCreateManagedTag ensures the managed tag exists and returns its ID
+func (s *Syncer) getOrCreateManagedTag(ctx context.Context) (string, error) {
+	ctx, span := s.tracer.Start(ctx, "sync.getOrCreateManagedTag")
+	defer span.End()
+
+	// Return cached tag ID if available
+	if s.managedTagID != "" {
+		span.SetStatus(codes.Ok, "using cached tag ID")
+		return s.managedTagID, nil
+	}
+
+	// List all tags to find the managed tag
+	tags, err := s.config.N8NClient.ListTags(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to list tags")
+		return "", fmt.Errorf("list tags: %w", err)
+	}
+
+	// Check if the managed tag already exists
+	for _, tag := range tags {
+		if tag.Name == s.config.ManagedTag {
+			s.managedTagID = tag.ID
+			span.SetAttributes(attribute.String("tag.id", tag.ID))
+			span.SetStatus(codes.Ok, "found existing managed tag")
+			slog.InfoContext(ctx, "found existing managed tag", "tag_id", tag.ID, "tag_name", tag.Name)
+			return tag.ID, nil
 		}
 	}
 
-	// Add the tag
-	wf.Tags = append(wf.Tags, map[string]any{
-		"name": s.config.ManagedTag,
+	// Create the managed tag if it doesn't exist
+	slog.InfoContext(ctx, "creating managed tag", "tag_name", s.config.ManagedTag)
+	created, err := s.config.N8NClient.CreateTag(ctx, &n8n.Tag{
+		Name: s.config.ManagedTag,
 	})
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to create tag")
+		return "", fmt.Errorf("create tag: %w", err)
+	}
+
+	s.managedTagID = created.ID
+	span.SetAttributes(attribute.String("tag.id", created.ID))
+	span.SetStatus(codes.Ok, "created managed tag")
+	slog.InfoContext(ctx, "created managed tag", "tag_id", created.ID, "tag_name", created.Name)
+
+	return created.ID, nil
+}
+
+// ensureWorkflowHasManagedTag ensures the workflow has the managed tag
+func (s *Syncer) ensureWorkflowHasManagedTag(ctx context.Context, workflowID string) error {
+	ctx, span := s.tracer.Start(ctx, "sync.ensureWorkflowHasManagedTag",
+		trace.WithAttributes(attribute.String("workflow.id", workflowID)))
+	defer span.End()
+
+	// Get or create the managed tag
+	tagID, err := s.getOrCreateManagedTag(ctx)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get managed tag")
+		return fmt.Errorf("get managed tag: %w", err)
+	}
+
+	// Get current workflow tags
+	currentTags, err := s.config.N8NClient.GetWorkflowTags(ctx, workflowID)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to get workflow tags")
+		return fmt.Errorf("get workflow tags: %w", err)
+	}
+
+	// Check if the workflow already has the managed tag
+	hasTag := false
+	tagIDs := make([]string, 0, len(currentTags)+1)
+	for _, tag := range currentTags {
+		tagIDs = append(tagIDs, tag.ID)
+		if tag.ID == tagID {
+			hasTag = true
+		}
+	}
+
+	if hasTag {
+		span.SetStatus(codes.Ok, "workflow already has managed tag")
+		slog.InfoContext(ctx, "workflow already has managed tag", "workflow_id", workflowID)
+		return nil
+	}
+
+	// Add the managed tag to the workflow
+	tagIDs = append(tagIDs, tagID)
+	_, err = s.config.N8NClient.UpdateWorkflowTags(ctx, workflowID, tagIDs)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "failed to update workflow tags")
+		return fmt.Errorf("update workflow tags: %w", err)
+	}
+
+	span.SetStatus(codes.Ok, "added managed tag to workflow")
+	slog.InfoContext(ctx, "added managed tag to workflow", "workflow_id", workflowID, "tag_id", tagID)
+
+	return nil
 }

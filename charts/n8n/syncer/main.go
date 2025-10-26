@@ -17,7 +17,7 @@ import (
 
 const (
 	serviceName    = "n8n-workflow-syncer"
-	serviceVersion = "1.0.1"
+	serviceVersion = "1.1.0"
 )
 
 func main() {
