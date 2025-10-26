@@ -272,3 +272,26 @@ func (c *ObservableClient) UpdateWorkflowTags(ctx context.Context, workflowID st
 
 	return *resp.JSON200, nil
 }
+
+// HealthCheck verifies the n8n API is accessible by attempting to list workflows
+func (c *ObservableClient) HealthCheck(ctx context.Context) error {
+	ctx, span := c.tracer.Start(ctx, "n8n.HealthCheck")
+	defer span.End()
+
+	// Try to list workflows with a limit of 1 as a health check
+	limit := Limit(1)
+	params := &GetWorkflowsParams{
+		Limit: &limit,
+	}
+
+	_, err := c.ListWorkflows(ctx, params)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "health check failed")
+		return fmt.Errorf("health check request: %w", err)
+	}
+
+	span.SetStatus(codes.Ok, "n8n is healthy")
+	c.logger.InfoContext(ctx, "n8n is healthy")
+	return nil
+}
