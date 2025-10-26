@@ -86,11 +86,11 @@ config:
   # Cloudflare service token for bypassing Access authentication
   # Cloudflare Access will inject Obsidian API credentials automatically
   # Stored in 1Password and synced via OnePasswordItem
-  # Note: 1Password operator normalizes field names to lowercase
+  # Note: Field names are preserved as-is from 1Password (uppercase)
   cloudflare:
     secretName: "n8n-obsidian-api-credentials"
-    clientIdKey: "cf_client_access_id"
-    clientSecretKey: "cf_client_access_secret"
+    clientIdKey: "CF_CLIENT_ACCESS_ID"
+    clientSecretKey: "CF_ACCESS_CLIENT_SECRET"
 
   # Service settings
   service:
