@@ -221,10 +221,12 @@ func (s *Syncer) waitForN8N(ctx context.Context) error {
 			span.SetStatus(codes.Ok, "n8n is ready")
 			slog.InfoContext(ctx, "n8n is ready")
 			return nil
-		}
-
-		if i%10 == 0 {
-			slog.InfoContext(ctx, "waiting for n8n to be ready", "attempt", i+1, "max", maxRetries)
+		} else if i%10 == 0 {
+			// Log the actual error every 10 attempts to help debug connectivity issues
+			slog.WarnContext(ctx, "waiting for n8n to be ready",
+				"attempt", i+1,
+				"max", maxRetries,
+				"error", err.Error())
 		}
 
 		select {
