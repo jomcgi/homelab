@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jomcgi/n8n-obsidian-api
+  repository: ghcr.io/jomcgi/homelab/n8n-obsidian-api
   pullPolicy: IfNotPresent
   tag: "latest"
 
