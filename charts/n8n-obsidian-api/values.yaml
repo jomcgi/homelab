@@ -9,7 +9,7 @@ image:
 imagePullSecrets: []
 # Example for 1Password-managed secret:
 # imagePullSecrets:
-#   - name: ghcr-pull-secret
+#   - name: n8n-obsidian-api-ghcr
 #     onepassword:
 #       type: onepassword
 #       itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"

@@ -2,7 +2,7 @@
 
 # Image pull secrets for private GHCR access
 imagePullSecrets:
-  - name: ghcr-pull-secret
+  - name: n8n-obsidian-api-ghcr
     onepassword:
       type: onepassword
       itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
