@@ -1,6 +1,6 @@
 module github.com/jomcgi/homelab/charts/n8n/syncer
 
-go 1.24.7
+go 1.25
 
 require (
 	github.com/jomcgi/homelab v0.0.0-00010101000000-000000000000
