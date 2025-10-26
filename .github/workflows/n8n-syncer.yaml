@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - claude/**
     paths:
       - 'charts/n8n/syncer/**'
       - 'pkg/n8n/**'
