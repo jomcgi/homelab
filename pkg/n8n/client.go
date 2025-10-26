@@ -53,6 +53,15 @@ func (c *ObservableClient) WithLogger(logger *slog.Logger) *ObservableClient {
 	return c
 }
 
+// formatErrorResponse creates a detailed error message from an API response
+func formatErrorResponse(statusCode int, body []byte) string {
+	bodyPreview := string(body)
+	if len(bodyPreview) > 500 {
+		bodyPreview = bodyPreview[:500] + "..."
+	}
+	return fmt.Sprintf("status %d: %s", statusCode, bodyPreview)
+}
+
 // ListWorkflows retrieves all workflows with tracing and logging
 func (c *ObservableClient) ListWorkflows(ctx context.Context, params *GetWorkflowsParams) (*WorkflowList, error) {
 	ctx, span := c.tracer.Start(ctx, "n8n.ListWorkflows")
@@ -66,9 +75,13 @@ func (c *ObservableClient) ListWorkflows(ctx context.Context, params *GetWorkflo
 	}
 
 	if resp.JSON200 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("list workflows failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "list workflows failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, err
 	}
 
@@ -98,9 +111,14 @@ func (c *ObservableClient) CreateWorkflow(ctx context.Context, workflow Workflow
 	}
 
 	if resp.JSON200 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("create workflow failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "create workflow failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"workflow_name", workflow.Name)
 		return nil, err
 	}
 
@@ -134,9 +152,14 @@ func (c *ObservableClient) UpdateWorkflow(ctx context.Context, id string, workfl
 	}
 
 	if resp.JSON200 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("update workflow failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "update workflow failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"workflow_id", id)
 		return nil, err
 	}
 
@@ -161,9 +184,13 @@ func (c *ObservableClient) ListTags(ctx context.Context, params *GetTagsParams) 
 	}
 
 	if resp.JSON200 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("list tags failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "list tags failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body))
 		return nil, err
 	}
 
@@ -193,9 +220,14 @@ func (c *ObservableClient) CreateTag(ctx context.Context, tag Tag) (*Tag, error)
 	}
 
 	if resp.JSON201 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("create tag failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "create tag failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"tag_name", tag.Name)
 		return nil, err
 	}
 
@@ -227,9 +259,14 @@ func (c *ObservableClient) GetWorkflowTags(ctx context.Context, workflowID strin
 	}
 
 	if resp.JSON200 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("get workflow tags failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "get workflow tags failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"workflow_id", workflowID)
 		return nil, err
 	}
 
@@ -259,9 +296,14 @@ func (c *ObservableClient) UpdateWorkflowTags(ctx context.Context, workflowID st
 	}
 
 	if resp.JSON200 == nil {
-		err := fmt.Errorf("unexpected response status: %d", resp.StatusCode())
+		errMsg := formatErrorResponse(resp.StatusCode(), resp.Body)
+		err := fmt.Errorf("update workflow tags failed: %s", errMsg)
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "unexpected response")
+		c.logger.ErrorContext(ctx, "update workflow tags failed",
+			"status", resp.StatusCode(),
+			"body", string(resp.Body),
+			"workflow_id", workflowID)
 		return nil, err
 	}
 
