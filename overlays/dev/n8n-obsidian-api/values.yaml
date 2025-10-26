@@ -1,5 +1,12 @@
 # Development overrides for n8n-obsidian-api
 
+# Image pull secrets for private GHCR access
+imagePullSecrets:
+  - name: ghcr-pull-secret
+    onepassword:
+      type: onepassword
+      itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 config:
   # Obsidian API URL via Cloudflare Tunnel
   obsidianApiUrl: "https://obsidian.jomcgi.dev"
