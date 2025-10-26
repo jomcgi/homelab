@@ -1,5 +1,6 @@
 """Type-safe client for Obsidian Local REST API with path restrictions."""
 
+import json
 import logging
 from pathlib import Path
 from typing import Any
@@ -261,8 +262,6 @@ class ObsidianClient:
         span.set_attribute("obsidian.path", path)
         span.set_attribute("obsidian.operation", "update_frontmatter")
         span.set_attribute("obsidian.frontmatter.key", key)
-
-        import json
 
         response = await self._client.patch(
             f"/vault/{path}",
