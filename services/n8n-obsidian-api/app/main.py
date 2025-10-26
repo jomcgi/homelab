@@ -14,12 +14,24 @@ from opentelemetry.sdk.trace.export import BatchSpanProcessor
 from app.config import settings
 from app.routers import notes
 
+
+class HealthCheckFilter(logging.Filter):
+    """Filter out health check logs from uvicorn access logs."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Return False to exclude health check endpoint logs."""
+        return record.getMessage().find("/ready") == -1
+
+
 # Configure logging
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper()),
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+# Filter out health check logs from uvicorn access logger
+logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 
 def setup_telemetry():
