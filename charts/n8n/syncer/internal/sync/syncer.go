@@ -329,11 +329,30 @@ func (s *Syncer) syncWorkflow(ctx context.Context, wf *n8n.Workflow, existingMap
 	slog.InfoContext(ctx, "creating new workflow")
 	span.SetAttributes(attribute.String("operation", "create"))
 
+	// n8n API doesn't allow tags to be set during workflow creation (tags field is read-only on POST)
+	// Save tags and remove them before creating
+	tags := wf.Tags
+	wf.Tags = nil
+
 	created, err := s.config.N8NClient.CreateWorkflow(ctx, wf)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "failed to create workflow")
 		return fmt.Errorf("create workflow: %w", err)
+	}
+
+	// After creation, update the workflow with tags using PUT endpoint
+	if len(tags) > 0 {
+		created.Tags = tags
+		_, err := s.config.N8NClient.UpdateWorkflow(ctx, created.ID, created)
+		if err != nil {
+			slog.WarnContext(ctx, "failed to add tags to newly created workflow",
+				"workflow_id", created.ID,
+				"error", err)
+			// Don't fail the sync if tags can't be added - the workflow is created successfully
+		} else {
+			slog.InfoContext(ctx, "added tags to newly created workflow", "workflow_id", created.ID)
+		}
 	}
 
 	span.SetAttributes(attribute.String("workflow.id", created.ID))
