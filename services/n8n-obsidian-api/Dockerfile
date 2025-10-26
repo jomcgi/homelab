@@ -11,9 +11,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy dependency files
 COPY pyproject.toml ./
 
-# Install Python dependencies
+# Install build dependencies and Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e .
+    pip install --no-cache-dir hatchling && \
+    pip install --no-cache-dir .
 
 # Runtime stage
 FROM python:3.11-slim
