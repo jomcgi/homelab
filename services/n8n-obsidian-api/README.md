@@ -50,6 +50,55 @@ Instead of having n8n directly interact with the Obsidian API:
 
 ## API Endpoints
 
+### List All Notes
+
+```http
+GET /notes
+```
+
+**Response:**
+```json
+{
+  "notes": [
+    {
+      "path": "daily/2025-10-26.md",
+      "title": "Daily Note - Oct 26",
+      "tags": ["daily", "journal"],
+      "frontmatter": {
+        "date": "2025-10-26",
+        "status": "active"
+      },
+      "stat": {
+        "ctime": 1729900800,
+        "mtime": 1729900800,
+        "size": 2048
+      }
+    },
+    {
+      "path": "n8n/workflows/sync.md",
+      "title": "Workflow Sync",
+      "tags": ["workflow", "automation"],
+      "frontmatter": {
+        "status": "active"
+      },
+      "stat": {
+        "ctime": 1729800000,
+        "mtime": 1729900000,
+        "size": 1024
+      }
+    }
+  ]
+}
+```
+
+**Note:** Title is extracted from `frontmatter.title` if present, otherwise uses the filename without `.md` extension.
+
+**Use cases:**
+- Discover all notes in the vault
+- Check if a daily note exists before creating it
+- Find notes by tag or frontmatter fields
+- Let an LLM browse available notes
+
 ### Create or Update Note
 
 ```http
@@ -274,6 +323,42 @@ ruff format app/
 
 ## Usage Examples
 
+### LLM-Assisted Daily Notes Workflow
+
+```javascript
+// 1. List all notes to check if today's note exists
+const listResponse = await fetch('http://n8n-obsidian-api/notes');
+const { notes } = await listResponse.json();
+
+// 2. Check if today's daily note exists
+const today = new Date().toISOString().split('T')[0]; // "2025-10-26"
+const dailyNotePath = `daily/${today}.md`;
+const noteExists = notes.some(note => note.path === dailyNotePath);
+
+// 3. If not, create it
+if (!noteExists) {
+  await fetch('http://n8n-obsidian-api/notes/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      path: dailyNotePath,
+      content: `# Daily Note - ${today}\n\n## Todo\n\n## Notes\n`
+    })
+  });
+}
+
+// 4. Append a task to the Todo section
+await fetch('http://n8n-obsidian-api/notes/append-to-section', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    path: dailyNotePath,
+    heading: 'Todo',
+    content: '\n- [ ] Review pull requests'
+  })
+});
+```
+
 ### n8n HTTP Request Node
 
 ```json
@@ -290,6 +375,9 @@ ruff format app/
 ### Curl
 
 ```bash
+# List all notes
+curl http://n8n-obsidian-api/notes
+
 # Create a note
 curl -X POST http://n8n-obsidian-api/notes/create \
   -H "Content-Type: application/json" \

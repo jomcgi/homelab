@@ -8,7 +8,7 @@ from pydantic import BaseModel, Field
 
 from app.clients.obsidian import ObsidianClient, PathRestrictionError
 from app.config import settings
-from app.models import NoteJson, PatchOperation, PatchTargetType
+from app.models import NoteJson, NoteListResponse, NoteMetadata, PatchOperation, PatchTargetType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notes", tags=["notes"])
@@ -206,6 +206,75 @@ async def update_frontmatter(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to update frontmatter: {str(e)}",
+        )
+
+
+@router.get("/", response_model=NoteListResponse)
+async def list_notes(
+    client: ObsidianClient = Depends(get_obsidian_client),
+) -> NoteListResponse:
+    """
+    List all notes in the vault with metadata.
+
+    Returns lightweight metadata for all markdown files including:
+    - Path
+    - Title (extracted from frontmatter or filename)
+    - Tags
+    - Frontmatter
+    - File statistics (created, modified, size)
+
+    Useful for:
+    - Discovering what notes exist
+    - Finding notes by tag or frontmatter
+    - Checking if a daily note exists before creating it
+
+    Example:
+        GET /notes
+    """
+    try:
+        # Get all files in the vault
+        all_files = await client.list_vault()
+
+        # Filter for markdown files only
+        md_files = [f for f in all_files if f.endswith(".md")]
+
+        # Fetch metadata for each note
+        notes_metadata = []
+        for file_path in md_files:
+            try:
+                # Get full note metadata
+                note = await client.get_note(file_path, as_json=True)
+
+                # Extract title from frontmatter or use filename
+                title = note.frontmatter.get("title", "")
+                if not title:
+                    # Use filename without .md extension as title
+                    from pathlib import Path
+
+                    title = Path(file_path).stem
+
+                # Create metadata object
+                metadata = NoteMetadata(
+                    path=note.path,
+                    title=title,
+                    tags=note.tags,
+                    frontmatter=note.frontmatter,
+                    stat=note.stat,
+                )
+                notes_metadata.append(metadata)
+
+            except Exception as e:
+                # Log and skip files that can't be read
+                logger.warning(f"Failed to read note {file_path}: {e}")
+                continue
+
+        return NoteListResponse(notes=notes_metadata)
+
+    except Exception as e:
+        logger.exception("Failed to list notes")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to list notes: {str(e)}",
         )
 
 

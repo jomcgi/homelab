@@ -274,3 +274,31 @@ class ObsidianClient:
             },
         )
         response.raise_for_status()
+
+    @tracer.start_as_current_span("obsidian.list_vault")
+    async def list_vault(self) -> list[str]:
+        """
+        List all files in the vault.
+
+        Returns:
+            List of file paths relative to vault root
+
+        Raises:
+            httpx.HTTPStatusError: If API request fails
+        """
+        span = trace.get_current_span()
+        span.set_attribute("obsidian.operation", "list_vault")
+
+        response = await self._client.get("/vault/")
+        response.raise_for_status()
+
+        data = response.json()
+
+        # The response format may vary, handle both array and object formats
+        if isinstance(data, list):
+            return data
+        elif isinstance(data, dict) and "files" in data:
+            return data["files"]
+        else:
+            logger.warning(f"Unexpected list_vault response format: {type(data)}")
+            return []
