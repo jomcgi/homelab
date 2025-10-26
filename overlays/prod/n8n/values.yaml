@@ -9,7 +9,7 @@ workflowSync:
   image:
     repository: ghcr.io/jomcgi/homelab/n8n-workflow-syncer
     tag: "latest"  # TODO: Pin to specific version after first build
-    pullPolicy: IfNotPresent
+    pullPolicy: Always  # Always pull to ensure we get the latest build
 
   # Image pull secrets for private GHCR images (managed by 1Password)
   imagePullSecrets:
