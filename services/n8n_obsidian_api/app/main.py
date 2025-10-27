@@ -11,8 +11,8 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from app.config import settings
-from app.routers import notes
+from services.n8n_obsidian_api.app.config import settings
+from services.n8n_obsidian_api.app.routers import notes
 
 
 class HealthCheckFilter(logging.Filter):

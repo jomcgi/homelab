@@ -7,9 +7,9 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
-from app.clients.obsidian import ObsidianClient, PathRestrictionError
-from app.config import settings
-from app.models import NoteJson, NoteListResponse, NoteMetadata, PatchOperation, PatchTargetType
+from services.n8n_obsidian_api.app.clients.obsidian import ObsidianClient, PathRestrictionError
+from services.n8n_obsidian_api.app.config import settings
+from services.n8n_obsidian_api.app.models import NoteJson, NoteListResponse, NoteMetadata, PatchOperation, PatchTargetType
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notes", tags=["notes"])

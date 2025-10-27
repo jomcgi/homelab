@@ -83,12 +83,12 @@ pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
 python.toolchain(
-    python_version = "3.12",
+    python_version = "3.13",
 )
 
 pip.parse(
     hub_name = "pip",
-    python_version = "3.12",
+    python_version = "3.13",
     requirements_lock = "//requirements:all.txt",
 )
 use_repo(pip, "pip")

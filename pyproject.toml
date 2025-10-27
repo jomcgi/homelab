@@ -7,9 +7,20 @@ version = "0"
 # https://packaging.python.org/en/latest/specifications/version-specifiers/#version-matching
 # This project uses 'uv pip compile' from https://github.com/astral-sh/uv
 # which will ensure the resolved versions of both direct and indirect dependencies are pinned.
-# Therefore we only need to constrain versions when some ranges 
+# Therefore we only need to constrain versions when some ranges
 # of dependency versions are not compatible.
 dependencies = [
+    "fastapi>=0.109.0",
+    "uvicorn[standard]>=0.27.0",
+    "pydantic>=2.5.0",
+    "pydantic-settings>=2.1.0",
+    "httpx>=0.26.0",
+    "pyyaml>=6.0.1",
+    "opentelemetry-api>=1.22.0",
+    "opentelemetry-sdk>=1.22.0",
+    "opentelemetry-instrumentation-fastapi>=0.43b0",
+    "opentelemetry-instrumentation-httpx>=0.43b0",
+    "opentelemetry-exporter-otlp>=1.22.0",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
