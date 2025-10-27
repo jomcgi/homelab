@@ -1,39 +1,16 @@
-# Homelab Monorepo - Shared Python Configuration
+[project]
+name = "homelab"
+classifiers = ["Private :: Do Not Upload"]
+version = "0"
 
+# Dependencies should NOT use "Version Matching clauses" (matching operator `==`)
+# https://packaging.python.org/en/latest/specifications/version-specifiers/#version-matching
+# This project uses 'uv pip compile' from https://github.com/astral-sh/uv
+# which will ensure the resolved versions of both direct and indirect dependencies are pinned.
+# Therefore we only need to constrain versions when some ranges 
+# of dependency versions are not compatible.
+dependencies = [
+]
+
+# See https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
-line-length = 100
-target-version = "py311"
-
-[tool.ruff.lint]
-select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4", # flake8-comprehensions
-    "UP", # pyupgrade
-]
-# Ignore specific rules for FastAPI patterns and existing code
-ignore = [
-    "B008",  # Allow Depends() in function defaults
-    "B904",  # Allow raise without from (exception chaining) - fix later
-    "E501",  # Line too long - fix gradually
-]
-
-[tool.pyright]
-include = ["services/**/*.py", "operators/**/*.py"]
-exclude = ["**/__pycache__", "**/.venv", "**/node_modules"]
-pythonVersion = "3.11"
-typeCheckingMode = "strict"
-reportMissingTypeStubs = false
-reportUnknownMemberType = false
-reportUnknownArgumentType = false
-reportUnknownVariableType = false
-reportUntypedFunctionDecorator = false
-reportGeneralTypeIssues = "warning"
-reportOptionalMemberAccess = "warning"
-
-[tool.pytest.ini_options]
-testpaths = ["services", "operators"]
-python_files = ["test_*.py", "*_test.py"]

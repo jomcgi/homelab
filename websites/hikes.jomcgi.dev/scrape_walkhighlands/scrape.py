@@ -7,7 +7,12 @@ from urllib.parse import urljoin
 import requests
 import requests_cache
 from bs4 import BeautifulSoup
-from error_handling import ErrorCollector, handle_network_errors, log_performance, retry_on_failure
+from error_handling import (
+    ErrorCollector,
+    handle_network_errors,
+    log_performance,
+    retry_on_failure,
+)
 from pydantic import BaseModel, ConfigDict, ValidationError
 from pydantic_extra_types.coordinate import Coordinate
 from pydantic_sqlite import DataBase
@@ -52,7 +57,9 @@ def scrape_area_links_from_homepage(
         link_elements = choose_area_div.select("td.cell a")
 
         if not link_elements:
-            logger.warning("No links found matching the selector 'td.cell a' within #choosearea")
+            logger.warning(
+                "No links found matching the selector 'td.cell a' within #choosearea"
+            )
             return extracted_links  # Return empty list
 
         logger.debug(f"Found {len(link_elements)} potential area links")
@@ -116,7 +123,9 @@ def scrape_sub_area_links_from_area(
         link_elements = choose_area_div.select("td.cell a")
 
         if not link_elements:
-            logger.warning("No links found matching the selector 'td.cell a' within #choosearea")
+            logger.warning(
+                "No links found matching the selector 'td.cell a' within #choosearea"
+            )
             return extracted_links  # Return empty list
 
         logger.debug(f"Found {len(link_elements)} potential area links")
@@ -185,7 +194,9 @@ def scrape_walks_from_sub_area(
                 print("Found 'div.walktable', but the selector within it failed.")
                 # print(walk_table_div.prettify()) # Uncomment to see its structure
             else:
-                print("Error: Could not find the <div class='walktable'> container either.")
+                print(
+                    "Error: Could not find the <div class='walktable'> container either."
+                )
             return extracted_links  # Return empty list
 
         print(f"Found {len(link_elements)} walk links.")
@@ -289,7 +300,9 @@ def scrape_walk_data_from_file(
         # 2. Canonical URL (if present)
         canonical_link = soup.select_one('link[rel="canonical"]')
         data["url"] = (
-            canonical_link["href"] if canonical_link and "href" in canonical_link.attrs else None
+            canonical_link["href"]
+            if canonical_link and "href" in canonical_link.attrs
+            else None
         )
 
         # 3. Summary
@@ -315,7 +328,9 @@ def scrape_walk_data_from_file(
                             try:
                                 data["distance_km"] = float(match.group(1))
                             except ValueError:
-                                print(f"Warning: Could not parse distance from '{dd_text}'")
+                                print(
+                                    f"Warning: Could not parse distance from '{dd_text}'"
+                                )
                         else:
                             print(
                                 f"Warning: Could not find 'km' value in distance string: '{dd_text}'"
@@ -323,7 +338,9 @@ def scrape_walk_data_from_file(
 
                     elif "time" in dt_text:
                         if "-" in dd_text:
-                            data["duration_h"] = TimeLength(dd_text.split("-")[1]).to_hours()
+                            data["duration_h"] = TimeLength(
+                                dd_text.split("-")[1]
+                            ).to_hours()
                         else:
                             data["duration_h"] = TimeLength(dd_text).to_hours()
 
@@ -334,7 +351,9 @@ def scrape_walk_data_from_file(
                             try:
                                 data["ascent_m"] = int(match.group(1))
                             except ValueError:
-                                print(f"Warning: Could not parse ascent from '{dd_text}'")
+                                print(
+                                    f"Warning: Could not parse ascent from '{dd_text}'"
+                                )
                         else:
                             print(
                                 f"Warning: Could not find 'm' value in ascent string: '{dd_text}'"
@@ -347,7 +366,9 @@ def scrape_walk_data_from_file(
             coords = re.findall(r"[-+]?\d*\.\d+|\d+", location_tag["href"])
             if len(coords) == 2:
                 try:
-                    coords = Coordinate(latitude=float(coords[0]), longitude=float(coords[1]))
+                    coords = Coordinate(
+                        latitude=float(coords[0]), longitude=float(coords[1])
+                    )
                     data["latitude"] = coords.latitude
                     data["longitude"] = coords.longitude
                 except Exception as e:
@@ -421,7 +442,9 @@ def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
                 sub_area_links.extend(links)
             else:
                 error_collector.add_error(
-                    "scrape_sub_area", Exception("No sub-area links found"), area_link=area_link
+                    "scrape_sub_area",
+                    Exception("No sub-area links found"),
+                    area_link=area_link,
                 )
         except Exception as e:
             error_collector.add_error("scrape_sub_area", e, area_link=area_link)
@@ -442,7 +465,9 @@ def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
                 walk_links.extend(links)
             else:
                 error_collector.add_error(
-                    "scrape_walks", Exception("No walk links found"), sub_area_link=sub_area_link
+                    "scrape_walks",
+                    Exception("No walk links found"),
+                    sub_area_link=sub_area_link,
                 )
         except Exception as e:
             error_collector.add_error("scrape_walks", e, sub_area_link=sub_area_link)
@@ -474,7 +499,9 @@ def scrape_walkhighlands(session: requests.Session = None) -> list[Walk]:
     error_collector.log_summary()
 
     if walks:
-        logger.info(f"Successfully scraped {len(walks)} walks out of {len(walk_links)} attempted")
+        logger.info(
+            f"Successfully scraped {len(walks)} walks out of {len(walk_links)} attempted"
+        )
     else:
         logger.error("Failed to scrape any valid walk data")
 

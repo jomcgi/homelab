@@ -55,7 +55,8 @@ class S3Uploader:
             aws_access_key_id=os.environ["CLOUDFLARE_S3_ACCESS_KEY_ID"],
             aws_secret_access_key=os.environ["CLOUDFLARE_S3_ACCESS_KEY_SECRET"],
             config=Config(
-                signature_version="s3v4", retries={"max_attempts": 3, "mode": "standard"}
+                signature_version="s3v4",
+                retries={"max_attempts": 3, "mode": "standard"},
             ),
             region_name="auto",
         )
@@ -139,7 +140,9 @@ def parse_weather_data(forecast_data: dict[str, Any]) -> list[dict[str, Any]]:
                 "time": time_str,
                 "temp_c": instant.get("air_temperature"),
                 "wind_speed_ms": instant.get("wind_speed"),
-                "precipitation_mm": next_1_hours.get("details", {}).get("precipitation_amount", 0),
+                "precipitation_mm": next_1_hours.get("details", {}).get(
+                    "precipitation_amount", 0
+                ),
                 "cloud_area_fraction": instant.get("cloud_area_fraction"),
             }
         )
@@ -211,7 +214,9 @@ def process_walk(walk: Walk) -> dict[str, Any]:
             timestamp = int(dt.timestamp())
             temp_c = round(weather["temp_c"], 1) if weather["temp_c"] is not None else 0
             precip_mm = (
-                round(weather["precipitation_mm"], 1) if weather["precipitation_mm"] > 0 else 0
+                round(weather["precipitation_mm"], 1)
+                if weather["precipitation_mm"] > 0
+                else 0
             )
             wind_ms = weather["wind_speed_ms"] or 0
             wind_kmh = round(wind_ms * 3.6)
@@ -273,7 +278,9 @@ def main():
         # Limit to 20 requests/second as per Met.no guidelines
         with ThreadPoolExecutor(max_workers=20) as executor:
             # Submit all walks for processing
-            future_to_walk = {executor.submit(process_walk, walk): walk for walk in walks}
+            future_to_walk = {
+                executor.submit(process_walk, walk): walk for walk in walks
+            }
 
             # Process completed results
             for i, future in enumerate(as_completed(future_to_walk)):

@@ -1,62 +1,20 @@
+# User-specific settings file for this repo
+.aspect/bazelrc/user.bazelrc
 
-# Editors
-.vscode/
-# Trash
-.DS_Store
-Thumbs.db
-.venv
-# Binaries
-/flux
-*.iso
-# Temp folders
-.temp*
-.private/
-.logs/
-.task/
-# Ansible
-xanmanning.k3s*
-# Sops
-.decrypted~*
-# Kubernetes
-kubeconfig
-# Other
-report.html
-.env
-auth
-master.key
-*.snap
-setup/cluster/*cluster.yml
-.aider*
-.mypy_cache
-__pycache__
-node_modules
-.next
-**/venv/**
-projects/static_rewrite_find_good_hikes/build/dist
-operators/cloudflare/bin/manager
-.mcp.json
+# Don't check in lockfile for now. It is unstable.
+# https://github.com/bazelbuild/bazel/issues/19026
+# https://github.com/bazelbuild/bazel/issues/19621
+# https://github.com/bazelbuild/bazel/issues/19971
+# https://github.com/bazelbuild/bazel/issues/20272
+# https://github.com/bazelbuild/bazel/issues/20369
+MODULE.bazel.lock
 
-# build output
-dist/
+# Symlinks created by Bazel into the output tree
+/bazel-*
 
-# generated types
-.astro/
 
-# dependencies
 node_modules/
 
-# logs
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-pnpm-debug.log*
 
-# environment variables
-*.env
-.env.production
+*.venv/
 
-# macOS-specific files
-.DS_Store
-
-# jetbrains setting folder
-.idea/

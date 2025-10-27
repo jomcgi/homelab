@@ -804,7 +804,6 @@ func (r *CloudflareTunnelReconciler) updateDaemonStatus(ctx context.Context, tun
 		Name:      tunnel.Status.DaemonStatus.DeploymentName,
 		Namespace: tunnel.Namespace,
 	}, deployment)
-
 	if err != nil {
 		if errors.IsNotFound(err) {
 			// Deployment not found, reset daemon status

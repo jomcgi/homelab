@@ -180,7 +180,9 @@ def graceful_shutdown(func: Callable[..., T]) -> Callable[..., T | None]:
             return None
         except Exception as e:
             logger.error(f"Critical error in {func.__name__}: {e}")
-            logger.error("Application will continue but some functionality may be limited")
+            logger.error(
+                "Application will continue but some functionality may be limited"
+            )
             return None
 
     return wrapper
@@ -296,7 +298,9 @@ class ErrorCollector:
             error_type = error["error_type"]
             error_counts[error_type] = error_counts.get(error_type, 0) + 1
 
-        summary_parts = [f"{count} {error_type}" for error_type, count in error_counts.items()]
+        summary_parts = [
+            f"{count} {error_type}" for error_type, count in error_counts.items()
+        ]
         return f"Collected {len(self.errors)} errors: " + ", ".join(summary_parts)
 
     def log_summary(self):
@@ -309,7 +313,9 @@ class ErrorCollector:
                 logger.debug(f"Error details: {error}")
 
 
-def with_error_collection(func: Callable[..., T]) -> Callable[..., tuple[T | None, ErrorCollector]]:
+def with_error_collection(
+    func: Callable[..., T],
+) -> Callable[..., tuple[T | None, ErrorCollector]]:
     """
     Decorator that provides an ErrorCollector to the function.
 
