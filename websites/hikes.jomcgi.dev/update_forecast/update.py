@@ -75,7 +75,7 @@ def load_walks_from_db() -> list[Walk]:
     cursor = conn.cursor()
 
     cursor.execute("""
-        SELECT uuid, name, url, distance_km, ascent_m, duration_h, 
+        SELECT uuid, name, url, distance_km, ascent_m, duration_h,
                summary, latitude, longitude
         FROM walks
         ORDER BY name
