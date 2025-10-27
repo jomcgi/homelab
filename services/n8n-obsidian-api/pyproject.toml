@@ -24,6 +24,9 @@ dev = [
     "pytest-cov>=4.1.0",
     "httpx>=0.26.0",
     "ruff>=0.1.0",
+    "datamodel-code-generator>=0.25.0",
+    "pyright>=1.1.350",
+    "pre-commit>=3.6.0",
 ]
 
 [build-system]
@@ -47,7 +50,29 @@ select = [
     "C4", # flake8-comprehensions
     "UP", # pyupgrade
 ]
+# Ignore specific rules for FastAPI patterns and existing code
+ignore = [
+    "B008",  # Allow Depends() in function defaults
+    "B904",  # Allow raise without from (exception chaining) - fix later
+    "E501",  # Line too long - fix gradually
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.pyright]
+include = ["app"]
+exclude = ["**/__pycache__", ".venv"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUntypedFunctionDecorator = false
+# Allow generated code to be less strict
+reportGeneralTypeIssues = "warning"
+reportOptionalMemberAccess = "warning"
