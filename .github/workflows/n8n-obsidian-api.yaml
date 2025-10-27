@@ -17,7 +17,21 @@ env:
   IMAGE_NAME: ${{ github.repository }}/n8n-obsidian-api
 
 jobs:
+  lint-and-typecheck:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install mise
+        uses: jdx/mise-action@v2
+
+      - name: Run monorepo checks
+        run: mise run check
+
   build:
+    needs: lint-and-typecheck
     runs-on: ubuntu-latest
     permissions:
       contents: read

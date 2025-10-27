@@ -1,6 +1,7 @@
 """Domain-specific note management endpoints for n8n workflows."""
 
 import logging
+from collections.abc import AsyncGenerator
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -15,7 +16,7 @@ router = APIRouter(prefix="/notes", tags=["notes"])
 
 
 # Dependency to get Obsidian client
-async def get_obsidian_client() -> ObsidianClient:
+async def get_obsidian_client() -> AsyncGenerator[ObsidianClient, None]:
     """Dependency that provides an Obsidian API client."""
     async with ObsidianClient(
         base_url=settings.obsidian_api_url,
@@ -196,9 +197,7 @@ async def update_frontmatter(
     """
     try:
         await client.update_frontmatter(request.path, request.key, request.value)
-        return SuccessResponse(
-            message=f"Frontmatter '{request.key}' updated in {request.path}"
-        )
+        return SuccessResponse(message=f"Frontmatter '{request.key}' updated in {request.path}")
     except PathRestrictionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except Exception as e:
@@ -243,7 +242,12 @@ async def list_notes(
         for file_path in md_files:
             try:
                 # Get full note metadata
-                note = await client.get_note(file_path, as_json=True)
+                note_data = await client.get_note(file_path, as_json=True)
+
+                # Type narrow - we know it's NoteJson since as_json=True
+                if isinstance(note_data, str):
+                    continue
+                note = note_data
 
                 # Extract title from frontmatter or use filename
                 title = note.frontmatter.get("title", "")
@@ -293,8 +297,11 @@ async def read_note(
         GET /notes/n8n/workflows/sync.md
     """
     try:
-        note = await client.get_note(path, as_json=True)
-        return ReadNoteResponse(note=note)
+        note_data = await client.get_note(path, as_json=True)
+        # Type narrow - we know it's NoteJson since as_json=True
+        if isinstance(note_data, str):
+            raise ValueError("Expected NoteJson but got string")
+        return ReadNoteResponse(note=note_data)
     except Exception as e:
         logger.exception("Failed to read note")
         if "404" in str(e):

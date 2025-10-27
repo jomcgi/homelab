@@ -24,6 +24,9 @@ dev = [
     "pytest-cov>=4.1.0",
     "httpx>=0.26.0",
     "ruff>=0.1.0",
+    "datamodel-code-generator>=0.25.0",
+    "pyright>=1.1.350",
+    "pre-commit>=3.6.0",
 ]
 
 [build-system]
@@ -51,3 +54,19 @@ select = [
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+
+[tool.pyright]
+include = ["app"]
+exclude = ["**/__pycache__", ".venv"]
+venvPath = "."
+venv = ".venv"
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUntypedFunctionDecorator = false
+# Allow generated code to be less strict
+reportGeneralTypeIssues = "warning"
+reportOptionalMemberAccess = "warning"

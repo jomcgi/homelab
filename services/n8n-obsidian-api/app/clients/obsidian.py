@@ -3,12 +3,13 @@
 import json
 import logging
 from pathlib import Path
+from types import TracebackType
 from typing import Any
 
 import httpx
 from opentelemetry import trace
 
-from app.models import NoteJson, PatchOperation, PatchTargetType
+from app.models import NoteJson, NoteStat, PatchOperation, PatchTargetType, generated
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)
@@ -62,15 +63,20 @@ class ObsidianClient:
             timeout=timeout,
         )
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "ObsidianClient":
         """Async context manager entry."""
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: TracebackType | None,
+    ) -> None:
         """Async context manager exit."""
         await self.close()
 
-    async def close(self):
+    async def close(self) -> None:
         """Close the HTTP client."""
         await self._client.aclose()
 
@@ -92,8 +98,7 @@ class ObsidianClient:
 
         if not normalized.startswith(self.WRITE_ALLOWED_PREFIX):
             raise PathRestrictionError(
-                f"Write operations only allowed in /{self.WRITE_ALLOWED_PREFIX} "
-                f"(attempted: {path})"
+                f"Write operations only allowed in /{self.WRITE_ALLOWED_PREFIX} (attempted: {path})"
             )
 
     @tracer.start_as_current_span("obsidian.get_note")
@@ -123,7 +128,20 @@ class ObsidianClient:
         response.raise_for_status()
 
         if as_json:
-            return NoteJson(**response.json())
+            # Parse with generated model for type-safe validation
+            api_response = generated.NoteJson(**response.json())
+            # Convert to public model (both have same structure currently)
+            return NoteJson(
+                path=api_response.path,
+                content=api_response.content,
+                tags=api_response.tags,
+                frontmatter=api_response.frontmatter,
+                stat=NoteStat(
+                    ctime=api_response.stat.ctime,
+                    mtime=api_response.stat.mtime,
+                    size=int(api_response.stat.size),
+                ),
+            )
         return response.text
 
     @tracer.start_as_current_span("obsidian.create_or_update_note")
