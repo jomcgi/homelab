@@ -1,6 +1,7 @@
 """Example script to test the n8n-obsidian-api service."""
 
 import asyncio
+
 import httpx
 
 

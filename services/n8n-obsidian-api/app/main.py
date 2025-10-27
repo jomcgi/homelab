@@ -41,9 +41,7 @@ def setup_telemetry():
         return
 
     if not settings.otel_exporter_otlp_endpoint:
-        logger.warning(
-            "OpenTelemetry is enabled but no OTLP endpoint configured, using default"
-        )
+        logger.warning("OpenTelemetry is enabled but no OTLP endpoint configured, using default")
 
     # Create a resource identifying this service
     resource = Resource.create(
