@@ -1,0 +1,39 @@
+# Homelab Monorepo - Shared Python Configuration
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "B",  # flake8-bugbear
+    "C4", # flake8-comprehensions
+    "UP", # pyupgrade
+]
+# Ignore specific rules for FastAPI patterns and existing code
+ignore = [
+    "B008",  # Allow Depends() in function defaults
+    "B904",  # Allow raise without from (exception chaining) - fix later
+    "E501",  # Line too long - fix gradually
+]
+
+[tool.pyright]
+include = ["services/**/*.py", "operators/**/*.py"]
+exclude = ["**/__pycache__", "**/.venv", "**/node_modules"]
+pythonVersion = "3.11"
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
+reportUnknownMemberType = false
+reportUnknownArgumentType = false
+reportUnknownVariableType = false
+reportUntypedFunctionDecorator = false
+reportGeneralTypeIssues = "warning"
+reportOptionalMemberAccess = "warning"
+
+[tool.pytest.ini_options]
+testpaths = ["services", "operators"]
+python_files = ["test_*.py", "*_test.py"]

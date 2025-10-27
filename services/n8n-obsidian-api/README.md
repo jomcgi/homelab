@@ -50,6 +50,55 @@ Instead of having n8n directly interact with the Obsidian API:
 
 ## API Endpoints
 
+### List All Notes
+
+```http
+GET /notes
+```
+
+**Response:**
+```json
+{
+  "notes": [
+    {
+      "path": "daily/2025-10-26.md",
+      "title": "Daily Note - Oct 26",
+      "tags": ["daily", "journal"],
+      "frontmatter": {
+        "date": "2025-10-26",
+        "status": "active"
+      },
+      "stat": {
+        "ctime": 1729900800,
+        "mtime": 1729900800,
+        "size": 2048
+      }
+    },
+    {
+      "path": "n8n/workflows/sync.md",
+      "title": "Workflow Sync",
+      "tags": ["workflow", "automation"],
+      "frontmatter": {
+        "status": "active"
+      },
+      "stat": {
+        "ctime": 1729800000,
+        "mtime": 1729900000,
+        "size": 1024
+      }
+    }
+  ]
+}
+```
+
+**Note:** Title is extracted from `frontmatter.title` if present, otherwise uses the filename without `.md` extension.
+
+**Use cases:**
+- Discover all notes in the vault
+- Check if a daily note exists before creating it
+- Find notes by tag or frontmatter fields
+- Let an LLM browse available notes
+
 ### Create or Update Note
 
 ```http
@@ -241,12 +290,14 @@ docker run -p 8080:8080 \
 ```bash
 cd services/n8n-obsidian-api
 
+# Install uv (fast Python package manager)
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
 # Create virtual environment
-python -m venv venv
-source venv/bin/activate  # or `venv\Scripts\activate` on Windows
+~/.local/bin/uv venv .venv
 
 # Install dependencies
-pip install -e ".[dev]"
+~/.local/bin/uv pip install -e ".[dev]"
 
 # Set environment variables
 export OBSIDIAN_API_URL="https://obsidian.jomcgi.dev"
@@ -254,25 +305,109 @@ export CLOUDFLARE_CLIENT_ID="your-client-id"
 export CLOUDFLARE_CLIENT_SECRET="your-client-secret"
 
 # Run development server
-uvicorn app.main:app --reload --port 8080
+make dev
 ```
+
+### Generated Pydantic Models
+
+This project uses **code generation** to create type-safe Pydantic models from the Obsidian OpenAPI schema:
+
+- **Generated models** (`app/models/generated.py`) - Auto-generated from `schema/obsidian-openapi.yaml`
+- **Public models** (`app/models/obsidian.py`) - Hand-written models exposed in our API
+
+The `ObsidianClient` uses generated models internally for type-safe API response parsing, then converts to public models. This gives us:
+
+- **Type safety** when parsing upstream API responses
+- **Flexibility** to add custom validation and path restrictions in public models
+- **Automatic updates** when the Obsidian API schema changes
+
+```bash
+# Regenerate models after updating schema/obsidian-openapi.yaml
+make generate-models
+```
+
+**Note:** Generated models are checked into git so they can be reviewed in PRs. Always regenerate after schema changes!
 
 ### Running Tests
 
 ```bash
-pytest
-pytest --cov=app tests/
+make test           # Run tests
+make test-cov       # Run tests with coverage
 ```
 
 ### Code Quality
 
 ```bash
-# Format and lint
-ruff check app/
-ruff format app/
+make lint           # Lint code with ruff
+make format         # Format code with ruff
+make typecheck      # Type check with pyright
+make check          # Run lint + typecheck
 ```
 
+#### Type Checking
+
+This project uses **pyright** in strict mode to ensure complete type safety:
+
+- All functions must have type annotations
+- All variables must have inferable types
+- Strict checking for Pydantic models
+
+```bash
+make typecheck      # Run pyright type checker
+```
+
+#### Pre-commit Hooks
+
+Set up pre-commit hooks to automatically run checks before commits:
+
+```bash
+make pre-commit-install   # Install git hooks
+make pre-commit-run       # Run manually on all files
+```
+
+The hooks will automatically:
+- Format code with ruff
+- Lint code with ruff
+- Type check with pyright
+- Check for trailing whitespace and other common issues
+
 ## Usage Examples
+
+### LLM-Assisted Daily Notes Workflow
+
+```javascript
+// 1. List all notes to check if today's note exists
+const listResponse = await fetch('http://n8n-obsidian-api/notes');
+const { notes } = await listResponse.json();
+
+// 2. Check if today's daily note exists
+const today = new Date().toISOString().split('T')[0]; // "2025-10-26"
+const dailyNotePath = `daily/${today}.md`;
+const noteExists = notes.some(note => note.path === dailyNotePath);
+
+// 3. If not, create it
+if (!noteExists) {
+  await fetch('http://n8n-obsidian-api/notes/create', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      path: dailyNotePath,
+      content: `# Daily Note - ${today}\n\n## Todo\n\n## Notes\n`
+    })
+  });
+}
+
+// 4. Append a task to the Todo section
+await fetch('http://n8n-obsidian-api/notes/append-to-section', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    path: dailyNotePath,
+    heading: 'Todo',
+    content: '\n- [ ] Review pull requests'
+  })
+});
+```
 
 ### n8n HTTP Request Node
 
@@ -290,6 +425,9 @@ ruff format app/
 ### Curl
 
 ```bash
+# List all notes
+curl http://n8n-obsidian-api/notes
+
 # Create a note
 curl -X POST http://n8n-obsidian-api/notes/create \
   -H "Content-Type: application/json" \

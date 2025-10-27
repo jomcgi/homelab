@@ -54,3 +54,26 @@ class PatchTargetType(str, Enum):
     HEADING = "heading"
     BLOCK = "block"
     FRONTMATTER = "frontmatter"
+
+
+class NoteMetadata(BaseModel):
+    """Lightweight note metadata without full content."""
+
+    path: str = Field(..., description="Path to the note relative to vault root")
+    title: str = Field(..., description="Note title (from frontmatter or filename)")
+    tags: list[str] = Field(default_factory=list, description="Tags found in the note")
+    frontmatter: dict[str, Any] = Field(
+        default_factory=dict, description="YAML frontmatter as dict"
+    )
+    stat: NoteStat = Field(..., description="File statistics")
+
+    class Config:
+        """Pydantic config."""
+
+        populate_by_name = True
+
+
+class NoteListResponse(BaseModel):
+    """Response containing a list of notes with metadata."""
+
+    notes: list[NoteMetadata] = Field(..., description="List of notes in the vault")

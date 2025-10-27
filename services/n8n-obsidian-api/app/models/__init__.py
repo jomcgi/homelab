@@ -2,8 +2,10 @@
 
 from .obsidian import (
     Error,
-    NoteStat,
     NoteJson,
+    NoteListResponse,
+    NoteMetadata,
+    NoteStat,
     PatchOperation,
     PatchTargetType,
 )
@@ -12,6 +14,8 @@ __all__ = [
     "Error",
     "NoteStat",
     "NoteJson",
+    "NoteListResponse",
+    "NoteMetadata",
     "PatchOperation",
     "PatchTargetType",
 ]
