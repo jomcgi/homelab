@@ -37,7 +37,7 @@ done
 [tasks.lint]
 description = "Lint all Python code (with auto-fix)"
 depends = ["install"]
-run = "ruff check . --fix"
+run = "ruff check . --fix --unsafe-fixes"
 
 [tasks.format]
 description = "Format all Python code"
