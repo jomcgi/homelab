@@ -14,29 +14,33 @@ uv = "latest"
 _.python.venv = { path = ".venv", create = true }
 
 # Monorepo-wide tasks - config in pyproject.toml specifies what to check
-[tasks.lint]
-description = "Lint all Python code (with auto-fix)"
-run = "ruff check . --fix"
-
-[tasks.format]
-description = "Format all Python code"
-run = "ruff format ."
-
-[tasks.typecheck]
-description = "Type check all Python code"
-run = "pyright"
-
-[tasks.test]
-description = "Run all Python tests"
-run = "pytest"
-
 [tasks.install]
 description = "Install Python dev dependencies"
 run = "uv pip install ruff pyright pytest pytest-asyncio pytest-cov pre-commit"
 
+[tasks.lint]
+description = "Lint all Python code (with auto-fix)"
+depends = ["install"]
+run = "ruff check . --fix"
+
+[tasks.format]
+description = "Format all Python code"
+depends = ["install"]
+run = "ruff format ."
+
+[tasks.typecheck]
+description = "Type check all Python code"
+depends = ["install"]
+run = "pyright"
+
+[tasks.test]
+description = "Run all Python tests"
+depends = ["install"]
+run = "pytest"
+
 [tasks.check]
 description = "Run all checks (lint + typecheck)"
-depends = ["install", "lint", "typecheck"]
+depends = ["lint", "typecheck"]
 
 [tasks.doctor]
 description = "Check mise setup and tool versions"
