@@ -30,13 +30,13 @@ run = "pyright"
 description = "Run all Python tests"
 run = "pytest"
 
-[tasks.check]
-description = "Run all checks (lint + typecheck)"
-depends = ["lint", "typecheck"]
-
 [tasks.install]
 description = "Install Python dev dependencies"
 run = "uv pip install ruff pyright pytest pytest-asyncio pytest-cov pre-commit"
+
+[tasks.check]
+description = "Run all checks (lint + typecheck)"
+depends = ["install", "lint", "typecheck"]
 
 [tasks.doctor]
 description = "Check mise setup and tool versions"
