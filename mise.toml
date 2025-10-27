@@ -15,8 +15,24 @@ _.python.venv = { path = ".venv", create = true }
 
 # Monorepo-wide tasks - config in pyproject.toml specifies what to check
 [tasks.install]
-description = "Install Python dev dependencies"
-run = "uv pip install ruff pyright pytest pytest-asyncio pytest-cov pre-commit"
+description = "Install Python dev dependencies and project dependencies"
+run = """
+#!/usr/bin/env bash
+set -euo pipefail
+# Install dev tools globally
+uv pip install ruff pyright pytest pytest-asyncio pytest-cov pre-commit
+
+# Install each project's dependencies
+for pyproject in services/*/pyproject.toml; do
+  if [ -f "$pyproject" ]; then
+    dir=$(dirname "$pyproject")
+    echo "Installing dependencies for $dir"
+    cd "$dir"
+    uv pip install -e ".[dev]" 2>/dev/null || uv pip install -e . || true
+    cd - > /dev/null
+  fi
+done
+"""
 
 [tasks.lint]
 description = "Lint all Python code (with auto-fix)"
