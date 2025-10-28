@@ -29,7 +29,7 @@ jobs:
       - name: Cache Bazel repository
         uses: actions/cache@v4
         with:
-          path: ~/.cache/bazel/repository_cache
+          path: /home/runner/.cache/bazel/repository_cache
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('**/MODULE.bazel', '**/requirements/*.txt', '**/pnpm-lock.yaml') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
@@ -71,7 +71,7 @@ jobs:
       - name: Cache Bazel repository
         uses: actions/cache@v4
         with:
-          path: ~/.cache/bazel/repository_cache
+          path: /home/runner/.cache/bazel/repository_cache
           key: bazel-repo-${{ runner.os }}-${{ hashFiles('**/MODULE.bazel', '**/requirements/*.txt', '**/pnpm-lock.yaml') }}
           restore-keys: |
             bazel-repo-${{ runner.os }}-
