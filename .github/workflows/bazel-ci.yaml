@@ -25,6 +25,15 @@ jobs:
           mkdir -p "${GITHUB_WORKSPACE}/bin/"
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
+
+      - name: Cache Bazel repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel/repository_cache
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('**/MODULE.bazel', '**/requirements/*.txt', '**/pnpm-lock.yaml') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
+
       - name: Configure Bazel
         run: |
           cat >> user.bazelrc << EOF
@@ -58,6 +67,14 @@ jobs:
           mkdir -p "${GITHUB_WORKSPACE}/bin/"
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
+
+      - name: Cache Bazel repository
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/bazel/repository_cache
+          key: bazel-repo-${{ runner.os }}-${{ hashFiles('**/MODULE.bazel', '**/requirements/*.txt', '**/pnpm-lock.yaml') }}
+          restore-keys: |
+            bazel-repo-${{ runner.os }}-
 
       - name: Configure Bazel
         run: |
