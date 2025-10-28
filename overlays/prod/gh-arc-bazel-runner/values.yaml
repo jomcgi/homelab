@@ -32,7 +32,7 @@ gha-runner-scale-set:
   githubConfigUrl: "https://github.com/jomcgi/homelab"
   runnerScaleSetName: "bazel-runner"
   minRunners: 1
-  maxRunners: 1
+  maxRunners: 3
 
   controllerServiceAccount:
     namespace: "gh-arc-controller"
