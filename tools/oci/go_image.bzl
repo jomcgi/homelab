@@ -5,7 +5,7 @@ load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 
-def go_image(name, binary, base = "@distroless_base", repository = None):
+def go_image(name, binary, base = "@distroless_base", repository = None, visibility = ["//images:__pkg__"]):
     """Create a Go OCI image from a Go binary.
 
     Args:
@@ -14,6 +14,8 @@ def go_image(name, binary, base = "@distroless_base", repository = None):
         base: The base image to use. Defaults to distroless base.
         repository: The container registry repository (e.g., "ghcr.io/jomcgi/homelab/my-app").
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
+        visibility: Visibility of the generated .push target. Defaults to ["//images:__pkg__"]
+                   to allow access from the auto-generated //images:push_all multirun.
 
     Creates:
         :{name} - The oci_image target
@@ -73,4 +75,5 @@ def go_image(name, binary, base = "@distroless_base", repository = None):
         image = name + "_platform",
         repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
         remote_tags = name + "_stamped_tags",
+        visibility = visibility,
     )

@@ -38,12 +38,11 @@ format_multirun(
     starlark = "@buildifier_prebuilt//:buildifier",
 )
 
-# Public interface: format code AND generate build targets
 multirun(
     name = "format",
     commands = [
         "//scripts:generate-push-all",
         ":format_code",
     ],
-    jobs = 0,
+    jobs = 10,
 )
