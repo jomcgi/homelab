@@ -323,12 +323,13 @@ def main():
         uploader = S3Uploader()
 
         # Upload ONLY the Brotli-compressed version
+        # NOTE: Do NOT set ContentEncoding="br" - that would cause R2 to auto-decompress.
+        # Frontend manually decompresses, so we want R2 to serve the compressed file as-is.
         uploader.s3_client.put_object(
             Bucket=uploader.bucket_name,
             Key="bundle.json.br",
             Body=brotli_data,
-            ContentType="application/json",
-            ContentEncoding="br",
+            ContentType="application/octet-stream",  # Raw binary data
         )
 
         logger.info("Bundle successfully uploaded to R2 (Brotli version only)!")
