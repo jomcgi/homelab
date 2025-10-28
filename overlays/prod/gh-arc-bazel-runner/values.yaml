@@ -71,7 +71,8 @@ gha-runner-scale-set:
       volumes:
       - name: bazel-cache
         persistentVolumeClaim:
-          claimName: prod-bazel-cache-pvc  # Match kustomize namePrefix
+          # Match PVC name (with kustomize prefix applied)
+          claimName: prod-bazel-cache-pvc
 
   listenerTemplate:
     spec:
@@ -91,9 +92,14 @@ gha-runner-scale-set:
             cpu: 100m
             memory: 128Mi
 
-# Create PVC for Bazel cache
+# Enable persistent storage for Bazel cache
 persistence:
   enabled: true
+  # Name will be prefixed by kustomize (prod-) but referenced resources need full name
+  name: prod-bazel-cache-pvc
   storageClass: "longhorn"
   size: 20Gi  # Single replica, easily recreatable
   accessMode: ReadWriteOnce
+  annotations:
+    # Single replica - this is just a cache, easily recreatable
+    longhorn.io/numberOfReplicas: "1"
