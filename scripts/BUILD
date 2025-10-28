@@ -8,4 +8,5 @@ sh_binary(
 sh_binary(
     name = "generate-push-all",
     srcs = ["generate-push-all.sh"],
+    visibility = ["//:__subpackages__"],
 )
