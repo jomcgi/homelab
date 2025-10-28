@@ -35,7 +35,7 @@ gha-runner-scale-set:
   maxRunners: 1
 
   # Add labels to target this runner from workflows
-  runnerGroup: "bazel-builds"
+  runnerGroup: "bazel-runner"
 
   controllerServiceAccount:
     namespace: "gh-arc-controller"
@@ -62,8 +62,8 @@ gha-runner-scale-set:
 
         resources:
           limits:
-            cpu: 4000m      # More CPU for Bazel builds
-            memory: 8Gi     # More memory for parallel builds
+            cpu: 8000m      # More CPU for Bazel builds
+            memory: 6Gi     # More memory for parallel builds
           requests:
             cpu: 1000m
             memory: 2Gi
