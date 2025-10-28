@@ -34,9 +34,6 @@ gha-runner-scale-set:
   minRunners: 1
   maxRunners: 1
 
-  # Add labels to target this runner from workflows
-  runnerGroup: "bazel-runner"
-
   controllerServiceAccount:
     namespace: "gh-arc-controller"
     name: "arc-controller"
