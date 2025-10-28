@@ -1,0 +1,5 @@
+# CI-specific startup options for persistent runners
+# This file is imported via try-import in user.bazelrc during CI builds
+
+# Use persistent output base to preserve extracted repositories between runs
+startup --output_base=/home/runner/.cache/bazel/output_base
