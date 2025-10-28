@@ -3,7 +3,7 @@ import { test, expect } from "@playwright/test";
 test.describe("Mock Data Tests", () => {
   test.beforeEach(async ({ page }) => {
     // Mock the fetch request for bundle data
-    await page.route("**/bundle.json.br", async (route) => {
+    await page.route("**/bundle.brotli", async (route) => {
       const mockBundle = {
         v: 2,
         g: Math.floor(Date.now() / 1000),

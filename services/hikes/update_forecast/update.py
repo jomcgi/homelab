@@ -325,9 +325,11 @@ def main():
         # Upload ONLY the Brotli-compressed version
         # NOTE: Do NOT set ContentEncoding="br" - that would cause R2 to auto-decompress.
         # Frontend manually decompresses, so we want R2 to serve the compressed file as-is.
+        # Use .brotli extension instead of .br to prevent Cloudflare from auto-detecting
+        # and adding content-encoding header (which causes double decompression).
         uploader.s3_client.put_object(
             Bucket=uploader.bucket_name,
-            Key="bundle.json.br",
+            Key="bundle.brotli",
             Body=brotli_data,
             ContentType="application/octet-stream",  # Raw binary data
         )
