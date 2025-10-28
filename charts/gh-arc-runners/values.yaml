@@ -42,6 +42,15 @@ runners:
   minRunners: 0
   maxRunners: 3
 
+# Persistent storage for runner cache
+persistence:
+  enabled: false
+  name: bazel-cache-pvc
+  storageClass: "longhorn"
+  size: 20Gi
+  accessMode: ReadWriteOnce
+  annotations: {}
+
 # Runner scale set configuration
 gha-runner-scale-set:
   githubConfigUrl: "https://github.com/jomcgi/homelab"
