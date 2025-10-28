@@ -5,9 +5,9 @@ py_library(
     srcs = ["notes.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//services/n8n_obsidian_api/app",
         "//services/n8n_obsidian_api/app/clients",
         "//services/n8n_obsidian_api/app/models",
+        "//services/n8n_obsidian_api/config",
         "@pip//fastapi",
         "@pip//pydantic",
     ],

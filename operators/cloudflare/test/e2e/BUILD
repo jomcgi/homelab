@@ -6,5 +6,10 @@ go_test(
         "e2e_suite_test.go",
         "e2e_test.go",
     ],
-    deps = ["//operators/cloudflare/test/utils"],
+    tags = ["manual"],  # Requires Kind cluster and make-based docker build - needs Bazel migration
+    deps = [
+        "//operators/cloudflare/test/utils",
+        "@com_github_onsi_ginkgo_v2//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
+    ],
 )

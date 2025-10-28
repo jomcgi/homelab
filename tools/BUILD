@@ -55,7 +55,12 @@ bazel_env(
         "pnpm": "@pnpm",
         "yo": ":yo",
         "python": "$(PYTHON3)",
-    } | MULTITOOL_TOOLS,
+        # Multitool tools (excluding gazelle - use `bazel run //:gazelle` instead)
+        "aspect": MULTITOOL_TOOLS["aspect"],
+        "buildozer": MULTITOOL_TOOLS["buildozer"],
+        "ibazel": MULTITOOL_TOOLS["ibazel"],
+        "starpls": MULTITOOL_TOOLS["starpls"],
+    },
 )
 
 sh_binary(

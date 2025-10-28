@@ -11,7 +11,7 @@ from opentelemetry.sdk.resources import Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor
 
-from services.n8n_obsidian_api.app.config import settings
+from services.n8n_obsidian_api.config.config import Settings
 from services.n8n_obsidian_api.app.routers import notes
 
 
@@ -25,7 +25,7 @@ class HealthCheckFilter(logging.Filter):
 
 # Configure logging
 logging.basicConfig(
-    level=getattr(logging, settings.log_level.upper()),
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 logging.getLogger("uvicorn.access").addFilter(HealthCheckFilter())
 
 
-def setup_telemetry():
+def setup_telemetry(settings: Settings):
     """Configure OpenTelemetry tracing."""
     if not settings.otel_enabled:
         logger.info("OpenTelemetry tracing is disabled")
@@ -67,8 +67,9 @@ def setup_telemetry():
     )
 
 
-# Initialize telemetry before creating the app
-setup_telemetry()
+# Initialize telemetry at startup
+settings = Settings()  # type: ignore[call-arg]
+setup_telemetry(settings)
 
 # Create FastAPI application
 app = FastAPI(
@@ -116,7 +117,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "app.main:app",
+        "services.n8n_obsidian_api.app.main:app",
         host=settings.service_host,
         port=settings.service_port,
         log_level=settings.log_level.lower(),

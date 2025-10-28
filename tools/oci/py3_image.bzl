@@ -2,9 +2,9 @@
 
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 
-def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base"):
+def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None):
     """Create a Python 3 image from a Python binary.
 
     Args:
@@ -15,6 +15,8 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
         env: The environment variables to set in the image.
         workdir: The working directory to set in the image.
         base: The base image to use for the image.
+        repository: The container registry repository (e.g., "ghcr.io/jomcgi/homelab/my-app").
+                   Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
     """
     binary = native.package_relative_label(binary)
     binary_path = "{}{}/{}".format(root, binary.package, binary.name)
@@ -51,5 +53,14 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
         image = name,
         repo_tags = [
             native.package_name() + ":latest",
+        ],
+    )
+    oci_push(
+        name = name + ".push",
+        image = name,
+        repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
+        remote_tags = [
+            "latest",
+            "{STABLE_IMAGE_TAG}",  # Substituted at build time from workspace_status.sh
         ],
     )

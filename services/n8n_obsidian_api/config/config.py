@@ -32,8 +32,3 @@ class Settings(BaseSettings):
 
     # Security
     api_key: str = ""  # Optional API key for securing this service
-
-
-# Settings loaded from environment variables
-# pyright doesn't understand that pydantic-settings loads from env
-settings = Settings()  # type: ignore[call-arg]

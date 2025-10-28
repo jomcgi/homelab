@@ -27,6 +27,19 @@ common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 common --workspace_status_command=githooks/check-config.sh
 
 common:lint --aspects=//tools/lint:linters.bzl%shellcheck//tools/lint:linters.bzl%eslint//tools/lint:linters.bzl%ruff
+
+# =============================================================================
+# CI Configuration
+# =============================================================================
+# Run with --config=ci in GitHub Actions
+build:ci --verbose_failures
+build:ci --keep_going=false  # Fail immediately in CI
+build:ci --test_output=errors
+build:ci --test_summary=detailed
+build:ci --build_metadata=ROLE=CI
+build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
+build:ci --bes_backend=grpcs://remote.buildbuddy.io
+
 # Load any settings & overrides specific to the current user from `.aspect/bazelrc/user.bazelrc`.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
 # should be last statement in this config so the user configuration is able to overwrite flags from

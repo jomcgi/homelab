@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 
 from services.n8n_obsidian_api.app.clients.obsidian import ObsidianClient, PathRestrictionError
-from services.n8n_obsidian_api.app.config import settings
+from services.n8n_obsidian_api.config.config import Settings
 from services.n8n_obsidian_api.app.models import (
     NoteJson,
     NoteListResponse,
@@ -21,8 +21,16 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/notes", tags=["notes"])
 
 
+# Dependency to get settings
+def get_settings() -> Settings:
+    """Dependency that provides settings."""
+    return Settings()  # type: ignore[call-arg]
+
+
 # Dependency to get Obsidian client
-async def get_obsidian_client() -> AsyncGenerator[ObsidianClient, None]:
+async def get_obsidian_client(
+    settings: Settings = Depends(get_settings),
+) -> AsyncGenerator[ObsidianClient, None]:
     """Dependency that provides an Obsidian API client."""
     async with ObsidianClient(
         base_url=settings.obsidian_api_url,
