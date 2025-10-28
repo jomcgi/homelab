@@ -1,8 +1,10 @@
-# Homelab - Secure Kubernetes Infrastructure
+# Homelab - Secure Kubernetes Infrastructure 
 
 A security-first Kubernetes homelab running on Talos Linux with GitOps deployment via ArgoCD.
 
 See [CLAUDE.md](.claude/CLAUDE.md) for detailed architecture documentation.
+
+[![Bazel CI](https://github.com/jomcgi/homelab/actions/workflows/bazel-ci.yaml/badge.svg)](https://github.com/jomcgi/homelab/actions/workflows/bazel-ci.yaml)
 
 ## Quick Start
 
