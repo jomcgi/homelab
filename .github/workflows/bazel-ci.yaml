@@ -83,6 +83,6 @@ jobs:
           # - STABLE_BRANCH_TAG (branch name: "main", "feature-xyz", etc.)
           # - STABLE_IMAGE_TAG (timestamp-based: YYYY.MM.DD.HH.MM.SS-shortsha)
           echo "Pushing all images in parallel..."
-          "${GITHUB_WORKSPACE}/bin/bazel" build $IMAGES
+          "${GITHUB_WORKSPACE}/bin/bazel" run $IMAGES
           echo "✅ Successfully pushed all container images"
           "${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null | sed 's/^/  - /'
