@@ -14,8 +14,30 @@ echo "📦 Found $(echo "$PUSH_TARGETS" | wc -l) image(s) to push:"
 echo "$PUSH_TARGETS" | sed 's/^/  - /'
 echo ""
 
-echo "🚀 Building and pushing all images in parallel..."
+echo "🚀 Building push scripts..."
 # shellcheck disable=SC2086
 bazel build $PUSH_TARGETS
 
-echo "✅ All images pushed successfully"
+echo "🚢 Executing push scripts in parallel..."
+# Run all push scripts in parallel using background jobs
+pids=()
+for target in $PUSH_TARGETS; do
+  echo "  Pushing: $target"
+  bazel run "$target" &
+  pids+=($!)
+done
+
+# Wait for all background jobs to complete
+failed=0
+for pid in "${pids[@]}"; do
+  if ! wait "$pid"; then
+    failed=$((failed + 1))
+  fi
+done
+
+if [ $failed -eq 0 ]; then
+  echo "✅ All images pushed successfully"
+else
+  echo "❌ $failed image(s) failed to push"
+  exit 1
+fi
