@@ -629,7 +629,7 @@ func (a ImportResult) Get(fieldName string) (value interface{}, found bool) {
 	if a.AdditionalProperties != nil {
 		value, found = a.AdditionalProperties[fieldName]
 	}
-	return
+	return value, found
 }
 
 // Setter for additional properties for ImportResult
@@ -1971,7 +1971,6 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 		queryValues := queryURL.Query()
 
 		if params.IncludeData != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "includeData", runtime.ParamLocationQuery, *params.IncludeData); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -1983,11 +1982,9 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 					}
 				}
 			}
-
 		}
 
 		if params.Status != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "status", runtime.ParamLocationQuery, *params.Status); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -1999,11 +1996,9 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 					}
 				}
 			}
-
 		}
 
 		if params.WorkflowId != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "workflowId", runtime.ParamLocationQuery, *params.WorkflowId); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2015,11 +2010,9 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 					}
 				}
 			}
-
 		}
 
 		if params.ProjectId != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "projectId", runtime.ParamLocationQuery, *params.ProjectId); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2031,11 +2024,9 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 					}
 				}
 			}
-
 		}
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2047,11 +2038,9 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 					}
 				}
 			}
-
 		}
 
 		if params.Cursor != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2063,7 +2052,6 @@ func NewGetExecutionsRequest(server string, params *GetExecutionsParams) (*http.
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -2141,7 +2129,6 @@ func NewGetExecutionsIdRequest(server string, id ExecutionId, params *GetExecuti
 		queryValues := queryURL.Query()
 
 		if params.IncludeData != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "includeData", runtime.ParamLocationQuery, *params.IncludeData); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2153,7 +2140,6 @@ func NewGetExecutionsIdRequest(server string, id ExecutionId, params *GetExecuti
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -2237,7 +2223,6 @@ func NewGetProjectsRequest(server string, params *GetProjectsParams) (*http.Requ
 		queryValues := queryURL.Query()
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2249,11 +2234,9 @@ func NewGetProjectsRequest(server string, params *GetProjectsParams) (*http.Requ
 					}
 				}
 			}
-
 		}
 
 		if params.Cursor != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2265,7 +2248,6 @@ func NewGetProjectsRequest(server string, params *GetProjectsParams) (*http.Requ
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -2605,7 +2587,6 @@ func NewGetTagsRequest(server string, params *GetTagsParams) (*http.Request, err
 		queryValues := queryURL.Query()
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2617,11 +2598,9 @@ func NewGetTagsRequest(server string, params *GetTagsParams) (*http.Request, err
 					}
 				}
 			}
-
 		}
 
 		if params.Cursor != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2633,7 +2612,6 @@ func NewGetTagsRequest(server string, params *GetTagsParams) (*http.Request, err
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -2825,7 +2803,6 @@ func NewGetUsersRequest(server string, params *GetUsersParams) (*http.Request, e
 		queryValues := queryURL.Query()
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2837,11 +2814,9 @@ func NewGetUsersRequest(server string, params *GetUsersParams) (*http.Request, e
 					}
 				}
 			}
-
 		}
 
 		if params.Cursor != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2853,11 +2828,9 @@ func NewGetUsersRequest(server string, params *GetUsersParams) (*http.Request, e
 					}
 				}
 			}
-
 		}
 
 		if params.IncludeRole != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "includeRole", runtime.ParamLocationQuery, *params.IncludeRole); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2869,11 +2842,9 @@ func NewGetUsersRequest(server string, params *GetUsersParams) (*http.Request, e
 					}
 				}
 			}
-
 		}
 
 		if params.ProjectId != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "projectId", runtime.ParamLocationQuery, *params.ProjectId); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -2885,7 +2856,6 @@ func NewGetUsersRequest(server string, params *GetUsersParams) (*http.Request, e
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -3003,7 +2973,6 @@ func NewGetUsersIdRequest(server string, id UserIdentifier, params *GetUsersIdPa
 		queryValues := queryURL.Query()
 
 		if params.IncludeRole != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "includeRole", runtime.ParamLocationQuery, *params.IncludeRole); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3015,7 +2984,6 @@ func NewGetUsersIdRequest(server string, id UserIdentifier, params *GetUsersIdPa
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -3099,7 +3067,6 @@ func NewGetVariablesRequest(server string, params *GetVariablesParams) (*http.Re
 		queryValues := queryURL.Query()
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3111,11 +3078,9 @@ func NewGetVariablesRequest(server string, params *GetVariablesParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.Cursor != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3127,7 +3092,6 @@ func NewGetVariablesRequest(server string, params *GetVariablesParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -3285,7 +3249,6 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 		queryValues := queryURL.Query()
 
 		if params.Active != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "active", runtime.ParamLocationQuery, *params.Active); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3297,11 +3260,9 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.Tags != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "tags", runtime.ParamLocationQuery, *params.Tags); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3313,11 +3274,9 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.Name != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "name", runtime.ParamLocationQuery, *params.Name); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3329,11 +3288,9 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.ProjectId != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", false, "projectId", runtime.ParamLocationQuery, *params.ProjectId); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3345,11 +3302,9 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.ExcludePinnedData != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "excludePinnedData", runtime.ParamLocationQuery, *params.ExcludePinnedData); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3361,11 +3316,9 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.Limit != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "limit", runtime.ParamLocationQuery, *params.Limit); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3377,11 +3330,9 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		if params.Cursor != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "cursor", runtime.ParamLocationQuery, *params.Cursor); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3393,7 +3344,6 @@ func NewGetWorkflowsRequest(server string, params *GetWorkflowsParams) (*http.Re
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -3511,7 +3461,6 @@ func NewGetWorkflowsIdRequest(server string, id WorkflowId, params *GetWorkflows
 		queryValues := queryURL.Query()
 
 		if params.ExcludePinnedData != nil {
-
 			if queryFrag, err := runtime.StyleParamWithLocation("form", true, "excludePinnedData", runtime.ParamLocationQuery, *params.ExcludePinnedData); err != nil {
 				return nil, err
 			} else if parsed, err := url.ParseQuery(queryFrag); err != nil {
@@ -3523,7 +3472,6 @@ func NewGetWorkflowsIdRequest(server string, id WorkflowId, params *GetWorkflows
 					}
 				}
 			}
-
 		}
 
 		queryURL.RawQuery = queryValues.Encode()
@@ -5423,7 +5371,6 @@ func ParsePostAuditResponse(rsp *http.Response) (*PostAuditResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5449,7 +5396,6 @@ func ParsePostCredentialsResponse(rsp *http.Response) (*PostCredentialsResponse,
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5475,7 +5421,6 @@ func ParseGetCredentialsSchemaCredentialTypeNameResponse(rsp *http.Response) (*G
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5501,7 +5446,6 @@ func ParseDeleteCredentialResponse(rsp *http.Response) (*DeleteCredentialRespons
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5543,7 +5487,6 @@ func ParseGetExecutionsResponse(rsp *http.Response) (*GetExecutionsResponse, err
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5569,7 +5512,6 @@ func ParseDeleteExecutionsIdResponse(rsp *http.Response) (*DeleteExecutionsIdRes
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5595,7 +5537,6 @@ func ParseGetExecutionsIdResponse(rsp *http.Response) (*GetExecutionsIdResponse,
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5621,7 +5562,6 @@ func ParsePostExecutionsIdRetryResponse(rsp *http.Response) (*PostExecutionsIdRe
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5647,7 +5587,6 @@ func ParseGetProjectsResponse(rsp *http.Response) (*GetProjectsResponse, error) 
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5769,7 +5708,6 @@ func ParsePostSourceControlPullResponse(rsp *http.Response) (*PostSourceControlP
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5795,7 +5733,6 @@ func ParseGetTagsResponse(rsp *http.Response) (*GetTagsResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5821,7 +5758,6 @@ func ParsePostTagsResponse(rsp *http.Response) (*PostTagsResponse, error) {
 			return nil, err
 		}
 		response.JSON201 = &dest
-
 	}
 
 	return response, nil
@@ -5847,7 +5783,6 @@ func ParseDeleteTagsIdResponse(rsp *http.Response) (*DeleteTagsIdResponse, error
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5873,7 +5808,6 @@ func ParseGetTagsIdResponse(rsp *http.Response) (*GetTagsIdResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5899,7 +5833,6 @@ func ParsePutTagsIdResponse(rsp *http.Response) (*PutTagsIdResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5925,7 +5858,6 @@ func ParseGetUsersResponse(rsp *http.Response) (*GetUsersResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -5959,7 +5891,6 @@ func ParsePostUsersResponse(rsp *http.Response) (*PostUsersResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6001,7 +5932,6 @@ func ParseGetUsersIdResponse(rsp *http.Response) (*GetUsersIdResponse, error) {
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6043,7 +5973,6 @@ func ParseGetVariablesResponse(rsp *http.Response) (*GetVariablesResponse, error
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6117,7 +6046,6 @@ func ParseGetWorkflowsResponse(rsp *http.Response) (*GetWorkflowsResponse, error
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6143,7 +6071,6 @@ func ParsePostWorkflowsResponse(rsp *http.Response) (*PostWorkflowsResponse, err
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6169,7 +6096,6 @@ func ParseDeleteWorkflowsIdResponse(rsp *http.Response) (*DeleteWorkflowsIdRespo
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6195,7 +6121,6 @@ func ParseGetWorkflowsIdResponse(rsp *http.Response) (*GetWorkflowsIdResponse, e
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6221,7 +6146,6 @@ func ParsePutWorkflowsIdResponse(rsp *http.Response) (*PutWorkflowsIdResponse, e
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6247,7 +6171,6 @@ func ParsePostWorkflowsIdActivateResponse(rsp *http.Response) (*PostWorkflowsIdA
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6273,7 +6196,6 @@ func ParsePostWorkflowsIdDeactivateResponse(rsp *http.Response) (*PostWorkflowsI
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6299,7 +6221,6 @@ func ParseGetWorkflowsIdTagsResponse(rsp *http.Response) (*GetWorkflowsIdTagsRes
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6325,7 +6246,6 @@ func ParsePutWorkflowsIdTagsResponse(rsp *http.Response) (*PutWorkflowsIdTagsRes
 			return nil, err
 		}
 		response.JSON200 = &dest
-
 	}
 
 	return response, nil
@@ -6349,7 +6269,6 @@ func ParsePutWorkflowsIdTransferResponse(rsp *http.Response) (*PutWorkflowsIdTra
 
 // Base64 encoded, gzipped, json marshaled Swagger object
 var swaggerSpec = []string{
-
 	"H4sIAAAAAAAC/+x9a3PbttbuX8HwnJm+e0ZXXxLbn7Zrp90+TRw3dpp2p54zEAFJSChABUDJasb//R3c",
 	"SFAERUqWpWTvfGljG5fFtR6sCxYW8CWK2WTKKKZSRGdfoinkcIIl5vqnmGOEqSQwuULqZ4RFzMlUEkaj",
 	"s+hujMHVJWBDIMcY5G07USsiqsEUynHUiiic4OgsIihqRRz/lRKOUXQmeYpbkYjHeALV2HIxVa2E5ISO",
@@ -6530,11 +6449,11 @@ func GetSwagger() (swagger *openapi3.T, err error) {
 	var specData []byte
 	specData, err = rawSpec()
 	if err != nil {
-		return
+		return swagger, err
 	}
 	swagger, err = loader.LoadFromData(specData)
 	if err != nil {
-		return
+		return swagger, err
 	}
-	return
+	return swagger, err
 }

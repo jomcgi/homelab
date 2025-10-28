@@ -54,6 +54,7 @@ var (
 type MockTunnelClient struct {
 	CreateTunnelFunc              func(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error)
 	GetTunnelFunc                 func(ctx context.Context, accountID, tunnelID string) (*cloudflare.Tunnel, error)
+	ListTunnelsFunc               func(ctx context.Context, accountID string) ([]cloudflare.Tunnel, error)
 	DeleteTunnelFunc              func(ctx context.Context, accountID, tunnelID string) error
 	UpdateTunnelConfigurationFunc func(ctx context.Context, accountID, tunnelID string, config cloudflare.TunnelConfiguration) error
 	GetTunnelTokenFunc            func(ctx context.Context, accountID, tunnelID string) (string, error)
@@ -74,6 +75,13 @@ func (m *MockTunnelClient) GetTunnel(ctx context.Context, accountID, tunnelID st
 		return m.GetTunnelFunc(ctx, accountID, tunnelID)
 	}
 	return &cloudflare.Tunnel{ID: tunnelID, Name: "mock-tunnel"}, nil
+}
+
+func (m *MockTunnelClient) ListTunnels(ctx context.Context, accountID string) ([]cloudflare.Tunnel, error) {
+	if m.ListTunnelsFunc != nil {
+		return m.ListTunnelsFunc(ctx, accountID)
+	}
+	return []cloudflare.Tunnel{{ID: "mock-tunnel-id", Name: "mock-tunnel"}}, nil
 }
 
 func (m *MockTunnelClient) DeleteTunnel(ctx context.Context, accountID, tunnelID string) error {

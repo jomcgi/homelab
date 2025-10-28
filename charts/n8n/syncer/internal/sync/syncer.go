@@ -24,10 +24,10 @@ const (
 
 // Config holds the syncer configuration
 type Config struct {
-	WorkflowDir    string
-	ManagedSuffix  string
-	ManagedTag     string
-	N8NClient      *n8n.ObservableClient
+	WorkflowDir   string
+	ManagedSuffix string
+	ManagedTag    string
+	N8NClient     *n8n.ObservableClient
 }
 
 // Syncer handles workflow synchronization
