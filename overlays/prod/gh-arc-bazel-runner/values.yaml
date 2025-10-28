@@ -45,6 +45,10 @@ gha-runner-scale-set:
   # Runner pod template with persistent storage
   template:
     spec:
+      # Set fsGroup so mounted volumes are owned by runner user (1001)
+      securityContext:
+        fsGroup: 1001
+
       imagePullSecrets:
       - name: ghcr-imagepull-secret
       containers:
