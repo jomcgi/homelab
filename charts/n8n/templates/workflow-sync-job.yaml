@@ -20,9 +20,11 @@ spec:
     spec:
       restartPolicy: OnFailure
       serviceAccountName: {{ include "n8n.fullname" . }}
-      {{- with .Values.workflowSync.imagePullSecrets }}
+      {{- if .Values.workflowSync.imagePullSecrets }}
       imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
+        {{- range .Values.workflowSync.imagePullSecrets }}
+        - name: {{ .name }}
+        {{- end }}
       {{- end }}
       containers:
         - name: workflow-sync
