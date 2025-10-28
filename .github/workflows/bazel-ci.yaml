@@ -60,23 +60,4 @@ jobs:
 
       - name: Push
         run: |
-          # Find all oci_push targets
-          IMAGES=$("${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null || echo "")
-
-          if [ -z "$IMAGES" ]; then
-            echo "No container images found to push"
-            exit 0
-          fi
-
-          echo "Found images to push:"
-          echo "$IMAGES"
-          echo ""
-
-          # Push all images in parallel via Bazel
-          # Tags are automatically generated from workspace_status.sh:
-          # - STABLE_BRANCH_TAG (branch name: "main", "feature-xyz", etc.)
-          # - STABLE_IMAGE_TAG (timestamp-based: YYYY.MM.DD.HH.MM.SS-shortsha)
-          echo "Pushing all images in parallel..."
-          "${GITHUB_WORKSPACE}/bin/bazel" run $IMAGES
-          echo "✅ Successfully pushed all container images"
-          "${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null | sed 's/^/  - /'
+          ${GITHUB_WORKSPACE}/bin/bazel run //scripts:push-all --
