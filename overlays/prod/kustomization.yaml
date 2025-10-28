@@ -7,4 +7,5 @@ resources:
   - ./cloudflare-tunnel
   - ./gh-arc-controller
   - ./gh-arc-runners
+  - ./gh-arc-bazel-runner
   - ./n8n
