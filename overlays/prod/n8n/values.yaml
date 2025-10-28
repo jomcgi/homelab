@@ -386,7 +386,6 @@ n8n:
 
     # Health checks ensure new pod is ready before old pod terminates
     livenessProbe:
-      enabled: true
       initialDelaySeconds: 60
       periodSeconds: 10
       timeoutSeconds: 5
@@ -394,7 +393,6 @@ n8n:
       successThreshold: 1
 
     readinessProbe:
-      enabled: true
       initialDelaySeconds: 30
       periodSeconds: 10
       timeoutSeconds: 5

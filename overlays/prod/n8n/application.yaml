@@ -27,6 +27,5 @@ spec:
     - group: apps
       kind: Deployment
       jsonPointers:
+        # Kubernetes API normalizes empty env arrays
         - /spec/template/spec/containers/0/env
-        - /spec/template/spec/containers/0/livenessProbe/enabled
-        - /spec/template/spec/containers/0/readinessProbe/enabled
