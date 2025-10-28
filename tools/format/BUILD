@@ -6,6 +6,7 @@ we don't want to trigger eager fetches of these for builds that don't want to ru
 
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
+load("@rules_multirun//:defs.bzl", "multirun")
 
 # gazelle:exclude
 package(default_visibility = ["//:__subpackages__"])
@@ -28,11 +29,21 @@ prettier.prettier_binary(
 )
 
 format_multirun(
-    name = "format",
+    name = "format_code",
     go = "@aspect_rules_lint//format:gofumpt",
     javascript = ":prettier",
     python = "@aspect_rules_lint//format:ruff",
     rust = "@rules_rust//tools/rustfmt:upstream_rustfmt",
     shell = "@aspect_rules_lint//format:shfmt",
     starlark = "@buildifier_prebuilt//:buildifier",
+)
+
+# Public interface: format code AND generate build targets
+multirun(
+    name = "format",
+    commands = [
+        "//scripts:generate-push-all",
+        ":format_code",
+    ],
+    jobs = 0,
 )
