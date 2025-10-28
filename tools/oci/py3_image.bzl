@@ -1,5 +1,6 @@
 "py_image"
 
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
@@ -55,12 +56,24 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
             native.package_name() + ":latest",
         ],
     )
+
+    # Create stamped tags file with branch and timestamp tags
+    expand_template(
+        name = name + "_stamped_tags",
+        out = name + "_stamped.tags.txt",
+        template = [
+            "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
+        ],
+        stamp_substitutions = {
+            "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+    )
+
     oci_push(
         name = name + ".push",
         image = name,
         repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
-        remote_tags = [
-            "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
-            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
-        ],
+        remote_tags = name + "_stamped_tags",
     )
