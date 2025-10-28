@@ -52,10 +52,10 @@ gha-runner-scale-set:
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
 
-        # Mount persistent volume for Bazel cache
+        # Mount persistent volume for Bazel cache (covers bazel + bazelisk)
         volumeMounts:
         - name: bazel-cache
-          mountPath: /home/runner/.cache/bazel
+          mountPath: /home/runner/.cache
 
         resources:
           limits:
