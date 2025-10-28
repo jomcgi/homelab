@@ -43,14 +43,13 @@ build:ci --bes_backend=grpcs://remote.buildbuddy.io
 # =============================================================================
 # BuildBuddy Remote Build Execution (80 cores on free tier!)
 # =============================================================================
-# Use with: bazel build //... --config=rbe
 build:ci --remote_executor=grpcs://remote.buildbuddy.io
 build:ci --remote_cache=grpcs://remote.buildbuddy.io
 build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
 build:ci --bes_backend=grpcs://remote.buildbuddy.io
 build:ci --remote_timeout=3600
 build:ci --jobs=80  # Use all 80 available cores
-build:ci --experimental_remote_cache_compression  # Faster transfers
+build:ci --remote_cache_compression  # Faster transfers
 build:ci --remote_download_minimal  # Don't download unnecessary outputs
 
 # Use BuildBuddy's managed toolchain
