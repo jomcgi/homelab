@@ -71,7 +71,7 @@ gha-runner-scale-set:
       volumes:
       - name: bazel-cache
         persistentVolumeClaim:
-          claimName: bazel-cache-pvc
+          claimName: prod-bazel-cache-pvc  # Match kustomize namePrefix
 
   listenerTemplate:
     spec:
