@@ -31,6 +31,7 @@ def _helm_render_impl(ctx):
         inputs = value_files + [ctx.file.chart],
         executable = helm,
         arguments = [args],
+        stdout = output,
         mnemonic = "HelmRender",
         progress_message = "Rendering Helm chart %s" % ctx.attr.release_name,
     )
