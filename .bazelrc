@@ -15,6 +15,12 @@ common --@aspect_rules_ts//ts:skipLibCheck=always
 # TODO(alex): change to SWC by default
 common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 
+# =============================================================================
+# Repository Cache - Cache external dependencies locally
+# =============================================================================
+# Cache repository fetches locally to speed up builds
+common --repository_cache=~/.cache/bazel/repository_cache
+common --experimental_repository_cache_hardlinks
 
 # rules_python is working to enable this default to avoid dependency on a system interpreter
 # See https://github.com/bazel-contrib/rules_python/issues/3187
