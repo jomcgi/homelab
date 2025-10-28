@@ -94,13 +94,3 @@ py_library(
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
 )
-
-# Convenience target to push all OCI images in parallel
-filegroup(
-    name = "push_all_images",
-    srcs = [
-        "//charts/n8n/syncer:image.push",
-        "//operators/cloudflare/cmd:image.push",
-        "//services/hikes/update_forecast:update_image.push",
-    ],
-)
