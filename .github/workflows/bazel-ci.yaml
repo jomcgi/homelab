@@ -6,10 +6,6 @@ on:
     branches:
       - main
 
-env:
-  # Use BuildBuddy for remote caching (optional)
-  USE_BUILDBUDDY: false
-
 jobs:
   build-and-test:
     name: Build and Test
@@ -93,7 +89,7 @@ jobs:
       - name: Build and push all container images
         run: |
           # Find all oci_push targets
-          IMAGES=$(bazel query "kind('oci_push', //...)" 2>/dev/null || echo "")
+          IMAGES=$("${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null || echo "")
 
           if [ -z "$IMAGES" ]; then
             echo "No container images found to push"
@@ -114,11 +110,11 @@ jobs:
             # Tags are automatically generated from workspace_status.sh:
             # - latest
             # - STABLE_IMAGE_TAG (timestamp-based: YYYY.MM.DD.HH.MM.SS-shortsha)
-            bazel run $img
+            "${GITHUB_WORKSPACE}/bin/bazel" run $img
           done
 
       - name: Image push summary
         if: success()
         run: |
           echo "✅ Successfully pushed all container images"
-          bazel query "kind('oci_push', //...)" 2>/dev/null | sed 's/^/  - /'
+          "${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null | sed 's/^/  - /'
