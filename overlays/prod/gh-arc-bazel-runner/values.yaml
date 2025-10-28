@@ -2,12 +2,16 @@
 # This runner maintains Bazel's repository cache across builds
 
 secret:
+  # Reuse existing secret from gh-arc-runners (same namespace)
+  create: false
   type: onepassword
   onepassword:
     itemPath: "vaults/k8s-homelab/items/gh-arc"
 
 imagePullSecret:
   enabled: true
+  # Reuse existing secret from gh-arc-runners (same namespace)
+  create: false
   onepassword:
     itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
