@@ -43,7 +43,7 @@ jobs:
             ghcr.io/jomcgi/homelab/services/hikes/update_forecast:main
 
   deploy:
-    runs-on: homelab-runners
+    runs-on: bazel-runner
     name: Deploy hikes.jomcgi.dev
     timeout-minutes: 5
     permissions:
