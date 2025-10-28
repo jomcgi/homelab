@@ -6,15 +6,13 @@ on:
     branches:
       - main
   schedule:
-    # Weekly cache refresh: Sundays at 2am UTC
-    # Validates builds work, keeps dependencies fresh, reheats persistent cache
     - cron: '0 2 * * 0'
   workflow_dispatch:  # Allow manual cache refresh
 
 jobs:
   build-test-push:
-    name: Build and Test
-    runs-on: bazel-runner  # Persistent runner with Bazel cache
+    name: Bazel - build, test & push
+    runs-on: bazel-runner
 
     permissions:
       contents: read
@@ -66,7 +64,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build and push all container images
+      - name: Push
         run: |
           # Find all oci_push targets
           IMAGES=$("${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null || echo "")
@@ -86,9 +84,5 @@ jobs:
           # - STABLE_IMAGE_TAG (timestamp-based: YYYY.MM.DD.HH.MM.SS-shortsha)
           echo "Pushing all images in parallel..."
           "${GITHUB_WORKSPACE}/bin/bazel" build $IMAGES
-
-      - name: Image push summary
-        if: success()
-        run: |
           echo "✅ Successfully pushed all container images"
           "${GITHUB_WORKSPACE}/bin/bazel" query "kind('oci_push', //...)" 2>/dev/null | sed 's/^/  - /'
