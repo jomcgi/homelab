@@ -32,3 +32,11 @@ gha-runner-scale-set:
   controllerServiceAccount:
     namespace: "gh-arc-controller"
     name: "arc-controller"
+
+  # Override to use standard runner image (no build tools needed)
+  # Custom Bazel image only needed for bazel-runner
+  template:
+    spec:
+      containers:
+      - name: runner
+        image: ghcr.io/actions/actions-runner:latest

@@ -1,0 +1,24 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: gh-arc-bazel-runner
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab
+    targetRevision: main
+    path: charts/gh-arc-runners
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../overlays/prod/gh-arc-bazel-runner/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: gh-arc-runners
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
