@@ -80,18 +80,12 @@ jobs:
           echo "$IMAGES"
           echo ""
 
-          # Push each image with branch-based tags
-          for img in $IMAGES; do
-            echo "================================================"
-            echo "Pushing: $img"
-            echo "================================================"
-
-            # Push with multiple tags (configured via remote_tags in BUILD files)
-            # Tags are automatically generated from workspace_status.sh:
-            # - STABLE_BRANCH_TAG (branch name: "main", "feature-xyz", etc.)
-            # - STABLE_IMAGE_TAG (timestamp-based: YYYY.MM.DD.HH.MM.SS-shortsha)
-            "${GITHUB_WORKSPACE}/bin/bazel" run $img
-          done
+          # Push all images in parallel via Bazel
+          # Tags are automatically generated from workspace_status.sh:
+          # - STABLE_BRANCH_TAG (branch name: "main", "feature-xyz", etc.)
+          # - STABLE_IMAGE_TAG (timestamp-based: YYYY.MM.DD.HH.MM.SS-shortsha)
+          echo "Pushing all images in parallel..."
+          "${GITHUB_WORKSPACE}/bin/bazel" build $IMAGES
 
       - name: Image push summary
         if: success()
