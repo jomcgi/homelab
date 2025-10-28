@@ -95,7 +95,7 @@ py_library(
     visibility = ["//:__subpackages__"],
 )
 
-# Run all OCI image pushes in parallel using rules_multirun
+# BEGIN AUTO-GENERATED: push_all_images
 load("@rules_multirun//:defs.bzl", "multirun")
 
 multirun(
@@ -107,3 +107,4 @@ multirun(
     ],
     jobs = 0,  # 0 means unlimited parallelism
 )
+# END AUTO-GENERATED: push_all_images

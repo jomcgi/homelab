@@ -6,6 +6,6 @@ sh_binary(
 )
 
 sh_binary(
-    name = "push-all-images",
-    srcs = ["push-all-images.sh"],
+    name = "generate-push-all",
+    srcs = ["generate-push-all.sh"],
 )
