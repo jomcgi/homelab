@@ -1,0 +1,26 @@
+# User-specific Bazel configuration
+# This file is git-ignored and safe for personal settings
+
+# Show every command as it executes (helps see what's actually running)
+# common --subcommands
+
+# Show progress more frequently (every 1 second instead of default 10 seconds)
+# common --progress_report_interval=1
+
+# Show full command lines when commands fail
+# common --verbose_failures
+
+# Show which .bazelrc files are being loaded
+# common --announce_rc
+
+# Show more detailed output for long-running actions
+# common --experimental_ui_debug_all_events
+
+# Uncomment to see even more detailed worker information
+# common --worker_verbose
+
+# Uncomment to log execution details to a file (useful for analysis)
+# build --execution_log_json_file=bazel-execution.log
+build --bes_results_url=https://app.buildbuddy.io/invocation/
+build --bes_backend=grpcs://remote.buildbuddy.io
+build --remote_header=x-buildbuddy-api-key=DG2dsUaWaTHPZkDP7u2w

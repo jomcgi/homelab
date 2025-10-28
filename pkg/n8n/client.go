@@ -42,8 +42,8 @@ func NewObservableClient(baseURL, apiKey string, opts ...ClientOption) (*Observa
 
 	return &ObservableClient{
 		ClientWithResponses: client,
-		tracer:             otel.Tracer(tracerName),
-		logger:             slog.Default(),
+		tracer:              otel.Tracer(tracerName),
+		logger:              slog.Default(),
 	}, nil
 }
 
