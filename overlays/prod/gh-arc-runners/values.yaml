@@ -5,6 +5,11 @@ secret:
   onepassword:
     itemPath: "vaults/k8s-homelab/items/gh-arc"
 
+imagePullSecret:
+  enabled: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 github:
   configUrl: "https://github.com/jomcgi/homelab"
 
