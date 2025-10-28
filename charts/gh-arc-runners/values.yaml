@@ -24,6 +24,13 @@ secret:
   # manual:
   #   githubToken: "ghp_your_token_here"
 
+# Image pull secret for private GHCR registry
+imagePullSecret:
+  enabled: true
+  onepassword:
+    # Uses existing 1Password item with .dockerconfigjson field
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 # Runner configuration
 runners:
   name: "homelab-runners"
@@ -53,9 +60,13 @@ gha-runner-scale-set:
   # Runner pod template
   template:
     spec:
+      imagePullSecrets:
+      - name: ghcr-imagepull-secret
       containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:latest
+        # Custom image with build tools (gcc, g++, make) for Bazel builds
+        # Built from .github/runners/Dockerfile
+        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
         resources:
           limits:
