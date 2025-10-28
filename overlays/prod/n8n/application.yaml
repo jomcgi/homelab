@@ -28,3 +28,5 @@ spec:
       kind: Deployment
       jsonPointers:
         - /spec/template/spec/containers/0/env
+        - /spec/template/spec/containers/0/livenessProbe/enabled
+        - /spec/template/spec/containers/0/readinessProbe/enabled
