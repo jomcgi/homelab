@@ -44,21 +44,21 @@ build:ci --bes_backend=grpcs://remote.buildbuddy.io
 # BuildBuddy Remote Build Execution (80 cores on free tier!)
 # =============================================================================
 # Use with: bazel build //... --config=rbe
-build:rbe --remote_executor=grpcs://remote.buildbuddy.io
-build:rbe --remote_cache=grpcs://remote.buildbuddy.io
-build:rbe --bes_results_url=https://app.buildbuddy.io/invocation/
-build:rbe --bes_backend=grpcs://remote.buildbuddy.io
-build:rbe --remote_timeout=3600
-build:rbe --jobs=80  # Use all 80 available cores
-build:rbe --experimental_remote_cache_compression  # Faster transfers
-build:rbe --remote_download_minimal  # Don't download unnecessary outputs
+build:ci --remote_executor=grpcs://remote.buildbuddy.io
+build:ci --remote_cache=grpcs://remote.buildbuddy.io
+build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
+build:ci --bes_backend=grpcs://remote.buildbuddy.io
+build:ci --remote_timeout=3600
+build:ci --jobs=80  # Use all 80 available cores
+build:ci --experimental_remote_cache_compression  # Faster transfers
+build:ci --remote_download_minimal  # Don't download unnecessary outputs
 
 # Use BuildBuddy's managed toolchain
-build:rbe --extra_execution_platforms=@buildbuddy_toolchain//:platform
-build:rbe --host_platform=@buildbuddy_toolchain//:platform
-build:rbe --platforms=@buildbuddy_toolchain//:platform
-build:rbe --crosstool_top=@buildbuddy_toolchain//:toolchain
-build:rbe --extra_toolchains=@buildbuddy_toolchain//:cc_toolchain
+build:ci --extra_execution_platforms=@buildbuddy_toolchain//:platform
+build:ci --host_platform=@buildbuddy_toolchain//:platform
+build:ci --platforms=@buildbuddy_toolchain//:platform
+build:ci --crosstool_top=@buildbuddy_toolchain//:toolchain
+build:ci --extra_toolchains=@buildbuddy_toolchain//:cc_toolchain
 
 # Note: API key is set in user.bazelrc via --remote_header flag
 # RBE will automatically use the same API key as BES
