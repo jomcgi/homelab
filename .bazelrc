@@ -39,6 +39,10 @@ common:lint --aspects=//tools/lint:linters.bzl%shellcheck//tools/lint:linters.bz
 # =============================================================================
 # Run with --config=ci in GitHub Actions
 
+# Stamping: applies to all commands (build, test, run)
+common:ci --stamp
+common:ci --workspace_status_command=./tools/workspace_status.sh
+
 build:ci --verbose_failures
 build:ci --keep_going=false  # Fail immediately in CI
 build:ci --test_output=errors
@@ -46,8 +50,6 @@ build:ci --test_summary=detailed
 build:ci --build_metadata=ROLE=CI
 build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
 build:ci --bes_backend=grpcs://remote.buildbuddy.io
-build:ci --stamp  # Enable stamping for workspace status variables
-build:ci --workspace_status_command=./tools/workspace_status.sh
 
 # =============================================================================
 # BuildBuddy Remote Build Execution (80 cores on free tier!)
