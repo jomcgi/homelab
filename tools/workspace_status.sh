@@ -16,8 +16,19 @@ auto_version=$(
 # Generate timestamp-based image tag: YYYY.MM.DD.HH.MM.SS-shortsha
 image_tag=$(date -u +"%Y.%m.%d.%H.%M.%S")-${git_short_sha}
 
+# Get branch name (sanitized for Docker tags)
+# In CI: use GITHUB_REF_NAME, otherwise use git
+if [ -n "${GITHUB_REF_NAME:-}" ]; then
+	branch="${GITHUB_REF_NAME}"
+else
+	branch=$(git rev-parse --abbrev-ref HEAD)
+fi
+# Sanitize: replace / with - and convert to lowercase
+branch_tag=$(echo "${branch}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+
 cat <<EOF
 STABLE_GIT_COMMIT ${git_commit}
 STABLE_MONOREPO_VERSION ${auto_version}
 STABLE_IMAGE_TAG ${image_tag}
+STABLE_BRANCH_TAG ${branch_tag}
 EOF
