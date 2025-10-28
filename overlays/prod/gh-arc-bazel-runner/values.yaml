@@ -96,7 +96,7 @@ persistence:
   name: prod-bazel-cache-pvc
   storageClass: "longhorn"
   size: 20Gi  # Single replica, easily recreatable
-  accessMode: ReadWriteMany  # Allow multiple pods to mount during transitions
+  accessMode: ReadWriteOnce  # RWX requires NFS (not available on Talos by default)
   annotations:
     # Single replica - this is just a cache, easily recreatable
     longhorn.io/numberOfReplicas: "1"
