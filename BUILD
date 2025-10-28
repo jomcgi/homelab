@@ -94,17 +94,3 @@ py_library(
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
 )
-
-# BEGIN AUTO-GENERATED: push_all_images
-load("@rules_multirun//:defs.bzl", "multirun")
-
-multirun(
-    name = "push_all_images",
-    commands = [
-        "//charts/n8n/syncer:image.push",
-        "//operators/cloudflare/cmd:image.push",
-        "//services/hikes/update_forecast:update_image.push",
-    ],
-    jobs = 0,  # 0 means unlimited parallelism
-)
-# END AUTO-GENERATED: push_all_images
