@@ -1,18 +1,4 @@
 #!/usr/bin/env bash
-set -e
-
-# Regenerate push_all_images target if BUILD files or image definitions changed
-if git diff --cached --name-only | grep -qE '^(BUILD|.*\.bzl|tools/oci/)'; then
-  echo "🔄 Regenerating push_all_images target..."
-  bazel run //scripts:generate-push-all
-
-  # Stage BUILD if it was modified
-  if ! git diff --quiet BUILD; then
-    git add BUILD
-    echo "✅ Staged updated BUILD file"
-  fi
-fi
-
 # Get staged files and format them
 git diff --cached --diff-filter=AM --name-only -z | xargs --null --no-run-if-empty bash -c '
   if [ $# -gt 0 ]; then
