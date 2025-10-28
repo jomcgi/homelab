@@ -13,6 +13,9 @@ controller:
 
 # Secret configuration for GitHub authentication
 secret:
+  # Whether to create the secret (set to false if secret already exists in namespace)
+  create: true
+
   # Type of secret: "onepassword" or "manual"
   type: "onepassword"
 
@@ -27,6 +30,8 @@ secret:
 # Image pull secret for private GHCR registry
 imagePullSecret:
   enabled: true
+  # Whether to create the secret (set to false if secret already exists in namespace)
+  create: true
   onepassword:
     # Uses existing 1Password item with .dockerconfigjson field
     itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
