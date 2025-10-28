@@ -181,11 +181,10 @@ function parseBundleData(bundle) {
 // Data loading
 async function loadIndexData() {
   try {
-    const brotliPath = `${CONFIG.dataPath}bundle.json.br`;
+    const brotliPath = `${CONFIG.dataPath}bundle.brotli`;
     const response = await fetch(brotliPath, {
       headers: {
-        Accept: "application/json",
-        "Accept-Encoding": "br, gzip, deflate",
+        Accept: "application/octet-stream",
       },
     });
 
