@@ -39,10 +39,6 @@ common:lint --aspects=//tools/lint:linters.bzl%shellcheck//tools/lint:linters.bz
 # =============================================================================
 # Run with --config=ci in GitHub Actions
 
-# Use persistent output base for persistent runners
-# This preserves extracted repositories between runs
-startup:ci --output_base=/home/runner/.cache/bazel/output_base
-
 build:ci --verbose_failures
 build:ci --keep_going=false  # Fail immediately in CI
 build:ci --test_output=errors

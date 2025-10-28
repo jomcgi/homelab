@@ -40,6 +40,9 @@ jobs:
       - name: Configure Bazel
         run: |
           cat >> user.bazelrc << EOF
+          # Import CI-specific startup options (persistent output base)
+          try-import %workspace%/.bazelrc.ci
+
           build --config=ci
           build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           test --config=ci
@@ -76,6 +79,9 @@ jobs:
       - name: Configure Bazel
         run: |
           cat >> user.bazelrc << EOF
+          # Import CI-specific startup options (persistent output base)
+          try-import %workspace%/.bazelrc.ci
+
           build --config=ci
           build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
