@@ -46,6 +46,8 @@ build:ci --test_summary=detailed
 build:ci --build_metadata=ROLE=CI
 build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
 build:ci --bes_backend=grpcs://remote.buildbuddy.io
+build:ci --stamp  # Enable stamping for workspace status variables
+build:ci --workspace_status_command=./tools/workspace_status.sh
 
 # =============================================================================
 # BuildBuddy Remote Build Execution (80 cores on free tier!)

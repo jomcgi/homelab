@@ -57,7 +57,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None):
         image = name + "_platform",
         repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
         remote_tags = [
-            "latest",
-            "{STABLE_IMAGE_TAG}",  # Substituted at build time from workspace_status.sh
+            "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
         ],
     )
