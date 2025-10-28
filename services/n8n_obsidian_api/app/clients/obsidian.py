@@ -9,7 +9,13 @@ from typing import Any
 import httpx
 from opentelemetry import trace
 
-from services.n8n_obsidian_api.app.models import NoteJson, NoteStat, PatchOperation, PatchTargetType, generated
+from services.n8n_obsidian_api.app.models import (
+    NoteJson,
+    NoteStat,
+    PatchOperation,
+    PatchTargetType,
+    generated,
+)
 
 logger = logging.getLogger(__name__)
 tracer = trace.get_tracer(__name__)

@@ -1,3 +1,5 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+
 """Targets in the repository root"""
 
 # We prefer BUILD instead of BUILD.bazel
@@ -38,7 +40,7 @@ exports_files(
     visibility = ["//:__subpackages__"],
 )
 
-# gazelle:prefix github.com/example/project
+# gazelle:prefix github.com/jomcgi/homelab
 
 gazelle(
     name = "gazelle",
@@ -85,4 +87,10 @@ gazelle_python_manifest(
     name = "gazelle_python_manifest",
     modules_mapping = ":modules_map",
     pip_repository_name = "pip",
+)
+
+py_library(
+    name = "homelab",
+    srcs = ["__init__.py"],
+    visibility = ["//:__subpackages__"],
 )

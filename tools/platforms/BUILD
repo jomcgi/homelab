@@ -6,6 +6,7 @@ platform(
         "@platforms//os:linux",
         "@platforms//cpu:aarch64",
     ],
+    visibility = ["//visibility:public"],
 )
 
 platform(
@@ -14,4 +15,5 @@ platform(
         "@platforms//os:linux",
         "@platforms//cpu:x86_64",
     ],
+    visibility = ["//visibility:public"],
 )

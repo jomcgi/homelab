@@ -1,3 +1,5 @@
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+
 """Definition of linter tools
 
 This is in its own package because it has so many loading-time symbols,
@@ -15,4 +17,15 @@ nogo(
     name = "nogo",
     visibility = ["//visibility:public"],
     deps = TOOLS_NOGO,
+)
+
+bzl_library(
+    name = "linters",
+    srcs = ["linters.bzl"],
+    deps = [
+        "@aspect_rules_lint//lint:eslint",
+        "@aspect_rules_lint//lint:lint_test",
+        "@aspect_rules_lint//lint:ruff",
+        "@aspect_rules_lint//lint:shellcheck",
+    ],
 )

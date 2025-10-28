@@ -1,3 +1,5 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
 """
 Build supporting tools.
 
@@ -54,4 +56,9 @@ bazel_env(
         "yo": ":yo",
         "python": "$(PYTHON3)",
     } | MULTITOOL_TOOLS,
+)
+
+sh_binary(
+    name = "workspace_statu",
+    srcs = ["workspace_status.sh"],
 )

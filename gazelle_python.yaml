@@ -6,15 +6,26 @@
 ---
 manifest:
   modules_mapping:
-    annotated_doc: annotated_doc
     annotated_types: annotated_types
     anyio: anyio
+    apscheduler: APScheduler
     asgiref: asgiref
+    attr: attrs
+    attrs: attrs
+    bng_latlon: bng_latlon
+    boto3: boto3
+    botocore: botocore
+    brotli: Brotli
+    bs4: beautifulsoup4
+    cattr: cattrs
+    cattrs: cattrs
     certifi: certifi
     charset_normalizer: charset_normalizer
     click: click
+    click_default_group: click_default_group
     colorama: colorama
     copier: copier
+    dateutil: python_dateutil
     dotenv: python_dotenv
     dunamai: dunamai
     fastapi: fastapi
@@ -89,6 +100,7 @@ manifest:
     google.type.timeofday_pb2: googleapis_common_protos
     grpc: grpcio
     h11: h11
+    haversine: haversine
     httpcore: httpcore
     httptools: httptools
     httpx: httpx
@@ -97,7 +109,12 @@ manifest:
     iniconfig: iniconfig
     jinja2: jinja2
     jinja2_ansible_filters: jinja2_ansible_filters
+    jmespath: jmespath
+    mako: mako
+    markdown_it: markdown_it_py
     markupsafe: markupsafe
+    mdurl: mdurl
+    multipart: python_multipart
     opentelemetry.attributes: opentelemetry_api
     opentelemetry.baggage: opentelemetry_api
     opentelemetry.context: opentelemetry_api
@@ -139,6 +156,8 @@ manifest:
     opentelemetry.util.types: opentelemetry_api
     opentelemetry.version: opentelemetry_api
     packaging: packaging
+    parse: parse
+    parse_type: parse_type
     pathspec: pathspec
     platformdirs: platformdirs
     pluggy: pluggy
@@ -147,15 +166,35 @@ manifest:
     py: pytest
     pydantic: pydantic
     pydantic_core: pydantic_core
+    pydantic_extra_types: pydantic_extra_types
     pydantic_settings: pydantic_settings
+    pydantic_sqlite: pydantic_sqlite
     pygments: pygments
     pytest: pytest
+    pytest_asyncio: pytest_asyncio
+    pytest_bdd: pytest_bdd
+    python_multipart: python_multipart
+    pytz: pytz
     questionary: questionary
     requests: requests
+    requests_cache: requests_cache
+    rich: rich
+    s3transfer: s3transfer
+    shellingham: shellingham
+    six: six
     sniffio: sniffio
+    soupsieve: soupsieve
+    sqlite_fts4: sqlite_fts4
+    sqlite_utils: sqlite_utils
     starlette: starlette
+    sunrisesunset: sunrisesunset
+    tabulate: tabulate
+    timelength: timelength
+    typer: typer
     typing_extensions: typing_extensions
     typing_inspection: typing_inspection
+    tzlocal: tzlocal
+    url_normalize: url_normalize
     urllib3: urllib3
     uvicorn: uvicorn
     uvloop: uvloop

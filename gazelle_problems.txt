@@ -1,0 +1,7 @@
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for test because command is not a recognized form: playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for test:ci because command is not a recognized form: playwright test tests/app-functionality.spec.js tests/coordinates.spec.js tests/deployment-health.spec.js --project=chromium --reporter=github
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for run-server because command is not a recognized form: python3 -m http.server 3000 --directory public
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for preview because command is not a recognized form: astro preview
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for astro because command is not a recognized form: astro
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for dev because command is not a recognized form: astro dev
+AspectConfigure-package-json-scripts: package-json-scripts.axl: unable to generate target for build because command is not a recognized form: astro build
