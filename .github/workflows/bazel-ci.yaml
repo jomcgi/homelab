@@ -60,4 +60,4 @@ jobs:
 
       - name: Push
         run: |
-          ${GITHUB_WORKSPACE}/bin/bazel run //scripts:push-all --
+          ${GITHUB_WORKSPACE}/bin/bazel run //images:push_all --
