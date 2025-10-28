@@ -23,13 +23,13 @@ const (
 func main() {
 	// Parse command line flags
 	var (
-		n8nURL         = flag.String("n8n-url", getEnv("N8N_URL", "http://localhost:5678"), "N8N API URL")
-		n8nAPIKey      = flag.String("n8n-api-key", getEnv("N8N_API_KEY", ""), "N8N API key")
-		workflowDir    = flag.String("workflow-dir", getEnv("WORKFLOW_DIR", "/workflows"), "Directory containing workflow JSON files")
-		managedSuffix  = flag.String("managed-suffix", getEnv("MANAGED_SUFFIX", " [git-managed]"), "Suffix to append to managed workflow names")
-		managedTag     = flag.String("managed-tag", getEnv("MANAGED_TAG", "gitops-managed"), "Tag to add to managed workflows")
-		otlpEndpoint   = flag.String("otlp-endpoint", getEnv("OTLP_ENDPOINT", ""), "OpenTelemetry OTLP endpoint (e.g., signoz:4317)")
-		logLevel       = flag.String("log-level", getEnv("LOG_LEVEL", "info"), "Log level (debug, info, warn, error)")
+		n8nURL          = flag.String("n8n-url", getEnv("N8N_URL", "http://localhost:5678"), "N8N API URL")
+		n8nAPIKey       = flag.String("n8n-api-key", getEnv("N8N_API_KEY", ""), "N8N API key")
+		workflowDir     = flag.String("workflow-dir", getEnv("WORKFLOW_DIR", "/workflows"), "Directory containing workflow JSON files")
+		managedSuffix   = flag.String("managed-suffix", getEnv("MANAGED_SUFFIX", " [git-managed]"), "Suffix to append to managed workflow names")
+		managedTag      = flag.String("managed-tag", getEnv("MANAGED_TAG", "gitops-managed"), "Tag to add to managed workflows")
+		otlpEndpoint    = flag.String("otlp-endpoint", getEnv("OTLP_ENDPOINT", ""), "OpenTelemetry OTLP endpoint (e.g., signoz:4317)")
+		logLevel        = flag.String("log-level", getEnv("LOG_LEVEL", "info"), "Log level (debug, info, warn, error)")
 		enableTelemetry = flag.Bool("enable-telemetry", getEnv("ENABLE_TELEMETRY", "true") == "true", "Enable OpenTelemetry tracing")
 	)
 	flag.Parse()

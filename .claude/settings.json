@@ -25,7 +25,5 @@
   },
   "cleanupPeriodDays": 60,
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": [
-    "playwright"
-  ]
+  "enabledMcpjsonServers": ["playwright"]
 }
