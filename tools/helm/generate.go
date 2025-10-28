@@ -148,9 +148,8 @@ func generateRenderRule(app *ArgoCDApplication, rel string, cfg *argoCDConfig) *
 			} else if !strings.Contains(vf, "/") {
 				// Simple filename like values.yaml in chart directory
 				// First add chart's default values
-				if vf == "values.yaml" {
-					valueLabels = append(valueLabels, fmt.Sprintf("//%s:values.yaml", chartPath))
-				}
+				// Any simple filename (no path): assume it's in the chart directory
+				valueLabels = append(valueLabels, fmt.Sprintf("//%s:%s", chartPath, vf))
 			}
 		}
 
