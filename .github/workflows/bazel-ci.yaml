@@ -25,18 +25,18 @@ jobs:
           mkdir -p "${GITHUB_WORKSPACE}/bin/"
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
+      - name: Configure Bazel
+        run: |
+          cat >> user.bazelrc << EOF
+          build --config=ci
+          build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          test --config=ci
+          test --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          EOF
       - name: Build
-        run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" build \
-              --config=ci \
-              --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }} \
-              //...
+        run: "${GITHUB_WORKSPACE}/bin/bazel build //..."
       - name: Test
-        run: |
-          "${GITHUB_WORKSPACE}/bin/bazel" test \
-              --config=ci \
-              --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_ORG_API_KEY }} \
-              //...
+        run: "${GITHUB_WORKSPACE}/bin/bazel test //..."
 
   push-images:
     name: Push Container Images
