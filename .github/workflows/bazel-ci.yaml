@@ -44,13 +44,7 @@ jobs:
           cat >> user.bazelrc << EOF
           # Import CI-specific startup options (persistent output base)
           try-import %workspace%/.bazelrc.ci
-
-          build --config=ci
-          build --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-          test --config=ci
-          test --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-          run --config=ci
-          run --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
       - name: Build
         run: "${GITHUB_WORKSPACE}/bin/bazel build //..."
