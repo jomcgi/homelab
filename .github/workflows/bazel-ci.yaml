@@ -5,6 +5,11 @@ on:
   push:
     branches:
       - main
+  schedule:
+    # Weekly cache refresh: Sundays at 2am UTC
+    # Validates builds work, keeps dependencies fresh, reheats persistent cache
+    - cron: '0 2 * * 0'
+  workflow_dispatch:  # Allow manual cache refresh
 
 jobs:
   build-and-test:
@@ -14,6 +19,14 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Clear Bazel cache on scheduled runs
+        if: github.event_name == 'schedule'
+        run: |
+          echo "🧹 Clearing Bazel repository cache for fresh rebuild..."
+          rm -rf /home/runner/.cache/bazel/repository_cache/* || true
+          rm -rf /home/runner/.cache/bazel/output_base/external/* || true
+          echo "✅ Cache cleared - will rebuild from scratch"
 
       - name: Install bazelisk
         run: |
