@@ -67,7 +67,7 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	}
 
 	// Generate helm_render rule
-	renderRule := generateRenderRule(app, args.Rel, cfg)
+	renderRule := generateRenderRule(app, args.Rel, args.Dir, cfg)
 	if renderRule != nil {
 		result.Gen = append(result.Gen, renderRule)
 		result.Imports = append(result.Imports, nil)
@@ -101,7 +101,7 @@ func parseApplication(path string) (*ArgoCDApplication, error) {
 }
 
 // generateRenderRule creates a helm_render rule from an ArgoCD Application.
-func generateRenderRule(app *ArgoCDApplication, rel string, cfg *argoCDConfig) *rule.Rule {
+func generateRenderRule(app *ArgoCDApplication, rel string, dir string, cfg *argoCDConfig) *rule.Rule {
 	r := rule.NewRule("helm_render", "render")
 
 	// Set the chart path
@@ -155,7 +155,7 @@ func generateRenderRule(app *ArgoCDApplication, rel string, cfg *argoCDConfig) *
 		}
 
 		// Also look for values.yaml in the current directory (overlay)
-		localValues := filepath.Join(rel, "values.yaml")
+		localValues := filepath.Join(dir, "values.yaml")
 		if _, err := os.Stat(localValues); err == nil {
 			valueLabels = append(valueLabels, "values.yaml")
 		}
