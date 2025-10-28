@@ -59,7 +59,7 @@ helm_render = rule(
     attrs = {
         "chart": attr.label(
             doc = "The Chart.yaml file of the Helm chart to render",
-            allow_single_file = [".yaml"],
+            allow_single_file = [".yaml", ".yml"],
             mandatory = True,
         ),
         "release_name": attr.string(
