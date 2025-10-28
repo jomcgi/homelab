@@ -225,6 +225,56 @@ We **define errors out of existence** where possible:
 
 ## Common Tasks
 
+### Working with Helm and ArgoCD Applications
+
+The repository includes Bazel rules and a Gazelle extension for working with Helm charts and ArgoCD applications:
+
+#### Rendering Helm Manifests
+To see what ArgoCD will deploy for a service:
+```bash
+bazel run //overlays/<env>/<service>:render
+```
+
+This runs `helm template` with the exact values files specified in the ArgoCD Application manifest.
+
+#### Comparing with Cluster State
+If cluster access is configured, diff rendered manifests against the cluster:
+```bash
+bazel run //overlays/<env>/<service>:diff
+```
+
+This uses `kubectl diff` to show what would change if applied.
+
+#### Auto-Generating BUILD Files
+Run Gazelle to automatically generate BUILD files for all ArgoCD applications:
+```bash
+bazel run //:gazelle
+```
+
+Gazelle discovers `application.yaml` files and generates:
+- `helm_render` rule - Renders the Helm chart to YAML
+- `helm_diff_script` rule - Compares with cluster (if enabled)
+
+#### Gazelle Directives
+Control BUILD file generation with directives in `kustomization.yaml` or BUILD files:
+
+```yaml
+# Enable/disable ArgoCD BUILD generation
+# gazelle:argocd enabled
+# gazelle:argocd disabled
+
+# Generate diff rules (requires cluster access)
+# gazelle:argocd_generate_diff true
+
+# Set kubectl context for diff operations
+# gazelle:kubectl_context homelab
+```
+
+#### Example: Adding Render/Diff to a Service
+1. Ensure the service has an `application.yaml` in `overlays/<env>/<service>/`
+2. Run `bazel run //:gazelle` to generate BUILD file
+3. Verify with `bazel run //overlays/<env>/<service>:render`
+
 ### Spec Workflow Commands
 Use the Claude Code spec workflow tool for structured development:
 - **Check task status**: `npx @pimzino/claude-code-spec-workflow get-tasks <spec-name>`

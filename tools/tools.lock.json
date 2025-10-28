@@ -127,5 +127,41 @@
         "cpu": "arm64"
       }
     ]
+  },
+  "helm": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-arm64.tar.gz",
+        "file": "linux-arm64/helm",
+        "sha256": "ec82d2946d2371b4e47282a7906d02f68afe0e94e9c7276d1f69e12ef92c4e8d",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz",
+        "file": "linux-amd64/helm",
+        "sha256": "92776f460bec83e0f97a1d0cfe0ea9c3a8f19aeb6e18071c46556adcad2ddce3",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-darwin-arm64.tar.gz",
+        "file": "darwin-arm64/helm",
+        "sha256": "3e8e0007c7b8f1f54f89e9c3f132ae8d8d4b14c31cd7bd9e50efce6ccfc4e26f",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-darwin-amd64.tar.gz",
+        "file": "darwin-amd64/helm",
+        "sha256": "0f3ea3c0c89e3da17f75c12b4fc23226e97c81cc4c0c5893a5d48fa73f37b6af",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
   }
 }

@@ -60,6 +60,7 @@ bazel_env(
         "buildozer": MULTITOOL_TOOLS["buildozer"],
         "ibazel": MULTITOOL_TOOLS["ibazel"],
         "starpls": MULTITOOL_TOOLS["starpls"],
+        "helm": MULTITOOL_TOOLS["helm"],
     },
 )
 

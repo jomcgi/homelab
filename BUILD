@@ -42,10 +42,26 @@ exports_files(
 
 # gazelle:prefix github.com/jomcgi/homelab
 
+load("@gazelle//:def.bzl", "gazelle_binary")
+
+# Custom gazelle binary with ArgoCD extension
+gazelle_binary(
+    name = "gazelle_binary",
+    languages = [
+        "//tools/helm",
+        "@bazel_gazelle//language/go",
+        "@bazel_gazelle//language/proto",
+        "@bazel_gazelle//language/starlark",
+        "@rules_python_gazelle_plugin//python",
+        "@aspect_rules_js//gazelle",
+    ],
+)
+
 gazelle(
     name = "gazelle",
     env = {
         "ENABLE_LANGUAGES": ",".join([
+            "argocd",
             "starlark",
             "proto",
             "go",
@@ -53,7 +69,7 @@ gazelle(
             "js",
         ]),
     },
-    gazelle = "@multitool//tools/gazelle",
+    gazelle = ":gazelle_binary",
 )
 
 exports_files(
