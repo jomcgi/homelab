@@ -206,31 +206,67 @@ docker push ghcr.io/jomcgi/argocd-preview:latest
 
 ## CI Integration
 
-In GitHub Actions:
+### Automated Snapshot Builds
 
-```yaml
-name: ArgoCD Diff Preview
-on: pull_request
+The repository includes GitHub Actions workflows that automatically manage snapshots:
 
-jobs:
-  diff:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0  # Need full history for branch comparison
+#### On PR Push (.github/workflows/argocd-snapshot-pr.yml)
 
-      - name: Load ArgoCD snapshot
-        run: |
-          # Option 1: Load from repo
-          docker load < .devcontainer/argocd-snapshot.tar.gz
-
-          # Option 2: Pull from registry
-          # docker pull ghcr.io/jomcgi/argocd-preview:latest
-
-      - name: Run diff
-        run: bazel run //tools/argocd:diff -- origin/${{ github.base_ref }}
 ```
+1. Load latest snapshot from registry
+2. Apply PR changes incrementally
+3. Push as ghcr.io/.../argocd-preview:pr-123
+4. Comment on PR with usage instructions
+```
+
+**Benefits:**
+- ✅ PR-specific snapshots ready immediately
+- ✅ Fast iteration (rebuilds use PR snapshot as base)
+- ✅ Image cached in registry for team
+- ✅ ~15s build time
+
+#### On Merge to Main (.github/workflows/argocd-snapshot-main.yml)
+
+```
+Fast path (if from PR):
+  1. Pull PR snapshot
+  2. Re-tag as :latest
+  3. Push (~2 seconds!)
+
+Slow path (direct push):
+  1. Load :latest snapshot
+  2. Apply changes incrementally
+  3. Push as :latest (~15 seconds)
+```
+
+**Benefits:**
+- ✅ Instant promotion (just metadata update)
+- ✅ No duplicate builds
+- ✅ Always have warm cache
+
+### Snapshot Versioning Strategy
+
+```
+ghcr.io/jomcgi/argocd-preview:latest          # Current main
+ghcr.io/jomcgi/argocd-preview:pr-123          # PR-specific
+ghcr.io/jomcgi/argocd-preview:main-abc123     # Main commit SHA
+ghcr.io/jomcgi/argocd-preview:20250129-1430   # Timestamp backup
+```
+
+### Using PR Snapshots Locally
+
+When working on a PR, use the PR-specific snapshot for instant diffs:
+
+```bash
+# Pull your PR's snapshot
+docker pull ghcr.io/jomcgi/argocd-preview:pr-123
+
+# Use it for diffs
+SNAPSHOT_IMAGE=ghcr.io/jomcgi/argocd-preview:pr-123 \
+  bazel run //tools/argocd:diff -- origin/main
+```
+
+The image is already warm and ready - no wait time!
 
 ## Troubleshooting
 
