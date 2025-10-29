@@ -227,53 +227,61 @@ We **define errors out of existence** where possible:
 
 ### Working with Helm and ArgoCD Applications
 
-The repository includes Bazel rules and a Gazelle extension for working with Helm charts and ArgoCD applications:
+The repository includes **two complementary tools** for working with ArgoCD deployments:
 
-#### Rendering Helm Manifests
-To see what ArgoCD will deploy for a service:
+#### 1. Fast Helm Rendering (for quick iteration)
+
+For rapid feedback during development:
 ```bash
 bazel run //overlays/<env>/<service>:render
 ```
 
-This runs `helm template` with the exact values files specified in the ArgoCD Application manifest.
+This runs `helm template` directly with values from the ArgoCD Application manifest. **Fast (~2s) but may not match ArgoCD exactly** (doesn't include plugins, transformations, server-side apply).
 
-#### Comparing with Cluster State
-If cluster access is configured, diff rendered manifests against the cluster:
+**Auto-generated BUILD files:**
 ```bash
-bazel run //overlays/<env>/<service>:diff
+bazel run //:gazelle  # Discovers application.yaml files and creates render targets
 ```
 
-This uses `kubectl diff` to show what would change if applied.
+See `tools/helm/README.md` for details on the Gazelle extension.
 
-#### Auto-Generating BUILD Files
-Run Gazelle to automatically generate BUILD files for all ArgoCD applications:
+#### 2. Accurate ArgoCD Diff (for validation)
+
+For 100% accurate preview of what ArgoCD will deploy:
 ```bash
-bazel run //:gazelle
+# One-time setup (~60s)
+bazel run //tools/argocd:create_snapshot
+
+# Then use for every diff (~10s)
+bazel run //tools/argocd:diff                    # Compare with origin/main
+bazel run //tools/argocd:diff -- origin/develop  # Compare with other branch
 ```
 
-Gazelle discovers `application.yaml` files and generates:
-- `helm_render` rule - Renders the Helm chart to YAML
-- `helm_diff_script` rule - Compares with cluster (if enabled)
+This uses **Docker snapshots** to start a real ArgoCD instance in ~5 seconds, then renders manifests using ArgoCD's actual engine. **100% accurate, works with all ArgoCD features** (Helm, Kustomize, plugins, SSA).
+
+See `tools/argocd/README.md` for architecture details.
+
+#### When to Use Which Tool
+
+| Tool | Speed | Accuracy | Use Case |
+|------|-------|----------|----------|
+| `helm_render` | ~2s | ~95% | Quick iteration, Claude exploring charts |
+| `argocd:diff` | ~10s | 100% | Final validation, complex apps, before merge |
 
 #### Gazelle Directives
-Control BUILD file generation with directives in `kustomization.yaml` or BUILD files:
+
+Control BUILD generation with directives in `kustomization.yaml`:
 
 ```yaml
-# Enable/disable ArgoCD BUILD generation
+# Enable/disable Helm BUILD generation
 # gazelle:argocd enabled
-# gazelle:argocd disabled
 
-# Generate diff rules (requires cluster access)
+# Generate diff rules (requires cluster access for kubectl diff)
 # gazelle:argocd_generate_diff true
 
 # Set kubectl context for diff operations
 # gazelle:kubectl_context homelab
 ```
-
-#### Example: Adding Render/Diff to a Service
-1. Ensure the service has an `application.yaml` in `overlays/<env>/<service>/`
-2. Run `bazel run //:gazelle` to generate BUILD file
-3. Verify with `bazel run //overlays/<env>/<service>:render`
 
 ### Spec Workflow Commands
 Use the Claude Code spec workflow tool for structured development:
