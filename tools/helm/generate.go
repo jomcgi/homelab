@@ -134,17 +134,21 @@ func generateRenderRule(app *ArgoCDApplication, rel string, cfg *argoCDConfig) *
 		var valueLabels []string
 		for _, vf := range app.Spec.Source.Helm.ValueFiles {
 			// Handle different value file path formats
-			if strings.HasPrefix(vf, "../../") {
-				// Path like ../../overlays/prod/n8n/values.yaml
-				// Make it relative to current directory
-				relPath := strings.TrimPrefix(vf, "../../")
-				// Convert overlays/prod/n8n/values.yaml to //overlays/prod/n8n:values.yaml
-				parts := strings.Split(relPath, "/")
-				if len(parts) > 1 {
-					dir := strings.Join(parts[:len(parts)-1], "/")
-					file := parts[len(parts)-1]
-					valueLabels = append(valueLabels, fmt.Sprintf("//%s:%s", dir, file))
+			if strings.HasPrefix(vf, "../") {
+				// Relative path (e.g., ../../overlays/prod/n8n/values.yaml, ../values.yaml)
+				// Resolve it relative to the chart path to get path from workspace root
+				resolvedPath := filepath.Join(chartPath, vf)
+				cleanPath := filepath.Clean(resolvedPath)
+
+				// Skip paths that escape the workspace root
+				if strings.HasPrefix(cleanPath, "..") {
+					continue
 				}
+
+				// Convert to Bazel label format: path/to/dir:filename
+				dir := filepath.Dir(cleanPath)
+				file := filepath.Base(cleanPath)
+				valueLabels = append(valueLabels, fmt.Sprintf("//%s:%s", filepath.ToSlash(dir), file))
 			} else if !strings.Contains(vf, "/") {
 				// Simple filename like values.yaml in chart directory
 				// First add chart's default values
