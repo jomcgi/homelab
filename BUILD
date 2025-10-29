@@ -48,7 +48,7 @@ load("@gazelle//:def.bzl", "gazelle_binary")
 gazelle_binary(
     name = "gazelle_binary",
     languages = [
-        "//tools/helm",
+        "//tools/argocd-gazelle",
         "@bazel_gazelle//language/go",
         "@bazel_gazelle//language/proto",
         "@bazel_gazelle//language/starlark",

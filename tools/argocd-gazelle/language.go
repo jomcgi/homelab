@@ -1,6 +1,6 @@
-// Package helm provides a Gazelle extension for auto-generating BUILD files
+// Package argocd provides a Gazelle extension for auto-generating BUILD files
 // from ArgoCD Application manifests.
-package helm
+package argocd
 
 import (
 	"github.com/bazelbuild/bazel-gazelle/config"
@@ -38,8 +38,9 @@ func (l *argoCDLang) KnownDirectives() []string {
 	return []string{
 		"argocd",
 		"argocd_enabled",
-		"argocd_generate_diff",
-		"kubectl_context",
+		"argocd_base_branch",
+		"argocd_clusters",
+		"argocd_cluster_snapshot",
 	}
 }
 
@@ -51,22 +52,11 @@ func (l *argoCDLang) Configure(c *config.Config, rel string, f *rule.File) {
 // Kinds returns the list of rule kinds that this extension can generate.
 func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 	return map[string]rule.KindInfo{
-		"helm_render": {
+		"argocd_diff": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{
-				"chart":        true,
-				"release_name": true,
-				"namespace":    true,
-			},
-			MergeableAttrs: map[string]bool{
-				"values": true,
-			},
-		},
-		"helm_diff_script": {
-			MatchAny: false,
-			NonEmptyAttrs: map[string]bool{
-				"rendered":  true,
-				"namespace": true,
+				"application":  true,
+				"base_branch":  true,
 			},
 			MergeableAttrs: map[string]bool{},
 		},
@@ -77,8 +67,8 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 func (l *argoCDLang) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{
-			Name:    "//tools/helm:defs.bzl",
-			Symbols: []string{"helm_render", "helm_diff_script"},
+			Name:    "//tools/argocd-gazelle:defs.bzl",
+			Symbols: []string{"argocd_diff"},
 		},
 	}
 }

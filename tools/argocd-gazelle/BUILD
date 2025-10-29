@@ -1,16 +1,16 @@
-"""Helm tooling and Gazelle extension for ArgoCD applications."""
+"""ArgoCD Gazelle extension for auto-generating BUILD files."""
 
 load("@rules_go//go:def.bzl", "go_library")
 
 # Gazelle extension for auto-generating BUILD files from ArgoCD applications
 go_library(
-    name = "helm",
+    name = "argocd-gazelle",
     srcs = [
         "language.go",
         "config.go",
         "generate.go",
     ],
-    importpath = "github.com/jomcgi/homelab/tools/helm",
+    importpath = "github.com/jomcgi/homelab/tools/argocd-gazelle",
     visibility = ["//visibility:public"],
     deps = [
         "@bazel_gazelle//config:go_default_library",

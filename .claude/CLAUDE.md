@@ -225,63 +225,64 @@ We **define errors out of existence** where possible:
 
 ## Common Tasks
 
-### Working with Helm and ArgoCD Applications
+### Working with ArgoCD Applications
 
-The repository includes **two complementary tools** for working with ArgoCD deployments:
+The repository uses **ArgoCD snapshot-based diffing** for 100% accurate manifest previews.
 
-#### 1. Fast Helm Rendering (for quick iteration)
+#### Quick Usage
 
-For rapid feedback during development:
 ```bash
-bazel run //overlays/<env>/<service>:render
+# Auto-generate BUILD files for all ArgoCD apps
+bazel run //:gazelle
+
+# Diff a specific service against main
+bazel run //overlays/prod/n8n:diff
+
+# Diff against a different branch
+bazel run //overlays/prod/n8n:diff -- origin/develop
+
+# Multi-cluster diffs (if configured)
+bazel run //overlays/prod/n8n:diff_cluster1
+bazel run //overlays/prod/n8n:diff_production
 ```
 
-This runs `helm template` directly with values from the ArgoCD Application manifest. **Fast (~2s) but may not match ArgoCD exactly** (doesn't include plugins, transformations, server-side apply).
+#### How It Works
 
-**Auto-generated BUILD files:**
-```bash
-bazel run //:gazelle  # Discovers application.yaml files and creates render targets
-```
+1. **Gazelle discovers** `application.yaml` files automatically
+2. **Generates** `argocd_diff` BUILD rules for each application
+3. **Diffs use ArgoCD snapshots** - real ArgoCD rendering, 100% accurate
+4. **Fast** - ~10 seconds per diff (snapshot restore + render)
 
-See `tools/helm/README.md` for details on the Gazelle extension.
+**Performance:**
+- First run: ~60s (create snapshot)
+- Every diff after: ~10s (uses cached snapshot)
+- PR builds: ~15s (incremental snapshot updates)
+- Main promotion: ~2s (just re-tagging!)
 
-#### 2. Accurate ArgoCD Diff (for validation)
+See `tools/argocd/README.md` for snapshot architecture details.
 
-For 100% accurate preview of what ArgoCD will deploy:
-```bash
-# One-time setup (~60s)
-bazel run //tools/argocd:create_snapshot
+#### Multi-Cluster Support
 
-# Then use for every diff (~10s)
-bazel run //tools/argocd:diff                    # Compare with origin/main
-bazel run //tools/argocd:diff -- origin/develop  # Compare with other branch
-```
-
-This uses **Docker snapshots** to start a real ArgoCD instance in ~5 seconds, then renders manifests using ArgoCD's actual engine. **100% accurate, works with all ArgoCD features** (Helm, Kustomize, plugins, SSA).
-
-See `tools/argocd/README.md` for architecture details.
-
-#### When to Use Which Tool
-
-| Tool | Speed | Accuracy | Use Case |
-|------|-------|----------|----------|
-| `helm_render` | ~2s | ~95% | Quick iteration, Claude exploring charts |
-| `argocd:diff` | ~10s | 100% | Final validation, complex apps, before merge |
-
-#### Gazelle Directives
-
-Control BUILD generation with directives in `kustomization.yaml`:
+Configure clusters using Gazelle directives in `kustomization.yaml`:
 
 ```yaml
-# Enable/disable Helm BUILD generation
-# gazelle:argocd enabled
+# Enable ArgoCD diff generation
+# gazelle:argocd_enabled
 
-# Generate diff rules (requires cluster access for kubectl diff)
-# gazelle:argocd_generate_diff true
+# Generate cluster-specific targets
+# gazelle:argocd_clusters homelab,staging,production
 
-# Set kubectl context for diff operations
-# gazelle:kubectl_context homelab
+# Use cluster-specific snapshots
+# gazelle:argocd_cluster_snapshot staging=ghcr.io/jomcgi/argocd-preview:staging
 ```
+
+This auto-generates:
+- `bazel run //overlays/prod/n8n:diff` - Default
+- `bazel run //overlays/prod/n8n:diff_homelab` - Homelab cluster
+- `bazel run //overlays/prod/n8n:diff_staging` - Staging cluster
+- `bazel run //overlays/prod/n8n:diff_production` - Production cluster
+
+See `tools/argocd-gazelle/README.md` for complete directive documentation.
 
 ### Spec Workflow Commands
 Use the Claude Code spec workflow tool for structured development:
