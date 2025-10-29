@@ -43,7 +43,7 @@ echo "Context: $(kubectl config current-context)"
 echo ""
 
 # Run kubectl diff
-kubectl diff $CONTEXT_FLAG -f "$RENDERED" || true
+kubectl diff ${CONTEXT_FLAG:+"$CONTEXT_FLAG"} -f "$RENDERED" || true
 
 echo ""
 echo "Diff complete. Exit code 0 = no changes, 1 = changes detected"
