@@ -57,9 +57,13 @@ bazel_env(
         "python": "$(PYTHON3)",
         # Multitool tools (excluding gazelle - use `bazel run //:gazelle` instead)
         "aspect": MULTITOOL_TOOLS["aspect"],
+        "argocd": MULTITOOL_TOOLS["argocd"],
         "buildozer": MULTITOOL_TOOLS["buildozer"],
         "ibazel": MULTITOOL_TOOLS["ibazel"],
+        "op": MULTITOOL_TOOLS["op"],
         "starpls": MULTITOOL_TOOLS["starpls"],
+        "helm": MULTITOOL_TOOLS["helm"],
+        "kind": MULTITOOL_TOOLS["kind"],
     },
 )
 

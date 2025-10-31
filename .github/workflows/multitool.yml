@@ -23,7 +23,7 @@ jobs:
           rm multitool.tar.xz multitool-x86_64-unknown-linux-gnu/*
 
       - name: Run multitool update
-        run: multitool --lockfile 'homelab/tools/tools.lock.json' update
+        run: multitool --lockfile 'tools/tools.lock.json' update
 
       - name: Create pull request
         uses: peter-evans/create-pull-request@v7

@@ -46,6 +46,10 @@ jobs:
           try-import %workspace%/.bazelrc.ci
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
+
+      - name: Format Check
+        run: "${GITHUB_WORKSPACE}/bin/bazel run //tools/format:format_code.check"
+
       - name: Build
         run: "${GITHUB_WORKSPACE}/bin/bazel build //..."
       - name: Test
