@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/signoz:Chart.yaml",
         "//charts/signoz:values.yaml",
+        "//charts/signoz:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template signoz charts/signoz --namespace signoz --values charts/signoz/values.yaml --values overlays/cluster-critical/signoz/values.yaml > $@",

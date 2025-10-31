@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/cloudflare-tunnel:Chart.yaml",
         "//charts/cloudflare-tunnel:values.yaml",
+        "//charts/cloudflare-tunnel:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template cluster-ingress charts/cloudflare-tunnel --namespace ingress --values charts/cloudflare-tunnel/values.yaml --values overlays/prod/cloudflare-tunnel/values.yaml > $@",
