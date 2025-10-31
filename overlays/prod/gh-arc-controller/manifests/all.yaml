@@ -277,7 +277,7 @@ spec:
         imagePullPolicy: IfNotPresent
         args:
         - "--auto-scaling-runner-set-only"
-        - "--log-level=debug"
+        - "--log-level=info"
         - "--log-format=text"
         - "--update-strategy=immediate"
         - "--listener-metrics-addr=:8080"

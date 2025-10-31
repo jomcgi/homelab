@@ -3,7 +3,7 @@ workflowSync:
   enabled: true
   managedSuffix: " [git-managed]"
   managedTag: "gitops-managed"
-  logLevel: "debug"  # Changed to debug for troubleshooting
+  logLevel: "info"
 
   # Use specific image tag in production (update after CI/CD build)
   image:
