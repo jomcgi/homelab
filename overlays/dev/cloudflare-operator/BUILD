@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//operators/cloudflare/helm/cloudflare-operator:Chart.yaml",
         "//operators/cloudflare/helm/cloudflare-operator:values.yaml",
+        "//operators/cloudflare/helm/cloudflare-operator:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template cloudflare-operator operators/cloudflare/helm/cloudflare-operator --namespace cloudflare --values operators/cloudflare/helm/cloudflare-operator/values.yaml --values overlays/dev/cloudflare-operator/values.yaml > $@",

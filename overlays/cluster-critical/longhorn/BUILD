@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/longhorn:Chart.yaml",
         "//charts/longhorn:values.yaml",
+        "//charts/longhorn:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template longhorn charts/longhorn --namespace longhorn --values charts/longhorn/values.yaml --values overlays/cluster-critical/longhorn/values.yaml > $@",

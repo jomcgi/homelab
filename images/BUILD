@@ -7,7 +7,6 @@ load("@rules_multirun//:defs.bzl", "multirun")
 multirun(
     name = "push_all",
     commands = [
-        "//charts/n8n/syncer:image.push",
         "//operators/cloudflare/cmd:image.push",
         "//services/hikes/update_forecast:update_image.push",
     ],

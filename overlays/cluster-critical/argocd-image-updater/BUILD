@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/argocd-image-updater:Chart.yaml",
         "//charts/argocd-image-updater:values.yaml",
+        "//charts/argocd-image-updater:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template argocd-image-updater charts/argocd-image-updater --namespace argocd --values charts/argocd-image-updater/values.yaml --values overlays/cluster-critical/argocd-image-updater/values.yaml > $@",

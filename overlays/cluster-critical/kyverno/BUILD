@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/kyverno:Chart.yaml",
         "//charts/kyverno:values.yaml",
+        "//charts/kyverno:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template kyverno charts/kyverno --namespace kyverno --values charts/kyverno/values.yaml --values overlays/cluster-critical/kyverno/values.yaml > $@",

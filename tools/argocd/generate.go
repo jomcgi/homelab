@@ -10,6 +10,57 @@ import (
 	"sigs.k8s.io/yaml"
 )
 
+// discoverOverlaysUsingChart finds all overlay packages that reference the given chart path.
+// Returns a list of Bazel package paths (e.g., "//overlays/prod/n8n")
+func discoverOverlaysUsingChart(workspaceRoot, chartPath string) []string {
+	var overlayPaths []string
+
+	overlaysDir := filepath.Join(workspaceRoot, "overlays")
+
+	// Check if overlays directory exists
+	if _, err := os.Stat(overlaysDir); os.IsNotExist(err) {
+		return nil
+	}
+
+	// Walk the overlays directory to find all application.yaml files
+	err := filepath.Walk(overlaysDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return nil // Skip directories we can't access
+		}
+
+		// Only process application.yaml files
+		if info.IsDir() || filepath.Base(path) != "application.yaml" {
+			return nil
+		}
+
+		// Parse the application
+		app, err := parseApplication(path)
+		if err != nil {
+			return nil // Skip files we can't parse
+		}
+
+		// Check if this application references our chart
+		if app.Spec.Source.Path == chartPath {
+			// Get the directory containing this application.yaml
+			overlayDir := filepath.Dir(path)
+			// Make path relative to workspace root
+			relPath, err := filepath.Rel(workspaceRoot, overlayDir)
+			if err != nil {
+				return nil
+			}
+			// Convert to Bazel label format with __pkg__ to reference the package
+			overlayPaths = append(overlayPaths, "//"+filepath.ToSlash(relPath)+":__pkg__")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil
+	}
+
+	return overlayPaths
+}
+
 // ArgoCDApplication represents the structure of an ArgoCD Application manifest.
 type ArgoCDApplication struct {
 	APIVersion string `yaml:"apiVersion"`
@@ -64,6 +115,28 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 
 		exportsRule.SetAttr("srcs", exports)
 		result.Gen = append(result.Gen, exportsRule)
+		result.Imports = append(result.Imports, nil)
+
+		// Create filegroup with all chart files for proper cache invalidation
+		filegroupRule := rule.NewRule("filegroup", "all_files")
+
+		// Use GlobValue to emit a proper glob expression (not a string)
+		globValue := &rule.GlobValue{
+			Patterns: []string{"**/*"},
+		}
+		filegroupRule.SetAttr("srcs", globValue)
+
+		// Dynamically discover which overlays use this chart and set precise visibility
+		chartPath := args.Rel
+		overlays := discoverOverlaysUsingChart(args.Config.RepoRoot, chartPath)
+		if len(overlays) > 0 {
+			filegroupRule.SetAttr("visibility", overlays)
+		} else {
+			// Fallback to overlays if no specific overlays found (shouldn't happen normally)
+			filegroupRule.SetAttr("visibility", []string{"//overlays/..."})
+		}
+
+		result.Gen = append(result.Gen, filegroupRule)
 		result.Imports = append(result.Imports, nil)
 
 		return result
@@ -240,6 +313,10 @@ func generateManifestRule(app *ArgoCDApplication, currentPackage string, current
 
 		// Add chart's default values.yaml
 		srcFiles = append(srcFiles, "//"+filepath.ToSlash(chartPath)+":values.yaml")
+
+		// Add all chart files for proper cache invalidation
+		// This ensures manifest rebuilds when templates, helpers, CRDs, etc. change
+		srcFiles = append(srcFiles, "//"+filepath.ToSlash(chartPath)+":all_files")
 	}
 
 	// 3. Build the VALUES_FILES environment variable (space-separated paths)
