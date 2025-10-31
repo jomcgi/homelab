@@ -1,0 +1,460 @@
+---
+# Source: cloudflare-tunnel/templates/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ingress
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.1.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+    app.kubernetes.io/version: "2025.4.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cloudflare-tunnel/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared
+  namespace: ingress
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.1.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+    app.kubernetes.io/version: "2025.4.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  config.yaml: |
+    tunnel: 
+    credentials-file: /etc/cloudflared/creds/credentials.json
+    metrics: 127.0.0.1:2000
+    no-autoupdate: true
+    ingress:
+    - hostname: argocd.jomcgi.dev
+      service: http://argocd-server.argocd.svc.cluster.local:80
+    - hostname: longhorn.jomcgi.dev
+      service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+    - hostname: n8n.jomcgi.dev
+      service: http://n8n.n8n.svc.cluster.local:80
+    - hostname: feeds.jomcgi.dev
+      service: http://freshrss.freshrss.svc.cluster.local:80
+    - hostname: signoz.jomcgi.dev
+      service: http://signoz.signoz.svc.cluster.local:8080
+    - service: http_status:404
+---
+# Source: cloudflare-tunnel/templates/envoy-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cloudflared-envoy
+  namespace: ingress
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.1.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+    app.kubernetes.io/version: "2025.4.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 9901
+
+    static_resources:
+      listeners:
+      # Transparent proxy listener for intercepted traffic
+      - name: transparent_proxy_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 15001
+        listener_filters:
+        - name: envoy.filters.listener.original_dst
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: transparent_proxy_http
+              codec_type: AUTO
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: cloudflare-tunnel-ingress
+                custom_tags:
+                - tag: destination.service
+                  metadata:
+                    kind:
+                      request: {}
+                    metadata_key:
+                      key: envoy.lb
+                      path:
+                      - key: destination_host
+                - tag: destination.path
+                  metadata:
+                    kind:
+                      request: {}
+                    metadata_key:
+                      key: envoy.lb
+                      path:
+                      - key: destination_path
+              route_config:
+                name: transparent_route
+                virtual_hosts:
+                - name: passthrough
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: original_dst_cluster
+                      timeout: 0s
+              http_filters:
+              - name: envoy.filters.http.header_to_metadata
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config
+                  request_rules:
+                  - header: ":authority"
+                    on_header_present:
+                      metadata_namespace: envoy.lb
+                      key: destination_host
+                      type: STRING
+                  - header: ":path"
+                    on_header_present:
+                      metadata_namespace: envoy.lb
+                      key: destination_path
+                      type: STRING
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+      # Metrics listener (existing)
+      - name: cloudflare_metrics_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 8000
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: AUTO
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: cloudflare-tunnel-ingress
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: cloudflare_metrics
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: cloudflare_metrics
+                      timeout: 30s
+                    decorator:
+                      operation: proxy_to_cloudflared_metrics
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      # ORIGINAL_DST cluster for transparent proxy
+      - name: original_dst_cluster
+        type: ORIGINAL_DST
+        connect_timeout: 5s
+        lb_policy: CLUSTER_PROVIDED
+      - name: cloudflare_metrics
+        connect_timeout: 1s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: cloudflare_metrics
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: 2000
+      - name: otel_collector
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: signoz-otel-collector.signoz.svc.cluster.local
+                    port_value: 4317
+---
+# Source: cloudflare-tunnel/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: cloudflared
+  namespace: ingress
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.1.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+    app.kubernetes.io/version: "2025.4.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 2000
+    targetPort: 2000
+    protocol: TCP
+    name: cloudflared
+  selector:
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+---
+# Source: cloudflare-tunnel/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: ingress
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.1.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+    app.kubernetes.io/version: "2025.4.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: cloudflare-tunnel
+      app.kubernetes.io/instance: cluster-ingress
+      app: cloudflared
+  template:
+    metadata:
+      annotations:
+        checksum/config: 49d39afd06ab7209d8fa58aa5e0119ded525f5b2ab473d3a1c89764f84c6cfc7
+        checksum/envoy-config: 728e72d2fbd1ca091217f9ad6f790a7478f0d3298c9028ce877bb32389f3e6fb
+      labels:
+        app.kubernetes.io/name: cloudflare-tunnel
+        app.kubernetes.io/instance: cluster-ingress
+        app: cloudflared
+    spec:
+      initContainers:
+      - name: iptables-init
+        image: "docker.io/istio/proxyv2:1.20.0"
+        securityContext:
+          capabilities:
+            add:
+            - NET_ADMIN
+          runAsUser: 0
+          runAsNonRoot: false
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Setting up iptables rules for transparent proxy..."
+
+          # Envoy user ID (same as envoy container)
+          ENVOY_UID=65534
+          ENVOY_PORT=15001
+
+          # Create a new chain for Envoy redirect
+          iptables -t nat -N ENVOY_REDIRECT || true
+          iptables -t nat -F ENVOY_REDIRECT
+
+          # Redirect all TCP traffic to Envoy transparent proxy port
+          iptables -t nat -A ENVOY_REDIRECT -p tcp -j REDIRECT --to-port ${ENVOY_PORT}
+
+          # Create chain for outbound traffic
+          iptables -t nat -N ENVOY_OUTPUT || true
+          iptables -t nat -F ENVOY_OUTPUT
+
+          # Don't redirect traffic from Envoy itself (prevent loops)
+          iptables -t nat -A ENVOY_OUTPUT -m owner --uid-owner ${ENVOY_UID} -j RETURN
+
+          # Don't redirect localhost traffic
+          iptables -t nat -A ENVOY_OUTPUT -d 127.0.0.1/32 -j RETURN
+
+          # Redirect all other outbound TCP traffic to Envoy
+          iptables -t nat -A ENVOY_OUTPUT -p tcp -j ENVOY_REDIRECT
+
+          # Apply to all OUTPUT traffic
+          iptables -t nat -A OUTPUT -j ENVOY_OUTPUT
+
+          echo "iptables rules configured successfully"
+          iptables -t nat -L -n -v
+      containers:
+      - name: envoy
+        image: "envoyproxy/envoy:v1.31-latest"
+        imagePullPolicy: IfNotPresent
+        args:
+        - -c
+        - /etc/envoy/envoy.yaml
+        ports:
+        - containerPort: 8000
+          name: envoy-proxy
+          protocol: TCP
+        - containerPort: 9901
+          name: envoy-admin
+          protocol: TCP
+        - containerPort: 15001
+          name: tproxy
+          protocol: TCP
+        volumeMounts:
+        - name: envoy-config
+          mountPath: /etc/envoy
+          readOnly: true
+        - name: envoy-tmp
+          mountPath: /tmp
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65534
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+      - name: cloudflared
+        image: "cloudflare/cloudflared:2025.4.0"
+        imagePullPolicy: IfNotPresent
+        args:
+        - tunnel
+        - --config
+        - /etc/cloudflared/config/config.yaml
+        - run
+        - $(TUNNEL_ID)
+        env:
+        - name: TUNNEL_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-tunnel-credentials
+              key: tunnel-id
+        - name: TUNNEL_NAME
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-tunnel-credentials
+              key: tunnel-name
+        ports:
+        - containerPort: 2000
+          name: cloudflared
+        livenessProbe:
+          exec:
+            command:
+            - cloudflared
+            - tunnel
+            - --metrics
+            - 127.0.0.1:2000
+            - ready
+          failureThreshold: 3
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          exec:
+            command:
+            - cloudflared
+            - tunnel
+            - --metrics
+            - 127.0.0.1:2000
+            - ready
+          failureThreshold: 3
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 5
+        volumeMounts:
+        - name: config
+          mountPath: /etc/cloudflared/config
+          readOnly: true
+        - name: creds
+          mountPath: /etc/cloudflared/creds/credentials.json
+          subPath: credentials
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+      volumes:
+      - name: creds
+        secret:
+          secretName: "cloudflare-tunnel-credentials"
+      - name: config
+        configMap:
+          name: cloudflared
+          items:
+          - key: config.yaml
+            path: config.yaml
+      - name: envoy-config
+        configMap:
+          name: cloudflared-envoy
+          items:
+          - key: envoy.yaml
+            path: envoy.yaml
+      - name: envoy-tmp
+        emptyDir:
+          medium: Memory
+          sizeLimit: 64Mi
+---
+# Source: cloudflare-tunnel/templates/secret.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: cloudflare-tunnel-credentials
+  namespace: ingress
+  labels:
+    helm.sh/chart: cloudflare-tunnel-0.1.0
+    app.kubernetes.io/name: cloudflare-tunnel
+    app.kubernetes.io/instance: cluster-ingress
+    app: cloudflared
+    app.kubernetes.io/version: "2025.4.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/cluster-cloudflare-tunnel"

@@ -1,0 +1,10 @@
+repos:
+  - repo: local
+    hooks:
+      - id: render-argocd-manifests
+        name: Render ArgoCD manifests
+        entry: tools/argocd/pre-commit-render-manifests.sh
+        language: script
+        files: '(application\.yaml|values\.yaml|Chart\.yaml)$'
+        pass_filenames: false
+        description: 'Auto-renders Helm manifests when chart or values files change'

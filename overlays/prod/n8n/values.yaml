@@ -3,7 +3,7 @@ workflowSync:
   enabled: true
   managedSuffix: " [git-managed]"
   managedTag: "gitops-managed"
-  logLevel: "info"
+  logLevel: "debug"  # Changed to debug for troubleshooting
 
   # Use specific image tag in production (update after CI/CD build)
   image:
@@ -363,7 +363,7 @@ workflowSync:
 
   resources:
     requests:
-      cpu: "100m"
+      cpu: "200m"  # Increased for better performance
       memory: "128Mi"
     limits:
       cpu: "500m"
