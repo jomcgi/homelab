@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/n8n-obsidian-api:Chart.yaml",
         "//charts/n8n-obsidian-api:values.yaml",
+        "//charts/n8n-obsidian-api:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template n8n-obsidian-api charts/n8n-obsidian-api --namespace n8n --values charts/n8n-obsidian-api/values.yaml --values overlays/dev/n8n-obsidian-api/values.yaml > $@",

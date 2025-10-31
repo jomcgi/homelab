@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/n8n:Chart.yaml",
         "//charts/n8n:values.yaml",
+        "//charts/n8n:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template n8n charts/n8n --namespace n8n --values charts/n8n/values.yaml --values overlays/prod/n8n/values.yaml > $@",

@@ -5,6 +5,7 @@ genrule(
         "values.yaml",
         "//charts/freshrss:Chart.yaml",
         "//charts/freshrss:values.yaml",
+        "//charts/freshrss:all_files",
     ],
     outs = ["manifests/all.yaml"],
     cmd = "$(location @multitool//tools/helm) template freshrss charts/freshrss --namespace freshrss --values charts/freshrss/values.yaml --values overlays/dev/freshrss/values.yaml > $@",

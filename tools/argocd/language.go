@@ -82,6 +82,15 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 				"tools": true,
 			},
 		},
+		"filegroup": {
+			MatchAny: false,
+			NonEmptyAttrs: map[string]bool{
+				"srcs": true,
+			},
+			MergeableAttrs: map[string]bool{
+				"srcs": true,
+			},
+		},
 		"exports_files": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{
