@@ -100,6 +100,106 @@
       }
     ]
   },
+  "kind": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-linux-arm64",
+        "sha256": "7ea2de9d2d190022ed4a8a4e3ac0636c8a455e460b9a13ccf19f15d07f4f00eb",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-linux-amd64",
+        "sha256": "517ab7fc89ddeed5fa65abf71530d90648d9638ef0c4cde22c2c11f8097b8889",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-darwin-arm64",
+        "sha256": "ceaf40df1d1551c481fb50e3deb5c3deecad5fd599df5469626b70ddf52a1518",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/kubernetes-sigs/kind/releases/download/v0.30.0/kind-darwin-amd64",
+        "sha256": "4f0b6e3b88bdc66d922c08469f05ef507d4903dd236e6319199bb9c868eed274",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
+  },
+  "op": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://cache.agilebits.com/dist/1P/op2/pkg/v2.32.0/op_linux_arm64_v2.32.0.zip",
+        "file": "op",
+        "sha256": "6f3d571aabe7701e21ad4b0f9d30207c3dcabdb2f9c261e3651106dde0ee8946",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://cache.agilebits.com/dist/1P/op2/pkg/v2.32.0/op_linux_amd64_v2.32.0.zip",
+        "file": "op",
+        "sha256": "68e3141b11ad38ba5004fb40d71371b710c0bbf94733f0df9180768336f90097",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://cache.agilebits.com/dist/1P/op2/pkg/v2.32.0/op_darwin_arm64_v2.32.0.zip",
+        "file": "op",
+        "sha256": "11f92951d25cf77aa1e7e714f45b05b07d816227afb3f2116595b40e4ff1d8f0",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://cache.agilebits.com/dist/1P/op2/pkg/v2.32.0/op_darwin_amd64_v2.32.0.zip",
+        "file": "op",
+        "sha256": "d65ab2430d95af45b735045cb797eb33274902b8e85f945cd420929fb9bec181",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
+  },
+  "argocd": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-arm64",
+        "sha256": "5d7ab2e2d667664f5522e76b25e92b46aaad13f9d5bee6c3fd0f17dea9ad9e66",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-amd64",
+        "sha256": "5a10d1ebc4b903c9cb56279f66ec983134c87c252d9a9d2596dde9867359ef67",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-darwin-arm64",
+        "sha256": "784becc286d9c3b5bb67a74019f1e453b7731bb2425798505ddc8188e808b649",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-darwin-amd64",
+        "sha256": "25f99b0b488a2cfe53a7d75983dfd8c132995758bd922b0f00072643bd792c54",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
+  },
   "starpls": {
     "binaries": [
       {
@@ -125,6 +225,42 @@
         "sha256": "15320c409f55f50ac052221a29eed269a3278ed67de7c5b2462f58bfae07a3fa",
         "os": "macos",
         "cpu": "arm64"
+      }
+    ]
+  },
+  "helm": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-arm64.tar.gz",
+        "file": "linux-arm64/helm",
+        "sha256": "d3f8f15b3d9ec8c8678fbf3280c3e5902efabe5912e2f9fcf29107efbc8ead69",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz",
+        "file": "linux-amd64/helm",
+        "sha256": "fc307327959aa38ed8f9f7e66d45492bb022a66c3e5da6063958254b9767d179",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-darwin-arm64.tar.gz",
+        "file": "darwin-arm64/helm",
+        "sha256": "e2442d8f05d53d84c39b869bc5fe5affad247ee2f4c706a040919c146edb1f94",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-darwin-amd64.tar.gz",
+        "file": "darwin-amd64/helm",
+        "sha256": "8dc25671120a4af197afe7ad9041fb8e1dd71bc01e5ef73dba1139cbc9e9f44b",
+        "os": "macos",
+        "cpu": "x86_64"
       }
     ]
   }

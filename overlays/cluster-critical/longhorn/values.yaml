@@ -1,0 +1,6 @@
+# Longhorn configuration overrides
+# Wraps upstream chart configuration
+
+longhorn:
+  preUpgradeChecker:
+    jobEnabled: false

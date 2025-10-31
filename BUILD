@@ -6,14 +6,12 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 # gazelle:build_file_name BUILD
 
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@gazelle//:def.bzl", "gazelle")
+load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@pip//:requirements.bzl", "all_whl_requirements")
 load("@rules_python_gazelle_plugin//manifest:defs.bzl", "gazelle_python_manifest")
 load("@rules_python_gazelle_plugin//modules_mapping:def.bzl", "modules_mapping")
 
-# TODO: remove once https://github.com/aspect-build/aspect-cli/issues/560 done
-# gazelle:js_npm_package_target_name pkg
 npm_link_all_packages(name = "node_modules")
 
 js_library(
@@ -42,18 +40,30 @@ exports_files(
 
 # gazelle:prefix github.com/jomcgi/homelab
 
+# Custom gazelle binary with ArgoCD extension
+gazelle_binary(
+    name = "gazelle_binary",
+    languages = [
+        "//tools/argocd",
+        "@bazel_skylib_gazelle_plugin//bzl",
+        "@gazelle//language/go",
+        "@gazelle//language/proto",
+        "@rules_python_gazelle_plugin//python",
+    ],
+)
+
 gazelle(
     name = "gazelle",
     env = {
         "ENABLE_LANGUAGES": ",".join([
-            "starlark",
+            "argocd",
+            "bzl",
             "proto",
             "go",
             "python",
-            "js",
         ]),
     },
-    gazelle = "@multitool//tools/gazelle",
+    gazelle = ":gazelle_binary",
 )
 
 exports_files(

@@ -7,6 +7,7 @@ we don't want to trigger eager fetches of these for builds that don't want to ru
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
 load("@rules_multirun//:defs.bzl", "multirun")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 # gazelle:exclude
 package(default_visibility = ["//:__subpackages__"])
@@ -42,7 +43,17 @@ multirun(
     name = "format",
     commands = [
         "//scripts:generate-push-all",
+        "//scripts:generate-render-all",
         ":format_code",
+        ":render_manifests_wrapper",
     ],
     jobs = 10,
+)
+
+# Wrapper script to build all manifests using Bazel
+# We use a script because multirun expects executables, not build targets
+sh_binary(
+    name = "render_manifests_wrapper",
+    srcs = ["render-manifests-wrapper.sh"],
+    data = ["//tools/argocd-parallel:render_all_parallel"],
 )

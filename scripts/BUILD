@@ -10,3 +10,9 @@ sh_binary(
     srcs = ["generate-push-all.sh"],
     visibility = ["//:__subpackages__"],
 )
+
+sh_binary(
+    name = "generate-render-all",
+    srcs = ["generate-render-all.sh"],
+    visibility = ["//:__subpackages__"],
+)

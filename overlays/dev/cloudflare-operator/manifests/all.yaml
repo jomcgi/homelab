@@ -1,0 +1,293 @@
+---
+# Source: cloudflare-operator/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cloudflare-operator-controller-manager
+  namespace: cloudflare
+  labels:
+    helm.sh/chart: cloudflare-operator-0.1.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: cloudflare-operator/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cloudflare-operator-manager-role
+  labels:
+    helm.sh/chart: cloudflare-operator-0.1.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.tunnels.cloudflare.io
+  resources:
+  - cloudflaretunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.tunnels.cloudflare.io
+  resources:
+  - cloudflaretunnels/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tunnels.tunnels.cloudflare.io
+  resources:
+  - cloudflaretunnels/status
+  verbs:
+  - get
+  - patch
+  - update
+---
+# Source: cloudflare-operator/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cloudflare-operator-manager-rolebinding
+  labels:
+    helm.sh/chart: cloudflare-operator-0.1.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cloudflare-operator-manager-role
+subjects:
+- kind: ServiceAccount
+  name: cloudflare-operator-controller-manager
+  namespace: cloudflare
+---
+# Source: cloudflare-operator/templates/leader-election-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cloudflare-operator-leader-election-role
+  namespace: cloudflare
+  labels:
+    helm.sh/chart: cloudflare-operator-0.1.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - coordination.k8s.io
+  resources:
+  - leases
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+  - delete
+- apiGroups:
+  - ""
+  resources:
+  - events
+  verbs:
+  - create
+  - patch
+---
+# Source: cloudflare-operator/templates/leader-election-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cloudflare-operator-leader-election-rolebinding
+  namespace: cloudflare
+  labels:
+    helm.sh/chart: cloudflare-operator-0.1.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cloudflare-operator-leader-election-role
+subjects:
+- kind: ServiceAccount
+  name: cloudflare-operator-controller-manager
+  namespace: cloudflare
+---
+# Source: cloudflare-operator/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflare-operator-controller-manager
+  namespace: cloudflare
+  labels:
+    control-plane: controller-manager
+    helm.sh/chart: cloudflare-operator-0.1.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      control-plane: controller-manager
+      app.kubernetes.io/name: cloudflare-operator
+      app.kubernetes.io/instance: cloudflare-operator
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: manager
+      labels:
+        control-plane: controller-manager
+        app.kubernetes.io/name: cloudflare-operator
+        app.kubernetes.io/instance: cloudflare-operator
+    spec:
+      imagePullSecrets:
+        - name: ghcr-pull-secret
+      serviceAccountName: cloudflare-operator-controller-manager
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - command:
+        - /manager
+        args:
+        - --leader-elect
+        - --health-probe-bind-address=:8081
+        - --enable-daemon
+        image: "ghcr.io/jomcgi/cloudflare-operator:latest"
+        imagePullPolicy: Always
+        name: manager
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          runAsNonRoot: true
+          seccompProfile:
+            type: RuntimeDefault
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8081
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        readinessProbe:
+          httpGet:
+            path: /readyz
+            port: 8081
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 500m
+            memory: 128Mi
+          requests:
+            cpu: 10m
+            memory: 64Mi
+        env:
+        - name: CLOUDFLARE_API_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-credentials
+              key: CLOUDFLARE_API_TOKEN
+        - name: CLOUDFLARE_ACCOUNT_ID
+          valueFrom:
+            secretKeyRef:
+              name: cloudflare-credentials
+              key: CLOUDFLARE_ACCOUNT_ID
+        - name: POD_NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        # OpenTelemetry standard environment variables
+        - name: OTEL_EXPORTER_OTLP_ENDPOINT
+          value: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+        - name: OTEL_SERVICE_NAME
+          value: "cloudflare-operator"
+        - name: OTEL_SERVICE_VERSION
+          value: "dev"
+        - name: OTEL_TRACES_SAMPLER
+          value: "parentbased_traceidratio"
+        - name: OTEL_TRACES_SAMPLER_ARG
+          value: "1.0"
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/sh", "-c", "sleep 5"]
+      terminationGracePeriodSeconds: 60
+---
+# Source: cloudflare-operator/templates/extra-resources/extra-resources.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: cloudflare-credentials
+  namespace: cloudflare
+spec:
+  itemPath: vaults/k8s-homelab/items/cloudflare
+---
+# Source: cloudflare-operator/templates/extra-resources/extra-resources.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: ghcr-pull-secret
+  namespace: cloudflare
+spec:
+  itemPath: vaults/k8s-homelab/items/argocd-image-updater
+type: kubernetes.io/dockerconfigjson

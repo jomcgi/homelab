@@ -6,14 +6,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://charts.longhorn.io
-    chart: longhorn
-    targetRevision: 1.8.1
+    repoURL: https://github.com/jomcgi/homelab.git
+    path: charts/longhorn
+    targetRevision: HEAD
     helm:
       releaseName: longhorn
-      values: |
-        preUpgradeChecker:
-          jobEnabled: false
+      valueFiles:
+        - values.yaml
+        - ../../overlays/cluster-critical/longhorn/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: longhorn
