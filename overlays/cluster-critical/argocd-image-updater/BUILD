@@ -7,7 +7,7 @@ genrule(
         "//charts/argocd-image-updater:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template argocd-image-updater charts/argocd-image-updater --namespace argocd --values charts/argocd-image-updater/values.yaml --values charts/argocd-image-updater/values.yaml --values overlays/cluster-critical/argocd-image-updater/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template argocd-image-updater charts/argocd-image-updater --namespace argocd --values charts/argocd-image-updater/values.yaml --values overlays/cluster-critical/argocd-image-updater/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for argocd-image-updater",
     tags = ["manual"],

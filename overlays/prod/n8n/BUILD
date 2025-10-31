@@ -7,7 +7,7 @@ genrule(
         "//charts/n8n:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template n8n charts/n8n --namespace n8n --values charts/n8n/values.yaml --values charts/n8n/values.yaml --values overlays/prod/n8n/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template n8n charts/n8n --namespace n8n --values charts/n8n/values.yaml --values overlays/prod/n8n/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for prod-n8n",
     tags = ["manual"],

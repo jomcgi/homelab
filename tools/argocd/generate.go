@@ -289,6 +289,16 @@ func generateManifestRule(app *ArgoCDApplication, currentPackage string, current
 		srcFiles = append(srcFiles, "values.yaml")
 	}
 
+	// Deduplicate values file paths
+	seenValues := make(map[string]bool)
+	var uniqueValuesFilePaths []string
+	for _, vf := range valuesFilePaths {
+		if !seenValues[vf] {
+			seenValues[vf] = true
+			uniqueValuesFilePaths = append(uniqueValuesFilePaths, vf)
+		}
+	}
+
 	// Deduplicate source files
 	seen := make(map[string]bool)
 	var uniqueSrcFiles []string
@@ -322,8 +332,8 @@ func generateManifestRule(app *ArgoCDApplication, currentPackage string, current
 		"--namespace", app.Spec.Destination.Namespace,
 	}
 
-	// Add values files
-	for _, vf := range valuesFilePaths {
+	// Add values files (deduplicated)
+	for _, vf := range uniqueValuesFilePaths {
 		helmCmd = append(helmCmd, "--values", vf)
 	}
 

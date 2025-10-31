@@ -7,7 +7,7 @@ genrule(
         "//charts/signoz:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template signoz charts/signoz --namespace signoz --values charts/signoz/values.yaml --values charts/signoz/values.yaml --values overlays/cluster-critical/signoz/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template signoz charts/signoz --namespace signoz --values charts/signoz/values.yaml --values overlays/cluster-critical/signoz/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for signoz",
     tags = ["manual"],

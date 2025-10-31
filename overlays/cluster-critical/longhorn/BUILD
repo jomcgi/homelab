@@ -7,7 +7,7 @@ genrule(
         "//charts/longhorn:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template longhorn charts/longhorn --namespace longhorn --values charts/longhorn/values.yaml --values charts/longhorn/values.yaml --values overlays/cluster-critical/longhorn/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template longhorn charts/longhorn --namespace longhorn --values charts/longhorn/values.yaml --values overlays/cluster-critical/longhorn/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for longhorn",
     tags = ["manual"],

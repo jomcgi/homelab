@@ -7,7 +7,7 @@ genrule(
         "//charts/kyverno:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template kyverno charts/kyverno --namespace kyverno --values charts/kyverno/values.yaml --values charts/kyverno/values.yaml --values overlays/cluster-critical/kyverno/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template kyverno charts/kyverno --namespace kyverno --values charts/kyverno/values.yaml --values overlays/cluster-critical/kyverno/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for kyverno",
     tags = ["manual"],

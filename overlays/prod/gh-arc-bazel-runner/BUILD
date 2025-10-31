@@ -7,7 +7,7 @@ genrule(
         "//charts/gh-arc-runners:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template gh-arc-bazel-runner charts/gh-arc-runners --namespace gh-arc-runners --values charts/gh-arc-runners/values.yaml --values charts/gh-arc-runners/values.yaml --values overlays/prod/gh-arc-bazel-runner/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template gh-arc-bazel-runner charts/gh-arc-runners --namespace gh-arc-runners --values charts/gh-arc-runners/values.yaml --values overlays/prod/gh-arc-bazel-runner/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for gh-arc-bazel-runner",
     tags = ["manual"],

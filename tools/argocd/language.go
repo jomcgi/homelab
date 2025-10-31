@@ -66,6 +66,22 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 				"env":  true,
 			},
 		},
+		"genrule": {
+			MatchAny: false,
+			NonEmptyAttrs: map[string]bool{
+				"outs": true,
+				"cmd":  true,
+			},
+			MergeableAttrs: map[string]bool{
+				"cmd":   true, // Allow cmd to be regenerated when inputs change
+				"srcs":  true,
+				"tools": true,
+			},
+			ResolveAttrs: map[string]bool{
+				"srcs":  true,
+				"tools": true,
+			},
+		},
 		"exports_files": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{

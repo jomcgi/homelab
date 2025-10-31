@@ -7,7 +7,7 @@ genrule(
         "//charts/cloudflare-tunnel:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template cluster-ingress charts/cloudflare-tunnel --namespace ingress --values charts/cloudflare-tunnel/values.yaml --values charts/cloudflare-tunnel/values.yaml --values overlays/prod/cloudflare-tunnel/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template cluster-ingress charts/cloudflare-tunnel --namespace ingress --values charts/cloudflare-tunnel/values.yaml --values overlays/prod/cloudflare-tunnel/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for cluster-ingress",
     tags = ["manual"],

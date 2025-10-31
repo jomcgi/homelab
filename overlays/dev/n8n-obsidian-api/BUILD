@@ -7,7 +7,7 @@ genrule(
         "//charts/n8n-obsidian-api:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template n8n-obsidian-api charts/n8n-obsidian-api --namespace n8n --values charts/n8n-obsidian-api/values.yaml --values charts/n8n-obsidian-api/values.yaml --values overlays/dev/n8n-obsidian-api/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template n8n-obsidian-api charts/n8n-obsidian-api --namespace n8n --values charts/n8n-obsidian-api/values.yaml --values overlays/dev/n8n-obsidian-api/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for n8n-obsidian-api",
     tags = ["manual"],

@@ -7,7 +7,7 @@ genrule(
         "//charts/freshrss:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template freshrss charts/freshrss --namespace freshrss --values charts/freshrss/values.yaml --values charts/freshrss/values.yaml --values overlays/dev/freshrss/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template freshrss charts/freshrss --namespace freshrss --values charts/freshrss/values.yaml --values overlays/dev/freshrss/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for freshrss",
     tags = ["manual"],

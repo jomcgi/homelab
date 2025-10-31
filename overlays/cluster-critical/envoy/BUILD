@@ -7,7 +7,7 @@ genrule(
         "//charts/envoy-gateway:values.yaml",
     ],
     outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template envoy-gateway charts/envoy-gateway --namespace envoy --values charts/envoy-gateway/values.yaml --values charts/envoy-gateway/values.yaml --values overlays/cluster-critical/envoy/values.yaml > $@",
+    cmd = "$(location @multitool//tools/helm) template envoy-gateway charts/envoy-gateway --namespace envoy --values charts/envoy-gateway/values.yaml --values overlays/cluster-critical/envoy/values.yaml > $@",
     local = True,
     message = "Rendering Helm manifests for envoy-gateway",
     tags = ["manual"],
