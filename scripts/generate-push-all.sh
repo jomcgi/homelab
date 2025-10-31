@@ -4,15 +4,12 @@ set -euo pipefail
 
 BUILD_FILE="images/BUILD"
 
-echo "🔍 Discovering all oci_push targets..."
 PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)
 
 if [ -z "$PUSH_TARGETS" ]; then
 	echo "⚠️  No oci_push targets found"
 	exit 0
 fi
-
-echo "📦 Found $(echo "$PUSH_TARGETS" | wc -l) image(s)"
 
 # Create images directory if it doesn't exist
 mkdir -p images
@@ -42,5 +39,3 @@ cat >>"$BUILD_FILE" <<'FOOTER'
     visibility = ["//visibility:public"],
 )
 FOOTER
-
-echo "✅ Generated $BUILD_FILE"
