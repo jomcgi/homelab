@@ -114,6 +114,11 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 			},
 		},
 		Spec: corev1.PodSpec{
+			ImagePullSecrets: []corev1.LocalObjectReference{
+				{
+					Name: "ttyd-session-manager-github-dockerconfig",
+				},
+			},
 			SecurityContext: &corev1.PodSecurityContext{
 				RunAsNonRoot: boolPtr(true),
 				RunAsUser:    int64Ptr(1000),
