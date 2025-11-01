@@ -27,7 +27,8 @@ type SessionManager struct {
 }
 
 type CreateSessionRequest struct {
-	Name string `json:"name" binding:"required"`
+	Name     string `json:"name" binding:"required"`
+	ImageTag string `json:"image_tag,omitempty"` // Optional: defaults to "main"
 }
 
 type SessionResponse struct {
@@ -35,6 +36,7 @@ type SessionResponse struct {
 	Name     string `json:"name"`
 	PodName  string `json:"pod_name"`
 	State    string `json:"state"`
+	ImageTag string `json:"image_tag,omitempty"`
 	Terminal string `json:"terminal_url,omitempty"`
 }
 
@@ -90,6 +92,12 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 		return
 	}
 
+	// Default to "main" tag if not specified
+	imageTag := req.ImageTag
+	if imageTag == "" {
+		imageTag = "main"
+	}
+
 	// Generate session ID
 	sessionID := uuid.New().String()[:8]
 	podName := fmt.Sprintf("ttyd-session-%s", sessionID)
@@ -111,6 +119,7 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 				"session-name":   req.Name,
 				"git-branch":     gitBranch,
 				"git-remote-url": gitRemoteURL,
+				"image-tag":      imageTag,
 			},
 		},
 		Spec: corev1.PodSpec{
@@ -222,7 +231,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 			Containers: []corev1.Container{
 				{
 					Name:  "ttyd",
-					Image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:main",
+					Image: fmt.Sprintf("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:%s", imageTag),
 					Command: []string{
 						"ttyd",
 						"-p", "7681",
@@ -329,10 +338,11 @@ echo "Session state saved to Git"
 	}
 
 	c.JSON(http.StatusCreated, SessionResponse{
-		ID:      sessionID,
-		Name:    req.Name,
-		PodName: createdPod.Name,
-		State:   "creating",
+		ID:       sessionID,
+		Name:     req.Name,
+		PodName:  createdPod.Name,
+		State:    "creating",
+		ImageTag: imageTag,
 	})
 }
 
@@ -361,11 +371,17 @@ func (sm *SessionManager) listSessions(c *gin.Context) {
 			state = "terminated"
 		}
 
+		imageTag := pod.Annotations["image-tag"]
+		if imageTag == "" {
+			imageTag = "main" // Default for older sessions without this annotation
+		}
+
 		sessions = append(sessions, SessionResponse{
-			ID:      sessionID,
-			Name:    pod.Name,
-			PodName: pod.Name,
-			State:   state,
+			ID:       sessionID,
+			Name:     pod.Name,
+			PodName:  pod.Name,
+			State:    state,
+			ImageTag: imageTag,
 		})
 	}
 
@@ -396,11 +412,17 @@ func (sm *SessionManager) getSession(c *gin.Context) {
 		state = "terminated"
 	}
 
+	imageTag := pod.Annotations["image-tag"]
+	if imageTag == "" {
+		imageTag = "main" // Default for older sessions without this annotation
+	}
+
 	c.JSON(http.StatusOK, SessionResponse{
-		ID:      sessionID,
-		Name:    pod.Name,
-		PodName: pod.Name,
-		State:   state,
+		ID:       sessionID,
+		Name:     pod.Name,
+		PodName:  pod.Name,
+		State:    state,
+		ImageTag: imageTag,
 	})
 }
 
