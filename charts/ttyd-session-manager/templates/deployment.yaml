@@ -44,6 +44,27 @@ spec:
             port: http
           initialDelaySeconds: 5
           periodSeconds: 10
+        env:
+        - name: CLAUDE_CODE_SECRET_NAME
+          value: {{ .Values.claudeCode.secretName | quote }}
+        - name: CLAUDE_CODE_SECRET_KEY
+          value: {{ .Values.claudeCode.secretKey | quote }}
+        - name: OTEL_ENABLED
+          value: {{ .Values.opentelemetry.enabled | quote }}
+        - name: OTEL_ENDPOINT
+          value: {{ .Values.opentelemetry.endpoint | quote }}
+        {{- if .Values.proxy.http }}
+        - name: HTTP_PROXY
+          value: {{ .Values.proxy.http | quote }}
+        {{- end }}
+        {{- if .Values.proxy.https }}
+        - name: HTTPS_PROXY
+          value: {{ .Values.proxy.https | quote }}
+        {{- end }}
+        {{- if .Values.proxy.noProxy }}
+        - name: NO_PROXY
+          value: {{ .Values.proxy.noProxy | quote }}
+        {{- end }}
         resources:
           {{- toYaml .Values.resources | nindent 12 }}
         securityContext:

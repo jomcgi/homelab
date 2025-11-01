@@ -30,6 +30,15 @@ js_library(
     deps = [],
 )
 
+# Claude Code CLI for ttyd sessions
+js_library(
+    name = "claude_code",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":node_modules/@anthropic-ai/claude-code",
+    ],
+)
+
 exports_files(
     [
         ".shellcheckrc",

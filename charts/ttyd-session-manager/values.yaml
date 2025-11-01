@@ -34,3 +34,20 @@ onePassword:
   enabled: true
   itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
   secretName: ttyd-session-manager-github
+
+# Claude Code configuration
+claudeCode:
+  # Secret containing CLAUDE_CODE_OAUTH_TOKEN
+  secretName: ttyd-session-manager-claude
+  secretKey: oauth_token
+
+# OpenTelemetry configuration for session pods
+opentelemetry:
+  enabled: true
+  endpoint: "http://signoz-otel-collector.signoz.svc.cluster.local:4317"
+
+# HTTP proxy configuration (optional)
+proxy:
+  http: ""
+  https: ""
+  noProxy: ""

@@ -1,7 +1,6 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 load("//tools/oci:apko_image.bzl", "apko_image")
 load("//tools/oci:go_image.bzl", "go_image")
-load("//tools/oci:multiplatform_tar.bzl", "multiplatform_tar")
 
 go_library(
     name = "backend_lib",
@@ -32,39 +31,37 @@ go_image(
     binary = "backend",
 )
 
-# Download ttyd binary (defined in MODULE.bazel as http_file)
-# Then rename from "downloaded" to "ttyd" using genrules
+# Package Claude Code node_modules as regular tar (platform-agnostic)
 genrule(
-    name = "ttyd_amd64_file",
-    srcs = ["@ttyd_amd64//file"],
-    outs = ["bin/amd64/ttyd"],
-    cmd = "mkdir -p $$(dirname $@) && cp $< $@",
-    executable = True,
+    name = "node_modules_tar",
+    srcs = ["//:node_modules/@anthropic-ai/claude-code"],
+    outs = ["node_modules_tar.tar"],
+    cmd = """
+        mkdir -p tmp/usr/local/lib/node_modules/@anthropic-ai
+        mkdir -p tmp/usr/local/lib/node_modules/.bin
+
+        # Copy claude-code package (follow symlinks)
+        cp -rL $$(dirname $$(find . -name cli.js -path "*/@anthropic-ai/claude-code/*" | head -1)) \
+            tmp/usr/local/lib/node_modules/@anthropic-ai/claude-code
+
+        # Create .bin/claude symlink
+        cd tmp/usr/local/lib/node_modules/.bin
+        ln -s ../@anthropic-ai/claude-code/cli.js claude
+        cd -
+
+        # Create tar
+        tar -C tmp -czf $@ .
+    """,
 )
 
-genrule(
-    name = "ttyd_arm64_file",
-    srcs = ["@ttyd_aarch64//file"],
-    outs = ["bin/arm64/ttyd"],
-    cmd = "mkdir -p $$(dirname $@) && cp $< $@",
-    executable = True,
-)
-
-# Package into platform-specific tar layers
-ttyd_layers = multiplatform_tar(
-    name = "ttyd_layer",
-    amd64 = ":ttyd_amd64_file",
-    arm64 = ":ttyd_arm64_file",
-    package_dir = "/usr/local/bin",
-)
-
-# TTYD worker image with fish shell dev environment + ttyd binary
-# The apko_image macro handles creating platform-specific base images,
-# layering the platform-specific ttyd binaries, and combining into a multi-platform index
+# TTYD worker image with fish shell dev environment + ttyd binary + Claude Code
+# tars: platform-agnostic tars (used for all platforms)
+# multiarch_tars: platform-specific tars from multiarch_http_file repositories
 apko_image(
     name = "ttyd_worker_image",
     config = "apko.yaml",
     contents = "@ttyd_lock//:contents",
-    multiplatform_tars = [ttyd_layers],
+    multiarch_tars = ["@ttyd//:tar"],
     repository = "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker",
+    tars = [":node_modules_tar"],
 )
