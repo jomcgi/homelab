@@ -5,6 +5,9 @@ image:
   pullPolicy: IfNotPresent
   tag: "latest"
 
+imagePullSecrets:
+  - name: ttyd-session-manager-github
+
 serviceAccount:
   create: true
   name: ttyd-session-manager
