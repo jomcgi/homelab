@@ -1,12 +1,12 @@
-"py_image"
+"py_image - multi-platform Python OCI images"
 
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
 
-def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None, visibility = ["//images:__pkg__"]):
-    """Create a Python 3 image from a Python binary.
+def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None, visibility = ["//images:__pkg__"], multi_platform = True):
+    """Create a multi-platform Python 3 image from a Python binary.
 
     Args:
         name: The name of the image.
@@ -20,6 +20,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
         visibility: Visibility of the generated .push target. Defaults to ["//images:__pkg__"]
                    to allow access from the auto-generated //images:push_all multirun.
+        multi_platform: Build for both amd64 and arm64. Defaults to True.
     """
     binary = native.package_relative_label(binary)
     binary_path = "{}{}/{}".format(root, binary.package, binary.name)
@@ -30,39 +31,103 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
         "RUNFILES_DIR": runfiles_dir,
     }, **env)
 
-    oci_image(
-        name = name + "_image",
-        base = base,
-        tars = py_image_layer(
-            name = name + "_layers",
-            binary = binary,
-            root = root,
-            layer_groups = layer_groups,
-        ),
-        entrypoint = [binary_path],
-        env = env,
-        workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
-    )
-    platform_transition_filegroup(
-        name = name,
-        srcs = [name + "_image"],
-        target_platform = select({
-            "@platforms//cpu:arm64": "//tools/platforms:linux_aarch64",
-            "@platforms//cpu:x86_64": "//tools/platforms:linux_x86_64",
-        }),
-    )
-    oci_load(
-        name = name + ".load",
-        image = name,
-        repo_tags = [
-            native.package_name() + ":latest",
-        ],
-    )
+    if multi_platform:
+        # Build AMD64 image
+        oci_image(
+            name = name + "_base_amd64",
+            base = base,
+            tars = py_image_layer(
+                name = name + "_layers_amd64",
+                binary = binary,
+                root = root,
+                layer_groups = layer_groups,
+            ),
+            entrypoint = [binary_path],
+            env = env,
+            workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
+        )
+        platform_transition_filegroup(
+            name = name + "_amd64",
+            srcs = [name + "_base_amd64"],
+            target_platform = "//tools/platforms:linux_x86_64",
+        )
 
-    # Create stamped tags file with branch and timestamp tags
+        # Build ARM64 image
+        oci_image(
+            name = name + "_base_arm64",
+            base = base,
+            tars = py_image_layer(
+                name = name + "_layers_arm64",
+                binary = binary,
+                root = root,
+                layer_groups = layer_groups,
+            ),
+            entrypoint = [binary_path],
+            env = env,
+            workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
+        )
+        platform_transition_filegroup(
+            name = name + "_arm64",
+            srcs = [name + "_base_arm64"],
+            target_platform = "//tools/platforms:linux_aarch64",
+        )
+
+        # Create multi-platform index
+        oci_image_index(
+            name = name,
+            images = [
+                name + "_amd64",
+                name + "_arm64",
+            ],
+        )
+
+        # Load uses host platform
+        platform_transition_filegroup(
+            name = name + "_platform",
+            srcs = [name + "_base_amd64" if native.package_name().endswith("_amd64") else name + "_base_arm64"],
+            target_platform = select({
+                "@platforms//cpu:arm64": "//tools/platforms:linux_aarch64",
+                "@platforms//cpu:x86_64": "//tools/platforms:linux_x86_64",
+            }),
+        )
+        oci_load(
+            name = name + ".load",
+            image = name + "_platform",
+            repo_tags = [native.package_name() + ":latest"],
+        )
+    else:
+        # Single platform build (legacy)
+        oci_image(
+            name = name + "_image",
+            base = base,
+            tars = py_image_layer(
+                name = name + "_layers",
+                binary = binary,
+                root = root,
+                layer_groups = layer_groups,
+            ),
+            entrypoint = [binary_path],
+            env = env,
+            workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
+        )
+        platform_transition_filegroup(
+            name = name,
+            srcs = [name + "_image"],
+            target_platform = select({
+                "@platforms//cpu:arm64": "//tools/platforms:linux_aarch64",
+                "@platforms//cpu:x86_64": "//tools/platforms:linux_x86_64",
+            }),
+        )
+        oci_load(
+            name = name + ".load",
+            image = name,
+            repo_tags = [native.package_name() + ":latest"],
+        )
+
+    # Create stamped tags file for CI builds (branch + timestamp)
     expand_template(
-        name = name + "_stamped_tags",
-        out = name + "_stamped.tags.txt",
+        name = name + "_stamped_tags_ci",
+        out = name + "_stamped_ci.tags.txt",
         template = [
             "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
             "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
@@ -73,10 +138,26 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
         },
     )
 
+    # Create stamped tags file for local builds (timestamp only)
+    expand_template(
+        name = name + "_stamped_tags_local",
+        out = name + "_stamped_local.tags.txt",
+        template = [
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
+        ],
+        stamp_substitutions = {
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+    )
+
+    # Push uses the index for multi-platform, or platform-specific for single platform
     oci_push(
         name = name + ".push",
-        image = name,
+        image = name if multi_platform else name,
         repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
-        remote_tags = name + "_stamped_tags",
+        remote_tags = select({
+            "//tools/oci:ci_build": name + "_stamped_tags_ci",
+            "//conditions:default": name + "_stamped_tags_local",
+        }),
         visibility = visibility,
     )

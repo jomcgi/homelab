@@ -23,7 +23,6 @@ contents:
     - npm
 
 archs:
-  - x86_64
   - aarch64
 
 cmd: /usr/bin/fish
