@@ -51,31 +51,31 @@ def multiplatform_tar(
     result = {}
 
     if amd64:
-        remap_paths = {}
+        pkg_tar_kwargs = {
+            "name": name + "_amd64",
+            "srcs": [amd64],
+            "mode": mode,
+            "package_dir": package_dir,
+        }
         if remap_to:
-            remap_paths[amd64] = remap_to
+            # http_file creates files named "downloaded" - remap to desired name
+            pkg_tar_kwargs["remap_paths"] = {"external/ttyd_amd64/file/downloaded": remap_to}
 
-        pkg_tar(
-            name = name + "_amd64",
-            srcs = [amd64],
-            mode = mode,
-            package_dir = package_dir,
-            remap_paths = remap_paths,
-        )
+        pkg_tar(**pkg_tar_kwargs)
         result["amd64"] = ":" + name + "_amd64"
 
     if arm64:
-        remap_paths = {}
+        pkg_tar_kwargs = {
+            "name": name + "_arm64",
+            "srcs": [arm64],
+            "mode": mode,
+            "package_dir": package_dir,
+        }
         if remap_to:
-            remap_paths[arm64] = remap_to
+            # http_file creates files named "downloaded" - remap to desired name
+            pkg_tar_kwargs["remap_paths"] = {"external/ttyd_aarch64/file/downloaded": remap_to}
 
-        pkg_tar(
-            name = name + "_arm64",
-            srcs = [arm64],
-            mode = mode,
-            package_dir = package_dir,
-            remap_paths = remap_paths,
-        )
+        pkg_tar(**pkg_tar_kwargs)
         result["arm64"] = ":" + name + "_arm64"
 
     return result
