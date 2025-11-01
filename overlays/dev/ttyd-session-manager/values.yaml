@@ -2,8 +2,8 @@
 
 image:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
-  tag: latest
-  pullPolicy: Always
+  tag: "2025.11.01.03.02.06-758ab06"
+  pullPolicy: IfNotPresent
 
 replicaCount: 1
 
