@@ -32,13 +32,30 @@ go_image(
     binary = "backend",
 )
 
-# Create platform-specific ttyd binary layers
+# Download ttyd binary (defined in MODULE.bazel as http_file)
+# Then rename from "downloaded" to "ttyd" using genrules
+genrule(
+    name = "ttyd_amd64_file",
+    srcs = ["@ttyd_amd64//file"],
+    outs = ["bin/amd64/ttyd"],
+    cmd = "mkdir -p $$(dirname $@) && cp $< $@",
+    executable = True,
+)
+
+genrule(
+    name = "ttyd_arm64_file",
+    srcs = ["@ttyd_aarch64//file"],
+    outs = ["bin/arm64/ttyd"],
+    cmd = "mkdir -p $$(dirname $@) && cp $< $@",
+    executable = True,
+)
+
+# Package into platform-specific tar layers
 ttyd_layers = multiplatform_tar(
     name = "ttyd_layer",
-    amd64 = "@ttyd_amd64//file",
-    arm64 = "@ttyd_aarch64//file",
+    amd64 = ":ttyd_amd64_file",
+    arm64 = ":ttyd_arm64_file",
     package_dir = "/usr/local/bin",
-    remap_to = "ttyd",
 )
 
 # TTYD worker image with fish shell dev environment + ttyd binary

@@ -179,6 +179,10 @@ apko.translate_lock(
 )
 use_repo(apko, "ttyd_lock")
 
+# Pattern for downloading third-party binaries:
+# 1. Define http_file here for each platform
+# 2. In BUILD, use genrule to rename from "downloaded" to desired name
+# 3. Use multiplatform_tar to package into OCI layers
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
 http_file(
