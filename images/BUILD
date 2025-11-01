@@ -8,7 +8,6 @@ multirun(
     name = "push_all",
     commands = [
         "//charts/ttyd-session-manager/backend:image.push",
-        "//charts/ttyd-session-manager/backend:ttyd_image.push",
         "//operators/cloudflare/cmd:image.push",
         "//services/hikes/update_forecast:update_image.push",
     ],

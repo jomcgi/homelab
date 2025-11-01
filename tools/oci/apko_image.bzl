@@ -2,9 +2,9 @@
 
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@rules_apko//apko:defs.bzl", _apko_image = "apko_image")
-load("@rules_oci//oci:defs.bzl", "oci_image_index", "oci_push")
+load("//tools/oci:apko_push.bzl", "apko_push")
 
-def apko_image(name, config, contents, repository = None, visibility = ["//images:__pkg__"], multi_platform = True):
+def apko_image(name, config, contents, repository = None, visibility = ["//images:__pkg__"]):
     """Create a multi-platform apko OCI image.
 
     Args:
@@ -15,51 +15,17 @@ def apko_image(name, config, contents, repository = None, visibility = ["//image
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
         visibility: Visibility of the generated .push target. Defaults to ["//images:__pkg__"]
                    to allow access from the auto-generated //images:push_all multirun.
-        multi_platform: Build for both amd64 and arm64. Defaults to True.
-                       If True, requires separate config files: {config}-amd64.yaml and {config}-arm64.yaml
 
     Creates:
-        :{name} - The oci_image_index target (for multi-platform)
-        :{name}_amd64 - AMD64-specific image (if multi_platform=True)
-        :{name}_arm64 - ARM64-specific image (if multi_platform=True)
+        :{name} - The apko image target
         :{name}.push - Target to push image to registry
     """
-    if multi_platform:
-        # Extract base config name (remove .yaml if present)
-        config_base = config.replace(".yaml", "")
-
-        # Build AMD64 image
-        _apko_image(
-            name = name + "_amd64",
-            config = config_base + "-amd64.yaml",
-            contents = contents,
-            tag = "latest",
-        )
-
-        # Build ARM64 image
-        _apko_image(
-            name = name + "_arm64",
-            config = config_base + "-arm64.yaml",
-            contents = contents,
-            tag = "latest",
-        )
-
-        # Create multi-platform index
-        oci_image_index(
-            name = name,
-            images = [
-                name + "_amd64",
-                name + "_arm64",
-            ],
-        )
-    else:
-        # Single platform build (legacy)
-        _apko_image(
-            name = name,
-            config = config,
-            contents = contents,
-            tag = "latest",
-        )
+    _apko_image(
+        name = name,
+        config = config,
+        contents = contents,
+        tag = "latest",
+    )
 
     # Create stamped tags file for CI builds (branch + timestamp)
     expand_template(
@@ -87,8 +53,8 @@ def apko_image(name, config, contents, repository = None, visibility = ["//image
         },
     )
 
-    # Push uses the index for multi-platform, or base image for single platform
-    oci_push(
+    # Push target - uses apko_push for proper multi-platform support
+    apko_push(
         name = name + ".push",
         image = name,
         repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),

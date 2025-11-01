@@ -26,12 +26,15 @@ common --experimental_repository_cache_hardlinks
 # See https://github.com/bazel-contrib/rules_python/issues/3187
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
 common --@rules_python//python/config_settings:bootstrap_impl=script
-# To stamp release builds, run with
-# --config=release
-common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 
-# Use workspace_status.sh for stamping by default
+# Enable stamping by default for OCI image tags
+# Local builds: timestamp tag only (via STABLE_IMAGE_TAG)
+# CI builds: timestamp + branch tag (via //tools/oci:ci_build condition)
+common --stamp
 common --workspace_status_command=./tools/workspace_status.sh
+
+# Release config for backwards compatibility
+common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 
 common:lint --aspects=//tools/lint:linters.bzl%shellcheck//tools/lint:linters.bzl%eslint//tools/lint:linters.bzl%ruff
 

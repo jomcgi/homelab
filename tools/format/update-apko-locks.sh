@@ -16,7 +16,9 @@ find . \( -name "apko.yaml" -o -name "apko-*.yaml" \) \
 	echo "  Updating lock for: $config"
 
 	# Generate lock file using rules_apko
-	bazel run @rules_apko//apko -- lock "$config" 2>&1 | grep -v "^INFO:" || true
+	if ! bazel run @rules_apko//apko -- lock "$config" 2>&1 | grep -v "^INFO:"; then
+		echo "  ⚠️  Warning: Failed to update lock for $config"
+	fi
 done
 
 echo "✅ apko lock files updated"
