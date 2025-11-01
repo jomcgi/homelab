@@ -44,10 +44,17 @@ multirun(
     commands = [
         "//scripts:generate-push-all",
         "//scripts:generate-render-all",
+        ":update_apko_locks",
         ":format_code",
         ":render_manifests_wrapper",
     ],
     jobs = 10,
+)
+
+# Update apko lock files
+sh_binary(
+    name = "update_apko_locks",
+    srcs = ["update-apko-locks.sh"],
 )
 
 # Wrapper script to build all manifests using Bazel

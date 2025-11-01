@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "config": {
-    "name": "apko.yaml",
+    "name": "./charts/ttyd-session-manager/backend/apko.yaml",
     "checksum": "sha256-LgEbv5wdtSgyWbw01hlJeGu/qyHXZSaBlQnp8hM5RuQ="
   },
   "contents": {
