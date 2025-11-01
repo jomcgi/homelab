@@ -107,8 +107,8 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	gitRemoteURL := "https://github.com/jomcgi/homelab.git"
 
 	// Read configuration from environment
-	claudeCodeSecretName := getEnvOrDefault("CLAUDE_CODE_SECRET_NAME", "ttyd-session-manager-claude")
-	claudeCodeSecretKey := getEnvOrDefault("CLAUDE_CODE_SECRET_KEY", "oauth_token")
+	anthropicSecretName := getEnvOrDefault("ANTHROPIC_SECRET_NAME", "ttyd-session-manager-claude")
+	anthropicSecretKey := getEnvOrDefault("ANTHROPIC_SECRET_KEY", "oauth_token")
 	otelEnabled := getEnvOrDefault("OTEL_ENABLED", "true") == "true"
 	otelEndpoint := getEnvOrDefault("OTEL_ENDPOINT", "http://signoz-otel-collector.signoz.svc.cluster.local:4317")
 
@@ -248,7 +248,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"fish",
 					},
 					WorkingDir: "/workspace/session",
-					Env:        buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecretKey, otelEnabled, otelEndpoint),
+					Env:        buildSessionEnv(sessionID, gitBranch, anthropicSecretName, anthropicSecretKey, otelEnabled, otelEndpoint),
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "http",
@@ -447,7 +447,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecretKey string, otelEnabled bool, otelEndpoint string) []corev1.EnvVar {
+func buildSessionEnv(sessionID, gitBranch, anthropicSecretName, anthropicSecretKey string, otelEnabled bool, otelEndpoint string) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		// Core session configuration
 		{
@@ -474,60 +474,17 @@ func buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecre
 				},
 			},
 		},
-		// Claude Code authentication
+		// Anthropic API authentication (for opencode-ai)
 		{
-			Name: "CLAUDE_CODE_OAUTH_TOKEN",
+			Name: "ANTHROPIC_API_KEY",
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: claudeCodeSecretName,
+						Name: anthropicSecretName,
 					},
-					Key: claudeCodeSecretKey,
+					Key: anthropicSecretKey,
 				},
 			},
-		},
-		// Privacy & Security: Disable external telemetry
-		{
-			Name:  "DISABLE_TELEMETRY",
-			Value: "true",
-		},
-		{
-			Name:  "DISABLE_ERROR_REPORTING",
-			Value: "true",
-		},
-		{
-			Name:  "DISABLE_AUTOUPDATER",
-			Value: "true",
-		},
-		// Resource management
-		{
-			Name:  "BASH_DEFAULT_TIMEOUT_MS",
-			Value: "120000",
-		},
-		{
-			Name:  "BASH_MAX_TIMEOUT_MS",
-			Value: "600000",
-		},
-		{
-			Name:  "BASH_MAX_OUTPUT_LENGTH",
-			Value: "30000",
-		},
-		// UX improvements
-		{
-			Name:  "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR",
-			Value: "true",
-		},
-		{
-			Name:  "CLAUDE_CODE_DISABLE_TERMINAL_TITLE",
-			Value: "true",
-		},
-		{
-			Name:  "DISABLE_COST_WARNINGS",
-			Value: "true",
-		},
-		{
-			Name:  "DISABLE_NON_ESSENTIAL_MODEL_CALLS",
-			Value: "true",
 		},
 	}
 
@@ -540,7 +497,7 @@ func buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecre
 			},
 			{
 				Name:  "OTEL_SERVICE_NAME",
-				Value: fmt.Sprintf("claude-code-session-%s", sessionID),
+				Value: fmt.Sprintf("opencode-session-%s", sessionID),
 			},
 			{
 				Name:  "OTEL_TRACES_EXPORTER",

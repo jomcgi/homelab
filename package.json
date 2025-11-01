@@ -7,7 +7,7 @@
     "typescript-eslint": "^8",
     "typescript": "5.9.3",
     "prettier": "^3",
-    "@anthropic-ai/claude-code": "*"
+    "opencode-ai": "*"
   },
   "pnpm": {
     "onlyBuiltDependencies": []
