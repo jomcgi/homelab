@@ -14,12 +14,12 @@ A purely static website that helps hikers find routes with good weather conditio
 ## How It Works
 
 1. **Initial Setup** (One-time data collection):
-   - `scrape_walkhighlands/scrape.py` scrapes walk data from WalkHighlands.co.uk
+   - `../../services/hikes/scrape_walkhighlands/scrape.py` scrapes walk data from WalkHighlands.co.uk
    - Creates SQLite database (`walks.db`) with routes, distances, and coordinates
    - Includes robust error handling and retry logic for reliability
 
 2. **Regular Updates** (Weather data refresh):
-   - `update_forecast/generate_bundle_direct.py` runs periodically
+   - `../../services/hikes/update_forecast/generate_bundle_direct.py` runs periodically
    - Fetches 7-day weather forecasts from met.no API for each walk location
    - Filters out extreme weather (>2mm rain, >80km/h wind)
    - Creates optimized Brotli-compressed bundle and uploads to R2
@@ -33,9 +33,13 @@ A purely static website that helps hikers find routes with good weather conditio
 ## Project Structure
 
 ```
-scrape_walkhighlands/           # One-time data collection for walks.db
-update_forecast/                # Regular weather data updates
-public/                         # Static website files
+../../services/hikes/
+├── scrape_walkhighlands/       # One-time data collection for walks.db
+└── update_forecast/            # Regular weather data updates
+
+./
+├── public/                     # Static website files
+└── tests/                      # Playwright tests
 ```
 
 
