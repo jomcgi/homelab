@@ -2,7 +2,7 @@
 
 image:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
-  tag: "2025.11.01.03.02.06-758ab06"
+  tag: "main"
   pullPolicy: IfNotPresent
 
 replicaCount: 1
