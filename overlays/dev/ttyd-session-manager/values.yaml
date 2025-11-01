@@ -1,9 +1,9 @@
 # Development environment overrides for ttyd-session-manager
 
 image:
-  repository: ghcr.io/jomcgi/ttyd-session-manager
+  repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
   tag: latest
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 replicaCount: 1
 
