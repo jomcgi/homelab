@@ -1,4 +1,4 @@
-# Homelab - Secure Kubernetes Infrastructure 
+# Homelab - Secure Kubernetes Infrastructure
 
 A security-first Kubernetes homelab running on Talos Linux with GitOps deployment via ArgoCD.
 
@@ -8,66 +8,68 @@ See [CLAUDE.md](.claude/CLAUDE.md) for detailed architecture documentation.
 
 ## Quick Start
 
-This monorepo uses [`mise`](https://mise.jdx.dev/) for tool management and task automation.
+This monorepo uses [Bazel](https://bazel.build/) for build automation and dependency management.
 
 ### Setup
 
 ```bash
-# Install mise (if not already installed)
-curl https://mise.run | sh
+# Install bazelisk (Bazel launcher)
+curl -LO "https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64"
+chmod +x bazelisk-linux-amd64
+sudo mv bazelisk-linux-amd64 /usr/local/bin/bazel
 
-# Install tools and dependencies
-mise install
-mise run install
+# Build all targets
+bazel build //...
 
-# Activate mise in your shell (optional, for auto-activation)
-echo 'eval "$(mise activate zsh)"' >> ~/.zshrc  # or bash/fish
+# Run tests
+bazel test //...
 ```
 
 ### Development Tasks
 
 ```bash
-mise run lint       # Lint all Python code (with auto-fix)
-mise run format     # Format all Python code
-mise run typecheck  # Type check all Python code
-mise run check      # Run lint + typecheck
-mise run test       # Run all tests
+# Format code
+bazel run //:format
+
+# Lint code
+aspect lint //...
+
+# Run specific tests
+bazel test //services/n8n_obsidian_api:test
+bazel test //websites/hikes.jomcgi.dev:test
 ```
 
-### Tool Versions
-
-Tools are automatically installed at the versions specified in `mise.toml`:
-- **Python 3.11** - For services
-- **Node 20** - For websites
-- **uv** - Fast Python package management
-
-Run `mise list` to see installed tools.
+See [README.bazel.md](README.bazel.md) for detailed Bazel workflows.
 
 ## Monorepo Structure
 
 ```
 ├── services/          # Backend services (Python/Go)
-│   └── n8n-obsidian-api/
+│   ├── n8n_obsidian_api/
+│   └── hikes/
 ├── operators/         # Custom Kubernetes operators
 │   └── cloudflare/
 ├── charts/            # Helm charts
 │   ├── n8n/
-│   └── cloudflare-tunnel/
+│   ├── cloudflare-tunnel/
+│   └── n8n-obsidian-api/
 ├── clusters/          # Cluster entry points for ArgoCD
 │   └── homelab/
 ├── overlays/          # Environment-specific configs
 │   ├── cluster-critical/
 │   ├── prod/
 │   └── dev/
+├── pkg/               # Shared Go libraries
+│   └── n8n/
 └── websites/          # Static websites
     └── hikes.jomcgi.dev/
 ```
 
 ## Configuration Files
 
-- **`mise.toml`** - Tool versions and monorepo tasks
+- **`MODULE.bazel`** - Bazel module dependencies
 - **`pyproject.toml`** - Shared Python configuration (ruff, pyright, pytest)
-- **`.github/workflows/`** - CI/CD pipelines using mise
+- **`.github/workflows/`** - CI/CD pipelines using Bazel
 
 ## CI/CD
 
