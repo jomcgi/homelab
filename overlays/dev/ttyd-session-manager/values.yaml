@@ -3,7 +3,7 @@
 image:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
   tag: "main"
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 replicaCount: 1
 
