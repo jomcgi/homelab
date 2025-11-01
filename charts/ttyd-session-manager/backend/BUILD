@@ -1,6 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_push")
-load("@tar_bzl//tar:tar.bzl", "tar")
+load("//tools/oci:go_image.bzl", "go_image")
 
 go_library(
     name = "backend_lib",
@@ -25,26 +24,8 @@ go_binary(
     visibility = ["//visibility:public"],
 )
 
-# Package the binary into a tar layer for the container
-pkg_tar(
-    name = "backend_layer",
-    srcs = [":backend"],
-    package_dir = "/app",
-    mode = "0755",
-)
-
-oci_image(
+go_image(
     name = "image",
-    base = "@alpine_linux_amd64",
-    entrypoint = ["/app/backend"],
-    tars = [":backend_layer"],
-    exposed_ports = ["8080/tcp"],
-    user = "1000",
-)
-
-oci_push(
-    name = "push",
-    image = ":image",
+    binary = "backend",
     repository = "ghcr.io/jomcgi/ttyd-session-manager",
-    remote_tags = ["latest"],
 )
