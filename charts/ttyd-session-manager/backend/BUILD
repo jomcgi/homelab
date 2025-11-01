@@ -27,5 +27,4 @@ go_binary(
 go_image(
     name = "image",
     binary = "backend",
-    repository = "ghcr.io/jomcgi/ttyd-session-manager",
 )
