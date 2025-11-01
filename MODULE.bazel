@@ -169,7 +169,7 @@ oci.pull(
         "linux/arm64/v8",
     ],
 )
-use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8")
+use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8", "custom_crane_regctl_toolchains")
 
 # Configure apko for ttyd-session-manager image
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
