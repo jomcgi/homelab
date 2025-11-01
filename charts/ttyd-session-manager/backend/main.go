@@ -248,7 +248,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"fish",
 					},
 					WorkingDir: "/workspace/session",
-					Env: buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecretKey, otelEnabled, otelEndpoint),
+					Env:        buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecretKey, otelEnabled, otelEndpoint),
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "http",
