@@ -5,6 +5,7 @@ load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_apko//apko:defs.bzl", _apko_image = "apko_image")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
 load("//tools/oci:apko_push.bzl", "apko_push")
+load("//tools/oci:oci_run.bzl", "oci_run")
 
 def apko_image(
         name,
@@ -30,6 +31,7 @@ def apko_image(
     Creates:
         :{name} - The apko image target (or oci_image_index if multiplatform_tars are provided)
         :{name}.push - Target to push image to registry
+        :{name}.run - Target to run image locally (without pushing)
 
     Example:
         ttyd_layers = multiplatform_tar(
@@ -179,3 +181,9 @@ def apko_image(
             }),
             visibility = visibility,
         )
+
+    # Create .run target for local testing
+    oci_run(
+        name = name + ".run",
+        image = ":" + name,
+    )
