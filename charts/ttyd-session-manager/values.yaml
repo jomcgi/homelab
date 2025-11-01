@@ -39,7 +39,7 @@ onePassword:
 claudeCode:
   # Secret containing CLAUDE_CODE_OAUTH_TOKEN
   secretName: ttyd-session-manager-claude
-  secretKey: oauth_token
+  secretKey: claude_code_oauth_token
 
 # OpenTelemetry configuration for session pods
 opentelemetry:
