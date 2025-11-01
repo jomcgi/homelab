@@ -182,21 +182,16 @@ use_repo(apko, "ttyd_lock")
 # Pattern for downloading third-party binaries:
 # 1. Define http_file here for each platform
 # 2. In BUILD, use genrule to rename from "downloaded" to desired name
-# 3. Use multiplatform_tar to package into OCI layers
-http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+# Download multiarch binaries
+multiarch_http_file = use_repo_rule("//tools/http:multiarch_http_file.bzl", "multiarch_http_file")
 
-http_file(
-    name = "ttyd_amd64",
-    executable = True,
-    sha256 = "8a217c968aba172e0dbf3f34447218dc015bc4d5e59bf51db2f2cd12b7be4f55",
-    urls = ["https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64"],
-)
-
-http_file(
-    name = "ttyd_aarch64",
-    executable = True,
-    sha256 = "b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165",
-    urls = ["https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64"],
+multiarch_http_file(
+    name = "ttyd",
+    amd64_sha256 = "8a217c968aba172e0dbf3f34447218dc015bc4d5e59bf51db2f2cd12b7be4f55",
+    amd64_url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64",
+    arm64_sha256 = "b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165",
+    arm64_url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64",
+    binary_name = "ttyd",
 )
 
 bazel_dep(name = "rules_pkg", version = "1.1.0")
