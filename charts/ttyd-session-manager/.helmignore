@@ -1,0 +1,26 @@
+# Helm ignore patterns
+.DS_Store
+.git/
+.gitignore
+*.swp
+*.bak
+*.tmp
+*.orig
+*~
+.project
+.idea
+.vscode
+
+# Backend build artifacts and source
+backend/ttyd-session-manager
+backend/go.mod
+backend/go.sum
+backend/main.go
+backend/Dockerfile
+backend/BUILD
+backend/charts/
+
+# Bazel files
+BUILD
+bazel-*
+*.bzl
