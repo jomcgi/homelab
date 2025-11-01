@@ -19,7 +19,8 @@ spec:
     path: charts/ttyd-session-manager
     helm:
       valueFiles:
-        - ../../../overlays/dev/ttyd-session-manager/values.yaml
+        - values.yaml
+        - ../../overlays/dev/ttyd-session-manager/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: ttyd-sessions
