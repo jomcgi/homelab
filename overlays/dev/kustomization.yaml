@@ -2,3 +2,4 @@ resources:
   - ./cloudflare-operator
   - ./freshrss
   - ./n8n-obsidian-api
+  - ./ttyd-session-manager

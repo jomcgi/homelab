@@ -1,6 +1,11 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
-# no targets in this package
+# Detect CI builds to conditionally apply branch tags
+config_setting(
+    name = "ci_build",
+    values = {"define": "CI=true"},
+    visibility = ["//visibility:public"],
+)
 
 bzl_library(
     name = "go_image",

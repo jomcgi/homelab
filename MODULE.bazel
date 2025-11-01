@@ -62,7 +62,7 @@ go_deps.gazelle_override(
 
 # All *direct* Go dependencies of the module have to be listed explicitly.
 # Run 'bazel mod tidy' to update this
-use_repo(go_deps, "com_github_cloudflare_cloudflare_go", "com_github_getkin_kin_openapi", "com_github_hay_kot_scaffold", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_onsi_ginkgo_v2", "com_github_onsi_gomega", "io_k8s_api", "io_k8s_apimachinery", "io_k8s_client_go", "io_k8s_sigs_controller_runtime", "io_k8s_sigs_yaml", "io_opentelemetry_go_otel", "io_opentelemetry_go_otel_exporters_otlp_otlptrace", "io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracegrpc", "io_opentelemetry_go_otel_metric", "io_opentelemetry_go_otel_sdk", "io_opentelemetry_go_otel_trace", "org_golang_x_time")
+use_repo(go_deps, "com_github_cloudflare_cloudflare_go", "com_github_getkin_kin_openapi", "com_github_gin_gonic_gin", "com_github_google_uuid", "com_github_hay_kot_scaffold", "com_github_oapi_codegen_oapi_codegen_v2", "com_github_oapi_codegen_runtime", "com_github_onsi_ginkgo_v2", "com_github_onsi_gomega", "io_k8s_api", "io_k8s_apimachinery", "io_k8s_client_go", "io_k8s_sigs_controller_runtime", "io_k8s_sigs_yaml", "io_opentelemetry_go_otel", "io_opentelemetry_go_otel_exporters_otlp_otlptrace", "io_opentelemetry_go_otel_exporters_otlp_otlptrace_otlptracegrpc", "io_opentelemetry_go_otel_metric", "io_opentelemetry_go_otel_sdk", "io_opentelemetry_go_otel_trace", "org_golang_x_time")
 
 #########################
 # JavaScript and pnpm package manager
@@ -144,7 +144,7 @@ use_repo(oci, "python_base", "python_base_linux_amd64", "python_base_linux_arm64
 
 # Alpine base for ttyd-session-manager
 oci.pull(
-    name = "alpine_linux",
+    name = "alpine",
     digest = "sha256:beefdbd8a1da6d2915566fde36db9db0b524eb737fc57cd1367effd16dc0d06d",
     image = "docker.io/library/alpine",
     platforms = [
@@ -152,4 +152,4 @@ oci.pull(
         "linux/arm64/v8",
     ],
 )
-use_repo(oci, "alpine_linux", "alpine_linux_amd64", "alpine_linux_arm64_v8")
+use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8")
