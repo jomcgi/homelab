@@ -30,12 +30,12 @@ js_library(
     deps = [],
 )
 
-# Claude Code CLI for ttyd sessions
+# Code TUI
 js_library(
-    name = "claude_code",
+    name = "opencode",
     visibility = ["//visibility:public"],
     deps = [
-        ":node_modules/@anthropic-ai/claude-code",
+        ":node_modules/opencode-ai",
     ],
 )
 

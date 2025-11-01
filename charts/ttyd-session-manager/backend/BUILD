@@ -31,22 +31,21 @@ go_image(
     binary = "backend",
 )
 
-# Package Claude Code node_modules as regular tar (platform-agnostic)
+# Package opencode-ai node_modules as regular tar (platform-agnostic)
 genrule(
     name = "node_modules_tar",
-    srcs = ["//:node_modules/@anthropic-ai/claude-code"],
+    srcs = ["//:node_modules/opencode-ai"],
     outs = ["node_modules_tar.tar"],
     cmd = """
-        mkdir -p tmp/usr/local/lib/node_modules/@anthropic-ai
         mkdir -p tmp/usr/local/lib/node_modules/.bin
 
-        # Copy claude-code package (follow symlinks)
-        cp -rL $$(dirname $$(find . -name cli.js -path "*/@anthropic-ai/claude-code/*" | head -1)) \
-            tmp/usr/local/lib/node_modules/@anthropic-ai/claude-code
+        # Copy opencode-ai package (follow symlinks)
+        cp -rL $$(dirname $$(find . -name opencode -path "*/opencode-ai/bin/*" | head -1))/../ \
+            tmp/usr/local/lib/node_modules/opencode-ai
 
-        # Create .bin/claude symlink
+        # Create .bin/opencode symlink
         cd tmp/usr/local/lib/node_modules/.bin
-        ln -s ../@anthropic-ai/claude-code/cli.js claude
+        ln -s ../opencode-ai/bin/opencode opencode
         cd -
 
         # Create tar
@@ -54,7 +53,7 @@ genrule(
     """,
 )
 
-# TTYD worker image with fish shell dev environment + ttyd binary + Claude Code
+# TTYD worker image with fish shell dev environment + ttyd binary + opencode-ai
 # tars: platform-agnostic tars (used for all platforms)
 # multiarch_tars: platform-specific tars from multiarch_http_file repositories
 apko_image(
