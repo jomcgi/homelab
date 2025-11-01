@@ -22,6 +22,7 @@ archs:
 cmd: /usr/bin/fish
 
 environment:
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   EDITOR: vim
   TERM: xterm-256color
   FISH_GREETING: ""
