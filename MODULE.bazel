@@ -194,3 +194,5 @@ http_file(
     sha256 = "b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165",
     urls = ["https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64"],
 )
+
+bazel_dep(name = "rules_pkg", version = "1.1.0")

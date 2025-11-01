@@ -1,6 +1,7 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 load("//tools/oci:apko_image.bzl", "apko_image")
 load("//tools/oci:go_image.bzl", "go_image")
+load("//tools/oci:multiplatform_tar.bzl", "multiplatform_tar")
 
 go_library(
     name = "backend_lib",
@@ -31,10 +32,22 @@ go_image(
     binary = "backend",
 )
 
-# TTYD dev environment image with fish shell (multi-platform: amd64 + arm64)
+# Create platform-specific ttyd binary layers
+ttyd_layers = multiplatform_tar(
+    name = "ttyd_layer",
+    amd64 = "@ttyd_amd64//file",
+    arm64 = "@ttyd_aarch64//file",
+    package_dir = "/usr/local/bin",
+    remap_to = "ttyd",
+)
+
+# TTYD worker image with fish shell dev environment + ttyd binary
+# The apko_image macro handles creating platform-specific base images,
+# layering the platform-specific ttyd binaries, and combining into a multi-platform index
 apko_image(
-    name = "ttyd_image",
+    name = "ttyd_worker_image",
     config = "apko.yaml",
     contents = "@ttyd_lock//:contents",
-    repository = "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd",
+    multiplatform_tars = [ttyd_layers],
+    repository = "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker",
 )

@@ -103,11 +103,3 @@ py_library(
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
 )
-
-alias(
-    name = "ttyd_bin",
-    actual = select({
-        "@platforms//cpu:x86_64": "@ttyd_amd64//file",
-        "@platforms//cpu:aarch64": "@ttyd_aarch64//file",
-    }),
-)
