@@ -6,7 +6,7 @@ image:
   tag: "latest"
 
 imagePullSecrets:
-  - name: ttyd-session-manager-github
+  - name: ttyd-session-manager-github-dockerconfig
 
 serviceAccount:
   create: true
