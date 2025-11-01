@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("//tools/oci:apko_image.bzl", "apko_image")
 load("//tools/oci:go_image.bzl", "go_image")
 
 go_library(
@@ -24,7 +25,16 @@ go_binary(
     visibility = ["//visibility:public"],
 )
 
+# Backend API server image
 go_image(
     name = "image",
     binary = "backend",
+)
+
+# TTYD dev environment image with fish shell (multi-platform: amd64 + arm64)
+apko_image(
+    name = "ttyd_image",
+    config = "apko.yaml",
+    contents = "@ttyd_lock//:contents",
+    repository = "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd",
 )

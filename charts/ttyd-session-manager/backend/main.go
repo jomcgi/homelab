@@ -217,7 +217,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 			Containers: []corev1.Container{
 				{
 					Name:  "ttyd",
-					Image: "tsl0922/ttyd:alpine",
+					Image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd:latest",
 					Command: []string{
 						"ttyd",
 						"-p", "7681",
@@ -225,7 +225,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"--writable",
 						"-t", "fontSize=14",
 						"-t", `theme={"background":"#000000"}`,
-						"bash", "-l",
+						"fish",
 					},
 					WorkingDir: "/workspace/session/work",
 					Env: []corev1.EnvVar{

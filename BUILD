@@ -1,11 +1,10 @@
-load("@aspect_rules_py//py:defs.bzl", "py_library")
-
 """Targets in the repository root"""
+
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 
 # We prefer BUILD instead of BUILD.bazel
 # gazelle:build_file_name BUILD
-
-load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@pip//:requirements.bzl", "all_whl_requirements")
@@ -103,4 +102,12 @@ py_library(
     name = "homelab",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
+)
+
+alias(
+    name = "ttyd_bin",
+    actual = select({
+        "@platforms//cpu:x86_64": "@ttyd_amd64//file",
+        "@platforms//cpu:aarch64": "@ttyd_aarch64//file",
+    }),
 )
