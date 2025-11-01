@@ -106,6 +106,12 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	// Git remote URL (using homelab repo)
 	gitRemoteURL := "https://github.com/jomcgi/homelab.git"
 
+	// Read configuration from environment
+	claudeCodeSecretName := getEnvOrDefault("CLAUDE_CODE_SECRET_NAME", "ttyd-session-manager-claude")
+	claudeCodeSecretKey := getEnvOrDefault("CLAUDE_CODE_SECRET_KEY", "oauth_token")
+	otelEnabled := getEnvOrDefault("OTEL_ENABLED", "true") == "true"
+	otelEndpoint := getEnvOrDefault("OTEL_ENDPOINT", "http://signoz-otel-collector.signoz.svc.cluster.local:4317")
+
 	// Create pod with Git integration
 	pod := &corev1.Pod{
 		ObjectMeta: metav1.ObjectMeta{
@@ -241,28 +247,8 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"-t", `theme={"background":"#000000"}`,
 						"fish",
 					},
-					WorkingDir: "/workspace/session/work",
-					Env: []corev1.EnvVar{
-						{
-							Name: "GITHUB_TOKEN",
-							ValueFrom: &corev1.EnvVarSource{
-								SecretKeyRef: &corev1.SecretKeySelector{
-									LocalObjectReference: corev1.LocalObjectReference{
-										Name: "ttyd-session-manager-github",
-									},
-									Key: "github_token",
-								},
-							},
-						},
-						{
-							Name:  "SESSION_ID",
-							Value: sessionID,
-						},
-						{
-							Name:  "GIT_BRANCH",
-							Value: gitBranch,
-						},
-					},
+					WorkingDir: "/workspace/session",
+					Env: buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecretKey, otelEnabled, otelEndpoint),
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "http",
@@ -273,6 +259,10 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						{
 							Name:      "workspace",
 							MountPath: "/workspace",
+						},
+						{
+							Name:      "home",
+							MountPath: "/home/user",
 						},
 					},
 					Resources: corev1.ResourceRequirements{
@@ -318,6 +308,12 @@ echo "Session state saved to Git"
 			Volumes: []corev1.Volume{
 				{
 					Name: "workspace",
+					VolumeSource: corev1.VolumeSource{
+						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "home",
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
 					},
@@ -444,6 +440,151 @@ func (sm *SessionManager) deleteSession(c *gin.Context) {
 }
 
 // Helper functions
+func getEnvOrDefault(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
+
+func buildSessionEnv(sessionID, gitBranch, claudeCodeSecretName, claudeCodeSecretKey string, otelEnabled bool, otelEndpoint string) []corev1.EnvVar {
+	env := []corev1.EnvVar{
+		// Core session configuration
+		{
+			Name:  "HOME",
+			Value: "/home/user",
+		},
+		{
+			Name:  "SESSION_ID",
+			Value: sessionID,
+		},
+		{
+			Name:  "GIT_BRANCH",
+			Value: gitBranch,
+		},
+		// GitHub token for git operations
+		{
+			Name: "GITHUB_TOKEN",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: "ttyd-session-manager-github",
+					},
+					Key: "github_token",
+				},
+			},
+		},
+		// Claude Code authentication
+		{
+			Name: "CLAUDE_CODE_OAUTH_TOKEN",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: claudeCodeSecretName,
+					},
+					Key: claudeCodeSecretKey,
+				},
+			},
+		},
+		// Privacy & Security: Disable external telemetry
+		{
+			Name:  "DISABLE_TELEMETRY",
+			Value: "true",
+		},
+		{
+			Name:  "DISABLE_ERROR_REPORTING",
+			Value: "true",
+		},
+		{
+			Name:  "DISABLE_AUTOUPDATER",
+			Value: "true",
+		},
+		// Resource management
+		{
+			Name:  "BASH_DEFAULT_TIMEOUT_MS",
+			Value: "120000",
+		},
+		{
+			Name:  "BASH_MAX_TIMEOUT_MS",
+			Value: "600000",
+		},
+		{
+			Name:  "BASH_MAX_OUTPUT_LENGTH",
+			Value: "30000",
+		},
+		// UX improvements
+		{
+			Name:  "CLAUDE_BASH_MAINTAIN_PROJECT_WORKING_DIR",
+			Value: "true",
+		},
+		{
+			Name:  "CLAUDE_CODE_DISABLE_TERMINAL_TITLE",
+			Value: "true",
+		},
+		{
+			Name:  "DISABLE_COST_WARNINGS",
+			Value: "true",
+		},
+		{
+			Name:  "DISABLE_NON_ESSENTIAL_MODEL_CALLS",
+			Value: "true",
+		},
+	}
+
+	// Add OpenTelemetry configuration if enabled
+	if otelEnabled {
+		otelEnv := []corev1.EnvVar{
+			{
+				Name:  "OTEL_EXPORTER_OTLP_ENDPOINT",
+				Value: otelEndpoint,
+			},
+			{
+				Name:  "OTEL_SERVICE_NAME",
+				Value: fmt.Sprintf("claude-code-session-%s", sessionID),
+			},
+			{
+				Name:  "OTEL_TRACES_EXPORTER",
+				Value: "otlp",
+			},
+			{
+				Name:  "OTEL_METRICS_EXPORTER",
+				Value: "otlp",
+			},
+			{
+				Name:  "OTEL_LOGS_EXPORTER",
+				Value: "otlp",
+			},
+			{
+				Name:  "OTEL_RESOURCE_ATTRIBUTES",
+				Value: fmt.Sprintf("deployment.environment=homelab,service.namespace=ttyd-sessions,session.id=%s", sessionID),
+			},
+		}
+		env = append(env, otelEnv...)
+	}
+
+	// Add proxy configuration if set
+	if httpProxy := os.Getenv("HTTP_PROXY"); httpProxy != "" {
+		env = append(env, corev1.EnvVar{
+			Name:  "HTTP_PROXY",
+			Value: httpProxy,
+		})
+	}
+	if httpsProxy := os.Getenv("HTTPS_PROXY"); httpsProxy != "" {
+		env = append(env, corev1.EnvVar{
+			Name:  "HTTPS_PROXY",
+			Value: httpsProxy,
+		})
+	}
+	if noProxy := os.Getenv("NO_PROXY"); noProxy != "" {
+		env = append(env, corev1.EnvVar{
+			Name:  "NO_PROXY",
+			Value: noProxy,
+		})
+	}
+
+	return env
+}
+
 func getKubeConfig() (*rest.Config, error) {
 	// Try in-cluster config first
 	config, err := rest.InClusterConfig()

@@ -15,6 +15,7 @@ contents:
     - nodejs
     - npm
     - bazelisk
+    - openssh
     # Dev/debugging tools
     - coreutils  # ls, find, cat, head, tail, etc.
     - findutils  # find, xargs
@@ -30,17 +31,57 @@ archs:
 cmd: /usr/bin/fish
 
 environment:
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  PATH: /usr/local/lib/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   EDITOR: vim
   TERM: xterm-256color
   FISH_GREETING: ""
+  HOME: /home/user
 
 work-dir: /workspace
+
+accounts:
+  users:
+    - username: user
+      uid: 1000
+      gid: 1000
+  groups:
+    - groupname: user
+      gid: 1000
+  run-as: 1000
 
 paths:
   - path: /workspace
     type: directory
+    uid: 1000
+    gid: 1000
     permissions: 0o755
-  - path: /root/.config/fish
+  - path: /home/user
     type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.config
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.config/fish
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.local
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.local/share
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.local/share/fish
+    type: directory
+    uid: 1000
+    gid: 1000
     permissions: 0o755

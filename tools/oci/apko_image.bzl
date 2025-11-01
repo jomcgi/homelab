@@ -13,6 +13,8 @@ def apko_image(
         contents,
         repository = None,
         visibility = ["//images:__pkg__"],
+        tars = None,
+        multiarch_tars = None,
         multiplatform_tars = None):
     """Create a multi-platform apko OCI image, optionally with additional tar layers.
 
@@ -24,28 +26,41 @@ def apko_image(
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
         visibility: Visibility of the generated .push target. Defaults to ["//images:__pkg__"]
                    to allow access from the auto-generated //images:push_all multirun.
-        multiplatform_tars: Optional list of multiplatform tar dicts from multiplatform_tar().
+        tars: Optional list of regular tar targets (used for all platforms).
+              Example: [":node_modules_tar", ":config_tar"]
+        multiarch_tars: Optional list of multiarch tar base names.
+                       For each base name, apko_image will use {base}_amd64 and {base}_arm64.
+                       Example: [":ttyd_tar"] will use :ttyd_tar_amd64 and :ttyd_tar_arm64
+        multiplatform_tars: DEPRECATED. Use tars and multiarch_tars instead.
+                           Optional list of multiplatform tar dicts from multiplatform_tar().
                            Each dict should have "amd64" and/or "arm64" keys with tar targets.
-                           Example: [ttyd_layers, another_layers]
 
     Creates:
-        :{name} - The apko image target (or oci_image_index if multiplatform_tars are provided)
+        :{name} - The apko image target (or oci_image_index if tars are provided)
         :{name}.push - Target to push image to registry
         :{name}.run - Target to run image locally (without pushing)
 
-    Example:
-        ttyd_layers = multiplatform_tar(
-            name = "ttyd_layer",
-            amd64 = "@ttyd_amd64//file",
-            arm64 = "@ttyd_aarch64//file",
-            remap_to = "ttyd",
+    Examples:
+        # Using new API
+        multiarch_binary_tar(
+            name = "ttyd_tar",
+            amd64 = ":ttyd_amd64_file",
+            arm64 = ":ttyd_arm64_file",
+            binary_name = "ttyd",
+        )
+
+        pkg_tar(
+            name = "node_modules_tar",
+            srcs = ["//:claude_code"],
+            package_dir = "/usr/local/lib",
         )
 
         apko_image(
             name = "my_image",
             config = "apko.yaml",
             contents = "@apko_lock//:contents",
-            multiplatform_tars = [ttyd_layers],
+            tars = [":node_modules_tar"],
+            multiarch_tars = [":ttyd_tar"],
         )
 
     Notes:
@@ -54,9 +69,22 @@ def apko_image(
         native multi-platform support doesn't allow adding platform-specific files after the fact.
     """
 
-    # Extract platform-specific tars from the multiplatform_tars dicts
+    # Build platform-specific tar lists
     tars_amd64 = []
     tars_arm64 = []
+
+    # Handle regular tars (used for both platforms)
+    if tars:
+        tars_amd64.extend(tars)
+        tars_arm64.extend(tars)
+
+    # Handle multiarch tars (use _amd64/_arm64 suffixes)
+    if multiarch_tars:
+        for tar_base in multiarch_tars:
+            tars_amd64.append(tar_base + "_amd64")
+            tars_arm64.append(tar_base + "_arm64")
+
+    # Handle deprecated multiplatform_tars format
     if multiplatform_tars:
         for tar_dict in multiplatform_tars:
             if "amd64" in tar_dict:
