@@ -108,7 +108,7 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 
 	// Read configuration from environment
 	anthropicSecretName := getEnvOrDefault("ANTHROPIC_SECRET_NAME", "ttyd-session-manager-claude")
-	anthropicSecretKey := getEnvOrDefault("ANTHROPIC_SECRET_KEY", "oauth_token")
+	anthropicSecretKey := getEnvOrDefault("ANTHROPIC_SECRET_KEY", "claude_code_oauth_token")
 	otelEnabled := getEnvOrDefault("OTEL_ENABLED", "true") == "true"
 	otelEndpoint := getEnvOrDefault("OTEL_ENDPOINT", "http://signoz-otel-collector.signoz.svc.cluster.local:4317")
 
