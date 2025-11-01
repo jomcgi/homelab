@@ -1,6 +1,12 @@
 # Currently bazel-lib is only load()ed when platforms is used.
 bazel_dep(name = "aspect_bazel_lib", version = "2.21.2")
 bazel_dep(name = "aspect_rules_lint", version = "1.10.2")
+
+# Register jq toolchain for JSON processing in OCI operations
+bazel_lib = use_extension("@aspect_bazel_lib//lib:extensions.bzl", "toolchains")
+bazel_lib.jq()
+use_repo(bazel_lib, "jq_toolchains")
+
 bazel_dep(name = "buildifier_prebuilt", version = "8.2.0.2")
 bazel_dep(name = "bazel_skylib", version = "1.8.2")
 bazel_dep(name = "bazel_skylib_gazelle_plugin", version = "1.8.2")
@@ -26,6 +32,7 @@ bazel_dep(name = "rules_go", version = "0.58.2")
 bazel_dep(name = "gazelle", version = "0.45.0")
 bazel_dep(name = "rules_shell", version = "0.6.1")
 bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "rules_apko", version = "1.5.17")
 bazel_dep(name = "rules_multirun", version = "0.13.0")
 bazel_dep(name = "tar.bzl", version = "0.6.0")
 bazel_dep(name = "platforms", version = "1.0.0")
@@ -119,6 +126,10 @@ rust.toolchain(
 
 oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 
+# Register crane toolchains for multi-platform image operations
+# Note: Using custom name to avoid conflicts with rules_oci internal toolchains
+oci.toolchains(name = "custom_crane")
+
 # Base image for GO Containers.
 oci.pull(
     name = "distroless_base",
@@ -129,7 +140,13 @@ oci.pull(
         "linux/arm64/v8",
     ],
 )
-use_repo(oci, "distroless_base", "distroless_base_linux_amd64", "distroless_base_linux_arm64_v8")
+use_repo(
+    oci,
+    "custom_crane_crane_toolchains",  # Crane toolchains for apko_push
+    "distroless_base",
+    "distroless_base_linux_amd64",
+    "distroless_base_linux_arm64_v8",
+)
 
 oci.pull(
     name = "python_base",
@@ -152,4 +169,28 @@ oci.pull(
         "linux/arm64/v8",
     ],
 )
-use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8")
+use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8", "custom_crane_regctl_toolchains")
+
+# Configure apko for ttyd-session-manager image
+apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
+apko.translate_lock(
+    name = "ttyd_lock",
+    lock = "//charts/ttyd-session-manager/backend:apko.lock.json",
+)
+use_repo(apko, "ttyd_lock")
+
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "ttyd_amd64",
+    executable = True,
+    sha256 = "8a217c968aba172e0dbf3f34447218dc015bc4d5e59bf51db2f2cd12b7be4f55",
+    urls = ["https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64"],
+)
+
+http_file(
+    name = "ttyd_aarch64",
+    executable = True,
+    sha256 = "b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165",
+    urls = ["https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64"],
+)
