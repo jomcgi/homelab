@@ -217,7 +217,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 			Containers: []corev1.Container{
 				{
 					Name:  "ttyd",
-					Image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd:latest",
+					Image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:latest",
 					Command: []string{
 						"ttyd",
 						"-p", "7681",
