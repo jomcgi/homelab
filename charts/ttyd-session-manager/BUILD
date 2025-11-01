@@ -6,5 +6,5 @@ exports_files(srcs = [
 filegroup(
     name = "all_files",
     srcs = glob(["**/*"]),
-    visibility = ["//overlays/..."],
+    visibility = ["//overlays:__subpackages__"],
 )

@@ -1,0 +1,31 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ttyd-session-manager
+  namespace: argocd
+  annotations:
+    # ArgoCD Image Updater configuration
+    argocd-image-updater.argoproj.io/image-list: backend=ghcr.io/jomcgi/ttyd-session-manager
+    argocd-image-updater.argoproj.io/backend.update-strategy: newest-build
+    argocd-image-updater.argoproj.io/backend.allow-tags: regexp:^(main-)?[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9a-f]{7}$
+    argocd-image-updater.argoproj.io/backend.helm.image-name: image.repository
+    argocd-image-updater.argoproj.io/backend.helm.image-tag: image.tag
+    argocd-image-updater.argoproj.io/write-back-method: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab
+    targetRevision: main
+    path: charts/ttyd-session-manager
+    helm:
+      valueFiles:
+        - ../../../overlays/dev/ttyd-session-manager/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ttyd-sessions
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

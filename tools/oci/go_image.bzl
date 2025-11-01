@@ -56,10 +56,10 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         ],
     )
 
-    # Create stamped tags file with branch and timestamp tags
+    # Create stamped tags file for CI builds (branch + timestamp)
     expand_template(
-        name = name + "_stamped_tags",
-        out = name + "_stamped.tags.txt",
+        name = name + "_stamped_tags_ci",
+        out = name + "_stamped_ci.tags.txt",
         template = [
             "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
             "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
@@ -70,10 +70,25 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         },
     )
 
+    # Create stamped tags file for local builds (timestamp only)
+    expand_template(
+        name = name + "_stamped_tags_local",
+        out = name + "_stamped_local.tags.txt",
+        template = [
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
+        ],
+        stamp_substitutions = {
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+    )
+
     oci_push(
         name = name + ".push",
         image = name + "_platform",
         repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
-        remote_tags = name + "_stamped_tags",
+        remote_tags = select({
+            "//tools/oci:ci_build": name + "_stamped_tags_ci",
+            "//conditions:default": name + "_stamped_tags_local",
+        }),
         visibility = visibility,
     )

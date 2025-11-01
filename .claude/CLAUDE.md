@@ -225,6 +225,11 @@ We **define errors out of existence** where possible:
 
 ## Common Tasks
 
+### CLI Tools
+- **Directory tree viewer**: Use `lstr -L <depth> <path>` instead of `tree`. `lstr` is a fast Rust-based tree viewer.
+  - Example: `lstr -L 2 charts/` to view 2 levels deep
+  - Use `-d` for directories only, `--icons` for file icons
+
 ### Spec Workflow Commands
 Use the Claude Code spec workflow tool for structured development:
 - **Check task status**: `npx @pimzino/claude-code-spec-workflow get-tasks <spec-name>`
