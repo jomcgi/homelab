@@ -7,6 +7,12 @@ config_setting(
     visibility = ["//visibility:public"],
 )
 
+# Export push template for apko_push rule
+exports_files(
+    ["apko_push.sh.tpl"],
+    visibility = ["//visibility:public"],
+)
+
 bzl_library(
     name = "go_image",
     srcs = ["go_image.bzl"],

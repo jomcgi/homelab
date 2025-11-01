@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Update all apko lock files in the repository
+
+set -euo pipefail
+
+cd "$BUILD_WORKSPACE_DIRECTORY"
+
+echo "Updating apko lock files..."
+
+# Find all apko config files (including architecture-specific ones, excluding lock files)
+find . \( -name "apko.yaml" -o -name "apko-*.yaml" \) \
+	-not -path "*/node_modules/*" \
+	-not -path "*/.git/*" \
+	-not -name "*.lock.json" | while read -r config; do
+
+	echo "  Updating lock for: $config"
+
+	# Generate lock file using rules_apko
+	if ! bazel run @rules_apko//apko -- lock "$config" 2>&1 | grep -v "^INFO:"; then
+		echo "  ⚠️  Warning: Failed to update lock for $config"
+	fi
+done
+
+echo "✅ apko lock files updated"
