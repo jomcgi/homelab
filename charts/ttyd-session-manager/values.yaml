@@ -15,10 +15,17 @@ serviceAccount:
 rbac:
   create: true
 
+# RBAC for session pods (read-only cluster access)
+sessionRbac:
+  create: true
+  serviceAccountName: ttyd-session-pods
+  clusterRoleName: ttyd-session-pods-reader
+  clusterRoleBindingName: ttyd-session-pods-reader
+
 service:
   type: ClusterIP
   port: 8080
-  targetPort: 8080
+  targetPort: 8081  # Backend listens on 8081, Envoy proxies 8080->8081
 
 resources:
   limits:
@@ -35,11 +42,17 @@ onePassword:
   itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
   secretName: ttyd-session-manager-github
 
-# Claude Code configuration
-claudeCode:
-  # Secret containing CLAUDE_CODE_OAUTH_TOKEN
-  secretName: ttyd-session-manager-claude
-  secretKey: claude_code_oauth_token
+# API Keys configuration
+# These are synced from 1Password and made available to session pods
+apiKeys:
+  # Secret name that will be created by 1Password operator
+  secretName: ttyd-session-manager-api-keys
+  # 1Password item path
+  onePasswordItemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+  # Secret keys for API access
+  anthropicSecretKey: anthropic_api_key
+  googleSecretKey: google_api_key
+  buildbuddySecretKey: buildbuddy_api_key
 
 # OpenTelemetry configuration for session pods
 opentelemetry:
@@ -51,3 +64,51 @@ proxy:
   http: ""
   https: ""
   noProxy: ""
+
+# Envoy proxy configuration for distributed tracing
+envoy:
+  # Backend API server Envoy sidecar
+  backend:
+    enabled: true
+    image:
+      repository: envoyproxy/envoy
+      tag: "v1.31-latest"
+      pullPolicy: IfNotPresent
+    admin:
+      port: 9901
+    proxy:
+      port: 8080
+    tracing:
+      enabled: true
+      otlpEndpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+      serviceName: "ttyd-session-manager-backend"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
+  # Session pods Envoy sidecar
+  session:
+    enabled: true
+    image:
+      repository: envoyproxy/envoy
+      tag: "v1.31-latest"
+      pullPolicy: IfNotPresent
+    admin:
+      port: 9901
+    proxy:
+      port: 7681
+    targetPort: 7682  # ttyd actual port
+    tracing:
+      enabled: true
+      otlpEndpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+      serviceName: "ttyd-session"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi

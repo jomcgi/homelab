@@ -9,7 +9,11 @@ spec:
   type: {{ .Values.service.type }}
   ports:
     - port: {{ .Values.service.port }}
+      {{- if .Values.envoy.backend.enabled }}
+      targetPort: envoy-proxy  # Target Envoy sidecar when enabled
+      {{- else }}
       targetPort: {{ .Values.service.targetPort }}
+      {{- end }}
       protocol: TCP
       name: http
   selector:

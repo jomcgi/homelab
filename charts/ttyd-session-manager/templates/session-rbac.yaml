@@ -1,0 +1,113 @@
+{{- if .Values.sessionRbac.create -}}
+# ServiceAccount for session pods (separate from API server)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ .Values.sessionRbac.serviceAccountName }}
+  namespace: {{ .Values.sessionNamespace }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+---
+# ClusterRole with read-only access to cluster resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Values.sessionRbac.clusterRoleName }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+rules:
+# Read-only access to core resources
+- apiGroups: [""]
+  resources:
+    - pods
+    - pods/log
+    - services
+    - endpoints
+    - persistentvolumeclaims
+    - persistentvolumes
+    - configmaps
+    - secrets  # metadata only, not secret data
+    - namespaces
+    - nodes
+    - events
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to apps resources
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - daemonsets
+    - replicasets
+    - statefulsets
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to batch resources
+- apiGroups: ["batch"]
+  resources:
+    - jobs
+    - cronjobs
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to networking
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - ingresses
+    - networkpolicies
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to storage
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+    - volumeattachments
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to RBAC (for inspection)
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources:
+    - roles
+    - rolebindings
+    - clusterroles
+    - clusterrolebindings
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to metrics
+- apiGroups: ["metrics.k8s.io"]
+  resources:
+    - pods
+    - nodes
+  verbs: ["get", "list"]
+
+# Read-only access to ArgoCD applications (if installed)
+- apiGroups: ["argoproj.io"]
+  resources:
+    - applications
+    - applicationsets
+    - appprojects
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to cert-manager (if installed)
+- apiGroups: ["cert-manager.io"]
+  resources:
+    - certificates
+    - certificaterequests
+    - issuers
+    - clusterissuers
+  verbs: ["get", "list", "watch"]
+---
+# ClusterRoleBinding to grant session pods read-only access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ .Values.sessionRbac.clusterRoleBindingName }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ .Values.sessionRbac.clusterRoleName }}
+subjects:
+- kind: ServiceAccount
+  name: {{ .Values.sessionRbac.serviceAccountName }}
+  namespace: {{ .Values.sessionNamespace }}
+{{- end }}
