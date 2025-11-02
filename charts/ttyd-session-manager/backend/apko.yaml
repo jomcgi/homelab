@@ -20,6 +20,7 @@ contents:
     - coreutils  # ls, find, cat, head, tail, etc.
     - findutils  # find, xargs
     - grep       # grep
+    - ripgrep    # rg (required by opencode for code search)
     - tree       # tree
     - vim        # text editor
     - busybox    # which, and other utilities
