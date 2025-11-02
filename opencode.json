@@ -1,0 +1,120 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+
+  // Primary model for main tasks
+  "model": "anthropic/claude-sonnet-4-5",
+
+  // Smaller model for lightweight tasks (title generation, summaries)
+  "small_model": "google/gemini-2.0-flash-lite",
+
+  // Username shown in conversation (optional)
+  "username": "jomcgi",
+
+  "provider": {
+    "anthropic": {
+      "models": {},
+      "options": {
+        "apiKey": "{env:ANTHROPIC_API_KEY}"
+      }
+    },
+    "google": {
+      "models": {},
+      "options": {
+        "apiKey": "{env:GOOGLE_API_KEY}"
+      }
+    }
+  },
+
+  // Agent configuration for different workflows
+  "agent": {
+    // Plan mode - explores and plans before coding
+    "plan": {
+      "model": "anthropic/claude-sonnet-4-5",
+      "temperature": 0.7,
+      "mode": "primary"
+    },
+    // Build mode - for implementing features
+    "build": {
+      "model": "anthropic/claude-sonnet-4-5",
+      "temperature": 0.5,
+      "mode": "primary"
+    },
+    // General purpose agent
+    "general": {
+      "model": "anthropic/claude-sonnet-4-5",
+      "mode": "primary"
+    }
+  },
+
+  // Permissions - allow everything since sessions run in sandboxed pods
+  "permission": {
+    // Allow all bash commands (sandboxed environment)
+    "bash": {
+      "*": "allow"
+    },
+    // Allow all file edits
+    "edit": "allow",
+    // Allow all web fetches
+    "webfetch": "allow"
+  },
+
+  // Session sharing (useful for collaboration)
+  "share": "manual",
+
+  // Additional instruction files to load
+  "instructions": ["**/.claude/CLAUDE.md", "**/CLAUDE.md"],
+
+  // Custom commands for common homelab tasks
+  "command": {
+    "check-cluster": {
+      "template": "Check the overall health of the Kubernetes cluster. Review all namespaces, look for failing pods, check PVC status, review resource usage, and summarize any issues found.",
+      "description": "Health check for the entire cluster",
+      "agent": "general"
+    },
+    "inspect-logs": {
+      "template": "Use kubectl to get recent logs from {{namespace}}/{{pod}} and analyze them for errors, warnings, or issues. Summarize what you find.",
+      "description": "Inspect and analyze pod logs",
+      "agent": "general"
+    },
+    "review-chart": {
+      "template": "Review the Helm chart at {{chart_path}}. Check for security issues, best practices, and suggest improvements based on the homelab CLAUDE.md guidelines.",
+      "description": "Review a Helm chart for issues",
+      "agent": "build"
+    },
+    "check-argocd": {
+      "template": "Check all ArgoCD applications for sync status, health, and any sync failures. Report on what needs attention.",
+      "description": "Review ArgoCD application status",
+      "agent": "general"
+    },
+    "troubleshoot": {
+      "template": "Help me troubleshoot {{service}} in namespace {{namespace}}. Check pod status, logs, events, and service configuration. Provide a diagnosis and solution.",
+      "description": "Troubleshoot a failing service",
+      "agent": "general"
+    },
+    "add-service": {
+      "template": "Help me add a new service to the homelab. Create a Helm chart for {{service_name}}, add ArgoCD application manifests, and follow all security and observability best practices from CLAUDE.md.",
+      "description": "Scaffold a new service with all required manifests",
+      "agent": "build"
+    },
+    "review-security": {
+      "template": "Review {{resource}} for security issues. Check: non-root user, read-only filesystem, no privilege escalation, dropped capabilities, resource limits, network policies, and secret management.",
+      "description": "Security audit for Kubernetes resources",
+      "agent": "general"
+    },
+    "optimize-resources": {
+      "template": "Optimize Kubernetes resource requests and limits based on actual usage.\n\nCONTEXT:\n- Helm charts are in charts/**\n- Environment-specific values are in overlays/{cluster-critical,prod,dev}/**\n- Each overlay/<env>/<service>/ contains values.yaml with resource overrides\n\nPROCESS:\n1. Gather current resource usage data:\n   - Run: kubectl top pods --all-namespaces --no-headers\n   - Collect CPU and memory usage for all pods over the last 7 days if available\n   - Note: Use current usage as baseline, apply 20% buffer for spikes\n\n2. Analyze resource definitions:\n   - Search for all values.yaml files in charts/** and overlays/**\n   - Extract current resource requests and limits\n   - Map pods to their source chart/overlay\n\n3. Calculate optimizations:\n   - For CPU: Set requests to P95 usage + 20% buffer\n   - For memory: Set requests to P95 usage + 20% buffer\n   - Set limits to 2x requests (allow bursting)\n   - Flag over-provisioned resources (>3x actual usage)\n   - Flag under-provisioned resources (<actual P95 usage)\n\n4. Generate changes:\n   - Update values.yaml files in appropriate locations:\n     * For chart defaults: charts/<service>/values.yaml\n     * For env-specific: overlays/<env>/<service>/values.yaml\n   - Preserve existing structure and comments\n   - Add comment explaining the optimization\n\n5. Create PR:\n   - Create a new branch: optimize-resources-$(date +%Y%m%d)\n   - Commit changes with message:\n     'chore: optimize resource requests based on actual usage\n\n     - Analyzed resource usage across all namespaces\n     - Updated requests to P95 + 20% buffer\n     - Set limits to 2x requests for burst capacity\n     - Estimated cost savings: [calculate based on changes]\n\n     Generated with opencode /optimize-resources'\n   - Push branch and create PR with summary table showing:\n     * Service name\n     * Current vs new requests\n     * Actual usage\n     * Estimated savings\n\nREQUIREMENTS:\n- Only modify resources.requests and resources.limits\n- Maintain YAML formatting and comments\n- Follow homelab patterns (security context, etc.)\n- Include cost impact in PR description\n- Do not modify resource limits for databases or stateful services (be conservative)\n\nOUTPUT:\n- Summary of changes\n- PR URL\n- Estimated monthly cost savings",
+      "description": "Optimize resource requests/limits based on actual usage and create PR",
+      "agent": "build"
+    },
+    "save-context": {
+      "template": "Save the current session context to preserve work history and rationale.\n\nReview the conversation history and git changes, then create a context document with:\n\n## SESSION CONTEXT\n\n### Completed Tasks\n- List all tasks that were completed in this session\n- Include specific files changed and what was modified\n- Reference any commands run or PRs created\n\n### Tasks To Do\n- List remaining tasks or follow-up items\n- Include any blockers or decisions needed\n- Note any testing or validation required\n\n### Rationale & Decisions\n- Explain WHY changes were made (not just what)\n- Document any architectural decisions\n- Note any alternatives considered and why they were rejected\n- Include relevant context for future maintainers\n\n### References\n- Links to relevant documentation\n- Related issues or PRs\n- SigNoz dashboards or logs if relevant\n\nSave this as .session/context-$(date +%Y%m%d-%H%M%S).md and commit it with message:\n'docs: save session context\n\nPreserve work context for future reference\n\nGenerated with opencode /save-context'\n\nOUTPUT:\n- Path to context file\n- Summary of what was documented",
+      "description": "Save session context with completed tasks, TODOs, and rationale",
+      "agent": "general"
+    },
+    "pre-pr": {
+      "template": "Run comprehensive pre-PR checks before creating a pull request.\n\nEXECUTE THE FOLLOWING STEPS IN ORDER:\n\n1. FORMAT CODE:\n   - Run: bazel run //tools/format:format\n   - This formats Go, JavaScript, Python, Rust, Shell, Starlark files\n   - Also updates apko locks and renders manifests\n   - If formatting fails, stop and report errors\n   - Commit any formatting changes with message: 'chore: format code'\n\n2. BUILD ALL:\n   - Run: bazel build //...\n   - Build all targets in the repository\n   - If any build fails, stop and report which targets failed\n   - Include build timing and any warnings\n\n3. TEST ALL:\n   - Run: bazel test //...\n   - Run all tests in the repository\n   - If any tests fail, stop and report:\n     * Which tests failed\n     * Test output/logs\n     * Suggestions for fixing\n   - Include test coverage summary if available\n\n4. PUSH IMAGES:\n   - Identify which images need to be pushed based on changed files\n   - For ttyd-session-manager changes:\n     * Push backend: bazel run //charts/ttyd-session-manager/backend:image_push\n     * Push ttyd-worker: bazel run //charts/ttyd-session-manager/backend:ttyd_worker_image_push\n   - For other changed charts, push their images\n   - Report image tags and registry URLs\n\n5. VALIDATION:\n   - Run: git status to show any uncommitted changes\n   - Check for common issues:\n     * Uncommitted files\n     * Merge conflicts\n     * Large files (>1MB)\n   - Verify images were pushed successfully\n\n6. SUMMARY:\n   - Report overall status (PASS/FAIL)\n   - List any warnings or issues found\n   - Suggest next steps (create PR, fix issues, etc.)\n   - Include timing for each step\n\nIF ANY STEP FAILS:\n- Stop execution immediately\n- Report the failure clearly\n- Provide actionable suggestions to fix\n- Do NOT proceed to next steps\n\nOUTPUT:\n- Detailed status for each step\n- Total time taken\n- Ready for PR: YES/NO\n- Next recommended action",
+      "description": "Run format, build, test, and push images before creating PR",
+      "agent": "build"
+    }
+  }
+}

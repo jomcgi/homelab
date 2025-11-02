@@ -2,7 +2,7 @@
   "version": "v1",
   "config": {
     "name": "./charts/ttyd-session-manager/backend/apko.yaml",
-    "checksum": "sha256-Fza4dBbazcF1UNNqz2VIyapT2FRYT1lECoM6U2m7O2U="
+    "checksum": "sha256-y5nAQ7/VQwxazTe2yeEP+Mhyh3nV57Rp3T9dHXAewWA="
   },
   "contents": {
     "keyring": [
@@ -915,6 +915,63 @@
         "checksum": "Q1XdERGLhMmGAKtFa2OrAirSwKryM="
       },
       {
+        "name": "helm",
+        "url": "https://packages.wolfi.dev/os/x86_64/helm-3.19.0-r1.apk",
+        "version": "3.19.0-r1",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4147",
+          "checksum": "sha1-e+EDhOVCjq3R1EKhYrBV+teQAzU="
+        },
+        "data": {
+          "range": "bytes=4148-19299213",
+          "checksum": "sha256-07Wkuu8uL+nRU965i/3z+0G/GaWYU4O7r9T+m/WF5RY="
+        },
+        "checksum": "Q1e+EDhOVCjq3R1EKhYrBV+teQAzU="
+      },
+      {
+        "name": "kubectl-1.34",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-1.34.1-r2.apk",
+        "version": "1.34.1-r2",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-11298",
+          "checksum": "sha1-VfqlATe92ePD/3bFThYIUpb5XNs="
+        },
+        "data": {
+          "range": "bytes=11299-19002128",
+          "checksum": "sha256-8xwXPFrefZbjiTa8vAyW3Q9f55SWsA4+BR6jIDsg4v0="
+        },
+        "checksum": "Q1VfqlATe92ePD/3bFThYIUpb5XNs="
+      },
+      {
+        "name": "kubectl-1.34-default",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-default-1.34.1-r2.apk",
+        "version": "1.34.1-r2",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-11364",
+          "checksum": "sha1-s+yF2WaEkiyT+CHbu5T4GH0eRiw="
+        },
+        "data": {
+          "range": "bytes=11365-12704",
+          "checksum": "sha256-LKENKBK0DJQge+unR9e9w+8rf8pVdc9ZrXPXnKEJt/E="
+        },
+        "checksum": "Q1s+yF2WaEkiyT+CHbu5T4GH0eRiw="
+      },
+      {
         "name": "icu77-data-full",
         "url": "https://packages.wolfi.dev/os/x86_64/icu77-data-full-77.1-r1.apk",
         "version": "77.1-r1",
@@ -1466,6 +1523,25 @@
         "checksum": "Q1+g3BAcvHhl2DV3bSGzqT0bJl0Kc="
       },
       {
+        "name": "shfmt",
+        "url": "https://packages.wolfi.dev/os/x86_64/shfmt-3.12.0-r2.apk",
+        "version": "3.12.0-r2",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4155",
+          "checksum": "sha1-OCaIYeohJRJrz7XKj4PdT2rjqjM="
+        },
+        "data": {
+          "range": "bytes=4156-1416604",
+          "checksum": "sha256-FHPqHzTo1szzGYpSZ/thHrdd9VVdObOxSvfmigKdZP8="
+        },
+        "checksum": "Q1OCaIYeohJRJrz7XKj4PdT2rjqjM="
+      },
+      {
         "name": "tree",
         "url": "https://packages.wolfi.dev/os/x86_64/tree-2.2.1-r0.apk",
         "version": "2.2.1-r0",
@@ -1502,6 +1578,82 @@
           "checksum": "sha256-xycqu95yAUQHRn6PBrqwTA1OWunwHSLJT+VnFEz41bo="
         },
         "checksum": "Q1x3OJuJJRcnOUPOrO6FbAuI47ifI="
+      },
+      {
+        "name": "py3.13-pathspec",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-pathspec-0.12.1-r6.apk",
+        "version": "0.12.1-r6",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4509",
+          "checksum": "sha1-pPKapD15CumIc1+MLAZvwGTnOmo="
+        },
+        "data": {
+          "range": "bytes=4510-62451",
+          "checksum": "sha256-aOH4OHEeUftZN0sMRqmUuo6Uy1CEHgE+iQ4q5Gjb2Nc="
+        },
+        "checksum": "Q1pPKapD15CumIc1+MLAZvwGTnOmo="
+      },
+      {
+        "name": "yaml",
+        "url": "https://packages.wolfi.dev/os/x86_64/yaml-0.2.5-r7.apk",
+        "version": "0.2.5-r7",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5232",
+          "checksum": "sha1-vitn0duQlKVbUJ0BbHu06b1OFqI="
+        },
+        "data": {
+          "range": "bytes=5233-66489",
+          "checksum": "sha256-T0yLxTLYPqzXoaCty7SZi66pQuIYkjni+5kYBanAzso="
+        },
+        "checksum": "Q1vitn0duQlKVbUJ0BbHu06b1OFqI="
+      },
+      {
+        "name": "py3.13-pyyaml",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-pyyaml-6.0.3-r0.apk",
+        "version": "6.0.3-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6614",
+          "checksum": "sha1-7tDP98A/F8Vnpz1zuVYc4v64bqc="
+        },
+        "data": {
+          "range": "bytes=6615-266026",
+          "checksum": "sha256-ZiKUPYUBAWzpyojHJM5vsIkkPr/1YJ6n9bXiFlxeL/g="
+        },
+        "checksum": "Q17tDP98A/F8Vnpz1zuVYc4v64bqc="
+      },
+      {
+        "name": "yamllint",
+        "url": "https://packages.wolfi.dev/os/x86_64/yamllint-1.37.1-r3.apk",
+        "version": "1.37.1-r3",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5553",
+          "checksum": "sha1-tsLO4t9YmNc8/dLx9gjt8pz7JkU="
+        },
+        "data": {
+          "range": "bytes=5554-116749",
+          "checksum": "sha256-HqVPQYpyHzlTXkZDGmrTqSWDNtkLflN+BNeVSORfvXg="
+        },
+        "checksum": "Q1tsLO4t9YmNc8/dLx9gjt8pz7JkU="
       },
       {
         "name": "wolfi-baselayout",
@@ -2378,6 +2530,63 @@
         "checksum": "Q1aCW1s7Qw1gUuI6K+E9AY12o3XKs="
       },
       {
+        "name": "helm",
+        "url": "https://packages.wolfi.dev/os/aarch64/helm-3.19.0-r1.apk",
+        "version": "3.19.0-r1",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4177",
+          "checksum": "sha1-fA481xlerILt/JGt1WxEnpG1KL4="
+        },
+        "data": {
+          "range": "bytes=4178-17162770",
+          "checksum": "sha256-o7BR/ZG08Jd8vegmI40gq8hlV3gNltRicOmd1qbR9Ro="
+        },
+        "checksum": "Q1fA481xlerILt/JGt1WxEnpG1KL4="
+      },
+      {
+        "name": "kubectl-1.34",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-1.34.1-r2.apk",
+        "version": "1.34.1-r2",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-11328",
+          "checksum": "sha1-pGKz+PYWrnygqAn3hM9RJFfzeMo="
+        },
+        "data": {
+          "range": "bytes=11329-16936489",
+          "checksum": "sha256-X0FPkUHV8e2V4PZaRWU4CCC5lXdwEakcTou/CbKVPWs="
+        },
+        "checksum": "Q1pGKz+PYWrnygqAn3hM9RJFfzeMo="
+      },
+      {
+        "name": "kubectl-1.34-default",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-default-1.34.1-r2.apk",
+        "version": "1.34.1-r2",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-11393",
+          "checksum": "sha1-uD7BrF/xq8loQauTYk+P3NRZeSI="
+        },
+        "data": {
+          "range": "bytes=11394-12732",
+          "checksum": "sha256-J9a4/fQJVbz7h/eGHZC77qVe4Pd29VER2Do05FBn5tY="
+        },
+        "checksum": "Q1uD7BrF/xq8loQauTYk+P3NRZeSI="
+      },
+      {
         "name": "icu77-data-full",
         "url": "https://packages.wolfi.dev/os/aarch64/icu77-data-full-77.1-r1.apk",
         "version": "77.1-r1",
@@ -2929,6 +3138,25 @@
         "checksum": "Q1AP7WjrJtzGKPiUjmnHr34b6uK1E="
       },
       {
+        "name": "shfmt",
+        "url": "https://packages.wolfi.dev/os/aarch64/shfmt-3.12.0-r2.apk",
+        "version": "3.12.0-r2",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4185",
+          "checksum": "sha1-iybfgXkOcGoOvk5QvuGKt2sl3rY="
+        },
+        "data": {
+          "range": "bytes=4186-1298104",
+          "checksum": "sha256-B4gHE81pghM6Txred8whwaFG2N3uRXqsJzxY/+xDMvo="
+        },
+        "checksum": "Q1iybfgXkOcGoOvk5QvuGKt2sl3rY="
+      },
+      {
         "name": "tree",
         "url": "https://packages.wolfi.dev/os/aarch64/tree-2.2.1-r0.apk",
         "version": "2.2.1-r0",
@@ -2965,6 +3193,82 @@
           "checksum": "sha256-65hg0F8RJQA4fecc7o8zqnueuY7jJSqPtpIQ3pjIP1U="
         },
         "checksum": "Q1ClkDg4b8tliyWf7j9K2yvdsNh6M="
+      },
+      {
+        "name": "py3.13-pathspec",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-pathspec-0.12.1-r6.apk",
+        "version": "0.12.1-r6",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4538",
+          "checksum": "sha1-bhmgGkin5lbUSQSBDEwwfj876O0="
+        },
+        "data": {
+          "range": "bytes=4539-62482",
+          "checksum": "sha256-RoadX6Vsblo+xsQeClbgQuNeYqOzb/tPL+tBUtsMxIU="
+        },
+        "checksum": "Q1bhmgGkin5lbUSQSBDEwwfj876O0="
+      },
+      {
+        "name": "yaml",
+        "url": "https://packages.wolfi.dev/os/aarch64/yaml-0.2.5-r7.apk",
+        "version": "0.2.5-r7",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5276",
+          "checksum": "sha1-qXC+8VV7yBq/CPrbdR/vPVqGjEI="
+        },
+        "data": {
+          "range": "bytes=5277-63450",
+          "checksum": "sha256-M/51fz0h+0lAtrWgMSMF0VGLQDILcbF/CVDe+QXeQWQ="
+        },
+        "checksum": "Q1qXC+8VV7yBq/CPrbdR/vPVqGjEI="
+      },
+      {
+        "name": "py3.13-pyyaml",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-pyyaml-6.0.3-r0.apk",
+        "version": "6.0.3-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6660",
+          "checksum": "sha1-9YDe7vAZ2ydVmh/8/eVlnSP4Mzo="
+        },
+        "data": {
+          "range": "bytes=6661-254829",
+          "checksum": "sha256-HJa7C1cHxVGsMN2iaHSbR3xMpeDUdr1t9bAp4jXAh9c="
+        },
+        "checksum": "Q19YDe7vAZ2ydVmh/8/eVlnSP4Mzo="
+      },
+      {
+        "name": "yamllint",
+        "url": "https://packages.wolfi.dev/os/aarch64/yamllint-1.37.1-r3.apk",
+        "version": "1.37.1-r3",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5586",
+          "checksum": "sha1-Dxf5oxFgCmjJZXM+DXQJeIa9l+s="
+        },
+        "data": {
+          "range": "bytes=5587-116781",
+          "checksum": "sha256-+se10w1nmyj8jrylEBgi2F6XfrC8LphsFXhCagViy4Y="
+        },
+        "checksum": "Q1Dxf5oxFgCmjJZXM+DXQJeIa9l+s="
       }
     ]
   }
