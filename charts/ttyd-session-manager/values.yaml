@@ -51,3 +51,14 @@ proxy:
   http: ""
   https: ""
   noProxy: ""
+
+# Shared PVC for opencode authentication across all session pods
+# This allows authentication to persist and be shared between sessions
+sharedAuth:
+  enabled: true
+  # Storage class for the PVC (uses cluster default if not specified)
+  storageClassName: ""
+  # Size of the shared auth volume (small since it only stores auth.json)
+  size: 200Mi
+  # Access mode - ReadWriteMany allows multiple pods to mount simultaneously
+  accessMode: ReadWriteMany

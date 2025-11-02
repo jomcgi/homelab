@@ -2,7 +2,7 @@
   "version": "v1",
   "config": {
     "name": "./charts/ttyd-session-manager/backend/apko.yaml",
-    "checksum": "sha256-ycWFP6KdWmL0IAgEG16X2gDsP/7IpONQxHZkqX0Ykjw="
+    "checksum": "sha256-Fza4dBbazcF1UNNqz2VIyapT2FRYT1lECoM6U2m7O2U="
   },
   "contents": {
     "keyring": [
@@ -1447,6 +1447,25 @@
         "checksum": "Q1x9oMNuZRVi6SMM5VUSbC0ys69hM="
       },
       {
+        "name": "ripgrep",
+        "url": "https://packages.wolfi.dev/os/x86_64/ripgrep-15.1.0-r0.apk",
+        "version": "15.1.0-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4112",
+          "checksum": "sha1-+g3BAcvHhl2DV3bSGzqT0bJl0Kc="
+        },
+        "data": {
+          "range": "bytes=4113-2668717",
+          "checksum": "sha256-lTgM/RvpIsQfb8spWoilFHAHyb0InuenlvNAfa5wY0A="
+        },
+        "checksum": "Q1+g3BAcvHhl2DV3bSGzqT0bJl0Kc="
+      },
+      {
         "name": "tree",
         "url": "https://packages.wolfi.dev/os/x86_64/tree-2.2.1-r0.apk",
         "version": "2.2.1-r0",
@@ -2889,6 +2908,25 @@
           "checksum": "sha256-SaECVjXu2k+H7FQq39a3JQCT1oLAnkBzVj1Mzv2ZGwU="
         },
         "checksum": "Q1xVBJVAxoPv6NhAOqdfTNJVrSytw="
+      },
+      {
+        "name": "ripgrep",
+        "url": "https://packages.wolfi.dev/os/aarch64/ripgrep-15.1.0-r0.apk",
+        "version": "15.1.0-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4152",
+          "checksum": "sha1-AP7WjrJtzGKPiUjmnHr34b6uK1E="
+        },
+        "data": {
+          "range": "bytes=4153-2609301",
+          "checksum": "sha256-ffwmXooTbLd0R39px+UmKPb7Jc2+fVGJ9nh1iV8VEtY="
+        },
+        "checksum": "Q1AP7WjrJtzGKPiUjmnHr34b6uK1E="
       },
       {
         "name": "tree",
