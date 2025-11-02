@@ -264,10 +264,6 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 							Name:      "home",
 							MountPath: "/home/user",
 						},
-						{
-							Name:      "shared-auth",
-							MountPath: "/home/user/.local/share/opencode",
-						},
 					},
 					Resources: corev1.ResourceRequirements{
 						Requests: corev1.ResourceList{
@@ -320,14 +316,6 @@ echo "Session state saved to Git"
 					Name: "home",
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
-					},
-				},
-				{
-					Name: "shared-auth",
-					VolumeSource: corev1.VolumeSource{
-						PersistentVolumeClaim: &corev1.PersistentVolumeClaimVolumeSource{
-							ClaimName: "ttyd-session-manager-shared-auth",
-						},
 					},
 				},
 			},
