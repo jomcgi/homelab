@@ -1,0 +1,194 @@
+{{- if .Values.envoy.backend.enabled }}
+# Envoy proxy configuration for backend API server
+# Provides HTTP/gRPC proxying with OpenTelemetry tracing to SigNoz
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ttyd-session-manager.fullname" . }}-envoy-backend
+  namespace: {{ .Values.sessionNamespace }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: {{ .Values.envoy.backend.admin.port }}
+
+    static_resources:
+      listeners:
+      - name: backend_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: {{ .Values.envoy.backend.proxy.port }}
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: AUTO
+              {{- if .Values.envoy.backend.tracing.enabled }}
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: {{ .Values.envoy.backend.tracing.serviceName }}
+              {{- end }}
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: backend
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: backend_service
+                      timeout: 30s
+                    decorator:
+                      operation: proxy_to_backend
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      - name: backend_service
+        connect_timeout: 1s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend_service
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: {{ .Values.service.targetPort }}
+      {{- if .Values.envoy.backend.tracing.enabled }}
+      - name: otel_collector
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: {{ .Values.envoy.backend.tracing.otlpEndpoint | replace ":4317" "" }}
+                    port_value: 4317
+      {{- end }}
+{{- end }}
+---
+{{- if .Values.envoy.session.enabled }}
+# Envoy proxy configuration for session pods (ttyd)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ttyd-session-manager.fullname" . }}-envoy-session
+  namespace: {{ .Values.sessionNamespace }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: {{ .Values.envoy.session.admin.port }}
+
+    static_resources:
+      listeners:
+      - name: ttyd_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: {{ .Values.envoy.session.proxy.port }}
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: AUTO
+              {{- if .Values.envoy.session.tracing.enabled }}
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: {{ .Values.envoy.session.tracing.serviceName }}
+              {{- end }}
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: ttyd
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: ttyd_service
+                      timeout: 0s  # WebSocket support
+                      upgrade_configs:
+                      - upgrade_type: websocket
+                    decorator:
+                      operation: proxy_to_ttyd
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      - name: ttyd_service
+        connect_timeout: 1s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: ttyd_service
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: {{ .Values.envoy.session.targetPort }}
+      {{- if .Values.envoy.session.tracing.enabled }}
+      - name: otel_collector
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: {{ .Values.envoy.session.tracing.otlpEndpoint | replace ":4317" "" }}
+                    port_value: 4317
+      {{- end }}
+{{- end }}

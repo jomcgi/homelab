@@ -79,8 +79,9 @@ func main() {
 	r.GET("/api/sessions/:id", sm.getSession)
 	r.DELETE("/api/sessions/:id", sm.deleteSession)
 
-	log.Println("Starting API server on :8080")
-	if err := r.Run(":8080"); err != nil {
+	// Listen on 8081 internally, Envoy proxy listens on 8080 and forwards to us
+	log.Println("Starting API server on :8081")
+	if err := r.Run(":8081"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -107,8 +108,10 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	gitRemoteURL := "https://github.com/jomcgi/homelab.git"
 
 	// Read configuration from environment
-	anthropicSecretName := getEnvOrDefault("ANTHROPIC_SECRET_NAME", "ttyd-session-manager-claude")
-	anthropicSecretKey := getEnvOrDefault("ANTHROPIC_SECRET_KEY", "claude_code_oauth_token")
+	apiKeysSecretName := getEnvOrDefault("API_KEYS_SECRET_NAME", "ttyd-session-manager-api-keys")
+	anthropicSecretKey := getEnvOrDefault("ANTHROPIC_SECRET_KEY", "anthropic_api_key")
+	googleSecretKey := getEnvOrDefault("GOOGLE_SECRET_KEY", "google_api_key")
+	buildbuddySecretKey := getEnvOrDefault("BUILDBUDDY_SECRET_KEY", "buildbuddy_api_key")
 	otelEnabled := getEnvOrDefault("OTEL_ENABLED", "true") == "true"
 	otelEndpoint := getEnvOrDefault("OTEL_ENDPOINT", "http://signoz-otel-collector.signoz.svc.cluster.local:4317")
 
@@ -129,6 +132,7 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 			},
 		},
 		Spec: corev1.PodSpec{
+			ServiceAccountName: "ttyd-session-pods",
 			ImagePullSecrets: []corev1.LocalObjectReference{
 				{
 					Name: "ttyd-session-manager-github-dockerconfig",
@@ -235,24 +239,67 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 				},
 			},
 			Containers: []corev1.Container{
+				// Envoy sidecar for distributed tracing
+				{
+					Name:  "envoy",
+					Image: "envoyproxy/envoy:v1.31-latest",
+					Args: []string{
+						"-c",
+						"/etc/envoy/envoy.yaml",
+					},
+					Ports: []corev1.ContainerPort{
+						{
+							Name:          "envoy-proxy",
+							ContainerPort: 7681,
+						},
+						{
+							Name:          "envoy-admin",
+							ContainerPort: 9901,
+						},
+					},
+					VolumeMounts: []corev1.VolumeMount{
+						{
+							Name:      "envoy-config",
+							MountPath: "/etc/envoy",
+							ReadOnly:  true,
+						},
+					},
+					Resources: corev1.ResourceRequirements{
+						Requests: corev1.ResourceList{
+							corev1.ResourceCPU:    mustParseQuantity("50m"),
+							corev1.ResourceMemory: mustParseQuantity("64Mi"),
+						},
+						Limits: corev1.ResourceList{
+							corev1.ResourceCPU:    mustParseQuantity("200m"),
+							corev1.ResourceMemory: mustParseQuantity("128Mi"),
+						},
+					},
+					SecurityContext: &corev1.SecurityContext{
+						ReadOnlyRootFilesystem:   boolPtr(true),
+						AllowPrivilegeEscalation: boolPtr(false),
+						RunAsNonRoot:             boolPtr(true),
+						RunAsUser:                int64Ptr(65534),
+						Capabilities: &corev1.Capabilities{
+							Drop: []corev1.Capability{"ALL"},
+						},
+					},
+				},
 				{
 					Name:  "ttyd",
 					Image: fmt.Sprintf("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:%s", imageTag),
 					Command: []string{
 						"ttyd",
-						"-p", "7681",
+						"-p", "7682", // Envoy proxies 7681->7682
 						"-W",
 						"--writable",
-						"-t", "fontSize=14",
-						"-t", `theme={"background":"#000000"}`,
-						"fish",
+						"opencode",
 					},
 					WorkingDir: "/workspace/session",
-					Env:        buildSessionEnv(sessionID, gitBranch, anthropicSecretName, anthropicSecretKey, otelEnabled, otelEndpoint),
+					Env:        buildSessionEnv(sessionID, gitBranch, apiKeysSecretName, anthropicSecretKey, googleSecretKey, buildbuddySecretKey, otelEnabled, otelEndpoint),
 					Ports: []corev1.ContainerPort{
 						{
 							Name:          "http",
-							ContainerPort: 7681,
+							ContainerPort: 7682,
 						},
 					},
 					VolumeMounts: []corev1.VolumeMount{
@@ -316,6 +363,22 @@ echo "Session state saved to Git"
 					Name: "home",
 					VolumeSource: corev1.VolumeSource{
 						EmptyDir: &corev1.EmptyDirVolumeSource{},
+					},
+				},
+				{
+					Name: "envoy-config",
+					VolumeSource: corev1.VolumeSource{
+						ConfigMap: &corev1.ConfigMapVolumeSource{
+							LocalObjectReference: corev1.LocalObjectReference{
+								Name: "ttyd-session-manager-envoy-session",
+							},
+							Items: []corev1.KeyToPath{
+								{
+									Key:  "envoy.yaml",
+									Path: "envoy.yaml",
+								},
+							},
+						},
 					},
 				},
 			},
@@ -447,7 +510,7 @@ func getEnvOrDefault(key, defaultValue string) string {
 	return defaultValue
 }
 
-func buildSessionEnv(sessionID, gitBranch, anthropicSecretName, anthropicSecretKey string, otelEnabled bool, otelEndpoint string) []corev1.EnvVar {
+func buildSessionEnv(sessionID, gitBranch, apiKeysSecretName, anthropicSecretKey, googleSecretKey, buildbuddySecretKey string, otelEnabled bool, otelEndpoint string) []corev1.EnvVar {
 	env := []corev1.EnvVar{
 		// Core session configuration
 		{
@@ -480,9 +543,33 @@ func buildSessionEnv(sessionID, gitBranch, anthropicSecretName, anthropicSecretK
 			ValueFrom: &corev1.EnvVarSource{
 				SecretKeyRef: &corev1.SecretKeySelector{
 					LocalObjectReference: corev1.LocalObjectReference{
-						Name: anthropicSecretName,
+						Name: apiKeysSecretName,
 					},
 					Key: anthropicSecretKey,
+				},
+			},
+		},
+		// Google API authentication (for AI services)
+		{
+			Name: "GOOGLE_API_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: apiKeysSecretName,
+					},
+					Key: googleSecretKey,
+				},
+			},
+		},
+		// BuildBuddy API key for remote cache/build execution
+		{
+			Name: "BUILDBUDDY_API_KEY",
+			ValueFrom: &corev1.EnvVarSource{
+				SecretKeyRef: &corev1.SecretKeySelector{
+					LocalObjectReference: corev1.LocalObjectReference{
+						Name: apiKeysSecretName,
+					},
+					Key: buildbuddySecretKey,
 				},
 			},
 		},

@@ -33,6 +33,7 @@ go_image(
 
 # TTYD worker image with fish shell dev environment + ttyd binary + opencode
 # multiarch_tars: platform-specific tars from multiarch_http_file and multiarch_http_archive repositories
+# Note: format tool available via bazelisk (already in image), run with: bazel run //tools/format:format
 apko_image(
     name = "ttyd_worker_image",
     config = "apko.yaml",
