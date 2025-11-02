@@ -1,0 +1,18 @@
+{{- if .Values.sharedAuth.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "ttyd-session-manager.fullname" . }}-shared-auth
+  namespace: {{ .Values.sessionNamespace }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.sharedAuth.accessMode }}
+  {{- if .Values.sharedAuth.storageClassName }}
+  storageClassName: {{ .Values.sharedAuth.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.sharedAuth.size }}
+{{- end }}
