@@ -36,13 +36,13 @@ go_image(
 pkg_tar(
     name = "shell_scripts_tar",
     srcs = [
-        "setup-bazelrc.fish",
         "bazel.fish",
+        "setup-bazelrc.fish",
     ],
     mode = "0755",
     remap_paths = {
-        "setup-bazelrc.fish": "/usr/local/bin/setup-bazelrc.fish",
         "bazel.fish": "/home/user/.config/fish/conf.d/bazel.fish",
+        "setup-bazelrc.fish": "/usr/local/bin/setup-bazelrc.fish",
     },
 )
 
