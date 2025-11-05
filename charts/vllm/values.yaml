@@ -1,0 +1,7 @@
+# Default values for vLLM wrapper chart
+# These are minimal defaults; override in overlays/prod/vllm/values.yaml
+
+vllm-stack:
+  # Minimal defaults - see overlay values for production configuration
+  servingEngineSpec:
+    modelSpec: []
