@@ -7,10 +7,9 @@ gpu-operator:
     defaultRuntime: containerd
 
   # Driver configuration
+  # Disabled - Ubuntu node already has NVIDIA drivers installed
   driver:
-    enabled: true
-    # Use pre-compiled drivers for faster startup
-    usePrecompiled: true
+    enabled: false
 
   # Toolkit configuration
   toolkit:
