@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: prod-vllm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    path: charts/vllm
+    targetRevision: HEAD
+    helm:
+      releaseName: vllm
+      valueFiles:
+        - values.yaml
+        - ../../overlays/prod/vllm/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: vllm
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
