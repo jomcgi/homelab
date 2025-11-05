@@ -3490,6 +3490,12 @@ spec:
         <clickhouse>
           <async_load_databases replace="replace">false</async_load_databases>
         </clickhouse>
+      config.d/merge_tree.xml: |
+        <clickhouse>
+          <merge_tree>
+            <max_suspicious_broken_parts>500</max_suspicious_broken_parts>
+          </merge_tree>
+        </clickhouse>
       config.d/system_log.xml: |
         <clickhouse>
           <text_log>
