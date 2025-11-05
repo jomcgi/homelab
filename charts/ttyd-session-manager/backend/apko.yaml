@@ -92,19 +92,4 @@ paths:
     uid: 1000
     gid: 1000
     permissions: 0o755
-  # Bazel setup script for remote cache
-  - path: /usr/local/bin/setup-bazelrc.fish
-    type: file
-    source: setup-bazelrc.fish
-    uid: 1000
-    gid: 1000
-    permissions: 0o755
-  # Fish config that sources bazel setup
-  - path: /home/user/.config/fish/conf.d/bazel.fish
-    type: file
-    source: |
-      # Auto-setup BuildBuddy remote cache for fast Bazel builds
-      source /usr/local/bin/setup-bazelrc.fish
-    uid: 1000
-    gid: 1000
-    permissions: 0o644
+  # Note: Fish config files (setup-bazelrc.fish and bazel.fish) are added via pkg_tar in BUILD file
