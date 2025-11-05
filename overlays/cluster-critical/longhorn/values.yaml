@@ -4,3 +4,14 @@
 longhorn:
   preUpgradeChecker:
     jobEnabled: false
+
+  defaultSettings:
+    # Automatically evict replicas when node is cordoned, but protect against data loss
+    # Options: "block-if-contains-last-replica", "block-for-eviction", "block-for-eviction-if-contains-last-replica", "always-allow"
+    # "block-for-eviction-if-contains-last-replica" = Auto-evict + data loss protection
+    nodeDrainPolicy: "block-for-eviction-if-contains-last-replica"
+
+    # Automatically rebalance replicas across nodes to prevent concentration
+    # Options: "disabled", "least-effort", "best-effort"
+    # "best-effort" = Active rebalancing to distribute replicas evenly
+    replicaAutoBalance: "best-effort"
