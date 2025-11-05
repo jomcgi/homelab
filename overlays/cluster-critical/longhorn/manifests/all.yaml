@@ -83,7 +83,9 @@ metadata:
     app.kubernetes.io/version: v1.8.1
 data:
   default-setting.yaml: |-
+    replica-auto-balance: best-effort
     priority-class: longhorn-critical
+    node-drain-policy: block-for-eviction-if-contains-last-replica
     disable-revision-counter: true
 ---
 # Source: longhorn/charts/longhorn/templates/storageclass.yaml
