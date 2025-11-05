@@ -1,0 +1,48 @@
+# Default values for nvidia-gpu-operator
+# This is a wrapper chart for the official NVIDIA GPU Operator
+
+gpu-operator:
+  # Operator configuration
+  operator:
+    defaultRuntime: containerd
+
+  # Driver configuration
+  driver:
+    enabled: true
+    # Use pre-compiled drivers for faster startup
+    usePrecompiled: true
+
+  # Toolkit configuration
+  toolkit:
+    enabled: true
+
+  # Device plugin configuration
+  devicePlugin:
+    enabled: true
+
+  # DCGM exporter for GPU metrics
+  dcgmExporter:
+    enabled: true
+    # Export metrics for Prometheus
+    serviceMonitor:
+      enabled: true
+
+  # GPU Feature Discovery
+  gfd:
+    enabled: true
+
+  # Node Feature Discovery (for GPU node labeling)
+  nfd:
+    enabled: true
+
+  # MIG (Multi-Instance GPU) manager - disabled by default
+  migManager:
+    enabled: false
+
+  # vGPU - disabled for consumer GPUs
+  vgpuManager:
+    enabled: false
+
+  # vGPU device manager - disabled for consumer GPUs
+  vgpuDeviceManager:
+    enabled: false
