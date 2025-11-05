@@ -9,7 +9,7 @@ go_library(
     importpath = "github.com/jomcgi/homelab/charts/ttyd-session-manager/backend",
     visibility = ["//visibility:private"],
     deps = [
-        "@com_github_gin_gonic_gin//:go_default_library",
+        "@com_github_gin_gonic_gin//:gin",
         "@com_github_google_uuid//:uuid",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/resource",

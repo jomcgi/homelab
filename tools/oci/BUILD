@@ -34,3 +34,51 @@ bzl_library(
         "@rules_oci//oci:defs",
     ],
 )
+
+bzl_library(
+    name = "apko_image",
+    srcs = ["apko_image.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":apko_push",
+        ":oci_run",
+        "@aspect_bazel_lib//lib:expand_template",
+        "@aspect_bazel_lib//lib:transitions",
+        "@rules_apko//apko:defs",
+        "@rules_oci//oci:defs",
+    ],
+)
+
+bzl_library(
+    name = "apko_push",
+    srcs = ["apko_push.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@bazel_skylib//lib:paths"],
+)
+
+bzl_library(
+    name = "multiarch_binary_from_http",
+    srcs = ["multiarch_binary_from_http.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_pkg//pkg:tar"],
+)
+
+bzl_library(
+    name = "multiarch_binary_tar",
+    srcs = ["multiarch_binary_tar.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_pkg//pkg:tar"],
+)
+
+bzl_library(
+    name = "multiplatform_tar",
+    srcs = ["multiplatform_tar.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_pkg//pkg:tar"],
+)
+
+bzl_library(
+    name = "oci_run",
+    srcs = ["oci_run.bzl"],
+    visibility = ["//visibility:public"],
+)
