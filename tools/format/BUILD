@@ -45,6 +45,7 @@ multirun(
         "//scripts:generate-push-all",
         "//scripts:generate-render-all",
         ":update_apko_locks",
+        ":validate_apko_configs",
         ":format_code",
         ":render_manifests_wrapper",
     ],
@@ -55,6 +56,12 @@ multirun(
 sh_binary(
     name = "update_apko_locks",
     srcs = ["update-apko-locks.sh"],
+)
+
+# Validate apko config files
+sh_binary(
+    name = "validate_apko_configs",
+    srcs = ["validate-apko-configs.sh"],
 )
 
 # Wrapper script to build all manifests using Bazel

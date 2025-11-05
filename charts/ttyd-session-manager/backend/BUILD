@@ -39,11 +39,11 @@ pkg_tar(
         "bazel.fish",
         "setup-bazelrc.fish",
     ],
+    mode = "0755",
     remap_paths = {
         "bazel.fish": "/home/user/.config/fish/conf.d/bazel.fish",
         "setup-bazelrc.fish": "/usr/local/bin/setup-bazelrc.fish",
     },
-    mode = "0755",
 )
 
 # TTYD worker image with fish shell dev environment + ttyd binary + opencode
@@ -53,10 +53,10 @@ apko_image(
     name = "ttyd_worker_image",
     config = "apko.yaml",
     contents = "@ttyd_lock//:contents",
-    tars = [":fish_config_tar"],
     multiarch_tars = [
         "@ttyd//:tar",
         "@opencode//:tar",
     ],
     repository = "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker",
+    tars = [":fish_config_tar"],
 )
