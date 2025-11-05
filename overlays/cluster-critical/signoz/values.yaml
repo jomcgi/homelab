@@ -13,6 +13,14 @@ signoz:
         logs: 7
         traces: 7
         metrics: 7
+    configuration:
+      files:
+        config.d/merge_tree.xml: |
+          <clickhouse>
+            <merge_tree>
+              <max_suspicious_broken_parts>500</max_suspicious_broken_parts>
+            </merge_tree>
+          </clickhouse>
   zookeeper:
     resources:
       requests:
