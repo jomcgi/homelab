@@ -9,8 +9,8 @@ gpu-operator:
   # Driver configuration
   driver:
     enabled: true
-    # Use pre-compiled drivers for faster startup
-    usePrecompiled: true
+    # Build drivers from source (pre-compiled not available for all kernels)
+    usePrecompiled: false
 
   # Toolkit configuration
   toolkit:
