@@ -1,0 +1,127 @@
+vllm-stack:
+  servingEngineSpec:
+    modelSpec:
+      - name: "gemma-3-12b"
+        # vLLM OpenAI-compatible server image
+        repository: "vllm/vllm-openai"
+        tag: "latest"
+        # Hugging Face model ID
+        modelURL: "google/gemma-3-12b-it"
+        replicaCount: 1
+
+        # Resource allocation
+        requestCPU: 8
+        requestMemory: "16Gi"
+        requestGPU: 1
+
+        # Storage for model downloads (200Gi on node-4)
+        pvcStorage: "200Gi"
+        pvcAccessMode:
+          - ReadWriteOnce
+        pvcStorageClass: "longhorn"
+
+        # Shared memory for GPU tensor operations
+        shmSize: "16Gi"
+
+        # vLLM engine configuration
+        vllmConfig:
+          # Enable performance optimizations
+          enableChunkedPrefill: true
+          enablePrefixCaching: true
+
+          # Context window (conservative for 12B model on 24GB VRAM)
+          maxModelLen: 8192
+
+          # Let vLLM auto-detect optimal dtype
+          dtype: "auto"
+
+          # Additional performance flags
+          extraArgs:
+            - "--disable-log-requests"
+            - "--gpu-memory-utilization"
+            - "0.90"  # Use 90% of available VRAM
+
+        # Node affinity: schedule only on node-4 (GPU node with storage)
+        nodeSelector:
+          kubernetes.io/hostname: node-4
+
+        # Security context (homelab security standards)
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65532
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          seccompProfile:
+            type: RuntimeDefault
+
+        # Pod security context
+        podSecurityContext:
+          fsGroup: 65532
+          seccompProfile:
+            type: RuntimeDefault
+
+        # Health checks
+        startupProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          failureThreshold: 60  # Allow 10 minutes for model download/load
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 15
+          periodSeconds: 5
+          failureThreshold: 3
+
+        # Resource limits (match requests for GPU, allow CPU bursting)
+        resources:
+          requests:
+            cpu: 8
+            memory: "16Gi"
+            nvidia.com/gpu: 1
+          limits:
+            cpu: 10
+            memory: "24Gi"
+            nvidia.com/gpu: 1
+
+        # PVC annotations for Longhorn
+        pvcAnnotations:
+          helm.sh/resource-policy: keep
+
+  # Router configuration (for request routing)
+  routerSpec:
+    enableRouter: true
+    serviceDiscoveryMode: "k8s"
+    routingLogic: "roundrobin"
+
+    # Router resources (minimal)
+    resources:
+      requests:
+        cpu: "400m"
+        memory: "500Mi"
+      limits:
+        cpu: "1"
+        memory: "1Gi"
+
+    # Service configuration - ClusterIP only (internal access)
+    service:
+      type: ClusterIP
+      port: 8080
+      targetPort: 8000
+
+  # Global security settings
+  runtimeClassName: nvidia

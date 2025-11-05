@@ -9,3 +9,4 @@ resources:
   - ./gh-arc-runners
   - ./gh-arc-bazel-runner
   - ./n8n
+  - ./vllm
