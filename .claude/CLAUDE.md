@@ -14,7 +14,7 @@ Every decision in this codebase prioritizes:
 
 ## Architecture Overview
 
-This is a **security-first Kubernetes homelab** running on Talos Linux, designed for:
+This is a **security-first Kubernetes homelab** running K3s, designed for:
 - **Zero direct internet exposure** - All ingress via Cloudflare Tunnel
 - **Meaningful integration testing** - We test actual deployments, not mocks
 - **Operational simplicity** - If it's hard to operate, it's wrong
@@ -24,7 +24,7 @@ This is a **security-first Kubernetes homelab** running on Talos Linux, designed
 ```
 External Ingress        Applications             Observability
 ┌─────────────────┐    ┌───────────────────┐    ┌─────────────────┐
-│ Cloudflare      │    │ Talos K8S Cluster │    │ Grafana Cloud   │
+│ Cloudflare      │    │ K3s K8S Cluster   │    │ SigNoz          │
 │ Tunnel          │───>│ - Service A       │───>│ - Metrics       │
 │ (Zero Trust)    │    │ - Service B       │    │ - Logs          │
 └─────────────────┘    └───────────────────┘    │ - Traces        │
@@ -35,10 +35,21 @@ External Ingress        Applications             Observability
 
 ```
 charts/                     # Helm charts
+├── argocd/                 # ArgoCD GitOps controller
+├── argocd-image-updater/   # Automatic image updates for ArgoCD
 ├── cloudflare-tunnel/      # Cloudflare tunnel chart
-├── n8n/                    # N8N wrapper chart (wraps upstream n8n chart)
+├── envoy-gateway/          # Envoy Gateway API implementation
+├── freshrss/               # FreshRSS RSS aggregator chart
+├── gh-arc-controller/      # GitHub Actions Runner Controller
+├── gh-arc-runners/         # GitHub Actions Runners
+├── kyverno/                # Policy engine for Kubernetes
+├── longhorn/               # Distributed persistent storage
+├── n8n/                    # N8N workflow automation
 ├── n8n-obsidian-api/       # N8N Obsidian API service chart
-└── freshrss/               # FreshRSS RSS aggregator chart
+├── nvidia-gpu-operator/    # NVIDIA GPU operator for GPU workloads
+├── signoz/                 # SigNoz observability platform
+├── ttyd-session-manager/   # Terminal session manager
+└── vllm/                   # vLLM inference server for LLMs
 
 clusters/                   # Cluster entry points
 └── homelab/                # Production cluster
@@ -50,38 +61,46 @@ operators/                  # Custom Kubernetes operators
     └── README.md           # Operator documentation
 
 overlays/                   # Environment-based deployments
-├── cluster-critical/       # Critical infrastructure (argocd, longhorn, signoz)
+├── cluster-critical/       # Critical infrastructure
 │   ├── kustomization.yaml
 │   ├── argocd/
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   └── longhorn/
-│       ├── application.yaml
-│       ├── kustomization.yaml
-│       └── values.yaml
+│   ├── argocd-image-updater/
+│   ├── envoy/              # Envoy Gateway deployment
+│   ├── kyverno/            # Policy engine
+│   ├── longhorn/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   └── values.yaml
+│   ├── nvidia-gpu-operator/
+│   └── signoz/             # SigNoz observability stack
 ├── prod/                   # Production services
 │   ├── kustomization.yaml
 │   ├── cloudflare-tunnel/
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   ├── gh-arc-controller/
+│   ├── gh-arc-controller/  # GitHub Actions Runner Controller
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   └── n8n/
-│       ├── application.yaml
-│       ├── kustomization.yaml
-│       ├── values.yaml
-│       └── manifests/       # Helm-rendered n8n manifests (for review)
-│           └── all.yaml
+│   ├── gh-arc-runners/     # GitHub Actions Runners
+│   ├── gh-arc-bazel-runner/# Bazel-specific runner
+│   ├── n8n/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   ├── values.yaml
+│   │   └── manifests/       # Helm-rendered n8n manifests (for review)
+│   │       └── all.yaml
+│   └── vllm/               # vLLM inference server
 └── dev/                    # Development services
     ├── kustomization.yaml
-    └── obsidian-automation/
-        ├── application.yaml
-        ├── kustomization.yaml
-        └── values.yaml
+    ├── cloudflare-operator/# Cloudflare operator deployment
+    ├── freshrss/           # RSS feed aggregator
+    ├── n8n-obsidian-api/   # N8N Obsidian API service
+    └── ttyd-session-manager/# Terminal session manager
 
 pkg/                        # Shared Go libraries
 └── n8n/                    # N8N Go client (auto-generated from OpenAPI)
@@ -93,7 +112,8 @@ services/                   # Backend services
     └── update_forecast/
 
 websites/                   # Static websites
-└── hikes.jomcgi.dev/       # Hiking route finder (static)
+├── hikes.jomcgi.dev/       # Hiking route finder (static)
+└── jomcgi.dev/             # Personal website (Astro-based)
 
 ```
 
@@ -153,13 +173,29 @@ We test **actual behavior**, not implementation details:
 
 ## Key Services
 
-### Currently Deployed
+### Core Infrastructure (cluster-critical)
 
-#### Cloudflare Tunnel
-- **Zero Trust ingress** - No open firewall ports
-- **Automatic HTTPS** with Cloudflare certificates
-- **DDoS protection** and **WAF** built-in
-- **Deployed via**: ArgoCD Application with Helm chart
+#### ArgoCD
+- **GitOps controller** for declarative cluster management
+- **Self-healing deployments** with automatic drift detection
+- **Application discovery** via Kustomize overlays
+- **Deployed via**: ArgoCD Application (bootstrapped)
+
+#### ArgoCD Image Updater
+- **Automatic image updates** for ArgoCD-managed applications
+- **Git-based workflow** for version tracking
+- **Deployed via**: ArgoCD Application
+
+#### Envoy Gateway
+- **Kubernetes Gateway API** implementation
+- **Advanced traffic management** and routing
+- **Deployed via**: ArgoCD Application
+
+#### Kyverno
+- **Policy engine** for Kubernetes resource validation
+- **Security policies** enforced at admission time
+- **Mutation and validation** of resources
+- **Deployed via**: ArgoCD Application
 
 #### Longhorn Storage
 - **Distributed persistent storage** for Kubernetes
@@ -167,16 +203,39 @@ We test **actual behavior**, not implementation details:
 - **High availability** with replica management
 - **Deployed via**: ArgoCD Application
 
-#### Cloudflare Operator
-- **Custom Kubernetes operator** for Cloudflare resource management
-- **Automated tunnel provisioning** and **DNS management**
-- **Deployed via**: Helm chart in operators/ directory
+#### NVIDIA GPU Operator
+- **GPU support** for Kubernetes workloads
+- **Automatic driver installation** and device plugin management
+- **Required for**: vLLM inference workloads
+- **Deployed via**: ArgoCD Application
+
+#### SigNoz Observability Platform
+- **Self-hosted observability** - metrics, logs, traces
+- **OpenTelemetry-native** with ClickHouse backend
+- **Unified observability** for all cluster services
+- **Replaces**: Grafana Cloud (fully self-hosted)
+- **Deployed via**: ArgoCD Application
 
 #### 1Password Operator
 - **Secret management** via OnePasswordItem CRDs
 - **Secure credential storage** in 1Password vaults
 - **Automatic secret synchronization** to Kubernetes secrets
 - **Bootstrapped manually** during cluster setup
+
+### Production Services
+
+#### Cloudflare Tunnel
+- **Zero Trust ingress** - No open firewall ports
+- **Automatic HTTPS** with Cloudflare certificates
+- **DDoS protection** and **WAF** built-in
+- **Deployed via**: ArgoCD Application with Helm chart
+
+#### GitHub Actions Self-Hosted Runners
+- **gh-arc-controller**: Actions Runner Controller for managing runner lifecycle
+- **gh-arc-runners**: General-purpose runners for CI/CD
+- **gh-arc-bazel-runner**: Specialized runners for Bazel builds
+- **Scalable CI/CD** infrastructure within the cluster
+- **Deployed via**: ArgoCD Applications
 
 #### N8N Workflow Automation
 - **Workflow automation platform** for integrations and automations
@@ -186,32 +245,47 @@ We test **actual behavior**, not implementation details:
 - **Ingress**: `n8n.jomcgi.dev` via Cloudflare Tunnel
 - **Deployed via**: ArgoCD Application with Helm chart
 
+#### vLLM Inference Server
+- **LLM inference server** for serving large language models
+- **GPU-accelerated** via NVIDIA GPU Operator
+- **High-throughput inference** with continuous batching
+- **Model**: Gemma 3 12B (configurable)
+- **Deployed via**: ArgoCD Application
+
+### Development Services
+
+#### Cloudflare Operator
+- **Custom Kubernetes operator** for Cloudflare resource management
+- **Automated tunnel provisioning** and **DNS management**
+- **Deployed via**: ArgoCD Application referencing operators/cloudflare/helm/
+
+#### FreshRSS
+- **Self-hosted RSS aggregator** for feed management
+- **Web-based interface** for reading feeds
+- **Deployed via**: ArgoCD Application
+
+#### N8N Obsidian API
+- **API service** for N8N integration with Obsidian
+- **Custom Go service** for note automation
+- **Deployed via**: ArgoCD Application
+
+#### ttyd Session Manager
+- **Terminal session manager** for web-based terminal access
+- **Secure terminal access** via browser
+- **Deployed via**: ArgoCD Application
+
 ### Static Websites
+
+#### Personal Website (jomcgi.dev)
+- **Astro-based static site** for personal content
+- **Hosted on Cloudflare Pages** with automatic deployments
+- **Fast and modern** web framework
 
 #### Hikes Route Finder (hikes.jomcgi.dev)
 - **Pure static site** hosted on Cloudflare Pages
 - **Cloudflare R2 backend** for data storage
 - **No server-side dependencies** - maximum simplicity
 - **Comprehensive Playwright testing** for reliability
-
-### Services Under Migration
-
-The following services are preserved in `old/services/` and will be migrated to ArgoCD:
-
-#### Observability Stack (Planned)
-- **Grafana Cloud integration** for metrics, logs, traces
-- **OpenTelemetry Collector** for telemetry aggregation
-- **Prometheus-compatible** metrics from all services
-
-#### Open WebUI (Planned)
-- **Local AI interface** with Google Gemini integration
-- **No authentication** (secured by Cloudflare Access)
-- **Persistent storage** via Longhorn
-
-#### Obsidian MCP (Planned)
-- **Note-taking service** with MCP integration
-- **API backend** for Obsidian integration
-- **Search capabilities** across knowledge base
 
 ## Design Principles
 
@@ -238,12 +312,6 @@ We **define errors out of existence** where possible:
 - **Directory tree viewer**: Use `lstr -L <depth> <path>` instead of `tree`. `lstr` is a fast Rust-based tree viewer.
   - Example: `lstr -L 2 charts/` to view 2 levels deep
   - Use `-d` for directories only, `--icons` for file icons
-
-### Spec Workflow Commands
-Use the Claude Code spec workflow tool for structured development:
-- **Check task status**: `npx @pimzino/claude-code-spec-workflow get-tasks <spec-name>`
-- **Complete task**: `npx @pimzino/claude-code-spec-workflow get-tasks <spec-name> <task-id> --mode complete`
-- **Spec status**: `npx @pimzino/claude-code-spec-workflow spec-status <spec-name>`
 
 ### Adding a New Service
 1. Create Helm chart in `charts/<name>/` with default values
@@ -286,10 +354,7 @@ Every service must:
 ## Development Workflow
 
 1. **Make changes** in feature branch
-2. **Test locally** with Minikube:
-   - `minikube start` to spin up local cluster
-   - Apply Helm charts: `helm install <service> charts/<service>/`
-   - Test with port-forwarding: `kubectl port-forward svc/<service> 8080:80`
+2. **Test locally**
 3. **Verify deployment** works end-to-end in local environment
 4. **Check observability** - metrics, logs, traces (when available)
 5. **Create PR** - GitHub Actions runs integration tests
