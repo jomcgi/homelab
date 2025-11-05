@@ -1,0 +1,259 @@
+---
+# Source: vllm/charts/vllm-stack/templates/poddisruptionbudget.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: "vllm-pdb"
+  namespace: vllm
+spec:
+  maxUnavailable: 1
+---
+# Source: vllm/charts/vllm-stack/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: "vllm-router-service-account"
+  namespace: vllm
+---
+# Source: vllm/charts/vllm-stack/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: "vllm-secrets"
+  namespace: vllm
+type: Opaque
+data:
+---
+# Source: vllm/charts/vllm-stack/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: "vllm-gemma-3-12b-storage-claim"
+  namespace: vllm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 200Gi  # Default to 20Gi if not set
+---
+# Source: vllm/charts/vllm-stack/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: "vllm-pod-reader"
+  namespace: vllm
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["pods"]
+  verbs: ["get", "watch", "list"]
+---
+# Source: vllm/charts/vllm-stack/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: vllm-deployment-access-binding
+  namespace: vllm
+subjects:
+  - kind: ServiceAccount
+    name: vllm-router-service-account
+    namespace: vllm
+roleRef:
+  kind: Role
+  name: vllm-pod-reader
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: vllm/charts/vllm-stack/templates/service-router.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "vllm-router-service"
+  namespace: vllm
+  labels:
+    environment: router
+    release: router
+spec:
+  type: ClusterIP
+  ports:
+    - name: "router-sport"
+      port: 80
+      targetPort: 8000
+      protocol: TCP
+  selector:
+    environment: router
+    release: router
+---
+# Source: vllm/charts/vllm-stack/templates/service-vllm.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: "vllm-engine-service"
+  namespace: vllm
+  labels:
+    environment: test
+    release: test
+spec:
+  type: ClusterIP
+  ports:
+    - name: "service-port"
+      port: 80
+      targetPort: "container-port"
+      protocol: TCP
+  selector:
+    environment: test
+    release: test
+---
+# Source: vllm/charts/vllm-stack/templates/deployment-router.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "vllm-deployment-router"
+  namespace: vllm
+  labels:
+    environment: router
+    release: router
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      environment: router
+      release: router
+  template:
+    metadata:
+      labels:
+        environment: router
+        release: router
+    spec:
+      serviceAccountName: vllm-router-service-account
+      containers:
+      - name: router-container
+        image: "lmcache/lmstack-router:latest"
+        imagePullPolicy: "Always"
+        args:
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
+          - "--service-discovery"
+          - "k8s"
+          - "--k8s-namespace"
+          - "vllm"
+          - "--k8s-label-selector"
+          - environment=test,release=test
+          - "--routing-logic"
+          - "roundrobin"
+          - "--engine-stats-interval"
+          - "15"
+          - "--request-stats-window"
+          - "60"
+        resources:
+          requests:
+            cpu: "400m"
+            memory: "500Mi"
+          limits:
+            cpu: "1"
+            memory: "1Gi"
+        ports:
+          - name: "router-cport"
+            containerPort: 8000
+
+        livenessProbe:
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          failureThreshold: 3
+          httpGet:
+            path: /health
+            port: 8000
+---
+# Source: vllm/charts/vllm-stack/templates/deployment-vllm-multi.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: "vllm-gemma-3-12b-deployment-vllm"
+  namespace: vllm
+  labels:
+    environment: test
+    release: test
+spec:
+  replicas: 1
+  strategy:
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      environment: test
+      release: test
+  progressDeadlineSeconds: 1200
+  template:
+    metadata:
+      labels:
+        environment: test
+        release: test
+    spec:
+      containers:
+        - name: "vllm"
+          image: "vllm/vllm-openai:latest"
+
+          command:
+          - "vllm"
+          - "serve"
+          - "google/gemma-3-12b-it"
+          - "--host"
+          - "0.0.0.0"
+          - "--port"
+          - "8000"
+          - "--enable-chunked-prefill"
+          - "true"
+          - "--enable-prefix-caching"
+          - "--max-model-len"
+          - "8192"
+          - "--dtype"
+          - "auto"
+          - "--disable-log-requests"
+          - "--gpu-memory-utilization"
+          - "0.90"
+          securityContext:
+            runAsNonRoot: false
+          imagePullPolicy: IfNotPresent
+          env:
+          - name: HF_HOME
+            value: /data
+          ports:
+            - name: "container-port"
+              containerPort: 8000          
+          startupProbe:
+            failureThreshold: 60
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "16Gi"
+              cpu: "8"
+              nvidia.com/gpu: "1"
+            limits:
+              memory: "16Gi"
+              cpu: "8"
+              nvidia.com/gpu: "1"
+          volumeMounts:
+          - name: vllm-storage
+            mountPath: /data
+      volumes:
+        - name: vllm-storage
+          persistentVolumeClaim:
+            claimName: "vllm-gemma-3-12b-storage-claim"
+      runtimeClassName: nvidia

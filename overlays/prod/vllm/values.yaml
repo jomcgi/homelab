@@ -18,7 +18,7 @@ vllm-stack:
         pvcStorage: "200Gi"
         pvcAccessMode:
           - ReadWriteOnce
-        pvcStorageClass: "longhorn"
+        pvcStorageClass: "longhorn-gpu"
 
         # Shared memory for GPU tensor operations
         shmSize: "16Gi"

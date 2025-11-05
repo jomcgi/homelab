@@ -1,0 +1,567 @@
+---
+# Source: ttyd-session-manager/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ttyd-session-manager
+  namespace: ttyd-sessions
+  labels:
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+---
+# Source: ttyd-session-manager/templates/session-rbac.yaml
+# ServiceAccount for session pods (separate from API server)
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ttyd-session-pods
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: ttyd-session-manager/templates/envoy-configmap.yaml
+# Envoy proxy configuration for backend API server
+# Provides HTTP/gRPC proxying with OpenTelemetry tracing to SigNoz
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ttyd-session-manager-envoy-backend
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 9901
+
+    static_resources:
+      listeners:
+      - name: backend_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 8080
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: AUTO
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: ttyd-session-manager-backend
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: backend
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: backend_service
+                      timeout: 30s
+                    decorator:
+                      operation: proxy_to_backend
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      - name: backend_service
+        connect_timeout: 1s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: backend_service
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: 8080
+      - name: otel_collector
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: signoz-otel-collector.signoz.svc.cluster.local
+                    port_value: 4317
+---
+# Source: ttyd-session-manager/templates/envoy-configmap.yaml
+# Envoy proxy configuration for session pods (ttyd)
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ttyd-session-manager-envoy-session
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: 9901
+
+    static_resources:
+      listeners:
+      - name: ttyd_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: 7681
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: AUTO
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: ttyd-session
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: ttyd
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: ttyd_service
+                      timeout: 0s  # WebSocket support
+                      upgrade_configs:
+                      - upgrade_type: websocket
+                    decorator:
+                      operation: proxy_to_ttyd
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      - name: ttyd_service
+        connect_timeout: 1s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: ttyd_service
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: 127.0.0.1
+                    port_value: 7682
+      - name: otel_collector
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: signoz-otel-collector.signoz.svc.cluster.local
+                    port_value: 4317
+---
+# Source: ttyd-session-manager/templates/session-rbac.yaml
+# ClusterRole with read-only access to cluster resources
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: ttyd-session-pods-reader
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+# Read-only access to core resources
+- apiGroups: [""]
+  resources:
+    - pods
+    - pods/log
+    - services
+    - endpoints
+    - persistentvolumeclaims
+    - persistentvolumes
+    - configmaps
+    - secrets  # metadata only, not secret data
+    - namespaces
+    - nodes
+    - events
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to apps resources
+- apiGroups: ["apps"]
+  resources:
+    - deployments
+    - daemonsets
+    - replicasets
+    - statefulsets
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to batch resources
+- apiGroups: ["batch"]
+  resources:
+    - jobs
+    - cronjobs
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to networking
+- apiGroups: ["networking.k8s.io"]
+  resources:
+    - ingresses
+    - networkpolicies
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to storage
+- apiGroups: ["storage.k8s.io"]
+  resources:
+    - storageclasses
+    - volumeattachments
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to RBAC (for inspection)
+- apiGroups: ["rbac.authorization.k8s.io"]
+  resources:
+    - roles
+    - rolebindings
+    - clusterroles
+    - clusterrolebindings
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to metrics
+- apiGroups: ["metrics.k8s.io"]
+  resources:
+    - pods
+    - nodes
+  verbs: ["get", "list"]
+
+# Read-only access to ArgoCD applications (if installed)
+- apiGroups: ["argoproj.io"]
+  resources:
+    - applications
+    - applicationsets
+    - appprojects
+  verbs: ["get", "list", "watch"]
+
+# Read-only access to cert-manager (if installed)
+- apiGroups: ["cert-manager.io"]
+  resources:
+    - certificates
+    - certificaterequests
+    - issuers
+    - clusterissuers
+  verbs: ["get", "list", "watch"]
+---
+# Source: ttyd-session-manager/templates/session-rbac.yaml
+# ClusterRoleBinding to grant session pods read-only access
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: ttyd-session-pods-reader
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: ttyd-session-pods-reader
+subjects:
+- kind: ServiceAccount
+  name: ttyd-session-pods
+  namespace: ttyd-sessions
+---
+# Source: ttyd-session-manager/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ttyd-session-manager
+  namespace: ttyd-sessions
+  labels:
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+rules:
+- apiGroups: [""]
+  resources: ["pods", "pods/log", "pods/exec"]
+  verbs: ["create", "get", "list", "delete", "watch", "update", "patch"]
+- apiGroups: [""]
+  resources: ["services"]
+  verbs: ["create", "get", "list", "delete"]
+---
+# Source: ttyd-session-manager/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ttyd-session-manager
+  namespace: ttyd-sessions
+  labels:
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ttyd-session-manager
+subjects:
+- kind: ServiceAccount
+  name: ttyd-session-manager
+  namespace: ttyd-sessions
+---
+# Source: ttyd-session-manager/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ttyd-session-manager
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: envoy-proxy  # Target Envoy sidecar when enabled
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+---
+# Source: ttyd-session-manager/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ttyd-session-manager
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ttyd-session-manager
+      app.kubernetes.io/instance: ttyd-session-manager
+  template:
+    metadata:
+      annotations:
+        checksum/envoy-config: d019d087338f1bebef76826c75c38abf7c54610f38a0b7363974cce9f47a3508
+      labels:
+        app.kubernetes.io/name: ttyd-session-manager
+        app.kubernetes.io/instance: ttyd-session-manager
+    spec:
+      serviceAccountName: ttyd-session-manager
+      imagePullSecrets:
+        - name: ttyd-session-manager-github-dockerconfig
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+      - name: envoy
+        image: "envoyproxy/envoy:v1.31-latest"
+        imagePullPolicy: IfNotPresent
+        args:
+        - -c
+        - /etc/envoy/envoy.yaml
+        ports:
+        - containerPort: 8080
+          name: envoy-proxy
+          protocol: TCP
+        - containerPort: 9901
+          name: envoy-admin
+          protocol: TCP
+        volumeMounts:
+        - name: envoy-config
+          mountPath: /etc/envoy
+          readOnly: true
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        livenessProbe:
+          httpGet:
+            path: /ready
+            port: 9901
+          initialDelaySeconds: 10
+          periodSeconds: 10
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 9901
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+      - name: api-server
+        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:main"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 8081
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        env:
+        - name: API_KEYS_SECRET_NAME
+          value: "ttyd-session-manager-api-keys"
+        - name: ANTHROPIC_SECRET_KEY
+          value: "anthropic_api_key"
+        - name: GOOGLE_SECRET_KEY
+          value: "google_api_key"
+        - name: BUILDBUDDY_SECRET_KEY
+          value: "buildbuddy_api_key"
+        - name: OTEL_ENABLED
+          value: "true"
+        - name: OTEL_ENDPOINT
+          value: "http://signoz-otel-collector.signoz.svc.cluster.local:4317"
+        resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+          seccompProfile:
+            type: RuntimeDefault
+      volumes:
+      - name: envoy-config
+        configMap:
+          name: ttyd-session-manager-envoy-backend
+          items:
+          - key: envoy.yaml
+            path: envoy.yaml
+---
+# Source: ttyd-session-manager/templates/image-pull-secret.yaml
+# GHCR Pull Secret (for Kubernetes image pulls)
+# Allows ttyd-session-manager to pull private images from GitHub Container Registry
+# Type: kubernetes.io/dockerconfigjson (used for imagePullSecrets)
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: ttyd-session-manager-github-dockerconfig
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+---
+# Source: ttyd-session-manager/templates/onepassword-item-api-keys.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: ttyd-session-manager-api-keys
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+---
+# Source: ttyd-session-manager/templates/onepassword-item.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: ttyd-session-manager-github
+  namespace: ttyd-sessions
+spec:
+  itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
