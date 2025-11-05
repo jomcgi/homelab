@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
 load("//tools/oci:go_image.bzl", "go_image")
 
@@ -31,6 +32,20 @@ go_image(
     binary = "backend",
 )
 
+# Package shell scripts for TTYD worker image
+pkg_tar(
+    name = "shell_scripts_tar",
+    srcs = [
+        "setup-bazelrc.fish",
+        "bazel.fish",
+    ],
+    mode = "0755",
+    remap_paths = {
+        "setup-bazelrc.fish": "/usr/local/bin/setup-bazelrc.fish",
+        "bazel.fish": "/home/user/.config/fish/conf.d/bazel.fish",
+    },
+)
+
 # TTYD worker image with fish shell dev environment + ttyd binary + opencode
 # multiarch_tars: platform-specific tars from multiarch_http_file and multiarch_http_archive repositories
 # Note: format tool available via bazelisk (already in image), run with: bazel run //tools/format:format
@@ -38,6 +53,7 @@ apko_image(
     name = "ttyd_worker_image",
     config = "apko.yaml",
     contents = "@ttyd_lock//:contents",
+    tars = [":shell_scripts_tar"],
     multiarch_tars = [
         "@ttyd//:tar",
         "@opencode//:tar",
