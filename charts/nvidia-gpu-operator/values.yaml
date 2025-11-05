@@ -15,6 +15,12 @@ gpu-operator:
   # Toolkit configuration
   toolkit:
     enabled: true
+    # K3s-specific containerd paths
+    env:
+      - name: CONTAINERD_CONFIG
+        value: /var/lib/rancher/k3s/agent/etc/containerd/config.toml
+      - name: CONTAINERD_SOCKET
+        value: /run/k3s/containerd/containerd.sock
 
   # Device plugin configuration
   devicePlugin:
