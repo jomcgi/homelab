@@ -1,0 +1,33 @@
+# =============================================================================
+# BuildBuddy Remote Build Execution (RBE)
+# =============================================================================
+# This file contains all remote execution and caching configuration.
+# To disable RBE, comment out the try-import in .bazelrc or rename this file.
+#
+# BuildBuddy provides:
+# - 80 cores on free tier for parallel builds
+# - Remote caching for faster incremental builds
+# - Build Event Service (BES) for observability (configured in main .bazelrc)
+# - Managed toolchains (compilers, runtimes)
+#
+# Note: API key must be set via --remote_header in user.bazelrc
+
+# =============================================================================
+# Remote Execution - Applied to CI builds
+# =============================================================================
+build:ci --remote_executor=grpcs://remote.buildbuddy.io
+build:ci --remote_cache=grpcs://remote.buildbuddy.io
+build:ci --remote_timeout=3600
+build:ci --jobs=80  # Use all 80 available cores
+build:ci --remote_cache_compression  # Faster transfers
+build:ci --remote_download_minimal  # Don't download unnecessary outputs
+
+# =============================================================================
+# BuildBuddy Managed Toolchains
+# =============================================================================
+# Use BuildBuddy's pre-configured toolchains for consistent builds
+build:ci --extra_execution_platforms=@buildbuddy_toolchain//:platform
+build:ci --host_platform=@buildbuddy_toolchain//:platform
+build:ci --platforms=@buildbuddy_toolchain//:platform
+build:ci --crosstool_top=@buildbuddy_toolchain//:toolchain
+build:ci --extra_toolchains=@buildbuddy_toolchain//:cc_toolchain
