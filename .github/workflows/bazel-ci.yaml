@@ -22,25 +22,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install bazelisk
-        run: |
-          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
-          mkdir -p "${GITHUB_WORKSPACE}/bin/"
-          mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
-          chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
-
-      - name: Configure Bazel
-        run: |
-          cat >> user.bazelrc << EOF
-          # Import CI-specific startup options
-          try-import %workspace%/.bazelrc.ci
-          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-          EOF
-
-      - name: Format Check
-        run: "${GITHUB_WORKSPACE}/bin/bazel run //tools/format:format_code.check"
-
       # Build, Test, and Push run on BuildBuddy Workflows (persistent VMs with warm Bazel server)
+      # Format check runs separately via auto-format.yaml workflow
       # This solves the analysis cache problem - BuildBuddy VMs maintain Bazel server state between runs
       - name: Build, Test & Push with BuildBuddy Workflows
         env:
