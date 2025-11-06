@@ -1,8 +1,6 @@
-load("//tools/argocd:defs.bzl", "helm_render")
+load("//tools/argocd:defs.bzl", "chart_files")
 
-helm_render(
-    name = "bazel-cache-seeder",
-    chart = "bazel-cache-seeder",
-    output_filename = "bazel-cache-seeder-manifests.yaml",
-    release_name = "bazel-cache-seeder",
+chart_files(
+    name = "all_files",
+    visibility = ["//overlays/cluster-critical/bazel-cache-seeder:__pkg__"],
 )
