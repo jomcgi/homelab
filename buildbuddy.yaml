@@ -10,6 +10,18 @@ actions:
       pull_request:
         disabled: true
 
+    # Clean up Docker images/containers to free disk space
+    # Note: Do NOT clean Bazel cache - that defeats the persistent analysis cache benefit
+    setup_script: |
+      #!/bin/bash
+      set -euo pipefail
+      echo "Checking disk usage..."
+      df -h
+      echo "Cleaning up Docker resources..."
+      docker system prune -af --volumes || true
+      df -h
+      echo "Cleanup complete"
+
     # BuildBuddy VMs have persistent Bazel server = warm analysis cache
     bazel_commands:
       - "build //..."
