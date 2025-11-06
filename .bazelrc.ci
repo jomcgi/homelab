@@ -1,6 +1,11 @@
-# CI-specific startup options for persistent runners
+# CI-specific configuration for GitHub Actions runners with shared repository cache
 # This file is imported via try-import in user.bazelrc during CI builds
 
-# Use persistent output base to preserve extracted repositories between runs
-startup --output_base=/home/runner/.cache/bazel/output_base
+# Use shared read-only repository cache for external dependencies (prevents download storms)
+# This cache is populated daily by the bazel-cache-seeder CronJob
+common --repository_cache=/mnt/bazel-repo-cache/repository_cache
+
+# Output base uses writable ephemeral storage (default location under /home/runner/.cache/bazel/)
+# No need to set --output_base explicitly - Bazel will use writable default
+
 common --config=ci
