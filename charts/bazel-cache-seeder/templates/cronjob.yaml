@@ -1,0 +1,92 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "bazel-cache-seeder.fullname" . }}
+  labels:
+    {{- include "bazel-cache-seeder.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.cronjob.schedule | quote }}
+  successfulJobsHistoryLimit: {{ .Values.cronjob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.cronjob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      activeDeadlineSeconds: {{ .Values.cronjob.activeDeadlineSeconds }}
+      template:
+        metadata:
+          labels:
+            {{- include "bazel-cache-seeder.selectorLabels" . | nindent 12 }}
+        spec:
+          restartPolicy: OnFailure
+
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+
+          containers:
+          - name: seeder
+            image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+            imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+            command: ["/bin/bash", "-c"]
+            args:
+              - |
+                set -euo pipefail
+
+                echo "🌱 Starting Bazel cache seeding..."
+                echo "📦 Cache location: /home/runner/.cache/bazel"
+
+                # Clone repository to temporary location
+                REPO_DIR="/tmp/homelab"
+                git clone https://github.com/jomcgi/homelab.git "$REPO_DIR"
+                cd "$REPO_DIR"
+
+                # Install bazelisk to /home/runner/bin
+                mkdir -p /home/runner/bin
+                curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
+                mv bazelisk-linux-amd64 /home/runner/bin/bazel
+                chmod +x /home/runner/bin/bazel
+                export PATH="/home/runner/bin:$PATH"
+
+                {{- if .Values.buildbuddy.enabled }}
+                # Configure BuildBuddy if enabled
+                cat >> user.bazelrc << EOF
+                try-import %workspace%/.bazelrc.ci
+                common --remote_header=x-buildbuddy-api-key=$(cat /secrets/buildbuddy/api-key)
+                EOF
+                {{- end }}
+
+                echo "🔨 Running Bazel commands to populate cache..."
+                {{- range .Values.bazel.commands }}
+                echo "  Running: {{ . }}"
+                {{ . }} || echo "⚠️  Command failed (non-fatal)"
+                {{- end }}
+
+                echo "✅ Cache seeding complete!"
+                echo "📊 Cache statistics:"
+                du -sh /home/runner/.cache/bazel/* || true
+
+            volumeMounts:
+            - name: bazel-cache
+              mountPath: /home/runner/.cache
+            {{- if .Values.buildbuddy.enabled }}
+            - name: buildbuddy-secret
+              mountPath: /secrets/buildbuddy
+              readOnly: true
+            {{- end }}
+
+            resources:
+              {{- toYaml .Values.resources | nindent 14 }}
+
+          volumes:
+          - name: bazel-cache
+            persistentVolumeClaim:
+              claimName: {{ include "bazel-cache-seeder.fullname" . }}-cache
+          {{- if .Values.buildbuddy.enabled }}
+          - name: buildbuddy-secret
+            secret:
+              secretName: {{ .Values.buildbuddy.secretName }}
+          {{- end }}

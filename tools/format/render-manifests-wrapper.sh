@@ -2,6 +2,12 @@
 # Wrapper script to build all Helm manifests with Bazel caching
 set -euo pipefail
 
+# When run via `bazel run`, we're in the runfiles directory (inside bazel-out)
+# Need to cd to workspace root before calling bazel
+if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
+	cd "$BUILD_WORKSPACE_DIRECTORY"
+fi
+
 echo "🔨 Rendering all Helm manifests (with caching)..."
 bazel build //tools/argocd-parallel:render_all_parallel
 

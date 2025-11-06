@@ -1,0 +1,6 @@
+apiVersion: v2
+name: bazel-cache-seeder
+description: CronJob to maintain a shared Bazel repository cache for GitHub Actions runners
+type: application
+version: 0.1.0
+appVersion: "1.0"
