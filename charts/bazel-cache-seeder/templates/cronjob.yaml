@@ -42,10 +42,10 @@ spec:
                 # Clone repository with GitHub token authentication
                 REPO_DIR="/tmp/homelab"
                 GITHUB_TOKEN=$(cat /secrets/github/github_token)
-                REPO_URL="{{ .Values.github.repository }}"
 
-                # Clone using token (format: https://token@github.com/org/repo.git)
-                git clone "https://${GITHUB_TOKEN}@${REPO_URL#https://}" "$REPO_DIR"
+                # Clone using authenticated URL (format: https://username:token@github.com/org/repo.git)
+                GIT_REPO_WITH_AUTH="https://{{ .Values.github.username }}:${GITHUB_TOKEN}@github.com/{{ .Values.github.username }}/homelab.git"
+                git clone --depth 1 "$GIT_REPO_WITH_AUTH" "$REPO_DIR"
                 cd "$REPO_DIR"
 
                 # Install bazelisk to /home/runner/bin
@@ -94,7 +94,7 @@ spec:
               claimName: {{ include "bazel-cache-seeder.fullname" . }}-cache
           - name: github-secret
             secret:
-              secretName: {{ .Values.github.secretName }}
+              secretName: {{ include "bazel-cache-seeder.fullname" . }}-github
           {{- if .Values.buildbuddy.enabled }}
           - name: buildbuddy-secret
             secret:
