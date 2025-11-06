@@ -36,6 +36,9 @@ gpu-operator:
   # GPU Feature Discovery
   gfd:
     enabled: true
+    env:
+      - name: GFD_DEVICE_DISCOVERY_STRATEGY
+        value: nvml
 
   # Node Feature Discovery (for GPU node labeling)
   nfd:
