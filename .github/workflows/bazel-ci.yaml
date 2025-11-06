@@ -37,10 +37,10 @@ jobs:
           EOF
 
       - name: Build
-        run: "${GITHUB_WORKSPACE}/bin/bazel build //..."
+        run: "${GITHUB_WORKSPACE}/bin/bazel build --config=ci //..."
 
       - name: Test
-        run: "${GITHUB_WORKSPACE}/bin/bazel test //..."
+        run: "${GITHUB_WORKSPACE}/bin/bazel test --config=ci //..."
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -50,4 +50,4 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Push
-        run: "${GITHUB_WORKSPACE}/bin/bazel run //images:push_all"
+        run: "${GITHUB_WORKSPACE}/bin/bazel run --config=ci //images:push_all"
