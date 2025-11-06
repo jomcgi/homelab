@@ -1,11 +1,8 @@
-# CI-specific configuration for GitHub Actions runners with shared repository cache
+# CI-specific configuration for GitHub Actions runners
 # This file is imported via try-import in user.bazelrc during CI builds
 
-# Use shared read-only repository cache for external dependencies (prevents download storms)
-# This cache is populated daily by the bazel-cache-seeder CronJob
-common --repository_cache=/mnt/bazel-repo-cache/repository_cache
-
-# Output base uses writable ephemeral storage (default location under /home/runner/.cache/bazel/)
-# No need to set --output_base explicitly - Bazel will use writable default
+# Repository cache is pre-populated by init container from shared PVC
+# Cache is copied to default writable location (~/.cache/bazel/repository_cache)
+# This prevents download storms while allowing Bazel to write new dependencies
 
 common --config=ci
