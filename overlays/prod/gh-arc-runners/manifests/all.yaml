@@ -169,7 +169,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: b305b1dc3fc31c3c2ed7cdaf0ab11c21089f560364533a314fade0643b66850
+    actions.github.com/values-hash: 7aec5c601e83b0400863b9c1c466f72c51a6c70a655b3384862560efc07f934
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -221,10 +221,10 @@ spec:
           ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         resources: 
           limits:
-            memory: 1Gi
+            memory: 2Gi
           requests:
-            cpu: 500m
-            memory: 1Gi
+            cpu: 1000m
+            memory: 2Gi
         env:
           - name: DOCKER_HOST
             value: unix:///var/run/docker.sock
