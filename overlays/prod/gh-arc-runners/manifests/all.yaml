@@ -169,7 +169,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: 7e6f92fafaec8d1f431666c47fff51ce15b5dae758f826d828397257fc730ce
+    actions.github.com/values-hash: f0a8dabcf296dff3351bd313c8a5b803b7d25762fd7adc8b003c833772f5218
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -219,12 +219,14 @@ spec:
           set -euo pipefail
           echo "Copying shared repository cache to writable location..."
           mkdir -p /home/runner/.cache/bazel/repository_cache
-          if [ -d /mnt/bazel-repo-cache-source/repository_cache ]; then
-            rsync -a --info=progress2 /mnt/bazel-repo-cache-source/repository_cache/ /home/runner/.cache/bazel/repository_cache/
+          if [ -d /mnt/bazel-repo-cache-source/bazel/repository_cache ]; then
+            echo "Found cache source, copying..."
+            rsync -a --info=progress2 /mnt/bazel-repo-cache-source/bazel/repository_cache/ /home/runner/.cache/bazel/repository_cache/
             echo "Cache copy complete. Size:"
             du -sh /home/runner/.cache/bazel/repository_cache
           else
-            echo "Source cache not found, starting with empty cache"
+            echo "Source cache not found at /mnt/bazel-repo-cache-source/bazel/repository_cache, starting with empty cache"
+            ls -la /mnt/bazel-repo-cache-source/ || echo "Mount point not accessible"
           fi
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         name: copy-cache
