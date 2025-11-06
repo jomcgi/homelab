@@ -15,7 +15,7 @@ spec:
         - ../../overlays/cluster-critical/bazel-cache-seeder/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: gh-arc  # Same namespace as runners
+    namespace: gh-arc-runners  # Same namespace as runners
   syncPolicy:
     automated:
       prune: true
