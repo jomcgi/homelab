@@ -43,24 +43,23 @@ gha-runner-scale-set:
       imagePullSecrets:
       - name: ghcr-imagepull-secret
 
-      # TEMPORARY: Cache mount disabled while initial seeding completes
-      # TODO: Re-enable after first bazel-cache-seeder job succeeds
-      # volumes:
-      # - name: bazel-cache
-      #   persistentVolumeClaim:
-      #     claimName: bazel-cache-seeder-cache
-      #     readOnly: true
+      # Shared read-only Bazel cache populated by bazel-cache-seeder CronJob
+      volumes:
+      - name: bazel-cache
+        persistentVolumeClaim:
+          claimName: bazel-cache-seeder-cache
+          readOnly: true
 
       containers:
       - name: runner
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
 
-        # TEMPORARY: Cache mount disabled while initial seeding completes
-        # volumeMounts:
-        # - name: bazel-cache
-        #   mountPath: /home/runner/.cache
-        #   readOnly: true
+        # Mount shared Bazel cache (read-only to prevent corruption)
+        volumeMounts:
+        - name: bazel-cache
+          mountPath: /home/runner/.cache
+          readOnly: true
 
         resources:
           limits:
