@@ -39,9 +39,13 @@ spec:
                 echo "🌱 Starting Bazel cache seeding..."
                 echo "📦 Cache location: /home/runner/.cache/bazel"
 
-                # Clone repository to temporary location
+                # Clone repository with GitHub token authentication
                 REPO_DIR="/tmp/homelab"
-                git clone https://github.com/jomcgi/homelab.git "$REPO_DIR"
+                GITHUB_TOKEN=$(cat /secrets/github/github_token)
+                REPO_URL="{{ .Values.github.repository }}"
+
+                # Clone using token (format: https://token@github.com/org/repo.git)
+                git clone "https://${GITHUB_TOKEN}@${REPO_URL#https://}" "$REPO_DIR"
                 cd "$REPO_DIR"
 
                 # Install bazelisk to /home/runner/bin
@@ -72,6 +76,9 @@ spec:
             volumeMounts:
             - name: bazel-cache
               mountPath: /home/runner/.cache
+            - name: github-secret
+              mountPath: /secrets/github
+              readOnly: true
             {{- if .Values.buildbuddy.enabled }}
             - name: buildbuddy-secret
               mountPath: /secrets/buildbuddy
@@ -85,6 +92,9 @@ spec:
           - name: bazel-cache
             persistentVolumeClaim:
               claimName: {{ include "bazel-cache-seeder.fullname" . }}-cache
+          - name: github-secret
+            secret:
+              secretName: {{ .Values.github.secretName }}
           {{- if .Values.buildbuddy.enabled }}
           - name: buildbuddy-secret
             secret:

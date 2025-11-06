@@ -169,7 +169,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: 2e7ce3c67b78f64b27e15dbd9602511293ec337de909ad404e14c3d606309df
+    actions.github.com/values-hash: 7aec5c601e83b0400863b9c1c466f72c51a6c70a655b3384862560efc07f934
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -231,10 +231,6 @@ spec:
           - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
             value: "120"
         volumeMounts:
-          - 
-            mountPath: /home/runner/.cache
-            name: bazel-cache
-            readOnly: true
           - name: work
             mountPath: /home/runner/_work
           - name: dind-sock
@@ -266,12 +262,6 @@ spec:
       
       - name: work
         emptyDir: {}
-      
-      - 
-        name: bazel-cache
-        persistentVolumeClaim:
-          claimName: bazel-cache-seeder-cache
-          readOnly: true
 ---
 # Source: gh-arc-runners/templates/ghcr-imagepullsecret.yaml
 # GHCR Pull Secret (for Kubernetes image pulls)
