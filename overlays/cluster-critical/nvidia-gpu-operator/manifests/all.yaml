@@ -1238,10 +1238,8 @@ spec:
     version: "v0.17.1"
     imagePullPolicy: IfNotPresent
     env: 
-      - name: GFD_SLEEP_INTERVAL
-        value: 60s
-      - name: GFD_FAIL_ON_INIT_ERROR
-        value: "true"
+      - name: GFD_DEVICE_DISCOVERY_STRATEGY
+        value: nvml
   migManager:
     enabled: false
     repository: nvcr.io/nvidia/cloud-native
