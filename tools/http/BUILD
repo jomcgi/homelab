@@ -19,6 +19,5 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "@bazel_tools//tools/build_defs/repo:http.bzl",
-        "@rules_pkg//pkg:tar",
     ],
 )

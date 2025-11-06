@@ -60,21 +60,18 @@ bzl_library(
     name = "multiarch_binary_from_http",
     srcs = ["multiarch_binary_from_http.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_pkg//pkg:tar"],
 )
 
 bzl_library(
     name = "multiarch_binary_tar",
     srcs = ["multiarch_binary_tar.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_pkg//pkg:tar"],
 )
 
 bzl_library(
     name = "multiplatform_tar",
     srcs = ["multiplatform_tar.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_pkg//pkg:tar"],
 )
 
 bzl_library(
