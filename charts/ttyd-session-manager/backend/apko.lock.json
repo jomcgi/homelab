@@ -859,22 +859,22 @@
       },
       {
         "name": "findutils",
-        "url": "https://packages.wolfi.dev/os/x86_64/findutils-4.10.0-r3.apk",
-        "version": "4.10.0-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/findutils-4.10.0-r4.apk",
+        "version": "4.10.0-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-3247",
-          "checksum": "sha1-AVl3FwhnvH7ay0HJM8Dpe/DVcgY="
+          "range": "bytes=0-3327",
+          "checksum": "sha1-iFOm3xX4brk/TF5JcE9HJO6vX4A="
         },
         "data": {
-          "range": "bytes=3248-170041",
-          "checksum": "sha256-UVX+ZDXrzPb0KpwCejIdSZQz+t5cwnemTydQAlsi9lU="
+          "range": "bytes=3328-170161",
+          "checksum": "sha256-9aumCxbk9g6sJKzKvD0+RU8NBtdJb3EG2xhcXnKaZmY="
         },
-        "checksum": "Q1AVl3FwhnvH7ay0HJM8Dpe/DVcgY="
+        "checksum": "Q1iFOm3xX4brk/TF5JcE9HJO6vX4A="
       },
       {
         "name": "libpcre2-32-0",
@@ -2493,22 +2493,22 @@
       },
       {
         "name": "findutils",
-        "url": "https://packages.wolfi.dev/os/aarch64/findutils-4.10.0-r3.apk",
-        "version": "4.10.0-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/findutils-4.10.0-r4.apk",
+        "version": "4.10.0-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-3273",
-          "checksum": "sha1-T+Te5HHhts+G58EZprHghySNp7Y="
+          "range": "bytes=0-3356",
+          "checksum": "sha1-o7dgybXV/9xKaLxEwGq1AvFROF0="
         },
         "data": {
-          "range": "bytes=3274-174076",
-          "checksum": "sha256-C7lqIeAsJfu79DOzi4rsUZjnZRtRUTd0cWI+FAdJST0="
+          "range": "bytes=3357-174317",
+          "checksum": "sha256-kFPA8CoxXXlAXs+M/ECYQt3oxqD93S7TbbpxpE+9W3s="
         },
-        "checksum": "Q1T+Te5HHhts+G58EZprHghySNp7Y="
+        "checksum": "Q1o7dgybXV/9xKaLxEwGq1AvFROF0="
       },
       {
         "name": "libpcre2-32-0",

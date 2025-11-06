@@ -2,6 +2,11 @@
 # Auto-generate images/BUILD with push_all_images multirun target
 set -euo pipefail
 
+# When run via `bazel run`, cd to workspace root before calling bazel
+if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then
+	cd "$BUILD_WORKSPACE_DIRECTORY"
+fi
+
 BUILD_FILE="images/BUILD"
 
 PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)

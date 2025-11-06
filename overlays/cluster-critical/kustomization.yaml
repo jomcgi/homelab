@@ -4,6 +4,7 @@ kind: Kustomization
 resources:
   - ./argocd
   - ./argocd-image-updater
+  - ./bazel-cache-seeder
   - ./envoy
   - ./kyverno
   - ./longhorn

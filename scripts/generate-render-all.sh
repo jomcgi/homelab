@@ -4,6 +4,9 @@ set -euo pipefail
 
 # Get the repository root (works in both Bazel and standalone execution)
 REPO_ROOT="${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
+
+# When run via `bazel run`, cd to workspace root before calling bazel
+cd "$REPO_ROOT"
 BUILD_DIR="$REPO_ROOT/tools/argocd-parallel"
 BUILD_FILE="$BUILD_DIR/BUILD"
 

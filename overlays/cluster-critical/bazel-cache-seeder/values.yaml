@@ -1,0 +1,21 @@
+# Cluster-specific overrides for Bazel cache seeder
+
+# Run daily at 3am (more frequent than weekly default)
+cronjob:
+  schedule: "0 3 * * *"
+
+# Use existing image pull secret from gh-arc-runners
+imagePullSecrets:
+  - name: ghcr-imagepull-secret
+
+# Enable BuildBuddy remote cache for faster seeding
+buildbuddy:
+  enabled: true
+  secretName: buildbuddy-api-key
+
+# Larger cache for production use
+persistence:
+  size: 50Gi
+  annotations:
+    # Three replicas for better availability
+    longhorn.io/numberOfReplicas: "3"
