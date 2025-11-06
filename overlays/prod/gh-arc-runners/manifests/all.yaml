@@ -169,7 +169,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: f0a8dabcf296dff3351bd313c8a5b803b7d25762fd7adc8b003c833772f5218
+    actions.github.com/values-hash: b305b1dc3fc31c3c2ed7cdaf0ab11c21089f560364533a314fade0643b66850
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -212,30 +212,6 @@ spec:
         volumeMounts:
           - name: dind-externals
             mountPath: /home/runner/tmpDir
-      - command:
-        - /bin/bash
-        - -c
-        - |
-          set -euo pipefail
-          echo "Copying shared repository cache to writable location..."
-          mkdir -p /home/runner/.cache/bazel/repository_cache
-          if [ -d /mnt/bazel-repo-cache-source/bazel/repository_cache ]; then
-            echo "Found cache source, copying..."
-            rsync -a --info=progress2 /mnt/bazel-repo-cache-source/bazel/repository_cache/ /home/runner/.cache/bazel/repository_cache/
-            echo "Cache copy complete. Size:"
-            du -sh /home/runner/.cache/bazel/repository_cache
-          else
-            echo "Source cache not found at /mnt/bazel-repo-cache-source/bazel/repository_cache, starting with empty cache"
-            ls -la /mnt/bazel-repo-cache-source/ || echo "Mount point not accessible"
-          fi
-        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
-        name: copy-cache
-        volumeMounts:
-        - mountPath: /mnt/bazel-repo-cache-source
-          name: bazel-repo-cache-source
-          readOnly: true
-        - mountPath: /home/runner
-          name: work
       containers:
       - name: runner
         
@@ -245,10 +221,10 @@ spec:
           ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         resources: 
           limits:
-            memory: 2Gi
+            memory: 1Gi
           requests:
-            cpu: 1000m
-            memory: 2Gi
+            cpu: 500m
+            memory: 1Gi
         env:
           - name: DOCKER_HOST
             value: unix:///var/run/docker.sock
@@ -286,12 +262,6 @@ spec:
       
       - name: work
         emptyDir: {}
-      
-      - 
-        name: bazel-repo-cache-source
-        persistentVolumeClaim:
-          claimName: bazel-cache-seeder-cache
-          readOnly: true
 ---
 # Source: gh-arc-runners/templates/ghcr-imagepullsecret.yaml
 # GHCR Pull Secret (for Kubernetes image pulls)
