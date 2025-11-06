@@ -169,7 +169,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: cedf0a4184bd4e30c343718c714773937d07c3a65165c3b34bc02be4c2fe7ed
+    actions.github.com/values-hash: 7e6f92fafaec8d1f431666c47fff51ce15b5dae758f826d828397257fc730ce
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -212,6 +212,28 @@ spec:
         volumeMounts:
           - name: dind-externals
             mountPath: /home/runner/tmpDir
+      - command:
+        - /bin/bash
+        - -c
+        - |
+          set -euo pipefail
+          echo "Copying shared repository cache to writable location..."
+          mkdir -p /home/runner/.cache/bazel/repository_cache
+          if [ -d /mnt/bazel-repo-cache-source/repository_cache ]; then
+            rsync -a --info=progress2 /mnt/bazel-repo-cache-source/repository_cache/ /home/runner/.cache/bazel/repository_cache/
+            echo "Cache copy complete. Size:"
+            du -sh /home/runner/.cache/bazel/repository_cache
+          else
+            echo "Source cache not found, starting with empty cache"
+          fi
+        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
+        name: copy-cache
+        volumeMounts:
+        - mountPath: /mnt/bazel-repo-cache-source
+          name: bazel-repo-cache-source
+          readOnly: true
+        - mountPath: /home/runner
+          name: work
       containers:
       - name: runner
         
@@ -231,10 +253,6 @@ spec:
           - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
             value: "120"
         volumeMounts:
-          - 
-            mountPath: /mnt/bazel-repo-cache
-            name: bazel-repo-cache
-            readOnly: true
           - name: work
             mountPath: /home/runner/_work
           - name: dind-sock
@@ -268,7 +286,7 @@ spec:
         emptyDir: {}
       
       - 
-        name: bazel-repo-cache
+        name: bazel-repo-cache-source
         persistentVolumeClaim:
           claimName: bazel-cache-seeder-cache
           readOnly: true
