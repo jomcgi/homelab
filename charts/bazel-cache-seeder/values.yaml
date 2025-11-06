@@ -51,6 +51,13 @@ securityContext:
   seccompProfile:
     type: RuntimeDefault
 
+# GitHub configuration for repo access
+github:
+  # Secret containing github_token field
+  secretName: gh-arc-secret
+  # Repository URL (will be cloned with token authentication)
+  repository: https://github.com/jomcgi/homelab.git
+
 # Bazel configuration
 bazel:
   # Bazelisk will be pre-installed in runner image
