@@ -292,6 +292,8 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"-p", "7682", // Envoy proxies 7681->7682
 						"-W",
 						"--writable",
+						"-o", "disableLeaveAlert=true", // Disable leave page alert
+						"-o", "rendererType=dom", // Use DOM renderer (may help with mouse events)
 						"opencode",
 					},
 					WorkingDir: "/workspace/session",
