@@ -22,63 +22,32 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Build, Test, and Push run on BuildBuddy Workflows (persistent VMs with warm Bazel server)
-      # Format check runs separately via auto-format.yaml workflow
-      # Secrets (GITHUB_TOKEN, GITHUB_ACTOR) are stored in BuildBuddy, not passed via API
-      - name: Build, Test & Push with BuildBuddy Workflows
-        env:
-          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+      - name: Install bazelisk
         run: |
-          echo "🚀 Triggering BuildBuddy Workflows for build, test, and push..."
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
+          mkdir -p "${GITHUB_WORKSPACE}/bin/"
+          mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
+          chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
 
-          # Call BuildBuddy ExecuteWorkflow API
-          response=$(curl -s -w "\n%{http_code}" -d '{
-            "repo_url": "https://github.com/jomcgi/homelab",
-            "branch": "${{ github.ref_name }}",
-            "commit_sha": "${{ github.sha }}",
-            "action_names": ["Build", "Test", "Push"],
-            "async": false
-          }' \
-          -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-          -H 'Content-Type: application/json' \
-          https://app.buildbuddy.io/api/v1/ExecuteWorkflow)
+      - name: Configure Bazel
+        run: |
+          cat >> user.bazelrc << EOF
+          # BuildBuddy RBE configuration (already in .bazelrc)
+          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          EOF
 
-          # Parse response
-          http_code=$(echo "$response" | tail -n1)
-          body=$(echo "$response" | head -n-1)
+      - name: Build
+        run: "${GITHUB_WORKSPACE}/bin/bazel build //..."
 
-          echo "Response: $body"
+      - name: Test
+        run: "${GITHUB_WORKSPACE}/bin/bazel test //..."
 
-          if [ "$http_code" != "200" ]; then
-            echo "❌ Failed to execute BuildBuddy workflow (HTTP $http_code)"
-            echo "$body"
-            exit 1
-          fi
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-          # Check if any action failed (status.code != 0)
-          if echo "$body" | grep -q '"code":[^0]'; then
-            echo "❌ One or more BuildBuddy actions failed"
-
-            # Extract and display action statuses
-            echo "$body" | python3 -c '
-          import sys, json
-          data = json.load(sys.stdin)
-          for action in data.get("actionStatuses", []):
-              name = action.get("actionName", "Unknown")
-              inv_id = action.get("invocationId", "N/A")
-              status = action.get("status", {})
-              code = status.get("code", 0)
-              message = status.get("message", "")
-
-              if code != 0:
-                  print(f"❌ {name}: Failed (code {code})")
-                  print(f"   Invocation: https://app.buildbuddy.io/invocation/{inv_id}")
-                  print(f"   Error: {message}")
-              else:
-                  print(f"✅ {name}: Success")
-                  print(f"   Invocation: https://app.buildbuddy.io/invocation/{inv_id}")
-          '
-            exit 1
-          fi
-
-          echo "✅ BuildBuddy workflow completed successfully"
+      - name: Push
+        run: "${GITHUB_WORKSPACE}/bin/bazel run //images:push_all"

@@ -33,9 +33,11 @@ gha-runner-scale-set:
     namespace: "gh-arc-controller"
     name: "arc-controller"
 
+  # Enable Docker-in-Docker for container builds
+  containerMode:
+    type: "dind"
+
   # Runner pod template
-  # Note: All builds run on BuildBuddy Workflows with persistent VMs
-  # Self-hosted runners only handle workflow orchestration (checkout, API calls)
   template:
     spec:
       imagePullSecrets:
@@ -48,10 +50,10 @@ gha-runner-scale-set:
 
         resources:
           limits:
-            memory: 1Gi     # Reduced - only running format checks now
+            memory: 2Gi     # Increased for builds
           requests:
-            cpu: 500m
-            memory: 1Gi
+            cpu: 1000m
+            memory: 2Gi
 
   listenerTemplate:
     spec:
