@@ -18,9 +18,13 @@
 build:ci --remote_executor=grpcs://remote.buildbuddy.io
 build:ci --remote_cache=grpcs://remote.buildbuddy.io
 build:ci --remote_timeout=3600
-build:ci --jobs=80  # Use all 80 available cores
+build:ci --jobs=80  # Use all 80 available cores for remote execution
 build:ci --remote_cache_compression  # Faster transfers
 build:ci --remote_download_minimal  # Don't download unnecessary outputs
+
+# Analysis phase - runs locally on runner with 4 CPUs
+build:ci-analysis --jobs=4
+build:ci-analysis --nobuild  # Analysis only, no execution
 
 # =============================================================================
 # BuildBuddy Managed Toolchains
