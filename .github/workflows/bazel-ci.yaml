@@ -55,4 +55,30 @@ jobs:
             exit 1
           fi
 
+          # Check if any action failed (status.code != 0)
+          if echo "$body" | grep -q '"code":[^0]'; then
+            echo "❌ One or more BuildBuddy actions failed"
+
+            # Extract and display action statuses
+            echo "$body" | python3 -c '
+          import sys, json
+          data = json.load(sys.stdin)
+          for action in data.get("actionStatuses", []):
+              name = action.get("actionName", "Unknown")
+              inv_id = action.get("invocationId", "N/A")
+              status = action.get("status", {})
+              code = status.get("code", 0)
+              message = status.get("message", "")
+
+              if code != 0:
+                  print(f"❌ {name}: Failed (code {code})")
+                  print(f"   Invocation: https://app.buildbuddy.io/invocation/{inv_id}")
+                  print(f"   Error: {message}")
+              else:
+                  print(f"✅ {name}: Success")
+                  print(f"   Invocation: https://app.buildbuddy.io/invocation/{inv_id}")
+          '
+            exit 1
+          fi
+
           echo "✅ BuildBuddy workflow completed successfully"
