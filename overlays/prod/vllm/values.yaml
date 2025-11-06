@@ -4,7 +4,7 @@ vllm-stack:
       - name: "gemma-3-12b"
         # vLLM OpenAI-compatible server image
         repository: "vllm/vllm-openai"
-        tag: "latest"
+        tag: "v0.11.0"  # Latest stable release (Oct 2025)
         # Hugging Face model ID
         modelURL: "google/gemma-3-12b-it"
         replicaCount: 1
