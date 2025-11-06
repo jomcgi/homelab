@@ -8,10 +8,10 @@ cronjob:
 imagePullSecrets:
   - name: ghcr-imagepull-secret
 
-# Enable BuildBuddy remote cache for faster seeding
+# BuildBuddy disabled - not needed for cache seeding
+# (CI runners still use BuildBuddy via user.bazelrc in GitHub Actions)
 buildbuddy:
-  enabled: true
-  secretName: buildbuddy-api-key
+  enabled: false
 
 # Larger cache for production use
 persistence:
