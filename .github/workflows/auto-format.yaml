@@ -1,0 +1,110 @@
+name: Auto Format Code
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+# Ensure only one auto-format job runs per PR at a time
+concurrency:
+  group: auto-format-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  auto-format:
+    name: Auto-format code on PR
+    runs-on: homelab-runners
+
+    # Only run on PRs from the same repository (not forks)
+    if: github.event.pull_request.head.repo.full_name == github.repository
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Install bazelisk
+        run: |
+          curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
+          mkdir -p "${GITHUB_WORKSPACE}/bin/"
+          mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
+          chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
+
+      - name: Configure Bazel
+        run: |
+          cat >> user.bazelrc << EOF
+          # Import CI-specific startup options (persistent output base)
+          try-import %workspace%/.bazelrc.ci
+          common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+          EOF
+
+      - name: Check formatting
+        id: format-check
+        continue-on-error: true
+        run: "${GITHUB_WORKSPACE}/bin/bazel run //tools/format:format_code.check"
+
+      - name: Auto-fix formatting
+        if: steps.format-check.outcome == 'failure'
+        run: |
+          echo "❌ Formatting check failed. Running auto-formatter..."
+          "${GITHUB_WORKSPACE}/bin/bazel run //tools/format:format_code"
+
+      - name: Check for changes
+        if: steps.format-check.outcome == 'failure'
+        id: check-changes
+        run: |
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Formatting changes detected"
+          else
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "⚠️  No formatting changes needed"
+          fi
+
+      - name: Commit and push formatting fixes
+        if: steps.format-check.outcome == 'failure' && steps.check-changes.outputs.has_changes == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add -A
+          git commit -m "style: auto-format code with Bazel formatters
+
+          Applied formatting fixes using:
+          - gofumpt (Go)
+          - prettier (JavaScript/TypeScript/YAML)
+          - ruff (Python)
+          - shfmt (Shell)
+          - buildifier (Starlark/BUILD files)
+          - rustfmt (Rust)
+
+          Co-authored-by: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          git push
+
+      - name: Comment on PR
+        if: steps.format-check.outcome == 'failure' && steps.check-changes.outputs.has_changes == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '🤖 **Auto-formatted your code!**\n\n' +
+                    'I detected formatting issues and automatically applied fixes using our Bazel formatters.\n\n' +
+                    'The changes have been pushed to this PR. Please pull the latest changes before continuing your work:\n' +
+                    '```bash\n' +
+                    'git pull\n' +
+                    '```'
+            })
+
+      - name: Format check passed
+        if: steps.format-check.outcome == 'success'
+        run: echo "✅ All code is properly formatted!"
