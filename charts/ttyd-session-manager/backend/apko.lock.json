@@ -345,6 +345,63 @@
         "checksum": "Q16iyG/YpKYl0s+3rHQfWyUlsrxhQ="
       },
       {
+        "name": "libpcre2-8-0",
+        "url": "https://packages.wolfi.dev/os/x86_64/libpcre2-8-0-10.47-r0.apk",
+        "version": "10.47-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6848",
+          "checksum": "sha1-5bkXL31L9lMVsxJdyleMiTb2Esg="
+        },
+        "data": {
+          "range": "bytes=6849-307246",
+          "checksum": "sha256-LBagnNrkJtEnWnNJIYKGEllGZqRH6y5+9I9lQ05+NIs="
+        },
+        "checksum": "Q15bkXL31L9lMVsxJdyleMiTb2Esg="
+      },
+      {
+        "name": "libsepol",
+        "url": "https://packages.wolfi.dev/os/x86_64/libsepol-3.9-r1.apk",
+        "version": "3.9-r1",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5155",
+          "checksum": "sha1-ppFXuA3Zl0u8MGw+fIH9xJeDkXQ="
+        },
+        "data": {
+          "range": "bytes=5156-438231",
+          "checksum": "sha256-f1sW7pF/ZxmgdKJwPGETprAqmF4cssWPIV7FstqjRw8="
+        },
+        "checksum": "Q1ppFXuA3Zl0u8MGw+fIH9xJeDkXQ="
+      },
+      {
+        "name": "libselinux",
+        "url": "https://packages.wolfi.dev/os/x86_64/libselinux-3.9-r1.apk",
+        "version": "3.9-r1",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6528",
+          "checksum": "sha1-0bVAUjCl/D35fpdyf78Y3jsNzGo="
+        },
+        "data": {
+          "range": "bytes=6529-317447",
+          "checksum": "sha256-KlA5zXxnsD5nwz5AZGzJvR75VfHO2HTB47Bp7vJ2pHY="
+        },
+        "checksum": "Q10bVAUjCl/D35fpdyf78Y3jsNzGo="
+      },
+      {
         "name": "libcrypto3",
         "url": "https://packages.wolfi.dev/os/x86_64/libcrypto3-3.6.0-r3.apk",
         "version": "3.6.0-r3",
@@ -365,22 +422,22 @@
       },
       {
         "name": "coreutils",
-        "url": "https://packages.wolfi.dev/os/x86_64/coreutils-9.8-r0.apk",
-        "version": "9.8-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/coreutils-9.8-r1.apk",
+        "version": "9.8-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5173",
-          "checksum": "sha1-8rys++Gzajh/jzKyZwH4dtgbpw0="
+          "range": "bytes=0-5227",
+          "checksum": "sha1-pwvcvGaV2Lt0d3047VzHtSz/TfI="
         },
         "data": {
-          "range": "bytes=5174-765340",
-          "checksum": "sha256-JSQjEYBwG+ZWIypTat1BSH5wgZ5ptMREiWooIc0KsTo="
+          "range": "bytes=5228-768460",
+          "checksum": "sha256-XejmuMO6tOTEO6Rbm2hpm3uJngiKyLIx4/1Va4Wg79Y="
         },
-        "checksum": "Q18rys++Gzajh/jzKyZwH4dtgbpw0="
+        "checksum": "Q1pwvcvGaV2Lt0d3047VzHtSz/TfI="
       },
       {
         "name": "nghttp3",
@@ -839,25 +896,6 @@
         "checksum": "Q1kqqsoGyV9gtG6+ancSXqokGzvXs="
       },
       {
-        "name": "libpcre2-8-0",
-        "url": "https://packages.wolfi.dev/os/x86_64/libpcre2-8-0-10.47-r0.apk",
-        "version": "10.47-r0",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-6848",
-          "checksum": "sha1-5bkXL31L9lMVsxJdyleMiTb2Esg="
-        },
-        "data": {
-          "range": "bytes=6849-307246",
-          "checksum": "sha256-LBagnNrkJtEnWnNJIYKGEllGZqRH6y5+9I9lQ05+NIs="
-        },
-        "checksum": "Q15bkXL31L9lMVsxJdyleMiTb2Esg="
-      },
-      {
         "name": "fish",
         "url": "https://packages.wolfi.dev/os/x86_64/fish-4.1.2-r0.apk",
         "version": "4.1.2-r0",
@@ -1141,44 +1179,6 @@
           "checksum": "sha256-Iu3gMQSATx/lcK+Zep61gMKgRT6lpYpCCyfEfj8xjGM="
         },
         "checksum": "Q1ijXOKZikfr4o35/o8PY7bRq84Ds="
-      },
-      {
-        "name": "libsepol",
-        "url": "https://packages.wolfi.dev/os/x86_64/libsepol-3.9-r1.apk",
-        "version": "3.9-r1",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-5155",
-          "checksum": "sha1-ppFXuA3Zl0u8MGw+fIH9xJeDkXQ="
-        },
-        "data": {
-          "range": "bytes=5156-438231",
-          "checksum": "sha256-f1sW7pF/ZxmgdKJwPGETprAqmF4cssWPIV7FstqjRw8="
-        },
-        "checksum": "Q1ppFXuA3Zl0u8MGw+fIH9xJeDkXQ="
-      },
-      {
-        "name": "libselinux",
-        "url": "https://packages.wolfi.dev/os/x86_64/libselinux-3.9-r1.apk",
-        "version": "3.9-r1",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-6528",
-          "checksum": "sha1-0bVAUjCl/D35fpdyf78Y3jsNzGo="
-        },
-        "data": {
-          "range": "bytes=6529-317447",
-          "checksum": "sha256-KlA5zXxnsD5nwz5AZGzJvR75VfHO2HTB47Bp7vJ2pHY="
-        },
-        "checksum": "Q10bVAUjCl/D35fpdyf78Y3jsNzGo="
       },
       {
         "name": "openssh-client",
@@ -1979,6 +1979,63 @@
         "checksum": "Q12GHoRJXl0Um2lr/X6c5AQgDrFg4="
       },
       {
+        "name": "libpcre2-8-0",
+        "url": "https://packages.wolfi.dev/os/aarch64/libpcre2-8-0-10.47-r0.apk",
+        "version": "10.47-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6891",
+          "checksum": "sha1-lNf7ODNAkpMSoBvdKCbPrNH+78w="
+        },
+        "data": {
+          "range": "bytes=6892-284052",
+          "checksum": "sha256-c1gHKQBjlH7hmsX+z8z4f6UT3dWMoMQg5aqWNhDOzfs="
+        },
+        "checksum": "Q1lNf7ODNAkpMSoBvdKCbPrNH+78w="
+      },
+      {
+        "name": "libsepol",
+        "url": "https://packages.wolfi.dev/os/aarch64/libsepol-3.9-r1.apk",
+        "version": "3.9-r1",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5187",
+          "checksum": "sha1-W1e8Dqys/Al8FHmuCo/tZQfatqo="
+        },
+        "data": {
+          "range": "bytes=5188-445502",
+          "checksum": "sha256-SJm4ROFqiLK4eN//YaGQ5QuPRzsglMcvhfHRpUhVovc="
+        },
+        "checksum": "Q1W1e8Dqys/Al8FHmuCo/tZQfatqo="
+      },
+      {
+        "name": "libselinux",
+        "url": "https://packages.wolfi.dev/os/aarch64/libselinux-3.9-r1.apk",
+        "version": "3.9-r1",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6552",
+          "checksum": "sha1-qhmA0X7jLkalwYAfZHC+sND16i4="
+        },
+        "data": {
+          "range": "bytes=6553-428681",
+          "checksum": "sha256-jmZNslAoq66MpyKXOxy4h55kcLPaH2tkzrWweAAIE0c="
+        },
+        "checksum": "Q1qhmA0X7jLkalwYAfZHC+sND16i4="
+      },
+      {
         "name": "libcrypto3",
         "url": "https://packages.wolfi.dev/os/aarch64/libcrypto3-3.6.0-r3.apk",
         "version": "3.6.0-r3",
@@ -1999,22 +2056,22 @@
       },
       {
         "name": "coreutils",
-        "url": "https://packages.wolfi.dev/os/aarch64/coreutils-9.8-r0.apk",
-        "version": "9.8-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/coreutils-9.8-r1.apk",
+        "version": "9.8-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5205",
-          "checksum": "sha1-D1psE2bRoo0q0BfWh45W9/ZRE0E="
+          "range": "bytes=0-5258",
+          "checksum": "sha1-PmOnl0h3yVpmAzAm1QLahyGKZ2o="
         },
         "data": {
-          "range": "bytes=5206-745502",
-          "checksum": "sha256-JiX9PbrGoBmJx5P/v+QOMVOWcR57X6EecjnaknwrkcE="
+          "range": "bytes=5259-751192",
+          "checksum": "sha256-9nowLxyAzZ1oV/mHFs5Yfl+TBUreGFDEumYZDYZkNRQ="
         },
-        "checksum": "Q1D1psE2bRoo0q0BfWh45W9/ZRE0E="
+        "checksum": "Q1PmOnl0h3yVpmAzAm1QLahyGKZ2o="
       },
       {
         "name": "nghttp3",
@@ -2473,25 +2530,6 @@
         "checksum": "Q1iWXrziTkrzBicK4Ee+lhaS5vt10="
       },
       {
-        "name": "libpcre2-8-0",
-        "url": "https://packages.wolfi.dev/os/aarch64/libpcre2-8-0-10.47-r0.apk",
-        "version": "10.47-r0",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-6891",
-          "checksum": "sha1-lNf7ODNAkpMSoBvdKCbPrNH+78w="
-        },
-        "data": {
-          "range": "bytes=6892-284052",
-          "checksum": "sha256-c1gHKQBjlH7hmsX+z8z4f6UT3dWMoMQg5aqWNhDOzfs="
-        },
-        "checksum": "Q1lNf7ODNAkpMSoBvdKCbPrNH+78w="
-      },
-      {
         "name": "fish",
         "url": "https://packages.wolfi.dev/os/aarch64/fish-4.1.2-r0.apk",
         "version": "4.1.2-r0",
@@ -2775,44 +2813,6 @@
           "checksum": "sha256-xQN+0p1v3uSY3aj0gp6hUqro3FEvyMlWxeRUArQhybk="
         },
         "checksum": "Q15OK8cUWgK+AAymX470y2JuS5+mQ="
-      },
-      {
-        "name": "libsepol",
-        "url": "https://packages.wolfi.dev/os/aarch64/libsepol-3.9-r1.apk",
-        "version": "3.9-r1",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-5187",
-          "checksum": "sha1-W1e8Dqys/Al8FHmuCo/tZQfatqo="
-        },
-        "data": {
-          "range": "bytes=5188-445502",
-          "checksum": "sha256-SJm4ROFqiLK4eN//YaGQ5QuPRzsglMcvhfHRpUhVovc="
-        },
-        "checksum": "Q1W1e8Dqys/Al8FHmuCo/tZQfatqo="
-      },
-      {
-        "name": "libselinux",
-        "url": "https://packages.wolfi.dev/os/aarch64/libselinux-3.9-r1.apk",
-        "version": "3.9-r1",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-6552",
-          "checksum": "sha1-qhmA0X7jLkalwYAfZHC+sND16i4="
-        },
-        "data": {
-          "range": "bytes=6553-428681",
-          "checksum": "sha256-jmZNslAoq66MpyKXOxy4h55kcLPaH2tkzrWweAAIE0c="
-        },
-        "checksum": "Q1qhmA0X7jLkalwYAfZHC+sND16i4="
       },
       {
         "name": "openssh-client",
