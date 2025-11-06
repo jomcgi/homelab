@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   update-data:
-    runs-on: bazel-runner  # Needs Docker-in-Docker to pull and run images
+    runs-on: homelab-runners  # Needs Docker-in-Docker to pull and run images
     timeout-minutes: 10
     name: Update Hike Data
 
@@ -43,7 +43,7 @@ jobs:
             ghcr.io/jomcgi/homelab/services/hikes/update_forecast:main
 
   deploy:
-    runs-on: bazel-runner
+    runs-on: homelab-runners
     name: Deploy hikes.jomcgi.dev
     timeout-minutes: 5
     permissions:

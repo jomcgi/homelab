@@ -1,12 +1,17 @@
-# Environment-specific values for gh-arc-runners
+# Self-hosted GitHub Actions runners with remote cache
+# Supports Docker-in-Docker for container builds with Bazel remote cache
 
 secret:
+  # Reuse existing secret from gh-arc-runners (same namespace)
+  create: false
   type: onepassword
   onepassword:
     itemPath: "vaults/k8s-homelab/items/gh-arc"
 
 imagePullSecret:
   enabled: true
+  # Reuse existing secret from gh-arc-runners (same namespace)
+  create: false
   onepassword:
     itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
@@ -18,25 +23,51 @@ controller:
   serviceAccountName: "arc-controller"
   secretName: "gh-arc-secret"
 
-runners:
-  name: "homelab-runners"
-  minRunners: 0
-  maxRunners: 3
-
 gha-runner-scale-set:
   githubConfigUrl: "https://github.com/jomcgi/homelab"
   runnerScaleSetName: "homelab-runners"
-  minRunners: 0
-  maxRunners: 3
+  minRunners: 1
+  maxRunners: 10
 
   controllerServiceAccount:
     namespace: "gh-arc-controller"
     name: "arc-controller"
 
-  # Override to use standard runner image (no build tools needed)
-  # Custom Bazel image only needed for bazel-runner
+  # Enable Docker-in-Docker for container image builds
+  containerMode:
+    type: "dind"
+
+  # Runner pod template
   template:
     spec:
+      imagePullSecrets:
+      - name: ghcr-imagepull-secret
       containers:
       - name: runner
-        image: ghcr.io/actions/actions-runner:latest
+        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
+        command: ["/home/runner/run.sh"]
+
+        resources:
+          limits:
+            memory: 2Gi     # More memory for parallel builds
+          requests:
+            cpu: 1000m
+            memory: 2Gi
+
+  listenerTemplate:
+    spec:
+      containers:
+      - name: listener
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          readOnlyRootFilesystem: true
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi

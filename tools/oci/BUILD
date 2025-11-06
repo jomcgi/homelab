@@ -57,24 +57,6 @@ bzl_library(
 )
 
 bzl_library(
-    name = "multiarch_binary_from_http",
-    srcs = ["multiarch_binary_from_http.bzl"],
-    visibility = ["//visibility:public"],
-)
-
-bzl_library(
-    name = "multiarch_binary_tar",
-    srcs = ["multiarch_binary_tar.bzl"],
-    visibility = ["//visibility:public"],
-)
-
-bzl_library(
-    name = "multiplatform_tar",
-    srcs = ["multiplatform_tar.bzl"],
-    visibility = ["//visibility:public"],
-)
-
-bzl_library(
     name = "oci_run",
     srcs = ["oci_run.bzl"],
     visibility = ["//visibility:public"],

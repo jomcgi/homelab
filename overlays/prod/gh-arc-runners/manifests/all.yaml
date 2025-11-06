@@ -93,18 +93,6 @@ rules:
   - patch
   - update
 ---
-# Source: gh-arc-runners/templates/secret-reference.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: Role
-metadata:
-  name: gh-arc-secret-reader
-  namespace: gh-arc-controller
-rules:
-- apiGroups: [""]
-  resources: ["secrets"]
-  resourceNames: ["gh-arc-secret"]
-  verbs: ["get", "list"]
----
 # Source: gh-arc-runners/charts/gha-runner-scale-set/templates/manager_role_binding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -134,24 +122,6 @@ subjects:
   namespace: 
     gh-arc-controller
 ---
-# Source: gh-arc-runners/templates/secret-reference.yaml
-apiVersion: rbac.authorization.k8s.io/v1
-kind: RoleBinding
-metadata:
-  name: gh-arc-secret-reader
-  namespace: gh-arc-controller
-roleRef:
-  apiGroup: rbac.authorization.k8s.io
-  kind: Role
-  name: gh-arc-secret-reader
-subjects:
-- kind: ServiceAccount
-  name: arc-controller
-  namespace: gh-arc-controller
----
-# Source: gh-arc-runners/templates/secret-reference.yaml
-# Create a Role in controller namespace to allow reading the secret
----
 # Source: gh-arc-runners/charts/gha-runner-scale-set/templates/autoscalingrunnerset.yaml
 apiVersion: actions.github.com/v1alpha1
 kind: AutoscalingRunnerSet
@@ -169,7 +139,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: c02f5ddf382fe2f4a90cc6fc6a49300d11ba431184be00a1b09293152bd63cc
+    actions.github.com/values-hash: 7aec5c601e83b0400863b9c1c466f72c51a6c70a655b3384862560efc07f934
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -177,8 +147,8 @@ spec:
   githubConfigUrl: https://github.com/jomcgi/homelab
   githubConfigSecret: gh-arc-secret
   runnerScaleSetName: homelab-runners
-  maxRunners: 3
-  minRunners: 0
+  maxRunners: 10
+  minRunners: 1
   listenerTemplate:
     spec:
       containers:
@@ -206,7 +176,7 @@ spec:
       initContainers:
       - name: init-dind-externals
         
-        image: ghcr.io/actions/actions-runner:latest
+        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["cp"]
         args: ["-r", "-v", "/home/runner/externals/.", "/home/runner/tmpDir/"]
         volumeMounts:
@@ -215,8 +185,16 @@ spec:
       containers:
       - name: runner
         
+        command: 
+          - /home/runner/run.sh
         image: 
-          ghcr.io/actions/actions-runner:latest
+          ghcr.io/jomcgi/homelab/gh-arc-runner:latest
+        resources: 
+          limits:
+            memory: 2Gi
+          requests:
+            cpu: 1000m
+            memory: 2Gi
         env:
           - name: DOCKER_HOST
             value: unix:///var/run/docker.sock
@@ -254,33 +232,3 @@ spec:
       
       - name: work
         emptyDir: {}
----
-# Source: gh-arc-runners/templates/ghcr-imagepullsecret.yaml
-# GHCR Pull Secret (for Kubernetes image pulls)
-# Allows runners to pull private images from GitHub Container Registry
-# Type: kubernetes.io/dockerconfigjson (used for imagePullSecrets)
-apiVersion: onepassword.com/v1
-kind: OnePasswordItem
-type: kubernetes.io/dockerconfigjson
-metadata:
-  name: ghcr-imagepull-secret
-  namespace: gh-arc-runners
-  labels:
-    app.kubernetes.io/name: gh-arc-runners
-    app.kubernetes.io/instance: gh-arc-runners
-    app.kubernetes.io/managed-by: Helm
-spec:
-  itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
----
-# Source: gh-arc-runners/templates/onepassworditem.yaml
-apiVersion: onepassword.com/v1
-kind: OnePasswordItem
-metadata:
-  name: gh-arc-secret
-  namespace: gh-arc-runners
-  labels:
-    app.kubernetes.io/name: gh-arc-runners
-    app.kubernetes.io/instance: gh-arc-runners
-    app.kubernetes.io/managed-by: Helm
-spec:
-  itemPath: "vaults/k8s-homelab/items/gh-arc"

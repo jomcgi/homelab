@@ -24,7 +24,6 @@ filegroup(
         "//overlays/dev/n8n-obsidian-api:render_manifests",
         "//overlays/dev/ttyd-session-manager:render_manifests",
         "//overlays/prod/cloudflare-tunnel:render_manifests",
-        "//overlays/prod/gh-arc-bazel-runner:render_manifests",
         "//overlays/prod/gh-arc-controller:render_manifests",
         "//overlays/prod/gh-arc-runners:render_manifests",
         "//overlays/prod/n8n:render_manifests",
