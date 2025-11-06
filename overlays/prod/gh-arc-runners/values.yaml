@@ -43,9 +43,10 @@ gha-runner-scale-set:
       imagePullSecrets:
       - name: ghcr-imagepull-secret
 
-      # Shared read-only Bazel cache populated by bazel-cache-seeder CronJob
+      # Shared read-only Bazel repository cache (external dependencies)
+      # Mounted separately from output base to allow Bazel writes to output base
       volumes:
-      - name: bazel-cache
+      - name: bazel-repo-cache
         persistentVolumeClaim:
           claimName: bazel-cache-seeder-cache
           readOnly: true
@@ -55,10 +56,12 @@ gha-runner-scale-set:
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
 
-        # Mount shared Bazel cache (read-only to prevent corruption)
+        # Mount shared repository cache at separate path (read-only)
+        # Bazel configured via .bazelrc to use --repository_cache=/mnt/bazel-repo-cache/repository_cache
+        # Output base remains on writable ephemeral storage at /home/runner/.cache/bazel
         volumeMounts:
-        - name: bazel-cache
-          mountPath: /home/runner/.cache
+        - name: bazel-repo-cache
+          mountPath: /mnt/bazel-repo-cache
           readOnly: true
 
         resources:
