@@ -7,7 +7,7 @@ on:
       - main
   schedule:
     - cron: '0 2 * * 0'
-  workflow_dispatch:  # Allow manual cache refresh
+  workflow_dispatch:  # Allow manual triggers
 
 jobs:
   build-test-push:
@@ -22,14 +22,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Clear Bazel cache on scheduled runs
-        if: github.event_name == 'schedule'
-        run: |
-          echo "🧹 Clearing Bazel repository cache for fresh rebuild..."
-          rm -rf /home/runner/.cache/bazel/repository_cache/* || true
-          rm -rf /home/runner/.cache/bazel/output_base/external/* || true
-          echo "✅ Cache cleared - will rebuild from scratch"
-
       - name: Install bazelisk
         run: |
           curl -LO "https://github.com/bazelbuild/bazelisk/releases/download/v1.1.0/bazelisk-linux-amd64"
@@ -37,12 +29,10 @@ jobs:
           mv bazelisk-linux-amd64 "${GITHUB_WORKSPACE}/bin/bazel"
           chmod +x "${GITHUB_WORKSPACE}/bin/bazel"
 
-      # Note: No cache action needed - runners mount shared read-only cache from bazel-cache-seeder
-
       - name: Configure Bazel
         run: |
           cat >> user.bazelrc << EOF
-          # Import CI-specific startup options (persistent output base)
+          # Import CI-specific startup options
           try-import %workspace%/.bazelrc.ci
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
@@ -50,18 +40,41 @@ jobs:
       - name: Format Check
         run: "${GITHUB_WORKSPACE}/bin/bazel run //tools/format:format_code.check"
 
-      - name: Build
-        run: "${GITHUB_WORKSPACE}/bin/bazel build //..."
-      - name: Test
-        run: "${GITHUB_WORKSPACE}/bin/bazel test //..."
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Push
+      # Build, Test, and Push run on BuildBuddy Workflows (persistent VMs with warm Bazel server)
+      # This solves the analysis cache problem - BuildBuddy VMs maintain Bazel server state between runs
+      - name: Build, Test & Push with BuildBuddy Workflows
+        env:
+          BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ${GITHUB_WORKSPACE}/bin/bazel run //images:push_all --
+          echo "🚀 Triggering BuildBuddy Workflows for build, test, and push..."
+
+          # Call BuildBuddy ExecuteWorkflow API
+          response=$(curl -s -w "\n%{http_code}" -d '{
+            "repo_url": "https://github.com/jomcgi/homelab",
+            "branch": "${{ github.ref_name }}",
+            "commit_sha": "${{ github.sha }}",
+            "action_names": ["Build", "Test", "Push"],
+            "async": false,
+            "env": {
+              "GITHUB_TOKEN": "'"$GITHUB_TOKEN"'",
+              "GITHUB_ACTOR": "${{ github.actor }}"
+            }
+          }' \
+          -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+          -H 'Content-Type: application/json' \
+          https://app.buildbuddy.io/api/v1/ExecuteWorkflow)
+
+          # Parse response
+          http_code=$(echo "$response" | tail -n1)
+          body=$(echo "$response" | head -n-1)
+
+          echo "Response: $body"
+
+          if [ "$http_code" != "200" ]; then
+            echo "❌ Failed to execute BuildBuddy workflow (HTTP $http_code)"
+            echo "$body"
+            exit 1
+          fi
+
+          echo "✅ BuildBuddy workflow completed successfully"

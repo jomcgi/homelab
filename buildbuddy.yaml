@@ -1,0 +1,42 @@
+# BuildBuddy Workflows configuration
+# Triggered via API from GitHub Actions for persistent analysis cache
+
+actions:
+  - name: "Build"
+    triggers:
+      # Disabled - we trigger via ExecuteWorkflow API from GitHub Actions
+      push:
+        disabled: true
+      pull_request:
+        disabled: true
+
+    # BuildBuddy VMs have persistent Bazel server = warm analysis cache
+    bazel_commands:
+      - "build //..."
+
+  - name: "Test"
+    triggers:
+      push:
+        disabled: true
+      pull_request:
+        disabled: true
+
+    bazel_commands:
+      - "test //..."
+
+  - name: "Push"
+    triggers:
+      push:
+        disabled: true
+      pull_request:
+        disabled: true
+
+    # Container push - requires GITHUB_TOKEN from API call env vars
+    bazel_commands:
+      - "run //images:push_all"
+
+# Git configuration
+git_repo_default_branch: "main"
+
+# BuildBuddy will use your .bazelrc configuration automatically
+# The remote cache and RBE are already configured there
