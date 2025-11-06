@@ -1,8 +1,7 @@
-# CI-specific configuration for GitHub Actions runners
+# CI-specific configuration for self-hosted GitHub Actions runners
 # This file is imported via try-import in user.bazelrc during CI builds
-
-# Repository cache is pre-populated by init container from shared PVC
-# Cache is copied to default writable location (~/.cache/bazel/repository_cache)
-# This prevents download storms while allowing Bazel to write new dependencies
+#
+# Note: Heavy builds (build, test, push) now run on BuildBuddy Workflows with persistent VMs
+# This configuration is only used for lightweight tasks (format checks) on self-hosted runners
 
 common --config=ci
