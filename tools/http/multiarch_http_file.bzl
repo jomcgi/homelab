@@ -1,7 +1,6 @@
 """multiarch_http_file - Download and package multiarch binaries from HTTP"""
 
 load("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
-load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 
 def _multiarch_http_file_impl(repository_ctx):
     """Implementation for multiarch_http_file repository rule."""
