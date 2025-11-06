@@ -169,7 +169,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: 7aec5c601e83b0400863b9c1c466f72c51a6c70a655b3384862560efc07f934
+    actions.github.com/values-hash: 0c47b0cec43672af9c98eb108dac8f21b83370dcc99d652a35a728dde20d2aa
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -223,7 +223,7 @@ spec:
           limits:
             memory: 2Gi
           requests:
-            cpu: 1000m
+            cpu: 4000m
             memory: 2Gi
         env:
           - name: DOCKER_HOST
