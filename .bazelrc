@@ -53,30 +53,18 @@ build:ci --keep_going=false  # Fail immediately in CI
 build:ci --test_output=errors
 build:ci --test_summary=detailed
 build:ci --build_metadata=ROLE=CI
+
+# BuildBuddy Build Event Service (BES) - Always enabled for observability
 build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
 build:ci --bes_backend=grpcs://remote.buildbuddy.io
 
 # =============================================================================
-# BuildBuddy Remote Build Execution (80 cores on free tier!)
+# Remote Build Execution (RBE) - Conditionally enabled
 # =============================================================================
-build:ci --remote_executor=grpcs://remote.buildbuddy.io
-build:ci --remote_cache=grpcs://remote.buildbuddy.io
-build:ci --bes_results_url=https://app.buildbuddy.io/invocation/
-build:ci --bes_backend=grpcs://remote.buildbuddy.io
-build:ci --remote_timeout=3600
-build:ci --jobs=80  # Use all 80 available cores
-build:ci --remote_cache_compression  # Faster transfers
-build:ci --remote_download_minimal  # Don't download unnecessary outputs
-
-# Use BuildBuddy's managed toolchain
-build:ci --extra_execution_platforms=@buildbuddy_toolchain//:platform
-build:ci --host_platform=@buildbuddy_toolchain//:platform
-build:ci --platforms=@buildbuddy_toolchain//:platform
-build:ci --crosstool_top=@buildbuddy_toolchain//:toolchain
-build:ci --extra_toolchains=@buildbuddy_toolchain//:cc_toolchain
-
+# Import remote execution config when using --config=remote
+# This allows easy toggling of RBE without modifying this file
 # Note: API key is set in user.bazelrc via --remote_header flag
-# RBE will automatically use the same API key as BES
+try-import %workspace%/.bazelrc.remote
 
 # Load any settings & overrides specific to the current user from `.aspect/bazelrc/user.bazelrc`.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This
