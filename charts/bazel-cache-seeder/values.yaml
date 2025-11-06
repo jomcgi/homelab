@@ -53,9 +53,11 @@ securityContext:
 
 # GitHub configuration for repo access
 github:
-  # Secret containing github_token field
-  secretName: gh-arc-secret
-  # Repository URL (will be cloned with token authentication)
+  # OnePasswordItem path for GitHub token (same as ttyd-session-manager)
+  onepasswordItemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+  # GitHub username for authenticated clones
+  username: jomcgi
+  # Repository URL
   repository: https://github.com/jomcgi/homelab.git
 
 # Bazel configuration
