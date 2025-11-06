@@ -45,6 +45,10 @@ jobs:
           # Import CI-specific startup options (persistent output base)
           try-import %workspace%/.bazelrc.ci
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
+
+          # Force IPv4 for Java DNS resolution (workaround for Bazel downloader issues)
+          startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
+          startup --host_jvm_args=-Djava.net.preferIPv6Addresses=false
           EOF
 
       # TEMPORARY: Disable RBE due to BuildBuddy DNS issues with static.rust-lang.org
