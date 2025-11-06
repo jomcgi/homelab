@@ -52,7 +52,7 @@ gha-runner-scale-set:
           limits:
             memory: 2Gi     # Increased for builds
           requests:
-            cpu: 1000m
+            cpu: 4000m      # 4 CPUs for parallel builds
             memory: 2Gi
 
   listenerTemplate:

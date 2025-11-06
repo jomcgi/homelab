@@ -36,6 +36,9 @@ jobs:
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
 
+      - name: Analysis (warm cache)
+        run: "${GITHUB_WORKSPACE}/bin/bazel build --config=ci-analysis //..."
+
       - name: Build
         run: "${GITHUB_WORKSPACE}/bin/bazel build --config=ci //..."
 
