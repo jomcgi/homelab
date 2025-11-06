@@ -1,10 +1,6 @@
-exports_files(srcs = [
-    "Chart.yaml",
-    "values.yaml",
-])
+load("//tools/argocd:defs.bzl", "chart_files")
 
-filegroup(
+chart_files(
     name = "all_files",
-    srcs = glob(["**/*"]),
-    visibility = ["//overlays:__subpackages__"],
+    visibility = ["//overlays/dev/ttyd-session-manager:__pkg__"],
 )
