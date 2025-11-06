@@ -50,10 +50,10 @@ gha-runner-scale-set:
 
         resources:
           limits:
-            memory: 2Gi     # Increased for builds
+            memory: 4Gi     # Increased for analysis + builds
           requests:
             cpu: 4000m      # 4 CPUs for parallel builds
-            memory: 2Gi
+            memory: 4Gi
 
   listenerTemplate:
     spec:
