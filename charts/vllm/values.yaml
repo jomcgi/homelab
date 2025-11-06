@@ -1,6 +1,19 @@
 # Default values for vLLM wrapper chart
 # These are minimal defaults; override in overlays/prod/vllm/values.yaml
 
+# Secret configuration for HuggingFace token
+secret:
+  # Set to true to create the secret
+  create: false
+  # Type of secret: "onepassword" or "manual"
+  type: "onepassword"
+  onepassword:
+    # 1Password item path (e.g., "op://vault/item/field")
+    itemPath: ""
+  manual:
+    # Manually provided HuggingFace token (only used if type is "manual")
+    hfToken: ""
+
 vllm-stack:
   # Minimal defaults - see overlay values for production configuration
   servingEngineSpec:
