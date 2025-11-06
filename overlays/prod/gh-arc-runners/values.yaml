@@ -2,16 +2,16 @@
 # Supports Docker-in-Docker for container builds with Bazel remote cache
 
 secret:
-  # Reuse existing secret from gh-arc-runners (same namespace)
-  create: false
+  # Create the secret via OnePasswordItem
+  create: true
   type: onepassword
   onepassword:
     itemPath: "vaults/k8s-homelab/items/gh-arc"
 
 imagePullSecret:
   enabled: true
-  # Reuse existing secret from gh-arc-runners (same namespace)
-  create: false
+  # Create the secret via OnePasswordItem
+  create: true
   onepassword:
     itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
