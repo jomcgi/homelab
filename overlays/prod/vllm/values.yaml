@@ -25,10 +25,6 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Enable performance optimizations
-          enableChunkedPrefill: true
-          enablePrefixCaching: true
-
           # Context window (conservative for 12B model on 24GB VRAM)
           maxModelLen: 8192
 
@@ -37,7 +33,8 @@ vllm-stack:
 
           # Additional performance flags
           extraArgs:
-            - "--disable-log-requests"
+            - "--enable-chunked-prefill"    # Performance optimization
+            - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
             - "0.90"  # Use 90% of available VRAM
 
