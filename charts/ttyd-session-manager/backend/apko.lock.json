@@ -2,7 +2,7 @@
   "version": "v1",
   "config": {
     "name": "./charts/ttyd-session-manager/backend/apko.yaml",
-    "checksum": "sha256-hMj6sXDIzqUxsKm9aD+XtufllmQ5PPQN+Fkhi1syQbk="
+    "checksum": "sha256-1gX/0px10tAPIJ6Zeilzm+GBwgzY/yft5s5NQFDU4pI="
   },
   "contents": {
     "keyring": [

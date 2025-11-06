@@ -46,6 +46,18 @@ pkg_tar(
     },
 )
 
+# OpenCode configuration for vLLM and provider access
+pkg_tar(
+    name = "opencode_config_tar",
+    srcs = [
+        "opencode-config.json",
+    ],
+    mode = "0644",
+    remap_paths = {
+        "opencode-config.json": "/home/user/.config/opencode/opencode.json",
+    },
+)
+
 # TTYD worker image with fish shell dev environment + ttyd binary + opencode
 # multiarch_tars: platform-specific tars from multiarch_http_file and multiarch_http_archive repositories
 # Note: format tool available via bazelisk (already in image), run with: bazel run //tools/format:format
@@ -58,5 +70,8 @@ apko_image(
         "@opencode//:tar",
     ],
     repository = "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker",
-    tars = [":fish_config_tar"],
+    tars = [
+        ":fish_config_tar",
+        ":opencode_config_tar",
+    ],
 )

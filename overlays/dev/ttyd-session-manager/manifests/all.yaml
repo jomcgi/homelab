@@ -100,7 +100,7 @@ data:
                 address:
                   socket_address:
                     address: 127.0.0.1
-                    port_value: 8080
+                    port_value: 8081
       - name: otel_collector
         type: STRICT_DNS
         lb_policy: ROUND_ROBIN
@@ -408,7 +408,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/envoy-config: d019d087338f1bebef76826c75c38abf7c54610f38a0b7363974cce9f47a3508
+        checksum/envoy-config: 75dfb8809145edd478d2583e2e3485d488ff278f7aa9677d333a54a74ba582a5
       labels:
         app.kubernetes.io/name: ttyd-session-manager
         app.kubernetes.io/instance: ttyd-session-manager
