@@ -5,6 +5,7 @@ resources:
   - ./argocd
   - ./argocd-image-updater
   - ./bazel-cache-seeder
+  - ./coredns
   - ./envoy
   - ./kyverno
   - ./longhorn
