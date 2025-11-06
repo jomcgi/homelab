@@ -86,8 +86,7 @@ overlays/                   # Environment-based deployments
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   ├── gh-arc-runners/     # GitHub Actions Runners
-│   ├── gh-arc-bazel-runner/# Bazel-specific runner
+│   ├── gh-arc-runners/     # GitHub Actions Runners with persistent cache
 │   ├── n8n/
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
@@ -232,9 +231,8 @@ We test **actual behavior**, not implementation details:
 
 #### GitHub Actions Self-Hosted Runners
 - **gh-arc-controller**: Actions Runner Controller for managing runner lifecycle
-- **gh-arc-runners**: General-purpose runners for CI/CD
-- **gh-arc-bazel-runner**: Specialized runners for Bazel builds
-- **Scalable CI/CD** infrastructure within the cluster
+- **gh-arc-runners**: Self-hosted runners with Docker-in-Docker and persistent cache for builds
+- **Scalable CI/CD** infrastructure within the cluster (1-10 runners)
 - **Deployed via**: ArgoCD Applications
 
 #### N8N Workflow Automation

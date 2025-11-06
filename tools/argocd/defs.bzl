@@ -1,5 +1,26 @@
 """Bazel rules for rendering Helm manifests with proper caching."""
 
+def chart_files(name, visibility):
+    """Exports chart files and creates a filegroup of all chart files.
+
+    This macro encapsulates the glob() expression so Gazelle doesn't need to
+    parse or merge it. Gazelle only manages the visibility attribute.
+
+    Args:
+        name: Name of the filegroup (should be "all_files")
+        visibility: List of packages that can reference this filegroup
+    """
+    native.exports_files([
+        "Chart.yaml",
+        "values.yaml",
+    ])
+
+    native.filegroup(
+        name = name,
+        srcs = native.glob(["**/*"]),
+        visibility = visibility,
+    )
+
 def _helm_render_impl(ctx):
     """Implementation of helm_render rule.
 

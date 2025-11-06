@@ -82,22 +82,13 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 				"tools": true,
 			},
 		},
-		"filegroup": {
+		"chart_files": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{
-				"srcs": true,
+				"visibility": true,
 			},
 			MergeableAttrs: map[string]bool{
-				"srcs": true,
-			},
-		},
-		"exports_files": {
-			MatchAny: false,
-			NonEmptyAttrs: map[string]bool{
-				"srcs": true,
-			},
-			MergeableAttrs: map[string]bool{
-				"srcs": true,
+				"visibility": true,
 			},
 		},
 	}
@@ -109,6 +100,10 @@ func (l *argoCDLang) Loads() []rule.LoadInfo {
 		{
 			Name:    "@rules_shell//shell:sh_binary.bzl",
 			Symbols: []string{"sh_binary"},
+		},
+		{
+			Name:    "//tools/argocd:defs.bzl",
+			Symbols: []string{"chart_files"},
 		},
 	}
 }

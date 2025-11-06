@@ -12,7 +12,7 @@ on:
 jobs:
   build-test-push:
     name: Bazel - build, test & push
-    runs-on: bazel-runner
+    runs-on: homelab-runners
 
     permissions:
       contents: read

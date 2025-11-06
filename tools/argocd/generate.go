@@ -101,42 +101,22 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	// Check if this is a chart directory (has Chart.yaml)
 	chartFile := filepath.Join(args.Dir, "Chart.yaml")
 	if _, err := os.Stat(chartFile); err == nil {
-		// This is a Helm chart directory - create exports_files rule
-		exportsRule := rule.NewRule("exports_files", "")
+		// This is a Helm chart directory - create a chart_files() macro call
+		// The macro encapsulates glob() so Gazelle doesn't need to parse it
 
-		// Collect files to export
-		var exports []string
-		exports = append(exports, "Chart.yaml")
-
-		// Check if values.yaml exists
-		if _, err := os.Stat(filepath.Join(args.Dir, "values.yaml")); err == nil {
-			exports = append(exports, "values.yaml")
-		}
-
-		exportsRule.SetAttr("srcs", exports)
-		result.Gen = append(result.Gen, exportsRule)
-		result.Imports = append(result.Imports, nil)
-
-		// Create filegroup with all chart files for proper cache invalidation
-		filegroupRule := rule.NewRule("filegroup", "all_files")
-
-		// Use GlobValue to emit a proper glob expression (not a string)
-		globValue := &rule.GlobValue{
-			Patterns: []string{"**/*"},
-		}
-		filegroupRule.SetAttr("srcs", globValue)
+		chartFilesRule := rule.NewRule("chart_files", "all_files")
 
 		// Dynamically discover which overlays use this chart and set precise visibility
 		chartPath := args.Rel
 		overlays := discoverOverlaysUsingChart(args.Config.RepoRoot, chartPath)
 		if len(overlays) > 0 {
-			filegroupRule.SetAttr("visibility", overlays)
+			chartFilesRule.SetAttr("visibility", overlays)
 		} else {
 			// Fallback to overlays if no specific overlays found (shouldn't happen normally)
-			filegroupRule.SetAttr("visibility", []string{"//overlays/..."})
+			chartFilesRule.SetAttr("visibility", []string{"//overlays/..."})
 		}
 
-		result.Gen = append(result.Gen, filegroupRule)
+		result.Gen = append(result.Gen, chartFilesRule)
 		result.Imports = append(result.Imports, nil)
 
 		return result
