@@ -26,19 +26,8 @@ spec:
               done
 
               echo "Configuring additional disks for node-4..."
+              echo "Note: nvme-01 is reserved for K3s ephemeral storage and excluded from Longhorn"
               kubectl patch nodes.longhorn.io -n longhorn node-4 --type=json -p='[
-                {
-                  "op": "add",
-                  "path": "/spec/disks/nvme-01",
-                  "value": {
-                    "allowScheduling": true,
-                    "diskType": "filesystem",
-                    "evictionRequested": false,
-                    "path": "/var/lib/longhorn/nvme-01",
-                    "storageReserved": 21474836480,
-                    "tags": ["nvme", "fast", "gpu"]
-                  }
-                },
                 {
                   "op": "add",
                   "path": "/spec/disks/nvme-02",
