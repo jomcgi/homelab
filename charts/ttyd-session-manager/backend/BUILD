@@ -32,17 +32,19 @@ go_image(
     binary = "backend",
 )
 
-# Fish shell configuration files for Bazel setup
+# Fish shell configuration files for Bazel setup and terminal config
 pkg_tar(
     name = "fish_config_tar",
     srcs = [
         "bazel.fish",
         "setup-bazelrc.fish",
+        "terminal.fish",
     ],
     mode = "0755",
     remap_paths = {
         "bazel.fish": "/home/user/.config/fish/conf.d/bazel.fish",
         "setup-bazelrc.fish": "/usr/local/bin/setup-bazelrc.fish",
+        "terminal.fish": "/home/user/.config/fish/conf.d/terminal.fish",
     },
 )
 
