@@ -24,11 +24,10 @@ jobs:
 
       # Build, Test, and Push run on BuildBuddy Workflows (persistent VMs with warm Bazel server)
       # Format check runs separately via auto-format.yaml workflow
-      # This solves the analysis cache problem - BuildBuddy VMs maintain Bazel server state between runs
+      # Secrets (GITHUB_TOKEN, GITHUB_ACTOR) are stored in BuildBuddy, not passed via API
       - name: Build, Test & Push with BuildBuddy Workflows
         env:
           BUILDBUDDY_API_KEY: ${{ secrets.BUILDBUDDY_API_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           echo "🚀 Triggering BuildBuddy Workflows for build, test, and push..."
 
@@ -38,11 +37,7 @@ jobs:
             "branch": "${{ github.ref_name }}",
             "commit_sha": "${{ github.sha }}",
             "action_names": ["Build", "Test", "Push"],
-            "async": false,
-            "env": {
-              "GITHUB_TOKEN": "'"$GITHUB_TOKEN"'",
-              "GITHUB_ACTOR": "${{ github.actor }}"
-            }
+            "async": false
           }' \
           -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
           -H 'Content-Type: application/json' \
