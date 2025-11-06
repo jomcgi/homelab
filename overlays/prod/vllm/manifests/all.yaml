@@ -181,9 +181,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    rollingUpdate:
-      maxSurge: 100%
-      maxUnavailable: 0
+    type: Recreate
   selector:
     matchLabels:
       environment: test
@@ -202,15 +200,17 @@ spec:
           command:
           - "vllm"
           - "serve"
-          - "google/gemma-3-12b-it"
+          - "unsloth/gemma-3-12b-it-unsloth-bnb-4bit"
           - "--host"
           - "0.0.0.0"
           - "--port"
           - "8000"
           - "--max-model-len"
-          - "8192"
+          - "16384"
           - "--dtype"
-          - "auto"
+          - "bfloat16"
+          - "--quantization"
+          - "bitsandbytes"
           - "--enable-chunked-prefill"
           - "--enable-prefix-caching"
           - "--gpu-memory-utilization"

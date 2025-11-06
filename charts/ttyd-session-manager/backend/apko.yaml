@@ -92,4 +92,10 @@ paths:
     uid: 1000
     gid: 1000
     permissions: 0o755
+  - path: /home/user/.config/opencode
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
   # Note: Fish config files (setup-bazelrc.fish and bazel.fish) are added via pkg_tar in BUILD file
+  # Note: OpenCode config (opencode-config.json) is added via pkg_tar in BUILD file
