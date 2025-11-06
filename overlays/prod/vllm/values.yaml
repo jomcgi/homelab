@@ -16,8 +16,8 @@ vllm-stack:
         # vLLM OpenAI-compatible server image
         repository: "vllm/vllm-openai"
         tag: "v0.11.0"  # Latest stable release (Oct 2025)
-        # Hugging Face model ID - INT4 AWQ quantized version (fits in 24GB GPU)
-        modelURL: "gaunernst/gemma-3-12b-it-int4-awq"
+        # Hugging Face model ID - BitsAndBytes 4-bit quantized (fits in 24GB GPU)
+        modelURL: "unsloth/gemma-3-12b-it-unsloth-bnb-4bit"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
@@ -52,13 +52,13 @@ vllm-stack:
           # Context window (can be larger with quantized model)
           maxModelLen: 16384
 
-          # AWQ quantization requires float16 (half precision)
-          dtype: "half"
+          # BitsAndBytes works with bfloat16 (required by Gemma 3)
+          dtype: "bfloat16"
 
           # Additional performance flags
           extraArgs:
             - "--quantization"
-            - "awq"                         # Enable AWQ quantization
+            - "bitsandbytes"                # Enable BitsAndBytes quantization
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
