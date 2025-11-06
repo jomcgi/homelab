@@ -7,6 +7,10 @@ secret:
 
 vllm-stack:
   servingEngineSpec:
+    # Deployment strategy: Recreate for single GPU (terminates old pod first)
+    strategy:
+      type: Recreate
+
     modelSpec:
       - name: "gemma-3-12b"
         # vLLM OpenAI-compatible server image
