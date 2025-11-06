@@ -31,19 +31,18 @@ actions:
       pull_request:
         disabled: true
 
-    # Container push - requires GITHUB_TOKEN and GITHUB_ACTOR from API call
-    # Login to GitHub Container Registry before pushing
-    bazel_commands:
-      - "run //images:push_all"
-
-    # Setup script to authenticate with GHCR
-    # Environment variables (GITHUB_TOKEN, GITHUB_ACTOR) are passed via ExecuteWorkflow API
+    # Container push - uses BuildBuddy-stored secrets (GITHUB_TOKEN and GITHUB_ACTOR)
+    # Secrets are automatically available as environment variables in trusted workflows
+    # Login to GHCR before pushing
     setup_script: |
       #!/bin/bash
       set -euo pipefail
       echo "Logging into GitHub Container Registry..."
       echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
       echo "✅ Logged into ghcr.io as $GITHUB_ACTOR"
+
+    bazel_commands:
+      - "run //images:push_all"
 
 # Git configuration
 git_repo_default_branch: "main"
