@@ -52,8 +52,8 @@ vllm-stack:
           # Context window (can be larger with quantized model)
           maxModelLen: 16384
 
-          # Let vLLM auto-detect optimal dtype
-          dtype: "auto"
+          # AWQ quantization requires float16 (half precision)
+          dtype: "half"
 
           # Additional performance flags
           extraArgs:
