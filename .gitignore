@@ -1,5 +1,9 @@
 # User-specific settings file for this repo
 .aspect/bazelrc/user.bazelrc
+user.bazelrc
+
+# Temporary file created when RBE is disabled in CI
+.bazelrc.remote.disabled
 
 # Don't check in lockfile for now. It is unstable.
 # https://github.com/bazelbuild/bazel/issues/19026

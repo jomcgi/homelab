@@ -44,6 +44,15 @@ jobs:
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
 
+      # TEMPORARY: Disable RBE due to BuildBuddy DNS issues with static.rust-lang.org
+      # TODO: Re-enable once BuildBuddy infrastructure is fixed
+      - name: Disable Remote Build Execution
+        run: |
+          if [ -f .bazelrc.remote ]; then
+            echo "🚫 Temporarily disabling BuildBuddy RBE (DNS issues)"
+            mv .bazelrc.remote .bazelrc.remote.disabled
+          fi
+
       - name: Check formatting
         id: format-check
         continue-on-error: true
