@@ -61,12 +61,14 @@ gha-runner-scale-set:
           set -euo pipefail
           echo "Copying shared repository cache to writable location..."
           mkdir -p /home/runner/.cache/bazel/repository_cache
-          if [ -d /mnt/bazel-repo-cache-source/repository_cache ]; then
-            rsync -a --info=progress2 /mnt/bazel-repo-cache-source/repository_cache/ /home/runner/.cache/bazel/repository_cache/
+          if [ -d /mnt/bazel-repo-cache-source/bazel/repository_cache ]; then
+            echo "Found cache source, copying..."
+            rsync -a --info=progress2 /mnt/bazel-repo-cache-source/bazel/repository_cache/ /home/runner/.cache/bazel/repository_cache/
             echo "Cache copy complete. Size:"
             du -sh /home/runner/.cache/bazel/repository_cache
           else
-            echo "Source cache not found, starting with empty cache"
+            echo "Source cache not found at /mnt/bazel-repo-cache-source/bazel/repository_cache, starting with empty cache"
+            ls -la /mnt/bazel-repo-cache-source/ || echo "Mount point not accessible"
           fi
         volumeMounts:
         - name: bazel-repo-cache-source
