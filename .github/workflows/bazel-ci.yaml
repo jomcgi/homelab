@@ -49,6 +49,11 @@ jobs:
           # Force IPv4 for Java DNS resolution (workaround for Bazel downloader issues)
           startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
           startup --host_jvm_args=-Djava.net.preferIPv6Addresses=false
+
+          # Disable Java DNS caching to prevent stale DNS entries
+          # This protects against transient DNS issues and long-running Bazel servers
+          startup --host_jvm_args=-Dsun.net.inetaddr.ttl=0
+          startup --host_jvm_args=-Dsun.net.inetaddr.negative.ttl=0
           EOF
 
       # TEMPORARY: Disable RBE due to BuildBuddy DNS issues with static.rust-lang.org
