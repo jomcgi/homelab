@@ -221,6 +221,11 @@ spec:
           env:
           - name: HF_HOME
             value: /data
+          - name: HF_TOKEN
+            valueFrom:
+              secretKeyRef:
+                key: hf_token
+                name: vllm-hf-token
           ports:
             - name: "container-port"
               containerPort: 8000          
@@ -255,3 +260,16 @@ spec:
           persistentVolumeClaim:
             claimName: "vllm-gemma-3-12b-storage-claim"
       runtimeClassName: nvidia
+---
+# Source: vllm/templates/onepassworditem.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: vllm-hf-token
+  namespace: vllm
+  labels:
+    app.kubernetes.io/name: vllm
+    app.kubernetes.io/instance: vllm
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/vllm"
