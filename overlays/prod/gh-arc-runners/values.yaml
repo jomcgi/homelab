@@ -42,10 +42,24 @@ gha-runner-scale-set:
     spec:
       imagePullSecrets:
       - name: ghcr-imagepull-secret
+
+      # Mount shared Bazel cache read-only
+      volumes:
+      - name: bazel-cache
+        persistentVolumeClaim:
+          claimName: bazel-cache-seeder-cache
+          readOnly: true
+
       containers:
       - name: runner
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
+
+        # Mount shared cache at standard Bazel cache location
+        volumeMounts:
+        - name: bazel-cache
+          mountPath: /home/runner/.cache
+          readOnly: true
 
         resources:
           limits:

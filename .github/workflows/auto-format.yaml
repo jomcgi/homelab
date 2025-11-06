@@ -42,25 +42,7 @@ jobs:
           # Import CI-specific startup options (persistent output base)
           try-import %workspace%/.bazelrc.ci
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
-
-          # Force IPv4 for Java DNS resolution (workaround for Bazel downloader issues)
-          startup --host_jvm_args=-Djava.net.preferIPv4Stack=true
-          startup --host_jvm_args=-Djava.net.preferIPv6Addresses=false
-
-          # Disable Java DNS caching to prevent stale DNS entries
-          # This protects against transient DNS issues and long-running Bazel servers
-          startup --host_jvm_args=-Dsun.net.inetaddr.ttl=0
-          startup --host_jvm_args=-Dsun.net.inetaddr.negative.ttl=0
           EOF
-
-      # TEMPORARY: Disable RBE due to BuildBuddy DNS issues with static.rust-lang.org
-      # TODO: Re-enable once BuildBuddy infrastructure is fixed
-      - name: Disable Remote Build Execution
-        run: |
-          if [ -f .bazelrc.remote ]; then
-            echo "🚫 Temporarily disabling BuildBuddy RBE (DNS issues)"
-            mv .bazelrc.remote .bazelrc.remote.disabled
-          fi
 
       - name: Check formatting
         id: format-check
