@@ -12,8 +12,8 @@ vllm-stack:
         # vLLM OpenAI-compatible server image
         repository: "vllm/vllm-openai"
         tag: "v0.11.0"  # Latest stable release (Oct 2025)
-        # Hugging Face model ID
-        modelURL: "google/gemma-3-12b-it"
+        # Hugging Face model ID - INT4 AWQ quantized version (fits in 24GB GPU)
+        modelURL: "gaunernst/gemma-3-12b-it-int4-awq"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
@@ -45,14 +45,16 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Context window (conservative for 12B model on 24GB VRAM)
-          maxModelLen: 8192
+          # Context window (can be larger with quantized model)
+          maxModelLen: 16384
 
           # Let vLLM auto-detect optimal dtype
           dtype: "auto"
 
           # Additional performance flags
           extraArgs:
+            - "--quantization"
+            - "awq"                         # Enable AWQ quantization
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
