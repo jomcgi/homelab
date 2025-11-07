@@ -57,8 +57,7 @@ vllm-stack:
 
           # Additional performance flags
           extraArgs:
-            - "--quantization"
-            - "awq"                         # AWQ 4-bit quantization
+            # Model uses compressed-tensors quantization (auto-detected)
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
