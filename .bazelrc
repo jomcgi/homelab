@@ -18,10 +18,12 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 # =============================================================================
 # Repository Cache - Cache external dependencies
 # =============================================================================
-# In CI: Persistent cache mounted at ~/.cache/bazel (ReadWriteMany PVC)
-# Local dev: Standard location in home directory
+# Repository cache location
 common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
+
+# CI: Override to use mounted PVC at /mnt/bazel-cache
+build:ci --repository_cache=/mnt/bazel-cache/repository_cache
 
 # rules_python is working to enable this default to avoid dependency on a system interpreter
 # See https://github.com/bazel-contrib/rules_python/issues/3187

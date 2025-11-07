@@ -67,7 +67,7 @@ gha-runner-scale-set:
 
         volumeMounts:
         - name: bazel-cache
-          mountPath: /home/runner/.cache/bazel
+          mountPath: /mnt/bazel-cache
 
       volumes:
       - name: bazel-cache
