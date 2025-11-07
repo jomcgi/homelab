@@ -37,12 +37,12 @@ trap cleanup_api_pf EXIT
 
 # Check for existing sessions
 echo "🔍 Checking for existing sessions..."
-SESSIONS_RESPONSE=$(curl -s http://localhost:8083/api/sessions || echo '{"sessions":[]}')
-SESSIONS_COUNT=$(echo "$SESSIONS_RESPONSE" | jq -r '.sessions | length')
+SESSIONS_RESPONSE=$(curl -s http://localhost:8083/api/sessions || echo '[]')
+SESSIONS_COUNT=$(echo "$SESSIONS_RESPONSE" | jq -r 'length')
 
 if [ "$SESSIONS_COUNT" -gt 0 ]; then
 	echo "  Found $SESSIONS_COUNT existing session(s):"
-	echo "$SESSIONS_RESPONSE" | jq -r '.sessions[] | "    - \(.id) (\(.name)) - \(.state) - Created: \(.created_at // "unknown")"'
+	echo "$SESSIONS_RESPONSE" | jq -r '.[] | "    - \(.id) (\(.name)) - \(.state) - Created: \(.created_at // "unknown")"'
 	echo ""
 
 	if [ "$USE_EXISTING" = "ask" ]; then
@@ -57,8 +57,8 @@ if [ "$SESSIONS_COUNT" -gt 0 ]; then
 
 	if [ "$USE_EXISTING" = "yes" ]; then
 		# Get the most recent session (first in the list)
-		SESSION_ID=$(echo "$SESSIONS_RESPONSE" | jq -r '.sessions[0].id')
-		SESSION_NAME=$(echo "$SESSIONS_RESPONSE" | jq -r '.sessions[0].name')
+		SESSION_ID=$(echo "$SESSIONS_RESPONSE" | jq -r '.[0].id')
+		SESSION_NAME=$(echo "$SESSIONS_RESPONSE" | jq -r '.[0].name')
 		echo "  ✓ Using existing session: $SESSION_ID ($SESSION_NAME)"
 		echo ""
 
