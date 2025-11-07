@@ -60,6 +60,9 @@ vllm-stack:
             value: "debug"
           - name: VLLM_LOG_STATS_INTERVAL
             value: "1"
+          # Memory fragmentation fix for CUDA OOM
+          - name: PYTORCH_CUDA_ALLOC_CONF
+            value: "expandable_segments:True"
 
         # Resource allocation (dedicated node with 64GB total)
         requestCPU: 8
@@ -77,8 +80,8 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Context window (Qwen3 supports 262k natively, using 32k for stability)
-          maxModelLen: 32768
+          # Context window (reduced to 16k to fit in 24GB VRAM)
+          maxModelLen: 16384
 
           # AWQ works with bfloat16
           dtype: "bfloat16"
