@@ -42,6 +42,11 @@ vllm-stack:
         modelURL: "QuantTrio/Qwen3-Coder-30B-A3B-Instruct-AWQ"
         replicaCount: 1
 
+        # LMCache: KV cache offloading to CPU RAM
+        lmcacheConfig:
+          enabled: true
+          cpuOffloadingBufferSize: "20"  # 20GB CPU RAM for KV cache
+
         # HuggingFace token from 1Password secret
         huggingFaceToken:
           secretName: "vllm-hf-token"
@@ -80,8 +85,8 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Context window (reduced to 16k to fit in 24GB VRAM)
-          maxModelLen: 16384
+          # Context window (32k with LMCache CPU offloading)
+          maxModelLen: 32768
 
           # AWQ works with bfloat16
           dtype: "bfloat16"
