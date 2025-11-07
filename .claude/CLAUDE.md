@@ -311,6 +311,68 @@ We **define errors out of existence** where possible:
   - Example: `lstr -L 2 charts/` to view 2 levels deep
   - Use `-d` for directories only, `--icons` for file icons
 
+### Kubernetes Operations (kubectl)
+
+**CRITICAL: This cluster is managed via GitOps. kubectl is READ-ONLY except for specific cases.**
+
+#### GitOps-Only Modifications
+- **NEVER use `kubectl patch`** to modify resources
+- **NEVER use `kubectl edit`** to modify resources
+- **NEVER use `kubectl apply`** to modify resources directly
+- **ALL modifications** must go through Git → ArgoCD workflow
+
+**Why?** Direct modifications create configuration drift between Git (source of truth) and cluster (runtime state). ArgoCD will either:
+- Revert your changes (if auto-sync is enabled)
+- Show your cluster as "OutOfSync" indefinitely
+
+#### Acceptable kubectl Usage
+
+✅ **Read-only operations** (always safe):
+```bash
+kubectl get pods -n <namespace>
+kubectl describe pod <pod-name> -n <namespace>
+kubectl logs <pod-name> -n <namespace>
+kubectl top pods -n <namespace>
+kubectl get events -n <namespace>
+```
+
+✅ **Triggering jobs** (idempotent operations):
+```bash
+kubectl create job --from=cronjob/<name> <job-name> -n <namespace>
+```
+
+✅ **Port forwarding** for debugging:
+```bash
+kubectl port-forward svc/<service-name> 8080:80 -n <namespace>
+```
+
+✅ **Temporary debugging pods** (will be cleaned up):
+```bash
+kubectl run debug --image=busybox --rm -it -- sh
+```
+
+❌ **FORBIDDEN operations**:
+```bash
+kubectl patch deployment ...    # NO - modify Git instead
+kubectl edit configmap ...       # NO - modify Git instead
+kubectl scale deployment ...     # NO - modify Git instead
+kubectl set image ...            # NO - modify Git instead
+kubectl delete deployment ...    # NO - remove from Git instead
+```
+
+#### How to Make Changes (GitOps Workflow)
+1. **Modify** the appropriate files in Git:
+   - Helm chart values: `overlays/<env>/<service>/values.yaml`
+   - Chart templates: `charts/<service>/templates/`
+   - ArgoCD config: `overlays/<env>/<service>/application.yaml`
+2. **Commit and push** to Git
+3. **Wait for ArgoCD auto-sync** (5-10 seconds)
+4. **Verify** the change with read-only kubectl commands
+
+**Note:** Do NOT manually trigger ArgoCD sync with kubectl or the ArgoCD CLI. Auto-sync is fast enough and prevents unnecessary intervention.
+
+**Exception:** Emergency repairs during outages may require direct kubectl operations, but these MUST be followed by a Git commit to restore GitOps consistency.
+
 ### Adding a New Service
 1. Create Helm chart in `charts/<name>/` with default values
 2. Choose the appropriate overlay environment:
