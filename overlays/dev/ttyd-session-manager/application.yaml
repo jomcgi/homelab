@@ -5,7 +5,7 @@ metadata:
   namespace: argocd
   annotations:
     # ArgoCD Image Updater configuration
-    argocd-image-updater.argoproj.io/image-list: backend=ghcr.io/jomcgi/ttyd-session-manager
+    argocd-image-updater.argoproj.io/image-list: backend=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
     argocd-image-updater.argoproj.io/backend.update-strategy: newest-build
     argocd-image-updater.argoproj.io/backend.allow-tags: regexp:^(main-)?[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9a-f]{7}$
     argocd-image-updater.argoproj.io/backend.helm.image-name: image.repository
