@@ -62,9 +62,11 @@ gha-runner-scale-set:
         resources:
           limits:
             memory: 8Gi     # Increased for Bazel with shared output_base cache
+            ephemeral-storage: 100Gi  # Disk space for build artifacts in /home/runner/_work
           requests:
             cpu: 4000m      # 4 CPUs for parallel builds
             memory: 8Gi
+            ephemeral-storage: 100Gi  # Reserve disk space for Bazel builds
 
         volumeMounts:
         - name: bazel-cache
