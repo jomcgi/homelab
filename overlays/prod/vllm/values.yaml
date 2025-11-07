@@ -75,6 +75,8 @@ vllm-stack:
 
           # Additional performance flags
           extraArgs:
+            # MoE model requires expert-parallel (required by model card)
+            - "--enable-expert-parallel"
             # Model uses compressed-tensors quantization (auto-detected)
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
