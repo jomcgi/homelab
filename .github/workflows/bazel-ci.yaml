@@ -36,11 +36,11 @@ jobs:
           common --remote_header=x-buildbuddy-api-key=${{ secrets.BUILDBUDDY_API_KEY }}
           EOF
 
-      - name: Build
-        run: "${GITHUB_WORKSPACE}/bin/bazel build --config=ci //..."
-
       - name: Test
         run: "${GITHUB_WORKSPACE}/bin/bazel test --config=ci //..."
+
+      - name: Build images
+        run: "${GITHUB_WORKSPACE}/bin/bazel build --config=ci //images:push_all"
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
