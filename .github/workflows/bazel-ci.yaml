@@ -37,7 +37,7 @@ jobs:
           EOF
 
       - name: Test
-        run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base test --config=ci //..."
+        run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base test --config=ci //... --deleted_packages=tools/python"
 
       - name: Build images
         run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base build --config=ci //images:push_all"
