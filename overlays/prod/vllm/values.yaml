@@ -34,7 +34,8 @@ vllm-stack:
         repository: "vllm/vllm-openai"
         tag: "v0.11.0"  # Latest stable release (Oct 2025)
         imagePullPolicy: IfNotPresent
-        modelURL: "unsloth/Qwen3-Coder-30B-A3B-Instruct-GGUF"
+        # AWQ 4-bit quantization (vLLM native support)
+        modelURL: "QuantTrio/Qwen3-Coder-30B-A3B-Instruct-AWQ"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
