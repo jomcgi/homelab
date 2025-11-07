@@ -11,12 +11,14 @@ go_library(
     deps = [
         "@com_github_gin_gonic_gin//:gin",
         "@com_github_google_uuid//:uuid",
+        "@com_github_gorilla_websocket//:go_default_library",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_client_go//kubernetes",
         "@io_k8s_client_go//rest",
         "@io_k8s_client_go//tools/clientcmd",
+        "@io_k8s_metrics//pkg/client/clientset/versioned:go_default_library",
     ],
 )
 
