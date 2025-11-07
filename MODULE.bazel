@@ -102,6 +102,9 @@ use_repo(node, "nodejs_toolchains")
 
 #########################
 # Hermetic Python interpreter and pip dependencies
+# Note: pip.parse() itself doesn't cause eager fetching - that's a good thing!
+# The problem is load("@pip//:requirements.bzl") in BUILD files, which we've
+# moved to //tools/python to avoid loading during CI analysis.
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")

@@ -1,4 +1,0 @@
-# Static websites deployed to Cloudflare Pages
-# These don't need Bazel builds and use npm scripts directly
-websites/hikes.jomcgi.dev
-websites/jomcgi.dev
