@@ -63,10 +63,10 @@ vllm-stack:
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
             - "0.90"  # Use 90% of available VRAM
-            # Tool calling disabled for now - OpenCode message format incompatible
-            # - "--enable-auto-tool-choice"
-            # - "--tool-call-parser"
-            # - "hermes"
+            - "--enable-auto-tool-choice"   # Enable automatic tool choice
+            - "--tool-call-parser"
+            - "hermes"                      # Tool call parser for Gemma
+            - "--trust-remote-code"         # Trust remote code for chat template
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
         nodeSelector:
