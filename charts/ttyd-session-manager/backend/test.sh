@@ -76,7 +76,7 @@ trap cleanup EXIT
 echo "🚀 Step 4: Creating session with image tag ${IMAGE_TAG}..."
 SESSION_RESPONSE=$(curl -X POST http://localhost:8083/api/sessions \
 	-H "Content-Type: application/json" \
-	-d "{\"name\": \"${SESSION_NAME}\", \"image_tag\": \"${IMAGE_TAG}\"}" -s)
+	-d "{\"display_name\": \"${SESSION_NAME}\", \"image_tag\": \"${IMAGE_TAG}\"}" -s)
 
 echo "  API Response:"
 echo "$SESSION_RESPONSE" | jq .
