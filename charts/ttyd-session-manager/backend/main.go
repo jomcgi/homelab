@@ -331,10 +331,12 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"-W",
 						"--writable",
 						"-o", "disableLeaveAlert=true", // Disable leave page alert
-						"-o", "rendererType=dom", // Use DOM renderer (may help with mouse events)
-						"opencode",
+						"-o", "rendererType=dom",       // Use DOM renderer (may help with mouse events)
+						"/bin/sh", "-c",
+						// Wait for initContainer to create /workspace/session before starting opencode
+						"while [ ! -d /workspace/session ]; do echo 'Waiting for session directory...'; sleep 0.5; done && cd /workspace/session && exec opencode",
 					},
-					WorkingDir: "/workspace/session",
+					WorkingDir: "/workspace",
 					Env:        buildSessionEnv(sessionID, gitBranch, apiKeysSecretName, anthropicSecretKey, googleSecretKey, buildbuddySecretKey, otelEnabled, otelEndpoint),
 					Ports: []corev1.ContainerPort{
 						{
@@ -368,6 +370,18 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						Capabilities: &corev1.Capabilities{
 							Drop: []corev1.Capability{"ALL"},
 						},
+					},
+					ReadinessProbe: &corev1.Probe{
+						Exec: &corev1.ExecAction{
+							Command: []string{
+								"/bin/sh", "-c",
+								"test -d /workspace/session && test -f /workspace/session/.git/config",
+							},
+						},
+						InitialDelaySeconds: 2,
+						PeriodSeconds:       2,
+						TimeoutSeconds:      1,
+						FailureThreshold:    30, // 60 seconds total (30 * 2s)
 					},
 					Lifecycle: &corev1.Lifecycle{
 						PreStop: &corev1.LifecycleHandler{
