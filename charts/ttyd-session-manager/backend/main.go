@@ -328,7 +328,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						"-o", "rendererType=dom", // Use DOM renderer (may help with mouse events)
 						"opencode",
 					},
-					WorkingDir: "/workspace/session",
+					WorkingDir: "/workspace",
 					Env:        buildSessionEnv(sessionID, gitBranch, apiKeysSecretName, anthropicSecretKey, googleSecretKey, buildbuddySecretKey, otelEnabled, otelEndpoint),
 					Ports: []corev1.ContainerPort{
 						{
@@ -367,7 +367,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						PreStop: &corev1.LifecycleHandler{
 							Exec: &corev1.ExecAction{
 								Command: []string{"sh", "-c", `
-cd /workspace/session
+cd /workspace
 
 # Add authenticated remote if not already set
 git remote set-url origin https://jomcgi:${GITHUB_TOKEN}@github.com/jomcgi/homelab.git
