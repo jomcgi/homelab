@@ -189,7 +189,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: 68939207d2798cd181928642770fbe4332c4739762db9bb6ba825dabbd44691
+    actions.github.com/values-hash: e10ac10d3014d5a9dffe46533e016870bdf20898f9d0f9c833acdc67fbd8eba
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -221,6 +221,8 @@ spec:
     spec:
       imagePullSecrets: 
         - name: ghcr-imagepull-secret
+      securityContext: 
+        fsGroup: 1001
       restartPolicy: Never
       serviceAccountName: homelab-runners-gha-rs-no-permission
       initContainers:
