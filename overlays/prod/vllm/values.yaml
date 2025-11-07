@@ -54,6 +54,8 @@ vllm-stack:
             value: "DEBUG"
           - name: HF_HUB_VERBOSITY
             value: "debug"
+          - name: VLLM_LOG_STATS_INTERVAL
+            value: "1"
 
         # Resource allocation (dedicated node with 64GB total)
         requestCPU: 8
