@@ -7,37 +7,54 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	metricsv "k8s.io/metrics/pkg/client/clientset/versioned"
 )
 
 const (
 	namespace = "ttyd-sessions"
 )
 
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		return true // Allow all origins for development
+	},
+}
+
 type SessionManager struct {
-	clientset *kubernetes.Clientset
+	clientset     *kubernetes.Clientset
+	metricsClient *metricsv.Clientset
 }
 
 type CreateSessionRequest struct {
-	Name     string `json:"name" binding:"required"`
-	ImageTag string `json:"image_tag,omitempty"` // Optional: defaults to "main"
+	DisplayName string `json:"display_name" binding:"required"` // User-friendly session name
+	GitBranch   string `json:"git_branch,omitempty"`            // Optional: defaults to "session-{id}"
+	ImageTag    string `json:"image_tag,omitempty"`             // Optional: defaults to "main"
 }
 
 type SessionResponse struct {
-	ID       string `json:"id"`
-	Name     string `json:"name"`
-	PodName  string `json:"pod_name"`
-	State    string `json:"state"`
-	ImageTag string `json:"image_tag,omitempty"`
-	Terminal string `json:"terminal_url,omitempty"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	PodName     string `json:"pod_name"`
+	State       string `json:"state"`
+	ImageTag    string `json:"image_tag,omitempty"`
+	Branch      string `json:"branch,omitempty"`
+	CreatedAt   string `json:"created_at,omitempty"`
+	LastActive  string `json:"last_active,omitempty"`
+	AgeDays     int    `json:"age_days,omitempty"`
+	MemoryUsage string `json:"memory_usage,omitempty"`
+	CPUUsage    string `json:"cpu_usage,omitempty"`
+	TerminalURL string `json:"terminal_url,omitempty"`
 }
 
 func main() {
@@ -52,7 +69,16 @@ func main() {
 		log.Fatalf("Failed to create K8s client: %v", err)
 	}
 
-	sm := &SessionManager{clientset: clientset}
+	// Create metrics client
+	metricsClient, err := metricsv.NewForConfig(config)
+	if err != nil {
+		log.Printf("Warning: Failed to create metrics client: %v (metrics will be unavailable)", err)
+	}
+
+	sm := &SessionManager{
+		clientset:     clientset,
+		metricsClient: metricsClient,
+	}
 
 	// Setup router
 	r := gin.Default()
@@ -77,6 +103,7 @@ func main() {
 	r.POST("/api/sessions", sm.createSession)
 	r.GET("/api/sessions", sm.listSessions)
 	r.GET("/api/sessions/:id", sm.getSession)
+	r.GET("/api/sessions/:id/terminal", sm.terminalWebSocket)
 	r.DELETE("/api/sessions/:id", sm.deleteSession)
 
 	// Listen on 8081 internally, Envoy proxy listens on 8080 and forwards to us
@@ -102,7 +129,12 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	// Generate session ID
 	sessionID := uuid.New().String()[:8]
 	podName := fmt.Sprintf("ttyd-session-%s", sessionID)
-	gitBranch := fmt.Sprintf("session-%s", sessionID)
+
+	// Use custom git branch or default to "session-{id}"
+	gitBranch := req.GitBranch
+	if gitBranch == "" {
+		gitBranch = fmt.Sprintf("session-%s", sessionID)
+	}
 
 	// Git remote URL (using homelab repo)
 	gitRemoteURL := "https://github.com/jomcgi/homelab.git"
@@ -125,7 +157,7 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 				"session-id": sessionID,
 			},
 			Annotations: map[string]string{
-				"session-name":   req.Name,
+				"session-name":   req.DisplayName,
 				"git-branch":     gitBranch,
 				"git-remote-url": gitRemoteURL,
 				"image-tag":      imageTag,
@@ -227,7 +259,7 @@ echo "Session initialized and pushed to branch: ${GIT_BRANCH}"
 						},
 						{
 							Name:  "SESSION_NAME",
-							Value: req.Name,
+							Value: req.DisplayName,
 						},
 					},
 					VolumeMounts: []corev1.VolumeMount{
@@ -400,7 +432,7 @@ echo "Session state saved to Git"
 
 	c.JSON(http.StatusCreated, SessionResponse{
 		ID:       sessionID,
-		Name:     req.Name,
+		Name:     req.DisplayName,
 		PodName:  createdPod.Name,
 		State:    "creating",
 		ImageTag: imageTag,
@@ -437,12 +469,42 @@ func (sm *SessionManager) listSessions(c *gin.Context) {
 			imageTag = "main" // Default for older sessions without this annotation
 		}
 
+		sessionName := pod.Annotations["session-name"]
+		if sessionName == "" {
+			sessionName = pod.Name // Fallback for older sessions without this annotation
+		}
+
+		gitBranch := pod.Annotations["git-branch"]
+
+		// Get creation and last active times
+		createdAt := pod.CreationTimestamp.Time.Format(time.RFC3339)
+		lastActive := createdAt // Default to creation time
+		if pod.Status.StartTime != nil {
+			lastActive = pod.Status.StartTime.Time.Format(time.RFC3339)
+		}
+
+		// Calculate age in days
+		ageDays := calculateAgeDays(pod.CreationTimestamp.Time)
+
+		// Get metrics
+		cpuUsage, memoryUsage := sm.getPodMetrics(pod.Name)
+
+		// Build terminal URL
+		terminalURL := fmt.Sprintf("/api/sessions/%s/terminal", sessionID)
+
 		sessions = append(sessions, SessionResponse{
-			ID:       sessionID,
-			Name:     pod.Name,
-			PodName:  pod.Name,
-			State:    state,
-			ImageTag: imageTag,
+			ID:          sessionID,
+			Name:        sessionName,
+			PodName:     pod.Name,
+			State:       state,
+			ImageTag:    imageTag,
+			Branch:      gitBranch,
+			CreatedAt:   createdAt,
+			LastActive:  lastActive,
+			AgeDays:     ageDays,
+			CPUUsage:    cpuUsage,
+			MemoryUsage: memoryUsage,
+			TerminalURL: terminalURL,
 		})
 	}
 
@@ -478,12 +540,42 @@ func (sm *SessionManager) getSession(c *gin.Context) {
 		imageTag = "main" // Default for older sessions without this annotation
 	}
 
+	sessionName := pod.Annotations["session-name"]
+	if sessionName == "" {
+		sessionName = pod.Name // Fallback for older sessions without this annotation
+	}
+
+	gitBranch := pod.Annotations["git-branch"]
+
+	// Get creation and last active times
+	createdAt := pod.CreationTimestamp.Time.Format(time.RFC3339)
+	lastActive := createdAt // Default to creation time
+	if pod.Status.StartTime != nil {
+		lastActive = pod.Status.StartTime.Time.Format(time.RFC3339)
+	}
+
+	// Calculate age in days
+	ageDays := calculateAgeDays(pod.CreationTimestamp.Time)
+
+	// Get metrics
+	cpuUsage, memoryUsage := sm.getPodMetrics(pod.Name)
+
+	// Build terminal URL
+	terminalURL := fmt.Sprintf("/api/sessions/%s/terminal", sessionID)
+
 	c.JSON(http.StatusOK, SessionResponse{
-		ID:       sessionID,
-		Name:     pod.Name,
-		PodName:  pod.Name,
-		State:    state,
-		ImageTag: imageTag,
+		ID:          sessionID,
+		Name:        sessionName,
+		PodName:     pod.Name,
+		State:       state,
+		ImageTag:    imageTag,
+		Branch:      gitBranch,
+		CreatedAt:   createdAt,
+		LastActive:  lastActive,
+		AgeDays:     ageDays,
+		CPUUsage:    cpuUsage,
+		MemoryUsage: memoryUsage,
+		TerminalURL: terminalURL,
 	})
 }
 
@@ -502,6 +594,130 @@ func (sm *SessionManager) deleteSession(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Session deleted"})
+}
+
+func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
+	sessionID := c.Param("id")
+	podName := fmt.Sprintf("ttyd-session-%s", sessionID)
+
+	// Verify pod exists
+	pod, err := sm.clientset.CoreV1().Pods(namespace).Get(
+		context.Background(),
+		podName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Session not found"})
+		return
+	}
+
+	// Check if pod is running
+	if pod.Status.Phase != corev1.PodRunning {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session is not running"})
+		return
+	}
+
+	// Upgrade HTTP connection to WebSocket
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("Failed to upgrade WebSocket: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// For MVP: Connect directly to pod IP and port
+	// The pod has an envoy sidecar listening on port 7681
+	podIP := pod.Status.PodIP
+	if podIP == "" {
+		conn.WriteMessage(websocket.TextMessage, []byte("Error: Pod IP not available"))
+		return
+	}
+
+	// Connect to the ttyd service via envoy proxy (port 7681)
+	ttydURL := fmt.Sprintf("ws://%s:7681/ws", podIP)
+
+	// Create WebSocket connection to ttyd
+	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, nil)
+	if err != nil {
+		errMsg := fmt.Sprintf("Error connecting to terminal: %v", err)
+		conn.WriteMessage(websocket.TextMessage, []byte(errMsg))
+		log.Printf("Failed to connect to ttyd at %s: %v", ttydURL, err)
+		return
+	}
+	defer ttydConn.Close()
+
+	// Bidirectional proxy between client and ttyd
+	errChan := make(chan error, 2)
+
+	// Client → ttyd
+	go func() {
+		for {
+			messageType, message, err := conn.ReadMessage()
+			if err != nil {
+				errChan <- fmt.Errorf("client read error: %w", err)
+				return
+			}
+			if err := ttydConn.WriteMessage(messageType, message); err != nil {
+				errChan <- fmt.Errorf("ttyd write error: %w", err)
+				return
+			}
+		}
+	}()
+
+	// ttyd → Client
+	go func() {
+		for {
+			messageType, message, err := ttydConn.ReadMessage()
+			if err != nil {
+				errChan <- fmt.Errorf("ttyd read error: %w", err)
+				return
+			}
+			if err := conn.WriteMessage(messageType, message); err != nil {
+				errChan <- fmt.Errorf("client write error: %w", err)
+				return
+			}
+		}
+	}()
+
+	// Wait for error from either goroutine
+	err = <-errChan
+	log.Printf("WebSocket proxy terminated: %v", err)
+}
+
+// Helper functions for metrics and metadata
+func (sm *SessionManager) getPodMetrics(podName string) (cpuUsage, memoryUsage string) {
+	if sm.metricsClient == nil {
+		return "N/A", "N/A"
+	}
+
+	metrics, err := sm.metricsClient.MetricsV1beta1().PodMetricses(namespace).Get(
+		context.Background(),
+		podName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		// Metrics not available (pod might be too new or metrics-server issue)
+		return "N/A", "N/A"
+	}
+
+	var totalCPU, totalMemory int64
+	for _, container := range metrics.Containers {
+		totalCPU += container.Usage.Cpu().MilliValue()
+		totalMemory += container.Usage.Memory().Value()
+	}
+
+	// Format CPU as millicores (e.g., "150m")
+	cpuUsage = fmt.Sprintf("%dm", totalCPU)
+
+	// Format memory as Mi (e.g., "256Mi")
+	memoryMi := totalMemory / (1024 * 1024)
+	memoryUsage = fmt.Sprintf("%dMi", memoryMi)
+
+	return cpuUsage, memoryUsage
+}
+
+func calculateAgeDays(createdAt time.Time) int {
+	return int(time.Since(createdAt).Hours() / 24)
 }
 
 // Helper functions
