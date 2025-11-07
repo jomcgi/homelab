@@ -1,6 +1,12 @@
 # Self-hosted GitHub Actions runners with remote cache
 # Supports Docker-in-Docker for container builds with Bazel remote cache
 
+# Persistent Bazel repository cache (shared across all runners)
+bazelCache:
+  enabled: true
+  size: 10Gi
+  storageClassName: longhorn
+
 secret:
   # Create the secret via OnePasswordItem
   create: true
@@ -54,6 +60,15 @@ gha-runner-scale-set:
           requests:
             cpu: 4000m      # 4 CPUs for parallel builds
             memory: 4Gi
+
+        volumeMounts:
+        - name: bazel-cache
+          mountPath: /home/runner/.cache/bazel
+
+      volumes:
+      - name: bazel-cache
+        persistentVolumeClaim:
+          claimName: bazel-repository-cache
 
   listenerTemplate:
     spec:

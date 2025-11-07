@@ -16,9 +16,10 @@ common --@aspect_rules_ts//ts:skipLibCheck=always
 common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 
 # =============================================================================
-# Repository Cache - Cache external dependencies locally
+# Repository Cache - Cache external dependencies
 # =============================================================================
-# Cache repository fetches locally to speed up builds
+# In CI: Persistent cache mounted at ~/.cache/bazel (ReadWriteMany PVC)
+# Local dev: Standard location in home directory
 common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
 
