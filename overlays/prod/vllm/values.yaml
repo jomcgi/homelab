@@ -50,6 +50,10 @@ vllm-stack:
               secretKeyRef:
                 name: vllm-hf-token
                 key: hf_token
+          - name: VLLM_LOGGING_LEVEL
+            value: "DEBUG"
+          - name: HF_HUB_VERBOSITY
+            value: "debug"
 
         # Resource allocation (dedicated node with 64GB total)
         requestCPU: 8
