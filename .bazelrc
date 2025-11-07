@@ -23,7 +23,8 @@ common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
 
 # CI: Override to use mounted PVC at /mnt/bazel-cache
-build:ci --repository_cache=/mnt/bazel-cache/repository_cache
+# Use common:ci so it applies to all commands (build, test, run, fetch, etc.)
+common:ci --repository_cache=/mnt/bazel-cache/repository_cache
 
 # rules_python is working to enable this default to avoid dependency on a system interpreter
 # See https://github.com/bazel-contrib/rules_python/issues/3187
