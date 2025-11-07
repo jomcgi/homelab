@@ -60,10 +60,10 @@ gha-runner-scale-set:
 
         resources:
           limits:
-            memory: 4Gi     # Increased for analysis + builds
+            memory: 8Gi     # Increased for Bazel with shared output_base cache
           requests:
             cpu: 4000m      # 4 CPUs for parallel builds
-            memory: 4Gi
+            memory: 8Gi
 
         volumeMounts:
         - name: bazel-cache
