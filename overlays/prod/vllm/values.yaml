@@ -11,6 +11,23 @@ vllm-stack:
     strategy:
       type: Recreate
 
+    # Health checks (applied to all models)
+    startupProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 30
+      periodSeconds: 10
+      failureThreshold: 360  # Allow 1 hour for model download/load
+
+    livenessProbe:
+      httpGet:
+        path: /health
+        port: 8000
+      initialDelaySeconds: 15
+      periodSeconds: 10
+      failureThreshold: 3
+
     modelSpec:
       - name: "qwen3-coder-30b"
         # vLLM OpenAI-compatible server image
@@ -86,31 +103,6 @@ vllm-stack:
           fsGroup: 65532
           seccompProfile:
             type: RuntimeDefault
-
-        # Health checks
-        startupProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          failureThreshold: 360  # Allow 1 hour for model download/load
-
-        livenessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 10
-          failureThreshold: 3
-
-        readinessProbe:
-          httpGet:
-            path: /health
-            port: 8000
-          initialDelaySeconds: 15
-          periodSeconds: 5
-          failureThreshold: 3
 
         # Resource limits (match requests for GPU, allow CPU bursting)
         resources:
