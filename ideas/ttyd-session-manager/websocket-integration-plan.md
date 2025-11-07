@@ -1,7 +1,8 @@
 # TTYD Session Manager - WebSocket Integration Plan
 
-**Status**: Planning
+**Status**: ✅ MVP Implemented & Deployed
 **Created**: 2025-11-06
+**Completed**: 2025-11-07
 **Goal**: Integrate UI mockup with backend by implementing WebSocket terminal connections and enhanced session data
 
 ---
@@ -25,16 +26,15 @@ Enable terminal access from UI via WebSocket, using kubectl port-forward as prox
 
 ### Tasks
 
-- [ ] Add `github.com/gorilla/websocket` to `go.mod`
-- [ ] Implement WebSocket upgrade handler in `main.go`
-  - [ ] Accept WebSocket connection from client
-  - [ ] Start kubectl port-forward to pod (ttyd-session-{id}:7681)
-  - [ ] Connect to localhost:random_port via WebSocket
-  - [ ] Implement bidirectional proxy (client ↔ ttyd)
-  - [ ] Handle connection errors and cleanup
-- [ ] Create route: `GET /api/sessions/:id/terminal`
-- [ ] Update `SessionResponse` struct to include `terminal_url` field
-- [ ] Populate `terminal_url` with `/api/sessions/{id}/terminal`
+- [x] Add `github.com/gorilla/websocket` to `go.mod`
+- [x] Implement WebSocket upgrade handler in `main.go`
+  - [x] Accept WebSocket connection from client
+  - [x] Connect directly to pod IP via WebSocket (using pod IP instead of port-forward)
+  - [x] Implement bidirectional proxy (client ↔ ttyd)
+  - [x] Handle connection errors and cleanup
+- [x] Create route: `GET /api/sessions/:id/terminal`
+- [x] Update `SessionResponse` struct to include `terminal_url` field
+- [x] Populate `terminal_url` with `/api/sessions/{id}/terminal`
 - [ ] Test WebSocket connection with browser
 - [ ] Test bidirectional I/O (type commands, see output)
 - [ ] Test error handling (pod not found, connection refused)
@@ -75,32 +75,32 @@ Return complete session data for UI rendering, including real-time metrics from 
 
 ### Tasks
 
-- [ ] Update `SessionResponse` struct with new fields
-  - [ ] Add `CreatedAt` (time.Time)
-  - [ ] Add `LastActive` (time.Time)
-  - [ ] Add `Branch` (string from annotation)
-  - [ ] Add `AgeDays` (int, calculated)
-  - [ ] Add `MemoryUsage` (string from metrics)
-  - [ ] Add `CPUUsage` (string from metrics)
-  - [ ] Add `TerminalURL` (string)
-  - [ ] Update `Name` to use annotation instead of pod name
-- [ ] Add `k8s.io/metrics` dependency to `go.mod`
-- [ ] Implement metrics client setup
-- [ ] Create function to query pod metrics
-  - [ ] Get CPU usage from metrics API
-  - [ ] Get memory usage from metrics API
-  - [ ] Format as percentage or absolute values
-  - [ ] Handle metrics unavailable gracefully
-- [ ] Update session list handler (`GET /api/sessions`)
-  - [ ] Parse pod creation timestamp → `created_at`
-  - [ ] Parse pod update timestamp → `last_active`
-  - [ ] Read annotation `session-name` → `name`
-  - [ ] Read annotation `git-branch` → `branch`
-  - [ ] Calculate `age_days` from created_at
-  - [ ] Query metrics API for CPU/memory
-  - [ ] Populate `terminal_url`
-- [ ] Update session get handler (`GET /api/sessions/:id`)
-  - [ ] Apply same metadata enhancements
+- [x] Update `SessionResponse` struct with new fields
+  - [x] Add `CreatedAt` (time.Time)
+  - [x] Add `LastActive` (time.Time)
+  - [x] Add `Branch` (string from annotation)
+  - [x] Add `AgeDays` (int, calculated)
+  - [x] Add `MemoryUsage` (string from metrics)
+  - [x] Add `CPUUsage` (string from metrics)
+  - [x] Add `TerminalURL` (string)
+  - [x] Update `Name` to use annotation instead of pod name
+- [x] Add `k8s.io/metrics` dependency to `go.mod`
+- [x] Implement metrics client setup
+- [x] Create function to query pod metrics
+  - [x] Get CPU usage from metrics API
+  - [x] Get memory usage from metrics API
+  - [x] Format as percentage or absolute values
+  - [x] Handle metrics unavailable gracefully
+- [x] Update session list handler (`GET /api/sessions`)
+  - [x] Parse pod creation timestamp → `created_at`
+  - [x] Parse pod update timestamp → `last_active`
+  - [x] Read annotation `session-name` → `name`
+  - [x] Read annotation `git-branch` → `branch`
+  - [x] Calculate `age_days` from created_at
+  - [x] Query metrics API for CPU/memory
+  - [x] Populate `terminal_url`
+- [x] Update session get handler (`GET /api/sessions/:id`)
+  - [x] Apply same metadata enhancements
 - [ ] Test with real pods
 - [ ] Verify metrics show correctly in response
 
@@ -211,18 +211,18 @@ Accept user-friendly session names and git branch in creation request.
 
 ### Tasks
 
-- [ ] Update `CreateSessionRequest` struct
-  - [ ] Change `name` field to `display_name`
-  - [ ] Add `git_branch` field (optional)
-  - [ ] Keep `image_tag` field (optional)
-- [ ] Update pod creation logic
-  - [ ] Store `display_name` in annotation `session-name`
-  - [ ] Store `git_branch` in annotation `git-branch`
-  - [ ] Use git_branch in initContainer git clone command
-  - [ ] Default git_branch to "main" if not provided
-- [ ] Update pod name generation
-  - [ ] Keep DNS-safe format: `ttyd-session-{8-char-uuid}`
-  - [ ] Display name stored in annotation, not pod name
+- [x] Update `CreateSessionRequest` struct
+  - [x] Change `name` field to `display_name`
+  - [x] Add `git_branch` field (optional)
+  - [x] Keep `image_tag` field (optional)
+- [x] Update pod creation logic
+  - [x] Store `display_name` in annotation `session-name`
+  - [x] Store `git_branch` in annotation `git-branch`
+  - [x] Use git_branch in initContainer git clone command
+  - [x] Default git_branch to "session-{id}" if not provided
+- [x] Update pod name generation
+  - [x] Keep DNS-safe format: `ttyd-session-{8-char-uuid}`
+  - [x] Display name stored in annotation, not pod name
 - [ ] Test creating session with friendly name
 - [ ] Test creating session with custom git branch
 - [ ] Verify annotations stored correctly
@@ -265,10 +265,10 @@ Name: fmt.Sprintf("ttyd-session-%s", sessionID[:8])  // "ttyd-session-a1b2c3d4"
 
 **Day 1** (Quick Wins)
 1. ✅ **Phase 4**: Fix session creation (1 hour)
-2. 🔄 **Phase 2**: Enhanced metadata + metrics (rest of day 1)
+2. ✅ **Phase 2**: Enhanced metadata + metrics (rest of day 1)
 
 **Day 2** (Core Feature)
-3. 🔄 **Phase 1**: WebSocket terminal (full day)
+3. ✅ **Phase 1**: WebSocket terminal (full day)
 
 **Day 3** (Testing & Polish)
 4. 🔄 Test end-to-end with UI mockup
@@ -334,12 +334,14 @@ The MVP is **successful** if we can demonstrate:
 - ✅ 1Password secret injection
 - ✅ OpenTelemetry tracing
 
-**Missing** (gaps identified):
-- ❌ WebSocket proxy for terminal
-- ❌ Complete session metadata in API responses
-- ❌ K8s metrics API integration
-- ❌ Suspend/resume functionality
-- ❌ Service per pod (using port-forward instead)
+**Recently Implemented**:
+- ✅ WebSocket proxy for terminal (direct pod IP connection)
+- ✅ Complete session metadata in API responses
+- ✅ K8s metrics API integration
+
+**Still Missing**:
+- ❌ Suspend/resume functionality (Phase 3 - deferred)
+- ❌ Service per pod (using direct pod IP connection instead)
 
 ### Data Flow
 
@@ -532,5 +534,23 @@ A: No, defer suspend/resume until we add SQLite or choose ConfigMap approach.
 
 ---
 
-**Last Updated**: 2025-11-06
-**Status**: Ready for implementation
+**Last Updated**: 2025-11-07
+**Status**: ✅ MVP Implemented & Deployed to Cluster
+
+## Implementation Summary
+
+**Completed Phases**:
+- ✅ Phase 4: Session creation with display_name and git_branch
+- ✅ Phase 2: Enhanced metadata with K8s metrics integration
+- ✅ Phase 1: WebSocket terminal connections
+
+**Deployment Status**:
+- ✅ Code committed and pushed to main
+- ✅ CI pipeline built and pushed images to ghcr.io
+- ✅ ArgoCD synced and deployed to ttyd-sessions namespace
+- ✅ Backend API running with all new features
+
+**Next Steps**:
+- Testing WebSocket connections from UI
+- Implementing frontend components
+- Phase 3 (suspend/resume) - deferred pending architecture decision

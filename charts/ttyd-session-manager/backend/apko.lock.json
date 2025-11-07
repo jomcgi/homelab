@@ -992,41 +992,41 @@
       },
       {
         "name": "kubectl-1.34",
-        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-1.34.1-r2.apk",
-        "version": "1.34.1-r2",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-1.34.1-r3.apk",
+        "version": "1.34.1-r3",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11298",
-          "checksum": "sha1-VfqlATe92ePD/3bFThYIUpb5XNs="
+          "range": "bytes=0-11446",
+          "checksum": "sha1-qw8xZ8ObhvQeSOIZcvLwMR+qvGo="
         },
         "data": {
-          "range": "bytes=11299-19002128",
-          "checksum": "sha256-8xwXPFrefZbjiTa8vAyW3Q9f55SWsA4+BR6jIDsg4v0="
+          "range": "bytes=11447-18972400",
+          "checksum": "sha256-EGjbcobUWKXjNmqcoLyOqrU3Op3rKuAh/22W68MDO64="
         },
-        "checksum": "Q1VfqlATe92ePD/3bFThYIUpb5XNs="
+        "checksum": "Q1qw8xZ8ObhvQeSOIZcvLwMR+qvGo="
       },
       {
         "name": "kubectl-1.34-default",
-        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-default-1.34.1-r2.apk",
-        "version": "1.34.1-r2",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-default-1.34.1-r3.apk",
+        "version": "1.34.1-r3",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11364",
-          "checksum": "sha1-s+yF2WaEkiyT+CHbu5T4GH0eRiw="
+          "range": "bytes=0-11518",
+          "checksum": "sha1-AVg2R8z/cG9IR3kFK0WUm3aPD1Q="
         },
         "data": {
-          "range": "bytes=11365-12704",
-          "checksum": "sha256-LKENKBK0DJQge+unR9e9w+8rf8pVdc9ZrXPXnKEJt/E="
+          "range": "bytes=11519-12853",
+          "checksum": "sha256-8BuTsLnFjJhExkQWeVnfUJWxBGmsrlJSHDJDJnez/pg="
         },
-        "checksum": "Q1s+yF2WaEkiyT+CHbu5T4GH0eRiw="
+        "checksum": "Q1AVg2R8z/cG9IR3kFK0WUm3aPD1Q="
       },
       {
         "name": "icu78-data-full",
@@ -1429,22 +1429,22 @@
       },
       {
         "name": "python-3.13-base",
-        "url": "https://packages.wolfi.dev/os/x86_64/python-3.13-base-3.13.9-r0.apk",
-        "version": "3.13.9-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/python-3.13-base-3.13.9-r1.apk",
+        "version": "3.13.9-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-9022",
-          "checksum": "sha1-Izvuq/vaGWQWoABrIDW2PSgsB+g="
+          "range": "bytes=0-9496",
+          "checksum": "sha1-fgIWJF9lhUU8U3j0I4QDds1+DEk="
         },
         "data": {
-          "range": "bytes=9023-11762241",
-          "checksum": "sha256-SYfXb1UrScXVywYTPP8JFUtCocwvkp9N3ku6cDrigb4="
+          "range": "bytes=9497-11761219",
+          "checksum": "sha256-t4NK8Xd0jPvx2VAKxe9ZBWNcvKfchkDR7RdeuSmrILs="
         },
-        "checksum": "Q1Izvuq/vaGWQWoABrIDW2PSgsB+g="
+        "checksum": "Q1fgIWJF9lhUU8U3j0I4QDds1+DEk="
       },
       {
         "name": "py3.13-setuptools",
@@ -1505,22 +1505,22 @@
       },
       {
         "name": "python-3.13",
-        "url": "https://packages.wolfi.dev/os/x86_64/python-3.13-3.13.9-r0.apk",
-        "version": "3.13.9-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/python-3.13-3.13.9-r1.apk",
+        "version": "3.13.9-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8878",
-          "checksum": "sha1-x9oMNuZRVi6SMM5VUSbC0ys69hM="
+          "range": "bytes=0-9345",
+          "checksum": "sha1-BTVgkqP5+/kD8MOQgO6jqfzESjU="
         },
         "data": {
-          "range": "bytes=8879-10378",
-          "checksum": "sha256-XoFbcpTEm6mYtefBIbnFC98AOYnvYY7LoxfvB7Rm3NM="
+          "range": "bytes=9346-10845",
+          "checksum": "sha256-ZBILP1QrYdne3SqefsZ/Gvs/wkKGMT8XAHOOOT64q5s="
         },
-        "checksum": "Q1x9oMNuZRVi6SMM5VUSbC0ys69hM="
+        "checksum": "Q1BTVgkqP5+/kD8MOQgO6jqfzESjU="
       },
       {
         "name": "ripgrep",
@@ -2626,41 +2626,41 @@
       },
       {
         "name": "kubectl-1.34",
-        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-1.34.1-r2.apk",
-        "version": "1.34.1-r2",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-1.34.1-r3.apk",
+        "version": "1.34.1-r3",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11328",
-          "checksum": "sha1-pGKz+PYWrnygqAn3hM9RJFfzeMo="
+          "range": "bytes=0-11480",
+          "checksum": "sha1-2+vl+2Uh/WOCPcaNjCHNoUXJTNA="
         },
         "data": {
-          "range": "bytes=11329-16936489",
-          "checksum": "sha256-X0FPkUHV8e2V4PZaRWU4CCC5lXdwEakcTou/CbKVPWs="
+          "range": "bytes=11481-16964592",
+          "checksum": "sha256-DHh1pJn40Uj6UkeMptF2kiaQ/9k9+ylDZwgGjE5xw1I="
         },
-        "checksum": "Q1pGKz+PYWrnygqAn3hM9RJFfzeMo="
+        "checksum": "Q12+vl+2Uh/WOCPcaNjCHNoUXJTNA="
       },
       {
         "name": "kubectl-1.34-default",
-        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-default-1.34.1-r2.apk",
-        "version": "1.34.1-r2",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-default-1.34.1-r3.apk",
+        "version": "1.34.1-r3",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11393",
-          "checksum": "sha1-uD7BrF/xq8loQauTYk+P3NRZeSI="
+          "range": "bytes=0-11545",
+          "checksum": "sha1-pD8M1P6t5422IEbPpR1TxnMf8Y8="
         },
         "data": {
-          "range": "bytes=11394-12732",
-          "checksum": "sha256-J9a4/fQJVbz7h/eGHZC77qVe4Pd29VER2Do05FBn5tY="
+          "range": "bytes=11546-12879",
+          "checksum": "sha256-IOSiRA14RoAKLUs6w6TRZJRc7AEPFa5oU+c2ruusC40="
         },
-        "checksum": "Q1uD7BrF/xq8loQauTYk+P3NRZeSI="
+        "checksum": "Q1pD8M1P6t5422IEbPpR1TxnMf8Y8="
       },
       {
         "name": "icu78-data-full",
@@ -3063,22 +3063,22 @@
       },
       {
         "name": "python-3.13-base",
-        "url": "https://packages.wolfi.dev/os/aarch64/python-3.13-base-3.13.9-r0.apk",
-        "version": "3.13.9-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/python-3.13-base-3.13.9-r1.apk",
+        "version": "3.13.9-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-9052",
-          "checksum": "sha1-ys5Y496EpQwlewge3jole4V63/g="
+          "range": "bytes=0-9529",
+          "checksum": "sha1-V68YSgQ2lP8KQcju7pmJ5NHGVCU="
         },
         "data": {
-          "range": "bytes=9053-11653210",
-          "checksum": "sha256-hwLeW1XPkraUzEZD/pF0ydtSc/GBU+0sshRDyZ/+a5Y="
+          "range": "bytes=9530-11623781",
+          "checksum": "sha256-rLbLjsxlwJB7i+Urmr3eqxTD3+7B7K++1TcKsXS2Ifg="
         },
-        "checksum": "Q1ys5Y496EpQwlewge3jole4V63/g="
+        "checksum": "Q1V68YSgQ2lP8KQcju7pmJ5NHGVCU="
       },
       {
         "name": "py3.13-setuptools",
@@ -3139,22 +3139,22 @@
       },
       {
         "name": "python-3.13",
-        "url": "https://packages.wolfi.dev/os/aarch64/python-3.13-3.13.9-r0.apk",
-        "version": "3.13.9-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/python-3.13-3.13.9-r1.apk",
+        "version": "3.13.9-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8915",
-          "checksum": "sha1-xVBJVAxoPv6NhAOqdfTNJVrSytw="
+          "range": "bytes=0-9387",
+          "checksum": "sha1-4I9n/Q9Wo/iBDs+wtNJkfC6vtMk="
         },
         "data": {
-          "range": "bytes=8916-10412",
-          "checksum": "sha256-SaECVjXu2k+H7FQq39a3JQCT1oLAnkBzVj1Mzv2ZGwU="
+          "range": "bytes=9388-10883",
+          "checksum": "sha256-m0CywfS7IeakhWFFf16z7HCk2KnGHBu0EHhl9+I3zFA="
         },
-        "checksum": "Q1xVBJVAxoPv6NhAOqdfTNJVrSytw="
+        "checksum": "Q14I9n/Q9Wo/iBDs+wtNJkfC6vtMk="
       },
       {
         "name": "ripgrep",

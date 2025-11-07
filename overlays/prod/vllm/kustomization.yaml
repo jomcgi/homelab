@@ -3,3 +3,11 @@ kind: Kustomization
 
 resources:
   - ./application.yaml
+
+# Strategic merge patch to fix lmcache/vllm-openai command
+# Removes "vllm" and "serve" prefixes that are incompatible with lmcache image entrypoint
+patches:
+  - path: command-patch.yaml
+    target:
+      kind: Deployment
+      name: vllm-qwen3-coder-30b-deployment-vllm

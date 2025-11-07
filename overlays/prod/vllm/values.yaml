@@ -34,8 +34,8 @@ vllm-stack:
 
     modelSpec:
       - name: "qwen3-coder-30b"
-        # Official vLLM OpenAI-compatible server image
-        repository: "vllm/vllm-openai"
+        # LMCache-enabled vLLM image (command patched via Kustomize)
+        repository: "lmcache/vllm-openai"
         tag: "latest"
         imagePullPolicy: IfNotPresent
         # AWQ 4-bit quantization (vLLM native support)
