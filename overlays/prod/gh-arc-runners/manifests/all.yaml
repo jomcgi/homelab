@@ -35,7 +35,7 @@ spec:
   storageClassName: longhorn
   resources:
     requests:
-      storage: 10Gi
+      storage: 50Gi
 ---
 # Source: gh-arc-runners/charts/gha-runner-scale-set/templates/manager_role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -189,7 +189,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: 3879e0de4848369a807c2fcb3b2a555926973ab666d0d1d003dd24086bf4be7
+    actions.github.com/values-hash: 60033e78895810fa8a49e7a6be252d55a9fcf43ed74ba6987a0d88f1dc542c8
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -243,10 +243,10 @@ spec:
           ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         resources: 
           limits:
-            memory: 4Gi
+            memory: 8Gi
           requests:
             cpu: 4000m
-            memory: 4Gi
+            memory: 8Gi
         env:
           - name: DOCKER_HOST
             value: unix:///var/run/docker.sock
