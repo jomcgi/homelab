@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
 	"path/filepath"
 	"time"
@@ -105,6 +107,10 @@ func main() {
 	r.GET("/api/sessions/:id", sm.getSession)
 	r.GET("/api/sessions/:id/terminal", sm.terminalWebSocket)
 	r.DELETE("/api/sessions/:id", sm.deleteSession)
+
+	// Web interface routes - proxy to ttyd on session pod
+	r.GET("/sessions/:id", sm.sessionWebInterface)
+	r.GET("/sessions/:id/*path", sm.sessionWebInterface)
 
 	// Listen on 8081 internally, Envoy proxy listens on 8080 and forwards to us
 	log.Println("Starting API server on :8081")
@@ -634,6 +640,123 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 	}
 
 	// Connect to the ttyd service via envoy proxy (port 7681)
+	ttydURL := fmt.Sprintf("ws://%s:7681/ws", podIP)
+
+	// Create WebSocket connection to ttyd
+	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, nil)
+	if err != nil {
+		errMsg := fmt.Sprintf("Error connecting to terminal: %v", err)
+		conn.WriteMessage(websocket.TextMessage, []byte(errMsg))
+		log.Printf("Failed to connect to ttyd at %s: %v", ttydURL, err)
+		return
+	}
+	defer ttydConn.Close()
+
+	// Bidirectional proxy between client and ttyd
+	errChan := make(chan error, 2)
+
+	// Client → ttyd
+	go func() {
+		for {
+			messageType, message, err := conn.ReadMessage()
+			if err != nil {
+				errChan <- fmt.Errorf("client read error: %w", err)
+				return
+			}
+			if err := ttydConn.WriteMessage(messageType, message); err != nil {
+				errChan <- fmt.Errorf("ttyd write error: %w", err)
+				return
+			}
+		}
+	}()
+
+	// ttyd → Client
+	go func() {
+		for {
+			messageType, message, err := ttydConn.ReadMessage()
+			if err != nil {
+				errChan <- fmt.Errorf("ttyd read error: %w", err)
+				return
+			}
+			if err := conn.WriteMessage(messageType, message); err != nil {
+				errChan <- fmt.Errorf("client write error: %w", err)
+				return
+			}
+		}
+	}()
+
+	// Wait for error from either goroutine
+	err = <-errChan
+	log.Printf("WebSocket proxy terminated: %v", err)
+}
+
+// sessionWebInterface proxies HTTP requests to the ttyd web interface on the session pod
+func (sm *SessionManager) sessionWebInterface(c *gin.Context) {
+	sessionID := c.Param("id")
+	podName := fmt.Sprintf("ttyd-session-%s", sessionID)
+
+	// Verify pod exists and is running
+	pod, err := sm.clientset.CoreV1().Pods(namespace).Get(
+		context.Background(),
+		podName,
+		metav1.GetOptions{},
+	)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Session not found"})
+		return
+	}
+
+	if pod.Status.Phase != corev1.PodRunning {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Session is not running"})
+		return
+	}
+
+	podIP := pod.Status.PodIP
+	if podIP == "" {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Pod IP not available"})
+		return
+	}
+
+	// Check if this is a WebSocket upgrade request
+	if c.Request.Header.Get("Upgrade") == "websocket" {
+		// Handle WebSocket connection
+		sm.proxyWebSocket(c, podIP)
+		return
+	}
+
+	// Create reverse proxy to ttyd on the pod (port 7681 - envoy sidecar)
+	targetURL, err := url.Parse(fmt.Sprintf("http://%s:7681", podIP))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse target URL"})
+		return
+	}
+
+	// Create a reverse proxy
+	proxy := httputil.NewSingleHostReverseProxy(targetURL)
+
+	// Modify the request path to remove the /sessions/:id prefix
+	pathParam := c.Param("path")
+	c.Request.URL.Path = pathParam
+	if pathParam == "" {
+		c.Request.URL.Path = "/"
+	}
+
+	// Serve the proxied request
+	proxy.ServeHTTP(c.Writer, c.Request)
+}
+
+// proxyWebSocket handles WebSocket connections to the ttyd pod
+func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
+	// Upgrade HTTP connection to WebSocket
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Printf("Failed to upgrade WebSocket: %v", err)
+		return
+	}
+	defer conn.Close()
+
+	// Connect to the ttyd WebSocket endpoint (via envoy proxy on port 7681)
+	// The client is connecting to /sessions/:id/ws, which maps to /ws on ttyd
 	ttydURL := fmt.Sprintf("ws://%s:7681/ws", podIP)
 
 	// Create WebSocket connection to ttyd

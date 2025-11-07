@@ -18,6 +18,8 @@ ingress:
       service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
       service: http://signoz.signoz.svc.cluster.local:8080
+    - hostname: test.jomcgi.dev
+      service: http://ttyd-session-manager.ttyd-sessions.svc.cluster.local:8080
 
 # Enable Envoy proxy sidecar with tracing to SigNoz
 envoy:

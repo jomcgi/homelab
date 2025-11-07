@@ -42,6 +42,8 @@ data:
       service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
       service: http://signoz.signoz.svc.cluster.local:8080
+    - hostname: test.jomcgi.dev
+      service: http://ttyd-session-manager.ttyd-sessions.svc.cluster.local:8080
     - service: http_status:404
 ---
 # Source: cloudflare-tunnel/templates/envoy-configmap.yaml
@@ -266,7 +268,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 49d39afd06ab7209d8fa58aa5e0119ded525f5b2ab473d3a1c89764f84c6cfc7
+        checksum/config: 52984299d3e883145a68a45655d72db1f1be47aba696596178b0b0ddf494572e
         checksum/envoy-config: 728e72d2fbd1ca091217f9ad6f790a7478f0d3298c9028ce877bb32389f3e6fb
       labels:
         app.kubernetes.io/name: cloudflare-tunnel
