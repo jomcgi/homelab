@@ -26,6 +26,8 @@ common --experimental_repository_cache_hardlinks
 # Use common:ci so it applies to all commands (build, test, run, fetch, etc.)
 common:ci --repository_cache=/mnt/bazel-cache/repository_cache
 
+# Note: --output_base is a startup flag and must be passed in workflow, not here
+
 # rules_python is working to enable this default to avoid dependency on a system interpreter
 # See https://github.com/bazel-contrib/rules_python/issues/3187
 # NB: some tools run py_binary targets even if the user didn't select to add Python to their project
