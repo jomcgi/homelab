@@ -5,6 +5,10 @@ secret:
   onepassword:
     itemPath: "vaults/k8s-homelab/items/vllm"
 
+# Enable fast model downloads via init container
+initContainer:
+  enabled: true
+
 vllm-stack:
   servingEngineSpec:
     # Deployment strategy: Recreate for single GPU (terminates old pod first)
