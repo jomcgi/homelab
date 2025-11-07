@@ -38,9 +38,17 @@ echo ""
 
 # Step 3: Set up port-forward to session manager
 echo "🔌 Step 3: Setting up port-forward to session manager..."
-kubectl port-forward -n ttyd-sessions deployment/ttyd-session-manager 8080:8080 >/dev/null 2>&1 &
+kubectl port-forward -n ttyd-sessions deployment/ttyd-session-manager 8083:8080 >/dev/null 2>&1 &
 PF_PID=$!
 sleep 3
+
+# Verify port-forward is working
+if ! lsof -i :8083 >/dev/null 2>&1; then
+	echo "  ✗ Port-forward failed (port 8083 not listening)"
+	echo "  Hint: Check if another process is using this port"
+	exit 1
+fi
+
 echo "  ✓ Port-forward active (PID: ${PF_PID})"
 echo ""
 
@@ -66,7 +74,7 @@ trap cleanup EXIT
 
 # Step 4: Create session with the unique image tag
 echo "🚀 Step 4: Creating session with image tag ${IMAGE_TAG}..."
-SESSION_RESPONSE=$(curl -X POST http://localhost:8080/api/sessions \
+SESSION_RESPONSE=$(curl -X POST http://localhost:8083/api/sessions \
 	-H "Content-Type: application/json" \
 	-d "{\"name\": \"${SESSION_NAME}\", \"image_tag\": \"${IMAGE_TAG}\"}" -s)
 
