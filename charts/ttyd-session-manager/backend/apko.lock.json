@@ -99,22 +99,22 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r3.apk",
-        "version": "15.2.0-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r4.apk",
+        "version": "15.2.0-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6104",
-          "checksum": "sha1-kClARLcEZNkftggR2iAShWIhS18="
+          "range": "bytes=0-6212",
+          "checksum": "sha1-1NPA3Wvwl0V20/pN/hB1oBra6lU="
         },
         "data": {
-          "range": "bytes=6105-100237",
-          "checksum": "sha256-ICOoA+B3gKBETPHJx4u2xevVpw1xLmz4u2quQx9QBT4="
+          "range": "bytes=6213-100342",
+          "checksum": "sha256-nuSIVepVtCiOAs770Qf7sUoIPXPWxpZ0xa9xply1jQs="
         },
-        "checksum": "Q1kClARLcEZNkftggR2iAShWIhS18="
+        "checksum": "Q11NPA3Wvwl0V20/pN/hB1oBra6lU="
       },
       {
         "name": "glibc-locale-posix",
@@ -213,22 +213,22 @@
       },
       {
         "name": "libstdc++",
-        "url": "https://packages.wolfi.dev/os/x86_64/libstdc++-15.2.0-r3.apk",
-        "version": "15.2.0-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/libstdc++-15.2.0-r4.apk",
+        "version": "15.2.0-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6121",
-          "checksum": "sha1-N/p5qKnAg0CxcvtIRmVSi7JTLoI="
+          "range": "bytes=0-6224",
+          "checksum": "sha1-gbSggLbUWRIx/YRUQw0pisFBqGA="
         },
         "data": {
-          "range": "bytes=6122-1124930",
-          "checksum": "sha256-QzMHfRb0f9yY3vIXdozcZwzP/Tdn/fAQ6NvthqwfFX0="
+          "range": "bytes=6225-1125001",
+          "checksum": "sha256-jPWn6ITCUlr5DTc1xgYllHpi6r+Doc2tanPJENSIJ7k="
         },
-        "checksum": "Q1N/p5qKnAg0CxcvtIRmVSi7JTLoI="
+        "checksum": "Q1gbSggLbUWRIx/YRUQw0pisFBqGA="
       },
       {
         "name": "bazelisk",
@@ -1733,22 +1733,22 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r3.apk",
-        "version": "15.2.0-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r4.apk",
+        "version": "15.2.0-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6130",
-          "checksum": "sha1-CtBYaX2M9XVqnvDxVMekdtVkWYc="
+          "range": "bytes=0-6227",
+          "checksum": "sha1-mjSt7FxzCS5LoYqSsC+NI9svobk="
         },
         "data": {
-          "range": "bytes=6131-82466",
-          "checksum": "sha256-66fHU1eyyfZwRsn1B0gczdaMd9sqgwiXLv73jQqJ5vg="
+          "range": "bytes=6228-82562",
+          "checksum": "sha256-WwfpsNV2/QY/32SKziwxoYnVpXuWmtB0/mhvYNflK+s="
         },
-        "checksum": "Q1CtBYaX2M9XVqnvDxVMekdtVkWYc="
+        "checksum": "Q1mjSt7FxzCS5LoYqSsC+NI9svobk="
       },
       {
         "name": "glibc-locale-posix",
@@ -1847,22 +1847,22 @@
       },
       {
         "name": "libstdc++",
-        "url": "https://packages.wolfi.dev/os/aarch64/libstdc++-15.2.0-r3.apk",
-        "version": "15.2.0-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/libstdc++-15.2.0-r4.apk",
+        "version": "15.2.0-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6144",
-          "checksum": "sha1-xfo9jLZz7K9DQu8VvpJd7yWwy84="
+          "range": "bytes=0-6250",
+          "checksum": "sha1-DDa1x4Bkfz8UvFlheeD/NIOD1HI="
         },
         "data": {
-          "range": "bytes=6145-1077201",
-          "checksum": "sha256-oZ+/4th55vg0wWHHUR/r7GY3HWylkmwsGjEprzQT/2w="
+          "range": "bytes=6251-1077276",
+          "checksum": "sha256-KTREuEB3jTpzzTQQrOBYCDOrgtXmXjoGmv+99iQfyEU="
         },
-        "checksum": "Q1xfo9jLZz7K9DQu8VvpJd7yWwy84="
+        "checksum": "Q1DDa1x4Bkfz8UvFlheeD/NIOD1HI="
       },
       {
         "name": "bazelisk",
