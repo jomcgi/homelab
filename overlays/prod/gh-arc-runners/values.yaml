@@ -49,6 +49,10 @@ gha-runner-scale-set:
       imagePullSecrets:
       - name: ghcr-imagepull-secret
 
+      # Set fsGroup so mounted volumes are writable by runner user
+      securityContext:
+        fsGroup: 1001  # runner user GID
+
       containers:
       - name: runner
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
