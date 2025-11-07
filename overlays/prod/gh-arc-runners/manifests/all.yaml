@@ -17,6 +17,26 @@ metadata:
   finalizers:
     - actions.github.com/cleanup-protection
 ---
+# Source: gh-arc-runners/templates/bazel-cache-pvc.yaml
+# Persistent volume for Bazel repository cache
+# Shared across all runners with ReadWriteMany for concurrent access
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bazel-repository-cache
+  namespace: gh-arc-runners
+  labels:
+    app.kubernetes.io/name: gh-arc-runners
+    app.kubernetes.io/instance: gh-arc-runners
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple runners can mount simultaneously
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 10Gi
+---
 # Source: gh-arc-runners/charts/gha-runner-scale-set/templates/manager_role.yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
@@ -169,7 +189,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: bd2ee5d07dfbaf161451a315cbebc51876b086b10c806aaf3db859b572f1ce6
+    actions.github.com/values-hash: 68939207d2798cd181928642770fbe4332c4739762db9bb6ba825dabbd44691
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -231,6 +251,9 @@ spec:
           - name: RUNNER_WAIT_FOR_DOCKER_IN_SECONDS
             value: "120"
         volumeMounts:
+          - 
+            mountPath: /home/runner/.cache/bazel
+            name: bazel-cache
           - name: work
             mountPath: /home/runner/_work
           - name: dind-sock
@@ -262,6 +285,11 @@ spec:
       
       - name: work
         emptyDir: {}
+      
+      - 
+        name: bazel-cache
+        persistentVolumeClaim:
+          claimName: bazel-repository-cache
 ---
 # Source: gh-arc-runners/templates/ghcr-imagepullsecret.yaml
 # GHCR Pull Secret (for Kubernetes image pulls)
