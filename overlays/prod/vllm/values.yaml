@@ -12,12 +12,12 @@ vllm-stack:
       type: Recreate
 
     modelSpec:
-      - name: "gemma-3-12b"
+      - name: "qwen3-coder-30b"
         # vLLM OpenAI-compatible server image
         repository: "vllm/vllm-openai"
         tag: "v0.11.0"  # Latest stable release (Oct 2025)
-        # Hugging Face model ID - BitsAndBytes 4-bit quantized (fits in 24GB GPU)
-        modelURL: "unsloth/gemma-3-12b-it-unsloth-bnb-4bit"
+        # Hugging Face model ID - AWQ 4-bit quantized (fits in 24GB GPU)
+        modelURL: "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
@@ -49,24 +49,23 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Context window (can be larger with quantized model)
-          maxModelLen: 16384
+          # Context window (Qwen3 supports 262k natively, using 32k for stability)
+          maxModelLen: 32768
 
-          # BitsAndBytes works with bfloat16 (required by Gemma 3)
+          # AWQ works with bfloat16
           dtype: "bfloat16"
 
           # Additional performance flags
           extraArgs:
             - "--quantization"
-            - "bitsandbytes"                # Enable BitsAndBytes quantization
+            - "awq"                         # AWQ 4-bit quantization
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
             - "0.90"  # Use 90% of available VRAM
             - "--enable-auto-tool-choice"   # Enable automatic tool choice
             - "--tool-call-parser"
-            - "hermes"                      # Tool call parser for Gemma
-            - "--trust-remote-code"         # Trust remote code for chat template
+            - "qwen3_coder"                 # Tool call parser for Qwen3-Coder
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
         nodeSelector:
