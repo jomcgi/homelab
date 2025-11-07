@@ -63,6 +63,9 @@ vllm-stack:
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
             - "0.90"  # Use 90% of available VRAM
+            - "--enable-auto-tool-choice"   # Enable automatic tool choice for function calling
+            - "--tool-call-parser"
+            - "hermes"                      # Tool call parser for Gemma models
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
         nodeSelector:
