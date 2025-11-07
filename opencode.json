@@ -22,6 +22,17 @@
       "options": {
         "apiKey": "{env:GOOGLE_API_KEY}"
       }
+    },
+    "openai": {
+      "models": {
+        "unsloth/gemma-3-12b-it-unsloth-bnb-4bit": {
+          "contextWindow": 16384
+        }
+      },
+      "options": {
+        "baseURL": "http://vllm-router-service.vllm.svc.cluster.local/v1",
+        "apiKey": "not-needed"
+      }
     }
   },
 

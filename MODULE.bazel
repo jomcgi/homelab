@@ -202,10 +202,10 @@ multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl"
 
 multiarch_http_archive(
     name = "opencode",
-    amd64_sha256 = "30ef087829eb4d4c8dae863b4fb5d8e160973fcc20237af83f185f1b0a6b87d2",
-    amd64_url = "https://github.com/sst/opencode/releases/download/v1.0.10/opencode-linux-x64.zip",
-    arm64_sha256 = "bf78f4a0bd962f80deccec5d10a80eab87fc064751d35ce56075336d452382d1",
-    arm64_url = "https://github.com/sst/opencode/releases/download/v1.0.10/opencode-linux-arm64.zip",
+    amd64_sha256 = "abd7292146d3293b3347ebad84de36fa0689a7850cea53df64c73506cc463072",
+    amd64_url = "https://github.com/sst/opencode/releases/download/v1.0.39/opencode-linux-x64.zip",
+    arm64_sha256 = "02ca134403781337240a6308c87ee2fc515cca77c5a32e2fae859aa1540d3e44",
+    arm64_url = "https://github.com/sst/opencode/releases/download/v1.0.39/opencode-linux-arm64.zip",
     binary_name = "opencode",
     package_dir = "/usr/local/bin",
 )
