@@ -72,7 +72,7 @@ fi
 
 # Step 1: Build the worker image (unless using existing session)
 if [ "${SKIP_BUILD:-false}" = "true" ]; then
-	echo "⏭️  Skipping build steps (using existing session)"
+	echo "⏭️  Skipping th steps (using existing session)"
 	echo ""
 else
 	echo "🔨 Step 1: Building worker image..."
