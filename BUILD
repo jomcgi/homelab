@@ -62,7 +62,6 @@ gazelle_binary(
 
 gazelle(
     name = "gazelle",
-    data = ["//tools/python:gazelle_python_manifest"],
     env = {
         "ENABLE_LANGUAGES": ",".join([
             "argocd",
