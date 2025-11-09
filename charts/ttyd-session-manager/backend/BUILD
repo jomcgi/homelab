@@ -1,11 +1,14 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
 load("//tools/oci:go_image.bzl", "go_image")
 
 go_library(
     name = "backend_lib",
-    srcs = ["main.go"],
+    srcs = [
+        "main.go",
+        "pod_builder.go",
+    ],
     importpath = "github.com/jomcgi/homelab/charts/ttyd-session-manager/backend",
     visibility = ["//visibility:private"],
     deps = [
@@ -19,6 +22,17 @@ go_library(
         "@io_k8s_client_go//rest",
         "@io_k8s_client_go//tools/clientcmd",
         "@io_k8s_metrics//pkg/client/clientset/versioned:go_default_library",
+    ],
+)
+
+go_test(
+    name = "backend_test",
+    srcs = ["pod_builder_test.go"],
+    embed = [":backend_lib"],
+    deps = [
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@io_k8s_api//core/v1:core",
     ],
 )
 

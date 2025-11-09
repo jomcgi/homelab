@@ -470,7 +470,7 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
       - name: api-server
-        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:main"
+        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:2025.11.07.22.13.50-2b707ff"
         imagePullPolicy: Always
         ports:
         - name: http

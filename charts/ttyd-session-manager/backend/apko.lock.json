@@ -973,22 +973,22 @@
       },
       {
         "name": "helm",
-        "url": "https://packages.wolfi.dev/os/x86_64/helm-3.19.0-r1.apk",
-        "version": "3.19.0-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/helm-3.19.0-r2.apk",
+        "version": "3.19.0-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4147",
-          "checksum": "sha1-e+EDhOVCjq3R1EKhYrBV+teQAzU="
+          "range": "bytes=0-4156",
+          "checksum": "sha1-F9GDpcImVfg9JS1XINKntxYXpnM="
         },
         "data": {
-          "range": "bytes=4148-19299213",
-          "checksum": "sha256-07Wkuu8uL+nRU965i/3z+0G/GaWYU4O7r9T+m/WF5RY="
+          "range": "bytes=4157-19267848",
+          "checksum": "sha256-lF8PSLNiovlZVFAKFpXrqFM7PTXh2kD5KxipCk03wCo="
         },
-        "checksum": "Q1e+EDhOVCjq3R1EKhYrBV+teQAzU="
+        "checksum": "Q1F9GDpcImVfg9JS1XINKntxYXpnM="
       },
       {
         "name": "kubectl-1.34",
@@ -2607,22 +2607,22 @@
       },
       {
         "name": "helm",
-        "url": "https://packages.wolfi.dev/os/aarch64/helm-3.19.0-r1.apk",
-        "version": "3.19.0-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/helm-3.19.0-r2.apk",
+        "version": "3.19.0-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4177",
-          "checksum": "sha1-fA481xlerILt/JGt1WxEnpG1KL4="
+          "range": "bytes=0-4186",
+          "checksum": "sha1-/X4y4+FZi9ljfzV7hXp9XaupRzI="
         },
         "data": {
-          "range": "bytes=4178-17162770",
-          "checksum": "sha256-o7BR/ZG08Jd8vegmI40gq8hlV3gNltRicOmd1qbR9Ro="
+          "range": "bytes=4187-17160356",
+          "checksum": "sha256-Al9WUsWTiGPnOh+93PIcNN0rZYi46aZ+P5y2f46TFdw="
         },
-        "checksum": "Q1fA481xlerILt/JGt1WxEnpG1KL4="
+        "checksum": "Q1/X4y4+FZi9ljfzV7hXp9XaupRzI="
       },
       {
         "name": "kubectl-1.34",
