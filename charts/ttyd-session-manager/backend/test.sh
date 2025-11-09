@@ -70,38 +70,67 @@ else
 	echo ""
 fi
 
-# Step 1: Build the worker image (unless using existing session)
+# Step 1: Build and push both images (unless using existing session)
 if [ "${SKIP_BUILD:-false}" = "true" ]; then
-	echo "⏭️  Skipping th steps (using existing session)"
+	echo "⏭️  Skipping build steps (using existing session)"
 	echo ""
 else
-	echo "🔨 Step 1: Building worker image..."
-	echo "  Building: //charts/ttyd-session-manager/backend:ttyd_worker_image"
+	echo "🔨 Step 1: Building both images..."
 	format
-	bazel build --stamp //charts/ttyd-session-manager/backend:ttyd_worker_image
-	echo "  ✓ Build complete"
+	echo "  Building backend API and worker images in parallel..."
+	bazel build --stamp \
+		//charts/ttyd-session-manager/backend:image \
+		//charts/ttyd-session-manager/backend:ttyd_worker_image
+	echo "  ✓ Both images built successfully"
 	echo ""
 
-	# Step 2: Push the image and capture the actual tag
-	echo "📤 Step 2: Pushing worker image to registry..."
-	PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/backend:ttyd_worker_image.push 2>&1)
-	echo "$PUSH_OUTPUT"
+	# Step 2: Push both images and capture tags
+	echo "📤 Step 2: Pushing both images to registry..."
 
-	# Extract the tag from the push output
-	# Format: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:TAG: digest: ...
-	IMAGE_TAG=$(echo "$PUSH_OUTPUT" | grep -oE 'ttyd-worker:[^ :]+' | cut -d: -f2 | head -1)
+	echo "  Pushing backend API image..."
+	BACKEND_PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/backend:image.push 2>&1)
 
-	if [ -z "$IMAGE_TAG" ]; then
-		echo "  ✗ Failed to extract image tag from push output"
+	# Extract the backend tag from the push output
+	BACKEND_IMAGE_TAG=$(echo "$BACKEND_PUSH_OUTPUT" | grep -oE 'ttyd-session-manager-backend:[^ :]+' | cut -d: -f2 | head -1)
+
+	if [ -z "$BACKEND_IMAGE_TAG" ]; then
+		echo "  ✗ Failed to extract backend image tag from push output"
+		echo "$BACKEND_PUSH_OUTPUT"
 		exit 1
 	fi
 
-	echo ""
-	echo "  ✓ Image pushed successfully with tag: ${IMAGE_TAG}"
+	echo "  ✓ Backend API image pushed with tag: ${BACKEND_IMAGE_TAG}"
+
+	echo "  Pushing worker image..."
+	WORKER_PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/backend:ttyd_worker_image.push 2>&1)
+
+	# Extract the worker tag from the push output
+	IMAGE_TAG=$(echo "$WORKER_PUSH_OUTPUT" | grep -oE 'ttyd-worker:[^ :]+' | cut -d: -f2 | head -1)
+
+	if [ -z "$IMAGE_TAG" ]; then
+		echo "  ✗ Failed to extract worker image tag from push output"
+		echo "$WORKER_PUSH_OUTPUT"
+		exit 1
+	fi
+
+	echo "  ✓ Worker image pushed with tag: ${IMAGE_TAG}"
 	echo ""
 
-	# Step 3: Create session with the unique image tag
-	echo "🚀 Step 3: Creating session with image tag ${IMAGE_TAG}..."
+	# Step 3: Update backend deployment and wait for rollout
+	echo "🔄 Step 3: Updating backend deployment with new image..."
+	kubectl set image deployment/ttyd-session-manager \
+		backend=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:${BACKEND_IMAGE_TAG} \
+		-n ttyd-sessions
+	echo "  ✓ Deployment updated"
+	echo ""
+
+	echo "⏳ Step 4: Waiting for backend rollout to complete..."
+	kubectl rollout status deployment/ttyd-session-manager -n ttyd-sessions --timeout=120s
+	echo "  ✓ Rollout complete"
+	echo ""
+
+	# Step 5: Create session with the unique image tag
+	echo "🚀 Step 5: Creating session with image tag ${IMAGE_TAG}..."
 	SESSION_RESPONSE=$(curl -X POST http://localhost:8083/api/sessions \
 		-H "Content-Type: application/json" \
 		-d "{\"display_name\": \"${SESSION_NAME}\", \"image_tag\": \"${IMAGE_TAG}\"}" -s)
@@ -123,8 +152,8 @@ else
 	echo "    - Image Tag: ${IMAGE_TAG}"
 	echo ""
 
-	# Step 4: Wait for pod to be ready
-	echo "⏳ Step 4: Waiting for pod to be ready..."
+	# Step 6: Wait for pod to be ready
+	echo "⏳ Step 6: Waiting for pod to be ready..."
 	kubectl wait --for=condition=ready pod/$POD_NAME -n ttyd-sessions --timeout=120s
 	echo "  ✓ Pod is ready"
 	echo ""
