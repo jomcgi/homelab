@@ -26,12 +26,12 @@ require (
 	k8s.io/client-go v0.34.1
 	k8s.io/metrics v0.34.1
 	sigs.k8s.io/controller-runtime v0.21.0
+	sigs.k8s.io/yaml v1.6.0
 )
 
 require (
 	go.opentelemetry.io/otel/exporters/otlp/otlptrace v1.38.0 // indirect
 	go.opentelemetry.io/otel/metric v1.38.0 // indirect
-	sigs.k8s.io/yaml v1.6.0 // indirect
 )
 
 require (

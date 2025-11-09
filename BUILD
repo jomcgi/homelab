@@ -1,3 +1,5 @@
+load("@rules_go//go:def.bzl", "go_test")
+
 """Targets in the repository root"""
 
 load("@aspect_rules_js//js:defs.bzl", "js_library")
@@ -60,6 +62,7 @@ gazelle_binary(
 
 gazelle(
     name = "gazelle",
+    data = ["//tools/python:gazelle_python_manifest"],
     env = {
         "ENABLE_LANGUAGES": ",".join([
             "argocd",
@@ -90,9 +93,24 @@ exports_files(
 # all pip packages during CI analysis phase. Use:
 # - bazel run //tools/python:gazelle_python_manifest.update
 # - bazel test //tools/python:gazelle_python_manifest.test
+#
+# Note: gazelle_python.yaml in workspace root is a symlink to tools/python/gazelle_python.yaml
+# because Gazelle expects the manifest file at the workspace root.
 
 py_library(
     name = "homelab",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
+)
+
+go_test(
+    name = "homelab_test",
+    srcs = ["deps_test.go"],
+    deps = [
+        "@com_github_gin_gonic_gin//:gin",
+        "@com_github_google_uuid//:uuid",
+        "@com_github_gorilla_websocket//:websocket",
+        "@com_github_stretchr_testify//assert",
+        "@io_k8s_metrics//pkg/client/clientset/versioned",
+    ],
 )
