@@ -11,6 +11,9 @@ frontend:
     repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
     tag: "main"
     pullPolicy: Always
+  # Enable cache busting to prevent browser caching issues in development
+  cacheBusting:
+    enabled: true
 
 replicaCount: 1
 

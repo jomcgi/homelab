@@ -69,9 +69,9 @@ data:
             # Serve frontend
             location / {
                 try_files $uri $uri/ /index.html;
-                {{- if .Values.frontend.cache.enabled }}
+                {{- if .Values.frontend.cacheBusting.enabled }}
                 # Cache-busting headers for HTML files
-                add_header Cache-Control "{{ .Values.frontend.cache.htmlCacheControl }}" always;
+                add_header Cache-Control "{{ .Values.frontend.cacheBusting.htmlCacheControl }}" always;
                 add_header Pragma "no-cache" always;
                 add_header Expires "0" always;
                 {{- end }}
@@ -79,8 +79,8 @@ data:
 
             # Cache static assets (if they exist in the future)
             location ~* \.(css|js|jpg|jpeg|png|gif|ico|svg|woff|woff2|ttf|eot)$ {
-                {{- if .Values.frontend.cache.enabled }}
-                add_header Cache-Control "{{ .Values.frontend.cache.staticCacheControl }}" always;
+                {{- if .Values.frontend.cacheBusting.enabled }}
+                add_header Cache-Control "{{ .Values.frontend.cacheBusting.staticCacheControl }}" always;
                 {{- end }}
                 expires 1y;
                 access_log off;
