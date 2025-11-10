@@ -51,9 +51,9 @@ spec:
         - name: nginx-tmp
           mountPath: /var/lib/nginx/tmp
         - name: nginx-logs
-          mountPath: /var/log/nginx
+          mountPath: /var/lib/nginx/logs
         - name: nginx-run
-          mountPath: /var/run
+          mountPath: /run
         resources:
           {{- toYaml .Values.frontend.resources | nindent 10 }}
         securityContext:
