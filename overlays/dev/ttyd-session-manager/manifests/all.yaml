@@ -585,7 +585,7 @@ spec:
         fsGroup: 101
       containers:
       - name: nginx
-        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:latest"
+        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:main"
         imagePullPolicy: Always
         ports:
         - name: http

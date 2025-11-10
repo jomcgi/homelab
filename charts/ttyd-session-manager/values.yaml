@@ -12,7 +12,7 @@ frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
     pullPolicy: IfNotPresent
-    tag: "latest"
+    tag: "main"
   service:
     type: ClusterIP
     port: 80

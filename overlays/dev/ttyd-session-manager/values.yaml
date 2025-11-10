@@ -9,7 +9,7 @@ frontend:
   enabled: true
   image:
     repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
-    tag: "latest"
+    tag: "main"
     pullPolicy: Always
 
 replicaCount: 1
