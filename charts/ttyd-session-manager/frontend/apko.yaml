@@ -37,7 +37,32 @@ paths:
     uid: 101
     gid: 101
     permissions: 0755
-  - path: /var/log/nginx
+  - path: /var/lib/nginx/tmp/client_body
+    type: directory
+    uid: 101
+    gid: 101
+    permissions: 0755
+  - path: /var/lib/nginx/tmp/proxy
+    type: directory
+    uid: 101
+    gid: 101
+    permissions: 0755
+  - path: /var/lib/nginx/tmp/fastcgi
+    type: directory
+    uid: 101
+    gid: 101
+    permissions: 0755
+  - path: /var/lib/nginx/tmp/uwsgi
+    type: directory
+    uid: 101
+    gid: 101
+    permissions: 0755
+  - path: /var/lib/nginx/tmp/scgi
+    type: directory
+    uid: 101
+    gid: 101
+    permissions: 0755
+  - path: /var/lib/nginx/logs
     type: directory
     uid: 101
     gid: 101
