@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+load("@rules_multirun//:defs.bzl", "multirun")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
 load("//tools/oci:go_image.bzl", "go_image")
@@ -92,4 +93,13 @@ apko_image(
         ":fish_config_tar",
         ":opencode_config_tar",
     ],
+)
+
+multirun(
+    name = "push_all_ttyd",
+    commands = [
+        ":image.push",
+        ":ttyd_worker_image.push",
+    ],
+    jobs = 2,
 )
