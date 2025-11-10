@@ -147,7 +147,7 @@
 
         // Connect to WebSocket
         const wsUrl = `${WS_BASE}/api/sessions/${activeSessionId}/terminal`;
-        const ws = new WebSocket(wsUrl);
+        const ws = new WebSocket(wsUrl, ['tty']);
 
         ws.onopen = () => {
           console.log('WebSocket connected');
