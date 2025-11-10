@@ -23,10 +23,10 @@ frontend:
     limits:
       cpu: 200m
       memory: 128Mi
-  # Cache control for static assets
-  cache:
-    # Enable cache-busting headers for HTML files
-    enabled: true
+  # Cache busting configuration for static assets
+  cacheBusting:
+    # Enable cache-busting headers for HTML files (prevents browser caching)
+    enabled: false
     # Cache-Control header for HTML files (no-cache forces revalidation)
     htmlCacheControl: "no-cache, no-store, must-revalidate"
     # Cache-Control header for static assets (CSS, JS, images)
