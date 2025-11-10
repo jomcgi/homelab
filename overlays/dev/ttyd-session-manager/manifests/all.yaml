@@ -603,6 +603,13 @@ spec:
             port: http
           initialDelaySeconds: 5
           periodSeconds: 10
+        volumeMounts:
+        - name: nginx-tmp
+          mountPath: /var/lib/nginx/tmp
+        - name: nginx-logs
+          mountPath: /var/log/nginx
+        - name: nginx-run
+          mountPath: /var/run
         resources:
           limits:
             cpu: 200m
@@ -617,6 +624,13 @@ spec:
             drop: [ALL]
           seccompProfile:
             type: RuntimeDefault
+      volumes:
+      - name: nginx-tmp
+        emptyDir: {}
+      - name: nginx-logs
+        emptyDir: {}
+      - name: nginx-run
+        emptyDir: {}
 ---
 # Source: ttyd-session-manager/templates/image-pull-secret.yaml
 # GHCR Pull Secret (for Kubernetes image pulls)
