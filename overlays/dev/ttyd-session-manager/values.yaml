@@ -2,7 +2,7 @@
 
 image:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
-  tag: "2025.11.07.22.13.50-2b707ff"
+  tag: "main"
   pullPolicy: Always
 
 frontend:
