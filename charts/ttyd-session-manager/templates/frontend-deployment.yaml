@@ -54,6 +54,10 @@ spec:
           mountPath: /var/lib/nginx/logs
         - name: nginx-run
           mountPath: /run
+        - name: nginx-config
+          mountPath: /etc/nginx/nginx.conf
+          subPath: nginx.conf
+          readOnly: true
         resources:
           {{- toYaml .Values.frontend.resources | nindent 10 }}
         securityContext:
@@ -70,4 +74,8 @@ spec:
         emptyDir: {}
       - name: nginx-run
         emptyDir: {}
+      - name: nginx-config
+        configMap:
+          name: {{ include "ttyd-session-manager.fullname" . }}-frontend-nginx
+          defaultMode: 0644
 {{- end }}
