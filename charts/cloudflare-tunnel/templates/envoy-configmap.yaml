@@ -73,7 +73,9 @@ data:
                       prefix: "/"
                     route:
                       cluster: original_dst_cluster
-                      timeout: 0s
+                      timeout: 0s  # WebSocket support - no timeout
+                      upgrade_configs:
+                      - upgrade_type: websocket
               http_filters:
               - name: envoy.filters.http.header_to_metadata
                 typed_config:
