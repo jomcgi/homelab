@@ -349,8 +349,10 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 	// Connect to the ttyd service via envoy proxy (port 7681)
 	ttydURL := fmt.Sprintf("ws://%s:7681/ws", podIP)
 
-	// Create WebSocket connection to ttyd
-	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, nil)
+	// Create WebSocket connection to ttyd with "tty" subprotocol
+	headers := make(http.Header)
+	headers.Set("Sec-WebSocket-Protocol", "tty")
+	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, headers)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error connecting to terminal: %v", err)
 		conn.WriteMessage(websocket.TextMessage, []byte(errMsg))
