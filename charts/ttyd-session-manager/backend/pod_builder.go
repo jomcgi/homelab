@@ -284,12 +284,9 @@ func buildTTYDContainer(config *PodConfig) corev1.Container {
 			"ttyd",
 			"-p", "7682", // Envoy proxies 7681->7682
 			"--writable",
-			"bash",
-			// "/bin/sh", "-c",
-			// Wait for initContainer to create /workspace/session before starting opencode
-			// "while [ ! -d /workspace/session ]; do echo 'Waiting for session directory...'; sleep 0.5; done && cd /workspace/session && exec opencode",
+			"opencode",
 		},
-		WorkingDir: "/workspace",
+		WorkingDir: "/workspace/session",
 		Env:        buildSessionEnv(config),
 		Ports: []corev1.ContainerPort{
 			{

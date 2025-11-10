@@ -123,7 +123,9 @@ data:
                       prefix: "/"
                     route:
                       cluster: original_dst_cluster
-                      timeout: 0s
+                      timeout: 0s  # WebSocket support - no timeout
+                      upgrade_configs:
+                      - upgrade_type: websocket
               http_filters:
               - name: envoy.filters.http.header_to_metadata
                 typed_config:
@@ -269,7 +271,7 @@ spec:
     metadata:
       annotations:
         checksum/config: 52984299d3e883145a68a45655d72db1f1be47aba696596178b0b0ddf494572e
-        checksum/envoy-config: 728e72d2fbd1ca091217f9ad6f790a7478f0d3298c9028ce877bb32389f3e6fb
+        checksum/envoy-config: 9c0b260fe5faed6f6df6e3ab09dfc8b31025ead5ddadfa014fe3ea9c0dd27ee2
       labels:
         app.kubernetes.io/name: cloudflare-tunnel
         app.kubernetes.io/instance: cluster-ingress
