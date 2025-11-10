@@ -366,6 +366,31 @@ subjects:
   name: ttyd-session-manager
   namespace: ttyd-sessions
 ---
+# Source: ttyd-session-manager/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: ttyd-session-manager-frontend
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: frontend
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/component: frontend
+---
 # Source: ttyd-session-manager/templates/service.yaml
 apiVersion: v1
 kind: Service
@@ -524,6 +549,74 @@ spec:
           items:
           - key: envoy.yaml
             path: envoy.yaml
+---
+# Source: ttyd-session-manager/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ttyd-session-manager-frontend
+  namespace: ttyd-sessions
+  labels:
+    helm.sh/chart: ttyd-session-manager-0.1.0
+    app.kubernetes.io/name: ttyd-session-manager
+    app.kubernetes.io/instance: ttyd-session-manager
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ttyd-session-manager
+      app.kubernetes.io/instance: ttyd-session-manager
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ttyd-session-manager
+        app.kubernetes.io/instance: ttyd-session-manager
+        app.kubernetes.io/component: frontend
+    spec:
+      imagePullSecrets:
+        - name: ttyd-session-manager-github-dockerconfig
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 101
+        fsGroup: 101
+      containers:
+      - name: nginx
+        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:latest"
+        imagePullPolicy: Always
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop: [ALL]
+          seccompProfile:
+            type: RuntimeDefault
 ---
 # Source: ttyd-session-manager/templates/image-pull-secret.yaml
 # GHCR Pull Secret (for Kubernetes image pulls)

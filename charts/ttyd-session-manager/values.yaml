@@ -5,6 +5,25 @@ image:
   pullPolicy: IfNotPresent
   tag: "latest"
 
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
+    pullPolicy: IfNotPresent
+    tag: "latest"
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
 imagePullSecrets:
   - name: ttyd-session-manager-github-dockerconfig
 

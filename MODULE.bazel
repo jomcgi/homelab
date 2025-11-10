@@ -174,13 +174,17 @@ oci.pull(
 )
 use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8", "custom_crane_regctl_toolchains")
 
-# Configure apko for ttyd-session-manager image
+# Configure apko for ttyd-session-manager images
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(
     name = "ttyd_lock",
     lock = "//charts/ttyd-session-manager/backend:apko.lock.json",
 )
-use_repo(apko, "ttyd_lock")
+apko.translate_lock(
+    name = "frontend_lock",
+    lock = "//charts/ttyd-session-manager/frontend:apko.lock.json",
+)
+use_repo(apko, "frontend_lock", "ttyd_lock")
 
 # Pattern for downloading third-party binaries:
 # 1. Define http_file here for each platform
