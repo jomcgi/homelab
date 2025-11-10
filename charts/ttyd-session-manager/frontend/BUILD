@@ -15,10 +15,10 @@ pkg_tar(
 pkg_tar(
     name = "nginx_config_tar",
     srcs = [
-        "nginx.conf",
+        "default.conf",
     ],
     mode = "0644",
-    package_dir = "/etc/nginx/http.d",
+    package_dir = "/etc/nginx/conf.d",
 )
 
 # Frontend nginx image with static files
