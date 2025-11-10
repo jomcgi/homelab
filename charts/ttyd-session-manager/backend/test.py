@@ -49,8 +49,8 @@ def run_command(
 
 
 def build_images():
-    """Build both backend and worker images."""
-    console.print("🔨 [cyan]Building both images...")
+    """Build backend, worker, and frontend images."""
+    console.print("🔨 [cyan]Building all images (backend, worker, frontend)...")
     result = run_command(
         [
             "bazel",
@@ -58,13 +58,14 @@ def build_images():
             "--stamp",
             "//charts/ttyd-session-manager/backend:image",
             "//charts/ttyd-session-manager/backend:ttyd_worker_image",
+            "//charts/ttyd-session-manager/frontend:image",
         ],
         capture_output=False,
     )
     if result.returncode != 0:
         console.print("[red]✗ Build failed")
         sys.exit(1)
-    console.print("[green]✓ Both images built successfully\n")
+    console.print("[green]✓ All images built successfully\n")
 
 
 def push_image(target: str, image_pattern: str) -> str:
@@ -162,6 +163,53 @@ def update_backend_deployment(image_tag: str):
         sys.exit(1)
 
     console.print("[green]✓ Rollout complete\n")
+
+
+def update_frontend_deployment(image_tag: str):
+    """Update the frontend deployment with new image."""
+    console.print(f"\n🔄 [cyan]Updating frontend deployment...")
+
+    image = f"ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:{image_tag}"
+    result = run_command(
+        [
+            "kubectl",
+            "set",
+            "image",
+            "deployment/ttyd-session-manager-frontend",
+            f"nginx={image}",
+            "-n",
+            "ttyd-sessions",
+        ]
+    )
+
+    if result.returncode != 0:
+        console.print(f"[red]✗ Failed to update frontend deployment")
+        console.print(f"[dim]{result.stderr}")
+        sys.exit(1)
+
+    console.print("[green]✓ Frontend deployment updated")
+
+    # Wait for rollout
+    console.print("⏳ [cyan]Waiting for frontend rollout...")
+    result = run_command(
+        [
+            "kubectl",
+            "rollout",
+            "status",
+            "deployment/ttyd-session-manager-frontend",
+            "-n",
+            "ttyd-sessions",
+            "--timeout=300s",
+        ],
+        capture_output=False,
+        timeout=320,
+    )
+
+    if result.returncode != 0:
+        console.print("[red]✗ Frontend rollout failed")
+        sys.exit(1)
+
+    console.print("[green]✓ Frontend rollout complete\n")
 
 
 def create_session(api_url: str, session_name: str, worker_tag: str) -> dict:
@@ -283,6 +331,7 @@ def main():
             # Push images
             # Image paths in registry: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:TAG
             # and ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:TAG
+            # and ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:TAG
             backend_tag = push_image(
                 "//charts/ttyd-session-manager/backend:image.push",
                 "manager/backend",  # Match end of registry path to be unique
@@ -293,8 +342,14 @@ def main():
                 "manager/ttyd-worker",  # Match end of registry path to be unique
             )
 
-            # Update backend deployment
+            frontend_tag = push_image(
+                "//charts/ttyd-session-manager/frontend:image.push",
+                "manager/frontend",  # Match end of registry path to be unique
+            )
+
+            # Update deployments
             update_backend_deployment(backend_tag)
+            update_frontend_deployment(frontend_tag)
 
             # Setup port-forward to new backend pod
             pf_proc = setup_port_forward(local_port=args.port)
@@ -316,10 +371,8 @@ def main():
 
         # Success!
         console.print("[bold green]====================================")
-        console.print(f"[bold green]✅ Success! Terminal ready at:")
-        console.print(
-            f"[bold green]   https://test.jomcgi.dev/sessions/{session['id']}"
-        )
+        console.print(f"[bold green]✅ Success! Session Manager UI:")
+        console.print(f"[bold green]   https://code.jomcgi.dev")
         console.print("[bold green]====================================\n")
 
         console.print("[dim]Session Details:")
