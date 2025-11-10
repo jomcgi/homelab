@@ -11,14 +11,14 @@ pkg_tar(
     package_dir = "/usr/share/nginx/html",
 )
 
-# Package nginx configuration
+# Package nginx configuration (replaces main nginx.conf)
 pkg_tar(
     name = "nginx_config_tar",
     srcs = [
-        "default.conf",
+        "nginx.conf",
     ],
     mode = "0644",
-    package_dir = "/etc/nginx/conf.d",
+    package_dir = "/etc/nginx",
 )
 
 # Frontend nginx image with static files
