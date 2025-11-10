@@ -30,6 +30,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Allow all origins for development
 	},
+	Subprotocols: []string{"tty"}, // ttyd requires the "tty" subprotocol
 }
 
 type SessionManager struct {
@@ -465,8 +466,10 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 	// The client is connecting to /sessions/:id/ws, which maps to /ws on ttyd
 	ttydURL := fmt.Sprintf("ws://%s:7681/ws", podIP)
 
-	// Create WebSocket connection to ttyd
-	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, nil)
+	// Create WebSocket connection to ttyd with "tty" subprotocol
+	headers := make(http.Header)
+	headers.Set("Sec-WebSocket-Protocol", "tty")
+	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, headers)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error connecting to terminal: %v", err)
 		conn.WriteMessage(websocket.TextMessage, []byte(errMsg))
