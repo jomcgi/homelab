@@ -84,42 +84,36 @@ else
 	echo "  ✓ Both images built successfully"
 	echo ""
 
-	# Step 2: Push both images and capture tags
+	# Step 2: Push both images sequentially
 	echo "📤 Step 2: Pushing both images to registry..."
 
 	echo "  Pushing backend API image..."
 	BACKEND_PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/backend:image.push 2>&1)
-
-	# Extract the backend tag from the push output
 	BACKEND_IMAGE_TAG=$(echo "$BACKEND_PUSH_OUTPUT" | grep -oE 'ttyd-session-manager-backend:[^ :]+' | cut -d: -f2 | head -1)
 
 	if [ -z "$BACKEND_IMAGE_TAG" ]; then
-		echo "  ✗ Failed to extract backend image tag from push output"
+		echo "  ✗ Failed to extract backend image tag"
 		echo "$BACKEND_PUSH_OUTPUT"
 		exit 1
 	fi
-
-	echo "  ✓ Backend API image pushed with tag: ${BACKEND_IMAGE_TAG}"
+	echo "  ✓ Backend pushed: ${BACKEND_IMAGE_TAG}"
 
 	echo "  Pushing worker image..."
 	WORKER_PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/backend:ttyd_worker_image.push 2>&1)
-
-	# Extract the worker tag from the push output
 	IMAGE_TAG=$(echo "$WORKER_PUSH_OUTPUT" | grep -oE 'ttyd-worker:[^ :]+' | cut -d: -f2 | head -1)
 
 	if [ -z "$IMAGE_TAG" ]; then
-		echo "  ✗ Failed to extract worker image tag from push output"
+		echo "  ✗ Failed to extract worker image tag"
 		echo "$WORKER_PUSH_OUTPUT"
 		exit 1
 	fi
-
-	echo "  ✓ Worker image pushed with tag: ${IMAGE_TAG}"
+	echo "  ✓ Worker pushed: ${IMAGE_TAG}"
 	echo ""
 
 	# Step 3: Update backend deployment and wait for rollout
 	echo "🔄 Step 3: Updating backend deployment with new image..."
 	kubectl set image deployment/ttyd-session-manager \
-		backend=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:${BACKEND_IMAGE_TAG} \
+		api-server=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:${BACKEND_IMAGE_TAG} \
 		-n ttyd-sessions
 	echo "  ✓ Deployment updated"
 	echo ""
