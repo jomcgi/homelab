@@ -1,3 +1,5 @@
+# gazelle:exclude test.py
+
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("@rules_multirun//:defs.bzl", "multirun")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")

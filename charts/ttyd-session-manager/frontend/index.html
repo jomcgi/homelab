@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Session Manager</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React and ReactDOM -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+
+  <!-- Babel Standalone for JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- xterm.js for terminal -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/xterm@5.3.0/css/xterm.css" />
+  <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      overflow: hidden;
+    }
+    #terminal-container {
+      width: 100%;
+      height: 100%;
+      background: black;
+    }
+    /* Override xterm.js focus outline */
+    .xterm-screen {
+      outline: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+    const { Terminal: LucideTerminal, Search, X, ChevronRight, Cpu, MemoryStick } = lucide;
+
+    // API Configuration
+    // Use same origin - nginx proxies /api/* to backend
+    const API_BASE = window.location.origin;
+    const WS_BASE = API_BASE.replace('http', 'ws');
+
+    const SessionManagerUI = () => {
+      const [sessions, setSessions] = useState([]);
+      const [activeSessionId, setActiveSessionId] = useState(null);
+      const [showCommandPalette, setShowCommandPalette] = useState(false);
+      const [showCreateModal, setShowCreateModal] = useState(false);
+      const [hoveredSessionId, setHoveredSessionId] = useState(null);
+      const [searchQuery, setSearchQuery] = useState("");
+      const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
+      const [loading, setLoading] = useState(true);
+      const [error, setError] = useState(null);
+
+      // Resize states
+      const [sidebarWidth, setSidebarWidth] = useState(288);
+      const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+      const [isDraggingSidebar, setIsDraggingSidebar] = useState(false);
+
+      // Terminal state
+      const terminalRef = useRef(null);
+      const terminalContainerRef = useRef(null);
+      const xtermRef = useRef(null);
+      const fitAddonRef = useRef(null);
+      const wsRef = useRef(null);
+
+      const activeSession = sessions.find((s) => s.id === activeSessionId);
+
+      // Fetch sessions from API
+      const fetchSessions = async () => {
+        try {
+          const response = await fetch(`${API_BASE}/api/sessions`);
+          if (!response.ok) throw new Error('Failed to fetch sessions');
+          const data = await response.json();
+          setSessions(data || []);
+          setLoading(false);
+        } catch (err) {
+          console.error('Error fetching sessions:', err);
+          setError(err.message);
+          setLoading(false);
+        }
+      };
+
+      // Initial load
+      useEffect(() => {
+        fetchSessions();
+        const interval = setInterval(fetchSessions, 10000); // Refresh every 10s
+        return () => clearInterval(interval);
+      }, []);
+
+      // Initialize terminal when active session changes
+      useEffect(() => {
+        if (!activeSessionId || !terminalContainerRef.current) return;
+
+        // Clean up existing terminal
+        if (xtermRef.current) {
+          xtermRef.current.dispose();
+          xtermRef.current = null;
+        }
+        if (wsRef.current) {
+          wsRef.current.close();
+          wsRef.current = null;
+        }
+
+        // Create new terminal
+        const term = new Terminal({
+          cursorBlink: true,
+          fontSize: 14,
+          fontFamily: 'Menlo, Monaco, "Courier New", monospace',
+          theme: {
+            background: '#000000',
+            foreground: '#ffffff',
+            cursor: '#10b981',
+            selection: 'rgba(255, 255, 255, 0.3)',
+          },
+        });
+
+        const fitAddon = new FitAddon.FitAddon();
+        const webLinksAddon = new WebLinksAddon.WebLinksAddon();
+
+        term.loadAddon(fitAddon);
+        term.loadAddon(webLinksAddon);
+
+        term.open(terminalContainerRef.current);
+        fitAddon.fit();
+
+        xtermRef.current = term;
+        fitAddonRef.current = fitAddon;
+
+        // Connect to WebSocket
+        const wsUrl = `${WS_BASE}/api/sessions/${activeSessionId}/terminal`;
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+          console.log('WebSocket connected');
+          term.write('\x1b[32m✓ Connected to session\x1b[0m\r\n');
+        };
+
+        ws.onmessage = (event) => {
+          term.write(event.data);
+        };
+
+        ws.onerror = (error) => {
+          console.error('WebSocket error:', error);
+          term.write('\r\n\x1b[31m✗ Connection error\x1b[0m\r\n');
+        };
+
+        ws.onclose = () => {
+          console.log('WebSocket closed');
+          term.write('\r\n\x1b[33m✗ Connection closed\x1b[0m\r\n');
+        };
+
+        // Send terminal input to WebSocket
+        term.onData((data) => {
+          if (ws.readyState === WebSocket.OPEN) {
+            ws.send(data);
+          }
+        });
+
+        wsRef.current = ws;
+
+        // Handle window resize
+        const handleResize = () => {
+          fitAddon.fit();
+        };
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+          window.removeEventListener('resize', handleResize);
+          term.dispose();
+          ws.close();
+        };
+      }, [activeSessionId]);
+
+      // Keyboard shortcuts
+      useEffect(() => {
+        const handleKeyDown = (e) => {
+          if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+            e.preventDefault();
+            setShowCommandPalette(true);
+            setSelectedCommandIndex(0);
+            setSearchQuery("");
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === "n") {
+            e.preventDefault();
+            setShowCreateModal(true);
+          }
+          if ((e.metaKey || e.ctrlKey) && e.key === "s") {
+            e.preventDefault();
+            setSidebarCollapsed(!sidebarCollapsed);
+          }
+          if ((e.metaKey || e.ctrlKey) && /^[1-9]$/.test(e.key)) {
+            e.preventDefault();
+            const index = parseInt(e.key) - 1;
+            if (sessions[index]) {
+              setActiveSessionId(sessions[index].id);
+            }
+          }
+          if (e.key === "Escape") {
+            setShowCommandPalette(false);
+            setShowCreateModal(false);
+            setSearchQuery("");
+          }
+        };
+
+        window.addEventListener("keydown", handleKeyDown);
+        return () => window.removeEventListener("keydown", handleKeyDown);
+      }, [sessions, sidebarCollapsed]);
+
+      // Sidebar resize
+      useEffect(() => {
+        if (!isDraggingSidebar) return;
+
+        const handleMouseMove = (e) => {
+          const newWidth = Math.max(200, Math.min(500, e.clientX));
+          setSidebarWidth(newWidth);
+          if (newWidth < 220) {
+            setSidebarCollapsed(true);
+          } else {
+            setSidebarCollapsed(false);
+          }
+        };
+
+        const handleMouseUp = () => {
+          setIsDraggingSidebar(false);
+        };
+
+        document.addEventListener("mousemove", handleMouseMove);
+        document.addEventListener("mouseup", handleMouseUp);
+
+        return () => {
+          document.removeEventListener("mousemove", handleMouseMove);
+          document.removeEventListener("mouseup", handleMouseUp);
+        };
+      }, [isDraggingSidebar]);
+
+      const getAgeDisplay = (days) => {
+        if (days === 0) return "today";
+        if (days === 1) return "1d";
+        return `${days}d`;
+      };
+
+      const isOldSession = (days) => days >= 4;
+
+      const handleCreateSession = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const displayName = formData.get('displayName');
+        const gitBranch = formData.get('gitBranch');
+
+        try {
+          const response = await fetch(`${API_BASE}/api/sessions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              display_name: displayName,
+              git_branch: gitBranch || undefined,
+            }),
+          });
+
+          if (!response.ok) throw new Error('Failed to create session');
+
+          await fetchSessions();
+          setShowCreateModal(false);
+        } catch (err) {
+          console.error('Error creating session:', err);
+          alert('Failed to create session: ' + err.message);
+        }
+      };
+
+      const handleDeleteSession = async (sessionId) => {
+        if (!confirm('Are you sure you want to delete this session?')) return;
+
+        try {
+          const response = await fetch(`${API_BASE}/api/sessions/${sessionId}`, {
+            method: 'DELETE',
+          });
+
+          if (!response.ok) throw new Error('Failed to delete session');
+
+          await fetchSessions();
+          if (activeSessionId === sessionId) {
+            setActiveSessionId(null);
+          }
+        } catch (err) {
+          console.error('Error deleting session:', err);
+          alert('Failed to delete session: ' + err.message);
+        }
+      };
+
+      if (loading) {
+        return (
+          <div className="flex h-screen bg-zinc-950 text-zinc-100 items-center justify-center">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mx-auto mb-4"></div>
+              <p className="text-zinc-400">Loading sessions...</p>
+            </div>
+          </div>
+        );
+      }
+
+      if (error) {
+        return (
+          <div className="flex h-screen bg-zinc-950 text-zinc-100 items-center justify-center">
+            <div className="text-center">
+              <p className="text-red-400 mb-4">Error: {error}</p>
+              <button
+                onClick={fetchSessions}
+                className="px-4 py-2 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          </div>
+        );
+      }
+
+      return (
+        <div className={`flex h-screen bg-zinc-950 text-zinc-100 ${isDraggingSidebar ? "cursor-col-resize select-none" : ""}`}>
+          {/* Sidebar */}
+          <div
+            className={`bg-zinc-900/50 border-r border-zinc-800/50 flex flex-col flex-shrink-0 overflow-hidden ${isDraggingSidebar ? "" : "transition-all duration-200"}`}
+            style={{ width: sidebarCollapsed ? "0px" : `${sidebarWidth}px` }}
+          >
+            <div className={`${sidebarCollapsed ? "opacity-0" : "opacity-100"} transition-opacity duration-200`}>
+              {/* Header */}
+              <div className="p-6 border-b border-zinc-800/50">
+                <div className="flex items-center justify-between mb-6">
+                  <h1 className="text-sm font-medium text-zinc-400">Sessions</h1>
+                  <div className="text-xs text-zinc-600">
+                    {sessions.filter((s) => s.state === "active").length} active
+                  </div>
+                </div>
+
+                {/* Search */}
+                <button
+                  onClick={() => setShowCommandPalette(true)}
+                  className="w-full bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg px-3 py-2 flex items-center gap-3 text-sm text-zinc-500 transition-colors group"
+                >
+                  <Search className="w-4 h-4" />
+                  <span className="flex-1 text-left">Quick actions...</span>
+                  <kbd className="px-2 py-0.5 bg-zinc-800 rounded text-xs font-mono border border-zinc-700 group-hover:border-zinc-600">
+                    ⌘K
+                  </kbd>
+                </button>
+              </div>
+
+              {/* Sessions List */}
+              <div className="flex-1 overflow-y-auto p-3">
+                <div className="space-y-1">
+                  {sessions.map((session, index) => (
+                    <div
+                      key={session.id}
+                      onClick={() => setActiveSessionId(session.id)}
+                      onMouseEnter={() => setHoveredSessionId(session.id)}
+                      onMouseLeave={() => setHoveredSessionId(null)}
+                      className={`group relative px-3 py-3 rounded-lg cursor-pointer transition-all ${
+                        activeSessionId === session.id
+                          ? "bg-zinc-800 text-zinc-100"
+                          : "text-zinc-400 hover:bg-zinc-900/50 hover:text-zinc-300"
+                      }`}
+                    >
+                      {/* Session Header */}
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                          <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
+                            session.state === "active" ? "bg-emerald-500" : "bg-zinc-700"
+                          }`} />
+                          <span className="text-sm font-medium truncate">
+                            {session.name || session.pod_name}
+                          </span>
+                        </div>
+                        <kbd className="px-1.5 py-0.5 bg-zinc-800/50 rounded text-xs font-mono border border-zinc-700/50 text-zinc-600 ml-1">
+                          ⌘{index + 1}
+                        </kbd>
+                      </div>
+
+                      {/* Session Meta */}
+                      <div className="ml-3.5 text-xs text-zinc-600 flex items-center gap-3">
+                        <span className="font-mono">{session.branch || 'main'}</span>
+                        <span className={isOldSession(session.age_days || 0) ? "text-amber-600" : ""}>
+                          {getAgeDisplay(session.age_days || 0)}
+                        </span>
+                      </div>
+
+                      {/* Hover Details */}
+                      {hoveredSessionId === session.id && session.state === "active" && (
+                        <div className="ml-3.5 mt-2 pt-2 border-t border-zinc-800 flex gap-4 text-xs text-zinc-600">
+                          <span>cpu {session.cpu_usage || 'N/A'}</span>
+                          <span>mem {session.memory_usage || 'N/A'}</span>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 border-t border-zinc-800/50">
+                <button
+                  onClick={() => setShowCreateModal(true)}
+                  className="w-full bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm px-4 py-2.5 rounded-lg transition-colors flex items-center justify-center gap-2"
+                >
+                  New Session
+                  <kbd className="px-1.5 py-0.5 bg-zinc-900 rounded text-xs font-mono border border-zinc-700">
+                    ⌘N
+                  </kbd>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Sidebar Resize Handle */}
+          <div
+            onMouseDown={() => setIsDraggingSidebar(true)}
+            className={`w-1 hover:w-1.5 bg-zinc-800/50 hover:bg-blue-500/50 cursor-col-resize transition-all flex-shrink-0 group ${
+              isDraggingSidebar ? "bg-blue-500" : ""
+            }`}
+            title="Drag to resize sidebar (⌘S to toggle)"
+          >
+            <div className="h-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="w-0.5 h-8 bg-zinc-600 rounded-full" />
+            </div>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex flex-col">
+            {/* Terminal Header */}
+            {activeSession && (
+              <div className="bg-zinc-900/30 border-b border-zinc-800/50 px-6 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  {sidebarCollapsed && (
+                    <button
+                      onClick={() => {
+                        setSidebarCollapsed(false);
+                        if (sidebarWidth < 220) {
+                          setSidebarWidth(288);
+                        }
+                      }}
+                      className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 rounded transition-all"
+                      title="Show sidebar (⌘S)"
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  )}
+                  <div>
+                    <h2 className="text-sm font-medium mb-0.5">
+                      {activeSession.name || activeSession.pod_name}
+                    </h2>
+                    <p className="text-xs text-zinc-600">
+                      {activeSession.branch || 'main'} •{" "}
+                      {activeSession.last_active ? new Date(activeSession.last_active).toLocaleString() : 'N/A'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => handleDeleteSession(activeSessionId)}
+                    className="px-3 py-1.5 text-xs text-red-500/70 hover:text-red-400 hover:bg-red-950/30 rounded transition-all"
+                    title="Delete"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Terminal Display */}
+            <div className="flex-1 overflow-hidden">
+              {activeSession ? (
+                <div
+                  id="terminal-container"
+                  ref={terminalContainerRef}
+                  className="h-full w-full"
+                />
+              ) : (
+                <div className="h-full bg-black flex items-center justify-center text-zinc-700">
+                  <div className="text-center">
+                    <LucideTerminal className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                    <p className="text-sm">No session selected</p>
+                    <p className="text-xs mt-2 text-zinc-800">Create a new session or select an existing one</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Command Palette */}
+          {showCommandPalette && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center pt-32 p-4 z-50">
+              <div className="bg-zinc-900 rounded-xl border border-zinc-800 w-full max-w-xl shadow-2xl">
+                {/* Search Input */}
+                <div className="flex items-center gap-3 p-4 border-b border-zinc-800">
+                  <Search className="w-4 h-4 text-zinc-500" />
+                  <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search sessions..."
+                    className="flex-1 bg-transparent text-sm outline-none placeholder:text-zinc-600"
+                    autoFocus
+                  />
+                  <kbd className="px-2 py-1 bg-zinc-800 rounded text-xs font-mono border border-zinc-700 text-zinc-500">
+                    ESC
+                  </kbd>
+                </div>
+
+                {/* Sessions */}
+                <div className="p-2">
+                  <div className="text-xs text-zinc-600 px-3 py-2 font-medium">
+                    Sessions
+                  </div>
+                  {sessions
+                    .filter(s =>
+                      !searchQuery ||
+                      (s.name || s.pod_name).toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (s.branch || '').toLowerCase().includes(searchQuery.toLowerCase())
+                    )
+                    .map((session) => (
+                      <button
+                        key={session.id}
+                        onClick={() => {
+                          setActiveSessionId(session.id);
+                          setShowCommandPalette(false);
+                        }}
+                        className="w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between group transition-colors hover:bg-zinc-800"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-1.5 h-1.5 rounded-full ${
+                            session.state === "active" ? "bg-emerald-500" : "bg-zinc-700"
+                          }`} />
+                          <div>
+                            <div className="text-sm text-zinc-300">
+                              {session.name || session.pod_name}
+                            </div>
+                            <div className="text-xs text-zinc-600 font-mono">
+                              {session.branch || 'main'}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Create Session Modal */}
+          {showCreateModal && (
+            <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+              <div className="bg-zinc-900 rounded-xl border border-zinc-800 p-6 max-w-md w-full shadow-2xl">
+                <h3 className="text-base font-medium mb-6">Create New Session</h3>
+
+                <form onSubmit={handleCreateSession} className="space-y-4">
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">
+                      Session name
+                    </label>
+                    <input
+                      type="text"
+                      name="displayName"
+                      required
+                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none transition-colors"
+                      placeholder="My development session"
+                      autoFocus
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm text-zinc-400 mb-2">
+                      Branch (optional)
+                    </label>
+                    <input
+                      type="text"
+                      name="gitBranch"
+                      className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-700 rounded-lg px-3 py-2 text-sm outline-none transition-colors font-mono"
+                      placeholder="main"
+                    />
+                  </div>
+
+                  <div className="flex gap-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowCreateModal(false)}
+                      className="flex-1 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 text-sm px-4 py-2.5 rounded-lg transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="flex-1 bg-zinc-100 hover:bg-white text-zinc-900 text-sm px-4 py-2.5 rounded-lg transition-colors font-medium"
+                    >
+                      Create Session
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    // Render
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<SessionManagerUI />);
+
+    // Initialize Lucide icons
+    lucide.createIcons();
+  </script>
+</body>
+</html>

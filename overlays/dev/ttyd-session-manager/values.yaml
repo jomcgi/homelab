@@ -5,6 +5,13 @@ image:
   tag: "2025.11.07.22.13.50-2b707ff"
   pullPolicy: Always
 
+frontend:
+  enabled: true
+  image:
+    repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
+    tag: "latest"
+    pullPolicy: Always
+
 replicaCount: 1
 
 sessionNamespace: ttyd-sessions
