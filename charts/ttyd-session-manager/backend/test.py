@@ -48,24 +48,37 @@ def run_command(
         sys.exit(1)
 
 
-def build_images():
-    """Build backend, worker, and frontend images."""
-    console.print("🔨 [cyan]Building all images (backend, worker, frontend)...")
+def build_images(backend: bool = True, worker: bool = True, frontend: bool = True):
+    """Build selected images (backend, worker, and/or frontend)."""
+    targets = []
+    if backend:
+        targets.append("//charts/ttyd-session-manager/backend:image")
+    if worker:
+        targets.append("//charts/ttyd-session-manager/backend:ttyd_worker_image")
+    if frontend:
+        targets.append("//charts/ttyd-session-manager/frontend:image")
+
+    if not targets:
+        console.print("[yellow]⚠ No images selected to build")
+        return
+
+    image_names = []
+    if backend:
+        image_names.append("backend")
+    if worker:
+        image_names.append("worker")
+    if frontend:
+        image_names.append("frontend")
+
+    console.print(f"🔨 [cyan]Building images: {', '.join(image_names)}...")
     result = run_command(
-        [
-            "bazel",
-            "build",
-            "--stamp",
-            "//charts/ttyd-session-manager/backend:image",
-            "//charts/ttyd-session-manager/backend:ttyd_worker_image",
-            "//charts/ttyd-session-manager/frontend:image",
-        ],
+        ["bazel", "build", "--stamp"] + targets,
         capture_output=False,
     )
     if result.returncode != 0:
         console.print("[red]✗ Build failed")
         sys.exit(1)
-    console.print("[green]✓ All images built successfully\n")
+    console.print(f"[green]✓ Images built successfully: {', '.join(image_names)}\n")
 
 
 def push_image(target: str, image_pattern: str) -> str:
@@ -314,7 +327,22 @@ def main():
     parser.add_argument(
         "--port", type=int, default=8083, help="Local port for API (default: 8083)"
     )
+    parser.add_argument(
+        "--backend", action="store_true", help="Build/push backend image only"
+    )
+    parser.add_argument(
+        "--worker", action="store_true", help="Build/push worker image only"
+    )
+    parser.add_argument(
+        "--frontend", action="store_true", help="Build/push frontend image only"
+    )
     args = parser.parse_args()
+
+    # Determine which images to build
+    # If no specific flags, build all (default behavior)
+    build_backend = args.backend or not (args.backend or args.worker or args.frontend)
+    build_worker = args.worker or not (args.backend or args.worker or args.frontend)
+    build_frontend = args.frontend or not (args.backend or args.worker or args.frontend)
 
     console.print("\n[bold cyan]====================================")
     console.print("[bold cyan]TTYD Session Manager Test Script")
@@ -322,37 +350,48 @@ def main():
 
     pf_proc = None
     api_url = f"http://localhost:{args.port}"
+    worker_tag = None
 
     try:
         if not args.skip_build:
-            # Build images
-            build_images()
+            # Build selected images
+            build_images(
+                backend=build_backend, worker=build_worker, frontend=build_frontend
+            )
 
             # Push images
             # Image paths in registry: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:TAG
             # and ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:TAG
             # and ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:TAG
-            backend_tag = push_image(
-                "//charts/ttyd-session-manager/backend:image.push",
-                "manager/backend",  # Match end of registry path to be unique
-            )
+            backend_tag = None
+            if build_backend:
+                backend_tag = push_image(
+                    "//charts/ttyd-session-manager/backend:image.push",
+                    "manager/backend",  # Match end of registry path to be unique
+                )
 
-            worker_tag = push_image(
-                "//charts/ttyd-session-manager/backend:ttyd_worker_image.push",
-                "manager/ttyd-worker",  # Match end of registry path to be unique
-            )
+            if build_worker:
+                worker_tag = push_image(
+                    "//charts/ttyd-session-manager/backend:ttyd_worker_image.push",
+                    "manager/ttyd-worker",  # Match end of registry path to be unique
+                )
 
-            frontend_tag = push_image(
-                "//charts/ttyd-session-manager/frontend:image.push",
-                "manager/frontend",  # Match end of registry path to be unique
-            )
+            frontend_tag = None
+            if build_frontend:
+                frontend_tag = push_image(
+                    "//charts/ttyd-session-manager/frontend:image.push",
+                    "manager/frontend",  # Match end of registry path to be unique
+                )
 
             # Update deployments
-            update_backend_deployment(backend_tag)
-            update_frontend_deployment(frontend_tag)
+            if backend_tag:
+                update_backend_deployment(backend_tag)
+            if frontend_tag:
+                update_frontend_deployment(frontend_tag)
 
-            # Setup port-forward to new backend pod
-            pf_proc = setup_port_forward(local_port=args.port)
+            # Setup port-forward to new backend pod (only if we need to create a session)
+            if build_worker or build_backend:
+                pf_proc = setup_port_forward(local_port=args.port)
         else:
             console.print("[yellow]⏭️  Skipping build steps")
             # Use latest tag from git
@@ -362,24 +401,40 @@ def main():
             # Setup port-forward
             pf_proc = setup_port_forward(local_port=args.port)
 
-        # Create session
-        session = create_session(api_url, args.session_name, worker_tag)
-        pod_name = f"ttyd-session-{session['id']}"
+        # Create session only if worker was built (we need the worker tag)
+        if worker_tag:
+            session = create_session(api_url, args.session_name, worker_tag)
+            pod_name = f"ttyd-session-{session['id']}"
 
-        # Wait for pod
-        wait_for_pod_ready(pod_name)
+            # Wait for pod
+            wait_for_pod_ready(pod_name)
 
-        # Success!
-        console.print("[bold green]====================================")
-        console.print(f"[bold green]✅ Success! Session Manager UI:")
-        console.print(f"[bold green]   https://code.jomcgi.dev")
-        console.print("[bold green]====================================\n")
+            # Success!
+            console.print("[bold green]====================================")
+            console.print(f"[bold green]✅ Success! Session Manager UI:")
+            console.print(f"[bold green]   https://code.jomcgi.dev")
+            console.print("[bold green]====================================\n")
 
-        console.print("[dim]Session Details:")
-        console.print(f"[dim]  - Session ID: {session['id']}")
-        console.print(f"[dim]  - Session Name: {args.session_name}")
-        console.print(f"[dim]  - Pod Name: {pod_name}")
-        console.print(f"[dim]  - Worker Tag: {worker_tag}\n")
+            console.print("[dim]Session Details:")
+            console.print(f"[dim]  - Session ID: {session['id']}")
+            console.print(f"[dim]  - Session Name: {args.session_name}")
+            console.print(f"[dim]  - Pod Name: {pod_name}")
+            console.print(f"[dim]  - Worker Tag: {worker_tag}\n")
+        else:
+            # No session created, just report what was updated
+            console.print("[bold green]====================================")
+            console.print("[bold green]✅ Success! Deployments updated")
+            console.print("[bold green]====================================\n")
+
+            updated = []
+            if build_backend and not args.skip_build:
+                updated.append("backend")
+            if build_frontend and not args.skip_build:
+                updated.append("frontend")
+
+            if updated:
+                console.print(f"[dim]Updated: {', '.join(updated)}")
+            console.print(f"[dim]Session Manager UI: https://code.jomcgi.dev\n")
 
     finally:
         # Cleanup port-forward
