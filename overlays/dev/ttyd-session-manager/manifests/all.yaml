@@ -607,9 +607,9 @@ spec:
         - name: nginx-tmp
           mountPath: /var/lib/nginx/tmp
         - name: nginx-logs
-          mountPath: /var/log/nginx
+          mountPath: /var/lib/nginx/logs
         - name: nginx-run
-          mountPath: /var/run
+          mountPath: /run
         resources:
           limits:
             cpu: 200m
