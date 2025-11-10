@@ -79,7 +79,9 @@ data:
                       prefix: "/"
                     route:
                       cluster: backend_service
-                      timeout: 30s
+                      timeout: 0s  # WebSocket support - no timeout
+                      upgrade_configs:
+                      - upgrade_type: websocket
                     decorator:
                       operation: proxy_to_backend
               http_filters:
@@ -408,7 +410,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/envoy-config: ec2895ebcab9cb7af71dc067b8d61ed30bbbce10b36e0cf6f9dab1d9fcf13cb1
+        checksum/envoy-config: deb0b3b6581f0005b446a3b5813ebaf14242504e5c29ec7d770c276e4f620270
       labels:
         app.kubernetes.io/name: ttyd-session-manager
         app.kubernetes.io/instance: ttyd-session-manager
