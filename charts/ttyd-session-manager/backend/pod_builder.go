@@ -283,13 +283,11 @@ func buildTTYDContainer(config *PodConfig) corev1.Container {
 		Command: []string{
 			"ttyd",
 			"-p", "7682", // Envoy proxies 7681->7682
-			"-W",
 			"--writable",
-			"-t", "disableLeaveAlert=true", // Disable leave page alert
-			"-t", "rendererType=dom", // Use DOM renderer (may help with mouse events)
-			"/bin/sh", "-c",
+			"bash",
+			// "/bin/sh", "-c",
 			// Wait for initContainer to create /workspace/session before starting opencode
-			"while [ ! -d /workspace/session ]; do echo 'Waiting for session directory...'; sleep 0.5; done && cd /workspace/session && exec opencode",
+			// "while [ ! -d /workspace/session ]; do echo 'Waiting for session directory...'; sleep 0.5; done && cd /workspace/session && exec opencode",
 		},
 		WorkingDir: "/workspace",
 		Env:        buildSessionEnv(config),
