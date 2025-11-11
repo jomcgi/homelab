@@ -149,21 +149,61 @@
         const wsUrl = `${WS_BASE}/api/sessions/${activeSessionId}/terminal`;
         const ws = new WebSocket(wsUrl, ['tty']);
 
+        // Set binary type to handle binary messages from ttyd
+        ws.binaryType = 'arraybuffer';
+
         ws.onopen = () => {
           console.log('WebSocket connected');
+          console.log('Terminal dimensions:', term.cols, 'x', term.rows);
           term.write('\x1b[32m✓ Connected to session\x1b[0m\r\n');
 
-          // Send ttyd initialization message with terminal dimensions
-          const initMessage = JSON.stringify({
+          // ttyd protocol: First message must be plain JSON auth message (no type prefix)
+          // This causes ttyd to spawn the process, then we can send typed messages
+          const authMessage = JSON.stringify({
             AuthToken: '',
             columns: term.cols,
             rows: term.rows
           });
-          ws.send(initMessage);
+          console.log('Sending AUTH message:', authMessage);
+          ws.send(authMessage);
         };
 
         ws.onmessage = (event) => {
-          term.write(event.data);
+          // ttyd protocol: messages from server are prefixed with type code
+          // '0' = OUTPUT (terminal output), '1' = SET_WINDOW_TITLE, etc.
+
+          // Handle both string and binary data
+          let data = event.data;
+          console.log('Received message, type:', typeof data, 'constructor:', data.constructor.name);
+
+          // Convert binary data to string if needed
+          if (data instanceof ArrayBuffer) {
+            const decoder = new TextDecoder();
+            data = decoder.decode(data);
+            console.log('Converted ArrayBuffer to string, length:', data.length);
+          } else if (data instanceof Blob) {
+            // For Blob, we need to read it asynchronously, but this shouldn't happen with ttyd
+            console.warn('Received Blob data, this is unexpected');
+            return;
+          }
+
+          if (typeof data === 'string' && data.length > 0) {
+            const messageType = data[0];
+            const payload = data.substring(1);
+
+            console.log('Message type:', messageType, 'payload length:', payload.length, 'first bytes:', payload.substring(0, 20));
+
+            if (messageType === '0') {
+              // OUTPUT: write terminal data
+              term.write(payload);
+            } else if (messageType === '1') {
+              // SET_WINDOW_TITLE: update window title
+              console.log('Setting window title:', payload);
+              document.title = payload;
+            } else {
+              console.warn('Unknown message type:', messageType);
+            }
+          }
         };
 
         ws.onerror = (error) => {
@@ -177,9 +217,12 @@
         };
 
         // Send terminal input to WebSocket
+        // ttyd protocol: prefix input with '0' (INPUT message type)
         term.onData((data) => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(data);
+            const message = '0' + data;
+            console.log('Sending INPUT:', data.charCodeAt(0), data);
+            ws.send(message);
           }
         });
 
@@ -189,12 +232,14 @@
         const handleResize = () => {
           fitAddon.fit();
 
-          // Notify ttyd of terminal size change
+          // Notify ttyd of terminal size change with RESIZE message (type '1')
+          // After initial auth, all messages need type prefix
           if (ws.readyState === WebSocket.OPEN) {
-            const resizeMessage = JSON.stringify({
+            const resizeMessage = '1' + JSON.stringify({
               columns: term.cols,
               rows: term.rows
             });
+            console.log('Sending RESIZE (on window resize):', resizeMessage);
             ws.send(resizeMessage);
           }
         };
