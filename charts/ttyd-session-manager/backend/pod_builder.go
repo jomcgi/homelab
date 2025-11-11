@@ -281,10 +281,8 @@ func buildTTYDContainer(config *PodConfig) corev1.Container {
 		Name:  "ttyd",
 		Image: fmt.Sprintf("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:%s", config.ImageTag),
 		Command: []string{
-			"ttyd",
-			"-p", "7682", // Envoy proxies 7681->7682
-			"--writable",
-			"opencode",
+			"/bin/sh", "-c",
+			"tmux new-session -d -s opencode 'opencode' && exec ttyd -p 7682 --writable tmux attach -t opencode",
 		},
 		WorkingDir: "/workspace/session",
 		Env:        buildSessionEnv(config),
