@@ -16,6 +16,7 @@ contents:
     - npm
     - bazelisk
     - openssh
+    - tmux
     # Kubernetes tools
     - kubectl    # Kubernetes CLI (for cluster inspection)
     - helm       # Helm package manager (for chart operations)
