@@ -1410,22 +1410,22 @@
       },
       {
         "name": "py3-pip-wheel",
-        "url": "https://packages.wolfi.dev/os/x86_64/py3-pip-wheel-25.3-r1.apk",
-        "version": "25.3-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3-pip-wheel-25.3-r2.apk",
+        "version": "25.3-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8563",
-          "checksum": "sha1-v4+Dc5ZDThIjkFpgHv+9JR/Rtek="
+          "range": "bytes=0-8606",
+          "checksum": "sha1-mIErzA9Pwg07FbtwdGi1C6a95Qs="
         },
         "data": {
-          "range": "bytes=8564-1760441",
-          "checksum": "sha256-nXUn/1ZG644I4kg03mLki74kOaER2M2HojKJttDbZuY="
+          "range": "bytes=8607-1760486",
+          "checksum": "sha256-5X+XVcV7W3kkkEeI0DPQkDweClDIGZmFmx+U/DwnX6o="
         },
-        "checksum": "Q1v4+Dc5ZDThIjkFpgHv+9JR/Rtek="
+        "checksum": "Q1mIErzA9Pwg07FbtwdGi1C6a95Qs="
       },
       {
         "name": "python-3.13-base",
@@ -1448,60 +1448,60 @@
       },
       {
         "name": "py3.13-setuptools",
-        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-setuptools-80.9.0-r2.apk",
-        "version": "80.9.0-r2",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-setuptools-80.9.0-r4.apk",
+        "version": "80.9.0-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6904",
-          "checksum": "sha1-4U31cTvm8OgPLtPmrHrjllF9Eec="
+          "range": "bytes=0-7142",
+          "checksum": "sha1-WmubVd+37UuBZ1QoG7fad3+hRGI="
         },
         "data": {
-          "range": "bytes=6905-2968548",
-          "checksum": "sha256-47UHTNuCmQCBEw6oTMEk9nr7G8W3DIXqXUy0WONDHTU="
+          "range": "bytes=7143-2968809",
+          "checksum": "sha256-Qp/sm64htHz3puygQtj39jAkTODWQymmgqzePtcLTkE="
         },
-        "checksum": "Q14U31cTvm8OgPLtPmrHrjllF9Eec="
+        "checksum": "Q1WmubVd+37UuBZ1QoG7fad3+hRGI="
       },
       {
         "name": "py3.13-pip-base",
-        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-pip-base-25.3-r1.apk",
-        "version": "25.3-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-pip-base-25.3-r2.apk",
+        "version": "25.3-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8599",
-          "checksum": "sha1-1NvH7vFJWpRPdKP1w8HwH8GUjtI="
+          "range": "bytes=0-8642",
+          "checksum": "sha1-6zts198HlnSiVqSpLg01nmTVDw4="
         },
         "data": {
-          "range": "bytes=8600-3820765",
-          "checksum": "sha256-/SJ3zKBT5lZIWo8RE3fuJIronGe0vcrnu1cIX8JyTEU="
+          "range": "bytes=8643-3821127",
+          "checksum": "sha256-291/YdJakQwAcTyTZyuWF/b2uX5VITkhf/pscaG2Yd0="
         },
-        "checksum": "Q11NvH7vFJWpRPdKP1w8HwH8GUjtI="
+        "checksum": "Q16zts198HlnSiVqSpLg01nmTVDw4="
       },
       {
         "name": "py3.13-pip",
-        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-pip-25.2-r1.apk",
-        "version": "25.2-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.13-pip-25.3-r2.apk",
+        "version": "25.3-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8760",
-          "checksum": "sha1-+gVBSv8lhSHNZ6V5CbuGaPLpLl0="
+          "range": "bytes=0-8646",
+          "checksum": "sha1-m8oUGc3zFzGPeKNIsxKZtpxmQKE="
         },
         "data": {
-          "range": "bytes=8761-10233",
-          "checksum": "sha256-oCnCVe+tRExlVSfdvPjtYLLv6UnY6f6svoOu3x2UYtk="
+          "range": "bytes=8647-10121",
+          "checksum": "sha256-4QA/xsIl8y7i4rW/hMeGIzvuhquQqmkvbGCVVqmhCwU="
         },
-        "checksum": "Q1+gVBSv8lhSHNZ6V5CbuGaPLpLl0="
+        "checksum": "Q1m8oUGc3zFzGPeKNIsxKZtpxmQKE="
       },
       {
         "name": "python-3.13",
@@ -3082,22 +3082,22 @@
       },
       {
         "name": "py3-pip-wheel",
-        "url": "https://packages.wolfi.dev/os/aarch64/py3-pip-wheel-25.3-r1.apk",
-        "version": "25.3-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3-pip-wheel-25.3-r2.apk",
+        "version": "25.3-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8594",
-          "checksum": "sha1-egFAaaC/LI1fkuij9LzRh5xoB0U="
+          "range": "bytes=0-8638",
+          "checksum": "sha1-BFgKuHdoOvlmqQnIjuaBLdJINvc="
         },
         "data": {
-          "range": "bytes=8595-1760470",
-          "checksum": "sha256-yPxD9pwLr8Qbkzs1exKo3K6prqWvAmrolE5Wb4kMeJk="
+          "range": "bytes=8639-1760519",
+          "checksum": "sha256-uQ/OLkoDUWFPkJ5i+qOspdbbsWTIK2+I5emcPFb2Ly8="
         },
-        "checksum": "Q1egFAaaC/LI1fkuij9LzRh5xoB0U="
+        "checksum": "Q1BFgKuHdoOvlmqQnIjuaBLdJINvc="
       },
       {
         "name": "python-3.13-base",
@@ -3120,60 +3120,60 @@
       },
       {
         "name": "py3.13-setuptools",
-        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-setuptools-80.9.0-r2.apk",
-        "version": "80.9.0-r2",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-setuptools-80.9.0-r4.apk",
+        "version": "80.9.0-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6939",
-          "checksum": "sha1-9fG96KH8tRNQVVZwydMLISZVoFk="
+          "range": "bytes=0-7174",
+          "checksum": "sha1-+ZHbacpZDPzXglzYqndkJF37O34="
         },
         "data": {
-          "range": "bytes=6940-2968582",
-          "checksum": "sha256-HO6EaEeejRLvQstlGoA2TAG+Fv5LpBdN+8vvKpdp/Cw="
+          "range": "bytes=7175-2968852",
+          "checksum": "sha256-BPofAKqwYiULwgvyQrfXLXq47KiKrlmaGJZ38/JfnWU="
         },
-        "checksum": "Q19fG96KH8tRNQVVZwydMLISZVoFk="
+        "checksum": "Q1+ZHbacpZDPzXglzYqndkJF37O34="
       },
       {
         "name": "py3.13-pip-base",
-        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-pip-base-25.3-r1.apk",
-        "version": "25.3-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-pip-base-25.3-r2.apk",
+        "version": "25.3-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8633",
-          "checksum": "sha1-47xnTJzLoxD+8087rjCVjCgTSuY="
+          "range": "bytes=0-8675",
+          "checksum": "sha1-nDv6MD1yH9EmBfSQKvJsjIpwFYw="
         },
         "data": {
-          "range": "bytes=8634-3820799",
-          "checksum": "sha256-LWOVlnulKIdPVhaOcXB6RQtrGAnKyvY1RI66FvgsrU0="
+          "range": "bytes=8676-3821160",
+          "checksum": "sha256-uuBKAu2nqjcepTRUpRlOGpW2EN+NOXYVl6EfNqWHJuc="
         },
-        "checksum": "Q147xnTJzLoxD+8087rjCVjCgTSuY="
+        "checksum": "Q1nDv6MD1yH9EmBfSQKvJsjIpwFYw="
       },
       {
         "name": "py3.13-pip",
-        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-pip-25.2-r1.apk",
-        "version": "25.2-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.13-pip-25.3-r2.apk",
+        "version": "25.3-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8792",
-          "checksum": "sha1-6phsKRuLXtZRxsrAEeuk55NrG84="
+          "range": "bytes=0-8682",
+          "checksum": "sha1-L/mDV6b6yhL95yrmoiWQemqaUIs="
         },
         "data": {
-          "range": "bytes=8793-10264",
-          "checksum": "sha256-q10FYp4t10nuv1BoHXvbxQg3rRJNZirFeyX8z0fDjAc="
+          "range": "bytes=8683-10152",
+          "checksum": "sha256-l+9to9HL+ZJV0uzA8fuJqmmXsDteU13QYmr5hdRvBks="
         },
-        "checksum": "Q16phsKRuLXtZRxsrAEeuk55NrG84="
+        "checksum": "Q1L/mDV6b6yhL95yrmoiWQemqaUIs="
       },
       {
         "name": "python-3.13",

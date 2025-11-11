@@ -30,7 +30,9 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		return true // Allow all origins for development
 	},
-	Subprotocols: []string{"tty"}, // ttyd requires the "tty" subprotocol
+	Subprotocols:    []string{"tty"}, // ttyd requires the "tty" subprotocol
+	ReadBufferSize:  32 * 1024,       // 32KB read buffer for better throughput
+	WriteBufferSize: 32 * 1024,       // 32KB write buffer for better throughput
 }
 
 type SessionManager struct {
@@ -349,10 +351,14 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 	// Connect to the ttyd service via envoy proxy (port 7681)
 	ttydURL := fmt.Sprintf("ws://%s:7681/ws", podIP)
 
-	// Create WebSocket connection to ttyd with "tty" subprotocol
+	// Create WebSocket connection to ttyd with "tty" subprotocol and larger buffers
 	headers := make(http.Header)
 	headers.Set("Sec-WebSocket-Protocol", "tty")
-	ttydConn, _, err := websocket.DefaultDialer.Dial(ttydURL, headers)
+	dialer := websocket.Dialer{
+		ReadBufferSize:  32 * 1024, // 32KB read buffer
+		WriteBufferSize: 32 * 1024, // 32KB write buffer
+	}
+	ttydConn, _, err := dialer.Dial(ttydURL, headers)
 	if err != nil {
 		errMsg := fmt.Sprintf("Error connecting to terminal: %v", err)
 		conn.WriteMessage(websocket.TextMessage, []byte(errMsg))
@@ -360,6 +366,10 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 		return
 	}
 	defer ttydConn.Close()
+
+	// Set write deadlines to prevent slow clients from blocking
+	// No read deadlines - let the connection stay open
+	const writeDeadline = 10 * time.Second
 
 	// Bidirectional proxy between client and ttyd
 	errChan := make(chan error, 2)
@@ -372,6 +382,11 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 				errChan <- fmt.Errorf("client read error: %w", err)
 				return
 			}
+			// Set write deadline to prevent blocking
+			if err := ttydConn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+				errChan <- fmt.Errorf("ttyd set write deadline error: %w", err)
+				return
+			}
 			if err := ttydConn.WriteMessage(messageType, message); err != nil {
 				errChan <- fmt.Errorf("ttyd write error: %w", err)
 				return
@@ -379,12 +394,17 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 		}
 	}()
 
-	// ttyd → Client
+	// ttyd → Client (typically much more data, so optimize for throughput)
 	go func() {
 		for {
 			messageType, message, err := ttydConn.ReadMessage()
 			if err != nil {
 				errChan <- fmt.Errorf("ttyd read error: %w", err)
+				return
+			}
+			// Set write deadline to prevent slow clients from blocking the terminal
+			if err := conn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+				errChan <- fmt.Errorf("client set write deadline error: %w", err)
 				return
 			}
 			if err := conn.WriteMessage(messageType, message); err != nil {
@@ -480,6 +500,10 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 	}
 	defer ttydConn.Close()
 
+	// Set write deadlines to prevent slow clients from blocking
+	// No read deadlines - let the connection stay open
+	const writeDeadline = 10 * time.Second
+
 	// Bidirectional proxy between client and ttyd
 	errChan := make(chan error, 2)
 
@@ -491,6 +515,11 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 				errChan <- fmt.Errorf("client read error: %w", err)
 				return
 			}
+			// Set write deadline to prevent blocking
+			if err := ttydConn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+				errChan <- fmt.Errorf("ttyd set write deadline error: %w", err)
+				return
+			}
 			if err := ttydConn.WriteMessage(messageType, message); err != nil {
 				errChan <- fmt.Errorf("ttyd write error: %w", err)
 				return
@@ -498,12 +527,17 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 		}
 	}()
 
-	// ttyd → Client
+	// ttyd → Client (typically much more data, so optimize for throughput)
 	go func() {
 		for {
 			messageType, message, err := ttydConn.ReadMessage()
 			if err != nil {
 				errChan <- fmt.Errorf("ttyd read error: %w", err)
+				return
+			}
+			// Set write deadline to prevent slow clients from blocking the terminal
+			if err := conn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
+				errChan <- fmt.Errorf("client set write deadline error: %w", err)
 				return
 			}
 			if err := conn.WriteMessage(messageType, message); err != nil {

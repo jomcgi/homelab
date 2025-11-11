@@ -23,6 +23,7 @@
   <script src="https://cdn.jsdelivr.net/npm/xterm@5.3.0/lib/xterm.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-fit@0.8.0/lib/xterm-addon-fit.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xterm-addon-web-links@0.9.0/lib/xterm-addon-web-links.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xterm-addon-webgl@0.16.0/lib/xterm-addon-webgl.js"></script>
 
   <!-- Lucide React Icons -->
   <script src="https://unpkg.com/lucide-react@latest/dist/umd/lucide-react.js"></script>
@@ -120,7 +121,7 @@
           wsRef.current = null;
         }
 
-        // Create new terminal
+        // Create new terminal with performance optimizations
         const term = new Terminal({
           cursorBlink: true,
           fontSize: 14,
@@ -131,6 +132,11 @@
             cursor: '#10b981',
             selection: 'rgba(255, 255, 255, 0.3)',
           },
+          // Performance optimizations
+          scrollback: 10000,        // Limit scrollback buffer (default is unlimited)
+          fastScrollModifier: 'alt', // Alt+scroll for fast scrolling
+          fastScrollSensitivity: 5,  // Faster scroll speed
+          rendererType: 'canvas',    // Will be upgraded to webgl below
         });
 
         const fitAddon = new FitAddon.FitAddon();
@@ -140,6 +146,19 @@
         term.loadAddon(webLinksAddon);
 
         term.open(terminalContainerRef.current);
+
+        // Use WebGL renderer for much better performance (with canvas fallback)
+        try {
+          const webglAddon = new WebglAddon.WebglAddon();
+          webglAddon.onContextLoss(() => {
+            // Dispose and try to re-attach on context loss
+            webglAddon.dispose();
+          });
+          term.loadAddon(webglAddon);
+        } catch (e) {
+          console.warn('WebGL renderer not available, falling back to canvas:', e);
+        }
+
         fitAddon.fit();
 
         xtermRef.current = term;
