@@ -152,6 +152,14 @@
         ws.onopen = () => {
           console.log('WebSocket connected');
           term.write('\x1b[32m✓ Connected to session\x1b[0m\r\n');
+
+          // Send ttyd initialization message with terminal dimensions
+          const initMessage = JSON.stringify({
+            AuthToken: '',
+            columns: term.cols,
+            rows: term.rows
+          });
+          ws.send(initMessage);
         };
 
         ws.onmessage = (event) => {
@@ -180,6 +188,15 @@
         // Handle window resize
         const handleResize = () => {
           fitAddon.fit();
+
+          // Notify ttyd of terminal size change
+          if (ws.readyState === WebSocket.OPEN) {
+            const resizeMessage = JSON.stringify({
+              columns: term.cols,
+              rows: term.rows
+            });
+            ws.send(resizeMessage);
+          }
         };
         window.addEventListener('resize', handleResize);
 
