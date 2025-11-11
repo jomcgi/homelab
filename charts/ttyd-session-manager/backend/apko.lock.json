@@ -2,7 +2,7 @@
   "version": "v1",
   "config": {
     "name": "./charts/ttyd-session-manager/backend/apko.yaml",
-    "checksum": "sha256-1gX/0px10tAPIJ6Zeilzm+GBwgzY/yft5s5NQFDU4pI="
+    "checksum": "sha256-czL926T4O7XKHYRzdE8k4G4pqoukJqCLhn/6CFdZ3B4="
   },
   "contents": {
     "keyring": [
@@ -1559,6 +1559,44 @@
           "checksum": "sha256-3Pb1ogs3fDME03End36lAmsyWlf6l/Q2mqtrPwhEjrc="
         },
         "checksum": "Q1g11D911l94rbjgIXcsOEK5IOpBs="
+      },
+      {
+        "name": "libevent",
+        "url": "https://packages.wolfi.dev/os/x86_64/libevent-2.1.12-r8.apk",
+        "version": "2.1.12-r8",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5579",
+          "checksum": "sha1-aPUPJgJU+J8X9x+SIYMPm9i3MQw="
+        },
+        "data": {
+          "range": "bytes=5580-409257",
+          "checksum": "sha256-6Khv/AKANS/0AL10mxUBDLFot6N0F5MYbzjVQwvH9do="
+        },
+        "checksum": "Q1aPUPJgJU+J8X9x+SIYMPm9i3MQw="
+      },
+      {
+        "name": "tmux",
+        "url": "https://packages.wolfi.dev/os/x86_64/tmux-3.5-r3.apk",
+        "version": "3.5-r3",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5411",
+          "checksum": "sha1-rH2dTZgJHqAtw1G763JV7tPEJuI="
+        },
+        "data": {
+          "range": "bytes=5412-580871",
+          "checksum": "sha256-mgFOBNiviT7HMlomytJKYBJqvEwOhEg36O6Mw+lnKCY="
+        },
+        "checksum": "Q1rH2dTZgJHqAtw1G763JV7tPEJuI="
       },
       {
         "name": "tree",
@@ -3193,6 +3231,44 @@
           "checksum": "sha256-ww/5cZkNSCqDjyoB7HjL2BJhnR1hIinMlfo5kMGIh0I="
         },
         "checksum": "Q1N2NwCCNsLUiHEU23DA8Nu+Kk2ik="
+      },
+      {
+        "name": "libevent",
+        "url": "https://packages.wolfi.dev/os/aarch64/libevent-2.1.12-r8.apk",
+        "version": "2.1.12-r8",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5623",
+          "checksum": "sha1-fC077RlhbNXoB8y48aiyNAgohGY="
+        },
+        "data": {
+          "range": "bytes=5624-396720",
+          "checksum": "sha256-aoNTWPPlq8kLZ9uLYAKCHlac/jRzeS+1YCMzlIeKYZ4="
+        },
+        "checksum": "Q1fC077RlhbNXoB8y48aiyNAgohGY="
+      },
+      {
+        "name": "tmux",
+        "url": "https://packages.wolfi.dev/os/aarch64/tmux-3.5-r3.apk",
+        "version": "3.5-r3",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5453",
+          "checksum": "sha1-IRdAttZxsU++EImwIniCBwGJ5xU="
+        },
+        "data": {
+          "range": "bytes=5454-571933",
+          "checksum": "sha256-7EPIWZGkMppfhsFRQCG71d/+QpheW1Y+Fg8wFUQRfGY="
+        },
+        "checksum": "Q1IRdAttZxsU++EImwIniCBwGJ5xU="
       },
       {
         "name": "tree",
