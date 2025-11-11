@@ -282,7 +282,12 @@ func buildTTYDContainer(config *PodConfig) corev1.Container {
 		Image: fmt.Sprintf("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:%s", config.ImageTag),
 		Command: []string{
 			"/bin/sh", "-c",
-			"tmux new-session -d -s opencode 'opencode' && exec ttyd -p 7682 --writable tmux attach -t opencode",
+			// Configure tmux for minimal latency, then start ttyd with performance options
+			"tmux -f /dev/null -L opencode new-session -d -s opencode " +
+				"-c /workspace/session " +
+				"'set -g escape-time 0; set -g status off; set -g set-clipboard on; opencode' && " +
+				"exec ttyd -p 7682 --writable --max-clients 5 " +
+				"tmux -L opencode attach -t opencode",
 		},
 		WorkingDir: "/workspace/session",
 		Env:        buildSessionEnv(config),
