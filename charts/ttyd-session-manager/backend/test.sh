@@ -70,22 +70,33 @@ else
 	echo ""
 fi
 
-# Step 1: Build and push both images (unless using existing session)
+# Step 1: Build and push all images (unless using existing session)
 if [ "${SKIP_BUILD:-false}" = "true" ]; then
 	echo "⏭️  Skipping build steps (using existing session)"
 	echo ""
 else
-	echo "🔨 Step 1: Building both images..."
-	format
-	echo "  Building backend API and worker images in parallel..."
+	echo "🔨 Step 1: Building all images..."
+	echo "  Building frontend, backend API, and worker images in parallel..."
 	bazel build --stamp \
+		//charts/ttyd-session-manager/frontend:image \
 		//charts/ttyd-session-manager/backend:image \
 		//charts/ttyd-session-manager/backend:ttyd_worker_image
-	echo "  ✓ Both images built successfully"
+	echo "  ✓ All images built successfully"
 	echo ""
 
-	# Step 2: Push both images sequentially
-	echo "📤 Step 2: Pushing both images to registry..."
+	# Step 2: Push all images sequentially
+	echo "📤 Step 2: Pushing all images to registry..."
+
+	echo "  Pushing frontend image..."
+	FRONTEND_PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/frontend:image.push 2>&1)
+	FRONTEND_IMAGE_TAG=$(echo "$FRONTEND_PUSH_OUTPUT" | grep -oE 'frontend:[^ :]+' | cut -d: -f2 | head -1)
+
+	if [ -z "$FRONTEND_IMAGE_TAG" ]; then
+		echo "  ✗ Failed to extract frontend image tag"
+		echo "$FRONTEND_PUSH_OUTPUT"
+		exit 1
+	fi
+	echo "  ✓ Frontend pushed: ${FRONTEND_IMAGE_TAG}"
 
 	echo "  Pushing backend API image..."
 	BACKEND_PUSH_OUTPUT=$(bazel run --stamp //charts/ttyd-session-manager/backend:image.push 2>&1)
@@ -110,17 +121,30 @@ else
 	echo "  ✓ Worker pushed: ${IMAGE_TAG}"
 	echo ""
 
-	# Step 3: Update backend deployment and wait for rollout
-	echo "🔄 Step 3: Updating backend deployment with new image..."
+	# Step 3: Update all deployments in parallel
+	echo "🔄 Step 3: Updating all deployments with new images..."
+	kubectl set image deployment/ttyd-session-manager-frontend \
+		nginx=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:${FRONTEND_IMAGE_TAG} \
+		-n ttyd-sessions &
+	FRONTEND_UPDATE_PID=$!
+
 	kubectl set image deployment/ttyd-session-manager \
 		api-server=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:${BACKEND_IMAGE_TAG} \
-		-n ttyd-sessions
-	echo "  ✓ Deployment updated"
+		-n ttyd-sessions &
+	BACKEND_UPDATE_PID=$!
+
+	wait $FRONTEND_UPDATE_PID $BACKEND_UPDATE_PID
+	echo "  ✓ Deployments updated"
 	echo ""
 
-	echo "⏳ Step 4: Waiting for backend rollout to complete..."
-	kubectl rollout status deployment/ttyd-session-manager -n ttyd-sessions --timeout=120s
-	echo "  ✓ Rollout complete"
+	echo "⏳ Step 4: Waiting for rollouts to complete..."
+	kubectl rollout status deployment/ttyd-session-manager-frontend -n ttyd-sessions --timeout=120s &
+	FRONTEND_ROLLOUT_PID=$!
+	kubectl rollout status deployment/ttyd-session-manager -n ttyd-sessions --timeout=120s &
+	BACKEND_ROLLOUT_PID=$!
+
+	wait $FRONTEND_ROLLOUT_PID $BACKEND_ROLLOUT_PID
+	echo "  ✓ All rollouts complete"
 	echo ""
 
 	# Step 5: Create session with the unique image tag
