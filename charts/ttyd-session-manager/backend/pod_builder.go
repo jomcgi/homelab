@@ -284,11 +284,8 @@ func buildTTYDContainer(config *PodConfig) corev1.Container {
 		Image: fmt.Sprintf("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:%s", config.ImageTag),
 		Command: []string{
 			"/bin/sh", "-c",
-			// Create tmux session if it doesn't exist, then start ttyd
-			// Use fish shell which stays open and has better defaults
-			"tmux -f /dev/null -L opencode new-session -d -s opencode " +
-				"-c /workspace/session " +
-				"\"set -g escape-time 0; set -g status off; set -g set-clipboard on; fish\" || true && " +
+			// Create tmux session with fish shell if it doesn't exist, then start ttyd
+			"tmux -f /dev/null -L opencode new-session -d -s opencode -c /workspace/session fish || true && " +
 				"exec ttyd -p 7682 --writable --max-clients 5 " +
 				"tmux -L opencode attach -t opencode",
 		},
