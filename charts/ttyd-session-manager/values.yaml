@@ -8,7 +8,7 @@ image:
 # Worker image configuration (for session pods)
 workerImage:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker
-  tag: "2025.11.14.18.01.16-7791dec"  # ArgoCD Image Updater will update this to latest version tag
+  tag: "2025.11.14.20.47.54-d42dfdb"  # ArgoCD Image Updater will update this to latest version tag
 
 # Frontend configuration
 frontend:

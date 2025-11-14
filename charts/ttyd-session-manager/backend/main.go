@@ -53,7 +53,7 @@ type SessionResponse struct {
 	Name        string `json:"name"`
 	PodName     string `json:"pod_name"`
 	State       string `json:"state"`
-	Ready       bool   `json:"ready"`                       // Pod is ready for connections
+	Ready       bool   `json:"ready"` // Pod is ready for connections
 	ImageTag    string `json:"image_tag,omitempty"`
 	Branch      string `json:"branch,omitempty"`
 	CreatedAt   string `json:"created_at,omitempty"`

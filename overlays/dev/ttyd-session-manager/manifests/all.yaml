@@ -632,6 +632,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         env:
+        - name: DEFAULT_WORKER_IMAGE_TAG
+          value: "2025.11.14.20.47.54-d42dfdb"
         - name: API_KEYS_SECRET_NAME
           value: "ttyd-session-manager-api-keys"
         - name: ANTHROPIC_SECRET_KEY
