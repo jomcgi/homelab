@@ -96,6 +96,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         env:
+        - name: DEFAULT_WORKER_IMAGE_TAG
+          value: {{ .Values.workerImage.tag | quote }}
         - name: API_KEYS_SECRET_NAME
           value: {{ .Values.apiKeys.secretName | quote }}
         - name: ANTHROPIC_SECRET_KEY

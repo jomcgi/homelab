@@ -34,7 +34,9 @@ type PodConfig struct {
 // NewPodConfig creates a PodConfig with defaults from environment
 func NewPodConfig(sessionID, displayName, imageTag, gitBranch string) *PodConfig {
 	if imageTag == "" {
-		imageTag = "main"
+		// Use default worker image tag from environment (set via Helm values)
+		// This allows ArgoCD Image Updater to control the default image version
+		imageTag = getEnvOrDefault("DEFAULT_WORKER_IMAGE_TAG", "main")
 	}
 	if gitBranch == "" {
 		gitBranch = fmt.Sprintf("session-%s", sessionID)
