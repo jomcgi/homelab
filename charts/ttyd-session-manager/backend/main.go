@@ -9,9 +9,11 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/go-containerregistry/pkg/crane"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
 	corev1 "k8s.io/api/core/v1"
@@ -131,8 +133,21 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	// Generate session ID
 	sessionID := uuid.New().String()[:8]
 
+	// Resolve mutable tags (like "main") to immutable version tags
+	// This ensures pods don't roll on restart when new images are pushed
+	imageTag := req.ImageTag
+	if imageTag == "" || isMutableTag(imageTag) {
+		resolvedTag, err := resolveImageTag("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker", imageTag)
+		if err != nil {
+			log.Printf("Warning: Failed to resolve image tag %q: %v. Using as-is.", imageTag, err)
+		} else {
+			imageTag = resolvedTag
+			log.Printf("Resolved image tag %q -> %q", req.ImageTag, imageTag)
+		}
+	}
+
 	// Build pod config and create pod spec
-	config := NewPodConfig(sessionID, req.DisplayName, req.ImageTag, req.GitBranch)
+	config := NewPodConfig(sessionID, req.DisplayName, imageTag, req.GitBranch)
 	pod := BuildSessionPod(config)
 
 	createdPod, err := sm.clientset.CoreV1().Pods(namespace).Create(
@@ -618,4 +633,67 @@ func boolPtr(b bool) *bool {
 
 func int64Ptr(i int64) *int64 {
 	return &i
+}
+
+// isMutableTag checks if a tag is mutable (like "main", branch names) vs immutable (version tags)
+// Version tags match the pattern: YYYY.MM.DD.HH.MM.SS-hash
+func isMutableTag(tag string) bool {
+	if tag == "" || tag == "main" || tag == "latest" {
+		return true
+	}
+	// Check if it matches our version tag pattern
+	versionPattern := regexp.MustCompile(`^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[a-f0-9]+$`)
+	return !versionPattern.MatchString(tag)
+}
+
+// resolveImageTag resolves a mutable tag (like "main") to an immutable version tag
+// by finding all tags with the same digest and picking the version tag
+func resolveImageTag(repository string, tag string) (string, error) {
+	if tag == "" {
+		tag = "main"
+	}
+
+	imageRef := fmt.Sprintf("%s:%s", repository, tag)
+
+	// Get the digest of the mutable tag
+	digest, err := crane.Digest(imageRef)
+	if err != nil {
+		return "", fmt.Errorf("failed to get digest for %s: %w", imageRef, err)
+	}
+
+	// List all tags in the repository
+	tags, err := crane.ListTags(repository)
+	if err != nil {
+		return "", fmt.Errorf("failed to list tags for %s: %w", repository, err)
+	}
+
+	// Version tag pattern: YYYY.MM.DD.HH.MM.SS-hash
+	versionPattern := regexp.MustCompile(`^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[a-f0-9]+$`)
+
+	// Find all version tags with the same digest
+	var versionTags []string
+	for _, t := range tags {
+		if !versionPattern.MatchString(t) {
+			continue
+		}
+
+		tagRef := fmt.Sprintf("%s:%s", repository, t)
+		tagDigest, err := crane.Digest(tagRef)
+		if err != nil {
+			log.Printf("Warning: Failed to get digest for %s: %v", tagRef, err)
+			continue
+		}
+
+		if tagDigest == digest {
+			versionTags = append(versionTags, t)
+		}
+	}
+
+	if len(versionTags) == 0 {
+		return "", fmt.Errorf("no version tags found with digest %s", digest)
+	}
+
+	// Return the latest version tag (they're sorted lexicographically by timestamp)
+	latestTag := versionTags[len(versionTags)-1]
+	return latestTag, nil
 }
