@@ -99,22 +99,22 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r5.apk",
-        "version": "15.2.0-r5",
+        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r6.apk",
+        "version": "15.2.0-r6",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6537",
-          "checksum": "sha1-HtbeAvTHkJYgC2rg8kRbtoEkAY0="
+          "range": "bytes=0-8354",
+          "checksum": "sha1-dVOPl1H6wXJZ4h4mD3PNT7OcMTQ="
         },
         "data": {
-          "range": "bytes=6538-100668",
-          "checksum": "sha256-vODimTG89qYZEt9q/f5WTBtS3ZKAWkZQJifWCx2HLFA="
+          "range": "bytes=8355-102384",
+          "checksum": "sha256-2gvb11dhVWFmaOAz/GndvbjWoCD0N/XgHK6FK0WIxcE="
         },
-        "checksum": "Q1HtbeAvTHkJYgC2rg8kRbtoEkAY0="
+        "checksum": "Q1dVOPl1H6wXJZ4h4mD3PNT7OcMTQ="
       },
       {
         "name": "glibc-locale-posix",
@@ -365,22 +365,22 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r5.apk",
-        "version": "15.2.0-r5",
+        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r6.apk",
+        "version": "15.2.0-r6",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6562",
-          "checksum": "sha1-ebSoO1Pnk1O48wzWTInoYpZqJWQ="
+          "range": "bytes=0-8375",
+          "checksum": "sha1-fx/K0z9qbAt9zlBf0POVFA7hLCU="
         },
         "data": {
-          "range": "bytes=6563-82897",
-          "checksum": "sha256-VTk3VH4ipEUbfLoqxVbBQ5RRr9Ka8xep8rVyPD5M1FE="
+          "range": "bytes=8376-84590",
+          "checksum": "sha256-HTgq0y0gBaCxxCzv77uDU9RZIDHwHIHBF4UQ+gMOcJs="
         },
-        "checksum": "Q1ebSoO1Pnk1O48wzWTInoYpZqJWQ="
+        "checksum": "Q1fx/K0z9qbAt9zlBf0POVFA7hLCU="
       },
       {
         "name": "glibc-locale-posix",

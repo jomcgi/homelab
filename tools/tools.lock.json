@@ -263,5 +263,41 @@
         "cpu": "x86_64"
       }
     ]
+  },
+  "crane": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Linux_arm64.tar.gz",
+        "file": "crane",
+        "sha256": "fc0515857bc38e4ddd2d37a5ab03fb5959449c7b2d4ad759bcc1174ac0cad91b",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Linux_x86_64.tar.gz",
+        "file": "crane",
+        "sha256": "c1d593d01551f2c9a3df5ca0a0be4385a839bd9b86d4a76e18d7b17d16559127",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Darwin_arm64.tar.gz",
+        "file": "crane",
+        "sha256": "ae30b28498de3e1ac51a37042eab46116ec70d86aa9d10431a1fbde35b9918b9",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Darwin_x86_64.tar.gz",
+        "file": "crane",
+        "sha256": "5c9ad72fff8e92466e6162274fda18a59d16629025c3f1eb43cb3de494cbddc5",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
   }
 }
