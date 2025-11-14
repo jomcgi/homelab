@@ -64,6 +64,7 @@ bazel_env(
         "starpls": MULTITOOL_TOOLS["starpls"],
         "helm": MULTITOOL_TOOLS["helm"],
         "kind": MULTITOOL_TOOLS["kind"],
+        "crane": MULTITOOL_TOOLS["crane"],
     },
 )
 
