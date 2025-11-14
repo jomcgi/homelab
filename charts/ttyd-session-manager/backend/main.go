@@ -341,9 +341,22 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 		return
 	}
 
-	// Check if pod is running
+	// Check if pod is running and ready
 	if pod.Status.Phase != corev1.PodRunning {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Session is not running"})
+		return
+	}
+
+	// Check if pod is ready (all readiness probes passed)
+	podReady := false
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			podReady = true
+			break
+		}
+	}
+	if !podReady {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Session is starting, please wait..."})
 		return
 	}
 
@@ -452,6 +465,19 @@ func (sm *SessionManager) sessionWebInterface(c *gin.Context) {
 
 	if pod.Status.Phase != corev1.PodRunning {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Session is not running"})
+		return
+	}
+
+	// Check if pod is ready (all readiness probes passed)
+	podReady := false
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			podReady = true
+			break
+		}
+	}
+	if !podReady {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"error": "Session is starting, please wait..."})
 		return
 	}
 

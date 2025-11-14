@@ -121,6 +121,19 @@
           wsRef.current = null;
         }
 
+        // Check if session is ready before connecting
+        const checkSessionReady = async () => {
+          try {
+            const response = await fetch(`${API_BASE}/api/sessions/${activeSessionId}`);
+            if (!response.ok) return false;
+            const session = await response.json();
+            return session.state === 'active';
+          } catch (err) {
+            console.error('Error checking session status:', err);
+            return false;
+          }
+        };
+
         // Create new terminal with performance optimizations
         const term = new Terminal({
           cursorBlink: true,
@@ -164,99 +177,131 @@
         xtermRef.current = term;
         fitAddonRef.current = fitAddon;
 
-        // Connect to WebSocket
-        const wsUrl = `${WS_BASE}/api/sessions/${activeSessionId}/terminal`;
-        const ws = new WebSocket(wsUrl, ['tty']);
+        let resizeHandler = null;
 
-        // Set binary type to handle binary messages from ttyd
-        ws.binaryType = 'arraybuffer';
+        // Wait for session to be ready, then connect to WebSocket
+        const connectWhenReady = async () => {
+          term.write('\x1b[33m⏳ Waiting for session to be ready...\x1b[0m\r\n');
 
-        ws.onopen = () => {
-          term.write('\x1b[32m✓ Connected to session\x1b[0m\r\n');
+          // Poll until session is ready (max 60 seconds)
+          const maxAttempts = 60;
+          let attempts = 0;
+          while (attempts < maxAttempts) {
+            const isReady = await checkSessionReady();
+            if (isReady) break;
 
-          // ttyd protocol: First message must be plain JSON auth message (no type prefix)
-          // This causes ttyd to spawn the process, then we can send typed messages
-          const authMessage = JSON.stringify({
-            AuthToken: '',
-            columns: term.cols,
-            rows: term.rows
-          });
-          ws.send(authMessage);
-        };
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
 
-        ws.onmessage = (event) => {
-          // ttyd protocol: messages from server are prefixed with type code
-          // '0' = OUTPUT (terminal output), '1' = SET_WINDOW_TITLE, etc.
-
-          // Handle both string and binary data
-          let data = event.data;
-
-          // Convert binary data to string if needed
-          if (data instanceof ArrayBuffer) {
-            const decoder = new TextDecoder();
-            data = decoder.decode(data);
-          } else if (data instanceof Blob) {
-            // For Blob, we need to read it asynchronously, but this shouldn't happen with ttyd
-            console.warn('Received Blob data, this is unexpected');
+          if (attempts >= maxAttempts) {
+            term.write('\x1b[31m✗ Session failed to become ready (timeout)\x1b[0m\r\n');
             return;
           }
 
-          if (typeof data === 'string' && data.length > 0) {
-            const messageType = data[0];
-            const payload = data.substring(1);
+          term.write('\x1b[32m✓ Session ready, connecting...\x1b[0m\r\n');
 
-            if (messageType === '0') {
-              // OUTPUT: write terminal data
-              term.write(payload);
-            } else if (messageType === '1') {
-              // SET_WINDOW_TITLE: update window title
-              document.title = payload;
-            } else {
-              console.warn('Unknown message type:', messageType);
-            }
-          }
-        };
+          // Connect to WebSocket
+          const wsUrl = `${WS_BASE}/api/sessions/${activeSessionId}/terminal`;
+          const ws = new WebSocket(wsUrl, ['tty']);
 
-        ws.onerror = (error) => {
-          console.error('WebSocket error:', error);
-          term.write('\r\n\x1b[31m✗ Connection error\x1b[0m\r\n');
-        };
+          // Set binary type to handle binary messages from ttyd
+          ws.binaryType = 'arraybuffer';
 
-        ws.onclose = () => {
-          term.write('\r\n\x1b[33m✗ Connection closed\x1b[0m\r\n');
-        };
+          ws.onopen = () => {
+            term.write('\x1b[32m✓ Connected to session\x1b[0m\r\n');
 
-        // Send terminal input to WebSocket
-        // ttyd protocol: prefix input with '0' (INPUT message type)
-        term.onData((data) => {
-          if (ws.readyState === WebSocket.OPEN) {
-            const message = '0' + data;
-            ws.send(message);
-          }
-        });
-
-        wsRef.current = ws;
-
-        // Handle window resize
-        const handleResize = () => {
-          fitAddon.fit();
-
-          // Notify ttyd of terminal size change with RESIZE message (type '1')
-          // After initial auth, all messages need type prefix
-          if (ws.readyState === WebSocket.OPEN) {
-            const resizeMessage = '1' + JSON.stringify({
+            // ttyd protocol: First message must be plain JSON auth message (no type prefix)
+            // This causes ttyd to spawn the process, then we can send typed messages
+            const authMessage = JSON.stringify({
+              AuthToken: '',
               columns: term.cols,
               rows: term.rows
             });
-            ws.send(resizeMessage);
-          }
+            ws.send(authMessage);
+          };
+
+          ws.onmessage = (event) => {
+            // ttyd protocol: messages from server are prefixed with type code
+            // '0' = OUTPUT (terminal output), '1' = SET_WINDOW_TITLE, etc.
+
+            // Handle both string and binary data
+            let data = event.data;
+
+            // Convert binary data to string if needed
+            if (data instanceof ArrayBuffer) {
+              const decoder = new TextDecoder();
+              data = decoder.decode(data);
+            } else if (data instanceof Blob) {
+              // For Blob, we need to read it asynchronously, but this shouldn't happen with ttyd
+              console.warn('Received Blob data, this is unexpected');
+              return;
+            }
+
+            if (typeof data === 'string' && data.length > 0) {
+              const messageType = data[0];
+              const payload = data.substring(1);
+
+              if (messageType === '0') {
+                // OUTPUT: write terminal data
+                term.write(payload);
+              } else if (messageType === '1') {
+                // SET_WINDOW_TITLE: update window title
+                document.title = payload;
+              } else {
+                console.warn('Unknown message type:', messageType);
+              }
+            }
+          };
+
+          ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            term.write('\r\n\x1b[31m✗ Connection error\x1b[0m\r\n');
+          };
+
+          ws.onclose = () => {
+            term.write('\r\n\x1b[33m✗ Connection closed\x1b[0m\r\n');
+          };
+
+          // Send terminal input to WebSocket
+          // ttyd protocol: prefix input with '0' (INPUT message type)
+          term.onData((data) => {
+            if (ws.readyState === WebSocket.OPEN) {
+              const message = '0' + data;
+              ws.send(message);
+            }
+          });
+
+          wsRef.current = ws;
+
+          // Handle window resize
+          resizeHandler = () => {
+            fitAddon.fit();
+
+            // Notify ttyd of terminal size change with RESIZE message (type '1')
+            // After initial auth, all messages need type prefix
+            if (ws.readyState === WebSocket.OPEN) {
+              const resizeMessage = '1' + JSON.stringify({
+                columns: term.cols,
+                rows: term.rows
+              });
+              ws.send(resizeMessage);
+            }
+          };
+          window.addEventListener('resize', resizeHandler);
         };
-        window.addEventListener('resize', handleResize);
+
+        // Start the connection process
+        connectWhenReady();
 
         return () => {
-          window.removeEventListener('resize', handleResize);
+          if (resizeHandler) {
+            window.removeEventListener('resize', resizeHandler);
+          }
+          if (wsRef.current) {
+            wsRef.current.close();
+          }
           term.dispose();
-          ws.close();
         };
       }, [activeSessionId]);
 
