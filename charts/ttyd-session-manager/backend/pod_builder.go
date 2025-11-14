@@ -489,3 +489,34 @@ func mustParseQuantity(s string) resource.Quantity {
 	}
 	return q
 }
+
+// BuildSessionService creates a Kubernetes Service for direct access to a session pod
+// This enables low-latency WebSocket connections by bypassing the backend API proxy
+func BuildSessionService(sessionID string) *corev1.Service {
+	serviceName := fmt.Sprintf("ttyd-session-%s", sessionID)
+
+	return &corev1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      serviceName,
+			Namespace: namespace,
+			Labels: map[string]string{
+				"app":        "ttyd-session",
+				"session-id": sessionID,
+			},
+		},
+		Spec: corev1.ServiceSpec{
+			Type: corev1.ServiceTypeClusterIP,
+			Selector: map[string]string{
+				"app":        "ttyd-session",
+				"session-id": sessionID,
+			},
+			Ports: []corev1.ServicePort{
+				{
+					Name:     "envoy-proxy",
+					Port:     7681,
+					Protocol: corev1.ProtocolTCP,
+				},
+			},
+		},
+	}
+}
