@@ -81,6 +81,7 @@
       const terminalContainerRef = useRef(null);
       const xtermRef = useRef(null);
       const fitAddonRef = useRef(null);
+      const webglAddonRef = useRef(null);
       const wsRef = useRef(null);
 
       const activeSession = sessions.find((s) => s.id === activeSessionId);
@@ -112,14 +113,27 @@
         if (!activeSessionId || !terminalContainerRef.current) return;
 
         // Clean up existing terminal
-        if (xtermRef.current) {
-          xtermRef.current.dispose();
-          xtermRef.current = null;
-        }
         if (wsRef.current) {
           wsRef.current.close();
           wsRef.current = null;
         }
+        if (webglAddonRef.current) {
+          try {
+            webglAddonRef.current.dispose();
+          } catch (err) {
+            console.warn('Error disposing WebGL addon:', err);
+          }
+          webglAddonRef.current = null;
+        }
+        if (xtermRef.current) {
+          try {
+            xtermRef.current.dispose();
+          } catch (err) {
+            console.warn('Error disposing terminal:', err);
+          }
+          xtermRef.current = null;
+        }
+        fitAddonRef.current = null;
 
         // Check if session is ready before connecting
         const checkSessionReady = async () => {
@@ -127,7 +141,8 @@
             const response = await fetch(`${API_BASE}/api/sessions/${activeSessionId}`);
             if (!response.ok) return false;
             const session = await response.json();
-            return session.state === 'active';
+            // Session must be both running AND ready (readiness probes passed)
+            return session.state === 'active' && session.ready === true;
           } catch (err) {
             console.error('Error checking session status:', err);
             return false;
@@ -165,11 +180,18 @@
           const webglAddon = new WebglAddon.WebglAddon();
           webglAddon.onContextLoss(() => {
             // Dispose and try to re-attach on context loss
-            webglAddon.dispose();
+            try {
+              webglAddon.dispose();
+            } catch (err) {
+              console.warn('Error disposing WebGL addon on context loss:', err);
+            }
+            webglAddonRef.current = null;
           });
           term.loadAddon(webglAddon);
+          webglAddonRef.current = webglAddon;
         } catch (e) {
           console.warn('WebGL renderer not available, falling back to canvas:', e);
+          webglAddonRef.current = null;
         }
 
         fitAddon.fit();
@@ -181,25 +203,30 @@
 
         // Wait for session to be ready, then connect to WebSocket
         const connectWhenReady = async () => {
-          term.write('\x1b[33m⏳ Waiting for session to be ready...\x1b[0m\r\n');
+          term.write('\x1b[33m⏳ Waiting for session to be ready (checking pod readiness probes)...\x1b[0m\r\n');
 
-          // Poll until session is ready (max 60 seconds)
-          const maxAttempts = 60;
+          // Poll until session is ready (max 120 seconds to account for image pulls)
+          const maxAttempts = 120;
           let attempts = 0;
           while (attempts < maxAttempts) {
             const isReady = await checkSessionReady();
             if (isReady) break;
 
             attempts++;
+            // Show progress every 10 seconds
+            if (attempts % 10 === 0) {
+              term.write(`\x1b[33m⏳ Still waiting... (${attempts}s elapsed)\x1b[0m\r\n`);
+            }
             await new Promise(resolve => setTimeout(resolve, 1000));
           }
 
           if (attempts >= maxAttempts) {
-            term.write('\x1b[31m✗ Session failed to become ready (timeout)\x1b[0m\r\n');
+            term.write('\x1b[31m✗ Session failed to become ready (timeout after 120s)\x1b[0m\r\n');
+            term.write('\x1b[33mℹ Pod may still be pulling image or failing readiness checks.\x1b[0m\r\n');
             return;
           }
 
-          term.write('\x1b[32m✓ Session ready, connecting...\x1b[0m\r\n');
+          term.write('\x1b[32m✓ Session ready (pod is running and ready), connecting...\x1b[0m\r\n');
 
           // Connect to WebSocket
           const wsUrl = `${WS_BASE}/api/sessions/${activeSessionId}/terminal`;
@@ -265,10 +292,15 @@
 
           // Send terminal input to WebSocket
           // ttyd protocol: prefix input with '0' (INPUT message type)
+          // Use binary messages for lower latency (avoids string concatenation overhead)
+          const encoder = new TextEncoder();
           term.onData((data) => {
             if (ws.readyState === WebSocket.OPEN) {
-              const message = '0' + data;
-              ws.send(message);
+              const encoded = encoder.encode(data);
+              const message = new Uint8Array(encoded.length + 1);
+              message[0] = 48; // ASCII '0' for ttyd INPUT message type
+              message.set(encoded, 1);
+              ws.send(message.buffer);
             }
           });
 
@@ -279,13 +311,17 @@
             fitAddon.fit();
 
             // Notify ttyd of terminal size change with RESIZE message (type '1')
-            // After initial auth, all messages need type prefix
+            // Use binary messages for lower latency
             if (ws.readyState === WebSocket.OPEN) {
-              const resizeMessage = '1' + JSON.stringify({
+              const resizeJson = JSON.stringify({
                 columns: term.cols,
                 rows: term.rows
               });
-              ws.send(resizeMessage);
+              const encoded = encoder.encode(resizeJson);
+              const resizeMessage = new Uint8Array(encoded.length + 1);
+              resizeMessage[0] = 49; // ASCII '1' for ttyd RESIZE message type
+              resizeMessage.set(encoded, 1);
+              ws.send(resizeMessage.buffer);
             }
           };
           window.addEventListener('resize', resizeHandler);
@@ -300,8 +336,27 @@
           }
           if (wsRef.current) {
             wsRef.current.close();
+            wsRef.current = null;
           }
-          term.dispose();
+          // Dispose WebGL addon first to prevent errors
+          if (webglAddonRef.current) {
+            try {
+              webglAddonRef.current.dispose();
+            } catch (err) {
+              console.warn('Error disposing WebGL addon during cleanup:', err);
+            }
+            webglAddonRef.current = null;
+          }
+          // Only dispose if the terminal ref is still pointing to this terminal
+          if (xtermRef.current === term) {
+            try {
+              term.dispose();
+            } catch (err) {
+              console.warn('Error disposing terminal during cleanup:', err);
+            }
+            xtermRef.current = null;
+            fitAddonRef.current = null;
+          }
         };
       }, [activeSessionId]);
 
@@ -461,7 +516,7 @@
                 <div className="flex items-center justify-between mb-6">
                   <h1 className="text-sm font-medium text-zinc-400">Sessions</h1>
                   <div className="text-xs text-zinc-600">
-                    {sessions.filter((s) => s.state === "active").length} active
+                    {sessions.filter((s) => s.state === "active" && s.ready).length} ready
                   </div>
                 </div>
 
@@ -497,11 +552,18 @@
                       <div className="flex items-center justify-between mb-1">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
                           <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                            session.state === "active" ? "bg-emerald-500" : "bg-zinc-700"
+                            session.state === "active" && session.ready
+                              ? "bg-emerald-500"
+                              : session.state === "active"
+                              ? "bg-amber-500 animate-pulse"
+                              : "bg-zinc-700"
                           }`} />
                           <span className="text-sm font-medium truncate">
                             {session.name || session.pod_name}
                           </span>
+                          {session.state === "active" && !session.ready && (
+                            <span className="text-xs text-amber-500">starting...</span>
+                          )}
                         </div>
                         <kbd className="px-1.5 py-0.5 bg-zinc-800/50 rounded text-xs font-mono border border-zinc-700/50 text-zinc-600 ml-1">
                           ⌘{index + 1}
@@ -517,7 +579,7 @@
                       </div>
 
                       {/* Hover Details */}
-                      {hoveredSessionId === session.id && session.state === "active" && (
+                      {hoveredSessionId === session.id && session.state === "active" && session.ready && (
                         <div className="ml-3.5 mt-2 pt-2 border-t border-zinc-800 flex gap-4 text-xs text-zinc-600">
                           <span>cpu {session.cpu_usage || 'N/A'}</span>
                           <span>mem {session.memory_usage || 'N/A'}</span>
@@ -661,11 +723,18 @@
                       >
                         <div className="flex items-center gap-3">
                           <div className={`w-1.5 h-1.5 rounded-full ${
-                            session.state === "active" ? "bg-emerald-500" : "bg-zinc-700"
+                            session.state === "active" && session.ready
+                              ? "bg-emerald-500"
+                              : session.state === "active"
+                              ? "bg-amber-500 animate-pulse"
+                              : "bg-zinc-700"
                           }`} />
                           <div>
-                            <div className="text-sm text-zinc-300">
+                            <div className="text-sm text-zinc-300 flex items-center gap-2">
                               {session.name || session.pod_name}
+                              {session.state === "active" && !session.ready && (
+                                <span className="text-xs text-amber-500">starting...</span>
+                              )}
                             </div>
                             <div className="text-xs text-zinc-600 font-mono">
                               {session.branch || 'main'}
