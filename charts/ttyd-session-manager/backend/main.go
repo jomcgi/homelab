@@ -53,6 +53,7 @@ type SessionResponse struct {
 	Name        string `json:"name"`
 	PodName     string `json:"pod_name"`
 	State       string `json:"state"`
+	Ready       bool   `json:"ready"`                       // Pod is ready for connections
 	ImageTag    string `json:"image_tag,omitempty"`
 	Branch      string `json:"branch,omitempty"`
 	CreatedAt   string `json:"created_at,omitempty"`
@@ -141,12 +142,31 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	config := NewPodConfig(sessionID, req.DisplayName, imageTag, req.GitBranch)
 	pod := BuildSessionPod(config)
 
+	// Create Service first for DNS resolution (required for direct nginx routing)
+	service := BuildSessionService(sessionID)
+	_, err := sm.clientset.CoreV1().Services(namespace).Create(
+		context.Background(),
+		service,
+		metav1.CreateOptions{},
+	)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create service: %v", err)})
+		return
+	}
+
+	// Create Pod
 	createdPod, err := sm.clientset.CoreV1().Pods(namespace).Create(
 		context.Background(),
 		pod,
 		metav1.CreateOptions{},
 	)
 	if err != nil {
+		// Clean up the service if pod creation fails
+		sm.clientset.CoreV1().Services(namespace).Delete(
+			context.Background(),
+			service.Name,
+			metav1.DeleteOptions{},
+		)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to create pod: %v", err)})
 		return
 	}
@@ -156,6 +176,7 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 		Name:     req.DisplayName,
 		PodName:  createdPod.Name,
 		State:    "creating",
+		Ready:    false,
 		ImageTag: config.ImageTag,
 	})
 }
@@ -183,6 +204,15 @@ func (sm *SessionManager) listSessions(c *gin.Context) {
 			state = "active"
 		case corev1.PodSucceeded, corev1.PodFailed:
 			state = "terminated"
+		}
+
+		// Check if pod is ready (all readiness probes passed)
+		ready := false
+		for _, condition := range pod.Status.Conditions {
+			if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+				ready = true
+				break
+			}
 		}
 
 		imageTag := pod.Annotations["image-tag"]
@@ -218,6 +248,7 @@ func (sm *SessionManager) listSessions(c *gin.Context) {
 			Name:        sessionName,
 			PodName:     pod.Name,
 			State:       state,
+			Ready:       ready,
 			ImageTag:    imageTag,
 			Branch:      gitBranch,
 			CreatedAt:   createdAt,
@@ -256,6 +287,15 @@ func (sm *SessionManager) getSession(c *gin.Context) {
 		state = "terminated"
 	}
 
+	// Check if pod is ready (all readiness probes passed)
+	ready := false
+	for _, condition := range pod.Status.Conditions {
+		if condition.Type == corev1.PodReady && condition.Status == corev1.ConditionTrue {
+			ready = true
+			break
+		}
+	}
+
 	imageTag := pod.Annotations["image-tag"]
 	if imageTag == "" {
 		imageTag = "main" // Default for older sessions without this annotation
@@ -289,6 +329,7 @@ func (sm *SessionManager) getSession(c *gin.Context) {
 		Name:        sessionName,
 		PodName:     pod.Name,
 		State:       state,
+		Ready:       ready,
 		ImageTag:    imageTag,
 		Branch:      gitBranch,
 		CreatedAt:   createdAt,
@@ -303,7 +344,9 @@ func (sm *SessionManager) getSession(c *gin.Context) {
 func (sm *SessionManager) deleteSession(c *gin.Context) {
 	sessionID := c.Param("id")
 	podName := fmt.Sprintf("ttyd-session-%s", sessionID)
+	serviceName := fmt.Sprintf("ttyd-session-%s", sessionID)
 
+	// Delete Pod
 	err := sm.clientset.CoreV1().Pods(namespace).Delete(
 		context.Background(),
 		podName,
@@ -313,6 +356,13 @@ func (sm *SessionManager) deleteSession(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete pod: %v", err)})
 		return
 	}
+
+	// Delete Service (best effort - don't fail if it doesn't exist)
+	sm.clientset.CoreV1().Services(namespace).Delete(
+		context.Background(),
+		serviceName,
+		metav1.DeleteOptions{},
+	)
 
 	c.JSON(http.StatusOK, gin.H{"message": "Session deleted"})
 }
@@ -386,11 +436,8 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 	}
 	defer ttydConn.Close()
 
-	// Set write deadlines to prevent slow clients from blocking
-	// No read deadlines - let the connection stay open
-	const writeDeadline = 10 * time.Second
-
 	// Bidirectional proxy between client and ttyd
+	// No write deadlines for lower latency (removes syscall overhead on every message)
 	errChan := make(chan error, 2)
 
 	// Client → ttyd
@@ -399,11 +446,6 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 			messageType, message, err := conn.ReadMessage()
 			if err != nil {
 				errChan <- fmt.Errorf("client read error: %w", err)
-				return
-			}
-			// Set write deadline to prevent blocking
-			if err := ttydConn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-				errChan <- fmt.Errorf("ttyd set write deadline error: %w", err)
 				return
 			}
 			if err := ttydConn.WriteMessage(messageType, message); err != nil {
@@ -419,11 +461,6 @@ func (sm *SessionManager) terminalWebSocket(c *gin.Context) {
 			messageType, message, err := ttydConn.ReadMessage()
 			if err != nil {
 				errChan <- fmt.Errorf("ttyd read error: %w", err)
-				return
-			}
-			// Set write deadline to prevent slow clients from blocking the terminal
-			if err := conn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-				errChan <- fmt.Errorf("client set write deadline error: %w", err)
 				return
 			}
 			if err := conn.WriteMessage(messageType, message); err != nil {
@@ -532,11 +569,8 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 	}
 	defer ttydConn.Close()
 
-	// Set write deadlines to prevent slow clients from blocking
-	// No read deadlines - let the connection stay open
-	const writeDeadline = 10 * time.Second
-
 	// Bidirectional proxy between client and ttyd
+	// No write deadlines for lower latency (removes syscall overhead on every message)
 	errChan := make(chan error, 2)
 
 	// Client → ttyd
@@ -545,11 +579,6 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 			messageType, message, err := conn.ReadMessage()
 			if err != nil {
 				errChan <- fmt.Errorf("client read error: %w", err)
-				return
-			}
-			// Set write deadline to prevent blocking
-			if err := ttydConn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-				errChan <- fmt.Errorf("ttyd set write deadline error: %w", err)
 				return
 			}
 			if err := ttydConn.WriteMessage(messageType, message); err != nil {
@@ -565,11 +594,6 @@ func (sm *SessionManager) proxyWebSocket(c *gin.Context, podIP string) {
 			messageType, message, err := ttydConn.ReadMessage()
 			if err != nil {
 				errChan <- fmt.Errorf("ttyd read error: %w", err)
-				return
-			}
-			// Set write deadline to prevent slow clients from blocking the terminal
-			if err := conn.SetWriteDeadline(time.Now().Add(writeDeadline)); err != nil {
-				errChan <- fmt.Errorf("client set write deadline error: %w", err)
 				return
 			}
 			if err := conn.WriteMessage(messageType, message); err != nil {
