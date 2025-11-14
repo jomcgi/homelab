@@ -133,18 +133,9 @@ func (sm *SessionManager) createSession(c *gin.Context) {
 	// Generate session ID
 	sessionID := uuid.New().String()[:8]
 
-	// Resolve mutable tags (like "main") to immutable version tags
-	// This ensures pods don't roll on restart when new images are pushed
+	// Use the requested image tag (empty string will use DEFAULT_WORKER_IMAGE_TAG from env)
+	// The default tag is managed by ArgoCD Image Updater via Helm values
 	imageTag := req.ImageTag
-	if imageTag == "" || isMutableTag(imageTag) {
-		resolvedTag, err := resolveImageTag("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker", imageTag)
-		if err != nil {
-			log.Printf("Warning: Failed to resolve image tag %q: %v. Using as-is.", imageTag, err)
-		} else {
-			imageTag = resolvedTag
-			log.Printf("Resolved image tag %q -> %q", req.ImageTag, imageTag)
-		}
-	}
 
 	// Build pod config and create pod spec
 	config := NewPodConfig(sessionID, req.DisplayName, imageTag, req.GitBranch)
