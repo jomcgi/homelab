@@ -112,9 +112,9 @@ spec:
   hostname: app.jomcgi.dev
   service: http://my-service.default.svc:8080
 
-  # Tunnel reference
+  # Tunnel reference (defaults to default-daemon-tunnel in daemon mode)
   tunnelRef:
-    name: default-daemon-tunnel  # Reference to CloudflareTunnel CRD
+    name: default-daemon-tunnel  # Automatically set by operator
 
   # Zero Trust integration (optional)
   accessApplicationRef:
@@ -375,10 +375,11 @@ spec:
 | `cloudflare.zero-trust.enabled` | No | `true` | Enable Zero Trust authentication |
 | `cloudflare.zero-trust.policy` | No | - | Reference to CloudflareAccessPolicy CRD name |
 | `cloudflare.zero-trust.policy-inline` | No | - | Inline policy definition (YAML) |
-| `cloudflare.tunnel.name` | No | `default-daemon-tunnel` | Reference to CloudflareTunnel CRD |
 | `cloudflare.service.port` | No | First port | Service port to use |
 | `cloudflare.service.protocol` | No | `http` | Protocol (`http`, `https`, `tcp`, `ssh`) |
 | `cloudflare.tls.verify` | No | `true` | Verify TLS certificate on origin |
+
+**Note:** The operator uses a single shared tunnel (`default-daemon-tunnel`) in daemon mode. Multi-tunnel support may be added in the future.
 
 ---
 
