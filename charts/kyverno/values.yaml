@@ -1,6 +1,21 @@
 # Default values for Kyverno
 # These are sensible defaults that can be overridden per environment
 
+# OpenTelemetry injection configuration
+otelInjection:
+  enabled: true
+  background: true  # Apply to existing AND new resources
+  endpoint: "http://signoz-otel-collector.observability.svc.cluster.local:4317"
+  protocol: "grpc"
+  targetKinds:
+    - Deployment
+    - StatefulSet
+    - DaemonSet
+  excludeNamespaces:
+    - kube-system
+    - kube-public
+    - kube-node-lease
+
 kyverno:
   # Admission controller configuration
   admissionController:
