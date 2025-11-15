@@ -1,0 +1,19 @@
+{{- if .Values.gateway.enabled }}
+{{- if .Values.gateway.tracing.enabled }}
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyProxy
+metadata:
+  name: {{ .Values.gateway.tracing.envoyProxyName }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  telemetry:
+    tracing:
+      provider:
+        type: OpenTelemetry
+        backendRefs:
+          - name: {{ .Values.gateway.tracing.otlpService }}
+            namespace: {{ .Values.gateway.tracing.otlpNamespace }}
+            port: {{ .Values.gateway.tracing.otlpPort }}
+        samplingRate: {{ .Values.gateway.tracing.samplingRate }}
+{{- end }}
+{{- end }}

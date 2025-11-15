@@ -1,0 +1,42 @@
+# Default values for cloudflare-operator-test
+
+# Hello World image
+image:
+  repository: hashicorp/http-echo
+  tag: "1.0"
+  pullPolicy: IfNotPresent
+
+# Service with Zero Trust disabled (public)
+noauth:
+  enabled: true
+  hostname: cf-noauth-test.jomcgi.dev
+  replicas: 1
+  text: "Hello from public service (no auth required)"
+  port: 5678
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
+
+# Service with Zero Trust enabled (joe-only policy)
+auth:
+  enabled: true
+  hostname: cf-auth-test.jomcgi.dev
+  policy: joe-only
+  replicas: 1
+  text: "Hello from protected service (Zero Trust enabled)"
+  port: 5678
+  resources:
+    limits:
+      cpu: 100m
+      memory: 64Mi
+    requests:
+      cpu: 10m
+      memory: 32Mi
+
+# Cloudflare tunnel configuration
+tunnel:
+  name: default-daemon-tunnel
