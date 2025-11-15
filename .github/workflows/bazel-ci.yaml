@@ -13,7 +13,7 @@ jobs:
   build-test-push:
     name: Bazel - build, test & push
     # Skip CI on commits from argocd-image-updater to prevent build loops
-    if: "!contains(github.event.head_commit.message, 'argocd-image-updater')"
+    if: "github.event.head_commit.author.name != 'argocd-image-updater'"
     runs-on: homelab-runners
 
     permissions:
