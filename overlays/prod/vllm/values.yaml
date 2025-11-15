@@ -33,13 +33,13 @@ vllm-stack:
       failureThreshold: 3
 
     modelSpec:
-      - name: "granite-tiny"
+      - name: "qwen3-coder-30b"
         # Standard vLLM image (no LMCache)
         repository: "vllm/vllm-openai"
         tag: "latest"
         imagePullPolicy: IfNotPresent
-        # Tiny Granite model (GGUF format, BF16)
-        modelURL: "unsloth/granite-4.0-h-tiny-GGUF"
+        # Qwen3-Coder 30B with AWQ 4-bit quantization
+        modelURL: "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
@@ -73,11 +73,11 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Granite supports massive context windows - take advantage of it!
-          maxModelLen: 131072  # 128k tokens
+          # With CPU offload, we can support large context windows
+          maxModelLen: 32768  # 32k tokens
 
-          # Auto-detect optimal dtype
-          dtype: "auto"
+          # AWQ quantization works with bfloat16
+          dtype: "bfloat16"
 
           # Additional performance flags
           extraArgs:
@@ -85,6 +85,10 @@ vllm-stack:
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
             - "0.95"  # Use 95% of available VRAM (dedicated GPU)
+            - "--quantization"
+            - "awq"  # Enable AWQ quantization support
+            - "--cpu-offload-gb"
+            - "10"  # Offload 10GB to CPU RAM (we have 32Gi available)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
         nodeSelector:
