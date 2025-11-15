@@ -3,20 +3,20 @@
 
 image:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
-  tag: "2025.11.15.05.54.19-20f1074" # argocd-image-updater
+  tag: "2025.11.15.06.07.39-ec9c3cb" # argocd-image-updater
   pullPolicy: Always
 frontend:
   enabled: true
   image:
     repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
-    tag: "2025.11.15.05.54.19-20f1074" # argocd-image-updater
+    tag: "2025.11.15.06.07.39-ec9c3cb" # argocd-image-updater
     pullPolicy: Always
   # Enable cache busting to prevent browser caching issues in development
   cacheBusting:
     enabled: true
 workerImage:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker
-  tag: "2025.11.15.05.54.19-20f1074" # argocd-image-updater
+  tag: "2025.11.15.06.07.39-ec9c3cb" # argocd-image-updater
 replicaCount: 1
 sessionNamespace: ttyd-sessions
 service:
