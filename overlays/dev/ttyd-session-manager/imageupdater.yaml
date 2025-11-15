@@ -41,6 +41,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: "alphabetical"
             allowTags: "regexp:^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}-[0-9a-f]{7}$"
+            forceUpdate: true
           manifestTargets:
             helm:
               name: "workerImage.repository"
