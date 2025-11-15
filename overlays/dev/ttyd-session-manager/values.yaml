@@ -1,19 +1,24 @@
 # Development environment overrides for ttyd-session-manager
+# Image tags are managed by ArgoCD Image Updater
 
 image:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend
-  tag: "main"
+  tag: "2025.11.14.20.47.54-d42dfdb"  # argocd-image-updater
   pullPolicy: Always
 
 frontend:
   enabled: true
   image:
     repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
-    tag: "main"
+    tag: "2025.11.14.20.47.54-d42dfdb"  # argocd-image-updater
     pullPolicy: Always
   # Enable cache busting to prevent browser caching issues in development
   cacheBusting:
     enabled: true
+
+workerImage:
+  repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker
+  tag: "2025.11.14.20.47.54-d42dfdb"  # argocd-image-updater
 
 replicaCount: 1
 
