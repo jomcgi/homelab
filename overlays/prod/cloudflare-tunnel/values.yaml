@@ -11,17 +11,17 @@ ingress:
     # Route all traffic through Envoy Gateway for unified OTEL tracing
     # Gateway uses HTTPRoutes to route based on hostname
     - hostname: argocd.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://envoy-envoy-cluster-ingress-ecef9d60.envoy.svc.cluster.local:80
     - hostname: longhorn.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://envoy-envoy-cluster-ingress-ecef9d60.envoy.svc.cluster.local:80
     - hostname: n8n.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://envoy-envoy-cluster-ingress-ecef9d60.envoy.svc.cluster.local:80
     - hostname: feeds.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://envoy-envoy-cluster-ingress-ecef9d60.envoy.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://envoy-envoy-cluster-ingress-ecef9d60.envoy.svc.cluster.local:80
     - hostname: code.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://envoy-envoy-cluster-ingress-ecef9d60.envoy.svc.cluster.local:80
       originRequest:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
