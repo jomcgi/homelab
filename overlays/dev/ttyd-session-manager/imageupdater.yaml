@@ -10,7 +10,7 @@ spec:
     gitConfig:
       repository: "https://github.com/jomcgi/homelab.git"
       branch: "main"
-      writeBackTarget: "helmvalues:overlays/dev/ttyd-session-manager/values.yaml"
+      writeBackTarget: "helmvalues:../../overlays/dev/ttyd-session-manager/values.yaml"
       credentials:
         secretRef:
           name: argocd-image-updater-token
