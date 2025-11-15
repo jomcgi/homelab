@@ -80,6 +80,18 @@ pkg_tar(
     },
 )
 
+# tmux configuration for low-latency terminal sessions
+pkg_tar(
+    name = "tmux_config_tar",
+    srcs = [
+        "tmux.conf",
+    ],
+    mode = "0644",
+    remap_paths = {
+        "tmux.conf": "/etc/tmux.conf",
+    },
+)
+
 # TTYD worker image with fish shell dev environment + ttyd binary + opencode
 # multiarch_tars: platform-specific tars from multiarch_http_file and multiarch_http_archive repositories
 # Note: format tool available via bazelisk (already in image), run with: bazel run //tools/format:format
@@ -95,6 +107,7 @@ apko_image(
     tars = [
         ":fish_config_tar",
         ":opencode_config_tar",
+        ":tmux_config_tar",
     ],
 )
 
