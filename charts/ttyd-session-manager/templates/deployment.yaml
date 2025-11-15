@@ -96,6 +96,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         env:
+        - name: DEFAULT_WORKER_IMAGE_REPOSITORY
+          value: {{ .Values.workerImage.repository | quote }}
         - name: DEFAULT_WORKER_IMAGE_TAG
           value: {{ .Values.workerImage.tag | quote }}
         - name: API_KEYS_SECRET_NAME
