@@ -89,6 +89,9 @@ vllm-stack:
             - "0.85"  # Reduced from 0.95 to leave headroom for CUDA graph compilation
             - "--cpu-offload-gb"
             - "15"  # Increased from 10GB to offload more to CPU RAM (we have 32Gi available)
+            - "--enable-auto-tool-choice"   # Enable function/tool calling for OpenCode
+            - "--tool-call-parser"
+            - "hermes"  # Use Hermes parser for tool calling (compatible with Qwen models)
             # Note: quantization auto-detected from model config (compressed-tensors)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
