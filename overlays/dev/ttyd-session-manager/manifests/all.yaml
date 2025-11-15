@@ -613,7 +613,7 @@ spec:
           periodSeconds: 5
           timeoutSeconds: 3
       - name: api-server
-        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:main"
+        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend:2025.11.14.20.47.54-d42dfdb"
         imagePullPolicy: Always
         ports:
         - name: http
@@ -632,6 +632,8 @@ spec:
           initialDelaySeconds: 5
           periodSeconds: 10
         env:
+        - name: DEFAULT_WORKER_IMAGE_REPOSITORY
+          value: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker"
         - name: DEFAULT_WORKER_IMAGE_TAG
           value: "2025.11.14.20.47.54-d42dfdb"
         - name: API_KEYS_SECRET_NAME
@@ -703,7 +705,7 @@ spec:
         fsGroup: 101
       containers:
       - name: nginx
-        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:main"
+        image: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend:2025.11.14.20.47.54-d42dfdb"
         imagePullPolicy: Always
         ports:
         - name: http
