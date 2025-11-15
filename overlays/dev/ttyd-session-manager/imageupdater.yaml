@@ -23,22 +23,25 @@ spec:
           commonUpdateSettings:
             updateStrategy: "alphabetical"
             allowTags: "regexp:^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}-[0-9a-f]{7}$"
-          helmSpec:
-            imageName: "image.repository"
-            imageTag: "image.tag"
+          manifestTargets:
+            helm:
+              name: "image.repository"
+              tag: "image.tag"
         - alias: "frontend"
           imageName: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend"
           commonUpdateSettings:
             updateStrategy: "alphabetical"
             allowTags: "regexp:^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}-[0-9a-f]{7}$"
-          helmSpec:
-            imageName: "frontend.image.repository"
-            imageTag: "frontend.image.tag"
+          manifestTargets:
+            helm:
+              name: "frontend.image.repository"
+              tag: "frontend.image.tag"
         - alias: "worker"
           imageName: "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker"
           commonUpdateSettings:
             updateStrategy: "alphabetical"
             allowTags: "regexp:^[0-9]{4}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}\\.[0-9]{2}-[0-9a-f]{7}$"
-          helmSpec:
-            imageName: "workerImage.repository"
-            imageTag: "workerImage.tag"
+          manifestTargets:
+            helm:
+              name: "workerImage.repository"
+              tag: "workerImage.tag"
