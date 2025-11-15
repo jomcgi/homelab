@@ -9,15 +9,11 @@ metadata:
 spec:
   namespace: {{ .Values.imageUpdater.namespace }}
   writeBackConfig:
-    method: "git"
+    method: "git:secret:{{ .Values.imageUpdater.namespace }}/{{ .Values.imageUpdater.git.credentialsSecret }}"
     gitConfig:
       repository: {{ .Values.imageUpdater.git.repository }}
       branch: {{ .Values.imageUpdater.git.branch }}
       writeBackTarget: {{ .Values.imageUpdater.git.writeBackTarget }}
-      credentials:
-        secretRef:
-          name: {{ .Values.imageUpdater.git.credentialsSecret }}
-          namespace: {{ .Values.imageUpdater.namespace }}
   applicationRefs:
     - namePattern: {{ .Values.imageUpdater.applicationName | quote }}
       images:
