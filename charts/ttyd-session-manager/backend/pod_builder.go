@@ -286,8 +286,8 @@ func buildTTYDContainer(config *PodConfig) corev1.Container {
 		Command: []string{
 			"/bin/sh", "-c",
 			// Create tmux session with fish shell that runs opencode, then falls back to fish on exit
-			// Use /etc/tmux.conf for optimized latency settings (escape-time 20ms)
-			"tmux -f /etc/tmux.conf -L opencode new-session -d -s opencode -c /workspace/session " +
+			// Use /tmux.conf for optimized latency settings (escape-time 20ms)
+			"tmux -f /tmux.conf -L opencode new-session -d -s opencode -c /workspace/session " +
 				"\"fish -c 'opencode; exec fish'\" || true && " +
 				// ttyd with increased ping interval (10s vs 5s default) to reduce WebSocket overhead
 				"exec ttyd -p 7682 --writable --max-clients 5 --ping-interval 10 " +
