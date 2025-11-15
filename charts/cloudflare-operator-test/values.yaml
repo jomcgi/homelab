@@ -36,7 +36,3 @@ auth:
     requests:
       cpu: 10m
       memory: 32Mi
-
-# Cloudflare tunnel configuration
-tunnel:
-  name: default-daemon-tunnel
