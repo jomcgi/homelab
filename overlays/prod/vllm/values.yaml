@@ -73,10 +73,8 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # With CPU offload, we can support large context windows
-          maxModelLen: 32768  # 32k tokens
-          # With CPU offload, we can support large context windows
-          maxModelLen: 32768  # 32k tokens
+          # Reduced from 32k to fit within available KV cache memory (2.51 GiB)
+          maxModelLen: 24576  # 24k tokens (vLLM estimated max: 27440)
 
           # AWQ quantization works with bfloat16
           dtype: "bfloat16"
