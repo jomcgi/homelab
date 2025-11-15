@@ -10,7 +10,6 @@ metadata:
     # Cloudflare operator annotations
     cloudflare.ingress.hostname: {{ .Values.auth.hostname }}
     cloudflare.zero-trust.policy: {{ .Values.auth.policy }}
-    cloudflare.tunnel.name: {{ .Values.tunnel.name }}
 spec:
   type: ClusterIP
   ports:

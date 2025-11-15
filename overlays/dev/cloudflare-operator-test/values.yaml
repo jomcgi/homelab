@@ -12,7 +12,3 @@ auth:
   hostname: cf-auth-test.jomcgi.dev
   policy: joe-only
   text: "Hello from protected service (Zero Trust enabled) - DEV"
-
-# Use the default daemon tunnel
-tunnel:
-  name: default-daemon-tunnel
