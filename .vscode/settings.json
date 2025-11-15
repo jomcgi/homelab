@@ -4,6 +4,7 @@
   },
   "files.watcherExclude": {
     "bazel-*/**": true,
+
     "**/__pycache__/**": true,
     "**/.mypy_cache/**": true
   },

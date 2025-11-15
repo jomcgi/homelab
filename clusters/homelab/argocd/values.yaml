@@ -1,0 +1,6 @@
+argo-cd:
+  configs:
+    params:
+      # Run server in insecure mode (behind Cloudflare Tunnel HTTPS termination)
+      server.insecure: "true"
+      otlp.address: "signoz-otel-collector.signoz.svc.cluster.local:4317"

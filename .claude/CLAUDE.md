@@ -91,8 +91,8 @@ overlays/                   # Environment-based deployments
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   ├── values.yaml
-│   │   └── manifests/       # AUTO-GENERATED: Helm-rendered manifests (for review only)
-│   │       └── all.yaml     # DO NOT manually edit - regenerated on every sync
+│   │   └── manifests/       # Helm-rendered n8n manifests (for review)
+│   │       └── all.yaml
 │   └── vllm/               # vLLM inference server
 └── dev/                    # Development services
     ├── kustomization.yaml
@@ -155,33 +155,6 @@ Services are organized by environment in `overlays/<env>/<service>/`:
 ArgoCD automatically discovers and deploys applications by syncing `clusters/homelab/kustomization.yaml`,
 which references environment overlays (cluster-critical, prod, dev). Each overlay's kustomization.yaml
 lists the services in that environment.
-
-### Manifest Management Rules
-
-**CRITICAL: Overlays contain ONLY configuration, never manifests.**
-
-✅ **Allowed in `overlays/<env>/<service>/`:**
-- `application.yaml` - ArgoCD Application definition
-- `kustomization.yaml` - Kustomize resource list
-- `values.yaml` - Environment-specific Helm value overrides
-
-❌ **NEVER manually create in `overlays/<env>/<service>/`:**
-- Kubernetes manifest YAML files (Deployment, Service, ConfigMap, etc.)
-- Any `.yaml` files except the three allowed above
-
-**Why?** Overlays are for **configuration**, not **definitions**. All Kubernetes resource definitions belong in `charts/<service>/templates/`.
-
-**Auto-Generated Manifests (`overlays/**/manifests/`):**
-Some services may have a `manifests/` directory containing rendered Helm output. These are:
-- **AUTO-GENERATED** by CI/CD or `helm template` commands
-- **READ-ONLY** - for review and debugging purposes only
-- **NEVER MANUALLY EDITED** - regenerated on every sync
-- **GIT-IGNORED or committed for review** - depending on the service
-
-If you need to modify a manifest:
-1. **Find the source** in `charts/<service>/templates/`
-2. **Edit the template** or add a value in `values.yaml`
-3. **Never edit** the generated manifest directly
 
 ### Testing Philosophy
 We test **actual behavior**, not implementation details:

@@ -3,8 +3,10 @@
   "configurations": [
     {
       "name": "Python: Attach",
-      "type": "debugpy",
+      "type": "python",
       "request": "attach",
+      "port": 5678,
+      "host": "localhost"
     }
   ]
 }
