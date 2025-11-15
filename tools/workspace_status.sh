@@ -14,7 +14,7 @@ auto_version=$(
 )
 
 # Generate timestamp-based image tag: YYYY.MM.DD.HH.MM.SS-shortsha
-image_tag=$(date -u +"%Y.%m.%d.%H.%M.%S")-${git_short_sha}
+base_image_tag=$(date -u +"%Y.%m.%d.%H.%M.%S")-${git_short_sha}
 
 # Get branch name (sanitized for Docker tags)
 # In CI: use GITHUB_REF_NAME, otherwise use git
@@ -25,6 +25,13 @@ else
 fi
 # Sanitize: replace / with - and convert to lowercase
 branch_tag=$(echo "${branch}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+
+# Add dev- prefix for non-main branches (for ArgoCD Image Updater filtering)
+if [ "${branch}" = "main" ]; then
+	image_tag="${base_image_tag}"
+else
+	image_tag="dev-${base_image_tag}"
+fi
 
 cat <<EOF
 STABLE_GIT_COMMIT ${git_commit}

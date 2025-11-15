@@ -6,9 +6,10 @@ image:
   tag: "main"
 
 # Worker image configuration (for session pods)
+# Note: Image tag is managed by ArgoCD Image Updater in overlay values
 workerImage:
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker
-  tag: "main"  # ArgoCD Image Updater tracks the 'main' tag digest
+  tag: "2025.11.14.20.47.54-d42dfdb"  # Default tag, override in overlay
 
 # Frontend configuration
 frontend:
