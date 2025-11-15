@@ -279,9 +279,10 @@ func buildEnvoyContainer() corev1.Container {
 }
 
 func buildTTYDContainer(config *PodConfig) corev1.Container {
+	imageRepo := getEnvOrDefault("DEFAULT_WORKER_IMAGE_REPOSITORY", "ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker")
 	return corev1.Container{
 		Name:  "ttyd",
-		Image: fmt.Sprintf("ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker:%s", config.ImageTag),
+		Image: fmt.Sprintf("%s:%s", imageRepo, config.ImageTag),
 		Command: []string{
 			"/bin/sh", "-c",
 			// Create tmux session with fish shell that runs opencode, then falls back to fish on exit
