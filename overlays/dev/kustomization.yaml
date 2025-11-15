@@ -1,5 +1,6 @@
 resources:
   - ./cloudflare-operator
+  - ./cloudflare-operator-test
   - ./freshrss
   - ./n8n-obsidian-api
   - ./ttyd-session-manager
