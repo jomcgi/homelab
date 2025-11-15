@@ -3,15 +3,15 @@
   "provider": {
     "vllm-homelab": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "vLLM Homelab (Gemma 3)",
+      "name": "vLLM Homelab (Qwen3 Coder 30B)",
       "options": {
         "baseURL": "http://vllm-router-service.vllm.svc.cluster.local/v1"
       },
       "models": {
-        "google/gemma-3-12b-it": {
-          "name": "Gemma 3 12B Instruct (Local)",
+        "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit": {
+          "name": "Qwen3 Coder 30B (Local)",
           "limit": {
-            "context": 8192,
+            "context": 24576,
             "output": 4096
           }
         }

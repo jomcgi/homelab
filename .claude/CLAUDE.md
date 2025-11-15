@@ -247,7 +247,9 @@ We test **actual behavior**, not implementation details:
 - **LLM inference server** for serving large language models
 - **GPU-accelerated** via NVIDIA GPU Operator
 - **High-throughput inference** with continuous batching
-- **Model**: Gemma 3 12B (configurable)
+- **Model**: Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit (30B coding model, 4-bit quantized)
+- **Context window**: 24k tokens (24,576)
+- **Features**: Function calling enabled for OpenCode integration
 - **Deployed via**: ArgoCD Application
 
 ### Development Services
@@ -410,6 +412,33 @@ Every service must:
 - [ ] Provide health check endpoint
 - [ ] Send structured logs
 - [ ] Include OpenTelemetry tracing (for user-facing services)
+
+#### Automatic OTEL Instrumentation (Kyverno)
+
+**All workloads receive OTEL environment variables automatically** via Kyverno ClusterPolicy:
+- `OTEL_EXPORTER_OTLP_ENDPOINT` - Points to SigNoz collector in observability namespace
+- `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` - Uses gRPC protocol
+- **ENABLED BY DEFAULT** - Observable by default, opt-out if needed
+
+**How it works:**
+- Kyverno mutates ALL Deployments, StatefulSets, DaemonSets cluster-wide
+- Applies to both existing and new resources (`background: true`)
+- Services with OTEL SDKs get automatic tracing/metrics
+- Services without OTEL SDKs simply ignore the env vars (no impact)
+
+**To opt-out of injection:**
+```yaml
+metadata:
+  labels:
+    otel.instrumentation: "disabled"
+```
+
+**Configuration:**
+- Chart template: `charts/kyverno/templates/otel-injection-policy.yaml`
+- Default config: `charts/kyverno/values.yaml` (otelInjection section)
+- Override per environment in: `overlays/<env>/kyverno/values.yaml`
+
+**Excluded namespaces:** kube-system, kube-public, kube-node-lease
 
 ## Development Workflow
 
