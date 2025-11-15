@@ -8,25 +8,29 @@ namespace:
 
 ingress:
   routes:
-    # Route all traffic through Envoy Gateway for unified OTEL tracing
-    # Gateway uses HTTPRoutes to route based on hostname
     - hostname: argocd.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://argocd-server.argocd.svc.cluster.local:80
     - hostname: longhorn.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: n8n.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://n8n.n8n.svc.cluster.local:80
     - hostname: feeds.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://signoz.signoz.svc.cluster.local:8080
     - hostname: code.jomcgi.dev
-      service: http://envoy-cluster-ingress-envoy.envoy.svc.cluster.local:80
+      service: http://ttyd-session-manager-frontend.ttyd-sessions.svc.cluster.local:80
       originRequest:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
 
-# Disable Envoy sidecar - using centralized Envoy Gateway instead
+# Enable Envoy proxy sidecar with tracing to SigNoz
 envoy:
-  enabled: false
+  enabled: true
+  # Enable transparent proxy to intercept all outbound traffic
+  transparentProxy:
+    enabled: true
+  tracing:
+    enabled: true
+    serviceName: "cloudflare-tunnel-ingress"
