@@ -1,0 +1,54 @@
+{{- if .Values.imageUpdater.enabled }}
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: {{ include "ttyd-session-manager.fullname" . }}
+  namespace: {{ .Values.imageUpdater.namespace }}
+  labels:
+    {{- include "ttyd-session-manager.labels" . | nindent 4 }}
+spec:
+  namespace: {{ .Values.imageUpdater.namespace }}
+  writeBackConfig:
+    method: "git"
+    gitConfig:
+      repository: {{ .Values.imageUpdater.git.repository }}
+      branch: {{ .Values.imageUpdater.git.branch }}
+      writeBackTarget: {{ .Values.imageUpdater.git.writeBackTarget }}
+      credentials:
+        secretRef:
+          name: {{ .Values.imageUpdater.git.credentialsSecret }}
+          namespace: {{ .Values.imageUpdater.namespace }}
+  applicationRefs:
+    - namePattern: {{ .Values.imageUpdater.applicationName | quote }}
+      images:
+        - alias: "backend"
+          imageName: {{ .Values.imageUpdater.images.backend.name }}
+          commonUpdateSettings:
+            updateStrategy: {{ .Values.imageUpdater.images.backend.updateStrategy }}
+            allowTags: {{ .Values.imageUpdater.images.backend.allowTags | quote }}
+          manifestTargets:
+            helm:
+              name: {{ .Values.imageUpdater.images.backend.helmImageName | quote }}
+              tag: {{ .Values.imageUpdater.images.backend.helmImageTag | quote }}
+        - alias: "frontend"
+          imageName: {{ .Values.imageUpdater.images.frontend.name }}
+          commonUpdateSettings:
+            updateStrategy: {{ .Values.imageUpdater.images.frontend.updateStrategy }}
+            allowTags: {{ .Values.imageUpdater.images.frontend.allowTags | quote }}
+          manifestTargets:
+            helm:
+              name: {{ .Values.imageUpdater.images.frontend.helmImageName | quote }}
+              tag: {{ .Values.imageUpdater.images.frontend.helmImageTag | quote }}
+        - alias: "worker"
+          imageName: {{ .Values.imageUpdater.images.worker.name }}
+          commonUpdateSettings:
+            updateStrategy: {{ .Values.imageUpdater.images.worker.updateStrategy }}
+            allowTags: {{ .Values.imageUpdater.images.worker.allowTags | quote }}
+            {{- if .Values.imageUpdater.images.worker.forceUpdate }}
+            forceUpdate: true
+            {{- end }}
+          manifestTargets:
+            helm:
+              name: {{ .Values.imageUpdater.images.worker.helmImageName | quote }}
+              tag: {{ .Values.imageUpdater.images.worker.helmImageTag | quote }}
+{{- end }}

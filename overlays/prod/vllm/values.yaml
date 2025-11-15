@@ -22,7 +22,7 @@ vllm-stack:
         port: 8000
       initialDelaySeconds: 30
       periodSeconds: 10
-      failureThreshold: 60  # Allow 10 minutes for model download/load
+      failureThreshold: 1800  # Allow 30 minutes for large model (30B AWQ) initialization
 
     livenessProbe:
       httpGet:

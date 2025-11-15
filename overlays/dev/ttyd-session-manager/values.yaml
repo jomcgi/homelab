@@ -45,3 +45,9 @@ onePassword:
 #   session:
 #     tracing:
 #       enabled: false
+
+# ArgoCD Image Updater - enable automatic image updates
+imageUpdater:
+  enabled: true
+  git:
+    writeBackTarget: "helmvalues:overlays/dev/ttyd-session-manager/values.yaml"
