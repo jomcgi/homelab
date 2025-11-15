@@ -3,32 +3,6 @@ kind: Application
 metadata:
   name: ttyd-session-manager
   namespace: argocd
-  annotations:
-    # ArgoCD Image Updater configuration - watch backend, frontend, and worker images
-    argocd-image-updater.argoproj.io/image-list: backend=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/backend, frontend=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend, worker=ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker
-
-    # Backend image configuration (only main branch builds - no prefix)
-    argocd-image-updater.argoproj.io/backend.update-strategy: alphabetical
-    argocd-image-updater.argoproj.io/backend.allow-tags: regexp:^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9a-f]{7}$
-    argocd-image-updater.argoproj.io/backend.helm.image-name: image.repository
-    argocd-image-updater.argoproj.io/backend.helm.image-tag: image.tag
-
-    # Frontend image configuration (only main branch builds - no prefix)
-    argocd-image-updater.argoproj.io/frontend.update-strategy: alphabetical
-    argocd-image-updater.argoproj.io/frontend.allow-tags: regexp:^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9a-f]{7}$
-    argocd-image-updater.argoproj.io/frontend.helm.image-name: frontend.image.repository
-    argocd-image-updater.argoproj.io/frontend.helm.image-tag: frontend.image.tag
-
-    # Worker image configuration (only main branch builds - no prefix)
-    argocd-image-updater.argoproj.io/worker.update-strategy: alphabetical
-    argocd-image-updater.argoproj.io/worker.allow-tags: regexp:^[0-9]{4}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}\.[0-9]{2}-[0-9a-f]{7}$
-    argocd-image-updater.argoproj.io/worker.helm.image-name: workerImage.repository
-    argocd-image-updater.argoproj.io/worker.helm.image-tag: workerImage.tag
-
-    # Git write-back configuration (uses credentials from argocd-image-updater-token secret)
-    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-token
-    argocd-image-updater.argoproj.io/git-branch: main
-    argocd-image-updater.argoproj.io/write-back-target: "helmvalues:overlays/dev/ttyd-session-manager/values.yaml"
 spec:
   project: default
   source:
