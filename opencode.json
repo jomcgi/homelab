@@ -32,7 +32,11 @@
       },
       "models": {
         "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit": {
-          "name": "Qwen3 Coder 30B"
+          "name": "Qwen3 Coder 30B",
+          "limit": {
+            "context": 24576,
+            "output": 4096
+          }
         }
       }
     }
@@ -55,6 +59,12 @@
     // General purpose agent
     "general": {
       "model": "anthropic/claude-sonnet-4-5",
+      "mode": "primary"
+    },
+    // Fast local agent - for quick tasks without deep reasoning
+    "quick": {
+      "model": "vllm/cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
+      "temperature": 0.3,
       "mode": "primary"
     }
   },
@@ -79,6 +89,26 @@
 
   // Custom commands for common homelab tasks
   "command": {
+    "format-code": {
+      "template": "Format the code in {{file_path}} according to the language's standard conventions. Make the code clean and readable.",
+      "description": "Quick code formatting",
+      "agent": "quick"
+    },
+    "add-comments": {
+      "template": "Add clear, concise comments to {{file_path}}. Focus on explaining why, not what. Keep it brief.",
+      "description": "Add documentation comments",
+      "agent": "quick"
+    },
+    "extract-function": {
+      "template": "Extract {{code_snippet}} into a well-named function in {{file_path}}. Keep it simple and clean.",
+      "description": "Quick refactoring - extract function",
+      "agent": "quick"
+    },
+    "rename-variable": {
+      "template": "Rename {{old_name}} to {{new_name}} throughout {{file_path}}. Update all references.",
+      "description": "Quick refactoring - rename variable",
+      "agent": "quick"
+    },
     "check-cluster": {
       "template": "Check the overall health of the Kubernetes cluster. Review all namespaces, look for failing pods, check PVC status, review resource usage, and summarize any issues found.",
       "description": "Health check for the entire cluster",
