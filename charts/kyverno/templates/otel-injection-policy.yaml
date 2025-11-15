@@ -1,0 +1,66 @@
+{{- if .Values.otelInjection.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: {{ .Release.Namespace }}
+data:
+  endpoint: {{ .Values.otelInjection.endpoint | quote }}
+  protocol: {{ .Values.otelInjection.protocol | quote }}
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-otel-env-vars
+  annotations:
+    policies.kyverno.io/title: Inject OpenTelemetry Configuration
+    policies.kyverno.io/category: Observability
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: |
+      Automatically injects OTEL environment variables into all workloads
+      for cluster-wide observability. ENABLED BY DEFAULT.
+spec:
+  background: {{ .Values.otelInjection.background }}
+  rules:
+  - name: add-otel-config-deployments
+    match:
+      any:
+      - resources:
+          kinds:
+          {{- range .Values.otelInjection.targetKinds }}
+          - {{ . }}
+          {{- end }}
+    exclude:
+      any:
+      # Exclude system namespaces
+      - resources:
+          namespaces:
+          {{- range .Values.otelInjection.excludeNamespaces }}
+          - {{ . }}
+          {{- end }}
+      # Explicit opt-out only
+      - resources:
+          selector:
+            matchLabels:
+              otel.instrumentation: "disabled"
+    context:
+    - name: otelConfig
+      configMap:
+        name: otel-config
+        namespace: {{ .Release.Namespace }}
+    mutate:
+      patchStrategicMerge:
+        spec:
+          template:
+            metadata:
+              annotations:
+                otel.injected-by: "kyverno/inject-otel-env-vars"
+            spec:
+              containers:
+              - (name): "*"
+                env:
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: "{{ `{{ otelConfig.data.endpoint }}` }}"
+                - name: OTEL_EXPORTER_OTLP_PROTOCOL
+                  value: "{{ `{{ otelConfig.data.protocol }}` }}"
+{{- end }}
