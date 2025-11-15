@@ -88,9 +88,9 @@ vllm-stack:
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
-            - "0.95"  # Use 95% of available VRAM (dedicated GPU)
+            - "0.85"  # Reduced from 0.95 to leave headroom for CUDA graph compilation
             - "--cpu-offload-gb"
-            - "10"  # Offload 10GB to CPU RAM (we have 32Gi available)
+            - "15"  # Increased from 10GB to offload more to CPU RAM (we have 32Gi available)
             # Note: quantization auto-detected from model config (compressed-tensors)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
