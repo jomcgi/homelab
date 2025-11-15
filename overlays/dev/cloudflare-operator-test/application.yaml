@@ -15,7 +15,7 @@ spec:
         - ../../overlays/dev/cloudflare-operator-test/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: dev
+    namespace: cloudflare-operator-test
   syncPolicy:
     automated:
       prune: true
