@@ -8,12 +8,12 @@ metadata:
 spec:
   telemetry:
     tracing:
+      samplingRate: {{ .Values.gateway.tracing.samplingRate }}
       provider:
         type: OpenTelemetry
         backendRefs:
           - name: {{ .Values.gateway.tracing.otlpService }}
             namespace: {{ .Values.gateway.tracing.otlpNamespace }}
             port: {{ .Values.gateway.tracing.otlpPort }}
-        samplingRate: {{ .Values.gateway.tracing.samplingRate }}
 {{- end }}
 {{- end }}
