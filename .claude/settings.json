@@ -14,7 +14,6 @@
       "Bash(go doc:*)",
       "Bash(go mod:*)",
       "Bash(operator-sdk:*)",
-      "bash(operators/cloudflare/scripts/test.sh)",
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:argo-cd.readthedocs.io)",
       "WebFetch(domain:sdk.operatorframework.io)",
