@@ -22,7 +22,7 @@ vllm-stack:
         port: 8000
       initialDelaySeconds: 30
       periodSeconds: 10
-      failureThreshold: 360  # Allow 1 hour for model download/load
+      failureThreshold: 60  # Allow 10 minutes for model download/load
 
     livenessProbe:
       httpGet:
@@ -33,19 +33,14 @@ vllm-stack:
       failureThreshold: 3
 
     modelSpec:
-      - name: "qwen3-coder-30b"
-        # LMCache-enabled vLLM image (command patched via Kustomize)
-        repository: "lmcache/vllm-openai"
+      - name: "granite-tiny"
+        # Standard vLLM image (no LMCache)
+        repository: "vllm/vllm-openai"
         tag: "latest"
         imagePullPolicy: IfNotPresent
-        # AWQ 4-bit quantization (vLLM native support)
-        modelURL: "QuantTrio/Qwen3-Coder-30B-A3B-Instruct-AWQ"
+        # Tiny Granite model (GGUF format, BF16)
+        modelURL: "unsloth/granite-4.0-h-tiny-GGUF"
         replicaCount: 1
-
-        # LMCache: KV cache offloading to CPU RAM
-        lmcacheConfig:
-          enabled: true
-          cpuOffloadingBufferSize: "20"  # 20GB CPU RAM for KV cache
 
         # HuggingFace token from 1Password secret
         huggingFaceToken:
@@ -60,17 +55,10 @@ vllm-stack:
                 name: vllm-hf-token
                 key: hf_token
           - name: VLLM_LOGGING_LEVEL
-            value: "DEBUG"
-          - name: HF_HUB_VERBOSITY
-            value: "debug"
-          - name: VLLM_LOG_STATS_INTERVAL
-            value: "1"
-          # Memory fragmentation fix for CUDA OOM
-          - name: PYTORCH_CUDA_ALLOC_CONF
-            value: "expandable_segments:True"
+            value: "INFO"
 
-        # Resource allocation (dedicated node with 64GB total)
-        requestCPU: 8
+        # Resource allocation (dedicated GPU node - use generously)
+        requestCPU: 10
         requestMemory: "32Gi"
         requestGPU: 1
 
@@ -85,24 +73,18 @@ vllm-stack:
 
         # vLLM engine configuration
         vllmConfig:
-          # Context window (32k with LMCache CPU offloading)
-          maxModelLen: 32768
+          # Granite supports massive context windows - take advantage of it!
+          maxModelLen: 131072  # 128k tokens
 
-          # AWQ works with bfloat16
-          dtype: "bfloat16"
+          # Auto-detect optimal dtype
+          dtype: "auto"
 
           # Additional performance flags
           extraArgs:
-            # MoE model requires expert-parallel (required by model card)
-            - "--enable-expert-parallel"
-            # Model uses compressed-tensors quantization (auto-detected)
             - "--enable-chunked-prefill"    # Performance optimization
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
-            - "0.95"  # Use 95% of available VRAM (dedicated GPU, no competition)
-            - "--enable-auto-tool-choice"   # Enable automatic tool choice
-            - "--tool-call-parser"
-            - "qwen3_coder"                 # Tool call parser for Qwen3-Coder
+            - "0.95"  # Use 95% of available VRAM (dedicated GPU)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
         nodeSelector:
@@ -128,11 +110,11 @@ vllm-stack:
         # Resource limits (match requests for GPU, allow CPU bursting)
         resources:
           requests:
-            cpu: 8
+            cpu: 10
             memory: "32Gi"
             nvidia.com/gpu: 1
           limits:
-            cpu: 10
+            cpu: 12
             memory: "48Gi"
             nvidia.com/gpu: 1
 
