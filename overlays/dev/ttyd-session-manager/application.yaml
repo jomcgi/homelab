@@ -25,8 +25,8 @@ metadata:
     argocd-image-updater.argoproj.io/worker.helm.image-name: workerImage.repository
     argocd-image-updater.argoproj.io/worker.helm.image-tag: workerImage.tag
 
-    # Git write-back configuration (uses git-creds.sh auth script)
-    argocd-image-updater.argoproj.io/write-back-method: git
+    # Git write-back configuration (uses credentials from argocd-image-updater-token secret)
+    argocd-image-updater.argoproj.io/write-back-method: git:secret:argocd/argocd-image-updater-token
     argocd-image-updater.argoproj.io/git-branch: main
     argocd-image-updater.argoproj.io/write-back-target: "helmvalues:overlays/dev/ttyd-session-manager/values.yaml"
 spec:
