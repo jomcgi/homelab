@@ -34,10 +34,13 @@ vllm-stack:
 
     modelSpec:
       - name: "qwen3-coder-30b"
+      - name: "qwen3-coder-30b"
         # Standard vLLM image (no LMCache)
         repository: "vllm/vllm-openai"
         tag: "latest"
         imagePullPolicy: IfNotPresent
+        # Qwen3-Coder 30B with AWQ 4-bit quantization
+        modelURL: "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit"
         # Qwen3-Coder 30B with AWQ 4-bit quantization
         modelURL: "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit"
         replicaCount: 1
@@ -75,7 +78,11 @@ vllm-stack:
         vllmConfig:
           # With CPU offload, we can support large context windows
           maxModelLen: 32768  # 32k tokens
+          # With CPU offload, we can support large context windows
+          maxModelLen: 32768  # 32k tokens
 
+          # AWQ quantization works with bfloat16
+          dtype: "bfloat16"
           # AWQ quantization works with bfloat16
           dtype: "bfloat16"
 
@@ -85,10 +92,9 @@ vllm-stack:
             - "--enable-prefix-caching"     # Cache common prefixes
             - "--gpu-memory-utilization"
             - "0.95"  # Use 95% of available VRAM (dedicated GPU)
-            - "--quantization"
-            - "awq"  # Enable AWQ quantization support
             - "--cpu-offload-gb"
             - "10"  # Offload 10GB to CPU RAM (we have 32Gi available)
+            # Note: quantization auto-detected from model config (compressed-tensors)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
         nodeSelector:
