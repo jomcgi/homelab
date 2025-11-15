@@ -66,6 +66,18 @@
       "model": "vllm/cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
       "temperature": 0.3,
       "mode": "primary"
+    },
+    // Flash agent - leverage Gemini's generous free tier for fast exploration
+    "flash": {
+      "model": "google/gemini-2.0-flash-lite",
+      "temperature": 0.5,
+      "mode": "primary"
+    },
+    // Review agent - use Gemini's high TPM for code reviews
+    "review": {
+      "model": "google/gemini-2.0-flash",
+      "temperature": 0.3,
+      "mode": "primary"
     }
   },
 
@@ -158,6 +170,31 @@
       "template": "Run comprehensive pre-PR checks before creating a pull request.\n\nEXECUTE THE FOLLOWING STEPS IN ORDER:\n\n1. FORMAT CODE:\n   - Run: bazel run //tools/format:format\n   - This formats Go, JavaScript, Python, Rust, Shell, Starlark files\n   - Also updates apko locks and renders manifests\n   - If formatting fails, stop and report errors\n   - Commit any formatting changes with message: 'chore: format code'\n\n2. BUILD ALL:\n   - Run: bazel build //...\n   - Build all targets in the repository\n   - If any build fails, stop and report which targets failed\n   - Include build timing and any warnings\n\n3. TEST ALL:\n   - Run: bazel test //...\n   - Run all tests in the repository\n   - If any tests fail, stop and report:\n     * Which tests failed\n     * Test output/logs\n     * Suggestions for fixing\n   - Include test coverage summary if available\n\n4. PUSH IMAGES:\n   - Identify which images need to be pushed based on changed files\n   - For ttyd-session-manager changes:\n     * Push backend: bazel run //charts/ttyd-session-manager/backend:image_push\n     * Push ttyd-worker: bazel run //charts/ttyd-session-manager/backend:ttyd_worker_image_push\n   - For other changed charts, push their images\n   - Report image tags and registry URLs\n\n5. VALIDATION:\n   - Run: git status to show any uncommitted changes\n   - Check for common issues:\n     * Uncommitted files\n     * Merge conflicts\n     * Large files (>1MB)\n   - Verify images were pushed successfully\n\n6. SUMMARY:\n   - Report overall status (PASS/FAIL)\n   - List any warnings or issues found\n   - Suggest next steps (create PR, fix issues, etc.)\n   - Include timing for each step\n\nIF ANY STEP FAILS:\n- Stop execution immediately\n- Report the failure clearly\n- Provide actionable suggestions to fix\n- Do NOT proceed to next steps\n\nOUTPUT:\n- Detailed status for each step\n- Total time taken\n- Ready for PR: YES/NO\n- Next recommended action",
       "description": "Run format, build, test, and push images before creating PR",
       "agent": "build"
+    },
+    "explore": {
+      "template": "Quickly explore {{path_or_topic}} in the codebase. Search for relevant files, read key sections, and provide a concise summary of what you found. Focus on understanding the structure and main concepts.",
+      "description": "Fast codebase exploration and search",
+      "agent": "flash"
+    },
+    "explain": {
+      "template": "Explain {{code_or_concept}} in simple terms. If it's code, describe what it does and why. If it's a concept, provide a clear, practical explanation with examples from this codebase if relevant.",
+      "description": "Quick explanations of code or concepts",
+      "agent": "flash"
+    },
+    "find": {
+      "template": "Find {{what}} in the codebase. Search through files, identify relevant locations, and report what you found with file paths and line numbers.",
+      "description": "Fast file and code search",
+      "agent": "flash"
+    },
+    "review-pr": {
+      "template": "Review the current changes in detail. Check for:\n\n1. CODE QUALITY:\n   - Readability and maintainability\n   - Proper error handling\n   - Edge cases covered\n   - Code duplication\n\n2. SECURITY:\n   - Input validation\n   - Secret management\n   - Authentication/authorization\n   - Injection vulnerabilities\n   - Security context (for K8s resources)\n\n3. BEST PRACTICES:\n   - Follows homelab CLAUDE.md guidelines\n   - Proper naming conventions\n   - Adequate comments where needed\n   - Resource limits defined (for K8s)\n\n4. TESTING:\n   - Sufficient test coverage\n   - Tests cover critical paths\n   - Integration tests where appropriate\n\n5. DOCUMENTATION:\n   - README updates if needed\n   - Inline documentation for complex logic\n   - API documentation for new endpoints\n\nProvide a detailed review with specific line references and actionable suggestions for improvements.",
+      "description": "Comprehensive PR review with security and best practices",
+      "agent": "review"
+    },
+    "review-file": {
+      "template": "Review {{file_path}} for code quality, security issues, and best practices. Provide specific suggestions for improvements with line numbers. Check:\n- Code structure and organization\n- Security vulnerabilities\n- Error handling\n- Performance considerations\n- Adherence to homelab standards (CLAUDE.md)\n- Testing coverage",
+      "description": "Detailed code review of a specific file",
+      "agent": "review"
     }
   }
 }
