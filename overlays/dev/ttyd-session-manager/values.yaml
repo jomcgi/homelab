@@ -36,3 +36,12 @@ serviceAccount:
 onePassword:
   enabled: true
   itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+
+# Disable tracing for lower latency (optional - for testing)
+# envoy:
+#   backend:
+#     tracing:
+#       enabled: false
+#   session:
+#     tracing:
+#       enabled: false
