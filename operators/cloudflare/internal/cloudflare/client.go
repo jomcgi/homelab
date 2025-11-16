@@ -47,6 +47,13 @@ type TunnelClientInterface interface {
 	DeletePublishedRoute(ctx context.Context, accountID, tunnelID, hostname string) error
 	ListPublishedRoutes(ctx context.Context, accountID, tunnelID string) ([]RouteConfig, error)
 	GetPublishedRoute(ctx context.Context, accountID, tunnelID, hostname string) (*RouteConfig, error)
+
+	// DNS management
+	CreateTunnelDNSRecord(ctx context.Context, hostname, tunnelID string) (*DNSRecordConfig, error)
+	DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error
+	GetDNSRecordByName(ctx context.Context, hostname string) (*DNSRecordConfig, error)
+	ListTunnelDNSRecords(ctx context.Context, zoneID, tunnelID string) ([]DNSRecordConfig, error)
+	UpdateDNSRecord(ctx context.Context, config DNSRecordConfig) error
 }
 
 // TunnelClient wraps the Cloudflare API with rate limiting and error handling
