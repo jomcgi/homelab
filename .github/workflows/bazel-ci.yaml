@@ -8,6 +8,12 @@ on:
   schedule:
     - cron: '0 2 * * 0'
   workflow_dispatch:  # Allow manual triggers
+    inputs:
+      force_push_all:
+        description: 'Force push all images (ignore change detection)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   build-test-push:
@@ -41,15 +47,107 @@ jobs:
       - name: Test
         run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base test --config=ci //... --deleted_packages=tools/python"
 
-      - name: Build images
-        run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base build --config=ci //images:push_all"
+      - name: Detect changed images
+        id: detect-changes
+        run: |
+          # Force push all images on:
+          # 1. Scheduled builds (weekly maintenance)
+          # 2. Manual workflow_dispatch with force_push_all=true
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.force_push_all }}" = "true" ]; then
+            echo "ℹ Force push mode enabled, pushing all images"
+            ALL_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | tr '\n' ' ')
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "targets=$ALL_TARGETS" >> $GITHUB_OUTPUT
+            echo "force_all=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Detect which images changed since the last commit on main
+          # For PR builds: compare against origin/main
+          # For main builds: compare against previous commit (HEAD~1)
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_COMMIT="origin/${{ github.base_ref }}"
+          else
+            BASE_COMMIT="HEAD~1"
+          fi
+
+          echo "Detecting changed images since $BASE_COMMIT..."
+          if CHANGED_TARGETS=$("${GITHUB_WORKSPACE}/scripts/detect-changed-images.sh" "$BASE_COMMIT" 2>&1); then
+            echo "changed=true" >> $GITHUB_OUTPUT
+            # Convert newline-separated targets to space-separated for easier iteration
+            TARGETS_SPACE_SEPARATED=$(echo "$CHANGED_TARGETS" | tr '\n' ' ')
+            echo "targets=$TARGETS_SPACE_SEPARATED" >> $GITHUB_OUTPUT
+            echo "force_all=false" >> $GITHUB_OUTPUT
+            echo "✓ Changed image targets: $TARGETS_SPACE_SEPARATED"
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "force_all=false" >> $GITHUB_OUTPUT
+            echo "ℹ No image changes detected, skipping image build and push"
+          fi
+
+      - name: Build changed images
+        if: steps.detect-changes.outputs.changed == 'true'
+        run: |
+          TARGETS="${{ steps.detect-changes.outputs.targets }}"
+          FORCE_ALL="${{ steps.detect-changes.outputs.force_all }}"
+
+          if [ "$FORCE_ALL" = "true" ]; then
+            echo "📦 Building ALL images (force mode)"
+          else
+            echo "📦 Building changed images only"
+          fi
+
+          if [ -n "$TARGETS" ]; then
+            echo "Targets: $TARGETS"
+            for target in $TARGETS; do
+              # Remove .push suffix to get the build target
+              build_target="${target%.push}"
+              "${GITHUB_WORKSPACE}/bin/bazel" --output_base=/mnt/bazel-cache/output_base build --config=ci "$build_target"
+            done
+          fi
 
       - name: Login to GitHub Container Registry
+        if: steps.detect-changes.outputs.changed == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push
-        run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base run --config=ci //images:push_all"
+      - name: Push changed images
+        if: steps.detect-changes.outputs.changed == 'true'
+        run: |
+          TARGETS="${{ steps.detect-changes.outputs.targets }}"
+          FORCE_ALL="${{ steps.detect-changes.outputs.force_all }}"
+
+          if [ "$FORCE_ALL" = "true" ]; then
+            echo "🚀 Pushing ALL images (force mode)"
+          else
+            echo "🚀 Pushing changed images only"
+          fi
+
+          if [ -n "$TARGETS" ]; then
+            TARGET_COUNT=$(echo "$TARGETS" | wc -w)
+            echo "Pushing $TARGET_COUNT image(s)..."
+            for target in $TARGETS; do
+              echo "  → Pushing $target..."
+              "${GITHUB_WORKSPACE}/bin/bazel" --output_base=/mnt/bazel-cache/output_base run --config=ci "$target"
+            done
+            echo "✅ Successfully pushed $TARGET_COUNT image(s)"
+          fi
+
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.detect-changes.outputs.changed }}" = "true" ]; then
+            FORCE_ALL="${{ steps.detect-changes.outputs.force_all }}"
+            TARGET_COUNT=$(echo "${{ steps.detect-changes.outputs.targets }}" | wc -w)
+
+            if [ "$FORCE_ALL" = "true" ]; then
+              echo "✅ Pushed all $TARGET_COUNT images (force mode)"
+            else
+              echo "✅ Pushed $TARGET_COUNT changed image(s)"
+            fi
+          else
+            echo "ℹ️  No images changed, skipped push"
+          fi

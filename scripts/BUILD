@@ -16,3 +16,9 @@ sh_binary(
     srcs = ["generate-render-all.sh"],
     visibility = ["//:__subpackages__"],
 )
+
+sh_binary(
+    name = "detect-changed-images",
+    srcs = ["detect-changed-images.sh"],
+    visibility = ["//visibility:public"],
+)
