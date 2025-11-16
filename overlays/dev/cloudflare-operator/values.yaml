@@ -9,8 +9,8 @@ imagePullSecrets:
 # Container image
 controllerManager:
   image:
-    repository: ghcr.io/jomcgi/cloudflare-operator
-    tag: latest
+    repository: ghcr.io/jomcgi/homelab/operators/cloudflare
+    tag: 2025.11.16.17.20.03-0f5c8b0
     pullPolicy: Always
 
 # Enable OpenTelemetry tracing to SignoZ (OTEL upgraded to v1.38.0)
