@@ -39,7 +39,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
             base = base,
             tars = [name + "_app_layer_amd64"],
             entrypoint = ["/opt/app"],
-            user = "nonroot",
+            user = "65532",  # nonroot user in distroless
         )
         platform_transition_filegroup(
             name = name + "_amd64",
@@ -60,7 +60,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
             base = base,
             tars = [name + "_app_layer_arm64"],
             entrypoint = ["/opt/app"],
-            user = "nonroot",
+            user = "65532",  # nonroot user in distroless
         )
         platform_transition_filegroup(
             name = name + "_arm64",
@@ -105,7 +105,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
             base = base,
             tars = [name + "_app_layer"],
             entrypoint = ["/opt/app"],
-            user = "nonroot",
+            user = "65532",  # nonroot user in distroless
         )
         platform_transition_filegroup(
             name = name + "_platform",
