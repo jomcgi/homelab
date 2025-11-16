@@ -34,9 +34,7 @@ spec:
       securityContext:
         {{- toYaml .Values.controllerManager.podSecurityContext | nindent 8 }}
       containers:
-      - command:
-        - /manager
-        args:
+      - args:
         - --leader-elect
         - --health-probe-bind-address={{ .Values.controllerManager.healthProbeBindAddress }}
         {{- if ne .Values.controllerManager.metrics.bindAddress "0" }}
