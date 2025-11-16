@@ -1,0 +1,370 @@
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.19.0
+  name: cloudflareaccesspolicies.tunnels.tunnels.cloudflare.io
+spec:
+  group: tunnels.tunnels.cloudflare.io
+  names:
+    categories:
+    - gateway-api
+    kind: CloudflareAccessPolicy
+    listKind: CloudflareAccessPolicyList
+    plural: cloudflareaccesspolicies
+    singular: cloudflareaccesspolicy
+  scope: Namespaced
+  versions:
+  - additionalPrinterColumns:
+    - jsonPath: .spec.targetRef.kind
+      name: Target Kind
+      type: string
+    - jsonPath: .spec.targetRef.name
+      name: Target Name
+      type: string
+    - jsonPath: .status.targetDomain
+      name: Domain
+      type: string
+    - jsonPath: .status.conditions[?(@.type=="Ready")].status
+      name: Ready
+      type: string
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
+    schema:
+      openAPIV3Schema:
+        description: |-
+          CloudflareAccessPolicy is the Schema for the cloudflareaccesspolicies API.
+          This CRD implements Gateway API Policy Attachment (GEP-713) to attach
+          Cloudflare Zero Trust access policies to HTTPRoute or Gateway resources.
+        properties:
+          apiVersion:
+            description: |-
+              APIVersion defines the versioned schema of this representation of an object.
+              Servers should convert recognized schemas to the latest internal value, and
+              may reject unrecognized values.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources
+            type: string
+          kind:
+            description: |-
+              Kind is a string value representing the REST resource this object represents.
+              Servers may infer this from the endpoint the client submits requests to.
+              Cannot be updated.
+              In CamelCase.
+              More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: |-
+              CloudflareAccessPolicySpec defines the desired state of CloudflareAccessPolicy.
+              Implements Gateway API Policy Attachment pattern (GEP-713).
+            properties:
+              application:
+                description: Application specifies the access application configuration.
+                properties:
+                  autoRedirectToIdentity:
+                    description: AutoRedirectToIdentity enables automatic redirect
+                      to identity provider.
+                    type: boolean
+                  corsHeaders:
+                    description: CORSHeaders specifies CORS configuration.
+                    properties:
+                      allowAllOrigins:
+                        description: AllowAllOrigins allows all origins.
+                        type: boolean
+                      allowCredentials:
+                        description: AllowCredentials allows credentials in requests.
+                        type: boolean
+                      allowedHeaders:
+                        description: |-
+                          AllowedHeaders specifies allowed HTTP headers.
+                          Example: ["Content-Type", "Authorization"]
+                        items:
+                          type: string
+                        type: array
+                      allowedMethods:
+                        description: |-
+                          AllowedMethods specifies allowed HTTP methods.
+                          Example: ["GET", "POST", "PUT", "DELETE"]
+                        items:
+                          type: string
+                        type: array
+                      allowedOrigins:
+                        description: |-
+                          AllowedOrigins specifies allowed origins.
+                          Example: ["https://example.com", "https://app.example.com"]
+                        items:
+                          type: string
+                        type: array
+                      maxAge:
+                        description: MaxAge specifies the max age for preflight cache
+                          (seconds).
+                        type: integer
+                    type: object
+                  customDenyMessage:
+                    description: CustomDenyMessage is shown to users who are denied
+                      access.
+                    type: string
+                  customDenyURL:
+                    description: CustomDenyURL redirects denied users to a custom
+                      URL.
+                    type: string
+                  domain:
+                    description: |-
+                      Domain is the application domain.
+                      Automatically inferred from HTTPRoute hostname if not specified.
+                    type: string
+                  enableBindingCookie:
+                    description: EnableBindingCookie enables binding cookie for additional
+                      security.
+                    type: boolean
+                  name:
+                    description: |-
+                      Name is the application name displayed in Cloudflare Access.
+                      Defaults to the target HTTPRoute hostname if not specified.
+                    type: string
+                  sessionDuration:
+                    default: 24h
+                    description: |-
+                      SessionDuration specifies how long a session lasts.
+                      Examples: "24h", "1h30m", "30m"
+                    type: string
+                  type:
+                    default: self_hosted
+                    description: Type specifies the application type.
+                    enum:
+                    - self_hosted
+                    - saas
+                    - ssh
+                    - vnc
+                    - app_launcher
+                    - warp
+                    - biso
+                    - bookmark
+                    type: string
+                type: object
+              policies:
+                description: |-
+                  Policies specify the access policies to apply.
+                  At least one policy must be specified.
+                items:
+                  description: AccessPolicy defines an access policy with decision
+                    and rules.
+                  properties:
+                    decision:
+                      default: allow
+                      description: Decision specifies the policy decision.
+                      enum:
+                      - allow
+                      - deny
+                      - non_identity
+                      - bypass
+                      type: string
+                    externalPolicyID:
+                      description: |-
+                        ExternalPolicyID references an existing Cloudflare policy by ID.
+                        When set, this policy is not created but linked from Cloudflare.
+                        Mutually exclusive with Decision and Rules.
+                      type: string
+                    name:
+                      description: Name is the policy name for identification.
+                      type: string
+                    rules:
+                      description: |-
+                        Rules specify the conditions for this policy.
+                        At least one rule must be specified.
+                      items:
+                        description: AccessPolicyRule defines a rule for an access
+                          policy.
+                        properties:
+                          countries:
+                            description: |-
+                              Countries matches requests from specific countries (ISO 3166-1 alpha-2).
+                              Example: ["US", "GB", "CA"]
+                            items:
+                              type: string
+                            type: array
+                          emailDomains:
+                            description: |-
+                              EmailDomains matches users from specific email domains.
+                              Example: ["example.com"]
+                            items:
+                              type: string
+                            type: array
+                          emails:
+                            description: |-
+                              Emails matches specific email addresses.
+                              Example: ["user@example.com"]
+                            items:
+                              type: string
+                            type: array
+                          emailsEndingIn:
+                            description: |-
+                              EmailsEndingIn matches emails ending with specified domains.
+                              Example: ["@company.com", "@contractor.com"]
+                            items:
+                              type: string
+                            type: array
+                          everyone:
+                            description: Everyone matches all users (use with caution).
+                            type: boolean
+                          githubOrganizations:
+                            description: |-
+                              GitHubOrganizations matches users from specific GitHub organizations.
+                              Requires GitHub OAuth integration.
+                            items:
+                              type: string
+                            type: array
+                          githubUsers:
+                            description: |-
+                              GitHubUsers matches specific GitHub usernames.
+                              Requires GitHub OAuth integration.
+                            items:
+                              type: string
+                            type: array
+                          ipRanges:
+                            description: |-
+                              IPRanges matches requests from specific IP ranges (CIDR notation).
+                              Example: ["192.168.1.0/24", "10.0.0.1/32"]
+                            items:
+                              type: string
+                            type: array
+                          name:
+                            description: Name is the rule name for identification.
+                            type: string
+                        type: object
+                      minItems: 1
+                      type: array
+                  required:
+                  - decision
+                  - rules
+                  type: object
+                minItems: 1
+                type: array
+              targetRef:
+                description: |-
+                  TargetRef identifies the Gateway API resource to apply policy to.
+                  Supports HTTPRoute and Gateway resources.
+                properties:
+                  group:
+                    default: gateway.networking.k8s.io
+                    description: Group is the group of the target resource.
+                    type: string
+                  kind:
+                    description: |-
+                      Kind is the kind of the target resource.
+                      Supported values: HTTPRoute, Gateway
+                    enum:
+                    - HTTPRoute
+                    - Gateway
+                    type: string
+                  name:
+                    description: Name is the name of the target resource.
+                    maxLength: 253
+                    minLength: 1
+                    type: string
+                  namespace:
+                    description: |-
+                      Namespace is the namespace of the target resource.
+                      When unspecified, the local namespace is inferred.
+                    maxLength: 63
+                    minLength: 1
+                    pattern: ^[a-z0-9]([-a-z0-9]*[a-z0-9])?$
+                    type: string
+                required:
+                - group
+                - kind
+                - name
+                type: object
+            required:
+            - policies
+            - targetRef
+            type: object
+          status:
+            description: CloudflareAccessPolicyStatus defines the observed state of
+              CloudflareAccessPolicy.
+            properties:
+              applicationId:
+                description: ApplicationID is the Cloudflare Access application ID.
+                type: string
+              conditions:
+                description: Conditions describe the current state of the access policy.
+                items:
+                  description: Condition contains details for one aspect of the current
+                    state of this API Resource.
+                  properties:
+                    lastTransitionTime:
+                      description: |-
+                        lastTransitionTime is the last time the condition transitioned from one status to another.
+                        This should be when the underlying condition changed.  If that is not known, then using the time when the API field changed is acceptable.
+                      format: date-time
+                      type: string
+                    message:
+                      description: |-
+                        message is a human readable message indicating details about the transition.
+                        This may be an empty string.
+                      maxLength: 32768
+                      type: string
+                    observedGeneration:
+                      description: |-
+                        observedGeneration represents the .metadata.generation that the condition was set based upon.
+                        For instance, if .metadata.generation is currently 12, but the .status.conditions[x].observedGeneration is 9, the condition is out of date
+                        with respect to the current state of the instance.
+                      format: int64
+                      minimum: 0
+                      type: integer
+                    reason:
+                      description: |-
+                        reason contains a programmatic identifier indicating the reason for the condition's last transition.
+                        Producers of specific condition types may define expected values and meanings for this field,
+                        and whether the values are considered a guaranteed API.
+                        The value should be a CamelCase string.
+                        This field may not be empty.
+                      maxLength: 1024
+                      minLength: 1
+                      pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                      type: string
+                    status:
+                      description: status of the condition, one of True, False, Unknown.
+                      enum:
+                      - "True"
+                      - "False"
+                      - Unknown
+                      type: string
+                    type:
+                      description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                      maxLength: 316
+                      pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                      type: string
+                  required:
+                  - lastTransitionTime
+                  - message
+                  - reason
+                  - status
+                  - type
+                  type: object
+                type: array
+              observedGeneration:
+                description: ObservedGeneration reflects the generation of the most
+                  recently observed spec.
+                format: int64
+                type: integer
+              policyIds:
+                description: PolicyIDs are the Cloudflare policy IDs associated with
+                  this resource.
+                items:
+                  type: string
+                type: array
+              targetDomain:
+                description: TargetDomain is the domain this policy applies to (resolved
+                  from target).
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+    subresources:
+      status: {}
