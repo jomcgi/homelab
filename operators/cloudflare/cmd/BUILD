@@ -22,6 +22,7 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/metrics/filters",
         "@io_k8s_sigs_controller_runtime//pkg/metrics/server",
         "@io_k8s_sigs_controller_runtime//pkg/webhook",
+        "@io_k8s_sigs_gateway_api//apis/v1:v1",
     ],
 )
 
