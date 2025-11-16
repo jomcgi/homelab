@@ -34,12 +34,19 @@ import (
 
 // TunnelClientInterface defines the interface for tunnel operations
 type TunnelClientInterface interface {
+	// Tunnel management
 	CreateTunnel(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error)
 	GetTunnel(ctx context.Context, accountID, tunnelID string) (*cloudflare.Tunnel, error)
 	ListTunnels(ctx context.Context, accountID string) ([]cloudflare.Tunnel, error)
 	DeleteTunnel(ctx context.Context, accountID, tunnelID string) error
 	UpdateTunnelConfiguration(ctx context.Context, accountID, tunnelID string, config cloudflare.TunnelConfiguration) error
 	GetTunnelToken(ctx context.Context, accountID, tunnelID string) (string, error)
+
+	// Published application routes
+	CreatePublishedRoute(ctx context.Context, accountID, tunnelID string, route RouteConfig) error
+	DeletePublishedRoute(ctx context.Context, accountID, tunnelID, hostname string) error
+	ListPublishedRoutes(ctx context.Context, accountID, tunnelID string) ([]RouteConfig, error)
+	GetPublishedRoute(ctx context.Context, accountID, tunnelID, hostname string) (*RouteConfig, error)
 }
 
 // TunnelClient wraps the Cloudflare API with rate limiting and error handling
