@@ -31,8 +31,8 @@ type AccessApplicationConfig struct {
 	ID                     string
 	Name                   string
 	Domain                 string
-	Type                   string   // self_hosted, saas, ssh, vnc, etc.
-	SessionDuration        string   // e.g., "24h"
+	Type                   string // self_hosted, saas, ssh, vnc, etc.
+	SessionDuration        string // e.g., "24h"
 	AutoRedirectToIdentity bool
 	EnableBindingCookie    bool
 	CustomDenyMessage      string
@@ -316,7 +316,7 @@ func (c *TunnelClient) CreateAccessPolicy(ctx context.Context, accountID string,
 	params := cloudflare.CreateAccessPolicyParams{
 		ApplicationID: config.ApplicationID,
 		Name:          config.Name,
-		Decision:      cloudflare.AccessPolicyDecision(config.Decision),
+		Decision:      config.Decision, // Decision is a string, not a custom type
 		Include:       convertAccessPolicyRules(config.Include),
 	}
 

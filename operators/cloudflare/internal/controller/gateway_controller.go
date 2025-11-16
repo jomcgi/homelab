@@ -215,8 +215,6 @@ func (r *GatewayReconciler) handleDeletion(ctx context.Context, gateway *gateway
 
 // handleCreateOrUpdate handles the creation or update of a Gateway
 func (r *GatewayReconciler) handleCreateOrUpdate(ctx context.Context, gateway *gatewayv1.Gateway) (ctrl.Result, error) {
-	log := log.FromContext(ctx)
-
 	// Get tunnel ID from annotations
 	tunnelID := gateway.Annotations[GatewayAnnotationTunnelID]
 

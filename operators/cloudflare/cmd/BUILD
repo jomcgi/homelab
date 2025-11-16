@@ -1,5 +1,4 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
-load("//tools/oci:go_image.bzl", "go_image")
 
 go_library(
     name = "cmd_lib",
@@ -22,7 +21,7 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/metrics/filters",
         "@io_k8s_sigs_controller_runtime//pkg/metrics/server",
         "@io_k8s_sigs_controller_runtime//pkg/webhook",
-        "@io_k8s_sigs_gateway_api//apis/v1:v1",
+        "@io_k8s_sigs_gateway_api//apis/v1:apis",
     ],
 )
 
@@ -30,9 +29,4 @@ go_binary(
     name = "cmd",
     embed = [":cmd_lib"],
     visibility = ["//visibility:public"],
-)
-
-go_image(
-    name = "image",
-    binary = "cmd",
 )

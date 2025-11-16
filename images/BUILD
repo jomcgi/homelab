@@ -10,7 +10,7 @@ multirun(
         "//charts/ttyd-session-manager/backend:image.push",
         "//charts/ttyd-session-manager/backend:ttyd_worker_image.push",
         "//charts/ttyd-session-manager/frontend:image.push",
-        "//operators/cloudflare/cmd:image.push",
+        "//operators/cloudflare:image.push",
         "//services/hikes/update_forecast:update_image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism

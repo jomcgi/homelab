@@ -775,15 +775,11 @@ metadata:
 spec:
   namespace: argocd
   writeBackConfig:
-    method: "git"
+    method: "git:secret:argocd/argocd-image-updater-token"
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
       writeBackTarget: helmvalues:overlays/dev/ttyd-session-manager/values.yaml
-      credentials:
-        secretRef:
-          name: argocd-image-updater-token
-          namespace: argocd
   applicationRefs:
     - namePattern: "ttyd-session-manager"
       images:
