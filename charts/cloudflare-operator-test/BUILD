@@ -1,7 +1,6 @@
-load("@aspect_rules_helm//helm:defs.bzl", "helm_chart")
+load("//tools/argocd:defs.bzl", "chart_files")
 
-helm_chart(
-    name = "cloudflare-operator-test",
-    chart = ".",
-    visibility = ["//visibility:public"],
+chart_files(
+    name = "all_files",
+    visibility = ["//overlays/dev/cloudflare-operator-test:__pkg__"],
 )

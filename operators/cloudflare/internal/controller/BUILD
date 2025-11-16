@@ -2,7 +2,14 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "controller",
-    srcs = ["cloudflaretunnel_controller.go"],
+    srcs = [
+        "cloudflareaccesspolicy_controller.go",
+        "cloudflaretunnel_controller.go",
+        "gateway_controller.go",
+        "gatewayclass_controller.go",
+        "httproute_controller.go",
+        "service_controller.go",
+    ],
     importpath = "github.com/jomcgi/homelab/operators/cloudflare/internal/controller",
     visibility = ["//operators/cloudflare:__subpackages__"],
     deps = [
@@ -23,6 +30,8 @@ go_library(
         "@io_k8s_sigs_controller_runtime//pkg/controller/controllerutil",
         "@io_k8s_sigs_controller_runtime//pkg/log",
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+        "@io_k8s_sigs_gateway_api//apis/v1:apis",
+        "@io_k8s_utils//ptr",
         "@io_opentelemetry_go_otel//attribute",
         "@io_opentelemetry_go_otel//codes",
         "@io_opentelemetry_go_otel_trace//:trace",

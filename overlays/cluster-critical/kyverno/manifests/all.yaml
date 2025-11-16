@@ -118,6 +118,16 @@ data:
   metricsExposure: "{\"kyverno_admission_requests_total\":{\"disabledLabelDimensions\":[\"resource_namespace\"]},\"kyverno_admission_review_duration_seconds\":{\"disabledLabelDimensions\":[\"resource_namespace\"]},\"kyverno_cleanup_controller_deletedobjects_total\":{\"disabledLabelDimensions\":[\"resource_namespace\",\"policy_namespace\"]},\"kyverno_policy_execution_duration_seconds\":{\"disabledLabelDimensions\":[\"resource_namespace\",\"resource_request_operation\"]},\"kyverno_policy_results_total\":{\"disabledLabelDimensions\":[\"resource_namespace\",\"policy_namespace\"]},\"kyverno_policy_rule_info_total\":{\"disabledLabelDimensions\":[\"resource_namespace\",\"policy_namespace\"]}}"
   bucketBoundaries: "0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 20, 25, 30"
 ---
+# Source: kyverno/templates/otel-injection-policy.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: otel-config
+  namespace: kyverno
+data:
+  endpoint: "http://signoz-otel-collector.observability.svc.cluster.local:4317"
+  protocol: "grpc"
+---
 # Source: kyverno/charts/kyverno/charts/crds/templates/kyverno.io/kyverno.io_cleanuppolicies.yaml
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -59258,6 +59268,63 @@ spec:
       volumes:
       - name: sigstore
         emptyDir: {}
+---
+# Source: kyverno/templates/otel-injection-policy.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-otel-env-vars
+  annotations:
+    policies.kyverno.io/title: Inject OpenTelemetry Configuration
+    policies.kyverno.io/category: Observability
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: |
+      Automatically injects OTEL environment variables into all workloads
+      for cluster-wide observability. ENABLED BY DEFAULT.
+spec:
+  background: true
+  rules:
+  - name: add-otel-config-deployments
+    match:
+      any:
+      - resources:
+          kinds:
+          - Deployment
+          - StatefulSet
+          - DaemonSet
+    exclude:
+      any:
+      # Exclude system namespaces
+      - resources:
+          namespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+      # Explicit opt-out only
+      - resources:
+          selector:
+            matchLabels:
+              otel.instrumentation: "disabled"
+    context:
+    - name: otelConfig
+      configMap:
+        name: otel-config
+        namespace: kyverno
+    mutate:
+      patchStrategicMerge:
+        spec:
+          template:
+            metadata:
+              annotations:
+                otel.injected-by: "kyverno/inject-otel-env-vars"
+            spec:
+              containers:
+              - (name): "*"
+                env:
+                - name: OTEL_EXPORTER_OTLP_ENDPOINT
+                  value: "{{ otelConfig.data.endpoint }}"
+                - name: OTEL_EXPORTER_OTLP_PROTOCOL
+                  value: "{{ otelConfig.data.protocol }}"
 ---
 # Source: kyverno/charts/kyverno/templates/hooks/post-upgrade-migrate-resources.yaml
 apiVersion: v1

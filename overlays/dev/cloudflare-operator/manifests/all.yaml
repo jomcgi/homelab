@@ -6,7 +6,7 @@ metadata:
   name: cloudflare-operator-controller-manager
   namespace: cloudflare
   labels:
-    helm.sh/chart: cloudflare-operator-0.1.0
+    helm.sh/chart: cloudflare-operator-0.2.0
     app.kubernetes.io/name: cloudflare-operator
     app.kubernetes.io/instance: cloudflare-operator
     app.kubernetes.io/version: "latest"
@@ -18,7 +18,7 @@ kind: ClusterRole
 metadata:
   name: cloudflare-operator-manager-role
   labels:
-    helm.sh/chart: cloudflare-operator-0.1.0
+    helm.sh/chart: cloudflare-operator-0.2.0
     app.kubernetes.io/name: cloudflare-operator
     app.kubernetes.io/instance: cloudflare-operator
     app.kubernetes.io/version: "latest"
@@ -81,6 +81,109 @@ rules:
   - get
   - patch
   - update
+# CloudflareAccessPolicy permissions
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies/status
+  verbs:
+  - get
+  - patch
+  - update
+# Gateway API permissions
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes/status
+  verbs:
+  - get
+  - patch
+  - update
+# Service permissions (for annotation controller)
+- apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
 ---
 # Source: cloudflare-operator/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -88,7 +191,7 @@ kind: ClusterRoleBinding
 metadata:
   name: cloudflare-operator-manager-rolebinding
   labels:
-    helm.sh/chart: cloudflare-operator-0.1.0
+    helm.sh/chart: cloudflare-operator-0.2.0
     app.kubernetes.io/name: cloudflare-operator
     app.kubernetes.io/instance: cloudflare-operator
     app.kubernetes.io/version: "latest"
@@ -109,7 +212,7 @@ metadata:
   name: cloudflare-operator-leader-election-role
   namespace: cloudflare
   labels:
-    helm.sh/chart: cloudflare-operator-0.1.0
+    helm.sh/chart: cloudflare-operator-0.2.0
     app.kubernetes.io/name: cloudflare-operator
     app.kubernetes.io/instance: cloudflare-operator
     app.kubernetes.io/version: "latest"
@@ -154,7 +257,7 @@ metadata:
   name: cloudflare-operator-leader-election-rolebinding
   namespace: cloudflare
   labels:
-    helm.sh/chart: cloudflare-operator-0.1.0
+    helm.sh/chart: cloudflare-operator-0.2.0
     app.kubernetes.io/name: cloudflare-operator
     app.kubernetes.io/instance: cloudflare-operator
     app.kubernetes.io/version: "latest"
@@ -176,7 +279,7 @@ metadata:
   namespace: cloudflare
   labels:
     control-plane: controller-manager
-    helm.sh/chart: cloudflare-operator-0.1.0
+    helm.sh/chart: cloudflare-operator-0.2.0
     app.kubernetes.io/name: cloudflare-operator
     app.kubernetes.io/instance: cloudflare-operator
     app.kubernetes.io/version: "latest"

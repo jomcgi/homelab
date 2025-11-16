@@ -42,12 +42,12 @@ import (
 
 const (
 	// Annotation keys
-	AnnotationHostname          = "cloudflare.ingress.hostname"
-	AnnotationZeroTrustEnabled  = "cloudflare.zero-trust.enabled"
-	AnnotationZeroTrustPolicy   = "cloudflare.zero-trust.policy"
-	AnnotationServicePort       = "cloudflare.service.port"
-	AnnotationGatewayName       = "cloudflare.gateway.name"
-	AnnotationGatewayNamespace  = "cloudflare.gateway.namespace"
+	AnnotationHostname         = "cloudflare.ingress.hostname"
+	AnnotationZeroTrustEnabled = "cloudflare.zero-trust.enabled"
+	AnnotationZeroTrustPolicy  = "cloudflare.zero-trust.policy"
+	AnnotationServicePort      = "cloudflare.service.port"
+	AnnotationGatewayName      = "cloudflare.gateway.name"
+	AnnotationGatewayNamespace = "cloudflare.gateway.namespace"
 
 	// Default values
 	DefaultGatewayName = "cloudflare-gateway"
@@ -165,12 +165,12 @@ func (r *ServiceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 
 // ServiceAnnotationConfig holds parsed Service annotations
 type ServiceAnnotationConfig struct {
-	Hostname          string
-	Port              int32
-	ZeroTrustEnabled  bool
-	ZeroTrustPolicy   string
-	GatewayName       string
-	GatewayNamespace  string
+	Hostname         string
+	Port             int32
+	ZeroTrustEnabled bool
+	ZeroTrustPolicy  string
+	GatewayName      string
+	GatewayNamespace string
 }
 
 // parseAnnotations parses Cloudflare annotations from a Service
