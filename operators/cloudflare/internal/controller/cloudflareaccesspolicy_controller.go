@@ -366,14 +366,18 @@ func (r *CloudflareAccessPolicyReconciler) buildApplicationConfig(accessPolicy *
 
 	// Add CORS headers if specified
 	if app.CORSHeaders != nil {
-		config.CORSHeaders = &cfclient.CORSHeaders{
+		corsConfig := cfclient.AccessCORSConfig{
 			AllowAllOrigins:  app.CORSHeaders.AllowAllOrigins,
 			AllowedOrigins:   app.CORSHeaders.AllowedOrigins,
 			AllowedMethods:   app.CORSHeaders.AllowedMethods,
 			AllowedHeaders:   app.CORSHeaders.AllowedHeaders,
 			AllowCredentials: app.CORSHeaders.AllowCredentials,
-			MaxAge:           app.CORSHeaders.MaxAge,
 		}
+		// MaxAge is a pointer in the CRD but a plain int in the client
+		if app.CORSHeaders.MaxAge != nil {
+			corsConfig.MaxAge = *app.CORSHeaders.MaxAge
+		}
+		config.CORSHeaders = &corsConfig
 	}
 
 	return config
@@ -392,26 +396,26 @@ func (r *CloudflareAccessPolicyReconciler) buildPolicyConfig(accessPolicy *tunne
 		decision = "allow"
 	}
 
-	// Convert rules
-	var rules []cfclient.AccessPolicyRule
+	// Convert rules to Include rules
+	// Note: CRD has Name and GitHubUsers fields, but the Cloudflare API client doesn't support them directly
+	var includeRules []cfclient.AccessPolicyRule
 	for _, rule := range policy.Rules {
 		cfRule := cfclient.AccessPolicyRule{
-			Name:                rule.Name,
+			EmailsEndingIn:      rule.EmailsEndingIn,
 			Emails:              rule.Emails,
 			EmailDomains:        rule.EmailDomains,
 			IPRanges:            rule.IPRanges,
 			Everyone:            rule.Everyone,
-			GitHubUsers:         rule.GitHubUsers,
-			GitHubOrganizations: rule.GitHubOrganizations,
+			GitHubOrganizations: rule.GitHubOrganizations, // Use GitHubOrganizations instead of GitHubUsers
 			Countries:           rule.Countries,
 		}
-		rules = append(rules, cfRule)
+		includeRules = append(includeRules, cfRule)
 	}
 
 	return cfclient.AccessPolicyConfig{
 		Name:     name,
 		Decision: decision,
-		Rules:    rules,
+		Include:  includeRules, // Rules go into Include
 	}
 }
 

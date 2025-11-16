@@ -17,13 +17,8 @@ maintainers:
 sources:
   - https://github.com/jomcgi/homelab/tree/main/operators/cloudflare
 
-dependencies:
-  - name: gateway-api
-    version: "~1.2.0"
-    repository: "https://github.com/kubernetes-sigs/gateway-api"
-    condition: gateway-api.enabled
-    tags:
-      - crds
+# Gateway API CRDs are installed separately via envoy-gateway in overlays/cluster-critical/envoy/
+# No Helm dependency needed - the operator expects Gateway API to be pre-installed
 
 annotations:
   # Prerequisites

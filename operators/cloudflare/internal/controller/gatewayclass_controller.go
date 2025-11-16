@@ -154,14 +154,9 @@ func (r *GatewayClassReconciler) validateGatewayClass(ctx context.Context, gatew
 		ObservedGeneration: gatewayClass.Generation,
 	})
 
-	// Set supported features (currently just Core features)
-	// Note: SupportedFeatures is a typed slice, so we need to set it directly
-	if gatewayClass.Status.SupportedFeatures == nil {
-		gatewayClass.Status.SupportedFeatures = []gatewayv1.SupportedFeature{
-			gatewayv1.SupportedFeatureGateway,
-			gatewayv1.SupportedFeatureHTTPRoute,
-		}
-	}
+	// SupportedFeatures is experimental in Gateway API v1.2.1
+	// TODO: Re-enable when feature constants are stable
+	// See: https://gateway-api.sigs.k8s.io/reference/spec/#gateway.networking.k8s.io/v1.SupportedFeature
 
 	if err := r.Status().Update(ctx, gatewayClass); err != nil {
 		log.Error(err, "failed to update GatewayClass status")

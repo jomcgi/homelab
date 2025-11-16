@@ -2,7 +2,12 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "cloudflare",
-    srcs = ["client.go"],
+    srcs = [
+        "access.go",
+        "client.go",
+        "dns.go",
+        "routes.go",
+    ],
     importpath = "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare",
     visibility = ["//operators/cloudflare:__subpackages__"],
     deps = [

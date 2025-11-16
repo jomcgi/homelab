@@ -83,7 +83,7 @@ func (c *TunnelClient) CreateTunnelDNSRecord(ctx context.Context, hostname, tunn
 		Name:    hostname,
 		Content: tunnelTarget,
 		Proxied: cloudflare.BoolPtr(true), // Enable Cloudflare proxy
-		TTL:     1,                         // Automatic TTL
+		TTL:     1,                        // Automatic TTL
 	}
 
 	result, err := c.api.CreateDNSRecord(ctx, cloudflare.ZoneIdentifier(zoneID), record)
