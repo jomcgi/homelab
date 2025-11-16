@@ -54,6 +54,15 @@ type TunnelClientInterface interface {
 	GetDNSRecordByName(ctx context.Context, hostname string) (*DNSRecordConfig, error)
 	ListTunnelDNSRecords(ctx context.Context, zoneID, tunnelID string) ([]DNSRecordConfig, error)
 	UpdateDNSRecord(ctx context.Context, config DNSRecordConfig) error
+
+	// Zero Trust Access management
+	CreateAccessApplication(ctx context.Context, accountID string, config AccessApplicationConfig) (*AccessApplicationConfig, error)
+	UpdateAccessApplication(ctx context.Context, accountID string, config AccessApplicationConfig) error
+	DeleteAccessApplication(ctx context.Context, accountID, applicationID string) error
+	GetAccessApplication(ctx context.Context, accountID, applicationID string) (*AccessApplicationConfig, error)
+	CreateAccessPolicy(ctx context.Context, accountID string, config AccessPolicyConfig) (*AccessPolicyConfig, error)
+	DeleteAccessPolicy(ctx context.Context, accountID, applicationID, policyID string) error
+	ListAccessPolicies(ctx context.Context, accountID, applicationID string) ([]AccessPolicyConfig, error)
 }
 
 // TunnelClient wraps the Cloudflare API with rate limiting and error handling
