@@ -1,0 +1,26 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: cloudflare-operator
+  namespace: argocd
+spec:
+  applicationRefs:
+  - images:
+    - alias: operator
+      commonUpdateSettings:
+        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
+        updateStrategy: alphabetical
+        forceUpdate: false
+      imageName: ghcr.io/jomcgi/homelab/operators/cloudflare
+      manifestTargets:
+        helm:
+          name: controllerManager.image.repository
+          tag: controllerManager.image.tag
+    namePattern: cloudflare-operator
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:overlays/dev/cloudflare-operator/values.yaml
