@@ -46,4 +46,12 @@ const (
 	ReasonAPIError = "APIError"
 	// ReasonInvalidSpec indicates the tunnel spec is invalid
 	ReasonInvalidSpec = "InvalidSpec"
+	// ReasonTargetNotFound indicates the policy target resource was not found
+	ReasonTargetNotFound = "TargetNotFound"
+	// ReasonTargetInvalid indicates the policy target is invalid
+	ReasonTargetInvalid = "TargetInvalid"
+	// ReasonPolicyApplied indicates the access policy was successfully applied
+	ReasonPolicyApplied = "PolicyApplied"
+	// ReasonPolicyFailed indicates the access policy application failed
+	ReasonPolicyFailed = "PolicyFailed"
 )
