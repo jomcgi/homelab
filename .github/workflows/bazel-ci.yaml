@@ -10,7 +10,7 @@ on:
   workflow_dispatch:  # Allow manual triggers
     inputs:
       force_push_all:
-        description: 'Force push all images (ignore change detection)'
+        description: 'Force push all images (ignore digest comparison)'
         required: false
         type: boolean
         default: false
@@ -47,107 +47,97 @@ jobs:
       - name: Test
         run: "${GITHUB_WORKSPACE}/bin/bazel --output_base=/mnt/bazel-cache/output_base test --config=ci //... --deleted_packages=tools/python"
 
-      - name: Detect changed images
-        id: detect-changes
+      - name: Build all images
         run: |
-          # Force push all images on:
-          # 1. Scheduled builds (weekly maintenance)
-          # 2. Manual workflow_dispatch with force_push_all=true
-          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.force_push_all }}" = "true" ]; then
-            echo "ℹ Force push mode enabled, pushing all images"
-            ALL_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | tr '\n' ' ')
-            echo "changed=true" >> $GITHUB_OUTPUT
-            echo "targets=$ALL_TARGETS" >> $GITHUB_OUTPUT
-            echo "force_all=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
+          # Build all images (Bazel cache makes this fast for unchanged images)
+          echo "📦 Building all images (cached builds are near-instant)..."
+          "${GITHUB_WORKSPACE}/bin/bazel" --output_base=/mnt/bazel-cache/output_base build --config=ci //images:push_all
 
-          # Detect which images changed since the last commit on main
-          # For PR builds: compare against origin/main
-          # For main builds: compare against previous commit (HEAD~1)
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE_COMMIT="origin/${{ github.base_ref }}"
-          else
-            BASE_COMMIT="HEAD~1"
-          fi
-
-          echo "Detecting changed images since $BASE_COMMIT..."
-          if CHANGED_TARGETS=$("${GITHUB_WORKSPACE}/scripts/detect-changed-images.sh" "$BASE_COMMIT" 2>&1); then
-            echo "changed=true" >> $GITHUB_OUTPUT
-            # Convert newline-separated targets to space-separated for easier iteration
-            TARGETS_SPACE_SEPARATED=$(echo "$CHANGED_TARGETS" | tr '\n' ' ')
-            echo "targets=$TARGETS_SPACE_SEPARATED" >> $GITHUB_OUTPUT
-            echo "force_all=false" >> $GITHUB_OUTPUT
-            echo "✓ Changed image targets: $TARGETS_SPACE_SEPARATED"
-          else
-            echo "changed=false" >> $GITHUB_OUTPUT
-            echo "force_all=false" >> $GITHUB_OUTPUT
-            echo "ℹ No image changes detected, skipping image build and push"
-          fi
-
-      - name: Build changed images
-        if: steps.detect-changes.outputs.changed == 'true'
+      - name: Install crane
         run: |
-          TARGETS="${{ steps.detect-changes.outputs.targets }}"
-          FORCE_ALL="${{ steps.detect-changes.outputs.force_all }}"
-
-          if [ "$FORCE_ALL" = "true" ]; then
-            echo "📦 Building ALL images (force mode)"
-          else
-            echo "📦 Building changed images only"
+          # crane is needed for digest comparison
+          if ! command -v crane &> /dev/null; then
+            echo "Installing crane..."
+            go install github.com/google/go-containerregistry/cmd/crane@latest
+            # Add Go bin to PATH
+            echo "$HOME/go/bin" >> $GITHUB_PATH
           fi
 
-          if [ -n "$TARGETS" ]; then
-            echo "Targets: $TARGETS"
-            for target in $TARGETS; do
-              # Remove .push suffix to get the build target
-              build_target="${target%.push}"
-              "${GITHUB_WORKSPACE}/bin/bazel" --output_base=/mnt/bazel-cache/output_base build --config=ci "$build_target"
-            done
-          fi
+      - name: Install jq
+        run: |
+          # jq is needed for parsing Bazel output
+          sudo apt-get update -qq && sudo apt-get install -y jq
 
       - name: Login to GitHub Container Registry
-        if: steps.detect-changes.outputs.changed == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Push changed images
-        if: steps.detect-changes.outputs.changed == 'true'
+      - name: Push images (digest-based)
+        id: push-images
         run: |
-          TARGETS="${{ steps.detect-changes.outputs.targets }}"
-          FORCE_ALL="${{ steps.detect-changes.outputs.force_all }}"
+          # Check if force push is requested
+          if [ "${{ github.event_name }}" = "schedule" ] || [ "${{ inputs.force_push_all }}" = "true" ]; then
+            echo "🚀 Force push mode - pushing all images unconditionally"
 
-          if [ "$FORCE_ALL" = "true" ]; then
-            echo "🚀 Pushing ALL images (force mode)"
-          else
-            echo "🚀 Pushing changed images only"
-          fi
+            # Get all push targets
+            ALL_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null)
 
-          if [ -n "$TARGETS" ]; then
-            TARGET_COUNT=$(echo "$TARGETS" | wc -w)
-            echo "Pushing $TARGET_COUNT image(s)..."
-            for target in $TARGETS; do
-              echo "  → Pushing $target..."
+            PUSHED_COUNT=0
+            for target in $ALL_TARGETS; do
+              echo "Pushing $target..."
               "${GITHUB_WORKSPACE}/bin/bazel" --output_base=/mnt/bazel-cache/output_base run --config=ci "$target"
+              ((PUSHED_COUNT++))
             done
-            echo "✅ Successfully pushed $TARGET_COUNT image(s)"
+
+            echo "pushed=$PUSHED_COUNT" >> $GITHUB_OUTPUT
+            echo "skipped=0" >> $GITHUB_OUTPUT
+            echo "mode=force" >> $GITHUB_OUTPUT
+          else
+            echo "🚀 Smart push mode - only pushing images with changed digests"
+
+            # Use digest-based push script
+            # Note: This script compares local digest with registry and only pushes if different
+            if "${GITHUB_WORKSPACE}/scripts/push-if-digest-changed.sh" 2>&1 | tee /tmp/push-output.log; then
+              # Parse output for summary
+              PUSHED=$(grep -c "✓ Pushed" /tmp/push-output.log || echo "0")
+              SKIPPED=$(grep -c "⊘ Unchanged" /tmp/push-output.log || echo "0")
+
+              echo "pushed=$PUSHED" >> $GITHUB_OUTPUT
+              echo "skipped=$SKIPPED" >> $GITHUB_OUTPUT
+              echo "mode=smart" >> $GITHUB_OUTPUT
+            else
+              echo "⚠️  Digest comparison script failed, falling back to unconditional push"
+
+              # Fallback: push all images
+              ALL_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null)
+              PUSHED_COUNT=0
+              for target in $ALL_TARGETS; do
+                echo "Pushing $target..."
+                "${GITHUB_WORKSPACE}/bin/bazel" --output_base=/mnt/bazel-cache/output_base run --config=ci "$target"
+                ((PUSHED_COUNT++))
+              done
+
+              echo "pushed=$PUSHED_COUNT" >> $GITHUB_OUTPUT
+              echo "skipped=0" >> $GITHUB_OUTPUT
+              echo "mode=fallback" >> $GITHUB_OUTPUT
+            fi
           fi
 
       - name: Summary
         if: always()
         run: |
-          if [ "${{ steps.detect-changes.outputs.changed }}" = "true" ]; then
-            FORCE_ALL="${{ steps.detect-changes.outputs.force_all }}"
-            TARGET_COUNT=$(echo "${{ steps.detect-changes.outputs.targets }}" | wc -w)
+          MODE="${{ steps.push-images.outputs.mode }}"
+          PUSHED="${{ steps.push-images.outputs.pushed }}"
+          SKIPPED="${{ steps.push-images.outputs.skipped }}"
 
-            if [ "$FORCE_ALL" = "true" ]; then
-              echo "✅ Pushed all $TARGET_COUNT images (force mode)"
-            else
-              echo "✅ Pushed $TARGET_COUNT changed image(s)"
-            fi
+          if [ "$MODE" = "force" ]; then
+            echo "✅ Force pushed $PUSHED image(s)"
+          elif [ "$MODE" = "fallback" ]; then
+            echo "✅ Pushed $PUSHED image(s) (fallback mode)"
           else
-            echo "ℹ️  No images changed, skipped push"
+            echo "✅ Pushed $PUSHED image(s) with changed digests"
+            echo "ℹ️  Skipped $SKIPPED image(s) (digest unchanged)"
           fi

@@ -18,7 +18,7 @@ sh_binary(
 )
 
 sh_binary(
-    name = "detect-changed-images",
-    srcs = ["detect-changed-images.sh"],
+    name = "push-if-digest-changed",
+    srcs = ["push-if-digest-changed.sh"],
     visibility = ["//visibility:public"],
 )
