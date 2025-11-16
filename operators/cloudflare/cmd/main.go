@@ -42,6 +42,7 @@ import (
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/controller"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	// +kubebuilder:scaffold:imports
 )
 
@@ -54,6 +55,7 @@ func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
 	utilruntime.Must(tunnelsv1.AddToScheme(scheme))
+	utilruntime.Must(gatewayv1.Install(scheme))
 	// +kubebuilder:scaffold:scheme
 }
 
@@ -283,6 +285,47 @@ func main() {
 
 	if err := reconciler.SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "CloudflareTunnel")
+		os.Exit(1)
+	}
+
+	// Register Gateway API controllers
+	if err := (&controller.GatewayClassReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "GatewayClass")
+		os.Exit(1)
+	}
+
+	if err := (&controller.GatewayReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Gateway")
+		os.Exit(1)
+	}
+
+	if err := (&controller.HTTPRouteReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "HTTPRoute")
+		os.Exit(1)
+	}
+
+	if err := (&controller.CloudflareAccessPolicyReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "CloudflareAccessPolicy")
+		os.Exit(1)
+	}
+
+	if err := (&controller.ServiceReconciler{
+		Client: mgr.GetClient(),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "Service")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder
