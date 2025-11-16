@@ -144,6 +144,34 @@ cloudflareCredentials:
   # Account ID (only used if create is true)
   accountId: ""
 
+# Gateway API configuration
+gatewayAPI:
+  # Enable Gateway API controllers
+  enabled: true
+
+  # GatewayClass configuration
+  gatewayClass:
+    # Create GatewayClass resource
+    create: true
+    # GatewayClass name
+    name: cloudflare
+    # Controller name (must match operator's controller name)
+    controllerName: github.com/jomcgi/homelab/operators/cloudflare
+
+  # Default Gateway configuration (created in daemon mode)
+  defaultGateway:
+    # Create default Gateway resource
+    create: true
+    # Gateway name
+    name: cloudflare-gateway
+    # Gateway namespace
+    namespace: cloudflare-operator-system
+    # Listeners configuration
+    listeners:
+      - name: https
+        protocol: HTTPS
+        port: 443
+
 # Extra resources to deploy (e.g., 1Password secrets)
 # Example:
 # extraResources:

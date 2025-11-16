@@ -1,16 +1,33 @@
 # Cloudflare Operator Helm Chart
 
-This Helm chart deploys the Cloudflare Tunnel Operator on a Kubernetes cluster.
+This Helm chart deploys the Cloudflare Operator with Gateway API support on a Kubernetes cluster.
 
 ## Prerequisites
 
 - Kubernetes 1.19+
 - Helm 3.2.0+
+- **Gateway API CRDs v1.2.0+** (required for HTTPRoute, Gateway, GatewayClass support)
 - Cloudflare API Token and Account ID
 
 ## Installation
 
-### 1. Create Cloudflare Credentials Secret
+### 1. Install Gateway API CRDs
+
+Install the Gateway API CRDs (required dependency):
+
+```bash
+kubectl apply -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml
+```
+
+Verify installation:
+
+```bash
+kubectl get crd gateways.gateway.networking.k8s.io
+kubectl get crd httproutes.gateway.networking.k8s.io
+kubectl get crd gatewayclasses.gateway.networking.k8s.io
+```
+
+### 2. Create Cloudflare Credentials Secret
 
 First, create a secret containing your Cloudflare API credentials:
 
@@ -21,7 +38,7 @@ kubectl create secret generic cloudflare-credentials \
   -n cloudflare-operator-system
 ```
 
-### 2. Install the Chart
+### 3. Install the Chart
 
 Add the chart repository (if hosted) or install from local directory:
 
@@ -32,14 +49,22 @@ helm install cloudflare-operator ./helm/cloudflare-operator \
   --namespace cloudflare-operator-system
 ```
 
-### 3. Verify Installation
+### 4. Verify Installation
 
 Check that the operator is running:
 
 ```bash
 kubectl get pods -n cloudflare-operator-system
 kubectl get crd | grep cloudflare
+kubectl get gatewayclass cloudflare
 ```
+
+Expected CRDs:
+- `cloudflaretunnels.tunnels.cloudflare.io` (deprecated - use Gateway API)
+- `cloudflareaccesspolicies.tunnels.cloudflare.io`
+- `gateways.gateway.networking.k8s.io` (from Gateway API)
+- `httproutes.gateway.networking.k8s.io` (from Gateway API)
+- `gatewayclasses.gateway.networking.k8s.io` (from Gateway API)
 
 ## Configuration
 

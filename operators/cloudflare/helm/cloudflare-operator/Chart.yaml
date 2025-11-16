@@ -1,16 +1,46 @@
 apiVersion: v2
 name: cloudflare-operator
-description: A Helm chart for the Cloudflare Tunnel Operator
+description: A Helm chart for the Cloudflare Tunnel Operator with Gateway API support
 type: application
-version: 0.1.0
+version: 0.2.0
 appVersion: "latest"
 keywords:
   - cloudflare
   - tunnel
   - operator
   - kubernetes
+  - gateway-api
+  - zero-trust
 maintainers:
   - name: jomcgi
     url: https://github.com/jomcgi/homelab
 sources:
   - https://github.com/jomcgi/homelab/tree/main/operators/cloudflare
+
+dependencies:
+  - name: gateway-api
+    version: "~1.2.0"
+    repository: "https://github.com/kubernetes-sigs/gateway-api"
+    condition: gateway-api.enabled
+    tags:
+      - crds
+
+annotations:
+  # Prerequisites
+  "artifacthub.io/prerelease": "true"
+  "artifacthub.io/links": |
+    - name: Gateway API Documentation
+      url: https://gateway-api.sigs.k8s.io/
+  "artifacthub.io/recommendations": |
+    - url: https://gateway-api.sigs.k8s.io/guides/getting-started/
+  "artifacthub.io/crds": |
+    - kind: CloudflareTunnel
+      version: v1
+      name: cloudflaretunnels.tunnels.cloudflare.io
+      displayName: Cloudflare Tunnel
+      description: Manages Cloudflare tunnels (deprecated - use Gateway API)
+    - kind: CloudflareAccessPolicy
+      version: v1
+      name: cloudflareaccesspolicies.tunnels.cloudflare.io
+      displayName: Cloudflare Access Policy
+      description: Manages Zero Trust access policies for Gateway API resources
