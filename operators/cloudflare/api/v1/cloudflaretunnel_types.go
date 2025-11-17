@@ -17,7 +17,6 @@ limitations under the License.
 package v1
 
 import (
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -41,47 +40,6 @@ type SecretReference struct {
 	Key string `json:"key,omitempty"`
 }
 
-// DaemonConfig defines configuration for the cloudflared daemon
-type DaemonConfig struct {
-	// Enabled controls whether the operator should deploy cloudflared daemon
-	// +kubebuilder:default=true
-	Enabled bool `json:"enabled,omitempty"`
-
-	// Image specifies the cloudflared container image
-	// +kubebuilder:default="cloudflare/cloudflared:latest"
-	Image string `json:"image,omitempty"`
-
-	// Replicas specifies the number of daemon replicas
-	// +kubebuilder:default=2
-	// +kubebuilder:validation:Minimum=1
-	Replicas *int32 `json:"replicas,omitempty"`
-
-	// Resources specifies the resource requirements for the daemon
-	Resources corev1.ResourceRequirements `json:"resources,omitempty"`
-
-	// NodeSelector specifies node selection constraints
-	NodeSelector map[string]string `json:"nodeSelector,omitempty"`
-
-	// Tolerations specifies the tolerations for the daemon pods
-	Tolerations []corev1.Toleration `json:"tolerations,omitempty"`
-
-	// Affinity specifies the affinity rules for the daemon pods
-	Affinity *corev1.Affinity `json:"affinity,omitempty"`
-
-	// SecretRef specifies the secret containing tunnel credentials
-	// If not provided, the operator will create and manage the secret
-	SecretRef *SecretReference `json:"secretRef,omitempty"`
-
-	// ServiceAccount specifies the service account to use for the daemon
-	ServiceAccount string `json:"serviceAccount,omitempty"`
-
-	// Annotations specifies additional annotations for daemon pods
-	Annotations map[string]string `json:"annotations,omitempty"`
-
-	// Labels specifies additional labels for daemon pods
-	Labels map[string]string `json:"labels,omitempty"`
-}
-
 // CloudflareTunnelSpec defines the desired state of CloudflareTunnel.
 type CloudflareTunnelSpec struct {
 	// Name specifies the tunnel name in Cloudflare
@@ -100,10 +58,6 @@ type CloudflareTunnelSpec struct {
 	// Ingress specifies the ingress rules for the tunnel
 	// +kubebuilder:validation:Optional
 	Ingress []TunnelIngress `json:"ingress,omitempty"`
-
-	// Daemon specifies the cloudflared daemon configuration
-	// +kubebuilder:validation:Optional
-	Daemon *DaemonConfig `json:"daemon,omitempty"`
 }
 
 // CloudflareTunnelStatus defines the observed state of CloudflareTunnel.
@@ -122,30 +76,6 @@ type CloudflareTunnelStatus struct {
 
 	// ObservedGeneration reflects the generation of the most recently observed spec
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
-
-	// TunnelSecret is the name of the secret containing tunnel credentials
-	TunnelSecret string `json:"tunnelSecret,omitempty"`
-
-	// DaemonStatus provides information about the daemon deployment
-	DaemonStatus *DaemonStatus `json:"daemonStatus,omitempty"`
-}
-
-// DaemonStatus provides status information about the cloudflared daemon
-type DaemonStatus struct {
-	// Enabled indicates if daemon management is enabled
-	Enabled bool `json:"enabled"`
-
-	// Replicas indicates the number of daemon replicas
-	Replicas int32 `json:"replicas"`
-
-	// ReadyReplicas indicates the number of ready daemon replicas
-	ReadyReplicas int32 `json:"readyReplicas"`
-
-	// DeploymentName is the name of the daemon deployment
-	DeploymentName string `json:"deploymentName,omitempty"`
-
-	// SecretName is the name of the tunnel secret
-	SecretName string `json:"secretName,omitempty"`
 }
 
 // +kubebuilder:object:root=true

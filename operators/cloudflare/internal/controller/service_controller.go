@@ -46,12 +46,13 @@ const (
 	AnnotationZeroTrustEnabled = "cloudflare.zero-trust.enabled"
 	AnnotationZeroTrustPolicy  = "cloudflare.zero-trust.policy"
 	AnnotationServicePort      = "cloudflare.service.port"
-	AnnotationGatewayName      = "cloudflare.gateway.name"
-	AnnotationGatewayNamespace = "cloudflare.gateway.namespace"
-
-	// Default values
-	DefaultGatewayName = "cloudflare-gateway"
 )
+
+// getDefaultGatewayName returns the namespace-scoped gateway name
+// This ensures one gateway per namespace for traffic isolation
+func getDefaultGatewayName(namespace string) string {
+	return fmt.Sprintf("namespace-%s", namespace)
+}
 
 // ServiceReconciler reconciles a Service object with Cloudflare annotations
 type ServiceReconciler struct {
@@ -202,17 +203,9 @@ func (r *ServiceReconciler) parseAnnotations(service *corev1.Service) ServiceAnn
 		config.Port = service.Spec.Ports[0].Port
 	}
 
-	// Parse gateway name (default to cluster-wide gateway)
-	config.GatewayName = DefaultGatewayName
-	if name, ok := service.Annotations[AnnotationGatewayName]; ok && name != "" {
-		config.GatewayName = name
-	}
-
-	// Parse gateway namespace (default to Service namespace)
+	// Always use namespace-scoped gateway for traffic isolation
+	config.GatewayName = getDefaultGatewayName(service.Namespace)
 	config.GatewayNamespace = service.Namespace
-	if namespace, ok := service.Annotations[AnnotationGatewayNamespace]; ok && namespace != "" {
-		config.GatewayNamespace = namespace
-	}
 
 	return config
 }
@@ -242,15 +235,10 @@ func (r *ServiceReconciler) ensureGateway(ctx context.Context, service *corev1.S
 		return "", fmt.Errorf("failed to get Gateway: %w", err)
 	}
 
-	// Gateway doesn't exist - only auto-create if it's the default cluster-wide gateway
-	if config.GatewayName != DefaultGatewayName {
-		return "", fmt.Errorf("Gateway %s/%s not found (custom Gateways must be created manually)",
-			config.GatewayNamespace, config.GatewayName)
-	}
+	// Gateway doesn't exist - auto-create namespace-scoped gateway
+	log.Info("Creating namespace-scoped Cloudflare Gateway", "name", config.GatewayName, "namespace", config.GatewayNamespace)
 
-	log.Info("Creating default Cloudflare Gateway", "name", config.GatewayName, "namespace", config.GatewayNamespace)
-
-	// Create default Gateway
+	// Create namespace-scoped Gateway
 	gateway = gatewayv1.Gateway{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      config.GatewayName,
@@ -258,6 +246,7 @@ func (r *ServiceReconciler) ensureGateway(ctx context.Context, service *corev1.S
 			Labels: map[string]string{
 				"app.kubernetes.io/name":       "cloudflare-gateway",
 				"app.kubernetes.io/managed-by": "cloudflare-operator",
+				"cloudflare.io/gateway-scope":  "namespace",
 			},
 		},
 		Spec: gatewayv1.GatewaySpec{
@@ -276,7 +265,7 @@ func (r *ServiceReconciler) ensureGateway(ctx context.Context, service *corev1.S
 		return "", fmt.Errorf("failed to create Gateway: %w", err)
 	}
 
-	log.Info("Created default Cloudflare Gateway successfully")
+	log.Info("Created namespace-scoped Cloudflare Gateway successfully", "name", config.GatewayName)
 	return config.GatewayName, nil
 }
 
