@@ -24,12 +24,16 @@ import (
 
 	"github.com/cloudflare/cloudflare-go"
 	appsv1 "k8s.io/api/apps/v1"
+	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -74,6 +78,8 @@ type GatewayReconciler struct {
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gatewayclasses,verbs=get;list;watch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=autoscaling,resources=horizontalpodautoscalers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=policy,resources=poddisruptionbudgets,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop
 func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -271,9 +277,9 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
-	// Generate unique tunnel name
-	tunnelName := fmt.Sprintf("gateway-%s-%s", gateway.Namespace, gateway.Name)
-	log.Info("Creating Cloudflare tunnel", "tunnelName", tunnelName, "accountID", accountID)
+	// Generate namespace-scoped tunnel name for traffic isolation
+	tunnelName := fmt.Sprintf("namespace-%s-tunnel", gateway.Namespace)
+	log.Info("Creating namespace-scoped Cloudflare tunnel", "tunnelName", tunnelName, "accountID", accountID)
 
 	// Set Programmed condition to Unknown (creating)
 	meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
@@ -688,6 +694,17 @@ func (r *GatewayReconciler) ensureCloudflaredDeployment(ctx context.Context, gat
 								TimeoutSeconds:      5,
 								FailureThreshold:    3,
 							},
+							// Resource limits for safe scaling and noisy neighbor protection
+							Resources: corev1.ResourceRequirements{
+								Requests: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("100m"),
+									corev1.ResourceMemory: resource.MustParse("128Mi"),
+								},
+								Limits: corev1.ResourceList{
+									corev1.ResourceCPU:    resource.MustParse("1000m"),
+									corev1.ResourceMemory: resource.MustParse("512Mi"),
+								},
+							},
 						},
 					},
 					RestartPolicy: corev1.RestartPolicyAlways,
@@ -722,6 +739,18 @@ func (r *GatewayReconciler) ensureCloudflaredDeployment(ctx context.Context, gat
 			return "", fmt.Errorf("failed to update deployment: %w", err)
 		}
 		log.V(1).Info("updated cloudflared deployment", "deployment", deploymentName)
+	}
+
+	// Ensure HPA for auto-scaling
+	if err := r.ensureHPA(ctx, gateway, deployment); err != nil {
+		log.Error(err, "Failed to ensure HPA", "deployment", deploymentName)
+		// Continue even if HPA creation fails
+	}
+
+	// Ensure PodDisruptionBudget for high availability
+	if err := r.ensurePDB(ctx, gateway, deployment); err != nil {
+		log.Error(err, "Failed to ensure PDB", "deployment", deploymentName)
+		// Continue even if PDB creation fails
 	}
 
 	return deploymentName, nil
@@ -765,6 +794,140 @@ func (r *GatewayReconciler) deleteTunnelSecret(ctx context.Context, gateway *gat
 	return nil
 }
 
+// ensureHPA creates or updates HorizontalPodAutoscaler for cloudflared deployment
+func (r *GatewayReconciler) ensureHPA(ctx context.Context, gateway *gatewayv1.Gateway, deployment *appsv1.Deployment) error {
+	log := log.FromContext(ctx)
+
+	hpaName := fmt.Sprintf("%s-hpa", deployment.Name)
+
+	hpa := &autoscalingv2.HorizontalPodAutoscaler{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      hpaName,
+			Namespace: gateway.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "cloudflared-hpa",
+				"app.kubernetes.io/instance":   gateway.Name,
+				"app.kubernetes.io/managed-by": "cloudflare-gateway-operator",
+			},
+		},
+		Spec: autoscalingv2.HorizontalPodAutoscalerSpec{
+			ScaleTargetRef: autoscalingv2.CrossVersionObjectReference{
+				APIVersion: "apps/v1",
+				Kind:       "Deployment",
+				Name:       deployment.Name,
+			},
+			MinReplicas: ptr.To(int32(2)),  // High availability
+			MaxReplicas: 10,                 // Cost control
+			Metrics: []autoscalingv2.MetricSpec{
+				{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceCPU,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: ptr.To(int32(70)),
+						},
+					},
+				},
+				{
+					Type: autoscalingv2.ResourceMetricSourceType,
+					Resource: &autoscalingv2.ResourceMetricSource{
+						Name: corev1.ResourceMemory,
+						Target: autoscalingv2.MetricTarget{
+							Type:               autoscalingv2.UtilizationMetricType,
+							AverageUtilization: ptr.To(int32(80)),
+						},
+					},
+				},
+			},
+		},
+	}
+
+	// Set owner reference
+	if err := controllerutil.SetControllerReference(gateway, hpa, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference: %w", err)
+	}
+
+	// Check if HPA already exists
+	existing := &autoscalingv2.HorizontalPodAutoscaler{}
+	err := r.Get(ctx, types.NamespacedName{Name: hpaName, Namespace: gateway.Namespace}, existing)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Create new HPA
+			if err := r.Create(ctx, hpa); err != nil {
+				return fmt.Errorf("failed to create HPA: %w", err)
+			}
+			log.V(1).Info("created HPA", "hpa", hpaName)
+		} else {
+			return fmt.Errorf("failed to get HPA: %w", err)
+		}
+	} else {
+		// Update existing HPA
+		existing.Spec = hpa.Spec
+		existing.Labels = hpa.Labels
+		if err := r.Update(ctx, existing); err != nil {
+			return fmt.Errorf("failed to update HPA: %w", err)
+		}
+		log.V(1).Info("updated HPA", "hpa", hpaName)
+	}
+
+	return nil
+}
+
+// ensurePDB creates or updates PodDisruptionBudget for cloudflared deployment
+func (r *GatewayReconciler) ensurePDB(ctx context.Context, gateway *gatewayv1.Gateway, deployment *appsv1.Deployment) error {
+	log := log.FromContext(ctx)
+
+	pdbName := fmt.Sprintf("%s-pdb", deployment.Name)
+
+	pdb := &policyv1.PodDisruptionBudget{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      pdbName,
+			Namespace: gateway.Namespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/name":       "cloudflared-pdb",
+				"app.kubernetes.io/instance":   gateway.Name,
+				"app.kubernetes.io/managed-by": "cloudflare-gateway-operator",
+			},
+		},
+		Spec: policyv1.PodDisruptionBudgetSpec{
+			MinAvailable: ptr.To(intstr.FromInt(1)),
+			Selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"app.kubernetes.io/name":     "cloudflared",
+					"app.kubernetes.io/instance": gateway.Name,
+				},
+			},
+		},
+	}
+
+	// Set owner reference
+	if err := controllerutil.SetControllerReference(gateway, pdb, r.Scheme); err != nil {
+		return fmt.Errorf("failed to set controller reference: %w", err)
+	}
+
+	// Check if PDB already exists
+	existing := &policyv1.PodDisruptionBudget{}
+	err := r.Get(ctx, types.NamespacedName{Name: pdbName, Namespace: gateway.Namespace}, existing)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Create new PDB
+			if err := r.Create(ctx, pdb); err != nil {
+				return fmt.Errorf("failed to create PDB: %w", err)
+			}
+			log.V(1).Info("created PDB", "pdb", pdbName)
+		} else {
+			return fmt.Errorf("failed to get PDB: %w", err)
+		}
+	} else {
+		// Update existing PDB spec (cannot update minAvailable directly, need to recreate)
+		// PDB spec is immutable, so we skip update
+		log.V(1).Info("PDB already exists", "pdb", pdbName)
+	}
+
+	return nil
+}
+
 // handleAPIError handles Cloudflare API errors and updates Gateway status
 func (r *GatewayReconciler) handleAPIError(ctx context.Context, gateway *gatewayv1.Gateway, err error, message string) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
@@ -794,6 +957,8 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		For(&gatewayv1.Gateway{}).
 		Owns(&appsv1.Deployment{}).
 		Owns(&corev1.Secret{}).
+		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
+		Owns(&policyv1.PodDisruptionBudget{}).
 		Named("gateway").
 		Complete(r)
 }
