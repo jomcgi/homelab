@@ -65,7 +65,7 @@ rules:
   - update
 # CloudflareAccessPolicy permissions
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - tunnels.cloudflare.io
   resources:
   - cloudflareaccesspolicies
   verbs:
@@ -77,13 +77,13 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - tunnels.cloudflare.io
   resources:
   - cloudflareaccesspolicies/finalizers
   verbs:
   - update
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - tunnels.cloudflare.io
   resources:
   - cloudflareaccesspolicies/status
   verbs:
