@@ -229,13 +229,46 @@ func (r *HTTPRouteReconciler) handleCreateOrUpdate(ctx context.Context, httpRout
 
 		log.V(1).Info("Created/updated published route", "hostname", hostnameStr, "service", serviceURL)
 
-		// Create DNS CNAME record pointing to the tunnel
-		dnsRecord, err := cfClient.CreateTunnelDNSRecord(ctx, hostnameStr, tunnelID)
-		if err != nil {
-			log.Error(err, "Failed to create DNS record", "hostname", hostnameStr)
-			allSuccessful = false
-			routeErrors = append(routeErrors, err)
-			continue
+		// Ensure DNS CNAME record pointing to the tunnel
+		expectedTarget := fmt.Sprintf("%s.cfargotunnel.com", tunnelID)
+		var dnsRecord *cfclient.DNSRecordConfig
+
+		// Check if DNS record already exists
+		existingRecord, err := cfClient.GetDNSRecordByName(ctx, hostnameStr)
+		if err == nil {
+			// Record exists - validate it matches our expectations
+			if existingRecord.Type == "CNAME" && existingRecord.Content == expectedTarget {
+				// Record matches - adopt it
+				log.V(1).Info("Adopting existing DNS record",
+					"hostname", hostnameStr,
+					"recordID", existingRecord.RecordID,
+					"target", existingRecord.Content,
+				)
+				dnsRecord = existingRecord
+			} else {
+				// Record exists but doesn't match - error
+				err := fmt.Errorf("existing DNS record does not match expected configuration: type=%s (expected CNAME), target=%s (expected %s)",
+					existingRecord.Type, existingRecord.Content, expectedTarget)
+				log.Error(err, "DNS record mismatch", "hostname", hostnameStr)
+				allSuccessful = false
+				routeErrors = append(routeErrors, err)
+				continue
+			}
+		} else {
+			// Record doesn't exist - create it
+			log.V(1).Info("Creating new DNS record", "hostname", hostnameStr, "target", expectedTarget)
+			dnsRecord, err = cfClient.CreateTunnelDNSRecord(ctx, hostnameStr, tunnelID)
+			if err != nil {
+				log.Error(err, "Failed to create DNS record", "hostname", hostnameStr)
+				allSuccessful = false
+				routeErrors = append(routeErrors, err)
+				continue
+			}
+			log.V(1).Info("Created DNS record",
+				"hostname", hostnameStr,
+				"recordID", dnsRecord.RecordID,
+				"target", dnsRecord.Content,
+			)
 		}
 
 		// Store DNS record ID and zone ID in annotations for cleanup
@@ -243,12 +276,6 @@ func (r *HTTPRouteReconciler) handleCreateOrUpdate(ctx context.Context, httpRout
 		zoneIDKey := fmt.Sprintf("%s%s", HTTPRouteAnnotationZoneIDPrefix, hostnameStr)
 		httpRoute.Annotations[dnsRecordIDKey] = dnsRecord.RecordID
 		httpRoute.Annotations[zoneIDKey] = dnsRecord.ZoneID
-
-		log.V(1).Info("Created DNS record",
-			"hostname", hostnameStr,
-			"recordID", dnsRecord.RecordID,
-			"target", dnsRecord.Content,
-		)
 	}
 
 	// Update HTTPRoute annotations
