@@ -68,7 +68,6 @@ func main() {
 	var probeAddr string
 	var secureMetrics bool
 	var enableHTTP2 bool
-	var enableDaemon bool
 	var tlsOpts []func(*tls.Config)
 	flag.StringVar(&metricsAddr, "metrics-bind-address", "0", "The address the metrics endpoint binds to. "+
 		"Use :8443 for HTTPS or :8080 for HTTP, or leave as 0 to disable the metrics service.")
@@ -87,8 +86,6 @@ func main() {
 	flag.StringVar(&metricsCertKey, "metrics-cert-key", "tls.key", "The name of the metrics server key file.")
 	flag.BoolVar(&enableHTTP2, "enable-http2", false,
 		"If set, HTTP/2 will be enabled for the metrics and webhook servers")
-	flag.BoolVar(&enableDaemon, "enable-daemon", false,
-		"If set, automatically create a default tunnel with daemon enabled")
 	opts := zap.Options{
 		Development: true,
 	}
@@ -256,31 +253,6 @@ func main() {
 		Client:   mgr.GetClient(),
 		Scheme:   mgr.GetScheme(),
 		CFClient: cfClient,
-	}
-
-	// Configure daemon mode if enabled
-	if enableDaemon {
-		accountID := os.Getenv("CLOUDFLARE_ACCOUNT_ID")
-		if accountID == "" {
-			setupLog.Error(nil, "CLOUDFLARE_ACCOUNT_ID environment variable is required for daemon mode")
-			os.Exit(1)
-		}
-
-		operatorNs := os.Getenv("POD_NAMESPACE")
-		if operatorNs == "" {
-			setupLog.Error(nil, "POD_NAMESPACE environment variable is required for daemon mode")
-			os.Exit(1)
-		}
-
-		reconciler.DaemonEnabled = true
-		reconciler.DaemonAccountID = accountID
-		reconciler.DaemonNamespace = operatorNs
-
-		setupLog.Info("daemon mode enabled, will ensure default tunnel exists",
-			"namespace", operatorNs,
-			"accountID", accountID,
-			"checkInterval", "30s",
-		)
 	}
 
 	if err := reconciler.SetupWithManager(mgr); err != nil {
