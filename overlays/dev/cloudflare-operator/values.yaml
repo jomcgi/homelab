@@ -14,8 +14,9 @@ controllerManager:
     pullPolicy: Always
 
 # Enable OpenTelemetry tracing to SignoZ (OTEL upgraded to v1.38.0)
+  # Note: OTEL_EXPORTER_OTLP_ENDPOINT is injected automatically by Kyverno cluster-wide
   tracing:
-    endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+    # endpoint: ""  # Removed - injected by Kyverno policy
     serviceName: "cloudflare-operator"
     serviceVersion: "dev"
     sampler: "parentbased_traceidratio"
