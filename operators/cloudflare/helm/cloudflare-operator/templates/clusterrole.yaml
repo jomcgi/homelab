@@ -112,6 +112,7 @@ rules:
   resources:
   - gateways
   verbs:
+  - create
   - get
   - list
   - patch
