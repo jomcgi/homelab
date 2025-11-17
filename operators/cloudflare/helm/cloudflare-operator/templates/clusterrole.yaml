@@ -1,10 +1,8 @@
-{{- if .Values.rbac.create }}
+---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "cloudflare-operator.fullname" . }}-manager-role
-  labels:
-    {{- include "cloudflare-operator.labels" . | nindent 4 }}
+  name: manager-role
 rules:
 - apiGroups:
   - ""
@@ -26,6 +24,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -38,9 +44,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tunnels.cloudflare.io
+  - autoscaling
   resources:
-  - cloudflaretunnels
+  - horizontalpodautoscalers
   verbs:
   - create
   - delete
@@ -49,48 +55,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels/status
-  verbs:
-  - get
-  - patch
-  - update
-# CloudflareAccessPolicy permissions
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflareaccesspolicies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflareaccesspolicies/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflareaccesspolicies/status
-  verbs:
-  - get
-  - patch
-  - update
-# Gateway API permissions
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
@@ -103,6 +67,8 @@ rules:
   - gateway.networking.k8s.io
   resources:
   - gatewayclasses/status
+  - gateways/status
+  - httproutes/status
   verbs:
   - get
   - patch
@@ -112,7 +78,6 @@ rules:
   resources:
   - gateways
   verbs:
-  - create
   - get
   - list
   - patch
@@ -122,15 +87,8 @@ rules:
   - gateway.networking.k8s.io
   resources:
   - gateways/finalizers
+  - httproutes/finalizers
   verbs:
-  - update
-- apiGroups:
-  - gateway.networking.k8s.io
-  resources:
-  - gateways/status
-  verbs:
-  - get
-  - patch
   - update
 - apiGroups:
   - gateway.networking.k8s.io
@@ -145,26 +103,43 @@ rules:
   - update
   - watch
 - apiGroups:
-  - gateway.networking.k8s.io
+  - policy
   resources:
-  - httproutes/finalizers
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies
+  - cloudflaretunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies/finalizers
+  - cloudflaretunnels/finalizers
   verbs:
   - update
 - apiGroups:
-  - gateway.networking.k8s.io
+  - tunnels.cloudflare.io
   resources:
-  - httproutes/status
+  - cloudflareaccesspolicies/status
+  - cloudflaretunnels/status
   verbs:
   - get
   - patch
   - update
-# Service permissions (for annotation controller)
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - watch
-{{- end }}
