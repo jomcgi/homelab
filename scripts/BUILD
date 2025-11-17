@@ -20,5 +20,10 @@ sh_binary(
 sh_binary(
     name = "push-if-digest-changed",
     srcs = ["push-if-digest-changed.sh"],
+    data = [
+        "@custom_crane_crane_toolchains//:current_toolchain",
+        "@jq_toolchains//:resolved_toolchain",
+    ],
+    deps = ["@bazel_tools//tools/bash/runfiles"],
     visibility = ["//visibility:public"],
 )

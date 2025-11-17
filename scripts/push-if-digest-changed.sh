@@ -1,20 +1,61 @@
 #!/usr/bin/env bash
 # Push OCI images only if their digest differs from the registry
-#
-# Usage: ./push-if-digest-changed.sh
-#
-# This script:
-# 1. Builds ALL images (Bazel cache makes unchanged builds near-instant)
-# 2. For each image, compares its digest with what's in GHCR
-# 3. Only pushes images whose digest has changed
-#
-# This approach is superior to git-based detection because:
-# - No manual package mapping needed
-# - Bazel's content-addressable builds ensure identical inputs = identical digest
-# - Automatically handles transitive dependencies
-# - Works for new images automatically
+# This is a Bazel sh_binary that uses runfiles for hermetic tool access
 
 set -euo pipefail
+
+# Bazel runfiles setup
+RUNFILES_DIR="${RUNFILES_DIR:-}"
+if [[ -z "$RUNFILES_DIR" ]]; then
+  # When run via bazel run, set RUNFILES_DIR to script location + .runfiles
+  RUNFILES_DIR="$0.runfiles"
+fi
+
+if [[ -f "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash" ]]; then
+  source "${RUNFILES_DIR}/bazel_tools/tools/bash/runfiles/runfiles.bash"
+elif [[ -f "${RUNFILES_MANIFEST_FILE:-/dev/null}" ]]; then
+  source "$(grep -m1 "^bazel_tools/tools/bash/runfiles/runfiles.bash " \
+    "$RUNFILES_MANIFEST_FILE" | cut -d ' ' -f 2-)"
+else
+  echo >&2 "ERROR: cannot find @bazel_tools//tools/bash/runfiles:runfiles.bash"
+  exit 1
+fi
+
+# Get crane and jq from runfiles (hermetic)
+# Try multiple possible paths where these tools might be located
+find_tool() {
+    local tool_name="$1"
+    # Try common patterns for finding tools in runfiles
+    for pattern in "${tool_name}_/${tool_name}" "*/${tool_name}" "${tool_name}"; do
+        local tool_path=$(rlocation "$pattern" 2>/dev/null || echo "")
+        if [[ -n "$tool_path" && -x "$tool_path" ]]; then
+            echo "$tool_path"
+            return 0
+        fi
+    done
+
+    # Fallback: search in PATH (for when tool is available in system)
+    if command -v "$tool_name" &>/dev/null; then
+        command -v "$tool_name"
+        return 0
+    fi
+
+    return 1
+}
+
+CRANE=$(find_tool "crane")
+JQ=$(find_tool "jq")
+
+# Verify tools are available
+if [[ -z "$CRANE" || ! -x "$CRANE" ]]; then
+  echo "ERROR: crane not found in runfiles or PATH" >&2
+  exit 1
+fi
+
+if [[ -z "$JQ" || ! -x "$JQ" ]]; then
+  echo "ERROR: jq not found in runfiles or PATH" >&2
+  exit 1
+fi
 
 # Color output
 RED='\033[0;31m'
@@ -44,41 +85,15 @@ log_skip() {
     echo -e "${CYAN}⊘${NC} $*" >&2
 }
 
-# Check dependencies
-check_deps() {
-    local missing=()
-
-    if ! command -v crane &> /dev/null; then
-        missing+=("crane")
-    fi
-
-    if ! command -v bazel &> /dev/null; then
-        missing+=("bazel")
-    fi
-
-    if ! command -v jq &> /dev/null; then
-        missing+=("jq")
-    fi
-
-    if [ ${#missing[@]} -gt 0 ]; then
-        log_error "Missing required tools: ${missing[*]}"
-        log_error "Install crane: go install github.com/google/go-containerregistry/cmd/crane@latest"
-        log_error "Install jq: apt-get install jq"
-        exit 1
-    fi
-}
-
 # Extract repository from oci_push target
-# This queries Bazel for the repository attribute
 get_repository() {
     local push_target="$1"
 
     # Query the push target for its repository attribute
-    # oci_push has a 'repository' attribute that specifies the registry repo
     local repo=$(bazel cquery \
         --output=jsonproto \
         "$push_target" 2>/dev/null | \
-        jq -r '
+        "$JQ" -r '
             .results[0].target.rule.attribute[] |
             select(.name == "repository") |
             .stringValue
@@ -87,20 +102,17 @@ get_repository() {
     echo "$repo"
 }
 
-# Get the current tag from workspace status (STABLE_IMAGE_TAG or STABLE_BRANCH_TAG)
+# Get the current tag from workspace status
 get_current_tag() {
-    # Run workspace status script to get the tag
     local tag=$("./tools/workspace_status.sh" 2>/dev/null | grep STABLE_IMAGE_TAG | awk '{print $2}')
     echo "$tag"
 }
 
 # Get digest of locally built image
-# For multi-platform images (oci_image_index), we get the index digest
 get_local_digest() {
     local image_target="$1"
 
     # The image is already built, get its digest from the bazel-bin output
-    # For oci_image_index, there's an index.json with the manifest digest
     local image_path=$(bazel cquery --output=files "$image_target" 2>/dev/null | head -1)
 
     if [ -z "$image_path" ] || [ ! -e "$image_path" ]; then
@@ -109,7 +121,6 @@ get_local_digest() {
     fi
 
     # The image path is a directory containing the OCI layout
-    # Look for index.json or manifest digest
     if [ -f "$image_path/index.json" ]; then
         # Multi-platform index - compute digest of the index
         local digest=$(sha256sum "$image_path/index.json" | awk '{print "sha256:" $1}')
@@ -126,11 +137,9 @@ get_local_digest() {
 
 # Main logic
 main() {
-    check_deps
-
     log_info "Building all images (cached builds are fast)..."
 
-    # Build all images first (uses Bazel cache for unchanged images)
+    # Build all images first
     if ! bazel build //images:push_all --config=ci 2>&1 | grep -E "(Build|FAIL|ERROR)" | head -10 >&2; then
         log_error "Failed to build images"
         exit 1
@@ -183,25 +192,8 @@ main() {
 
         log_info "  Repository: $repository"
 
-        # Get local digest
-        local_digest=$(get_local_digest "$image_target")
-        if [ -z "$local_digest" ]; then
-            log_warn "  Could not determine local digest, pushing unconditionally"
-            if bazel run --config=ci "$push_target"; then
-                log_success "  Pushed (unconditional)"
-                ((PUSHED_COUNT++))
-            else
-                log_error "  Push failed"
-                ((FAILED_COUNT++))
-            fi
-            echo >&2
-            continue
-        fi
-
-        log_info "  Local digest: $local_digest"
-
         # Check if digest exists in registry
-        remote_digest=$(crane digest "$repository:$CURRENT_TAG" 2>/dev/null || echo "")
+        remote_digest=$("$CRANE" digest "$repository:$CURRENT_TAG" 2>/dev/null || echo "")
 
         if [ -z "$remote_digest" ]; then
             log_info "  Tag not found in registry (new image)"
@@ -213,19 +205,37 @@ main() {
                 log_error "  ✗ Push failed"
                 ((FAILED_COUNT++))
             fi
-        elif [ "$local_digest" = "$remote_digest" ]; then
-            log_skip "  ⊘ Unchanged (digest matches registry)"
-            log_info "    Digest: $local_digest"
-            ((SKIPPED_COUNT++))
         else
+            # Get local digest
+            local_digest=$(get_local_digest "$image_target")
+            if [ -z "$local_digest" ]; then
+                log_warn "  Could not determine local digest, pushing unconditionally"
+                if bazel run --config=ci "$push_target"; then
+                    log_success "  Pushed (unconditional)"
+                    ((PUSHED_COUNT++))
+                else
+                    log_error "  Push failed"
+                    ((FAILED_COUNT++))
+                fi
+                echo >&2
+                continue
+            fi
+
+            log_info "  Local digest:  $local_digest"
             log_info "  Remote digest: $remote_digest"
-            log_info "  Digest changed, pushing..."
-            if bazel run --config=ci "$push_target"; then
-                log_success "  ✓ Pushed updated image"
-                ((PUSHED_COUNT++))
+
+            if [ "$local_digest" = "$remote_digest" ]; then
+                log_skip "  ⊘ Unchanged (digest matches registry)"
+                ((SKIPPED_COUNT++))
             else
-                log_error "  ✗ Push failed"
-                ((FAILED_COUNT++))
+                log_info "  Digest changed, pushing..."
+                if bazel run --config=ci "$push_target"; then
+                    log_success "  ✓ Pushed updated image"
+                    ((PUSHED_COUNT++))
+                else
+                    log_error "  ✗ Push failed"
+                    ((FAILED_COUNT++))
+                fi
             fi
         fi
 
