@@ -160,9 +160,9 @@ func (r *CloudflareAccessPolicyReconciler) handleDeletion(ctx context.Context, a
 
 			// Update status to indicate deletion failure
 			meta.SetStatusCondition(&accessPolicy.Status.Conditions, metav1.Condition{
-				Type:    "Ready",
+				Type:    tunnelsv1.TypeProgrammed,
 				Status:  metav1.ConditionFalse,
-				Reason:  "DeletionFailed",
+				Reason:  tunnelsv1.ReasonCloudflareError,
 				Message: fmt.Sprintf("Failed to delete access application: %v", err),
 			})
 			if err := r.Status().Update(ctx, accessPolicy); err != nil {
@@ -185,12 +185,30 @@ func (r *CloudflareAccessPolicyReconciler) handleDeletion(ctx context.Context, a
 func (r *CloudflareAccessPolicyReconciler) handleCreateOrUpdate(ctx context.Context, accessPolicy *tunnelsv1.CloudflareAccessPolicy) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
+	// Set Accepted condition - policy spec is valid
+	meta.SetStatusCondition(&accessPolicy.Status.Conditions, metav1.Condition{
+		Type:               tunnelsv1.TypeAccepted,
+		Status:             metav1.ConditionTrue,
+		Reason:             tunnelsv1.ReasonAccepted,
+		Message:            "Policy accepted and attached to target",
+		ObservedGeneration: accessPolicy.Generation,
+	})
+
 	// Resolve target domain from targetRef
 	domain, err := r.resolveTargetDomain(ctx, accessPolicy)
 	if err != nil {
 		log.Error(err, "Failed to resolve target domain")
 		return r.handleError(ctx, accessPolicy, err, "Failed to resolve target")
 	}
+
+	// Set ResolvedRefs condition - all references resolved successfully
+	meta.SetStatusCondition(&accessPolicy.Status.Conditions, metav1.Condition{
+		Type:               tunnelsv1.TypeResolvedRefs,
+		Status:             metav1.ConditionTrue,
+		Reason:             tunnelsv1.ReasonAccepted,
+		Message:            fmt.Sprintf("All references resolved, target domain: %s", domain),
+		ObservedGeneration: accessPolicy.Generation,
+	})
 
 	// Get Cloudflare client
 	cfClient, accountID, err := r.getCloudflareClient(ctx, accessPolicy)
@@ -259,11 +277,13 @@ func (r *CloudflareAccessPolicyReconciler) handleCreateOrUpdate(ctx context.Cont
 	accessPolicy.Status.PolicyIDs = policyIDs
 	accessPolicy.Status.ObservedGeneration = accessPolicy.Generation
 
+	// Set Programmed condition - policy successfully configured in Cloudflare
 	meta.SetStatusCondition(&accessPolicy.Status.Conditions, metav1.Condition{
-		Type:    "Ready",
-		Status:  metav1.ConditionTrue,
-		Reason:  "Programmed",
-		Message: fmt.Sprintf("Access policies programmed for domain %s", domain),
+		Type:               tunnelsv1.TypeProgrammed,
+		Status:             metav1.ConditionTrue,
+		Reason:             tunnelsv1.ReasonProgrammed,
+		Message:            fmt.Sprintf("Access policies programmed for domain %s", domain),
+		ObservedGeneration: accessPolicy.Generation,
 	})
 
 	if err := r.Status().Update(ctx, accessPolicy); err != nil {
@@ -541,11 +561,29 @@ func (r *CloudflareAccessPolicyReconciler) handleError(ctx context.Context, acce
 	log := log.FromContext(ctx)
 	log.Error(err, message)
 
+	// Set appropriate condition based on error type
+	var conditionType, reason string
+	switch {
+	case message == "Failed to resolve target":
+		conditionType = tunnelsv1.TypeResolvedRefs
+		reason = tunnelsv1.ReasonTargetNotFound
+	case message == "Failed to get Cloudflare client" ||
+		message == "Failed to create access application" ||
+		message == "Failed to update access application" ||
+		message == "Failed to create access policy":
+		conditionType = tunnelsv1.TypeProgrammed
+		reason = tunnelsv1.ReasonCloudflareError
+	default:
+		conditionType = tunnelsv1.TypeAccepted
+		reason = tunnelsv1.ReasonInvalid
+	}
+
 	meta.SetStatusCondition(&accessPolicy.Status.Conditions, metav1.Condition{
-		Type:    "Ready",
-		Status:  metav1.ConditionFalse,
-		Reason:  "Error",
-		Message: fmt.Sprintf("%s: %v", message, err),
+		Type:               conditionType,
+		Status:             metav1.ConditionFalse,
+		Reason:             reason,
+		Message:            fmt.Sprintf("%s: %v", message, err),
+		ObservedGeneration: accessPolicy.Generation,
 	})
 
 	if err := r.Status().Update(ctx, accessPolicy); err != nil {
