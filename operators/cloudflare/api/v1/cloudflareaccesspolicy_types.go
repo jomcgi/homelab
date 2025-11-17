@@ -21,6 +21,38 @@ import (
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 )
 
+// Gateway API Policy Attachment condition types (GEP-713)
+const (
+	// TypeAccepted indicates whether the policy has been accepted and attached to the target.
+	TypeAccepted = "Accepted"
+
+	// TypeResolvedRefs indicates whether all references (targetRef, etc.) have been resolved.
+	TypeResolvedRefs = "ResolvedRefs"
+
+	// TypeProgrammed indicates whether the policy has been programmed into Cloudflare.
+	TypeProgrammed = "Programmed"
+)
+
+// Condition reasons for CloudflareAccessPolicy
+const (
+	// ReasonAccepted indicates the policy was accepted.
+	ReasonAccepted = "Accepted"
+
+	// ReasonInvalid indicates the policy spec is invalid.
+	ReasonInvalid = "Invalid"
+
+	// ReasonRefNotPermitted indicates a reference is not permitted.
+	ReasonRefNotPermitted = "RefNotPermitted"
+
+	// ReasonProgrammed indicates the policy is programmed in Cloudflare.
+	ReasonProgrammed = "Programmed"
+
+	// ReasonCloudflareError indicates a Cloudflare API error occurred.
+	ReasonCloudflareError = "CloudflareError"
+)
+
+// Note: ReasonTargetNotFound is defined in conditions.go
+
 // PolicyTargetReference identifies an API object to apply policy to.
 // Compatible with Gateway API Policy Attachment (GEP-713).
 type PolicyTargetReference struct {
