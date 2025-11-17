@@ -5,7 +5,7 @@
 otelInjection:
   enabled: true
   background: true  # Apply to existing AND new resources
-  endpoint: "http://signoz-otel-collector.observability.svc.cluster.local:4317"
+  endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
   protocol: "grpc"
   targetKinds:
     - Deployment
