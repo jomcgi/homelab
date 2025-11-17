@@ -4,9 +4,9 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.19.0
-  name: cloudflareaccesspolicies.tunnels.tunnels.cloudflare.io
+  name: cloudflareaccesspolicies.tunnels.cloudflare.io
 spec:
-  group: tunnels.tunnels.cloudflare.io
+  group: tunnels.cloudflare.io
   names:
     categories:
     - gateway-api

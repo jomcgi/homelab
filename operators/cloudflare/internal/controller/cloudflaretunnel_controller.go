@@ -65,9 +65,9 @@ type CloudflareTunnelReconciler struct {
 	DaemonNamespace string
 }
 
-// +kubebuilder:rbac:groups=tunnels.tunnels.cloudflare.io,resources=cloudflaretunnels,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=tunnels.tunnels.cloudflare.io,resources=cloudflaretunnels/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=tunnels.tunnels.cloudflare.io,resources=cloudflaretunnels/finalizers,verbs=update
+// +kubebuilder:rbac:groups=tunnels.cloudflare.io,resources=cloudflaretunnels,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=tunnels.cloudflare.io,resources=cloudflaretunnels/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=tunnels.cloudflare.io,resources=cloudflaretunnels/finalizers,verbs=update
 // +kubebuilder:rbac:groups="",resources=events,verbs=create;patch
 // +kubebuilder:rbac:groups="",resources=secrets,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
