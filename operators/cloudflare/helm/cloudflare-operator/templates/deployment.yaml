@@ -40,9 +40,6 @@ spec:
         {{- if ne .Values.controllerManager.metrics.bindAddress "0" }}
         - --metrics-bind-address={{ .Values.controllerManager.metrics.bindAddress }}
         {{- end }}
-        {{- if .Values.controllerManager.enableDaemon }}
-        - --enable-daemon
-        {{- end }}
         image: "{{ .Values.controllerManager.image.repository }}:{{ .Values.controllerManager.image.tag | default .Chart.AppVersion }}"
         imagePullPolicy: {{ .Values.controllerManager.image.pullPolicy }}
         name: manager
