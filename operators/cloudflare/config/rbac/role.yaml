@@ -24,6 +24,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -36,8 +44,56 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - gateway.networking.k8s.io
   resources:
+  - gatewayclasses
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gatewayclasses/status
+  - gateways/status
+  - httproutes/status
+  verbs:
+  - get
+  - patch
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways
+  verbs:
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - gateways/finalizers
+  - httproutes/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - gateway.networking.k8s.io
+  resources:
+  - httproutes
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies
   - cloudflaretunnels
   verbs:
   - create
@@ -48,14 +104,16 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - tunnels.cloudflare.io
   resources:
+  - cloudflareaccesspolicies/finalizers
   - cloudflaretunnels/finalizers
   verbs:
   - update
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - tunnels.cloudflare.io
   resources:
+  - cloudflareaccesspolicies/status
   - cloudflaretunnels/status
   verbs:
   - get
