@@ -22,14 +22,22 @@ This is a **security-first Kubernetes homelab** running K3s, designed for:
 ### Core Infrastructure
 
 ```
-External Ingress        Applications             Observability
+External Ingress        Service Mesh              Observability
 ┌─────────────────┐    ┌───────────────────┐    ┌─────────────────┐
-│ Cloudflare      │    │ K3s K8S Cluster   │    │ SigNoz          │
-│ Tunnel          │───>│ - Service A       │───>│ - Metrics       │
-│ (Zero Trust)    │    │ - Service B       │    │ - Logs          │
-└─────────────────┘    └───────────────────┘    │ - Traces        │
-                                                └─────────────────┘
+│ Cloudflare      │    │ Linkerd Mesh      │    │ SigNoz          │
+│ Tunnel          │───>│ - Auto tracing    │───>│ - Metrics       │
+│ (Zero Trust)    │    │ - mTLS            │    │ - Logs          │
+│ + Gateway API   │    │ - All pod-to-pod  │    │ - Traces        │
+└─────────────────┘    └───────────────────┘    └─────────────────┘
 ```
+
+**Traffic Flow:**
+1. **Internet → Cloudflare Tunnel** - TLS termination, DDoS protection
+2. **Tunnel Pod → Services** - Gateway API routing (via Cloudflare Operator)
+3. **Service → Pods** - Automatically meshed by Linkerd
+4. **Pod ↔ Pod** - All traffic traced and exported to SigNoz
+
+**Key Design:** After Cloudflare Tunnel terminates external traffic, ALL communication is pod-to-pod within the cluster. Linkerd automatically meshes this traffic for complete observability.
 
 ## Directory Structure
 
@@ -37,12 +45,13 @@ External Ingress        Applications             Observability
 charts/                     # Helm charts
 ├── argocd/                 # ArgoCD GitOps controller
 ├── argocd-image-updater/   # Automatic image updates for ArgoCD
+├── cert-manager/           # X.509 certificate management
 ├── cloudflare-tunnel/      # Cloudflare tunnel chart
-├── envoy-gateway/          # Envoy Gateway API implementation
 ├── freshrss/               # FreshRSS RSS aggregator chart
 ├── gh-arc-controller/      # GitHub Actions Runner Controller
 ├── gh-arc-runners/         # GitHub Actions Runners
 ├── kyverno/                # Policy engine for Kubernetes
+├── linkerd/                # Linkerd service mesh for automatic tracing
 ├── longhorn/               # Distributed persistent storage
 ├── n8n/                    # N8N workflow automation
 ├── n8n-obsidian-api/       # N8N Obsidian API service chart
@@ -68,8 +77,9 @@ overlays/                   # Environment-based deployments
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
 │   ├── argocd-image-updater/
-│   ├── envoy/              # Envoy Gateway deployment
+│   ├── cert-manager/       # Certificate management (required for Linkerd)
 │   ├── kyverno/            # Policy engine
+│   ├── linkerd/            # Linkerd service mesh
 │   ├── longhorn/
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
@@ -185,15 +195,28 @@ We test **actual behavior**, not implementation details:
 - **Git-based workflow** for version tracking
 - **Deployed via**: ArgoCD Application
 
-#### Envoy Gateway
-- **Kubernetes Gateway API** implementation
-- **Advanced traffic management** and routing
+#### cert-manager
+- **X.509 certificate management** for Kubernetes
+- **Automatic certificate generation** for Linkerd trust anchor
+- **Certificate rotation** with automatic renewal
+- **Required by**: Linkerd (generates mTLS certificates)
+- **Deployed via**: ArgoCD Application
+
+#### Linkerd Service Mesh
+- **Automatic distributed tracing** for all pod-to-pod traffic
+- **Mutual TLS** between all services
+- **OTEL trace export** to SigNoz
+- **Zero-config observability** - just annotate namespaces
+- **Lightweight** - smallest resource footprint of any service mesh
 - **Deployed via**: ArgoCD Application
 
 #### Kyverno
 - **Policy engine** for Kubernetes resource validation
 - **Security policies** enforced at admission time
 - **Mutation and validation** of resources
+- **Automatic OTEL injection** - All workloads get OTEL env vars for tracing
+- **Automatic Linkerd injection** - All namespaces get meshed by default
+- **Observable by default** - Opt-out if needed
 - **Deployed via**: ArgoCD Application
 
 #### Longhorn Storage
@@ -413,32 +436,55 @@ Every service must:
 - [ ] Send structured logs
 - [ ] Include OpenTelemetry tracing (for user-facing services)
 
-#### Automatic OTEL Instrumentation (Kyverno)
+#### Automatic Observability (Kyverno)
 
-**All workloads receive OTEL environment variables automatically** via Kyverno ClusterPolicy:
-- `OTEL_EXPORTER_OTLP_ENDPOINT` - Points to SigNoz collector in observability namespace
-- `OTEL_EXPORTER_OTLP_PROTOCOL=grpc` - Uses gRPC protocol
-- **ENABLED BY DEFAULT** - Observable by default, opt-out if needed
+**Two-layer automatic observability** via Kyverno policies:
 
-**How it works:**
-- Kyverno mutates ALL Deployments, StatefulSets, DaemonSets cluster-wide
-- Applies to both existing and new resources (`background: true`)
-- Services with OTEL SDKs get automatic tracing/metrics
-- Services without OTEL SDKs simply ignore the env vars (no impact)
+**1. OTEL Environment Variables (Application-Level)**
+- **All workloads** receive OTEL env vars automatically
+- `OTEL_EXPORTER_OTLP_ENDPOINT` → SigNoz collector
+- `OTEL_EXPORTER_OTLP_PROTOCOL=grpc`
+- Applications with OTEL SDKs get automatic instrumentation
+- Applications without OTEL SDKs ignore the vars (harmless)
+- **Policy:** `charts/kyverno/templates/otel-injection-policy.yaml`
 
-**To opt-out of injection:**
+**2. Linkerd Namespace Annotation (Infrastructure-Level)**
+- **All namespaces** automatically get `linkerd.io/inject=enabled`
+- Linkerd webhook injects sidecars into all pods
+- Captures ALL HTTP/HTTPS traffic (no SDK needed!)
+- Automatic distributed tracing for everything
+- **Policy:** `charts/kyverno/templates/linkerd-injection-policy.yaml`
+
+**Observable by Default Philosophy:**
+- New deployments → Get OTEL env vars + Linkerd sidecar
+- Existing deployments → Get annotations/vars via background policies
+- **Opt-out if needed** (see below)
+
+**To opt-out of OTEL injection:**
 ```yaml
 metadata:
   labels:
     otel.instrumentation: "disabled"
 ```
 
-**Configuration:**
-- Chart template: `charts/kyverno/templates/otel-injection-policy.yaml`
-- Default config: `charts/kyverno/values.yaml` (otelInjection section)
-- Override per environment in: `overlays/<env>/kyverno/values.yaml`
+**To opt-out of Linkerd injection:**
+```yaml
+# Namespace level
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: my-namespace
+  labels:
+    linkerd.io/inject: "disabled"
+```
 
-**Excluded namespaces:** kube-system, kube-public, kube-node-lease
+**Configuration:**
+- OTEL: `charts/kyverno/values.yaml` (otelInjection section)
+- Linkerd: `charts/kyverno/values.yaml` (linkerdInjection section)
+
+**Excluded namespaces (both policies):**
+- System: kube-system, kube-public, kube-node-lease
+- Infrastructure: linkerd, cert-manager, kyverno, argocd, longhorn-system, signoz
 
 ## Development Workflow
 

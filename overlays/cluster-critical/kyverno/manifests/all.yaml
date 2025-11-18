@@ -125,7 +125,7 @@ metadata:
   name: otel-config
   namespace: kyverno
 data:
-  endpoint: "http://signoz-otel-collector.observability.svc.cluster.local:4317"
+  endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
   protocol: "grpc"
 ---
 # Source: kyverno/charts/kyverno/charts/crds/templates/kyverno.io/kyverno.io_cleanuppolicies.yaml
@@ -59268,6 +59268,62 @@ spec:
       volumes:
       - name: sigstore
         emptyDir: {}
+---
+# Source: kyverno/templates/linkerd-injection-policy.yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-linkerd-namespace-annotation
+  annotations:
+    policies.kyverno.io/title: Auto-Enable Linkerd Injection for Namespaces
+    policies.kyverno.io/category: Service Mesh
+    policies.kyverno.io/severity: low
+    policies.kyverno.io/description: |
+      Automatically annotates namespaces with linkerd.io/inject=enabled
+      to enable automatic Linkerd sidecar injection. This ensures all
+      workloads get automatic distributed tracing and mTLS by default.
+      ENABLED BY DEFAULT - opt-out with linkerd.io/inject: "disabled"
+spec:
+  background: true
+  rules:
+  - name: add-linkerd-injection-annotation
+    match:
+      any:
+      - resources:
+          kinds:
+          - Namespace
+    exclude:
+      any:
+      # Exclude system namespaces
+      - resources:
+          namespaces:
+          - kube-system
+          - kube-public
+          - kube-node-lease
+          - linkerd
+          - linkerd-cni
+          - cert-manager
+          - kyverno
+          - argocd
+          - longhorn-system
+          - signoz
+      # Exclude namespaces that are already annotated
+      - resources:
+          selector:
+            matchExpressions:
+            - key: linkerd.io/inject
+              operator: Exists
+      # Explicit opt-out
+      - resources:
+          selector:
+            matchLabels:
+              linkerd.io/inject: "disabled"
+    mutate:
+      patchStrategicMerge:
+        metadata:
+          annotations:
+            linkerd.io/inject: "enabled"
+            linkerd.io/injected-by: "kyverno/inject-linkerd-namespace-annotation"
 ---
 # Source: kyverno/templates/otel-injection-policy.yaml
 apiVersion: kyverno.io/v1
