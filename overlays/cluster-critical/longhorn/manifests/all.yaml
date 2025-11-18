@@ -5018,11 +5018,14 @@ spec:
         app.kubernetes.io/version: v1.8.1
         app: longhorn-manager
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
       - name: longhorn-manager
         image: longhornio/longhorn-manager:v1.8.1
         imagePullPolicy: IfNotPresent
         securityContext:
+          allowPrivilegeEscalation: false #:
           privileged: true
         command:
         - longhorn-manager
@@ -5091,7 +5094,9 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
-      - name: pre-pull-share-manager-image
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: pre-pull-share-manager-image
         imagePullPolicy: IfNotPresent
         image: longhornio/longhorn-share-manager:v1.8.1
         command: ["sh", "-c", "echo share-manager image pulled && sleep infinity"]
@@ -5153,7 +5158,9 @@ spec:
           image: longhornio/longhorn-manager:v1.8.1
           command: ['sh', '-c', 'while [ $(curl -m 1 -s -o /dev/null -w "%{http_code}" http://longhorn-backend:9500/v1) != "200" ]; do echo waiting; sleep 2; done']
       containers:
-        - name: longhorn-driver-deployer
+        - securityContext:
+            allowPrivilegeEscalation: false
+          name: longhorn-driver-deployer
           image: longhornio/longhorn-manager:v1.8.1
           imagePullPolicy: IfNotPresent
           command:
@@ -5222,6 +5229,8 @@ spec:
         app.kubernetes.io/version: v1.8.1
         app: longhorn-ui
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       serviceAccountName: longhorn-ui-service-account
       affinity:
         podAntiAffinity:
@@ -5236,7 +5245,9 @@ spec:
                   - longhorn-ui
               topologyKey: kubernetes.io/hostname
       containers:
-      - name: longhorn-ui
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: longhorn-ui
         image: longhornio/longhorn-ui:v1.8.1
         imagePullPolicy: IfNotPresent
         volumeMounts:
@@ -5294,8 +5305,12 @@ spec:
         app.kubernetes.io/instance: longhorn
         app.kubernetes.io/version: v1.8.1
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
-      - name: longhorn-post-upgrade
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: longhorn-post-upgrade
         image: longhornio/longhorn-manager:v1.8.1
         imagePullPolicy: IfNotPresent
         command:
@@ -5338,8 +5353,12 @@ spec:
         app.kubernetes.io/instance: longhorn
         app.kubernetes.io/version: v1.8.1
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
-      - name: longhorn-uninstall
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: longhorn-uninstall
         image: longhornio/longhorn-manager:v1.8.1
         imagePullPolicy: IfNotPresent
         command:

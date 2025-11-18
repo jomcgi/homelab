@@ -55,7 +55,9 @@ gha-runner-scale-set:
         fsGroup: 1001  # runner user GID
 
       containers:
-      - name: runner
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: runner
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
 
@@ -79,6 +81,8 @@ gha-runner-scale-set:
 
   listenerTemplate:
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
       - name: listener
         securityContext:

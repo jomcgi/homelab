@@ -235,7 +235,6 @@ We test **actual behavior**, not implementation details:
 - **Self-hosted observability** - metrics, logs, traces
 - **OpenTelemetry-native** with ClickHouse backend
 - **Unified observability** for all cluster services
-- **Replaces**: Grafana Cloud (fully self-hosted)
 - **Deployed via**: ArgoCD Application
 
 #### 1Password Operator
