@@ -1,0 +1,15 @@
+---
+# Source: coredns/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+  labels:
+    helm.sh/chart: coredns-0.1.0
+    app.kubernetes.io/name: coredns
+    app.kubernetes.io/instance: coredns
+    app.kubernetes.io/version: "1.11.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  Corefile: ".:53 {\n    errors\n    health\n    ready\n    kubernetes cluster.local in-addr.arpa ip6.arpa {\n      pods insecure\n      fallthrough in-addr.arpa ip6.arpa\n    }\n    hosts /etc/coredns/NodeHosts {\n      ttl 60\n      reload 15s\n      fallthrough\n    }\n    prometheus :9153\n    # Use public DNS directly (Cloudflare + Google) instead of /etc/resolv.conf\n    # This bypasses the router DNS which was timing out under load\n    forward . 1.1.1.1 8.8.8.8 {\n      prefer_udp\n      max_concurrent 1000\n    }\n    cache 30\n    loop\n    reload\n    loadbalance\n    import /etc/coredns/custom/*.override\n}\nimport /etc/coredns/custom/*.server\n"
