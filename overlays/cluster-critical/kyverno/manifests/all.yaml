@@ -59285,8 +59285,10 @@ metadata:
       ENABLED BY DEFAULT - opt-out with linkerd.io/inject: "disabled"
 spec:
   background: true
+  validationFailureAction: Audit
   rules:
   - name: add-linkerd-injection-annotation
+    skipBackgroundRequests: true
     match:
       any:
       - resources:
@@ -59339,8 +59341,10 @@ metadata:
       for cluster-wide observability. ENABLED BY DEFAULT.
 spec:
   background: true
+  validationFailureAction: Audit
   rules:
   - name: add-otel-config-deployments
+    skipBackgroundRequests: true
     match:
       any:
       - resources:
