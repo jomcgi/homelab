@@ -8,7 +8,12 @@ spec:
   source:
     repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: main
-    path: overlays/cluster-critical/coredns
+    path: charts/coredns
+    helm:
+      releaseName: coredns
+      valueFiles:
+        - values.yaml
+        - ../../overlays/cluster-critical/coredns/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: kube-system
