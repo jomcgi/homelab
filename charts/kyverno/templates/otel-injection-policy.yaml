@@ -21,8 +21,10 @@ metadata:
       for cluster-wide observability. ENABLED BY DEFAULT.
 spec:
   background: {{ .Values.otelInjection.background }}
+  validationFailureAction: Audit
   rules:
   - name: add-otel-config-deployments
+    skipBackgroundRequests: true
     match:
       any:
       - resources:
