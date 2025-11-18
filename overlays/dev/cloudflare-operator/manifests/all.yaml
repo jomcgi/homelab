@@ -16,13 +16,7 @@ metadata:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: cloudflare-operator-manager-role
-  labels:
-    helm.sh/chart: cloudflare-operator-0.2.0
-    app.kubernetes.io/name: cloudflare-operator
-    app.kubernetes.io/instance: cloudflare-operator
-    app.kubernetes.io/version: "latest"
-    app.kubernetes.io/managed-by: Helm
+  name: manager-role
 rules:
 - apiGroups:
   - ""
@@ -44,6 +38,14 @@ rules:
   - update
   - watch
 - apiGroups:
+  - ""
+  resources:
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
   - apps
   resources:
   - deployments
@@ -56,9 +58,9 @@ rules:
   - update
   - watch
 - apiGroups:
-  - tunnels.tunnels.cloudflare.io
+  - autoscaling
   resources:
-  - cloudflaretunnels
+  - horizontalpodautoscalers
   verbs:
   - create
   - delete
@@ -67,48 +69,6 @@ rules:
   - patch
   - update
   - watch
-- apiGroups:
-  - tunnels.tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tunnels.tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels/status
-  verbs:
-  - get
-  - patch
-  - update
-# CloudflareAccessPolicy permissions
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflareaccesspolicies
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflareaccesspolicies/finalizers
-  verbs:
-  - update
-- apiGroups:
-  - tunnels.cloudflare.io
-  resources:
-  - cloudflareaccesspolicies/status
-  verbs:
-  - get
-  - patch
-  - update
-# Gateway API permissions
 - apiGroups:
   - gateway.networking.k8s.io
   resources:
@@ -121,6 +81,8 @@ rules:
   - gateway.networking.k8s.io
   resources:
   - gatewayclasses/status
+  - gateways/status
+  - httproutes/status
   verbs:
   - get
   - patch
@@ -139,15 +101,8 @@ rules:
   - gateway.networking.k8s.io
   resources:
   - gateways/finalizers
+  - httproutes/finalizers
   verbs:
-  - update
-- apiGroups:
-  - gateway.networking.k8s.io
-  resources:
-  - gateways/status
-  verbs:
-  - get
-  - patch
   - update
 - apiGroups:
   - gateway.networking.k8s.io
@@ -162,28 +117,46 @@ rules:
   - update
   - watch
 - apiGroups:
-  - gateway.networking.k8s.io
+  - policy
   resources:
-  - httproutes/finalizers
+  - poddisruptionbudgets
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies
+  - cloudflaretunnels
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - tunnels.cloudflare.io
+  resources:
+  - cloudflareaccesspolicies/finalizers
+  - cloudflaretunnels/finalizers
   verbs:
   - update
 - apiGroups:
-  - gateway.networking.k8s.io
+  - tunnels.cloudflare.io
   resources:
-  - httproutes/status
+  - cloudflareaccesspolicies/status
+  - cloudflaretunnels/status
   verbs:
   - get
   - patch
   - update
-# Service permissions (for annotation controller)
-- apiGroups:
-  - ""
-  resources:
-  - services
-  verbs:
-  - get
-  - list
-  - watch
 ---
 # Source: cloudflare-operator/templates/clusterrolebinding.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -308,13 +281,10 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-      - command:
-        - /manager
-        args:
+      - args:
         - --leader-elect
         - --health-probe-bind-address=:8081
-        - --enable-daemon
-        image: "ghcr.io/jomcgi/cloudflare-operator:latest"
+        image: "ghcr.io/jomcgi/homelab/operators/cloudflare:2025.11.17.06.04.04-067bea2"
         imagePullPolicy: Always
         name: manager
         securityContext:
@@ -359,9 +329,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        # OpenTelemetry standard environment variables
-        - name: OTEL_EXPORTER_OTLP_ENDPOINT
-          value: "signoz-otel-collector.signoz.svc.cluster.local:4317"
         - name: OTEL_SERVICE_NAME
           value: "cloudflare-operator"
         - name: OTEL_SERVICE_VERSION
@@ -375,6 +342,25 @@ spec:
             exec:
               command: ["/bin/sh", "-c", "sleep 5"]
       terminationGracePeriodSeconds: 60
+---
+# Source: cloudflare-operator/templates/gatewayclass.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: cloudflare
+  labels:
+    helm.sh/chart: cloudflare-operator-0.2.0
+    app.kubernetes.io/name: cloudflare-operator
+    app.kubernetes.io/instance: cloudflare-operator
+    app.kubernetes.io/version: "latest"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  controllerName: github.com/jomcgi/homelab/operators/cloudflare
+  parametersRef:
+    group: ""
+    kind: Secret
+    name: cloudflare-credentials
+    namespace: cloudflare
 ---
 # Source: cloudflare-operator/templates/extra-resources/extra-resources.yaml
 apiVersion: onepassword.com/v1

@@ -1,0 +1,8 @@
+# Cluster-specific cert-manager overrides for homelab
+
+cert-manager:
+  # Lower resource requests for homelab
+  resources:
+    requests:
+      cpu: 5m
+      memory: 24Mi

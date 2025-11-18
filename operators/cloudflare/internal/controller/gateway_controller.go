@@ -816,8 +816,8 @@ func (r *GatewayReconciler) ensureHPA(ctx context.Context, gateway *gatewayv1.Ga
 				Kind:       "Deployment",
 				Name:       deployment.Name,
 			},
-			MinReplicas: ptr.To(int32(2)),  // High availability
-			MaxReplicas: 10,                 // Cost control
+			MinReplicas: ptr.To(int32(2)), // High availability
+			MaxReplicas: 10,               // Cost control
 			Metrics: []autoscalingv2.MetricSpec{
 				{
 					Type: autoscalingv2.ResourceMetricSourceType,
