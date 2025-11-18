@@ -1,0 +1,129 @@
+{{- if .Values.certManager.enabled }}
+---
+# Job to create linkerd-identity-trust-roots ConfigMap from cert-manager secret
+# This runs as a Helm post-install/post-upgrade hook to ensure the ConfigMap
+# exists before Linkerd control plane pods start
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: linkerd-trust-roots-{{ .Release.Revision }}
+  namespace: linkerd
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 10
+  template:
+    metadata:
+      name: linkerd-trust-roots
+    spec:
+      restartPolicy: OnFailure
+      serviceAccountName: linkerd-trust-roots-job
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: create-configmap
+        image: cgr.dev/chainguard/kubectl:latest
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: true
+          runAsNonRoot: true
+          runAsUser: 65532
+          capabilities:
+            drop: [ALL]
+        command:
+        - /bin/sh
+        - -c
+        - |
+          set -e
+          echo "Waiting for linkerd-trust-anchor secret to be ready..."
+
+          # Wait for secret to exist (cert-manager might still be creating it)
+          until kubectl get secret linkerd-trust-anchor -n linkerd >/dev/null 2>&1; do
+            echo "Waiting for secret linkerd-trust-anchor..."
+            sleep 2
+          done
+
+          echo "Secret found. Creating ConfigMap..."
+
+          # Extract CA certificate from secret and create ConfigMap
+          kubectl get secret linkerd-trust-anchor -n linkerd -o jsonpath='{.data.ca\.crt}' | \
+            base64 -d > /tmp/ca-bundle.crt
+
+          # Create or update the ConfigMap
+          kubectl create configmap linkerd-identity-trust-roots \
+            --from-file=ca-bundle.crt=/tmp/ca-bundle.crt \
+            -n linkerd \
+            --dry-run=client -o yaml | \
+            kubectl apply -f -
+
+          echo "ConfigMap linkerd-identity-trust-roots created successfully"
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+
+---
+# ServiceAccount for the trust roots job
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: linkerd-trust-roots-job
+  namespace: linkerd
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "1"
+    "helm.sh/hook-delete-policy": before-hook-creation
+
+---
+# Role allowing the job to read secrets and manage configmaps
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: linkerd-trust-roots-job
+  namespace: linkerd
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "2"
+    "helm.sh/hook-delete-policy": before-hook-creation
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  resourceNames: ["linkerd-trust-anchor"]
+  verbs: ["get"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["linkerd-identity-trust-roots"]
+  verbs: ["get", "create", "update", "patch"]
+- apiGroups: [""]
+  resources: ["configmaps"]
+  verbs: ["create"]  # Needed for initial creation
+
+---
+# RoleBinding for the job
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: linkerd-trust-roots-job
+  namespace: linkerd
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "3"
+    "helm.sh/hook-delete-policy": before-hook-creation
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: linkerd-trust-roots-job
+subjects:
+- kind: ServiceAccount
+  name: linkerd-trust-roots-job
+  namespace: linkerd
+{{- end }}
