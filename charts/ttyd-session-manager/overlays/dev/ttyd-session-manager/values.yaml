@@ -8,5 +8,5 @@ frontend:
     tag: 2025.11.18.02.16.43-a396936
     repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/frontend
 workerImage:
-  tag: 2025.11.17.06.22.40-50acd49
+  tag: 2025.11.18.02.16.43-a396936
   repository: ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd-worker
