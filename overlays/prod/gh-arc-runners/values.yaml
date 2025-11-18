@@ -51,16 +51,17 @@ gha-runner-scale-set:
       - name: ghcr-imagepull-secret
 
       # Set fsGroup so mounted volumes are writable by runner user
-      # Set runAsUser/runAsGroup to satisfy runAsNonRoot with numeric UID
       securityContext:
-        runAsUser: 1001   # runner user UID
-        runAsGroup: 1001  # runner user GID
-        fsGroup: 1001     # runner user GID (for volume permissions)
+        fsGroup: 1001  # runner user GID (for volume permissions)
 
       containers:
-      - securityContext:
+      - name: runner
+        # Security context for runner container (runs as non-root)
+        securityContext:
+          runAsUser: 1001   # runner user UID
+          runAsGroup: 1001  # runner user GID
+          runAsNonRoot: true
           allowPrivilegeEscalation: false
-        name: runner
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
         command: ["/home/runner/run.sh"]
 
