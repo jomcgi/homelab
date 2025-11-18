@@ -1,0 +1,30 @@
+{{- if .Values.certManager.enabled }}
+---
+# NOTE: This ConfigMap must be manually created from the cert-manager secret
+# when first installing Linkerd. After initial creation, it will be managed
+# by ArgoCD and persist across upgrades.
+#
+# To create it manually:
+#   kubectl get secret linkerd-trust-anchor -n linkerd -o jsonpath='{.data.ca\.crt}' | \
+#     base64 -d | \
+#     kubectl create configmap linkerd-identity-trust-roots \
+#       --from-file=ca-bundle.crt=/dev/stdin -n linkerd --dry-run=client -o yaml | \
+#     kubectl apply -f -
+#
+# This ConfigMap contains the trust anchor CA bundle that Linkerd uses
+# to bootstrap its mTLS identity system when using external CA (cert-manager).
+#
+# Future improvement: Use trust-manager Bundle to automatically sync the secret
+# to this ConfigMap. For now, manual creation is required once per cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: linkerd-identity-trust-roots
+  namespace: linkerd
+  annotations:
+    argocd.argoproj.io/sync-options: "Prune=false"  # Don't delete on sync
+data:
+  # This will be populated manually from the linkerd-trust-anchor secret
+  # The content is the PEM-encoded trust anchor certificate
+  ca-bundle.crt: ""
+{{- end }}
