@@ -22,9 +22,9 @@ metadata:
   name: linkerd-identity-trust-roots
   namespace: linkerd
   annotations:
-    argocd.argoproj.io/sync-options: "Prune=false"  # Don't delete on sync
-data:
-  # This will be populated manually from the linkerd-trust-anchor secret
-  # The content is the PEM-encoded trust anchor certificate
-  ca-bundle.crt: ""
+    # Don't manage this resource with ArgoCD - it's manually maintained
+    argocd.argoproj.io/sync-options: "Prune=false,ServerSideApply=false"
+    argocd.argoproj.io/compare-options: "IgnoreExtraneous"
+# Data field intentionally omitted - managed manually outside of ArgoCD
+# This prevents ArgoCD from overwriting the manually populated certificate
 {{- end }}
