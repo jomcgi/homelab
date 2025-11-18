@@ -1,23 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: envoy-gateway
+  name: linkerd
   namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: HEAD
-    path: charts/envoy-gateway
+    path: charts/linkerd
     helm:
-      releaseName: envoy-gateway
       valueFiles:
         - values.yaml
-        - ../../overlays/cluster-critical/envoy/values.yaml
-      ignoreMissingValueFiles: true
+        - ../../overlays/cluster-critical/linkerd/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: envoy
+    namespace: linkerd
   syncPolicy:
     automated:
       prune: true

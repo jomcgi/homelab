@@ -1,0 +1,16 @@
+# Cluster-specific Linkerd configuration overrides
+# This file contains environment-specific values for the homelab cluster
+
+linkerd-control-plane:
+  # Identity trust anchor (will be generated via cert-manager or manual setup)
+  # For now, using placeholder - see deployment docs for cert generation
+  # identityTrustAnchorsPEM: |
+  #   -----BEGIN CERTIFICATE-----
+  #   <will be generated>
+  #   -----END CERTIFICATE-----
+
+  # Cluster-specific proxy configuration (if needed)
+  # proxy:
+  #   resources:
+  #     cpu:
+  #       request: 50m  # Lower for homelab

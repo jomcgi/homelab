@@ -1,0 +1,17 @@
+apiVersion: v2
+name: linkerd
+description: Linkerd service mesh for automatic distributed tracing
+type: application
+version: 1.0.0
+appVersion: "edge-25.11"
+
+dependencies:
+  # Linkerd CRDs - must be installed first
+  - name: linkerd-crds
+    repository: https://helm.linkerd.io/edge
+    version: 1.8.0
+
+  # Linkerd control plane
+  - name: linkerd-control-plane
+    repository: https://helm.linkerd.io/edge
+    version: 1.20.0

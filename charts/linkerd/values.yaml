@@ -1,0 +1,86 @@
+# Linkerd Service Mesh Configuration
+# Provides automatic distributed tracing for all pod-to-pod communication
+
+# cert-manager integration for automatic certificate management
+certManager:
+  enabled: true  # Use cert-manager to generate trust anchor certificates
+
+# Linkerd CRDs chart (installed first)
+linkerd-crds:
+  # No configuration needed - just installs CRDs
+
+# Linkerd Control Plane configuration
+linkerd-control-plane:
+  # Identity configuration - using cert-manager generated certificates
+  identity:
+    issuer:
+      scheme: kubernetes.io/tls  # Use cert-manager managed certificates
+
+  # Identity trust anchor certificate (managed by cert-manager)
+  # The trust anchor is automatically created by cert-manager resources in templates/trust-anchor.yaml
+  # No need to specify identityTrustAnchorsPEM when using cert-manager
+
+  # Proxy configuration for all meshed pods
+  proxy:
+    # Enable OpenTelemetry tracing
+    tracing:
+      enabled: true
+      collector:
+        # SigNoz OTEL collector endpoint
+        endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+        # Mesh identity for the collector (required by Linkerd)
+        meshIdentity:
+          # SigNoz collector must be meshed too!
+          serviceAccountName: "signoz-otel-collector"
+          namespace: "signoz"
+
+    # Resource limits for proxy sidecars
+    resources:
+      cpu:
+        request: 100m
+        limit: 1000m
+      memory:
+        request: 20Mi
+        limit: 250Mi
+
+  # Control plane components
+  controllerReplicas: 1
+
+  # Destination controller
+  destinationResources:
+    cpu:
+      request: 100m
+      limit: 200m
+    memory:
+      request: 50Mi
+      limit: 100Mi
+
+  # Identity controller
+  identityResources:
+    cpu:
+      request: 100m
+      limit: 200m
+    memory:
+      request: 50Mi
+      limit: 100Mi
+
+  # Proxy injector
+  proxyInjectorResources:
+    cpu:
+      request: 100m
+      limit: 200m
+    memory:
+      request: 50Mi
+      limit: 100Mi
+
+  # High availability mode (disabled for homelab)
+  enableH3: false
+
+  # Heartbeat for telemetry (can disable for privacy)
+  disableHeartbeat: true
+
+  # Cluster networks (auto-detected, but can override)
+  # clusterNetworks: "10.0.0.0/8,100.64.0.0/10,172.16.0.0/12,192.168.0.0/16"
+
+  # Pod security standards
+  podSecurityPolicy: false
