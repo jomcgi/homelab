@@ -2224,7 +2224,6 @@ spec:
               value: "signoz.component=$(SIGNOZ_COMPONENT),k8s.cluster.name=$(K8S_CLUSTER_NAME),k8s.node.name=$(K8S_NODE_NAME),host.name=$(K8S_NODE_NAME)"
             
           securityContext:
-            allowPrivilegeEscalation: false #:
             {}
           volumeMounts:
             - name: otel-agent-config-vol
@@ -2314,7 +2313,6 @@ spec:
           args:
             - "--config=/conf/otel-deployment-config.yaml"
           securityContext:
-            allowPrivilegeEscalation: false #:
             {}
           env:
             
@@ -2442,9 +2440,7 @@ spec:
           configMap:
             name: signoz-clickhouse-operator-etc-usersd-files
       containers:
-        - securityContext:
-            allowPrivilegeEscalation: false
-          name: operator
+        - name: operator
           image: docker.io/altinity/clickhouse-operator:0.21.2
           imagePullPolicy: IfNotPresent
           volumeMounts:
@@ -2511,9 +2507,7 @@ spec:
           resources:
             null
 
-        - securityContext:
-            allowPrivilegeEscalation: false
-          name: metrics-exporter
+        - name: metrics-exporter
           image: docker.io/altinity/metrics-exporter:0.21.2
           imagePullPolicy: IfNotPresent
           volumeMounts:
@@ -2638,9 +2632,7 @@ spec:
           resources:
             {}
       containers:
-        - securityContext:
-            allowPrivilegeEscalation: false
-          name: collector
+        - name: collector
           image: docker.io/signoz/signoz-otel-collector:v0.129.5
           imagePullPolicy: IfNotPresent
           ports:
@@ -3002,7 +2994,6 @@ spec:
       containers:
         - name: signoz
           securityContext:
-            allowPrivilegeEscalation: false #:
             {}
           image: docker.io/signoz/signoz:v0.95.0
           imagePullPolicy: IfNotPresent
@@ -3111,8 +3102,6 @@ spec:
         app.kubernetes.io/name: signoz
         app.kubernetes.io/instance: signoz
     spec:
-      securityContext:
-        runAsNonRoot: true #:
       serviceAccountName: signoz-schema-migrator-async
       initContainers:
         - name: schema-migrator-async-init
@@ -3224,9 +3213,7 @@ spec:
             - "job"
             - "signoz-schema-migrator-sync-init"
       containers:
-        - securityContext:
-            allowPrivilegeEscalation: false
-          name: schema-migrator
+        - name: schema-migrator
           image: docker.io/signoz/signoz-schema-migrator:v0.129.5
           imagePullPolicy: IfNotPresent
           env:
@@ -3272,8 +3259,6 @@ spec:
         app.kubernetes.io/name: signoz
         app.kubernetes.io/instance: signoz
     spec:
-      securityContext:
-        runAsNonRoot: true #:
       initContainers:
         - name: schema-migrator-sync-init
           image: docker.io/busybox:1.35
@@ -3378,9 +3363,7 @@ spec:
           resources:
             {}
       containers:
-        - securityContext:
-            allowPrivilegeEscalation: false
-          name: schema-migrator
+        - name: schema-migrator
           image: docker.io/signoz/signoz-schema-migrator:v0.129.5
           imagePullPolicy: IfNotPresent
           env:
@@ -3590,9 +3573,7 @@ spec:
                 - name: shared-binary-volume
                   mountPath: /var/lib/clickhouse/user_scripts
           containers:
-            - securityContext:
-                allowPrivilegeEscalation: false
-              name: clickhouse
+            - name: clickhouse
               # KEEP CLICKHOUSE-SERVER VERSION IN SYNC WITH
               # https://github.com/SigNoz/signoz/blob/main/deploy/docker/clickhouse-setup/docker-compose.yaml#L5
               image: docker.io/clickhouse/clickhouse-server:25.5.6
@@ -3692,12 +3673,8 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
-  securityContext:
-    runAsNonRoot: true #:
   containers:
-    - securityContext:
-        allowPrivilegeEscalation: false
-      name: wget
+    - name: wget
       image: docker.io/busybox:1.35
       command: ['wget']
       args: ['signoz-k8s-infra-otel-agent:13133']
@@ -3719,12 +3696,8 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
-  securityContext:
-    runAsNonRoot: true #:
   containers:
-    - securityContext:
-        allowPrivilegeEscalation: false
-      name: wget
+    - name: wget
       image: docker.io/busybox:1.35
       command: ['wget']
       args: ['signoz-k8s-infra-otel-deployment:13133']
@@ -3745,12 +3718,8 @@ metadata:
   annotations:
     "helm.sh/hook": test-success
 spec:
-  securityContext:
-    runAsNonRoot: true #:
   containers:
-    - securityContext:
-        allowPrivilegeEscalation: false
-      name: wget
+    - name: wget
       image: docker.io/busybox:1.35
       command: ['wget']
       args: ['http://signoz:8080/api/v1/health?live=1']

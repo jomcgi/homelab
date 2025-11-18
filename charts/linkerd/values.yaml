@@ -1,3 +1,4 @@
+
 # Linkerd Service Mesh Configuration
 # Provides automatic distributed tracing for all pod-to-pod communication
 
@@ -7,12 +8,14 @@ certManager:
 
 # Linkerd CRDs chart (installed first)
 linkerd-crds:
-  # No configuration needed - just installs CRDs
+  # Disable Gateway API CRDs - already installed via Envoy Gateway
+  installGatewayAPI: false
 
 # Linkerd Control Plane configuration
 linkerd-control-plane:
   # Identity configuration - using cert-manager generated certificates
   identity:
+    externalCA: true  # Use external CA (cert-manager) for certificate management
     issuer:
       scheme: kubernetes.io/tls  # Use cert-manager managed certificates
 

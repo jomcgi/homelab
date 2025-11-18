@@ -192,13 +192,9 @@ spec:
         environment: router
         release: router
     spec:
-      securityContext:
-        runAsNonRoot: true #:
       serviceAccountName: vllm-router-service-account
       containers:
-      - securityContext:
-          allowPrivilegeEscalation: false
-        name: router-container
+      - name: router-container
         image: "lmcache/lmstack-router:latest"
         imagePullPolicy: "Always"
         args:
@@ -287,7 +283,6 @@ spec:
           - "--tool-call-parser"
           - "hermes"
           securityContext:
-            allowPrivilegeEscalation: false #:
             runAsNonRoot: false
           imagePullPolicy: IfNotPresent
           env:
@@ -361,14 +356,10 @@ metadata:
 spec:
   template:
     spec:
-      securityContext:
-        runAsNonRoot: true #:
       serviceAccountName: vllm-patcher
       restartPolicy: OnFailure
       containers:
-      - securityContext:
-          allowPrivilegeEscalation: false
-        name: patcher
+      - name: patcher
         image: bitnami/kubectl:latest
         command:
         - /bin/bash
