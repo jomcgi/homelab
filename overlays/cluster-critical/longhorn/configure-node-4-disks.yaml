@@ -9,10 +9,14 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       serviceAccountName: longhorn-service-account
       restartPolicy: OnFailure
       containers:
-        - name: configure-disks
+        - securityContext:
+            allowPrivilegeEscalation: false
+          name: configure-disks
           image: bitnami/kubectl:latest
           command:
             - /bin/bash

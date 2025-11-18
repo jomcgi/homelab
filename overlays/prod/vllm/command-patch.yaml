@@ -6,6 +6,8 @@ metadata:
 spec:
   template:
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
       - name: vllm
         # Remove "vllm" and "serve" from command for lmcache/vllm-openai image

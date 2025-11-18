@@ -201,6 +201,8 @@ spec:
   minRunners: 1
   listenerTemplate:
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
       - name: listener
         resources:
@@ -235,7 +237,9 @@ spec:
           - name: dind-externals
             mountPath: /home/runner/tmpDir
       containers:
-      - name: runner
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: runner
         
         command: 
           - /home/runner/run.sh
@@ -272,6 +276,7 @@ spec:
           - name: DOCKER_GROUP_GID
             value: "123"
         securityContext:
+          allowPrivilegeEscalation: false #:
           privileged: true
         volumeMounts:
           - name: work

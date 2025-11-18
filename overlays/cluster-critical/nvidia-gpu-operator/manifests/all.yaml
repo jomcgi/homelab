@@ -917,10 +917,14 @@ spec:
       annotations:
         openshift.io/scc: restricted-readonly
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       serviceAccountName: gpu-operator
       priorityClassName: system-node-critical
       containers:
-      - name: gpu-operator
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: gpu-operator
         image: nvcr.io/nvidia/gpu-operator:v25.3.0
         imagePullPolicy: IfNotPresent
         command: ["gpu-operator"]
@@ -1490,6 +1494,8 @@ spec:
         app.kubernetes.io/managed-by: Helm
         app.kubernetes.io/component: "gpu-operator"
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       serviceAccountName: gpu-operator-upgrade-crd-hook-sa
       tolerations:
         - effect: NoSchedule
@@ -1501,7 +1507,9 @@ spec:
           operator: Equal
           value: ""
       containers:
-        - name: upgrade-crd
+        - securityContext:
+            allowPrivilegeEscalation: false
+          name: upgrade-crd
           image: nvcr.io/nvidia/gpu-operator:v25.3.0
           imagePullPolicy: IfNotPresent
           command:
