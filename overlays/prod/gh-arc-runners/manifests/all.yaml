@@ -189,7 +189,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: 7280d831754cfc4c6f54b975909dc3b5b65aa700a7c2cadaf8f61272b7373ce
+    actions.github.com/values-hash: 24f97d52c938653ec8cd6c2b49073ee5caedfc3737aa438efd48466875babd0
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -225,9 +225,7 @@ spec:
         - name: ghcr-imagepull-secret
       securityContext: 
         fsGroup: 1001
-        runAsGroup: 1001
         runAsNonRoot: true
-        runAsUser: 1001
       restartPolicy: Never
       serviceAccountName: homelab-runners-gha-rs-no-permission
       initContainers:
@@ -256,6 +254,9 @@ spec:
             memory: 8Gi
         securityContext: 
           allowPrivilegeEscalation: false
+          runAsGroup: 1001
+          runAsNonRoot: true
+          runAsUser: 1001
         env:
           - name: DOCKER_HOST
             value: unix:///var/run/docker.sock
