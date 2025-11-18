@@ -65,10 +65,14 @@ gha-runner-scale-set:
   # Runner pod template
   template:
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       imagePullSecrets:
       - name: ghcr-imagepull-secret
       containers:
-      - name: runner
+      - securityContext:
+          allowPrivilegeEscalation: false
+        name: runner
         # Custom image with build tools (gcc, g++, make, Bazel support)
         # Built from .github/runners/Dockerfile
         image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
@@ -83,6 +87,8 @@ gha-runner-scale-set:
 
   listenerTemplate:
     spec:
+      securityContext:
+        runAsNonRoot: true #:
       containers:
       - name: listener
         securityContext:
