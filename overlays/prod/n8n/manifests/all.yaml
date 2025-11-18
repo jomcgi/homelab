@@ -116,7 +116,6 @@ spec:
       containers:
         - name: n8n
           securityContext:
-            allowPrivilegeEscalation: false #:
             {}
           image: "n8nio/n8n:1.112.0"
           imagePullPolicy: IfNotPresent
@@ -172,12 +171,8 @@ metadata:
   annotations:
     "helm.sh/hook": test
 spec:
-  securityContext:
-    runAsNonRoot: true #:
   containers:
-    - securityContext:
-        allowPrivilegeEscalation: false
-      name: wget
+    - name: wget
       image: alpine
       command: ['sh', '-c']
       args:

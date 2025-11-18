@@ -24,7 +24,7 @@ cert-manager:
       memory: 128Mi
 
   # Security context
-  securityContext:
+  containerSecurityContext:
     runAsNonRoot: true
     allowPrivilegeEscalation: false
     readOnlyRootFilesystem: true
@@ -44,7 +44,7 @@ cert-manager:
       limits:
         cpu: 100m
         memory: 128Mi
-    securityContext:
+    containerSecurityContext:
       runAsNonRoot: true
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: true
@@ -64,7 +64,7 @@ cert-manager:
       limits:
         cpu: 100m
         memory: 128Mi
-    securityContext:
+    containerSecurityContext:
       runAsNonRoot: true
       allowPrivilegeEscalation: false
       readOnlyRootFilesystem: true

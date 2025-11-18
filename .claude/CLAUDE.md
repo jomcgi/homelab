@@ -335,6 +335,37 @@ We **define errors out of existence** where possible:
   - Example: `lstr -L 2 charts/` to view 2 levels deep
   - Use `-d` for directories only, `--icons` for file icons
 
+### Rendering Manifests
+
+To render Helm manifests and verify changes before committing:
+
+```bash
+format
+```
+
+This command:
+- **Renders all Helm charts** to `overlays/<env>/<service>/manifests/all.yaml`
+- **Validates apko configurations** (container image definitions)
+- **Formats code** (Go, Python, JavaScript, Shell, etc.)
+- **Runs in parallel** using Bazel for fast builds
+- **Caches results** for incremental builds
+
+**When to use:**
+- After modifying Helm chart templates or values
+- Before committing changes (to verify manifests render correctly)
+- To debug ArgoCD sync issues (compare rendered vs. deployed manifests)
+
+**What gets rendered:**
+- All services in `overlays/cluster-critical/`, `overlays/prod/`, and `overlays/dev/`
+- Output saved to `<service>/manifests/all.yaml` for each service
+- Manifests are committed to Git for transparency and review
+
+**Example workflow:**
+1. Modify chart values: `overlays/prod/n8n/values.yaml`
+2. Run `format` to render manifests
+3. Review changes: `git diff overlays/prod/n8n/manifests/all.yaml`
+4. Commit and push - ArgoCD auto-syncs the changes
+
 ### Kubernetes Operations (kubectl)
 
 **CRITICAL: This cluster is managed via GitOps. kubectl is READ-ONLY except for specific cases.**

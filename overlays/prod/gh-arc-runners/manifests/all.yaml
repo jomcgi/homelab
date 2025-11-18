@@ -189,7 +189,7 @@ metadata:
     actions.github.com/scale-set-name: homelab-runners
     actions.github.com/scale-set-namespace: gh-arc-runners
   annotations:
-    actions.github.com/values-hash: f717c37dd975defa854b4f4821595339c6c02933468eba54386c9fdf1d6ff64
+    actions.github.com/values-hash: 5ccc63397b8f670f3e7355de63a9c0418f7b7bca57c91bda50e31453b930a6b
     actions.github.com/cleanup-manager-role-binding: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-manager-role-name: homelab-runners-gha-rs-manager
     actions.github.com/cleanup-no-permission-service-account-name: homelab-runners-gha-rs-no-permission
@@ -201,8 +201,6 @@ spec:
   minRunners: 1
   listenerTemplate:
     spec:
-      securityContext:
-        runAsNonRoot: true #:
       containers:
       - name: listener
         resources:
@@ -218,6 +216,8 @@ spec:
             drop:
             - ALL
           readOnlyRootFilesystem: true
+      securityContext:
+        runAsNonRoot: true
 
   template:
     spec:
@@ -225,6 +225,7 @@ spec:
         - name: ghcr-imagepull-secret
       securityContext: 
         fsGroup: 1001
+        runAsNonRoot: true
       restartPolicy: Never
       serviceAccountName: homelab-runners-gha-rs-no-permission
       initContainers:
@@ -237,9 +238,7 @@ spec:
           - name: dind-externals
             mountPath: /home/runner/tmpDir
       containers:
-      - securityContext:
-          allowPrivilegeEscalation: false
-        name: runner
+      - name: runner
         
         command: 
           - /home/runner/run.sh
@@ -253,6 +252,8 @@ spec:
             cpu: 4000m
             ephemeral-storage: 100Gi
             memory: 8Gi
+        securityContext: 
+          allowPrivilegeEscalation: false
         env:
           - name: DOCKER_HOST
             value: unix:///var/run/docker.sock
@@ -276,7 +277,6 @@ spec:
           - name: DOCKER_GROUP_GID
             value: "123"
         securityContext:
-          allowPrivilegeEscalation: false #:
           privileged: true
         volumeMounts:
           - name: work
