@@ -14,7 +14,9 @@ filegroup(
     srcs = [
         "//overlays/cluster-critical/argocd:render_manifests",
         "//overlays/cluster-critical/argocd-image-updater:render_manifests",
+        "//overlays/cluster-critical/cert-manager:render_manifests",
         "//overlays/cluster-critical/kyverno:render_manifests",
+        "//overlays/cluster-critical/linkerd:render_manifests",
         "//overlays/cluster-critical/longhorn:render_manifests",
         "//overlays/cluster-critical/nvidia-gpu-operator:render_manifests",
         "//overlays/cluster-critical/signoz:render_manifests",
