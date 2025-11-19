@@ -113,7 +113,7 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 			chartFilesRule.SetAttr("visibility", overlays)
 		} else {
 			// Fallback to overlays if no specific overlays found (shouldn't happen normally)
-			chartFilesRule.SetAttr("visibility", []string{"//overlays/..."})
+			chartFilesRule.SetAttr("visibility", []string{"//overlays:__subpackages__"})
 		}
 
 		result.Gen = append(result.Gen, chartFilesRule)
