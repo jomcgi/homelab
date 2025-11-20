@@ -80,6 +80,8 @@ rules:
   resources:
   - gateways
   verbs:
+  - create
+  - delete
   - get
   - list
   - patch
