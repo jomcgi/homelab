@@ -52,12 +52,35 @@ var (
 
 // MockTunnelClient is a mock implementation of the TunnelClientInterface for testing
 type MockTunnelClient struct {
+	// Tunnel management
 	CreateTunnelFunc              func(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error)
 	GetTunnelFunc                 func(ctx context.Context, accountID, tunnelID string) (*cloudflare.Tunnel, error)
 	ListTunnelsFunc               func(ctx context.Context, accountID string) ([]cloudflare.Tunnel, error)
 	DeleteTunnelFunc              func(ctx context.Context, accountID, tunnelID string) error
 	UpdateTunnelConfigurationFunc func(ctx context.Context, accountID, tunnelID string, config cloudflare.TunnelConfiguration) error
 	GetTunnelTokenFunc            func(ctx context.Context, accountID, tunnelID string) (string, error)
+
+	// Published application routes
+	CreatePublishedRouteFunc func(ctx context.Context, accountID, tunnelID string, route cfclient.RouteConfig) error
+	DeletePublishedRouteFunc func(ctx context.Context, accountID, tunnelID, hostname string) error
+	ListPublishedRoutesFunc  func(ctx context.Context, accountID, tunnelID string) ([]cfclient.RouteConfig, error)
+	GetPublishedRouteFunc    func(ctx context.Context, accountID, tunnelID, hostname string) (*cfclient.RouteConfig, error)
+
+	// DNS management
+	CreateTunnelDNSRecordFunc func(ctx context.Context, hostname, tunnelID string) (*cfclient.DNSRecordConfig, error)
+	DeleteDNSRecordFunc       func(ctx context.Context, zoneID, recordID string) error
+	GetDNSRecordByNameFunc    func(ctx context.Context, hostname string) (*cfclient.DNSRecordConfig, error)
+	ListTunnelDNSRecordsFunc  func(ctx context.Context, zoneID, tunnelID string) ([]cfclient.DNSRecordConfig, error)
+	UpdateDNSRecordFunc       func(ctx context.Context, config cfclient.DNSRecordConfig) error
+
+	// Zero Trust Access management
+	CreateAccessApplicationFunc func(ctx context.Context, accountID string, config cfclient.AccessApplicationConfig) (*cfclient.AccessApplicationConfig, error)
+	UpdateAccessApplicationFunc func(ctx context.Context, accountID string, config cfclient.AccessApplicationConfig) error
+	DeleteAccessApplicationFunc func(ctx context.Context, accountID, applicationID string) error
+	GetAccessApplicationFunc    func(ctx context.Context, accountID, applicationID string) (*cfclient.AccessApplicationConfig, error)
+	CreateAccessPolicyFunc      func(ctx context.Context, accountID string, config cfclient.AccessPolicyConfig) (*cfclient.AccessPolicyConfig, error)
+	DeleteAccessPolicyFunc      func(ctx context.Context, accountID, applicationID, policyID string) error
+	ListAccessPoliciesFunc      func(ctx context.Context, accountID, applicationID string) ([]cfclient.AccessPolicyConfig, error)
 }
 
 // Verify that MockTunnelClient implements TunnelClientInterface
@@ -103,6 +126,121 @@ func (m *MockTunnelClient) GetTunnelToken(ctx context.Context, accountID, tunnel
 		return m.GetTunnelTokenFunc(ctx, accountID, tunnelID)
 	}
 	return "mock-tunnel-token", nil
+}
+
+// Published application routes
+func (m *MockTunnelClient) CreatePublishedRoute(ctx context.Context, accountID, tunnelID string, route cfclient.RouteConfig) error {
+	if m.CreatePublishedRouteFunc != nil {
+		return m.CreatePublishedRouteFunc(ctx, accountID, tunnelID, route)
+	}
+	return nil
+}
+
+func (m *MockTunnelClient) DeletePublishedRoute(ctx context.Context, accountID, tunnelID, hostname string) error {
+	if m.DeletePublishedRouteFunc != nil {
+		return m.DeletePublishedRouteFunc(ctx, accountID, tunnelID, hostname)
+	}
+	return nil
+}
+
+func (m *MockTunnelClient) ListPublishedRoutes(ctx context.Context, accountID, tunnelID string) ([]cfclient.RouteConfig, error) {
+	if m.ListPublishedRoutesFunc != nil {
+		return m.ListPublishedRoutesFunc(ctx, accountID, tunnelID)
+	}
+	return []cfclient.RouteConfig{}, nil
+}
+
+func (m *MockTunnelClient) GetPublishedRoute(ctx context.Context, accountID, tunnelID, hostname string) (*cfclient.RouteConfig, error) {
+	if m.GetPublishedRouteFunc != nil {
+		return m.GetPublishedRouteFunc(ctx, accountID, tunnelID, hostname)
+	}
+	return &cfclient.RouteConfig{}, nil
+}
+
+// DNS management
+func (m *MockTunnelClient) CreateTunnelDNSRecord(ctx context.Context, hostname, tunnelID string) (*cfclient.DNSRecordConfig, error) {
+	if m.CreateTunnelDNSRecordFunc != nil {
+		return m.CreateTunnelDNSRecordFunc(ctx, hostname, tunnelID)
+	}
+	return &cfclient.DNSRecordConfig{}, nil
+}
+
+func (m *MockTunnelClient) DeleteDNSRecord(ctx context.Context, zoneID, recordID string) error {
+	if m.DeleteDNSRecordFunc != nil {
+		return m.DeleteDNSRecordFunc(ctx, zoneID, recordID)
+	}
+	return nil
+}
+
+func (m *MockTunnelClient) GetDNSRecordByName(ctx context.Context, hostname string) (*cfclient.DNSRecordConfig, error) {
+	if m.GetDNSRecordByNameFunc != nil {
+		return m.GetDNSRecordByNameFunc(ctx, hostname)
+	}
+	return &cfclient.DNSRecordConfig{}, nil
+}
+
+func (m *MockTunnelClient) ListTunnelDNSRecords(ctx context.Context, zoneID, tunnelID string) ([]cfclient.DNSRecordConfig, error) {
+	if m.ListTunnelDNSRecordsFunc != nil {
+		return m.ListTunnelDNSRecordsFunc(ctx, zoneID, tunnelID)
+	}
+	return []cfclient.DNSRecordConfig{}, nil
+}
+
+func (m *MockTunnelClient) UpdateDNSRecord(ctx context.Context, config cfclient.DNSRecordConfig) error {
+	if m.UpdateDNSRecordFunc != nil {
+		return m.UpdateDNSRecordFunc(ctx, config)
+	}
+	return nil
+}
+
+// Zero Trust Access management
+func (m *MockTunnelClient) CreateAccessApplication(ctx context.Context, accountID string, config cfclient.AccessApplicationConfig) (*cfclient.AccessApplicationConfig, error) {
+	if m.CreateAccessApplicationFunc != nil {
+		return m.CreateAccessApplicationFunc(ctx, accountID, config)
+	}
+	return &cfclient.AccessApplicationConfig{ID: "mock-app-id"}, nil
+}
+
+func (m *MockTunnelClient) UpdateAccessApplication(ctx context.Context, accountID string, config cfclient.AccessApplicationConfig) error {
+	if m.UpdateAccessApplicationFunc != nil {
+		return m.UpdateAccessApplicationFunc(ctx, accountID, config)
+	}
+	return nil
+}
+
+func (m *MockTunnelClient) DeleteAccessApplication(ctx context.Context, accountID, applicationID string) error {
+	if m.DeleteAccessApplicationFunc != nil {
+		return m.DeleteAccessApplicationFunc(ctx, accountID, applicationID)
+	}
+	return nil
+}
+
+func (m *MockTunnelClient) GetAccessApplication(ctx context.Context, accountID, applicationID string) (*cfclient.AccessApplicationConfig, error) {
+	if m.GetAccessApplicationFunc != nil {
+		return m.GetAccessApplicationFunc(ctx, accountID, applicationID)
+	}
+	return &cfclient.AccessApplicationConfig{ID: applicationID}, nil
+}
+
+func (m *MockTunnelClient) CreateAccessPolicy(ctx context.Context, accountID string, config cfclient.AccessPolicyConfig) (*cfclient.AccessPolicyConfig, error) {
+	if m.CreateAccessPolicyFunc != nil {
+		return m.CreateAccessPolicyFunc(ctx, accountID, config)
+	}
+	return &cfclient.AccessPolicyConfig{ID: "mock-policy-id"}, nil
+}
+
+func (m *MockTunnelClient) DeleteAccessPolicy(ctx context.Context, accountID, applicationID, policyID string) error {
+	if m.DeleteAccessPolicyFunc != nil {
+		return m.DeleteAccessPolicyFunc(ctx, accountID, applicationID, policyID)
+	}
+	return nil
+}
+
+func (m *MockTunnelClient) ListAccessPolicies(ctx context.Context, accountID, applicationID string) ([]cfclient.AccessPolicyConfig, error) {
+	if m.ListAccessPoliciesFunc != nil {
+		return m.ListAccessPoliciesFunc(ctx, accountID, applicationID)
+	}
+	return []cfclient.AccessPolicyConfig{}, nil
 }
 
 func TestControllers(t *testing.T) {
