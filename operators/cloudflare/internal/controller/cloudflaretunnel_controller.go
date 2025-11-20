@@ -31,6 +31,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 
@@ -96,6 +97,18 @@ func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Req
 		attribute.String("tunnel.id", tunnel.Status.TunnelID),
 		attribute.String("account.id", tunnel.Spec.AccountID),
 	)
+
+	// Skip reconciliation if spec hasn't changed (generation-based reconciliation)
+	// This prevents unnecessary API calls to Cloudflare on status-only updates
+	if tunnel.Generation == tunnel.Status.ObservedGeneration && tunnel.DeletionTimestamp == nil {
+		log.V(1).Info("Skipping reconciliation - no spec changes detected",
+			"generation", tunnel.Generation,
+			"observedGeneration", tunnel.Status.ObservedGeneration)
+		span.AddEvent("skipped - no spec changes")
+		span.SetStatus(codes.Ok, "no changes")
+		// Still requeue for periodic status checks
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	}
 
 	// Handle deletion
 	if tunnel.DeletionTimestamp != nil {
@@ -443,5 +456,8 @@ func (r *CloudflareTunnelReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tunnelsv1.CloudflareTunnel{}).
 		Named("cloudflaretunnel").
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 3,
+		}).
 		Complete(r)
 }

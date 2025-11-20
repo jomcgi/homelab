@@ -37,6 +37,7 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -960,5 +961,8 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Named("gateway").
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 3,
+		}).
 		Complete(r)
 }
