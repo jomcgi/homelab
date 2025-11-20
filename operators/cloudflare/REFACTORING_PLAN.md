@@ -3,7 +3,7 @@
 
 **Status**: 🚧 Planning
 **Priority**: High
-**Estimated Effort**: 2-3 weeks
+**Estimated Effort**: 5 weeks
 
 ---
 
@@ -123,6 +123,10 @@ type CloudflareTunnelStatus struct {
     // +optional
     Connections []TunnelConnection `json:"connections,omitempty"`
 
+    // DNSRecords tracks DNS records created for this tunnel
+    // +optional
+    DNSRecords []DNSRecord `json:"dnsRecords,omitempty"`
+
     // LastSyncTime is the last time the tunnel was synced with Cloudflare
     // +optional
     LastSyncTime *metav1.Time `json:"lastSyncTime,omitempty"`
@@ -153,6 +157,18 @@ type TunnelConnection struct {
     // ConnectedAt is when the connection was established
     // +optional
     ConnectedAt *metav1.Time `json:"connectedAt,omitempty"`
+}
+
+// DNSRecord represents a DNS record created for the tunnel
+type DNSRecord struct {
+    // Hostname is the DNS hostname
+    Hostname string `json:"hostname"`
+
+    // RecordID is the Cloudflare DNS record ID
+    RecordID string `json:"recordID"`
+
+    // ZoneID is the Cloudflare zone ID
+    ZoneID string `json:"zoneID"`
 }
 ```
 
@@ -195,6 +211,15 @@ func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Req
 // Update rate limiter
 limiter := rate.NewLimiter(rate.Limit(3), 10) // 3 req/sec, burst 10
 
+// CircuitState represents the state of the circuit breaker
+type CircuitState int
+
+const (
+    CircuitClosed CircuitState = iota  // Normal operation
+    CircuitOpen                         // Too many failures, reject requests
+    CircuitHalfOpen                     // Testing if service recovered
+)
+
 // Add circuit breaker
 type CircuitBreaker struct {
     mu            sync.RWMutex
@@ -207,6 +232,50 @@ type CircuitBreaker struct {
     maxFailures   int           // Open after 5 failures
     timeout       time.Duration // Half-open after 30s
     resetAfter    time.Duration // Close after 60s success
+}
+
+// Execute runs the function with circuit breaker protection
+func (cb *CircuitBreaker) Execute(fn func() error) error {
+    cb.mu.Lock()
+    now := time.Now()
+
+    // Check if circuit is open
+    if cb.state == CircuitOpen {
+        if now.Before(cb.openUntil) {
+            cb.mu.Unlock()
+            return fmt.Errorf("circuit breaker is open")
+        }
+        // Timeout elapsed, try half-open
+        cb.state = CircuitHalfOpen
+    }
+
+    cb.mu.Unlock()
+
+    // Execute function
+    err := fn()
+
+    cb.mu.Lock()
+    defer cb.mu.Unlock()
+
+    if err != nil {
+        cb.failures++
+        cb.lastFailTime = now
+
+        // Open circuit if too many failures
+        if cb.failures >= cb.maxFailures {
+            cb.state = CircuitOpen
+            cb.openUntil = now.Add(cb.timeout)
+        }
+        return err
+    }
+
+    // Success - reset failures and close circuit
+    if cb.state == CircuitHalfOpen {
+        cb.state = CircuitClosed
+        cb.failures = 0
+    }
+
+    return nil
 }
 
 // Wrap all Cloudflare API calls with circuit breaker
@@ -267,6 +336,10 @@ gateway.Annotations[GatewayAnnotationTunnelID] = cfTunnel.ID
 
 **After** (refactored):
 ```go
+import (
+    apierrors "k8s.io/apimachinery/pkg/api/errors"
+)
+
 // Create CloudflareTunnel CRD (owned resource)
 tunnelCRD := &tunnelsv1.CloudflareTunnel{
     ObjectMeta: metav1.ObjectMeta{
@@ -284,7 +357,8 @@ tunnelCRD := &tunnelsv1.CloudflareTunnel{
 }
 
 if err := r.Create(ctx, tunnelCRD); err != nil {
-    if !errors.IsAlreadyExists(err) {
+    // Use apierrors (not standard errors package)
+    if !apierrors.IsAlreadyExists(err) {
         return ctrl.Result{}, err
     }
     // Tunnel CRD already exists, fetch it
@@ -293,10 +367,11 @@ if err := r.Create(ctx, tunnelCRD); err != nil {
     }
 }
 
-// Wait for CloudflareTunnel to be ready
+// Wait for CloudflareTunnel to be ready (exponential backoff)
 if !meta.IsStatusConditionTrue(tunnelCRD.Status.Conditions, "Ready") {
-    // Requeue until tunnel is ready
-    return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+    // Use exponential backoff instead of hardcoded delay
+    requeueAfter := r.calculateBackoff(tunnelCRD.Status.ObservedGeneration)
+    return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
 // Update Gateway status with tunnel address
@@ -305,6 +380,15 @@ gateway.Status.Addresses = []gatewayv1.GatewayStatusAddress{
         Type:  ptr.To(gatewayv1.HostnameAddressType),
         Value: fmt.Sprintf("%s.cfargotunnel.com", tunnelCRD.Status.TunnelID),
     },
+}
+
+// Helper: Exponential backoff for requeue (2s, 4s, 8s, ..., max 1min)
+func (r *GatewayReconciler) calculateBackoff(attempt int64) time.Duration {
+    backoff := time.Duration(math.Pow(2, float64(attempt))) * time.Second
+    if backoff > time.Minute {
+        backoff = time.Minute
+    }
+    return backoff
 }
 ```
 
@@ -377,9 +461,10 @@ if err := r.Get(ctx, client.ObjectKey{Name: tunnelName, Namespace: gateway.Names
     return ctrl.Result{}, err
 }
 
-// Wait for tunnel to be ready
+// Wait for tunnel to be ready (exponential backoff)
 if !meta.IsStatusConditionTrue(tunnelCRD.Status.Conditions, "Ready") {
-    return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+    requeueAfter := r.calculateBackoff(tunnelCRD.Status.ObservedGeneration)
+    return ctrl.Result{RequeueAfter: requeueAfter}, nil
 }
 
 // Update CloudflareTunnel spec with ingress rules
@@ -393,6 +478,25 @@ if err := r.Update(ctx, tunnelCRD); err != nil {
 // 1. Update tunnel configuration in Cloudflare
 // 2. Create/update DNS records
 // 3. Update status with DNS record IDs
+
+// Helper: Build ingress rules from HTTPRoute
+func buildIngressRules(route *gatewayv1.HTTPRoute) []tunnelsv1.IngressRule {
+    var rules []tunnelsv1.IngressRule
+
+    for _, hostname := range route.Spec.Hostnames {
+        for _, rule := range route.Spec.Rules {
+            for _, backendRef := range rule.BackendRefs {
+                rules = append(rules, tunnelsv1.IngressRule{
+                    Hostname: string(hostname),
+                    Service:  fmt.Sprintf("http://%s.%s.svc.cluster.local:%d",
+                        backendRef.Name, route.Namespace, *backendRef.Port),
+                })
+            }
+        }
+    }
+
+    return rules
+}
 ```
 
 #### 3.2 CloudflareTunnel Controller DNS Management
@@ -411,6 +515,9 @@ func (r *CloudflareTunnelReconciler) syncDNSRecords(ctx context.Context, tunnel 
     // Extract hostnames from ingress rules
     hostnames := extractHostnames(tunnel.Spec.Ingress)
 
+    // Clear existing DNS records to prevent duplicates on re-reconciliation
+    newDNSRecords := []tunnelsv1.DNSRecord{}
+
     // Create/update DNS records for each hostname
     for _, hostname := range hostnames {
         record, err := r.ensureDNSRecord(ctx, tunnel, hostname)
@@ -418,15 +525,71 @@ func (r *CloudflareTunnelReconciler) syncDNSRecords(ctx context.Context, tunnel 
             return err
         }
 
-        // Store record ID in status
-        tunnel.Status.DNSRecords = append(tunnel.Status.DNSRecords, DNSRecord{
+        // Add to new records list
+        newDNSRecords = append(newDNSRecords, tunnelsv1.DNSRecord{
             Hostname: hostname,
             RecordID: record.ID,
             ZoneID:   record.ZoneID,
         })
     }
 
+    // Replace status with new records (prevents duplicates)
+    tunnel.Status.DNSRecords = newDNSRecords
+
     return nil
+}
+
+// Helper: Extract unique hostnames from ingress rules
+func extractHostnames(ingress []tunnelsv1.IngressRule) []string {
+    hostnameMap := make(map[string]struct{})
+    var hostnames []string
+
+    for _, rule := range ingress {
+        if rule.Hostname != "" {
+            if _, exists := hostnameMap[rule.Hostname]; !exists {
+                hostnameMap[rule.Hostname] = struct{}{}
+                hostnames = append(hostnames, rule.Hostname)
+            }
+        }
+    }
+
+    return hostnames
+}
+
+// Helper: Ensure DNS record exists (create or update)
+func (r *CloudflareTunnelReconciler) ensureDNSRecord(
+    ctx context.Context,
+    tunnel *tunnelsv1.CloudflareTunnel,
+    hostname string,
+) (*cloudflare.DNSRecord, error) {
+    // Determine zone ID from hostname
+    zoneID, err := r.getZoneIDForHostname(ctx, hostname)
+    if err != nil {
+        return nil, fmt.Errorf("failed to get zone ID for %s: %w", hostname, err)
+    }
+
+    // Check if DNS record already exists
+    existingRecord, err := r.findDNSRecord(ctx, zoneID, hostname)
+    if err != nil && !isNotFoundError(err) {
+        return nil, fmt.Errorf("failed to find DNS record: %w", err)
+    }
+
+    tunnelDNS := fmt.Sprintf("%s.cfargotunnel.com", tunnel.Status.TunnelID)
+
+    if existingRecord != nil {
+        // Update existing record
+        existingRecord.Content = tunnelDNS
+        return r.CFClient.UpdateDNSRecord(ctx, zoneID, existingRecord.ID, existingRecord)
+    }
+
+    // Create new record
+    return r.CFClient.CreateDNSRecord(ctx, zoneID, &cloudflare.DNSRecord{
+        Type:    "CNAME",
+        Name:    hostname,
+        Content: tunnelDNS,
+        TTL:     1, // Auto TTL
+        Proxied: ptr.To(true),
+    })
 }
 ```
 
@@ -440,14 +603,14 @@ func (r *CloudflareTunnelReconciler) syncDNSRecords(ctx context.Context, tunnel 
 
 ```go
 // Test tunnel creation with retry
-func TestCloudfllareTunnel_CreateWithRetry(t *testing.T) {
+func TestCloudflareTunnel_CreateWithRetry(t *testing.T) {
     // Mock Cloudflare API with transient failures
     // Verify exponential backoff
     // Verify eventual success
 }
 
 // Test tunnel deletion with cleanup
-func TestCloudfllareTunnel_DeleteWithFinalizer(t *testing.T) {
+func TestCloudflareTunnel_DeleteWithFinalizer(t *testing.T) {
     // Create tunnel
     // Delete CloudflareTunnel CRD
     // Verify Cloudflare tunnel is deleted
@@ -456,7 +619,7 @@ func TestCloudfllareTunnel_DeleteWithFinalizer(t *testing.T) {
 }
 
 // Test status sync
-func TestCloudfllareTunnel_StatusSync(t *testing.T) {
+func TestCloudflareTunnel_StatusSync(t *testing.T) {
     // Create tunnel
     // Verify status reflects Cloudflare state
     // Simulate connection changes
@@ -634,6 +797,26 @@ func (r *CloudflareTunnel) validateIngressRules() field.ErrorList {
     }
 
     return allErrs
+}
+
+// Helper: Validate hostname format (RFC 1123)
+func isValidHostname(hostname string) bool {
+    // Check length (max 253 characters)
+    if len(hostname) > 253 {
+        return false
+    }
+
+    // Check if empty
+    if len(hostname) == 0 {
+        return false
+    }
+
+    // Hostname regex: RFC 1123 compliant
+    // - Labels separated by dots
+    // - Each label: alphanumeric + hyphens (not at start/end)
+    // - Max label length: 63 characters
+    hostnameRegex := regexp.MustCompile(`^([a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)*[a-zA-Z0-9]([a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?$`)
+    return hostnameRegex.MatchString(hostname)
 }
 ```
 
