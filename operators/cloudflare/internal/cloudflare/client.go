@@ -155,7 +155,6 @@ func (c *TunnelClient) CreateTunnel(ctx context.Context, accountID, name string)
 		}
 		return &tunnel, nil
 	})
-
 	if err != nil {
 		span.RecordError(err)
 		if err == gobreaker.ErrOpenState {
