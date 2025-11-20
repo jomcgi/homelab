@@ -14,27 +14,12 @@
       "Bash(go doc:*)",
       "Bash(go mod:*)",
       "Bash(operator-sdk:*)",
-      "Bash(bazel:*)",
-      "Bash(bazelisk:*)",
       "WebFetch(domain:docs.anthropic.com)",
       "WebFetch(domain:argo-cd.readthedocs.io)",
       "WebFetch(domain:sdk.operatorframework.io)",
       "WebFetch(domain:book.kubebuilder.io)",
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:pkg.go.dev)"
-    ]
-  },
-  "hooks": {
-    "SessionStart": [
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash \"$CLAUDE_PROJECT_DIR\"/scripts/claude-session-start.sh"
-          }
-        ]
-      }
     ]
   },
   "cleanupPeriodDays": 60,
