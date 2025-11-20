@@ -25,10 +25,13 @@ import (
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
@@ -305,6 +308,32 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 
 	log.Info("CloudflareTunnel created successfully", "tunnelID", cfTunnel.ID)
 
+	// Create tunnel secret if not already created
+	if tunnel.Status.SecretName == "" {
+		secretName, err := r.ensureTunnelSecret(ctx, tunnel)
+		if err != nil {
+			log.Error(err, "Failed to create tunnel secret")
+			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
+				Type:    tunnelsv1.TypeDegraded,
+				Status:  metav1.ConditionTrue,
+				Reason:  tunnelsv1.ReasonAPIError,
+				Message: fmt.Sprintf("Failed to create tunnel secret: %v", err),
+			})
+			if err := r.Status().Update(ctx, tunnel); err != nil {
+				log.Error(err, "Failed to update tunnel status")
+			}
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+		}
+
+		// Update status with secret name
+		tunnel.Status.SecretName = secretName
+		if err := r.Status().Update(ctx, tunnel); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		log.Info("Tunnel secret created", "secretName", secretName)
+	}
+
 	// Update tunnel configuration if ingress rules are specified
 	if len(tunnel.Spec.Ingress) > 0 {
 		return r.updateTunnelConfiguration(ctx, tunnel)
@@ -426,6 +455,66 @@ func (r *CloudflareTunnelReconciler) updateTunnelConfiguration(ctx context.Conte
 
 	log.Info("Tunnel configuration updated successfully")
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+}
+
+// ensureTunnelSecret creates or updates the Secret containing tunnel credentials
+func (r *CloudflareTunnelReconciler) ensureTunnelSecret(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (string, error) {
+	log := logf.FromContext(ctx)
+
+	// Get tunnel token from Cloudflare
+	tunnelToken, err := r.CFClient.GetTunnelToken(ctx, tunnel.Spec.AccountID, tunnel.Status.TunnelID)
+	if err != nil {
+		return "", fmt.Errorf("failed to get tunnel token: %w", err)
+	}
+
+	// Generate secret name
+	secretName := fmt.Sprintf("%s-tunnel-token", tunnel.Name)
+
+	// Create secret
+	secret := &corev1.Secret{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      secretName,
+			Namespace: tunnel.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         tunnel.APIVersion,
+					Kind:               tunnel.Kind,
+					Name:               tunnel.Name,
+					UID:                tunnel.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
+		},
+		StringData: map[string]string{
+			"tunnel-token": tunnelToken,
+		},
+		Type: corev1.SecretTypeOpaque,
+	}
+
+	// Create or update the secret
+	existingSecret := &corev1.Secret{}
+	err = r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: tunnel.Namespace}, existingSecret)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Create new secret
+			if err := r.Create(ctx, secret); err != nil {
+				return "", fmt.Errorf("failed to create secret: %w", err)
+			}
+			log.Info("Created tunnel secret", "secretName", secretName)
+		} else {
+			return "", fmt.Errorf("failed to get secret: %w", err)
+		}
+	} else {
+		// Update existing secret
+		existingSecret.StringData = secret.StringData
+		if err := r.Update(ctx, existingSecret); err != nil {
+			return "", fmt.Errorf("failed to update secret: %w", err)
+		}
+		log.Info("Updated tunnel secret", "secretName", secretName)
+	}
+
+	return secretName, nil
 }
 
 // handleAPIError handles Cloudflare API errors and determines retry behavior
