@@ -59,6 +59,10 @@ if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
 # Import CI config for BuildBuddy RBE
 try-import %workspace%/.bazelrc.ci
 
+# BuildBuddy Build Event Service (BES)
+build --bes_results_url=https://app.buildbuddy.io/invocation/
+build --bes_backend=grpcs://remote.buildbuddy.io
+
 # API key for BuildBuddy authentication
 build --remote_header=x-buildbuddy-api-key=$BUILDBUDDY_API_KEY
 EOF
