@@ -1,3 +1,3 @@
-9.0.0rc1
-# Pinned to Bazel 9.0.0rc1 (first release candidate)
-# TODO: Update to 9.0.0 when it's released (expected GA by end of 2025)
+
+rolling
+# This selects Bazel 9, which is currently in pre-release as of Sept 2025, expected GA by end of 2025
