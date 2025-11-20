@@ -89,7 +89,20 @@ else
 fi
 
 # =============================================================================
-# 4. Persist environment variables for subsequent commands
+# 4. Generate bazel_env bin tree with development tools
+# =============================================================================
+echo "🔧 Setting up development tools (format, helm, argocd, go, etc.)..."
+
+# Run bazel_env to create bin/ directory with all tools
+# This makes tools like 'format', 'helm', 'argocd' available in PATH
+if timeout 90s "$HOME/.local/bin/bazel" run //tools:bazel_env > /dev/null 2>&1; then
+    echo "✅ Development tools ready in bazel-out/bazel_env-opt/bin/tools/bazel_env/bin"
+else
+    echo "⚠️  Could not generate bazel_env tools (may download on first bazel command)"
+fi
+
+# =============================================================================
+# 5. Persist environment variables for subsequent commands
 # =============================================================================
 if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
     echo "💾 Persisting environment variables..."
@@ -97,22 +110,31 @@ if [[ -n "${CLAUDE_ENV_FILE:-}" ]]; then
     # Add ~/.local/bin to PATH for bazelisk
     echo "export PATH=\"\$HOME/.local/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
 
+    # Add bazel_env bin directory to PATH for development tools
+    echo "export PATH=\"\$CLAUDE_PROJECT_DIR/bazel-out/bazel_env-opt/bin/tools/bazel_env/bin:\$PATH\"" >> "$CLAUDE_ENV_FILE"
+
     # Optional: Set Bazel user home to avoid permission issues
     echo "export BAZEL_USER_HOME=\"\$HOME/.cache/bazel\"" >> "$CLAUDE_ENV_FILE"
+
+    # For gazelle orion extension
+    echo "export ORION_EXTENSIONS_DIR=\"\$CLAUDE_PROJECT_DIR/.aspect/gazelle/\"" >> "$CLAUDE_ENV_FILE"
 
     echo "✅ Environment variables persisted"
 fi
 
 # =============================================================================
-# 5. Display helpful information
+# 6. Display helpful information
 # =============================================================================
 echo ""
 echo "✨ Build environment ready!"
 echo ""
 echo "📋 Available commands:"
-echo "   bazel run //tools/format:format  - Format code and render manifests"
+echo "   format                           - Format code and render manifests (via bazel_env)"
 echo "   bazel build //...                - Build all targets"
 echo "   bazel test //...                 - Run all tests"
+echo ""
+echo "🔧 Available tools in PATH:"
+echo "   helm, argocd, go, python, node, buildozer, kind, etc."
 echo ""
 
 if [[ -n "${BUILDBUDDY_API_KEY:-}" ]]; then
