@@ -11,6 +11,7 @@ metadata:
     argocd-image-updater.argoproj.io/operator.helm.image-name: controllerManager.image.repository
     argocd-image-updater.argoproj.io/operator.helm.image-tag: controllerManager.image.tag
     argocd-image-updater.argoproj.io/write-back-method: argocd
+    argocd-image-updater.argoproj.io/write-back-target: overlays/dev/cloudflare-operator/values.yaml
 spec:
   project: default
   source:
