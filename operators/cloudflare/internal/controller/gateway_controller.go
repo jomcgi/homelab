@@ -19,10 +19,8 @@ package controller
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
-	"github.com/cloudflare/cloudflare-go"
 	appsv1 "k8s.io/api/apps/v1"
 	autoscalingv2 "k8s.io/api/autoscaling/v2"
 	corev1 "k8s.io/api/core/v1"
@@ -37,10 +35,12 @@ import (
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
+	tunnelsv1 "github.com/jomcgi/homelab/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
 	"go.opentelemetry.io/otel/attribute"
@@ -169,52 +169,11 @@ func (r *GatewayReconciler) handleDeletion(ctx context.Context, gateway *gateway
 
 	log.Info("Deleting Gateway", "gateway", gateway.Name, "namespace", gateway.Namespace)
 
-	// Get tunnel ID and account ID from annotations
-	tunnelID := gateway.Annotations[GatewayAnnotationTunnelID]
-	accountID := gateway.Annotations[GatewayAnnotationAccountID]
+	// Note: CloudflareTunnel CRD will be automatically deleted via OwnerReference
+	// This triggers CloudflareTunnel controller's finalizer which deletes the tunnel from Cloudflare
+	// Deployment, HPA, and PDB are also automatically deleted via OwnerReference
 
-	// Delete cloudflared deployment
-	if err := r.deleteCloudflaredDeployment(ctx, gateway); err != nil {
-		log.Error(err, "Failed to delete cloudflared deployment")
-		// Continue with cleanup even if deployment deletion fails
-	}
-
-	// Delete tunnel secret
-	if err := r.deleteTunnelSecret(ctx, gateway); err != nil {
-		log.Error(err, "Failed to delete tunnel secret")
-		// Continue with tunnel deletion even if secret deletion fails
-	}
-
-	// Delete tunnel from Cloudflare if it exists
-	if tunnelID != "" && accountID != "" {
-		// Get Cloudflare client
-		cfClient, err := r.getCloudflareClient(ctx, gateway)
-		if err != nil {
-			log.Error(err, "Failed to get Cloudflare client, skipping tunnel deletion")
-		} else {
-			err := cfClient.DeleteTunnel(ctx, accountID, tunnelID)
-			if err != nil && !cfclient.IsNotFoundError(err) {
-				log.Error(err, "Failed to delete tunnel from Cloudflare")
-
-				// Update status to indicate deletion failure
-				meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
-					Type:               string(gatewayv1.GatewayConditionAccepted),
-					Status:             metav1.ConditionFalse,
-					Reason:             "DeletionFailed",
-					Message:            fmt.Sprintf("Failed to delete tunnel: %v", err),
-					ObservedGeneration: gateway.Generation,
-				})
-				if err := r.Status().Update(ctx, gateway); err != nil {
-					log.Error(err, "Failed to update Gateway status")
-				}
-
-				// Retry deletion after backoff
-				return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-			}
-		}
-	}
-
-	// Remove finalizer
+	// Just remove our finalizer - Kubernetes garbage collection handles the rest
 	controllerutil.RemoveFinalizer(gateway, GatewayFinalizerName)
 	return ctrl.Result{}, r.Update(ctx, gateway)
 }
@@ -233,29 +192,9 @@ func (r *GatewayReconciler) handleCreateOrUpdate(ctx context.Context, gateway *g
 	return r.updateTunnelStatus(ctx, gateway)
 }
 
-// createTunnel creates a new Cloudflare tunnel for the Gateway
+// createTunnel creates a new CloudflareTunnel CRD for the Gateway
 func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1.Gateway) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
-
-	// Get Cloudflare client
-	cfClient, err := r.getCloudflareClient(ctx, gateway)
-	if err != nil {
-		log.Error(err, "Failed to get Cloudflare client")
-
-		meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
-			Type:               string(gatewayv1.GatewayConditionAccepted),
-			Status:             metav1.ConditionFalse,
-			Reason:             "InvalidCredentials",
-			Message:            fmt.Sprintf("Failed to get Cloudflare client: %v", err),
-			ObservedGeneration: gateway.Generation,
-		})
-
-		if err := r.Status().Update(ctx, gateway); err != nil {
-			log.Error(err, "Failed to update Gateway status")
-		}
-
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-	}
 
 	// Get account ID from GatewayClass credentials
 	accountID, err := r.getAccountID(ctx, gateway)
@@ -278,95 +217,78 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 	}
 
 	// Generate namespace-scoped tunnel name for traffic isolation
-	tunnelName := fmt.Sprintf("namespace-%s-tunnel", gateway.Namespace)
-	log.Info("Creating namespace-scoped Cloudflare tunnel", "tunnelName", tunnelName, "accountID", accountID)
+	tunnelName := fmt.Sprintf("%s-gateway-tunnel", gateway.Name)
+	log.Info("Creating CloudflareTunnel CRD", "tunnelName", tunnelName, "accountID", accountID)
 
 	// Set Programmed condition to Unknown (creating)
 	meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
 		Type:               string(gatewayv1.GatewayConditionProgrammed),
 		Status:             metav1.ConditionUnknown,
 		Reason:             "Creating",
-		Message:            "Creating Cloudflare tunnel",
+		Message:            "Creating CloudflareTunnel CRD",
 		ObservedGeneration: gateway.Generation,
 	})
 	if err := r.Status().Update(ctx, gateway); err != nil {
 		return ctrl.Result{}, err
 	}
 
-	// Create tunnel via Cloudflare API
-	cfTunnel, _, err := cfClient.CreateTunnel(ctx, accountID, tunnelName)
+	// Create CloudflareTunnel CRD with OwnerReference for automatic cleanup
+	tunnel, err := r.ensureCloudflaredTunnelCRD(ctx, gateway, tunnelName, accountID)
 	if err != nil {
-		// Check if tunnel already exists
-		if strings.Contains(err.Error(), "(1013)") || strings.Contains(err.Error(), "already have a tunnel with this name") {
-			log.Info("Tunnel name already exists, attempting to adopt existing tunnel", "tunnelName", tunnelName)
-
-			// List all tunnels to find the one with this name
-			tunnels, listErr := cfClient.ListTunnels(ctx, accountID)
-			if listErr != nil {
-				log.Error(listErr, "Failed to list tunnels for adoption")
-				return r.handleAPIError(ctx, gateway, listErr, "Failed to adopt tunnel")
-			}
-
-			// Find the tunnel with the matching name
-			var existingTunnel *cloudflare.Tunnel
-			for i := range tunnels {
-				if tunnels[i].Name == tunnelName {
-					existingTunnel = &tunnels[i]
-					break
-				}
-			}
-
-			if existingTunnel == nil {
-				log.Error(fmt.Errorf("tunnel not found"), "Tunnel name exists but not found in list", "tunnelName", tunnelName)
-				return r.handleAPIError(ctx, gateway, fmt.Errorf("tunnel name exists but not found"), "Tunnel adoption failed")
-			}
-
-			log.Info("Successfully adopted existing tunnel", "tunnelName", tunnelName, "tunnelID", existingTunnel.ID)
-			cfTunnel = existingTunnel
-		} else {
-			log.Error(err, "Failed to create tunnel")
-			return r.handleAPIError(ctx, gateway, err, "Failed to create tunnel")
-		}
+		log.Error(err, "Failed to create CloudflareTunnel CRD")
+		return r.handleAPIError(ctx, gateway, err, "Failed to create CloudflareTunnel CRD")
 	}
 
-	// Store tunnel ID and account ID in annotations
+	// Wait for tunnel to be ready (has TunnelID and SecretName)
+	if !tunnel.Status.Ready || tunnel.Status.TunnelID == "" || tunnel.Status.SecretName == "" {
+		log.Info("Waiting for CloudflareTunnel to be ready",
+			"tunnel", tunnel.Name,
+			"ready", tunnel.Status.Ready,
+			"tunnelID", tunnel.Status.TunnelID,
+			"secretName", tunnel.Status.SecretName,
+		)
+
+		meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
+			Type:               string(gatewayv1.GatewayConditionProgrammed),
+			Status:             metav1.ConditionUnknown,
+			Reason:             "WaitingForTunnel",
+			Message:            "Waiting for CloudflareTunnel to be ready",
+			ObservedGeneration: gateway.Generation,
+		})
+
+		if err := r.Status().Update(ctx, gateway); err != nil {
+			return ctrl.Result{}, err
+		}
+
+		// Requeue to check tunnel status
+		return ctrl.Result{RequeueAfter: 5 * time.Second}, nil
+	}
+
+	// Tunnel is ready - create cloudflared deployment using the tunnel's secret
+	deploymentName, err := r.ensureCloudflaredDeployment(ctx, gateway, tunnel.Status.SecretName)
+	if err != nil {
+		log.Error(err, "Failed to create cloudflared deployment")
+		return r.handleAPIError(ctx, gateway, err, "Failed to create cloudflared deployment")
+	}
+
+	log.Info("Gateway tunnel infrastructure created successfully",
+		"tunnelCRD", tunnel.Name,
+		"tunnelID", tunnel.Status.TunnelID,
+		"secret", tunnel.Status.SecretName,
+		"deployment", deploymentName,
+	)
+
+	// Store tunnel ID in annotations for status updates
 	if gateway.Annotations == nil {
 		gateway.Annotations = make(map[string]string)
 	}
-	gateway.Annotations[GatewayAnnotationTunnelID] = cfTunnel.ID
+	gateway.Annotations[GatewayAnnotationTunnelID] = tunnel.Status.TunnelID
 	gateway.Annotations[GatewayAnnotationAccountID] = accountID
 
 	if err := r.Update(ctx, gateway); err != nil {
 		log.Error(err, "Failed to update Gateway annotations")
 		return ctrl.Result{}, err
 	}
-
-	// Get tunnel token for cloudflared
-	tunnelToken, err := cfClient.GetTunnelToken(ctx, accountID, cfTunnel.ID)
-	if err != nil {
-		log.Error(err, "Failed to get tunnel token")
-		return r.handleAPIError(ctx, gateway, err, "Failed to get tunnel token")
-	}
-
-	// Create tunnel secret
-	secretName, err := r.ensureTunnelSecret(ctx, gateway, cfTunnel.ID, tunnelToken)
-	if err != nil {
-		log.Error(err, "Failed to create tunnel secret")
-		return r.handleAPIError(ctx, gateway, err, "Failed to create tunnel secret")
-	}
-
-	// Create cloudflared deployment
-	deploymentName, err := r.ensureCloudflaredDeployment(ctx, gateway, secretName)
-	if err != nil {
-		log.Error(err, "Failed to create cloudflared deployment")
-		return r.handleAPIError(ctx, gateway, err, "Failed to create cloudflared deployment")
-	}
-
-	log.Info("Cloudflare tunnel created successfully",
-		"tunnelID", cfTunnel.ID,
-		"secret", secretName,
-		"deployment", deploymentName,
-	)
 
 	// Set Gateway status conditions
 	meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
@@ -381,7 +303,7 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 		Type:               string(gatewayv1.GatewayConditionProgrammed),
 		Status:             metav1.ConditionTrue,
 		Reason:             "Programmed",
-		Message:            fmt.Sprintf("Tunnel %s created successfully", cfTunnel.ID),
+		Message:            fmt.Sprintf("Tunnel %s created successfully", tunnel.Status.TunnelID),
 		ObservedGeneration: gateway.Generation,
 	})
 
@@ -389,7 +311,7 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 	gateway.Status.Addresses = []gatewayv1.GatewayStatusAddress{
 		{
 			Type:  ptr.To(gatewayv1.HostnameAddressType),
-			Value: fmt.Sprintf("%s.cfargotunnel.com", cfTunnel.ID),
+			Value: fmt.Sprintf("%s.cfargotunnel.com", tunnel.Status.TunnelID),
 		},
 	}
 
@@ -401,30 +323,70 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 }
 
-// updateTunnelStatus updates the Gateway status from Cloudflare
+// ensureCloudflaredTunnelCRD creates or gets the CloudflareTunnel CRD for the Gateway
+func (r *GatewayReconciler) ensureCloudflaredTunnelCRD(ctx context.Context, gateway *gatewayv1.Gateway, tunnelName, accountID string) (*tunnelsv1.CloudflareTunnel, error) {
+	log := log.FromContext(ctx)
+
+	// Check if tunnel CRD already exists
+	tunnel := &tunnelsv1.CloudflareTunnel{}
+	err := r.Get(ctx, types.NamespacedName{Name: tunnelName, Namespace: gateway.Namespace}, tunnel)
+	if err == nil {
+		// Tunnel already exists
+		log.Info("CloudflareTunnel CRD already exists", "tunnel", tunnelName)
+		return tunnel, nil
+	}
+
+	if !errors.IsNotFound(err) {
+		return nil, fmt.Errorf("failed to get CloudflareTunnel: %w", err)
+	}
+
+	// Create new CloudflareTunnel CRD with OwnerReference
+	tunnel = &tunnelsv1.CloudflareTunnel{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      tunnelName,
+			Namespace: gateway.Namespace,
+			OwnerReferences: []metav1.OwnerReference{
+				{
+					APIVersion:         gatewayv1.GroupVersion.String(),
+					Kind:               "Gateway",
+					Name:               gateway.Name,
+					UID:                gateway.UID,
+					Controller:         ptr.To(true),
+					BlockOwnerDeletion: ptr.To(true),
+				},
+			},
+		},
+		Spec: tunnelsv1.CloudflareTunnelSpec{
+			Name:      tunnelName,
+			AccountID: accountID,
+		},
+	}
+
+	if err := r.Create(ctx, tunnel); err != nil {
+		return nil, fmt.Errorf("failed to create CloudflareTunnel CRD: %w", err)
+	}
+
+	log.Info("Created CloudflareTunnel CRD", "tunnel", tunnelName, "accountID", accountID)
+	return tunnel, nil
+}
+
+// updateTunnelStatus updates the Gateway status from CloudflareTunnel CRD
 func (r *GatewayReconciler) updateTunnelStatus(ctx context.Context, gateway *gatewayv1.Gateway) (ctrl.Result, error) {
 	log := log.FromContext(ctx)
 
 	tunnelID := gateway.Annotations[GatewayAnnotationTunnelID]
-	accountID := gateway.Annotations[GatewayAnnotationAccountID]
-
-	if tunnelID == "" || accountID == "" {
-		log.Error(fmt.Errorf("missing tunnel metadata"), "Tunnel ID or Account ID not found in annotations")
+	if tunnelID == "" {
+		log.Error(fmt.Errorf("missing tunnel ID"), "Tunnel ID not found in annotations")
 		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
 	}
 
-	// Get Cloudflare client
-	cfClient, err := r.getCloudflareClient(ctx, gateway)
+	// Get CloudflareTunnel CRD to check status
+	tunnelName := fmt.Sprintf("%s-gateway-tunnel", gateway.Name)
+	tunnel := &tunnelsv1.CloudflareTunnel{}
+	err := r.Get(ctx, types.NamespacedName{Name: tunnelName, Namespace: gateway.Namespace}, tunnel)
 	if err != nil {
-		log.Error(err, "Failed to get Cloudflare client")
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-	}
-
-	// Get tunnel status from Cloudflare
-	cfTunnel, err := cfClient.GetTunnel(ctx, accountID, tunnelID)
-	if err != nil {
-		if cfclient.IsNotFoundError(err) {
-			log.Info("Tunnel not found in Cloudflare, recreating", "tunnelID", tunnelID)
+		if errors.IsNotFound(err) {
+			log.Info("CloudflareTunnel CRD not found, recreating", "tunnel", tunnelName)
 
 			// Clear tunnel ID to trigger recreation
 			delete(gateway.Annotations, GatewayAnnotationTunnelID)
@@ -433,30 +395,36 @@ func (r *GatewayReconciler) updateTunnelStatus(ctx context.Context, gateway *gat
 				return ctrl.Result{}, err
 			}
 
-			return r.createTunnel(ctx, gateway)
+			return ctrl.Result{Requeue: true}, nil
 		}
 
-		log.Error(err, "Failed to get tunnel status")
-		return r.handleAPIError(ctx, gateway, err, "Failed to get tunnel status")
+		log.Error(err, "Failed to get CloudflareTunnel CRD")
+		return ctrl.Result{RequeueAfter: 30 * time.Second}, err
 	}
 
-	// Update Ready status based on tunnel connections
-	hasConnections := len(cfTunnel.Connections) > 0
-
-	if hasConnections {
+	// Update Gateway status based on tunnel status
+	if tunnel.Status.Active {
 		meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
+			Type:               string(gatewayv1.GatewayConditionProgrammed),
 			Status:             metav1.ConditionTrue,
-			Reason:             "Connected",
-			Message:            fmt.Sprintf("Tunnel has %d active connections", len(cfTunnel.Connections)),
+			Reason:             "Programmed",
+			Message:            "Tunnel is active with connections",
+			ObservedGeneration: gateway.Generation,
+		})
+	} else if tunnel.Status.Ready {
+		meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
+			Type:               string(gatewayv1.GatewayConditionProgrammed),
+			Status:             metav1.ConditionTrue,
+			Reason:             "Programmed",
+			Message:            "Tunnel exists but has no active connections",
 			ObservedGeneration: gateway.Generation,
 		})
 	} else {
 		meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
-			Type:               "Ready",
-			Status:             metav1.ConditionFalse,
-			Reason:             "Disconnected",
-			Message:            "Tunnel exists but has no active connections",
+			Type:               string(gatewayv1.GatewayConditionProgrammed),
+			Status:             metav1.ConditionUnknown,
+			Reason:             "Pending",
+			Message:            "Waiting for tunnel to be ready",
 			ObservedGeneration: gateway.Generation,
 		})
 	}
@@ -955,10 +923,13 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&gatewayv1.Gateway{}).
+		Owns(&tunnelsv1.CloudflareTunnel{}).
 		Owns(&appsv1.Deployment{}).
-		Owns(&corev1.Secret{}).
 		Owns(&autoscalingv2.HorizontalPodAutoscaler{}).
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Named("gateway").
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 3,
+		}).
 		Complete(r)
 }

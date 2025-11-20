@@ -258,7 +258,7 @@ metadata:
     app.kubernetes.io/version: "latest"
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       control-plane: controller-manager
@@ -284,6 +284,7 @@ spec:
       - args:
         - --leader-elect
         - --health-probe-bind-address=:8081
+        - --metrics-bind-address=:8443
         image: "ghcr.io/jomcgi/homelab/operators/cloudflare:2025.11.17.06.04.04-067bea2"
         imagePullPolicy: Always
         name: manager
@@ -310,10 +311,10 @@ spec:
         resources:
           limits:
             cpu: 500m
-            memory: 128Mi
+            memory: 256Mi
           requests:
-            cpu: 10m
-            memory: 64Mi
+            cpu: 100m
+            memory: 128Mi
         env:
         - name: CLOUDFLARE_API_TOKEN
           valueFrom:
