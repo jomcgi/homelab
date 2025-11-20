@@ -68,6 +68,10 @@ type CloudflareTunnelStatus struct {
 	// TunnelID is the Cloudflare tunnel ID
 	TunnelID string `json:"tunnelId,omitempty"`
 
+	// SecretName is the name of the Secret containing the tunnel credentials
+	// +optional
+	SecretName string `json:"secretName,omitempty"`
+
 	// Active indicates if the tunnel has active connections
 	Active bool `json:"active"`
 

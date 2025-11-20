@@ -8,27 +8,27 @@ controllerManager:
   # Container image configuration
   image:
     repository: ghcr.io/jomcgi/cloudflare-operator
-    tag: sha-8687034  # Use SHA tags for precise version tracking
+    tag: sha-8687034 # Use SHA tags for precise version tracking
     pullPolicy: Always
-  
+
   # Resources configuration
   resources:
     limits:
       cpu: 500m
-      memory: 128Mi
+      memory: 256Mi
     requests:
-      cpu: 10m
-      memory: 64Mi
-  
-  # Replica count
-  replicas: 1
-  
+      cpu: 100m
+      memory: 128Mi
+
+  # Replica count (2+ for HA with leader election)
+  replicas: 2
+
   # Pod annotations
   podAnnotations: {}
-  
+
   # Pod labels
   podLabels: {}
-  
+
   # Security context
   securityContext:
     runAsNonRoot: true
@@ -37,23 +37,23 @@ controllerManager:
     allowPrivilegeEscalation: false
     capabilities:
       drop:
-      - "ALL"
-  
+        - "ALL"
+
   # Pod security context
   podSecurityContext:
     runAsNonRoot: true
     seccompProfile:
       type: RuntimeDefault
-  
+
   # Node selector
   nodeSelector: {}
-  
+
   # Tolerations
   tolerations: []
-  
+
   # Affinity
   affinity: {}
-  
+
   # Environment variables
   env:
     # Cloudflare API credentials
@@ -63,7 +63,7 @@ controllerManager:
     cloudflareAccountId:
       secretName: cloudflare-credentials
       secretKey: CLOUDFLARE_ACCOUNT_ID
-  
+
   # Health probe configuration
   healthProbeBindAddress: ":8081"
   livenessProbe:
@@ -72,11 +72,11 @@ controllerManager:
   readinessProbe:
     initialDelaySeconds: 5
     periodSeconds: 10
-  
+
   # Metrics configuration
   metrics:
-    bindAddress: "0"
-  
+    bindAddress: ":8443"
+
   # Enable daemon mode to auto-create default tunnel
   enableDaemon: true
 
@@ -182,4 +182,3 @@ gatewayAPI:
 #     spec:
 #       itemPath: "vaults/Infrastructure/items/Cloudflare-API"
 extraResources: []
-
