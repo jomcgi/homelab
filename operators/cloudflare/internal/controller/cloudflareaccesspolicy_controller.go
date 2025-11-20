@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/controller"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
@@ -601,5 +602,8 @@ func (r *CloudflareAccessPolicyReconciler) SetupWithManager(mgr ctrl.Manager) er
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tunnelsv1.CloudflareAccessPolicy{}).
 		Named("cloudflareaccesspolicy").
+		WithOptions(controller.Options{
+			MaxConcurrentReconciles: 3,
+		}).
 		Complete(r)
 }
