@@ -290,6 +290,13 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 		return ctrl.Result{}, err
 	}
 
+	// CRITICAL: Refetch Gateway to get latest resourceVersion after annotation update
+	// Without this, the status update will conflict with the updated resourceVersion
+	if err := r.Get(ctx, client.ObjectKeyFromObject(gateway), gateway); err != nil {
+		log.Error(err, "Failed to refetch Gateway after annotation update")
+		return ctrl.Result{}, err
+	}
+
 	// Set Gateway status conditions
 	meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
 		Type:               string(gatewayv1.GatewayConditionAccepted),
@@ -319,8 +326,9 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 		return ctrl.Result{}, err
 	}
 
-	// Schedule status check
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	// No requeue needed - controller-runtime will reconcile on actual changes
+	log.Info("Gateway successfully reconciled", "tunnelID", tunnel.Status.TunnelID)
+	return ctrl.Result{}, nil
 }
 
 // ensureCloudflaredTunnelCRD creates or gets the CloudflareTunnel CRD for the Gateway
@@ -433,8 +441,10 @@ func (r *GatewayReconciler) updateTunnelStatus(ctx context.Context, gateway *gat
 		return ctrl.Result{}, err
 	}
 
-	// Schedule next status check
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	// No requeue needed - controller will reconcile when CloudflareTunnel status changes
+	// via watch on CloudflareTunnel resources (owner reference)
+	log.V(1).Info("Gateway status updated from tunnel", "active", tunnel.Status.Active, "ready", tunnel.Status.Ready)
+	return ctrl.Result{}, nil
 }
 
 // getCloudflareClient creates a Cloudflare API client using credentials from the GatewayClass
