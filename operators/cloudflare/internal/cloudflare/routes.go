@@ -19,6 +19,7 @@ package cloudflare
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/cloudflare/cloudflare-go"
 	"go.opentelemetry.io/otel/attribute"
@@ -62,6 +63,7 @@ func (c *TunnelClient) CreatePublishedRoute(ctx context.Context, accountID, tunn
 
 	// Build ingress rules - preserve existing routes and add new one
 	var ingressRules []cloudflare.UnvalidatedIngressRule
+	var existingRoute *cloudflare.UnvalidatedIngressRule
 
 	// Copy existing rules (if any), excluding catch-all
 	if currentConfig.Config.Ingress != nil {
@@ -72,10 +74,17 @@ func (c *TunnelClient) CreatePublishedRoute(ctx context.Context, accountID, tunn
 			}
 			// Skip if this hostname already exists (we're updating it)
 			if rule.Hostname == route.Hostname {
+				existingRoute = &rule
 				continue
 			}
 			ingressRules = append(ingressRules, rule)
 		}
+	}
+
+	// If route already exists with same service, no update needed
+	if existingRoute != nil && existingRoute.Service == route.Service && existingRoute.Path == route.Path {
+		span.SetStatus(codes.Ok, "route already exists with same configuration")
+		return nil
 	}
 
 	// Add the new route
@@ -87,6 +96,11 @@ func (c *TunnelClient) CreatePublishedRoute(ctx context.Context, accountID, tunn
 		newRule.Path = route.Path
 	}
 	ingressRules = append(ingressRules, newRule)
+
+	// Sort ingress rules by hostname for consistent ordering
+	sort.Slice(ingressRules, func(i, j int) bool {
+		return ingressRules[i].Hostname < ingressRules[j].Hostname
+	})
 
 	// Add catch-all rule (required by Cloudflare)
 	ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
@@ -161,6 +175,11 @@ func (c *TunnelClient) DeletePublishedRoute(ctx context.Context, accountID, tunn
 		span.SetStatus(codes.Ok, "route not found (already deleted)")
 		return nil
 	}
+
+	// Sort ingress rules by hostname for consistent ordering
+	sort.Slice(ingressRules, func(i, j int) bool {
+		return ingressRules[i].Hostname < ingressRules[j].Hostname
+	})
 
 	// Add catch-all rule (required by Cloudflare)
 	ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
