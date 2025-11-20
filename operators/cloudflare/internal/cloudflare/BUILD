@@ -13,6 +13,7 @@ go_library(
     deps = [
         "//operators/cloudflare/internal/telemetry",
         "@com_github_cloudflare_cloudflare_go//:cloudflare-go",
+        "@com_github_sony_gobreaker//:gobreaker",
         "@io_opentelemetry_go_otel//attribute",
         "@io_opentelemetry_go_otel//codes",
         "@io_opentelemetry_go_otel_trace//:trace",

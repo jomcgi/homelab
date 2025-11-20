@@ -1,4 +1,5 @@
 # Cloudflare Operator Refactoring Plan
+
 ## Option A: CloudflareTunnel CRD as Internal State Storage
 
 **Status**: 🚧 Planning
@@ -47,6 +48,7 @@ in annotations      (no K8s state!)
 ```
 
 ### Problems:
+
 1. **Annotations are mutable** - Users can delete them, causing orphaned Cloudflare resources
 2. **No K8s state tracking** - Tunnel exists in Cloudflare but not as a K8s resource
 3. **Duplicate API logic** - Multiple controllers call Cloudflare API
@@ -83,6 +85,7 @@ Update routes based on CloudflareTunnel status
 ```
 
 ### Benefits:
+
 ✅ **Protected state** - Status can't be modified by users
 ✅ **Single API interface** - Only CloudflareTunnel controller calls Cloudflare
 ✅ **Automatic cleanup** - K8s garbage collection via OwnerReferences
@@ -95,9 +98,11 @@ Update routes based on CloudflareTunnel status
 ## Implementation Plan
 
 ### Phase 1: Foundation (Week 1)
+
 **Goal**: Enhance CloudflareTunnel CRD and controller to be production-ready
 
 #### 1.1 Update CloudflareTunnel CRD Status
+
 **File**: `api/v1/cloudflaretunnel_types.go`
 
 ```go
@@ -173,6 +178,7 @@ type DNSRecord struct {
 ```
 
 **Status Conditions**:
+
 - `Ready` - Tunnel is created and ready to serve traffic
 - `TunnelProvisioned` - Tunnel exists in Cloudflare
 - `SecretsReady` - Credentials are generated and stored in Secret
@@ -180,9 +186,11 @@ type DNSRecord struct {
 - `Degraded` - Tunnel exists but has issues (no connections, API errors)
 
 #### 1.2 Enhance CloudflareTunnel Controller
+
 **File**: `internal/controller/cloudflaretunnel_controller.go`
 
 **Changes**:
+
 1. **Single responsibility**: Manage Cloudflare tunnel lifecycle only
 2. **Robust error handling**: Circuit breaker, exponential backoff, rate limiting
 3. **Status updates**: Keep CRD status in sync with Cloudflare state
@@ -190,6 +198,7 @@ type DNSRecord struct {
 5. **Observability**: Add metrics, tracing, structured logging
 
 **Key reconciliation logic**:
+
 ```go
 func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
     // 1. Fetch CloudflareTunnel CRD
@@ -204,89 +213,12 @@ func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Req
 }
 ```
 
-#### 1.3 Fix Rate Limiting and Add Circuit Breaker
-**File**: `internal/cloudflare/client.go`
+#### 1.3 Fix Rate Limiting and Add Circuit Breaker (gobreaker)
 
-```go
-// Update rate limiter
-limiter := rate.NewLimiter(rate.Limit(3), 10) // 3 req/sec, burst 10
-
-// CircuitState represents the state of the circuit breaker
-type CircuitState int
-
-const (
-    CircuitClosed CircuitState = iota  // Normal operation
-    CircuitOpen                         // Too many failures, reject requests
-    CircuitHalfOpen                     // Testing if service recovered
-)
-
-// Add circuit breaker
-type CircuitBreaker struct {
-    mu            sync.RWMutex
-    state         CircuitState
-    failures      int
-    lastFailTime  time.Time
-    openUntil     time.Time
-
-    // Config
-    maxFailures   int           // Open after 5 failures
-    timeout       time.Duration // Half-open after 30s
-    resetAfter    time.Duration // Close after 60s success
-}
-
-// Execute runs the function with circuit breaker protection
-func (cb *CircuitBreaker) Execute(fn func() error) error {
-    cb.mu.Lock()
-    now := time.Now()
-
-    // Check if circuit is open
-    if cb.state == CircuitOpen {
-        if now.Before(cb.openUntil) {
-            cb.mu.Unlock()
-            return fmt.Errorf("circuit breaker is open")
-        }
-        // Timeout elapsed, try half-open
-        cb.state = CircuitHalfOpen
-    }
-
-    cb.mu.Unlock()
-
-    // Execute function
-    err := fn()
-
-    cb.mu.Lock()
-    defer cb.mu.Unlock()
-
-    if err != nil {
-        cb.failures++
-        cb.lastFailTime = now
-
-        // Open circuit if too many failures
-        if cb.failures >= cb.maxFailures {
-            cb.state = CircuitOpen
-            cb.openUntil = now.Add(cb.timeout)
-        }
-        return err
-    }
-
-    // Success - reset failures and close circuit
-    if cb.state == CircuitHalfOpen {
-        cb.state = CircuitClosed
-        cb.failures = 0
-    }
-
-    return nil
-}
-
-// Wrap all Cloudflare API calls with circuit breaker
-func (c *TunnelClient) CreateTunnel(ctx context.Context, ...) error {
-    return c.circuitBreaker.Execute(func() error {
-        return c.api.CreateTunnel(ctx, ...)
-    })
-}
-```
+**See Phase 0 above** - This is a critical stability fix that should be implemented FIRST.
 
 #### 1.4 Add Custom Metrics
+
 **File**: `internal/controller/cloudflaretunnel_controller.go`
 
 ```go
@@ -320,12 +252,15 @@ var (
 ---
 
 ### Phase 2: Gateway Controller Refactor (Week 2)
+
 **Goal**: Gateway controller creates CloudflareTunnel CRDs instead of calling Cloudflare API directly
 
 #### 2.1 Update Gateway Controller
+
 **File**: `internal/controller/gateway_controller.go`
 
 **Before** (current):
+
 ```go
 // Direct Cloudflare API call
 cfTunnel, err := cfClient.CreateTunnel(ctx, accountID, tunnelName, secret)
@@ -335,6 +270,7 @@ gateway.Annotations[GatewayAnnotationTunnelID] = cfTunnel.ID
 ```
 
 **After** (refactored):
+
 ```go
 import (
     apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -367,35 +303,27 @@ if err := r.Create(ctx, tunnelCRD); err != nil {
     }
 }
 
-// Wait for CloudflareTunnel to be ready (exponential backoff)
+// Wait for CloudflareTunnel to be ready
 if !meta.IsStatusConditionTrue(tunnelCRD.Status.Conditions, "Ready") {
-    // Use exponential backoff instead of hardcoded delay
-    requeueAfter := r.calculateBackoff(tunnelCRD.Status.ObservedGeneration)
-    return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	// Requeue with fixed backoff - controller-runtime handles smart requeuing
+	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
 // Update Gateway status with tunnel address
 gateway.Status.Addresses = []gatewayv1.GatewayStatusAddress{
-    {
-        Type:  ptr.To(gatewayv1.HostnameAddressType),
-        Value: fmt.Sprintf("%s.cfargotunnel.com", tunnelCRD.Status.TunnelID),
-    },
-}
-
-// Helper: Exponential backoff for requeue (2s, 4s, 8s, ..., max 1min)
-func (r *GatewayReconciler) calculateBackoff(attempt int64) time.Duration {
-    backoff := time.Duration(math.Pow(2, float64(attempt))) * time.Second
-    if backoff > time.Minute {
-        backoff = time.Minute
-    }
-    return backoff
+	{
+		Type:  ptr.To(gatewayv1.HostnameAddressType),
+		Value: fmt.Sprintf("%s.cfargotunnel.com", tunnelCRD.Status.TunnelID),
+	},
 }
 ```
 
 #### 2.2 Split Gateway Controller
+
 **Goal**: Reduce complexity by splitting into focused components
 
 **New structure**:
+
 ```
 internal/controller/
 ├── gateway_controller.go          # Main reconciliation logic (15KB target)
@@ -405,12 +333,14 @@ internal/controller/
 ```
 
 **Benefits**:
+
 - Each file has single responsibility
 - Easier to test independently
 - Clearer code organization
 - Reduced cognitive load
 
 #### 2.3 Add Watch for CloudflareTunnel Status
+
 **File**: `internal/controller/gateway_controller.go`
 
 ```go
@@ -425,6 +355,7 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 ```
 
 **Reconciliation trigger**:
+
 - Gateway changes → Reconcile Gateway
 - CloudflareTunnel status changes → Reconcile owning Gateway
 - Ensures Gateway status stays in sync with tunnel state
@@ -432,12 +363,15 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 ---
 
 ### Phase 3: HTTPRoute Controller Updates (Week 2)
+
 **Goal**: HTTPRoute controller updates CloudflareTunnel configuration instead of calling Cloudflare API
 
 #### 3.1 Update HTTPRoute Controller
+
 **File**: `internal/controller/httproute_controller.go`
 
 **Before** (current):
+
 ```go
 // Direct DNS API call
 record, err := cfClient.CreateDNSRecord(ctx, zoneID, hostname, tunnelID)
@@ -447,6 +381,7 @@ route.Annotations[fmt.Sprintf("dns-record-id.%s", hostname)] = record.ID
 ```
 
 **After** (refactored):
+
 ```go
 // Find owning Gateway
 gateway := &gatewayv1.Gateway{}
@@ -461,10 +396,9 @@ if err := r.Get(ctx, client.ObjectKey{Name: tunnelName, Namespace: gateway.Names
     return ctrl.Result{}, err
 }
 
-// Wait for tunnel to be ready (exponential backoff)
+// Wait for tunnel to be ready
 if !meta.IsStatusConditionTrue(tunnelCRD.Status.Conditions, "Ready") {
-    requeueAfter := r.calculateBackoff(tunnelCRD.Status.ObservedGeneration)
-    return ctrl.Result{RequeueAfter: requeueAfter}, nil
+	return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
 }
 
 // Update CloudflareTunnel spec with ingress rules
@@ -500,9 +434,11 @@ func buildIngressRules(route *gatewayv1.HTTPRoute) []tunnelsv1.IngressRule {
 ```
 
 #### 3.2 CloudflareTunnel Controller DNS Management
+
 **File**: `internal/controller/cloudflaretunnel_controller.go`
 
 **New responsibilities**:
+
 1. **Parse ingress rules** from CloudflareTunnel spec
 2. **Create DNS records** for each hostname
 3. **Update tunnel configuration** in Cloudflare
@@ -558,47 +494,96 @@ func extractHostnames(ingress []tunnelsv1.IngressRule) []string {
 
 // Helper: Ensure DNS record exists (create or update)
 func (r *CloudflareTunnelReconciler) ensureDNSRecord(
-    ctx context.Context,
-    tunnel *tunnelsv1.CloudflareTunnel,
-    hostname string,
+	ctx context.Context,
+	tunnel *tunnelsv1.CloudflareTunnel,
+	hostname string,
 ) (*cloudflare.DNSRecord, error) {
-    // Determine zone ID from hostname
-    zoneID, err := r.getZoneIDForHostname(ctx, hostname)
-    if err != nil {
-        return nil, fmt.Errorf("failed to get zone ID for %s: %w", hostname, err)
-    }
+	// Determine zone ID from hostname
+	zoneID, err := r.getZoneIDForHostname(ctx, hostname)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get zone ID for %s: %w", hostname, err)
+	}
 
-    // Check if DNS record already exists
-    existingRecord, err := r.findDNSRecord(ctx, zoneID, hostname)
-    if err != nil && !isNotFoundError(err) {
-        return nil, fmt.Errorf("failed to find DNS record: %w", err)
-    }
+	// Check if DNS record already exists
+	existingRecord, err := r.findDNSRecord(ctx, zoneID, hostname)
+	if err != nil && !cfclient.IsNotFoundError(err) {
+		return nil, fmt.Errorf("failed to find DNS record: %w", err)
+	}
 
-    tunnelDNS := fmt.Sprintf("%s.cfargotunnel.com", tunnel.Status.TunnelID)
+	tunnelDNS := fmt.Sprintf("%s.cfargotunnel.com", tunnel.Status.TunnelID)
 
-    if existingRecord != nil {
-        // Update existing record
-        existingRecord.Content = tunnelDNS
-        return r.CFClient.UpdateDNSRecord(ctx, zoneID, existingRecord.ID, existingRecord)
-    }
+	if existingRecord != nil {
+		// Update existing record if content changed
+		if existingRecord.Content == tunnelDNS {
+			return existingRecord, nil // No update needed
+		}
+		existingRecord.Content = tunnelDNS
+		return r.CFClient.UpdateDNSRecord(ctx, zoneID, existingRecord.ID, existingRecord)
+	}
 
-    // Create new record
-    return r.CFClient.CreateDNSRecord(ctx, zoneID, &cloudflare.DNSRecord{
-        Type:    "CNAME",
-        Name:    hostname,
-        Content: tunnelDNS,
-        TTL:     1, // Auto TTL
-        Proxied: ptr.To(true),
-    })
+	// Create new record
+	return r.CFClient.CreateDNSRecord(ctx, zoneID, &cloudflare.DNSRecord{
+		Type:    "CNAME",
+		Name:    hostname,
+		Content: tunnelDNS,
+		TTL:     1, // Auto TTL
+		Proxied: ptr.To(true),
+	})
+}
+
+// Helper: Get zone ID from hostname (extracts root domain)
+func (r *CloudflareTunnelReconciler) getZoneIDForHostname(ctx context.Context, hostname string) (string, error) {
+	// Extract root domain from hostname
+	// e.g., "app.jomcgi.dev" -> "jomcgi.dev"
+	parts := strings.Split(hostname, ".")
+	if len(parts) < 2 {
+		return "", fmt.Errorf("invalid hostname: %s", hostname)
+	}
+
+	// Get last two parts as zone name
+	zoneName := strings.Join(parts[len(parts)-2:], ".")
+
+	// List zones and find matching zone
+	zones, err := r.CFClient.ListZones(ctx, zoneName)
+	if err != nil {
+		return "", fmt.Errorf("failed to list zones: %w", err)
+	}
+
+	for _, zone := range zones {
+		if zone.Name == zoneName {
+			return zone.ID, nil
+		}
+	}
+
+	return "", fmt.Errorf("zone not found for hostname %s (zone: %s)", hostname, zoneName)
+}
+
+// Helper: Find DNS record by hostname
+func (r *CloudflareTunnelReconciler) findDNSRecord(ctx context.Context, zoneID, hostname string) (*cloudflare.DNSRecord, error) {
+	// List DNS records for this zone with name filter
+	records, err := r.CFClient.ListDNSRecords(ctx, zoneID, hostname)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, record := range records {
+		if record.Name == hostname || record.Name == hostname+"." {
+			return &record, nil
+		}
+	}
+
+	return nil, cfclient.NotFoundError("DNS record not found")
 }
 ```
 
 ---
 
 ### Phase 4: Testing & Observability (Week 3)
+
 **Goal**: Ensure reliability with comprehensive testing and observability
 
 #### 4.1 Integration Tests
+
 **File**: `internal/controller/cloudflaretunnel_controller_test.go`
 
 ```go
@@ -628,11 +613,13 @@ func TestCloudflareTunnel_StatusSync(t *testing.T) {
 ```
 
 **New test files needed**:
+
 - `internal/controller/gateway_controller_test.go` (currently missing!)
 - `internal/controller/httproute_controller_test.go` (currently missing!)
 - `internal/controller/service_controller_test.go` (currently missing!)
 
 #### 4.2 End-to-End Tests
+
 **File**: `test/e2e/full_flow_test.go` (new)
 
 ```go
@@ -656,6 +643,7 @@ func TestE2E_ServiceAnnotationToLiveTunnel(t *testing.T) {
 ```
 
 #### 4.3 Enable Metrics by Default
+
 **File**: `helm/cloudflare-operator/values.yaml`
 
 ```yaml
@@ -683,11 +671,12 @@ flag.StringVar(&metricsAddr, "metrics-bind-address", ":8443", "...")
 ```
 
 #### 4.4 Enable Leader Election
+
 **File**: `helm/cloudflare-operator/values.yaml`
 
 ```yaml
 controllerManager:
-  replicas: 2  # High availability
+  replicas: 2 # High availability
   leaderElection:
     enabled: true
     leaseDuration: 15s
@@ -705,9 +694,11 @@ flag.BoolVar(&enableLeaderElection, "leader-elect", true, "...")
 ---
 
 ### Phase 5: Admission Webhooks (Week 3)
+
 **Goal**: Validate CRDs before creation to prevent invalid state
 
 #### 5.1 Add Validating Webhook for CloudflareTunnel
+
 **File**: `api/v1/cloudflaretunnel_webhook.go` (new)
 
 ```go
@@ -821,6 +812,7 @@ func isValidHostname(hostname string) bool {
 ```
 
 #### 5.2 Register Webhooks
+
 **File**: `cmd/main.go`
 
 ```go
@@ -841,17 +833,17 @@ kind: ValidatingWebhookConfiguration
 metadata:
   name: cloudflare-operator-validating-webhook
 webhooks:
-- name: validate-cloudflaretunnel.tunnels.cloudflare.io
-  clientConfig:
-    service:
-      name: cloudflare-operator-webhook-service
-      namespace: cloudflare-system
-      path: /validate-tunnels-cloudflare-io-v1-cloudflaretunnel
-  rules:
-  - apiGroups: ["tunnels.cloudflare.io"]
-    apiVersions: ["v1"]
-    operations: ["CREATE", "UPDATE"]
-    resources: ["cloudflaretunnels"]
+  - name: validate-cloudflaretunnel.tunnels.cloudflare.io
+    clientConfig:
+      service:
+        name: cloudflare-operator-webhook-service
+        namespace: cloudflare-system
+        path: /validate-tunnels-cloudflare-io-v1-cloudflaretunnel
+    rules:
+      - apiGroups: ["tunnels.cloudflare.io"]
+        apiVersions: ["v1"]
+        operations: ["CREATE", "UPDATE"]
+        resources: ["cloudflaretunnels"]
 ```
 
 ---
@@ -861,6 +853,7 @@ webhooks:
 ### For Existing Deployments
 
 #### Step 1: Deploy New Operator Version (Backward Compatible)
+
 - New operator supports **both** old and new patterns
 - Gateway controller checks for existing annotations before creating CloudflareTunnel CRD
 - If annotations exist → continue using old pattern (no disruption)
@@ -886,6 +879,7 @@ func (r *GatewayReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ct
 ```
 
 #### Step 2: Migration Tool (Optional)
+
 Create a migration tool to convert existing Gateways:
 
 ```bash
@@ -897,6 +891,7 @@ kubectl cloudflare-migrate gateway my-gateway --namespace prod
 ```
 
 **What it does**:
+
 1. Reads tunnel ID from Gateway annotations
 2. Creates CloudflareTunnel CRD with existing tunnel ID (adopt pattern)
 3. Sets OwnerReference to Gateway
@@ -905,7 +900,9 @@ kubectl cloudflare-migrate gateway my-gateway --namespace prod
 6. Gateway controller will now use new pattern
 
 #### Step 3: Remove Old Pattern (Next Major Version)
+
 After migration period (e.g., 6 months):
+
 1. Remove backward compatibility code
 2. Operator only supports CloudflareTunnel CRD pattern
 3. Fail if Gateway has annotation but no CloudflareTunnel CRD
@@ -915,24 +912,28 @@ After migration period (e.g., 6 months):
 ## Testing Strategy
 
 ### Unit Tests
+
 - **CloudflareTunnel controller**: Create, update, delete, adoption, errors
 - **Gateway controller**: CRD creation, ownership, status updates
 - **HTTPRoute controller**: Ingress rule generation, DNS logic
 - **Cloudflare client**: Rate limiting, circuit breaker, retries
 
 ### Integration Tests
+
 - **Full reconciliation loops** with envtest
 - **Multi-controller coordination** (Service → Gateway → CloudflareTunnel)
 - **Error scenarios**: API failures, rate limits, conflicts
 - **Finalizer cleanup**: Ensure resources are deleted properly
 
 ### End-to-End Tests
+
 - **Real Cloudflare API** (staging environment)
 - **Complete user journey**: Service annotation → live tunnel
 - **DNS propagation**: Verify DNS records are created and resolvable
 - **HTTP traffic**: Send requests through tunnel, verify routing
 
 ### Load Tests
+
 - **High churn**: Create/delete 100 tunnels rapidly
 - **Rate limiting**: Verify circuit breaker activates under load
 - **Leader election**: Kill leader pod, verify failover
@@ -944,16 +945,18 @@ After migration period (e.g., 6 months):
 ### If Issues Are Found
 
 #### Option 1: Feature Flag Rollback
+
 Add feature flag to disable new pattern:
 
 ```yaml
 # helm values
 controllerManager:
   featureGates:
-    UseCloudflareTunnelCRD: false  # Revert to old pattern
+    UseCloudflareTunnelCRD: false # Revert to old pattern
 ```
 
 #### Option 2: Helm Rollback
+
 ```bash
 # Rollback to previous operator version
 helm rollback cloudflare-operator -n cloudflare-system
@@ -963,7 +966,9 @@ kubectl get pods -n cloudflare-system
 ```
 
 #### Option 3: Manual Cleanup
+
 If CloudflareTunnel CRDs cause issues:
+
 ```bash
 # Delete all CloudflareTunnel CRDs (keeps Cloudflare tunnels via finalizer skip)
 kubectl delete cloudflaretunnels --all -A --wait=false
@@ -979,6 +984,7 @@ kubectl patch cloudflaretunnels <name> -p '{"metadata":{"finalizers":null}}' --t
 ## Success Criteria
 
 ### Functional
+
 - ✅ All existing tunnels continue working without disruption
 - ✅ New tunnels are created via CloudflareTunnel CRD
 - ✅ Gateway status reflects tunnel state accurately
@@ -987,6 +993,7 @@ kubectl patch cloudflaretunnels <name> -p '{"metadata":{"finalizers":null}}' --t
 - ✅ HTTPRoute changes update tunnel configuration
 
 ### Reliability
+
 - ✅ Circuit breaker activates during Cloudflare API outages
 - ✅ Rate limiting prevents 429 errors
 - ✅ Leader election enables HA (2 replicas)
@@ -994,6 +1001,7 @@ kubectl patch cloudflaretunnels <name> -p '{"metadata":{"finalizers":null}}' --t
 - ✅ Finalizers ensure no orphaned Cloudflare resources
 
 ### Observability
+
 - ✅ Metrics exported on :8443/metrics
 - ✅ `kubectl get cloudflaretunnels` shows tunnel health
 - ✅ `kubectl describe cloudflaretunnel` shows detailed status
@@ -1001,6 +1009,7 @@ kubectl patch cloudflaretunnels <name> -p '{"metadata":{"finalizers":null}}' --t
 - ✅ OpenTelemetry traces show reconciliation flow
 
 ### Testing
+
 - ✅ Unit tests for all controllers (>80% coverage)
 - ✅ Integration tests for reconciliation loops
 - ✅ E2E test for full user journey
@@ -1010,43 +1019,236 @@ kubectl patch cloudflaretunnels <name> -p '{"metadata":{"finalizers":null}}' --t
 
 ## Timeline
 
-| Week | Phase | Deliverables |
-|------|-------|-------------|
+| Week  | Phase      | Deliverables                                                                                    |
+| ----- | ---------- | ----------------------------------------------------------------------------------------------- |
 | **1** | Foundation | Enhanced CloudflareTunnel CRD, controller improvements, rate limiting, circuit breaker, metrics |
-| **2** | Refactor | Gateway controller refactor, HTTPRoute controller updates, split large controllers |
-| **3** | Polish | Tests (unit, integration, e2e), webhooks, leader election, documentation |
-| **4** | Review | Code review, testing in staging, migration planning |
-| **5** | Deploy | Gradual rollout to production, monitoring, iteration |
+| **2** | Refactor   | Gateway controller refactor, HTTPRoute controller updates, split large controllers              |
+| **3** | Polish     | Tests (unit, integration, e2e), webhooks, leader election, documentation                        |
+| **4** | Review     | Code review, testing in staging, migration planning                                             |
+| **5** | Deploy     | Gradual rollout to production, monitoring, iteration                                            |
 
 ---
 
-## Open Questions
+## Critical Decisions (Made)
 
-1. **Migration timeline**: How long should we support backward compatibility?
-   - **Recommendation**: 2 releases (6 months) before deprecation
+### 1. Rate Limiting: Keep 3 req/sec (CORRECT)
 
-2. **Cloudflare API credentials**: Should we use a shared client or per-namespace secrets?
-   - **Current**: Single API token (limited to account)
-   - **Future**: Per-namespace tokens for multi-tenancy?
+**Source**: [Cloudflare API Rate Limits](https://developers.cloudflare.com/fundamentals/api/reference/limits/)
 
-3. **DNS zone management**: Should CloudflareTunnel controller auto-detect zones?
-   - **Current**: Requires zone ID annotation
-   - **Future**: Lookup zone by hostname?
+- Cloudflare limit: 1200 req/5min = **4 req/sec average**
+- Current code (10 req/sec) **EXCEEDS** limit and will trigger 5-minute bans
+- **Decision**: Use 3 req/sec with burst 10 (safe buffer under 4 req/sec)
 
-4. **Tunnel naming**: Should we allow custom tunnel names or always use `<gateway-name>-tunnel`?
-   - **Current**: Uses Gateway name
-   - **Future**: Allow override via annotation?
+### 2. Circuit Breaker: Use gobreaker library
+
+- Custom implementation has bugs (no failure reset in closed state)
+- **Decision**: Use `github.com/sony/gobreaker` (production-tested)
+
+### 3. CloudflareTunnel CRD: Internal Implementation Detail
+
+- Users interact with Gateway API only (Gateway + HTTPRoute)
+- CloudflareTunnel CRD is operator state management (not user-facing)
+- **Decision**: Document as internal, don't expose in examples
+
+### 4. CRD Migration: Breaking Changes OK
+
+- Not GA, can drop/recreate CRDs
+- **Decision**: No backward compatibility, clean slate approach
+
+### 5. Architecture: Gateway API → CloudflareTunnel CRD → Cloudflare API
+
+```
+User Layer:     Gateway API (Gateway + HTTPRoute)
+                     ↓
+Internal Layer: CloudflareTunnel CRD (operator state)
+                     ↓
+External API:   Cloudflare API (tunnels, DNS, routes)
+```
+
+---
+
+## Deprecated / Removed
+
+The following will be **deleted** in this refactoring:
+
+1. **GATEWAY_API_MIGRATION_PLAN.md** - Already using Gateway API, plan is obsolete
+2. **DESIGN.md** - Describes old Published Routes architecture, not implemented
+3. **Annotation-based state storage** - Replace with CRD status fields
+4. **Direct Cloudflare API calls from Gateway/HTTPRoute controllers** - Use CloudflareTunnel controller only
+5. **Custom circuit breaker** - Replace with gobreaker
+6. **UpdateTunnelConfiguration API** - Not used in current implementation
+
+---
+
+## Open Questions (RESOLVED)
+
+1. ~~**Migration timeline**~~ → **Breaking changes OK, no backward compatibility**
+2. ~~**Cloudflare API credentials**~~ → **Keep single token (works for homelab)**
+3. ~~**DNS zone management**~~ → **Auto-detect from hostname (implement in Phase 2)**
+4. ~~**Tunnel naming**~~ → **Use `<gateway-namespace>-tunnel` (already implemented)**
 
 ---
 
 ## Next Steps
 
-1. **Review this plan** with team/stakeholders
-2. **Get approval** for breaking changes (if any)
-3. **Create feature branch**: `feature/cloudflaretunnel-crd-refactor`
-4. **Start Phase 1**: Update CloudflareTunnel CRD and controller
-5. **Track progress**: Update this document with completion status
+1. ✅ **Review plan** - APPROVED for stability focus
+2. ✅ **Breaking changes** - APPROVED (not GA)
+3. 🚧 **Implementation** - Start with critical fixes:
+   - Phase 0: Fix rate limiting + add gobreaker (immediate stability)
+   - Phase 1: Enhanced CloudflareTunnel CRD
+   - Phase 2: Refactor controllers to use CRD
+   - Phase 3: Testing + observability
+4. 📝 **Track progress** - Update status in this document
 
 ---
 
-**Questions or concerns?** Please raise them before starting implementation!
+## Phase 0: Immediate Stability Fixes (Week 0 - PRIORITY)
+
+**Goal**: Fix critical bugs that cause production instability NOW
+
+### 0.1 Fix Rate Limiting (CRITICAL)
+
+**File**: `internal/cloudflare/client.go`
+
+```go
+// BEFORE (WRONG - exceeds Cloudflare limit!)
+limiter := rate.NewLimiter(rate.Limit(10), 20)
+
+// AFTER (CORRECT - stays under 4 req/sec global limit)
+// Source: https://developers.cloudflare.com/fundamentals/api/reference/limits/
+// Cloudflare: 1200 req/5min = 4 req/sec average
+// We use 3 req/sec to provide safety buffer
+limiter := rate.NewLimiter(rate.Limit(3), 10)
+```
+
+### 0.2 Add Circuit Breaker (gobreaker)
+
+**File**: `internal/cloudflare/client.go`
+
+Add dependency:
+
+```bash
+cd operators/cloudflare
+go get github.com/sony/gobreaker@latest
+```
+
+Update client:
+
+```go
+import "github.com/sony/gobreaker"
+
+type TunnelClient struct {
+    api            *cloudflare.API
+    limiter        *rate.Limiter
+    circuitBreaker *gobreaker.CircuitBreaker
+    tracer         trace.Tracer
+}
+
+func NewTunnelClient(apiToken string) (*TunnelClient, error) {
+    api, err := cloudflare.NewWithAPIToken(apiToken)
+    if err != nil {
+        return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
+    }
+
+    // Rate limiter: 3 req/sec, burst 10 (under Cloudflare's 4 req/sec limit)
+    limiter := rate.NewLimiter(rate.Limit(3), 10)
+
+    // Circuit breaker settings
+    cbSettings := gobreaker.Settings{
+        Name:        "cloudflare-api",
+        MaxRequests: 3,              // Allow 3 requests in half-open state
+        Interval:    60 * time.Second,  // Reset failure count after 60s
+        Timeout:     30 * time.Second,  // Stay open for 30s before half-open
+        ReadyToTrip: func(counts gobreaker.Counts) bool {
+            // Open circuit after 5 consecutive failures
+            return counts.ConsecutiveFailures >= 5
+        },
+        OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
+            log.Printf("Circuit breaker %s: %s -> %s", name, from, to)
+        },
+    }
+
+    return &TunnelClient{
+        api:            api,
+        limiter:        limiter,
+        circuitBreaker: gobreaker.NewCircuitBreaker(cbSettings),
+        tracer:         telemetry.GetTracer("cloudflare-api-client"),
+    }, nil
+}
+
+// Wrap API calls with circuit breaker + rate limiter
+func (c *TunnelClient) CreateTunnel(ctx context.Context, accountID, name string) (*cloudflare.Tunnel, string, error) {
+    ctx, span := c.tracer.Start(ctx, "cloudflare.CreateTunnel",
+        trace.WithAttributes(
+            attribute.String("account.id", accountID),
+            attribute.String("tunnel.name", name),
+        ),
+    )
+    defer span.End()
+
+    // Rate limiting
+    if err := c.limiter.Wait(ctx); err != nil {
+        span.RecordError(err)
+        span.SetStatus(codes.Error, "rate limiter wait failed")
+        return nil, "", err
+    }
+
+    // Circuit breaker
+    result, err := c.circuitBreaker.Execute(func() (interface{}, error) {
+        return c.createTunnelInternal(ctx, accountID, name)
+    })
+
+    if err != nil {
+        span.RecordError(err)
+        span.SetStatus(codes.Error, "cloudflare API call failed")
+        return nil, "", err
+    }
+
+    tunnel := result.(*tunnelWithSecret)
+    span.SetAttributes(attribute.String("tunnel.id", tunnel.Tunnel.ID))
+    span.SetStatus(codes.Ok, "tunnel created")
+    return tunnel.Tunnel, tunnel.Secret, nil
+}
+
+type tunnelWithSecret struct {
+    Tunnel *cloudflare.Tunnel
+    Secret string
+}
+
+func (c *TunnelClient) createTunnelInternal(ctx context.Context, accountID, name string) (*tunnelWithSecret, error) {
+    // Generate tunnel secret
+    secret := make([]byte, 32)
+    if _, err := rand.Read(secret); err != nil {
+        return nil, fmt.Errorf("failed to generate tunnel secret: %w", err)
+    }
+    tunnelSecret := base64.StdEncoding.EncodeToString(secret)
+
+    tunnel, err := c.api.CreateTunnel(ctx, cloudflare.AccountIdentifier(accountID), cloudflare.TunnelCreateParams{
+        Name:   name,
+        Secret: tunnelSecret,
+    })
+    if err != nil {
+        return nil, fmt.Errorf("failed to create tunnel %s: %w", name, err)
+    }
+
+    return &tunnelWithSecret{
+        Tunnel: &tunnel,
+        Secret: tunnelSecret,
+    }, nil
+}
+```
+
+### 0.3 Remove Obsolete Documentation
+
+```bash
+# Delete obsolete files
+rm operators/cloudflare/GATEWAY_API_MIGRATION_PLAN.md
+rm operators/cloudflare/DESIGN.md
+```
+
+**Estimated Time**: 2-4 hours
+**Impact**: Immediate stability improvement, prevents rate limit bans
+
+---
+
+**Questions or concerns?** This is NOT GA, we can move fast and break things!

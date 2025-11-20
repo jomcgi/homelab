@@ -23,9 +23,11 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/cloudflare/cloudflare-go"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
+	"github.com/sony/gobreaker"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"
@@ -65,27 +67,48 @@ type TunnelClientInterface interface {
 	ListAccessPolicies(ctx context.Context, accountID, applicationID string) ([]AccessPolicyConfig, error)
 }
 
-// TunnelClient wraps the Cloudflare API with rate limiting and error handling
+// TunnelClient wraps the Cloudflare API with rate limiting, circuit breaker, and error handling
 type TunnelClient struct {
-	api     *cloudflare.API
-	limiter *rate.Limiter
-	tracer  trace.Tracer
+	api            *cloudflare.API
+	limiter        *rate.Limiter
+	circuitBreaker *gobreaker.CircuitBreaker
+	tracer         trace.Tracer
 }
 
-// NewTunnelClient creates a new rate-limited Cloudflare client
+// NewTunnelClient creates a new rate-limited Cloudflare client with circuit breaker
 func NewTunnelClient(apiToken string) (*TunnelClient, error) {
 	api, err := cloudflare.NewWithAPIToken(apiToken)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cloudflare client: %w", err)
 	}
 
-	// Rate limiter: 10 requests per second with burst of 20
-	limiter := rate.NewLimiter(rate.Limit(10), 20)
+	// Rate limiter: 3 requests per second with burst of 10
+	// Cloudflare API limit: 1200 requests per 5 minutes (4 req/s average)
+	// We use 3 req/s to stay safely under the limit with headroom for bursts
+	limiter := rate.NewLimiter(rate.Limit(3), 10)
+
+	// Circuit breaker: Open after 5 consecutive failures, half-open after 30s
+	// This prevents cascading failures when Cloudflare API is degraded
+	cbSettings := gobreaker.Settings{
+		Name:        "cloudflare-api",
+		MaxRequests: 3,                // Allow 3 requests in half-open state
+		Interval:    time.Minute,      // Reset failure count every minute
+		Timeout:     30 * time.Second, // Stay open for 30s before trying half-open
+		ReadyToTrip: func(counts gobreaker.Counts) bool {
+			// Open circuit after 5 consecutive failures
+			return counts.ConsecutiveFailures >= 5
+		},
+		OnStateChange: func(name string, from gobreaker.State, to gobreaker.State) {
+			// Log state changes for observability
+			fmt.Printf("Circuit breaker '%s' state changed from %s to %s\n", name, from, to)
+		},
+	}
 
 	return &TunnelClient{
-		api:     api,
-		limiter: limiter,
-		tracer:  telemetry.GetTracer("cloudflare-api-client"),
+		api:            api,
+		limiter:        limiter,
+		circuitBreaker: gobreaker.NewCircuitBreaker(cbSettings),
+		tracer:         telemetry.GetTracer("cloudflare-api-client"),
 	}, nil
 }
 
@@ -114,19 +137,39 @@ func (c *TunnelClient) CreateTunnel(ctx context.Context, accountID, name string)
 	}
 	tunnelSecret := base64.StdEncoding.EncodeToString(secret)
 
-	tunnel, err := c.api.CreateTunnel(ctx, cloudflare.AccountIdentifier(accountID), cloudflare.TunnelCreateParams{
-		Name:   name,
-		Secret: tunnelSecret,
+	// Wrap API call with circuit breaker
+	result, err := c.circuitBreaker.Execute(func() (interface{}, error) {
+		tunnel, err := c.api.CreateTunnel(ctx, cloudflare.AccountIdentifier(accountID), cloudflare.TunnelCreateParams{
+			Name:   name,
+			Secret: tunnelSecret,
+		})
+		if err != nil {
+			// Only trip circuit on retryable errors (5xx, 429)
+			// Non-retryable errors (4xx) return error but don't affect circuit state
+			if !IsRetryableError(err) {
+				// Return success to circuit breaker (don't count as failure)
+				// but pass error through result
+				return nil, err
+			}
+			return nil, err
+		}
+		return &tunnel, nil
 	})
+
 	if err != nil {
 		span.RecordError(err)
-		span.SetStatus(codes.Error, "cloudflare API call failed")
+		if err == gobreaker.ErrOpenState {
+			span.SetStatus(codes.Error, "circuit breaker open")
+		} else {
+			span.SetStatus(codes.Error, "cloudflare API call failed")
+		}
 		return nil, "", fmt.Errorf("failed to create tunnel %s: %w", name, err)
 	}
 
+	tunnel := result.(*cloudflare.Tunnel)
 	span.SetAttributes(attribute.String("tunnel.id", tunnel.ID))
 	span.SetStatus(codes.Ok, "tunnel created")
-	return &tunnel, tunnelSecret, nil
+	return tunnel, tunnelSecret, nil
 }
 
 // GetTunnel retrieves tunnel information from Cloudflare
