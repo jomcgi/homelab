@@ -248,16 +248,25 @@ func (r *GatewayReconciler) createTunnel(ctx context.Context, gateway *gatewayv1
 			"secretName", tunnel.Status.SecretName,
 		)
 
-		meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
-			Type:               string(gatewayv1.GatewayConditionProgrammed),
-			Status:             metav1.ConditionUnknown,
-			Reason:             "WaitingForTunnel",
-			Message:            "Waiting for CloudflareTunnel to be ready",
-			ObservedGeneration: gateway.Generation,
-		})
+		// Only update status if condition has actually changed to avoid conflicts
+		existingCondition := meta.FindStatusCondition(gateway.Status.Conditions, string(gatewayv1.GatewayConditionProgrammed))
+		if existingCondition == nil || existingCondition.Reason != "WaitingForTunnel" {
+			meta.SetStatusCondition(&gateway.Status.Conditions, metav1.Condition{
+				Type:               string(gatewayv1.GatewayConditionProgrammed),
+				Status:             metav1.ConditionUnknown,
+				Reason:             "WaitingForTunnel",
+				Message:            "Waiting for CloudflareTunnel to be ready",
+				ObservedGeneration: gateway.Generation,
+			})
 
-		if err := r.Status().Update(ctx, gateway); err != nil {
-			return ctrl.Result{}, err
+			if err := r.Status().Update(ctx, gateway); err != nil {
+				// Conflict errors are expected with multiple replicas; requeue without error
+				if errors.IsConflict(err) {
+					log.V(1).Info("Conflict updating gateway status, will retry")
+					return ctrl.Result{Requeue: true}, nil
+				}
+				return ctrl.Result{}, err
+			}
 		}
 
 		// Requeue to check tunnel status

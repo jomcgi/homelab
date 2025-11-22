@@ -291,6 +291,27 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 	tunnel.Status.TunnelID = cfTunnel.ID
 	tunnel.Status.Ready = true
 
+	// Create tunnel secret before final status update to avoid resourceVersion conflicts
+	// (multiple status updates would cause "object has been modified" errors)
+	if tunnel.Status.SecretName == "" {
+		secretName, err := r.ensureTunnelSecret(ctx, tunnel)
+		if err != nil {
+			log.Error(err, "Failed to create tunnel secret")
+			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
+				Type:    tunnelsv1.TypeDegraded,
+				Status:  metav1.ConditionTrue,
+				Reason:  tunnelsv1.ReasonAPIError,
+				Message: fmt.Sprintf("Failed to create tunnel secret: %v", err),
+			})
+			if statusErr := r.Status().Update(ctx, tunnel); statusErr != nil {
+				log.Error(statusErr, "Failed to update tunnel status")
+			}
+			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+		}
+		tunnel.Status.SecretName = secretName
+		log.Info("Tunnel secret created", "secretName", secretName)
+	}
+
 	// Set ready condition
 	meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
 		Type:    tunnelsv1.TypeReady,
@@ -302,37 +323,12 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 	// Remove progressing condition
 	meta.RemoveStatusCondition(&tunnel.Status.Conditions, tunnelsv1.TypeProgressing)
 
+	// Single status update with TunnelID, Ready, SecretName, and conditions
 	if err := r.Status().Update(ctx, tunnel); err != nil {
 		return ctrl.Result{}, err
 	}
 
 	log.Info("CloudflareTunnel created successfully", "tunnelID", cfTunnel.ID)
-
-	// Create tunnel secret if not already created
-	if tunnel.Status.SecretName == "" {
-		secretName, err := r.ensureTunnelSecret(ctx, tunnel)
-		if err != nil {
-			log.Error(err, "Failed to create tunnel secret")
-			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-				Type:    tunnelsv1.TypeDegraded,
-				Status:  metav1.ConditionTrue,
-				Reason:  tunnelsv1.ReasonAPIError,
-				Message: fmt.Sprintf("Failed to create tunnel secret: %v", err),
-			})
-			if err := r.Status().Update(ctx, tunnel); err != nil {
-				log.Error(err, "Failed to update tunnel status")
-			}
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-		}
-
-		// Update status with secret name
-		tunnel.Status.SecretName = secretName
-		if err := r.Status().Update(ctx, tunnel); err != nil {
-			return ctrl.Result{}, err
-		}
-
-		log.Info("Tunnel secret created", "secretName", secretName)
-	}
 
 	// Update tunnel configuration if ingress rules are specified
 	if len(tunnel.Spec.Ingress) > 0 {
@@ -346,6 +342,18 @@ func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *t
 // updateTunnelStatus updates the tunnel status from Cloudflare
 func (r *CloudflareTunnelReconciler) updateTunnelStatus(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
 	log := logf.FromContext(ctx)
+
+	// Ensure secret exists and SecretName is set (recovery for tunnels created before this fix)
+	if tunnel.Status.SecretName == "" {
+		secretName, err := r.ensureTunnelSecret(ctx, tunnel)
+		if err != nil {
+			log.Error(err, "Failed to create/verify tunnel secret")
+			// Continue anyway - we'll retry on next reconcile
+		} else {
+			tunnel.Status.SecretName = secretName
+			log.Info("Recovered tunnel secret name", "secretName", secretName)
+		}
+	}
 
 	// Get tunnel status from Cloudflare
 	cfTunnel, err := r.CFClient.GetTunnel(ctx, tunnel.Spec.AccountID, tunnel.Status.TunnelID)
