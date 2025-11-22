@@ -939,7 +939,9 @@ func (r *GatewayReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&policyv1.PodDisruptionBudget{}).
 		Named("gateway").
 		WithOptions(controller.Options{
-			MaxConcurrentReconciles: 3,
+			// Use 1 to prevent concurrent reconciliations of the same Gateway
+			// from racing to update status and causing conflict errors
+			MaxConcurrentReconciles: 1,
 		}).
 		Complete(r)
 }
