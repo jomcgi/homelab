@@ -1,0 +1,145 @@
+# cloudflare-tunnel.controlflow.yaml
+# State machine definition for the CloudflareTunnel Kubernetes operator
+apiVersion: controlflow.io/v1alpha1
+kind: StateMachine
+metadata:
+  name: CloudflareTunnel
+  group: cloudflare.io
+  version: v1alpha1
+
+# Maps to Status subresource fields
+status:
+  phaseField: phase
+  conditionsField: conditions
+
+# Reusable field groups to reduce duplication
+fieldGroups:
+  tunnelData:
+    tunnelID: string
+    tunnelToken: string
+
+states:
+  # Initial state (no fields required)
+  - name: Pending
+    initial: true
+
+  # Intermediate states with data
+  - name: CreatingTunnel
+    requeue: 5s
+    fields:
+      tunnelRequestID: string  # Tracks async operation (IDEMPOTENCY KEY)
+
+  - name: TunnelReady
+    fieldGroups: [tunnelData]
+
+  - name: CreatingDNS
+    requeue: 5s
+    fieldGroups: [tunnelData]
+    fields:
+      dnsRequestID: string  # IDEMPOTENCY KEY
+
+  - name: DNSReady
+    fieldGroups: [tunnelData]
+    fields:
+      dnsRecordID: string
+
+  - name: Ready
+    terminal: true
+    fieldGroups: [tunnelData]
+    fields:
+      dnsRecordID: string
+
+  # Error state - can retry from here
+  - name: Failed
+    error: true
+    requeue: 1h
+    fields:
+      lastState: string
+      errorMessage: string
+      retryCount: int
+
+  # Granular deletion states (triggered by deletionTimestamp)
+  - name: DeletingDNS
+    deletion: true
+    fields:
+      tunnelID: string
+      dnsRecordID: string
+
+  - name: DeletingTunnel
+    deletion: true
+    fields:
+      tunnelID: string
+
+  - name: Deleted
+    terminal: true
+    deletion: true
+
+transitions:
+  # Happy path - NOTE: params are REQUIRED ARGUMENTS (idempotency keys)
+  - from: Pending
+    to: CreatingTunnel
+    action: StartTunnelCreation
+    params:
+      - tunnelRequestID: string
+
+  - from: CreatingTunnel
+    to: TunnelReady
+    action: TunnelCreated
+    params:
+      - tunnelID: string
+      - tunnelToken: string
+
+  - from: TunnelReady
+    to: CreatingDNS
+    action: StartDNSCreation
+    params:
+      - dnsRequestID: string
+
+  - from: CreatingDNS
+    to: DNSReady
+    action: DNSCreated
+    params:
+      - dnsRecordID: string
+
+  - from: DNSReady
+    to: Ready
+    action: MarkReady
+
+  # Error transitions (from any non-terminal state)
+  - from: ["CreatingTunnel", "TunnelReady", "CreatingDNS", "DNSReady"]
+    to: Failed
+    action: MarkFailed
+    params:
+      - errorMessage: string
+
+  # Retry from failed (guarded - returns nil if guard fails)
+  - from: Failed
+    to: Pending
+    action: Retry
+    guard: retryable
+
+  # Granular deletion transitions
+  - from: ["Ready", "Failed"]
+    to: DeletingDNS
+    action: StartDeletion
+    trigger: deletionTimestamp
+
+  - from: DeletingDNS
+    to: DeletingTunnel
+    action: DNSDeleted
+
+  - from: DeletingTunnel
+    to: Deleted
+    action: TunnelDeleted
+
+# Guards are referenced by name, implemented in Go
+guards:
+  retryable:
+    description: "Retry count < 3 and error is transient"
+    maxRetries: 3
+
+# Observability hooks
+observability:
+  onTransition: true
+  otelTracing: true
+  embedDiagram: true
