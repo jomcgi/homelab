@@ -1,6 +1,6 @@
-# cloudflare-tunnel.controlflow.yaml
+# cloudflare-tunnel.sextant.yaml
 # State machine definition for the CloudflareTunnel Kubernetes operator
-apiVersion: controlflow.io/v1alpha1
+apiVersion: sextant.io/v1alpha1
 kind: StateMachine
 metadata:
   name: CloudflareTunnel

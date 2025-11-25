@@ -1,4 +1,4 @@
-module github.com/jomcgi/homelab/operator-controlflow
+module github.com/jomcgi/homelab/sextant
 
 go 1.23.1
 

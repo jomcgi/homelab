@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/schema"
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/xstate"
+	"github.com/jomcgi/homelab/sextant/pkg/schema"
+	"github.com/jomcgi/homelab/sextant/pkg/xstate"
 )
 
 var (
@@ -17,7 +17,7 @@ var (
 )
 
 var validateCmd = &cobra.Command{
-	Use:   "validate <file.controlflow.yaml>",
+	Use:   "validate <file.sextant.yaml>",
 	Short: "Validate a state machine YAML definition",
 	Long: `Validate a state machine YAML definition and optionally output XState JSON.
 
@@ -26,13 +26,13 @@ checks for reserved words, structural integrity, and consistency.
 
 Examples:
   # Validate a state machine definition
-  controlflow validate myresource.controlflow.yaml
+  sextant validate myresource.sextant.yaml
 
   # Validate and output XState JSON
-  controlflow validate myresource.controlflow.yaml --xstate
+  sextant validate myresource.sextant.yaml --xstate
 
   # Validate and save XState JSON to a file
-  controlflow validate myresource.controlflow.yaml --xstate -o myresource.xstate.json`,
+  sextant validate myresource.sextant.yaml --xstate -o myresource.xstate.json`,
 	Args: cobra.ExactArgs(1),
 	RunE: runValidate,
 }

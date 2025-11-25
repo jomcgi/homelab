@@ -3,7 +3,7 @@ package xstate
 import (
 	"strings"
 
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/schema"
+	"github.com/jomcgi/homelab/sextant/pkg/schema"
 )
 
 // Convert transforms a schema.StateMachine into an XState Machine.

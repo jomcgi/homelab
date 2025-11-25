@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/schema"
+	"github.com/jomcgi/homelab/sextant/pkg/schema"
 )
 
 //go:embed templates/*.tmpl

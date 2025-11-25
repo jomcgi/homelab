@@ -1,11 +1,11 @@
-// Package main provides the controlflow CLI tool for generating type-safe
+// Package main provides the sextant CLI tool for generating type-safe
 // state machines for Kubernetes operators.
 package main
 
 import (
 	"os"
 
-	"github.com/jomcgi/homelab/operator-controlflow/cmd/controlflow/cmd"
+	"github.com/jomcgi/homelab/sextant/cmd/sextant/cmd"
 )
 
 func main() {

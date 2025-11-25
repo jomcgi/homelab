@@ -7,8 +7,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/codegen"
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/schema"
+	"github.com/jomcgi/homelab/sextant/pkg/codegen"
+	"github.com/jomcgi/homelab/sextant/pkg/schema"
 )
 
 var (
@@ -19,7 +19,7 @@ var (
 )
 
 var generateCmd = &cobra.Command{
-	Use:   "generate <file.controlflow.yaml>",
+	Use:   "generate <file.sextant.yaml>",
 	Short: "Generate Go code from a state machine definition",
 	Long: `Generate type-safe Go code from a state machine YAML definition.
 
@@ -34,13 +34,13 @@ This command generates:
 
 Examples:
   # Generate code to ./pkg/statemachine
-  controlflow generate myresource.controlflow.yaml -o ./pkg/statemachine
+  sextant generate myresource.sextant.yaml -o ./pkg/statemachine
 
   # Generate with custom package name
-  controlflow generate myresource.controlflow.yaml -o ./internal/sm --package statemachine
+  sextant generate myresource.sextant.yaml -o ./internal/sm --package statemachine
 
   # Generate with API import path
-  controlflow generate myresource.controlflow.yaml -o ./pkg/sm --api github.com/myorg/operator/api/v1`,
+  sextant generate myresource.sextant.yaml -o ./pkg/sm --api github.com/myorg/operator/api/v1`,
 	Args: cobra.ExactArgs(1),
 	RunE: runGenerate,
 }

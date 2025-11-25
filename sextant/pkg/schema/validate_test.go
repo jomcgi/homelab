@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/jomcgi/homelab/operator-controlflow/pkg/schema"
+	"github.com/jomcgi/homelab/sextant/pkg/schema"
 )
 
 func TestParse(t *testing.T) {

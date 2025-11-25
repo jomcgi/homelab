@@ -1,4 +1,4 @@
-// Package cmd provides the CLI commands for the controlflow tool.
+// Package cmd provides the CLI commands for the sextant tool.
 package cmd
 
 import (
@@ -9,10 +9,13 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "controlflow",
+	Use:   "sextant",
 	Short: "Generate type-safe state machines for Kubernetes operators",
-	Long: `controlflow is a code generation tool that produces type-safe state machines
+	Long: `sextant is a code generation tool that produces type-safe state machines
 for Kubernetes operators from a YAML DSL.
+
+Named after the nautical navigation instrument, sextant helps you chart a
+reliable course through the complexity of Kubernetes operator state management.
 
 Key features:
   - Compiler-enforced state transitions
@@ -23,8 +26,8 @@ Key features:
 
 Example workflow:
   1. Define your state machine in YAML
-  2. Validate the definition: controlflow validate myresource.controlflow.yaml
-  3. Generate Go code: controlflow generate myresource.controlflow.yaml -o ./pkg/statemachine
+  2. Validate the definition: sextant validate myresource.sextant.yaml
+  3. Generate Go code: sextant generate myresource.sextant.yaml -o ./pkg/statemachine
   4. Use the generated code in your controller`,
 	SilenceUsage:  true,
 	SilenceErrors: true,
