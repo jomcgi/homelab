@@ -396,6 +396,27 @@ func setupDay(year, day int, lang string) error {
 		return err
 	}
 
+	// Create __init__.py for Python package structure
+	initPath := filepath.Join(dayDir, "__init__.py")
+	if _, err := os.Stat(initPath); os.IsNotExist(err) {
+		if err := os.WriteFile(initPath, []byte(""), 0o644); err != nil {
+			return err
+		}
+	}
+
+	// Create empty answers.json
+	answersPath := filepath.Join(dayDir, "answers.json")
+	if _, err := os.Stat(answersPath); os.IsNotExist(err) {
+		if err := os.WriteFile(answersPath, []byte("{}\n"), 0o644); err != nil {
+			return err
+		}
+	}
+
+	// Generate day BUILD file
+	if err := generateDayBuild(dayDir, year, day); err != nil {
+		return fmt.Errorf("failed to generate day BUILD: %w", err)
+	}
+
 	// Create templates
 	switch lang {
 	case "go":
@@ -414,6 +435,12 @@ func setupDay(year, day int, lang string) error {
 			return err
 		}
 	}
+
+	// Generate test files
+	if err := generateTests(dayDir, year, day); err != nil {
+		return fmt.Errorf("failed to generate tests: %w", err)
+	}
+
 	fmt.Printf("Created solution template in %s\n", dayDir)
 
 	// Download input and puzzle if available
@@ -488,6 +515,11 @@ func createGoTemplate(dayDir string, year, day int) error {
 		return err
 	}
 
+	// Generate BUILD file
+	if err := generateGoBuild(dayDir, year, day); err != nil {
+		return fmt.Errorf("failed to generate go BUILD: %w", err)
+	}
+
 	goPath := filepath.Join(goDir, "solution.go")
 	if _, err := os.Stat(goPath); err == nil {
 		return nil // File exists, don't overwrite
@@ -541,6 +573,11 @@ func createPythonTemplate(dayDir string, year, day int) error {
 		if err := os.WriteFile(initPath, []byte(""), 0o644); err != nil {
 			return err
 		}
+	}
+
+	// Generate BUILD file
+	if err := generatePythonBuild(dayDir, year, day); err != nil {
+		return fmt.Errorf("failed to generate python BUILD: %w", err)
 	}
 
 	pyPath := filepath.Join(pyDir, "solution.py")
@@ -731,6 +768,119 @@ func generateTests(dayDir string, year, day int) error {
 	}
 
 	return nil
+}
+
+// generateDayBuild creates the day's BUILD file with exports_files
+func generateDayBuild(dayDir string, year, day int) error {
+	buildPath := filepath.Join(dayDir, "BUILD")
+	if _, err := os.Stat(buildPath); err == nil {
+		return nil // File exists, don't overwrite
+	}
+
+	template := `load("@aspect_rules_py//py:defs.bzl", "py_library")
+
+py_library(
+    name = "day%02d",
+    srcs = ["__init__.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+exports_files(
+    [
+        "input.txt",
+        "answers.json",
+    ],
+    visibility = ["//:__subpackages__"],
+)
+`
+	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, day)), 0o644)
+}
+
+// generateGoBuild creates the go/BUILD file
+func generateGoBuild(dayDir string, year, day int) error {
+	goDir := filepath.Join(dayDir, "go")
+	buildPath := filepath.Join(goDir, "BUILD")
+	if _, err := os.Stat(buildPath); err == nil {
+		return nil // File exists, don't overwrite
+	}
+
+	dataPath := fmt.Sprintf("//advent_of_code/solutions/year%d/day%02d", year, day)
+	importPath := fmt.Sprintf("github.com/jomcgi/homelab/advent_of_code/solutions/year%d/day%02d/go", year, day)
+
+	template := `load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "go_lib",
+    srcs = ["solution.go"],
+    importpath = "%s",
+    visibility = ["//visibility:private"],
+    deps = ["//advent_of_code/pkg/aoc"],
+)
+
+go_binary(
+    name = "go",
+    embed = [":go_lib"],
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "go_test",
+    srcs = ["solution_test.go"],
+    data = [
+        "%s:answers.json",  # keep
+        "%s:input.txt",  # keep
+    ],
+    embed = [":go_lib"],
+    deps = ["//advent_of_code/pkg/aoc"],
+)
+`
+	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, importPath, dataPath, dataPath)), 0o644)
+}
+
+// generatePythonBuild creates the python/BUILD file
+func generatePythonBuild(dayDir string, year, day int) error {
+	pyDir := filepath.Join(dayDir, "python")
+	buildPath := filepath.Join(pyDir, "BUILD")
+	if _, err := os.Stat(buildPath); err == nil {
+		return nil // File exists, don't overwrite
+	}
+
+	dataPath := fmt.Sprintf("//advent_of_code/solutions/year%d/day%02d", year, day)
+
+	template := `load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("//tools/pytest:defs.bzl", "py_test")
+
+py_binary(
+    name = "solution",
+    srcs = ["solution.py"],
+    visibility = ["//:__subpackages__"],
+    deps = ["//advent_of_code/python/aoc"],
+)
+
+py_library(
+    name = "python",
+    srcs = [
+        "__init__.py",
+        "solution.py",
+    ],
+    visibility = ["//:__subpackages__"],
+    deps = ["//advent_of_code/python/aoc"],
+)
+
+py_test(
+    name = "solution_test",
+    srcs = ["solution_test.py"],
+    data = [
+        "%s:answers.json",  # keep
+        "%s:input.txt",  # keep
+    ],
+    deps = [
+        ":python",
+        "@pip//pytest",
+    ],
+)
+`
+	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, dataPath, dataPath)), 0o644)
 }
 
 // ensurePythonPackage creates __init__.py files up to advent_of_code/
