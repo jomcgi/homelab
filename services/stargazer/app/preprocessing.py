@@ -36,9 +36,15 @@ def georeference_raster(settings: Settings) -> Path:
     subprocess.run(
         [
             "gdal_translate",
-            "-a_srs", "EPSG:4326",
-            "-a_ullr", str(eb.west), str(eb.north), str(eb.east), str(eb.south),
-            "-expand", "rgb",  # Expand paletted image to 3-band RGB
+            "-a_srs",
+            "EPSG:4326",
+            "-a_ullr",
+            str(eb.west),
+            str(eb.north),
+            str(eb.east),
+            str(eb.south),
+            "-expand",
+            "rgb",  # Expand paletted image to 3-band RGB
             str(input_png),
             str(europe_tif),
         ],
@@ -51,7 +57,11 @@ def georeference_raster(settings: Settings) -> Path:
     subprocess.run(
         [
             "gdalwarp",
-            "-te", str(b.west), str(b.south), str(b.east), str(b.north),
+            "-te",
+            str(b.west),
+            str(b.south),
+            str(b.east),
+            str(b.north),
             str(europe_tif),
             str(scotland_tif),
         ],
@@ -106,10 +116,12 @@ def extract_palette(settings: Settings) -> Path:
         y = int((i + 0.5) * height / num_zones)
         x = width // 2
         r, g, b = img.getpixel((x, y))[:3]
-        palette.append({
-            "rgb": [r, g, b],
-            **zone_def,
-        })
+        palette.append(
+            {
+                "rgb": [r, g, b],
+                **zone_def,
+            }
+        )
 
     with open(output_path, "w") as f:
         json.dump(palette, f, indent=2)
@@ -139,10 +151,12 @@ def extract_roads(settings: Settings) -> Path:
     logger.info("Filtering roads from OSM data...")
     subprocess.run(
         [
-            "osmium", "tags-filter",
+            "osmium",
+            "tags-filter",
             str(input_pbf),
             "w/highway=motorway,trunk,primary,secondary,tertiary,unclassified,residential,track",
-            "-o", str(filtered_pbf),
+            "-o",
+            str(filtered_pbf),
             "--overwrite",
         ],
         check=True,
@@ -153,7 +167,8 @@ def extract_roads(settings: Settings) -> Path:
     subprocess.run(
         [
             "ogr2ogr",
-            "-f", "GeoJSON",
+            "-f",
+            "GeoJSON",
             str(output_geojson),
             str(filtered_pbf),
             "lines",

@@ -3,9 +3,11 @@
 load("@aspect_rules_py//py:defs.bzl", _py_test = "py_test")
 
 def py_test(name, deps = [], **kwargs):
+    # Note: Don't add @pip//pytest here - Gazelle adds it from `import pytest` in test files.
+    # Adding it here causes duplicate dep errors.
     _py_test(
         name = name,
         pytest_main = True,
-        deps = deps + ["@pip//pytest"],
+        deps = deps,
         **kwargs
     )

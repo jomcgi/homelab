@@ -1,0 +1,197 @@
+---
+# Source: stargazer/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: stargazer
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: stargazer/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stargazer
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  data-dir: "/data"
+  # Geographic bounds
+  bounds-north: "60.86"
+  bounds-south: "54.63"
+  bounds-west: "-8.65"
+  bounds-east: "-0.76"
+  # Processing parameters
+  grid-spacing-m: "5000"
+  road-buffer-m: "1000"
+  color-tolerance: "15"
+  min-astronomy-score: "60"
+  forecast-hours: "72"
+  # MET Norway API
+  met-norway-user-agent: "stargazer/1.0 github.com/jomcgi/homelab"
+  met-norway-rate-limit: "15"
+  # OpenTelemetry
+  otel-enabled: "true"
+  otel-service-name: "stargazer"
+---
+# Source: stargazer/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: stargazer-data
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 5Gi
+---
+# Source: stargazer/templates/cronjob.yaml
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: stargazer
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  schedule: "0 */6 * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 3
+      activeDeadlineSeconds: 3600
+      template:
+        metadata:
+          annotations:
+            checksum/config: 0c8163bd14b94dfe2b65737ab85a1cfdd7a2f4ef71cf06c9dd9a1d1bebe45750
+          labels:
+            app.kubernetes.io/name: stargazer
+            app.kubernetes.io/instance: stargazer
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: stargazer
+          securityContext:
+            fsGroup: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            runAsUser: 65532
+          containers:
+          - name: stargazer
+            securityContext:
+              allowPrivilegeEscalation: false
+              capabilities:
+                drop:
+                - ALL
+              readOnlyRootFilesystem: false
+              runAsNonRoot: true
+              runAsUser: 65532
+              seccompProfile:
+                type: RuntimeDefault
+            image: "ghcr.io/jomcgi/homelab/services/stargazer:latest"
+            imagePullPolicy: IfNotPresent
+            env:
+            - name: DATA_DIR
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: data-dir
+            - name: BOUNDS_NORTH
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: bounds-north
+            - name: BOUNDS_SOUTH
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: bounds-south
+            - name: BOUNDS_WEST
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: bounds-west
+            - name: BOUNDS_EAST
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: bounds-east
+            - name: GRID_SPACING_M
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: grid-spacing-m
+            - name: ROAD_BUFFER_M
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: road-buffer-m
+            - name: COLOR_TOLERANCE
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: color-tolerance
+            - name: MIN_ASTRONOMY_SCORE
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: min-astronomy-score
+            - name: FORECAST_HOURS
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: forecast-hours
+            - name: MET_NORWAY_USER_AGENT
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: met-norway-user-agent
+            - name: MET_NORWAY_RATE_LIMIT
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: met-norway-rate-limit
+            - name: OTEL_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: otel-enabled
+            - name: OTEL_SERVICE_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: stargazer
+                  key: otel-service-name
+            volumeMounts:
+            - name: data
+              mountPath: /data
+            resources:
+              limits:
+                cpu: 2000m
+                memory: 4Gi
+              requests:
+                cpu: 500m
+                memory: 1Gi
+          volumes:
+          - name: data
+            persistentVolumeClaim:
+              claimName: stargazer-data
