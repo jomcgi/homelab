@@ -1,0 +1,94 @@
+# CronJob schedule (every 6 hours)
+schedule: "0 */6 * * *"
+
+# Job configuration
+backoffLimit: 3
+activeDeadlineSeconds: 3600  # 1 hour timeout
+successfulJobsHistoryLimit: 3
+failedJobsHistoryLimit: 3
+concurrencyPolicy: Forbid  # Don't run if previous job still running
+
+image:
+  repository: ghcr.io/jomcgi/homelab/services/stargazer
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  runAsGroup: 65532
+  fsGroup: 65532
+
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false  # Needs write for /data
+  runAsNonRoot: true
+  runAsUser: 65532
+  seccompProfile:
+    type: RuntimeDefault
+
+# Resource limits for processing geospatial data
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# Persistent storage for data
+persistence:
+  enabled: true
+  storageClass: longhorn
+  accessMode: ReadWriteOnce
+  size: 5Gi
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# Application configuration
+config:
+  # Data directory (must match PVC mount)
+  dataDir: "/data"
+
+  # Geographic bounds for Scotland
+  bounds:
+    north: 60.86   # Shetland
+    south: 54.63   # Scottish Borders
+    west: -8.65    # Outer Hebrides
+    east: -0.76    # Aberdeenshire coast
+
+  # Processing parameters
+  gridSpacingM: 5000     # 5km grid
+  roadBufferM: 1000      # 1km from roads
+  colorTolerance: 15     # RGB matching
+  minAstronomyScore: 60  # Weather score threshold
+  forecastHours: 72      # Look ahead
+
+  # MET Norway API
+  metNorwayUserAgent: "stargazer/1.0 github.com/jomcgi/homelab"
+  metNorwayRateLimit: 15
+
+  # OpenTelemetry configuration
+  opentelemetry:
+    enabled: true
+    serviceName: "stargazer"
+    otlpEndpoint: ""

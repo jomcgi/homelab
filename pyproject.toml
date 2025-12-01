@@ -41,6 +41,12 @@ dependencies = [
     "opentelemetry-instrumentation-fastapi>=0.43b0",
     "opentelemetry-instrumentation-httpx>=0.43b0",
     "opentelemetry-exporter-otlp~=1.22",
+    # Stargazer geospatial dependencies
+    "rasterio~=1.3",
+    "geopandas~=0.14",
+    "shapely~=2.0",
+    "pillow~=10.0",
+    "astral~=3.2",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/

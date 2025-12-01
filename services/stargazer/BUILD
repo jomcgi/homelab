@@ -1,0 +1,24 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("//tools/oci:py3_image.bzl", "py3_image")
+
+py_library(
+    name = "stargazer",
+    srcs = ["__init__.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+# Container image for stargazer with GDAL tools
+# Base includes: gdal_translate, gdalwarp, ogr2ogr
+# Note: osmium-tool not included - need to install via apt or use alternative
+py3_image(
+    name = "image",
+    binary = "//services/stargazer/app:main",
+    base = "@gdal_base",
+    env = {
+        "GDAL_DATA": "/usr/share/gdal",
+        "PROJ_DATA": "/usr/share/proj",
+        "DATA_DIR": "/data",
+        "OTEL_ENABLED": "false",
+    },
+    repository = "ghcr.io/jomcgi/homelab/services/stargazer",
+)
