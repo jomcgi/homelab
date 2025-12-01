@@ -1,0 +1,33 @@
+# Development overrides for stargazer
+
+# Run every 6 hours
+schedule: "0 */6 * * *"
+
+# Use latest image for dev
+image:
+  repository: ghcr.io/jomcgi/homelab/services/stargazer
+  tag: "latest"
+
+# Persistent storage
+persistence:
+  enabled: true
+  storageClass: longhorn
+  size: 5Gi
+
+# Resource limits
+resources:
+  limits:
+    cpu: 2000m
+    memory: 4Gi
+  requests:
+    cpu: 500m
+    memory: 1Gi
+
+# OpenTelemetry configuration
+config:
+  opentelemetry:
+    enabled: true
+    serviceName: "stargazer"
+    # OTEL collector endpoint (SigNoz)
+    # otlpEndpoint: "http://signoz-otel-collector.signoz:4317"
+    otlpEndpoint: ""
