@@ -6,10 +6,13 @@
 ---
 manifest:
   modules_mapping:
+    PIL: pillow
+    affine: affine
     annotated_types: annotated_types
     anyio: anyio
     apscheduler: APScheduler
     asgiref: asgiref
+    astral: astral
     attr: attrs
     attrs: attrs
     bng_latlon: bng_latlon
@@ -23,13 +26,17 @@ manifest:
     charset_normalizer: charset_normalizer
     click: click
     click_default_group: click_default_group
+    click_plugins: click_plugins
+    cligj: cligj
     colorama: colorama
     copier: copier
     dateutil: python_dateutil
     dotenv: python_dotenv
     dunamai: dunamai
     fastapi: fastapi
+    fiona: fiona
     funcy: funcy
+    geopandas: geopandas
     google.api.annotations_pb2: googleapis_common_protos
     google.api.auth_pb2: googleapis_common_protos
     google.api.backend_pb2: googleapis_common_protos
@@ -115,6 +122,7 @@ manifest:
     markupsafe: markupsafe
     mdurl: mdurl
     multipart: python_multipart
+    numpy: numpy
     opentelemetry.attributes: opentelemetry_api
     opentelemetry.baggage: opentelemetry_api
     opentelemetry.context: opentelemetry_api
@@ -156,6 +164,7 @@ manifest:
     opentelemetry.util.types: opentelemetry_api
     opentelemetry.version: opentelemetry_api
     packaging: packaging
+    pandas: pandas
     parse: parse
     parse_type: parse_type
     pathspec: pathspec
@@ -170,16 +179,20 @@ manifest:
     pydantic_settings: pydantic_settings
     pydantic_sqlite: pydantic_sqlite
     pygments: pygments
+    pyparsing: pyparsing
+    pyproj: pyproj
     pytest: pytest
     pytest_asyncio: pytest_asyncio
     pytest_bdd: pytest_bdd
     python_multipart: python_multipart
     pytz: pytz
     questionary: questionary
+    rasterio: rasterio
     requests: requests
     requests_cache: requests_cache
     rich: rich
     s3transfer: s3transfer
+    shapely: shapely
     shellingham: shellingham
     six: six
     sniffio: sniffio
@@ -193,6 +206,7 @@ manifest:
     typer: typer
     typing_extensions: typing_extensions
     typing_inspection: typing_inspection
+    tzdata: tzdata
     tzlocal: tzlocal
     url_normalize: url_normalize
     urllib3: urllib3
