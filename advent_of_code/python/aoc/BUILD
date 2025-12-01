@@ -1,0 +1,12 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+
+py_library(
+    name = "aoc",
+    srcs = [
+        "__init__.py",
+        "algo.py",
+        "grid.py",
+        "parse.py",
+    ],
+    visibility = ["//:__subpackages__"],
+)

@@ -66,9 +66,7 @@ def setup_telemetry(settings: Settings) -> None:
         return
 
     if not settings.otel_exporter_otlp_endpoint:
-        logger.warning(
-            "OpenTelemetry is enabled but no OTLP endpoint configured"
-        )
+        logger.warning("OpenTelemetry is enabled but no OTLP endpoint configured")
 
     # Create a resource identifying this service
     resource = Resource.create(
@@ -83,9 +81,7 @@ def setup_telemetry(settings: Settings) -> None:
 
     # Configure OTLP exporter if endpoint is set
     if settings.otel_exporter_otlp_endpoint:
-        otlp_exporter = OTLPSpanExporter(
-            endpoint=settings.otel_exporter_otlp_endpoint
-        )
+        otlp_exporter = OTLPSpanExporter(endpoint=settings.otel_exporter_otlp_endpoint)
         provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
 
     # Set as global tracer provider

@@ -1,5 +1,8 @@
 {
-  "contextFileName": ["CLAUDE.md"],
-  // "sandbox": "docker",
-  "autoAccept": true
+  "tools": {
+    "autoAccept": true
+  },
+  "context": {
+    "fileName": ["CLAUDE.md"]
+  }
 }

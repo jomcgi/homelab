@@ -65,6 +65,8 @@ bazel_env(
         "helm": MULTITOOL_TOOLS["helm"],
         "kind": MULTITOOL_TOOLS["kind"],
         "crane": MULTITOOL_TOOLS["crane"],
+        # Advent of Code CLI
+        "advent": "//advent_of_code/cmd/aoc",
     },
 )
 

@@ -47,6 +47,7 @@ dependencies = [
     "shapely~=2.0",
     "pillow~=10.0",
     "astral~=3.2",
+    "networkx~=3.0",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
