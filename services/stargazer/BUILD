@@ -12,8 +12,8 @@ py_library(
 # Note: osmium-tool not included - need to install via apt or use alternative
 py3_image(
     name = "image",
-    binary = "//services/stargazer/app:main",
     base = "@gdal_base",
+    binary = "//services/stargazer/app:main",
     env = {
         "GDAL_DATA": "/usr/share/gdal",
         "PROJ_DATA": "/usr/share/proj",

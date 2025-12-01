@@ -65,12 +65,8 @@ class Settings(BaseSettings):
     cache_ttl_hours: int = 1  # Honor API caching
 
     # Data source URLs (DJ Lorenz 2024 Light Pollution Atlas)
-    lp_source_url: str = (
-        "https://djlorenz.github.io/astronomy/lp2024/Europe2024.png"
-    )
-    colorbar_url: str = (
-        "https://djlorenz.github.io/astronomy/lp/colorbar.png"
-    )
+    lp_source_url: str = "https://djlorenz.github.io/astronomy/lp2024/Europe2024.png"
+    colorbar_url: str = "https://djlorenz.github.io/astronomy/lp/colorbar.png"
     osm_source_url: str = (
         "https://download.geofabrik.de/europe/united-kingdom/scotland-latest.osm.pbf"
     )

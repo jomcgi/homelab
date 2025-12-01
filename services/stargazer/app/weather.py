@@ -177,19 +177,21 @@ def score_locations(settings: Settings) -> Path:
             score = calculate_astronomy_score(weather)
 
             if score >= settings.min_astronomy_score:
-                scored_hours.append({
-                    "time": time_str,
-                    "score": round(score, 1),
-                    "cloud_area_fraction": weather.cloud_area_fraction,
-                    "relative_humidity": weather.relative_humidity,
-                    "wind_speed": weather.wind_speed,
-                    "air_temperature": weather.air_temperature,
-                    "dew_spread": round(
-                        weather.air_temperature - weather.dew_point_temperature, 1
-                    ),
-                    "air_pressure": weather.air_pressure_at_sea_level,
-                    "symbol": next_1h.get("summary", {}).get("symbol_code", ""),
-                })
+                scored_hours.append(
+                    {
+                        "time": time_str,
+                        "score": round(score, 1),
+                        "cloud_area_fraction": weather.cloud_area_fraction,
+                        "relative_humidity": weather.relative_humidity,
+                        "wind_speed": weather.wind_speed,
+                        "air_temperature": weather.air_temperature,
+                        "dew_spread": round(
+                            weather.air_temperature - weather.dew_point_temperature, 1
+                        ),
+                        "air_pressure": weather.air_pressure_at_sea_level,
+                        "symbol": next_1h.get("summary", {}).get("symbol_code", ""),
+                    }
+                )
 
         if scored_hours:
             scored_data[point_id] = {
@@ -225,14 +227,16 @@ def output_best_locations(settings: Settings) -> Path:
     for point_id, data in scored_data.items():
         best_hours = [h for h in data["scored_hours"] if h["score"] >= 70]
         if best_hours:
-            ranked.append({
-                "id": point_id,
-                "coordinates": data["coordinates"],
-                "altitude_m": data["altitude_m"],
-                "lp_zone": data["lp_zone"],
-                "best_hours": best_hours[:5],  # Top 5 hours per location
-                "best_score": best_hours[0]["score"],
-            })
+            ranked.append(
+                {
+                    "id": point_id,
+                    "coordinates": data["coordinates"],
+                    "altitude_m": data["altitude_m"],
+                    "lp_zone": data["lp_zone"],
+                    "best_hours": best_hours[:5],  # Top 5 hours per location
+                    "best_score": best_hours[0]["score"],
+                }
+            )
 
     # Sort by best score, take top 20
     ranked.sort(key=lambda x: x["best_score"], reverse=True)
