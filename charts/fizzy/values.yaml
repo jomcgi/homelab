@@ -1,0 +1,174 @@
+## Fizzy Helm Chart Configuration
+## Kanban tracking tool by 37signals (Basecamp)
+## Uses the Solid trifecta: Solid Queue, Solid Cache, Solid Cable (all DB-backed)
+
+image:
+  repository: ghcr.io/basecamp/fizzy
+  pullPolicy: IfNotPresent
+  tag: "main"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+## Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## Pod Security Context (Rails app runs as non-root user 1000)
+podSecurityContext:
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: false  # Rails needs tmp directories
+  capabilities:
+    drop:
+      - ALL
+
+## Rails Environment Configuration
+rails:
+  # Rails environment
+  env: "production"
+
+  # Log to stdout for container logging
+  logToStdout: true
+
+  # Serve static files (Thruster handles this)
+  serveStaticFiles: true
+
+## Database Configuration
+## Fizzy uses MySQL for production (SQLite dev only)
+database:
+  # Database adapter (mysql recommended for HA)
+  adapter: mysql
+
+  # External database connection
+  # Set via secret: DATABASE_URL=mysql2://user:pass@host:3306/fizzy_production
+  existingSecret: ""
+  secretKey: "DATABASE_URL"
+
+  # Or configure individually (used if existingSecret is empty)
+  host: ""
+  port: 3306
+  name: "fizzy_production"
+  username: ""
+  password: ""
+
+## Secrets Configuration
+## Required secrets for Rails application
+secrets:
+  # Rails master key (required to decrypt credentials.yml.enc)
+  # Can be from existing secret or set directly
+  railsMasterKey:
+    existingSecret: ""
+    secretKey: "RAILS_MASTER_KEY"
+    value: ""
+
+  # Secret key base for session signing
+  secretKeyBase:
+    existingSecret: ""
+    secretKey: "SECRET_KEY_BASE"
+    value: ""
+
+  # VAPID keys for web push notifications
+  vapid:
+    existingSecret: ""
+    privateKeySecretKey: "VAPID_PRIVATE_KEY"
+    publicKeySecretKey: "VAPID_PUBLIC_KEY"
+    privateKey: ""
+    publicKey: ""
+
+## Web Deployment (Puma + Thruster)
+web:
+  # Number of replicas
+  replicas: 2
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+  # Autoscaling (optional)
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+## Worker Deployment (Solid Queue)
+worker:
+  # Enable Solid Queue worker
+  enabled: true
+
+  # Number of replicas
+  replicas: 1
+
+  # Command to run workers
+  command: ["bin/jobs"]
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+  # Autoscaling (optional)
+  autoscaling:
+    enabled: false
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80  # Thruster listens on 80
+  annotations: {}
+
+## Health checks
+## Fizzy uses standard Rails health check endpoint
+healthCheck:
+  path: "/up"
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}
+
+## Deployment strategy
+strategy:
+  type: RollingUpdate
+  rollingUpdate:
+    maxSurge: 1
+    maxUnavailable: 0

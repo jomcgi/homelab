@@ -1,0 +1,53 @@
+## Dev environment overrides for Fizzy
+
+## Use fewer replicas in dev
+web:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+worker:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 25m
+      memory: 64Mi
+
+## Secrets configuration
+## TODO: Create OnePasswordItem CRD for fizzy-credentials in 1Password
+## Example 1Password secret structure:
+##   - RAILS_MASTER_KEY: (from fizzy repo config/master.key)
+##   - SECRET_KEY_BASE: (generate with: rails secret)
+##   - VAPID_PRIVATE_KEY: (generate with web-push gem)
+##   - VAPID_PUBLIC_KEY: (generate with web-push gem)
+##   - DATABASE_URL: mysql2://user:pass@host:3306/fizzy_dev
+secrets:
+  railsMasterKey:
+    existingSecret: "fizzy-credentials"
+    secretKey: "RAILS_MASTER_KEY"
+  secretKeyBase:
+    existingSecret: "fizzy-credentials"
+    secretKey: "SECRET_KEY_BASE"
+  vapid:
+    existingSecret: "fizzy-credentials"
+    privateKeySecretKey: "VAPID_PRIVATE_KEY"
+    publicKeySecretKey: "VAPID_PUBLIC_KEY"
+
+## Database - use existing secret from 1Password
+database:
+  adapter: mysql
+  existingSecret: "fizzy-credentials"
+  secretKey: "DATABASE_URL"
+
+## Add dev-specific labels
+podLabels:
+  environment: dev
+  app: fizzy

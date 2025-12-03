@@ -1,0 +1,153 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fizzy.fullname" . }}-web
+  labels:
+    {{- include "fizzy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  {{- if not .Values.web.autoscaling.enabled }}
+  replicas: {{ .Values.web.replicas }}
+  {{- end }}
+  strategy:
+    {{- toYaml .Values.strategy | nindent 4 }}
+  selector:
+    matchLabels:
+      {{- include "fizzy.webSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "fizzy.webSelectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "fizzy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: web
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: RAILS_ENV
+          value: {{ .Values.rails.env | quote }}
+        - name: RAILS_LOG_TO_STDOUT
+          value: {{ .Values.rails.logToStdout | quote }}
+        - name: RAILS_SERVE_STATIC_FILES
+          value: {{ .Values.rails.serveStaticFiles | quote }}
+        - name: DATABASE_ADAPTER
+          value: {{ .Values.database.adapter | quote }}
+        {{- if .Values.database.existingSecret }}
+        - name: DATABASE_URL
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.database.existingSecret }}
+              key: {{ .Values.database.secretKey }}
+        {{- else if and .Values.database.host .Values.database.username }}
+        - name: DATABASE_URL
+          value: {{ include "fizzy.databaseUrl" . | quote }}
+        {{- end }}
+        {{- if .Values.secrets.railsMasterKey.existingSecret }}
+        - name: RAILS_MASTER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.railsMasterKey.existingSecret }}
+              key: {{ .Values.secrets.railsMasterKey.secretKey }}
+        {{- else if .Values.secrets.railsMasterKey.value }}
+        - name: RAILS_MASTER_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.secretName" . }}
+              key: RAILS_MASTER_KEY
+        {{- end }}
+        {{- if .Values.secrets.secretKeyBase.existingSecret }}
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.secretKeyBase.existingSecret }}
+              key: {{ .Values.secrets.secretKeyBase.secretKey }}
+        {{- else if .Values.secrets.secretKeyBase.value }}
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.secretName" . }}
+              key: SECRET_KEY_BASE
+        {{- end }}
+        {{- if .Values.secrets.vapid.existingSecret }}
+        - name: VAPID_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.vapid.existingSecret }}
+              key: {{ .Values.secrets.vapid.privateKeySecretKey }}
+        - name: VAPID_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ .Values.secrets.vapid.existingSecret }}
+              key: {{ .Values.secrets.vapid.publicKeySecretKey }}
+        {{- else if .Values.secrets.vapid.privateKey }}
+        - name: VAPID_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.secretName" . }}
+              key: VAPID_PRIVATE_KEY
+        - name: VAPID_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.secretName" . }}
+              key: VAPID_PUBLIC_KEY
+        {{- end }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.healthCheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.healthCheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.healthCheck.path }}
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          {{- toYaml .Values.web.resources | nindent 10 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /rails/tmp
+        - name: cache
+          mountPath: /rails/tmp/cache
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
