@@ -67,7 +67,7 @@ func runValidate(cmd *cobra.Command, args []string) error {
 		}
 
 		if validateOutputPath != "" {
-			if err := os.WriteFile(validateOutputPath, jsonBytes, 0644); err != nil {
+			if err := os.WriteFile(validateOutputPath, jsonBytes, 0o644); err != nil {
 				return fmt.Errorf("failed to write output file: %w", err)
 			}
 			fmt.Fprintf(os.Stderr, "  XState JSON written to: %s\n", validateOutputPath)

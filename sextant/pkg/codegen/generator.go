@@ -71,7 +71,7 @@ func New(config Config) (*Generator, error) {
 // Generate generates Go code for the given state machine.
 func (g *Generator) Generate(sm *schema.StateMachine) error {
 	// Ensure output directory exists
-	if err := os.MkdirAll(g.config.OutputDir, 0755); err != nil {
+	if err := os.MkdirAll(g.config.OutputDir, 0o755); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
 
@@ -114,13 +114,13 @@ func (g *Generator) generateFile(name, tmplName string, data *TemplateData) erro
 	if err != nil {
 		// Write unformatted for debugging
 		path := filepath.Join(g.config.OutputDir, name+".unformatted")
-		os.WriteFile(path, buf.Bytes(), 0644)
+		os.WriteFile(path, buf.Bytes(), 0o644)
 		return fmt.Errorf("go format failed (unformatted written to %s): %w", path, err)
 	}
 
 	// Write the file
 	path := filepath.Join(g.config.OutputDir, name)
-	if err := os.WriteFile(path, formatted, 0644); err != nil {
+	if err := os.WriteFile(path, formatted, 0o644); err != nil {
 		return fmt.Errorf("failed to write file: %w", err)
 	}
 

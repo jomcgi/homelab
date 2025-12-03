@@ -5,10 +5,10 @@ import "fmt"
 // reservedFieldNames contains field names that cannot be used in state definitions
 // because they would collide with generated methods.
 var reservedFieldNames = map[string]string{
-	"Phase":       "Phase() method is generated for all states",
-	"Resource":    "Resource() method is generated for all states",
-	"Validate":    "Validate() method is generated for state validation",
-	"ApplyStatus": "ApplyStatus() method is generated for SSA",
+	"Phase":        "Phase() method is generated for all states",
+	"Resource":     "Resource() method is generated for all states",
+	"Validate":     "Validate() method is generated for state validation",
+	"ApplyStatus":  "ApplyStatus() method is generated for SSA",
 	"RequeueAfter": "RequeueAfter() method is generated for all states",
 }
 
