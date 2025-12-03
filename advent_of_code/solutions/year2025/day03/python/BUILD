@@ -4,7 +4,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 py_binary(
     name = "solution",
     srcs = ["solution.py"],
-    data = ["//advent_of_code/solutions/year2025/day02:input.txt"],
+    data = ["//advent_of_code/solutions/year2025/day03:input.txt"],
     visibility = ["//:__subpackages__"],
     deps = ["//advent_of_code/python/aoc"],
 )
@@ -23,8 +23,8 @@ py_test(
     name = "solution_test",
     srcs = ["solution_test.py"],
     data = [
-        "//advent_of_code/solutions/year2025/day02:answers.json",  # keep
-        "//advent_of_code/solutions/year2025/day02:input.txt",  # keep
+        "//advent_of_code/solutions/year2025/day03:answers.json",  # keep
+        "//advent_of_code/solutions/year2025/day03:input.txt",  # keep
     ],
     deps = [
         ":python",
