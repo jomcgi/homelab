@@ -4,7 +4,7 @@
 # Persistent Bazel cache (repository_cache + output_base)
 # Size breakdown: ~5Gi repository downloads, ~30-40Gi output_base (unpacked repos + build artifacts)
 bazelCache:
-  enabled: true
+  enabled: false  # Temporarily disabled to recreate corrupted PVC
   size: 50Gi
   storageClassName: longhorn
 
@@ -76,14 +76,16 @@ gha-runner-scale-set:
             memory: 8Gi
             ephemeral-storage: 100Gi  # Reserve disk space for Bazel builds
 
-        volumeMounts:
-        - name: bazel-cache
-          mountPath: /mnt/bazel-cache
+        # volumeMounts temporarily removed - PVC being recreated
+        # volumeMounts:
+        # - name: bazel-cache
+        #   mountPath: /mnt/bazel-cache
 
-      volumes:
-      - name: bazel-cache
-        persistentVolumeClaim:
-          claimName: bazel-repository-cache
+      # volumes temporarily removed - PVC being recreated
+      # volumes:
+      # - name: bazel-cache
+      #   persistentVolumeClaim:
+      #     claimName: bazel-repository-cache
 
   listenerTemplate:
     spec:
