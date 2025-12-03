@@ -749,6 +749,12 @@ mdurl==0.1.2 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   markdown-it-py
+networkx==3.6 \
+    --hash=sha256:285276002ad1f7f7da0f7b42f004bcba70d381e936559166363707fdad3d72ad \
+    --hash=sha256:cdb395b105806062473d3be36458d8f1459a4e4b98e236a66c3a48996e07684f
+    # via
+    #   -c requirements/runtime.txt
+    #   -r requirements/runtime.txt
 numpy==2.3.5 \
     --hash=sha256:00dc4e846108a382c5869e77c6ed514394bdeb3403461d25a829711041217d5b \
     --hash=sha256:0472f11f6ec23a74a906a00b48a4dcf3849209696dff7c189714511268d103ae \

@@ -122,6 +122,7 @@ manifest:
     markupsafe: markupsafe
     mdurl: mdurl
     multipart: python_multipart
+    networkx: networkx
     numpy: numpy
     opentelemetry.attributes: opentelemetry_api
     opentelemetry.baggage: opentelemetry_api
