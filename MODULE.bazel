@@ -175,16 +175,17 @@ oci.pull(
 use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8", "custom_crane_regctl_toolchains")
 
 # GDAL base for geospatial Python services (stargazer)
-# Using ubuntu-small variant with GDAL 3.9.3, includes gdal_translate, gdalwarp, etc.
+# Using ubuntu-small variant with GDAL 3.6.3, includes gdal_translate, gdalwarp, etc.
+# Note: Using Docker Hub (docker.io) as ghcr.io/osgeo/gdal is no longer accessible
 oci.pull(
     name = "gdal_base",
-    digest = "sha256:7125d6f5d6af5331354328fc6a64c9e420b29b31460d1a6aaf9526e559255e07",
-    image = "ghcr.io/osgeo/gdal",
+    digest = "sha256:398d5aca0ca88295c13ada87e0f382ed409dac13a952461187be72ce3c376513",
+    image = "docker.io/osgeo/gdal",
     platforms = [
         "linux/amd64",
         "linux/arm64",
     ],
-    tag = "ubuntu-small-3.9.3",
+    tag = "ubuntu-small-3.6.3",
 )
 use_repo(oci, "gdal_base", "gdal_base_linux_amd64", "gdal_base_linux_arm64")
 
