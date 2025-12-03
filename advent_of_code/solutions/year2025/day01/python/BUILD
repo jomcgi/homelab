@@ -4,6 +4,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 py_binary(
     name = "solution",
     srcs = ["solution.py"],
+    data = ["//advent_of_code/solutions/year2025/day01:input.txt"],
     visibility = ["//:__subpackages__"],
     deps = ["//advent_of_code/python/aoc"],
 )

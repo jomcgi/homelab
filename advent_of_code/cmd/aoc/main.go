@@ -525,6 +525,9 @@ func createGoTemplate(dayDir string, year, day int) error {
 		return nil // File exists, don't overwrite
 	}
 
+	// Data path for Bazel runfiles (relative to workspace root)
+	dataPath := fmt.Sprintf("advent_of_code/solutions/year%d/day%02d", year, day)
+
 	template := fmt.Sprintf(`package main
 
 import (
@@ -534,7 +537,7 @@ import (
 )
 
 func main() {
-	input, err := aoc.ReadFile("../input.txt")
+	input, err := aoc.ReadFile("%s/input.txt")
 	if err != nil {
 		panic(err)
 	}
@@ -556,7 +559,7 @@ func part2(input string) int {
 	// TODO: implement
 	return 0
 }
-`)
+`, dataPath)
 
 	return os.WriteFile(goPath, []byte(template), 0o644)
 }
@@ -585,6 +588,9 @@ func createPythonTemplate(dayDir string, year, day int) error {
 		return nil // File exists, don't overwrite
 	}
 
+	// Data path for Bazel runfiles (relative to workspace root)
+	dataPath := fmt.Sprintf("advent_of_code/solutions/year%d/day%02d", year, day)
+
 	template := fmt.Sprintf(`#!/usr/bin/env python3
 """Advent of Code %d Day %d"""
 
@@ -604,11 +610,11 @@ def part2(input_text: str) -> int:
 
 
 if __name__ == "__main__":
-    input_text = read_file("../input.txt")
+    input_text = read_file("%s/input.txt")
 
     print(f"Part 1: {part1(input_text)}")
     print(f"Part 2: {part2(input_text)}")
-`, year, day)
+`, year, day, dataPath)
 
 	return os.WriteFile(pyPath, []byte(template), 0o644)
 }
@@ -819,6 +825,7 @@ go_library(
 
 go_binary(
     name = "go",
+    data = ["%s:input.txt"],
     embed = [":go_lib"],
     visibility = ["//visibility:public"],
 )
@@ -834,7 +841,7 @@ go_test(
     deps = ["//advent_of_code/pkg/aoc"],
 )
 `
-	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, importPath, dataPath, dataPath)), 0o644)
+	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, importPath, dataPath, dataPath, dataPath)), 0o644)
 }
 
 // generatePythonBuild creates the python/BUILD file
@@ -853,6 +860,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 py_binary(
     name = "solution",
     srcs = ["solution.py"],
+    data = ["%s:input.txt"],
     visibility = ["//:__subpackages__"],
     deps = ["//advent_of_code/python/aoc"],
 )
@@ -880,7 +888,7 @@ py_test(
     ],
 )
 `
-	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, dataPath, dataPath)), 0o644)
+	return os.WriteFile(buildPath, []byte(fmt.Sprintf(template, dataPath, dataPath, dataPath)), 0o644)
 }
 
 // ensurePythonPackage creates __init__.py files up to advent_of_code/
