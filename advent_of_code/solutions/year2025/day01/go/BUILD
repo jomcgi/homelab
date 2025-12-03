@@ -10,6 +10,7 @@ go_library(
 
 go_binary(
     name = "go",
+    data = ["//advent_of_code/solutions/year2025/day01:input.txt"],
     embed = [":go_lib"],
     visibility = ["//visibility:public"],
 )
