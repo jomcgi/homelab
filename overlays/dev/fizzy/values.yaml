@@ -1,9 +1,4 @@
 ## Dev environment overrides for Fizzy
-## Zero configuration needed - just deploy!
-
-## Use SQLite for simplicity (no external database needed)
-database:
-  adapter: sqlite
 
 ## Persistence for SQLite and Rails storage
 persistence:
@@ -31,10 +26,6 @@ worker:
     requests:
       cpu: 25m
       memory: 64Mi
-
-## Secrets: AUTO-GENERATED
-## SECRET_KEY_BASE is automatically generated on first deploy
-## and preserved across upgrades. No manual setup required!
 
 ## Add dev-specific labels
 podLabels:

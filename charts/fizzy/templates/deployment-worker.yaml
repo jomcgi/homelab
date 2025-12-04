@@ -53,12 +53,12 @@ spec:
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:
-              {{- if .Values.secrets.secretKeyBase.existingSecret }}
-              name: {{ .Values.secrets.secretKeyBase.existingSecret }}
-              key: {{ .Values.secrets.secretKeyBase.secretKey }}
+              {{- if eq .Values.secret.type "existing" }}
+              name: {{ .Values.secret.existing.name }}
+              key: {{ .Values.secret.existing.key }}
               {{- else }}
-              name: {{ include "fizzy.secretName" . }}
-              key: SECRET_KEY_BASE
+              name: {{ include "fizzy.fullname" . }}-credentials
+              key: secret_key_base
               {{- end }}
         resources:
           {{- toYaml .Values.worker.resources | nindent 10 }}

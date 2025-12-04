@@ -49,14 +49,17 @@ persistence:
   size: 5Gi
   annotations: {}
 
-## Secrets Configuration
-secrets:
-  # SECRET_KEY_BASE: Auto-generated on first deploy via PreSync Job
-  # No configuration needed! Set existingSecret to use 1Password instead.
-  secretKeyBase:
-    existingSecret: ""
-    secretKey: "SECRET_KEY_BASE"
-    value: ""
+## Secret Configuration
+## SECRET_KEY_BASE is required for Rails session encryption
+secret:
+  # Type: "onepassword" uses 1Password operator, "existing" uses pre-created secret
+  type: "onepassword"
+  onepassword:
+    itemPath: "op://k8s-homelab/fizzy/secret_key_base"
+  existing:
+    # Name of existing secret (only used if type: "existing")
+    name: ""
+    key: "secret_key_base"
 
 ## Web Deployment (Puma + Thruster)
 web:
