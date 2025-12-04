@@ -260,4 +260,4 @@ metadata:
     app.kubernetes.io/version: "main"
     app.kubernetes.io/managed-by: Helm
 spec:
-  itemPath: "op://k8s-homelab/fizzy/secret_key_base"
+  itemPath: "vaults/k8s-homelab/items/fizzy"

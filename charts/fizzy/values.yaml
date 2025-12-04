@@ -55,7 +55,8 @@ secret:
   # Type: "onepassword" uses 1Password operator, "existing" uses pre-created secret
   type: "onepassword"
   onepassword:
-    itemPath: "op://k8s-homelab/fizzy/secret_key_base"
+    # itemPath format: vaults/<vault-name>/items/<item-name>
+    itemPath: "vaults/k8s-homelab/items/fizzy"
   existing:
     # Name of existing secret (only used if type: "existing")
     name: ""
