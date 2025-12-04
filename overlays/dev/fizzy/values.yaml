@@ -21,11 +21,11 @@ worker:
   replicas: 1
   resources:
     limits:
-      cpu: 250m
-      memory: 256Mi
+      cpu: 500m
+      memory: 512Mi
     requests:
-      cpu: 25m
-      memory: 64Mi
+      cpu: 50m
+      memory: 512Mi
 
 ## Add dev-specific labels
 podLabels:
