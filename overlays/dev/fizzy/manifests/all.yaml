@@ -1,4 +1,19 @@
 ---
+# Source: fizzy/templates/secret-generator-job.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fizzy-secret-generator
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+---
 # Source: fizzy/templates/serviceaccount.yaml
 apiVersion: v1
 kind: ServiceAccount
@@ -10,24 +25,6 @@ metadata:
     app.kubernetes.io/instance: fizzy
     app.kubernetes.io/version: "main"
     app.kubernetes.io/managed-by: Helm
----
-# Source: fizzy/templates/secret.yaml
-apiVersion: v1
-kind: Secret
-metadata:
-  name: fizzy-credentials
-  labels:
-    helm.sh/chart: fizzy-0.1.0
-    app.kubernetes.io/name: fizzy
-    app.kubernetes.io/instance: fizzy
-    app.kubernetes.io/version: "main"
-    app.kubernetes.io/managed-by: Helm
-  annotations:
-    # Preserve secret across helm uninstall/reinstall
-    "helm.sh/resource-policy": keep
-type: Opaque
-stringData:
-  SECRET_KEY_BASE: "XXQgQs8A0Pzqgb7X9p34RoLOcPnZ9usUnedjwkel0ct5dNP5o8cEg7sq6RKv3TG1XcDrVLlWuiwF6adMOau1v14ukyMGxRcZjk5szeweQ0UBTDhERhpa5lKwyjFJ67dr"
 ---
 # Source: fizzy/templates/pvc.yaml
 apiVersion: v1
@@ -47,6 +44,48 @@ spec:
   resources:
     requests:
       storage: 2Gi
+---
+# Source: fizzy/templates/secret-generator-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fizzy-secret-generator
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+rules:
+- apiGroups: [""]
+  resources: ["secrets"]
+  verbs: ["get", "create", "patch"]
+---
+# Source: fizzy/templates/secret-generator-job.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fizzy-secret-generator
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+subjects:
+- kind: ServiceAccount
+  name: fizzy-secret-generator
+  namespace: fizzy
+roleRef:
+  kind: Role
+  name: fizzy-secret-generator
+  apiGroup: rbac.authorization.k8s.io
 ---
 # Source: fizzy/templates/service.yaml
 apiVersion: v1
@@ -268,3 +307,68 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: fizzy-storage
+---
+# Source: fizzy/templates/secret-generator-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: fizzy-generate-secret
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    # ArgoCD hook: run before syncing other resources
+    argocd.argoproj.io/hook: PreSync
+    argocd.argoproj.io/hook-delete-policy: BeforeHookCreation
+spec:
+  ttlSecondsAfterFinished: 60
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fizzy
+        app.kubernetes.io/instance: fizzy
+    spec:
+      restartPolicy: Never
+      serviceAccountName: fizzy-secret-generator
+      containers:
+      - name: generate-secret
+        image: bitnami/kubectl:latest
+        command:
+        - /bin/sh
+        - -c
+        - |
+          SECRET_NAME="fizzy-credentials"
+          NAMESPACE="fizzy"
+
+          # Check if secret already exists
+          if kubectl get secret "$SECRET_NAME" -n "$NAMESPACE" >/dev/null 2>&1; then
+            echo "Secret $SECRET_NAME already exists, skipping generation"
+            exit 0
+          fi
+
+          # Generate random SECRET_KEY_BASE (128 alphanumeric chars)
+          SECRET_KEY_BASE=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 128 | head -n 1)
+
+          # Create the secret
+          kubectl create secret generic "$SECRET_NAME" \
+            --namespace "$NAMESPACE" \
+            --from-literal=SECRET_KEY_BASE="$SECRET_KEY_BASE"
+
+          # Add resource-policy annotation to preserve on uninstall
+          kubectl annotate secret "$SECRET_NAME" \
+            --namespace "$NAMESPACE" \
+            "helm.sh/resource-policy=keep"
+
+          echo "Secret $SECRET_NAME created successfully"
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1000
+          capabilities:
+            drop:
+            - ALL
+          seccompProfile:
+            type: RuntimeDefault
