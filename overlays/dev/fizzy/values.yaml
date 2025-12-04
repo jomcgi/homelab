@@ -1,6 +1,16 @@
 ## Dev environment overrides for Fizzy
 
-## Use fewer replicas in dev
+## Use SQLite for simplicity (no external database needed)
+database:
+  adapter: sqlite
+
+## Persistence for SQLite and Rails storage
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 2Gi  # Smaller for dev
+
+## Single replica (required for SQLite)
 web:
   replicas: 1
   resources:
@@ -22,13 +32,12 @@ worker:
       memory: 64Mi
 
 ## Secrets configuration
-## TODO: Create OnePasswordItem CRD for fizzy-credentials in 1Password
-## Example 1Password secret structure:
-##   - RAILS_MASTER_KEY: (from fizzy repo config/master.key)
-##   - SECRET_KEY_BASE: (generate with: rails secret)
+## Create OnePasswordItem CRD for fizzy-credentials in 1Password
+## Required secrets (no DATABASE_URL needed for SQLite):
+##   - RAILS_MASTER_KEY: (clone fizzy repo, copy from config/master.key)
+##   - SECRET_KEY_BASE: (generate with: openssl rand -hex 64)
 ##   - VAPID_PRIVATE_KEY: (generate with web-push gem)
 ##   - VAPID_PUBLIC_KEY: (generate with web-push gem)
-##   - DATABASE_URL: mysql2://user:pass@host:3306/fizzy_dev
 secrets:
   railsMasterKey:
     existingSecret: "fizzy-credentials"
@@ -40,12 +49,6 @@ secrets:
     existingSecret: "fizzy-credentials"
     privateKeySecretKey: "VAPID_PRIVATE_KEY"
     publicKeySecretKey: "VAPID_PUBLIC_KEY"
-
-## Database - use existing secret from 1Password
-database:
-  adapter: mysql
-  existingSecret: "fizzy-credentials"
-  secretKey: "DATABASE_URL"
 
 ## Add dev-specific labels
 podLabels:

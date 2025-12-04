@@ -11,6 +11,25 @@ metadata:
     app.kubernetes.io/version: "main"
     app.kubernetes.io/managed-by: Helm
 ---
+# Source: fizzy/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fizzy-storage
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
 # Source: fizzy/templates/service.yaml
 apiVersion: v1
 kind: Service
@@ -48,11 +67,9 @@ metadata:
     app.kubernetes.io/component: web
 spec:
   replicas: 1
+  # SQLite requires Recreate strategy (single writer)
   strategy:
-    rollingUpdate:
-      maxSurge: 1
-      maxUnavailable: 0
-    type: RollingUpdate
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: fizzy
@@ -98,12 +115,7 @@ spec:
         - name: RAILS_SERVE_STATIC_FILES
           value: "true"
         - name: DATABASE_ADAPTER
-          value: "mysql"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: DATABASE_URL
+          value: "sqlite"
         - name: RAILS_MASTER_KEY
           valueFrom:
             secretKeyRef:
@@ -152,11 +164,16 @@ spec:
           mountPath: /rails/tmp
         - name: cache
           mountPath: /rails/tmp/cache
+        - name: storage
+          mountPath: /rails/storage
       volumes:
       - name: tmp
         emptyDir: {}
       - name: cache
         emptyDir: {}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: fizzy-storage
 ---
 # Source: fizzy/templates/deployment-worker.yaml
 apiVersion: apps/v1
@@ -218,12 +235,7 @@ spec:
         - name: RAILS_LOG_TO_STDOUT
           value: "true"
         - name: DATABASE_ADAPTER
-          value: "mysql"
-        - name: DATABASE_URL
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: DATABASE_URL
+          value: "sqlite"
         - name: RAILS_MASTER_KEY
           valueFrom:
             secretKeyRef:
@@ -256,8 +268,13 @@ spec:
           mountPath: /rails/tmp
         - name: cache
           mountPath: /rails/tmp/cache
+        - name: storage
+          mountPath: /rails/storage
       volumes:
       - name: tmp
         emptyDir: {}
       - name: cache
         emptyDir: {}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: fizzy-storage

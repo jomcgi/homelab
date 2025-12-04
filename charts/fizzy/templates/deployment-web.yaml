@@ -9,8 +9,14 @@ spec:
   {{- if not .Values.web.autoscaling.enabled }}
   replicas: {{ .Values.web.replicas }}
   {{- end }}
+  {{- if eq .Values.database.adapter "sqlite" }}
+  # SQLite requires Recreate strategy (single writer)
+  strategy:
+    type: Recreate
+  {{- else }}
   strategy:
     {{- toYaml .Values.strategy | nindent 4 }}
+  {{- end }}
   selector:
     matchLabels:
       {{- include "fizzy.webSelectorLabels" . | nindent 6 }}
@@ -52,15 +58,17 @@ spec:
           value: {{ .Values.rails.serveStaticFiles | quote }}
         - name: DATABASE_ADAPTER
           value: {{ .Values.database.adapter | quote }}
-        {{- if .Values.database.existingSecret }}
+        {{- if eq .Values.database.adapter "mysql" }}
+        {{- if .Values.database.mysql.existingSecret }}
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
-              name: {{ .Values.database.existingSecret }}
-              key: {{ .Values.database.secretKey }}
-        {{- else if and .Values.database.host .Values.database.username }}
+              name: {{ .Values.database.mysql.existingSecret }}
+              key: {{ .Values.database.mysql.secretKey }}
+        {{- else if .Values.database.mysql.host }}
         - name: DATABASE_URL
           value: {{ include "fizzy.databaseUrl" . | quote }}
+        {{- end }}
         {{- end }}
         {{- if .Values.secrets.railsMasterKey.existingSecret }}
         - name: RAILS_MASTER_KEY
@@ -134,11 +142,20 @@ spec:
           mountPath: /rails/tmp
         - name: cache
           mountPath: /rails/tmp/cache
+        {{- if .Values.persistence.enabled }}
+        - name: storage
+          mountPath: /rails/storage
+        {{- end }}
       volumes:
       - name: tmp
         emptyDir: {}
       - name: cache
         emptyDir: {}
+      {{- if .Values.persistence.enabled }}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: {{ include "fizzy.fullname" . }}-storage
+      {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

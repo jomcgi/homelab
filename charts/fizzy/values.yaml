@@ -46,22 +46,36 @@ rails:
   serveStaticFiles: true
 
 ## Database Configuration
-## Fizzy uses MySQL for production (SQLite dev only)
+## Fizzy supports SQLite (simple, single-replica) or MySQL (HA-capable)
 database:
-  # Database adapter (mysql recommended for HA)
-  adapter: mysql
+  # Database adapter: "sqlite" or "mysql"
+  # SQLite is simpler for dev/homelab, MySQL for production HA
+  adapter: sqlite
 
-  # External database connection
-  # Set via secret: DATABASE_URL=mysql2://user:pass@host:3306/fizzy_production
-  existingSecret: ""
-  secretKey: "DATABASE_URL"
+  ## SQLite configuration (used when adapter: sqlite)
+  sqlite:
+    # Path inside container for SQLite database
+    path: "/rails/storage/production.sqlite3"
 
-  # Or configure individually (used if existingSecret is empty)
-  host: ""
-  port: 3306
-  name: "fizzy_production"
-  username: ""
-  password: ""
+  ## MySQL configuration (used when adapter: mysql)
+  mysql:
+    # Use existing secret containing DATABASE_URL
+    existingSecret: ""
+    secretKey: "DATABASE_URL"
+    # Or configure individually (used if existingSecret is empty)
+    host: ""
+    port: 3306
+    name: "fizzy_production"
+    username: ""
+    password: ""
+
+## Persistence for SQLite and Rails storage (Active Storage, etc.)
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  annotations: {}
 
 ## Secrets Configuration
 ## Required secrets for Rails application
@@ -89,8 +103,8 @@ secrets:
 
 ## Web Deployment (Puma + Thruster)
 web:
-  # Number of replicas
-  replicas: 2
+  # Number of replicas (use 1 for SQLite, can scale with MySQL)
+  replicas: 1
 
   # Resource limits
   resources:
