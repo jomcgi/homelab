@@ -79,23 +79,23 @@ persistence:
 
 ## Secrets Configuration
 secrets:
-  # SECRET_KEY_BASE is REQUIRED for Rails to boot
-  # Generate with: openssl rand -hex 64
+  # SECRET_KEY_BASE: Required for Rails sessions/cookies
+  # Auto-generated if not provided - no configuration needed!
+  # The generated secret persists across upgrades via helm lookup.
+  # Set existingSecret to use an external secret (e.g., from 1Password)
   secretKeyBase:
-    existingSecret: ""
+    existingSecret: ""      # Leave empty to auto-generate
     secretKey: "SECRET_KEY_BASE"
-    value: ""
+    value: ""               # Or provide a specific value
 
-  # RAILS_MASTER_KEY is NOT needed for self-hosted deployments
-  # (It decrypts Basecamp's credentials.yml.enc which you can't use anyway)
-  # Only set this if you build your own image with custom credentials
+  # RAILS_MASTER_KEY: NOT needed for self-hosted deployments
+  # (Basecamp's credentials.yml.enc is baked into the image - you can't decrypt it)
   railsMasterKey:
     existingSecret: ""
     secretKey: "RAILS_MASTER_KEY"
     value: ""
 
-  # VAPID keys for web push notifications (optional)
-  # Only needed if you want PWA "install as app" push notifications
+  # VAPID keys: Optional, only for PWA push notifications
   vapid:
     existingSecret: ""
     privateKeySecretKey: "VAPID_PRIVATE_KEY"

@@ -1,4 +1,5 @@
 ## Dev environment overrides for Fizzy
+## Zero configuration needed - just deploy!
 
 ## Use SQLite for simplicity (no external database needed)
 database:
@@ -31,19 +32,9 @@ worker:
       cpu: 25m
       memory: 64Mi
 
-## Secrets configuration
-## Only SECRET_KEY_BASE is required - generate your own:
-##
-##   openssl rand -hex 64
-##
-## Then create 1Password item "fizzy-credentials" with SECRET_KEY_BASE field
-##
-## Note: RAILS_MASTER_KEY is NOT needed. That's for decrypting Basecamp's
-## credentials.yml.enc which is baked into their image - you can't use it.
-secrets:
-  secretKeyBase:
-    existingSecret: "fizzy-credentials"
-    secretKey: "SECRET_KEY_BASE"
+## Secrets: AUTO-GENERATED
+## SECRET_KEY_BASE is automatically generated on first deploy
+## and preserved across upgrades. No manual setup required!
 
 ## Add dev-specific labels
 podLabels:

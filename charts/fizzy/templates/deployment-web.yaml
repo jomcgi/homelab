@@ -83,19 +83,17 @@ spec:
               name: {{ include "fizzy.secretName" . }}
               key: RAILS_MASTER_KEY
         {{- end }}
-        {{- if .Values.secrets.secretKeyBase.existingSecret }}
+        # SECRET_KEY_BASE: from existing secret, provided value, or auto-generated
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:
+              {{- if .Values.secrets.secretKeyBase.existingSecret }}
               name: {{ .Values.secrets.secretKeyBase.existingSecret }}
               key: {{ .Values.secrets.secretKeyBase.secretKey }}
-        {{- else if .Values.secrets.secretKeyBase.value }}
-        - name: SECRET_KEY_BASE
-          valueFrom:
-            secretKeyRef:
+              {{- else }}
               name: {{ include "fizzy.secretName" . }}
               key: SECRET_KEY_BASE
-        {{- end }}
+              {{- end }}
         {{- if .Values.secrets.vapid.existingSecret }}
         - name: VAPID_PRIVATE_KEY
           valueFrom:

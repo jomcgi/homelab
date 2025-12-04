@@ -11,6 +11,24 @@ metadata:
     app.kubernetes.io/version: "main"
     app.kubernetes.io/managed-by: Helm
 ---
+# Source: fizzy/templates/secret.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fizzy-credentials
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    # Preserve secret across helm uninstall/reinstall
+    "helm.sh/resource-policy": keep
+type: Opaque
+stringData:
+  SECRET_KEY_BASE: "XXQgQs8A0Pzqgb7X9p34RoLOcPnZ9usUnedjwkel0ct5dNP5o8cEg7sq6RKv3TG1XcDrVLlWuiwF6adMOau1v14ukyMGxRcZjk5szeweQ0UBTDhERhpa5lKwyjFJ67dr"
+---
 # Source: fizzy/templates/pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -116,6 +134,7 @@ spec:
           value: "true"
         - name: DATABASE_ADAPTER
           value: "sqlite"
+        # SECRET_KEY_BASE: from existing secret, provided value, or auto-generated
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:
@@ -221,6 +240,7 @@ spec:
           value: "true"
         - name: DATABASE_ADAPTER
           value: "sqlite"
+        # SECRET_KEY_BASE: from existing secret, provided value, or auto-generated
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:
