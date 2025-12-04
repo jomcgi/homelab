@@ -22,10 +22,10 @@ worker:
   resources:
     limits:
       cpu: 500m
-      memory: 512Mi
+      memory: 1Gi
     requests:
       cpu: 50m
-      memory: 512Mi
+      memory: 1Gi
 
 ## Add dev-specific labels
 podLabels:
