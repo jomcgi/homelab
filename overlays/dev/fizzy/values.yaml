@@ -32,25 +32,18 @@ worker:
       memory: 64Mi
 
 ## Secrets configuration
-## Only RAILS_MASTER_KEY is required - get it from fizzy repo's config/master.key
+## Only SECRET_KEY_BASE is required - generate your own:
 ##
-## To deploy:
-##   1. git clone https://github.com/basecamp/fizzy
-##   2. Copy config/master.key content
-##   3. Create 1Password item "fizzy-credentials" with RAILS_MASTER_KEY field
+##   openssl rand -hex 64
 ##
-## Optional secrets (for push notifications):
-##   - VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY (only if using PWA push)
+## Then create 1Password item "fizzy-credentials" with SECRET_KEY_BASE field
+##
+## Note: RAILS_MASTER_KEY is NOT needed. That's for decrypting Basecamp's
+## credentials.yml.enc which is baked into their image - you can't use it.
 secrets:
-  railsMasterKey:
+  secretKeyBase:
     existingSecret: "fizzy-credentials"
-    secretKey: "RAILS_MASTER_KEY"
-  # SECRET_KEY_BASE is usually in credentials.yml.enc, no need to set separately
-  # VAPID keys only needed for web push notifications - uncomment if using:
-  # vapid:
-  #   existingSecret: "fizzy-credentials"
-  #   privateKeySecretKey: "VAPID_PRIVATE_KEY"
-  #   publicKeySecretKey: "VAPID_PUBLIC_KEY"
+    secretKey: "SECRET_KEY_BASE"
 
 ## Add dev-specific labels
 podLabels:

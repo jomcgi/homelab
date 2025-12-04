@@ -78,22 +78,24 @@ persistence:
   annotations: {}
 
 ## Secrets Configuration
-## Required secrets for Rails application
 secrets:
-  # Rails master key (required to decrypt credentials.yml.enc)
-  # Can be from existing secret or set directly
-  railsMasterKey:
-    existingSecret: ""
-    secretKey: "RAILS_MASTER_KEY"
-    value: ""
-
-  # Secret key base for session signing
+  # SECRET_KEY_BASE is REQUIRED for Rails to boot
+  # Generate with: openssl rand -hex 64
   secretKeyBase:
     existingSecret: ""
     secretKey: "SECRET_KEY_BASE"
     value: ""
 
-  # VAPID keys for web push notifications
+  # RAILS_MASTER_KEY is NOT needed for self-hosted deployments
+  # (It decrypts Basecamp's credentials.yml.enc which you can't use anyway)
+  # Only set this if you build your own image with custom credentials
+  railsMasterKey:
+    existingSecret: ""
+    secretKey: "RAILS_MASTER_KEY"
+    value: ""
+
+  # VAPID keys for web push notifications (optional)
+  # Only needed if you want PWA "install as app" push notifications
   vapid:
     existingSecret: ""
     privateKeySecretKey: "VAPID_PRIVATE_KEY"
