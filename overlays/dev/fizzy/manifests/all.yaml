@@ -246,6 +246,15 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: fizzy-storage
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: fizzy
+                app.kubernetes.io/instance: fizzy
+                app.kubernetes.io/component: web
+            topologyKey: kubernetes.io/hostname
 ---
 # Source: fizzy/templates/onepassworditem.yaml
 apiVersion: onepassword.com/v1
