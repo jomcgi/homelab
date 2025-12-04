@@ -8,7 +8,7 @@ database:
 persistence:
   enabled: true
   storageClass: "longhorn"
-  size: 2Gi  # Smaller for dev
+  size: 2Gi
 
 ## Single replica (required for SQLite)
 web:
@@ -32,23 +32,25 @@ worker:
       memory: 64Mi
 
 ## Secrets configuration
-## Create OnePasswordItem CRD for fizzy-credentials in 1Password
-## Required secrets (no DATABASE_URL needed for SQLite):
-##   - RAILS_MASTER_KEY: (clone fizzy repo, copy from config/master.key)
-##   - SECRET_KEY_BASE: (generate with: openssl rand -hex 64)
-##   - VAPID_PRIVATE_KEY: (generate with web-push gem)
-##   - VAPID_PUBLIC_KEY: (generate with web-push gem)
+## Only RAILS_MASTER_KEY is required - get it from fizzy repo's config/master.key
+##
+## To deploy:
+##   1. git clone https://github.com/basecamp/fizzy
+##   2. Copy config/master.key content
+##   3. Create 1Password item "fizzy-credentials" with RAILS_MASTER_KEY field
+##
+## Optional secrets (for push notifications):
+##   - VAPID_PRIVATE_KEY / VAPID_PUBLIC_KEY (only if using PWA push)
 secrets:
   railsMasterKey:
     existingSecret: "fizzy-credentials"
     secretKey: "RAILS_MASTER_KEY"
-  secretKeyBase:
-    existingSecret: "fizzy-credentials"
-    secretKey: "SECRET_KEY_BASE"
-  vapid:
-    existingSecret: "fizzy-credentials"
-    privateKeySecretKey: "VAPID_PRIVATE_KEY"
-    publicKeySecretKey: "VAPID_PUBLIC_KEY"
+  # SECRET_KEY_BASE is usually in credentials.yml.enc, no need to set separately
+  # VAPID keys only needed for web push notifications - uncomment if using:
+  # vapid:
+  #   existingSecret: "fizzy-credentials"
+  #   privateKeySecretKey: "VAPID_PRIVATE_KEY"
+  #   publicKeySecretKey: "VAPID_PUBLIC_KEY"
 
 ## Add dev-specific labels
 podLabels:

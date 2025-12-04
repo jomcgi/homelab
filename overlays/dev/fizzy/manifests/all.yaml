@@ -121,21 +121,6 @@ spec:
             secretKeyRef:
               name: fizzy-credentials
               key: RAILS_MASTER_KEY
-        - name: SECRET_KEY_BASE
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: SECRET_KEY_BASE
-        - name: VAPID_PRIVATE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: VAPID_PRIVATE_KEY
-        - name: VAPID_PUBLIC_KEY
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: VAPID_PUBLIC_KEY
         livenessProbe:
           httpGet:
             path: /up
@@ -241,21 +226,6 @@ spec:
             secretKeyRef:
               name: fizzy-credentials
               key: RAILS_MASTER_KEY
-        - name: SECRET_KEY_BASE
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: SECRET_KEY_BASE
-        - name: VAPID_PRIVATE_KEY
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: VAPID_PRIVATE_KEY
-        - name: VAPID_PUBLIC_KEY
-          valueFrom:
-            secretKeyRef:
-              name: fizzy-credentials
-              key: VAPID_PUBLIC_KEY
         resources:
           limits:
             cpu: 250m
