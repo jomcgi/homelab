@@ -24,6 +24,8 @@ ingress:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+    - hostname: fizzy.jomcgi.dev
+      service: http://fizzy.fizzy.svc.cluster.local:80
 
 # Enable Envoy proxy sidecar with tracing to SigNoz
 envoy:
