@@ -1,29 +1,18 @@
 Fizzy has been deployed!
 
-1. Get the application URL by running these commands:
+1. Access the application:
 {{- if contains "ClusterIP" .Values.service.type }}
-  kubectl port-forward svc/{{ include "fizzy.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
-  Then visit: http://localhost:8080
+   kubectl port-forward svc/{{ include "fizzy.fullname" . }} 8080:{{ .Values.service.port }} -n {{ .Release.Namespace }}
+   Then visit: http://localhost:8080
 {{- end }}
 
-2. Check deployment status:
-  kubectl get pods -l "app.kubernetes.io/instance={{ .Release.Name }}" -n {{ .Release.Namespace }}
+2. Check status:
+   kubectl get pods -l "app.kubernetes.io/instance={{ .Release.Name }}" -n {{ .Release.Namespace }}
 
 3. View logs:
-  # Web server logs
-  kubectl logs -l "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=web" -n {{ .Release.Namespace }}
+   kubectl logs -l "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=web" -n {{ .Release.Namespace }}
 
-  # Worker logs (Solid Queue)
-  kubectl logs -l "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=worker" -n {{ .Release.Namespace }}
+Database migrations run automatically on startup via the container entrypoint.
+SECRET_KEY_BASE was auto-generated and stored in the fizzy-credentials secret.
 
-4. Database migrations:
-  If this is a fresh install, run migrations:
-  kubectl exec -it deploy/{{ include "fizzy.fullname" . }}-web -n {{ .Release.Namespace }} -- bin/rails db:migrate
-
-5. Architecture notes:
-  - Fizzy uses the Solid trifecta (Queue, Cache, Cable) - all DB-backed, no Redis needed
-  - Web pods run Puma via Thruster (port 80)
-  - Worker pods run Solid Queue (bin/jobs)
-  - All secrets should be managed via 1Password OnePasswordItem CRDs
-
-For more information, visit: https://github.com/basecamp/fizzy
+For more info: https://github.com/basecamp/fizzy
