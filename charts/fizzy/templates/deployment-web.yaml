@@ -61,6 +61,33 @@ spec:
               name: {{ include "fizzy.fullname" . }}-credentials
               key: secret_key_base
               {{- end }}
+        {{- if .Values.smtp.enabled }}
+        - name: SMTP_ADDRESS
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.fullname" . }}-smtp
+              key: smtp_address
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.fullname" . }}-smtp
+              key: smtp_port
+        - name: SMTP_DOMAIN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.fullname" . }}-smtp
+              key: smtp_domain
+        - name: SMTP_USER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.fullname" . }}-smtp
+              key: smtp_user_name
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "fizzy.fullname" . }}-smtp
+              key: smtp_password
+        {{- end }}
         livenessProbe:
           httpGet:
             path: {{ .Values.healthCheck.path }}
