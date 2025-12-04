@@ -1,0 +1,117 @@
+## Fizzy Helm Chart Configuration
+## Kanban tracking tool by 37signals (Basecamp)
+## Uses the Solid trifecta: Solid Queue, Solid Cache, Solid Cable (all DB-backed)
+
+image:
+  repository: ghcr.io/basecamp/fizzy
+  pullPolicy: IfNotPresent
+  tag: "main"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+## Service Account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+## Pod Security Context (Rails app runs as non-root user 1000)
+podSecurityContext:
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  readOnlyRootFilesystem: false  # Rails needs tmp directories
+  capabilities:
+    drop:
+      - ALL
+
+## Rails Environment Configuration
+rails:
+  env: "production"
+  logToStdout: true
+  serveStaticFiles: true
+
+## Database: SQLite with persistent storage
+## Simple and sufficient for homelab single-replica deployment
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  annotations: {}
+
+## Secret Configuration
+## SECRET_KEY_BASE is required for Rails session encryption
+secret:
+  # Type: "onepassword" uses 1Password operator, "existing" uses pre-created secret
+  type: "onepassword"
+  onepassword:
+    # itemPath format: vaults/<vault-name>/items/<item-name>
+    itemPath: "vaults/k8s-homelab/items/fizzy"
+  existing:
+    # Name of existing secret (only used if type: "existing")
+    name: ""
+    key: "secret_key_base"
+
+## Web Deployment (Puma + Thruster)
+web:
+  replicas: 1  # SQLite requires single replica
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 100m
+      memory: 256Mi
+
+## Worker Deployment (Solid Queue)
+worker:
+  enabled: true
+  replicas: 1
+  command: ["bin/jobs"]
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  targetPort: 80
+  annotations: {}
+
+## Health checks
+healthCheck:
+  path: "/up"
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}

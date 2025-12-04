@@ -1,0 +1,33 @@
+## Dev environment overrides for Fizzy
+
+## Persistence for SQLite and Rails storage
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 2Gi
+
+## Single replica (required for SQLite)
+web:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+worker:
+  replicas: 1
+  resources:
+    limits:
+      cpu: 250m
+      memory: 256Mi
+    requests:
+      cpu: 25m
+      memory: 64Mi
+
+## Add dev-specific labels
+podLabels:
+  environment: dev
+  app: fizzy

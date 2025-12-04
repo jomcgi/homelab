@@ -1,0 +1,272 @@
+---
+# Source: fizzy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: fizzy/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fizzy-storage
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: fizzy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/component: web
+---
+# Source: fizzy/templates/deployment-web.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fizzy-web
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  # SQLite requires Recreate strategy (single writer)
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fizzy
+      app.kubernetes.io/instance: fizzy
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fizzy
+        app.kubernetes.io/instance: fizzy
+        app.kubernetes.io/component: web
+        app: fizzy
+        environment: dev
+    spec:
+      serviceAccountName: fizzy
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: web
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "ghcr.io/basecamp/fizzy:main"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: RAILS_ENV
+          value: "production"
+        - name: RAILS_LOG_TO_STDOUT
+          value: "true"
+        - name: RAILS_SERVE_STATIC_FILES
+          value: "true"
+        - name: DATABASE_ADAPTER
+          value: "sqlite"
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-credentials
+              key: secret_key_base
+        livenessProbe:
+          httpGet:
+            path: /up
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /up
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 500m
+            memory: 512Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /rails/tmp
+        - name: cache
+          mountPath: /rails/tmp/cache
+        - name: storage
+          mountPath: /rails/storage
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: fizzy-storage
+---
+# Source: fizzy/templates/deployment-worker.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fizzy-worker
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fizzy
+      app.kubernetes.io/instance: fizzy
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: fizzy
+        app.kubernetes.io/instance: fizzy
+        app.kubernetes.io/component: worker
+        app: fizzy
+        environment: dev
+    spec:
+      serviceAccountName: fizzy
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: worker
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "ghcr.io/basecamp/fizzy:main"
+        imagePullPolicy: IfNotPresent
+        command:
+          - bin/jobs
+        env:
+        - name: RAILS_ENV
+          value: "production"
+        - name: RAILS_LOG_TO_STDOUT
+          value: "true"
+        - name: DATABASE_ADAPTER
+          value: "sqlite"
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-credentials
+              key: secret_key_base
+        resources:
+          limits:
+            cpu: 250m
+            memory: 256Mi
+          requests:
+            cpu: 25m
+            memory: 64Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /rails/tmp
+        - name: cache
+          mountPath: /rails/tmp/cache
+        - name: storage
+          mountPath: /rails/storage
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: fizzy-storage
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: fizzy
+                app.kubernetes.io/instance: fizzy
+                app.kubernetes.io/component: web
+            topologyKey: kubernetes.io/hostname
+---
+# Source: fizzy/templates/onepassworditem.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: fizzy-credentials
+  namespace: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/fizzy"

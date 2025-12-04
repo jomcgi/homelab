@@ -232,22 +232,22 @@
       },
       {
         "name": "bazelisk",
-        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.27.0-r1.apk",
-        "version": "1.27.0-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.27.0-r2.apk",
+        "version": "1.27.0-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4382",
-          "checksum": "sha1-n1aF63ImvRD2kpVnzbKSsYMvUXI="
+          "range": "bytes=0-4359",
+          "checksum": "sha1-vAiw1MBFfTC3lTsJ3gpPNOxWF+s="
         },
         "data": {
-          "range": "bytes=4383-3056392",
-          "checksum": "sha256-ibzsLq16g1lx5vTII6lgrHBBUBUiLK84NTSUwuQFCiw="
+          "range": "bytes=4360-3056848",
+          "checksum": "sha256-ZIt3CX50XhSH92EviIXvG/BewOSNKldEmRR57VDv5As="
         },
-        "checksum": "Q1n1aF63ImvRD2kpVnzbKSsYMvUXI="
+        "checksum": "Q1vAiw1MBFfTC3lTsJ3gpPNOxWF+s="
       },
       {
         "name": "libxcrypt",
@@ -1904,22 +1904,22 @@
       },
       {
         "name": "bazelisk",
-        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.27.0-r1.apk",
-        "version": "1.27.0-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.27.0-r2.apk",
+        "version": "1.27.0-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4413",
-          "checksum": "sha1-5jlBkB/ZJLGVF6Y87vYIRrwaGek="
+          "range": "bytes=0-4392",
+          "checksum": "sha1-54IDtakL2iXH6xH2/hK+ZxkxnLY="
         },
         "data": {
-          "range": "bytes=4414-2775668",
-          "checksum": "sha256-Ut8ct0I/qr4M5LibLxTpwFInrwdmOOX5x4Wu8YSJXL8="
+          "range": "bytes=4393-2776346",
+          "checksum": "sha256-PIMTu5nCD7pTiYZDafsXPVittvMviV3q98bvwLlM5es="
         },
-        "checksum": "Q15jlBkB/ZJLGVF6Y87vYIRrwaGek="
+        "checksum": "Q154IDtakL2iXH6xH2/hK+ZxkxnLY="
       },
       {
         "name": "libxcrypt",
