@@ -115,6 +115,11 @@ spec:
         - name: storage
           mountPath: /rails/storage
         {{- end }}
+        {{- if .Values.smtp.enabled }}
+        - name: smtp-config
+          mountPath: /rails/config/initializers/smtp.rb
+          subPath: smtp.rb
+        {{- end }}
       volumes:
       - name: tmp
         emptyDir: {}
@@ -124,6 +129,11 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: {{ include "fizzy.fullname" . }}-storage
+      {{- end }}
+      {{- if .Values.smtp.enabled }}
+      - name: smtp-config
+        configMap:
+          name: {{ include "fizzy.fullname" . }}-smtp-config
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
