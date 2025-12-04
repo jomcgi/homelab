@@ -134,7 +134,6 @@ spec:
       app.kubernetes.io/component: web
   template:
     metadata:
-      annotations:
       labels:
         app.kubernetes.io/name: fizzy
         app.kubernetes.io/instance: fizzy
@@ -173,7 +172,6 @@ spec:
           value: "true"
         - name: DATABASE_ADAPTER
           value: "sqlite"
-        # SECRET_KEY_BASE: from existing secret, provided value, or auto-generated
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:
@@ -244,7 +242,6 @@ spec:
       app.kubernetes.io/component: worker
   template:
     metadata:
-      annotations:
       labels:
         app.kubernetes.io/name: fizzy
         app.kubernetes.io/instance: fizzy
@@ -279,7 +276,6 @@ spec:
           value: "true"
         - name: DATABASE_ADAPTER
           value: "sqlite"
-        # SECRET_KEY_BASE: from existing secret, provided value, or auto-generated
         - name: SECRET_KEY_BASE
           valueFrom:
             secretKeyRef:

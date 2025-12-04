@@ -36,40 +36,12 @@ securityContext:
 
 ## Rails Environment Configuration
 rails:
-  # Rails environment
   env: "production"
-
-  # Log to stdout for container logging
   logToStdout: true
-
-  # Serve static files (Thruster handles this)
   serveStaticFiles: true
 
-## Database Configuration
-## Fizzy supports SQLite (simple, single-replica) or MySQL (HA-capable)
-database:
-  # Database adapter: "sqlite" or "mysql"
-  # SQLite is simpler for dev/homelab, MySQL for production HA
-  adapter: sqlite
-
-  ## SQLite configuration (used when adapter: sqlite)
-  sqlite:
-    # Path inside container for SQLite database
-    path: "/rails/storage/production.sqlite3"
-
-  ## MySQL configuration (used when adapter: mysql)
-  mysql:
-    # Use existing secret containing DATABASE_URL
-    existingSecret: ""
-    secretKey: "DATABASE_URL"
-    # Or configure individually (used if existingSecret is empty)
-    host: ""
-    port: 3306
-    name: "fizzy_production"
-    username: ""
-    password: ""
-
-## Persistence for SQLite and Rails storage (Active Storage, etc.)
+## Database: SQLite with persistent storage
+## Simple and sufficient for homelab single-replica deployment
 persistence:
   enabled: true
   storageClass: "longhorn"
@@ -79,36 +51,16 @@ persistence:
 
 ## Secrets Configuration
 secrets:
-  # SECRET_KEY_BASE: Required for Rails sessions/cookies
-  # Auto-generated if not provided - no configuration needed!
-  # The generated secret persists across upgrades via helm lookup.
-  # Set existingSecret to use an external secret (e.g., from 1Password)
+  # SECRET_KEY_BASE: Auto-generated on first deploy via PreSync Job
+  # No configuration needed! Set existingSecret to use 1Password instead.
   secretKeyBase:
-    existingSecret: ""      # Leave empty to auto-generate
+    existingSecret: ""
     secretKey: "SECRET_KEY_BASE"
-    value: ""               # Or provide a specific value
-
-  # RAILS_MASTER_KEY: NOT needed for self-hosted deployments
-  # (Basecamp's credentials.yml.enc is baked into the image - you can't decrypt it)
-  railsMasterKey:
-    existingSecret: ""
-    secretKey: "RAILS_MASTER_KEY"
     value: ""
-
-  # VAPID keys: Optional, only for PWA push notifications
-  vapid:
-    existingSecret: ""
-    privateKeySecretKey: "VAPID_PRIVATE_KEY"
-    publicKeySecretKey: "VAPID_PUBLIC_KEY"
-    privateKey: ""
-    publicKey: ""
 
 ## Web Deployment (Puma + Thruster)
 web:
-  # Number of replicas (use 1 for SQLite, can scale with MySQL)
-  replicas: 1
-
-  # Resource limits
+  replicas: 1  # SQLite requires single replica
   resources:
     limits:
       cpu: 1000m
@@ -117,25 +69,11 @@ web:
       cpu: 100m
       memory: 256Mi
 
-  # Autoscaling (optional)
-  autoscaling:
-    enabled: false
-    minReplicas: 2
-    maxReplicas: 10
-    targetCPUUtilizationPercentage: 70
-
 ## Worker Deployment (Solid Queue)
 worker:
-  # Enable Solid Queue worker
   enabled: true
-
-  # Number of replicas
   replicas: 1
-
-  # Command to run workers
   command: ["bin/jobs"]
-
-  # Resource limits
   resources:
     limits:
       cpu: 500m
@@ -144,22 +82,14 @@ worker:
       cpu: 50m
       memory: 128Mi
 
-  # Autoscaling (optional)
-  autoscaling:
-    enabled: false
-    minReplicas: 1
-    maxReplicas: 5
-    targetCPUUtilizationPercentage: 70
-
 ## Service configuration
 service:
   type: ClusterIP
   port: 80
-  targetPort: 80  # Thruster listens on 80
+  targetPort: 80
   annotations: {}
 
 ## Health checks
-## Fizzy uses standard Rails health check endpoint
 healthCheck:
   path: "/up"
   initialDelaySeconds: 30
@@ -181,10 +111,3 @@ podAnnotations: {}
 
 ## Pod labels
 podLabels: {}
-
-## Deployment strategy
-strategy:
-  type: RollingUpdate
-  rollingUpdate:
-    maxSurge: 1
-    maxUnavailable: 0
