@@ -83,12 +83,12 @@ Create the name of the secret containing Rails credentials
 {{- end }}
 
 {{/*
-Database URL construction
+Database URL construction (for MySQL mode)
 */}}
 {{- define "fizzy.databaseUrl" -}}
-{{- if .Values.database.existingSecret }}
-{{- /* Use existing secret */ -}}
-{{- else if and .Values.database.host .Values.database.username }}
-{{- printf "mysql2://%s:%s@%s:%d/%s" .Values.database.username .Values.database.password .Values.database.host (int .Values.database.port) .Values.database.name }}
+{{- if .Values.database.mysql.existingSecret }}
+{{- /* Use existing secret - URL injected via env var */ -}}
+{{- else if .Values.database.mysql.host }}
+{{- printf "mysql2://%s:%s@%s:%d/%s" .Values.database.mysql.username .Values.database.mysql.password .Values.database.mysql.host (int .Values.database.mysql.port) .Values.database.mysql.name }}
 {{- end }}
 {{- end }}
