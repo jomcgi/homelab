@@ -13,6 +13,6 @@ Fizzy has been deployed!
    kubectl logs -l "app.kubernetes.io/instance={{ .Release.Name }},app.kubernetes.io/component=web" -n {{ .Release.Namespace }}
 
 Database migrations run automatically on startup via the container entrypoint.
-SECRET_KEY_BASE was auto-generated and stored in the fizzy-credentials secret.
+SECRET_KEY_BASE is managed via {{ .Values.secret.type }} (see fizzy-credentials secret).
 
 For more info: https://github.com/basecamp/fizzy
