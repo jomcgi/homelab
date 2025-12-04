@@ -1,0 +1,100 @@
+{{- if .Values.worker.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "fizzy.fullname" . }}-worker
+  labels:
+    {{- include "fizzy.labels" . | nindent 4 }}
+    app.kubernetes.io/component: worker
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "fizzy.workerSelectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "fizzy.workerSelectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "fizzy.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: worker
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          {{- toYaml .Values.worker.command | nindent 10 }}
+        env:
+        - name: RAILS_ENV
+          value: {{ .Values.rails.env | quote }}
+        - name: RAILS_LOG_TO_STDOUT
+          value: {{ .Values.rails.logToStdout | quote }}
+        - name: DATABASE_ADAPTER
+          value: "sqlite"
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              {{- if eq .Values.secret.type "existing" }}
+              name: {{ .Values.secret.existing.name }}
+              key: {{ .Values.secret.existing.key }}
+              {{- else }}
+              name: {{ include "fizzy.fullname" . }}-credentials
+              key: secret_key_base
+              {{- end }}
+        resources:
+          {{- toYaml .Values.worker.resources | nindent 10 }}
+        volumeMounts:
+        - name: tmp
+          mountPath: /rails/tmp
+        - name: cache
+          mountPath: /rails/tmp/cache
+        {{- if .Values.persistence.enabled }}
+        - name: storage
+          mountPath: /rails/storage
+        {{- end }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      {{- if .Values.persistence.enabled }}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: {{ include "fizzy.fullname" . }}-storage
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- /* Worker must be on same node as web for shared RWO SQLite volume */}}
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                {{- include "fizzy.webSelectorLabels" . | nindent 16 }}
+            topologyKey: kubernetes.io/hostname
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

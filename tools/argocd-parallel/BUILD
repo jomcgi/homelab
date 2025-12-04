@@ -23,6 +23,7 @@ filegroup(
         "//overlays/cluster-critical/signoz:render_manifests",
         "//overlays/dev/cloudflare-operator:render_manifests",
         "//overlays/dev/cloudflare-operator-test:render_manifests",
+        "//overlays/dev/fizzy:render_manifests",
         "//overlays/dev/freshrss:render_manifests",
         "//overlays/dev/n8n-obsidian-api:render_manifests",
         "//overlays/dev/stargazer:render_manifests",
