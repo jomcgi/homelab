@@ -48,6 +48,8 @@ data:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+    - hostname: fizzy.jomcgi.dev
+      service: http://fizzy.fizzy.svc.cluster.local:80
     - service: http_status:404
 ---
 # Source: cloudflare-tunnel/templates/envoy-configmap.yaml
@@ -274,7 +276,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: a6e8b9b37ebb88856a391ed1ccbbba78442857a832deb288037b25a3a2a1fa33
+        checksum/config: fcdc9415938bc845fe9752448501551cd1067e3273586fd7bc4db6e6df125629
         checksum/envoy-config: 9c0b260fe5faed6f6df6e3ab09dfc8b31025ead5ddadfa014fe3ea9c0dd27ee2
       labels:
         app.kubernetes.io/name: cloudflare-tunnel
