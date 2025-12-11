@@ -73,7 +73,7 @@ livenessProbe:
       - --metrics
       - 127.0.0.1:2000
       - ready
-  failureThreshold: 3  # Allow 3 failures before restarting
+  failureThreshold: 6  # Allow 6 failures (60s) before restarting - QUIC can have temporary hiccups
   initialDelaySeconds: 30  # Give tunnel time to connect
   periodSeconds: 10
   timeoutSeconds: 5
