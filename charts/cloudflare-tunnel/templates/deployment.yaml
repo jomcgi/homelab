@@ -113,6 +113,10 @@ spec:
         - tunnel
         - --config
         - /etc/cloudflared/config/config.yaml
+        {{- if .Values.tunnel.protocol }}
+        - --protocol
+        - {{ .Values.tunnel.protocol }}
+        {{- end }}
         - run
         {{- if eq .Values.secret.type "onepassword" }}
         - $(TUNNEL_ID)
