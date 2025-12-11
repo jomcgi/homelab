@@ -1,7 +1,6 @@
 resources:
   - ./cloudflare-operator
   - ./cloudflare-operator-test
-  - ./fizzy
   - ./freshrss
   - ./n8n-obsidian-api
   - ./stargazer
