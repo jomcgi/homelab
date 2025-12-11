@@ -17,6 +17,9 @@ serviceAccount:
 tunnel:
   id: ""  # Will be set from secret when using OnePassword
   name: ""  # Will be set from secret when using OnePassword
+  # Protocol: auto (default), quic, or http2.
+  # Note: http2 doesn't work with envoy transparent proxy enabled.
+  protocol: ""
 
 secret:
   # Options: onepassword, manual, external
