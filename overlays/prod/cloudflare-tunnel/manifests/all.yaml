@@ -399,7 +399,7 @@ spec:
             - --metrics
             - 127.0.0.1:2000
             - ready
-          failureThreshold: 3
+          failureThreshold: 6
           initialDelaySeconds: 30
           periodSeconds: 10
           timeoutSeconds: 5
