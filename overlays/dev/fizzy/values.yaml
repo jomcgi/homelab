@@ -7,15 +7,16 @@ persistence:
   size: 2Gi
 
 ## Single replica (required for SQLite)
+## Puma starts 6 workers by default, each ~200MB, so needs 1.5Gi+
 web:
   replicas: 1
   resources:
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 1000m
+      memory: 1536Mi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 1536Mi
 
 worker:
   replicas: 1

@@ -193,11 +193,11 @@ spec:
           failureThreshold: 3
         resources:
           limits:
-            cpu: 500m
-            memory: 512Mi
+            cpu: 1000m
+            memory: 1536Mi
           requests:
-            cpu: 50m
-            memory: 128Mi
+            cpu: 100m
+            memory: 1536Mi
         volumeMounts:
         - name: tmp
           mountPath: /rails/tmp
