@@ -117,7 +117,9 @@ tolerations: []
 affinity: {}
 
 ## Pod annotations
-podAnnotations: {}
+## Skip Linkerd proxy for SMTP port (non-HTTP protocol)
+podAnnotations:
+  config.linkerd.io/skip-outbound-ports: "587"
 
 ## Pod labels
 podLabels: {}
