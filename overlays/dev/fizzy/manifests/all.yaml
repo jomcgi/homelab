@@ -1,0 +1,381 @@
+---
+# Source: fizzy/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: fizzy/templates/configmap-smtp.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fizzy-smtp-config
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+data:
+  smtp.rb: |
+    # SMTP configuration for Action Mailer
+    # Reads from environment variables set by 1Password secrets
+    if ENV["SMTP_ADDRESS"].present?
+      Rails.application.config.action_mailer.delivery_method = :smtp
+      Rails.application.config.action_mailer.smtp_settings = {
+        address: ENV["SMTP_ADDRESS"],
+        port: ENV.fetch("SMTP_PORT", 587).to_i,
+        domain: ENV["SMTP_DOMAIN"],
+        user_name: ENV["SMTP_USER_NAME"],
+        password: ENV["SMTP_PASSWORD"],
+        authentication: :plain,
+        enable_starttls_auto: true
+      }
+    end
+---
+# Source: fizzy/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fizzy-storage
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: longhorn
+  resources:
+    requests:
+      storage: 2Gi
+---
+# Source: fizzy/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: http
+    protocol: TCP
+    name: http
+  selector:
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/component: web
+---
+# Source: fizzy/templates/deployment-web.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fizzy-web
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  # SQLite requires Recreate strategy (single writer)
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fizzy
+      app.kubernetes.io/instance: fizzy
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "587"
+      labels:
+        app.kubernetes.io/name: fizzy
+        app.kubernetes.io/instance: fizzy
+        app.kubernetes.io/component: web
+        app: fizzy
+        environment: dev
+    spec:
+      serviceAccountName: fizzy
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: web
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "ghcr.io/basecamp/fizzy:main"
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 80
+          protocol: TCP
+        env:
+        - name: RAILS_ENV
+          value: "production"
+        - name: RAILS_LOG_TO_STDOUT
+          value: "true"
+        - name: RAILS_SERVE_STATIC_FILES
+          value: "true"
+        - name: DATABASE_ADAPTER
+          value: "sqlite"
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-credentials
+              key: secret_key_base
+        - name: SMTP_ADDRESS
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_address
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_port
+        - name: SMTP_DOMAIN
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_domain
+        - name: SMTP_USER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_user_name
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_password
+        livenessProbe:
+          httpGet:
+            path: /up
+            port: http
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /up
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        resources:
+          limits:
+            cpu: 1000m
+            memory: 1536Mi
+          requests:
+            cpu: 100m
+            memory: 1536Mi
+        volumeMounts:
+        - name: tmp
+          mountPath: /rails/tmp
+        - name: cache
+          mountPath: /rails/tmp/cache
+        - name: storage
+          mountPath: /rails/storage
+        - name: smtp-config
+          mountPath: /rails/config/initializers/smtp.rb
+          subPath: smtp.rb
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: fizzy-storage
+      - name: smtp-config
+        configMap:
+          name: fizzy-smtp-config
+---
+# Source: fizzy/templates/deployment-worker.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fizzy-worker
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: worker
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: fizzy
+      app.kubernetes.io/instance: fizzy
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "587"
+      labels:
+        app.kubernetes.io/name: fizzy
+        app.kubernetes.io/instance: fizzy
+        app.kubernetes.io/component: worker
+        app: fizzy
+        environment: dev
+    spec:
+      serviceAccountName: fizzy
+      securityContext:
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: worker
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsGroup: 1000
+          runAsNonRoot: true
+          runAsUser: 1000
+        image: "ghcr.io/basecamp/fizzy:main"
+        imagePullPolicy: IfNotPresent
+        command:
+          - bin/jobs
+        env:
+        - name: RAILS_ENV
+          value: "production"
+        - name: RAILS_LOG_TO_STDOUT
+          value: "true"
+        - name: DATABASE_ADAPTER
+          value: "sqlite"
+        - name: SECRET_KEY_BASE
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-credentials
+              key: secret_key_base
+        - name: SMTP_ADDRESS
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_address
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_port
+        - name: SMTP_DOMAIN
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_domain
+        - name: SMTP_USER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_user_name
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_password
+        resources:
+          limits:
+            cpu: 500m
+            memory: 1Gi
+          requests:
+            cpu: 50m
+            memory: 1Gi
+        volumeMounts:
+        - name: tmp
+          mountPath: /rails/tmp
+        - name: cache
+          mountPath: /rails/tmp/cache
+        - name: storage
+          mountPath: /rails/storage
+        - name: smtp-config
+          mountPath: /rails/config/initializers/smtp.rb
+          subPath: smtp.rb
+      volumes:
+      - name: tmp
+        emptyDir: {}
+      - name: cache
+        emptyDir: {}
+      - name: storage
+        persistentVolumeClaim:
+          claimName: fizzy-storage
+      - name: smtp-config
+        configMap:
+          name: fizzy-smtp-config
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: fizzy
+                app.kubernetes.io/instance: fizzy
+                app.kubernetes.io/component: web
+            topologyKey: kubernetes.io/hostname
+---
+# Source: fizzy/templates/onepassworditem.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: fizzy-credentials
+  namespace: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/fizzy"
+---
+# Source: fizzy/templates/onepassworditem.yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: fizzy-smtp
+  namespace: fizzy
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/rails_smtp"
