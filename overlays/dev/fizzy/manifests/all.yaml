@@ -11,6 +11,34 @@ metadata:
     app.kubernetes.io/version: "main"
     app.kubernetes.io/managed-by: Helm
 ---
+# Source: fizzy/templates/configmap-smtp.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fizzy-smtp-config
+  labels:
+    helm.sh/chart: fizzy-0.1.0
+    app.kubernetes.io/name: fizzy
+    app.kubernetes.io/instance: fizzy
+    app.kubernetes.io/version: "main"
+    app.kubernetes.io/managed-by: Helm
+data:
+  smtp.rb: |
+    # SMTP configuration for Action Mailer
+    # Reads from environment variables set by 1Password secrets
+    if ENV["SMTP_ADDRESS"].present?
+      Rails.application.config.action_mailer.delivery_method = :smtp
+      Rails.application.config.action_mailer.smtp_settings = {
+        address: ENV["SMTP_ADDRESS"],
+        port: ENV.fetch("SMTP_PORT", 587).to_i,
+        domain: ENV["SMTP_DOMAIN"],
+        user_name: ENV["SMTP_USER_NAME"],
+        password: ENV["SMTP_PASSWORD"],
+        authentication: :plain,
+        enable_starttls_auto: true
+      }
+    end
+---
 # Source: fizzy/templates/pvc.yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -77,6 +105,8 @@ spec:
       app.kubernetes.io/component: web
   template:
     metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "587"
       labels:
         app.kubernetes.io/name: fizzy
         app.kubernetes.io/instance: fizzy
@@ -175,6 +205,9 @@ spec:
           mountPath: /rails/tmp/cache
         - name: storage
           mountPath: /rails/storage
+        - name: smtp-config
+          mountPath: /rails/config/initializers/smtp.rb
+          subPath: smtp.rb
       volumes:
       - name: tmp
         emptyDir: {}
@@ -183,6 +216,9 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: fizzy-storage
+      - name: smtp-config
+        configMap:
+          name: fizzy-smtp-config
 ---
 # Source: fizzy/templates/deployment-worker.yaml
 apiVersion: apps/v1
@@ -210,6 +246,8 @@ spec:
       app.kubernetes.io/component: worker
   template:
     metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "587"
       labels:
         app.kubernetes.io/name: fizzy
         app.kubernetes.io/instance: fizzy
@@ -249,13 +287,38 @@ spec:
             secretKeyRef:
               name: fizzy-credentials
               key: secret_key_base
+        - name: SMTP_ADDRESS
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_address
+        - name: SMTP_PORT
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_port
+        - name: SMTP_DOMAIN
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_domain
+        - name: SMTP_USER_NAME
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_user_name
+        - name: SMTP_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: fizzy-smtp
+              key: smtp_password
         resources:
           limits:
-            cpu: 250m
-            memory: 256Mi
+            cpu: 500m
+            memory: 1Gi
           requests:
-            cpu: 25m
-            memory: 64Mi
+            cpu: 50m
+            memory: 1Gi
         volumeMounts:
         - name: tmp
           mountPath: /rails/tmp
@@ -263,6 +326,9 @@ spec:
           mountPath: /rails/tmp/cache
         - name: storage
           mountPath: /rails/storage
+        - name: smtp-config
+          mountPath: /rails/config/initializers/smtp.rb
+          subPath: smtp.rb
       volumes:
       - name: tmp
         emptyDir: {}
@@ -271,6 +337,9 @@ spec:
       - name: storage
         persistentVolumeClaim:
           claimName: fizzy-storage
+      - name: smtp-config
+        configMap:
+          name: fizzy-smtp-config
       affinity:
         podAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
