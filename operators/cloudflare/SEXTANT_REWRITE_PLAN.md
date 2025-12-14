@@ -17,6 +17,130 @@ Rewrite the Cloudflare operator's 6 controllers using sextant state machine code
 
 ---
 
+## Design Principles
+
+### Error Handling Policy
+
+All controllers must implement consistent error handling:
+
+**Error Classification:**
+| Error Type | Examples | Action |
+|------------|----------|--------|
+| Transient | API 500, timeout, rate limit (429) | Retry with backoff |
+| Permanent | Invalid config, 404 (resource doesn't exist), 403 (unauthorized) | Move to Failed, no retry |
+| Conflict | Resource already exists (409) | Treat as success (idempotent) |
+
+**Exponential Backoff:**
+```
+Base: 5s
+Multiplier: 2x
+Max: 5m
+Jitter: ±10%
+
+Sequence: 5s → 10s → 20s → 40s → 80s → 160s → 300s (cap)
+```
+
+**Retry Limits:**
+- Transient errors: Max 10 retries before moving to Failed
+- Failed state requeue: 1 hour (allows manual intervention)
+- `RetryCount` resets on successful state transition
+
+**Circuit Breaker (future consideration):**
+- If >50% of reconciliations fail in 5 minutes, pause reconciliation for 1 minute
+- Prevents cascading failures during Cloudflare outages
+
+---
+
+### Spec Change Handling
+
+When a resource spec changes while in `Ready` state:
+
+**Detection:**
+- Compare `status.observedGeneration` vs `metadata.generation`
+- If different, spec has changed since last reconciliation
+
+**Behavior:**
+```
+Ready (observedGeneration != generation) → Re-evaluate
+  ├── If ingress config changed → ConfiguringIngress
+  ├── If tunnel name changed → CreatingTunnel (recreate)
+  └── If no material change → Stay Ready, update observedGeneration
+```
+
+**Implementation:**
+- `VisitReady` checks generation mismatch
+- Determines which fields changed
+- Transitions to appropriate state for incremental update
+- Avoids unnecessary Cloudflare API calls
+
+---
+
+### Deletion Handling
+
+Deletion (via `deletionTimestamp`) must be handled from ANY non-terminal state:
+
+**CloudflareTunnel:**
+```
+ANY STATE + deletionTimestamp → DeletingTunnel → Deleted
+```
+
+| From State | Cleanup Required |
+|------------|------------------|
+| Pending | None - just remove finalizer |
+| CreatingTunnel | Delete tunnel if tunnelID exists |
+| CreatingSecret | Delete tunnel + secret |
+| ConfiguringIngress | Delete tunnel + secret |
+| Ready | Delete tunnel + secret |
+| Failed | Delete tunnel + secret (if they exist) |
+
+**Implementation:**
+- Every `Visit*` method checks `deletionTimestamp` first
+- If set, transition to appropriate deletion state
+- Deletion states are idempotent (safe to retry)
+
+**CloudflareAccessPolicy:**
+```
+ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → Deleted
+```
+
+**Gateway/HTTPRoute:**
+- Use OwnerReferences for cascading deletion
+- Finalizer only needed for external Cloudflare resources (DNS records)
+
+---
+
+### Observability Requirements
+
+**Metrics (Prometheus):**
+| Metric | Type | Labels | Description |
+|--------|------|--------|-------------|
+| `cloudflare_operator_reconcile_total` | Counter | controller, result | Total reconciliations |
+| `cloudflare_operator_reconcile_duration_seconds` | Histogram | controller, phase | Reconcile latency |
+| `cloudflare_operator_resource_phase` | Gauge | controller, namespace, name, phase | Current phase (1 = in this phase) |
+| `cloudflare_operator_errors_total` | Counter | controller, error_type | Errors by type |
+| `cloudflare_operator_cloudflare_api_duration_seconds` | Histogram | operation | Cloudflare API latency |
+| `cloudflare_operator_cloudflare_api_errors_total` | Counter | operation, status_code | Cloudflare API errors |
+
+**Alerts:**
+| Alert | Condition | Severity |
+|-------|-----------|----------|
+| `CloudflareOperatorHighErrorRate` | error_rate > 10% for 5m | Warning |
+| `CloudflareOperatorReconcileStuck` | resource in non-terminal state > 30m | Warning |
+| `CloudflareOperatorDown` | no reconciliations for 5m | Critical |
+| `CloudflareAPIHighLatency` | p99 > 10s for 5m | Warning |
+
+**Tracing:**
+- Span per reconciliation with phase transitions as events
+- Span per Cloudflare API call
+- Trace context propagated through all operations
+
+**Logging:**
+- Structured JSON logs
+- Required fields: `controller`, `namespace`, `name`, `phase`, `generation`
+- Log level: INFO for state transitions, WARN for retries, ERROR for failures
+
+---
+
 ## Stage 1: CloudflareTunnel State Machine
 
 The core tunnel controller - most complex, proves the pattern.
@@ -29,12 +153,14 @@ The core tunnel controller - most complex, proves the pattern.
 **State Machine Design:**
 ```
 Pending → CreatingTunnel → CreatingSecret → ConfiguringIngress → Ready
-                ↓              ↓                  ↓
-             Failed ←──────────┴──────────────────┘
-                ↓
-             Pending (retry if retryable)
-
-Ready/Failed → DeletingTunnel → Deleted (on deletionTimestamp)
+                ↓              ↓                  ↓                 │
+             Failed ←──────────┴──────────────────┘                 │
+                ↓                                                   │
+             Pending (retry if retryable)                           │
+                                                                    │
+                         ┌──────────────────────────────────────────┘
+                         ↓
+ANY STATE + deletionTimestamp → DeletingTunnel → Deleted
 ```
 
 **States:**
@@ -119,10 +245,14 @@ Similar pattern to CloudflareTunnel but simpler.
 **State Machine Design:**
 ```
 Pending → ResolvingTarget → CreatingApplication → CreatingPolicies → Ready
-               ↓                   ↓                    ↓
-            Failed ←───────────────┴────────────────────┘
-
-Ready/Failed → DeletingPolicies → DeletingApplication → Deleted
+               ↓                   ↓                    ↓               │
+            Failed ←───────────────┴────────────────────┘               │
+               ↓                                                        │
+            Pending (retry if retryable)                                │
+                                                                        │
+                              ┌─────────────────────────────────────────┘
+                              ↓
+ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → Deleted
 ```
 
 **States:**
@@ -186,10 +316,14 @@ Gateway is external Gateway API type - cannot modify its Status. Use annotation-
 **State Machine Design:**
 ```
 Pending → ResolvingCredentials → CreatingTunnelCRD → WaitingForTunnel → CreatingDeployment → Ready
-                 ↓                     ↓                  ↓                    ↓
-              Failed ←─────────────────┴──────────────────┴────────────────────┘
-
-Ready/Failed → Deleting → Deleted (OwnerReferences handle cleanup)
+                 ↓                     ↓                  ↓                    ↓              │
+              Failed ←─────────────────┴──────────────────┴────────────────────┘              │
+                 ↓                                                                            │
+              Pending (retry if retryable)                                                    │
+                                                                                              │
+                                        ┌─────────────────────────────────────────────────────┘
+                                        ↓
+          ANY STATE + deletionTimestamp → Deleting → Deleted (OwnerReferences handle cleanup)
 ```
 
 ### 3.2 Rewrite Controller
@@ -230,10 +364,14 @@ Simplest controller - DNS record management.
 **State Machine Design:**
 ```
 Pending → ResolvingGateway → UpdatingRoutes → CreatingDNS → Ready
-               ↓                  ↓               ↓
-            Failed ←──────────────┴───────────────┘
-
-Ready/Failed → DeletingDNS → DeletingRoutes → Deleted
+               ↓                  ↓               ↓            │
+            Failed ←──────────────┴───────────────┘            │
+               ↓                                               │
+            Pending (retry if retryable)                       │
+                                                               │
+                            ┌──────────────────────────────────┘
+                            ↓
+ANY STATE + deletionTimestamp → DeletingDNS → DeletingRoutes → Deleted
 ```
 
 ### 4.2 Rewrite Controller
