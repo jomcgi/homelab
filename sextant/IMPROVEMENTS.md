@@ -329,11 +329,13 @@ Existing state machine definitions must continue to work:
 
 ---
 
-## Open Questions
+## Design Decisions
 
-1. Should metrics be namespaced per-controller or global?
-2. Should we generate PrometheusRule CRDs for alerts, or leave that to Helm charts?
-3. Should spec change detection be automatic in calculator, or opt-in per state?
+1. **Metrics namespace**: Per-controller. Each controller gets its own metric names (e.g., `cloudflaretunnel_reconcile_total`, `cloudflareaccesspolicy_reconcile_total`). This allows independent scaling and monitoring.
+
+2. **Alert generation**: Leave to Helm charts. Sextant generates metrics only. PrometheusRule CRDs are deployment-specific and belong in the operator's Helm chart values.
+
+3. **Spec change detection**: Opt-in via schema. Explicit is better than implicit. Controllers that need it enable `specChangeHandling.enabled: true`.
 
 ---
 
