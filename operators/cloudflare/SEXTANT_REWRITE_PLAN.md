@@ -27,8 +27,16 @@ All controllers must implement consistent error handling:
 | Error Type | Examples | Action |
 |------------|----------|--------|
 | Transient | API 500, timeout, rate limit (429) | Retry with backoff |
-| Permanent | Invalid config, 404 (resource doesn't exist), 403 (unauthorized) | Move to Failed, no retry |
+| Permanent | Invalid config, 403 (unauthorized) | Move to Failed, no retry |
 | Conflict | Resource already exists (409) | Treat as success (idempotent) |
+
+**Context-Aware 404 Handling:**
+| Operation | 404 Meaning | Action |
+|-----------|-------------|--------|
+| Create (check if exists) | Resource doesn't exist yet | Proceed with creation (expected) |
+| Get (during Ready) | Resource deleted externally | Transition to CreatingTunnel (recreate) |
+| Update | Resource doesn't exist | Transition to CreatingTunnel (recreate) |
+| Delete | Already deleted | Treat as success (idempotent) |
 
 **Exponential Backoff:**
 ```
@@ -141,6 +149,69 @@ ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → D
 
 ---
 
+### Annotation-Based Phase Storage (Gateway/HTTPRoute)
+
+Gateway and HTTPRoute are external Gateway API types. Phase must be stored in annotations.
+
+**Annotation Schema:**
+```yaml
+metadata:
+  annotations:
+    cloudflare.tunnels.io/phase: "Ready"
+    cloudflare.tunnels.io/tunnel-id: "abc123"
+    cloudflare.tunnels.io/retry-count: "0"
+    cloudflare.tunnels.io/error-message: ""
+```
+
+**Validation Requirements:**
+- `getPhase()` must validate annotation value against known phases
+- Invalid/missing annotation → return `Pending` (not Unknown, to avoid infinite loops)
+- Log warning when invalid phase detected
+- Never trust user-editable annotations without validation
+
+**Implementation:**
+```go
+func getGatewayPhase(gw *gatewayv1.Gateway) string {
+    phase := gw.Annotations["cloudflare.tunnels.io/phase"]
+    if !isValidGatewayPhase(phase) {
+        log.Info("Invalid or missing phase annotation, defaulting to Pending",
+            "observed", phase)
+        return PhasePending
+    }
+    return phase
+}
+```
+
+---
+
+### Concurrency Considerations
+
+**Controller Configuration:**
+```go
+ctrl.NewControllerManagedBy(mgr).
+    WithOptions(controller.Options{
+        MaxConcurrentReconciles: 5,  // Limit parallel reconciliations
+    }).
+    For(&tunnelsv1.CloudflareTunnel{}).
+    Complete(r)
+```
+
+**ResourceVersion Conflicts:**
+- Status updates may fail with conflict errors if resource changed during reconciliation
+- Treat 409 Conflict on status update as transient → requeue immediately
+- Do NOT retry in-loop; let controller-runtime handle requeue
+
+**Rate Limiting:**
+- Default controller-runtime rate limiter is sufficient for most cases
+- Consider custom rate limiter if Cloudflare API quota is a concern
+
+**Idempotency:**
+- All Visit methods must be idempotent (safe to retry)
+- External API calls should use idempotency keys where supported
+- State transitions should be deterministic from current state
+
+---
+
 ## Stage 1: CloudflareTunnel State Machine
 
 The core tunnel controller - most complex, proves the pattern.
@@ -170,10 +241,17 @@ ANY STATE + deletionTimestamp → DeletingTunnel → Deleted
 | CreatingTunnel | - | 5s | - |
 | CreatingSecret | - | 5s | tunnelID |
 | ConfiguringIngress | - | 5s | tunnelID, secretName |
-| Ready | terminal | - | tunnelID, secretName, active |
+| Ready | terminal | 5m | tunnelID, secretName, active |
 | Failed | error | 1m | lastState, errorMessage, retryCount |
-| DeletingTunnel | deletion | - | tunnelID |
+| DeletingTunnel | deletion | 5s | tunnelID |
 | Deleted | terminal, deletion | - | - |
+
+**Note on Deletion Granularity:** Single `DeletingTunnel` state handles both tunnel and secret cleanup. This is acceptable because:
+1. Secret deletion is a local K8s operation (fast, reliable)
+2. Tunnel deletion is the slow/fallible external operation
+3. If secret deletion fails, the next reconcile will retry (idempotent)
+
+CloudflareAccessPolicy uses two deletion states (`DeletingPolicies` → `DeletingApplication`) because both are external Cloudflare API calls that can fail independently.
 
 ### 1.2 Update CRD Types
 

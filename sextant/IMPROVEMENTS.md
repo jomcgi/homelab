@@ -32,6 +32,11 @@ The current implementation has hardcoded retry behavior with no error classifica
 
 - [ ] Update `transitions.go.tmpl` to use configurable backoff:
   ```go
+  // Package-level random source, seeded once at init to avoid correlated jitter
+  // across operators started simultaneously.
+  var jitterRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+  var jitterMu sync.Mutex
+
   func (s {{$.Name}}{{.Name}}) RetryBackoff() time.Duration {
       base := {{.ErrorHandling.Backoff.Base}}
       multiplier := {{.ErrorHandling.Backoff.Multiplier}}
@@ -42,9 +47,12 @@ The current implementation has hardcoded retry behavior with no error classifica
       if backoff > max {
           backoff = max
       }
-      // Apply jitter
+      // Apply jitter with thread-safe random source
       jitterRange := float64(backoff) * jitter
-      backoff += time.Duration(rand.Float64()*2*jitterRange - jitterRange)
+      jitterMu.Lock()
+      jitterValue := jitterRand.Float64()*2*jitterRange - jitterRange
+      jitterMu.Unlock()
+      backoff += time.Duration(jitterValue)
       return backoff
   }
   ```
@@ -81,13 +89,14 @@ Operators need to detect when a resource's spec has changed while in a terminal 
 
 ### Requirements
 
-#### 2.1 Calculator Enhancement
+#### 2.1 Standalone Helper Function
 
-- [ ] Add `HasSpecChanged()` method to generated calculator:
+- [ ] Generate `HasSpecChanged()` as standalone function (not Calculator method) in `status.go`:
   ```go
   // HasSpecChanged returns true if spec has changed since last reconciliation.
   // Compares metadata.generation with status.observedGeneration.
-  func (c *{{.Name}}Calculator) HasSpecChanged(r *{{.Version}}.{{.Name}}) bool {
+  // This is a standalone function to maintain Calculator as a pure state reconstructor.
+  func HasSpecChanged(r *{{.Version}}.{{.Name}}) bool {
       return r.Generation != r.Status.ObservedGeneration
   }
   ```
@@ -104,12 +113,15 @@ Operators need to detect when a resource's spec has changed while in a terminal 
 
 #### 2.3 Code Generation Changes
 
-- [ ] Update `calculator.go.tmpl` to include `HasSpecChanged()` method
+- [ ] Update `status.go.tmpl` to include standalone `HasSpecChanged()` function
 - [ ] Generate field accessor for observed generation
 - [ ] Add helper to update observed generation after successful reconciliation:
   ```go
-  func (s {{.Name}}State) WithObservedGeneration() {{.Name}}State {
-      // Returns state with observedGeneration set to current generation
+  // UpdateObservedGeneration returns a copy of the resource with observedGeneration
+  // set to the current generation. Call this after successful reconciliation.
+  func UpdateObservedGeneration(r *{{.Version}}.{{.Name}}) *{{.Version}}.{{.Name}} {
+      r.Status.ObservedGeneration = r.Generation
+      return r
   }
   ```
 
@@ -178,12 +190,42 @@ Production operators require Prometheus metrics for monitoring. Currently, sexta
           },
           []string{"error_type"},
       )
+
+      // Time-in-state metric for SLO measurement (e.g., "how long to reach Ready?")
+      stateDuration = prometheus.NewHistogramVec(
+          prometheus.HistogramOpts{
+              Name:    "{{lower .Name}}_state_duration_seconds",
+              Help:    "Time spent transitioning between states",
+              Buckets: []float64{1, 5, 15, 30, 60, 120, 300, 600, 1800},
+          },
+          []string{"from_phase", "to_phase"},
+      )
   )
 
   // MetricsObserver implements TransitionObserver with Prometheus metrics.
-  type MetricsObserver struct{}
+  type MetricsObserver struct {
+      transitionStart map[string]time.Time  // key: namespace/name
+      mu              sync.Mutex
+  }
 
-  func (m MetricsObserver) OnTransition(ctx context.Context, from, to {{.Name}}State) {
+  func NewMetricsObserver() *MetricsObserver {
+      return &MetricsObserver{
+          transitionStart: make(map[string]time.Time),
+      }
+  }
+
+  func (m *MetricsObserver) OnTransition(ctx context.Context, from, to {{.Name}}State) {
+      key := to.Resource().Namespace + "/" + to.Resource().Name
+
+      m.mu.Lock()
+      if startTime, ok := m.transitionStart[key]; ok {
+          // Record duration from previous state
+          stateDuration.WithLabelValues(from.Phase(), to.Phase()).
+              Observe(time.Since(startTime).Seconds())
+      }
+      m.transitionStart[key] = time.Now()
+      m.mu.Unlock()
+
       resourcePhase.WithLabelValues(
           to.Resource().Namespace,
           to.Resource().Name,
@@ -198,7 +240,7 @@ Production operators require Prometheus metrics for monitoring. Currently, sexta
   }
 
   func init() {
-      prometheus.MustRegister(reconcileTotal, reconcileDuration, resourcePhase, errorsTotal)
+      prometheus.MustRegister(reconcileTotal, reconcileDuration, resourcePhase, errorsTotal, stateDuration)
   }
   ```
 
@@ -210,9 +252,15 @@ Production operators require Prometheus metrics for monitoring. Currently, sexta
 ### Acceptance Criteria
 
 - [ ] Metrics file generated when `observability.metrics: true`
-- [ ] All four metric types (counter, histogram, gauge, counter) generated
+- [ ] All five metrics generated:
+  - [ ] `reconcile_total` (counter)
+  - [ ] `reconcile_duration_seconds` (histogram)
+  - [ ] `resource_phase` (gauge)
+  - [ ] `errors_total` (counter)
+  - [ ] `state_duration_seconds` (histogram) - for SLO measurement
 - [ ] Metrics registered on init
 - [ ] MetricsObserver implements TransitionObserver interface
+- [ ] MetricsObserver tracks transition timestamps for duration calculation
 - [ ] Metrics have appropriate labels and help text
 
 ---
