@@ -56,6 +56,7 @@ Sequence: 5s → 10s → 20s → 40s → 80s → 160s → 300s (cap)
 **Circuit Breaker (future consideration):**
 - If >50% of reconciliations fail in 5 minutes, pause reconciliation for 1 minute
 - Prevents cascading failures during Cloudflare outages
+- **Interim Step**: Implement `golang.org/x/time/rate` limiter in Reconciler struct to respect global API limits.
 
 ---
 
@@ -124,7 +125,7 @@ ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → D
 |--------|------|--------|-------------|
 | `cloudflare_operator_reconcile_total` | Counter | controller, result | Total reconciliations |
 | `cloudflare_operator_reconcile_duration_seconds` | Histogram | controller, phase | Reconcile latency |
-| `cloudflare_operator_resource_phase` | Gauge | controller, namespace, name, phase | Current phase (1 = in this phase) |
+| `cloudflare_operator_resource_phase` | Gauge | controller, namespace, name, phase | Current phase (1 = in this phase). **NOTE**: High cardinality if >100k resources. |
 | `cloudflare_operator_errors_total` | Counter | controller, error_type | Errors by type |
 | `cloudflare_operator_cloudflare_api_duration_seconds` | Histogram | operation | Cloudflare API latency |
 | `cloudflare_operator_cloudflare_api_errors_total` | Counter | operation, status_code | Cloudflare API errors |

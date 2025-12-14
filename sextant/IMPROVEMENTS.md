@@ -280,8 +280,8 @@ Guards currently only support `maxRetries`. Production operators need more expre
   type Guard struct {
       Description   string        `yaml:"description,omitempty"`
       MaxRetries    int           `yaml:"maxRetries,omitempty"`
-      MinBackoff    Duration      `yaml:"minBackoff,omitempty"`    // NEW
-      Condition     string        `yaml:"condition,omitempty"`     // NEW: Go expression
+      MinBackoff    Duration      `yaml:"minBackoff,omitempty"`    // NEW: Enforces a minimum time before retry (max of this vs ErrorHandling)
+      Condition     string        `yaml:"condition,omitempty"`     // NEW: Go expression using 's' (state) and 'r' (resource)
   }
   ```
 
@@ -289,6 +289,9 @@ Guards currently only support `maxRetries`. Production operators need more expre
 
 - [ ] Generate guard evaluation that combines multiple conditions
 - [ ] Support user-defined condition expressions (validated at generation time)
+  - [ ] Context available: `s` (current state struct), `r` (resource struct)
+  - [ ] Example: `r.Spec.Replicas > 0`
+  - [ ] Safety: Restrict imports or use a safe expression evaluator if possible
 
 ### Acceptance Criteria
 
