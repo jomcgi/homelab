@@ -2,16 +2,18 @@
 
 ## Overview
 
-Rewrite the Cloudflare operator's 4 controllers using sextant state machine code generation to replace ~2800 lines of imperative reconciliation code with declarative state machines.
+Rewrite the Cloudflare operator's 6 controllers using sextant state machine code generation to replace imperative reconciliation code with declarative state machines.
 
-| Controller | Current LOC | CRD Owner | Phase Storage |
-|------------|-------------|-----------|---------------|
-| CloudflareTunnel | 609 | Us | Status.Phase |
-| CloudflareAccessPolicy | 609 | Us | Status.Phase |
-| Gateway | 957 | Gateway API (external) | Annotation |
-| HTTPRoute | ~400 | Gateway API (external) | Annotation |
+| Controller | CRD Owner | Phase Storage | Approach |
+|------------|-----------|---------------|----------|
+| CloudflareTunnel | Us | Status.Phase | Sextant generated |
+| CloudflareAccessPolicy | Us | Status.Phase | Sextant generated |
+| Gateway | Gateway API (external) | Annotation | Manual state machine |
+| HTTPRoute | Gateway API (external) | Annotation | Manual state machine |
+| GatewayClass | Gateway API (external) | Status.Conditions | Keep simple (validation only) |
+| Service | N/A (helper) | N/A | Keep simple (annotation-based routing) |
 
-**Key Constraint**: Gateway/HTTPRoute are external Gateway API types - we cannot add `Status.Phase` fields. Use annotation-based phase storage for these.
+**Key Constraint**: Gateway/HTTPRoute/GatewayClass are external Gateway API types - we cannot add `Status.Phase` fields. Use annotation-based phase storage for Gateway/HTTPRoute.
 
 ---
 
@@ -22,7 +24,7 @@ The core tunnel controller - most complex, proves the pattern.
 ### 1.1 Create State Machine Definition
 
 - [ ] Create `operators/cloudflare/statemachines/` directory
-- [ ] Create `operators/cloudflare/statemachines/cloudflaretunnel.yaml`
+- [ ] Create `operators/cloudflare/statemachines/cloudflaretunnel.sextant.yaml`
 
 **State Machine Design:**
 ```
@@ -54,12 +56,19 @@ Ready/Failed → DeletingTunnel → Deleted (on deletionTimestamp)
   - [ ] Add `LastState` field
   - [ ] Add `ErrorMessage` field
   - [ ] Add `RetryCount` field
-- [ ] Run `make generate` to update generated code
-- [ ] Run `make manifests` to update CRD YAML
+- [ ] Run `bazel run //operators/cloudflare:generate` to update generated code
+- [ ] Run `bazel run //operators/cloudflare:manifests` to update CRD YAML
 
 ### 1.3 Generate State Machine Code
 
-- [ ] Run sextant: `sextant generate statemachines/cloudflaretunnel.yaml -o internal/statemachine -p statemachine`
+- [ ] Run sextant:
+  ```bash
+  sextant generate statemachines/cloudflaretunnel.sextant.yaml \
+    -o internal/statemachine \
+    -p statemachine \
+    --module github.com/jomcgi/homelab/operators/cloudflare \
+    --api github.com/jomcgi/homelab/operators/cloudflare/api/v1
+  ```
 - [ ] Verify generated files compile:
   - [ ] `cloudflare_tunnel_phases.go`
   - [ ] `cloudflare_tunnel_types.go`
@@ -105,7 +114,7 @@ Similar pattern to CloudflareTunnel but simpler.
 
 ### 2.1 Create State Machine Definition
 
-- [ ] Create `operators/cloudflare/statemachines/cloudflareaccesspolicy.yaml`
+- [ ] Create `operators/cloudflare/statemachines/cloudflareaccesspolicy.sextant.yaml`
 
 **State Machine Design:**
 ```
@@ -135,11 +144,18 @@ Ready/Failed → DeletingPolicies → DeletingApplication → Deleted
   - [ ] Add `Phase` field to CloudflareAccessPolicyStatus
   - [ ] Add `LastState`, `ErrorMessage`, `RetryCount` fields
   - [ ] Add `AccountID` field (currently missing)
-- [ ] Run `make generate` and `make manifests`
+- [ ] Run `bazel run //operators/cloudflare:generate` and `bazel run //operators/cloudflare:manifests`
 
 ### 2.3 Generate State Machine Code
 
-- [ ] Run sextant: `sextant generate statemachines/cloudflareaccesspolicy.yaml -o internal/statemachine -p statemachine`
+- [ ] Run sextant:
+  ```bash
+  sextant generate statemachines/cloudflareaccesspolicy.sextant.yaml \
+    -o internal/statemachine \
+    -p statemachine \
+    --module github.com/jomcgi/homelab/operators/cloudflare \
+    --api github.com/jomcgi/homelab/operators/cloudflare/api/v1
+  ```
 - [ ] Verify 7 generated files compile
 
 ### 2.4 Rewrite Controller
@@ -240,19 +256,88 @@ Ready/Failed → DeletingDNS → DeletingRoutes → Deleted
 
 ---
 
-## Stage 5: Integration & Cleanup
+## Stage 5: GatewayClass Controller (Keep Simple)
 
-### 5.1 Makefile Updates
+The GatewayClass controller is a validation-only controller - it validates GatewayClass resources and sets the `Accepted` condition. No state machine needed.
 
-- [ ] Add `generate-statemachines` target to `operators/cloudflare/Makefile`:
-  ```makefile
-  .PHONY: generate-statemachines
-  generate-statemachines:
-      sextant generate statemachines/cloudflaretunnel.yaml -o internal/statemachine -p statemachine
-      sextant generate statemachines/cloudflareaccesspolicy.yaml -o internal/statemachine -p statemachine
+### 5.1 Review and Simplify
+
+- [ ] Review `internal/controller/gatewayclass_controller.go`
+- [ ] Verify it only does validation (no complex state)
+- [ ] Keep existing implementation - it's appropriately simple
+- [ ] Ensure consistent error handling with other controllers
+
+**Current Behavior (keep as-is):**
+- Validates GatewayClass `spec.controllerName` matches our controller
+- Validates `spec.parametersRef` Secret exists with required fields
+- Sets `Accepted` condition True/False based on validation
+
+---
+
+## Stage 6: Service Controller (Keep Simple)
+
+The Service controller watches Services with `cloudflare.ingress.hostname` annotation and manages HTTPRoutes. It's an annotation-driven helper - no state machine needed.
+
+### 6.1 Review and Simplify
+
+- [ ] Review `internal/controller/service_controller.go`
+- [ ] Verify it handles annotation-based routing correctly
+- [ ] Keep existing implementation - it's appropriately simple
+- [ ] Ensure consistent error handling with other controllers
+
+**Current Behavior (keep as-is):**
+- Watches Services with `cloudflare.ingress.hostname` annotation
+- Creates/updates HTTPRoute resources for annotated Services
+- Optionally creates CloudflareAccessPolicy for zero-trust
+
+---
+
+## Stage 7: Integration & Cleanup
+
+### 7.1 Bazel Build Updates
+
+- [ ] Add sextant generation to `operators/cloudflare/BUILD`:
+  ```starlark
+  # Generate state machine code
+  genrule(
+      name = "generate-statemachines",
+      srcs = [
+          "statemachines/cloudflaretunnel.sextant.yaml",
+          "statemachines/cloudflareaccesspolicy.sextant.yaml",
+      ],
+      outs = [
+          "internal/statemachine/cloudflare_tunnel_phases.go",
+          "internal/statemachine/cloudflare_tunnel_types.go",
+          "internal/statemachine/cloudflare_tunnel_calculator.go",
+          "internal/statemachine/cloudflare_tunnel_transitions.go",
+          "internal/statemachine/cloudflare_tunnel_visit.go",
+          "internal/statemachine/cloudflare_tunnel_observability.go",
+          "internal/statemachine/cloudflare_tunnel_status.go",
+          "internal/statemachine/cloudflare_access_policy_phases.go",
+          "internal/statemachine/cloudflare_access_policy_types.go",
+          "internal/statemachine/cloudflare_access_policy_calculator.go",
+          "internal/statemachine/cloudflare_access_policy_transitions.go",
+          "internal/statemachine/cloudflare_access_policy_visit.go",
+          "internal/statemachine/cloudflare_access_policy_observability.go",
+          "internal/statemachine/cloudflare_access_policy_status.go",
+      ],
+      cmd = """
+          $(location //sextant/cmd/sextant) generate $(location statemachines/cloudflaretunnel.sextant.yaml) \
+            -o $(@D)/internal/statemachine \
+            -p statemachine \
+            --module github.com/jomcgi/homelab/operators/cloudflare \
+            --api github.com/jomcgi/homelab/operators/cloudflare/api/v1
+          $(location //sextant/cmd/sextant) generate $(location statemachines/cloudflareaccesspolicy.sextant.yaml) \
+            -o $(@D)/internal/statemachine \
+            -p statemachine \
+            --module github.com/jomcgi/homelab/operators/cloudflare \
+            --api github.com/jomcgi/homelab/operators/cloudflare/api/v1
+      """,
+      tools = ["//sextant/cmd/sextant"],
+  )
   ```
 
-### 5.2 Full Integration Test
+### 7.2 Full Integration Test
 
 - [ ] Deploy operator to test cluster
 - [ ] Create Gateway → verify CloudflareTunnel + Deployment
@@ -261,7 +346,7 @@ Ready/Failed → DeletingDNS → DeletingRoutes → Deleted
 - [ ] Delete all → verify cleanup
 - [ ] Check SigNoz for OTEL traces showing state transitions
 
-### 5.3 Documentation
+### 7.3 Documentation
 
 - [ ] Update `operators/cloudflare/README.md` with state machine diagrams
 - [ ] Document phase field meanings for debugging
@@ -273,8 +358,8 @@ Ready/Failed → DeletingDNS → DeletingRoutes → Deleted
 ### Create (new files)
 | File | Purpose |
 |------|---------|
-| `statemachines/cloudflaretunnel.yaml` | CloudflareTunnel state machine definition |
-| `statemachines/cloudflareaccesspolicy.yaml` | CloudflareAccessPolicy state machine definition |
+| `statemachines/cloudflaretunnel.sextant.yaml` | CloudflareTunnel state machine definition |
+| `statemachines/cloudflareaccesspolicy.sextant.yaml` | CloudflareAccessPolicy state machine definition |
 | `internal/statemachine/*.go` | Generated code (14 files) |
 | `internal/controller/gateway_phases.go` | Gateway phase constants + helpers |
 | `internal/controller/httproute_phases.go` | HTTPRoute phase constants + helpers |
@@ -289,11 +374,13 @@ Ready/Failed → DeletingDNS → DeletingRoutes → Deleted
 | `internal/controller/gateway_controller.go` | Full rewrite with manual state machine |
 | `internal/controller/httproute_controller.go` | Full rewrite with manual state machine |
 | `cmd/main.go` | Initialize state machine calculators |
-| `Makefile` | Add generate-statemachines target |
+| `BUILD` | Add generate-statemachines Bazel rule |
 
 ### Preserve (no changes)
 | File | Reason |
 |------|--------|
 | `internal/cloudflare/*` | API client - reused |
 | `internal/telemetry/*` | OTEL setup - reused |
+| `internal/controller/gatewayclass_controller.go` | Validation controller - keep simple |
+| `internal/controller/service_controller.go` | Helper controller - keep simple |
 | `api/v1/conditions.go` | Condition constants - kept for compatibility |
