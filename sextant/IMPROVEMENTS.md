@@ -252,13 +252,29 @@ Guards currently only support `maxRetries`. Production operators need more expre
 
 ## 5. Documentation Generation
 
+### Current State
+
+Mermaid diagram generation **already exists** via `embedDiagram: true` in `types.go.tmpl:14-27`. However, there's a bug with multi-source transitions.
+
 ### Problem Statement
 
-State machines should be self-documenting. The `embedDiagram: true` option exists but may not generate comprehensive documentation.
+The current diagram generation uses `{{index .From 0}}` which only shows the first source state for transitions with multiple sources. A transition like `from: ["Ready", "Failed"]` only renders `Ready --> To`, missing `Failed --> To`.
 
 ### Requirements
 
-- [ ] Verify Mermaid diagram generation works correctly
+#### 5.1 Fix Multi-Source Transition Bug
+
+- [ ] Update `types.go.tmpl` to iterate over all source states:
+  ```go
+  {{- range .Transitions}}
+  {{- range .From}}
+  //     {{.}} --> {{$.To}}: {{$.Action}}{{if $.Guard}} [{{$.Guard}}]{{end}}
+  {{- end}}
+  {{- end}}
+  ```
+
+#### 5.2 Optional Standalone Documentation (P3)
+
 - [ ] Add state transition table to generated code comments
 - [ ] Generate markdown documentation file (optional):
   ```yaml
@@ -268,7 +284,7 @@ State machines should be self-documenting. The `embedDiagram: true` option exist
 
 ### Acceptance Criteria
 
-- [ ] Mermaid diagram correctly represents all states and transitions
+- [ ] Mermaid diagram shows ALL edges for multi-source transitions
 - [ ] Generated markdown includes state descriptions, transitions, and guards
 - [ ] Documentation stays in sync with YAML definition
 
