@@ -973,60 +973,60 @@
       },
       {
         "name": "helm-4",
-        "url": "https://packages.wolfi.dev/os/x86_64/helm-4-4.0.2-r0.apk",
-        "version": "4.0.2-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/helm-4-4.0.4-r0.apk",
+        "version": "4.0.4-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4260",
-          "checksum": "sha1-KmtncIaAukmZzZsMCHhhHvkfEtM="
+          "range": "bytes=0-4109",
+          "checksum": "sha1-39+QOrbI9A6978jNM0a41/Z8iHM="
         },
         "data": {
-          "range": "bytes=4261-21243257",
-          "checksum": "sha256-6m3u2nf3gHcuN+o2a9+h7EbhpyMDKS4AvGGYBs+sPGQ="
+          "range": "bytes=4110-21229609",
+          "checksum": "sha256-i10OZx/suw3QFAB3E8faKEoK2ydfGb/9xWJluGlOGBk="
         },
-        "checksum": "Q1KmtncIaAukmZzZsMCHhhHvkfEtM="
+        "checksum": "Q139+QOrbI9A6978jNM0a41/Z8iHM="
       },
       {
         "name": "kubectl-1.34",
-        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-1.34.2-r3.apk",
-        "version": "1.34.2-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-1.34.2-r4.apk",
+        "version": "1.34.2-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11478",
-          "checksum": "sha1-2tTgD/ImF85q2LivsVlN6iIbsUs="
+          "range": "bytes=0-11592",
+          "checksum": "sha1-tj0mHPDoV+UcQpDvzQ84NTb7yts="
         },
         "data": {
-          "range": "bytes=11479-19037949",
-          "checksum": "sha256-L0W435PwUNXoyiNQPtV38L5mgK2+67S86wyVjYJ8caM="
+          "range": "bytes=11593-19038074",
+          "checksum": "sha256-2X9h2UPGq6DLqcpr38BNE6izp6lvfaAdfLtAVC2IYwQ="
         },
-        "checksum": "Q12tTgD/ImF85q2LivsVlN6iIbsUs="
+        "checksum": "Q1tj0mHPDoV+UcQpDvzQ84NTb7yts="
       },
       {
         "name": "kubectl-1.34-default",
-        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-default-1.34.2-r3.apk",
-        "version": "1.34.2-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.34-default-1.34.2-r4.apk",
+        "version": "1.34.2-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11552",
-          "checksum": "sha1-fK1Fwyp+B1+qKrmLJ+qpB6bQhnw="
+          "range": "bytes=0-11661",
+          "checksum": "sha1-ZCa9oIm6c4jwLSVQa8ZxZnuucSs="
         },
         "data": {
-          "range": "bytes=11553-12886",
-          "checksum": "sha256-2FVmpNfRaXzmA2EFCSEvhJGfpgJFwA0QdyMdQIq3i3w="
+          "range": "bytes=11662-12999",
+          "checksum": "sha256-5E0tXECOoUCiE9KWmhxZAYNcuYgrZ8l5lhpHvmgC/z8="
         },
-        "checksum": "Q1fK1Fwyp+B1+qKrmLJ+qpB6bQhnw="
+        "checksum": "Q1ZCa9oIm6c4jwLSVQa8ZxZnuucSs="
       },
       {
         "name": "icu78-data-full",
@@ -1619,22 +1619,22 @@
       },
       {
         "name": "vim",
-        "url": "https://packages.wolfi.dev/os/x86_64/vim-9.1.1966-r0.apk",
-        "version": "9.1.1966-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/vim-9.1.1975-r0.apk",
+        "version": "9.1.1975-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5276",
-          "checksum": "sha1-x1srpa4xEche0PkF34ZT1FeiOVw="
+          "range": "bytes=0-5391",
+          "checksum": "sha1-YgdmtAqk1PIgMK9+SuUlPbiGYUQ="
         },
         "data": {
-          "range": "bytes=5277-11379215",
-          "checksum": "sha256-m5N6a6NKfr8fCt0c1T1fSIEdvJV4jmI8kfFLfVk+2kQ="
+          "range": "bytes=5392-11393847",
+          "checksum": "sha256-KYJiz1mDh9AbsWoUIoscCJpT8xS3hrihcuMI+wtbH3g="
         },
-        "checksum": "Q1x1srpa4xEche0PkF34ZT1FeiOVw="
+        "checksum": "Q1YgdmtAqk1PIgMK9+SuUlPbiGYUQ="
       },
       {
         "name": "py3.13-pathspec",
@@ -2645,60 +2645,60 @@
       },
       {
         "name": "helm-4",
-        "url": "https://packages.wolfi.dev/os/aarch64/helm-4-4.0.2-r0.apk",
-        "version": "4.0.2-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/helm-4-4.0.4-r0.apk",
+        "version": "4.0.4-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4296",
-          "checksum": "sha1-GLC2r36UIk4AcwLUxGWGejI+3tc="
+          "range": "bytes=0-4143",
+          "checksum": "sha1-zjiBdVxsco4go2DcmKvd/zLX8Kc="
         },
         "data": {
-          "range": "bytes=4297-18888860",
-          "checksum": "sha256-wOZzhdo1WmxN9fbzk6uUPFypUjgkzrbFhzw8r8qQMy0="
+          "range": "bytes=4144-18904758",
+          "checksum": "sha256-blbhMz6VMzG6R0FgikWBeAkbS1SQAZiOGEECgDmtBlM="
         },
-        "checksum": "Q1GLC2r36UIk4AcwLUxGWGejI+3tc="
+        "checksum": "Q1zjiBdVxsco4go2DcmKvd/zLX8Kc="
       },
       {
         "name": "kubectl-1.34",
-        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-1.34.2-r3.apk",
-        "version": "1.34.2-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-1.34.2-r4.apk",
+        "version": "1.34.2-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11513",
-          "checksum": "sha1-HGznhnV95vmcz1wTQEfE886fayE="
+          "range": "bytes=0-11624",
+          "checksum": "sha1-5XeqWg2IQgMPBkO5HPF1zhjzGpQ="
         },
         "data": {
-          "range": "bytes=11514-16947538",
-          "checksum": "sha256-N/6wXzizJl1PHTv/9pc6p68QaaXnbUai8K4xvjYE+nw="
+          "range": "bytes=11625-16947651",
+          "checksum": "sha256-IGj92wWl4TbDMqwM4sI/ylBvlkNh+uQzsAFvjgWM2EE="
         },
-        "checksum": "Q1HGznhnV95vmcz1wTQEfE886fayE="
+        "checksum": "Q15XeqWg2IQgMPBkO5HPF1zhjzGpQ="
       },
       {
         "name": "kubectl-1.34-default",
-        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-default-1.34.2-r3.apk",
-        "version": "1.34.2-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.34-default-1.34.2-r4.apk",
+        "version": "1.34.2-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-11585",
-          "checksum": "sha1-96o3KweCv1/iBGWTIoHjbOwZ0gs="
+          "range": "bytes=0-11693",
+          "checksum": "sha1-jvTvkXXxbkHpoGP9S00o71lCpUM="
         },
         "data": {
-          "range": "bytes=11586-12918",
-          "checksum": "sha256-jSlJuhSRqtEtscOXZXCVFsl7YR/7wKdWX86lwzOkUgA="
+          "range": "bytes=11694-13029",
+          "checksum": "sha256-FoAYNiM1umrd3NUraRxjQ0W+Xhc9vr0ekmBlPQteC2g="
         },
-        "checksum": "Q196o3KweCv1/iBGWTIoHjbOwZ0gs="
+        "checksum": "Q1jvTvkXXxbkHpoGP9S00o71lCpUM="
       },
       {
         "name": "icu78-data-full",
@@ -3291,22 +3291,22 @@
       },
       {
         "name": "vim",
-        "url": "https://packages.wolfi.dev/os/aarch64/vim-9.1.1966-r0.apk",
-        "version": "9.1.1966-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/vim-9.1.1975-r0.apk",
+        "version": "9.1.1975-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5303",
-          "checksum": "sha1-HgGJQIS/I6Nln7e/OcZ9Yf4BAgM="
+          "range": "bytes=0-5419",
+          "checksum": "sha1-EMdOHim0VR9I//nos9z2CYl2sf4="
         },
         "data": {
-          "range": "bytes=5304-11362728",
-          "checksum": "sha256-PvSdnyJBXgkXaBPyWn3kre6mCmav1XxoNT6kEupZGEw="
+          "range": "bytes=5420-11394055",
+          "checksum": "sha256-4g9yRZYpagTr2mxLeuIZPyLxHrX2DKULxCmyvN22pd8="
         },
-        "checksum": "Q1HgGJQIS/I6Nln7e/OcZ9Yf4BAgM="
+        "checksum": "Q1EMdOHim0VR9I//nos9z2CYl2sf4="
       },
       {
         "name": "py3.13-pathspec",

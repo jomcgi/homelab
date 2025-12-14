@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/jomcgi/homelab/sextant/pkg/schema"
 )
@@ -98,6 +99,14 @@ func (g *Generator) Generate(sm *schema.StateMachine) error {
 		}
 	}
 
+	// Conditionally generate metrics file when observability.metrics is enabled
+	if sm.Observability.Metrics {
+		metricsFile := fmt.Sprintf("%s_metrics.go", camelToSnake(sm.Metadata.Name))
+		if err := g.generateFile(metricsFile, "metrics.go.tmpl", data); err != nil {
+			return fmt.Errorf("failed to generate %s: %w", metricsFile, err)
+		}
+	}
+
 	return nil
 }
 
@@ -162,6 +171,12 @@ type TemplateData struct {
 	// Observability config
 	Observability schema.Observability
 
+	// ErrorHandling config
+	ErrorHandling *schema.ErrorHandling
+
+	// SpecChangeHandling config
+	SpecChangeHandling *schema.SpecChangeHandling
+
 	// Initial state name
 	InitialState string
 
@@ -213,9 +228,30 @@ func (g *Generator) buildTemplateData(sm *schema.StateMachine) *TemplateData {
 		APIImportPath:      g.config.APIImportPath,
 		Guards:             sm.Guards,
 		Observability:      sm.Observability,
+		ErrorHandling:      sm.ErrorHandling,
+		SpecChangeHandling: sm.SpecChangeHandling,
 		PhaseField:         sm.Status.PhaseField,
 		ConditionsField:    sm.Status.ConditionsField,
 		TransitionsByState: make(map[string][]TransitionData),
+	}
+
+	if data.ErrorHandling == nil {
+		data.ErrorHandling = &schema.ErrorHandling{
+			MaxRetries: 10,
+			Backoff: schema.BackoffConfig{
+				Base:       schema.Duration{Duration: 1 * time.Second},
+				Multiplier: 2.0,
+				Max:        schema.Duration{Duration: 5 * time.Minute},
+				Jitter:     0.1,
+			},
+		}
+	}
+
+	// Apply defaults for SpecChangeHandling when enabled but field not specified
+	if data.SpecChangeHandling != nil && data.SpecChangeHandling.Enabled {
+		if data.SpecChangeHandling.ObservedGenerationField == "" {
+			data.SpecChangeHandling.ObservedGenerationField = "observedGeneration"
+		}
 	}
 
 	if data.PhaseField == "" {
