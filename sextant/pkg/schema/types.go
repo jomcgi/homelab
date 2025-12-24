@@ -37,6 +37,45 @@ type StateMachine struct {
 
 	// Observability configures generated observability hooks
 	Observability Observability `yaml:"observability,omitempty" json:"observability,omitempty"`
+
+	// ErrorHandling configures retry behavior
+	ErrorHandling *ErrorHandling `yaml:"errorHandling,omitempty" json:"errorHandling,omitempty"`
+
+	// SpecChangeHandling configures spec change detection
+	SpecChangeHandling *SpecChangeHandling `yaml:"specChangeHandling,omitempty" json:"specChangeHandling,omitempty"`
+}
+
+// SpecChangeHandling configures how the state machine detects spec changes.
+type SpecChangeHandling struct {
+	// Enabled turns on spec change detection (default: false)
+	Enabled bool `yaml:"enabled,omitempty" json:"enabled,omitempty"`
+
+	// ObservedGenerationField is the Status field name storing the last observed generation (default: "observedGeneration")
+	ObservedGenerationField string `yaml:"observedGenerationField,omitempty" json:"observedGenerationField,omitempty"`
+}
+
+// ErrorHandling configures how the state machine handles errors.
+type ErrorHandling struct {
+	// Backoff configures exponential backoff
+	Backoff BackoffConfig `yaml:"backoff,omitempty" json:"backoff,omitempty"`
+
+	// MaxRetries is the maximum number of retries before moving to Failed state
+	MaxRetries int `yaml:"maxRetries,omitempty" json:"maxRetries,omitempty"`
+}
+
+// BackoffConfig configures the exponential backoff strategy.
+type BackoffConfig struct {
+	// Base is the initial backoff duration (default: 1s)
+	Base Duration `yaml:"base,omitempty" json:"base,omitempty"`
+
+	// Multiplier is the factor to multiply backoff by each retry (default: 2)
+	Multiplier float64 `yaml:"multiplier,omitempty" json:"multiplier,omitempty"`
+
+	// Max is the maximum backoff duration (default: 5m)
+	Max Duration `yaml:"max,omitempty" json:"max,omitempty"`
+
+	// Jitter is the randomization factor (0.0 to 1.0) (default: 0.1)
+	Jitter float64 `yaml:"jitter,omitempty" json:"jitter,omitempty"`
 }
 
 // Metadata identifies the resource this state machine manages.
@@ -212,6 +251,17 @@ type Guard struct {
 
 	// MaxRetries is used for retry guards
 	MaxRetries int `yaml:"maxRetries,omitempty" json:"maxRetries,omitempty"`
+
+	// MinBackoff enforces a minimum time before transition is allowed.
+	// If specified, the guard only passes when the state has been active for at least this duration.
+	MinBackoff Duration `yaml:"minBackoff,omitempty" json:"minBackoff,omitempty"`
+
+	// Condition is a Go expression that must evaluate to true for the guard to pass.
+	// Available context: 's' (current state struct), 'r' (resource struct)
+	// Example: "r.Spec.Replicas > 0"
+	// WARNING: Condition expressions are embedded directly into generated code.
+	// Invalid expressions will cause compilation errors in generated code.
+	Condition string `yaml:"condition,omitempty" json:"condition,omitempty"`
 }
 
 // Dependency defines a resource dependency for the controller.
@@ -245,6 +295,9 @@ type Observability struct {
 
 	// EmbedDiagram embeds a Mermaid state diagram in generated code
 	EmbedDiagram bool `yaml:"embedDiagram,omitempty" json:"embedDiagram,omitempty"`
+
+	// Metrics generates Prometheus metrics and MetricsObserver
+	Metrics bool `yaml:"metrics,omitempty" json:"metrics,omitempty"`
 }
 
 // ResolvedState represents a state with all field groups expanded.

@@ -11,6 +11,24 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
+{{- if and .SpecChangeHandling .SpecChangeHandling.Enabled}}
+
+// HasSpecChanged returns true if the resource's spec has changed since last reconciliation.
+// Compares metadata.generation with status.{{.SpecChangeHandling.ObservedGenerationField}}.
+// This is a standalone function to maintain Calculator as a pure state reconstructor.
+func HasSpecChanged(r *{{.Version}}.{{.Name}}) bool {
+	return r.Generation != r.Status.{{title .SpecChangeHandling.ObservedGenerationField}}
+}
+
+// UpdateObservedGeneration returns a copy of the resource with {{.SpecChangeHandling.ObservedGenerationField}}
+// set to the current generation. Call this after successful reconciliation.
+func UpdateObservedGeneration(r *{{.Version}}.{{.Name}}) *{{.Version}}.{{.Name}} {
+	copy := r.DeepCopy()
+	copy.Status.{{title .SpecChangeHandling.ObservedGenerationField}} = copy.Generation
+	return copy
+}
+{{- end}}
+
 // FieldManager is the field manager name used for Server-Side Apply.
 // This identifies the controller as the owner of status fields.
 const FieldManager = "{{lower .Name}}-controller"
