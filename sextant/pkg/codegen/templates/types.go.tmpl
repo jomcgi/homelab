@@ -18,7 +18,10 @@ import (
 // stateDiagram-v2
 //     [*] --> {{.InitialState}}
 {{- range .Transitions}}
-//     {{index .From 0}} --> {{.To}}: {{.Action}}{{if .Guard}} [{{.Guard}}]{{end}}
+{{- $transition := .}}
+{{- range .From}}
+//     {{.}} --> {{$transition.To}}: {{$transition.Action}}{{if $transition.Guard}} [{{$transition.Guard}}]{{end}}
+{{- end}}
 {{- end}}
 {{- range .States}}{{if .Terminal}}
 //     {{.Name}} --> [*]

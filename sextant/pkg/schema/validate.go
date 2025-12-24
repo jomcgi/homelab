@@ -63,6 +63,11 @@ func Validate(sm *StateMachine) error {
 		errs = append(errs, err)
 	}
 
+	// Validate error handling
+	if err := validateErrorHandling(sm.ErrorHandling); err != nil {
+		errs = append(errs, err)
+	}
+
 	// Validate field groups
 	if err := validateFieldGroups(sm.FieldGroups); err != nil {
 		errs = append(errs, err)
@@ -109,6 +114,39 @@ func validateMetadata(m *Metadata) error {
 
 	if m.Version == "" {
 		errs = append(errs, fmt.Errorf("metadata.version is required"))
+	}
+
+	if len(errs) > 0 {
+		return ValidationError{Errors: errs}
+	}
+	return nil
+}
+
+func validateErrorHandling(eh *ErrorHandling) error {
+	if eh == nil {
+		return nil
+	}
+
+	var errs []error
+
+	if eh.MaxRetries < 0 {
+		errs = append(errs, fmt.Errorf("errorHandling.maxRetries must be non-negative"))
+	}
+
+	if eh.Backoff.Base.Duration < 0 {
+		errs = append(errs, fmt.Errorf("errorHandling.backoff.base must be non-negative"))
+	}
+
+	if eh.Backoff.Max.Duration < 0 {
+		errs = append(errs, fmt.Errorf("errorHandling.backoff.max must be non-negative"))
+	}
+
+	if eh.Backoff.Multiplier < 0 {
+		errs = append(errs, fmt.Errorf("errorHandling.backoff.multiplier must be non-negative"))
+	}
+
+	if eh.Backoff.Jitter < 0 || eh.Backoff.Jitter > 1.0 {
+		errs = append(errs, fmt.Errorf("errorHandling.backoff.jitter must be between 0.0 and 1.0"))
 	}
 
 	if len(errs) > 0 {
@@ -251,10 +289,22 @@ func validateTransitions(transitions []Transition, stateNames map[string]bool, g
 func validateGuards(guards map[string]Guard) []error {
 	var errs []error
 
-	for name := range guards {
+	for name, guard := range guards {
 		if err := CheckGuardName(name); err != nil {
 			errs = append(errs, err)
 		}
+
+		// Validate MaxRetries
+		if guard.MaxRetries < 0 {
+			errs = append(errs, fmt.Errorf("guard %q: maxRetries must be non-negative", name))
+		}
+
+		// Validate MinBackoff
+		if guard.MinBackoff.Duration < 0 {
+			errs = append(errs, fmt.Errorf("guard %q: minBackoff must be non-negative", name))
+		}
+
+		// Note: Condition validation is deferred to compile time since it's a Go expression
 	}
 
 	return errs
