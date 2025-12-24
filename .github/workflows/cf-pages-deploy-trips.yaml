@@ -1,0 +1,50 @@
+name: CF Pages - Deploy trips.jomcgi.dev
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'websites/trips.jomcgi.dev/**'
+      - '.github/workflows/cf-pages-deploy-trips.yaml'
+  workflow_dispatch:
+
+concurrency:
+  group: cf-pages-deploy-trips-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: homelab-runners
+    name: Build and Deploy trips.jomcgi.dev
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      deployments: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'websites/trips.jomcgi.dev/package-lock.json'
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: websites/trips.jomcgi.dev
+
+      - name: Build site
+        run: npm run build
+        working-directory: websites/trips.jomcgi.dev
+
+      - name: Deploy trips.jomcgi.dev to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy dist --project-name=trips-jomcgi-dev
+          workingDirectory: websites/trips.jomcgi.dev
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
