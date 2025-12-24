@@ -6,15 +6,30 @@
 ---
 manifest:
   modules_mapping:
+    AppKit: pyobjc_framework_Cocoa
+    Cocoa: pyobjc_framework_Cocoa
+    CoreBluetooth: pyobjc_framework_CoreBluetooth
+    CoreFoundation: pyobjc_framework_Cocoa
+    Foundation: pyobjc_framework_Cocoa
     PIL: pillow
+    PyObjCTools.AppCategories: pyobjc_framework_Cocoa
+    PyObjCTools.AppHelper: pyobjc_framework_Cocoa
+    PyObjCTools.Conversion: pyobjc_framework_Cocoa
+    PyObjCTools.FndCategories: pyobjc_framework_Cocoa
+    PyObjCTools.KeyValueCoding: pyobjc_core
+    PyObjCTools.MachSignals: pyobjc_core
+    PyObjCTools.Signals: pyobjc_core
+    PyObjCTools.TestSupport: pyobjc_core
     affine: affine
     annotated_types: annotated_types
     anyio: anyio
     apscheduler: APScheduler
     asgiref: asgiref
     astral: astral
+    asyncstdlib: asyncstdlib
     attr: attrs
     attrs: attrs
+    bleak: bleak
     bng_latlon: bng_latlon
     boto3: boto3
     botocore: botocore
@@ -29,10 +44,14 @@ manifest:
     click_plugins: click_plugins
     cligj: cligj
     colorama: colorama
+    construct: construct
     copier: copier
+    cv2: opencv_python
     dateutil: python_dateutil
+    dispatch: pyobjc_framework_libdispatch
     dotenv: python_dotenv
     dunamai: dunamai
+    edfc647aaf02b20aa651__mypyc: mypy
     fastapi: fastapi
     fiona: fiona
     funcy: funcy
@@ -112,18 +131,25 @@ manifest:
     httptools: httptools
     httpx: httpx
     idna: idna
+    ifaddr: ifaddr
     importlib_metadata: importlib_metadata
     iniconfig: iniconfig
     jinja2: jinja2
     jinja2_ansible_filters: jinja2_ansible_filters
     jmespath: jmespath
+    libdispatch: pyobjc_framework_libdispatch
     mako: mako
     markdown_it: markdown_it_py
     markupsafe: markupsafe
     mdurl: mdurl
     multipart: python_multipart
+    mypy: mypy
+    mypy_extensions: mypy_extensions
+    mypyc: mypy
     networkx: networkx
     numpy: numpy
+    objc: pyobjc_core
+    open_gopro: open_gopro
     opentelemetry.attributes: opentelemetry_api
     opentelemetry.baggage: opentelemetry_api
     opentelemetry.context: opentelemetry_api
@@ -169,10 +195,12 @@ manifest:
     parse: parse
     parse_type: parse_type
     pathspec: pathspec
+    pexpect: pexpect
     platformdirs: platformdirs
     pluggy: pluggy
     plumbum: plumbum
     prompt_toolkit: prompt_toolkit
+    ptyprocess: ptyprocess
     py: pytest
     pydantic: pydantic
     pydantic_core: pydantic_core
@@ -191,6 +219,7 @@ manifest:
     rasterio: rasterio
     requests: requests
     requests_cache: requests_cache
+    returns: returns
     rich: rich
     s3transfer: s3transfer
     shapely: shapely
@@ -204,6 +233,7 @@ manifest:
     sunrisesunset: sunrisesunset
     tabulate: tabulate
     timelength: timelength
+    tinydb: tinydb
     typer: typer
     typing_extensions: typing_extensions
     typing_inspection: typing_inspection
@@ -218,6 +248,7 @@ manifest:
     websockets: websockets
     wrapt: wrapt
     yaml: pyyaml
+    zeroconf: zeroconf
     zipp: zipp
   pip_repository:
     name: pip

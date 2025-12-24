@@ -46,13 +46,17 @@ async def configure_gopro(
 
     # RAW mode
     if raw:
-        result = await gopro.http_setting.photo_output.set(constants.settings.PhotoOutput.RAW)
+        result = await gopro.http_setting.photo_output.set(
+            constants.settings.PhotoOutput.RAW
+        )
         if result.ok:
             print("RAW mode enabled")
         else:
             print("Warning: Could not enable RAW mode")
     else:
-        await gopro.http_setting.photo_output.set(constants.settings.PhotoOutput.STANDARD)
+        await gopro.http_setting.photo_output.set(
+            constants.settings.PhotoOutput.STANDARD
+        )
 
     # Disable photo interval (single shot)
     await gopro.http_setting.photo_single_interval.set(
@@ -68,7 +72,9 @@ async def configure_gopro(
             print("Warning: Could not enable GPS")
 
 
-async def capture_photo(gopro: WiredGoPro, output_dir: Path) -> tuple[Path, Path | None, dict]:
+async def capture_photo(
+    gopro: WiredGoPro, output_dir: Path
+) -> tuple[Path, Path | None, dict]:
     """Capture a single photo and download it. Returns (jpg_path, gpr_path, timing_info)."""
     output_dir.mkdir(exist_ok=True)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -191,7 +197,10 @@ async def _main(
                     print(f"Saved: {gpr_path} ({gpr_size:.1f}MB)")
 
                 # Show timing for this capture
-                timing_parts = [f"capture={timing['capture']:.1f}s", f"jpg={timing['jpg_download']:.1f}s"]
+                timing_parts = [
+                    f"capture={timing['capture']:.1f}s",
+                    f"jpg={timing['jpg_download']:.1f}s",
+                ]
                 if "gpr_download" in timing:
                     timing_parts.append(f"raw={timing['gpr_download']:.1f}s")
                 timing_parts.append(f"total={timing['total']:.1f}s")
@@ -232,13 +241,17 @@ async def _main(
             avg_total = sum(t["total"] for t in all_timings) / len(all_timings)
             avg_capture = sum(t["capture"] for t in all_timings) / len(all_timings)
             avg_jpg = sum(t["jpg_download"] for t in all_timings) / len(all_timings)
-            print(f"\n{'='*50}")
+            print(f"\n{'=' * 50}")
             print(f"Session complete: {len(all_timings)} photos in {elapsed:.1f}s")
-            print(f"Average: {avg_total:.1f}s total (capture={avg_capture:.1f}s, jpg={avg_jpg:.1f}s)")
+            print(
+                f"Average: {avg_total:.1f}s total (capture={avg_capture:.1f}s, jpg={avg_jpg:.1f}s)"
+            )
             if any("gpr_download" in t for t in all_timings):
-                gpr_times = [t["gpr_download"] for t in all_timings if "gpr_download" in t]
-                print(f"         raw={sum(gpr_times)/len(gpr_times):.1f}s")
-            print(f"Max rate: {60/avg_total:.1f} photos/min (without interval delay)")
+                gpr_times = [
+                    t["gpr_download"] for t in all_timings if "gpr_download" in t
+                ]
+                print(f"         raw={sum(gpr_times) / len(gpr_times):.1f}s")
+            print(f"Max rate: {60 / avg_total:.1f} photos/min (without interval delay)")
     finally:
         await gopro.close()
 
@@ -248,21 +261,29 @@ def main(
     capture: Annotated[bool, typer.Option(help="Capture a photo")] = True,
     raw: Annotated[bool, typer.Option(help="Enable RAW (GPR) output")] = True,
     gps: Annotated[bool, typer.Option(help="Enable GPS location tagging")] = True,
-    output_dir: Annotated[Path, typer.Option(help="Output directory for photos")] = OUTPUT_DIR,
+    output_dir: Annotated[
+        Path, typer.Option(help="Output directory for photos")
+    ] = OUTPUT_DIR,
     loop: Annotated[bool, typer.Option(help="Run continuously in a loop")] = False,
-    interval: Annotated[int, typer.Option(help="Seconds between captures (when looping)")] = 30,
-    count: Annotated[int | None, typer.Option(help="Number of photos to capture (None=unlimited)")] = None,
+    interval: Annotated[
+        int, typer.Option(help="Seconds between captures (when looping)")
+    ] = 30,
+    count: Annotated[
+        int | None, typer.Option(help="Number of photos to capture (None=unlimited)")
+    ] = None,
 ) -> None:
     """Capture high-resolution photos from GoPro for wildlife detection."""
-    asyncio.run(_main(
-        capture=capture,
-        raw=raw,
-        gps=gps,
-        output_dir=output_dir,
-        loop=loop,
-        interval=interval,
-        count=count,
-    ))
+    asyncio.run(
+        _main(
+            capture=capture,
+            raw=raw,
+            gps=gps,
+            output_dir=output_dir,
+            loop=loop,
+            interval=interval,
+            count=count,
+        )
+    )
 
 
 if __name__ == "__main__":
