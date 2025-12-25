@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import { MapPin, Cloud, Thermometer, Wind, Camera, PawPrint, Play, Pause, ChevronLeft, ChevronRight, Radio, Eye, Maximize2, Minimize2 } from 'lucide-react';
+import { MapPin, Cloud, Thermometer, Wind, Camera, PawPrint, Play, Pause, ChevronLeft, ChevronRight, Radio, Eye, Maximize2, Minimize2, Map, Image } from 'lucide-react';
 
 // ============================================
 // Route Generation - Vancouver to Dawson City
@@ -106,6 +106,55 @@ const mockWeather = {
   condition: 'Partly Cloudy',
   wind: 12,
 };
+
+// ============================================
+// Media Query Hook
+// ============================================
+
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(false);
+  useEffect(() => {
+    const media = window.matchMedia(query);
+    setMatches(media.matches);
+    const listener = (e) => setMatches(e.matches);
+    media.addEventListener('change', listener);
+    return () => media.removeEventListener('change', listener);
+  }, [query]);
+  return matches;
+}
+
+// ============================================
+// View Toggle Component (Mobile Photo/Map Tabs)
+// ============================================
+
+function ViewToggle({ activeView, onViewChange }) {
+  return (
+    <div className="flex bg-zinc-800 rounded-lg p-1">
+      <button
+        onClick={() => onViewChange('image')}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors text-sm font-medium ${
+          activeView === 'image'
+            ? 'bg-blue-500 text-white'
+            : 'text-zinc-400 hover:text-zinc-300'
+        }`}
+      >
+        <Image className="h-4 w-4" />
+        Photo
+      </button>
+      <button
+        onClick={() => onViewChange('map')}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors text-sm font-medium ${
+          activeView === 'map'
+            ? 'bg-blue-500 text-white'
+            : 'text-zinc-400 hover:text-zinc-300'
+        }`}
+      >
+        <Map className="h-4 w-4" />
+        Map
+      </button>
+    </div>
+  );
+}
 
 // ============================================
 // Map Component
@@ -258,15 +307,39 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
 // Live Badge Component
 // ============================================
 
-function LiveBadge({ isLive, onToggle, viewerCount = null }) {
+function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
+  if (compact) {
+    // Mobile: circular 40x40px button with just the dot
+    return (
+      <button
+        onClick={onToggle}
+        className={`
+          flex items-center justify-center w-10 h-10 rounded-full
+          transition-all duration-200
+          ${isLive
+            ? 'bg-red-500/20 border border-red-500/30 hover:bg-red-500/30'
+            : 'bg-zinc-800 border border-zinc-700 hover:bg-zinc-700'
+          }
+        `}
+        title={isLive ? 'LIVE' : 'Go Live'}
+      >
+        <span className={`
+          w-3 h-3 rounded-full
+          ${isLive ? 'bg-red-500 animate-pulse' : 'bg-zinc-500'}
+        `} />
+      </button>
+    );
+  }
+
+  // Desktop: full badge with text
   return (
     <button
       onClick={onToggle}
       className={`
         flex items-center gap-2 px-3 py-1.5 rounded-full text-sm font-medium
-        transition-all duration-200 
-        ${isLive 
-          ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30' 
+        transition-all duration-200
+        ${isLive
+          ? 'bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30'
           : 'bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 hover:text-zinc-300'
         }
       `}
@@ -290,8 +363,8 @@ function LiveBadge({ isLive, onToggle, viewerCount = null }) {
 // Image Panel Component
 // ============================================
 
-function ImagePanel({ point, isLive, tripStart, totalFrames, currentIndex }) {
-  const formatTime = (date) => date.toLocaleDateString('en-CA', { 
+function ImagePanel({ point, isLive, tripStart, totalFrames, currentIndex, isMobile = false }) {
+  const formatTime = (date) => date.toLocaleDateString('en-CA', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
   });
 
@@ -303,6 +376,8 @@ function ImagePanel({ point, isLive, tripStart, totalFrames, currentIndex }) {
   };
 
   if (!point) return null;
+
+  const iconSize = isMobile ? 'h-12 w-12' : 'h-16 w-16';
 
   return (
     <div className="h-full flex flex-col bg-zinc-900">
@@ -335,17 +410,17 @@ function ImagePanel({ point, isLive, tripStart, totalFrames, currentIndex }) {
         } ${isLive ? 'ring-2 ring-red-500/30' : ''}`}>
           {point.animal ? (
             <div className="text-center">
-              <PawPrint className="h-16 w-16 text-amber-500/30 mx-auto mb-3" />
+              <PawPrint className={`${iconSize} text-amber-500/30 mx-auto mb-3`} />
               <p className="text-amber-500/50 text-sm">Wildlife detected: {point.animal}</p>
             </div>
           ) : (
             <div className="text-center">
-              <Camera className={`h-16 w-16 mx-auto mb-3 ${isLive ? 'text-red-500/20' : 'text-zinc-700'}`} />
+              <Camera className={`${iconSize} mx-auto mb-3 ${isLive ? 'text-red-500/20' : 'text-zinc-700'}`} />
               <p className="text-zinc-600 text-sm font-mono">{point.imageUrl}</p>
             </div>
           )}
         </div>
-        
+
         {/* Live indicator overlay */}
         {isLive && (
           <div className="absolute top-6 left-6 flex items-center gap-2 bg-red-500/90 text-white px-3 py-1.5 rounded-full text-sm font-medium">
@@ -357,7 +432,7 @@ function ImagePanel({ point, isLive, tripStart, totalFrames, currentIndex }) {
 
       {/* Metadata Footer */}
       <div className="flex-none px-4 py-3 border-t border-zinc-800 bg-zinc-900/50">
-        <div className="grid grid-cols-3 gap-4 text-sm">
+        <div className={`grid ${isMobile ? 'grid-cols-2' : 'grid-cols-3'} gap-4 text-sm`}>
           <div>
             <span className="text-zinc-500 block text-xs mb-0.5">Coordinates</span>
             <span className="font-mono">{point.lat.toFixed(4)}, {point.lng.toFixed(4)}</span>
@@ -366,10 +441,12 @@ function ImagePanel({ point, isLive, tripStart, totalFrames, currentIndex }) {
             <span className="text-zinc-500 block text-xs mb-0.5">Trip Duration</span>
             <span>{formatDuration(tripStart, point.timestamp)}</span>
           </div>
-          <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">Frame</span>
-            <span className="font-mono">{currentIndex + 1} / {totalFrames}</span>
-          </div>
+          {!isMobile && (
+            <div>
+              <span className="text-zinc-500 block text-xs mb-0.5">Frame</span>
+              <span className="font-mono">{currentIndex + 1} / {totalFrames}</span>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -386,8 +463,13 @@ export default function App() {
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
   const [isLive, setIsLive] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
+  const [mobileView, setMobileView] = useState('image'); // 'image' or 'map'
   const scrollRef = useRef(null);
   const imageRefs = useRef({});
+
+  // Media queries for responsive design
+  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isTablet = useMediaQuery('(max-width: 1024px)');
 
   const selectedPoint = tripData[selectedIndex];
   const selectedId = selectedPoint?.id;
@@ -445,8 +527,12 @@ export default function App() {
     setIsLive(!isLive);
   };
 
-  const formatTime = (date) => date.toLocaleDateString('en-CA', { 
+  const formatTime = (date) => date.toLocaleDateString('en-CA', {
     month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+  });
+
+  const formatTimeShort = (date) => date.toLocaleTimeString('en-CA', {
+    hour: '2-digit', minute: '2-digit'
   });
 
   const visibleRange = {
@@ -466,97 +552,166 @@ export default function App() {
       {/* Status Bar */}
       <div className="flex-none border-b border-zinc-800 bg-zinc-900/80 px-4 py-2.5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2">
               <div className={`h-2 w-2 rounded-full ${isLive ? 'bg-red-500' : 'bg-emerald-500'} animate-pulse`} />
-              <span className="text-sm font-medium">Joe's Location</span>
+              {!isMobile && <span className="text-sm font-medium">Joe's Location</span>}
             </div>
             <div className="flex items-center gap-1.5 text-zinc-400 text-sm">
               <MapPin className="h-3.5 w-3.5" />
-              <span>{mockWeather.location}</span>
+              <span className={isMobile ? 'truncate max-w-[100px]' : ''}>
+                {isMobile ? selectedPoint.location.split(' → ')[0] : mockWeather.location}
+              </span>
             </div>
-            <LiveBadge 
-              isLive={isLive} 
+            {isMobile && (
+              <ViewToggle activeView={mobileView} onViewChange={setMobileView} />
+            )}
+            <LiveBadge
+              isLive={isLive}
               onToggle={toggleLive}
               viewerCount={isLive ? 42 : null}
+              compact={isMobile}
             />
           </div>
-          <div className="flex items-center gap-5 text-sm text-zinc-400">
-            <div className="flex items-center gap-1.5">
-              <Thermometer className="h-3.5 w-3.5" />
-              <span>{mockWeather.temp}°C</span>
+          {!isMobile && (
+            <div className="flex items-center gap-5 text-sm text-zinc-400">
+              {!isTablet && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <Thermometer className="h-3.5 w-3.5" />
+                    <span>{mockWeather.temp}°C</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <Cloud className="h-3.5 w-3.5" />
+                    <span>{mockWeather.condition}</span>
+                  </div>
+                </>
+              )}
+              <div className="flex items-center gap-1.5">
+                <Wind className="h-3.5 w-3.5" />
+                <span>{mockWeather.wind} km/h</span>
+              </div>
             </div>
-            <div className="flex items-center gap-1.5">
-              <Cloud className="h-3.5 w-3.5" />
-              <span>{mockWeather.condition}</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <Wind className="h-3.5 w-3.5" />
-              <span>{mockWeather.wind} km/h</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
-      {/* Main Content - Split View */}
+      {/* Main Content - Split View / Tabbed View */}
       <div className="flex-1 flex min-h-0">
-        {/* Map Panel */}
-        <div className={`relative transition-all duration-300 ${mapExpanded ? 'w-2/3' : 'w-1/2'}`}>
-          <TripMap
-            points={tripData}
-            selectedId={selectedId}
-            onMarkerClick={handleMarkerClick}
-            isLive={isLive}
-          />
+        {isMobile ? (
+          // Mobile: Tabbed view
+          <>
+            {/* Map Panel - shown when mobileView === 'map' */}
+            <div className={`relative w-full ${mobileView === 'map' ? 'block' : 'hidden'}`}>
+              <TripMap
+                points={tripData}
+                selectedId={selectedId}
+                onMarkerClick={handleMarkerClick}
+                isLive={isLive}
+              />
 
-          {/* Stats Overlay */}
-          <div className="absolute top-3 left-3 z-10">
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-3 backdrop-blur-sm">
-              <div className="text-xl font-bold">{tripData.length.toLocaleString()}</div>
-              <div className="text-xs text-zinc-500">Photos</div>
-              <div className="mt-2 text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded flex items-center gap-1">
-                <PawPrint className="h-3 w-3" />
-                {animalPoints.length} wildlife
+              {/* Stats Overlay */}
+              <div className="absolute top-3 left-3 z-10">
+                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-3 backdrop-blur-sm">
+                  <div className="text-xl font-bold">{tripData.length.toLocaleString()}</div>
+                  <div className="text-xs text-zinc-500">Photos</div>
+                  <div className="mt-2 text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded flex items-center gap-1">
+                    <PawPrint className="h-3 w-3" />
+                    {animalPoints.length} wildlife
+                  </div>
+                </div>
+              </div>
+
+              {/* Legend */}
+              <div className="absolute bottom-3 left-3 z-10">
+                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-2 backdrop-blur-sm flex gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? 'bg-red-500' : 'bg-blue-500'}`} />
+                    <span className="text-zinc-400">{isLive ? 'Live' : 'Position'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white" />
+                    <span className="text-zinc-400">Wildlife</span>
+                  </div>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Legend */}
-          <div className="absolute bottom-3 left-3 z-10">
-            <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-2 backdrop-blur-sm flex gap-3 text-xs">
-              <div className="flex items-center gap-1.5">
-                <div className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? 'bg-red-500' : 'bg-blue-500'}`} />
-                <span className="text-zinc-400">{isLive ? 'Live' : 'Position'}</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white" />
-                <span className="text-zinc-400">Wildlife</span>
-              </div>
+            {/* Image Panel - shown when mobileView === 'image' */}
+            <div className={`w-full ${mobileView === 'image' ? 'block' : 'hidden'}`}>
+              <ImagePanel
+                point={selectedPoint}
+                isLive={isLive}
+                tripStart={tripData[0].timestamp}
+                totalFrames={tripData.length}
+                currentIndex={selectedIndex}
+                isMobile={isMobile}
+              />
             </div>
-          </div>
+          </>
+        ) : (
+          // Desktop: Side-by-side split view
+          <>
+            {/* Map Panel */}
+            <div className={`relative transition-all duration-300 ${mapExpanded ? 'w-2/3' : 'w-1/2'}`}>
+              <TripMap
+                points={tripData}
+                selectedId={selectedId}
+                onMarkerClick={handleMarkerClick}
+                isLive={isLive}
+              />
 
-          {/* Expand/Collapse Toggle */}
-          <button
-            onClick={() => setMapExpanded(!mapExpanded)}
-            className="absolute top-3 right-14 z-10 p-2 bg-zinc-900/90 border border-zinc-800 rounded-lg backdrop-blur-sm hover:bg-zinc-800 transition-colors"
-          >
-            {mapExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
-          </button>
-        </div>
+              {/* Stats Overlay */}
+              <div className="absolute top-3 left-3 z-10">
+                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-3 backdrop-blur-sm">
+                  <div className="text-xl font-bold">{tripData.length.toLocaleString()}</div>
+                  <div className="text-xs text-zinc-500">Photos</div>
+                  <div className="mt-2 text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded flex items-center gap-1">
+                    <PawPrint className="h-3 w-3" />
+                    {animalPoints.length} wildlife
+                  </div>
+                </div>
+              </div>
 
-        {/* Divider */}
-        <div className={`w-px ${isLive ? 'bg-red-500/30' : 'bg-zinc-800'}`} />
+              {/* Legend */}
+              <div className="absolute bottom-3 left-3 z-10">
+                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-2 backdrop-blur-sm flex gap-3 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <div className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? 'bg-red-500' : 'bg-blue-500'}`} />
+                    <span className="text-zinc-400">{isLive ? 'Live' : 'Position'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white" />
+                    <span className="text-zinc-400">Wildlife</span>
+                  </div>
+                </div>
+              </div>
 
-        {/* Image Panel */}
-        <div className={`transition-all duration-300 ${mapExpanded ? 'w-1/3' : 'w-1/2'}`}>
-          <ImagePanel
-            point={selectedPoint}
-            isLive={isLive}
-            tripStart={tripData[0].timestamp}
-            totalFrames={tripData.length}
-            currentIndex={selectedIndex}
-          />
-        </div>
+              {/* Expand/Collapse Toggle */}
+              <button
+                onClick={() => setMapExpanded(!mapExpanded)}
+                className="absolute top-3 right-14 z-10 p-2 bg-zinc-900/90 border border-zinc-800 rounded-lg backdrop-blur-sm hover:bg-zinc-800 transition-colors"
+              >
+                {mapExpanded ? <Minimize2 className="h-4 w-4" /> : <Maximize2 className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {/* Divider */}
+            <div className={`w-px ${isLive ? 'bg-red-500/30' : 'bg-zinc-800'}`} />
+
+            {/* Image Panel */}
+            <div className={`transition-all duration-300 ${mapExpanded ? 'w-1/3' : 'w-1/2'}`}>
+              <ImagePanel
+                point={selectedPoint}
+                isLive={isLive}
+                tripStart={tripData[0].timestamp}
+                totalFrames={tripData.length}
+                currentIndex={selectedIndex}
+                isMobile={isMobile}
+              />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Timeline Controls */}
@@ -567,38 +722,40 @@ export default function App() {
           <div className={`flex items-center gap-1 ${isLive ? 'opacity-50' : ''}`}>
             <button
               onClick={() => handleTimelineChange(Math.max(0, selectedIndex - 1))}
-              className="p-1.5 rounded hover:bg-zinc-800 transition-colors disabled:opacity-30"
+              className={`${isMobile ? 'p-2' : 'p-1.5'} rounded hover:bg-zinc-800 transition-colors disabled:opacity-30`}
               disabled={selectedIndex === 0 || isLive}
             >
-              <ChevronLeft className="h-4 w-4" />
+              <ChevronLeft className={isMobile ? 'h-5 w-5' : 'h-4 w-4'} />
             </button>
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className={`p-1.5 rounded transition-colors ${isPlaying ? 'bg-blue-500' : 'hover:bg-zinc-800'}`}
+              className={`${isMobile ? 'p-2' : 'p-1.5'} rounded transition-colors ${isPlaying ? 'bg-blue-500' : 'hover:bg-zinc-800'}`}
               disabled={isLive}
             >
-              {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+              {isPlaying ? <Pause className={isMobile ? 'h-5 w-5' : 'h-4 w-4'} /> : <Play className={isMobile ? 'h-5 w-5' : 'h-4 w-4'} />}
             </button>
             <button
               onClick={() => handleTimelineChange(Math.min(tripData.length - 1, selectedIndex + 1))}
-              className="p-1.5 rounded hover:bg-zinc-800 transition-colors disabled:opacity-30"
+              className={`${isMobile ? 'p-2' : 'p-1.5'} rounded hover:bg-zinc-800 transition-colors disabled:opacity-30`}
               disabled={selectedIndex === tripData.length - 1 || isLive}
             >
-              <ChevronRight className="h-4 w-4" />
+              <ChevronRight className={isMobile ? 'h-5 w-5' : 'h-4 w-4'} />
             </button>
           </div>
 
-          <select
-            value={playbackSpeed}
-            onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-            className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 disabled:opacity-50"
-            disabled={isLive}
-          >
-            <option value={1}>1x</option>
-            <option value={5}>5x</option>
-            <option value={10}>10x</option>
-            <option value={30}>30x</option>
-          </select>
+          {!isMobile && (
+            <select
+              value={playbackSpeed}
+              onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
+              className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 disabled:opacity-50"
+              disabled={isLive}
+            >
+              <option value={1}>1x</option>
+              <option value={5}>5x</option>
+              <option value={10}>10x</option>
+              <option value={30}>30x</option>
+            </select>
+          )}
 
           <div className="flex-1 relative">
             <input
@@ -607,12 +764,12 @@ export default function App() {
               max={tripData.length - 1}
               value={selectedIndex}
               onChange={(e) => handleTimelineChange(Number(e.target.value))}
-              className={`w-full h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer ${
+              className={`w-full ${isMobile ? 'h-2' : 'h-1.5'} bg-zinc-800 rounded-lg appearance-none cursor-pointer ${
                 isLive ? 'accent-red-500 opacity-50' : 'accent-blue-500'
               }`}
               disabled={isLive}
             />
-            <div className="absolute top-3 left-0 right-0 h-1">
+            <div className={`absolute ${isMobile ? 'top-4' : 'top-3'} left-0 right-0 h-1`}>
               {animalPoints.map((p) => {
                 const idx = tripData.findIndex(pt => pt.id === p.id);
                 const pos = (idx / (tripData.length - 1)) * 100;
@@ -620,7 +777,7 @@ export default function App() {
                   <button
                     key={p.id}
                     onClick={() => !isLive && handleMarkerClick(p.id)}
-                    className={`absolute w-1.5 h-1.5 bg-amber-500 rounded-full -translate-x-1/2 transition-transform ${
+                    className={`absolute ${isMobile ? 'w-2 h-2' : 'w-1.5 h-1.5'} bg-amber-500 rounded-full -translate-x-1/2 transition-transform ${
                       isLive ? 'opacity-50' : 'hover:scale-150'
                     }`}
                     style={{ left: `${pos}%` }}
@@ -632,15 +789,15 @@ export default function App() {
             </div>
           </div>
 
-          <div className="text-xs min-w-[100px] text-right">
+          <div className={`text-xs ${isMobile ? 'min-w-[60px]' : 'min-w-[100px]'} text-right`}>
             {isLive ? (
               <span className="text-red-400 flex items-center gap-1 justify-end">
                 <Radio className="w-3 h-3 animate-pulse" />
-                Live
+                {!isMobile && 'Live'}
               </span>
             ) : (
               <span className="text-zinc-500">
-                {selectedPoint && formatTime(selectedPoint.timestamp)}
+                {selectedPoint && (isMobile ? formatTimeShort(selectedPoint.timestamp) : formatTime(selectedPoint.timestamp))}
               </span>
             )}
           </div>
@@ -651,8 +808,8 @@ export default function App() {
       <div className={`flex-none border-t bg-zinc-950 overflow-x-auto transition-colors ${
         isLive ? 'border-red-500/30' : 'border-zinc-800'
       }`} ref={scrollRef}>
-        <div className="flex gap-1.5 p-2" style={{ width: 'max-content' }}>
-          <div style={{ width: visibleRange.start * 68 }} />
+        <div className={`flex ${isMobile ? 'gap-1 p-1.5' : 'gap-1.5 p-2'}`} style={{ width: 'max-content' }}>
+          <div style={{ width: visibleRange.start * (isMobile ? 52 : 68) }} />
           {tripData.slice(visibleRange.start, visibleRange.end).map((point) => {
             const isSelected = point.id === selectedId;
             const isLatest = point.id === tripData[latestIndex].id;
@@ -662,18 +819,18 @@ export default function App() {
                 ref={(el) => (imageRefs.current[point.id] = el)}
                 onClick={() => handleMarkerClick(point.id)}
                 className={`flex-none relative transition-all ${
-                  isSelected 
-                    ? isLive 
-                      ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105' 
-                      : 'ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105' 
+                  isSelected
+                    ? isLive
+                      ? 'ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105'
+                      : 'ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105'
                     : 'hover:ring-1 hover:ring-zinc-600'
                 }`}
               >
-                <div className={`w-16 h-11 rounded overflow-hidden flex items-center justify-center ${
+                <div className={`${isMobile ? 'w-12 h-8' : 'w-16 h-11'} rounded overflow-hidden flex items-center justify-center ${
                   point.animal ? 'bg-amber-500/10' : 'bg-zinc-800'
                 }`}>
                   {point.animal ? (
-                    <PawPrint className="h-4 w-4 text-amber-500/50" />
+                    <PawPrint className={`${isMobile ? 'h-3 w-3' : 'h-4 w-4'} text-amber-500/50`} />
                   ) : (
                     <span className="text-[10px] text-zinc-600 font-mono">{String(point.id).padStart(4, '0')}</span>
                   )}
@@ -687,7 +844,7 @@ export default function App() {
               </button>
             );
           })}
-          <div style={{ width: (tripData.length - visibleRange.end) * 68 }} />
+          <div style={{ width: (tripData.length - visibleRange.end) * (isMobile ? 52 : 68) }} />
         </div>
       </div>
     </div>
