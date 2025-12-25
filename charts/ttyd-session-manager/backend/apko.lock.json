@@ -1619,22 +1619,22 @@
       },
       {
         "name": "vim",
-        "url": "https://packages.wolfi.dev/os/x86_64/vim-9.1.2011-r0.apk",
-        "version": "9.1.2011-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/vim-9.1.2017-r0.apk",
+        "version": "9.1.2017-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5383",
-          "checksum": "sha1-ZgMdHRN7VdR2T62KFVBqJ8nG9Xo="
+          "range": "bytes=0-5382",
+          "checksum": "sha1-p4vSviurciLgkoyuh7WK1MKidGQ="
         },
         "data": {
-          "range": "bytes=5384-11392873",
-          "checksum": "sha256-yqBNXtfhwVW6AORy+Z14XUxMF3ja9xCwz48P7Nr8ZMc="
+          "range": "bytes=5383-11392653",
+          "checksum": "sha256-Qv0sXyO6ou1kEG0dhJcH9LX0K7SKSOjAefCkvn+I414="
         },
-        "checksum": "Q1ZgMdHRN7VdR2T62KFVBqJ8nG9Xo="
+        "checksum": "Q1p4vSviurciLgkoyuh7WK1MKidGQ="
       },
       {
         "name": "py3.13-pathspec",
@@ -3291,22 +3291,22 @@
       },
       {
         "name": "vim",
-        "url": "https://packages.wolfi.dev/os/aarch64/vim-9.1.2011-r0.apk",
-        "version": "9.1.2011-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/vim-9.1.2017-r0.apk",
+        "version": "9.1.2017-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5412",
-          "checksum": "sha1-Pfv+GjHmJ7JB8Jgpc0JiPOZReL4="
+          "range": "bytes=0-5414",
+          "checksum": "sha1-525REOCf4ZmSei1fDZA1Sa7ZUPs="
         },
         "data": {
-          "range": "bytes=5413-11370459",
-          "checksum": "sha256-aNZS9V0LQMn/mlLvB4dYCfKsb2rRmMJ75FL6+Ui0Cis="
+          "range": "bytes=5415-11369248",
+          "checksum": "sha256-rC+tYjmNh9ypP6FKsYaMIrGVKaKod0DekvJFH/h1Z1Q="
         },
-        "checksum": "Q1Pfv+GjHmJ7JB8Jgpc0JiPOZReL4="
+        "checksum": "Q1525REOCf4ZmSei1fDZA1Sa7ZUPs="
       },
       {
         "name": "py3.13-pathspec",
