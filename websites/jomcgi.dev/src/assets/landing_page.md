@@ -1,7 +1,9 @@
 [joe@jomcgi.dev](mailto:joe@jomcgi.dev) | [linkedin/jomcgi](https://www.linkedin.com/in/jomcgi/) | [github/jomcgi](https://github.com/jomcgi) | Vancouver
 ## Joe McGinley
 Mostly I build tools and infrastructure that other engineers don't have to think about.
+
 Based in Vancouver, originally from Scotland.
+
 Senior Platform Engineer at Semgrep. I run multi-cluster Kubernetes on AWS - ArgoCD, CI/CD pipelines, OpenTelemetry instrumentation.
 
 ---
@@ -24,12 +26,19 @@ Senior Platform Engineer at Semgrep. I run multi-cluster Kubernetes on AWS - Arg
 
 #### Architecture decisions
 Monorepo for simplicity - I don't want to spread context / build processes across multiple repos.
+
 Bazel - support building and deploying across multiple languages. Makes multiplatform image builds really easy with [apko](https://github.com/chainguard-dev/apko). Love that I can write a rule once and benefit from it for years.
+
 Gitops - deploy to k8s using ArgoCD, mirror what I spend time maintaining at work and would work well if I ever setup multiple clusters.
+
 Ingress - Cloudflare Tunnels running in-cluster managed by my k8s operator, zero trust policies enforce SSO requirements.
+
 Policy enforcement - using Kyverno to prevent mistakes, this is just me so I'm not getting peer-reviews for changes.
+
 Observability - otel autoinstrumentation where suitable, self-hosting [signoz](https://signoz.io/).
+
 Storage - Longhorn for persistent volumes, generally avoiding state management where possible. Anything remotely critical is frequently backed up offsite.
+
 Service Mesh - Linkerd for securing service to service communication and generating telemetry.
 
 [github.com/jomcgi/homelab](https://github.com/jomcgi/homelab) (Making this public soon)
