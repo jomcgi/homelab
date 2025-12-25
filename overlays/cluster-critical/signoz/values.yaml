@@ -13,13 +13,6 @@ signoz:
         logs: 7
         traces: 7
         metrics: 7
-    files:
-      config.d/merge_tree.xml: |
-        <clickhouse>
-          <merge_tree>
-            <max_suspicious_broken_parts>500</max_suspicious_broken_parts>
-          </merge_tree>
-        </clickhouse>
   zookeeper:
     resources:
       requests:
@@ -31,11 +24,11 @@ signoz:
   otelCollector:
     resources:
       requests:
-        cpu: 100m
-        memory: 350Mi
+        cpu: 200m
+        memory: 2Gi
       limits:
-        cpu: 1
-        memory: 500Mi
+        cpu: 2
+        memory: 2Gi
   k8sInfra:
     otelAgent:
       resources:
