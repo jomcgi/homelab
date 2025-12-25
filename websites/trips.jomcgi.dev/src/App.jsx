@@ -633,14 +633,6 @@ export default function App() {
         }
       `}</style>
 
-      {/* Demo Data Banner */}
-      <div className="absolute top-14 left-1/2 -translate-x-1/2 z-50">
-        <div className="bg-amber-500/90 text-zinc-900 px-4 py-1.5 rounded-full text-sm font-medium shadow-lg flex items-center gap-2">
-          <span className="w-2 h-2 bg-zinc-900 rounded-full animate-pulse" />
-          Demo Data
-        </div>
-      </div>
-
       {/* Status Bar */}
       <div className="flex-none border-b border-zinc-800 bg-zinc-900/80 px-4 py-2.5">
         <div className="flex items-center justify-between">
@@ -660,6 +652,10 @@ export default function App() {
                   ? selectedPoint.location.split(" → ")[0]
                   : mockWeather.location}
               </span>
+            </div>
+            <div className="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+              Demo Data
             </div>
             {isMobile && (
               <ViewToggle
