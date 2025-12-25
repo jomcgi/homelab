@@ -1,21 +1,296 @@
----
-import '../styling/cv.css';
-import { Markdown } from 'astro-remote';
-import landingPageContent from '../assets/landing_page.md?raw';
----
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Joe McGinley - Senior Platform Engineer @ BenchSci | GCP | Kubernetes | Go | Python | Reliability">
-    <title>Joe - Senior Platform Engineer</title>
-    <script src="https://code.iconify.design/2/2.2.1/iconify.min.js"></script>
+    <title>Joe McGinley</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.4;
+            background: var(--bg);
+            color: var(--fg);
+            --bg: #fff;
+            --fg: #000;
+            transition: background 0.2s, color 0.2s;
+        }
+        
+        body.dark {
+            --bg: #000;
+            --fg: #fff;
+        }
+        
+        a {
+            color: var(--fg);
+            text-decoration: none;
+        }
+        
+        .container {
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            border: 2px solid var(--fg);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 24px;
+            font-weight: normal;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        
+        .bio {
+            margin-bottom: 8px;
+        }
+        
+        .bio:last-of-type {
+            margin-bottom: 15px;
+        }
+        
+        .links {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            font-size: 12px;
+        }
+        
+        .links a:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+        
+        section {
+            border: 2px solid var(--fg);
+            margin-bottom: 20px;
+        }
+        
+        .section-header {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 8px 15px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+        
+        .section-content {
+            padding: 15px;
+        }
+        
+        .project {
+            border-bottom: 1px solid var(--fg);
+            padding: 12px 0;
+        }
+        
+        .project:last-child {
+            border-bottom: none;
+        }
+        
+        .project-name {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 1px;
+        }
+        
+        .project-name a:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+        
+        .project-desc {
+            margin-top: 4px;
+            font-size: 13px;
+        }
+        
+        .arch-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 2px;
+        }
+        
+        .arch-item {
+            display: contents;
+        }
+        
+        .arch-key {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 6px 10px;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+        
+        .arch-val {
+            border: 1px solid var(--fg);
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+        
+        footer {
+            border: 2px solid var(--fg);
+            padding: 15px;
+            font-size: 12px;
+        }
+        
+        footer a:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+        
+        .cluster-info {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        @media (max-width: 600px) {
+            .arch-grid {
+                grid-template-columns: 100px 1fr;
+            }
+            .arch-key {
+                font-size: 10px;
+            }
+        }
+        
+        .toggle-btn {
+            background: var(--fg);
+            color: var(--bg);
+            border: none;
+            padding: 6px 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+        }
+        
+        .toggle-btn:hover {
+            opacity: 0.8;
+        }
+        
+        .header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+    </style>
 </head>
 <body>
-    <main class="resume-container">
-        <Markdown content={landingPageContent} />
-    </main>
-</body>
-</html>
+    <div class="container">
+        <header>
+            <div class="header-row">
+                <h1>Joe McGinley</h1>
+                <button class="toggle-btn" onclick="document.body.classList.toggle('dark')">[INVERT]</button>
+            </div>
+            <p class="bio">Mostly I build tools and infrastructure that other engineers don't have to think about.</p>
+            <p class="bio">Based in Vancouver, originally from Scotland.</p>
+            <p class="bio">Senior Platform Engineer @ Semgrep.</p>
+            <div class="links">
+                <a href="/cdn-cgi/l/email-protection#96fcf9f3d6fcf9fbf5f1ffb8f2f3e0">[EMAIL]</a>
+                <a href="https://www.linkedin.com/in/jomcgi/">[LINKEDIN]</a>
+                <a href="https://github.com/jomcgi">[GITHUB]</a>
+            </div>
+        </header>
+
+        <section>
+            <div class="section-header">Side Quests</div>
+            <div class="section-content">
+                <div class="project">
+                    <div class="project-name"><a href="https://trips.jomcgi.dev">trips.jomcgi.dev</a></div>
+                    <div class="project-desc">Road trip tracker for our Yukon drive. On-the-road inference to detect wildlife from a car-mounted GoPro.</div>
+                </div>
+                <div class="project">
+                    <div class="project-name"><a href="/frank">Frank x Vancouver</a></div>
+                    <div class="project-desc">Trip website for my sister's visit.</div>
+                </div>
+                <div class="project">
+                    <div class="project-name"><a href="https://hikes.jomcgi.dev">hikes.jomcgi.dev</a></div>
+                    <div class="project-desc">Find hikes in Scotland with good weather right now. Forecast updates every 30 minutes.</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-header">Homelab</div>
+            <div class="section-content">
+                <div class="cluster-info">5-node Kubernetes cluster running in my office</div>
+                
+                <div class="project">
+                    <div class="project-name">Stargazer</div>
+                    <div class="project-desc">Map of good stargazing spots. Filters for road access, low light pollution, clear forecasts.</div>
+                </div>
+                <div class="project">
+                    <div class="project-name">Sextant</div>
+                    <div class="project-desc">Generates typed Go for Kubernetes operators from declarative state machines.</div>
+                </div>
+                <div class="project">
+                    <div class="project-name">Opencode WebUI</div>
+                    <div class="project-desc">Self-hosted coding assistant. Sessions run as pods with access to multiple LLM backends.</div>
+                </div>
+                <div class="project">
+                    <div class="project-name">Cloudflare Operator</div>
+                    <div class="project-desc">Annotate a service with a domain → operator creates tunnels, DNS records, zero trust rules.</div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <div class="section-header">Architecture</div>
+            <div class="section-content">
+                <div class="arch-grid">
+                    <div class="arch-item">
+                        <div class="arch-key">Monorepo</div>
+                        <div class="arch-val">Don't want to spread context or build processes across repos</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">Bazel</div>
+                        <div class="arch-val">Multi-language builds, multiplatform images with apko. Write a rule once, benefit for years</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">GitOps</div>
+                        <div class="arch-val">ArgoCD — mirrors what I maintain at work, scales to multiple clusters</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">Ingress</div>
+                        <div class="arch-val">Cloudflare Tunnels in-cluster via my operator, zero trust SSO</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">Policy</div>
+                        <div class="arch-val">Kyverno to catch mistakes — no peer reviews here</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">Observability</div>
+                        <div class="arch-val">OTel auto-instrumentation where suitable, self-hosted SigNoz</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">Storage</div>
+                        <div class="arch-val">Longhorn for PVs, avoiding state where possible. Critical data backed up offsite</div>
+                    </div>
+                    <div class="arch-item">
+                        <div class="arch-key">Mesh</div>
+                        <div class="arch-val">Linkerd for service-to-service mTLS and telemetry</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <a href="https://github.com/jomcgi/homelab">github.com/jomcgi/homelab</a> — public soon
