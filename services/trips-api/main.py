@@ -17,7 +17,15 @@ from datetime import datetime
 from typing import Optional
 
 import nats
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException, UploadFile, File, Header
+from fastapi import (
+    FastAPI,
+    WebSocket,
+    WebSocketDisconnect,
+    HTTPException,
+    UploadFile,
+    File,
+    Header,
+)
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
@@ -27,7 +35,9 @@ logger = logging.getLogger(__name__)
 
 # Configuration from environment
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
-CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",")
+CORS_ORIGINS = os.getenv(
+    "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
+).split(",")
 TRIP_API_KEY = os.getenv("TRIP_API_KEY", "")
 
 
@@ -103,9 +113,7 @@ class TripsState:
         try:
             # Get consumer for replay (deliver all)
             consumer = await self.js.pull_subscribe(
-                "trips.>",
-                durable="trips-api-replay",
-                stream="trips"
+                "trips.>", durable="trips-api-replay", stream="trips"
             )
 
             # Fetch all existing messages
@@ -132,7 +140,7 @@ class TripsState:
                 "trips.>",
                 durable="trips-api-live",
                 stream="trips",
-                deliver_policy=nats.js.api.DeliverPolicy.NEW
+                deliver_policy=nats.js.api.DeliverPolicy.NEW,
             )
 
             # Start background task to process messages
@@ -151,10 +159,9 @@ class TripsState:
 
                 # Broadcast to WebSocket clients
                 if point:
-                    await self.manager.broadcast({
-                        "type": "new_point",
-                        "point": point.model_dump()
-                    })
+                    await self.manager.broadcast(
+                        {"type": "new_point", "point": point.model_dump()}
+                    )
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
 
@@ -177,7 +184,9 @@ class TripsState:
             await self.nc.close()
         logger.info("NATS connection closed")
 
-    def get_points(self, limit: Optional[int] = None, offset: int = 0) -> list[TripPoint]:
+    def get_points(
+        self, limit: Optional[int] = None, offset: int = 0
+    ) -> list[TripPoint]:
         """Get points with optional pagination."""
         points = sorted(self.points.values(), key=lambda p: p.id)
         if offset:
@@ -198,7 +207,7 @@ class TripsState:
         return {
             "total_points": len(points),
             "wildlife_sightings": wildlife_count,
-            "connected_clients": len(self.manager.active_connections)
+            "connected_clients": len(self.manager.active_connections),
         }
 
 
@@ -227,7 +236,7 @@ app = FastAPI(
     title="Trips API",
     description="API for Yukon Trip Tracker",
     version="1.0.0",
-    lifespan=lifespan
+    lifespan=lifespan,
 )
 
 # Add CORS middleware
@@ -242,6 +251,7 @@ app.add_middleware(
 # Try to add OTEL instrumentation
 try:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
+
     FastAPIInstrumentor.instrument_app(app)
     logger.info("OpenTelemetry instrumentation enabled")
 except ImportError:
@@ -254,7 +264,7 @@ async def health():
     return {
         "status": "healthy" if state.ready else "starting",
         "points": len(state.points),
-        "connected_clients": len(state.manager.active_connections)
+        "connected_clients": len(state.manager.active_connections),
     }
 
 
@@ -262,10 +272,7 @@ async def health():
 async def get_points(limit: Optional[int] = None, offset: int = 0):
     """Get all trip points with optional pagination."""
     points = state.get_points(limit=limit, offset=offset)
-    return {
-        "points": [p.model_dump() for p in points],
-        "total": len(state.points)
-    }
+    return {"points": [p.model_dump() for p in points], "total": len(state.points)}
 
 
 @app.get("/api/points/{point_id}")
@@ -289,10 +296,7 @@ async def websocket_live(websocket: WebSocket):
     await state.manager.connect(websocket)
 
     # Send initial connected message
-    await websocket.send_json({
-        "type": "connected",
-        "cached_points": len(state.points)
-    })
+    await websocket.send_json({"type": "connected", "cached_points": len(state.points)})
 
     try:
         while True:
@@ -306,4 +310,5 @@ async def websocket_live(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

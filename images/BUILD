@@ -13,6 +13,7 @@ multirun(
         "//operators/cloudflare:image.push",
         "//services/hikes/update_forecast:update_image.push",
         "//services/stargazer:image.push",
+        "//services/trips-api:image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
