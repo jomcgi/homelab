@@ -205,6 +205,7 @@ spec:
     metadata:
       annotations:
         checksum/config: 8af3cfe7fc367fbae9a1e8b2ce572fb3356566627469c94fb680c3e47595024b
+        config.linkerd.io/opaque-ports: "4222"
       labels:
         app.kubernetes.io/component: nats
         app.kubernetes.io/instance: nats
