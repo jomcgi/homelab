@@ -50,6 +50,16 @@ data:
             server trips-imgproxy:8080;
         }
 
+        upstream api {
+            server trips-api:8000;
+        }
+
+        # WebSocket connection upgrade map
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            '' close;
+        }
+
         server {
             listen 8080;
             server_name _;
@@ -99,6 +109,27 @@ data:
                 proxy_set_header Host $host;
 
                 add_header Cache-Control "public, max-age=31536000, immutable";
+            }
+            # API endpoints
+            location /trips/api/ {
+                rewrite ^/trips/api/(.*)$ /api/$1 break;
+                proxy_pass http://api;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # WebSocket endpoint
+            location /trips/ws/ {
+                rewrite ^/trips/ws/(.*)$ /ws/$1 break;
+                proxy_pass http://api;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_read_timeout 86400;
             }
 
             # Default - 404
@@ -157,6 +188,123 @@ spec:
     app.kubernetes.io/name: trips
     app.kubernetes.io/instance: trips
     app.kubernetes.io/component: nginx
+---
+# Source: trips/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: trips-api
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: api
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/component: api
+---
+# Source: trips/templates/api-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trips-api
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trips
+      app.kubernetes.io/instance: trips
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trips
+        app.kubernetes.io/instance: trips
+        app.kubernetes.io/component: api
+      annotations:
+        # Mark NATS port as opaque for Linkerd
+        config.linkerd.io/opaque-ports: "4222"
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: "ghcr.io/jomcgi/homelab/services/trips-api:main"
+          imagePullPolicy: Always
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: NATS_URL
+              value: "nats://nats.nats.svc.cluster.local:4222"
+            - name: S3_ENDPOINT
+              value: "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
+            - name: S3_BUCKET
+              value: "trips"
+            - name: TRIP_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: trips-api-key
+                  key: credential
+                  optional: true
+            # CORS origins
+            - name: CORS_ORIGINS
+              value: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 500m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir: {}
 ---
 # Source: trips/templates/imgproxy-deployment.yaml
 apiVersion: apps/v1
@@ -280,7 +428,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 728a281159141ef6060f69d4a4d9d1972ee223ece1cd19cc040c641727f56348
+        checksum/config: 9a08b5eca2f5ab432df54a92754e9925fed58bfc43dfc30728f8dfc1aa42577f
       labels:
         app.kubernetes.io/name: trips
         app.kubernetes.io/instance: trips
