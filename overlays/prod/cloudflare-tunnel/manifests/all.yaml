@@ -48,6 +48,14 @@ data:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+    - hostname: img.trips.jomcgi.dev
+      service: http://trips-nginx.trips.svc.cluster.local:80
+    - hostname: api.trips.jomcgi.dev
+      service: http://trips-api.trips.svc.cluster.local:8000
+      originRequest:
+        keepAliveConnections: 100
+        keepAliveTimeout: 90s
+        tcpKeepAlive: 30s
     - service: http_status:404
 ---
 # Source: cloudflare-tunnel/templates/envoy-configmap.yaml
@@ -274,7 +282,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: a6e8b9b37ebb88856a391ed1ccbbba78442857a832deb288037b25a3a2a1fa33
+        checksum/config: 60408f185dc488e2ca26a0849eb2daf69b9a97d8ff5c34ce76bb99df55ec4856
         checksum/envoy-config: 9c0b260fe5faed6f6df6e3ab09dfc8b31025ead5ddadfa014fe3ea9c0dd27ee2
       labels:
         app.kubernetes.io/name: cloudflare-tunnel
