@@ -1219,12 +1219,10 @@ spec:
     version: "4.1.1-4.0.4-ubuntu22.04"
     imagePullPolicy: IfNotPresent
     env: 
-      - name: DCGM_EXPORTER_LISTEN
-        value: :9400
-      - name: DCGM_EXPORTER_KUBERNETES
-        value: "true"
-      - name: DCGM_EXPORTER_COLLECTORS
-        value: /etc/dcgm-exporter/dcp-metrics-included.csv
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: all
+      - name: NVIDIA_DRIVER_CAPABILITIES
+        value: utility
     serviceMonitor: 
       additionalLabels: {}
       enabled: true
