@@ -21,6 +21,10 @@ spec:
         # Mark NATS port as opaque for Linkerd
         config.linkerd.io/opaque-ports: "4222"
     spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532

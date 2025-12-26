@@ -1,5 +1,9 @@
 # Production overrides for trips stack
 
+# Enable GHCR image pull secret for private images
+imagePullSecret:
+  enabled: true
+
 api:
   enabled: true
   image:
