@@ -20,7 +20,7 @@ clusterInfo:
     tag: "latest"
     pullPolicy: IfNotPresent
   # How often to update status.json (seconds)
-  interval: 30
+  interval: 5
   resources:
     requests:
       cpu: 5m
