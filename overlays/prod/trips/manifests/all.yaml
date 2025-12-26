@@ -72,27 +72,27 @@ data:
                 add_header X-Cache-Status $upstream_cache_status;
             }
 
-            # Thumbnails (300px)
+            # Thumbnails (300px) - imgproxy v3 format
             location /thumb/ {
-                rewrite ^/thumb/(.*)$ /unsafe/fit/300/300/sm/0/q:85/plain/s3://trips/$1 break;
+                rewrite ^/thumb/(.*)$ /unsafe/rs:fit:300:300/q:85/plain/s3://trips/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
                 add_header Cache-Control "public, max-age=31536000, immutable";
             }
 
-            # Preview (1200px)
+            # Preview (1200px) - imgproxy v3 format
             location /preview/ {
-                rewrite ^/preview/(.*)$ /unsafe/fit/1200/1200/sm/0/q:90/plain/s3://trips/$1 break;
+                rewrite ^/preview/(.*)$ /unsafe/rs:fit:1200:1200/q:90/plain/s3://trips/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
                 add_header Cache-Control "public, max-age=31536000, immutable";
             }
 
-            # Gallery (600px)
+            # Gallery (600px) - imgproxy v3 format
             location /gallery/ {
-                rewrite ^/gallery/(.*)$ /unsafe/fit/600/600/sm/0/q:88/plain/s3://trips/$1 break;
+                rewrite ^/gallery/(.*)$ /unsafe/rs:fit:600:600/q:88/plain/s3://trips/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -278,7 +278,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 5ac7dbb663c489d4382bf87afef57505a940b915f5f72b64685095f3300f8d5a
+        checksum/config: 68f05f7e254eb488377e4d7f607399e647805984222b7b3a5e2cab5622e4afd1
       labels:
         app.kubernetes.io/name: trips
         app.kubernetes.io/instance: trips
