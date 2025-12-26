@@ -1,0 +1,6 @@
+apiVersion: v2
+name: api-gateway
+description: API gateway for api.jomcgi.dev with route-based backend selection
+type: application
+version: 0.1.0
+appVersion: "1.0.0"

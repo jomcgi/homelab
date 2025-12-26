@@ -27,9 +27,9 @@ ingress:
     # Shared image hosting (projects use /project-name/ prefix)
     - hostname: img.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80
-    # Shared API hosting (projects use /project-name/ prefix)
+    # Shared API hosting (route-based: /trips, /cluster-info, etc.)
     - hostname: api.jomcgi.dev
-      service: http://trips-nginx.trips.svc.cluster.local:80
+      service: http://api-gateway.api-gateway.svc.cluster.local:80
       originRequest:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
