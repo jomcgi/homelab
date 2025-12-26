@@ -337,13 +337,18 @@
                         </div>
                         <span class="stat-sep">|</span>
                         <div class="stat-group">
+                            <span class="stat-label">MEM:</span>
+                            <span id="sys-mem"><span class="st-dim">...</span></span>
+                        </div>
+                        <span class="stat-sep">|</span>
+                        <div class="stat-group">
                             <span class="stat-label">GPU:</span>
                             <span id="sys-gpu"><span class="st-dim">...</span></span>
                         </div>
                         <span class="stat-sep">|</span>
                         <div class="stat-group">
-                            <span class="stat-label">MEM:</span>
-                            <span id="sys-mem"><span class="st-dim">...</span></span>
+                            <span class="stat-label">VRAM:</span>
+                            <span id="sys-vram"><span class="st-dim">...</span></span>
                         </div>
                     </div>
                 </div>
@@ -397,8 +402,9 @@
                 text: document.getElementById('sys-text'),
                 nodes: document.getElementById('sys-nodes'),
                 cpu: document.getElementById('sys-cpu'),
-                gpu: document.getElementById('sys-gpu'),
                 mem: document.getElementById('sys-mem'),
+                gpu: document.getElementById('sys-gpu'),
+                vram: document.getElementById('sys-vram'),
                 gitops: document.getElementById('sys-gitops'),
                 ver: document.getElementById('sys-ver')
             };
@@ -483,6 +489,17 @@
                     els.gpu.innerHTML = '<span class="st-dim">--</span>';
                 }
 
+                // Render VRAM
+                if (data.vram) {
+                    els.vram.innerText = `${data.vram.used}/${data.vram.total}GB`;
+                    const vramPercent = (data.vram.used / data.vram.total) * 100;
+                    els.vram.className = '';
+                    if (vramPercent > 95) els.vram.className = 'st-err';
+                    else if (vramPercent > 85) els.vram.className = 'st-warn';
+                } else {
+                    els.vram.innerHTML = '<span class="st-dim">--</span>';
+                }
+
                 // Render GitOps status
                 if (data.gitops) {
                     const status = data.gitops.status || 'Unknown';
@@ -507,8 +524,9 @@
             els.text.innerText = reason;
             els.nodes.innerHTML = '<span class="st-dim">--</span>';
             els.cpu.innerHTML = '<span class="st-dim">--</span>';
-            els.gpu.innerHTML = '<span class="st-dim">--</span>';
             els.mem.innerHTML = '<span class="st-dim">--</span>';
+            els.gpu.innerHTML = '<span class="st-dim">--</span>';
+            els.vram.innerHTML = '<span class="st-dim">--</span>';
             els.gitops.innerHTML = '<span class="st-dim">[--]</span>';
             els.ver.innerHTML = '<span class="st-dim">[--]</span>';
         }

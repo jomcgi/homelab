@@ -59,12 +59,22 @@ data:
     } END { printf "%.0f", sum }' || echo "0")
     MEM_TOTAL_GB=$(awk "BEGIN {printf \"%.0f\", $MEM_TOTAL_KI / 1024 / 1024}")
 
-    # Try to get GPU utilization from DCGM exporter
+    # Try to get GPU metrics from DCGM exporter
     GPU_UTIL=""
+    VRAM_USED=""
+    VRAM_TOTAL=""
     if [ "$GPU_TOTAL" -gt 0 ]; then
       DCGM_METRICS=$(curl -s --connect-timeout 2 http://nvidia-dcgm-exporter.gpu-operator.svc:9400/metrics 2>/dev/null || echo "")
       if [ -n "$DCGM_METRICS" ]; then
         GPU_UTIL=$(echo "$DCGM_METRICS" | grep "^DCGM_FI_DEV_GPU_UTIL" | awk '{sum += $2; count++} END {if (count > 0) printf "%.0f", sum/count}')
+        # VRAM in MiB from DCGM
+        VRAM_USED_MIB=$(echo "$DCGM_METRICS" | grep "^DCGM_FI_DEV_FB_USED" | awk '{sum += $2} END {printf "%.0f", sum}')
+        VRAM_TOTAL_MIB=$(echo "$DCGM_METRICS" | grep "^DCGM_FI_DEV_FB_FREE" | awk '{sum += $2} END {printf "%.0f", sum}')
+        if [ -n "$VRAM_USED_MIB" ] && [ "$VRAM_USED_MIB" != "0" ]; then
+          VRAM_USED=$(awk "BEGIN {printf \"%.1f\", $VRAM_USED_MIB / 1024}")
+          # FB_FREE + FB_USED = Total
+          VRAM_TOTAL=$(awk "BEGIN {printf \"%.0f\", ($VRAM_USED_MIB + $VRAM_TOTAL_MIB) / 1024}")
+        fi
       fi
     fi
 
@@ -75,14 +85,17 @@ data:
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Build JSON
-    GPU_FIELD=""
+    # Build optional GPU fields
+    GPU_FIELDS=""
     if [ -n "$GPU_UTIL" ]; then
-      GPU_FIELD=',"gpu_util":'$GPU_UTIL
+      GPU_FIELDS=',"gpu_util":'$GPU_UTIL
+    fi
+    if [ -n "$VRAM_USED" ] && [ -n "$VRAM_TOTAL" ]; then
+      GPU_FIELDS=$GPU_FIELDS',"vram":{"used":'$VRAM_USED',"total":'$VRAM_TOTAL'}'
     fi
 
     printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"gitops":{"status":"%s","revision":"%s"}%s}\n' \
-      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELD" > "$TEMP_FILE"
+      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"
@@ -273,7 +286,7 @@ spec:
     metadata:
       annotations:
         checksum/nginx-config: 4a7b9030d1948c6a730ad5571acee63d0d70248327c56d43ce1c6521c7d2e7b6
-        checksum/collector-config: 4d381c01ad4784b3a667300086adc6bc4d27fd9b97a5d49345c99c7466162953
+        checksum/collector-config: 42625c81cbc17b49677552e539f66e4b72dad5314c9bdbe09c5f78a08d406131
       labels:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/instance: api-gateway
