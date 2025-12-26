@@ -1,5 +1,7 @@
 # Production overrides for trips stack
 
-# Disable API until the image is built
 api:
-  enabled: false
+  enabled: true
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/trips-api
+    tag: main  # Use branch tag from CI
