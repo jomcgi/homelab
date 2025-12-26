@@ -2,6 +2,13 @@
 # This is shared infrastructure for multiple projects
 
 nats:
+  # Mark NATS port as opaque for Linkerd (binary protocol)
+  podTemplate:
+    merge:
+      metadata:
+        annotations:
+          config.linkerd.io/opaque-ports: "4222"
+
   config:
     # Single-node cluster for homelab
     cluster:
