@@ -1,0 +1,91 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "api-gateway.fullname" . }}-nginx
+  labels:
+    {{- include "api-gateway.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent"';
+
+        access_log /dev/stdout main;
+
+        sendfile on;
+        keepalive_timeout 65;
+
+        # Temp paths for non-root
+        client_body_temp_path /tmp/client_temp;
+        proxy_temp_path /tmp/proxy_temp;
+        fastcgi_temp_path /tmp/fastcgi_temp;
+        uwsgi_temp_path /tmp/uwsgi_temp;
+        scgi_temp_path /tmp/scgi_temp;
+
+        server {
+            listen 8080;
+            server_name _;
+
+            # Health check
+            location /health {
+                access_log off;
+                return 200 'ok';
+                add_header Content-Type text/plain;
+            }
+
+            # Cluster info endpoint - serve static JSON
+            location = /cluster-info {
+                alias /data/status.json;
+                default_type application/json;
+                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Access-Control-Allow-Origin "*";
+            }
+
+            # Legacy endpoint for backwards compatibility
+            location = /status.json {
+                alias /data/status.json;
+                default_type application/json;
+                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Access-Control-Allow-Origin "*";
+            }
+
+            # Trips API - proxy to trips-nginx
+            location /trips/ {
+                proxy_pass http://{{ .Values.backends.trips.host }}:{{ .Values.backends.trips.port }}/;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+
+                # WebSocket support
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_read_timeout 86400;
+            }
+
+            # Root - return API info
+            location = / {
+                default_type application/json;
+                return 200 '{"service":"api-gateway","endpoints":["/cluster-info","/trips/"]}';
+            }
+
+            # Catch-all 404
+            location / {
+                return 404 '{"error":"not found"}';
+                default_type application/json;
+            }
+        }
+    }

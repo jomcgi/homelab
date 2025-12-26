@@ -4,6 +4,7 @@ kind: Kustomization
 namePrefix: prod-
 
 resources:
+  - ./api-gateway
   - ./cloudflare-tunnel
   - ./gh-arc-controller
   - ./gh-arc-runners

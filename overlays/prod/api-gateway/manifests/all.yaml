@@ -1,0 +1,368 @@
+---
+# Source: api-gateway/templates/rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: api-gateway
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: api-gateway/templates/collector-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-collector
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  collect.sh: |
+    #!/bin/sh
+    set -e
+
+    OUTPUT_FILE="/data/status.json"
+    TEMP_FILE="/data/status.json.tmp"
+
+    # Get node counts
+    TOTAL_NODES=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    READY_NODES=$(kubectl get nodes --no-headers 2>/dev/null | grep -c ' Ready' || echo "0")
+
+    # Get CPU average from metrics-server
+    # kubectl top nodes output: NAME CPU(cores) CPU% MEM MEM%
+    CPU_AVG=$(kubectl top nodes --no-headers 2>/dev/null | awk '{sum += $3} END {if (NR > 0) printf "%.0f", sum/NR; else print "0"}' | tr -d '%' || echo "0")
+
+    # Get memory usage
+    MEM_USED_MI=$(kubectl top nodes --no-headers 2>/dev/null | awk '{
+      val = $4
+      if (index(val, "Gi") > 0) { gsub("Gi", "", val); sum += val * 1024 }
+      else if (index(val, "Mi") > 0) { gsub("Mi", "", val); sum += val }
+    } END { printf "%.0f", sum }' || echo "0")
+    MEM_USED_GB=$(awk "BEGIN {printf \"%.1f\", $MEM_USED_MI / 1024}")
+
+    # Get total memory from node capacity
+    MEM_TOTAL_KI=$(kubectl get nodes -o jsonpath='{range .items[*]}{.status.capacity.memory}{" "}{end}' 2>/dev/null | awk '{
+      for (i=1; i<=NF; i++) {
+        val = $i
+        if (index(val, "Ki") > 0) { gsub("Ki", "", val); sum += val }
+        else if (index(val, "Gi") > 0) { gsub("Gi", "", val); sum += val * 1024 * 1024 }
+      }
+    } END { printf "%.0f", sum }' || echo "0")
+    MEM_TOTAL_GB=$(awk "BEGIN {printf \"%.0f\", $MEM_TOTAL_KI / 1024 / 1024}")
+
+    # Generate timestamp
+    TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+    # Write JSON
+    printf '{"updated_at":"%s","nodes":{"total":%s,"ready":%s},"cpu":%s,"mem":{"used":%s,"total":%s}}\n' \
+      "$TIMESTAMP" "$TOTAL_NODES" "$READY_NODES" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" > "$TEMP_FILE"
+
+    # Atomic move
+    mv "$TEMP_FILE" "$OUTPUT_FILE"
+    echo "Updated $OUTPUT_FILE at $TIMESTAMP"
+---
+# Source: api-gateway/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-gateway-nginx
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent"';
+
+        access_log /dev/stdout main;
+
+        sendfile on;
+        keepalive_timeout 65;
+
+        # Temp paths for non-root
+        client_body_temp_path /tmp/client_temp;
+        proxy_temp_path /tmp/proxy_temp;
+        fastcgi_temp_path /tmp/fastcgi_temp;
+        uwsgi_temp_path /tmp/uwsgi_temp;
+        scgi_temp_path /tmp/scgi_temp;
+
+        server {
+            listen 8080;
+            server_name _;
+
+            # Health check
+            location /health {
+                access_log off;
+                return 200 'ok';
+                add_header Content-Type text/plain;
+            }
+
+            # Cluster info endpoint - serve static JSON
+            location = /cluster-info {
+                alias /data/status.json;
+                default_type application/json;
+                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Access-Control-Allow-Origin "*";
+            }
+
+            # Legacy endpoint for backwards compatibility
+            location = /status.json {
+                alias /data/status.json;
+                default_type application/json;
+                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Access-Control-Allow-Origin "*";
+            }
+
+            # Trips API - proxy to trips-nginx
+            location /trips/ {
+                proxy_pass http://trips-nginx.trips.svc.cluster.local:80/;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+
+                # WebSocket support
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_read_timeout 86400;
+            }
+
+            # Root - return API info
+            location = / {
+                default_type application/json;
+                return 200 '{"service":"api-gateway","endpoints":["/cluster-info","/trips/"]}';
+            }
+
+            # Catch-all 404
+            location / {
+                return 404 '{"error":"not found"}';
+                default_type application/json;
+            }
+        }
+    }
+---
+# Source: api-gateway/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: api-gateway-cluster-info
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+rules:
+  # Read node information
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+  # Read metrics from metrics-server
+  - apiGroups: ["metrics.k8s.io"]
+    resources: ["nodes"]
+    verbs: ["get", "list"]
+---
+# Source: api-gateway/templates/rbac.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: api-gateway-cluster-info
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: api-gateway-cluster-info
+subjects:
+  - kind: ServiceAccount
+    name: api-gateway
+    namespace: api-gateway
+---
+# Source: api-gateway/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+---
+# Source: api-gateway/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  labels:
+    helm.sh/chart: api-gateway-0.1.0
+    app.kubernetes.io/name: api-gateway
+    app.kubernetes.io/instance: api-gateway
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: api-gateway
+      app.kubernetes.io/instance: api-gateway
+  template:
+    metadata:
+      annotations:
+        checksum/config: 4a7b9030d1948c6a730ad5571acee63d0d70248327c56d43ce1c6521c7d2e7b6
+      labels:
+        app.kubernetes.io/name: api-gateway
+        app.kubernetes.io/instance: api-gateway
+    spec:
+      serviceAccountName: api-gateway
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: api-gateway-nginx
+        - name: data
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: collector-script
+          configMap:
+            name: api-gateway-collector
+            defaultMode: 0755
+      initContainers:
+        # Run collector once before nginx starts to ensure status.json exists
+        - name: init-collector
+          image: "bitnami/kubectl:1.31"
+          imagePullPolicy: IfNotPresent
+          command: ["/scripts/collect.sh"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: collector-script
+              mountPath: /scripts
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: [ALL]
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 5m
+              memory: 16Mi
+      containers:
+        - name: nginx
+          image: "nginx:1.27-alpine"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: data
+              mountPath: /data
+            - name: tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: [ALL]
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+        - name: collector
+          image: "bitnami/kubectl:1.31"
+          imagePullPolicy: IfNotPresent
+          command:
+            - /bin/sh
+            - -c
+            - |
+              while true; do
+                /scripts/collect.sh
+                sleep 30
+              done
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: collector-script
+              mountPath: /scripts
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+            capabilities:
+              drop: [ALL]
+          resources:
+            limits:
+              cpu: 50m
+              memory: 32Mi
+            requests:
+              cpu: 5m
+              memory: 16Mi
