@@ -416,7 +416,7 @@
                     html += 'cp[';
                     for (let i = 0; i < data.nodes.cp.total; i++) {
                         const colorClass = (i < data.nodes.cp.ready) ? 'st-ok' : 'st-err';
-                        html += `<span class="${colorClass}">■</span>`;
+                        html += `<span class="${colorClass}" style="margin:0 1px">■</span>`;
                     }
                     html += '] ';
                 }
@@ -426,7 +426,7 @@
                     html += 'gpu[';
                     for (let i = 0; i < data.nodes.gpu.total; i++) {
                         const colorClass = (i < data.nodes.gpu.ready) ? 'st-ok' : 'st-err';
-                        html += `<span class="${colorClass}">■</span>`;
+                        html += `<span class="${colorClass}" style="margin:0 1px">■</span>`;
                     }
                     html += ']';
                 }
