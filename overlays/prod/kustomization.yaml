@@ -10,4 +10,5 @@ resources:
   - ./n8n
   - ./nats
   - ./seaweedfs
+  - ./trips
   - ./vllm

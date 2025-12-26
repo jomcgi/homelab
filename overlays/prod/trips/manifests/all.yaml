@@ -1,0 +1,342 @@
+---
+# Source: trips/templates/nginx-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trips-nginx-config
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                        '$status $body_bytes_sent "$http_referer" '
+                        '"$http_user_agent"';
+
+        access_log /dev/stdout main;
+
+        sendfile on;
+        keepalive_timeout 65;
+
+        # Temp directories for non-root
+        client_body_temp_path /tmp/client_body;
+        proxy_temp_path /tmp/proxy;
+        fastcgi_temp_path /tmp/fastcgi;
+        uwsgi_temp_path /tmp/uwsgi;
+        scgi_temp_path /tmp/scgi;
+
+        # Upstreams (cross-namespace)
+        upstream seaweedfs {
+            server seaweedfs-s3.seaweedfs.svc.cluster.local:8333;
+        }
+
+        upstream imgproxy {
+            server trips-imgproxy:8080;
+        }
+
+        server {
+            listen 8080;
+            server_name _;
+
+            # Health check
+            location /health {
+                access_log off;
+                return 200 'OK';
+                add_header Content-Type text/plain;
+            }
+
+            # Full resolution images - direct to SeaweedFS
+            location /full/ {
+                rewrite ^/full/(.*)$ /trips/$1 break;
+                proxy_pass http://seaweedfs;
+                proxy_set_header Host $host;
+
+                # Cache forever (images are immutable)
+                add_header Cache-Control "public, max-age=31536000, immutable";
+                add_header X-Cache-Status $upstream_cache_status;
+            }
+
+            # Thumbnails (300px)
+            location /thumb/ {
+                rewrite ^/thumb/(.*)$ /unsafe/fit/300/300/sm/0/q:85/plain/s3://trips/$1 break;
+                proxy_pass http://imgproxy;
+                proxy_set_header Host $host;
+
+                add_header Cache-Control "public, max-age=31536000, immutable";
+            }
+
+            # Preview (1200px)
+            location /preview/ {
+                rewrite ^/preview/(.*)$ /unsafe/fit/1200/1200/sm/0/q:90/plain/s3://trips/$1 break;
+                proxy_pass http://imgproxy;
+                proxy_set_header Host $host;
+
+                add_header Cache-Control "public, max-age=31536000, immutable";
+            }
+
+            # Gallery (600px)
+            location /gallery/ {
+                rewrite ^/gallery/(.*)$ /unsafe/fit/600/600/sm/0/q:88/plain/s3://trips/$1 break;
+                proxy_pass http://imgproxy;
+                proxy_set_header Host $host;
+
+                add_header Cache-Control "public, max-age=31536000, immutable";
+            }
+
+            # Default - 404
+            location / {
+                return 404 'Not found';
+            }
+        }
+    }
+---
+# Source: trips/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: trips-imgproxy
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: imgproxy
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/component: imgproxy
+---
+# Source: trips/templates/services.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: trips-nginx
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: nginx
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/component: nginx
+---
+# Source: trips/templates/imgproxy-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trips-imgproxy
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: imgproxy
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trips
+      app.kubernetes.io/instance: trips
+      app.kubernetes.io/component: imgproxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: trips
+        app.kubernetes.io/instance: trips
+        app.kubernetes.io/component: imgproxy
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: imgproxy
+          image: "darthsim/imgproxy:v3.25.0"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            # S3 Configuration (SeaweedFS)
+            - name: IMGPROXY_USE_S3
+              value: "true"
+            - name: IMGPROXY_S3_ENDPOINT
+              value: "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
+            - name: IMGPROXY_S3_REGION
+              value: "us-east-1"
+            - name: AWS_ACCESS_KEY_ID
+              value: "anonymous"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "anonymous"
+            # Image Processing
+            - name: IMGPROXY_QUALITY
+              value: "90"
+            - name: IMGPROXY_FORMAT_QUALITY
+              value: "webp=92,avif=90,jpeg=90"
+            - name: IMGPROXY_ENABLE_WEBP_DETECTION
+              value: "true"
+            - name: IMGPROXY_ENFORCE_WEBP
+              value: "false"
+            - name: IMGPROXY_CONCURRENCY
+              value: "4"
+            - name: IMGPROXY_MAX_SRC_RESOLUTION
+              value: "50"
+            - name: IMGPROXY_STRIP_METADATA
+              value: "true"
+            - name: IMGPROXY_STRIP_COLOR_PROFILE
+              value: "false"
+            # Security (internal only)
+            - name: IMGPROXY_ALLOW_INSECURE_URLS
+              value: "true"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+            requests:
+              cpu: 100m
+              memory: 256Mi
+---
+# Source: trips/templates/nginx-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trips-nginx
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: nginx
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trips
+      app.kubernetes.io/instance: trips
+      app.kubernetes.io/component: nginx
+  template:
+    metadata:
+      annotations:
+        checksum/config: 5ac7dbb663c489d4382bf87afef57505a940b915f5f72b64685095f3300f8d5a
+      labels:
+        app.kubernetes.io/name: trips
+        app.kubernetes.io/instance: trips
+        app.kubernetes.io/component: nginx
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: nginx
+          image: "nginx:1.27-alpine"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          volumeMounts:
+            - name: config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /var/cache/nginx
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 200m
+              memory: 128Mi
+            requests:
+              cpu: 20m
+              memory: 32Mi
+      volumes:
+        - name: config
+          configMap:
+            name: trips-nginx-config
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
