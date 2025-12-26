@@ -272,7 +272,7 @@ spec:
       initContainers:
         # Run collector once before nginx starts to ensure status.json exists
         - name: init-collector
-          image: "bitnami/kubectl:1.31"
+          image: "bitnami/kubectl:latest"
           imagePullPolicy: IfNotPresent
           command: ["/scripts/collect.sh"]
           volumeMounts:
@@ -337,7 +337,7 @@ spec:
               cpu: 10m
               memory: 32Mi
         - name: collector
-          image: "bitnami/kubectl:1.31"
+          image: "bitnami/kubectl:latest"
           imagePullPolicy: IfNotPresent
           command:
             - /bin/sh
