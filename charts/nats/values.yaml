@@ -1,0 +1,48 @@
+# NATS JetStream configuration for homelab
+# This is shared infrastructure for multiple projects
+
+nats:
+  config:
+    # Single-node cluster for homelab
+    cluster:
+      enabled: false
+
+    # Enable JetStream for persistent messaging
+    jetstream:
+      enabled: true
+
+      fileStore:
+        enabled: true
+        dir: /data
+
+        pvc:
+          enabled: true
+          size: 10Gi
+          storageClassName: longhorn
+
+  # Container configuration
+  container:
+    image:
+      repository: nats
+      tag: "2.10.24-alpine"
+      pullPolicy: IfNotPresent
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # Single replica for homelab
+  statefulSet:
+    replicas: 1
+
+  # Service configuration
+  service:
+    enabled: true
+    ports:
+      nats:
+        enabled: true
+        port: 4222
