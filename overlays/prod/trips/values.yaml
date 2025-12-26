@@ -1,0 +1,5 @@
+# Production overrides for trips stack
+
+# Disable API until the image is built
+api:
+  enabled: false
