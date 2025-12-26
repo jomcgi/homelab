@@ -267,6 +267,11 @@ spec:
               containerPort: 8000
               protocol: TCP
           env:
+            # UV/Python needs writable directories
+            - name: HOME
+              value: /tmp
+            - name: UV_CACHE_DIR
+              value: /tmp/.uv-cache
             - name: NATS_URL
               value: "nats://nats.nats.svc.cluster.local:4222"
             - name: S3_ENDPOINT
