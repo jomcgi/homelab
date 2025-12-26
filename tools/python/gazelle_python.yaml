@@ -146,6 +146,7 @@ manifest:
     mypy: mypy
     mypy_extensions: mypy_extensions
     mypyc: mypy
+    nats: nats_py
     networkx: networkx
     numpy: numpy
     objc: pyobjc_core
