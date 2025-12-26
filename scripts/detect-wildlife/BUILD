@@ -6,6 +6,8 @@ py_library(
         "__init__.py",
         "main.py",
     ],
+    tags = ["no-remote"],  # Requires Bluetooth, runs locally only
+    target_compatible_with = ["@platforms//os:macos"],  # macOS only (Bluetooth)
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//open_gopro",
@@ -16,6 +18,8 @@ py_library(
 py_binary(
     name = "main",
     srcs = ["main.py"],
+    tags = ["no-remote"],  # Requires Bluetooth, runs locally only
+    target_compatible_with = ["@platforms//os:macos"],  # macOS only (Bluetooth)
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//open_gopro",
