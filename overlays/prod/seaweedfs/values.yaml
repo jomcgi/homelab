@@ -1,0 +1,5 @@
+# Prod-specific overrides for SeaweedFS
+# Base values are in charts/seaweedfs/values.yaml
+
+# No overrides needed for now - using chart defaults
+{}

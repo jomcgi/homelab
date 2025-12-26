@@ -1,0 +1,82 @@
+# SeaweedFS shared infrastructure configuration
+# Used by multiple projects for S3-compatible object storage
+
+seaweedfs:
+  global:
+    enableSecurity: false
+    monitoring:
+      enabled: false
+
+  master:
+    enabled: true
+    replicas: 1
+    # Disable anti-affinity for single-node homelab
+    affinity: ""
+    data:
+      type: "persistentVolumeClaim"
+      size: "1Gi"
+      storageClass: "longhorn"
+    logs:
+      type: "emptyDir"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+
+  volume:
+    enabled: true
+    replicas: 1
+    # Disable anti-affinity for single-node homelab
+    affinity: ""
+    dataDirs:
+      - name: data
+        type: "persistentVolumeClaim"
+        size: "100Gi"
+        storageClass: "longhorn"
+        maxVolumes: 0
+    idx:
+      type: "emptyDir"
+    logs:
+      type: "emptyDir"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  filer:
+    enabled: true
+    replicas: 1
+    # Disable anti-affinity for single-node homelab
+    affinity: ""
+    data:
+      type: "persistentVolumeClaim"
+      size: "5Gi"
+      storageClass: "longhorn"
+    logs:
+      type: "emptyDir"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  s3:
+    enabled: true
+    replicas: 1
+    port: 8333
+    enableAuth: false
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
