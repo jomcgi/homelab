@@ -154,12 +154,9 @@ data:
                 add_header Content-Type text/plain;
             }
 
-            # CORS: Only allow requests from jomcgi.dev and localhost
+            # CORS: Only allow requests from jomcgi.dev subdomains
             set $cors_origin "";
             if ($http_origin ~* "^https://([a-z]+\.)?jomcgi\.dev$") {
-                set $cors_origin $http_origin;
-            }
-            if ($http_origin ~* "^http://localhost(:[0-9]+)?$") {
                 set $cors_origin $http_origin;
             }
 
@@ -297,7 +294,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/nginx-config: 62e0c8e62a92574c9de5fa261bb2b0fcd523eec1c571e31fb528f9392f6c79cb
+        checksum/nginx-config: b60f2405e41161bdd467f8c2a66e8600fcb17eddaf33a2deed6efc6e4ca46d19
         checksum/collector-config: 8bc3036fd77c6ca2d42b3549a5e500051a394736ecdb2478a1efc60312440efe
       labels:
         app.kubernetes.io/name: api-gateway

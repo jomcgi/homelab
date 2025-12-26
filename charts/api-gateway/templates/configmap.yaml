@@ -45,12 +45,9 @@ data:
                 add_header Content-Type text/plain;
             }
 
-            # CORS: Only allow requests from jomcgi.dev and localhost
+            # CORS: Only allow requests from jomcgi.dev subdomains
             set $cors_origin "";
             if ($http_origin ~* "^https://([a-z]+\.)?jomcgi\.dev$") {
-                set $cors_origin $http_origin;
-            }
-            if ($http_origin ~* "^http://localhost(:[0-9]+)?$") {
                 set $cors_origin $http_origin;
             }
 
