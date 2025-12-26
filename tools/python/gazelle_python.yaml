@@ -48,6 +48,7 @@ manifest:
     copier: copier
     cv2: opencv_python
     dateutil: python_dateutil
+    dbus_fast: dbus_fast
     dispatch: pyobjc_framework_libdispatch
     dotenv: python_dotenv
     dunamai: dunamai
