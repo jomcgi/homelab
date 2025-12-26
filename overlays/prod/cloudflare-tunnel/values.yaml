@@ -24,6 +24,15 @@ ingress:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+    # Yukon Trip Tracker
+    - hostname: img.trips.jomcgi.dev
+      service: http://trips-nginx.trips.svc.cluster.local:80
+    - hostname: api.trips.jomcgi.dev
+      service: http://trips-api.trips.svc.cluster.local:8000
+      originRequest:
+        keepAliveConnections: 100
+        keepAliveTimeout: 90s
+        tcpKeepAlive: 30s
 
 # Enable Envoy proxy sidecar with tracing to SigNoz
 envoy:
