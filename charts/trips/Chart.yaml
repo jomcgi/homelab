@@ -1,0 +1,6 @@
+apiVersion: v2
+name: trips
+description: Yukon Trip Tracker - image hosting and live updates
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
