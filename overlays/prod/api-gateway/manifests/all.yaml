@@ -363,7 +363,7 @@ spec:
             - |
               while true; do
                 /scripts/collect.sh
-                sleep 30
+                sleep 5
               done
           volumeMounts:
             - name: data
