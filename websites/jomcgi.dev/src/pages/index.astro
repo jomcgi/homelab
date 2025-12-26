@@ -155,8 +155,33 @@
             text-transform: uppercase;
             letter-spacing: 1px;
             margin-bottom: 15px;
-            padding-bottom: 10px;
+        }
+
+        .status-strip {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 15px;
+            border-top: 1px solid var(--fg);
             border-bottom: 1px solid var(--fg);
+            padding: 10px 0;
+            margin-bottom: 20px;
+            font-size: 12px;
+        }
+
+        .stat-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-label {
+            font-weight: bold;
+            opacity: 0.8;
+        }
+
+        .stat-sep {
+            opacity: 0.3;
         }
 
         @media (max-width: 600px) {
@@ -165,6 +190,14 @@
             }
             .arch-key {
                 font-size: 10px;
+            }
+            .stat-sep {
+                display: none;
+            }
+            .status-strip {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 5px;
             }
         }
         
@@ -190,6 +223,19 @@
             justify-content: space-between;
             align-items: flex-start;
             margin-bottom: 15px;
+        }
+
+        /* Semantic Brutalist Colors */
+        .st-ok { color: #00b300; }     /* Terminal Green */
+        .st-warn { color: #ff9900; }   /* Amber */
+        .st-err { color: #cc0000; }    /* Red */
+        .st-dim { opacity: 0.3; }      /* Placeholder gray */
+
+        .status-dot {
+            display: inline-block;
+            font-size: 14px;
+            line-height: 1;
+            vertical-align: middle;
         }
     </style>
 </head>
@@ -254,6 +300,30 @@
             <div class="section-header">Homelab</div>
             <div class="section-content">
                 <div class="cluster-info">5-node Kubernetes cluster running in my office</div>
+
+                <div id="live-stats" class="status-strip">
+                    <div class="stat-group">
+                        <span class="stat-label">STATUS:</span>
+                        <span id="sys-dot" class="status-dot st-dim">●</span>
+                        <span id="sys-text">CONNECTING</span>
+                    </div>
+                    <span class="stat-sep">|</span>
+                    <div class="stat-group">
+                        <span class="stat-label">NODES:</span>
+                        <span id="sys-nodes"><span class="st-dim">...</span></span>
+                    </div>
+                    <span class="stat-sep">|</span>
+                    <div class="stat-group">
+                        <span class="stat-label">CPU:</span>
+                        <span id="sys-cpu"><span class="st-dim">...</span></span>
+                    </div>
+                    <span class="stat-sep">|</span>
+                    <div class="stat-group">
+                        <span class="stat-label">MEM:</span>
+                        <span id="sys-mem"><span class="st-dim">...</span></span>
+                    </div>
+                </div>
+
                 <div class="arch-grid">
                     <div class="arch-item">
                         <div class="arch-key">Monorepo</div>
@@ -292,4 +362,83 @@
         </section>
 
         <footer>
-            <a href="https://github.com/jomcgi/homelab">github.com/jomcgi/homelab</a> — public soon
+            <a href="https://github.com/jomcgi/homelab">github.com/jomcgi/homelab</a>
+        </footer>
+    </div>
+
+    <script>
+        async function fetchStats() {
+            const els = {
+                dot: document.getElementById('sys-dot'),
+                text: document.getElementById('sys-text'),
+                nodes: document.getElementById('sys-nodes'),
+                cpu: document.getElementById('sys-cpu'),
+                mem: document.getElementById('sys-mem')
+            };
+
+            try {
+                // Add timestamp to prevent browser caching
+                const res = await fetch('https://api.jomcgi.dev/cluster-info?t=' + Date.now());
+
+                if (!res.ok) throw new Error('Fetch failed');
+
+                const data = await res.json();
+                const now = new Date();
+                const lastUpdate = new Date(data.updated_at);
+                const diffMs = now - lastUpdate;
+
+                // Deadman Switch: If data > 1 hour old, show OFFLINE
+                if (diffMs > 3600000) { // 60 * 60 * 1000
+                    setOfflineState(els, 'OFFLINE');
+                    return;
+                }
+
+                // Stale Data Check: If data > 60s old, warn but show data
+                if (diffMs > 60000) {
+                    els.dot.className = 'status-dot st-warn';
+                    els.text.innerText = 'STALE';
+                } else {
+                    els.dot.className = 'status-dot st-ok';
+                    els.text.innerText = 'ONLINE';
+                }
+
+                // Render Nodes (Green/Red blocks)
+                let html = '';
+                for(let i=0; i < data.nodes.total; i++) {
+                    const colorClass = (i < data.nodes.ready) ? 'st-ok' : 'st-err';
+                    html += `<span class="${colorClass}" style="margin-right:2px">■</span>`;
+                }
+                els.nodes.innerHTML = html;
+
+                // Render CPU (Color > 80% / > 50%)
+                els.cpu.innerText = `${data.cpu}%`;
+                els.cpu.className = '';
+                if (data.cpu > 80) els.cpu.className = 'st-err';
+                else if (data.cpu > 50) els.cpu.className = 'st-warn';
+
+                // Render Memory (Color > 90% / > 80%)
+                const memPercent = (data.mem.used / data.mem.total) * 100;
+                els.mem.innerText = `${data.mem.used}GB / ${data.mem.total}GB`;
+                els.mem.className = '';
+                if (memPercent > 90) els.mem.className = 'st-err';
+                else if (memPercent > 80) els.mem.className = 'st-warn';
+
+            } catch (e) {
+                setOfflineState(els, 'UNREACHABLE');
+            }
+        }
+
+        function setOfflineState(els, reason) {
+            els.dot.className = 'status-dot st-err';
+            els.text.innerText = reason;
+            els.nodes.innerHTML = '<span class="st-dim">--</span>';
+            els.cpu.innerHTML = '<span class="st-dim">--</span>';
+            els.mem.innerHTML = '<span class="st-dim">--</span>';
+        }
+
+        // Initial fetch and 5s interval
+        fetchStats();
+        setInterval(fetchStats, 5000);
+    </script>
+</body>
+</html>
