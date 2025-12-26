@@ -8,5 +8,6 @@ resources:
   - ./gh-arc-controller
   - ./gh-arc-runners
   - ./n8n
+  - ./nats
   - ./seaweedfs
   - ./vllm
