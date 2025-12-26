@@ -154,12 +154,22 @@ data:
                 add_header Content-Type text/plain;
             }
 
+            # CORS: Only allow requests from jomcgi.dev and localhost
+            set $cors_origin "";
+            if ($http_origin ~* "^https://([a-z]+\.)?jomcgi\.dev$") {
+                set $cors_origin $http_origin;
+            }
+            if ($http_origin ~* "^http://localhost(:[0-9]+)?$") {
+                set $cors_origin $http_origin;
+            }
+
             # Cluster info endpoint - serve static JSON
             location = /cluster-info {
                 alias /data/status.json;
                 default_type application/json;
                 add_header Cache-Control "no-cache, no-store, must-revalidate";
-                add_header Access-Control-Allow-Origin "*";
+                add_header Access-Control-Allow-Origin $cors_origin always;
+                add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
             }
 
             # Legacy endpoint for backwards compatibility
@@ -167,7 +177,8 @@ data:
                 alias /data/status.json;
                 default_type application/json;
                 add_header Cache-Control "no-cache, no-store, must-revalidate";
-                add_header Access-Control-Allow-Origin "*";
+                add_header Access-Control-Allow-Origin $cors_origin always;
+                add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
             }
 
             # Trips API - proxy to trips-nginx
@@ -286,7 +297,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/nginx-config: 4a7b9030d1948c6a730ad5571acee63d0d70248327c56d43ce1c6521c7d2e7b6
+        checksum/nginx-config: 62e0c8e62a92574c9de5fa261bb2b0fcd523eec1c571e31fb528f9392f6c79cb
         checksum/collector-config: 8bc3036fd77c6ca2d42b3549a5e500051a394736ecdb2478a1efc60312440efe
       labels:
         app.kubernetes.io/name: api-gateway
