@@ -50,6 +50,16 @@ data:
             server trips-imgproxy:8080;
         }
 
+        upstream api {
+            server trips-api:8000;
+        }
+
+        # WebSocket connection upgrade map
+        map $http_upgrade $connection_upgrade {
+            default upgrade;
+            '' close;
+        }
+
         server {
             listen 8080;
             server_name _;
@@ -97,6 +107,26 @@ data:
                 proxy_set_header Host $host;
 
                 add_header Cache-Control "public, max-age=31536000, immutable";
+            }
+
+            # API endpoints
+            location /api/ {
+                proxy_pass http://api;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+
+            # WebSocket endpoint
+            location /ws/ {
+                proxy_pass http://api;
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection $connection_upgrade;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_read_timeout 86400;
             }
 
             # Default - 404
@@ -278,7 +308,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 68f05f7e254eb488377e4d7f607399e647805984222b7b3a5e2cab5622e4afd1
+        checksum/config: a339d485e972ac5858d8873b28222dc08b71002377d79478c373b211c9d840c9
       labels:
         app.kubernetes.io/name: trips
         app.kubernetes.io/instance: trips
