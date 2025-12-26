@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
@@ -18,10 +24,167 @@ import {
   Minimize2,
   Map,
   Image,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 
 // ============================================
-// Route Generation - Vancouver to Dawson City
+// API Configuration
+// ============================================
+
+// Use api-gateway for API access, not the static site
+const API_BASE_URL =
+  import.meta.env.VITE_API_URL || "https://api.jomcgi.dev/trips";
+const WS_BASE_URL = import.meta.env.VITE_WS_URL || "wss://api.jomcgi.dev/trips";
+
+// ============================================
+// API Hook - Fetch real trip data
+// ============================================
+
+function useTripData() {
+  const [points, setPoints] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [stats, setStats] = useState({ total: 0, wildlife: 0, viewers: 0 });
+  const [isDemo, setIsDemo] = useState(false);
+  const wsRef = useRef(null);
+  const reconnectTimeoutRef = useRef(null);
+
+  // Transform API response to match React component expectations
+  const transformPoint = useCallback(
+    (apiPoint) => ({
+      id: apiPoint.id,
+      lat: apiPoint.lat,
+      lng: apiPoint.lng,
+      imageUrl: apiPoint.image_url,
+      thumbUrl: apiPoint.thumb_url,
+      timestamp: new Date(apiPoint.timestamp),
+      location: apiPoint.location || null,
+      animal: apiPoint.animal || null,
+    }),
+    [],
+  );
+
+  // Connect to WebSocket for live updates
+  const connectWebSocket = useCallback(() => {
+    if (wsRef.current?.readyState === WebSocket.OPEN) return;
+
+    try {
+      const ws = new WebSocket(`${WS_BASE_URL}/ws/live`);
+
+      ws.onopen = () => {
+        console.log("WebSocket connected");
+        // Clear any pending reconnect
+        if (reconnectTimeoutRef.current) {
+          clearTimeout(reconnectTimeoutRef.current);
+          reconnectTimeoutRef.current = null;
+        }
+      };
+
+      ws.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === "new_point") {
+            const newPoint = transformPoint(data.point);
+            setPoints((prev) => [...prev, newPoint]);
+            setStats((prev) => ({
+              ...prev,
+              total: prev.total + 1,
+              wildlife: newPoint.animal ? prev.wildlife + 1 : prev.wildlife,
+            }));
+          } else if (data.type === "connected") {
+            console.log(
+              `WebSocket: ${data.cached_points} points cached on server`,
+            );
+          }
+        } catch (e) {
+          console.error("WebSocket message parse error:", e);
+        }
+      };
+
+      ws.onclose = () => {
+        console.log("WebSocket disconnected, reconnecting in 5s...");
+        reconnectTimeoutRef.current = setTimeout(connectWebSocket, 5000);
+      };
+
+      ws.onerror = (err) => {
+        console.error("WebSocket error:", err);
+      };
+
+      wsRef.current = ws;
+    } catch (e) {
+      console.error("WebSocket connection failed:", e);
+    }
+  }, [transformPoint]);
+
+  // Fetch initial data
+  useEffect(() => {
+    let cancelled = false;
+
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await fetch(`${API_BASE_URL}/api/points`);
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        if (data.points && data.points.length > 0) {
+          const transformedPoints = data.points.map(transformPoint);
+          setPoints(transformedPoints);
+          setStats({
+            total: data.total,
+            wildlife: transformedPoints.filter((p) => p.animal).length,
+            viewers: 0,
+          });
+          setIsDemo(false);
+
+          // Connect WebSocket for live updates
+          connectWebSocket();
+        } else {
+          // No data from API, use demo mode
+          console.log("No trip data available, using demo mode");
+          setIsDemo(true);
+          setPoints(generateDemoData());
+        }
+      } catch (err) {
+        console.error("Failed to fetch trip data:", err);
+        if (!cancelled) {
+          setError(err.message);
+          setIsDemo(true);
+          setPoints(generateDemoData());
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    fetchData();
+
+    return () => {
+      cancelled = true;
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, [transformPoint, connectWebSocket]);
+
+  return { points, loading, error, stats, isDemo };
+}
+
+// ============================================
+// Demo Data Generation (fallback)
 // ============================================
 
 const routeWaypoints = [
@@ -66,13 +229,13 @@ const wildlifeSpots = [
   { lat: 62.8, lng: -138.5, animal: "Moose" },
 ];
 
-function generateDenseRoute(waypoints, pointsPerSegment = 50) {
+function generateDemoData(pointsPerSegment = 50) {
   const points = [];
   const startTime = new Date("2025-06-15T06:00:00");
 
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const start = waypoints[i];
-    const end = waypoints[i + 1];
+  for (let i = 0; i < routeWaypoints.length - 1; i++) {
+    const start = routeWaypoints[i];
+    const end = routeWaypoints[i + 1];
 
     for (let j = 0; j < pointsPerSegment; j++) {
       const t = j / pointsPerSegment;
@@ -87,7 +250,7 @@ function generateDenseRoute(waypoints, pointsPerSegment = 50) {
 
       const segmentProgress =
         (i * pointsPerSegment + j) /
-        ((waypoints.length - 1) * pointsPerSegment);
+        ((routeWaypoints.length - 1) * pointsPerSegment);
       const tripDurationMs = 35 * 60 * 60 * 1000;
       const timestamp = new Date(
         startTime.getTime() + segmentProgress * tripDurationMs,
@@ -106,7 +269,7 @@ function generateDenseRoute(waypoints, pointsPerSegment = 50) {
     }
   }
 
-  const lastWaypoint = waypoints[waypoints.length - 1];
+  const lastWaypoint = routeWaypoints[routeWaypoints.length - 1];
   points.push({
     id: points.length + 1,
     lat: lastWaypoint.lat,
@@ -119,8 +282,6 @@ function generateDenseRoute(waypoints, pointsPerSegment = 50) {
 
   return points;
 }
-
-const tripData = generateDenseRoute(routeWaypoints, 50);
 
 const mockWeather = {
   location: "Dawson City, YT",
@@ -528,7 +689,10 @@ function ImagePanel({
 // ============================================
 
 export default function App() {
-  const [selectedIndex, setSelectedIndex] = useState(tripData.length - 1);
+  // Fetch trip data from API (falls back to demo data)
+  const { points: tripData, loading, error, stats, isDemo } = useTripData();
+
+  const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
   const [isLive, setIsLive] = useState(false);
@@ -541,21 +705,32 @@ export default function App() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
 
+  // Reset selected index when data loads
+  useEffect(() => {
+    if (tripData.length > 0) {
+      setSelectedIndex(tripData.length - 1);
+    }
+  }, [tripData.length]);
+
   const selectedPoint = tripData[selectedIndex];
   const selectedId = selectedPoint?.id;
-  const animalPoints = tripData.filter((p) => p.animal);
+  const animalPoints = useMemo(
+    () => tripData.filter((p) => p.animal),
+    [tripData],
+  );
   const latestIndex = tripData.length - 1;
 
+  // All hooks must be called before any early returns
   useEffect(() => {
-    if (isLive) {
+    if (isLive && tripData.length > 0) {
       setSelectedIndex(latestIndex);
       setIsPlaying(false);
     }
-  }, [isLive, latestIndex]);
+  }, [isLive, latestIndex, tripData.length]);
 
   useEffect(() => {
     let interval;
-    if (isPlaying && !isLive) {
+    if (isPlaying && !isLive && tripData.length > 0) {
       interval = setInterval(() => {
         setSelectedIndex((prev) => {
           if (prev >= tripData.length - 1) {
@@ -567,7 +742,7 @@ export default function App() {
       }, 1000 / playbackSpeed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, isLive]);
+  }, [isPlaying, playbackSpeed, isLive, tripData.length]);
 
   useEffect(() => {
     const el = imageRefs.current[selectedId];
@@ -590,8 +765,34 @@ export default function App() {
         }
       }
     },
-    [latestIndex],
+    [tripData, latestIndex],
   );
+
+  // Show loading screen
+  if (loading) {
+    return (
+      <div className="h-screen w-full bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
+        <p className="text-zinc-400">Loading trip data...</p>
+      </div>
+    );
+  }
+
+  // Handle empty data state
+  if (tripData.length === 0) {
+    return (
+      <div className="h-screen w-full bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center gap-4">
+        <AlertCircle className="h-12 w-12 text-amber-500" />
+        <p className="text-zinc-400">No trip data available</p>
+        <p className="text-zinc-500 text-sm">
+          The trip hasn't started yet or data is unavailable.
+        </p>
+      </div>
+    );
+  }
+
+  // Show error state (but still render with demo data)
+  const showErrorBanner = error && isDemo;
 
   const handleTimelineChange = (newIndex) => {
     setSelectedIndex(newIndex);
@@ -653,10 +854,17 @@ export default function App() {
                   : mockWeather.location}
               </span>
             </div>
-            <div className="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-              Demo Data
-            </div>
+            {isDemo ? (
+              <div className="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
+                Demo Data
+              </div>
+            ) : (
+              <div className="bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                Live Trip
+              </div>
+            )}
             {isMobile && (
               <ViewToggle
                 activeView={mobileView}
@@ -692,6 +900,16 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* Error Banner (when API fails, shows demo data) */}
+      {showErrorBanner && (
+        <div className="flex-none bg-amber-500/10 border-b border-amber-500/20 px-4 py-2">
+          <div className="flex items-center gap-2 text-sm text-amber-400">
+            <AlertCircle className="h-4 w-4 flex-shrink-0" />
+            <span>Unable to connect to API. Showing demo data.</span>
+          </div>
+        </div>
+      )}
 
       {/* Main Content - Split View / Tabbed View */}
       <div className="flex-1 flex min-h-0">
