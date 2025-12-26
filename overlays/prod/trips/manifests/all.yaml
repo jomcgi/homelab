@@ -61,9 +61,11 @@ data:
                 add_header Content-Type text/plain;
             }
 
+            # === TRIPS PROJECT (/trips/) ===
+
             # Full resolution images - direct to SeaweedFS
-            location /full/ {
-                rewrite ^/full/(.*)$ /trips/$1 break;
+            location /trips/full/ {
+                rewrite ^/trips/full/(.*)$ /trips/$1 break;
                 proxy_pass http://seaweedfs;
                 proxy_set_header Host $host;
 
@@ -73,8 +75,8 @@ data:
             }
 
             # Thumbnails (300px) - imgproxy v3 format
-            location /thumb/ {
-                rewrite ^/thumb/(.*)$ /unsafe/rs:fit:300:300/q:85/plain/s3://trips/$1 break;
+            location /trips/thumb/ {
+                rewrite ^/trips/thumb/(.*)$ /unsafe/rs:fit:300:300/q:85/plain/s3://trips/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -82,8 +84,8 @@ data:
             }
 
             # Preview (1200px) - imgproxy v3 format
-            location /preview/ {
-                rewrite ^/preview/(.*)$ /unsafe/rs:fit:1200:1200/q:90/plain/s3://trips/$1 break;
+            location /trips/preview/ {
+                rewrite ^/trips/preview/(.*)$ /unsafe/rs:fit:1200:1200/q:90/plain/s3://trips/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -91,8 +93,8 @@ data:
             }
 
             # Gallery (600px) - imgproxy v3 format
-            location /gallery/ {
-                rewrite ^/gallery/(.*)$ /unsafe/rs:fit:600:600/q:88/plain/s3://trips/$1 break;
+            location /trips/gallery/ {
+                rewrite ^/trips/gallery/(.*)$ /unsafe/rs:fit:600:600/q:88/plain/s3://trips/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -278,7 +280,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 68f05f7e254eb488377e4d7f607399e647805984222b7b3a5e2cab5622e4afd1
+        checksum/config: 728a281159141ef6060f69d4a4d9d1972ee223ece1cd19cc040c641727f56348
       labels:
         app.kubernetes.io/name: trips
         app.kubernetes.io/instance: trips
