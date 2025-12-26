@@ -1,7 +1,12 @@
 import asyncio
 import os
+import signal
+import sqlite3
 import time
+from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime
+from enum import Enum
 from pathlib import Path
 from typing import Annotated
 
@@ -13,19 +18,247 @@ from open_gopro.models import constants, proto
 # See: https://github.com/gopro/OpenGoPro/issues/XXX (port mismatch)
 WiredGoPro._BASE_ENDPOINT = "http://{ip}:80/"
 
-# Output directory
+# Defaults
 OUTPUT_DIR = Path(__file__).parent / "tmp"
+DB_PATH = Path(__file__).parent / "capture_queue.db"
+TEST_CAPTURE_COUNT = 20
+DEFAULT_INTERVAL = 30  # seconds between captures
 
 app = typer.Typer(help="GoPro wildlife detection camera control")
 
 
-async def configure_gopro(
-    gopro: WiredGoPro,
-    *,
-    raw: bool = True,
-    gps: bool = True,
-) -> None:
-    """Configure camera for high-resolution photo capture."""
+class DownloadStatus(str, Enum):
+    PENDING = "pending"
+    DOWNLOADING = "downloading"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
+@dataclass
+class CaptureRecord:
+    id: int
+    camera_filename: str
+    local_jpg_path: str
+    status: DownloadStatus
+    retry_count: int
+    error_message: str | None
+    created_at: str
+    completed_at: str | None
+
+
+class CaptureQueue:
+    """Persistent queue for tracking photo captures and downloads."""
+
+    MAX_RETRIES = 3
+
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._init_db()
+
+    def _init_db(self) -> None:
+        """Initialize the SQLite database schema."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS captures (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    camera_filename TEXT NOT NULL,
+                    local_jpg_path TEXT NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    retry_count INTEGER NOT NULL DEFAULT 0,
+                    error_message TEXT,
+                    created_at TEXT NOT NULL,
+                    completed_at TEXT
+                )
+            """)
+            conn.execute("""
+                CREATE INDEX IF NOT EXISTS idx_status ON captures(status)
+            """)
+            conn.commit()
+
+    def add(self, camera_filename: str, local_jpg_path: Path) -> int:
+        """Add a new capture to the queue. Returns the record ID."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO captures (camera_filename, local_jpg_path, status, created_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (
+                    camera_filename,
+                    str(local_jpg_path),
+                    DownloadStatus.PENDING.value,
+                    datetime.now().isoformat(),
+                ),
+            )
+            conn.commit()
+            return cursor.lastrowid
+
+    def get_pending(self) -> list[CaptureRecord]:
+        """Get all pending downloads (including retryable failures)."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT * FROM captures
+                WHERE status = ? OR (status = ? AND retry_count < ?)
+                ORDER BY created_at ASC
+                """,
+                (
+                    DownloadStatus.PENDING.value,
+                    DownloadStatus.FAILED.value,
+                    self.MAX_RETRIES,
+                ),
+            ).fetchall()
+            return [self._row_to_record(row) for row in rows]
+
+    def mark_downloading(self, record_id: int) -> None:
+        """Mark a record as currently downloading."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE captures SET status = ? WHERE id = ?",
+                (DownloadStatus.DOWNLOADING.value, record_id),
+            )
+            conn.commit()
+
+    def mark_completed(self, record_id: int) -> None:
+        """Mark a record as successfully downloaded."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                "UPDATE captures SET status = ?, completed_at = ? WHERE id = ?",
+                (DownloadStatus.COMPLETED.value, datetime.now().isoformat(), record_id),
+            )
+            conn.commit()
+
+    def mark_failed(self, record_id: int, error: str) -> None:
+        """Mark a record as failed and increment retry count."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                UPDATE captures
+                SET status = ?, error_message = ?, retry_count = retry_count + 1
+                WHERE id = ?
+                """,
+                (DownloadStatus.FAILED.value, error, record_id),
+            )
+            conn.commit()
+
+    def reset_downloading(self) -> int:
+        """Reset any 'downloading' records to 'pending' (for restart recovery)."""
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.execute(
+                "UPDATE captures SET status = ? WHERE status = ?",
+                (DownloadStatus.PENDING.value, DownloadStatus.DOWNLOADING.value),
+            )
+            conn.commit()
+            return cursor.rowcount
+
+    def get_stats(self) -> dict[str, int]:
+        """Get count of records by status."""
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                "SELECT status, COUNT(*) FROM captures GROUP BY status"
+            ).fetchall()
+            return {row[0]: row[1] for row in rows}
+
+    def _row_to_record(self, row: sqlite3.Row) -> CaptureRecord:
+        return CaptureRecord(
+            id=row["id"],
+            camera_filename=row["camera_filename"],
+            local_jpg_path=row["local_jpg_path"],
+            status=DownloadStatus(row["status"]),
+            retry_count=row["retry_count"],
+            error_message=row["error_message"],
+            created_at=row["created_at"],
+            completed_at=row["completed_at"],
+        )
+
+
+class GracefulShutdown:
+    """Handle graceful shutdown on SIGINT/SIGTERM."""
+
+    def __init__(self):
+        self.shutdown_requested = False
+        self._original_sigint = None
+        self._original_sigterm = None
+
+    def __enter__(self):
+        self._original_sigint = signal.signal(signal.SIGINT, self._handler)
+        self._original_sigterm = signal.signal(signal.SIGTERM, self._handler)
+        return self
+
+    def __exit__(self, *args):
+        signal.signal(signal.SIGINT, self._original_sigint)
+        signal.signal(signal.SIGTERM, self._original_sigterm)
+
+    def _handler(self, signum, frame):
+        if self.shutdown_requested:
+            print("\nForce quit - exiting immediately")
+            raise SystemExit(1)
+        print("\nShutdown requested - finishing current operations...")
+        self.shutdown_requested = True
+
+
+class PerfStats:
+    """Track performance statistics for test mode."""
+
+    def __init__(self):
+        self.capture_times: list[float] = []
+        self.download_times: list[float] = []
+        self.download_sizes: list[float] = []  # MB
+        self.start_time = time.perf_counter()
+
+    def add_capture(self, duration: float) -> None:
+        self.capture_times.append(duration)
+
+    def add_download(self, duration: float, size_mb: float) -> None:
+        self.download_times.append(duration)
+        self.download_sizes.append(size_mb)
+
+    def summary(self) -> str:
+        elapsed = time.perf_counter() - self.start_time
+        lines = [
+            "",
+            "=" * 60,
+            "PERFORMANCE SUMMARY",
+            "=" * 60,
+            f"Total time: {elapsed:.1f}s",
+            f"Photos captured: {len(self.capture_times)}",
+            f"Photos downloaded: {len(self.download_times)}",
+            "",
+        ]
+
+        if self.capture_times:
+            avg_cap = sum(self.capture_times) / len(self.capture_times)
+            min_cap = min(self.capture_times)
+            max_cap = max(self.capture_times)
+            lines.append(f"Capture time: avg={avg_cap:.2f}s min={min_cap:.2f}s max={max_cap:.2f}s")
+
+        if self.download_times:
+            avg_dl = sum(self.download_times) / len(self.download_times)
+            min_dl = min(self.download_times)
+            max_dl = max(self.download_times)
+            avg_size = sum(self.download_sizes) / len(self.download_sizes)
+            total_size = sum(self.download_sizes)
+            throughput = total_size / sum(self.download_times) if self.download_times else 0
+            lines.extend([
+                f"Download time: avg={avg_dl:.2f}s min={min_dl:.2f}s max={max_dl:.2f}s",
+                f"File size: avg={avg_size:.1f}MB total={total_size:.1f}MB",
+                f"Throughput: {throughput:.1f} MB/s",
+            ])
+
+        if self.capture_times and elapsed > 0:
+            rate = len(self.capture_times) / (elapsed / 60)
+            lines.append(f"Effective rate: {rate:.1f} photos/min")
+
+        lines.append("=" * 60)
+        return "\n".join(lines)
+
+
+async def configure_gopro(gopro: WiredGoPro, *, test_mode: bool = False) -> None:
+    """Configure camera for high-resolution photo capture with RAW."""
+    if test_mode:
+        print("[DEBUG] Configuring camera...")
+
     # Set PRO mode (required for full resolution control)
     await gopro.http_setting.control_mode.set(constants.settings.ControlMode.PRO)
 
@@ -41,51 +274,98 @@ async def configure_gopro(
         constants.settings.PhotoLens.WIDE_12_MP,
     ]
     for lens in lens_options:
-        if (await gopro.http_setting.photo_lens.set(lens)).ok:
+        result = await gopro.http_setting.photo_lens.set(lens)
+        if result.ok:
+            if test_mode:
+                print(f"[DEBUG] Lens set to {lens}")
             break
 
-    # RAW mode
-    if raw:
-        result = await gopro.http_setting.photo_output.set(
-            constants.settings.PhotoOutput.RAW
-        )
-        if result.ok:
-            print("RAW mode enabled")
-        else:
-            print("Warning: Could not enable RAW mode")
+    # Enable RAW mode (GPR files stay on SD card, we only download JPG)
+    result = await gopro.http_setting.photo_output.set(
+        constants.settings.PhotoOutput.RAW
+    )
+    if result.ok:
+        print("RAW mode enabled (GPR stays on SD, downloading JPG only)")
     else:
-        await gopro.http_setting.photo_output.set(
-            constants.settings.PhotoOutput.STANDARD
-        )
+        print("Warning: Could not enable RAW mode, using standard")
 
-    # Disable photo interval (single shot)
+    # Disable photo interval (single shot mode)
     await gopro.http_setting.photo_single_interval.set(
         constants.settings.PhotoSingleInterval.OFF
     )
 
-    # GPS
-    if gps:
-        result = await gopro.http_setting.gps.set(constants.settings.Gps.ON)
-        if result.ok:
-            print("GPS enabled")
-        else:
-            print("Warning: Could not enable GPS")
+    # Enable GPS for location tagging
+    result = await gopro.http_setting.gps.set(constants.settings.Gps.ON)
+    if result.ok:
+        print("GPS enabled")
+    else:
+        print("Warning: Could not enable GPS")
+
+
+async def download_worker(
+    gopro: WiredGoPro,
+    queue: CaptureQueue,
+    shutdown: GracefulShutdown,
+    download_event: asyncio.Event,
+    stats: PerfStats | None = None,
+) -> None:
+    """Background worker that downloads JPG photos from the queue."""
+    while not shutdown.shutdown_requested:
+        try:
+            await asyncio.wait_for(download_event.wait(), timeout=1.0)
+        except asyncio.TimeoutError:
+            continue
+
+        download_event.clear()
+
+        pending = queue.get_pending()
+        for record in pending:
+            if shutdown.shutdown_requested:
+                break
+
+            queue.mark_downloading(record.id)
+
+            try:
+                t0 = time.perf_counter()
+                await gopro.http_command.download_file(
+                    camera_file=record.camera_filename,
+                    local_file=record.local_jpg_path,
+                )
+                duration = time.perf_counter() - t0
+                size_mb = os.path.getsize(record.local_jpg_path) / 1024 / 1024
+
+                queue.mark_completed(record.id)
+
+                if stats:
+                    stats.add_download(duration, size_mb)
+                    print(f"  [DL] {record.camera_filename}: {size_mb:.1f}MB in {duration:.1f}s ({size_mb/duration:.1f} MB/s)")
+                else:
+                    print(f"  [DL] {Path(record.local_jpg_path).name} ({size_mb:.1f}MB)")
+
+            except Exception as e:
+                error_msg = str(e)
+                queue.mark_failed(record.id, error_msg)
+                retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
+                print(f"  [DL] Failed {record.camera_filename} ({retry_info}): {error_msg}")
+
+                if record.retry_count < queue.MAX_RETRIES - 1:
+                    backoff = 2 ** (record.retry_count + 1)
+                    await asyncio.sleep(backoff)
 
 
 async def capture_photo(
-    gopro: WiredGoPro, output_dir: Path
-) -> tuple[Path, Path | None, dict]:
-    """Capture a single photo and download it. Returns (jpg_path, gpr_path, timing_info)."""
-    output_dir.mkdir(exist_ok=True)
+    gopro: WiredGoPro,
+    queue: CaptureQueue,
+    output_dir: Path,
+    media_before: set,
+    download_event: asyncio.Event,
+    stats: PerfStats | None = None,
+) -> tuple[set, float]:
+    """Capture a photo and queue JPG for download. Returns (new_media_set, capture_time)."""
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    timing = {}
 
-    # Get media list before capture
+    # Take photo with retry
     t0 = time.perf_counter()
-    media_before = set((await gopro.http_command.get_media_list()).data.files)
-
-    # Take photo (with retry if camera is busy)
-    t1 = time.perf_counter()
     for attempt in range(3):
         try:
             await gopro.http_command.set_shutter(shutter=constants.Toggle.ENABLE)
@@ -96,62 +376,46 @@ async def capture_photo(
                 await asyncio.sleep(2)
             else:
                 raise
-    t2 = time.perf_counter()
-    timing["capture"] = t2 - t1
+    capture_time = time.perf_counter() - t0
 
-    # Small delay to let camera finish writing
+    if stats:
+        stats.add_capture(capture_time)
+
+    # Wait for camera to finish writing
     await asyncio.sleep(0.5)
 
-    # Get media list after capture
-    media_after = set((await gopro.http_command.get_media_list()).data.files)
-
     # Find the new photo
+    media_after = set((await gopro.http_command.get_media_list()).data.files)
     new_photos = media_after.difference(media_before)
+
     if not new_photos:
         raise RuntimeError("No new photo captured")
 
     photo = new_photos.pop()
-
-    # Download the JPG
     jpg_path = output_dir / f"{timestamp}.jpg"
-    t3 = time.perf_counter()
-    await gopro.http_command.download_file(
-        camera_file=photo.filename, local_file=str(jpg_path)
-    )
-    t4 = time.perf_counter()
-    timing["jpg_download"] = t4 - t3
 
-    # Check if RAW file exists and download it
-    gpr_path = None
-    if photo.raw == "1":
-        gpr_filename = photo.filename.replace(".JPG", ".GPR")
-        gpr_path = output_dir / f"{timestamp}.gpr"
-        t5 = time.perf_counter()
-        await gopro.http_command.download_file(
-            camera_file=gpr_filename, local_file=str(gpr_path)
-        )
-        t6 = time.perf_counter()
-        timing["gpr_download"] = t6 - t5
+    # Queue JPG for download (RAW stays on SD card)
+    record_id = queue.add(photo.filename, jpg_path)
+    download_event.set()
 
-    timing["total"] = time.perf_counter() - t0
+    if stats:
+        print(f"[CAP] #{record_id} {photo.filename} in {capture_time:.2f}s")
+    else:
+        print(f"[CAP] {photo.filename}")
 
-    return jpg_path, gpr_path, timing
+    return media_after, capture_time
 
 
-async def _main(
-    capture: bool,
-    raw: bool,
-    gps: bool,
-    output_dir: Path,
-    loop: bool,
-    interval: int,
-    count: int | None,
-) -> None:
-    # Retry connection with longer timeout for camera wakeup
+@asynccontextmanager
+async def connect_gopro(test_mode: bool = False):
+    """Connect to GoPro with retry logic."""
     gopro = WiredGoPro()
     for attempt in range(5):
         try:
-            print(f"Connecting to camera (attempt {attempt + 1}/5)...")
+            if test_mode:
+                print(f"[DEBUG] Connecting (attempt {attempt + 1}/5)...")
+            else:
+                print(f"Connecting to camera (attempt {attempt + 1}/5)...")
             await gopro.open(timeout=15, retries=3)
             break
         except Exception as e:
@@ -161,129 +425,186 @@ async def _main(
                 await asyncio.sleep(5)
             else:
                 print("Failed to connect after 5 attempts.")
-                print("Try: unplug USB, wait 5s, plug back in (triggers WAKE=2)")
+                print("Try: unplug USB, wait 5s, plug back in")
                 raise
 
     try:
-        print("Configuring camera...")
-        await configure_gopro(gopro, raw=raw, gps=gps)
-        print("Configuration complete\n")
-
-        if not capture:
-            print("Skipping capture (--no-capture)")
-            return
-
-        captured = 0
-        errors = 0
-        all_timings: list[dict] = []
-        session_start = time.perf_counter()
-
-        while True:
-            try:
-                captured += 1
-                if count:
-                    print(f"\n[{captured}/{count}] Capturing...")
-                else:
-                    print(f"\n[{captured}] Capturing...")
-
-                jpg_path, gpr_path, timing = await capture_photo(gopro, output_dir)
-                all_timings.append(timing)
-
-                jpg_size = os.path.getsize(jpg_path) / 1024 / 1024
-                print(f"Saved: {jpg_path} ({jpg_size:.1f}MB)")
-
-                if gpr_path:
-                    gpr_size = os.path.getsize(gpr_path) / 1024 / 1024
-                    print(f"Saved: {gpr_path} ({gpr_size:.1f}MB)")
-
-                # Show timing for this capture
-                timing_parts = [
-                    f"capture={timing['capture']:.1f}s",
-                    f"jpg={timing['jpg_download']:.1f}s",
-                ]
-                if "gpr_download" in timing:
-                    timing_parts.append(f"raw={timing['gpr_download']:.1f}s")
-                timing_parts.append(f"total={timing['total']:.1f}s")
-                print(f"Timing: {', '.join(timing_parts)}")
-
-                # Show running stats
-                if len(all_timings) > 1:
-                    avg_total = sum(t["total"] for t in all_timings) / len(all_timings)
-                    elapsed = time.perf_counter() - session_start
-                    rate = len(all_timings) / (elapsed / 60)  # photos per minute
-                    print(f"Stats: avg={avg_total:.1f}s/photo, rate={rate:.1f}/min")
-
-                errors = 0  # Reset error count on success
-
-            except Exception as e:
-                errors += 1
-                print(f"Error: {e}")
-                if errors >= 3:
-                    print("Too many consecutive errors, stopping")
-                    break
-
-            # Check if we should stop
-            if not loop:
-                break
-            if count and captured >= count:
-                print(f"\nCompleted {count} captures")
-                break
-
-            # Wait for next capture (minimum 2s to let camera recover)
-            wait_time = max(interval, 2)
-            if wait_time > 2:
-                print(f"Waiting {wait_time}s until next capture...")
-            await asyncio.sleep(wait_time)
-
-        # Final summary
-        if all_timings:
-            elapsed = time.perf_counter() - session_start
-            avg_total = sum(t["total"] for t in all_timings) / len(all_timings)
-            avg_capture = sum(t["capture"] for t in all_timings) / len(all_timings)
-            avg_jpg = sum(t["jpg_download"] for t in all_timings) / len(all_timings)
-            print(f"\n{'=' * 50}")
-            print(f"Session complete: {len(all_timings)} photos in {elapsed:.1f}s")
-            print(
-                f"Average: {avg_total:.1f}s total (capture={avg_capture:.1f}s, jpg={avg_jpg:.1f}s)"
-            )
-            if any("gpr_download" in t for t in all_timings):
-                gpr_times = [
-                    t["gpr_download"] for t in all_timings if "gpr_download" in t
-                ]
-                print(f"         raw={sum(gpr_times) / len(gpr_times):.1f}s")
-            print(f"Max rate: {60 / avg_total:.1f} photos/min (without interval delay)")
+        yield gopro
     finally:
         await gopro.close()
 
 
-@app.command()
-def main(
-    capture: Annotated[bool, typer.Option(help="Capture a photo")] = True,
-    raw: Annotated[bool, typer.Option(help="Enable RAW (GPR) output")] = True,
-    gps: Annotated[bool, typer.Option(help="Enable GPS location tagging")] = True,
-    output_dir: Annotated[
-        Path, typer.Option(help="Output directory for photos")
-    ] = OUTPUT_DIR,
-    loop: Annotated[bool, typer.Option(help="Run continuously in a loop")] = False,
-    interval: Annotated[
-        int, typer.Option(help="Seconds between captures (when looping)")
-    ] = 30,
-    count: Annotated[
-        int | None, typer.Option(help="Number of photos to capture (None=unlimited)")
-    ] = None,
+async def _run(
+    output_dir: Path,
+    db_path: Path,
+    interval: int,
+    test_mode: bool,
+    max_captures: int | None,
 ) -> None:
-    """Capture high-resolution photos from GoPro for wildlife detection."""
-    asyncio.run(
-        _main(
-            capture=capture,
-            raw=raw,
-            gps=gps,
-            output_dir=output_dir,
-            loop=loop,
-            interval=interval,
-            count=count,
-        )
-    )
+    """Main capture loop."""
+    output_dir.mkdir(exist_ok=True)
+    queue = CaptureQueue(db_path)
+    stats = PerfStats() if test_mode else None
+
+    # Recovery: reset interrupted downloads
+    reset_count = queue.reset_downloading()
+    if reset_count:
+        print(f"Resumed {reset_count} interrupted downloads")
+
+    # Show queue status if there's history
+    queue_stats = queue.get_stats()
+    if queue_stats:
+        pending = queue_stats.get(DownloadStatus.PENDING.value, 0)
+        failed = queue_stats.get(DownloadStatus.FAILED.value, 0)
+        if pending or failed:
+            print(f"Queue: {pending} pending, {failed} failed (will retry)")
+
+    with GracefulShutdown() as shutdown:
+        async with connect_gopro(test_mode) as gopro:
+            await configure_gopro(gopro, test_mode=test_mode)
+            print()
+
+            # Start download worker
+            download_event = asyncio.Event()
+            download_task = asyncio.create_task(
+                download_worker(gopro, queue, shutdown, download_event, stats)
+            )
+
+            # Process any pending downloads from previous run
+            if queue.get_pending():
+                download_event.set()
+
+            captured = 0
+            media_set = set((await gopro.http_command.get_media_list()).data.files)
+
+            # Main capture loop
+            while not shutdown.shutdown_requested:
+                try:
+                    captured += 1
+                    if max_captures:
+                        print(f"\n[{captured}/{max_captures}]")
+                    else:
+                        print(f"\n[{captured}]")
+
+                    media_set, capture_time = await capture_photo(
+                        gopro, queue, output_dir, media_set, download_event, stats
+                    )
+
+                except Exception as e:
+                    print(f"Capture error: {e}")
+
+                # Check stop conditions
+                if max_captures and captured >= max_captures:
+                    print(f"\nCompleted {max_captures} test captures")
+                    break
+
+                # Wait for next capture (interruptible)
+                for _ in range(interval):
+                    if shutdown.shutdown_requested:
+                        break
+                    await asyncio.sleep(1)
+
+            # Drain download queue
+            print("\nWaiting for downloads to complete...")
+            while queue.get_pending() and not shutdown.shutdown_requested:
+                await asyncio.sleep(0.5)
+
+            shutdown.shutdown_requested = True
+            await download_task
+
+            # Show stats in test mode
+            if stats:
+                print(stats.summary())
+
+            # Final status
+            final_stats = queue.get_stats()
+            failed = final_stats.get(DownloadStatus.FAILED.value, 0)
+            if failed:
+                print(f"\nWarning: {failed} downloads failed - run 'retry' command to retry")
+
+
+@app.command()
+def run(
+    output_dir: Annotated[
+        Path, typer.Option("--output", "-o", help="Output directory for photos")
+    ] = OUTPUT_DIR,
+    db_path: Annotated[
+        Path, typer.Option("--db", help="Path to capture queue database")
+    ] = DB_PATH,
+    interval: Annotated[
+        int, typer.Option("--interval", "-i", help="Seconds between captures")
+    ] = DEFAULT_INTERVAL,
+    test: Annotated[
+        bool, typer.Option("--test", "-t", help=f"Test mode: verbose logs, {TEST_CAPTURE_COUNT} captures only")
+    ] = False,
+) -> None:
+    """
+    Run the wildlife camera in continuous capture mode.
+
+    By default, runs forever capturing photos at the specified interval.
+    Use --test for a quick test run with performance metrics.
+    """
+    max_captures = TEST_CAPTURE_COUNT if test else None
+
+    if test:
+        print(f"TEST MODE: Capturing {TEST_CAPTURE_COUNT} photos with verbose logging")
+    else:
+        print(f"Starting continuous capture (interval: {interval}s)")
+        print("Press Ctrl+C to stop gracefully, twice to force quit")
+
+    asyncio.run(_run(output_dir, db_path, interval, test, max_captures))
+
+
+@app.command()
+def status(
+    db_path: Annotated[
+        Path, typer.Option("--db", help="Path to capture queue database")
+    ] = DB_PATH,
+) -> None:
+    """Show capture queue status."""
+    if not db_path.exists():
+        print("No capture history found")
+        return
+
+    queue = CaptureQueue(db_path)
+    stats = queue.get_stats()
+
+    total = sum(stats.values())
+    print(f"Total captures: {total}")
+    print(f"  Completed:   {stats.get(DownloadStatus.COMPLETED.value, 0)}")
+    print(f"  Pending:     {stats.get(DownloadStatus.PENDING.value, 0)}")
+    print(f"  Downloading: {stats.get(DownloadStatus.DOWNLOADING.value, 0)}")
+    print(f"  Failed:      {stats.get(DownloadStatus.FAILED.value, 0)}")
+
+    # Show failed records
+    pending = queue.get_pending()
+    failed = [r for r in pending if r.status == DownloadStatus.FAILED]
+    if failed:
+        print("\nFailed downloads:")
+        for r in failed:
+            print(f"  #{r.id} {r.camera_filename}: {r.error_message}")
+
+
+@app.command()
+def retry(
+    db_path: Annotated[
+        Path, typer.Option("--db", help="Path to capture queue database")
+    ] = DB_PATH,
+) -> None:
+    """Retry failed downloads without capturing new photos."""
+    if not db_path.exists():
+        print("No capture history found")
+        return
+
+    queue = CaptureQueue(db_path)
+    pending = queue.get_pending()
+
+    if not pending:
+        print("No pending downloads")
+        return
+
+    print(f"Retrying {len(pending)} downloads...")
+    asyncio.run(_run(OUTPUT_DIR, db_path, interval=30, test_mode=False, max_captures=0))
 
 
 if __name__ == "__main__":
