@@ -24,8 +24,11 @@ ingress:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
-    # Yukon Trip Tracker (path-based routing via nginx)
-    - hostname: trips.jomcgi.dev
+    # Shared image hosting (projects use /project-name/ prefix)
+    - hostname: img.jomcgi.dev
+      service: http://trips-nginx.trips.svc.cluster.local:80
+    # Shared API hosting (projects use /project-name/ prefix)
+    - hostname: api.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80
       originRequest:
         keepAliveConnections: 100
