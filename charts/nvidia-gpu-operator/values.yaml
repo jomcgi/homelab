@@ -29,6 +29,13 @@ gpu-operator:
   # DCGM exporter for GPU metrics
   dcgmExporter:
     enabled: true
+    # Force GPU access for monitoring without requesting nvidia.com/gpu resources
+    # This tells nvidia-container-runtime to inject GPU devices and NVML library
+    env:
+      - name: NVIDIA_VISIBLE_DEVICES
+        value: "all"
+      - name: NVIDIA_DRIVER_CAPABILITIES
+        value: "utility"
     # Export metrics for Prometheus
     serviceMonitor:
       enabled: true
