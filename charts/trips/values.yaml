@@ -1,6 +1,13 @@
 # Trips application stack
 # Includes: imgproxy, nginx routing, API server
 
+# Image pull secret for private GHCR registry
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 # Cross-namespace service URLs
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
