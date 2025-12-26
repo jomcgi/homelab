@@ -696,6 +696,9 @@ mypy-extensions==1.1.0 \
     --hash=sha256:1be4cccdb0f2482337c4743e60421de3a356cd97508abadd57d47403e94f5505 \
     --hash=sha256:52e68efc3284861e772bbcd66823fde5ae21fd2fdb51c62a211403730b916558
     # via mypy
+nats-py==2.12.0 \
+    --hash=sha256:2981ca4b63b8266c855573fa7871b1be741f1889fd429ee657e5ffc0971a38a1
+    # via homelab (pyproject.toml)
 networkx==3.6 \
     --hash=sha256:285276002ad1f7f7da0f7b42f004bcba70d381e936559166363707fdad3d72ad \
     --hash=sha256:cdb395b105806062473d3be36458d8f1459a4e4b98e236a66c3a48996e07684f
