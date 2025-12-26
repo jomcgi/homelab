@@ -299,7 +299,7 @@
         <section>
             <div class="section-header">Homelab</div>
             <div class="section-content">
-                <div class="cluster-info">5-node Kubernetes cluster running in my office</div>
+                <div class="cluster-info">4-node Kubernetes cluster running in my office</div>
 
                 <div id="live-stats" class="status-strip">
                     <div class="stat-group">
@@ -321,6 +321,11 @@
                     <div class="stat-group">
                         <span class="stat-label">MEM:</span>
                         <span id="sys-mem"><span class="st-dim">...</span></span>
+                    </div>
+                    <span class="stat-sep" id="gpu-sep" style="display:none">|</span>
+                    <div class="stat-group" id="gpu-group" style="display:none">
+                        <span class="stat-label">GPU:</span>
+                        <span id="sys-gpu"><span class="st-dim">...</span></span>
                     </div>
                 </div>
 
@@ -373,13 +378,14 @@
                 text: document.getElementById('sys-text'),
                 nodes: document.getElementById('sys-nodes'),
                 cpu: document.getElementById('sys-cpu'),
-                mem: document.getElementById('sys-mem')
+                mem: document.getElementById('sys-mem'),
+                gpu: document.getElementById('sys-gpu'),
+                gpuGroup: document.getElementById('gpu-group'),
+                gpuSep: document.getElementById('gpu-sep')
             };
 
             try {
-                // Add timestamp to prevent browser caching
                 const res = await fetch('https://api.jomcgi.dev/cluster-info?t=' + Date.now());
-
                 if (!res.ok) throw new Error('Fetch failed');
 
                 const data = await res.json();
@@ -388,7 +394,7 @@
                 const diffMs = now - lastUpdate;
 
                 // Deadman Switch: If data > 1 hour old, show OFFLINE
-                if (diffMs > 3600000) { // 60 * 60 * 1000
+                if (diffMs > 3600000) {
                     setOfflineState(els, 'OFFLINE');
                     return;
                 }
@@ -402,26 +408,64 @@
                     els.text.innerText = 'ONLINE';
                 }
 
-                // Render Nodes (Green/Red blocks)
+                // Render Nodes - categorized: cp[■■■] gpu[■]
                 let html = '';
-                for(let i=0; i < data.nodes.total; i++) {
-                    const colorClass = (i < data.nodes.ready) ? 'st-ok' : 'st-err';
-                    html += `<span class="${colorClass}" style="margin-right:2px">■</span>`;
+
+                // Control plane nodes
+                if (data.nodes.cp) {
+                    html += 'cp[';
+                    for (let i = 0; i < data.nodes.cp.total; i++) {
+                        const colorClass = (i < data.nodes.cp.ready) ? 'st-ok' : 'st-err';
+                        html += `<span class="${colorClass}">■</span>`;
+                    }
+                    html += '] ';
                 }
+
+                // GPU nodes
+                if (data.nodes.gpu && data.nodes.gpu.total > 0) {
+                    html += 'gpu[';
+                    for (let i = 0; i < data.nodes.gpu.total; i++) {
+                        const colorClass = (i < data.nodes.gpu.ready) ? 'st-ok' : 'st-err';
+                        html += `<span class="${colorClass}">■</span>`;
+                    }
+                    html += ']';
+                }
+
+                // Fallback for old API format
+                if (!data.nodes.cp && data.nodes.total !== undefined) {
+                    for (let i = 0; i < data.nodes.total; i++) {
+                        const colorClass = (i < data.nodes.ready) ? 'st-ok' : 'st-err';
+                        html += `<span class="${colorClass}" style="margin-right:2px">■</span>`;
+                    }
+                }
+
                 els.nodes.innerHTML = html;
 
-                // Render CPU (Color > 80% / > 50%)
+                // Render CPU
                 els.cpu.innerText = `${data.cpu}%`;
                 els.cpu.className = '';
                 if (data.cpu > 80) els.cpu.className = 'st-err';
                 else if (data.cpu > 50) els.cpu.className = 'st-warn';
 
-                // Render Memory (Color > 90% / > 80%)
+                // Render Memory
                 const memPercent = (data.mem.used / data.mem.total) * 100;
                 els.mem.innerText = `${data.mem.used}GB / ${data.mem.total}GB`;
                 els.mem.className = '';
                 if (memPercent > 90) els.mem.className = 'st-err';
                 else if (memPercent > 80) els.mem.className = 'st-warn';
+
+                // Render GPU utilization if available
+                if (data.gpu !== undefined && data.gpu !== null) {
+                    els.gpuGroup.style.display = 'flex';
+                    els.gpuSep.style.display = '';
+                    els.gpu.innerText = `${data.gpu}%`;
+                    els.gpu.className = '';
+                    if (data.gpu > 90) els.gpu.className = 'st-err';
+                    else if (data.gpu > 70) els.gpu.className = 'st-warn';
+                } else {
+                    els.gpuGroup.style.display = 'none';
+                    els.gpuSep.style.display = 'none';
+                }
 
             } catch (e) {
                 setOfflineState(els, 'UNREACHABLE');
@@ -434,9 +478,10 @@
             els.nodes.innerHTML = '<span class="st-dim">--</span>';
             els.cpu.innerHTML = '<span class="st-dim">--</span>';
             els.mem.innerHTML = '<span class="st-dim">--</span>';
+            els.gpuGroup.style.display = 'none';
+            els.gpuSep.style.display = 'none';
         }
 
-        // Initial fetch and 5s interval
         fetchStats();
         setInterval(fetchStats, 5000);
     </script>

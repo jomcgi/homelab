@@ -30,12 +30,15 @@ data:
     OUTPUT_FILE="/data/status.json"
     TEMP_FILE="/data/status.json.tmp"
 
-    # Get node counts
-    TOTAL_NODES=$(kubectl get nodes --no-headers 2>/dev/null | wc -l | tr -d ' ')
-    READY_NODES=$(kubectl get nodes --no-headers 2>/dev/null | grep -c ' Ready' || echo "0")
+    # Count control-plane nodes
+    CP_TOTAL=$(kubectl get nodes -l node-role.kubernetes.io/control-plane=true --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    CP_READY=$(kubectl get nodes -l node-role.kubernetes.io/control-plane=true --no-headers 2>/dev/null | grep -c ' Ready' || echo "0")
+
+    # Count GPU nodes (have nvidia.com/gpu.present label)
+    GPU_TOTAL=$(kubectl get nodes -l nvidia.com/gpu.present=true --no-headers 2>/dev/null | wc -l | tr -d ' ')
+    GPU_READY=$(kubectl get nodes -l nvidia.com/gpu.present=true --no-headers 2>/dev/null | grep -c ' Ready' || echo "0")
 
     # Get CPU average from metrics-server
-    # kubectl top nodes output: NAME CPU(cores) CPU% MEM MEM%
     CPU_AVG=$(kubectl top nodes --no-headers 2>/dev/null | awk '{sum += $3} END {if (NR > 0) printf "%.0f", sum/NR; else print "0"}' | tr -d '%' || echo "0")
 
     # Get memory usage
@@ -56,12 +59,26 @@ data:
     } END { printf "%.0f", sum }' || echo "0")
     MEM_TOTAL_GB=$(awk "BEGIN {printf \"%.0f\", $MEM_TOTAL_KI / 1024 / 1024}")
 
+    # Try to get GPU utilization from DCGM exporter
+    GPU_UTIL=""
+    if [ "$GPU_TOTAL" -gt 0 ]; then
+      DCGM_METRICS=$(curl -s --connect-timeout 2 http://nvidia-dcgm-exporter.gpu-operator.svc:9400/metrics 2>/dev/null || echo "")
+      if [ -n "$DCGM_METRICS" ]; then
+        GPU_UTIL=$(echo "$DCGM_METRICS" | grep "^DCGM_FI_DEV_GPU_UTIL" | awk '{sum += $2; count++} END {if (count > 0) printf "%.0f", sum/count}')
+      fi
+    fi
+
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Write JSON
-    printf '{"updated_at":"%s","nodes":{"total":%s,"ready":%s},"cpu":%s,"mem":{"used":%s,"total":%s}}\n' \
-      "$TIMESTAMP" "$TOTAL_NODES" "$READY_NODES" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" > "$TEMP_FILE"
+    # Build JSON with optional GPU field
+    if [ -n "$GPU_UTIL" ]; then
+      printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"gpu":%s}\n' \
+        "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$GPU_UTIL" > "$TEMP_FILE"
+    else
+      printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s}}\n' \
+        "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" > "$TEMP_FILE"
+    fi
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"
