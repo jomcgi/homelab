@@ -182,6 +182,7 @@ data:
             }
 
             # Trips API - proxy to trips-nginx (keep /trips/ prefix)
+            # Note: CORS is handled by trips-api FastAPI middleware
             location /trips/ {
                 proxy_pass http://trips-nginx.trips.svc.cluster.local:80;
                 proxy_http_version 1.1;
@@ -194,21 +195,6 @@ data:
                 proxy_set_header Upgrade $http_upgrade;
                 proxy_set_header Connection "upgrade";
                 proxy_read_timeout 86400;
-
-                # CORS headers for trips API
-                add_header Access-Control-Allow-Origin $cors_origin always;
-                add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
-                add_header Access-Control-Allow-Headers "Content-Type, Authorization" always;
-
-                if ($request_method = 'OPTIONS') {
-                    add_header Access-Control-Allow-Origin $cors_origin;
-                    add_header Access-Control-Allow-Methods "GET, POST, OPTIONS";
-                    add_header Access-Control-Allow-Headers "Content-Type, Authorization";
-                    add_header Access-Control-Max-Age 86400;
-                    add_header Content-Length 0;
-                    add_header Content-Type text/plain;
-                    return 204;
-                }
             }
 
             # Root - return API info
@@ -312,7 +298,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/nginx-config: 3461314dd3b236ce73dcc679d230ef18f82f917d42f0417380bdbb14e84d194e
+        checksum/nginx-config: bf461882832bd148aecf7851c5502bccc58b4219fa8fef6cb81b6fde3e09c118
         checksum/collector-config: 8bc3036fd77c6ca2d42b3549a5e500051a394736ecdb2478a1efc60312440efe
       labels:
         app.kubernetes.io/name: api-gateway
