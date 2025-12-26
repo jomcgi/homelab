@@ -67,9 +67,11 @@ data:
                 add_header Content-Type text/plain;
             }
 
+            # === TRIPS PROJECT (/trips/) ===
+
             # Full resolution images - direct to SeaweedFS
-            location /full/ {
-                rewrite ^/full/(.*)$ /{{ .Values.bucket }}/$1 break;
+            location /trips/full/ {
+                rewrite ^/trips/full/(.*)$ /{{ .Values.bucket }}/$1 break;
                 proxy_pass http://seaweedfs;
                 proxy_set_header Host $host;
 
@@ -79,8 +81,8 @@ data:
             }
 
             # Thumbnails (300px) - imgproxy v3 format
-            location /thumb/ {
-                rewrite ^/thumb/(.*)$ /unsafe/rs:fit:300:300/q:85/plain/s3://{{ .Values.bucket }}/$1 break;
+            location /trips/thumb/ {
+                rewrite ^/trips/thumb/(.*)$ /unsafe/rs:fit:300:300/q:85/plain/s3://{{ .Values.bucket }}/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -88,8 +90,8 @@ data:
             }
 
             # Preview (1200px) - imgproxy v3 format
-            location /preview/ {
-                rewrite ^/preview/(.*)$ /unsafe/rs:fit:1200:1200/q:90/plain/s3://{{ .Values.bucket }}/$1 break;
+            location /trips/preview/ {
+                rewrite ^/trips/preview/(.*)$ /unsafe/rs:fit:1200:1200/q:90/plain/s3://{{ .Values.bucket }}/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -97,8 +99,8 @@ data:
             }
 
             # Gallery (600px) - imgproxy v3 format
-            location /gallery/ {
-                rewrite ^/gallery/(.*)$ /unsafe/rs:fit:600:600/q:88/plain/s3://{{ .Values.bucket }}/$1 break;
+            location /trips/gallery/ {
+                rewrite ^/trips/gallery/(.*)$ /unsafe/rs:fit:600:600/q:88/plain/s3://{{ .Values.bucket }}/$1 break;
                 proxy_pass http://imgproxy;
                 proxy_set_header Host $host;
 
@@ -107,7 +109,8 @@ data:
 
             {{- if .Values.api.enabled }}
             # API endpoints
-            location /api/ {
+            location /trips/api/ {
+                rewrite ^/trips/api/(.*)$ /api/$1 break;
                 proxy_pass http://api;
                 proxy_set_header Host $host;
                 proxy_set_header X-Real-IP $remote_addr;
@@ -116,7 +119,8 @@ data:
             }
 
             # WebSocket endpoint
-            location /ws/ {
+            location /trips/ws/ {
+                rewrite ^/trips/ws/(.*)$ /ws/$1 break;
                 proxy_pass http://api;
                 proxy_http_version 1.1;
                 proxy_set_header Upgrade $http_upgrade;
