@@ -157,16 +157,22 @@
             margin-bottom: 15px;
         }
 
+        #live-stats {
+            border: 1px solid var(--fg);
+            margin-bottom: 20px;
+        }
+
         .status-strip {
             display: flex;
             flex-wrap: wrap;
             align-items: center;
             gap: 15px;
-            border-top: 1px solid var(--fg);
-            border-bottom: 1px solid var(--fg);
-            padding: 10px 0;
-            margin-bottom: 20px;
+            padding: 10px 15px;
             font-size: 12px;
+        }
+
+        .status-strip + .status-strip {
+            border-top: 1px dashed var(--fg);
         }
 
         .stat-group {
@@ -301,41 +307,44 @@
             <div class="section-content">
                 <div class="cluster-info">4-node Kubernetes cluster running in my office</div>
 
-                <div id="live-stats" class="status-strip">
-                    <div class="stat-group">
-                        <span class="stat-label">STATUS:</span>
-                        <span id="sys-dot" class="status-dot st-dim">●</span>
-                        <span id="sys-text">CONNECTING</span>
+                <div id="live-stats">
+                    <div class="status-strip">
+                        <div class="stat-group">
+                            <span class="stat-label">STATUS:</span>
+                            <span id="sys-dot" class="status-dot st-dim">●</span>
+                            <span id="sys-text">CONNECTING</span>
+                        </div>
+                        <span class="stat-sep">|</span>
+                        <div class="stat-group">
+                            <span class="stat-label">GITOPS:</span>
+                            <span id="sys-gitops"><span class="st-dim">...</span></span>
+                        </div>
+                        <span class="stat-sep">|</span>
+                        <div class="stat-group">
+                            <span class="stat-label">VER:</span>
+                            <span id="sys-ver"><span class="st-dim">...</span></span>
+                        </div>
                     </div>
-                    <span class="stat-sep">|</span>
-                    <div class="stat-group">
-                        <span class="stat-label">NODES:</span>
-                        <span id="sys-nodes"><span class="st-dim">...</span></span>
-                    </div>
-                    <span class="stat-sep">|</span>
-                    <div class="stat-group">
-                        <span class="stat-label">CPU:</span>
-                        <span id="sys-cpu"><span class="st-dim">...</span></span>
-                    </div>
-                    <span class="stat-sep">|</span>
-                    <div class="stat-group">
-                        <span class="stat-label">MEM:</span>
-                        <span id="sys-mem"><span class="st-dim">...</span></span>
-                    </div>
-                    <span class="stat-sep" id="gpu-sep" style="display:none">|</span>
-                    <div class="stat-group" id="gpu-group" style="display:none">
-                        <span class="stat-label">GPU:</span>
-                        <span id="sys-gpu"><span class="st-dim">...</span></span>
-                    </div>
-                    <span class="stat-sep">|</span>
-                    <div class="stat-group">
-                        <span class="stat-label">GITOPS:</span>
-                        <span id="sys-gitops"><span class="st-dim">...</span></span>
-                    </div>
-                    <span class="stat-sep">|</span>
-                    <div class="stat-group">
-                        <span class="stat-label">VER:</span>
-                        <span id="sys-ver"><span class="st-dim">...</span></span>
+                    <div class="status-strip">
+                        <div class="stat-group">
+                            <span class="stat-label">NODES:</span>
+                            <span id="sys-nodes"><span class="st-dim">...</span></span>
+                        </div>
+                        <span class="stat-sep">|</span>
+                        <div class="stat-group">
+                            <span class="stat-label">CPU:</span>
+                            <span id="sys-cpu"><span class="st-dim">...</span></span>
+                        </div>
+                        <span class="stat-sep">|</span>
+                        <div class="stat-group">
+                            <span class="stat-label">GPU:</span>
+                            <span id="sys-gpu"><span class="st-dim">...</span></span>
+                        </div>
+                        <span class="stat-sep">|</span>
+                        <div class="stat-group">
+                            <span class="stat-label">MEM:</span>
+                            <span id="sys-mem"><span class="st-dim">...</span></span>
+                        </div>
                     </div>
                 </div>
 
@@ -388,10 +397,8 @@
                 text: document.getElementById('sys-text'),
                 nodes: document.getElementById('sys-nodes'),
                 cpu: document.getElementById('sys-cpu'),
-                mem: document.getElementById('sys-mem'),
                 gpu: document.getElementById('sys-gpu'),
-                gpuGroup: document.getElementById('gpu-group'),
-                gpuSep: document.getElementById('gpu-sep'),
+                mem: document.getElementById('sys-mem'),
                 gitops: document.getElementById('sys-gitops'),
                 ver: document.getElementById('sys-ver')
             };
@@ -466,17 +473,14 @@
                 if (memPercent > 90) els.mem.className = 'st-err';
                 else if (memPercent > 80) els.mem.className = 'st-warn';
 
-                // Render GPU utilization if available
+                // Render GPU utilization
                 if (data.gpu_util !== undefined && data.gpu_util !== null) {
-                    els.gpuGroup.style.display = 'flex';
-                    els.gpuSep.style.display = '';
                     els.gpu.innerText = `${data.gpu_util}%`;
                     els.gpu.className = '';
                     if (data.gpu_util > 90) els.gpu.className = 'st-err';
                     else if (data.gpu_util > 70) els.gpu.className = 'st-warn';
                 } else {
-                    els.gpuGroup.style.display = 'none';
-                    els.gpuSep.style.display = 'none';
+                    els.gpu.innerHTML = '<span class="st-dim">--</span>';
                 }
 
                 // Render GitOps status
@@ -503,9 +507,8 @@
             els.text.innerText = reason;
             els.nodes.innerHTML = '<span class="st-dim">--</span>';
             els.cpu.innerHTML = '<span class="st-dim">--</span>';
+            els.gpu.innerHTML = '<span class="st-dim">--</span>';
             els.mem.innerHTML = '<span class="st-dim">--</span>';
-            els.gpuGroup.style.display = 'none';
-            els.gpuSep.style.display = 'none';
             els.gitops.innerHTML = '<span class="st-dim">[--]</span>';
             els.ver.innerHTML = '<span class="st-dim">[--]</span>';
         }
