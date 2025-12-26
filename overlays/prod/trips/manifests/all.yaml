@@ -244,6 +244,8 @@ spec:
         # Mark NATS port as opaque for Linkerd
         config.linkerd.io/opaque-ports: "4222"
     spec:
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
       securityContext:
         runAsNonRoot: true
         runAsUser: 65532
@@ -490,3 +492,23 @@ spec:
           emptyDir: {}
         - name: cache
           emptyDir: {}
+---
+# Source: trips/templates/image-pull-secret.yaml
+# GHCR Pull Secret (for Kubernetes image pulls)
+# Allows trips to pull private images from GitHub Container Registry
+# Type: kubernetes.io/dockerconfigjson (used for imagePullSecrets)
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: ghcr-imagepull-secret
+  namespace: trips
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+spec:
+  itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
