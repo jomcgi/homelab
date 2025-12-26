@@ -68,17 +68,21 @@ data:
       fi
     fi
 
+    # Get ArgoCD app-of-apps status (canada)
+    ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
+    ARGO_REVISION=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.revision}' 2>/dev/null | cut -c1-7 || echo "")
+
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-    # Build JSON with optional GPU field
+    # Build JSON
+    GPU_FIELD=""
     if [ -n "$GPU_UTIL" ]; then
-      printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"gpu":%s}\n' \
-        "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$GPU_UTIL" > "$TEMP_FILE"
-    else
-      printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s}}\n' \
-        "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" > "$TEMP_FILE"
+      GPU_FIELD=',"gpu_util":'$GPU_UTIL
     fi
+
+    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"gitops":{"status":"%s","revision":"%s"}%s}\n' \
+      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELD" > "$TEMP_FILE"
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"
@@ -201,6 +205,10 @@ rules:
   - apiGroups: ["metrics.k8s.io"]
     resources: ["nodes"]
     verbs: ["get", "list"]
+  # Read ArgoCD applications for GitOps status
+  - apiGroups: ["argoproj.io"]
+    resources: ["applications"]
+    verbs: ["get", "list"]
 ---
 # Source: api-gateway/templates/rbac.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -265,7 +273,7 @@ spec:
     metadata:
       annotations:
         checksum/nginx-config: 4a7b9030d1948c6a730ad5571acee63d0d70248327c56d43ce1c6521c7d2e7b6
-        checksum/collector-config: 50e58317f126dbd6eab4c35d6ead79e6931990a2d49dc1af40a8476cda72d432
+        checksum/collector-config: 4d381c01ad4784b3a667300086adc6bc4d27fd9b97a5d49345c99c7466162953
       labels:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/instance: api-gateway
