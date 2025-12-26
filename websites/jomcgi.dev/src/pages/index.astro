@@ -327,6 +327,16 @@
                         <span class="stat-label">GPU:</span>
                         <span id="sys-gpu"><span class="st-dim">...</span></span>
                     </div>
+                    <span class="stat-sep">|</span>
+                    <div class="stat-group">
+                        <span class="stat-label">GITOPS:</span>
+                        <span id="sys-gitops"><span class="st-dim">...</span></span>
+                    </div>
+                    <span class="stat-sep">|</span>
+                    <div class="stat-group">
+                        <span class="stat-label">VER:</span>
+                        <span id="sys-ver"><span class="st-dim">...</span></span>
+                    </div>
                 </div>
 
                 <div class="arch-grid">
@@ -381,7 +391,9 @@
                 mem: document.getElementById('sys-mem'),
                 gpu: document.getElementById('sys-gpu'),
                 gpuGroup: document.getElementById('gpu-group'),
-                gpuSep: document.getElementById('gpu-sep')
+                gpuSep: document.getElementById('gpu-sep'),
+                gitops: document.getElementById('sys-gitops'),
+                ver: document.getElementById('sys-ver')
             };
 
             try {
@@ -455,16 +467,30 @@
                 else if (memPercent > 80) els.mem.className = 'st-warn';
 
                 // Render GPU utilization if available
-                if (data.gpu !== undefined && data.gpu !== null) {
+                if (data.gpu_util !== undefined && data.gpu_util !== null) {
                     els.gpuGroup.style.display = 'flex';
                     els.gpuSep.style.display = '';
-                    els.gpu.innerText = `${data.gpu}%`;
+                    els.gpu.innerText = `${data.gpu_util}%`;
                     els.gpu.className = '';
-                    if (data.gpu > 90) els.gpu.className = 'st-err';
-                    else if (data.gpu > 70) els.gpu.className = 'st-warn';
+                    if (data.gpu_util > 90) els.gpu.className = 'st-err';
+                    else if (data.gpu_util > 70) els.gpu.className = 'st-warn';
                 } else {
                     els.gpuGroup.style.display = 'none';
                     els.gpuSep.style.display = 'none';
+                }
+
+                // Render GitOps status
+                if (data.gitops) {
+                    const status = data.gitops.status || 'Unknown';
+                    els.gitops.innerText = `[${status}]`;
+                    els.gitops.className = '';
+                    if (status === 'Synced') els.gitops.className = 'st-ok';
+                    else if (status === 'OutOfSync') els.gitops.className = 'st-warn';
+                    else if (status === 'Unknown') els.gitops.className = 'st-err';
+
+                    // Render version (git revision)
+                    const rev = data.gitops.revision || '';
+                    els.ver.innerText = rev ? `[${rev}]` : '[--]';
                 }
 
             } catch (e) {
@@ -480,6 +506,8 @@
             els.mem.innerHTML = '<span class="st-dim">--</span>';
             els.gpuGroup.style.display = 'none';
             els.gpuSep.style.display = 'none';
+            els.gitops.innerHTML = '<span class="st-dim">[--]</span>';
+            els.ver.innerHTML = '<span class="st-dim">[--]</span>';
         }
 
         fetchStats();
