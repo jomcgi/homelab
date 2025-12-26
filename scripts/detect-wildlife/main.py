@@ -231,7 +231,9 @@ class PerfStats:
             avg_cap = sum(self.capture_times) / len(self.capture_times)
             min_cap = min(self.capture_times)
             max_cap = max(self.capture_times)
-            lines.append(f"Capture time: avg={avg_cap:.2f}s min={min_cap:.2f}s max={max_cap:.2f}s")
+            lines.append(
+                f"Capture time: avg={avg_cap:.2f}s min={min_cap:.2f}s max={max_cap:.2f}s"
+            )
 
         if self.download_times:
             avg_dl = sum(self.download_times) / len(self.download_times)
@@ -239,12 +241,16 @@ class PerfStats:
             max_dl = max(self.download_times)
             avg_size = sum(self.download_sizes) / len(self.download_sizes)
             total_size = sum(self.download_sizes)
-            throughput = total_size / sum(self.download_times) if self.download_times else 0
-            lines.extend([
-                f"Download time: avg={avg_dl:.2f}s min={min_dl:.2f}s max={max_dl:.2f}s",
-                f"File size: avg={avg_size:.1f}MB total={total_size:.1f}MB",
-                f"Throughput: {throughput:.1f} MB/s",
-            ])
+            throughput = (
+                total_size / sum(self.download_times) if self.download_times else 0
+            )
+            lines.extend(
+                [
+                    f"Download time: avg={avg_dl:.2f}s min={min_dl:.2f}s max={max_dl:.2f}s",
+                    f"File size: avg={avg_size:.1f}MB total={total_size:.1f}MB",
+                    f"Throughput: {throughput:.1f} MB/s",
+                ]
+            )
 
         if self.capture_times and elapsed > 0:
             rate = len(self.capture_times) / (elapsed / 60)
@@ -338,15 +344,21 @@ async def download_worker(
 
                 if stats:
                     stats.add_download(duration, size_mb)
-                    print(f"  [DL] {record.camera_filename}: {size_mb:.1f}MB in {duration:.1f}s ({size_mb/duration:.1f} MB/s)")
+                    print(
+                        f"  [DL] {record.camera_filename}: {size_mb:.1f}MB in {duration:.1f}s ({size_mb / duration:.1f} MB/s)"
+                    )
                 else:
-                    print(f"  [DL] {Path(record.local_jpg_path).name} ({size_mb:.1f}MB)")
+                    print(
+                        f"  [DL] {Path(record.local_jpg_path).name} ({size_mb:.1f}MB)"
+                    )
 
             except Exception as e:
                 error_msg = str(e)
                 queue.mark_failed(record.id, error_msg)
                 retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
-                print(f"  [DL] Failed {record.camera_filename} ({retry_info}): {error_msg}")
+                print(
+                    f"  [DL] Failed {record.camera_filename} ({retry_info}): {error_msg}"
+                )
 
                 if record.retry_count < queue.MAX_RETRIES - 1:
                     backoff = 2 ** (record.retry_count + 1)
@@ -520,7 +532,9 @@ async def _run(
             final_stats = queue.get_stats()
             failed = final_stats.get(DownloadStatus.FAILED.value, 0)
             if failed:
-                print(f"\nWarning: {failed} downloads failed - run 'retry' command to retry")
+                print(
+                    f"\nWarning: {failed} downloads failed - run 'retry' command to retry"
+                )
 
 
 @app.command()
@@ -535,7 +549,12 @@ def run(
         int, typer.Option("--interval", "-i", help="Seconds between captures")
     ] = DEFAULT_INTERVAL,
     test: Annotated[
-        bool, typer.Option("--test", "-t", help=f"Test mode: verbose logs, {TEST_CAPTURE_COUNT} captures only")
+        bool,
+        typer.Option(
+            "--test",
+            "-t",
+            help=f"Test mode: verbose logs, {TEST_CAPTURE_COUNT} captures only",
+        ),
     ] = False,
 ) -> None:
     """
