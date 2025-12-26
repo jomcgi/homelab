@@ -43,6 +43,7 @@ data:
         upstream imgproxy {
             server {{ include "trips.fullname" . }}-imgproxy:8080;
         }
+        {{- if .Values.api.enabled }}
 
         upstream api {
             server {{ include "trips.fullname" . }}-api:8000;
@@ -53,6 +54,7 @@ data:
             default upgrade;
             '' close;
         }
+        {{- end }}
 
         server {
             listen 8080;
@@ -103,6 +105,7 @@ data:
                 add_header Cache-Control "public, max-age=31536000, immutable";
             }
 
+            {{- if .Values.api.enabled }}
             # API endpoints
             location /api/ {
                 proxy_pass http://api;
@@ -122,6 +125,7 @@ data:
                 proxy_set_header X-Real-IP $remote_addr;
                 proxy_read_timeout 86400;
             }
+            {{- end }}
 
             # Default - 404
             location / {
