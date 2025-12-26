@@ -36,7 +36,9 @@ spec:
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           securityContext:
-            readOnlyRootFilesystem: true
+            # Note: readOnlyRootFilesystem disabled because aspect_rules_py
+            # creates a virtualenv at runtime (by design)
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop:

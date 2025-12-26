@@ -257,7 +257,9 @@ spec:
           image: "ghcr.io/jomcgi/homelab/services/trips-api:main"
           imagePullPolicy: Always
           securityContext:
-            readOnlyRootFilesystem: true
+            # Note: readOnlyRootFilesystem disabled because aspect_rules_py
+            # creates a virtualenv at runtime (by design)
+            readOnlyRootFilesystem: false
             allowPrivilegeEscalation: false
             capabilities:
               drop:
