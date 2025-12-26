@@ -12,7 +12,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/collector-config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
       labels:
         {{- include "api-gateway.selectorLabels" . | nindent 8 }}
     spec:

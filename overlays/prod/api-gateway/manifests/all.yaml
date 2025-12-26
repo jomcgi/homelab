@@ -264,7 +264,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 4a7b9030d1948c6a730ad5571acee63d0d70248327c56d43ce1c6521c7d2e7b6
+        checksum/nginx-config: 4a7b9030d1948c6a730ad5571acee63d0d70248327c56d43ce1c6521c7d2e7b6
+        checksum/collector-config: 50e58317f126dbd6eab4c35d6ead79e6931990a2d49dc1af40a8476cda72d432
       labels:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/instance: api-gateway
