@@ -186,6 +186,102 @@ function useTripData() {
 }
 
 // ============================================
+// Weather Hook - Fetch from met.no API
+// ============================================
+
+function useWeather(lat, lng) {
+  const [weather, setWeather] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const cacheRef = useRef({ key: null, data: null, timestamp: 0 });
+
+  useEffect(() => {
+    if (!lat || !lng) return;
+
+    // Round coords to 2 decimals for caching (met.no recommends this)
+    const roundedLat = Math.round(lat * 100) / 100;
+    const roundedLng = Math.round(lng * 100) / 100;
+    const cacheKey = `${roundedLat},${roundedLng}`;
+
+    // Use cached data if same location and less than 10 minutes old
+    const cache = cacheRef.current;
+    if (cache.key === cacheKey && Date.now() - cache.timestamp < 600000) {
+      setWeather(cache.data);
+      return;
+    }
+
+    async function fetchWeather() {
+      setLoading(true);
+      try {
+        const response = await fetch(
+          `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${roundedLat}&lon=${roundedLng}`,
+          {
+            headers: {
+              "User-Agent": "trips.jomcgi.dev/1.0 github.com/jomcgi/homelab",
+            },
+          }
+        );
+
+        if (!response.ok) throw new Error("Weather fetch failed");
+
+        const data = await response.json();
+        const current = data.properties.timeseries[0];
+        const details = current.data.instant.details;
+        const symbol = current.data.next_1_hours?.summary?.symbol_code ||
+                       current.data.next_6_hours?.summary?.symbol_code ||
+                       "cloudy";
+
+        const weatherData = {
+          temp: Math.round(details.air_temperature),
+          windSpeed: Math.round(details.wind_speed * 3.6), // m/s to km/h
+          humidity: Math.round(details.relative_humidity),
+          symbol: symbol,
+        };
+
+        cacheRef.current = { key: cacheKey, data: weatherData, timestamp: Date.now() };
+        setWeather(weatherData);
+      } catch (err) {
+        console.error("Weather fetch error:", err);
+        setWeather(null);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchWeather();
+  }, [lat, lng]);
+
+  return { weather, loading };
+}
+
+// Weather symbol to description mapping
+const weatherDescriptions = {
+  clearsky: "Clear",
+  fair: "Fair",
+  partlycloudy: "Partly Cloudy",
+  cloudy: "Cloudy",
+  lightrainshowers: "Light Showers",
+  rainshowers: "Showers",
+  heavyrainshowers: "Heavy Showers",
+  lightrain: "Light Rain",
+  rain: "Rain",
+  heavyrain: "Heavy Rain",
+  lightsnowshowers: "Light Snow",
+  snowshowers: "Snow Showers",
+  heavysnowshowers: "Heavy Snow",
+  lightsnow: "Light Snow",
+  snow: "Snow",
+  heavysnow: "Heavy Snow",
+  fog: "Fog",
+  thunder: "Thunderstorm",
+};
+
+function getWeatherDescription(symbol) {
+  // Remove _day/_night suffix
+  const base = symbol?.replace(/_day|_night/g, "") || "cloudy";
+  return weatherDescriptions[base] || "Cloudy";
+}
+
+// ============================================
 // Demo Data Generation (fallback)
 // ============================================
 
@@ -580,6 +676,9 @@ function ImagePanel({
     return `${hours}h ${minutes}m`;
   };
 
+  // Fetch weather for current point location
+  const { weather } = useWeather(point?.lat, point?.lng);
+
   if (!point) return null;
 
   const iconSize = isMobile ? "h-12 w-12" : "h-16 w-16";
@@ -605,12 +704,29 @@ function ImagePanel({
               {formatTime(point.timestamp)}
             </p>
           </div>
-          {point.animal && (
-            <span className="text-sm bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-              <PawPrint className="h-4 w-4" />
-              {point.animal}
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {weather && (
+              <div className="flex items-center gap-3 text-sm bg-zinc-800 px-3 py-1.5 rounded-full">
+                <span className="flex items-center gap-1 text-zinc-300">
+                  <Thermometer className="h-4 w-4 text-blue-400" />
+                  {weather.temp}°C
+                </span>
+                <span className="flex items-center gap-1 text-zinc-400">
+                  <Wind className="h-4 w-4" />
+                  {weather.windSpeed} km/h
+                </span>
+                <span className="text-zinc-500 text-xs">
+                  {getWeatherDescription(weather.symbol)}
+                </span>
+              </div>
+            )}
+            {point.animal && (
+              <span className="text-sm bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                <PawPrint className="h-4 w-4" />
+                {point.animal}
+              </span>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1199,19 +1315,14 @@ export default function App() {
                 }`}
               >
                 <div
-                  className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center ${
-                    point.animal ? "bg-amber-500/10" : "bg-zinc-800"
-                  }`}
+                  className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-zinc-800`}
                 >
-                  {point.animal ? (
-                    <PawPrint
-                      className={`${isMobile ? "h-3 w-3" : "h-4 w-4"} text-amber-500/50`}
-                    />
-                  ) : (
-                    <span className="text-[10px] text-zinc-600 font-mono">
-                      {String(point.id).padStart(4, "0")}
-                    </span>
-                  )}
+                  <img
+                    src={`${IMAGE_BASE_URL}${point.thumbUrl}`}
+                    alt=""
+                    className="w-full h-full object-cover"
+                    loading="lazy"
+                  />
                 </div>
                 {point.animal && (
                   <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
