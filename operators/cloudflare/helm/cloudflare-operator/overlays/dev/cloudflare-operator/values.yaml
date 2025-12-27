@@ -2,5 +2,5 @@
 
 controllerManager:
   image:
-    tag: 2025.12.27.19.10.05-92e1bf3
+    tag: 2025.12.27.19.33.16-8bee4e3
     repository: ghcr.io/jomcgi/homelab/operators/cloudflare
