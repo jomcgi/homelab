@@ -54,16 +54,20 @@ function useTripData() {
 
   // Transform API response to match React component expectations
   const transformPoint = useCallback(
-    (apiPoint) => ({
-      id: apiPoint.id,
-      lat: apiPoint.lat,
-      lng: apiPoint.lng,
-      imageUrl: apiPoint.image_url,
-      thumbUrl: apiPoint.thumb_url,
-      timestamp: new Date(apiPoint.timestamp),
-      location: apiPoint.location || null,
-      animal: apiPoint.animal || null,
-    }),
+    (apiPoint) => {
+      // Strip "Z" suffix - timestamps are camera local time (Pacific), not UTC
+      const ts = apiPoint.timestamp?.replace(/Z$/, "") || "";
+      return {
+        id: apiPoint.id,
+        lat: apiPoint.lat,
+        lng: apiPoint.lng,
+        imageUrl: apiPoint.image_url,
+        thumbUrl: apiPoint.thumb_url,
+        timestamp: new Date(ts),
+        location: apiPoint.location || null,
+        animal: apiPoint.animal || null,
+      };
+    },
     [],
   );
 
@@ -98,6 +102,11 @@ function useTripData() {
             console.log(
               `WebSocket: ${data.cached_points} points cached on server`,
             );
+          } else if (data.type === "viewer_count") {
+            setStats((prev) => ({
+              ...prev,
+              viewers: data.count,
+            }));
           }
         } catch (e) {
           console.error("WebSocket message parse error:", e);
@@ -655,12 +664,14 @@ function ImagePanel({
   currentIndex,
   isMobile = false,
 }) {
+  // Use Pacific Time for BC/Yukon trip
   const formatTime = (date) =>
     date.toLocaleDateString("en-CA", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Vancouver",
     });
 
   const formatDuration = (start, current) => {
@@ -715,10 +726,10 @@ function ImagePanel({
         >
           {point.imageUrl ? (
             <img
+              key={point.imageUrl}
               src={`${IMAGE_BASE_URL}${point.imageUrl}`}
               alt={point.location || "Trip photo"}
               className="w-full h-full object-contain"
-              loading="lazy"
             />
           ) : (
             <div className="text-center">
@@ -904,18 +915,21 @@ export default function App() {
     setIsLive(!isLive);
   };
 
+  // Use Pacific Time for BC/Yukon trip
   const formatTime = (date) =>
     date.toLocaleDateString("en-CA", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Vancouver",
     });
 
   const formatTimeShort = (date) =>
     date.toLocaleTimeString("en-CA", {
       hour: "2-digit",
       minute: "2-digit",
+      timeZone: "America/Vancouver",
     });
 
   const visibleRange = {
@@ -972,7 +986,7 @@ export default function App() {
             <LiveBadge
               isLive={isLive}
               onToggle={toggleLive}
-              viewerCount={isLive ? 42 : null}
+              viewerCount={stats.viewers > 0 ? stats.viewers : null}
               compact={isMobile}
             />
           </div>

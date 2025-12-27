@@ -279,13 +279,14 @@ def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | No
                 lat = dms_to_decimal(gps["GPSLatitude"], gps.get("GPSLatitudeRef", "N"))
                 lng = dms_to_decimal(gps["GPSLongitude"], gps.get("GPSLongitudeRef", "E"))
 
-        # Extract timestamp
+        # Extract timestamp (EXIF time is camera local time, not UTC)
+        # Store without timezone suffix - frontend will display in Pacific
         if "DateTimeOriginal" in exif:
             dt = datetime.strptime(exif["DateTimeOriginal"], "%Y:%m:%d %H:%M:%S")
-            timestamp = dt.isoformat() + "Z"
+            timestamp = dt.isoformat()
         elif "DateTime" in exif:
             dt = datetime.strptime(exif["DateTime"], "%Y:%m:%d %H:%M:%S")
-            timestamp = dt.isoformat() + "Z"
+            timestamp = dt.isoformat()
 
         return lat, lng, timestamp
 
@@ -347,7 +348,7 @@ async def publish_to_nats(record: ImageRecord, image_id: int) -> None:
         "id": image_id,
         "lat": record.lat or 0.0,
         "lng": record.lng or 0.0,
-        "timestamp": record.timestamp or datetime.now().isoformat() + "Z",
+        "timestamp": record.timestamp or datetime.now().isoformat(),
         "image_url": f"/trips/full/{record.dest_key}",
         "thumb_url": f"/trips/thumb/{record.dest_key}",
         "location": None,  # Could be reverse-geocoded later
@@ -594,6 +595,25 @@ def retry(
     print(f"Retrying {len(pending)} uploads...")
     # Use a dummy source dir since we're only retrying existing records
     asyncio.run(_run_upload(Path("."), db_path, bucket, dry_run=False, publish=publish))
+
+
+@app.command()
+def fix_timestamps(
+    db_path: Annotated[
+        Path, typer.Option("--db", help="Path to upload queue database")
+    ] = DB_PATH,
+) -> None:
+    """Fix timestamps by removing incorrect 'Z' suffix (EXIF times are local, not UTC)."""
+    if not db_path.exists():
+        print("No upload history found")
+        return
+
+    with sqlite3.connect(db_path) as conn:
+        cursor = conn.execute(
+            "UPDATE images SET timestamp = REPLACE(timestamp, 'Z', '') WHERE timestamp LIKE '%Z'"
+        )
+        conn.commit()
+        print(f"Fixed {cursor.rowcount} timestamps")
 
 
 @app.command()
