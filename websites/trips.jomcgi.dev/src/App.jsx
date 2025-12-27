@@ -36,6 +36,8 @@ import {
 const API_BASE_URL =
   import.meta.env.VITE_API_URL || "https://api.jomcgi.dev/trips";
 const WS_BASE_URL = import.meta.env.VITE_WS_URL || "wss://api.jomcgi.dev/trips";
+const IMAGE_BASE_URL =
+  import.meta.env.VITE_IMAGE_URL || "https://img.jomcgi.dev";
 
 // ============================================
 // API Hook - Fetch real trip data
@@ -623,7 +625,7 @@ function ImagePanel({
         >
           {point.imageUrl ? (
             <img
-              src={`${API_BASE_URL}${point.imageUrl}`}
+              src={`${IMAGE_BASE_URL}${point.imageUrl}`}
               alt={point.location || "Trip photo"}
               className="w-full h-full object-contain"
               loading="lazy"
