@@ -381,12 +381,6 @@ function generateDemoData(pointsPerSegment = 50) {
   return points;
 }
 
-const mockWeather = {
-  location: "Dawson City, YT",
-  temp: 18,
-  condition: "Partly Cloudy",
-  wind: 12,
-};
 
 // ============================================
 // Media Query Hook
@@ -676,9 +670,6 @@ function ImagePanel({
     return `${hours}h ${minutes}m`;
   };
 
-  // Fetch weather for current point location
-  const { weather } = useWeather(point?.lat, point?.lng);
-
   if (!point) return null;
 
   const iconSize = isMobile ? "h-12 w-12" : "h-16 w-16";
@@ -704,29 +695,12 @@ function ImagePanel({
               {formatTime(point.timestamp)}
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            {weather && (
-              <div className="flex items-center gap-3 text-sm bg-zinc-800 px-3 py-1.5 rounded-full">
-                <span className="flex items-center gap-1 text-zinc-300">
-                  <Thermometer className="h-4 w-4 text-blue-400" />
-                  {weather.temp}°C
-                </span>
-                <span className="flex items-center gap-1 text-zinc-400">
-                  <Wind className="h-4 w-4" />
-                  {weather.windSpeed} km/h
-                </span>
-                <span className="text-zinc-500 text-xs">
-                  {getWeatherDescription(weather.symbol)}
-                </span>
-              </div>
-            )}
-            {point.animal && (
-              <span className="text-sm bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-                <PawPrint className="h-4 w-4" />
-                {point.animal}
-              </span>
-            )}
-          </div>
+          {point.animal && (
+            <span className="text-sm bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+              <PawPrint className="h-4 w-4" />
+              {point.animal}
+            </span>
+          )}
         </div>
       </div>
 
@@ -839,6 +813,10 @@ export default function App() {
     [tripData],
   );
   const latestIndex = tripData.length - 1;
+  const latestPoint = tripData[latestIndex];
+
+  // Fetch weather for the latest point's location
+  const { weather } = useWeather(latestPoint?.lat, latestPoint?.lng);
 
   // All hooks must be called before any early returns
   useEffect(() => {
@@ -970,8 +948,8 @@ export default function App() {
               <MapPin className="h-3.5 w-3.5" />
               <span className={isMobile ? "truncate max-w-[100px]" : ""}>
                 {isMobile
-                  ? selectedPoint.location.split(" → ")[0]
-                  : mockWeather.location}
+                  ? selectedPoint.location?.split(" → ")[0]
+                  : latestPoint?.location}
               </span>
             </div>
             {isDemo ? (
@@ -998,23 +976,23 @@ export default function App() {
               compact={isMobile}
             />
           </div>
-          {!isMobile && (
+          {!isMobile && weather && (
             <div className="flex items-center gap-5 text-sm text-zinc-400">
               {!isTablet && (
                 <>
                   <div className="flex items-center gap-1.5">
                     <Thermometer className="h-3.5 w-3.5" />
-                    <span>{mockWeather.temp}°C</span>
+                    <span>{weather.temp}°C</span>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <Cloud className="h-3.5 w-3.5" />
-                    <span>{mockWeather.condition}</span>
+                    <span>{getWeatherDescription(weather.symbol)}</span>
                   </div>
                 </>
               )}
               <div className="flex items-center gap-1.5">
                 <Wind className="h-3.5 w-3.5" />
-                <span>{mockWeather.wind} km/h</span>
+                <span>{weather.windSpeed} km/h</span>
               </div>
             </div>
           )}
