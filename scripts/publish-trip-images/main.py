@@ -358,29 +358,6 @@ async def publish_to_nats(record: ImageRecord, image_id: int) -> None:
     await nc.close()
 
 
-def get_image_timestamp(image_path: Path) -> datetime:
-    """Get timestamp from EXIF or fall back to file mtime."""
-    try:
-        img = Image.open(image_path)
-        exif_data = img._getexif()
-
-        if exif_data:
-            exif = {}
-            for tag_id, value in exif_data.items():
-                tag = TAGS.get(tag_id, tag_id)
-                exif[tag] = value
-
-            if "DateTimeOriginal" in exif:
-                return datetime.strptime(exif["DateTimeOriginal"], "%Y:%m:%d %H:%M:%S")
-            elif "DateTime" in exif:
-                return datetime.strptime(exif["DateTime"], "%Y:%m:%d %H:%M:%S")
-    except Exception:
-        pass
-
-    # Fall back to file modification time
-    return datetime.fromtimestamp(image_path.stat().st_mtime)
-
-
 def scan_images(source_dir: Path) -> list[Path]:
     """Scan directory for image files (non-recursive)."""
     extensions = {".jpg", ".jpeg", ".png", ".heic", ".heif"}
@@ -396,39 +373,11 @@ def scan_images(source_dir: Path) -> list[Path]:
     return images
 
 
-def sample_images_by_interval(images: list[Path], interval_seconds: int) -> list[Path]:
-    """
-    Sample images by time interval.
-
-    Orders images by timestamp (EXIF or mtime), then selects images
-    at least `interval_seconds` apart.
-    """
-    if not images or interval_seconds <= 0:
+def sample_images(images: list[Path], every_n: int) -> list[Path]:
+    """Take every Nth image (assumes images are already sorted by filename/time)."""
+    if every_n <= 1:
         return images
-
-    # Get timestamps for all images
-    print("  Reading timestamps...")
-    images_with_time: list[tuple[Path, datetime]] = []
-    for img in images:
-        ts = get_image_timestamp(img)
-        images_with_time.append((img, ts))
-
-    # Sort by timestamp
-    images_with_time.sort(key=lambda x: x[1])
-
-    # Sample at interval
-    sampled: list[Path] = []
-    last_time: datetime | None = None
-
-    for img_path, img_time in images_with_time:
-        if last_time is None:
-            sampled.append(img_path)
-            last_time = img_time
-        elif (img_time - last_time).total_seconds() >= interval_seconds:
-            sampled.append(img_path)
-            last_time = img_time
-
-    return sampled
+    return images[::every_n]
 
 
 def generate_dest_key(image_path: Path, image_id: int) -> str:
@@ -445,7 +394,7 @@ async def _run_upload(
     bucket: str,
     dry_run: bool,
     publish: bool,
-    sample_interval: int = 0,
+    sample_interval: int = 1,
 ) -> None:
     """Main upload logic."""
     queue = UploadQueue(db_path)
@@ -463,11 +412,10 @@ async def _run_upload(
     if not images:
         return
 
-    # Sample images if interval specified
-    if sample_interval > 0:
-        print(f"Sampling at {sample_interval}s intervals...")
-        images = sample_images_by_interval(images, sample_interval)
-        print(f"Selected {len(images)} images after sampling")
+    # Sample every Nth image (e.g., every 60th for ~1/min from 1/sec captures)
+    if sample_interval > 1:
+        images = sample_images(images, sample_interval)
+        print(f"Sampled every {sample_interval}th image: {len(images)} selected")
 
     if not images:
         return
@@ -556,9 +504,9 @@ def scan(
     bucket: Annotated[
         str, typer.Option("--bucket", "-b", help="S3 bucket name")
     ] = DEFAULT_BUCKET,
-    sample_interval: Annotated[
-        int, typer.Option("--sample", "-s", help="Sample interval in seconds (e.g., 60 for 1 photo/min)")
-    ] = 0,
+    every_n: Annotated[
+        int, typer.Option("--every", "-e", help="Take every Nth image (e.g., 60 for ~1/min from 1/sec)")
+    ] = 1,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", "-n", help="Scan and queue only, don't upload")
     ] = False,
@@ -569,27 +517,24 @@ def scan(
     """
     Scan a single directory for images and upload to SeaweedFS.
 
-    Only scans the specified directory (non-recursive), so organize your
-    trip photos into a single folder first. Images are sorted by timestamp
-    (EXIF or file mtime) before processing.
-
-    Use --sample to select images at a time interval (e.g., 1 per minute).
+    Only scans the specified directory (non-recursive). Images are processed
+    in filename order. Use --every to take every Nth image.
 
     Example:
-        # Upload all images from a trip folder
+        # Upload all images
         publish-trip-images scan /Volumes/Untitled/DCIM/vancouver-to-kamloops
 
-        # Sample 1 photo per minute (from 1/sec captures)
-        publish-trip-images scan /Volumes/Untitled/DCIM/vancouver-to-kamloops --sample 60
+        # Take every 60th image (~1/min from 1/sec captures)
+        publish-trip-images scan /Volumes/Untitled/DCIM/vancouver-to-kamloops --every 60
 
         # Preview what would be selected (dry run)
-        publish-trip-images scan /path/to/trip --sample 30 --dry-run
+        publish-trip-images scan /path/to/trip --every 60 --dry-run
     """
     if not source_dir.exists():
         print(f"Error: Directory not found: {source_dir}")
         raise typer.Exit(1)
 
-    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, sample_interval))
+    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, every_n))
 
 
 @app.command()
