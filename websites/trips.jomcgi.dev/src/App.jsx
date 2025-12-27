@@ -621,23 +621,25 @@ function ImagePanel({
               : "bg-zinc-800"
           } ${isLive ? "ring-2 ring-red-500/30" : ""}`}
         >
-          {point.animal ? (
-            <div className="text-center">
-              <PawPrint
-                className={`${iconSize} text-amber-500/30 mx-auto mb-3`}
-              />
-              <p className="text-amber-500/50 text-sm">
-                Wildlife detected: {point.animal}
-              </p>
-            </div>
+          {point.imageUrl ? (
+            <img
+              src={`${API_BASE_URL}${point.imageUrl}`}
+              alt={point.location || "Trip photo"}
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
           ) : (
             <div className="text-center">
               <Camera
                 className={`${iconSize} mx-auto mb-3 ${isLive ? "text-red-500/20" : "text-zinc-700"}`}
               />
-              <p className="text-zinc-600 text-sm font-mono">
-                {point.imageUrl}
-              </p>
+              <p className="text-zinc-600 text-sm font-mono">No image</p>
+            </div>
+          )}
+          {point.animal && (
+            <div className="absolute bottom-6 right-6 bg-amber-500/90 text-white px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5">
+              <PawPrint className="h-4 w-4" />
+              {point.animal}
             </div>
           )}
         </div>
