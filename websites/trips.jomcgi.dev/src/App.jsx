@@ -664,6 +664,39 @@ function ImagePanel({
   currentIndex,
   isMobile = false,
 }) {
+  // Track the currently displayed image (stays until new image is loaded)
+  const [displayedImageUrl, setDisplayedImageUrl] = useState(null);
+  const [isImageLoading, setIsImageLoading] = useState(false);
+
+  // Preload new images before displaying them
+  useEffect(() => {
+    if (!point?.imageUrl) {
+      setDisplayedImageUrl(null);
+      return;
+    }
+
+    const fullUrl = `${IMAGE_BASE_URL}${point.imageUrl}`;
+
+    // If it's the same image, no need to reload
+    if (fullUrl === displayedImageUrl) {
+      return;
+    }
+
+    // Preload the new image
+    setIsImageLoading(true);
+    const img = new Image();
+    img.onload = () => {
+      setDisplayedImageUrl(fullUrl);
+      setIsImageLoading(false);
+    };
+    img.onerror = () => {
+      // Still show the image even if preload fails
+      setDisplayedImageUrl(fullUrl);
+      setIsImageLoading(false);
+    };
+    img.src = fullUrl;
+  }, [point?.imageUrl, displayedImageUrl]);
+
   // Use Pacific Time for BC/Yukon trip
   const formatTime = (date) =>
     date.toLocaleDateString("en-CA", {
@@ -724,13 +757,23 @@ function ImagePanel({
               : "bg-zinc-800"
           } ${isLive ? "ring-2 ring-red-500/30" : ""}`}
         >
-          {point.imageUrl ? (
+          {displayedImageUrl ? (
             <img
-              key={point.imageUrl}
-              src={`${IMAGE_BASE_URL}${point.imageUrl}`}
+              key={displayedImageUrl}
+              src={displayedImageUrl}
               alt={point.location || "Trip photo"}
-              className="w-full h-full object-contain"
+              className={`w-full h-full object-contain transition-opacity duration-200 ${
+                isImageLoading ? "opacity-80" : "opacity-100"
+              }`}
             />
+          ) : point.imageUrl ? (
+            // Show loading state while first image loads
+            <div className="text-center">
+              <Camera
+                className={`${iconSize} mx-auto mb-3 animate-pulse ${isLive ? "text-red-500/20" : "text-zinc-700"}`}
+              />
+              <p className="text-zinc-600 text-sm font-mono">Loading...</p>
+            </div>
           ) : (
             <div className="text-center">
               <Camera
