@@ -13,7 +13,6 @@ import {
   Thermometer,
   Wind,
   Camera,
-  PawPrint,
   Play,
   Pause,
   ChevronLeft,
@@ -39,9 +38,9 @@ const WS_BASE_URL = import.meta.env.VITE_WS_URL || "wss://api.jomcgi.dev/trips";
 const IMAGE_BASE_URL =
   import.meta.env.VITE_IMAGE_URL || "https://img.jomcgi.dev";
 
-// Convert /full/ URLs to /display/ for optimized 1080p loading
-const getDisplayUrl = (imageUrl) =>
-  `${IMAGE_BASE_URL}${imageUrl.replace("/trips/full/", "/trips/display/")}`;
+// Construct image URLs from filename
+const getThumbUrl = (image) => `${IMAGE_BASE_URL}/trips/thumb/${image}`;
+const getDisplayUrl = (image) => `${IMAGE_BASE_URL}/trips/display/${image}`;
 
 // ============================================
 // API Hook - Fetch real trip data
@@ -51,7 +50,7 @@ function useTripData() {
   const [points, setPoints] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [stats, setStats] = useState({ total: 0, wildlife: 0, viewers: 0 });
+  const [stats, setStats] = useState({ total: 0, viewers: 0 });
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
@@ -63,11 +62,9 @@ function useTripData() {
       id: apiPoint.id,
       lat: apiPoint.lat,
       lng: apiPoint.lng,
-      imageUrl: apiPoint.image_url,
-      thumbUrl: apiPoint.thumb_url,
+      image: apiPoint.image,  // Just the filename
+      source: apiPoint.source || "gopro",
       timestamp: new Date(ts),
-      location: apiPoint.location || null,
-      animal: apiPoint.animal || null,
     };
   }, []);
 
@@ -96,7 +93,6 @@ function useTripData() {
             setStats((prev) => ({
               ...prev,
               total: prev.total + 1,
-              wildlife: newPoint.animal ? prev.wildlife + 1 : prev.wildlife,
             }));
           } else if (data.type === "connected") {
             console.log(
@@ -150,7 +146,6 @@ function useTripData() {
         setPoints(transformedPoints);
         setStats({
           total: data.total || 0,
-          wildlife: transformedPoints.filter((p) => p.animal).length,
           viewers: 0,
         });
 
@@ -394,43 +389,6 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
         },
       });
 
-      const wildlifePoints = points.filter((p) => p.animal);
-      map.current.addSource("wildlife", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: wildlifePoints.map((p) => ({
-            type: "Feature",
-            properties: { id: p.id, animal: p.animal },
-            geometry: { type: "Point", coordinates: [p.lng, p.lat] },
-          })),
-        },
-      });
-
-      map.current.addLayer({
-        id: "wildlife-points",
-        type: "circle",
-        source: "wildlife",
-        paint: {
-          "circle-radius": 6,
-          "circle-color": "#f59e0b",
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#fff",
-        },
-      });
-
-      map.current.on("click", "wildlife-points", (e) => {
-        onMarkerClick(e.features[0].properties.id);
-      });
-
-      map.current.on("mouseenter", "wildlife-points", () => {
-        map.current.getCanvas().style.cursor = "pointer";
-      });
-
-      map.current.on("mouseleave", "wildlife-points", () => {
-        map.current.getCanvas().style.cursor = "";
-      });
-
       // Click handler for route line - navigate to closest point
       map.current.on("click", "route-line", (e) => {
         const clickedLng = e.lngLat.lng;
@@ -514,7 +472,7 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
     const el = document.createElement("div");
     el.className = "current-marker";
 
-    const baseColor = point.animal ? "#f59e0b" : isLive ? "#ef4444" : "#3b82f6";
+    const baseColor = isLive ? "#ef4444" : "#3b82f6";
     el.style.cssText = `
       width: ${isLive ? "20px" : "16px"};
       height: ${isLive ? "20px" : "16px"};
@@ -626,12 +584,12 @@ function ImagePanel({
 
   // Preload new images before displaying them
   useEffect(() => {
-    if (!point?.imageUrl) {
+    if (!point?.image) {
       setDisplayedImageUrl(null);
       return;
     }
 
-    const displayUrl = getDisplayUrl(point.imageUrl);
+    const displayUrl = getDisplayUrl(point.image);
 
     // If it's the same image, no need to reload
     if (displayUrl === displayedImageUrl) {
@@ -660,7 +618,7 @@ function ImagePanel({
       setIsImageLoading(false);
     };
     img.src = displayUrl;
-  }, [point?.imageUrl, displayedImageUrl, cachedImages]);
+  }, [point?.image, displayedImageUrl, cachedImages]);
 
   // Use Pacific Time for BC/Yukon trip
   const formatTime = (date) =>
@@ -692,39 +650,32 @@ function ImagePanel({
                 </span>
               </div>
             )}
-            <h2 className="font-semibold text-lg">{point.location}</h2>
+            <h2 className="font-semibold text-lg">Point #{point.id}</h2>
             <p className="text-sm text-zinc-500">
               {formatTime(point.timestamp)}
             </p>
           </div>
-          {point.animal && (
-            <span className="text-sm bg-amber-500/20 text-amber-500 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-              <PawPrint className="h-4 w-4" />
-              {point.animal}
-            </span>
-          )}
+          <span className="text-xs text-zinc-600 bg-zinc-800 px-2 py-1 rounded">
+            {point.source}
+          </span>
         </div>
       </div>
 
       {/* Main Image Area */}
       <div className="flex-1 relative min-h-0 p-4">
         <div
-          className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center ${
-            point.animal
-              ? "bg-amber-500/5 border border-amber-500/20"
-              : "bg-zinc-800"
-          } ${isLive ? "ring-2 ring-red-500/30" : ""}`}
+          className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-zinc-800 ${isLive ? "ring-2 ring-red-500/30" : ""}`}
         >
           {displayedImageUrl ? (
             <img
               key={displayedImageUrl}
               src={displayedImageUrl}
-              alt={point.location || "Trip photo"}
+              alt="Trip photo"
               className={`w-full h-full object-contain transition-opacity duration-200 ${
                 isImageLoading ? "opacity-80" : "opacity-100"
               }`}
             />
-          ) : point.imageUrl ? (
+          ) : point.image ? (
             // Show loading state while first image loads
             <div className="text-center">
               <Camera
@@ -738,12 +689,6 @@ function ImagePanel({
                 className={`${iconSize} mx-auto mb-3 ${isLive ? "text-red-500/20" : "text-zinc-700"}`}
               />
               <p className="text-zinc-600 text-sm font-mono">No image</p>
-            </div>
-          )}
-          {point.animal && (
-            <div className="absolute bottom-6 right-6 bg-amber-500/90 text-white px-3 py-1.5 rounded-full text-sm font-medium flex items-center gap-1.5">
-              <PawPrint className="h-4 w-4" />
-              {point.animal}
             </div>
           )}
         </div>
@@ -821,10 +766,6 @@ export default function App() {
 
   const selectedPoint = tripData[selectedIndex];
   const selectedId = selectedPoint?.id;
-  const animalPoints = useMemo(
-    () => tripData.filter((p) => p.animal),
-    [tripData],
-  );
 
   // Calculate day boundaries for timeline markers
   const dayBoundaries = useMemo(() => {
@@ -887,9 +828,9 @@ export default function App() {
     (index) => {
       if (index < 0 || index >= tripData.length) return Promise.resolve();
       const point = tripData[index];
-      if (!point?.imageUrl) return Promise.resolve();
+      if (!point?.image) return Promise.resolve();
 
-      const displayUrl = getDisplayUrl(point.imageUrl);
+      const displayUrl = getDisplayUrl(point.image);
       if (cachedImages.current.has(displayUrl)) return Promise.resolve();
 
       return new Promise((resolve) => {
@@ -941,8 +882,8 @@ export default function App() {
 
           // Check if next image is cached
           const nextPoint = tripData[prev + 1];
-          if (nextPoint?.imageUrl) {
-            const nextUrl = getDisplayUrl(nextPoint.imageUrl);
+          if (nextPoint?.image) {
+            const nextUrl = getDisplayUrl(nextPoint.image);
             if (!cachedImages.current.has(nextUrl)) {
               // Not cached yet, wait for it
               return prev;
@@ -1064,9 +1005,7 @@ export default function App() {
             <div className="flex items-center gap-1.5 text-zinc-400 text-sm">
               <MapPin className="h-3.5 w-3.5" />
               <span className={isMobile ? "truncate max-w-[100px]" : ""}>
-                {isMobile
-                  ? selectedPoint.location?.split(" → ")[0]
-                  : latestPoint?.location}
+                Point #{latestPoint?.id || selectedPoint?.id}
               </span>
             </div>
             <div className="bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
@@ -1142,10 +1081,6 @@ export default function App() {
                     {tripData.length.toLocaleString()}
                   </div>
                   <div className="text-xs text-zinc-500">Photos</div>
-                  <div className="mt-2 text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded flex items-center gap-1">
-                    <PawPrint className="h-3 w-3" />
-                    {animalPoints.length} wildlife
-                  </div>
                 </div>
               </div>
 
@@ -1159,10 +1094,6 @@ export default function App() {
                     <span className="text-zinc-400">
                       {isLive ? "Live" : "Position"}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white" />
-                    <span className="text-zinc-400">Wildlife</span>
                   </div>
                 </div>
               </div>
@@ -1205,10 +1136,6 @@ export default function App() {
                     {tripData.length.toLocaleString()}
                   </div>
                   <div className="text-xs text-zinc-500">Photos</div>
-                  <div className="mt-2 text-xs bg-amber-500/20 text-amber-500 px-2 py-1 rounded flex items-center gap-1">
-                    <PawPrint className="h-3 w-3" />
-                    {animalPoints.length} wildlife
-                  </div>
                 </div>
               </div>
 
@@ -1222,10 +1149,6 @@ export default function App() {
                     <span className="text-zinc-400">
                       {isLive ? "Live" : "Position"}
                     </span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded-full bg-amber-500 border-2 border-white" />
-                    <span className="text-zinc-400">Wildlife</span>
                   </div>
                 </div>
               </div>
@@ -1372,27 +1295,6 @@ export default function App() {
               }`}
               disabled={isLive}
             />
-            {/* Animal markers below slider */}
-            <div
-              className={`absolute ${isMobile ? "top-4" : "top-3"} left-0 right-0 h-1`}
-            >
-              {animalPoints.map((p) => {
-                const idx = tripData.findIndex((pt) => pt.id === p.id);
-                const pos = (idx / (tripData.length - 1)) * 100;
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => !isLive && handleMarkerClick(p.id)}
-                    className={`absolute ${isMobile ? "w-2 h-2" : "w-1.5 h-1.5"} bg-amber-500 rounded-full -translate-x-1/2 transition-transform ${
-                      isLive ? "opacity-50" : "hover:scale-150"
-                    }`}
-                    style={{ left: `${pos}%` }}
-                    title={p.animal}
-                    disabled={isLive}
-                  />
-                );
-              })}
-            </div>
           </div>
 
           <div
@@ -1447,15 +1349,12 @@ export default function App() {
                   className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-zinc-800`}
                 >
                   <img
-                    src={`${IMAGE_BASE_URL}${point.thumbUrl}`}
+                    src={getThumbUrl(point.image)}
                     alt=""
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
                 </div>
-                {point.animal && (
-                  <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 bg-amber-500 rounded-full" />
-                )}
                 {isLive && isLatest && (
                   <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-zinc-950" />
                 )}

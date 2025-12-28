@@ -46,10 +46,8 @@ class TripPoint(BaseModel):
     lat: float
     lng: float
     timestamp: str
-    image_url: str
-    thumb_url: str
-    location: Optional[str] = None
-    animal: Optional[str] = None
+    image: str  # Just the filename, e.g., "img_000001.jpg"
+    source: str = "gopro"  # Image source: gopro, camera, phone
 
 
 def is_valid_coordinates(lat: float, lng: float) -> bool:
@@ -243,12 +241,8 @@ class TripsState:
 
     def get_stats(self) -> dict:
         """Get trip statistics."""
-        points = list(self.points.values())
-        wildlife_count = sum(1 for p in points if p.animal)
-
         return {
-            "total_points": len(points),
-            "wildlife_sightings": wildlife_count,
+            "total_points": len(self.points),
             "connected_clients": len(self.manager.active_connections),
         }
 
