@@ -1277,43 +1277,38 @@ export default function App() {
             </select>
           )}
 
+          {/* Day Navigator */}
+          {!isMobile && dayBoundaries.length > 1 && (
+            <div className={`flex items-center gap-1 ${isLive ? "opacity-50" : ""}`}>
+              <button
+                onClick={() => {
+                  const prevDay = dayBoundaries.find((d) => d.dayNumber === currentDay - 1);
+                  if (prevDay) handleTimelineChange(prevDay.index);
+                }}
+                className="p-1 rounded hover:bg-zinc-800 transition-colors disabled:opacity-30"
+                disabled={currentDay === 1 || isLive}
+                title="Previous day"
+              >
+                <ChevronLeft className="h-3 w-3" />
+              </button>
+              <span className="text-xs text-zinc-400 min-w-[45px] text-center font-medium">
+                Day {currentDay}
+              </span>
+              <button
+                onClick={() => {
+                  const nextDay = dayBoundaries.find((d) => d.dayNumber === currentDay + 1);
+                  if (nextDay) handleTimelineChange(nextDay.index);
+                }}
+                className="p-1 rounded hover:bg-zinc-800 transition-colors disabled:opacity-30"
+                disabled={currentDay === dayBoundaries.length || isLive}
+                title="Next day"
+              >
+                <ChevronRight className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+
           <div className="flex-1 relative">
-            {/* Day markers above slider */}
-            {!isMobile && dayBoundaries.length > 1 && (
-              <div className="absolute -top-5 left-0 right-0 h-4">
-                {dayBoundaries.map((day, i) => {
-                  const pos = (day.index / (tripData.length - 1)) * 100;
-                  // Don't show label if too close to edges
-                  const showLabel = pos > 3 && pos < 97;
-                  return (
-                    <button
-                      key={day.dateStr}
-                      onClick={() => !isLive && handleTimelineChange(day.index)}
-                      className={`absolute flex flex-col items-center -translate-x-1/2 ${
-                        isLive
-                          ? "opacity-50 cursor-default"
-                          : "hover:text-blue-400 cursor-pointer"
-                      }`}
-                      style={{ left: `${pos}%` }}
-                      title={day.date.toLocaleDateString("en-CA", {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        timeZone: "America/Vancouver",
-                      })}
-                      disabled={isLive}
-                    >
-                      {showLabel && (
-                        <span className="text-[10px] text-zinc-500 whitespace-nowrap">
-                          Day {day.dayNumber}
-                        </span>
-                      )}
-                      <div className="w-px h-2 bg-zinc-600" />
-                    </button>
-                  );
-                })}
-              </div>
-            )}
             <input
               type="range"
               min={0}
