@@ -28,9 +28,7 @@ DB_PATH = Path(__file__).parent / "publish_queue.db"
 DEFAULT_BUCKET = "trips"
 
 # SeaweedFS S3 endpoint (for local dev, use port-forward or external URL)
-SEAWEEDFS_ENDPOINT = os.getenv(
-    "SEAWEEDFS_ENDPOINT", "http://localhost:8333"
-)
+SEAWEEDFS_ENDPOINT = os.getenv("SEAWEEDFS_ENDPOINT", "http://localhost:8333")
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 
 app = typer.Typer(help="Publish trip images to SeaweedFS and NATS")
@@ -277,7 +275,9 @@ def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | No
             gps = get_gps_info(exif["GPSInfo"])
             if "GPSLatitude" in gps and "GPSLongitude" in gps:
                 lat = dms_to_decimal(gps["GPSLatitude"], gps.get("GPSLatitudeRef", "N"))
-                lng = dms_to_decimal(gps["GPSLongitude"], gps.get("GPSLongitudeRef", "E"))
+                lng = dms_to_decimal(
+                    gps["GPSLongitude"], gps.get("GPSLongitudeRef", "E")
+                )
 
         # Extract timestamp (EXIF time is camera local time, not UTC)
         # Store without timezone suffix - frontend will display in Pacific
@@ -490,14 +490,19 @@ async def _run_upload(
 
     # Final stats
     final_stats = queue.get_stats()
-    print(f"\nFinal: {final_stats.get(UploadStatus.COMPLETED.value, 0)} completed, "
-          f"{final_stats.get(UploadStatus.FAILED.value, 0)} failed")
+    print(
+        f"\nFinal: {final_stats.get(UploadStatus.COMPLETED.value, 0)} completed, "
+        f"{final_stats.get(UploadStatus.FAILED.value, 0)} failed"
+    )
 
 
 @app.command()
 def scan(
     source_dir: Annotated[
-        Path, typer.Argument(help="Directory to scan for images (e.g., /Volumes/SD_CARD/DCIM)")
+        Path,
+        typer.Argument(
+            help="Directory to scan for images (e.g., /Volumes/SD_CARD/DCIM)"
+        ),
     ],
     db_path: Annotated[
         Path, typer.Option("--db", help="Path to upload queue database")
@@ -506,7 +511,12 @@ def scan(
         str, typer.Option("--bucket", "-b", help="S3 bucket name")
     ] = DEFAULT_BUCKET,
     every_n: Annotated[
-        int, typer.Option("--every", "-e", help="Take every Nth image (e.g., 60 for ~1/min from 1/sec)")
+        int,
+        typer.Option(
+            "--every",
+            "-e",
+            help="Take every Nth image (e.g., 60 for ~1/min from 1/sec)",
+        ),
     ] = 1,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", "-n", help="Scan and queue only, don't upload")

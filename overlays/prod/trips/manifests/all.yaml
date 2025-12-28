@@ -1,4 +1,25 @@
 ---
+# Source: trips/templates/api-pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: trips-api
+  labels:
+    helm.sh/chart: trips-1.0.0
+    app.kubernetes.io/name: trips
+    app.kubernetes.io/instance: trips
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/part-of: yukon-tracker
+    app.kubernetes.io/component: api
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: trips
+      app.kubernetes.io/instance: trips
+      app.kubernetes.io/component: api
+---
 # Source: trips/templates/nginx-configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -228,7 +249,7 @@ metadata:
     app.kubernetes.io/part-of: yukon-tracker
     app.kubernetes.io/component: api
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: trips
@@ -246,6 +267,17 @@ spec:
     spec:
       imagePullSecrets:
         - name: ghcr-imagepull-secret
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: trips
+                    app.kubernetes.io/instance: trips
+                    app.kubernetes.io/component: api
+                topologyKey: kubernetes.io/hostname
       securityContext:
         # Note: Running as root because aspect_rules_py venv needs to write
         # to the installation directory. TODO: Fix image to run as non-root

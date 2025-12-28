@@ -87,10 +87,9 @@ class ConnectionManager:
 
     async def broadcast_viewer_count(self):
         """Broadcast current viewer count to all clients."""
-        await self.broadcast({
-            "type": "viewer_count",
-            "count": len(self.active_connections)
-        })
+        await self.broadcast(
+            {"type": "viewer_count", "count": len(self.active_connections)}
+        )
 
 
 class TripsState:

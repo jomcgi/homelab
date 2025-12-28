@@ -6,6 +6,8 @@ imagePullSecret:
 
 api:
   enabled: true
+  # HA: 2 replicas with anti-affinity and PDB
+  replicas: 2
   image:
     repository: ghcr.io/jomcgi/homelab/services/trips-api
     tag: main  # Use branch tag from CI
