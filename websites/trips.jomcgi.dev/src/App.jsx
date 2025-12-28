@@ -365,11 +365,13 @@ function generateDemoData(pointsPerSegment = 50) {
         startTime.getTime() + segmentProgress * tripDurationMs,
       );
 
+      const imgPath = `/r2/trip-2025/img_${String(points.length + 1).padStart(6, "0")}.jpg`;
       points.push({
         id: points.length + 1,
         lat: lat + noise(),
         lng: lng + noise(),
-        imageUrl: `/r2/trip-2025/img_${String(points.length + 1).padStart(6, "0")}.jpg`,
+        imageUrl: imgPath,
+        thumbUrl: imgPath,  // Demo data uses same URL for thumb
         timestamp,
         location:
           start.name + (j > pointsPerSegment / 2 ? ` → ${end.name}` : ""),
@@ -379,11 +381,13 @@ function generateDemoData(pointsPerSegment = 50) {
   }
 
   const lastWaypoint = routeWaypoints[routeWaypoints.length - 1];
+  const lastImgPath = `/r2/trip-2025/img_${String(points.length + 1).padStart(6, "0")}.jpg`;
   points.push({
     id: points.length + 1,
     lat: lastWaypoint.lat,
     lng: lastWaypoint.lng,
-    imageUrl: `/r2/trip-2025/img_${String(points.length + 1).padStart(6, "0")}.jpg`,
+    imageUrl: lastImgPath,
+    thumbUrl: lastImgPath,
     timestamp: new Date(startTime.getTime() + 35 * 60 * 60 * 1000),
     location: lastWaypoint.name,
     animal: null,
