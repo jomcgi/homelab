@@ -461,6 +461,21 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
     return () => resizeObserver.disconnect();
   }, []);
 
+  // Update route line when points change (e.g., from WebSocket)
+  useEffect(() => {
+    if (!mapLoaded || !map.current) return;
+
+    const source = map.current.getSource("route");
+    if (source) {
+      const routeCoords = points.map((p) => [p.lng, p.lat]);
+      source.setData({
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates: routeCoords },
+      });
+    }
+  }, [mapLoaded, points]);
+
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
 
@@ -907,6 +922,29 @@ export default function App() {
       });
   }, [selectedId]);
 
+  // Keyboard navigation: Left/Right arrows to scrub through photos
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      // Don't interfere if user is typing in an input or select
+      if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
+      // Don't navigate when in live mode
+      if (isLive) return;
+
+      if (e.key === "ArrowLeft") {
+        e.preventDefault();
+        setSelectedIndex((prev) => Math.max(0, prev - 1));
+        setIsPlaying(false);
+      } else if (e.key === "ArrowRight") {
+        e.preventDefault();
+        setSelectedIndex((prev) => Math.min(tripData.length - 1, prev + 1));
+        setIsPlaying(false);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isLive, tripData.length]);
+
   const handleMarkerClick = useCallback(
     (id) => {
       const idx = tripData.findIndex((p) => p.id === id);
@@ -976,9 +1014,11 @@ export default function App() {
       timeZone: "America/Vancouver",
     });
 
+  // Buffer enough thumbnails to cover wide screens (68px per thumbnail on desktop)
+  // 50 thumbnails on each side covers ~3400px of screen width plus buffer
   const visibleRange = {
-    start: Math.max(0, selectedIndex - 15),
-    end: Math.min(tripData.length, selectedIndex + 15),
+    start: Math.max(0, selectedIndex - 50),
+    end: Math.min(tripData.length, selectedIndex + 50),
   };
 
   return (
