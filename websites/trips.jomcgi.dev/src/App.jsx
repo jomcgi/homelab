@@ -300,13 +300,13 @@ function useMediaQuery(query) {
 
 function ViewToggle({ activeView, onViewChange }) {
   return (
-    <div className="flex bg-zinc-800 rounded-lg p-1">
+    <div className="flex bg-gray-200 rounded-lg p-1">
       <button
         onClick={() => onViewChange("image")}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors text-sm font-medium ${
           activeView === "image"
             ? "bg-blue-500 text-white"
-            : "text-zinc-400 hover:text-zinc-300"
+            : "text-gray-600 hover:text-gray-800"
         }`}
       >
         <ImageIcon className="h-4 w-4" />
@@ -317,7 +317,7 @@ function ViewToggle({ activeView, onViewChange }) {
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded transition-colors text-sm font-medium ${
           activeView === "map"
             ? "bg-blue-500 text-white"
-            : "text-zinc-400 hover:text-zinc-300"
+            : "text-gray-600 hover:text-gray-800"
         }`}
       >
         <Map className="h-4 w-4" />
@@ -344,7 +344,7 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
 
     map.current = new maplibregl.Map({
       container: mapContainer.current,
-      style: "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json",
+      style: "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json",
       center: [-128, 56],
       zoom: 4,
     });
@@ -353,6 +353,38 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
 
     map.current.on("load", () => {
       map.current.resize();
+
+      // Add terrain DEM source for hillshading (free AWS Mapzen tiles)
+      map.current.addSource("terrain-dem", {
+        type: "raster-dem",
+        tiles: [
+          "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png",
+        ],
+        encoding: "terrarium",
+        tileSize: 256,
+        maxzoom: 15,
+      });
+
+      // Find the first symbol layer to insert hillshade below labels
+      const layers = map.current.getStyle().layers;
+      const firstSymbolLayer = layers.find((layer) => layer.type === "symbol");
+
+      // Add hillshade layer - insert below labels for terrain visibility
+      map.current.addLayer(
+        {
+          id: "hillshade",
+          type: "hillshade",
+          source: "terrain-dem",
+          paint: {
+            "hillshade-exaggeration": 0.5,
+            "hillshade-shadow-color": "#473B24",
+            "hillshade-highlight-color": "#ffffff",
+            "hillshade-illumination-direction": 315,
+          },
+        },
+        firstSymbolLayer?.id,
+      );
+
       const routeCoords = points.map((p) => [p.lng, p.lat]);
 
       map.current.addSource("route", {
@@ -531,7 +563,7 @@ function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
           ${
             isLive
               ? "bg-red-500/20 border border-red-500/30 hover:bg-red-500/30"
-              : "bg-zinc-800 border border-zinc-700 hover:bg-zinc-700"
+              : "bg-gray-200 border border-gray-300 hover:bg-gray-300"
           }
         `}
         title={isLive ? "LIVE" : "Go Live"}
@@ -539,7 +571,7 @@ function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
         <span
           className={`
           w-3 h-3 rounded-full
-          ${isLive ? "bg-red-500 animate-pulse" : "bg-zinc-500"}
+          ${isLive ? "bg-red-500 animate-pulse" : "bg-gray-400"}
         `}
         />
       </button>
@@ -555,20 +587,20 @@ function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
         transition-all duration-200
         ${
           isLive
-            ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-            : "bg-zinc-800 text-zinc-400 border border-zinc-700 hover:bg-zinc-700 hover:text-zinc-300"
+            ? "bg-red-500/20 text-red-600 border border-red-500/30 hover:bg-red-500/30"
+            : "bg-gray-200 text-gray-600 border border-gray-300 hover:bg-gray-300 hover:text-gray-800"
         }
       `}
     >
       <span
         className={`
         w-2 h-2 rounded-full
-        ${isLive ? "bg-red-500 animate-pulse" : "bg-zinc-500"}
+        ${isLive ? "bg-red-500 animate-pulse" : "bg-gray-400"}
       `}
       />
       <span>{isLive ? "LIVE" : "Go Live"}</span>
       {isLive && viewerCount !== null && (
-        <span className="flex items-center gap-1 text-xs text-red-400/70 border-l border-red-500/30 pl-2 ml-1">
+        <span className="flex items-center gap-1 text-xs text-red-500/70 border-l border-red-500/30 pl-2 ml-1">
           <Eye className="w-3 h-3" />
           {viewerCount}
         </span>
@@ -648,17 +680,17 @@ function ImagePanel({
   const iconSize = isMobile ? "h-12 w-12" : "h-16 w-16";
 
   return (
-    <div className="h-full flex flex-col bg-zinc-900">
+    <div className="h-full flex flex-col bg-white">
       {/* Header */}
       <div
-        className={`flex-none px-4 py-3 border-b ${isLive ? "border-red-500/30 bg-red-500/5" : "border-zinc-800"}`}
+        className={`flex-none px-4 py-3 border-b ${isLive ? "border-red-500/30 bg-red-500/5" : "border-gray-200"}`}
       >
         <div className="flex items-center justify-between">
           <div>
             {isLive && (
               <div className="flex items-center gap-2 mb-1">
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                <span className="text-xs font-medium text-red-400">
+                <span className="text-xs font-medium text-red-600">
                   LIVE VIEW
                 </span>
               </div>
@@ -667,15 +699,15 @@ function ImagePanel({
               href={`https://www.google.com/maps?q=${point.lat},${point.lng}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-semibold text-lg hover:text-blue-400 transition-colors"
+              className="font-semibold text-lg text-gray-900 hover:text-blue-600 transition-colors"
             >
               Point #{point.id} ↗
             </a>
-            <p className="text-sm text-zinc-500">
+            <p className="text-sm text-gray-500">
               {formatTime(point.timestamp)}
             </p>
           </div>
-          <span className="text-xs text-zinc-600 bg-zinc-800 px-2 py-1 rounded">
+          <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
             {point.source}
           </span>
         </div>
@@ -684,7 +716,7 @@ function ImagePanel({
       {/* Main Image Area */}
       <div className="flex-1 relative min-h-0 p-4">
         <div
-          className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-zinc-800 ${isLive ? "ring-2 ring-red-500/30" : ""}`}
+          className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 ${isLive ? "ring-2 ring-red-500/30" : ""}`}
         >
           {displayedImageUrl ? (
             <img
@@ -699,16 +731,16 @@ function ImagePanel({
             // Show loading state while first image loads
             <div className="text-center">
               <Camera
-                className={`${iconSize} mx-auto mb-3 animate-pulse ${isLive ? "text-red-500/20" : "text-zinc-700"}`}
+                className={`${iconSize} mx-auto mb-3 animate-pulse ${isLive ? "text-red-500/20" : "text-gray-300"}`}
               />
-              <p className="text-zinc-600 text-sm font-mono">Loading...</p>
+              <p className="text-gray-400 text-sm font-mono">Loading...</p>
             </div>
           ) : (
             <div className="text-center">
               <Camera
-                className={`${iconSize} mx-auto mb-3 ${isLive ? "text-red-500/20" : "text-zinc-700"}`}
+                className={`${iconSize} mx-auto mb-3 ${isLive ? "text-red-500/20" : "text-gray-300"}`}
               />
-              <p className="text-zinc-600 text-sm font-mono">No image</p>
+              <p className="text-gray-400 text-sm font-mono">No image</p>
             </div>
           )}
         </div>
@@ -723,12 +755,12 @@ function ImagePanel({
       </div>
 
       {/* Metadata Footer */}
-      <div className="flex-none px-4 py-3 border-t border-zinc-800 bg-zinc-900/50">
+      <div className="flex-none px-4 py-3 border-t border-gray-200 bg-gray-50">
         <div
-          className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-3"} gap-4 text-sm`}
+          className={`grid ${isMobile ? "grid-cols-2" : "grid-cols-3"} gap-4 text-sm text-gray-900`}
         >
           <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">
+            <span className="text-gray-500 block text-xs mb-0.5">
               Coordinates
             </span>
             <span className="font-mono">
@@ -736,14 +768,14 @@ function ImagePanel({
             </span>
           </div>
           <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">Day</span>
+            <span className="text-gray-500 block text-xs mb-0.5">Day</span>
             <span>
               {currentDay} of {totalDays}
             </span>
           </div>
           {!isMobile && (
             <div>
-              <span className="text-zinc-500 block text-xs mb-0.5">Frame</span>
+              <span className="text-gray-500 block text-xs mb-0.5">Frame</span>
               <span className="font-mono">
                 {currentIndex + 1} / {totalFrames}
               </span>
@@ -967,9 +999,9 @@ export default function App() {
   // Show loading screen
   if (loading) {
     return (
-      <div className="h-screen w-full bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center gap-4">
+      <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
-        <p className="text-zinc-400">Loading trip data...</p>
+        <p className="text-gray-500">Loading trip data...</p>
       </div>
     );
   }
@@ -977,10 +1009,10 @@ export default function App() {
   // Handle empty data state
   if (tripData.length === 0) {
     return (
-      <div className="h-screen w-full bg-zinc-950 text-zinc-100 flex flex-col items-center justify-center gap-4">
+      <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col items-center justify-center gap-4">
         <AlertCircle className="h-12 w-12 text-amber-500" />
-        <p className="text-zinc-400">No trip data available</p>
-        <p className="text-zinc-500 text-sm">
+        <p className="text-gray-600">No trip data available</p>
+        <p className="text-gray-500 text-sm">
           The trip hasn't started yet or data is unavailable.
         </p>
       </div>
@@ -1027,7 +1059,7 @@ export default function App() {
   };
 
   return (
-    <div className="h-screen w-full bg-zinc-950 text-zinc-100 flex flex-col overflow-hidden">
+    <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col overflow-hidden">
       <style>{`
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
@@ -1036,7 +1068,7 @@ export default function App() {
       `}</style>
 
       {/* Status Bar */}
-      <div className="flex-none border-b border-zinc-800 bg-zinc-900/80 px-4 py-2.5">
+      <div className="flex-none border-b border-gray-200 bg-white/80 backdrop-blur-sm px-4 py-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2">
@@ -1044,10 +1076,10 @@ export default function App() {
                 className={`h-2 w-2 rounded-full ${isLive ? "bg-red-500" : "bg-emerald-500"} animate-pulse`}
               />
               {!isMobile && (
-                <span className="text-sm font-medium">Winter Road Trip to Liard Hot Springs</span>
+                <span className="text-sm font-medium text-gray-900">Winter Road Trip to Liard Hot Springs</span>
               )}
             </div>
-            <div className="bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
+            <div className="bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
               Live Trip
             </div>
@@ -1065,8 +1097,8 @@ export default function App() {
             />
           </div>
           {!isMobile && weather && (
-            <div className="flex items-center gap-3 text-sm text-zinc-400">
-              <MapPin className="h-3 w-3 text-zinc-500" />
+            <div className="flex items-center gap-3 text-sm text-gray-600">
+              <MapPin className="h-3 w-3 text-gray-400" />
               <span>{weather.temp}°C</span>
               {!isTablet && <span>{getWeatherDescription(weather.symbol)}</span>}
               <span className="flex items-center gap-1">
@@ -1081,7 +1113,7 @@ export default function App() {
       {/* Error Banner */}
       {showErrorBanner && (
         <div className="flex-none bg-amber-500/10 border-b border-amber-500/20 px-4 py-2">
-          <div className="flex items-center gap-2 text-sm text-amber-400">
+          <div className="flex items-center gap-2 text-sm text-amber-600">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
             <span>Unable to connect to API: {error}</span>
           </div>
@@ -1106,22 +1138,22 @@ export default function App() {
 
               {/* Stats Overlay */}
               <div className="absolute top-3 left-3 z-10">
-                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-3 backdrop-blur-sm">
-                  <div className="text-xl font-bold">
+                <div className="bg-white/90 border border-gray-200 rounded-lg p-3 backdrop-blur-sm shadow-sm">
+                  <div className="text-xl font-bold text-gray-900">
                     {tripData.length.toLocaleString()}
                   </div>
-                  <div className="text-xs text-zinc-500">Photos</div>
+                  <div className="text-xs text-gray-500">Photos</div>
                 </div>
               </div>
 
               {/* Legend */}
               <div className="absolute bottom-3 left-3 z-10">
-                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-2 backdrop-blur-sm flex gap-3 text-xs">
+                <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm flex gap-3 text-xs">
                   <div className="flex items-center gap-1.5">
                     <div
                       className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
                     />
-                    <span className="text-zinc-400">
+                    <span className="text-gray-600">
                       {isLive ? "Live" : "Position"}
                     </span>
                   </div>
@@ -1161,22 +1193,22 @@ export default function App() {
 
               {/* Stats Overlay */}
               <div className="absolute top-3 left-3 z-10">
-                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-3 backdrop-blur-sm">
-                  <div className="text-xl font-bold">
+                <div className="bg-white/90 border border-gray-200 rounded-lg p-3 backdrop-blur-sm shadow-sm">
+                  <div className="text-xl font-bold text-gray-900">
                     {tripData.length.toLocaleString()}
                   </div>
-                  <div className="text-xs text-zinc-500">Photos</div>
+                  <div className="text-xs text-gray-500">Photos</div>
                 </div>
               </div>
 
               {/* Legend */}
               <div className="absolute bottom-3 left-3 z-10">
-                <div className="bg-zinc-900/90 border border-zinc-800 rounded-lg p-2 backdrop-blur-sm flex gap-3 text-xs">
+                <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm flex gap-3 text-xs">
                   <div className="flex items-center gap-1.5">
                     <div
                       className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
                     />
-                    <span className="text-zinc-400">
+                    <span className="text-gray-600">
                       {isLive ? "Live" : "Position"}
                     </span>
                   </div>
@@ -1186,7 +1218,7 @@ export default function App() {
               {/* Expand/Collapse Toggle */}
               <button
                 onClick={() => setMapExpanded(!mapExpanded)}
-                className="absolute top-3 right-14 z-10 p-2 bg-zinc-900/90 border border-zinc-800 rounded-lg backdrop-blur-sm hover:bg-zinc-800 transition-colors"
+                className="absolute top-3 right-14 z-10 p-2 bg-white/90 border border-gray-200 rounded-lg backdrop-blur-sm shadow-sm hover:bg-gray-100 transition-colors text-gray-700"
               >
                 {mapExpanded ? (
                   <Minimize2 className="h-4 w-4" />
@@ -1198,7 +1230,7 @@ export default function App() {
 
             {/* Divider */}
             <div
-              className={`w-px ${isLive ? "bg-red-500/30" : "bg-zinc-800"}`}
+              className={`w-px ${isLive ? "bg-red-500/30" : "bg-gray-200"}`}
             />
 
             {/* Image Panel */}
@@ -1222,8 +1254,8 @@ export default function App() {
 
       {/* Timeline Controls */}
       <div
-        className={`flex-none border-t bg-zinc-900/90 px-4 py-2 transition-colors ${
-          isLive ? "border-red-500/30" : "border-zinc-800"
+        className={`flex-none border-t bg-white/90 backdrop-blur-sm px-4 py-2 transition-colors ${
+          isLive ? "border-red-500/30" : "border-gray-200"
         }`}
       >
         <div className="flex items-center gap-3">
@@ -1234,14 +1266,14 @@ export default function App() {
               onClick={() =>
                 handleTimelineChange(Math.max(0, selectedIndex - 1))
               }
-              className={`${isMobile ? "p-2" : "p-1.5"} rounded hover:bg-zinc-800 transition-colors disabled:opacity-30`}
+              className={`${isMobile ? "p-2" : "p-1.5"} rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700`}
               disabled={selectedIndex === 0 || isLive}
             >
               <ChevronLeft className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
             </button>
             <button
               onClick={() => setIsPlaying(!isPlaying)}
-              className={`${isMobile ? "p-2" : "p-1.5"} rounded transition-colors ${isPlaying ? "bg-blue-500" : "hover:bg-zinc-800"}`}
+              className={`${isMobile ? "p-2" : "p-1.5"} rounded transition-colors ${isPlaying ? "bg-blue-500 text-white" : "hover:bg-gray-200 text-gray-700"}`}
               disabled={isLive}
             >
               {isPlaying ? (
@@ -1256,7 +1288,7 @@ export default function App() {
                   Math.min(tripData.length - 1, selectedIndex + 1),
                 )
               }
-              className={`${isMobile ? "p-2" : "p-1.5"} rounded hover:bg-zinc-800 transition-colors disabled:opacity-30`}
+              className={`${isMobile ? "p-2" : "p-1.5"} rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700`}
               disabled={selectedIndex === tripData.length - 1 || isLive}
             >
               <ChevronRight className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
@@ -1267,7 +1299,7 @@ export default function App() {
             <select
               value={playbackSpeed}
               onChange={(e) => setPlaybackSpeed(Number(e.target.value))}
-              className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-xs text-zinc-300 disabled:opacity-50"
+              className="bg-gray-100 border border-gray-300 rounded px-2 py-1 text-xs text-gray-700 disabled:opacity-50"
               disabled={isLive}
             >
               <option value={1}>1x</option>
@@ -1285,13 +1317,13 @@ export default function App() {
                   const prevDay = dayBoundaries.find((d) => d.dayNumber === currentDay - 1);
                   if (prevDay) handleTimelineChange(prevDay.index);
                 }}
-                className="p-1 rounded hover:bg-zinc-800 transition-colors disabled:opacity-30"
+                className="p-1 rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700"
                 disabled={currentDay === 1 || isLive}
                 title="Previous day"
               >
                 <ChevronLeft className="h-3 w-3" />
               </button>
-              <span className="text-xs text-zinc-400 min-w-[45px] text-center font-medium">
+              <span className="text-xs text-gray-500 min-w-[45px] text-center font-medium">
                 Day {currentDay}
               </span>
               <button
@@ -1299,7 +1331,7 @@ export default function App() {
                   const nextDay = dayBoundaries.find((d) => d.dayNumber === currentDay + 1);
                   if (nextDay) handleTimelineChange(nextDay.index);
                 }}
-                className="p-1 rounded hover:bg-zinc-800 transition-colors disabled:opacity-30"
+                className="p-1 rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700"
                 disabled={currentDay === dayBoundaries.length || isLive}
                 title="Next day"
               >
@@ -1315,7 +1347,7 @@ export default function App() {
               max={tripData.length - 1}
               value={selectedIndex}
               onChange={(e) => handleTimelineChange(Number(e.target.value))}
-              className={`w-full ${isMobile ? "h-2" : "h-1.5"} bg-zinc-800 rounded-lg appearance-none cursor-pointer ${
+              className={`w-full ${isMobile ? "h-2" : "h-1.5"} bg-gray-200 rounded-lg appearance-none cursor-pointer ${
                 isLive ? "accent-red-500 opacity-50" : "accent-blue-500"
               }`}
               disabled={isLive}
@@ -1326,12 +1358,12 @@ export default function App() {
             className={`text-xs ${isMobile ? "min-w-[60px]" : "min-w-[100px]"} text-right`}
           >
             {isLive ? (
-              <span className="text-red-400 flex items-center gap-1 justify-end">
+              <span className="text-red-500 flex items-center gap-1 justify-end">
                 <Radio className="w-3 h-3 animate-pulse" />
                 {!isMobile && "Live"}
               </span>
             ) : (
-              <span className="text-zinc-500">
+              <span className="text-gray-500">
                 {selectedPoint &&
                   (isMobile
                     ? formatTimeShort(selectedPoint.timestamp)
@@ -1344,8 +1376,8 @@ export default function App() {
 
       {/* Image Reel */}
       <div
-        className={`flex-none border-t bg-zinc-950 overflow-x-auto transition-colors ${
-          isLive ? "border-red-500/30" : "border-zinc-800"
+        className={`flex-none border-t bg-gray-100 overflow-x-auto transition-colors ${
+          isLive ? "border-red-500/30" : "border-gray-200"
         }`}
         ref={scrollRef}
       >
@@ -1365,13 +1397,13 @@ export default function App() {
                 className={`flex-none relative transition-all ${
                   isSelected
                     ? isLive
-                      ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105"
-                      : "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105"
-                    : "hover:ring-1 hover:ring-zinc-600"
+                      ? "ring-2 ring-red-500 ring-offset-1 ring-offset-gray-100 scale-105"
+                      : "ring-2 ring-blue-500 ring-offset-1 ring-offset-gray-100 scale-105"
+                    : "hover:ring-1 hover:ring-gray-400"
                 }`}
               >
                 <div
-                  className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-zinc-800`}
+                  className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-gray-200`}
                 >
                   <img
                     src={getThumbUrl(point.image)}
@@ -1381,7 +1413,7 @@ export default function App() {
                   />
                 </div>
                 {isLive && isLatest && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-zinc-950" />
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-gray-100" />
                 )}
               </button>
             );
