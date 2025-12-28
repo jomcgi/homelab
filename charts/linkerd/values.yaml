@@ -25,17 +25,11 @@ linkerd-control-plane:
 
   # Proxy configuration for all meshed pods
   proxy:
-    # Enable OpenTelemetry tracing
+    # Disable proxy-level tracing export
+    # Linkerd uses OpenCensus protocol (port 55678) but SigNoz only accepts OTLP (port 4317)
+    # Applications can still send traces to SigNoz via OTLP; Linkerd provides metrics via Prometheus
     tracing:
-      enabled: true
-      collector:
-        # SigNoz OTEL collector endpoint
-        endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
-        # Mesh identity for the collector (required by Linkerd)
-        meshIdentity:
-          # SigNoz collector must be meshed too!
-          serviceAccountName: "signoz-otel-collector"
-          namespace: "signoz"
+      enabled: false
 
     # Resource limits for proxy sidecars
     resources:
@@ -46,8 +40,11 @@ linkerd-control-plane:
         request: 20Mi
         limit: 250Mi
 
-  # Control plane components
-  controllerReplicas: 1
+  # Control plane components - HA mode with 2 replicas
+  controllerReplicas: 2
+
+  # Enable Pod Disruption Budgets for HA
+  enablePodDisruptionBudget: true
 
   # Destination controller
   destinationResources:
