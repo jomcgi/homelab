@@ -431,6 +431,66 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
         map.current.getCanvas().style.cursor = "";
       });
 
+      // Click handler for route line - navigate to closest point
+      map.current.on("click", "route-line", (e) => {
+        const clickedLng = e.lngLat.lng;
+        const clickedLat = e.lngLat.lat;
+
+        // Find the closest point in tripData
+        let closestId = null;
+        let minDist = Infinity;
+
+        points.forEach((p) => {
+          // Simple Euclidean distance (sufficient for finding closest)
+          const dist = Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
+          if (dist < minDist) {
+            minDist = dist;
+            closestId = p.id;
+          }
+        });
+
+        if (closestId !== null) {
+          onMarkerClick(closestId);
+        }
+      });
+
+      // Also handle clicks on the glow layer for better hit area
+      map.current.on("click", "route-glow", (e) => {
+        const clickedLng = e.lngLat.lng;
+        const clickedLat = e.lngLat.lat;
+
+        let closestId = null;
+        let minDist = Infinity;
+
+        points.forEach((p) => {
+          const dist = Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
+          if (dist < minDist) {
+            minDist = dist;
+            closestId = p.id;
+          }
+        });
+
+        if (closestId !== null) {
+          onMarkerClick(closestId);
+        }
+      });
+
+      map.current.on("mouseenter", "route-line", () => {
+        map.current.getCanvas().style.cursor = "pointer";
+      });
+
+      map.current.on("mouseleave", "route-line", () => {
+        map.current.getCanvas().style.cursor = "";
+      });
+
+      map.current.on("mouseenter", "route-glow", () => {
+        map.current.getCanvas().style.cursor = "pointer";
+      });
+
+      map.current.on("mouseleave", "route-glow", () => {
+        map.current.getCanvas().style.cursor = "";
+      });
+
       setMapLoaded(true);
       setTimeout(() => map.current?.resize(), 100);
     });
