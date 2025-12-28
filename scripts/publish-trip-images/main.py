@@ -364,8 +364,8 @@ def upload_image(s3_client, bucket: str, source_path: Path, dest_key: str) -> bo
     return True  # Uploaded
 
 
-async def publish_to_nats(record: ImageRecord, image_id: int, source: str) -> None:
-    """Publish trip point to NATS JetStream."""
+async def get_jetstream() -> tuple:
+    """Connect to NATS and return (connection, jetstream) tuple."""
     nc = await nats.connect(NATS_URL)
     js = nc.jetstream()
 
@@ -375,6 +375,11 @@ async def publish_to_nats(record: ImageRecord, image_id: int, source: str) -> No
     except nats.js.errors.NotFoundError:
         await js.add_stream(name="trips", subjects=["trips.>"])
 
+    return nc, js
+
+
+async def publish_to_nats(js, record: ImageRecord, image_id: int, source: str) -> None:
+    """Publish trip point to NATS JetStream."""
     # Build trip point message
     # 5 decimal places = ~1m precision (sufficient for 5-10m requirement)
     point = {
@@ -387,7 +392,6 @@ async def publish_to_nats(record: ImageRecord, image_id: int, source: str) -> No
     }
 
     await js.publish("trips.point", json.dumps(point).encode())
-    await nc.close()
 
 
 def scan_images(source_dir: Path) -> list[Path]:
@@ -490,41 +494,50 @@ async def _run_upload(
     s3_client = get_s3_client()
     ensure_bucket(s3_client, bucket)
 
+    # Connect to NATS once if publishing
+    nc, js = None, None
+    if publish:
+        nc, js = await get_jetstream()
+
     # Process uploads
-    with GracefulShutdown() as shutdown:
-        pending_records = queue.get_pending()
+    try:
+        with GracefulShutdown() as shutdown:
+            pending_records = queue.get_pending()
 
-        for record in pending_records:
-            if shutdown.shutdown_requested:
-                break
+            for record in pending_records:
+                if shutdown.shutdown_requested:
+                    break
 
-            queue.mark_uploading(record.id)
-            source_file = Path(record.source_path)
+                queue.mark_uploading(record.id)
+                source_file = Path(record.source_path)
 
-            try:
-                # Upload to S3 (skips if file unchanged)
-                uploaded = upload_image(s3_client, bucket, source_file, record.dest_key)
-                if uploaded:
-                    print(f"[UPLOAD] {source_file.name} -> {record.dest_key}")
-                else:
-                    print(f"[SKIP] {source_file.name} -> {record.dest_key} (unchanged)")
+                try:
+                    # Upload to S3 (skips if file unchanged)
+                    uploaded = upload_image(s3_client, bucket, source_file, record.dest_key)
+                    if uploaded:
+                        print(f"[UPLOAD] {source_file.name} -> {record.dest_key}")
+                    else:
+                        print(f"[SKIP] {source_file.name} -> {record.dest_key} (unchanged)")
 
-                # Publish to NATS if requested (even if upload skipped - metadata may differ)
-                if publish:
-                    print(f"  [NATS] Publishing point {record.id} (source={source})")
-                    await publish_to_nats(record, record.id, source)
+                    # Publish to NATS if requested (even if upload skipped - metadata may differ)
+                    if publish and js:
+                        print(f"  [NATS] Publishing point {record.id} (source={source})")
+                        await publish_to_nats(js, record, record.id, source)
 
-                queue.mark_completed(record.id)
-                if uploaded:
-                    print(f"  [OK] Uploaded")
-                else:
-                    print(f"  [OK] Published")
+                    queue.mark_completed(record.id)
+                    if uploaded:
+                        print(f"  [OK] Uploaded")
+                    else:
+                        print(f"  [OK] Published")
 
-            except Exception as e:
-                error_msg = str(e)
-                queue.mark_failed(record.id, error_msg)
-                retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
-                print(f"  [FAIL] {error_msg} ({retry_info})")
+                except Exception as e:
+                    error_msg = str(e)
+                    queue.mark_failed(record.id, error_msg)
+                    retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
+                    print(f"  [FAIL] {error_msg} ({retry_info})")
+    finally:
+        if nc:
+            await nc.close()
 
     # Final stats
     final_stats = queue.get_stats()
@@ -692,12 +705,16 @@ def publish_all(
 
     async def _publish_all():
         print(f"Publishing {len(completed)} points to NATS (source={source})...")
-        for record in completed:
-            try:
-                await publish_to_nats(record, record.id, source)
-                print(f"  [NATS] Published point {record.id}")
-            except Exception as e:
-                print(f"  [FAIL] Point {record.id}: {e}")
+        nc, js = await get_jetstream()
+        try:
+            for record in completed:
+                try:
+                    await publish_to_nats(js, record, record.id, source)
+                    print(f"  [NATS] Published point {record.id}")
+                except Exception as e:
+                    print(f"  [FAIL] Point {record.id}: {e}")
+        finally:
+            await nc.close()
 
     asyncio.run(_publish_all())
     print("Done")
