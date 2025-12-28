@@ -122,9 +122,15 @@ class TripsState:
     async def replay_stream(self):
         """Replay all messages from the trips stream."""
         try:
-            # Get consumer for replay (deliver all)
+            # Use ephemeral consumer for replay (no durable name)
+            # This ensures each pod restart gets all messages from the beginning
             consumer = await self.js.pull_subscribe(
-                "trips.>", durable="trips-api-replay", stream="trips"
+                "trips.>",
+                stream="trips",
+                config=nats.js.api.ConsumerConfig(
+                    deliver_policy=nats.js.api.DeliverPolicy.ALL,
+                    ack_policy=nats.js.api.AckPolicy.NONE,  # No ack needed for replay
+                ),
             )
 
             # Fetch all existing messages
@@ -133,9 +139,11 @@ class TripsState:
                     msgs = await consumer.fetch(batch=100, timeout=1)
                     for msg in msgs:
                         await self._process_message(msg.data)
-                        await msg.ack()
                 except nats.errors.TimeoutError:
                     break
+
+            # Clean up ephemeral consumer
+            await consumer.unsubscribe()
 
             logger.info(f"Replayed {len(self.points)} points from stream")
 
@@ -147,16 +155,24 @@ class TripsState:
     async def subscribe_live(self):
         """Subscribe to live updates."""
         try:
+            # Use pod-specific durable name to avoid conflicts between replicas
+            # HOSTNAME is set to pod name in Kubernetes
+            pod_name = os.getenv("HOSTNAME", "unknown")
+            consumer_name = f"trips-api-live-{pod_name}"
+
             self.subscription = await self.js.subscribe(
                 "trips.>",
-                durable="trips-api-live",
+                durable=consumer_name,
                 stream="trips",
-                deliver_policy=nats.js.api.DeliverPolicy.NEW,
+                config=nats.js.api.ConsumerConfig(
+                    deliver_policy=nats.js.api.DeliverPolicy.NEW,
+                    inactive_threshold=3600.0,  # Auto-cleanup after 1 hour of inactivity
+                ),
             )
 
             # Start background task to process messages
             asyncio.create_task(self._process_subscription())
-            logger.info("Subscribed to live updates")
+            logger.info(f"Subscribed to live updates as {consumer_name}")
 
         except Exception as e:
             logger.error(f"Error subscribing to live updates: {e}")
