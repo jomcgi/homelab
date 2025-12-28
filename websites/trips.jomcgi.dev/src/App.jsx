@@ -801,6 +801,7 @@ export default function App() {
   const [isLive, setIsLive] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
   const [mobileView, setMobileView] = useState("image"); // 'image' or 'map'
+  const [scrollVisibleCenter, setScrollVisibleCenter] = useState(0);
   const scrollRef = useRef(null);
   const imageRefs = useRef({});
   const cachedImages = useRef(new Set());
@@ -982,6 +983,28 @@ export default function App() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isLive, tripData.length]);
 
+  // Track scroll position to load thumbnails in visible area
+  useEffect(() => {
+    const container = scrollRef.current;
+    if (!container) return;
+
+    const thumbWidth = isMobile ? 52 : 68; // thumbnail width + gap
+
+    const handleScroll = () => {
+      const scrollLeft = container.scrollLeft;
+      const containerWidth = container.clientWidth;
+      const centerScroll = scrollLeft + containerWidth / 2;
+      const centerIndex = Math.floor(centerScroll / thumbWidth);
+      setScrollVisibleCenter(centerIndex);
+    };
+
+    // Initial calculation
+    handleScroll();
+
+    container.addEventListener("scroll", handleScroll, { passive: true });
+    return () => container.removeEventListener("scroll", handleScroll);
+  }, [isMobile, tripData.length]);
+
   const handleMarkerClick = useCallback(
     (id) => {
       const idx = tripData.findIndex((p) => p.id === id);
@@ -995,6 +1018,27 @@ export default function App() {
     },
     [tripData, latestIndex],
   );
+
+  // Calculate visible range based on both selected index and scroll position
+  // This ensures thumbnails load when scrolling, not just when selecting
+  const visibleRange = useMemo(() => {
+    const buffer = 50; // thumbnails on each side of center
+    const preloadPadding = 30; // extra thumbnails to preload at edges
+
+    // Range around selected index (for when selection changes)
+    const selectedStart = selectedIndex - buffer;
+    const selectedEnd = selectedIndex + buffer;
+
+    // Range around scroll center (for when user scrolls manually)
+    const scrollStart = scrollVisibleCenter - buffer;
+    const scrollEnd = scrollVisibleCenter + buffer;
+
+    // Combine both ranges and add preload padding
+    const start = Math.max(0, Math.min(selectedStart, scrollStart) - preloadPadding);
+    const end = Math.min(tripData.length, Math.max(selectedEnd, scrollEnd) + preloadPadding);
+
+    return { start, end };
+  }, [selectedIndex, scrollVisibleCenter, tripData.length]);
 
   // Show loading screen
   if (loading) {
@@ -1050,13 +1094,6 @@ export default function App() {
       minute: "2-digit",
       timeZone: "America/Vancouver",
     });
-
-  // Buffer enough thumbnails to cover wide screens (68px per thumbnail on desktop)
-  // 50 thumbnails on each side covers ~3400px of screen width plus buffer
-  const visibleRange = {
-    start: Math.max(0, selectedIndex - 50),
-    end: Math.min(tripData.length, selectedIndex + 50),
-  };
 
   return (
     <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col overflow-hidden">
@@ -1394,12 +1431,12 @@ export default function App() {
                 key={point.id}
                 ref={(el) => (imageRefs.current[point.id] = el)}
                 onClick={() => handleMarkerClick(point.id)}
-                className={`flex-none relative transition-all ${
+                className={`flex-none relative transition-all duration-150 origin-bottom ${
                   isSelected
                     ? isLive
-                      ? "ring-2 ring-red-500 ring-offset-1 ring-offset-gray-100 scale-105"
-                      : "ring-2 ring-blue-500 ring-offset-1 ring-offset-gray-100 scale-105"
-                    : "hover:ring-1 hover:ring-gray-400"
+                      ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                      : "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                    : "hover:scale-150 hover:z-20 hover:ring-1 hover:ring-zinc-500"
                 }`}
               >
                 <div
