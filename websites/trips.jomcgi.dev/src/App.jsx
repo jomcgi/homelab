@@ -659,9 +659,10 @@ function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
 function ImagePanel({
   point,
   isLive,
-  tripStart,
   totalFrames,
   currentIndex,
+  currentDay = 1,
+  totalDays = 1,
   isMobile = false,
 }) {
   // Track the currently displayed image (stays until new image is loaded)
@@ -706,13 +707,6 @@ function ImagePanel({
       minute: "2-digit",
       timeZone: "America/Vancouver",
     });
-
-  const formatDuration = (start, current) => {
-    const diff = current - start;
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    return `${hours}h ${minutes}m`;
-  };
 
   if (!point) return null;
 
@@ -814,9 +808,11 @@ function ImagePanel({
           </div>
           <div>
             <span className="text-zinc-500 block text-xs mb-0.5">
-              Trip Duration
+              Day
             </span>
-            <span>{formatDuration(tripStart, point.timestamp)}</span>
+            <span>
+              {currentDay} of {totalDays}
+            </span>
           </div>
           {!isMobile && (
             <div>
@@ -866,6 +862,49 @@ export default function App() {
     () => tripData.filter((p) => p.animal),
     [tripData],
   );
+
+  // Calculate day boundaries for timeline markers
+  const dayBoundaries = useMemo(() => {
+    if (tripData.length === 0) return [];
+
+    const boundaries = [];
+    let currentDate = null;
+
+    tripData.forEach((point, index) => {
+      // Get date string in Pacific Time (for BC/Yukon trip)
+      const dateStr = point.timestamp.toLocaleDateString("en-CA", {
+        timeZone: "America/Vancouver",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+
+      if (dateStr !== currentDate) {
+        boundaries.push({
+          index,
+          date: point.timestamp,
+          dateStr,
+          dayNumber: boundaries.length + 1,
+        });
+        currentDate = dateStr;
+      }
+    });
+
+    return boundaries;
+  }, [tripData]);
+
+  // Calculate which day the current selection is on
+  const currentDay = useMemo(() => {
+    if (dayBoundaries.length === 0) return 1;
+    // Find the last day boundary that's <= selectedIndex
+    for (let i = dayBoundaries.length - 1; i >= 0; i--) {
+      if (dayBoundaries[i].index <= selectedIndex) {
+        return dayBoundaries[i].dayNumber;
+      }
+    }
+    return 1;
+  }, [dayBoundaries, selectedIndex]);
+
   const latestIndex = tripData.length - 1;
   const latestPoint = tripData[latestIndex];
 
@@ -1122,9 +1161,10 @@ export default function App() {
               <ImagePanel
                 point={selectedPoint}
                 isLive={isLive}
-                tripStart={tripData[0].timestamp}
                 totalFrames={tripData.length}
                 currentIndex={selectedIndex}
+                currentDay={currentDay}
+                totalDays={dayBoundaries.length}
                 isMobile={isMobile}
               />
             </div>
@@ -1200,9 +1240,10 @@ export default function App() {
               <ImagePanel
                 point={selectedPoint}
                 isLive={isLive}
-                tripStart={tripData[0].timestamp}
                 totalFrames={tripData.length}
                 currentIndex={selectedIndex}
+                currentDay={currentDay}
+                totalDays={dayBoundaries.length}
                 isMobile={isMobile}
               />
             </div>
@@ -1268,6 +1309,40 @@ export default function App() {
           )}
 
           <div className="flex-1 relative">
+            {/* Day markers above slider */}
+            {!isMobile && dayBoundaries.length > 1 && (
+              <div className="absolute -top-5 left-0 right-0 h-4">
+                {dayBoundaries.map((day, i) => {
+                  const pos = (day.index / (tripData.length - 1)) * 100;
+                  // Don't show label if too close to edges
+                  const showLabel = pos > 3 && pos < 97;
+                  return (
+                    <button
+                      key={day.dateStr}
+                      onClick={() => !isLive && handleTimelineChange(day.index)}
+                      className={`absolute flex flex-col items-center -translate-x-1/2 ${
+                        isLive ? "opacity-50 cursor-default" : "hover:text-blue-400 cursor-pointer"
+                      }`}
+                      style={{ left: `${pos}%` }}
+                      title={day.date.toLocaleDateString("en-CA", {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        timeZone: "America/Vancouver",
+                      })}
+                      disabled={isLive}
+                    >
+                      {showLabel && (
+                        <span className="text-[10px] text-zinc-500 whitespace-nowrap">
+                          Day {day.dayNumber}
+                        </span>
+                      )}
+                      <div className="w-px h-2 bg-zinc-600" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
             <input
               type="range"
               min={0}
@@ -1279,6 +1354,7 @@ export default function App() {
               }`}
               disabled={isLive}
             />
+            {/* Animal markers below slider */}
             <div
               className={`absolute ${isMobile ? "top-4" : "top-3"} left-0 right-0 h-1`}
             >
