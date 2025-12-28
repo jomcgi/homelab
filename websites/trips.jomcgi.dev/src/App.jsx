@@ -39,6 +39,10 @@ const WS_BASE_URL = import.meta.env.VITE_WS_URL || "wss://api.jomcgi.dev/trips";
 const IMAGE_BASE_URL =
   import.meta.env.VITE_IMAGE_URL || "https://img.jomcgi.dev";
 
+// Convert /full/ URLs to /display/ for optimized 1080p loading
+const getDisplayUrl = (imageUrl) =>
+  `${IMAGE_BASE_URL}${imageUrl.replace("/trips/full/", "/trips/display/")}`;
+
 // ============================================
 // API Hook - Fetch real trip data
 // ============================================
@@ -567,16 +571,16 @@ function ImagePanel({
       return;
     }
 
-    const fullUrl = `${IMAGE_BASE_URL}${point.imageUrl}`;
+    const displayUrl = getDisplayUrl(point.imageUrl);
 
     // If it's the same image, no need to reload
-    if (fullUrl === displayedImageUrl) {
+    if (displayUrl === displayedImageUrl) {
       return;
     }
 
     // If already in our prefetch cache, show immediately
-    if (cachedImages?.current?.has(fullUrl)) {
-      setDisplayedImageUrl(fullUrl);
+    if (cachedImages?.current?.has(displayUrl)) {
+      setDisplayedImageUrl(displayUrl);
       setIsImageLoading(false);
       return;
     }
@@ -585,17 +589,17 @@ function ImagePanel({
     setIsImageLoading(true);
     const img = new Image();
     img.onload = () => {
-      setDisplayedImageUrl(fullUrl);
+      setDisplayedImageUrl(displayUrl);
       setIsImageLoading(false);
       // Also add to cache for future reference
-      cachedImages?.current?.add(fullUrl);
+      cachedImages?.current?.add(displayUrl);
     };
     img.onerror = () => {
       // Still show the image even if preload fails
-      setDisplayedImageUrl(fullUrl);
+      setDisplayedImageUrl(displayUrl);
       setIsImageLoading(false);
     };
-    img.src = fullUrl;
+    img.src = displayUrl;
   }, [point?.imageUrl, displayedImageUrl, cachedImages]);
 
   // Use Pacific Time for BC/Yukon trip
@@ -825,20 +829,20 @@ export default function App() {
       const point = tripData[index];
       if (!point?.imageUrl) return Promise.resolve();
 
-      const fullUrl = `${IMAGE_BASE_URL}${point.imageUrl}`;
-      if (cachedImages.current.has(fullUrl)) return Promise.resolve();
+      const displayUrl = getDisplayUrl(point.imageUrl);
+      if (cachedImages.current.has(displayUrl)) return Promise.resolve();
 
       return new Promise((resolve) => {
         const img = new Image();
         img.onload = () => {
-          cachedImages.current.add(fullUrl);
+          cachedImages.current.add(displayUrl);
           resolve();
         };
         img.onerror = () => {
-          cachedImages.current.add(fullUrl); // Mark as "attempted" even on error
+          cachedImages.current.add(displayUrl); // Mark as "attempted" even on error
           resolve();
         };
-        img.src = fullUrl;
+        img.src = displayUrl;
       });
     },
     [tripData],
@@ -878,7 +882,7 @@ export default function App() {
           // Check if next image is cached
           const nextPoint = tripData[prev + 1];
           if (nextPoint?.imageUrl) {
-            const nextUrl = `${IMAGE_BASE_URL}${nextPoint.imageUrl}`;
+            const nextUrl = getDisplayUrl(nextPoint.imageUrl);
             if (!cachedImages.current.has(nextUrl)) {
               // Not cached yet, wait for it
               return prev;
