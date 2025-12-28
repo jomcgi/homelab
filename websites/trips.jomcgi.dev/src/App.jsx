@@ -9,8 +9,6 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
   MapPin,
-  Cloud,
-  Thermometer,
   Wind,
   Camera,
   Play,
@@ -1039,14 +1037,8 @@ export default function App() {
                 className={`h-2 w-2 rounded-full ${isLive ? "bg-red-500" : "bg-emerald-500"} animate-pulse`}
               />
               {!isMobile && (
-                <span className="text-sm font-medium">Joe's Location</span>
+                <span className="text-sm font-medium">Winter Road Trip to Liard Hot Springs</span>
               )}
-            </div>
-            <div className="flex items-center gap-1.5 text-zinc-400 text-sm">
-              <MapPin className="h-3.5 w-3.5" />
-              <span className={isMobile ? "truncate max-w-[100px]" : ""}>
-                Point #{latestPoint?.id || selectedPoint?.id}
-              </span>
             </div>
             <div className="bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
               <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
@@ -1066,23 +1058,14 @@ export default function App() {
             />
           </div>
           {!isMobile && weather && (
-            <div className="flex items-center gap-5 text-sm text-zinc-400">
-              {!isTablet && (
-                <>
-                  <div className="flex items-center gap-1.5">
-                    <Thermometer className="h-3.5 w-3.5" />
-                    <span>{weather.temp}°C</span>
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <Cloud className="h-3.5 w-3.5" />
-                    <span>{getWeatherDescription(weather.symbol)}</span>
-                  </div>
-                </>
-              )}
-              <div className="flex items-center gap-1.5">
-                <Wind className="h-3.5 w-3.5" />
-                <span>{weather.windSpeed} km/h</span>
-              </div>
+            <div className="flex items-center gap-3 text-sm text-zinc-400">
+              <MapPin className="h-3 w-3 text-zinc-500" />
+              <span>{weather.temp}°C</span>
+              {!isTablet && <span>{getWeatherDescription(weather.symbol)}</span>}
+              <span className="flex items-center gap-1">
+                <Wind className="h-3 w-3" />
+                {weather.windSpeed} km/h
+              </span>
             </div>
           )}
         </div>
