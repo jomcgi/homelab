@@ -663,7 +663,14 @@ function ImagePanel({
                 </span>
               </div>
             )}
-            <h2 className="font-semibold text-lg">Point #{point.id}</h2>
+            <a
+              href={`https://www.google.com/maps?q=${point.lat},${point.lng}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-semibold text-lg hover:text-blue-400 transition-colors"
+            >
+              Point #{point.id} ↗
+            </a>
             <p className="text-sm text-zinc-500">
               {formatTime(point.timestamp)}
             </p>
