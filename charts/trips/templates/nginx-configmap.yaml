@@ -89,6 +89,15 @@ data:
                 add_header Cache-Control "public, max-age=31536000, immutable";
             }
 
+            # Display (1080p) - optimized for web viewing
+            location /trips/display/ {
+                rewrite ^/trips/display/(.*)$ /unsafe/rs:fit:1920:1080/q:92/plain/s3://{{ .Values.bucket }}/$1 break;
+                proxy_pass http://imgproxy;
+                proxy_set_header Host $host;
+
+                add_header Cache-Control "public, max-age=31536000, immutable";
+            }
+
             # Preview (1200px) - imgproxy v3 format
             location /trips/preview/ {
                 rewrite ^/trips/preview/(.*)$ /unsafe/rs:fit:1200:1200/q:90/plain/s3://{{ .Values.bucket }}/$1 break;
