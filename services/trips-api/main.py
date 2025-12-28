@@ -52,6 +52,17 @@ class TripPoint(BaseModel):
     animal: Optional[str] = None
 
 
+def is_valid_coordinates(lat: float, lng: float) -> bool:
+    """Check if coordinates are valid (not null island, within valid ranges)."""
+    # Reject null island (0, 0) - common GPS error
+    if lat == 0.0 and lng == 0.0:
+        return False
+    # Reject out-of-range coordinates
+    if not (-90 <= lat <= 90) or not (-180 <= lng <= 180):
+        return False
+    return True
+
+
 class ConnectionManager:
     """Manages WebSocket connections for live updates."""
 
@@ -197,6 +208,10 @@ class TripsState:
         try:
             point_data = json.loads(data.decode())
             point = TripPoint(**point_data)
+            # Skip points with invalid coordinates
+            if not is_valid_coordinates(point.lat, point.lng):
+                logger.warning(f"Skipping point {point.id} with invalid coords: ({point.lat}, {point.lng})")
+                return None
             self.points[point.id] = point
             return point
         except Exception as e:
