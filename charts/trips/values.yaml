@@ -56,6 +56,8 @@ nginx:
 # API server configuration
 api:
   enabled: true
+  # Number of replicas (2+ enables anti-affinity and PDB)
+  replicas: 1
   image:
     repository: ghcr.io/jomcgi/trips-api
     tag: "latest"

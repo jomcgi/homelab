@@ -53,23 +53,20 @@ function useTripData() {
   const reconnectTimeoutRef = useRef(null);
 
   // Transform API response to match React component expectations
-  const transformPoint = useCallback(
-    (apiPoint) => {
-      // Strip "Z" suffix - timestamps are camera local time (Pacific), not UTC
-      const ts = apiPoint.timestamp?.replace(/Z$/, "") || "";
-      return {
-        id: apiPoint.id,
-        lat: apiPoint.lat,
-        lng: apiPoint.lng,
-        imageUrl: apiPoint.image_url,
-        thumbUrl: apiPoint.thumb_url,
-        timestamp: new Date(ts),
-        location: apiPoint.location || null,
-        animal: apiPoint.animal || null,
-      };
-    },
-    [],
-  );
+  const transformPoint = useCallback((apiPoint) => {
+    // Strip "Z" suffix - timestamps are camera local time (Pacific), not UTC
+    const ts = apiPoint.timestamp?.replace(/Z$/, "") || "";
+    return {
+      id: apiPoint.id,
+      lat: apiPoint.lat,
+      lng: apiPoint.lng,
+      imageUrl: apiPoint.image_url,
+      thumbUrl: apiPoint.thumb_url,
+      timestamp: new Date(ts),
+      location: apiPoint.location || null,
+      animal: apiPoint.animal || null,
+    };
+  }, []);
 
   // Connect to WebSocket for live updates
   const connectWebSocket = useCallback(() => {
@@ -227,7 +224,7 @@ function useWeather(lat, lng) {
             headers: {
               "User-Agent": "trips.jomcgi.dev/1.0 github.com/jomcgi/homelab",
             },
-          }
+          },
         );
 
         if (!response.ok) throw new Error("Weather fetch failed");
@@ -235,9 +232,10 @@ function useWeather(lat, lng) {
         const data = await response.json();
         const current = data.properties.timeseries[0];
         const details = current.data.instant.details;
-        const symbol = current.data.next_1_hours?.summary?.symbol_code ||
-                       current.data.next_6_hours?.summary?.symbol_code ||
-                       "cloudy";
+        const symbol =
+          current.data.next_1_hours?.summary?.symbol_code ||
+          current.data.next_6_hours?.summary?.symbol_code ||
+          "cloudy";
 
         const weatherData = {
           temp: Math.round(details.air_temperature),
@@ -246,7 +244,11 @@ function useWeather(lat, lng) {
           symbol: symbol,
         };
 
-        cacheRef.current = { key: cacheKey, data: weatherData, timestamp: Date.now() };
+        cacheRef.current = {
+          key: cacheKey,
+          data: weatherData,
+          timestamp: Date.now(),
+        };
         setWeather(weatherData);
       } catch (err) {
         console.error("Weather fetch error:", err);
@@ -389,7 +391,6 @@ function generateDemoData(pointsPerSegment = 50) {
 
   return points;
 }
-
 
 // ============================================
 // Media Query Hook
@@ -664,6 +665,7 @@ function ImagePanel({
   currentDay = 1,
   totalDays = 1,
   isMobile = false,
+  cachedImages = null,
 }) {
   // Track the currently displayed image (stays until new image is loaded)
   const [displayedImageUrl, setDisplayedImageUrl] = useState(null);
@@ -683,12 +685,21 @@ function ImagePanel({
       return;
     }
 
+    // If already in our prefetch cache, show immediately
+    if (cachedImages?.current?.has(fullUrl)) {
+      setDisplayedImageUrl(fullUrl);
+      setIsImageLoading(false);
+      return;
+    }
+
     // Preload the new image
     setIsImageLoading(true);
     const img = new Image();
     img.onload = () => {
       setDisplayedImageUrl(fullUrl);
       setIsImageLoading(false);
+      // Also add to cache for future reference
+      cachedImages?.current?.add(fullUrl);
     };
     img.onerror = () => {
       // Still show the image even if preload fails
@@ -696,7 +707,7 @@ function ImagePanel({
       setIsImageLoading(false);
     };
     img.src = fullUrl;
-  }, [point?.imageUrl, displayedImageUrl]);
+  }, [point?.imageUrl, displayedImageUrl, cachedImages]);
 
   // Use Pacific Time for BC/Yukon trip
   const formatTime = (date) =>
@@ -807,9 +818,7 @@ function ImagePanel({
             </span>
           </div>
           <div>
-            <span className="text-zinc-500 block text-xs mb-0.5">
-              Day
-            </span>
+            <span className="text-zinc-500 block text-xs mb-0.5">Day</span>
             <span>
               {currentDay} of {totalDays}
             </span>
@@ -844,6 +853,7 @@ export default function App() {
   const [mobileView, setMobileView] = useState("image"); // 'image' or 'map'
   const scrollRef = useRef(null);
   const imageRefs = useRef({});
+  const cachedImages = useRef(new Set());
 
   // Media queries for responsive design
   const isMobile = useMediaQuery("(max-width: 768px)");
@@ -919,6 +929,53 @@ export default function App() {
     }
   }, [isLive, latestIndex, tripData.length]);
 
+  // Prefetch images ahead during playback
+  const prefetchImage = useCallback(
+    (index) => {
+      if (index < 0 || index >= tripData.length) return Promise.resolve();
+      const point = tripData[index];
+      if (!point?.imageUrl) return Promise.resolve();
+
+      const fullUrl = `${IMAGE_BASE_URL}${point.imageUrl}`;
+      if (cachedImages.current.has(fullUrl)) return Promise.resolve();
+
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          cachedImages.current.add(fullUrl);
+          resolve();
+        };
+        img.onerror = () => {
+          cachedImages.current.add(fullUrl); // Mark as "attempted" even on error
+          resolve();
+        };
+        img.src = fullUrl;
+      });
+    },
+    [tripData],
+  );
+
+  // Prefetch ahead when playback starts or index changes during playback
+  useEffect(() => {
+    if (!isPlaying || isLive || tripData.length === 0) return;
+
+    // Prefetch the next several images based on speed
+    // Higher speed = more prefetch needed
+    const prefetchCount = Math.min(Math.ceil(playbackSpeed / 2) + 3, 20);
+
+    for (let i = 1; i <= prefetchCount; i++) {
+      prefetchImage(selectedIndex + i);
+    }
+  }, [
+    isPlaying,
+    selectedIndex,
+    playbackSpeed,
+    isLive,
+    tripData.length,
+    prefetchImage,
+  ]);
+
+  // Playback: only advance when next image is cached
   useEffect(() => {
     let interval;
     if (isPlaying && !isLive && tripData.length > 0) {
@@ -928,12 +985,23 @@ export default function App() {
             setIsPlaying(false);
             return prev;
           }
+
+          // Check if next image is cached
+          const nextPoint = tripData[prev + 1];
+          if (nextPoint?.imageUrl) {
+            const nextUrl = `${IMAGE_BASE_URL}${nextPoint.imageUrl}`;
+            if (!cachedImages.current.has(nextUrl)) {
+              // Not cached yet, wait for it
+              return prev;
+            }
+          }
+
           return prev + 1;
         });
       }, 1000 / playbackSpeed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, isLive, tripData.length]);
+  }, [isPlaying, playbackSpeed, isLive, tripData.length, tripData]);
 
   useEffect(() => {
     const el = imageRefs.current[selectedId];
@@ -1166,6 +1234,7 @@ export default function App() {
                 currentDay={currentDay}
                 totalDays={dayBoundaries.length}
                 isMobile={isMobile}
+                cachedImages={cachedImages}
               />
             </div>
           </>
@@ -1245,6 +1314,7 @@ export default function App() {
                 currentDay={currentDay}
                 totalDays={dayBoundaries.length}
                 isMobile={isMobile}
+                cachedImages={cachedImages}
               />
             </div>
           </>
@@ -1321,7 +1391,9 @@ export default function App() {
                       key={day.dateStr}
                       onClick={() => !isLive && handleTimelineChange(day.index)}
                       className={`absolute flex flex-col items-center -translate-x-1/2 ${
-                        isLive ? "opacity-50 cursor-default" : "hover:text-blue-400 cursor-pointer"
+                        isLive
+                          ? "opacity-50 cursor-default"
+                          : "hover:text-blue-400 cursor-pointer"
                       }`}
                       style={{ left: `${pos}%` }}
                       title={day.date.toLocaleDateString("en-CA", {
