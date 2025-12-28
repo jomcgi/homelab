@@ -6,6 +6,7 @@ uploads to SeaweedFS, and publishes trip points to NATS.
 """
 
 import asyncio
+import hashlib
 import json
 import os
 import signal
@@ -15,6 +16,8 @@ from datetime import datetime
 from enum import Enum
 from pathlib import Path
 from typing import Annotated
+
+from botocore.exceptions import ClientError
 
 import boto3
 import nats
@@ -316,8 +319,36 @@ def ensure_bucket(s3_client, bucket: str) -> None:
         s3_client.create_bucket(Bucket=bucket)
 
 
-def upload_image(s3_client, bucket: str, source_path: Path, dest_key: str) -> None:
-    """Upload image to SeaweedFS."""
+def calculate_md5(file_path: Path) -> str:
+    """Calculate MD5 hash of a file."""
+    md5 = hashlib.md5()
+    with open(file_path, "rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            md5.update(chunk)
+    return md5.hexdigest()
+
+
+def object_exists_with_hash(s3_client, bucket: str, key: str, local_hash: str) -> bool:
+    """Check if object exists in S3 with matching hash (ETag)."""
+    try:
+        response = s3_client.head_object(Bucket=bucket, Key=key)
+        # ETag is quoted, e.g., '"d41d8cd98f00b204e9800998ecf8427e"'
+        etag = response.get("ETag", "").strip('"')
+        return etag == local_hash
+    except ClientError as e:
+        if e.response["Error"]["Code"] == "404":
+            return False
+        # For other errors, assume we need to upload
+        return False
+
+
+def upload_image(s3_client, bucket: str, source_path: Path, dest_key: str) -> bool:
+    """Upload image to SeaweedFS. Returns True if uploaded, False if skipped (already exists)."""
+    # Check if file already exists with same hash
+    local_hash = calculate_md5(source_path)
+    if object_exists_with_hash(s3_client, bucket, dest_key, local_hash):
+        return False  # Skip upload, file unchanged
+
     content_type = "image/jpeg"
     if source_path.suffix.lower() == ".png":
         content_type = "image/png"
@@ -330,9 +361,10 @@ def upload_image(s3_client, bucket: str, source_path: Path, dest_key: str) -> No
         dest_key,
         ExtraArgs={"ContentType": content_type},
     )
+    return True  # Uploaded
 
 
-async def publish_to_nats(record: ImageRecord, image_id: int) -> None:
+async def publish_to_nats(record: ImageRecord, image_id: int, source: str) -> None:
     """Publish trip point to NATS JetStream."""
     nc = await nats.connect(NATS_URL)
     js = nc.jetstream()
@@ -344,15 +376,14 @@ async def publish_to_nats(record: ImageRecord, image_id: int) -> None:
         await js.add_stream(name="trips", subjects=["trips.>"])
 
     # Build trip point message
+    # 5 decimal places = ~1m precision (sufficient for 5-10m requirement)
     point = {
         "id": image_id,
-        "lat": record.lat or 0.0,
-        "lng": record.lng or 0.0,
+        "lat": round(record.lat, 5) if record.lat else 0.0,
+        "lng": round(record.lng, 5) if record.lng else 0.0,
         "timestamp": record.timestamp or datetime.now().isoformat(),
-        "image_url": f"/trips/full/{record.dest_key}",
-        "thumb_url": f"/trips/thumb/{record.dest_key}",
-        "location": None,  # Could be reverse-geocoded later
-        "animal": None,  # Could be detected later
+        "image": record.dest_key,  # Frontend constructs full/thumb URLs
+        "source": source,
     }
 
     await js.publish("trips.point", json.dumps(point).encode())
@@ -396,6 +427,7 @@ async def _run_upload(
     dry_run: bool,
     publish: bool,
     sample_interval: int = 1,
+    source: str = "gopro",
 ) -> None:
     """Main upload logic."""
     queue = UploadQueue(db_path)
@@ -467,20 +499,26 @@ async def _run_upload(
                 break
 
             queue.mark_uploading(record.id)
-            source = Path(record.source_path)
+            source_file = Path(record.source_path)
 
             try:
-                # Upload to S3
-                print(f"[UPLOAD] {source.name} -> {record.dest_key}")
-                upload_image(s3_client, bucket, source, record.dest_key)
+                # Upload to S3 (skips if file unchanged)
+                uploaded = upload_image(s3_client, bucket, source_file, record.dest_key)
+                if uploaded:
+                    print(f"[UPLOAD] {source_file.name} -> {record.dest_key}")
+                else:
+                    print(f"[SKIP] {source_file.name} -> {record.dest_key} (unchanged)")
 
-                # Publish to NATS if requested
+                # Publish to NATS if requested (even if upload skipped - metadata may differ)
                 if publish:
-                    print(f"  [NATS] Publishing point {record.id}")
-                    await publish_to_nats(record, record.id)
+                    print(f"  [NATS] Publishing point {record.id} (source={source})")
+                    await publish_to_nats(record, record.id, source)
 
                 queue.mark_completed(record.id)
-                print(f"  [OK] Completed")
+                if uploaded:
+                    print(f"  [OK] Uploaded")
+                else:
+                    print(f"  [OK] Published")
 
             except Exception as e:
                 error_msg = str(e)
@@ -524,6 +562,10 @@ def scan(
     publish: Annotated[
         bool, typer.Option("--publish", "-p", help="Publish to NATS after upload")
     ] = True,
+    source: Annotated[
+        str,
+        typer.Option("--source", "-s", help="Image source (gopro, camera, phone)"),
+    ] = "gopro",
 ) -> None:
     """
     Scan a single directory for images and upload to SeaweedFS.
@@ -545,7 +587,7 @@ def scan(
         print(f"Error: Directory not found: {source_dir}")
         raise typer.Exit(1)
 
-    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, every_n))
+    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, every_n, source))
 
 
 @app.command()
@@ -631,6 +673,10 @@ def publish_all(
     db_path: Annotated[
         Path, typer.Option("--db", help="Path to upload queue database")
     ] = DB_PATH,
+    source: Annotated[
+        str,
+        typer.Option("--source", "-s", help="Image source (gopro, camera, phone)"),
+    ] = "gopro",
 ) -> None:
     """Publish all completed uploads to NATS (useful for re-sync)."""
     if not db_path.exists():
@@ -645,10 +691,10 @@ def publish_all(
         return
 
     async def _publish_all():
-        print(f"Publishing {len(completed)} points to NATS...")
+        print(f"Publishing {len(completed)} points to NATS (source={source})...")
         for record in completed:
             try:
-                await publish_to_nats(record, record.id)
+                await publish_to_nats(record, record.id, source)
                 print(f"  [NATS] Published point {record.id}")
             except Exception as e:
                 print(f"  [FAIL] Point {record.id}: {e}")
