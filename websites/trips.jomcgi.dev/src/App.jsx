@@ -23,7 +23,7 @@ import {
   Maximize2,
   Minimize2,
   Map,
-  Image,
+  Image as ImageIcon,
   Loader2,
   AlertCircle,
 } from "lucide-react";
@@ -312,7 +312,7 @@ function ViewToggle({ activeView, onViewChange }) {
             : "text-zinc-400 hover:text-zinc-300"
         }`}
       >
-        <Image className="h-4 w-4" />
+        <ImageIcon className="h-4 w-4" />
         Photo
       </button>
       <button
