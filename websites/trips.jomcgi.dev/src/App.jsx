@@ -48,7 +48,6 @@ function useTripData() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({ total: 0, wildlife: 0, viewers: 0 });
-  const [isDemo, setIsDemo] = useState(false);
   const wsRef = useRef(null);
   const reconnectTimeoutRef = useRef(null);
 
@@ -143,30 +142,20 @@ function useTripData() {
 
         if (cancelled) return;
 
-        if (data.points && data.points.length > 0) {
-          const transformedPoints = data.points.map(transformPoint);
-          setPoints(transformedPoints);
-          setStats({
-            total: data.total,
-            wildlife: transformedPoints.filter((p) => p.animal).length,
-            viewers: 0,
-          });
-          setIsDemo(false);
+        const transformedPoints = data.points?.map(transformPoint) || [];
+        setPoints(transformedPoints);
+        setStats({
+          total: data.total || 0,
+          wildlife: transformedPoints.filter((p) => p.animal).length,
+          viewers: 0,
+        });
 
-          // Connect WebSocket for live updates
-          connectWebSocket();
-        } else {
-          // No data from API, use demo mode
-          console.log("No trip data available, using demo mode");
-          setIsDemo(true);
-          setPoints(generateDemoData());
-        }
+        // Connect WebSocket for live updates
+        connectWebSocket();
       } catch (err) {
         console.error("Failed to fetch trip data:", err);
         if (!cancelled) {
           setError(err.message);
-          setIsDemo(true);
-          setPoints(generateDemoData());
         }
       } finally {
         if (!cancelled) {
@@ -188,7 +177,7 @@ function useTripData() {
     };
   }, [transformPoint, connectWebSocket]);
 
-  return { points, loading, error, stats, isDemo };
+  return { points, loading, error, stats };
 }
 
 // ============================================
@@ -290,110 +279,6 @@ function getWeatherDescription(symbol) {
   // Remove _day/_night suffix
   const base = symbol?.replace(/_day|_night/g, "") || "cloudy";
   return weatherDescriptions[base] || "Cloudy";
-}
-
-// ============================================
-// Demo Data Generation (fallback)
-// ============================================
-
-const routeWaypoints = [
-  { lat: 49.2827, lng: -123.1207, name: "Vancouver" },
-  { lat: 49.3838, lng: -123.0918, name: "North Vancouver" },
-  { lat: 50.1163, lng: -122.9574, name: "Squamish" },
-  { lat: 50.1171, lng: -123.0545, name: "Whistler" },
-  { lat: 50.6833, lng: -122.4833, name: "Pemberton" },
-  { lat: 51.253, lng: -121.953, name: "Lillooet" },
-  { lat: 51.8461, lng: -121.2956, name: "Clinton" },
-  { lat: 52.1417, lng: -122.1417, name: "100 Mile House" },
-  { lat: 52.9784, lng: -122.493, name: "Quesnel" },
-  { lat: 53.9171, lng: -122.7497, name: "Prince George" },
-  { lat: 54.3833, lng: -124.25, name: "Vanderhoof" },
-  { lat: 54.2305, lng: -125.761, name: "Burns Lake" },
-  { lat: 54.3833, lng: -126.7, name: "Houston" },
-  { lat: 54.7521, lng: -127.1681, name: "Smithers" },
-  { lat: 55.25, lng: -127.6, name: "New Hazelton" },
-  { lat: 55.75, lng: -128.6, name: "Kitwanga" },
-  { lat: 56.25, lng: -129.6, name: "Meziadin Junction" },
-  { lat: 57.0833, lng: -130.0333, name: "Bell II" },
-  { lat: 57.9167, lng: -130.0333, name: "Iskut" },
-  { lat: 58.4333, lng: -130.0, name: "Dease Lake" },
-  { lat: 59.4167, lng: -129.1667, name: "Good Hope Lake" },
-  { lat: 59.9833, lng: -128.7167, name: "Watson Lake" },
-  { lat: 60.0667, lng: -128.8167, name: "Upper Liard" },
-  { lat: 60.1117, lng: -128.9186, name: "Liard Hot Springs" },
-  { lat: 60.85, lng: -131.4667, name: "Teslin" },
-  { lat: 60.7212, lng: -135.0568, name: "Whitehorse" },
-  { lat: 61.05, lng: -137.3833, name: "Haines Junction" },
-  { lat: 63.4547, lng: -139.0986, name: "Dawson City" },
-];
-
-const wildlifeSpots = [
-  { lat: 52.2, lng: -122.2, animal: "Black Bear" },
-  { lat: 54.5, lng: -126.9, animal: "Moose" },
-  { lat: 56.8, lng: -129.8, animal: "Grizzly Bear" },
-  { lat: 58.1, lng: -130.0, animal: "Mountain Goat" },
-  { lat: 59.6, lng: -129.0, animal: "Caribou" },
-  { lat: 60.2, lng: -128.9, animal: "Bison" },
-  { lat: 61.2, lng: -136.5, animal: "Fox" },
-  { lat: 62.8, lng: -138.5, animal: "Moose" },
-];
-
-function generateDemoData(pointsPerSegment = 50) {
-  const points = [];
-  const startTime = new Date("2025-06-15T06:00:00");
-
-  for (let i = 0; i < routeWaypoints.length - 1; i++) {
-    const start = routeWaypoints[i];
-    const end = routeWaypoints[i + 1];
-
-    for (let j = 0; j < pointsPerSegment; j++) {
-      const t = j / pointsPerSegment;
-      const lat = start.lat + (end.lat - start.lat) * t;
-      const lng = start.lng + (end.lng - start.lng) * t;
-
-      const noise = () => (Math.random() - 0.5) * 0.001;
-
-      const nearWildlife = wildlifeSpots.find(
-        (w) => Math.abs(w.lat - lat) < 0.3 && Math.abs(w.lng - lng) < 0.3,
-      );
-
-      const segmentProgress =
-        (i * pointsPerSegment + j) /
-        ((routeWaypoints.length - 1) * pointsPerSegment);
-      const tripDurationMs = 35 * 60 * 60 * 1000;
-      const timestamp = new Date(
-        startTime.getTime() + segmentProgress * tripDurationMs,
-      );
-
-      const imgPath = `/r2/trip-2025/img_${String(points.length + 1).padStart(6, "0")}.jpg`;
-      points.push({
-        id: points.length + 1,
-        lat: lat + noise(),
-        lng: lng + noise(),
-        imageUrl: imgPath,
-        thumbUrl: imgPath,  // Demo data uses same URL for thumb
-        timestamp,
-        location:
-          start.name + (j > pointsPerSegment / 2 ? ` → ${end.name}` : ""),
-        animal: nearWildlife ? nearWildlife.animal : null,
-      });
-    }
-  }
-
-  const lastWaypoint = routeWaypoints[routeWaypoints.length - 1];
-  const lastImgPath = `/r2/trip-2025/img_${String(points.length + 1).padStart(6, "0")}.jpg`;
-  points.push({
-    id: points.length + 1,
-    lat: lastWaypoint.lat,
-    lng: lastWaypoint.lng,
-    imageUrl: lastImgPath,
-    thumbUrl: lastImgPath,
-    timestamp: new Date(startTime.getTime() + 35 * 60 * 60 * 1000),
-    location: lastWaypoint.name,
-    animal: null,
-  });
-
-  return points;
 }
 
 // ============================================
@@ -846,8 +731,8 @@ function ImagePanel({
 // ============================================
 
 export default function App() {
-  // Fetch trip data from API (falls back to demo data)
-  const { points: tripData, loading, error, stats, isDemo } = useTripData();
+  // Fetch trip data from API
+  const { points: tripData, loading, error, stats } = useTripData();
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -1054,8 +939,8 @@ export default function App() {
     );
   }
 
-  // Show error state (but still render with demo data)
-  const showErrorBanner = error && isDemo;
+  // Show error banner if API failed
+  const showErrorBanner = !!error;
 
   const handleTimelineChange = (newIndex) => {
     setSelectedIndex(newIndex);
@@ -1120,17 +1005,10 @@ export default function App() {
                   : latestPoint?.location}
               </span>
             </div>
-            {isDemo ? (
-              <div className="bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" />
-                Demo Data
-              </div>
-            ) : (
-              <div className="bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-                Live Trip
-              </div>
-            )}
+            <div className="bg-emerald-500/20 text-emerald-500 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
+              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+              Live Trip
+            </div>
             {isMobile && (
               <ViewToggle
                 activeView={mobileView}
@@ -1167,12 +1045,12 @@ export default function App() {
         </div>
       </div>
 
-      {/* Error Banner (when API fails, shows demo data) */}
+      {/* Error Banner */}
       {showErrorBanner && (
         <div className="flex-none bg-amber-500/10 border-b border-amber-500/20 px-4 py-2">
           <div className="flex items-center gap-2 text-sm text-amber-400">
             <AlertCircle className="h-4 w-4 flex-shrink-0" />
-            <span>Unable to connect to API. Showing demo data.</span>
+            <span>Unable to connect to API: {error}</span>
           </div>
         </div>
       )}
