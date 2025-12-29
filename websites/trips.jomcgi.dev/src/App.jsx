@@ -701,7 +701,8 @@ function ImagePanel({
               rel="noopener noreferrer"
               className="font-semibold text-lg text-gray-900 hover:text-blue-600 transition-colors"
             >
-              Point #{point.id} ↗
+              {Math.abs(point.lat).toFixed(2)}°{point.lat >= 0 ? "N" : "S"},{" "}
+              {Math.abs(point.lng).toFixed(2)}°{point.lng >= 0 ? "E" : "W"} ↗
             </a>
             <p className="text-sm text-gray-500">
               {formatTime(point.timestamp)}

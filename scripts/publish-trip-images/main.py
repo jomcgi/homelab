@@ -506,16 +506,18 @@ async def _run_upload(
 
     # Show queue status
     stats = queue.get_stats()
-    pending = stats.get(UploadStatus.PENDING.value, 0)
+    pending_count = stats.get(UploadStatus.PENDING.value, 0)
     completed = stats.get(UploadStatus.COMPLETED.value, 0)
     failed = stats.get(UploadStatus.FAILED.value, 0)
-    print(f"Queue: {pending} pending, {completed} completed, {failed} failed")
+    print(f"Queue: {pending_count} pending, {completed} completed, {failed} failed")
 
     if dry_run:
         print("\n[DRY RUN] Would upload to SeaweedFS and publish to NATS")
         return
 
-    if pending == 0:
+    # Get pending records (includes failed with retry_count < MAX_RETRIES)
+    pending_records = queue.get_pending()
+    if not pending_records:
         print("No pending uploads")
         return
 
@@ -531,8 +533,6 @@ async def _run_upload(
     # Process uploads
     try:
         with GracefulShutdown() as shutdown:
-            pending_records = queue.get_pending()
-
             for record in pending_records:
                 if shutdown.shutdown_requested:
                     break
