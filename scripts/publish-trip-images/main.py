@@ -395,18 +395,19 @@ async def publish_to_nats(js, record: ImageRecord, image_id: int, source: str) -
 
 
 def scan_images(source_dir: Path) -> list[Path]:
-    """Scan directory for image files (non-recursive)."""
+    """Scan directory for image files (recursive)."""
     extensions = {".jpg", ".jpeg", ".png", ".heic", ".heif"}
     images = []
 
-    for path in sorted(source_dir.iterdir()):
+    for path in source_dir.rglob("*"):
         # Skip macOS resource fork files
         if path.name.startswith("._"):
             continue
         if path.is_file() and path.suffix.lower() in extensions:
             images.append(path)
 
-    return images
+    # Sort by file modification time (preserved from camera/SD card)
+    return sorted(images, key=lambda p: p.stat().st_mtime)
 
 
 def sample_images(images: list[Path], every_n: int) -> list[Path]:
@@ -581,10 +582,10 @@ def scan(
     ] = "gopro",
 ) -> None:
     """
-    Scan a single directory for images and upload to SeaweedFS.
+    Scan a directory for images and upload to SeaweedFS.
 
-    Only scans the specified directory (non-recursive). Images are processed
-    in filename order. Use --every to take every Nth image.
+    Recursively scans all subdirectories. Images are sorted by file
+    modification time. Use --every to take every Nth image.
 
     Example:
         # Upload all images
