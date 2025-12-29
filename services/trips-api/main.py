@@ -42,11 +42,11 @@ TRIP_API_KEY = os.getenv("TRIP_API_KEY", "")
 
 
 class TripPoint(BaseModel):
-    id: int
+    id: str  # Deterministic ID derived from image key (e.g., "abc123def456")
     lat: float
     lng: float
     timestamp: str
-    image: str  # Just the filename, e.g., "img_000001.jpg"
+    image: str  # Just the filename, e.g., "img_abc123def456.jpg"
     source: str = "gopro"  # Image source: gopro, camera, phone
 
 
@@ -105,7 +105,7 @@ class TripsState:
     """In-memory state for trip points."""
 
     def __init__(self):
-        self.points: dict[int, TripPoint] = {}
+        self.points: dict[str, TripPoint] = {}
         self.nc: Optional[nats.NATS] = None
         self.js: Optional[nats.js.JetStreamContext] = None
         self.subscription = None
@@ -227,15 +227,15 @@ class TripsState:
     def get_points(
         self, limit: Optional[int] = None, offset: int = 0
     ) -> list[TripPoint]:
-        """Get points with optional pagination."""
-        points = sorted(self.points.values(), key=lambda p: p.id)
+        """Get points with optional pagination, sorted by timestamp."""
+        points = sorted(self.points.values(), key=lambda p: p.timestamp)
         if offset:
             points = points[offset:]
         if limit:
             points = points[:limit]
         return points
 
-    def get_point(self, point_id: int) -> Optional[TripPoint]:
+    def get_point(self, point_id: str) -> Optional[TripPoint]:
         """Get a single point by ID."""
         return self.points.get(point_id)
 
@@ -312,7 +312,7 @@ async def get_points(limit: Optional[int] = None, offset: int = 0):
 
 
 @app.get("/api/points/{point_id}")
-async def get_point(point_id: int):
+async def get_point(point_id: str):
     """Get a single point by ID."""
     point = state.get_point(point_id)
     if not point:
