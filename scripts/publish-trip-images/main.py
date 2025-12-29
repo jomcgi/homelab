@@ -11,6 +11,7 @@ import json
 import os
 import signal
 import sqlite3
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
@@ -33,6 +34,10 @@ DEFAULT_BUCKET = "trips"
 # SeaweedFS S3 endpoint (for local dev, use port-forward or external URL)
 SEAWEEDFS_ENDPOINT = os.getenv("SEAWEEDFS_ENDPOINT", "http://localhost:8333")
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
+
+# Namespace UUID for deterministic image key generation
+# This ensures the same source+timestamp always produces the same key
+IMAGE_KEY_NAMESPACE = uuid.UUID("a1b2c3d4-e5f6-7890-abcd-ef1234567890")
 
 app = typer.Typer(help="Publish trip images to SeaweedFS and NATS")
 
@@ -188,12 +193,6 @@ class UploadQueue:
                 "SELECT status, COUNT(*) FROM images GROUP BY status"
             ).fetchall()
             return {row[0]: row[1] for row in rows}
-
-    def get_next_id(self) -> int:
-        """Get the next image ID (max completed ID + 1)."""
-        with sqlite3.connect(self.db_path) as conn:
-            result = conn.execute("SELECT MAX(id) FROM images").fetchone()
-            return (result[0] or 0) + 1
 
     def _row_to_record(self, row: sqlite3.Row) -> ImageRecord:
         return ImageRecord(
@@ -378,12 +377,16 @@ async def get_jetstream() -> tuple:
     return nc, js
 
 
-async def publish_to_nats(js, record: ImageRecord, image_id: int, source: str) -> None:
+async def publish_to_nats(js, record: ImageRecord, source: str) -> None:
     """Publish trip point to NATS JetStream."""
+    # Extract deterministic ID from dest_key (e.g., "img_abc123def456.jpg" -> "abc123def456")
+    # This ensures the same image always gets the same ID
+    key_hex = record.dest_key.replace("img_", "").rsplit(".", 1)[0]
+
     # Build trip point message
     # 5 decimal places = ~1m precision (sufficient for 5-10m requirement)
     point = {
-        "id": image_id,
+        "id": key_hex,  # Deterministic string ID from UUID
         "lat": round(record.lat, 5) if record.lat else 0.0,
         "lng": round(record.lng, 5) if record.lng else 0.0,
         "timestamp": record.timestamp or datetime.now().isoformat(),
@@ -417,12 +420,36 @@ def sample_images(images: list[Path], every_n: int) -> list[Path]:
     return images[::every_n]
 
 
-def generate_dest_key(image_path: Path, image_id: int) -> str:
-    """Generate destination key for S3."""
+def generate_dest_key(image_path: Path, source: str, timestamp: str | None) -> str:
+    """Generate deterministic destination key for S3.
+
+    Uses UUID5 (deterministic) based on:
+    - source (gopro, camera, phone)
+    - EXIF timestamp (if available)
+    - original filename (as fallback/disambiguation)
+
+    This ensures the same image always gets the same key, even if:
+    - The image is rotated/edited (timestamp preserved)
+    - The script is re-run from scratch
+    - The database is deleted
+    """
+    # Build identity string: source + timestamp + filename
+    # Timestamp is primary identifier, filename disambiguates same-second shots
+    identity_parts = [source]
+    if timestamp:
+        identity_parts.append(timestamp)
+    identity_parts.append(image_path.name)
+
+    identity = ":".join(identity_parts)
+
+    # Generate deterministic UUID from identity
+    key_uuid = uuid.uuid5(IMAGE_KEY_NAMESPACE, identity)
+
     ext = image_path.suffix.lower()
     if ext in (".heic", ".heif"):
         ext = ".jpg"  # Will need conversion
-    return f"img_{image_id:06d}{ext}"
+
+    return f"img_{key_uuid.hex[:12]}{ext}"
 
 
 async def _run_upload(
@@ -459,11 +486,12 @@ async def _run_upload(
         return
 
     # Queue new images
-    next_id = queue.get_next_id()
     new_count = 0
-    for i, img_path in enumerate(images):
-        dest_key = generate_dest_key(img_path, next_id + i)
+    for img_path in images:
+        # Extract EXIF first (needed for deterministic key generation)
         lat, lng, timestamp = extract_exif(img_path)
+        # Generate deterministic key based on source + timestamp + filename
+        dest_key = generate_dest_key(img_path, source, timestamp)
 
         record_id = queue.add(img_path, dest_key, lat, lng, timestamp)
         if record_id:
@@ -522,8 +550,8 @@ async def _run_upload(
 
                     # Publish to NATS if requested (even if upload skipped - metadata may differ)
                     if publish and js:
-                        print(f"  [NATS] Publishing point {record.id} (source={source})")
-                        await publish_to_nats(js, record, record.id, source)
+                        print(f"  [NATS] Publishing point {record.dest_key} (source={source})")
+                        await publish_to_nats(js, record, source)
 
                     queue.mark_completed(record.id)
                     if uploaded:
@@ -710,10 +738,10 @@ def publish_all(
         try:
             for record in completed:
                 try:
-                    await publish_to_nats(js, record, record.id, source)
-                    print(f"  [NATS] Published point {record.id}")
+                    await publish_to_nats(js, record, source)
+                    print(f"  [NATS] Published point {record.dest_key}")
                 except Exception as e:
-                    print(f"  [FAIL] Point {record.id}: {e}")
+                    print(f"  [FAIL] Point {record.dest_key}: {e}")
         finally:
             await nc.close()
 
