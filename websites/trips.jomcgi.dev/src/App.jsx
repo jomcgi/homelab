@@ -19,7 +19,7 @@ import {
   Eye,
   Maximize2,
   Minimize2,
-  Map,
+  Map as MapIcon,
   Image as ImageIcon,
   Loader2,
   AlertCircle,
@@ -320,7 +320,7 @@ function ViewToggle({ activeView, onViewChange }) {
             : "text-gray-600 hover:text-gray-800"
         }`}
       >
-        <Map className="h-4 w-4" />
+        <MapIcon className="h-4 w-4" />
         Map
       </button>
     </div>
@@ -794,7 +794,29 @@ function ImagePanel({
 
 export default function App() {
   // Fetch trip data from API
-  const { points: tripData, loading, error, stats } = useTripData();
+  const { points: rawTripData, loading, error, stats } = useTripData();
+
+  // Filter to keep only 1 point per minute (earliest wins)
+  // This handles duplicate publishing where same timeframe was published twice
+  const tripData = useMemo(() => {
+    if (rawTripData.length === 0) return [];
+
+    const byMinute = new Map();
+    for (const point of rawTripData) {
+      // Key by minute: "YYYY-MM-DDTHH:MM"
+      const minuteKey = point.timestamp.toISOString().slice(0, 16);
+      const existing = byMinute.get(minuteKey);
+      // Keep earliest point for each minute
+      if (!existing || point.timestamp < existing.timestamp) {
+        byMinute.set(minuteKey, point);
+      }
+    }
+
+    // Return sorted by timestamp
+    return Array.from(byMinute.values()).sort(
+      (a, b) => a.timestamp - b.timestamp,
+    );
+  }, [rawTripData]);
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);

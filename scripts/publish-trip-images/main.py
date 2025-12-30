@@ -25,6 +25,7 @@ import nats
 from botocore.config import Config
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
+from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
 import typer
 
 # Defaults
@@ -78,8 +79,8 @@ class UploadQueue:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS images (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    source_path TEXT NOT NULL UNIQUE,
-                    dest_key TEXT NOT NULL,
+                    source_path TEXT NOT NULL,
+                    dest_key TEXT NOT NULL UNIQUE,
                     status TEXT NOT NULL DEFAULT 'pending',
                     retry_count INTEGER NOT NULL DEFAULT 0,
                     error_message TEXT,
@@ -530,40 +531,42 @@ async def _run_upload(
     if publish:
         nc, js = await get_jetstream()
 
-    # Process uploads
+    # Process uploads with progress bar
     try:
         with GracefulShutdown() as shutdown:
-            for record in pending_records:
-                if shutdown.shutdown_requested:
-                    break
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeRemainingColumn(),
+            ) as progress:
+                task = progress.add_task("Uploading...", total=len(pending_records))
 
-                queue.mark_uploading(record.id)
-                source_file = Path(record.source_path)
+                for record in pending_records:
+                    if shutdown.shutdown_requested:
+                        break
 
-                try:
-                    # Upload to S3 (skips if file unchanged)
-                    uploaded = upload_image(s3_client, bucket, source_file, record.dest_key)
-                    if uploaded:
-                        print(f"[UPLOAD] {source_file.name} -> {record.dest_key}")
-                    else:
-                        print(f"[SKIP] {source_file.name} -> {record.dest_key} (unchanged)")
+                    queue.mark_uploading(record.id)
+                    source_file = Path(record.source_path)
+                    progress.update(task, description=f"[cyan]{source_file.name}")
 
-                    # Publish to NATS if requested (even if upload skipped - metadata may differ)
-                    if publish and js:
-                        print(f"  [NATS] Publishing point {record.dest_key} (source={source})")
-                        await publish_to_nats(js, record, source)
+                    try:
+                        # Upload to S3 (skips if file unchanged)
+                        uploaded = upload_image(s3_client, bucket, source_file, record.dest_key)
 
-                    queue.mark_completed(record.id)
-                    if uploaded:
-                        print(f"  [OK] Uploaded")
-                    else:
-                        print(f"  [OK] Published")
+                        # Publish to NATS if requested (even if upload skipped - metadata may differ)
+                        if publish and js:
+                            await publish_to_nats(js, record, source)
 
-                except Exception as e:
-                    error_msg = str(e)
-                    queue.mark_failed(record.id, error_msg)
-                    retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
-                    print(f"  [FAIL] {error_msg} ({retry_info})")
+                        queue.mark_completed(record.id)
+                        progress.advance(task)
+
+                    except Exception as e:
+                        error_msg = str(e)
+                        queue.mark_failed(record.id, error_msg)
+                        retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
+                        progress.console.print(f"[red][FAIL] {source_file.name}: {error_msg} ({retry_info})")
     finally:
         if nc:
             await nc.close()
@@ -736,12 +739,22 @@ def publish_all(
         print(f"Publishing {len(completed)} points to NATS (source={source})...")
         nc, js = await get_jetstream()
         try:
-            for record in completed:
-                try:
-                    await publish_to_nats(js, record, source)
-                    print(f"  [NATS] Published point {record.dest_key}")
-                except Exception as e:
-                    print(f"  [FAIL] Point {record.dest_key}: {e}")
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeRemainingColumn(),
+            ) as progress:
+                task = progress.add_task("Publishing...", total=len(completed))
+
+                for record in completed:
+                    progress.update(task, description=f"[cyan]{record.dest_key}")
+                    try:
+                        await publish_to_nats(js, record, source)
+                        progress.advance(task)
+                    except Exception as e:
+                        progress.console.print(f"[red][FAIL] {record.dest_key}: {e}")
         finally:
             await nc.close()
 
