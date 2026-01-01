@@ -23,6 +23,8 @@ import {
   Image as ImageIcon,
   Loader2,
   AlertCircle,
+  Tag,
+  X,
 } from "lucide-react";
 
 // ============================================
@@ -63,6 +65,7 @@ function useTripData() {
       image: apiPoint.image,  // Just the filename
       source: apiPoint.source || "gopro",
       timestamp: new Date(ts),
+      tags: apiPoint.tags || [],
     };
   }, []);
 
@@ -331,12 +334,46 @@ function ViewToggle({ activeView, onViewChange }) {
 // Map Component
 // ============================================
 
-function TripMap({ points, selectedId, onMarkerClick, isLive }) {
+// Day colors for multi-day route visualization
+const DAY_COLORS = [
+  "#3b82f6", // Blue - Day 1
+  "#10b981", // Emerald - Day 2
+  "#f59e0b", // Amber - Day 3
+  "#ef4444", // Red - Day 4
+  "#8b5cf6", // Violet - Day 5
+  "#06b6d4", // Cyan - Day 6
+  "#f97316", // Orange - Day 7
+  "#ec4899", // Pink - Day 8
+];
+
+function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = [] }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markerRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mountedRef = useRef(false);
+
+  // Split points into day segments
+  const daySegments = useMemo(() => {
+    if (dayBoundaries.length === 0 || points.length === 0) {
+      return [{ dayNumber: 1, points: points, color: DAY_COLORS[0] }];
+    }
+
+    const segments = [];
+    for (let i = 0; i < dayBoundaries.length; i++) {
+      const startIdx = dayBoundaries[i].index;
+      const endIdx = i < dayBoundaries.length - 1
+        ? dayBoundaries[i + 1].index
+        : points.length;
+
+      segments.push({
+        dayNumber: dayBoundaries[i].dayNumber,
+        points: points.slice(startIdx, endIdx),
+        color: DAY_COLORS[(i) % DAY_COLORS.length],
+      });
+    }
+    return segments;
+  }, [points, dayBoundaries]);
 
   useEffect(() => {
     if (mountedRef.current) return;
@@ -385,42 +422,53 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
         firstSymbolLayer?.id,
       );
 
-      const routeCoords = points.map((p) => [p.lng, p.lat]);
+      // Create route layers for each day with different colors
+      daySegments.forEach((segment, idx) => {
+        const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
+        const sourceId = `route-day-${segment.dayNumber}`;
 
-      map.current.addSource("route", {
-        type: "geojson",
-        data: {
-          type: "Feature",
-          properties: {},
-          geometry: { type: "LineString", coordinates: routeCoords },
-        },
+        // Calculate offset for overlapping routes (alternate sides, larger gap)
+        const offset = idx % 2 === 0 ? idx * 4 : -idx * 4;
+
+        map.current.addSource(sourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: { day: segment.dayNumber },
+            geometry: { type: "LineString", coordinates: routeCoords },
+          },
+        });
+
+        // Glow layer
+        map.current.addLayer({
+          id: `${sourceId}-glow`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": segment.color,
+            "line-width": 10,
+            "line-opacity": 0.3,
+            "line-blur": 4,
+            "line-offset": offset,
+          },
+        });
+
+        // Main line layer
+        map.current.addLayer({
+          id: `${sourceId}-line`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": segment.color,
+            "line-width": 4,
+            "line-opacity": 0.9,
+            "line-offset": offset,
+          },
+        });
       });
 
-      map.current.addLayer({
-        id: "route-glow",
-        type: "line",
-        source: "route",
-        paint: {
-          "line-color": "#3b82f6",
-          "line-width": 6,
-          "line-opacity": 0.4,
-          "line-blur": 3,
-        },
-      });
-
-      map.current.addLayer({
-        id: "route-line",
-        type: "line",
-        source: "route",
-        paint: {
-          "line-color": "#3b82f6",
-          "line-width": 2,
-          "line-opacity": 0.9,
-        },
-      });
-
-      // Click handler for route line - navigate to closest point
-      map.current.on("click", "route-line", (e) => {
+      // Click handler for route lines - navigate to closest point
+      const handleRouteClick = (e) => {
         const clickedLng = e.lngLat.lng;
         const clickedLat = e.lngLat.lat;
 
@@ -429,7 +477,6 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
         let minDist = Infinity;
 
         points.forEach((p) => {
-          // Simple Euclidean distance (sufficient for finding closest)
           const dist = Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
           if (dist < minDist) {
             minDist = dist;
@@ -440,43 +487,28 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
         if (closestId !== null) {
           onMarkerClick(closestId);
         }
-      });
+      };
 
-      // Also handle clicks on the glow layer for better hit area
-      map.current.on("click", "route-glow", (e) => {
-        const clickedLng = e.lngLat.lng;
-        const clickedLat = e.lngLat.lat;
+      // Add click and hover handlers for each day's route layers
+      daySegments.forEach((segment) => {
+        const lineId = `route-day-${segment.dayNumber}-line`;
+        const glowId = `route-day-${segment.dayNumber}-glow`;
 
-        let closestId = null;
-        let minDist = Infinity;
+        map.current.on("click", lineId, handleRouteClick);
+        map.current.on("click", glowId, handleRouteClick);
 
-        points.forEach((p) => {
-          const dist = Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
-          if (dist < minDist) {
-            minDist = dist;
-            closestId = p.id;
-          }
+        map.current.on("mouseenter", lineId, () => {
+          map.current.getCanvas().style.cursor = "pointer";
         });
-
-        if (closestId !== null) {
-          onMarkerClick(closestId);
-        }
-      });
-
-      map.current.on("mouseenter", "route-line", () => {
-        map.current.getCanvas().style.cursor = "pointer";
-      });
-
-      map.current.on("mouseleave", "route-line", () => {
-        map.current.getCanvas().style.cursor = "";
-      });
-
-      map.current.on("mouseenter", "route-glow", () => {
-        map.current.getCanvas().style.cursor = "pointer";
-      });
-
-      map.current.on("mouseleave", "route-glow", () => {
-        map.current.getCanvas().style.cursor = "";
+        map.current.on("mouseleave", lineId, () => {
+          map.current.getCanvas().style.cursor = "";
+        });
+        map.current.on("mouseenter", glowId, () => {
+          map.current.getCanvas().style.cursor = "pointer";
+        });
+        map.current.on("mouseleave", glowId, () => {
+          map.current.getCanvas().style.cursor = "";
+        });
       });
 
       setMapLoaded(true);
@@ -491,20 +523,24 @@ function TripMap({ points, selectedId, onMarkerClick, isLive }) {
     return () => resizeObserver.disconnect();
   }, []);
 
-  // Update route line when points change (e.g., from WebSocket)
+  // Update route lines when points change (e.g., from WebSocket)
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
 
-    const source = map.current.getSource("route");
-    if (source) {
-      const routeCoords = points.map((p) => [p.lng, p.lat]);
-      source.setData({
-        type: "Feature",
-        properties: {},
-        geometry: { type: "LineString", coordinates: routeCoords },
-      });
-    }
-  }, [mapLoaded, points]);
+    // Update each day's route source
+    daySegments.forEach((segment) => {
+      const sourceId = `route-day-${segment.dayNumber}`;
+      const source = map.current.getSource(sourceId);
+      if (source) {
+        const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
+        source.setData({
+          type: "Feature",
+          properties: { day: segment.dayNumber },
+          geometry: { type: "LineString", coordinates: routeCoords },
+        });
+      }
+    });
+  }, [mapLoaded, daySegments]);
 
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
@@ -610,6 +646,247 @@ function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
 }
 
 // ============================================
+// Tag Filter Component
+// ============================================
+
+function TagFilter({ availableTags, selectedTags, onTagsChange, isMobile = false }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (availableTags.length === 0) return null;
+
+  const toggleTag = (tag) => {
+    if (selectedTags.includes(tag)) {
+      onTagsChange(selectedTags.filter((t) => t !== tag));
+    } else {
+      onTagsChange([...selectedTags, tag]);
+    }
+  };
+
+  const clearTags = () => {
+    onTagsChange([]);
+    setIsOpen(false);
+  };
+
+  if (isMobile) {
+    // Mobile: compact button with count badge
+    return (
+      <div className="relative">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`
+            flex items-center justify-center w-10 h-10 rounded-full
+            transition-all duration-200
+            ${
+              selectedTags.length > 0
+                ? "bg-blue-500/20 border border-blue-500/30 hover:bg-blue-500/30"
+                : "bg-gray-200 border border-gray-300 hover:bg-gray-300"
+            }
+          `}
+          title="Filter by tags"
+        >
+          <Tag className={`w-4 h-4 ${selectedTags.length > 0 ? "text-blue-600" : "text-gray-500"}`} />
+          {selectedTags.length > 0 && (
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center">
+              {selectedTags.length}
+            </span>
+          )}
+        </button>
+
+        {/* Dropdown */}
+        {isOpen && (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <div className="absolute right-0 top-12 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[150px]">
+              {selectedTags.length > 0 && (
+                <button
+                  onClick={clearTags}
+                  className="w-full text-left px-3 py-1.5 text-xs text-red-600 hover:bg-red-50 rounded mb-1"
+                >
+                  Clear all
+                </button>
+              )}
+              {availableTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => toggleTag(tag)}
+                  className={`
+                    w-full text-left px-3 py-1.5 text-sm rounded transition-colors
+                    ${selectedTags.includes(tag) ? "bg-blue-100 text-blue-700" : "hover:bg-gray-100 text-gray-700"}
+                  `}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    );
+  }
+
+  // Desktop: inline chips
+  return (
+    <div className="flex items-center gap-2">
+      <Tag className="w-3.5 h-3.5 text-gray-400" />
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {availableTags.map((tag) => (
+          <button
+            key={tag}
+            onClick={() => toggleTag(tag)}
+            className={`
+              px-2 py-0.5 rounded-full text-xs font-medium transition-colors
+              ${
+                selectedTags.includes(tag)
+                  ? "bg-blue-500 text-white"
+                  : "bg-gray-100 text-gray-600 hover:bg-gray-200"
+              }
+            `}
+          >
+            {tag}
+          </button>
+        ))}
+        {selectedTags.length > 0 && (
+          <button
+            onClick={clearTags}
+            className="p-0.5 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-200 transition-colors"
+            title="Clear filters"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// Image Panel Component
+// ============================================
+
+// ============================================
+// Fullscreen Image Modal
+// ============================================
+
+function FullscreenModal({ imageUrl, onClose, onPrev, onNext }) {
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  // Handle keyboard navigation
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") {
+        onClose();
+      } else if (e.key === "ArrowLeft" && onPrev) {
+        e.preventDefault();
+        onPrev();
+      } else if (e.key === "ArrowRight" && onNext) {
+        e.preventDefault();
+        onNext();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose, onPrev, onNext]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, []);
+
+  // Handle touch swipe gestures
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX.current;
+    const deltaY = touchEndY - touchStartY.current;
+
+    // Only trigger if horizontal swipe is dominant and significant
+    const minSwipeDistance = 50;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+      if (deltaX > 0 && onPrev) {
+        // Swipe right -> previous
+        onPrev();
+      } else if (deltaX < 0 && onNext) {
+        // Swipe left -> next
+        onNext();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center cursor-pointer"
+      onClick={onClose}
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <img
+        src={imageUrl}
+        alt="Trip photo fullscreen"
+        className="max-w-full max-h-full object-contain select-none"
+        onClick={(e) => e.stopPropagation()}
+        draggable={false}
+      />
+
+      {/* Close button */}
+      <button
+        onClick={onClose}
+        className="absolute top-4 right-4 text-white/70 hover:text-white p-2 rounded-full hover:bg-white/10 transition-colors"
+        aria-label="Close fullscreen"
+      >
+        <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      {/* Previous button */}
+      {onPrev && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
+          aria-label="Previous photo"
+        >
+          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+          </svg>
+        </button>
+      )}
+
+      {/* Next button */}
+      {onNext && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          className="absolute right-4 top-1/2 -translate-y-1/2 text-white/70 hover:text-white p-3 rounded-full hover:bg-white/10 transition-colors"
+          aria-label="Next photo"
+        >
+          <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      )}
+
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-white/50 text-sm text-center">
+        <span className="hidden md:inline">Press ESC to close · Arrow keys to navigate</span>
+        <span className="md:hidden">Tap to close · Swipe to navigate</span>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
 // Image Panel Component
 // ============================================
 
@@ -622,10 +899,45 @@ function ImagePanel({
   totalDays = 1,
   isMobile = false,
   cachedImages = null,
+  onImageClick = null,
+  onPrev = null,
+  onNext = null,
 }) {
   // Track the currently displayed image (stays until new image is loaded)
   const [displayedImageUrl, setDisplayedImageUrl] = useState(null);
   const [isImageLoading, setIsImageLoading] = useState(false);
+  const touchStartX = useRef(null);
+  const touchStartY = useRef(null);
+
+  // Handle touch swipe gestures for mobile navigation
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartX.current === null || isLive) return;
+
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const deltaX = touchEndX - touchStartX.current;
+    const deltaY = touchEndY - touchStartY.current;
+
+    // Only trigger if horizontal swipe is dominant and significant
+    const minSwipeDistance = 50;
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+      if (deltaX > 0 && onPrev) {
+        // Swipe right -> previous
+        onPrev();
+      } else if (deltaX < 0 && onNext) {
+        // Swipe left -> next
+        onNext();
+      }
+    }
+
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
 
   // Preload new images before displaying them
   useEffect(() => {
@@ -715,7 +1027,11 @@ function ImagePanel({
       </div>
 
       {/* Main Image Area */}
-      <div className="flex-1 relative min-h-0 p-4">
+      <div
+        className="flex-1 relative min-h-0 p-4"
+        onTouchStart={isMobile ? handleTouchStart : undefined}
+        onTouchEnd={isMobile ? handleTouchEnd : undefined}
+      >
         <div
           className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 ${isLive ? "ring-2 ring-red-500/30" : ""}`}
         >
@@ -724,9 +1040,11 @@ function ImagePanel({
               key={displayedImageUrl}
               src={displayedImageUrl}
               alt="Trip photo"
-              className={`w-full h-full object-contain transition-opacity duration-200 ${
+              className={`w-full h-full object-contain transition-opacity duration-200 cursor-pointer hover:opacity-90 ${
                 isImageLoading ? "opacity-80" : "opacity-100"
               }`}
+              onClick={() => onImageClick?.(displayedImageUrl)}
+              title="Click to view fullscreen"
             />
           ) : point.image ? (
             // Show loading state while first image loads
@@ -783,6 +1101,22 @@ function ImagePanel({
             </div>
           )}
         </div>
+        {/* Tags display */}
+        {point.tags && point.tags.length > 0 && (
+          <div className="mt-2 pt-2 border-t border-gray-200">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Tag className="w-3 h-3 text-gray-400" />
+              {point.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -792,9 +1126,57 @@ function ImagePanel({
 // Main App Component
 // ============================================
 
+// ============================================
+// URL State Hook - Deep linking support
+// ============================================
+
+function useUrlState() {
+  // Parse initial frame from URL
+  const getInitialFrame = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const frame = params.get("frame");
+    if (frame) {
+      const parsed = parseInt(frame, 10);
+      if (!isNaN(parsed) && parsed >= 0) {
+        return parsed;
+      }
+    }
+    return null; // null means "use default" (latest frame)
+  }, []);
+
+  // Parse initial tags from URL (comma-separated)
+  const getInitialTags = useCallback(() => {
+    const params = new URLSearchParams(window.location.search);
+    const tags = params.get("tags");
+    if (tags) {
+      return tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean);
+    }
+    return [];
+  }, []);
+
+  // Update URL without adding history entry
+  const updateUrl = useCallback((frame, tags = []) => {
+    const url = new URL(window.location.href);
+    if (frame !== null && frame !== undefined) {
+      url.searchParams.set("frame", frame.toString());
+    } else {
+      url.searchParams.delete("frame");
+    }
+    if (tags && tags.length > 0) {
+      url.searchParams.set("tags", tags.join(","));
+    } else {
+      url.searchParams.delete("tags");
+    }
+    window.history.replaceState({}, "", url.toString());
+  }, []);
+
+  return { getInitialFrame, getInitialTags, updateUrl };
+}
+
 export default function App() {
   // Fetch trip data from API
   const { points: rawTripData, loading, error, stats } = useTripData();
+  const { getInitialFrame, getInitialTags, updateUrl } = useUrlState();
 
   // Filter to keep only 1 point per minute (earliest wins)
   // This handles duplicate publishing where same timeframe was published twice
@@ -818,6 +1200,30 @@ export default function App() {
     );
   }, [rawTripData]);
 
+  // Extract all unique tags from trip data
+  const availableTags = useMemo(() => {
+    const tagSet = new Set();
+    for (const point of rawTripData) {
+      if (point.tags) {
+        for (const tag of point.tags) {
+          tagSet.add(tag.toLowerCase());
+        }
+      }
+    }
+    return Array.from(tagSet).sort();
+  }, [rawTripData]);
+
+  // Tag filter state (must be defined before filteredTripData)
+  const [selectedTags, setSelectedTags] = useState(() => getInitialTags());
+
+  // Filter trip data by selected tags (if any tags selected)
+  const filteredTripData = useMemo(() => {
+    if (selectedTags.length === 0) return tripData;
+    return tripData.filter((point) =>
+      point.tags?.some((t) => selectedTags.includes(t.toLowerCase()))
+    );
+  }, [tripData, selectedTags]);
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
@@ -825,6 +1231,7 @@ export default function App() {
   const [mapExpanded, setMapExpanded] = useState(false);
   const [mobileView, setMobileView] = useState("image"); // 'image' or 'map'
   const [scrollVisibleCenter, setScrollVisibleCenter] = useState(0);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const scrollRef = useRef(null);
   const imageRefs = useRef({});
   const cachedImages = useRef(new Set());
@@ -833,12 +1240,27 @@ export default function App() {
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
 
-  // Reset selected index when data loads
+  // Track if we've done the initial position setup
+  const initializedRef = useRef(false);
+
+  // Initialize selected index from URL or default to latest (only on first load)
   useEffect(() => {
-    if (tripData.length > 0) {
-      setSelectedIndex(tripData.length - 1);
+    if (tripData.length > 0 && !initializedRef.current) {
+      initializedRef.current = true;
+      const urlFrame = getInitialFrame();
+      if (urlFrame !== null && urlFrame < tripData.length) {
+        setSelectedIndex(urlFrame);
+      } else {
+        setSelectedIndex(tripData.length - 1);
+      }
     }
-  }, [tripData.length]);
+  }, [tripData.length, getInitialFrame]);
+
+  // Sync URL with current frame and tags (debounced to avoid excessive updates)
+  useEffect(() => {
+    if (tripData.length === 0) return;
+    updateUrl(selectedIndex, selectedTags);
+  }, [selectedIndex, selectedTags, tripData.length, updateUrl]);
 
   const selectedPoint = tripData[selectedIndex];
   const selectedId = selectedPoint?.id;
@@ -988,8 +1410,8 @@ export default function App() {
     const handleKeyDown = (e) => {
       // Don't interfere if user is typing in an input or select
       if (e.target.tagName === "INPUT" || e.target.tagName === "SELECT") return;
-      // Don't navigate when in live mode
-      if (isLive) return;
+      // Don't navigate when in live mode or fullscreen (fullscreen has its own handler)
+      if (isLive || isFullscreen) return;
 
       if (e.key === "ArrowLeft") {
         e.preventDefault();
@@ -1004,7 +1426,7 @@ export default function App() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isLive, tripData.length]);
+  }, [isLive, isFullscreen, tripData.length]);
 
   // Track scroll position to load thumbnails in visible area
   useEffect(() => {
@@ -1155,7 +1577,23 @@ export default function App() {
               viewerCount={stats.viewers > 0 ? stats.viewers : null}
               compact={isMobile}
             />
+            {isMobile && availableTags.length > 0 && (
+              <TagFilter
+                availableTags={availableTags}
+                selectedTags={selectedTags}
+                onTagsChange={setSelectedTags}
+                isMobile={true}
+              />
+            )}
           </div>
+          {!isMobile && availableTags.length > 0 && (
+            <TagFilter
+              availableTags={availableTags}
+              selectedTags={selectedTags}
+              onTagsChange={setSelectedTags}
+              isMobile={false}
+            />
+          )}
           {!isMobile && weather && (
             <div className="flex items-center gap-3 text-sm text-gray-600">
               <MapPin className="h-3 w-3 text-gray-400" />
@@ -1194,6 +1632,7 @@ export default function App() {
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
+                dayBoundaries={dayBoundaries}
               />
 
               {/* Stats Overlay */}
@@ -1206,16 +1645,27 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Legend */}
+              {/* Legend - Day colors */}
               <div className="absolute bottom-3 left-3 z-10">
-                <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm flex gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
-                    />
-                    <span className="text-gray-600">
-                      {isLive ? "Live" : "Position"}
-                    </span>
+                <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm">
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {dayBoundaries.slice(0, 6).map((day, idx) => (
+                      <div key={day.dayNumber} className="flex items-center gap-1">
+                        <div
+                          className="w-3 h-1 rounded"
+                          style={{ backgroundColor: DAY_COLORS[idx % DAY_COLORS.length] }}
+                        />
+                        <span className="text-gray-600">D{day.dayNumber}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-1 border-l border-gray-300 pl-2">
+                      <div
+                        className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
+                      />
+                      <span className="text-gray-600">
+                        {isLive ? "Live" : "Now"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1234,6 +1684,17 @@ export default function App() {
                 totalDays={dayBoundaries.length}
                 isMobile={isMobile}
                 cachedImages={cachedImages}
+                onImageClick={() => setIsFullscreen(true)}
+                onPrev={selectedIndex > 0 ? () => {
+                  setSelectedIndex(selectedIndex - 1);
+                  setIsPlaying(false);
+                  setIsLive(false);
+                } : null}
+                onNext={selectedIndex < tripData.length - 1 ? () => {
+                  setSelectedIndex(selectedIndex + 1);
+                  setIsPlaying(false);
+                  if (selectedIndex + 1 !== tripData.length - 1) setIsLive(false);
+                } : null}
               />
             </div>
           </>
@@ -1249,6 +1710,7 @@ export default function App() {
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
+                dayBoundaries={dayBoundaries}
               />
 
               {/* Stats Overlay */}
@@ -1261,16 +1723,27 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Legend */}
+              {/* Legend - Day colors */}
               <div className="absolute bottom-3 left-3 z-10">
-                <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm flex gap-3 text-xs">
-                  <div className="flex items-center gap-1.5">
-                    <div
-                      className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
-                    />
-                    <span className="text-gray-600">
-                      {isLive ? "Live" : "Position"}
-                    </span>
+                <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm">
+                  <div className="flex flex-wrap gap-2 text-xs">
+                    {dayBoundaries.map((day, idx) => (
+                      <div key={day.dayNumber} className="flex items-center gap-1">
+                        <div
+                          className="w-3 h-1 rounded"
+                          style={{ backgroundColor: DAY_COLORS[idx % DAY_COLORS.length] }}
+                        />
+                        <span className="text-gray-600">Day {day.dayNumber}</span>
+                      </div>
+                    ))}
+                    <div className="flex items-center gap-1 border-l border-gray-300 pl-2">
+                      <div
+                        className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
+                      />
+                      <span className="text-gray-600">
+                        {isLive ? "Live" : "Position"}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -1306,11 +1779,32 @@ export default function App() {
                 totalDays={dayBoundaries.length}
                 isMobile={isMobile}
                 cachedImages={cachedImages}
+                onImageClick={() => setIsFullscreen(true)}
               />
             </div>
           </>
         )}
       </div>
+
+      {/* Fullscreen Image Modal */}
+      {isFullscreen && selectedPoint?.image && (
+        <FullscreenModal
+          imageUrl={getDisplayUrl(selectedPoint.image)}
+          onClose={() => setIsFullscreen(false)}
+          onPrev={selectedIndex > 0 ? () => {
+            setSelectedIndex(selectedIndex - 1);
+            setIsPlaying(false);
+            setIsLive(false);
+          } : null}
+          onNext={selectedIndex < tripData.length - 1 ? () => {
+            setSelectedIndex(selectedIndex + 1);
+            setIsPlaying(false);
+            if (selectedIndex + 1 !== tripData.length - 1) {
+              setIsLive(false);
+            }
+          } : null}
+        />
+      )}
 
       {/* Timeline Controls */}
       <div
@@ -1437,53 +1931,102 @@ export default function App() {
       {/* Image Reel */}
       <div
         className={`flex-none border-t bg-gray-100 overflow-x-auto transition-colors ${
-          isLive ? "border-red-500/30" : "border-gray-200"
+          isLive ? "border-red-500/30" : selectedTags.length > 0 ? "border-blue-500/30" : "border-gray-200"
         }`}
         ref={scrollRef}
       >
+        {/* Filter indicator */}
+        {selectedTags.length > 0 && (
+          <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border-b border-blue-100 text-xs text-blue-600">
+            <Tag className="w-3 h-3" />
+            <span>
+              Showing {filteredTripData.length} of {tripData.length} photos with tags: {selectedTags.join(", ")}
+            </span>
+          </div>
+        )}
         <div
           className={`flex ${isMobile ? "gap-1 p-1.5" : "gap-1.5 p-2"}`}
           style={{ width: "max-content" }}
         >
-          <div style={{ width: visibleRange.start * (isMobile ? 52 : 68) }} />
-          {tripData.slice(visibleRange.start, visibleRange.end).map((point) => {
-            const isSelected = point.id === selectedId;
-            const isLatest = point.id === tripData[latestIndex].id;
-            return (
-              <button
-                key={point.id}
-                ref={(el) => (imageRefs.current[point.id] = el)}
-                onClick={() => handleMarkerClick(point.id)}
-                className={`flex-none relative transition-all duration-150 origin-bottom ${
-                  isSelected
-                    ? isLive
-                      ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
-                      : "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
-                    : "hover:scale-150 hover:z-20 hover:ring-1 hover:ring-zinc-500"
-                }`}
-              >
-                <div
-                  className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-gray-200`}
+          {selectedTags.length > 0 ? (
+            // When filtering, show only filtered images (no virtualization for now)
+            filteredTripData.map((point) => {
+              const isSelected = point.id === selectedId;
+              const isLatest = point.id === tripData[latestIndex].id;
+              return (
+                <button
+                  key={point.id}
+                  ref={(el) => (imageRefs.current[point.id] = el)}
+                  onClick={() => handleMarkerClick(point.id)}
+                  className={`flex-none relative transition-all duration-150 origin-bottom ${
+                    isSelected
+                      ? "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                      : "hover:scale-150 hover:z-20 hover:ring-1 hover:ring-zinc-500"
+                  }`}
                 >
-                  <img
-                    src={getThumbUrl(point.image)}
-                    alt=""
-                    className="w-full h-full object-cover"
-                    loading="lazy"
-                  />
-                </div>
-                {isLive && isLatest && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-gray-100" />
-                )}
-              </button>
-            );
-          })}
-          <div
-            style={{
-              width:
-                (tripData.length - visibleRange.end) * (isMobile ? 52 : 68),
-            }}
-          />
+                  <div
+                    className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-gray-200`}
+                  >
+                    <img
+                      src={getThumbUrl(point.image)}
+                      alt=""
+                      className="w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                  </div>
+                  {isLive && isLatest && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-gray-100" />
+                  )}
+                </button>
+              );
+            })
+          ) : (
+            // No filter: virtualized full list
+            <>
+              <div style={{ width: visibleRange.start * (isMobile ? 52 : 68) }} />
+              {tripData.slice(visibleRange.start, visibleRange.end).map((point) => {
+                const isSelected = point.id === selectedId;
+                const isLatest = point.id === tripData[latestIndex].id;
+                const hasSelectedTag = point.tags?.some((t) => selectedTags.includes(t.toLowerCase()));
+                return (
+                  <button
+                    key={point.id}
+                    ref={(el) => (imageRefs.current[point.id] = el)}
+                    onClick={() => handleMarkerClick(point.id)}
+                    className={`flex-none relative transition-all duration-150 origin-bottom ${
+                      isSelected
+                        ? isLive
+                          ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                          : "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                        : hasSelectedTag
+                          ? "ring-1 ring-blue-400 hover:scale-150 hover:z-20"
+                          : "hover:scale-150 hover:z-20 hover:ring-1 hover:ring-zinc-500"
+                    }`}
+                  >
+                    <div
+                      className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-gray-200`}
+                    >
+                      <img
+                        src={getThumbUrl(point.image)}
+                        alt=""
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                    </div>
+                    {isLive && isLatest && (
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-gray-100" />
+                    )}
+                  </button>
+                );
+              })}
+              <div
+                style={{
+                  width:
+                    (tripData.length - visibleRange.end) * (isMobile ? 52 : 68),
+                }}
+              />
+            </>
+          )}
         </div>
       </div>
     </div>
