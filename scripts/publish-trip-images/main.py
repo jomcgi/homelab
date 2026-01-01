@@ -63,6 +63,7 @@ class ImageRecord:
     timestamp: str | None
     created_at: str
     completed_at: str | None
+    tags: list[str] | None = None  # User-defined tags (e.g., "hotspring", "wildlife")
 
 
 class UploadQueue:
@@ -88,10 +89,16 @@ class UploadQueue:
                     lng REAL,
                     timestamp TEXT,
                     created_at TEXT NOT NULL,
-                    completed_at TEXT
+                    completed_at TEXT,
+                    tags TEXT
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON images(status)")
+            # Migration: add tags column if it doesn't exist
+            try:
+                conn.execute("ALTER TABLE images ADD COLUMN tags TEXT")
+            except sqlite3.OperationalError:
+                pass  # Column already exists
             conn.commit()
 
     def add(
@@ -101,14 +108,15 @@ class UploadQueue:
         lat: float | None,
         lng: float | None,
         timestamp: str | None,
+        tags: list[str] | None = None,
     ) -> int | None:
         """Add image to queue. Returns ID or None if already exists."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(
                     """
-                    INSERT INTO images (source_path, dest_key, lat, lng, timestamp, status, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO images (source_path, dest_key, lat, lng, timestamp, status, created_at, tags)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(source_path),
@@ -118,6 +126,7 @@ class UploadQueue:
                         timestamp,
                         UploadStatus.PENDING.value,
                         datetime.now().isoformat(),
+                        json.dumps(tags) if tags else None,
                     ),
                 )
                 conn.commit()
@@ -196,6 +205,7 @@ class UploadQueue:
             return {row[0]: row[1] for row in rows}
 
     def _row_to_record(self, row: sqlite3.Row) -> ImageRecord:
+        tags_json = row["tags"] if "tags" in row.keys() else None
         return ImageRecord(
             id=row["id"],
             source_path=row["source_path"],
@@ -208,6 +218,7 @@ class UploadQueue:
             timestamp=row["timestamp"],
             created_at=row["created_at"],
             completed_at=row["completed_at"],
+            tags=json.loads(tags_json) if tags_json else None,
         )
 
 
@@ -393,6 +404,7 @@ async def publish_to_nats(js, record: ImageRecord, source: str) -> None:
         "timestamp": record.timestamp or datetime.now().isoformat(),
         "image": record.dest_key,  # Frontend constructs full/thumb URLs
         "source": source,
+        "tags": record.tags or [],  # User-defined tags
     }
 
     await js.publish("trips.point", json.dumps(point).encode())
@@ -414,11 +426,58 @@ def scan_images(source_dir: Path) -> list[Path]:
     return sorted(images, key=lambda p: p.stat().st_mtime)
 
 
-def sample_images(images: list[Path], every_n: int) -> list[Path]:
-    """Take every Nth image (assumes images are already sorted by filename/time)."""
-    if every_n <= 1:
-        return images
-    return images[::every_n]
+def sample_images_by_time(
+    images: list[Path], interval_seconds: int
+) -> list[tuple[Path, float | None, float | None, str | None]]:
+    """Sample images to have at least one per interval (in seconds).
+
+    Returns list of (path, lat, lng, timestamp) tuples to avoid re-extracting EXIF later.
+    Images without valid timestamps are included if no image was selected in the current window.
+    """
+    if interval_seconds <= 0:
+        # No sampling - return all with EXIF data
+        return [(img, *extract_exif(img)) for img in images]
+
+    selected: list[tuple[Path, float | None, float | None, str | None]] = []
+    last_selected_time: datetime | None = None
+
+    for img_path in images:
+        lat, lng, timestamp = extract_exif(img_path)
+
+        # Parse timestamp if available
+        img_time: datetime | None = None
+        if timestamp:
+            try:
+                img_time = datetime.fromisoformat(timestamp)
+            except ValueError:
+                pass
+
+        # Selection logic:
+        # 1. Always take the first image
+        # 2. Take image if we don't have a valid timestamp for comparison
+        # 3. Take image if enough time has passed since last selected
+        should_select = False
+
+        if not selected:
+            # First image - always take it
+            should_select = True
+        elif last_selected_time is None:
+            # Last selected had no timestamp - take this one if it has a timestamp
+            # or if we've gone through several images without selecting
+            should_select = img_time is not None
+        elif img_time is None:
+            # Current image has no timestamp - skip it (prefer images with timestamps)
+            should_select = False
+        else:
+            # Both have timestamps - check interval
+            elapsed = (img_time - last_selected_time).total_seconds()
+            should_select = elapsed >= interval_seconds
+
+        if should_select:
+            selected.append((img_path, lat, lng, timestamp))
+            last_selected_time = img_time
+
+    return selected
 
 
 def generate_dest_key(image_path: Path, source: str, timestamp: str | None) -> str:
@@ -459,8 +518,9 @@ async def _run_upload(
     bucket: str,
     dry_run: bool,
     publish: bool,
-    sample_interval: int = 1,
+    interval_seconds: int = 0,
     source: str = "gopro",
+    tags: list[str] | None = None,
 ) -> None:
     """Main upload logic."""
     queue = UploadQueue(db_path)
@@ -478,27 +538,27 @@ async def _run_upload(
     if not images:
         return
 
-    # Sample every Nth image (e.g., every 60th for ~1/min from 1/sec captures)
-    if sample_interval > 1:
-        images = sample_images(images, sample_interval)
-        print(f"Sampled every {sample_interval}th image: {len(images)} selected")
+    # Sample images by time interval (e.g., 60s = at least 1 image per minute)
+    print("Extracting EXIF and sampling by time..." if interval_seconds > 0 else "Extracting EXIF...")
+    sampled = sample_images_by_time(images, interval_seconds)
+    if interval_seconds > 0:
+        print(f"Sampled to {len(sampled)} images (at least 1 per {interval_seconds}s)")
 
-    if not images:
+    if not sampled:
         return
 
-    # Queue new images
+    # Queue new images (EXIF already extracted during sampling)
     new_count = 0
-    for img_path in images:
-        # Extract EXIF first (needed for deterministic key generation)
-        lat, lng, timestamp = extract_exif(img_path)
+    for img_path, lat, lng, timestamp in sampled:
         # Generate deterministic key based on source + timestamp + filename
         dest_key = generate_dest_key(img_path, source, timestamp)
 
-        record_id = queue.add(img_path, dest_key, lat, lng, timestamp)
+        record_id = queue.add(img_path, dest_key, lat, lng, timestamp, tags)
         if record_id:
             new_count += 1
             gps_info = f"({lat:.4f}, {lng:.4f})" if lat and lng else "(no GPS)"
-            print(f"  Queued: {img_path.name} -> {dest_key} {gps_info}")
+            tags_info = f" [{', '.join(tags)}]" if tags else ""
+            print(f"  Queued: {img_path.name} -> {dest_key} {gps_info}{tags_info}")
 
     if new_count:
         print(f"Queued {new_count} new images")
@@ -593,14 +653,14 @@ def scan(
     bucket: Annotated[
         str, typer.Option("--bucket", "-b", help="S3 bucket name")
     ] = DEFAULT_BUCKET,
-    every_n: Annotated[
+    interval: Annotated[
         int,
         typer.Option(
-            "--every",
-            "-e",
-            help="Take every Nth image (e.g., 60 for ~1/min from 1/sec)",
+            "--interval",
+            "-i",
+            help="Minimum seconds between images (e.g., 60 for at least 1/min)",
         ),
-    ] = 1,
+    ] = 0,
     dry_run: Annotated[
         bool, typer.Option("--dry-run", "-n", help="Scan and queue only, don't upload")
     ] = False,
@@ -611,28 +671,38 @@ def scan(
         str,
         typer.Option("--source", "-s", help="Image source (gopro, camera, phone)"),
     ] = "gopro",
+    tags: Annotated[
+        str,
+        typer.Option("--tags", "-t", help="Comma-separated tags (e.g., 'hotspring,wildlife')"),
+    ] = "",
 ) -> None:
     """
     Scan a directory for images and upload to SeaweedFS.
 
-    Recursively scans all subdirectories. Images are sorted by file
-    modification time. Use --every to take every Nth image.
+    Recursively scans all subdirectories. Images are sorted by EXIF timestamp.
+    Use --interval to sample at most one image per N seconds.
 
     Example:
         # Upload all images
         publish-trip-images scan /Volumes/Untitled/DCIM/vancouver-to-kamloops
 
-        # Take every 60th image (~1/min from 1/sec captures)
-        publish-trip-images scan /Volumes/Untitled/DCIM/vancouver-to-kamloops --every 60
+        # Sample to at least 1 image per 60 seconds
+        publish-trip-images scan /Volumes/Untitled/DCIM/vancouver-to-kamloops --interval 60
+
+        # Tag images for filtering (e.g., hotspring, wildlife, food)
+        publish-trip-images scan /path/to/trip --tags hotspring,wildlife
 
         # Preview what would be selected (dry run)
-        publish-trip-images scan /path/to/trip --every 60 --dry-run
+        publish-trip-images scan /path/to/trip --interval 60 --dry-run
     """
     if not source_dir.exists():
         print(f"Error: Directory not found: {source_dir}")
         raise typer.Exit(1)
 
-    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, every_n, source))
+    # Parse comma-separated tags into list
+    tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
+
+    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, interval, source, tag_list))
 
 
 @app.command()

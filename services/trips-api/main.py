@@ -48,6 +48,7 @@ class TripPoint(BaseModel):
     timestamp: str
     image: str  # Just the filename, e.g., "img_abc123def456.jpg"
     source: str = "gopro"  # Image source: gopro, camera, phone
+    tags: list[str] = ["car"]  # User-defined tags; defaults to "car" for existing data
 
 
 def is_valid_coordinates(lat: float, lng: float) -> bool:
