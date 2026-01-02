@@ -923,6 +923,7 @@ function FullscreenModal({ imageUrl, onClose, onPrev, onNext }) {
         className="max-w-full max-h-full object-contain select-none"
         onClick={(e) => e.stopPropagation()}
         draggable={false}
+        decoding="async"
       />
 
       {/* Close button */}
@@ -987,9 +988,9 @@ function ImagePanel({
   onPrev = null,
   onNext = null,
 }) {
-  // Track the currently displayed image (stays until new image is loaded)
-  const [displayedImageUrl, setDisplayedImageUrl] = useState(null);
-  const [isImageLoading, setIsImageLoading] = useState(false);
+  // Double-buffer for smooth transitions (previous image stays visible as backdrop)
+  const [currentImageUrl, setCurrentImageUrl] = useState(null);
+  const [previousImageUrl, setPreviousImageUrl] = useState(null);
   const touchStartX = useRef(null);
   const touchStartY = useRef(null);
 
@@ -1023,43 +1024,45 @@ function ImagePanel({
     touchStartY.current = null;
   };
 
-  // Preload new images before displaying them
+  // Preload new images and crossfade when ready
   useEffect(() => {
     if (!point?.image) {
-      setDisplayedImageUrl(null);
+      setCurrentImageUrl(null);
+      setPreviousImageUrl(null);
       return;
     }
 
     const displayUrl = getDisplayUrl(point.image);
 
     // If it's the same image, no need to reload
-    if (displayUrl === displayedImageUrl) {
+    if (displayUrl === currentImageUrl) {
       return;
     }
 
-    // If already in our prefetch cache, show immediately
+    // Swap images: current becomes previous (backdrop), new becomes current
+    const swapImages = (newUrl) => {
+      setPreviousImageUrl(currentImageUrl);
+      setCurrentImageUrl(newUrl);
+    };
+
+    // If already in our prefetch cache, swap immediately
     if (cachedImages?.current?.has(displayUrl)) {
-      setDisplayedImageUrl(displayUrl);
-      setIsImageLoading(false);
+      swapImages(displayUrl);
       return;
     }
 
-    // Preload the new image
-    setIsImageLoading(true);
+    // Preload the new image, then swap
     const img = new Image();
     img.onload = () => {
-      setDisplayedImageUrl(displayUrl);
-      setIsImageLoading(false);
-      // Also add to cache for future reference
       cachedImages?.current?.add(displayUrl);
+      swapImages(displayUrl);
     };
     img.onerror = () => {
       // Still show the image even if preload fails
-      setDisplayedImageUrl(displayUrl);
-      setIsImageLoading(false);
+      swapImages(displayUrl);
     };
     img.src = displayUrl;
-  }, [point?.image, displayedImageUrl, cachedImages]);
+  }, [point?.image, currentImageUrl, cachedImages]);
 
   // Use Pacific Time for BC/Yukon trip
   const formatTime = (date) =>
@@ -1117,33 +1120,44 @@ function ImagePanel({
         onTouchEnd={isMobile ? handleTouchEnd : undefined}
       >
         <div
-          className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-gray-100 ${isLive ? "ring-2 ring-red-500/30" : ""}`}
+          className={`w-full h-full rounded-lg overflow-hidden flex items-center justify-center bg-gray-900 ${isLive ? "ring-2 ring-red-500/30" : ""}`}
         >
-          {displayedImageUrl ? (
-            <img
-              key={displayedImageUrl}
-              src={displayedImageUrl}
-              alt="Trip photo"
-              className={`w-full h-full object-contain transition-opacity duration-200 cursor-pointer hover:opacity-90 ${
-                isImageLoading ? "opacity-80" : "opacity-100"
-              }`}
-              onClick={() => onImageClick?.(displayedImageUrl)}
-              title="Click to view fullscreen"
-            />
+          {currentImageUrl ? (
+            <div className="relative w-full h-full flex items-center justify-center">
+              {/* Previous image (stays visible as backdrop during transition) */}
+              {previousImageUrl && (
+                <img
+                  src={previousImageUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-contain"
+                  decoding="async"
+                />
+              )}
+              {/* Current image (always on top, visible immediately since it's preloaded) */}
+              <img
+                src={currentImageUrl}
+                alt="Trip photo"
+                className="absolute inset-0 w-full h-full object-contain cursor-pointer hover:opacity-90"
+                onClick={() => onImageClick?.(currentImageUrl)}
+                title="Click to view fullscreen"
+                fetchPriority="high"
+                decoding="async"
+              />
+            </div>
           ) : point.image ? (
             // Show loading state while first image loads
             <div className="text-center">
               <Camera
-                className={`${iconSize} mx-auto mb-3 animate-pulse ${isLive ? "text-red-500/20" : "text-gray-300"}`}
+                className={`${iconSize} mx-auto mb-3 animate-pulse ${isLive ? "text-red-500/40" : "text-gray-600"}`}
               />
-              <p className="text-gray-400 text-sm font-mono">Loading...</p>
+              <p className="text-gray-500 text-sm font-mono">Loading...</p>
             </div>
           ) : (
             <div className="text-center">
               <Camera
-                className={`${iconSize} mx-auto mb-3 ${isLive ? "text-red-500/20" : "text-gray-300"}`}
+                className={`${iconSize} mx-auto mb-3 ${isLive ? "text-red-500/40" : "text-gray-600"}`}
               />
-              <p className="text-gray-400 text-sm font-mono">No image</p>
+              <p className="text-gray-500 text-sm font-mono">No image</p>
             </div>
           )}
         </div>
@@ -1496,6 +1510,27 @@ export default function App() {
     }
     return () => clearInterval(interval);
   }, [isPlaying, playbackSpeed, isLive, tripData.length, tripData]);
+
+  // Continuous priority-based prefetching: prefetch images around current selection
+  // Priority order: closest to selected index first (N±1, then N±2, etc.)
+  useEffect(() => {
+    if (tripData.length === 0) return;
+
+    const prefetchRadius = 10; // 10 images on each side = 20 total buffer
+
+    // Prefetch in priority order: closest to selected first
+    for (let distance = 1; distance <= prefetchRadius; distance++) {
+      const prevIdx = selectedIndex - distance;
+      const nextIdx = selectedIndex + distance;
+
+      if (prevIdx >= 0) {
+        prefetchImage(prevIdx);
+      }
+      if (nextIdx < tripData.length) {
+        prefetchImage(nextIdx);
+      }
+    }
+  }, [selectedIndex, tripData.length, prefetchImage]);
 
   useEffect(() => {
     const el = imageRefs.current[selectedId];
@@ -2052,6 +2087,7 @@ export default function App() {
                       alt=""
                       className="w-full h-full object-cover"
                       loading="lazy"
+                      decoding="async"
                     />
                   </div>
                   {isLive && isLatest && (
@@ -2091,6 +2127,7 @@ export default function App() {
                         alt=""
                         className="w-full h-full object-cover"
                         loading="lazy"
+                        decoding="async"
                       />
                     </div>
                     {isLive && isLatest && (
