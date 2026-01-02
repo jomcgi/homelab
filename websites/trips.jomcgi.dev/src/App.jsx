@@ -375,6 +375,51 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
     return segments;
   }, [points, dayBoundaries]);
 
+  // Detect which days have overlapping routes and assign offsets
+  const dayOffsets = useMemo(() => {
+    const offsets = new Map(); // dayNumber -> offset
+    const OVERLAP_THRESHOLD = 1.0541;
+    const MIN_OVERLAP_POINTS = 10;
+
+    // Check each pair of day segments for overlap
+    for (let i = 0; i < daySegments.length; i++) {
+      for (let j = i + 1; j < daySegments.length; j++) {
+        const seg1 = daySegments[i];
+        const seg2 = daySegments[j];
+
+        // Sample points to check for overlap (every 5th point for performance)
+        let overlapCount = 0;
+        const sampleRate = 5;
+
+        for (let pi = 0; pi < seg2.points.length; pi += sampleRate) {
+          const p2 = seg2.points[pi];
+          for (let pj = 0; pj < seg1.points.length; pj += sampleRate) {
+            const p1 = seg1.points[pj];
+            // Manhattan distance for speed
+            const dist = Math.abs(p1.lat - p2.lat) + Math.abs(p1.lng - p2.lng);
+            if (dist < OVERLAP_THRESHOLD) {
+              overlapCount++;
+              break;
+            }
+          }
+        }
+
+        // If significant overlap detected, offset both days in opposite directions
+        if (overlapCount >= MIN_OVERLAP_POINTS) {
+          // Earlier day goes left (-), later day goes right (+)
+          if (!offsets.has(seg1.dayNumber)) {
+            offsets.set(seg1.dayNumber, -4);
+          }
+          if (!offsets.has(seg2.dayNumber)) {
+            offsets.set(seg2.dayNumber, 4);
+          }
+        }
+      }
+    }
+
+    return offsets;
+  }, [daySegments]);
+
   useEffect(() => {
     if (mountedRef.current) return;
     mountedRef.current = true;
@@ -427,8 +472,9 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
         const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
         const sourceId = `route-day-${segment.dayNumber}`;
 
-        // Calculate offset for overlapping routes (alternate sides, larger gap)
-        const offset = idx % 2 === 0 ? idx * 4 : -idx * 4;
+        // Only offset days that overlap with other days (detected above)
+        // Non-overlapping days stay on the road (offset 0)
+        const offset = dayOffsets.get(segment.dayNumber) || 0;
 
         map.current.addSource(sourceId, {
           type: "geojson",
@@ -465,6 +511,44 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
             "line-offset": offset,
           },
         });
+      });
+
+      // Add all day labels AFTER all route lines (so labels appear on top)
+      daySegments.forEach((segment) => {
+        if (segment.points.length > 0) {
+          // Place label ~15% into the route - near the start where each day diverges
+          const labelIdx = Math.floor(segment.points.length * 0.15);
+          const labelPoint = segment.points[Math.max(labelIdx, 0)];
+          const labelSourceId = `route-day-${segment.dayNumber}-label`;
+
+          map.current.addSource(labelSourceId, {
+            type: "geojson",
+            data: {
+              type: "Feature",
+              properties: { day: segment.dayNumber },
+              geometry: { type: "Point", coordinates: [labelPoint.lng, labelPoint.lat] },
+            },
+          });
+
+          map.current.addLayer({
+            id: `${labelSourceId}-text`,
+            type: "symbol",
+            source: labelSourceId,
+            layout: {
+              "text-field": `Day ${segment.dayNumber}`,
+              "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+              "text-size": 12,
+              "text-offset": [0, -1],
+              "text-anchor": "bottom",
+              "text-allow-overlap": true,
+            },
+            paint: {
+              "text-color": segment.color,
+              "text-halo-color": "#ffffff",
+              "text-halo-width": 2,
+            },
+          });
+        }
       });
 
       // Click handler for route lines - navigate to closest point
@@ -1178,26 +1262,44 @@ export default function App() {
   const { points: rawTripData, loading, error, stats } = useTripData();
   const { getInitialFrame, getInitialTags, updateUrl } = useUrlState();
 
-  // Filter to keep only 1 point per minute (earliest wins)
-  // This handles duplicate publishing where same timeframe was published twice
+  // Deduplicate images:
+  // - "car" tagged images: keep only 1 per minute (continuous driving footage)
+  // - Other tags (hotspring, etc): keep ALL images (intentional moments)
   const tripData = useMemo(() => {
     if (rawTripData.length === 0) return [];
 
-    const byMinute = new Map();
+    // Separate car-only images from images with other tags
+    const carOnlyImages = [];
+    const specialImages = []; // Images with tags other than "car"
+
     for (const point of rawTripData) {
-      // Key by minute: "YYYY-MM-DDTHH:MM"
+      const tags = point.tags?.map((t) => t.toLowerCase()) || [];
+      const hasNonCarTag = tags.some((t) => t !== "car");
+
+      if (hasNonCarTag) {
+        // Has a special tag (hotspring, etc) - keep all of these
+        specialImages.push(point);
+      } else {
+        // Only has "car" tag or no tags - apply sampling
+        carOnlyImages.push(point);
+      }
+    }
+
+    // Apply 1-per-minute deduplication only to car images
+    const byMinute = new Map();
+    for (const point of carOnlyImages) {
       const minuteKey = point.timestamp.toISOString().slice(0, 16);
       const existing = byMinute.get(minuteKey);
-      // Keep earliest point for each minute
       if (!existing || point.timestamp < existing.timestamp) {
         byMinute.set(minuteKey, point);
       }
     }
 
+    // Combine sampled car images with all special images
+    const combined = [...Array.from(byMinute.values()), ...specialImages];
+
     // Return sorted by timestamp
-    return Array.from(byMinute.values()).sort(
-      (a, b) => a.timestamp - b.timestamp,
-    );
+    return combined.sort((a, b) => a.timestamp - b.timestamp);
   }, [rawTripData]);
 
   // Extract all unique tags from trip data
@@ -1488,7 +1590,7 @@ export default function App() {
   // Show loading screen
   if (loading) {
     return (
-      <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col items-center justify-center gap-4">
+      <div className="h-dvh w-full bg-gray-50 text-gray-900 flex flex-col items-center justify-center gap-4">
         <Loader2 className="h-12 w-12 animate-spin text-blue-500" />
         <p className="text-gray-500">Loading trip data...</p>
       </div>
@@ -1498,7 +1600,7 @@ export default function App() {
   // Handle empty data state
   if (tripData.length === 0) {
     return (
-      <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col items-center justify-center gap-4">
+      <div className="h-dvh w-full bg-gray-50 text-gray-900 flex flex-col items-center justify-center gap-4">
         <AlertCircle className="h-12 w-12 text-amber-500" />
         <p className="text-gray-600">No trip data available</p>
         <p className="text-gray-500 text-sm">
@@ -1541,7 +1643,7 @@ export default function App() {
     });
 
   return (
-    <div className="h-screen w-full bg-gray-50 text-gray-900 flex flex-col overflow-hidden">
+    <div className="h-dvh w-full bg-gray-50 text-gray-900 flex flex-col overflow-hidden">
       <style>{`
         @keyframes pulse {
           0%, 100% { transform: scale(1); opacity: 1; }
@@ -1645,27 +1747,16 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Legend - Day colors */}
+              {/* Position indicator */}
               <div className="absolute bottom-3 left-3 z-10">
                 <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm">
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {dayBoundaries.slice(0, 6).map((day, idx) => (
-                      <div key={day.dayNumber} className="flex items-center gap-1">
-                        <div
-                          className="w-3 h-1 rounded"
-                          style={{ backgroundColor: DAY_COLORS[idx % DAY_COLORS.length] }}
-                        />
-                        <span className="text-gray-600">D{day.dayNumber}</span>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-1 border-l border-gray-300 pl-2">
-                      <div
-                        className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
-                      />
-                      <span className="text-gray-600">
-                        {isLive ? "Live" : "Now"}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <div
+                      className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
+                    />
+                    <span className="text-gray-600">
+                      {isLive ? "Live" : "Position"}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -1723,27 +1814,16 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Legend - Day colors */}
+              {/* Position indicator */}
               <div className="absolute bottom-3 left-3 z-10">
                 <div className="bg-white/90 border border-gray-200 rounded-lg p-2 backdrop-blur-sm shadow-sm">
-                  <div className="flex flex-wrap gap-2 text-xs">
-                    {dayBoundaries.map((day, idx) => (
-                      <div key={day.dayNumber} className="flex items-center gap-1">
-                        <div
-                          className="w-3 h-1 rounded"
-                          style={{ backgroundColor: DAY_COLORS[idx % DAY_COLORS.length] }}
-                        />
-                        <span className="text-gray-600">Day {day.dayNumber}</span>
-                      </div>
-                    ))}
-                    <div className="flex items-center gap-1 border-l border-gray-300 pl-2">
-                      <div
-                        className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
-                      />
-                      <span className="text-gray-600">
-                        {isLive ? "Live" : "Position"}
-                      </span>
-                    </div>
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <div
+                      className={`w-3 h-3 rounded-full border-2 border-white ${isLive ? "bg-red-500" : "bg-blue-500"}`}
+                    />
+                    <span className="text-gray-600">
+                      {isLive ? "Live" : "Position"}
+                    </span>
                   </div>
                 </div>
               </div>
