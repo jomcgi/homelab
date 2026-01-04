@@ -354,18 +354,56 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
   const mountedRef = useRef(false);
 
   // Split points into day segments, separating gap points from real points
+  // Real points are further split into contiguous runs (broken by gaps)
   const { daySegments, gapSegments } = useMemo(() => {
+    // Helper to split points into contiguous runs of real vs gap points
+    const splitIntoRuns = (dayPoints, dayNumber, color) => {
+      const realRuns = [];
+      const gapRuns = [];
+      let currentRealRun = [];
+      let currentGapRun = [];
+
+      for (const p of dayPoints) {
+        const isGap = p.image === null;
+        if (isGap) {
+          // End current real run if any
+          if (currentRealRun.length > 0) {
+            realRuns.push({ dayNumber, points: currentRealRun, color });
+            currentRealRun = [];
+          }
+          currentGapRun.push(p);
+        } else {
+          // End current gap run if any
+          if (currentGapRun.length > 0) {
+            gapRuns.push({ dayNumber, points: currentGapRun, color });
+            currentGapRun = [];
+          }
+          currentRealRun.push(p);
+        }
+      }
+
+      // Flush remaining runs
+      if (currentRealRun.length > 0) {
+        realRuns.push({ dayNumber, points: currentRealRun, color });
+      }
+      if (currentGapRun.length > 0) {
+        gapRuns.push({ dayNumber, points: currentGapRun, color });
+      }
+
+      return { realRuns, gapRuns };
+    };
+
     if (dayBoundaries.length === 0 || points.length === 0) {
-      const realPoints = points.filter((p) => p.image !== null);
-      const gapPoints = points.filter((p) => p.image === null);
+      const { realRuns, gapRuns } = splitIntoRuns(points, 1, DAY_COLORS[0]);
       return {
-        daySegments: [{ dayNumber: 1, points: realPoints, color: DAY_COLORS[0] }],
-        gapSegments: gapPoints.length > 0 ? [{ dayNumber: 1, points: gapPoints, color: DAY_COLORS[0] }] : [],
+        daySegments: realRuns.length > 0 ? realRuns : [{ dayNumber: 1, points: [], color: DAY_COLORS[0] }],
+        gapSegments: gapRuns,
       };
     }
 
-    const segments = [];
-    const gaps = [];
+    const allRealRuns = [];
+    const allGapRuns = [];
+
     for (let i = 0; i < dayBoundaries.length; i++) {
       const startIdx = dayBoundaries[i].index;
       const endIdx = i < dayBoundaries.length - 1
@@ -373,25 +411,14 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
         : points.length;
 
       const dayPoints = points.slice(startIdx, endIdx);
-      const realPoints = dayPoints.filter((p) => p.image !== null);
-      const gapPoints = dayPoints.filter((p) => p.image === null);
       const color = DAY_COLORS[(i) % DAY_COLORS.length];
+      const { realRuns, gapRuns } = splitIntoRuns(dayPoints, dayBoundaries[i].dayNumber, color);
 
-      segments.push({
-        dayNumber: dayBoundaries[i].dayNumber,
-        points: realPoints,
-        color,
-      });
-
-      if (gapPoints.length > 0) {
-        gaps.push({
-          dayNumber: dayBoundaries[i].dayNumber,
-          points: gapPoints,
-          color,
-        });
-      }
+      allRealRuns.push(...realRuns);
+      allGapRuns.push(...gapRuns);
     }
-    return { daySegments: segments, gapSegments: gaps };
+
+    return { daySegments: allRealRuns, gapSegments: allGapRuns };
   }, [points, dayBoundaries]);
 
   // Detect which days have overlapping routes and assign offsets
@@ -486,10 +513,10 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
         firstSymbolLayer?.id,
       );
 
-      // Create route layers for each day with different colors
+      // Create route layers for each segment (multiple per day if gaps exist)
       daySegments.forEach((segment, idx) => {
         const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
-        const sourceId = `route-day-${segment.dayNumber}`;
+        const sourceId = `route-segment-${idx}`;
 
         // Only offset days that overlap with other days (detected above)
         // Non-overlapping days stay on the road (offset 0)
@@ -533,9 +560,9 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
       });
 
       // Create gap route layers (lower opacity, no glow - just shows where route went without photos)
-      gapSegments.forEach((segment) => {
+      gapSegments.forEach((segment, idx) => {
         const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
-        const sourceId = `gap-route-day-${segment.dayNumber}`;
+        const sourceId = `gap-segment-${idx}`;
         const offset = dayOffsets.get(segment.dayNumber) || 0;
 
         map.current.addSource(sourceId, {
@@ -562,9 +589,11 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
         });
       });
 
-      // Add all day labels AFTER all route lines (so labels appear on top)
+      // Add day labels (only one per day, on the first segment of each day)
+      const labeledDays = new Set();
       daySegments.forEach((segment) => {
-        if (segment.points.length > 0) {
+        if (segment.points.length > 0 && !labeledDays.has(segment.dayNumber)) {
+          labeledDays.add(segment.dayNumber);
           // Place label ~15% into the route - near the start where each day diverges
           const labelIdx = Math.floor(segment.points.length * 0.15);
           const labelPoint = segment.points[Math.max(labelIdx, 0)];
@@ -627,10 +656,10 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
         }
       };
 
-      // Add click and hover handlers for each day's route layers
-      daySegments.forEach((segment) => {
-        const lineId = `route-day-${segment.dayNumber}-line`;
-        const glowId = `route-day-${segment.dayNumber}-glow`;
+      // Add click and hover handlers for each route segment
+      daySegments.forEach((segment, idx) => {
+        const lineId = `route-segment-${idx}-line`;
+        const glowId = `route-segment-${idx}-glow`;
 
         map.current.on("click", lineId, handleRouteClick);
         map.current.on("click", glowId, handleRouteClick);
@@ -650,8 +679,8 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
       });
 
       // Add click handlers for gap route lines (navigates to nearest real point)
-      gapSegments.forEach((segment) => {
-        const lineId = `gap-route-day-${segment.dayNumber}-line`;
+      gapSegments.forEach((segment, idx) => {
+        const lineId = `gap-segment-${idx}-line`;
 
         map.current.on("click", lineId, handleRouteClick);
 
@@ -679,9 +708,9 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
 
-    // Update each day's route source
-    daySegments.forEach((segment) => {
-      const sourceId = `route-day-${segment.dayNumber}`;
+    // Update each route segment source
+    daySegments.forEach((segment, idx) => {
+      const sourceId = `route-segment-${idx}`;
       const source = map.current.getSource(sourceId);
       if (source) {
         const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
@@ -694,8 +723,8 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
     });
 
     // Update gap route sources
-    gapSegments.forEach((segment) => {
-      const sourceId = `gap-route-day-${segment.dayNumber}`;
+    gapSegments.forEach((segment, idx) => {
+      const sourceId = `gap-segment-${idx}`;
       const source = map.current.getSource(sourceId);
       if (source) {
         const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
