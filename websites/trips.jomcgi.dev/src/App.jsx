@@ -1359,12 +1359,12 @@ function ImagePanel({
             </div>
           )}
         </div>
-        {/* Tags display */}
-        {point.tags && point.tags.length > 0 && (
+        {/* Tags display (filter out internal tags like "gap") */}
+        {point.tags && point.tags.filter((t) => t.toLowerCase() !== "gap").length > 0 && (
           <div className="mt-2 pt-2 border-t border-gray-200">
             <div className="flex items-center gap-2 flex-wrap">
               <Tag className="w-3 h-3 text-gray-400" />
-              {point.tags.map((tag) => (
+              {point.tags.filter((t) => t.toLowerCase() !== "gap").map((tag) => (
                 <span
                   key={tag}
                   className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
@@ -1486,13 +1486,17 @@ export default function App() {
     return combined.sort((a, b) => a.timestamp - b.timestamp);
   }, [rawTripData]);
 
-  // Extract all unique tags from trip data
+  // Extract all unique tags from trip data (excluding internal tags like "gap")
   const availableTags = useMemo(() => {
     const tagSet = new Set();
+    const hiddenTags = ["gap"]; // Internal tags not shown in UI
     for (const point of rawTripData) {
       if (point.tags) {
         for (const tag of point.tags) {
-          tagSet.add(tag.toLowerCase());
+          const lowered = tag.toLowerCase();
+          if (!hiddenTags.includes(lowered)) {
+            tagSet.add(lowered);
+          }
         }
       }
     }
@@ -1510,8 +1514,48 @@ export default function App() {
     );
   }, [tripData, selectedTags]);
 
+  // Get indices in tripData for filtered points (for constrained navigation)
+  const filteredIndices = useMemo(() => {
+    if (selectedTags.length === 0) return null; // No constraint
+    const indices = [];
+    tripData.forEach((point, idx) => {
+      if (point.tags?.some((t) => selectedTags.includes(t.toLowerCase()))) {
+        indices.push(idx);
+      }
+    });
+    return indices;
+  }, [tripData, selectedTags]);
+
+  // Navigation helpers for tag-constrained movement
+  const getNextFilteredIndex = useCallback((currentIdx) => {
+    if (!filteredIndices) return Math.min(tripData.length - 1, currentIdx + 1);
+    const nextIdx = filteredIndices.find((i) => i > currentIdx);
+    return nextIdx !== undefined ? nextIdx : currentIdx; // Stay at current if at end
+  }, [filteredIndices, tripData.length]);
+
+  const getPrevFilteredIndex = useCallback((currentIdx) => {
+    if (!filteredIndices) return Math.max(0, currentIdx - 1);
+    // Find the last index that's less than currentIdx
+    for (let i = filteredIndices.length - 1; i >= 0; i--) {
+      if (filteredIndices[i] < currentIdx) return filteredIndices[i];
+    }
+    return currentIdx; // Stay at current if at beginning
+  }, [filteredIndices]);
+
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+
+  // Check if we can navigate in a direction (for disabling buttons)
+  // Must be after selectedIndex is declared
+  const canGoPrev = useMemo(() => {
+    if (!filteredIndices) return selectedIndex > 0;
+    return filteredIndices.some((i) => i < selectedIndex);
+  }, [filteredIndices, selectedIndex]);
+
+  const canGoNext = useMemo(() => {
+    if (!filteredIndices) return selectedIndex < tripData.length - 1;
+    return filteredIndices.some((i) => i > selectedIndex);
+  }, [filteredIndices, selectedIndex, tripData.length]);
   const [playbackSpeed, setPlaybackSpeed] = useState(10);
   const [isLive, setIsLive] = useState(false);
   const [mapExpanded, setMapExpanded] = useState(false);
@@ -1547,6 +1591,18 @@ export default function App() {
     if (tripData.length === 0) return;
     updateUrl(selectedIndex, selectedTags);
   }, [selectedIndex, selectedTags, tripData.length, updateUrl]);
+
+  // Jump to first filtered image when tags are applied
+  useEffect(() => {
+    if (filteredIndices && filteredIndices.length > 0) {
+      // Check if current selection is not in the filtered set
+      if (!filteredIndices.includes(selectedIndex)) {
+        setSelectedIndex(filteredIndices[0]);
+        setIsLive(false);
+        setIsPlaying(false);
+      }
+    }
+  }, [filteredIndices]); // Only trigger when filter changes, not when selectedIndex changes
 
   const selectedPoint = tripData[selectedIndex];
   const selectedId = selectedPoint?.id;
@@ -1653,19 +1709,22 @@ export default function App() {
     prefetchImage,
   ]);
 
-  // Playback: only advance when next image is cached
+  // Playback: only advance when next image is cached (respects tag filter)
   useEffect(() => {
     let interval;
     if (isPlaying && !isLive && tripData.length > 0) {
       interval = setInterval(() => {
         setSelectedIndex((prev) => {
-          if (prev >= tripData.length - 1) {
+          const nextIdx = getNextFilteredIndex(prev);
+
+          // If we can't advance, stop playing
+          if (nextIdx === prev) {
             setIsPlaying(false);
             return prev;
           }
 
           // Check if next image is cached
-          const nextPoint = tripData[prev + 1];
+          const nextPoint = tripData[nextIdx];
           if (nextPoint?.image) {
             const nextUrl = getDisplayUrl(nextPoint.image);
             if (!cachedImages.current.has(nextUrl)) {
@@ -1674,12 +1733,12 @@ export default function App() {
             }
           }
 
-          return prev + 1;
+          return nextIdx;
         });
       }, 1000 / playbackSpeed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, isLive, tripData.length, tripData]);
+  }, [isPlaying, playbackSpeed, isLive, tripData.length, tripData, getNextFilteredIndex]);
 
   // Continuous priority-based prefetching: prefetch images around current selection
   // Priority order: closest to selected index first (N±1, then N±2, etc.)
@@ -1722,18 +1781,18 @@ export default function App() {
 
       if (e.key === "ArrowLeft") {
         e.preventDefault();
-        setSelectedIndex((prev) => Math.max(0, prev - 1));
+        setSelectedIndex((prev) => getPrevFilteredIndex(prev));
         setIsPlaying(false);
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
-        setSelectedIndex((prev) => Math.min(tripData.length - 1, prev + 1));
+        setSelectedIndex((prev) => getNextFilteredIndex(prev));
         setIsPlaying(false);
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isLive, isFullscreen, tripData.length]);
+  }, [isLive, isFullscreen, tripData.length, getPrevFilteredIndex, getNextFilteredIndex]);
 
   // Track scroll position to load thumbnails in visible area
   useEffect(() => {
@@ -1981,15 +2040,16 @@ export default function App() {
                 isMobile={isMobile}
                 cachedImages={cachedImages}
                 onImageClick={() => setIsFullscreen(true)}
-                onPrev={selectedIndex > 0 ? () => {
-                  setSelectedIndex(selectedIndex - 1);
+                onPrev={canGoPrev ? () => {
+                  setSelectedIndex(getPrevFilteredIndex(selectedIndex));
                   setIsPlaying(false);
                   setIsLive(false);
                 } : null}
-                onNext={selectedIndex < tripData.length - 1 ? () => {
-                  setSelectedIndex(selectedIndex + 1);
+                onNext={canGoNext ? () => {
+                  const nextIdx = getNextFilteredIndex(selectedIndex);
+                  setSelectedIndex(nextIdx);
                   setIsPlaying(false);
-                  if (selectedIndex + 1 !== tripData.length - 1) setIsLive(false);
+                  if (nextIdx !== tripData.length - 1) setIsLive(false);
                 } : null}
               />
             </div>
@@ -2076,15 +2136,16 @@ export default function App() {
         <FullscreenModal
           imageUrl={getDisplayUrl(selectedPoint.image)}
           onClose={() => setIsFullscreen(false)}
-          onPrev={selectedIndex > 0 ? () => {
-            setSelectedIndex(selectedIndex - 1);
+          onPrev={canGoPrev ? () => {
+            setSelectedIndex(getPrevFilteredIndex(selectedIndex));
             setIsPlaying(false);
             setIsLive(false);
           } : null}
-          onNext={selectedIndex < tripData.length - 1 ? () => {
-            setSelectedIndex(selectedIndex + 1);
+          onNext={canGoNext ? () => {
+            const nextIdx = getNextFilteredIndex(selectedIndex);
+            setSelectedIndex(nextIdx);
             setIsPlaying(false);
-            if (selectedIndex + 1 !== tripData.length - 1) {
+            if (nextIdx !== tripData.length - 1) {
               setIsLive(false);
             }
           } : null}
@@ -2103,10 +2164,10 @@ export default function App() {
           >
             <button
               onClick={() =>
-                handleTimelineChange(Math.max(0, selectedIndex - 1))
+                handleTimelineChange(getPrevFilteredIndex(selectedIndex))
               }
               className={`${isMobile ? "p-2" : "p-1.5"} rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700`}
-              disabled={selectedIndex === 0 || isLive}
+              disabled={!canGoPrev || isLive}
             >
               <ChevronLeft className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
             </button>
@@ -2123,12 +2184,10 @@ export default function App() {
             </button>
             <button
               onClick={() =>
-                handleTimelineChange(
-                  Math.min(tripData.length - 1, selectedIndex + 1),
-                )
+                handleTimelineChange(getNextFilteredIndex(selectedIndex))
               }
               className={`${isMobile ? "p-2" : "p-1.5"} rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700`}
-              disabled={selectedIndex === tripData.length - 1 || isLive}
+              disabled={!canGoNext || isLive}
             >
               <ChevronRight className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
             </button>
