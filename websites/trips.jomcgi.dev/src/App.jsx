@@ -344,6 +344,9 @@ const DAY_COLORS = [
   "#06b6d4", // Cyan - Day 6
   "#f97316", // Orange - Day 7
   "#ec4899", // Pink - Day 8
+  "#84cc16", // Lime - Day 9
+  "#14b8a6", // Teal - Day 10
+  "#a855f7", // Purple - Day 11
 ];
 
 function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }) {
@@ -352,6 +355,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
   const markerRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mountedRef = useRef(false);
+  const dayOffsetsRef = useRef(new Map()); // Ref to access current offsets in callbacks
 
   // Calculate day boundaries from the actual points we're rendering (not from timeline data)
   // This ensures gap points get the correct day color
@@ -460,21 +464,33 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
     const OVERLAP_THRESHOLD = 1.0541;
     const MIN_OVERLAP_POINTS = 10;
 
-    // Check each pair of day segments for overlap
-    for (let i = 0; i < daySegments.length; i++) {
-      for (let j = i + 1; j < daySegments.length; j++) {
-        const seg1 = daySegments[i];
-        const seg2 = daySegments[j];
+    // Aggregate all points by day number (regardless of gaps/runs)
+    // This ensures we compare whole days, not individual runs
+    const pointsByDay = new Map();
+    for (const segment of daySegments) {
+      const existing = pointsByDay.get(segment.dayNumber) || [];
+      pointsByDay.set(segment.dayNumber, [...existing, ...segment.points]);
+    }
 
-        // Sample points to check for overlap (every 5th point for performance)
+    const dayNumbers = Array.from(pointsByDay.keys()).sort((a, b) => a - b);
+    console.log("Day offset detection - days:", dayNumbers, "points per day:", Array.from(pointsByDay.entries()).map(([d, p]) => ({ day: d, count: p.length })));
+
+    // First pass: detect all overlaps and their counts
+    const overlaps = [];
+    for (let i = 0; i < dayNumbers.length; i++) {
+      for (let j = i + 1; j < dayNumbers.length; j++) {
+        const day1 = dayNumbers[i];
+        const day2 = dayNumbers[j];
+        const points1 = pointsByDay.get(day1);
+        const points2 = pointsByDay.get(day2);
+
         let overlapCount = 0;
         const sampleRate = 5;
 
-        for (let pi = 0; pi < seg2.points.length; pi += sampleRate) {
-          const p2 = seg2.points[pi];
-          for (let pj = 0; pj < seg1.points.length; pj += sampleRate) {
-            const p1 = seg1.points[pj];
-            // Manhattan distance for speed
+        for (let pi = 0; pi < points2.length; pi += sampleRate) {
+          const p2 = points2[pi];
+          for (let pj = 0; pj < points1.length; pj += sampleRate) {
+            const p1 = points1[pj];
             const dist = Math.abs(p1.lat - p2.lat) + Math.abs(p1.lng - p2.lng);
             if (dist < OVERLAP_THRESHOLD) {
               overlapCount++;
@@ -483,21 +499,67 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
           }
         }
 
-        // If significant overlap detected, offset both days in opposite directions
         if (overlapCount >= MIN_OVERLAP_POINTS) {
-          // Earlier day goes left (-), later day goes right (+)
-          if (!offsets.has(seg1.dayNumber)) {
-            offsets.set(seg1.dayNumber, -4);
-          }
-          if (!offsets.has(seg2.dayNumber)) {
-            offsets.set(seg2.dayNumber, 4);
-          }
+          overlaps.push({ day1, day2, points1, points2, overlapCount });
         }
       }
     }
 
+    // Sort by overlap count descending - process most significant overlaps first
+    overlaps.sort((a, b) => b.overlapCount - a.overlapCount);
+    console.log("Overlaps sorted by count:", overlaps.map(o => `D${o.day1}-D${o.day2}:${o.overlapCount}`).join(", "));
+
+    // Second pass: assign offsets, prioritizing high-overlap pairs
+    for (const { day1, day2, points1, points2, overlapCount } of overlaps) {
+      // Skip if both days already have offsets
+      if (offsets.has(day1) && offsets.has(day2)) {
+        console.log(`Overlap: Day ${day1} vs Day ${day2}, count=${overlapCount}, both already set`);
+        continue;
+      }
+
+      // Detect travel direction by comparing start/end of each day's points
+      // If both going same direction: use opposite offsets (-4, +4)
+      // If going opposite directions: use same offsets (-4, -4) since
+      // line-offset is relative to travel direction
+      const dir1 = points1.length > 1
+        ? Math.sign(points1[points1.length - 1].lat - points1[0].lat)
+        : 0;
+      const dir2 = points2.length > 1
+        ? Math.sign(points2[points2.length - 1].lat - points2[0].lat)
+        : 0;
+      const sameDirection = dir1 === dir2 || dir1 === 0 || dir2 === 0;
+
+      let assignedOffset1, assignedOffset2;
+      if (sameDirection) {
+        // Same direction: opposite offsets work correctly
+        assignedOffset1 = -4;
+        assignedOffset2 = 4;
+      } else {
+        // Opposite directions: same offsets put them on opposite sides
+        assignedOffset1 = -4;
+        assignedOffset2 = -4;
+      }
+
+      const offset1 = offsets.has(day1) ? "(already set)" : assignedOffset1;
+      const offset2 = offsets.has(day2) ? "(already set)" : assignedOffset2;
+      console.log(`Overlap: Day ${day1} vs Day ${day2}, count=${overlapCount}, dirs=${dir1}/${dir2} (${sameDirection ? "same" : "opposite"}), assigning: D${day1}=${offset1}, D${day2}=${offset2}`);
+
+      if (!offsets.has(day1)) {
+        offsets.set(day1, assignedOffset1);
+      }
+      if (!offsets.has(day2)) {
+        offsets.set(day2, assignedOffset2);
+      }
+    }
+
+    console.log("Final day offsets:", Object.fromEntries(offsets));
     return offsets;
   }, [daySegments]);
+
+  // Keep ref in sync with dayOffsets for use in callbacks
+  useEffect(() => {
+    dayOffsetsRef.current = dayOffsets;
+  }, [dayOffsets]);
 
   useEffect(() => {
     if (mountedRef.current) return;
@@ -553,7 +615,9 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
 
         // Only offset days that overlap with other days (detected above)
         // Non-overlapping days stay on the road (offset 0)
-        const offset = dayOffsets.get(segment.dayNumber) || 0;
+        // Use ref to get current offsets (closure would have stale value)
+        const offset = dayOffsetsRef.current.get(segment.dayNumber) || 0;
+        console.log(`Initial layer creation: segment ${idx} (day ${segment.dayNumber}) offset=${offset}`);
 
         map.current.addSource(sourceId, {
           type: "geojson",
@@ -727,6 +791,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
         });
         // Update layer colors (in case day assignment changed)
         const offset = dayOffsets.get(segment.dayNumber) || 0;
+        console.log(`Applying offset to segment ${idx} (day ${segment.dayNumber}): offset=${offset}, color=${segment.color}`);
         if (map.current.getLayer(`${sourceId}-glow`)) {
           map.current.setPaintProperty(`${sourceId}-glow`, "line-color", segment.color);
           map.current.setPaintProperty(`${sourceId}-glow`, "line-offset", offset);
@@ -735,6 +800,8 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
           map.current.setPaintProperty(`${sourceId}-line`, "line-color", segment.color);
           map.current.setPaintProperty(`${sourceId}-line`, "line-offset", offset);
         }
+      } else {
+        console.log(`WARNING: Source ${sourceId} for day ${segment.dayNumber} does not exist!`);
       }
     });
 
