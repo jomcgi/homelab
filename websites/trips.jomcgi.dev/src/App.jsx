@@ -532,12 +532,12 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
       let assignedOffset1, assignedOffset2;
       if (sameDirection) {
         // Same direction: opposite offsets work correctly
-        assignedOffset1 = -4;
-        assignedOffset2 = 4;
+        assignedOffset1 = -6;
+        assignedOffset2 = 6;
       } else {
         // Opposite directions: same offsets put them on opposite sides
-        assignedOffset1 = -4;
-        assignedOffset2 = -4;
+        assignedOffset1 = -6;
+        assignedOffset2 = -6;
       }
 
       const offset1 = offsets.has(day1) ? "(already set)" : assignedOffset1;
@@ -700,13 +700,41 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
       });
 
       // Click handler for route lines - navigate to closest selectable point (with image)
+      // Only searches within the clicked day's points to avoid cross-day selection on overlapping routes
       const handleRouteClick = (e) => {
         const clickedLng = e.lngLat.lng;
         const clickedLat = e.lngLat.lat;
 
+        // Get the day number from the clicked feature
+        const clickedDayNumber = e.features?.[0]?.properties?.day;
+
+        // Find the date string for this day number
+        let clickedDateStr = null;
+        if (clickedDayNumber && mapDayBoundaries.length > 0) {
+          const boundary = mapDayBoundaries.find((b) => b.dayNumber === clickedDayNumber);
+          if (boundary) {
+            clickedDateStr = boundary.dateStr;
+          }
+        }
+
         // Find the closest selectable point (one with an image)
         // Gap points are not selectable - they're just for route visualization
-        const pointsToSearch = selectablePoints || points;
+        const allPoints = selectablePoints || points;
+
+        // Filter to only points from the clicked day (if we know which day was clicked)
+        const pointsToSearch = clickedDateStr
+          ? allPoints.filter((p) => {
+              if (p.image === null) return false;
+              const pDateStr = p.timestamp.toLocaleDateString("en-CA", {
+                timeZone: "America/Vancouver",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+              });
+              return pDateStr === clickedDateStr;
+            })
+          : allPoints;
+
         let closestId = null;
         let minDist = Infinity;
 
@@ -836,17 +864,16 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
           },
         });
 
-        // Gap line layer - same color/opacity as real routes, just dashed
+        // Gap line layer - semi-transparent to indicate estimated/interpolated path
         map.current.addLayer({
           id: `${sourceId}-line`,
           type: "line",
           source: sourceId,
           paint: {
             "line-color": segment.color,
-            "line-width": 4,
-            "line-opacity": 0.9,
+            "line-width": 2,
+            "line-opacity": 0.8,
             "line-offset": offset,
-            "line-dasharray": [2, 2],
           },
         });
       }
@@ -856,15 +883,68 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
 
-    const point = points.find((p) => p.id === selectedId);
-    if (!point) return;
+    const pointIndex = points.findIndex((p) => p.id === selectedId);
+    if (pointIndex === -1) return;
+    const point = points[pointIndex];
 
     if (markerRef.current) markerRef.current.remove();
+
+    // Determine the day color and offset for this point
+    let dayColor = DAY_COLORS[0]; // Default to first day color
+    let dayNumber = 1;
+    if (mapDayBoundaries.length > 0) {
+      const pointDateStr = point.timestamp.toLocaleDateString("en-CA", {
+        timeZone: "America/Vancouver",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+      const dayBoundary = mapDayBoundaries.find((b) => b.dateStr === pointDateStr);
+      if (dayBoundary) {
+        dayNumber = dayBoundary.dayNumber;
+        dayColor = DAY_COLORS[(dayNumber - 1) % DAY_COLORS.length];
+      }
+    }
+
+    // Get the line offset for this day (if any)
+    const lineOffset = dayOffsets.get(dayNumber) || 0;
+
+    // Calculate perpendicular direction to apply same offset as line
+    // Find neighboring points for direction calculation
+    let markerOffset = [0, 0];
+    if (lineOffset !== 0) {
+      const prevPoint = pointIndex > 0 ? points[pointIndex - 1] : null;
+      const nextPoint = pointIndex < points.length - 1 ? points[pointIndex + 1] : null;
+
+      let dx = 0, dy = 0;
+      if (prevPoint && nextPoint) {
+        dx = nextPoint.lng - prevPoint.lng;
+        dy = -(nextPoint.lat - prevPoint.lat); // Negate: screen y is inverted from lat
+      } else if (nextPoint) {
+        dx = nextPoint.lng - point.lng;
+        dy = -(nextPoint.lat - point.lat);
+      } else if (prevPoint) {
+        dx = point.lng - prevPoint.lng;
+        dy = -(point.lat - prevPoint.lat);
+      }
+
+      // Normalize direction vector
+      const len = Math.sqrt(dx * dx + dy * dy);
+      if (len > 0) {
+        dx /= len;
+        dy /= len;
+        // Perpendicular (right side of travel direction in screen coords)
+        // MapLibre line-offset positive = right of travel = (-dy, dx) in screen space
+        const perpX = -dy;
+        const perpY = dx;
+        markerOffset = [perpX * lineOffset, perpY * lineOffset];
+      }
+    }
 
     const el = document.createElement("div");
     el.className = "current-marker";
 
-    const baseColor = isLive ? "#ef4444" : "#3b82f6";
+    const baseColor = isLive ? "#ef4444" : dayColor;
     el.style.cssText = `
       width: ${isLive ? "20px" : "16px"};
       height: ${isLive ? "20px" : "16px"};
@@ -875,7 +955,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
       ${isLive ? "animation: pulse 1.5s ease-in-out infinite;" : ""}
     `;
 
-    markerRef.current = new maplibregl.Marker({ element: el })
+    markerRef.current = new maplibregl.Marker({ element: el, offset: markerOffset })
       .setLngLat([point.lng, point.lat])
       .addTo(map.current);
 
@@ -884,7 +964,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
       zoom: Math.max(map.current.getZoom(), isLive ? 8 : 7),
       duration: 800,
     });
-  }, [selectedId, mapLoaded, points, isLive]);
+  }, [selectedId, mapLoaded, points, isLive, mapDayBoundaries, dayOffsets]);
 
   return (
     <div
