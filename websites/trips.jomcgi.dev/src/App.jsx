@@ -532,12 +532,12 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
       let assignedOffset1, assignedOffset2;
       if (sameDirection) {
         // Same direction: opposite offsets work correctly
-        assignedOffset1 = -6;
-        assignedOffset2 = 6;
+        assignedOffset1 = -4;
+        assignedOffset2 = 4;
       } else {
         // Opposite directions: same offsets put them on opposite sides
-        assignedOffset1 = -6;
-        assignedOffset2 = -6;
+        assignedOffset1 = -4;
+        assignedOffset2 = -4;
       }
 
       const offset1 = offsets.has(day1) ? "(already set)" : assignedOffset1;
