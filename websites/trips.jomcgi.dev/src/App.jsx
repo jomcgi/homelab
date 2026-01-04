@@ -346,12 +346,44 @@ const DAY_COLORS = [
   "#ec4899", // Pink - Day 8
 ];
 
-function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, dayBoundaries = [] }) {
+function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markerRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mountedRef = useRef(false);
+
+  // Calculate day boundaries from the actual points we're rendering (not from timeline data)
+  // This ensures gap points get the correct day color
+  const mapDayBoundaries = useMemo(() => {
+    if (points.length === 0) return [];
+
+    const boundaries = [];
+    let currentDate = null;
+
+    points.forEach((point, index) => {
+      // Get date string in Pacific Time (for BC/Yukon trip)
+      const dateStr = point.timestamp.toLocaleDateString("en-CA", {
+        timeZone: "America/Vancouver",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      });
+
+      if (dateStr !== currentDate) {
+        boundaries.push({
+          index,
+          date: point.timestamp,
+          dateStr,
+          dayNumber: boundaries.length + 1,
+        });
+        currentDate = dateStr;
+      }
+    });
+
+    console.log("Map day boundaries:", JSON.stringify(boundaries.map(b => ({ dayNumber: b.dayNumber, dateStr: b.dateStr, index: b.index }))));
+    return boundaries;
+  }, [points]);
 
   // Split points into day segments, separating gap points from real points
   // Real points are further split into contiguous runs (broken by gaps)
@@ -393,7 +425,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
       return { realRuns, gapRuns };
     };
 
-    if (dayBoundaries.length === 0 || points.length === 0) {
+    if (mapDayBoundaries.length === 0 || points.length === 0) {
       const { realRuns, gapRuns } = splitIntoRuns(points, 1, DAY_COLORS[0]);
       return {
         daySegments: realRuns.length > 0 ? realRuns : [{ dayNumber: 1, points: [], color: DAY_COLORS[0] }],
@@ -404,22 +436,23 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
     const allRealRuns = [];
     const allGapRuns = [];
 
-    for (let i = 0; i < dayBoundaries.length; i++) {
-      const startIdx = dayBoundaries[i].index;
-      const endIdx = i < dayBoundaries.length - 1
-        ? dayBoundaries[i + 1].index
+    for (let i = 0; i < mapDayBoundaries.length; i++) {
+      const startIdx = mapDayBoundaries[i].index;
+      const endIdx = i < mapDayBoundaries.length - 1
+        ? mapDayBoundaries[i + 1].index
         : points.length;
 
       const dayPoints = points.slice(startIdx, endIdx);
       const color = DAY_COLORS[(i) % DAY_COLORS.length];
-      const { realRuns, gapRuns } = splitIntoRuns(dayPoints, dayBoundaries[i].dayNumber, color);
+      const { realRuns, gapRuns } = splitIntoRuns(dayPoints, mapDayBoundaries[i].dayNumber, color);
 
       allRealRuns.push(...realRuns);
       allGapRuns.push(...gapRuns);
     }
 
+    console.log("Gap segments:", JSON.stringify(allGapRuns.map(g => ({ dayNumber: g.dayNumber, color: g.color, pointCount: g.points.length, firstTimestamp: g.points[0]?.timestamp?.toISOString() }))));
     return { daySegments: allRealRuns, gapSegments: allGapRuns };
-  }, [points, dayBoundaries]);
+  }, [points, mapDayBoundaries]);
 
   // Detect which days have overlapping routes and assign offsets
   const dayOffsets = useMemo(() => {
@@ -559,35 +592,8 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
         });
       });
 
-      // Create gap route layers (lower opacity, no glow - just shows where route went without photos)
-      gapSegments.forEach((segment, idx) => {
-        const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
-        const sourceId = `gap-segment-${idx}`;
-        const offset = dayOffsets.get(segment.dayNumber) || 0;
-
-        map.current.addSource(sourceId, {
-          type: "geojson",
-          data: {
-            type: "Feature",
-            properties: { day: segment.dayNumber, isGap: true },
-            geometry: { type: "LineString", coordinates: routeCoords },
-          },
-        });
-
-        // Gap line layer - lower opacity, dashed to indicate inferred route
-        map.current.addLayer({
-          id: `${sourceId}-line`,
-          type: "line",
-          source: sourceId,
-          paint: {
-            "line-color": segment.color,
-            "line-width": 3,
-            "line-opacity": 0.4,
-            "line-offset": offset,
-            "line-dasharray": [2, 2], // Dashed line to indicate gap/inferred route
-          },
-        });
-      });
+      // Gap route layers are created dynamically in the update effect
+      // to ensure they use current (not stale) segment data with correct colors
 
       // Add day labels (only one per day, on the first segment of each day)
       const labeledDays = new Set();
@@ -708,7 +714,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
 
-    // Update each route segment source
+    // Update each route segment source and colors
     daySegments.forEach((segment, idx) => {
       const sourceId = `route-segment-${idx}`;
       const source = map.current.getSource(sourceId);
@@ -719,23 +725,66 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, 
           properties: { day: segment.dayNumber },
           geometry: { type: "LineString", coordinates: routeCoords },
         });
+        // Update layer colors (in case day assignment changed)
+        const offset = dayOffsets.get(segment.dayNumber) || 0;
+        if (map.current.getLayer(`${sourceId}-glow`)) {
+          map.current.setPaintProperty(`${sourceId}-glow`, "line-color", segment.color);
+          map.current.setPaintProperty(`${sourceId}-glow`, "line-offset", offset);
+        }
+        if (map.current.getLayer(`${sourceId}-line`)) {
+          map.current.setPaintProperty(`${sourceId}-line`, "line-color", segment.color);
+          map.current.setPaintProperty(`${sourceId}-line`, "line-offset", offset);
+        }
       }
     });
 
-    // Update gap route sources
+    // Update or create gap route sources and colors
     gapSegments.forEach((segment, idx) => {
       const sourceId = `gap-segment-${idx}`;
+      const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
+      const offset = dayOffsets.get(segment.dayNumber) || 0;
       const source = map.current.getSource(sourceId);
+
       if (source) {
-        const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
+        // Update existing source
         source.setData({
           type: "Feature",
           properties: { day: segment.dayNumber, isGap: true },
           geometry: { type: "LineString", coordinates: routeCoords },
         });
+        // Update layer color (in case day assignment changed)
+        if (map.current.getLayer(`${sourceId}-line`)) {
+          map.current.setPaintProperty(`${sourceId}-line`, "line-color", segment.color);
+          map.current.setPaintProperty(`${sourceId}-line`, "line-offset", offset);
+        }
+      } else {
+        // Create new source and layer for gap segments that didn't exist on initial load
+        console.log(`CREATING gap layer ${sourceId} with color ${segment.color} for day ${segment.dayNumber}`);
+        map.current.addSource(sourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: { day: segment.dayNumber, isGap: true },
+            geometry: { type: "LineString", coordinates: routeCoords },
+          },
+        });
+
+        // Gap line layer - same color/opacity as real routes, just dashed
+        map.current.addLayer({
+          id: `${sourceId}-line`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": segment.color,
+            "line-width": 4,
+            "line-opacity": 0.9,
+            "line-offset": offset,
+            "line-dasharray": [2, 2],
+          },
+        });
       }
     });
-  }, [mapLoaded, daySegments, gapSegments]);
+  }, [mapLoaded, daySegments, gapSegments, dayOffsets]);
 
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
@@ -1891,7 +1940,6 @@ export default function App() {
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
-                dayBoundaries={dayBoundaries}
               />
 
               {/* Stats Overlay */}
@@ -1959,7 +2007,6 @@ export default function App() {
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
-                dayBoundaries={dayBoundaries}
               />
 
               {/* Stats Overlay */}
