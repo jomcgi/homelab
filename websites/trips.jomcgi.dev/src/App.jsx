@@ -346,33 +346,52 @@ const DAY_COLORS = [
   "#ec4899", // Pink - Day 8
 ];
 
-function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = [] }) {
+function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive, dayBoundaries = [] }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markerRef = useRef(null);
   const [mapLoaded, setMapLoaded] = useState(false);
   const mountedRef = useRef(false);
 
-  // Split points into day segments
-  const daySegments = useMemo(() => {
+  // Split points into day segments, separating gap points from real points
+  const { daySegments, gapSegments } = useMemo(() => {
     if (dayBoundaries.length === 0 || points.length === 0) {
-      return [{ dayNumber: 1, points: points, color: DAY_COLORS[0] }];
+      const realPoints = points.filter((p) => p.image !== null);
+      const gapPoints = points.filter((p) => p.image === null);
+      return {
+        daySegments: [{ dayNumber: 1, points: realPoints, color: DAY_COLORS[0] }],
+        gapSegments: gapPoints.length > 0 ? [{ dayNumber: 1, points: gapPoints, color: DAY_COLORS[0] }] : [],
+      };
     }
 
     const segments = [];
+    const gaps = [];
     for (let i = 0; i < dayBoundaries.length; i++) {
       const startIdx = dayBoundaries[i].index;
       const endIdx = i < dayBoundaries.length - 1
         ? dayBoundaries[i + 1].index
         : points.length;
 
+      const dayPoints = points.slice(startIdx, endIdx);
+      const realPoints = dayPoints.filter((p) => p.image !== null);
+      const gapPoints = dayPoints.filter((p) => p.image === null);
+      const color = DAY_COLORS[(i) % DAY_COLORS.length];
+
       segments.push({
         dayNumber: dayBoundaries[i].dayNumber,
-        points: points.slice(startIdx, endIdx),
-        color: DAY_COLORS[(i) % DAY_COLORS.length],
+        points: realPoints,
+        color,
       });
+
+      if (gapPoints.length > 0) {
+        gaps.push({
+          dayNumber: dayBoundaries[i].dayNumber,
+          points: gapPoints,
+          color,
+        });
+      }
     }
-    return segments;
+    return { daySegments: segments, gapSegments: gaps };
   }, [points, dayBoundaries]);
 
   // Detect which days have overlapping routes and assign offsets
@@ -513,6 +532,36 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
         });
       });
 
+      // Create gap route layers (lower opacity, no glow - just shows where route went without photos)
+      gapSegments.forEach((segment) => {
+        const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
+        const sourceId = `gap-route-day-${segment.dayNumber}`;
+        const offset = dayOffsets.get(segment.dayNumber) || 0;
+
+        map.current.addSource(sourceId, {
+          type: "geojson",
+          data: {
+            type: "Feature",
+            properties: { day: segment.dayNumber, isGap: true },
+            geometry: { type: "LineString", coordinates: routeCoords },
+          },
+        });
+
+        // Gap line layer - lower opacity, dashed to indicate inferred route
+        map.current.addLayer({
+          id: `${sourceId}-line`,
+          type: "line",
+          source: sourceId,
+          paint: {
+            "line-color": segment.color,
+            "line-width": 3,
+            "line-opacity": 0.4,
+            "line-offset": offset,
+            "line-dasharray": [2, 2], // Dashed line to indicate gap/inferred route
+          },
+        });
+      });
+
       // Add all day labels AFTER all route lines (so labels appear on top)
       daySegments.forEach((segment) => {
         if (segment.points.length > 0) {
@@ -551,16 +600,21 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
         }
       });
 
-      // Click handler for route lines - navigate to closest point
+      // Click handler for route lines - navigate to closest selectable point (with image)
       const handleRouteClick = (e) => {
         const clickedLng = e.lngLat.lng;
         const clickedLat = e.lngLat.lat;
 
-        // Find the closest point in tripData
+        // Find the closest selectable point (one with an image)
+        // Gap points are not selectable - they're just for route visualization
+        const pointsToSearch = selectablePoints || points;
         let closestId = null;
         let minDist = Infinity;
 
-        points.forEach((p) => {
+        pointsToSearch.forEach((p) => {
+          // Skip gap points (no image)
+          if (p.image === null) return;
+
           const dist = Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
           if (dist < minDist) {
             minDist = dist;
@@ -595,6 +649,20 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
         });
       });
 
+      // Add click handlers for gap route lines (navigates to nearest real point)
+      gapSegments.forEach((segment) => {
+        const lineId = `gap-route-day-${segment.dayNumber}-line`;
+
+        map.current.on("click", lineId, handleRouteClick);
+
+        map.current.on("mouseenter", lineId, () => {
+          map.current.getCanvas().style.cursor = "pointer";
+        });
+        map.current.on("mouseleave", lineId, () => {
+          map.current.getCanvas().style.cursor = "";
+        });
+      });
+
       setMapLoaded(true);
       setTimeout(() => map.current?.resize(), 100);
     });
@@ -624,7 +692,21 @@ function TripMap({ points, selectedId, onMarkerClick, isLive, dayBoundaries = []
         });
       }
     });
-  }, [mapLoaded, daySegments]);
+
+    // Update gap route sources
+    gapSegments.forEach((segment) => {
+      const sourceId = `gap-route-day-${segment.dayNumber}`;
+      const source = map.current.getSource(sourceId);
+      if (source) {
+        const routeCoords = segment.points.map((p) => [p.lng, p.lat]);
+        source.setData({
+          type: "Feature",
+          properties: { day: segment.dayNumber, isGap: true },
+          geometry: { type: "LineString", coordinates: routeCoords },
+        });
+      }
+    });
+  }, [mapLoaded, daySegments, gapSegments]);
 
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
@@ -1276,19 +1358,29 @@ export default function App() {
   const { points: rawTripData, loading, error, stats } = useTripData();
   const { getInitialFrame, getInitialTags, updateUrl } = useUrlState();
 
-  // Deduplicate images:
+  // All points including gaps - used for map route rendering
+  // Gap points (image: null) are included to draw continuous route lines
+  const mapPoints = useMemo(() => {
+    return [...rawTripData].sort((a, b) => a.timestamp - b.timestamp);
+  }, [rawTripData]);
+
+  // Deduplicate images for timeline/thumbnails:
+  // - Gap points (no image): excluded entirely - only for map rendering
   // - "car" tagged images: keep only 1 per minute (continuous driving footage)
   // - Other tags (hotspring, etc): keep ALL images (intentional moments)
   const tripData = useMemo(() => {
     if (rawTripData.length === 0) return [];
 
+    // Filter out gap points (no image) - they're only for map route rendering
+    const pointsWithImages = rawTripData.filter((p) => p.image !== null);
+
     // Separate car-only images from images with other tags
     const carOnlyImages = [];
     const specialImages = []; // Images with tags other than "car"
 
-    for (const point of rawTripData) {
+    for (const point of pointsWithImages) {
       const tags = point.tags?.map((t) => t.toLowerCase()) || [];
-      const hasNonCarTag = tags.some((t) => t !== "car");
+      const hasNonCarTag = tags.some((t) => t !== "car" && t !== "gap");
 
       if (hasNonCarTag) {
         // Has a special tag (hotspring, etc) - keep all of these
@@ -1765,7 +1857,8 @@ export default function App() {
               className={`relative w-full ${mobileView === "map" ? "block" : "hidden"}`}
             >
               <TripMap
-                points={tripData}
+                points={mapPoints}
+                selectablePoints={tripData}
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
@@ -1832,7 +1925,8 @@ export default function App() {
               className={`relative transition-all duration-300 ${mapExpanded ? "w-2/3" : "w-1/2"}`}
             >
               <TripMap
-                points={tripData}
+                points={mapPoints}
+                selectablePoints={tripData}
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
