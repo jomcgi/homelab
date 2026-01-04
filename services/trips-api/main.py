@@ -196,16 +196,34 @@ class TripsState:
 
                 # Broadcast to WebSocket clients
                 if point:
-                    await self.manager.broadcast(
-                        {"type": "new_point", "point": point.model_dump()}
-                    )
+                    if isinstance(point, dict) and point.get("deleted"):
+                        await self.manager.broadcast(
+                            {"type": "delete_point", "id": point["id"]}
+                        )
+                    else:
+                        await self.manager.broadcast(
+                            {"type": "new_point", "point": point.model_dump()}
+                        )
             except Exception as e:
                 logger.error(f"Error processing message: {e}")
 
-    async def _process_message(self, data: bytes) -> Optional[TripPoint]:
-        """Process a single message and add to cache."""
+    async def _process_message(self, data: bytes) -> Optional[TripPoint | dict]:
+        """Process a single message and add to or remove from cache.
+
+        Supports tombstone messages for deletion: {"id": "point_id", "deleted": true}
+        """
         try:
             point_data = json.loads(data.decode())
+
+            # Handle tombstone/delete messages
+            if point_data.get("deleted"):
+                point_id = point_data.get("id")
+                if point_id and point_id in self.points:
+                    del self.points[point_id]
+                    logger.info(f"Deleted point {point_id}")
+                    return {"id": point_id, "deleted": True}
+                return None
+
             point = TripPoint(**point_data)
             # Skip points with invalid coordinates
             if not is_valid_coordinates(point.lat, point.lng):
