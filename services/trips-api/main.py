@@ -46,8 +46,8 @@ class TripPoint(BaseModel):
     lat: float
     lng: float
     timestamp: str
-    image: str  # Just the filename, e.g., "img_abc123def456.jpg"
-    source: str = "gopro"  # Image source: gopro, camera, phone
+    image: str | None = None  # Filename or None for gap points (route-only, no image)
+    source: str = "gopro"  # Image source: gopro, camera, phone, or "gap" for inferred routes
     tags: list[str] = ["car"]  # User-defined tags; defaults to "car" for existing data
 
 
