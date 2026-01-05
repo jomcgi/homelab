@@ -344,9 +344,10 @@ const DAY_COLORS = [
   "#06b6d4", // Cyan - Day 6
   "#f97316", // Orange - Day 7
   "#ec4899", // Pink - Day 8
-  "#84cc16", // Lime - Day 9
+  "#16a34a", // Green - Day 9 (was lime, too hard to see)
   "#14b8a6", // Teal - Day 10
   "#a855f7", // Purple - Day 11
+  "#0ea5e9", // Sky - Day 12
 ];
 
 function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }) {
@@ -466,8 +467,13 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
 
     // Aggregate all points by day number (regardless of gaps/runs)
     // This ensures we compare whole days, not individual runs
+    // Include both real segments and gap segments to detect overlaps for gap-only days
     const pointsByDay = new Map();
     for (const segment of daySegments) {
+      const existing = pointsByDay.get(segment.dayNumber) || [];
+      pointsByDay.set(segment.dayNumber, [...existing, ...segment.points]);
+    }
+    for (const segment of gapSegments) {
       const existing = pointsByDay.get(segment.dayNumber) || [];
       pointsByDay.set(segment.dayNumber, [...existing, ...segment.points]);
     }
@@ -554,7 +560,7 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
 
     console.log("Final day offsets:", Object.fromEntries(offsets));
     return offsets;
-  }, [daySegments]);
+  }, [daySegments, gapSegments]);
 
   // Keep ref in sync with dayOffsets for use in callbacks
   useEffect(() => {
@@ -660,8 +666,11 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
       // to ensure they use current (not stale) segment data with correct colors
 
       // Add day labels (only one per day, on the first segment of each day)
+      // Also check gap segments for days that only have gap points (no images yet)
       const labeledDays = new Set();
-      daySegments.forEach((segment) => {
+
+      // Helper to add a day label
+      const addDayLabel = (segment) => {
         if (segment.points.length > 0 && !labeledDays.has(segment.dayNumber)) {
           labeledDays.add(segment.dayNumber);
           // Place label ~15% into the route - near the start where each day diverges
@@ -697,7 +706,13 @@ function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }
             },
           });
         }
-      });
+      };
+
+      // First, add labels from real segments (daySegments)
+      daySegments.forEach(addDayLabel);
+
+      // Then, add labels for gap-only days (days without any real images yet)
+      gapSegments.forEach(addDayLabel);
 
       // Click handler for route lines - navigate to closest selectable point (with image)
       // Only searches within the clicked day's points to avoid cross-day selection on overlapping routes
