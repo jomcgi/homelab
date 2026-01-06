@@ -22,24 +22,7 @@ const getMapStyle = (apiKey) => {
   if (apiKey) {
     return `https://api.maptiler.com/maps/toner-v2/style.json?key=${apiKey}`;
   }
-  return {
-    version: 8,
-    sources: {
-      'stamen-toner': {
-        type: 'raster',
-        tiles: ['https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}@2x.png'],
-        tileSize: 256,
-        attribution: '© Stadia Maps © Stamen Design © OpenMapTiles © OpenStreetMap'
-      }
-    },
-    layers: [{
-      id: 'toner-tiles',
-      type: 'raster',
-      source: 'stamen-toner',
-      minzoom: 0,
-      maxzoom: 18
-    }]
-  };
+  return `https://basemaps.cartocdn.com/gl/positron-gl-style/style.json`;
 };
 
 // Download helpers
