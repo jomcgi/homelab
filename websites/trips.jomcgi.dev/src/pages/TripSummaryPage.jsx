@@ -761,11 +761,11 @@ export function TripSummaryPage() {
 </div>
 
           {/* Daily Breakdown Table */}
-          <div>
+          <div style={{ overflowX: isMobile ? 'auto' : 'visible' }}>
             <div style={{
               display: 'grid',
               gridTemplateColumns: isMobile
-                ? (stats.hasElevation ? '1fr 1.2fr 50px 70px' : '1fr 60px')
+                ? (stats.hasElevation ? '1fr 1.5fr 60px 80px' : '1fr 70px')
                 : (stats.hasElevation ? '1.5fr 2fr 70px 90px' : '1fr 80px'),
               padding: isMobile ? '0 0 10px' : '0 0 12px',
               borderBottom: '2px solid #1a1a1a',
@@ -774,7 +774,8 @@ export function TripSummaryPage() {
               fontFamily: 'monospace',
               letterSpacing: '0.05em',
               color: '#9ca3af',
-              gap: isMobile ? '8px' : '20px'
+              gap: isMobile ? '12px' : '20px',
+              minWidth: isMobile ? '480px' : 'auto'
             }}>
               <div>ROUTE</div>
               {stats.hasElevation && isMobile && <div>RANGE</div>}
@@ -784,7 +785,7 @@ export function TripSummaryPage() {
               {stats.hasElevation && !isMobile && <div style={{ textAlign: 'right' }}>ELEV</div>}
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', minWidth: isMobile ? '480px' : 'auto' }}>
               {stats.days.map((day, i) => {
                 const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
                 return (
@@ -795,14 +796,14 @@ export function TripSummaryPage() {
                     style={{
                       display: 'grid',
                       gridTemplateColumns: isMobile
-                        ? (stats.hasElevation ? '1fr 1.2fr 50px 70px' : '1fr 60px')
+                        ? (stats.hasElevation ? '1fr 1.5fr 60px 80px' : '1fr 70px')
                         : (stats.hasElevation ? '1.5fr 2fr 70px 90px' : '1fr 80px'),
                       padding: isMobile ? '10px 0' : '14px 0',
                       borderBottom: '1px solid #f3f4f6',
                       background: hoveredDay === i ? '#fafafa' : 'transparent',
                       transition: 'background 0.1s',
                       alignItems: 'center',
-                      gap: isMobile ? '8px' : '20px',
+                      gap: isMobile ? '12px' : '20px',
                       cursor: 'pointer'
                     }}
                   >
@@ -812,26 +813,20 @@ export function TripSummaryPage() {
                         color: '#1a1a1a',
                         fontSize: isMobile ? '11px' : '13px',
                         paddingBottom: isMobile ? '3px' : '4px',
-                        borderBottom: `1.5px solid ${color}`
+                        borderBottom: `${isMobile ? '1.5px' : '1.5px'} solid ${color}`
                       }}>
                         {getDayLabel(day.dayNumber)}
                       </span>
                     </div>
 
-                    {stats.hasElevation && !isMobile && (
-                      <div style={{ height: '24px' }}>
+                    {stats.hasElevation && (
+                      <div style={{ height: isMobile ? '20px' : '24px' }}>
                         <ElevationSparkline
                           points={day.points}
-                          height={24}
+                          height={isMobile ? 20 : 24}
                           globalMin={stats.minElevation}
                           globalMax={stats.maxElevation}
                         />
-                      </div>
-                    )}
-
-                    {stats.hasElevation && isMobile && (
-                      <div style={{ fontSize: '10px', color: '#6b7280' }}>
-                        {day.minElevation}–{day.maxElevation}m
                       </div>
                     )}
 
@@ -839,8 +834,8 @@ export function TripSummaryPage() {
                       {day.distance}
                     </div>
 
-                    {stats.hasElevation && !isMobile && (
-                      <div style={{ textAlign: 'right', fontSize: '11px', fontFamily: 'monospace', color: '#6b7280' }}>
+                    {stats.hasElevation && (
+                      <div style={{ textAlign: 'right', fontSize: isMobile ? '10px' : '11px', fontFamily: 'monospace', color: '#6b7280' }}>
                         +{day.ascent}/-{day.descent}
                       </div>
                     )}
