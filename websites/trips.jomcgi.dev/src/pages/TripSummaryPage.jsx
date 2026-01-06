@@ -778,9 +778,11 @@ export function TripSummaryPage() {
               minWidth: isMobile ? '480px' : 'auto'
             }}>
               <div>ROUTE</div>
-              {stats.hasElevation && <div>PROFILE</div>}
+              {stats.hasElevation && isMobile && <div>RANGE</div>}
+              {stats.hasElevation && !isMobile && <div>PROFILE</div>}
               <div style={{ textAlign: 'right' }}>KM</div>
-              {stats.hasElevation && <div style={{ textAlign: 'right' }}>ELEV</div>}
+              {stats.hasElevation && isMobile && <div style={{ textAlign: 'right' }}>UP</div>}
+              {stats.hasElevation && !isMobile && <div style={{ textAlign: 'right' }}>ELEV</div>}
             </div>
 
             <div style={{ display: 'flex', flexDirection: 'column', minWidth: isMobile ? '480px' : 'auto' }}>
@@ -835,6 +837,12 @@ export function TripSummaryPage() {
                     {stats.hasElevation && (
                       <div style={{ textAlign: 'right', fontSize: isMobile ? '10px' : '11px', fontFamily: 'monospace', color: '#6b7280' }}>
                         +{day.ascent}/-{day.descent}
+                      </div>
+                    )}
+
+                    {stats.hasElevation && isMobile && (
+                      <div style={{ textAlign: 'right', fontSize: '10px', fontFamily: 'monospace', color: '#6b7280' }}>
+                        +{day.ascent}
                       </div>
                     )}
                   </div>
