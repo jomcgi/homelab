@@ -38,6 +38,9 @@ const WS_BASE_URL = import.meta.env.VITE_WS_URL || "wss://api.jomcgi.dev/trips";
 const IMAGE_BASE_URL =
   import.meta.env.VITE_IMAGE_URL || "https://img.jomcgi.dev";
 
+// Feature flags
+const LIVE_FEATURES_ENABLED = false; // Enable live trip mode and weather display
+
 // Construct image URLs from filename
 const getThumbUrl = (image) => `${IMAGE_BASE_URL}/trips/thumb/${image}`;
 const getDisplayUrl = (image) => `${IMAGE_BASE_URL}/trips/display/${image}`;
@@ -2082,29 +2085,35 @@ export default function App() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-4">
             <div className="flex items-center gap-2">
-              <div
-                className={`h-2 w-2 rounded-full ${isLive ? "bg-red-500" : "bg-emerald-500"} animate-pulse`}
-              />
+              {LIVE_FEATURES_ENABLED && (
+                <div
+                  className={`h-2 w-2 rounded-full ${isLive ? "bg-red-500" : "bg-emerald-500"} animate-pulse`}
+                />
+              )}
               {!isMobile && (
                 <span className="text-sm font-medium text-gray-900">Winter Road Trip to Liard Hot Springs</span>
               )}
             </div>
-            <div className="bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
-              Live Trip
-            </div>
+            {LIVE_FEATURES_ENABLED && (
+              <div className="bg-emerald-500/20 text-emerald-600 px-2 py-0.5 rounded text-xs font-medium flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse" />
+                Live Trip
+              </div>
+            )}
             {isMobile && (
               <ViewToggle
                 activeView={mobileView}
                 onViewChange={setMobileView}
               />
             )}
-            <LiveBadge
-              isLive={isLive}
-              onToggle={toggleLive}
-              viewerCount={stats.viewers > 0 ? stats.viewers : null}
-              compact={isMobile}
-            />
+            {LIVE_FEATURES_ENABLED && (
+              <LiveBadge
+                isLive={isLive}
+                onToggle={toggleLive}
+                viewerCount={stats.viewers > 0 ? stats.viewers : null}
+                compact={isMobile}
+              />
+            )}
             {isMobile && availableTags.length > 0 && (
               <TagFilter
                 availableTags={availableTags}
@@ -2122,7 +2131,7 @@ export default function App() {
               isMobile={false}
             />
           )}
-          {!isMobile && weather && (
+          {LIVE_FEATURES_ENABLED && !isMobile && weather && (
             <div className="flex items-center gap-3 text-sm text-gray-600">
               <MapPin className="h-3 w-3 text-gray-400" />
               <span>{weather.temp}°C</span>
