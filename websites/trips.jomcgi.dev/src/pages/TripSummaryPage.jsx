@@ -823,8 +823,8 @@ export function TripSummaryPage() {
 }}>
 
   {/* Distance Group */}
-  <div>
-    <div style={{ fontSize: isMobile ? '9px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
+  <div style={isMobile ? { borderTop: '1px solid #e5e7eb', paddingTop: '20px' } : {}}>
+    <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: isMobile ? '#6b7280' : '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
       DISTANCE
     </div>
 
