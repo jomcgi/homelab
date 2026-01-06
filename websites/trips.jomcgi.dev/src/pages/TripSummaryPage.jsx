@@ -278,6 +278,9 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
     return lngKm > latKm * 1.2; // Route is horizontal if E-W span is 20% greater than N-S
   }, [bounds]);
 
+  // On mobile, rotate north-south routes 90° to fill horizontal space better
+  const shouldRotate = isMobile && !isHorizontalRoute;
+
   const furthestNorth = useMemo(() => {
     if (!points.length) return null;
     return points.reduce((max, p) => p.lat > max.lat ? p : max, points[0]);
@@ -387,22 +390,25 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
           }
         });
 
-        map.current.on('mouseenter', `route-${i}`, () => {
-          map.current.getCanvas().style.cursor = 'pointer';
-          onHoverDay?.(i);
-        });
-        map.current.on('mouseenter', `route-${i}-glow`, () => {
-          map.current.getCanvas().style.cursor = 'pointer';
-          onHoverDay?.(i);
-        });
-        map.current.on('mouseleave', `route-${i}`, () => {
-          map.current.getCanvas().style.cursor = '';
-          onHoverDay?.(null);
-        });
-        map.current.on('mouseleave', `route-${i}-glow`, () => {
-          map.current.getCanvas().style.cursor = '';
-          onHoverDay?.(null);
-        });
+        // Only add hover handlers if map is not rotated (rotation causes coordinate mismatch)
+        if (!shouldRotate) {
+          map.current.on('mouseenter', `route-${i}`, () => {
+            map.current.getCanvas().style.cursor = 'pointer';
+            onHoverDay?.(i);
+          });
+          map.current.on('mouseenter', `route-${i}-glow`, () => {
+            map.current.getCanvas().style.cursor = 'pointer';
+            onHoverDay?.(i);
+          });
+          map.current.on('mouseleave', `route-${i}`, () => {
+            map.current.getCanvas().style.cursor = '';
+            onHoverDay?.(null);
+          });
+          map.current.on('mouseleave', `route-${i}-glow`, () => {
+            map.current.getCanvas().style.cursor = '';
+            onHoverDay?.(null);
+          });
+        }
       });
 
       const startEl = document.createElement('div');
@@ -421,7 +427,7 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
 
       setMapReady(true);
     });
-  }, [bounds, days, dayColors, points, furthestNorth, dayOffsets, containerWidth]);
+  }, [bounds, days, dayColors, points, furthestNorth, dayOffsets, containerWidth, shouldRotate]);
 
   // Cleanup only on unmount
   React.useEffect(() => {
@@ -454,9 +460,34 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
 
   if (!bounds) return null;
 
-  // On mobile, rotate north-south routes 90° to fill horizontal space better
-  const shouldRotate = isMobile && !isHorizontalRoute;
   const displayHeight = shouldRotate ? 200 : mapHeight;
+
+  // Handle hover on rotated map by transforming coordinates
+  const handleRotatedMapHover = (e) => {
+    if (!map.current || !mapReady) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    // Transform screen coordinates to map coordinates (90° clockwise rotation)
+    // Screen: containerWidth × displayHeight, Canvas: displayHeight × containerWidth
+    // Corner mapping: screen(0,0)→canvas(0,H), screen(W,0)→canvas(0,0), etc.
+    const mapX = screenY;
+    const mapY = containerWidth - screenX;
+
+    // Query map for features at transformed point
+    const features = map.current.queryRenderedFeatures([mapX, mapY]);
+
+    // Find if we hit any route layer
+    const routeFeature = features.find(f => f.layer.id.startsWith('route-') && !f.layer.id.includes('glow'));
+    if (routeFeature) {
+      const dayIndex = parseInt(routeFeature.layer.id.replace('route-', ''), 10);
+      onHoverDay?.(dayIndex);
+    } else {
+      onHoverDay?.(null);
+    }
+  };
 
   if (shouldRotate) {
     // For rotated maps: the map's height (after rotation) becomes the container width
@@ -465,11 +496,15 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
     return (
       <div
         ref={wrapperRef}
+        onMouseMove={handleRotatedMapHover}
+        onMouseLeave={() => onHoverDay?.(null)}
+        onClick={handleRotatedMapHover}
         style={{
           position: 'relative',
           width: '100%',
           height: `${displayHeight}px`,
-          overflow: 'hidden'
+          overflow: 'hidden',
+          cursor: 'pointer'
         }}
       >
         {containerWidth > 0 && (
@@ -482,7 +517,8 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
               left: '50%',
               top: '50%',
               transform: 'translate(-50%, -50%) rotate(90deg)',
-              transformOrigin: 'center center'
+              transformOrigin: 'center center',
+              pointerEvents: 'none'
             }}>
               <div
                 ref={mapContainer}
@@ -505,7 +541,8 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
               alignItems: 'center',
               gap: '3px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-              zIndex: 10
+              zIndex: 10,
+              pointerEvents: 'none'
             }}>
               <span style={{ fontSize: '12px', color: '#dc2626' }}>→</span> N
             </div>
@@ -836,6 +873,8 @@ export function TripSummaryPage() {
             <div
               key={i}
               onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+              onMouseEnter={() => setHoveredDay(i)}
+              onMouseLeave={() => setHoveredDay(null)}
               style={{
                 flex: 1,
                 height: `${(day.distance / stats.longestDay) * 100}%`,
@@ -887,8 +926,8 @@ export function TripSummaryPage() {
 
   {/* Elevation Group */}
   {stats.hasElevation && (
-    <div>
-      <div style={{ fontSize: isMobile ? '9px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
+    <div style={isMobile ? { borderTop: '1px solid #e5e7eb', paddingTop: '20px' } : {}}>
+      <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: isMobile ? '#6b7280' : '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
         ELEVATION
       </div>
 
@@ -906,6 +945,8 @@ export function TripSummaryPage() {
                 <div
                   key={i}
                   onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+                  onMouseEnter={() => setHoveredDay(i)}
+                  onMouseLeave={() => setHoveredDay(null)}
                   style={{ flex: 1, position: 'relative', height: '100%', cursor: 'pointer' }}
                 >
                   <div style={{
@@ -983,10 +1024,15 @@ export function TripSummaryPage() {
                 return (
                   <div
                     key={i}
+                    onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+                    onMouseEnter={() => setHoveredDay(i)}
+                    onMouseLeave={() => setHoveredDay(null)}
                     style={{
-                      background: '#fafafa',
+                      background: hoveredDay === i ? '#f3f4f6' : '#fafafa',
                       borderRadius: '6px',
-                      padding: '12px'
+                      padding: '12px',
+                      cursor: 'pointer',
+                      transition: 'background 0.1s'
                     }}
                   >
                     {/* Route title with colored underline */}

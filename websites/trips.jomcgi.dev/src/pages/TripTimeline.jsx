@@ -34,6 +34,7 @@ import { getThumbUrl, getDisplayUrl } from "../utils/images";
 export function TripTimeline() {
   const {
     tripSlug,
+    tripConfig,
     tripData,
     mapPoints,
     dayBoundaries,
@@ -87,6 +88,8 @@ export function TripTimeline() {
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
+  // Track if we're at the initial default view (zoomed out map)
+  const [isInitialDefaultView, setIsInitialDefaultView] = useState(false);
 
   const canGoPrev = useMemo(() => {
     if (!filteredIndices) return selectedIndex > 0;
@@ -112,18 +115,32 @@ export function TripTimeline() {
 
   const initializedRef = useRef(false);
 
-  // Initialize selected index from URL or default to latest
+  // Initialize selected index from URL, config default_image, or latest
   useEffect(() => {
     if (tripData.length > 0 && !initializedRef.current) {
       initializedRef.current = true;
       const urlFrame = getInitialFrame();
+
       if (urlFrame !== null && urlFrame < tripData.length) {
+        // URL frame takes priority
         setSelectedIndex(urlFrame);
+      } else if (tripConfig?.timeline?.default_image) {
+        // Look for default_image from config
+        const defaultImageId = tripConfig.timeline.default_image;
+        const defaultIndex = tripData.findIndex((p) =>
+          p.id === defaultImageId || p.image?.includes(defaultImageId)
+        );
+        if (defaultIndex !== -1) {
+          setSelectedIndex(defaultIndex);
+          setIsInitialDefaultView(true); // Enable zoomed-out map view
+        } else {
+          setSelectedIndex(tripData.length - 1);
+        }
       } else {
         setSelectedIndex(tripData.length - 1);
       }
     }
-  }, [tripData.length, getInitialFrame]);
+  }, [tripData.length, tripConfig, getInitialFrame]);
 
   // Sync URL with current frame and tags
   useEffect(() => {
@@ -249,10 +266,12 @@ export function TripTimeline() {
         e.preventDefault();
         setSelectedIndex((prev) => getPrevFilteredIndex(prev));
         setIsPlaying(false);
+        setIsInitialDefaultView(false); // Clear zoomed-out state on navigation
       } else if (e.key === "ArrowRight") {
         e.preventDefault();
         setSelectedIndex((prev) => getNextFilteredIndex(prev));
         setIsPlaying(false);
+        setIsInitialDefaultView(false); // Clear zoomed-out state on navigation
       }
     };
 
@@ -287,6 +306,7 @@ export function TripTimeline() {
       if (idx !== -1) {
         setSelectedIndex(idx);
         setIsPlaying(false);
+        setIsInitialDefaultView(false); // Clear zoomed-out state on navigation
         if (idx !== latestIndex) {
           setIsLive(false);
         }
@@ -337,6 +357,7 @@ export function TripTimeline() {
   const handleTimelineChange = (newIndex) => {
     setSelectedIndex(newIndex);
     setIsPlaying(false);
+    setIsInitialDefaultView(false); // Clear zoomed-out state on navigation
     if (newIndex !== latestIndex) {
       setIsLive(false);
     }
@@ -467,6 +488,8 @@ export function TripTimeline() {
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
+                skipInitialZoom={isInitialDefaultView}
+                initialZoom={tripConfig?.timeline?.default_zoom}
               />
 
               <div className="absolute top-3 left-3 z-10">
@@ -509,11 +532,13 @@ export function TripTimeline() {
                   setSelectedIndex(getPrevFilteredIndex(selectedIndex));
                   setIsPlaying(false);
                   setIsLive(false);
+                  setIsInitialDefaultView(false);
                 } : null}
                 onNext={canGoNext ? () => {
                   const nextIdx = getNextFilteredIndex(selectedIndex);
                   setSelectedIndex(nextIdx);
                   setIsPlaying(false);
+                  setIsInitialDefaultView(false);
                   if (nextIdx !== tripData.length - 1) setIsLive(false);
                 } : null}
               />
@@ -530,6 +555,8 @@ export function TripTimeline() {
                 selectedId={selectedId}
                 onMarkerClick={handleMarkerClick}
                 isLive={isLive}
+                skipInitialZoom={isInitialDefaultView}
+                initialZoom={tripConfig?.timeline?.default_zoom}
               />
 
               <div className="absolute top-3 left-3 z-10">
@@ -598,11 +625,13 @@ export function TripTimeline() {
             setSelectedIndex(getPrevFilteredIndex(selectedIndex));
             setIsPlaying(false);
             setIsLive(false);
+            setIsInitialDefaultView(false);
           } : null}
           onNext={canGoNext ? () => {
             const nextIdx = getNextFilteredIndex(selectedIndex);
             setSelectedIndex(nextIdx);
             setIsPlaying(false);
+            setIsInitialDefaultView(false);
             if (nextIdx !== tripData.length - 1) {
               setIsLive(false);
             }
@@ -630,7 +659,10 @@ export function TripTimeline() {
               <ChevronLeft className={isMobile ? "h-5 w-5" : "h-4 w-4"} />
             </button>
             <button
-              onClick={() => setIsPlaying(!isPlaying)}
+              onClick={() => {
+                setIsPlaying(!isPlaying);
+                if (!isPlaying) setIsInitialDefaultView(false); // Clear zoomed-out state when starting playback
+              }}
               className={`${isMobile ? "p-2" : "p-1.5"} rounded transition-colors ${isPlaying ? "bg-blue-500 text-white" : "hover:bg-gray-200 text-gray-700"}`}
               disabled={isLive}
             >
