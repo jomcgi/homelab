@@ -525,12 +525,12 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
   );
 }
 
-function BigNumber({ value, unit, label, color, isMobile, scale = 1, isLargeDesktop = false }) {
+function BigNumber({ value, unit, label, color, isMobile, scale = 1, isLargeDesktop = false, align = 'left' }) {
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? '3px' : `${4 * scale}px` }}>
+    <div style={{ textAlign: align }}>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? '4px' : `${4 * scale}px`, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
         <span style={{
-          fontSize: isMobile ? '28px' : isLargeDesktop ? `${32 * scale}px` : '40px',
+          fontSize: isMobile ? '36px' : isLargeDesktop ? `${32 * scale}px` : '40px',
           fontWeight: 800,
           fontFamily: 'system-ui, -apple-system, sans-serif',
           letterSpacing: '-0.03em',
@@ -539,16 +539,28 @@ function BigNumber({ value, unit, label, color, isMobile, scale = 1, isLargeDesk
         }}>
           {value}
         </span>
-        {unit && <span style={{ fontSize: isMobile ? '13px' : isLargeDesktop ? `${13 * scale}px` : '16px', fontWeight: 600, color: '#9ca3af' }}>{unit}</span>}
+        {unit && <span style={{ fontSize: isMobile ? '16px' : isLargeDesktop ? `${13 * scale}px` : '16px', fontWeight: 600, color: '#9ca3af' }}>{unit}</span>}
       </div>
-      <div style={{ fontSize: isMobile ? '9px' : isLargeDesktop ? `${8 * scale}px` : '10px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginTop: `${3 * scale}px` }}>
+      <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${8 * scale}px` : '10px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginTop: `${3 * scale}px` }}>
         {label}
       </div>
     </div>
   );
 }
 
-function SmallStat({ value, unit, label, isMobile, scale = 1, isLargeDesktop = false }) {
+function SmallStat({ value, unit, label, isMobile, scale = 1, isLargeDesktop = false, inline = false, labelColor = null, prefix = null, prefixColor = null, align = 'left' }) {
+  if (inline) {
+    return (
+      <div style={{ textAlign: align }}>
+        {label && <div style={{ fontSize: isMobile ? '9px' : '9px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', color: labelColor || '#9ca3af', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>}
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
+          {prefix && <span style={{ fontSize: isMobile ? '14px' : '14px', fontWeight: 600, color: prefixColor || '#9ca3af' }}>{prefix}</span>}
+          <span style={{ fontSize: isMobile ? '22px' : '22px', fontWeight: 700, fontFamily: 'system-ui', letterSpacing: '-0.02em', color: '#1a1a1a' }}>{value}</span>
+          {unit && <span style={{ fontSize: isMobile ? '13px' : '13px', fontWeight: 500, color: '#9ca3af' }}>{unit}</span>}
+        </div>
+      </div>
+    );
+  }
   return (
     <div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
@@ -566,10 +578,10 @@ export function TripSummaryPage() {
 
   const isMobile = useMediaQuery("(max-width: 768px)");
   const isTablet = useMediaQuery("(max-width: 1024px)");
-  // Large desktop: fits on one screen without scrolling
-  const isLargeDesktop = useMediaQuery("(min-width: 1600px) and (min-height: 900px)");
-  // Full HD or larger: even more compact
-  const isFullHD = useMediaQuery("(min-width: 1920px) and (min-height: 1080px)");
+  // Very large displays (4K+): fit everything on one screen
+  const isLargeDesktop = useMediaQuery("(min-width: 2560px) and (min-height: 1400px)");
+  // 5K or ultrawide: even more compact
+  const is5K = useMediaQuery("(min-width: 3840px) and (min-height: 2000px)");
 
   const points = useMemo(() => {
     return rawTripData.filter(p => p.image !== null);
@@ -617,8 +629,8 @@ export function TripSummaryPage() {
 
   const formatDate = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  // Scaling factor for large desktops to fit everything on one screen
-  const scale = isFullHD ? 0.85 : isLargeDesktop ? 0.9 : 1;
+  // Scaling factor for very large desktops to fit everything on one screen
+  const scale = is5K ? 0.85 : isLargeDesktop ? 0.9 : 1;
 
   return (
     <div style={{
@@ -780,22 +792,22 @@ export function TripSummaryPage() {
             marginBottom: isMobile ? '24px' : isLargeDesktop ? `${20 * scale}px` : '32px',
             flexShrink: 0
           }}>
-            <div style={{ display: 'flex', gap: isMobile ? '24px' : isLargeDesktop ? `${28 * scale}px` : '40px', alignItems: 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+            <div style={{ display: 'flex', gap: isMobile ? '24px' : isLargeDesktop ? `${28 * scale}px` : '40px', alignItems: 'flex-end', flexWrap: 'nowrap', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
               <BigNumber value={stats.totalDistance.toLocaleString()} unit="km" label="Total Distance" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-              <BigNumber value={stats.totalDays} unit="days" label="Duration" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
+              <BigNumber value={stats.totalDays} unit="days" label="Duration" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} align={isMobile ? 'right' : 'left'} />
             </div>
             {stats.hasElevation ? (
-              <div style={{ display: 'flex', gap: isMobile ? '24px' : isLargeDesktop ? `${28 * scale}px` : '40px', alignItems: 'flex-end', flexWrap: isMobile ? 'wrap' : 'nowrap' }}>
+              <div style={{ display: 'flex', gap: isMobile ? '24px' : isLargeDesktop ? `${28 * scale}px` : '40px', alignItems: 'flex-end', flexWrap: 'nowrap', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
                 <BigNumber value={stats.maxLat.toFixed(2)} unit="°N" label="Furthest North" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
                 {stats.coldestTemp !== null && (
-                  <BigNumber value={stats.coldestTemp} unit="°C" label="Coldest Temp" color="#0891b2" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
+                  <BigNumber value={stats.coldestTemp} unit="°C" label="Coldest Temp" color="#0891b2" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} align={isMobile ? 'right' : 'left'} />
                 )}
               </div>
             ) : (
               <>
                 <BigNumber value={stats.maxLat.toFixed(2)} unit="°N" label="Furthest North" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
                 {stats.coldestTemp !== null && (
-                  <BigNumber value={stats.coldestTemp} unit="°C" label="Coldest Temp" color="#0891b2" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
+                  <BigNumber value={stats.coldestTemp} unit="°C" label="Coldest Temp" color="#0891b2" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} align={isMobile ? 'right' : 'left'} />
                 )}
               </>
             )}
@@ -813,92 +825,148 @@ export function TripSummaryPage() {
   {/* Distance Group */}
   <div>
     <div style={{ fontSize: isMobile ? '9px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
-      DAILY DISTANCE
+      DISTANCE
     </div>
 
-    <div style={{ display: 'flex', alignItems: 'flex-end', gap: isMobile ? '16px' : isLargeDesktop ? `${16 * scale}px` : '24px' }}>
-      {/* Chart grows to fill available space */}
-      <div style={{ flex: 1, display: 'flex', gap: isMobile ? '2px' : `${2 * scale}px`, height: isMobile ? '60px' : isLargeDesktop ? `${55 * scale}px` : '80px', alignItems: 'flex-end' }}>
-        {stats.days.map((day, i) => (
-          <div
-            key={i}
-            onMouseEnter={() => setHoveredDay(i)}
-            onMouseLeave={() => setHoveredDay(null)}
-            style={{
-              flex: 1,
-              height: `${(day.distance / stats.longestDay) * 100}%`,
-              minHeight: '4px',
-              background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
-              borderRadius: '2px 2px 0 0',
-              opacity: hoveredDay === null ? 0.85 : (hoveredDay === i ? 1 : 0.2),
-              transition: 'opacity 0.15s ease-out',
-              cursor: 'pointer'
-            }}
-            title={`Day ${day.dayNumber}: ${day.distance} km`}
-          />
-        ))}
+    {isMobile ? (
+      /* Mobile: full-width chart with stats row below */
+      <div>
+        <div style={{ display: 'flex', gap: '4px', height: '60px', alignItems: 'flex-end', marginBottom: '12px' }}>
+          {stats.days.map((day, i) => (
+            <div
+              key={i}
+              onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+              style={{
+                flex: 1,
+                height: `${(day.distance / stats.longestDay) * 100}%`,
+                minHeight: '8px',
+                background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
+                borderRadius: '4px 4px 0 0',
+                opacity: hoveredDay === null ? 0.8 : (hoveredDay === i ? 1 : 0.3),
+                transition: 'opacity 0.15s ease-out',
+                cursor: 'pointer'
+              }}
+            />
+          ))}
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+          <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+          <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline align="right" />
+        </div>
       </div>
-
-      {/* Stats anchored right next to chart */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : isLargeDesktop ? `${8 * scale}px` : '12px', minWidth: isMobile ? '60px' : isLargeDesktop ? `${60 * scale}px` : '80px' }}>
-        <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-        <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
+    ) : (
+      /* Desktop: thin lines with stats beside */
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
+        <div style={{ display: 'flex', gap: '3px', height: '50px', alignItems: 'flex-end' }}>
+          {stats.days.map((day, i) => (
+            <div
+              key={i}
+              onMouseEnter={() => setHoveredDay(i)}
+              onMouseLeave={() => setHoveredDay(null)}
+              style={{
+                width: '4px',
+                height: `${(day.distance / stats.longestDay) * 100}%`,
+                minHeight: '8px',
+                background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
+                borderRadius: '100px',
+                opacity: hoveredDay === null ? 0.7 : (hoveredDay === i ? 1 : 0.25),
+                transition: 'opacity 0.15s ease-out',
+                cursor: 'pointer'
+              }}
+              title={`Day ${day.dayNumber}: ${day.distance} km`}
+            />
+          ))}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'baseline', flexShrink: 0 }}>
+          <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+          <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+        </div>
       </div>
-    </div>
+    )}
   </div>
 
   {/* Elevation Group */}
   {stats.hasElevation && (
     <div>
       <div style={{ fontSize: isMobile ? '9px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
-        ELEVATION PROFILE
+        ELEVATION
       </div>
 
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: isMobile ? '16px' : isLargeDesktop ? `${16 * scale}px` : '24px' }}>
-        {/* Chart grows to fill available space */}
-        <div style={{ flex: 1, display: 'flex', gap: isMobile ? '2px' : `${2 * scale}px`, height: isMobile ? '60px' : isLargeDesktop ? `${55 * scale}px` : '80px', position: 'relative' }}>
-          {stats.days.map((day, i) => {
-            const range = stats.maxElevation - stats.minElevation;
-            const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
-            const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
-            const heightPct = topPct - bottomPct;
-            const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
-
-            return (
-              <div
-                key={i}
-                onMouseEnter={() => setHoveredDay(i)}
-                onMouseLeave={() => setHoveredDay(null)}
-                style={{
-                  flex: 1,
-                  position: 'relative',
-                  height: '100%',
-                  cursor: 'pointer'
-                }}
-                title={`Day ${day.dayNumber}: ${day.minElevation}m – ${day.maxElevation}m`}
-              >
-                <div style={{
-                  position: 'absolute',
-                  bottom: `${bottomPct}%`,
-                  height: `${Math.max(heightPct, 5)}%`,
-                  width: '100%',
-                  background: color,
-                  borderRadius: '2px',
-                  opacity: hoveredDay === null ? 0.6 : (hoveredDay === i ? 1 : 0.2),
-                  transition: 'opacity 0.15s ease-out'
-                }} />
-              </div>
-            );
-          })}
+      {isMobile ? (
+        /* Mobile: full-width chart with stats row below */
+        <div>
+          <div style={{ display: 'flex', gap: '4px', height: '60px', position: 'relative', marginBottom: '12px' }}>
+            {stats.days.map((day, i) => {
+              const range = stats.maxElevation - stats.minElevation;
+              const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
+              const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
+              const heightPct = topPct - bottomPct;
+              const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
+              return (
+                <div
+                  key={i}
+                  onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+                  style={{ flex: 1, position: 'relative', height: '100%', cursor: 'pointer' }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    bottom: `${bottomPct}%`,
+                    height: `${Math.max(heightPct, 8)}%`,
+                    width: '100%',
+                    background: color,
+                    borderRadius: '4px',
+                    opacity: hoveredDay === null ? 0.8 : (hoveredDay === i ? 1 : 0.3),
+                    transition: 'opacity 0.15s ease-out'
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#22c55e" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#ef4444" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline align="right" />
+          </div>
         </div>
-
-        {/* Stats anchored right next to chart - Peak is now unique to this section */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? '8px' : isLargeDesktop ? `${8 * scale}px` : '12px', minWidth: isMobile ? '60px' : isLargeDesktop ? `${60 * scale}px` : '80px' }}>
-          <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-          <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" label="Ascent" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-          <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" label="Descent" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
+      ) : (
+        /* Desktop: thin lines with stats beside */
+        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
+          <div style={{ display: 'flex', gap: '3px', height: '50px', position: 'relative' }}>
+            {stats.days.map((day, i) => {
+              const range = stats.maxElevation - stats.minElevation;
+              const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
+              const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
+              const heightPct = topPct - bottomPct;
+              const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
+              return (
+                <div
+                  key={i}
+                  onMouseEnter={() => setHoveredDay(i)}
+                  onMouseLeave={() => setHoveredDay(null)}
+                  style={{ width: '4px', position: 'relative', height: '100%', cursor: 'pointer' }}
+                  title={`Day ${day.dayNumber}: ${day.minElevation}m – ${day.maxElevation}m`}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    bottom: `${bottomPct}%`,
+                    height: `${Math.max(heightPct, 8)}%`,
+                    width: '100%',
+                    background: color,
+                    borderRadius: '100px',
+                    opacity: hoveredDay === null ? 0.7 : (hoveredDay === i ? 1 : 0.25),
+                    transition: 'opacity 0.15s ease-out'
+                  }} />
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'flex-end', flexShrink: 0 }}>
+            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#22c55e" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#ef4444" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )}
 </div>
@@ -923,15 +991,39 @@ export function TripSummaryPage() {
                   >
                     {/* Route title with colored underline */}
                     <div style={{ marginBottom: stats.hasElevation ? '8px' : '6px' }}>
-                      <span style={{
-                        fontSize: '12px',
-                        fontWeight: 600,
-                        color: '#1a1a1a',
-                        paddingBottom: '3px',
-                        borderBottom: `1.5px solid ${color}`
-                      }}>
-                        {getDayLabel(day.dayNumber)}
-                      </span>
+                      {(() => {
+                        const label = getDayLabel(day.dayNumber);
+                        const arrowMatch = label.match(/^(.+?)\s*(→)\s*(.+)$/);
+                        if (arrowMatch) {
+                          const [, from, arrow, to] = arrowMatch;
+                          return (
+                            <span style={{
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: '#1a1a1a',
+                              paddingBottom: '3px',
+                              borderBottom: `1.5px solid ${color}`,
+                              display: 'inline-flex',
+                              flexWrap: 'wrap',
+                              gap: '0 4px'
+                            }}>
+                              <span style={{ whiteSpace: 'nowrap' }}>{from} {arrow}</span>
+                              <span style={{ whiteSpace: 'nowrap' }}>{to}</span>
+                            </span>
+                          );
+                        }
+                        return (
+                          <span style={{
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            color: '#1a1a1a',
+                            paddingBottom: '3px',
+                            borderBottom: `1.5px solid ${color}`
+                          }}>
+                            {label}
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     {/* Elevation sparkline - full width */}
@@ -1011,16 +1103,40 @@ export function TripSummaryPage() {
                         minHeight: 0
                       }}
                     >
-                      <div>
-                        <span style={{
-                          fontWeight: 600,
-                          color: '#1a1a1a',
-                          fontSize: isLargeDesktop ? `${10 * scale}px` : '13px',
-                          paddingBottom: `${3 * scale}px`,
-                          borderBottom: `1.5px solid ${color}`
-                        }}>
-                          {getDayLabel(day.dayNumber)}
-                        </span>
+                      <div style={{ minWidth: 0 }}>
+                        {(() => {
+                          const label = getDayLabel(day.dayNumber);
+                          const arrowMatch = label.match(/^(.+?)\s*(→)\s*(.+)$/);
+                          if (arrowMatch) {
+                            const [, from, arrow, to] = arrowMatch;
+                            return (
+                              <span style={{
+                                fontWeight: 600,
+                                color: '#1a1a1a',
+                                fontSize: isLargeDesktop ? `${10 * scale}px` : '13px',
+                                paddingBottom: `${3 * scale}px`,
+                                borderBottom: `1.5px solid ${color}`,
+                                display: 'inline-flex',
+                                flexWrap: 'wrap',
+                                gap: '0 4px'
+                              }}>
+                                <span style={{ whiteSpace: 'nowrap' }}>{from} {arrow}</span>
+                                <span style={{ whiteSpace: 'nowrap' }}>{to}</span>
+                              </span>
+                            );
+                          }
+                          return (
+                            <span style={{
+                              fontWeight: 600,
+                              color: '#1a1a1a',
+                              fontSize: isLargeDesktop ? `${10 * scale}px` : '13px',
+                              paddingBottom: `${3 * scale}px`,
+                              borderBottom: `1.5px solid ${color}`
+                            }}>
+                              {label}
+                            </span>
+                          );
+                        })()}
                       </div>
 
                       {stats.hasElevation && (
