@@ -49,6 +49,7 @@ class TripPoint(BaseModel):
     image: str | None = None  # Filename or None for gap points (route-only, no image)
     source: str = "gopro"  # Image source: gopro, camera, phone, or "gap" for inferred routes
     tags: list[str] = ["car"]  # User-defined tags; defaults to "car" for existing data
+    elevation: float | None = None  # Elevation in meters (from NRCan CDEM API)
 
 
 def is_valid_coordinates(lat: float, lng: float) -> bool:
