@@ -8,7 +8,15 @@ import {
   calculateMarkerOffset 
 } from "../common/RouteOffsets";
 
-export function TripMap({ points, selectablePoints, selectedId, onMarkerClick, isLive }) {
+export function TripMap({
+  points,
+  selectablePoints,
+  selectedId,
+  onMarkerClick,
+  isLive,
+  skipInitialZoom = false,
+  initialZoom = 4,
+}) {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const markerRef = useRef(null);
@@ -462,12 +470,30 @@ export function TripMap({ points, selectablePoints, selectedId, onMarkerClick, i
       .setLngLat([point.lng, point.lat])
       .addTo(map.current);
 
-    map.current.flyTo({
-      center: [point.lng, point.lat],
-      zoom: Math.max(map.current.getZoom(), isLive ? 8 : 7),
-      duration: 800,
-    });
-  }, [selectedId, mapLoaded, points, isLive, mapDayBoundaries, dayOffsets]);
+    // When skipInitialZoom is true, fit to the entire route bounding box
+    // Once user navigates, skipInitialZoom becomes false and we zoom in normally
+    if (skipInitialZoom && points.length > 0) {
+      // Calculate bounding box of all points
+      let minLng = Infinity, maxLng = -Infinity;
+      let minLat = Infinity, maxLat = -Infinity;
+      for (const p of points) {
+        if (p.lng < minLng) minLng = p.lng;
+        if (p.lng > maxLng) maxLng = p.lng;
+        if (p.lat < minLat) minLat = p.lat;
+        if (p.lat > maxLat) maxLat = p.lat;
+      }
+      map.current.fitBounds(
+        [[minLng, minLat], [maxLng, maxLat]],
+        { padding: 40, duration: 800 }
+      );
+    } else {
+      map.current.flyTo({
+        center: [point.lng, point.lat],
+        zoom: Math.max(map.current.getZoom(), isLive ? 8 : 7),
+        duration: 800,
+      });
+    }
+  }, [selectedId, mapLoaded, points, isLive, mapDayBoundaries, dayOffsets, skipInitialZoom]);
 
   return (
     <div
