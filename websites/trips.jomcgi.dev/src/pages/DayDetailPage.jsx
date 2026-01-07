@@ -582,7 +582,7 @@ function DataPanel({ photo, photoIndex, totalPhotos, onPrev, onNext, dayPoints, 
               <ChevronRight size={24} />
             </NavButton>
           </div>
-          <div style={{ fontSize: '11px', fontWeight: 700, color: '#1a1a1a', textAlign: 'center', padding: '8px', borderTop: '1px solid #e5e7eb' }}>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#1a1a1a', textAlign: 'center', padding: '8px', borderTop: '2px solid #1a1a1a' }}>
             {photoIndex + 1} / {totalPhotos}
           </div>
         </div>
@@ -755,7 +755,7 @@ function ControlStrip({ photo, photoIndex, totalPhotos, onPrev, onNext, dayPoint
             <ChevronRight size={24} />
           </NavButton>
         </div>
-        <div style={{ fontSize: '11px', fontWeight: 700, color: '#1a1a1a', textAlign: 'center', padding: '8px', borderTop: '1px solid #e5e7eb' }}>
+        <div style={{ fontSize: '11px', fontWeight: 700, color: '#1a1a1a', textAlign: 'center', padding: '8px', borderTop: '2px solid #1a1a1a' }}>
           {photoIndex + 1} / {totalPhotos}
         </div>
       </div>
