@@ -266,8 +266,7 @@ export function DayDetailPage({ dayNumber }) {
               onLocationClick={handleMapLocationClick}
             />
 
-            {/* True Triptych: Photo | Control Strip | Mission Panel */}
-            {/* Designed for square/4:3 GoPro 5K images */}
+            {/* Unified Triptych: Photo | Data Panel (aligned grid) */}
             <div style={{
               display: 'flex',
               alignItems: 'stretch',
@@ -288,19 +287,13 @@ export function DayDetailPage({ dayNumber }) {
                 }}
               />
 
-              {/* Column 2: Control Strip (narrow) */}
-              <ControlStrip
+              {/* Data Panel - unified grid with aligned rows */}
+              <DataPanel
                 photo={currentPhoto}
                 photoIndex={currentPhotoIndex}
                 totalPhotos={dayPhotos?.length || 0}
                 onPrev={() => setCurrentPhotoIndex(Math.max(0, currentPhotoIndex - 1))}
                 onNext={() => setCurrentPhotoIndex(Math.min((dayPhotos?.length || 1) - 1, currentPhotoIndex + 1))}
-                dayPoints={dayPoints}
-              />
-
-              {/* Column 3: Mission Panel (wider) */}
-              <MissionPanel
-                photo={currentPhoto}
                 dayPoints={dayPoints}
                 dayStats={dayStats}
                 dayColor={dayColor}
@@ -383,7 +376,278 @@ function NavButton({ onClick, disabled, children, borderRight = false }) {
   );
 }
 
-// Control Strip - The narrow "Machine Interface" column
+// Unified Data Panel - aligned grid combining control strip and mission panel
+function DataPanel({ photo, photoIndex, totalPhotos, onPrev, onNext, dayPoints, dayStats, dayColor }) {
+  // --- FORMATTERS ---
+  const formatTime = (timestamp) => {
+    if (!timestamp) return { time: '--:--', period: '' };
+    const timeStr = timestamp.toLocaleTimeString('en-US', {
+      timeZone: 'America/Vancouver',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true
+    });
+    const parts = timeStr.match(/(\d+:\d+)\s*(AM|PM)/i);
+    if (parts) return { time: parts[1], period: parts[2] };
+    return { time: timeStr, period: '' };
+  };
+
+  const formatCoord = (val, isLat) => {
+    if (val == null) return '--';
+    const dir = isLat ? (val >= 0 ? 'N' : 'S') : (val >= 0 ? 'E' : 'W');
+    return `${Math.abs(val).toFixed(4)}° ${dir}`;
+  };
+
+  // --- SOLAR CALCULATIONS ---
+  const sunPosition = useMemo(() => {
+    if (!photo?.timestamp || !photo?.lat || !photo?.lng) return null;
+    return SunCalc.getPosition(photo.timestamp, photo.lat, photo.lng);
+  }, [photo]);
+
+  const sunTimes = useMemo(() => {
+    if (!photo?.timestamp || !photo?.lat || !photo?.lng) return null;
+    return SunCalc.getTimes(photo.timestamp, photo.lat, photo.lng);
+  }, [photo]);
+
+  const solarAltitude = sunPosition ? (sunPosition.altitude * 180 / Math.PI) : null;
+
+  const getSolarLabel = (alt) => {
+    if (alt == null) return '--';
+    if (alt < -6) return 'NIGHT';
+    if (alt < 0) return 'TWILIGHT';
+    if (alt < 10) return 'LOW';
+    return 'DAY';
+  };
+
+  const getLightRemaining = () => {
+    if (!photo?.timestamp || !sunTimes?.sunset) return null;
+    const now = photo.timestamp.getTime();
+    const sunset = sunTimes.sunset.getTime();
+    if (now > sunset) return null;
+    const diff = sunset - now;
+    const hours = Math.floor(diff / (1000 * 60 * 60));
+    const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    return `${hours}h ${mins.toString().padStart(2, '0')}m`;
+  };
+
+  const getEvLabel = (ev) => {
+    if (ev == null) return '';
+    if (ev >= 13) return 'BRIGHT';
+    if (ev >= 10) return 'SUNNY';
+    if (ev >= 7) return 'OVERCAST';
+    if (ev >= 4) return 'DIM';
+    return 'DARK';
+  };
+
+  // --- BEARING CALCULATION ---
+  const bearing = useMemo(() => {
+    if (!dayPoints?.length || !photo?.timestamp) return null;
+    const photoTime = photo.timestamp.getTime();
+    let prevPoint = null;
+    for (const point of dayPoints) {
+      if (point.timestamp?.getTime() >= photoTime && prevPoint) {
+        const lat1 = prevPoint.lat * Math.PI / 180;
+        const lat2 = point.lat * Math.PI / 180;
+        const dLng = (point.lng - prevPoint.lng) * Math.PI / 180;
+        const y = Math.sin(dLng) * Math.cos(lat2);
+        const x = Math.cos(lat1) * Math.sin(lat2) - Math.sin(lat1) * Math.cos(lat2) * Math.cos(dLng);
+        let brng = Math.atan2(y, x) * 180 / Math.PI;
+        return (brng + 360) % 360;
+      }
+      prevPoint = point;
+    }
+    return null;
+  }, [dayPoints, photo]);
+
+  const getCompassArrow = (deg) => {
+    if (deg == null) return '→';
+    const arrows = ['↑', '↗', '→', '↘', '↓', '↙', '←', '↖'];
+    const index = Math.round(deg / 45) % 8;
+    return arrows[index];
+  };
+
+  // --- PROGRESS & ELEVATION ---
+  const progress = useMemo(() => {
+    if (!dayPoints?.length || !photo?.timestamp) return null;
+    const photoTime = photo.timestamp.getTime();
+    let distanceTraveled = 0;
+    let totalDistance = 0;
+    let prevPoint = null;
+    let foundPhoto = false;
+
+    for (const point of dayPoints) {
+      if (prevPoint) {
+        const segmentDist = haversine(prevPoint, point);
+        totalDistance += segmentDist;
+        if (!foundPhoto && point.timestamp?.getTime() >= photoTime) foundPhoto = true;
+        if (!foundPhoto) distanceTraveled += segmentDist;
+      }
+      prevPoint = point;
+    }
+
+    return {
+      km: Math.round(distanceTraveled),
+      total: Math.round(totalDistance),
+      percent: totalDistance > 0 ? Math.round((distanceTraveled / totalDistance) * 100) : 0
+    };
+  }, [dayPoints, photo]);
+
+  const elevationProfile = useMemo(() => {
+    if (!dayPoints?.length) return [];
+    const sampleRate = Math.max(1, Math.floor(dayPoints.length / 60));
+    return dayPoints
+      .filter((_, i) => i % sampleRate === 0)
+      .map(p => p.elevation)
+      .filter(e => e != null);
+  }, [dayPoints]);
+
+  const currentElevationIndex = useMemo(() => {
+    if (!elevationProfile?.length || !progress?.percent) return 0;
+    return Math.round((progress.percent / 100) * (elevationProfile.length - 1));
+  }, [elevationProfile, progress]);
+
+  const timeData = formatTime(photo?.timestamp);
+  const hasPrev = photoIndex > 0;
+  const hasNext = photoIndex < totalPhotos - 1;
+
+  const labelStyle = { fontSize: '9px', fontWeight: 700, color: '#6b7280', letterSpacing: '0.08em', marginBottom: '4px' };
+  const valueStyle = { fontSize: '18px', fontWeight: 700, color: '#1a1a1a' };
+
+  return (
+    <div style={{
+      flex: 1,
+      display: 'grid',
+      gridTemplateColumns: '150px 1fr 1fr 1fr 1fr',
+      gridTemplateRows: 'auto 1fr auto',
+      borderLeft: '2px solid #1a1a1a',
+      fontFamily: 'monospace',
+      minWidth: 0
+    }}>
+      {/* ROW 1: TIME | SOLAR | LIGHT | EV | ELEV */}
+      <div style={{ padding: '12px', borderBottom: '2px solid #1a1a1a', borderRight: '2px solid #1a1a1a', background: 'white' }}>
+        <div style={labelStyle}>TIME</div>
+        <div style={{ fontSize: '24px', fontWeight: 900, color: '#1a1a1a', lineHeight: 1 }}>
+          {timeData.time}
+          <span style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginLeft: '4px' }}>{timeData.period}</span>
+        </div>
+      </div>
+      <div style={{ padding: '12px', borderBottom: '2px solid #1a1a1a', borderRight: '1px solid #e5e7eb', background: 'white' }}>
+        <div style={labelStyle}>SOLAR</div>
+        <div style={valueStyle}>{solarAltitude != null ? `${solarAltitude.toFixed(0)}°` : '--'}</div>
+        <div style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>{getSolarLabel(solarAltitude)}</div>
+      </div>
+      <div style={{ padding: '12px', borderBottom: '2px solid #1a1a1a', borderRight: '1px solid #e5e7eb', background: 'white' }}>
+        <div style={labelStyle}>LIGHT</div>
+        <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a' }}>{getLightRemaining() || 'DARK'}</div>
+      </div>
+      <div style={{ padding: '12px', borderBottom: '2px solid #1a1a1a', borderRight: '1px solid #e5e7eb', background: 'white' }}>
+        <div style={labelStyle}>EV</div>
+        <div style={valueStyle}>{photo?.lightValue ?? '--'}</div>
+        <div style={{ fontSize: '9px', color: '#9ca3af', fontWeight: 600 }}>{getEvLabel(photo?.lightValue)}</div>
+      </div>
+      <div style={{ padding: '12px', borderBottom: '2px solid #1a1a1a', background: 'white' }}>
+        <div style={labelStyle}>ELEV</div>
+        <div style={valueStyle}>
+          {photo?.elevation != null ? Math.round(photo.elevation) : '--'}
+          <span style={{ fontSize: '10px', color: '#9ca3af' }}>m</span>
+        </div>
+      </div>
+
+      {/* ROW 2: OPTICS + NAV + BEARING | ELEVATION PROFILE (spans 4 cols) */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        borderRight: '2px solid #1a1a1a',
+        borderBottom: '2px solid #1a1a1a',
+        background: '#fafafa'
+      }}>
+        {/* OPTICS */}
+        <div style={{ padding: '12px', borderBottom: '2px solid #1a1a1a', background: '#f5f5f5' }}>
+          <div style={labelStyle}>OPTICS</div>
+          <div style={{ fontSize: '14px', fontWeight: 700, color: '#1a1a1a' }}>
+            {photo?.focalLength35mm ? `${photo.focalLength35mm}mm` : '--'} ƒ/{photo?.aperture || '--'}
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 600, color: '#6b7280', marginTop: '2px' }}>
+            ISO {photo?.iso || '--'} · {photo?.shutterSpeed || '--'}
+          </div>
+        </div>
+
+        {/* NAV */}
+        <div style={{ borderBottom: '2px solid #1a1a1a', background: 'white' }}>
+          <div style={{ display: 'flex', height: '56px' }}>
+            <NavButton onClick={onPrev} disabled={!hasPrev} borderRight>
+              <ChevronLeft size={24} />
+            </NavButton>
+            <NavButton onClick={onNext} disabled={!hasNext}>
+              <ChevronRight size={24} />
+            </NavButton>
+          </div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#1a1a1a', textAlign: 'center', padding: '8px', borderTop: '1px solid #e5e7eb' }}>
+            {photoIndex + 1} / {totalPhotos}
+          </div>
+        </div>
+
+        {/* BEARING - fills remaining space */}
+        <div style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '12px', background: 'white' }}>
+          <div style={labelStyle}>BEARING</div>
+          <div style={{ fontSize: '36px', lineHeight: 1, color: '#1a1a1a' }}>{getCompassArrow(bearing)}</div>
+          <div style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', marginTop: '4px' }}>
+            {bearing != null ? `${Math.round(bearing)}°` : '--'}
+          </div>
+        </div>
+      </div>
+
+      {/* ELEVATION PROFILE - spans 4 columns */}
+      <div style={{
+        gridColumn: 'span 4',
+        padding: '12px 16px',
+        borderBottom: '2px solid #1a1a1a',
+        display: 'flex',
+        flexDirection: 'column',
+        background: 'white'
+      }}>
+        <div style={{ ...labelStyle, marginBottom: '8px' }}>ELEVATION PROFILE</div>
+        <div style={{ flexGrow: 1, position: 'relative', minHeight: '120px' }}>
+          <ElevationSparkline
+            data={elevationProfile}
+            currentIndex={currentElevationIndex}
+            fillHeight={true}
+            accentColor={dayColor}
+          />
+        </div>
+      </div>
+
+      {/* ROW 3: POSITION | KM | ASCENT | DESCENT | PHOTOS */}
+      <div style={{ padding: '10px 12px', borderRight: '2px solid #1a1a1a', background: 'white' }}>
+        <div style={labelStyle}>POSITION</div>
+        <div style={{ fontSize: '10px', fontWeight: 600, color: '#1a1a1a', lineHeight: 1.6 }}>
+          <div>{formatCoord(photo?.lat, true)}</div>
+          <div>{formatCoord(photo?.lng, false)}</div>
+        </div>
+      </div>
+      <div style={{ padding: '10px', borderRight: '1px solid #e5e7eb', background: '#fafafa' }}>
+        <div style={labelStyle}>KM</div>
+        <div style={{ fontSize: '16px', fontWeight: 900, color: '#1a1a1a' }}>
+          {progress?.km ?? 0}<span style={{ fontSize: '10px', color: '#9ca3af' }}>/{progress?.total ?? 0}</span>
+        </div>
+      </div>
+      <div style={{ padding: '10px', borderRight: '1px solid #e5e7eb', background: '#fafafa' }}>
+        <div style={labelStyle}>ASCENT</div>
+        <div style={{ fontSize: '14px', fontWeight: 900, color: '#059669' }}>+{dayStats?.ascent?.toLocaleString() || 0}m</div>
+      </div>
+      <div style={{ padding: '10px', borderRight: '1px solid #e5e7eb', background: '#fafafa' }}>
+        <div style={labelStyle}>DESCENT</div>
+        <div style={{ fontSize: '14px', fontWeight: 900, color: '#dc2626' }}>-{dayStats?.descent?.toLocaleString() || 0}m</div>
+      </div>
+      <div style={{ padding: '10px', background: '#fafafa' }}>
+        <div style={labelStyle}>PHOTOS</div>
+        <div style={{ fontSize: '14px', fontWeight: 900, color: '#1a1a1a' }}>{dayStats?.photoCount || 0}</div>
+      </div>
+    </div>
+  );
+}
+
+// Control Strip - The narrow "Machine Interface" column (LEGACY - kept for reference)
 function ControlStrip({ photo, photoIndex, totalPhotos, onPrev, onNext, dayPoints }) {
   const formatTime = (timestamp) => {
     if (!timestamp) return { time: '--:--', period: '' };
