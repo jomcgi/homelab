@@ -50,6 +50,12 @@ class TripPoint(BaseModel):
     source: str = "gopro"  # Image source: gopro, camera, phone, or "gap" for inferred routes
     tags: list[str] = ["car"]  # User-defined tags; defaults to "car" for existing data
     elevation: float | None = None  # Elevation in meters (from NRCan CDEM API)
+    # OPTICS - Camera exposure data from EXIF
+    light_value: float | None = None  # Exposure Value (EV) - e.g., 8.6 for dim conditions
+    iso: int | None = None  # ISO sensitivity - e.g., 393
+    shutter_speed: str | None = None  # Shutter speed as string - e.g., "1/240"
+    aperture: float | None = None  # F-number - e.g., 2.5
+    focal_length_35mm: int | None = None  # Focal length in 35mm equivalent - e.g., 16
 
 
 def is_valid_coordinates(lat: float, lng: float) -> bool:

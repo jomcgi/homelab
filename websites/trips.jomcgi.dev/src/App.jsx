@@ -2,6 +2,7 @@ import { Route, Switch, Redirect } from "wouter";
 import { TripProvider } from "./contexts/TripContext";
 import { TripSummaryPage } from "./pages/TripSummaryPage";
 import { TripTimeline } from "./pages/TripTimeline";
+import { DayDetailPage } from "./pages/DayDetailPage";
 import { NotFound } from "./pages/NotFound";
 
 export default function App() {
@@ -17,6 +18,16 @@ export default function App() {
         {(params) => (
           <TripProvider tripSlug={params.trip}>
             <TripTimeline />
+          </TripProvider>
+        )}
+      </Route>
+
+      {/* Day detail page - must come before summary to match first */}
+      <Route path="/:trip/day/:dayNumber">
+        {(params) => (
+          <TripProvider tripSlug={params.trip}>
+            {/* TRANSITION_HOOK: Page transition animation could be added here */}
+            <DayDetailPage dayNumber={parseInt(params.dayNumber, 10)} />
           </TripProvider>
         )}
       </Route>

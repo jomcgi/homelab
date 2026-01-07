@@ -2,7 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'wouter';
 import { useTripContext } from '../contexts/TripContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
-import { Loader2, AlertCircle } from 'lucide-react';
+import { Loader2, AlertCircle, ChevronRight } from 'lucide-react';
+import { useLocation } from 'wouter';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { calculateDayOffsets, groupPointsByDayNumber } from '../components/common/RouteOffsets';
@@ -612,8 +613,14 @@ function SmallStat({ value, unit, label, isMobile, scale = 1, isLargeDesktop = f
 export function TripSummaryPage() {
   const { tripSlug, tripConfig, rawTripData, loading, error } = useTripContext();
   const [hoveredDay, setHoveredDay] = useState(null);
+  const [, setLocation] = useLocation();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Navigate to day detail page
+  const navigateToDay = (dayNumber) => {
+    setLocation(`/${tripSlug}/day/${dayNumber}`);
+  };
   const isTablet = useMediaQuery("(max-width: 1024px)");
   // Very large displays (4K+): fit everything on one screen
   const isLargeDesktop = useMediaQuery("(min-width: 2560px) and (min-height: 1400px)");
@@ -772,6 +779,7 @@ export function TripSummaryPage() {
                   return (
                     <div
                       key={h.id}
+                      onClick={() => navigateToDay(h.day)}
                       onMouseEnter={() => setHoveredDay(h.day - 1)}
                       onMouseLeave={() => setHoveredDay(null)}
                       style={{
@@ -872,7 +880,7 @@ export function TripSummaryPage() {
           {stats.days.map((day, i) => (
             <div
               key={i}
-              onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+              onClick={() => navigateToDay(day.dayNumber)}
               onMouseEnter={() => setHoveredDay(i)}
               onMouseLeave={() => setHoveredDay(null)}
               style={{
@@ -900,6 +908,7 @@ export function TripSummaryPage() {
           {stats.days.map((day, i) => (
             <div
               key={i}
+              onClick={() => navigateToDay(day.dayNumber)}
               onMouseEnter={() => setHoveredDay(i)}
               onMouseLeave={() => setHoveredDay(null)}
               style={{
@@ -944,7 +953,7 @@ export function TripSummaryPage() {
               return (
                 <div
                   key={i}
-                  onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+                  onClick={() => navigateToDay(day.dayNumber)}
                   onMouseEnter={() => setHoveredDay(i)}
                   onMouseLeave={() => setHoveredDay(null)}
                   style={{ flex: 1, position: 'relative', height: '100%', cursor: 'pointer' }}
@@ -982,6 +991,7 @@ export function TripSummaryPage() {
               return (
                 <div
                   key={i}
+                  onClick={() => navigateToDay(day.dayNumber)}
                   onMouseEnter={() => setHoveredDay(i)}
                   onMouseLeave={() => setHoveredDay(null)}
                   style={{ width: '4px', position: 'relative', height: '100%', cursor: 'pointer' }}
@@ -1024,7 +1034,7 @@ export function TripSummaryPage() {
                 return (
                   <div
                     key={i}
-                    onClick={() => setHoveredDay(hoveredDay === i ? null : i)}
+                    onClick={() => navigateToDay(day.dayNumber)}
                     onMouseEnter={() => setHoveredDay(i)}
                     onMouseLeave={() => setHoveredDay(null)}
                     style={{
@@ -1032,9 +1042,22 @@ export function TripSummaryPage() {
                       borderRadius: '6px',
                       padding: '12px',
                       cursor: 'pointer',
-                      transition: 'background 0.1s'
+                      transition: 'background 0.1s',
+                      position: 'relative'
                     }}
                   >
+                    {/* Navigate arrow indicator */}
+                    <ChevronRight
+                      size={16}
+                      style={{
+                        position: 'absolute',
+                        right: '12px',
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        color: hoveredDay === i ? '#6b7280' : '#d1d5db',
+                        transition: 'color 0.15s'
+                      }}
+                    />
                     {/* Route title with colored underline */}
                     <div style={{ marginBottom: stats.hasElevation ? '8px' : '6px' }}>
                       {(() => {
@@ -1110,7 +1133,7 @@ export function TripSummaryPage() {
             <div style={{ flex: isLargeDesktop ? 1 : 'none', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: stats.hasElevation ? '1.5fr 2fr 70px 90px' : '1fr 80px',
+                gridTemplateColumns: stats.hasElevation ? '1.5fr 2fr 70px 90px 20px' : '1fr 80px 20px',
                 padding: isLargeDesktop ? `0 0 ${8 * scale}px` : '0 0 12px',
                 borderBottom: '2px solid #1a1a1a',
                 fontSize: isLargeDesktop ? `${8 * scale}px` : '10px',
@@ -1125,6 +1148,7 @@ export function TripSummaryPage() {
                 {stats.hasElevation && <div>PROFILE</div>}
                 <div style={{ textAlign: 'right' }}>KM</div>
                 {stats.hasElevation && <div style={{ textAlign: 'right' }}>ELEV</div>}
+                <div></div>{/* Arrow column placeholder */}
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', flex: isLargeDesktop ? 1 : 'none', overflow: isLargeDesktop ? 'hidden' : 'visible' }}>
@@ -1133,11 +1157,12 @@ export function TripSummaryPage() {
                   return (
                     <div
                       key={i}
+                      onClick={() => navigateToDay(day.dayNumber)}
                       onMouseEnter={() => setHoveredDay(i)}
                       onMouseLeave={() => setHoveredDay(null)}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: stats.hasElevation ? '1.5fr 2fr 70px 90px' : '1fr 80px',
+                        gridTemplateColumns: stats.hasElevation ? '1.5fr 2fr 70px 90px 20px' : '1fr 80px 20px',
                         padding: isLargeDesktop ? `${8 * scale}px 0` : '14px 0',
                         borderBottom: '1px solid #f3f4f6',
                         background: hoveredDay === i ? '#fafafa' : 'transparent',
@@ -1205,6 +1230,16 @@ export function TripSummaryPage() {
                           +{day.ascent}/-{day.descent}
                         </div>
                       )}
+
+                      {/* Navigate arrow */}
+                      <ChevronRight
+                        size={isLargeDesktop ? Math.round(14 * scale) : 16}
+                        style={{
+                          color: hoveredDay === i ? '#6b7280' : '#d1d5db',
+                          transition: 'color 0.15s',
+                          justifySelf: 'end'
+                        }}
+                      />
                     </div>
                   );
                 })}
