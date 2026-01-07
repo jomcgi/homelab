@@ -2062,10 +2062,12 @@ function ElevationSparkline({ data, currentIndex, height = 50, fillHeight = fals
     return `${x},${y}`;
   }).join(' ');
 
-  // Calculate position for marker
+  // Calculate position for marker - must match the line's y formula exactly
   const markerLeftPercent = data.length > 1 ? (currentIndex / (data.length - 1)) * 100 : 50;
+  // Line y formula: viewBoxHeight - ((val - min) / range) * (viewBoxHeight - 4) - 2
+  // Convert to percentage of viewBoxHeight for CSS positioning
   const markerTopPercent = data[currentIndex] != null
-    ? ((max - data[currentIndex]) / range) * 100
+    ? (viewBoxHeight - ((data[currentIndex] - min) / range) * (viewBoxHeight - 4) - 2) / viewBoxHeight * 100
     : 50;
 
   const containerStyle = fillHeight
