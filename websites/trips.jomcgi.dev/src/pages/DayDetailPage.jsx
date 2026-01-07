@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { Redirect } from 'wouter';
 import SunCalc from 'suncalc';
 import { useTripContext } from '../contexts/TripContext';
@@ -52,7 +52,51 @@ export function DayDetailPage({ dayNumber }) {
   // Photo viewer state (must be before early returns)
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [showFullscreen, setShowFullscreen] = useState(false);
-  const currentPhoto = dayPhotos?.[currentPhotoIndex] || null;
+  const rawPhoto = dayPhotos?.[currentPhotoIndex] || null;
+
+  // Interpolate GPS position from track if photo doesn't have coordinates
+  const currentPhoto = useMemo(() => {
+    if (!rawPhoto) return null;
+    // If photo has GPS, use it directly
+    if (rawPhoto.lat && rawPhoto.lng) return rawPhoto;
+    // If no timestamp, can't interpolate
+    if (!rawPhoto.timestamp || !dayPoints?.length) return rawPhoto;
+
+    // Find position on track closest to photo timestamp
+    const photoTime = rawPhoto.timestamp.getTime();
+    let prevPoint = null;
+
+    for (const point of dayPoints) {
+      if (!point.timestamp) continue;
+      const pointTime = point.timestamp.getTime();
+
+      if (pointTime >= photoTime) {
+        if (prevPoint) {
+          // Interpolate between prevPoint and point
+          const prevTime = prevPoint.timestamp.getTime();
+          const t = (photoTime - prevTime) / (pointTime - prevTime);
+          return {
+            ...rawPhoto,
+            lat: prevPoint.lat + (point.lat - prevPoint.lat) * t,
+            lng: prevPoint.lng + (point.lng - prevPoint.lng) * t,
+            elevation: prevPoint.elevation != null && point.elevation != null
+              ? prevPoint.elevation + (point.elevation - prevPoint.elevation) * t
+              : rawPhoto.elevation
+          };
+        }
+        // Before first point, use first point's location
+        return { ...rawPhoto, lat: point.lat, lng: point.lng, elevation: point.elevation };
+      }
+      prevPoint = point;
+    }
+
+    // After last point, use last point's location
+    if (prevPoint) {
+      return { ...rawPhoto, lat: prevPoint.lat, lng: prevPoint.lng, elevation: prevPoint.elevation };
+    }
+
+    return rawPhoto;
+  }, [rawPhoto, dayPoints]);
 
   // Reset photo index when day changes
   useEffect(() => {
@@ -72,6 +116,26 @@ export function DayDetailPage({ dayNumber }) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isMobile, showFullscreen, dayPhotos?.length]);
+
+  // Handle map click - find photo closest to the clicked timestamp
+  const handleMapLocationClick = useCallback((timestamp) => {
+    if (!dayPhotos?.length || !timestamp) return;
+
+    const clickTime = timestamp.getTime();
+    let closestIndex = 0;
+    let minDiff = Infinity;
+
+    dayPhotos.forEach((photo, index) => {
+      if (!photo.timestamp) return;
+      const diff = Math.abs(photo.timestamp.getTime() - clickTime);
+      if (diff < minDiff) {
+        minDiff = diff;
+        closestIndex = index;
+      }
+    });
+
+    setCurrentPhotoIndex(closestIndex);
+  }, [dayPhotos]);
 
   // Loading state
   if (loading) {
@@ -155,6 +219,7 @@ export function DayDetailPage({ dayNumber }) {
               sunPosition={currentPhoto?.timestamp && currentPhoto?.lat && currentPhoto?.lng
                 ? SunCalc.getPosition(currentPhoto.timestamp, currentPhoto.lat, currentPhoto.lng)
                 : null}
+              onLocationClick={handleMapLocationClick}
             />
 
             {/* Photo viewer */}
@@ -198,6 +263,7 @@ export function DayDetailPage({ dayNumber }) {
               sunPosition={currentPhoto?.timestamp && currentPhoto?.lat && currentPhoto?.lng
                 ? SunCalc.getPosition(currentPhoto.timestamp, currentPhoto.lat, currentPhoto.lng)
                 : null}
+              onLocationClick={handleMapLocationClick}
             />
 
             {/* True Triptych: Photo | Control Strip | Mission Panel */}
@@ -285,6 +351,35 @@ function SectionHeader({ title, isMobile }) {
     }}>
       {title}
     </div>
+  );
+}
+
+// Nav Button with hover inversion
+function NavButton({ onClick, disabled, children, borderRight = false }) {
+  const [hovered, setHovered] = useState(false);
+  const active = !disabled && hovered;
+
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        flex: 1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: active ? '#1a1a1a' : 'white',
+        border: 'none',
+        borderRight: borderRight ? '2px solid #1a1a1a' : 'none',
+        cursor: disabled ? 'not-allowed' : 'pointer',
+        opacity: disabled ? 0.3 : 1,
+        transition: 'background 0.15s, color 0.15s'
+      }}
+    >
+      {React.cloneElement(children, { color: active ? 'white' : '#1a1a1a' })}
+    </button>
   );
 }
 
@@ -386,42 +481,15 @@ function ControlStrip({ photo, photoIndex, totalPhotos, onPrev, onNext, dayPoint
         </div>
       </div>
 
-      {/* NAVIGATION - full-width touch targets */}
+      {/* NAVIGATION - full-width touch targets with hover inversion */}
       <div style={{ borderBottom: '2px solid #1a1a1a', background: 'white' }}>
         <div style={{ display: 'flex', height: '56px' }}>
-          <button
-            onClick={onPrev}
-            disabled={!hasPrev}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'white',
-              border: 'none',
-              borderRight: '2px solid #1a1a1a',
-              cursor: hasPrev ? 'pointer' : 'not-allowed',
-              opacity: hasPrev ? 1 : 0.3
-            }}
-          >
-            <ChevronLeft size={24} color="#1a1a1a" />
-          </button>
-          <button
-            onClick={onNext}
-            disabled={!hasNext}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              background: 'white',
-              border: 'none',
-              cursor: hasNext ? 'pointer' : 'not-allowed',
-              opacity: hasNext ? 1 : 0.3
-            }}
-          >
-            <ChevronRight size={24} color="#1a1a1a" />
-          </button>
+          <NavButton onClick={onPrev} disabled={!hasPrev} borderRight>
+            <ChevronLeft size={24} />
+          </NavButton>
+          <NavButton onClick={onNext} disabled={!hasNext}>
+            <ChevronRight size={24} />
+          </NavButton>
         </div>
         <div style={{ fontSize: '11px', fontWeight: 700, color: '#1a1a1a', textAlign: 'center', padding: '8px', borderTop: '1px solid #e5e7eb' }}>
           {photoIndex + 1} / {totalPhotos}
