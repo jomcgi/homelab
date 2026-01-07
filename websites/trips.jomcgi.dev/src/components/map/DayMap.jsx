@@ -20,8 +20,9 @@ export function DayMap({
   dayColor = '#2563eb',
   height = '100%',
   isMobile = false,
-  currentPhoto = null,  // { lat, lng } for current photo marker
-  sunPosition = null    // { altitude, azimuth } from SunCalc - radians
+  currentPhoto = null,  // { lat, lng, timestamp } for current photo marker
+  sunPosition = null,   // { altitude, azimuth } from SunCalc - radians
+  onLocationClick = null // Callback when route is clicked: (timestamp) => void
 }) {
   const mapContainer = useRef(null);
   const map = useRef(null);
@@ -172,6 +173,7 @@ export function DayMap({
       const coordinates = routePoints.map(p => [p.lng, p.lat]);
 
       // Remove existing route layers/source if they exist (prevents double render)
+      if (map.current.getLayer('route-hit-area')) map.current.removeLayer('route-hit-area');
       if (map.current.getLayer('route-color-accent')) map.current.removeLayer('route-color-accent');
       if (map.current.getLayer('route-line')) map.current.removeLayer('route-line');
       if (map.current.getSource('route')) map.current.removeSource('route');
@@ -217,6 +219,53 @@ export function DayMap({
           'line-opacity': 1
         }
       });
+
+      // Add invisible wider hit area for easier clicking
+      map.current.addLayer({
+        id: 'route-hit-area',
+        type: 'line',
+        source: 'route',
+        layout: { 'line-join': 'round', 'line-cap': 'round' },
+        paint: {
+          'line-color': 'transparent',
+          'line-width': 20,
+          'line-opacity': 0
+        }
+      });
+
+      // Click handler for route
+      if (onLocationClick && points.length > 0) {
+        // Change cursor on hover
+        map.current.on('mouseenter', 'route-hit-area', () => {
+          map.current.getCanvas().style.cursor = 'pointer';
+        });
+        map.current.on('mouseleave', 'route-hit-area', () => {
+          map.current.getCanvas().style.cursor = '';
+        });
+
+        // Handle click - find nearest point
+        map.current.on('click', 'route-hit-area', (e) => {
+          const clickLng = e.lngLat.lng;
+          const clickLat = e.lngLat.lat;
+
+          // Find the closest point on the route
+          let minDist = Infinity;
+          let closestPoint = null;
+
+          for (const point of points) {
+            if (!point.lat || !point.lng || !point.timestamp) continue;
+            const dist = Math.pow(point.lng - clickLng, 2) + Math.pow(point.lat - clickLat, 2);
+            if (dist < minDist) {
+              minDist = dist;
+              closestPoint = point;
+            }
+          }
+
+          if (closestPoint?.timestamp) {
+            onLocationClick(closestPoint.timestamp);
+          }
+        });
+      }
 
       // Add start marker - black inverts to white
       if (points.length > 0) {
@@ -303,8 +352,11 @@ export function DayMap({
         map.current = null;
         mountedRef.current = false;
       }
+      // Reset marker ref and map loaded state for clean reinit
+      photoMarkerRef.current = null;
+      setMapLoaded(false);
     };
-  }, [bounds, points, dayColor, highlights, isMobile]);
+  }, [bounds, points, dayColor, highlights, isMobile, onLocationClick]);
 
   // Update hillshade lighting when sunPosition changes
   useEffect(() => {
@@ -367,6 +419,16 @@ export function DayMap({
   // Update photo marker and pan/zoom to location when currentPhoto changes
   useEffect(() => {
     if (!mapLoaded || !map.current) return;
+
+    // Debug: log currentPhoto to verify coordinates
+    console.log('DayMap marker effect:', {
+      hasPhoto: !!currentPhoto,
+      lat: currentPhoto?.lat,
+      lng: currentPhoto?.lng,
+      timestamp: currentPhoto?.timestamp,
+      mapLoaded,
+      hasMapRef: !!map.current
+    });
 
     // Invert the color so it displays correctly after CSS invert
     const invertColor = (hex) => {

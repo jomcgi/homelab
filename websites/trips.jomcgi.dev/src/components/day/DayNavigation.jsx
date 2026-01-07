@@ -1,6 +1,40 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'wouter';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+
+// Nav link with hover inversion
+function NavLink({ href, disabled, children, style }) {
+  const [hovered, setHovered] = useState(false);
+
+  if (disabled) {
+    return (
+      <span style={{ ...style, opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>
+        {children}
+      </span>
+    );
+  }
+
+  return (
+    <Link
+      href={href}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        ...style,
+        background: hovered ? '#1a1a1a' : 'white',
+        color: hovered ? 'white' : '#1a1a1a',
+        transition: 'background 0.15s, color 0.15s'
+      }}
+    >
+      {React.Children.map(children, child => {
+        if (React.isValidElement(child) && (child.type === ChevronLeft || child.type === ChevronRight)) {
+          return React.cloneElement(child, { color: hovered ? 'white' : '#1a1a1a' });
+        }
+        return child;
+      })}
+    </Link>
+  );
+}
 
 /**
  * Navigation component for the day detail page
@@ -40,13 +74,6 @@ export function DayNavigation({
     transition: 'background 0.1s ease'
   };
 
-  const disabledNavStyle = {
-    ...navButtonStyle,
-    opacity: 0.4,
-    cursor: 'not-allowed',
-    pointerEvents: 'none'
-  };
-
   return (
     <nav style={{
       display: 'flex',
@@ -59,10 +86,10 @@ export function DayNavigation({
       marginBottom: isMobile ? '16px' : '24px'
     }}>
       {/* Back to Summary */}
-      <Link href={`/${tripSlug}`} style={navButtonStyle}>
+      <NavLink href={`/${tripSlug}`} style={navButtonStyle}>
         <ChevronLeft size={16} />
         <span>Summary</span>
-      </Link>
+      </NavLink>
 
       {/* Day Title - Center */}
       <div style={{
@@ -102,29 +129,15 @@ export function DayNavigation({
         gap: '8px',
         justifyContent: isMobile ? 'center' : 'flex-end'
       }}>
-        {hasPrev ? (
-          <Link href={`/${tripSlug}/day/${dayNumber - 1}`} style={navButtonStyle}>
-            <ChevronLeft size={16} />
-            <span>Prev</span>
-          </Link>
-        ) : (
-          <span style={disabledNavStyle}>
-            <ChevronLeft size={16} />
-            <span>Prev</span>
-          </span>
-        )}
+        <NavLink href={`/${tripSlug}/day/${dayNumber - 1}`} disabled={!hasPrev} style={navButtonStyle}>
+          <ChevronLeft size={16} />
+          <span>Prev</span>
+        </NavLink>
 
-        {hasNext ? (
-          <Link href={`/${tripSlug}/day/${dayNumber + 1}`} style={navButtonStyle}>
-            <span>Next</span>
-            <ChevronRight size={16} />
-          </Link>
-        ) : (
-          <span style={disabledNavStyle}>
-            <span>Next</span>
-            <ChevronRight size={16} />
-          </span>
-        )}
+        <NavLink href={`/${tripSlug}/day/${dayNumber + 1}`} disabled={!hasNext} style={navButtonStyle}>
+          <span>Next</span>
+          <ChevronRight size={16} />
+        </NavLink>
       </div>
     </nav>
   );
