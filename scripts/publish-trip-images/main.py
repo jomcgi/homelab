@@ -8,6 +8,7 @@ uploads to SeaweedFS, and publishes trip points to NATS.
 import asyncio
 import hashlib
 import json
+import math
 import os
 import signal
 import sqlite3
@@ -51,6 +52,16 @@ class UploadStatus(str, Enum):
 
 
 @dataclass
+class OpticsData:
+    """Camera exposure data from EXIF."""
+    light_value: float | None = None  # Exposure Value (EV) - e.g., 8.6 for dim conditions
+    iso: int | None = None  # ISO sensitivity - e.g., 393
+    shutter_speed: str | None = None  # Shutter speed as string - e.g., "1/240"
+    aperture: float | None = None  # F-number - e.g., 2.5
+    focal_length_35mm: int | None = None  # Focal length in 35mm equivalent - e.g., 16
+
+
+@dataclass
 class ImageRecord:
     id: int
     source_path: str
@@ -64,6 +75,8 @@ class ImageRecord:
     created_at: str
     completed_at: str | None
     tags: list[str] | None = None  # User-defined tags (e.g., "hotspring", "wildlife")
+    # OPTICS - Camera exposure data
+    optics: OpticsData | None = None
 
 
 class UploadQueue:
@@ -90,15 +103,29 @@ class UploadQueue:
                     timestamp TEXT,
                     created_at TEXT NOT NULL,
                     completed_at TEXT,
-                    tags TEXT
+                    tags TEXT,
+                    light_value REAL,
+                    iso INTEGER,
+                    shutter_speed TEXT,
+                    aperture REAL,
+                    focal_length_35mm INTEGER
                 )
             """)
             conn.execute("CREATE INDEX IF NOT EXISTS idx_status ON images(status)")
-            # Migration: add tags column if it doesn't exist
-            try:
-                conn.execute("ALTER TABLE images ADD COLUMN tags TEXT")
-            except sqlite3.OperationalError:
-                pass  # Column already exists
+            # Migrations: add columns if they don't exist
+            migrations = [
+                "ALTER TABLE images ADD COLUMN tags TEXT",
+                "ALTER TABLE images ADD COLUMN light_value REAL",
+                "ALTER TABLE images ADD COLUMN iso INTEGER",
+                "ALTER TABLE images ADD COLUMN shutter_speed TEXT",
+                "ALTER TABLE images ADD COLUMN aperture REAL",
+                "ALTER TABLE images ADD COLUMN focal_length_35mm INTEGER",
+            ]
+            for migration in migrations:
+                try:
+                    conn.execute(migration)
+                except sqlite3.OperationalError:
+                    pass  # Column already exists
             conn.commit()
 
     def add(
@@ -109,14 +136,16 @@ class UploadQueue:
         lng: float | None,
         timestamp: str | None,
         tags: list[str] | None = None,
+        optics: OpticsData | None = None,
     ) -> int | None:
         """Add image to queue. Returns ID or None if already exists."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(
                     """
-                    INSERT INTO images (source_path, dest_key, lat, lng, timestamp, status, created_at, tags)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    INSERT INTO images (source_path, dest_key, lat, lng, timestamp, status, created_at, tags,
+                                       light_value, iso, shutter_speed, aperture, focal_length_35mm)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     (
                         str(source_path),
@@ -127,6 +156,11 @@ class UploadQueue:
                         UploadStatus.PENDING.value,
                         datetime.now().isoformat(),
                         json.dumps(tags) if tags else None,
+                        optics.light_value if optics else None,
+                        optics.iso if optics else None,
+                        optics.shutter_speed if optics else None,
+                        optics.aperture if optics else None,
+                        optics.focal_length_35mm if optics else None,
                     ),
                 )
                 conn.commit()
@@ -206,6 +240,22 @@ class UploadQueue:
 
     def _row_to_record(self, row: sqlite3.Row) -> ImageRecord:
         tags_json = row["tags"] if "tags" in row.keys() else None
+        keys = row.keys()
+
+        # Build OpticsData if any optics field is present
+        optics = None
+        if any(col in keys for col in ["light_value", "iso", "shutter_speed", "aperture", "focal_length_35mm"]):
+            optics = OpticsData(
+                light_value=row["light_value"] if "light_value" in keys else None,
+                iso=row["iso"] if "iso" in keys else None,
+                shutter_speed=row["shutter_speed"] if "shutter_speed" in keys else None,
+                aperture=row["aperture"] if "aperture" in keys else None,
+                focal_length_35mm=row["focal_length_35mm"] if "focal_length_35mm" in keys else None,
+            )
+            # Only keep optics if at least one field is non-None
+            if not any([optics.light_value, optics.iso, optics.shutter_speed, optics.aperture, optics.focal_length_35mm]):
+                optics = None
+
         return ImageRecord(
             id=row["id"],
             source_path=row["source_path"],
@@ -219,6 +269,7 @@ class UploadQueue:
             created_at=row["created_at"],
             completed_at=row["completed_at"],
             tags=json.loads(tags_json) if tags_json else None,
+            optics=optics,
         )
 
 
@@ -265,14 +316,48 @@ def dms_to_decimal(dms: tuple, ref: str) -> float:
     return decimal
 
 
-def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | None]:
-    """Extract GPS coordinates and timestamp from EXIF data."""
+def calculate_light_value(aperture: float | None, shutter_time: float | None, iso: int | None) -> float | None:
+    """Calculate Light Value (EV) from exposure triangle.
+
+    LV = log2(N²/t) - log2(ISO/100)
+    where N is aperture (f-number), t is shutter time in seconds
+    """
+    if aperture is None or shutter_time is None or iso is None:
+        return None
+    if aperture <= 0 or shutter_time <= 0 or iso <= 0:
+        return None
+
+    try:
+        lv = math.log2((aperture ** 2) / shutter_time) - math.log2(iso / 100)
+        return round(lv, 1)
+    except (ValueError, ZeroDivisionError):
+        return None
+
+
+def format_shutter_speed(exposure_time: float | None) -> str | None:
+    """Format exposure time as readable shutter speed string.
+
+    E.g., 0.00416666... -> "1/240"
+    """
+    if exposure_time is None or exposure_time <= 0:
+        return None
+
+    if exposure_time >= 1:
+        return f"{exposure_time:.1f}s"
+    else:
+        # Express as fraction 1/x
+        denominator = round(1 / exposure_time)
+        return f"1/{denominator}"
+
+
+def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | None, OpticsData | None]:
+    """Extract GPS coordinates, timestamp, and OPTICS data from EXIF."""
     try:
         img = Image.open(image_path)
         exif_data = img._getexif()
 
         if not exif_data:
-            return None, None, None
+            return None, None, None, None
 
         lat = None
         lng = None
@@ -302,11 +387,42 @@ def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | No
             dt = datetime.strptime(exif["DateTime"], "%Y:%m:%d %H:%M:%S")
             timestamp = dt.isoformat()
 
-        return lat, lng, timestamp
+        # Extract OPTICS data
+        optics = OpticsData()
+
+        # ISO - ISOSpeedRatings (can be tuple or int)
+        iso_raw = exif.get("ISOSpeedRatings")
+        if iso_raw:
+            optics.iso = int(iso_raw[0] if isinstance(iso_raw, tuple) else iso_raw)
+
+        # Aperture - FNumber (stored as Ratio)
+        fnumber = exif.get("FNumber")
+        if fnumber:
+            optics.aperture = round(float(fnumber), 1)
+
+        # Shutter speed - ExposureTime (stored as Ratio)
+        exposure_time = exif.get("ExposureTime")
+        exposure_time_float = None
+        if exposure_time:
+            exposure_time_float = float(exposure_time)
+            optics.shutter_speed = format_shutter_speed(exposure_time_float)
+
+        # Focal length 35mm equivalent - FocalLengthIn35mmFilm
+        focal_35mm = exif.get("FocalLengthIn35mmFilm")
+        if focal_35mm:
+            optics.focal_length_35mm = int(focal_35mm)
+
+        # Calculate Light Value from exposure triangle
+        optics.light_value = calculate_light_value(optics.aperture, exposure_time_float, optics.iso)
+
+        # Only return optics if we have at least some data
+        has_optics = any([optics.iso, optics.aperture, optics.shutter_speed, optics.focal_length_35mm])
+
+        return lat, lng, timestamp, optics if has_optics else None
 
     except Exception as e:
         print(f"  Warning: Could not extract EXIF from {image_path.name}: {e}")
-        return None, None, None
+        return None, None, None, None
 
 
 def get_s3_client():
@@ -407,6 +523,19 @@ async def publish_to_nats(js, record: ImageRecord, source: str) -> None:
         "tags": record.tags or [],  # User-defined tags
     }
 
+    # Include OPTICS data if available
+    if record.optics:
+        if record.optics.light_value is not None:
+            point["light_value"] = record.optics.light_value
+        if record.optics.iso is not None:
+            point["iso"] = record.optics.iso
+        if record.optics.shutter_speed is not None:
+            point["shutter_speed"] = record.optics.shutter_speed
+        if record.optics.aperture is not None:
+            point["aperture"] = record.optics.aperture
+        if record.optics.focal_length_35mm is not None:
+            point["focal_length_35mm"] = record.optics.focal_length_35mm
+
     await js.publish("trips.point", json.dumps(point).encode())
 
 
@@ -428,21 +557,21 @@ def scan_images(source_dir: Path) -> list[Path]:
 
 def sample_images_by_time(
     images: list[Path], interval_seconds: int
-) -> list[tuple[Path, float | None, float | None, str | None]]:
+) -> list[tuple[Path, float | None, float | None, str | None, OpticsData | None]]:
     """Sample images to have at least one per interval (in seconds).
 
-    Returns list of (path, lat, lng, timestamp) tuples to avoid re-extracting EXIF later.
+    Returns list of (path, lat, lng, timestamp, optics) tuples to avoid re-extracting EXIF later.
     Images without valid timestamps are included if no image was selected in the current window.
     """
     if interval_seconds <= 0:
         # No sampling - return all with EXIF data
         return [(img, *extract_exif(img)) for img in images]
 
-    selected: list[tuple[Path, float | None, float | None, str | None]] = []
+    selected: list[tuple[Path, float | None, float | None, str | None, OpticsData | None]] = []
     last_selected_time: datetime | None = None
 
     for img_path in images:
-        lat, lng, timestamp = extract_exif(img_path)
+        lat, lng, timestamp, optics = extract_exif(img_path)
 
         # Parse timestamp if available
         img_time: datetime | None = None
@@ -474,7 +603,7 @@ def sample_images_by_time(
             should_select = elapsed >= interval_seconds
 
         if should_select:
-            selected.append((img_path, lat, lng, timestamp))
+            selected.append((img_path, lat, lng, timestamp, optics))
             last_selected_time = img_time
 
     return selected
@@ -549,16 +678,17 @@ async def _run_upload(
 
     # Queue new images (EXIF already extracted during sampling)
     new_count = 0
-    for img_path, lat, lng, timestamp in sampled:
+    for img_path, lat, lng, timestamp, optics in sampled:
         # Generate deterministic key based on source + timestamp + filename
         dest_key = generate_dest_key(img_path, source, timestamp)
 
-        record_id = queue.add(img_path, dest_key, lat, lng, timestamp, tags)
+        record_id = queue.add(img_path, dest_key, lat, lng, timestamp, tags, optics)
         if record_id:
             new_count += 1
             gps_info = f"({lat:.4f}, {lng:.4f})" if lat and lng else "(no GPS)"
             tags_info = f" [{', '.join(tags)}]" if tags else ""
-            print(f"  Queued: {img_path.name} -> {dest_key} {gps_info}{tags_info}")
+            optics_info = f" [EV:{optics.light_value}]" if optics and optics.light_value else ""
+            print(f"  Queued: {img_path.name} -> {dest_key} {gps_info}{tags_info}{optics_info}")
 
     if new_count:
         print(f"Queued {new_count} new images")
@@ -830,6 +960,301 @@ def publish_all(
 
     asyncio.run(_publish_all())
     print("Done")
+
+
+class OpticsCache:
+    """SQLite cache for OPTICS data to avoid re-downloading images."""
+
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._init_db()
+
+    def _init_db(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS optics_cache (
+                    image_key TEXT PRIMARY KEY,
+                    light_value REAL,
+                    iso INTEGER,
+                    shutter_speed TEXT,
+                    aperture REAL,
+                    focal_length_35mm INTEGER,
+                    cached_at TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+
+    def get(self, image_key: str) -> tuple[bool, OpticsData | None]:
+        """Returns (found_in_cache, optics_data)."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM optics_cache WHERE image_key = ?",
+                (image_key,)
+            ).fetchone()
+            if not row:
+                return False, None
+            return True, OpticsData(
+                light_value=row["light_value"],
+                iso=row["iso"],
+                shutter_speed=row["shutter_speed"],
+                aperture=row["aperture"],
+                focal_length_35mm=row["focal_length_35mm"],
+            )
+
+    def put(self, image_key: str, optics: OpticsData | None) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO optics_cache
+                (image_key, light_value, iso, shutter_speed, aperture, focal_length_35mm, cached_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    image_key,
+                    optics.light_value if optics else None,
+                    optics.iso if optics else None,
+                    optics.shutter_speed if optics else None,
+                    optics.aperture if optics else None,
+                    optics.focal_length_35mm if optics else None,
+                    datetime.now().isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def stats(self) -> int:
+        with sqlite3.connect(self.db_path) as conn:
+            return conn.execute("SELECT COUNT(*) FROM optics_cache").fetchone()[0]
+
+
+OPTICS_CACHE_PATH = Path(__file__).parent / "optics_cache.db"
+
+
+@app.command()
+def backfill_optics(
+    bucket: Annotated[
+        str, typer.Option("--bucket", "-b", help="S3 bucket name")
+    ] = DEFAULT_BUCKET,
+    dry_run: Annotated[
+        bool, typer.Option("--dry-run", "-n", help="Show what would be published without publishing")
+    ] = False,
+    limit: Annotated[
+        int,
+        typer.Option("--limit", "-l", help="Limit number of points to process (0 = all)"),
+    ] = 0,
+    concurrency: Annotated[
+        int,
+        typer.Option("--concurrency", "-c", help="Number of parallel downloads"),
+    ] = 10,
+) -> None:
+    """Backfill OPTICS data from SeaweedFS raw images to NATS.
+
+    Replays all points from NATS, downloads each image from SeaweedFS,
+    extracts OPTICS EXIF data (ISO, aperture, shutter speed, focal length,
+    light value), and republishes to NATS with the enriched metadata.
+
+    Preserves existing point data (tags, source, etc.) - only adds OPTICS fields.
+    Uses SQLite cache to avoid re-downloading images for duplicate points.
+
+    Example:
+        # Preview what would be backfilled
+        backfill-optics --dry-run
+
+        # Backfill all points
+        backfill-optics
+
+        # Backfill with 20 parallel downloads
+        backfill-optics --concurrency 20
+
+        # Backfill first 10 points (for testing)
+        backfill-optics --limit 10
+    """
+    import tempfile
+    from concurrent.futures import ThreadPoolExecutor
+
+    cache = OpticsCache(OPTICS_CACHE_PATH)
+    print(f"OPTICS cache: {cache.stats()} entries")
+
+    s3_client = get_s3_client()
+
+    def download_and_extract(image_key: str) -> tuple[bool, OpticsData | None]:
+        """Download image and extract OPTICS (runs in thread pool).
+        Returns (from_cache, optics_data).
+        """
+        # Check cache first
+        found, cached = cache.get(image_key)
+        if found:
+            return True, cached
+
+        # Download and extract
+        with tempfile.NamedTemporaryFile(suffix=".jpg", delete=True) as tmp:
+            try:
+                s3_client.download_file(bucket, image_key, tmp.name)
+                _, _, _, optics = extract_exif(Path(tmp.name))
+                # Cache result (even if None)
+                cache.put(image_key, optics)
+                return False, optics
+            except Exception:
+                return False, None
+
+    async def _backfill():
+        nc = await nats.connect(NATS_URL)
+        js = nc.jetstream()
+
+        # Replay all existing points from NATS stream
+        print("Replaying points from NATS stream...")
+        points = []
+        try:
+            consumer = await js.pull_subscribe(
+                "trips.>",
+                stream="trips",
+                config=nats.js.api.ConsumerConfig(
+                    deliver_policy=nats.js.api.DeliverPolicy.ALL,
+                    ack_policy=nats.js.api.AckPolicy.NONE,
+                ),
+            )
+
+            while True:
+                try:
+                    msgs = await consumer.fetch(batch=100, timeout=1)
+                    for msg in msgs:
+                        try:
+                            point_data = json.loads(msg.data.decode())
+                            # Skip tombstone/delete messages
+                            if not point_data.get("deleted"):
+                                points.append(point_data)
+                        except Exception:
+                            pass
+                except nats.errors.TimeoutError:
+                    break
+
+            await consumer.unsubscribe()
+        except nats.js.errors.StreamNotFoundError:
+            print("Stream 'trips' not found")
+            await nc.close()
+            return 0, 0, 0, 0
+
+        print(f"Found {len(points)} points in NATS stream")
+
+        # Filter to points with images that don't already have OPTICS
+        points_to_process = [
+            p for p in points
+            if p.get("image") and not (p.get("iso") or p.get("light_value"))
+        ]
+        skipped_already_has = len([p for p in points if p.get("iso") or p.get("light_value")])
+
+        print(f"  {len(points_to_process)} need OPTICS data")
+        if skipped_already_has:
+            print(f"  {skipped_already_has} already have OPTICS data")
+
+        if limit > 0:
+            points_to_process = points_to_process[:limit]
+            print(f"Processing first {limit} points")
+
+        if not points_to_process:
+            print("No points to process")
+            await nc.close()
+            return 0, 0, skipped_already_has, 0
+
+        # Get unique images to download
+        unique_images = list({p["image"] for p in points_to_process})
+        print(f"  {len(unique_images)} unique images to process")
+
+        # Download and extract OPTICS in parallel using thread pool
+        optics_by_image: dict[str, OpticsData | None] = {}
+        cache_hits = 0
+
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+        ) as progress:
+            # Phase 1: Download and extract (parallelized)
+            task = progress.add_task(f"Extracting OPTICS ({concurrency} workers)...", total=len(unique_images))
+
+            with ThreadPoolExecutor(max_workers=concurrency) as executor:
+                # Submit all images - download_and_extract checks cache internally
+                futures = {executor.submit(download_and_extract, img): img for img in unique_images}
+
+                from concurrent.futures import as_completed
+                for future in as_completed(futures):
+                    image_key = futures[future]
+                    try:
+                        from_cache, optics = future.result()
+                        optics_by_image[image_key] = optics
+                        if from_cache:
+                            cache_hits += 1
+                    except Exception as e:
+                        progress.console.print(f"[red][SKIP] {image_key}: {e}")
+                    progress.advance(task)
+
+            if cache_hits:
+                progress.console.print(f"[green]Cache hits: {cache_hits}/{len(unique_images)}")
+
+            # Phase 2: Publish enriched points
+            task2 = progress.add_task("Publishing to NATS...", total=len(points_to_process))
+            processed = 0
+            with_optics = 0
+
+            for point in points_to_process:
+                image_key = point["image"]
+                optics = optics_by_image.get(image_key)
+
+                # Build enriched point - preserve all existing data
+                enriched_point = dict(point)
+
+                # Add OPTICS data if available
+                if optics:
+                    with_optics += 1
+                    if optics.light_value is not None:
+                        enriched_point["light_value"] = optics.light_value
+                    if optics.iso is not None:
+                        enriched_point["iso"] = optics.iso
+                    if optics.shutter_speed is not None:
+                        enriched_point["shutter_speed"] = optics.shutter_speed
+                    if optics.aperture is not None:
+                        enriched_point["aperture"] = optics.aperture
+                    if optics.focal_length_35mm is not None:
+                        enriched_point["focal_length_35mm"] = optics.focal_length_35mm
+
+                if dry_run:
+                    optics_str = ""
+                    if optics:
+                        parts = []
+                        if optics.light_value:
+                            parts.append(f"EV:{optics.light_value}")
+                        if optics.iso:
+                            parts.append(f"ISO:{optics.iso}")
+                        if optics.shutter_speed:
+                            parts.append(optics.shutter_speed)
+                        if optics.aperture:
+                            parts.append(f"ƒ/{optics.aperture}")
+                        if optics.focal_length_35mm:
+                            parts.append(f"{optics.focal_length_35mm}mm")
+                        optics_str = " [" + " ".join(parts) + "]" if parts else ""
+                    progress.console.print(f"[dim]{image_key}{optics_str}")
+                else:
+                    await js.publish("trips.point", json.dumps(enriched_point).encode())
+
+                processed += 1
+                progress.advance(task2)
+
+        await nc.close()
+        return processed, with_optics, skipped_already_has, cache_hits
+
+    result = asyncio.run(_backfill())
+    processed, with_optics, skipped, cache_hits = result
+
+    print(f"\nOPTICS cache now has {cache.stats()} entries")
+
+    if dry_run:
+        print(f"[DRY RUN] Would publish {processed} points ({with_optics} with OPTICS data)")
+    else:
+        print(f"Published {processed} points ({with_optics} with OPTICS data)")
+    if skipped:
+        print(f"  Skipped {skipped} points that already have OPTICS data")
 
 
 if __name__ == "__main__":

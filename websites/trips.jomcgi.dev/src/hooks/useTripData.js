@@ -21,7 +21,13 @@ export function useTripData(tripSlug = null) {
       source: apiPoint.source || "gopro",
       timestamp: new Date(ts),
       tags: apiPoint.tags || [],
-      elevation: apiPoint.elevation, 
+      elevation: apiPoint.elevation,
+      // OPTICS - Camera exposure data from EXIF
+      lightValue: apiPoint.light_value,
+      iso: apiPoint.iso,
+      shutterSpeed: apiPoint.shutter_speed,
+      aperture: apiPoint.aperture,
+      focalLength35mm: apiPoint.focal_length_35mm,
     };
   }, []);
 
