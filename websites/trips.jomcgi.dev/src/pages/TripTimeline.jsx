@@ -19,6 +19,8 @@ import { useTripContext } from "../contexts/TripContext";
 import { useWeather } from "../hooks/useWeather";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useUrlState } from "../hooks/useUrlState";
+import { useFavicon } from "../hooks/useFavicon";
+import { usePageTitle } from "../hooks/usePageTitle";
 
 import { TripMap } from "../components/map/TripMap";
 import { ImagePanel } from "../components/image/ImagePanel";
@@ -45,6 +47,13 @@ export function TripTimeline() {
     cachedImages,
     prefetchImage,
   } = useTripContext();
+
+  // Set favicon to hollow ring (overview mode)
+  useFavicon("summary");
+
+  // Set page title
+  const shortTitle = tripConfig?.trip?.short_title;
+  usePageTitle(shortTitle, "Timeline");
 
   const { getInitialFrame, getInitialTags, updateUrl } = useUrlState();
 

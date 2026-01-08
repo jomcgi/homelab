@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { Link } from 'wouter';
 import { useTripContext } from '../contexts/TripContext';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useFavicon } from '../hooks/useFavicon';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { Loader2, AlertCircle, ChevronRight } from 'lucide-react';
 import { useLocation } from 'wouter';
 import maplibregl from 'maplibre-gl';
@@ -16,13 +18,8 @@ const DEFAULT_DAY_COLORS = [
 ];
 
 
-// Map style - Stadia Stamen Toner (free, no key required)
-const getMapStyle = (apiKey) => {
-  if (apiKey) {
-    return `https://api.maptiler.com/maps/toner-v2/style.json?key=${apiKey}`;
-  }
-  return `https://basemaps.cartocdn.com/gl/positron-gl-style/style.json`;
-};
+// Map style - Carto Positron (clean white/light map)
+const getMapStyle = () => 'https://basemaps.cartocdn.com/gl/positron-gl-style/style.json';
 
 // Download helpers
 function downloadGPX(points, filename) {
@@ -606,7 +603,7 @@ function StatCell({ value, unit, label, color, isMobile, borderRight = true }) {
 }
 
 // Brutalist button with hover inversion
-function InvertButton({ children, onClick, href, isMobile, style = {} }) {
+function InvertButton({ children, onClick, isMobile, style = {} }) {
   const [hovered, setHovered] = useState(false);
 
   const buttonStyle = {
@@ -703,6 +700,13 @@ export function TripSummaryPage() {
   const [, setLocation] = useLocation();
 
   const isMobile = useMediaQuery("(max-width: 768px)");
+
+  // Set favicon to hollow ring (overview mode)
+  useFavicon("summary");
+
+  // Set page title to short trip name
+  const shortTitle = tripConfig?.trip?.short_title;
+  usePageTitle(shortTitle);
 
   // Navigate to day detail page
   const navigateToDay = (dayNumber) => {
