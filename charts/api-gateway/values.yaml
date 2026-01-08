@@ -23,11 +23,10 @@ clusterInfo:
   interval: 5
   resources:
     requests:
-      cpu: 5m
-      memory: 16Mi
-    limits:
       cpu: 50m
-      memory: 32Mi
+      memory: 256Mi
+    limits:
+      memory: 256Mi
 
 # Backend services to route to
 backends:

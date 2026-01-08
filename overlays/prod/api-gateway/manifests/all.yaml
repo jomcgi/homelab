@@ -363,10 +363,10 @@ spec:
           resources:
             limits:
               cpu: 50m
-              memory: 32Mi
+              memory: 256Mi
             requests:
-              cpu: 5m
-              memory: 16Mi
+              cpu: 50m
+              memory: 256Mi
       containers:
         - name: nginx
           image: "nginx:1.27-alpine"
@@ -435,7 +435,7 @@ spec:
           resources:
             limits:
               cpu: 50m
-              memory: 32Mi
+              memory: 256Mi
             requests:
-              cpu: 5m
-              memory: 16Mi
+              cpu: 50m
+              memory: 256Mi
