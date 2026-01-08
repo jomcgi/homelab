@@ -367,6 +367,7 @@
 
         .status-pod-cell .pod-matrix-side {
             flex: 1;
+            min-width: 0; /* allow flex child to shrink below content size */
             padding: 8px 12px;
             display: flex;
             flex-direction: column;
@@ -375,29 +376,61 @@
         }
 
         .pod-grid {
-            font-family: monospace;
-            font-size: 10px;
-            letter-spacing: 1px;
-            line-height: 1.2;
-            word-break: break-all;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px; /* uniform grid spacing */
+            cursor: crosshair;
         }
 
-        .pods-healthy {
-            color: var(--fg);
+        /* Each pod is a small interactive square */
+        .pod-dot {
+            width: 6px;
+            height: 6px;
+            min-width: 6px;
+            min-height: 6px;
+            flex-shrink: 0;
+            background: var(--fg);
+            transition: transform 0.05s;
         }
 
-        .pods-pending {
-            color: var(--fg);
+        .pod-dot:hover {
+            transform: scale(1.5);
+        }
+
+        .pod-dot.pod-pending {
+            background: transparent;
+            border: 1px solid var(--fg);
             animation: pod-pulse 1.5s ease-in-out infinite;
         }
 
-        .pods-failed {
-            color: #cc0000;
+        .pod-dot.pod-failed {
+            background: #cc0000;
         }
 
         @keyframes pod-pulse {
             0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
+        }
+
+        /* Inspector bar - shows pod details on hover */
+        .pod-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-top: 6px;
+            min-height: 14px;
+        }
+
+        .pod-count-default {
+            opacity: 0.5;
+        }
+
+        .pod-inspector {
+            color: var(--fg);
+        }
+
+        .pod-inspector b {
+            font-weight: 700;
         }
 
         .pod-label {
@@ -487,7 +520,7 @@
                         </div>
                         <div class="pod-matrix-side" id="pod-matrix">
                             <div class="pod-grid" id="pod-grid"></div>
-                            <div class="pod-label"><span id="pod-count">--</span> pods</div>
+                            <div class="pod-label" id="pod-count">--</div>
                         </div>
                     </div>
                     <div class="stat-cell">
@@ -556,40 +589,68 @@
     </div>
 
     <script>
-        // Render the Pod Matrix - text-based like cp[■■■]
+        // Render the Pod Matrix - interactive scrub inspection
         function renderPodMatrix(els, podsData) {
-            // If no pod data, show placeholder
-            if (!podsData || podsData.running === undefined) {
+            // Handle old format (counts) or missing data
+            if (!podsData || !Array.isArray(podsData)) {
+                // Fallback for count-based format - render individual squares
+                if (podsData && typeof podsData.running === 'number') {
+                    const running = podsData.running || 0;
+                    const succeeded = podsData.succeeded || 0;
+                    const pending = podsData.pending || 0;
+                    const failed = podsData.failed || 0;
+                    const total = running + succeeded + pending + failed;
+
+                    let html = '';
+                    // Failed first (red)
+                    for (let i = 0; i < failed; i++) {
+                        html += '<span class="pod-dot pod-failed"></span>';
+                    }
+                    // Pending (hollow, pulsing)
+                    for (let i = 0; i < pending; i++) {
+                        html += '<span class="pod-dot pod-pending"></span>';
+                    }
+                    // Healthy (solid)
+                    for (let i = 0; i < running + succeeded; i++) {
+                        html += '<span class="pod-dot"></span>';
+                    }
+                    els.podGrid.innerHTML = html;
+                    els.podCount.innerHTML = `<span class="pod-count-default">${total} pods</span>`;
+                    return;
+                }
                 els.podGrid.innerHTML = '<span class="st-dim">□□□□□□□□□□</span>';
-                els.podCount.innerText = '--';
+                els.podCount.innerHTML = '-- pods';
                 return;
             }
 
-            const running = podsData.running || 0;
-            const succeeded = podsData.succeeded || 0;
-            const pending = podsData.pending || 0;
-            const failed = podsData.failed || 0;
-            const healthy = running + succeeded;
-            const total = healthy + pending + failed;
-
-            // Build text: ■ for healthy, □ for pending, red ■ for failed
+            // Build interactive grid - each pod is a hoverable element
             let html = '';
-
-            // Healthy pods - solid squares
-            if (healthy > 0) {
-                html += '<span class="pods-healthy">' + '■'.repeat(healthy) + '</span>';
-            }
-            // Pending pods - hollow squares
-            if (pending > 0) {
-                html += '<span class="pods-pending">' + '□'.repeat(pending) + '</span>';
-            }
-            // Failed pods - red squares
-            if (failed > 0) {
-                html += '<span class="pods-failed">' + '■'.repeat(failed) + '</span>';
-            }
+            podsData.forEach((pod, i) => {
+                const status = pod.status.toLowerCase();
+                let cls = 'pod-dot';
+                if (status === 'failed') cls += ' pod-failed';
+                else if (status === 'pending') cls += ' pod-pending';
+                // data attributes for hover inspection
+                html += `<span class="${cls}" data-ns="${pod.ns}" data-name="${pod.name}" data-idx="${i}"></span>`;
+            });
 
             els.podGrid.innerHTML = html;
-            els.podCount.innerText = total;
+            els.podCount.innerHTML = `<span class="pod-count-default">${podsData.length} pods</span>`;
+
+            // Add hover listeners for "The Scrub" interaction
+            els.podGrid.querySelectorAll('.pod-dot').forEach(dot => {
+                dot.addEventListener('mouseenter', () => {
+                    const ns = dot.dataset.ns;
+                    const name = dot.dataset.name;
+                    // Truncate long pod names
+                    const shortName = name.length > 30 ? name.slice(0, 27) + '...' : name;
+                    els.podCount.innerHTML = `<span class="pod-inspector"><b>${ns}</b> / ${shortName}</span>`;
+                });
+            });
+
+            els.podGrid.addEventListener('mouseleave', () => {
+                els.podCount.innerHTML = `<span class="pod-count-default">${podsData.length} pods</span>`;
+            });
         }
 
         async function fetchStats() {
