@@ -15,9 +15,6 @@ const DEFAULT_DAY_COLORS = [
   "#9333ea", "#0284c7"
 ];
 
-const HIGHLIGHT_ICONS = {
-  wildlife: '🦬', hotspring: '♨️', aurora: '✦', landscape: '◆', other: '●'
-};
 
 // Map style - Stadia Stamen Toner (free, no key required)
 const getMapStyle = (apiKey) => {
@@ -563,49 +560,139 @@ function RouteMap({ points, days, dayColors, hoveredDay, onHoverDay, mapHeight =
   );
 }
 
-function BigNumber({ value, unit, label, color, isMobile, scale = 1, isLargeDesktop = false, align = 'left' }) {
+// Brutalist stat cell for the Totals Bank grid
+function StatCell({ value, unit, label, color, isMobile, borderRight = true }) {
   return (
-    <div style={{ textAlign: align }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: isMobile ? '4px' : `${4 * scale}px`, justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
+    <div style={{
+      padding: isMobile ? '12px' : '16px 20px',
+      borderRight: borderRight ? '2px solid #1a1a1a' : 'none',
+      background: 'white'
+    }}>
+      <div style={{
+        fontSize: '9px',
+        fontWeight: 700,
+        fontFamily: 'monospace',
+        letterSpacing: '0.08em',
+        color: '#6b7280',
+        textTransform: 'uppercase',
+        marginBottom: '6px'
+      }}>
+        {label}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px' }}>
         <span style={{
-          fontSize: isMobile ? '36px' : isLargeDesktop ? `${32 * scale}px` : '40px',
-          fontWeight: 800,
-          fontFamily: 'system-ui, -apple-system, sans-serif',
-          letterSpacing: '-0.03em',
+          fontSize: isMobile ? '28px' : '36px',
+          fontWeight: 900,
+          fontFamily: 'monospace',
+          letterSpacing: '-0.02em',
           lineHeight: 1,
           color: color || '#1a1a1a'
         }}>
           {value}
         </span>
-        {unit && <span style={{ fontSize: isMobile ? '16px' : isLargeDesktop ? `${13 * scale}px` : '16px', fontWeight: 600, color: '#9ca3af' }}>{unit}</span>}
-      </div>
-      <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${8 * scale}px` : '10px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginTop: `${3 * scale}px` }}>
-        {label}
+        {unit && (
+          <span style={{
+            fontSize: isMobile ? '14px' : '16px',
+            fontWeight: 700,
+            fontFamily: 'monospace',
+            color: '#9ca3af'
+          }}>
+            {unit}
+          </span>
+        )}
       </div>
     </div>
   );
 }
 
-function SmallStat({ value, unit, label, isMobile, scale = 1, isLargeDesktop = false, inline = false, labelColor = null, prefix = null, prefixColor = null, align = 'left' }) {
-  if (inline) {
-    return (
-      <div style={{ textAlign: align }}>
-        {label && <div style={{ fontSize: isMobile ? '9px' : '9px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', color: labelColor || '#9ca3af', textTransform: 'uppercase', marginBottom: '2px' }}>{label}</div>}
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: '3px', justifyContent: align === 'right' ? 'flex-end' : 'flex-start' }}>
-          {prefix && <span style={{ fontSize: isMobile ? '14px' : '14px', fontWeight: 600, color: prefixColor || '#9ca3af' }}>{prefix}</span>}
-          <span style={{ fontSize: isMobile ? '22px' : '22px', fontWeight: 700, fontFamily: 'system-ui', letterSpacing: '-0.02em', color: '#1a1a1a' }}>{value}</span>
-          {unit && <span style={{ fontSize: isMobile ? '13px' : '13px', fontWeight: 500, color: '#9ca3af' }}>{unit}</span>}
-        </div>
-      </div>
-    );
-  }
+// Brutalist button with hover inversion
+function InvertButton({ children, onClick, href, isMobile, style = {} }) {
+  const [hovered, setHovered] = useState(false);
+
+  const buttonStyle = {
+    padding: isMobile ? '10px 16px' : '10px 20px',
+    fontSize: '10px',
+    fontWeight: 700,
+    fontFamily: 'monospace',
+    letterSpacing: '0.08em',
+    background: hovered ? '#1a1a1a' : 'white',
+    color: hovered ? 'white' : '#1a1a1a',
+    border: '2px solid #1a1a1a',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '8px',
+    textTransform: 'uppercase',
+    transition: 'background 0.15s, color 0.15s',
+    ...style
+  };
+
   return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'baseline', gap: '2px' }}>
-        <span style={{ fontSize: isMobile ? '16px' : isLargeDesktop ? `${14 * scale}px` : '18px', fontWeight: 700, fontFamily: 'system-ui', letterSpacing: '-0.02em', color: '#1a1a1a' }}>{value}</span>
-        {unit && <span style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '11px', fontWeight: 500, color: '#9ca3af' }}>{unit}</span>}
+    <button
+      onClick={onClick}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={buttonStyle}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Brutalist small stat for charts section
+function SmallStat({ value, unit, label, isMobile, prefix = null, prefixColor = null, align = 'left' }) {
+  return (
+    <div style={{ textAlign: align }}>
+      {label && (
+        <div style={{
+          fontSize: '9px',
+          fontWeight: 700,
+          fontFamily: 'monospace',
+          letterSpacing: '0.08em',
+          color: '#6b7280',
+          textTransform: 'uppercase',
+          marginBottom: '4px'
+        }}>
+          {label}
+        </div>
+      )}
+      <div style={{
+        display: 'flex',
+        alignItems: 'baseline',
+        gap: '3px',
+        justifyContent: align === 'right' ? 'flex-end' : 'flex-start'
+      }}>
+        {prefix && (
+          <span style={{
+            fontSize: '14px',
+            fontWeight: 700,
+            fontFamily: 'monospace',
+            color: prefixColor || '#6b7280'
+          }}>
+            {prefix}
+          </span>
+        )}
+        <span style={{
+          fontSize: isMobile ? '20px' : '22px',
+          fontWeight: 900,
+          fontFamily: 'monospace',
+          letterSpacing: '-0.02em',
+          color: '#1a1a1a'
+        }}>
+          {value}
+        </span>
+        {unit && (
+          <span style={{
+            fontSize: '12px',
+            fontWeight: 700,
+            fontFamily: 'monospace',
+            color: '#9ca3af'
+          }}>
+            {unit}
+          </span>
+        )}
       </div>
-      <div style={{ fontSize: isMobile ? '8px' : isLargeDesktop ? `${7 * scale}px` : '9px', fontWeight: 600, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginTop: '2px' }}>{label}</div>
     </div>
   );
 }
@@ -695,33 +782,18 @@ export function TripSummaryPage() {
       <header style={{ marginBottom: isMobile ? '20px' : isLargeDesktop ? `${20 * scale}px` : '32px', flexShrink: 0 }}>
         <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', alignItems: isMobile ? 'stretch' : 'flex-start', justifyContent: 'space-between', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${12 * scale}px` : '20px', gap: isMobile ? '12px' : '0' }}>
           <div>
-            <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${10 * scale}px` : '11px', fontWeight: 600, fontFamily: 'monospace', color: '#9ca3af', letterSpacing: '0.02em', marginBottom: `${4 * scale}px` }}>
+            <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', color: '#6b7280', letterSpacing: '0.08em', marginBottom: '6px', textTransform: 'uppercase' }}>
               {formatDate(stats.startDate)} – {formatDate(stats.endDate)}, {stats.endDate.getFullYear()}
             </div>
-            <h1 style={{ fontSize: isMobile ? '22px' : isTablet ? '24px' : isLargeDesktop ? `${24 * scale}px` : '28px', fontWeight: 800, letterSpacing: '-0.02em', margin: 0, color: '#1a1a1a' }}>
+            <h1 style={{ fontSize: isMobile ? '24px' : '32px', fontWeight: 900, letterSpacing: '-0.02em', margin: 0, color: '#1a1a1a', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
               {tripTitle}
             </h1>
-            {tripSubtitle && <div style={{ fontSize: isMobile ? '12px' : isLargeDesktop ? `${12 * scale}px` : '13px', color: '#6b7280', marginTop: `${4 * scale}px` }}>{tripSubtitle}</div>}
+            {tripSubtitle && <div style={{ fontSize: '12px', fontFamily: 'monospace', color: '#6b7280', marginTop: '4px' }}>{tripSubtitle}</div>}
           </div>
           <Link href={`/${tripSlug}/timeline`}>
-            <button style={{
-              padding: isMobile ? '10px 16px' : isLargeDesktop ? `${8 * scale}px ${16 * scale}px` : '10px 20px',
-              fontSize: isMobile ? '11px' : isLargeDesktop ? `${10 * scale}px` : '12px',
-              fontWeight: 700,
-              fontFamily: 'monospace',
-              background: '#1a1a1a',
-              color: '#fff',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              width: isMobile ? '100%' : 'auto'
-            }}>
+            <InvertButton isMobile={isMobile} style={{ width: isMobile ? '100%' : 'auto' }}>
               TIMELINE →
-            </button>
+            </InvertButton>
           </Link>
         </div>
       </header>
@@ -738,10 +810,10 @@ export function TripSummaryPage() {
 
         {/* LEFT: Map + Highlights */}
         <div style={{ position: isMobile ? 'relative' : isLargeDesktop ? 'relative' : 'sticky', top: isMobile ? 'auto' : isLargeDesktop ? 'auto' : '32px', display: 'flex', flexDirection: 'column', height: isLargeDesktop ? '100%' : 'auto' }}>
-          <div style={{ marginBottom: isMobile ? '16px' : isLargeDesktop ? `${12 * scale}px` : '20px', borderRadius: '4px', overflow: 'hidden', border: '1px solid #e5e7eb', flexShrink: 0 }}>
+          <div style={{ marginBottom: isMobile ? '16px' : '20px', overflow: 'hidden', border: '2px solid #1a1a1a', flexShrink: 0 }}>
             <RouteMap points={rawTripData} days={stats.days} dayColors={dayColors} hoveredDay={hoveredDay} onHoverDay={setHoveredDay} mapHeight={isLargeDesktop ? Math.round(220 * scale) : isMobile ? 240 : 280} isMobile={isMobile} />
             {/* Day color bar */}
-            <div style={{ display: 'flex', background: '#fafafa', padding: '6px' }}>
+            <div style={{ display: 'flex', background: 'white', borderTop: '2px solid #1a1a1a' }}>
               {stats.days.map((_, i) => (
                 <div
                   key={i}
@@ -749,9 +821,9 @@ export function TripSummaryPage() {
                   onMouseLeave={() => setHoveredDay(null)}
                   style={{
                     flex: 1,
-                    height: '4px',
+                    height: '6px',
                     background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
-                    opacity: hoveredDay === null ? 0.85 : (hoveredDay === i ? 1 : 0.2),
+                    opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
                     cursor: 'pointer',
                     transition: 'opacity 0.12s'
                   }}
@@ -760,22 +832,24 @@ export function TripSummaryPage() {
             </div>
           </div>
 
-          {/* Highlights */}
+          {/* Highlights - Contact Sheet Style */}
           {highlights.length > 0 && (
             <div style={{ flex: isLargeDesktop ? 1 : 'none', minHeight: 0, display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af', marginBottom: isMobile ? '10px' : isLargeDesktop ? `${8 * scale}px` : '12px', flexShrink: 0 }}>
+              <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '12px', flexShrink: 0 }}>
                 HIGHLIGHTS
               </div>
               <div style={{
                 display: 'grid',
-                gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : isLargeDesktop ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
-                gap: isMobile ? '8px' : isLargeDesktop ? `${6 * scale}px` : '10px',
+                gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(2, 1fr)',
+                gap: '2px',
                 flex: isLargeDesktop ? 1 : 'none',
                 alignContent: 'start',
-                overflow: isLargeDesktop ? 'hidden' : 'visible'
+                overflow: isLargeDesktop ? 'hidden' : 'visible',
+                border: '2px solid #1a1a1a'
               }}>
                 {highlights.map(h => {
                   const color = dayColors[h.day - 1] || DEFAULT_DAY_COLORS[(h.day - 1) % DEFAULT_DAY_COLORS.length];
+                  const isHovered = hoveredDay === h.day - 1;
                   return (
                     <div
                       key={h.id}
@@ -783,41 +857,77 @@ export function TripSummaryPage() {
                       onMouseEnter={() => setHoveredDay(h.day - 1)}
                       onMouseLeave={() => setHoveredDay(null)}
                       style={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: isMobile ? '8px' : isLargeDesktop ? `${6 * scale}px` : '10px',
-                        background: hoveredDay === h.day - 1 ? '#f3f4f6' : '#fafafa',
-                        borderRadius: '4px',
+                        position: 'relative',
+                        aspectRatio: '1',
                         cursor: 'pointer',
-                        transition: 'background 0.1s'
+                        overflow: 'hidden',
+                        background: '#1a1a1a'
                       }}
                     >
-                      <div style={{
-                        width: '100%',
-                        aspectRatio: isLargeDesktop ? '1.2' : '1',
-                        background: h.image ? 'transparent' : `linear-gradient(135deg, ${color}22, ${color}44)`,
-                        borderRadius: '4px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: isMobile ? '24px' : isLargeDesktop ? `${20 * scale}px` : '28px',
-                        overflow: 'hidden',
-                        marginBottom: isMobile ? '6px' : isLargeDesktop ? `${4 * scale}px` : '8px'
-                      }}>
-                        {h.image ? (
-                          <img src={h.image.startsWith('/') ? h.image : `/${h.image}`} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '4px' }}/>
-                        ) : (
-                          HIGHLIGHT_ICONS[h.type] || '●'
-                        )}
-                      </div>
-                      <div style={{ fontSize: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '13px', fontWeight: 600, color: '#1a1a1a', marginBottom: `${2 * scale}px` }}>{h.title}</div>
-                      {h.comment && !isLargeDesktop && (
-                        <div style={{ fontSize: isMobile ? '10px' : '11px', color: '#6b7280', marginBottom: isMobile ? '4px' : '6px', lineHeight: 1.4 }}>{h.comment}</div>
+                      {h.image ? (
+                        <img
+                          src={h.image.startsWith('/') ? h.image : `/${h.image}`}
+                          alt={h.title}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            opacity: isHovered ? 0.7 : 1,
+                            transition: 'opacity 0.15s'
+                          }}
+                        />
+                      ) : (
+                        <div style={{
+                          width: '100%',
+                          height: '100%',
+                          background: `linear-gradient(135deg, ${color}, ${color}99)`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          opacity: isHovered ? 0.7 : 1
+                        }} />
                       )}
-                      <div style={{ fontSize: isMobile ? '9px' : isLargeDesktop ? `${8 * scale}px` : '10px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : `${4 * scale}px`, marginTop: 'auto', fontFamily: 'monospace' }}>
-                        <span style={{ width: isMobile ? '5px' : `${5 * scale}px`, height: isMobile ? '5px' : `${5 * scale}px`, borderRadius: '50%', background: color }}/>
-                        Day {h.day}
+                      {/* Overlay - always visible on mobile, hover on desktop */}
+                      <div style={{
+                        position: 'absolute',
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                        padding: isMobile ? '8px' : '10px',
+                        opacity: isMobile ? 1 : (isHovered ? 1 : 0),
+                        transition: 'opacity 0.15s'
+                      }}>
+                        <div style={{
+                          fontFamily: 'monospace',
+                          fontSize: isMobile ? '9px' : '10px',
+                          fontWeight: 700,
+                          color: 'white',
+                          letterSpacing: '0.05em',
+                          textTransform: 'uppercase'
+                        }}>
+                          DAY {h.day}
+                        </div>
+                        <div style={{
+                          fontFamily: 'monospace',
+                          fontSize: isMobile ? '10px' : '11px',
+                          fontWeight: 700,
+                          color: 'white',
+                          marginTop: '2px',
+                          textTransform: 'uppercase'
+                        }}>
+                          {h.title}
+                        </div>
                       </div>
+                      {/* Color indicator bar */}
+                      <div style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: '3px',
+                        background: color
+                      }} />
                     </div>
                   );
                 })}
@@ -829,32 +939,44 @@ export function TripSummaryPage() {
         {/* RIGHT: Charts & Data */}
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', height: isLargeDesktop ? '100%' : 'auto' }}>
 
-          {/* Hero numbers - aligned above charts */}
+          {/* TOTALS BANK - Bordered bento grid */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr' : stats.hasElevation ? '1fr 1fr' : '1fr',
-            gap: isMobile ? '20px' : isLargeDesktop ? `${40 * scale}px` : '60px',
-            marginBottom: isMobile ? '24px' : isLargeDesktop ? `${20 * scale}px` : '32px',
+            gridTemplateColumns: isMobile ? '1fr 1fr' : stats.coldestTemp !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
+            border: '2px solid #1a1a1a',
+            marginBottom: isMobile ? '24px' : '32px',
             flexShrink: 0
           }}>
-            <div style={{ display: 'flex', gap: isMobile ? '24px' : isLargeDesktop ? `${28 * scale}px` : '40px', alignItems: 'flex-end', flexWrap: 'nowrap', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-              <BigNumber value={stats.totalDistance.toLocaleString()} unit="km" label="Total Distance" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-              <BigNumber value={stats.totalDays} unit="days" label="Duration" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} align={isMobile ? 'right' : 'left'} />
-            </div>
-            {stats.hasElevation ? (
-              <div style={{ display: 'flex', gap: isMobile ? '24px' : isLargeDesktop ? `${28 * scale}px` : '40px', alignItems: 'flex-end', flexWrap: 'nowrap', justifyContent: isMobile ? 'space-between' : 'flex-start' }}>
-                <BigNumber value={stats.maxLat.toFixed(2)} unit="°N" label="Furthest North" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-                {stats.coldestTemp !== null && (
-                  <BigNumber value={stats.coldestTemp} unit="°C" label="Coldest Temp" color="#0891b2" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} align={isMobile ? 'right' : 'left'} />
-                )}
-              </div>
-            ) : (
-              <>
-                <BigNumber value={stats.maxLat.toFixed(2)} unit="°N" label="Furthest North" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} />
-                {stats.coldestTemp !== null && (
-                  <BigNumber value={stats.coldestTemp} unit="°C" label="Coldest Temp" color="#0891b2" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} align={isMobile ? 'right' : 'left'} />
-                )}
-              </>
+            <StatCell
+              value={stats.totalDistance.toLocaleString()}
+              unit="km"
+              label="Total Distance"
+              isMobile={isMobile}
+              borderRight={true}
+            />
+            <StatCell
+              value={stats.totalDays}
+              unit="days"
+              label="Duration"
+              isMobile={isMobile}
+              borderRight={!isMobile}
+            />
+            <StatCell
+              value={stats.maxLat.toFixed(2)}
+              unit="°N"
+              label="Furthest North"
+              isMobile={isMobile}
+              borderRight={stats.coldestTemp !== null}
+            />
+            {stats.coldestTemp !== null && (
+              <StatCell
+                value={stats.coldestTemp}
+                unit="°C"
+                label="Coldest Temp"
+                color="#0891b2"
+                isMobile={isMobile}
+                borderRight={false}
+              />
             )}
           </div>
 
@@ -868,15 +990,15 @@ export function TripSummaryPage() {
 }}>
 
   {/* Distance Group */}
-  <div style={isMobile ? { borderTop: '1px solid #e5e7eb', paddingTop: '20px' } : {}}>
-    <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: isMobile ? '#6b7280' : '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
+  <div style={isMobile ? { borderTop: '2px solid #1a1a1a', paddingTop: '20px' } : {}}>
+    <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '16px' }}>
       DISTANCE
     </div>
 
     {isMobile ? (
       /* Mobile: full-width chart with stats row below */
       <div>
-        <div style={{ display: 'flex', gap: '4px', height: '60px', alignItems: 'flex-end', marginBottom: '12px' }}>
+        <div style={{ display: 'flex', gap: '2px', height: '60px', alignItems: 'flex-end', marginBottom: '12px' }}>
           {stats.days.map((day, i) => (
             <div
               key={i}
@@ -888,8 +1010,7 @@ export function TripSummaryPage() {
                 height: `${(day.distance / stats.longestDay) * 100}%`,
                 minHeight: '8px',
                 background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
-                borderRadius: '4px 4px 0 0',
-                opacity: hoveredDay === null ? 0.8 : (hoveredDay === i ? 1 : 0.3),
+                opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.3),
                 transition: 'opacity 0.15s ease-out',
                 cursor: 'pointer'
               }}
@@ -904,7 +1025,7 @@ export function TripSummaryPage() {
     ) : (
       /* Desktop: thin lines with stats beside */
       <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
-        <div style={{ display: 'flex', gap: '3px', height: '50px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '2px', height: '50px', alignItems: 'flex-end' }}>
           {stats.days.map((day, i) => (
             <div
               key={i}
@@ -916,8 +1037,7 @@ export function TripSummaryPage() {
                 height: `${(day.distance / stats.longestDay) * 100}%`,
                 minHeight: '8px',
                 background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
-                borderRadius: '100px',
-                opacity: hoveredDay === null ? 0.7 : (hoveredDay === i ? 1 : 0.25),
+                opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
                 transition: 'opacity 0.15s ease-out',
                 cursor: 'pointer'
               }}
@@ -926,8 +1046,8 @@ export function TripSummaryPage() {
           ))}
         </div>
         <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'baseline', flexShrink: 0 }}>
-          <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
-          <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+          <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} />
+          <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} />
         </div>
       </div>
     )}
@@ -935,15 +1055,15 @@ export function TripSummaryPage() {
 
   {/* Elevation Group */}
   {stats.hasElevation && (
-    <div style={isMobile ? { borderTop: '1px solid #e5e7eb', paddingTop: '20px' } : {}}>
-      <div style={{ fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '10px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: isMobile ? '#6b7280' : '#9ca3af', marginBottom: isMobile ? '12px' : isLargeDesktop ? `${10 * scale}px` : '16px' }}>
+    <div style={isMobile ? { borderTop: '2px solid #1a1a1a', paddingTop: '20px' } : {}}>
+      <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '16px' }}>
         ELEVATION
       </div>
 
       {isMobile ? (
         /* Mobile: full-width chart with stats row below */
         <div>
-          <div style={{ display: 'flex', gap: '4px', height: '60px', position: 'relative', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', gap: '2px', height: '60px', position: 'relative', marginBottom: '12px' }}>
             {stats.days.map((day, i) => {
               const range = stats.maxElevation - stats.minElevation;
               const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
@@ -964,8 +1084,7 @@ export function TripSummaryPage() {
                     height: `${Math.max(heightPct, 8)}%`,
                     width: '100%',
                     background: color,
-                    borderRadius: '4px',
-                    opacity: hoveredDay === null ? 0.8 : (hoveredDay === i ? 1 : 0.3),
+                    opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.3),
                     transition: 'opacity 0.15s ease-out'
                   }} />
                 </div>
@@ -973,15 +1092,15 @@ export function TripSummaryPage() {
             })}
           </div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
-            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#22c55e" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
-            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#ef4444" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline align="right" />
+            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} />
+            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#059669" isMobile={isMobile} />
+            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#dc2626" isMobile={isMobile} align="right" />
           </div>
         </div>
       ) : (
         /* Desktop: thin lines with stats beside */
         <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
-          <div style={{ display: 'flex', gap: '3px', height: '50px', position: 'relative' }}>
+          <div style={{ display: 'flex', gap: '2px', height: '50px', position: 'relative' }}>
             {stats.days.map((day, i) => {
               const range = stats.maxElevation - stats.minElevation;
               const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
@@ -1003,8 +1122,7 @@ export function TripSummaryPage() {
                     height: `${Math.max(heightPct, 8)}%`,
                     width: '100%',
                     background: color,
-                    borderRadius: '100px',
-                    opacity: hoveredDay === null ? 0.7 : (hoveredDay === i ? 1 : 0.25),
+                    opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
                     transition: 'opacity 0.15s ease-out'
                   }} />
                 </div>
@@ -1012,9 +1130,9 @@ export function TripSummaryPage() {
             })}
           </div>
           <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'flex-end', flexShrink: 0 }}>
-            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
-            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#22c55e" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
-            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#ef4444" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} />
+            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#059669" isMobile={isMobile} />
+            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#dc2626" isMobile={isMobile} />
           </div>
         </div>
       )}
@@ -1024,13 +1142,14 @@ export function TripSummaryPage() {
 
           {/* Daily Breakdown - Card layout for mobile, table for desktop */}
           {isMobile ? (
-            /* Mobile: Stacked card layout - no horizontal scroll */
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.05em', color: '#9ca3af' }}>
+            /* Mobile: Stacked row layout with borders */
+            <div style={{ display: 'flex', flexDirection: 'column' }}>
+              <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '12px' }}>
                 DAILY ROUTES
               </div>
               {stats.days.map((day, i) => {
                 const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
+                const isActive = hoveredDay === i;
                 return (
                   <div
                     key={i}
@@ -1038,11 +1157,14 @@ export function TripSummaryPage() {
                     onMouseEnter={() => setHoveredDay(i)}
                     onMouseLeave={() => setHoveredDay(null)}
                     style={{
-                      background: hoveredDay === i ? '#f3f4f6' : '#fafafa',
-                      borderRadius: '6px',
-                      padding: '12px',
+                      background: isActive ? '#1a1a1a' : 'white',
+                      borderTop: i === 0 ? '2px solid #1a1a1a' : 'none',
+                      borderBottom: '2px solid #1a1a1a',
+                      padding: '12px 8px',
+                      marginLeft: '-8px',
+                      marginRight: '-8px',
                       cursor: 'pointer',
-                      transition: 'background 0.1s',
+                      transition: 'background 0.15s',
                       position: 'relative'
                     }}
                   >
@@ -1051,10 +1173,10 @@ export function TripSummaryPage() {
                       size={16}
                       style={{
                         position: 'absolute',
-                        right: '12px',
+                        right: '8px',
                         top: '50%',
                         transform: 'translateY(-50%)',
-                        color: hoveredDay === i ? '#6b7280' : '#d1d5db',
+                        color: isActive ? 'white' : '#9ca3af',
                         transition: 'color 0.15s'
                       }}
                     />
@@ -1067,14 +1189,17 @@ export function TripSummaryPage() {
                           const [, from, arrow, to] = arrowMatch;
                           return (
                             <span style={{
-                              fontSize: '12px',
-                              fontWeight: 600,
-                              color: '#1a1a1a',
-                              paddingBottom: '3px',
-                              borderBottom: `1.5px solid ${color}`,
+                              fontSize: '11px',
+                              fontWeight: 700,
+                              fontFamily: 'monospace',
+                              textTransform: 'uppercase',
+                              color: isActive ? 'white' : '#1a1a1a',
+                              paddingBottom: '4px',
+                              borderBottom: `2px solid ${color}`,
                               display: 'inline-flex',
                               flexWrap: 'wrap',
-                              gap: '0 4px'
+                              gap: '0 4px',
+                              transition: 'color 0.15s'
                             }}>
                               <span style={{ whiteSpace: 'nowrap' }}>{from} {arrow}</span>
                               <span style={{ whiteSpace: 'nowrap' }}>{to}</span>
@@ -1083,11 +1208,14 @@ export function TripSummaryPage() {
                         }
                         return (
                           <span style={{
-                            fontSize: '12px',
-                            fontWeight: 600,
-                            color: '#1a1a1a',
-                            paddingBottom: '3px',
-                            borderBottom: `1.5px solid ${color}`
+                            fontSize: '11px',
+                            fontWeight: 700,
+                            fontFamily: 'monospace',
+                            textTransform: 'uppercase',
+                            color: isActive ? 'white' : '#1a1a1a',
+                            paddingBottom: '4px',
+                            borderBottom: `2px solid ${color}`,
+                            transition: 'color 0.15s'
                           }}>
                             {label}
                           </span>
@@ -1097,7 +1225,7 @@ export function TripSummaryPage() {
 
                     {/* Elevation sparkline - full width */}
                     {stats.hasElevation && (
-                      <div style={{ height: '32px', marginBottom: '10px' }}>
+                      <div style={{ height: '32px', marginBottom: '10px', filter: isActive ? 'invert(1)' : 'none', transition: 'filter 0.15s' }}>
                         <ElevationSparkline
                           points={day.points}
                           height={32}
@@ -1113,13 +1241,14 @@ export function TripSummaryPage() {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       fontSize: '11px',
-                      fontFamily: 'monospace'
+                      fontFamily: 'monospace',
+                      transition: 'color 0.15s'
                     }}>
-                      <span style={{ fontWeight: 600, color: '#1a1a1a' }}>
+                      <span style={{ fontWeight: 600, color: isActive ? 'white' : '#1a1a1a' }}>
                         {day.distance} km
                       </span>
                       {stats.hasElevation && (
-                        <span style={{ color: '#6b7280' }}>
+                        <span style={{ color: isActive ? '#d1d5db' : '#6b7280' }}>
                           ↑{day.ascent}m ↓{day.descent}m
                         </span>
                       )}
@@ -1134,14 +1263,16 @@ export function TripSummaryPage() {
               <div style={{
                 display: 'grid',
                 gridTemplateColumns: stats.hasElevation ? '1.5fr 2fr 70px 90px 20px' : '1fr 80px 20px',
-                padding: isLargeDesktop ? `0 0 ${8 * scale}px` : '0 0 12px',
+                padding: '12px 8px',
+                marginLeft: '-8px',
+                marginRight: '-8px',
                 borderBottom: '2px solid #1a1a1a',
-                fontSize: isLargeDesktop ? `${8 * scale}px` : '10px',
+                fontSize: '9px',
                 fontWeight: 700,
                 fontFamily: 'monospace',
-                letterSpacing: '0.05em',
-                color: '#9ca3af',
-                gap: isLargeDesktop ? `${14 * scale}px` : '20px',
+                letterSpacing: '0.08em',
+                color: '#6b7280',
+                gap: '20px',
                 flexShrink: 0
               }}>
                 <div>ROUTE</div>
@@ -1154,6 +1285,7 @@ export function TripSummaryPage() {
               <div style={{ display: 'flex', flexDirection: 'column', flex: isLargeDesktop ? 1 : 'none', overflow: isLargeDesktop ? 'hidden' : 'visible' }}>
                 {stats.days.map((day, i) => {
                   const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
+                  const isActive = hoveredDay === i;
                   return (
                     <div
                       key={i}
@@ -1163,12 +1295,14 @@ export function TripSummaryPage() {
                       style={{
                         display: 'grid',
                         gridTemplateColumns: stats.hasElevation ? '1.5fr 2fr 70px 90px 20px' : '1fr 80px 20px',
-                        padding: isLargeDesktop ? `${8 * scale}px 0` : '14px 0',
-                        borderBottom: '1px solid #f3f4f6',
-                        background: hoveredDay === i ? '#fafafa' : 'transparent',
-                        transition: 'background 0.1s',
+                        padding: '12px 8px',
+                        marginLeft: '-8px',
+                        marginRight: '-8px',
+                        borderBottom: '2px solid #1a1a1a',
+                        background: isActive ? '#1a1a1a' : 'transparent',
+                        transition: 'background 0.15s, color 0.15s',
                         alignItems: 'center',
-                        gap: isLargeDesktop ? `${14 * scale}px` : '20px',
+                        gap: '20px',
                         cursor: 'pointer',
                         flex: isLargeDesktop ? 1 : 'none',
                         minHeight: 0
@@ -1182,14 +1316,17 @@ export function TripSummaryPage() {
                             const [, from, arrow, to] = arrowMatch;
                             return (
                               <span style={{
-                                fontWeight: 600,
-                                color: '#1a1a1a',
-                                fontSize: isLargeDesktop ? `${10 * scale}px` : '13px',
-                                paddingBottom: `${3 * scale}px`,
-                                borderBottom: `1.5px solid ${color}`,
+                                fontWeight: 700,
+                                fontFamily: 'monospace',
+                                color: isActive ? 'white' : '#1a1a1a',
+                                fontSize: '12px',
+                                textTransform: 'uppercase',
+                                paddingBottom: '4px',
+                                borderBottom: `2px solid ${color}`,
                                 display: 'inline-flex',
                                 flexWrap: 'wrap',
-                                gap: '0 4px'
+                                gap: '0 4px',
+                                transition: 'color 0.15s'
                               }}>
                                 <span style={{ whiteSpace: 'nowrap' }}>{from} {arrow}</span>
                                 <span style={{ whiteSpace: 'nowrap' }}>{to}</span>
@@ -1198,11 +1335,14 @@ export function TripSummaryPage() {
                           }
                           return (
                             <span style={{
-                              fontWeight: 600,
-                              color: '#1a1a1a',
-                              fontSize: isLargeDesktop ? `${10 * scale}px` : '13px',
-                              paddingBottom: `${3 * scale}px`,
-                              borderBottom: `1.5px solid ${color}`
+                              fontWeight: 700,
+                              fontFamily: 'monospace',
+                              color: isActive ? 'white' : '#1a1a1a',
+                              fontSize: '12px',
+                              textTransform: 'uppercase',
+                              paddingBottom: '4px',
+                              borderBottom: `2px solid ${color}`,
+                              transition: 'color 0.15s'
                             }}>
                               {label}
                             </span>
@@ -1211,7 +1351,7 @@ export function TripSummaryPage() {
                       </div>
 
                       {stats.hasElevation && (
-                        <div style={{ height: isLargeDesktop ? `${18 * scale}px` : '24px' }}>
+                        <div style={{ height: isLargeDesktop ? `${18 * scale}px` : '24px', filter: isActive ? 'invert(1)' : 'none', transition: 'filter 0.15s' }}>
                           <ElevationSparkline
                             points={day.points}
                             height={isLargeDesktop ? Math.round(18 * scale) : 24}
@@ -1221,13 +1361,15 @@ export function TripSummaryPage() {
                         </div>
                       )}
 
-                      <div style={{ textAlign: 'right', fontWeight: 600, color: '#1a1a1a', fontSize: isLargeDesktop ? `${10 * scale}px` : '13px', fontFamily: 'monospace' }}>
+                      <div style={{ textAlign: 'right', fontWeight: 900, color: isActive ? 'white' : '#1a1a1a', fontSize: '14px', fontFamily: 'monospace', transition: 'color 0.15s' }}>
                         {day.distance}
                       </div>
 
                       {stats.hasElevation && (
-                        <div style={{ textAlign: 'right', fontSize: isLargeDesktop ? `${9 * scale}px` : '11px', fontFamily: 'monospace', color: '#6b7280' }}>
-                          +{day.ascent}/-{day.descent}
+                        <div style={{ textAlign: 'right', fontSize: '11px', fontFamily: 'monospace', fontWeight: 700, transition: 'color 0.15s' }}>
+                          <span style={{ color: isActive ? '#6ee7b7' : '#059669' }}>+{day.ascent}</span>
+                          <span style={{ color: isActive ? 'white' : '#1a1a1a' }}>/</span>
+                          <span style={{ color: isActive ? '#fca5a5' : '#dc2626' }}>-{day.descent}</span>
                         </div>
                       )}
 
@@ -1235,7 +1377,7 @@ export function TripSummaryPage() {
                       <ChevronRight
                         size={isLargeDesktop ? Math.round(14 * scale) : 16}
                         style={{
-                          color: hoveredDay === i ? '#6b7280' : '#d1d5db',
+                          color: isActive ? 'white' : '#9ca3af',
                           transition: 'color 0.15s',
                           justifySelf: 'end'
                         }}
@@ -1251,50 +1393,30 @@ export function TripSummaryPage() {
 
       {/* FOOTER */}
       <footer style={{
-        marginTop: isMobile ? '32px' : isLargeDesktop ? `${16 * scale}px` : '48px',
-        paddingTop: isMobile ? '16px' : isLargeDesktop ? `${12 * scale}px` : '20px',
-        borderTop: '1px solid #e5e7eb',
+        marginTop: isMobile ? '32px' : '48px',
+        paddingTop: isMobile ? '16px' : '20px',
+        borderTop: '2px solid #1a1a1a',
         display: 'flex',
         justifyContent: isMobile ? 'center' : 'flex-end',
         alignItems: 'center',
-        gap: isMobile ? '12px' : `${8 * scale}px`,
+        gap: '8px',
         flexWrap: 'wrap',
         flexShrink: 0
       }}>
-        <button
+        <InvertButton
           onClick={() => downloadGPX(points, tripSlug.replace(/\//g, '-'))}
-          style={{
-            padding: isMobile ? '10px 16px' : isLargeDesktop ? `${6 * scale}px ${12 * scale}px` : '8px 14px',
-            fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '11px',
-            fontWeight: 600,
-            fontFamily: 'monospace',
-            background: 'transparent',
-            border: '1px solid #e5e7eb',
-            borderRadius: '4px',
-            color: '#6b7280',
-            cursor: 'pointer',
-            minWidth: isMobile ? '100px' : 'auto'
-          }}
+          isMobile={isMobile}
+          style={{ padding: '8px 14px' }}
         >
           ↓ GPX
-        </button>
-        <button
+        </InvertButton>
+        <InvertButton
           onClick={() => downloadJSON(points, tripSlug.replace(/\//g, '-'))}
-          style={{
-            padding: isMobile ? '10px 16px' : isLargeDesktop ? `${6 * scale}px ${12 * scale}px` : '8px 14px',
-            fontSize: isMobile ? '10px' : isLargeDesktop ? `${9 * scale}px` : '11px',
-            fontWeight: 600,
-            fontFamily: 'monospace',
-            background: 'transparent',
-            border: '1px solid #e5e7eb',
-            borderRadius: '4px',
-            color: '#6b7280',
-            cursor: 'pointer',
-            minWidth: isMobile ? '100px' : 'auto'
-          }}
+          isMobile={isMobile}
+          style={{ padding: '8px 14px' }}
         >
           ↓ JSON
-        </button>
+        </InvertButton>
       </footer>
     </div>
   );
