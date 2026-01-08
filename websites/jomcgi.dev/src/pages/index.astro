@@ -375,39 +375,28 @@
         }
 
         .pod-grid {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 2px;
             font-family: monospace;
-            font-size: 8px;
-            line-height: 1;
+            font-size: 10px;
+            letter-spacing: 1px;
+            line-height: 1.2;
+            word-break: break-all;
         }
 
-        /* Scantron Sheet: Black squares on white - rhymes with cp[■■■] */
-        .pod-unit {
-            width: 6px;
-            height: 6px;
-            background: var(--fg); /* Black square = Running */
+        .pods-healthy {
+            color: var(--fg);
         }
 
-        .pod-unit.pending {
-            background: transparent;
-            border: 1px solid var(--fg); /* Hollow square = Pending */
+        .pods-pending {
+            color: var(--fg);
             animation: pod-pulse 1.5s ease-in-out infinite;
         }
 
-        .pod-unit.failed {
-            background: #cc0000; /* Red = Failed */
-        }
-
-        .pod-unit.placeholder {
-            background: transparent;
-            border: 1px solid var(--fg);
-            opacity: 0.3;
+        .pods-failed {
+            color: #cc0000;
         }
 
         @keyframes pod-pulse {
-            0%, 100% { opacity: 0.4; }
+            0%, 100% { opacity: 0.3; }
             50% { opacity: 1; }
         }
 
@@ -567,42 +556,15 @@
     </div>
 
     <script>
-        // Render the Pod Matrix - LED array visualization
+        // Render the Pod Matrix - text-based like cp[■■■]
         function renderPodMatrix(els, podsData) {
-            // Clear existing
-            els.podGrid.innerHTML = '';
-
-            // If no pod data, show placeholder squares
-            if (!podsData || (!podsData.statuses && podsData.running === undefined)) {
-                // Placeholder: show dim hollow squares
-                for (let i = 0; i < 30; i++) {
-                    const dot = document.createElement('div');
-                    dot.className = 'pod-unit placeholder';
-                    els.podGrid.appendChild(dot);
-                }
+            // If no pod data, show placeholder
+            if (!podsData || podsData.running === undefined) {
+                els.podGrid.innerHTML = '<span class="st-dim">□□□□□□□□□□</span>';
                 els.podCount.innerText = '--';
                 return;
             }
 
-            // Handle array of statuses: ["Running", "Running", "Pending", ...]
-            if (podsData.statuses && Array.isArray(podsData.statuses)) {
-                podsData.statuses.forEach(status => {
-                    const dot = document.createElement('div');
-                    const normalizedStatus = status.toLowerCase();
-                    if (normalizedStatus === 'running' || normalizedStatus === 'succeeded') {
-                        dot.className = 'pod-unit'; // Solid black square
-                    } else if (normalizedStatus === 'pending' || normalizedStatus === 'containercreating') {
-                        dot.className = 'pod-unit pending'; // Hollow square
-                    } else {
-                        dot.className = 'pod-unit failed'; // Red square
-                    }
-                    els.podGrid.appendChild(dot);
-                });
-                els.podCount.innerText = podsData.statuses.length;
-                return;
-            }
-
-            // Handle counts: { running: 38, pending: 2, failed: 1, succeeded: 5 }
             const running = podsData.running || 0;
             const succeeded = podsData.succeeded || 0;
             const pending = podsData.pending || 0;
@@ -610,25 +572,23 @@
             const healthy = running + succeeded;
             const total = healthy + pending + failed;
 
-            // Healthy pods (running + succeeded) - solid black squares ■
-            for (let i = 0; i < healthy; i++) {
-                const dot = document.createElement('div');
-                dot.className = 'pod-unit';
-                els.podGrid.appendChild(dot);
+            // Build text: ■ for healthy, □ for pending, red ■ for failed
+            let html = '';
+
+            // Healthy pods - solid squares
+            if (healthy > 0) {
+                html += '<span class="pods-healthy">' + '■'.repeat(healthy) + '</span>';
             }
-            // Pending pods - hollow squares □
-            for (let i = 0; i < pending; i++) {
-                const dot = document.createElement('div');
-                dot.className = 'pod-unit pending';
-                els.podGrid.appendChild(dot);
+            // Pending pods - hollow squares
+            if (pending > 0) {
+                html += '<span class="pods-pending">' + '□'.repeat(pending) + '</span>';
             }
             // Failed pods - red squares
-            for (let i = 0; i < failed; i++) {
-                const dot = document.createElement('div');
-                dot.className = 'pod-unit failed';
-                els.podGrid.appendChild(dot);
+            if (failed > 0) {
+                html += '<span class="pods-failed">' + '■'.repeat(failed) + '</span>';
             }
 
+            els.podGrid.innerHTML = html;
             els.podCount.innerText = total;
         }
 
