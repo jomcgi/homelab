@@ -939,206 +939,213 @@ export function TripSummaryPage() {
         {/* RIGHT: Charts & Data */}
         <div style={{ minWidth: 0, display: 'flex', flexDirection: 'column', height: isLargeDesktop ? '100%' : 'auto' }}>
 
-          {/* TOTALS BANK - Bordered bento grid */}
+          {/* TOTALS BANK + CHARTS - Unified bordered grid */}
           <div style={{
-            display: 'grid',
-            gridTemplateColumns: isMobile ? '1fr 1fr' : stats.coldestTemp !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
             border: '2px solid #1a1a1a',
-            marginBottom: isMobile ? '24px' : '32px',
+            marginBottom: isMobile ? '32px' : isLargeDesktop ? `${30 * scale}px` : '50px',
             flexShrink: 0
           }}>
-            <StatCell
-              value={stats.totalDistance.toLocaleString()}
-              unit="km"
-              label="Total Distance"
-              isMobile={isMobile}
-              borderRight={true}
-            />
-            <StatCell
-              value={stats.totalDays}
-              unit="days"
-              label="Duration"
-              isMobile={isMobile}
-              borderRight={!isMobile}
-            />
-            <StatCell
-              value={stats.maxLat.toFixed(2)}
-              unit="°N"
-              label="Furthest North"
-              isMobile={isMobile}
-              borderRight={stats.coldestTemp !== null}
-            />
-            {stats.coldestTemp !== null && (
+            {/* Top row: Totals */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr 1fr' : stats.coldestTemp !== null ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr',
+              borderBottom: '2px solid #1a1a1a'
+            }}>
               <StatCell
-                value={stats.coldestTemp}
-                unit="°C"
-                label="Coldest Temp"
-                color="#0891b2"
+                value={stats.totalDistance.toLocaleString()}
+                unit="km"
+                label="Total Distance"
                 isMobile={isMobile}
-                borderRight={false}
+                borderRight={true}
               />
-            )}
-          </div>
+              <StatCell
+                value={stats.totalDays}
+                unit="days"
+                label="Duration"
+                isMobile={isMobile}
+                borderRight={!isMobile}
+              />
+              <StatCell
+                value={stats.maxLat.toFixed(2)}
+                unit="°N"
+                label="Furthest North"
+                isMobile={isMobile}
+                borderRight={stats.coldestTemp !== null}
+              />
+              {stats.coldestTemp !== null && (
+                <StatCell
+                  value={stats.coldestTemp}
+                  unit="°C"
+                  label="Coldest Temp"
+                  color="#0891b2"
+                  isMobile={isMobile}
+                  borderRight={false}
+                />
+              )}
+            </div>
 
-{/* Charts Section - Grid layout with tighter chart/stat grouping */}
-<div style={{
-  display: 'grid',
-  gridTemplateColumns: isMobile ? '1fr' : stats.hasElevation ? '1fr 1fr' : '1fr',
-  gap: isMobile ? '32px' : isLargeDesktop ? `${40 * scale}px` : '60px',
-  marginBottom: isMobile ? '32px' : isLargeDesktop ? `${30 * scale}px` : '50px',
-  flexShrink: 0
-}}>
-
-  {/* Distance Group */}
-  <div style={isMobile ? { borderTop: '2px solid #1a1a1a', paddingTop: '20px' } : {}}>
-    <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '16px' }}>
-      DISTANCE
-    </div>
-
-    {isMobile ? (
-      /* Mobile: full-width chart with stats row below */
-      <div>
-        <div style={{ display: 'flex', gap: '2px', height: '60px', alignItems: 'flex-end', marginBottom: '12px' }}>
-          {stats.days.map((day, i) => (
-            <div
-              key={i}
-              onClick={() => navigateToDay(day.dayNumber)}
-              onMouseEnter={() => setHoveredDay(i)}
-              onMouseLeave={() => setHoveredDay(null)}
-              style={{
-                flex: 1,
-                height: `${(day.distance / stats.longestDay) * 100}%`,
-                minHeight: '8px',
-                background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
-                opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.3),
-                transition: 'opacity 0.15s ease-out',
-                cursor: 'pointer'
-              }}
-            />
-          ))}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-          <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
-          <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline align="right" />
-        </div>
-      </div>
-    ) : (
-      /* Desktop: thin lines with stats beside */
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
-        <div style={{ display: 'flex', gap: '2px', height: '50px', alignItems: 'flex-end' }}>
-          {stats.days.map((day, i) => (
-            <div
-              key={i}
-              onClick={() => navigateToDay(day.dayNumber)}
-              onMouseEnter={() => setHoveredDay(i)}
-              onMouseLeave={() => setHoveredDay(null)}
-              style={{
-                width: '4px',
-                height: `${(day.distance / stats.longestDay) * 100}%`,
-                minHeight: '8px',
-                background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
-                opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
-                transition: 'opacity 0.15s ease-out',
-                cursor: 'pointer'
-              }}
-              title={`Day ${day.dayNumber}: ${day.distance} km`}
-            />
-          ))}
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'baseline', flexShrink: 0 }}>
-          <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} />
-          <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} />
-        </div>
-      </div>
-    )}
-  </div>
-
-  {/* Elevation Group */}
-  {stats.hasElevation && (
-    <div style={isMobile ? { borderTop: '2px solid #1a1a1a', paddingTop: '20px' } : {}}>
-      <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '16px' }}>
-        ELEVATION
-      </div>
-
-      {isMobile ? (
-        /* Mobile: full-width chart with stats row below */
-        <div>
-          <div style={{ display: 'flex', gap: '2px', height: '60px', position: 'relative', marginBottom: '12px' }}>
-            {stats.days.map((day, i) => {
-              const range = stats.maxElevation - stats.minElevation;
-              const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
-              const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
-              const heightPct = topPct - bottomPct;
-              const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
-              return (
-                <div
-                  key={i}
-                  onClick={() => navigateToDay(day.dayNumber)}
-                  onMouseEnter={() => setHoveredDay(i)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                  style={{ flex: 1, position: 'relative', height: '100%', cursor: 'pointer' }}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    bottom: `${bottomPct}%`,
-                    height: `${Math.max(heightPct, 8)}%`,
-                    width: '100%',
-                    background: color,
-                    opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.3),
-                    transition: 'opacity 0.15s ease-out'
-                  }} />
+            {/* Bottom row: Charts - 2 columns, each spanning half */}
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: isMobile ? '1fr' : stats.hasElevation ? '1fr 1fr' : '1fr'
+            }}>
+              {/* Distance Group */}
+              <div style={{
+                padding: isMobile ? '20px 16px' : '24px 28px',
+                borderRight: (!isMobile && stats.hasElevation) ? '2px solid #1a1a1a' : 'none',
+                borderBottom: isMobile && stats.hasElevation ? '2px solid #1a1a1a' : 'none'
+              }}>
+                <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '16px' }}>
+                  DISTANCE
                 </div>
-              );
-            })}
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} />
-            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#059669" isMobile={isMobile} />
-            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#dc2626" isMobile={isMobile} align="right" />
-          </div>
-        </div>
-      ) : (
-        /* Desktop: thin lines with stats beside */
-        <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
-          <div style={{ display: 'flex', gap: '2px', height: '50px', position: 'relative' }}>
-            {stats.days.map((day, i) => {
-              const range = stats.maxElevation - stats.minElevation;
-              const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
-              const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
-              const heightPct = topPct - bottomPct;
-              const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
-              return (
-                <div
-                  key={i}
-                  onClick={() => navigateToDay(day.dayNumber)}
-                  onMouseEnter={() => setHoveredDay(i)}
-                  onMouseLeave={() => setHoveredDay(null)}
-                  style={{ width: '4px', position: 'relative', height: '100%', cursor: 'pointer' }}
-                  title={`Day ${day.dayNumber}: ${day.minElevation}m – ${day.maxElevation}m`}
-                >
-                  <div style={{
-                    position: 'absolute',
-                    bottom: `${bottomPct}%`,
-                    height: `${Math.max(heightPct, 8)}%`,
-                    width: '100%',
-                    background: color,
-                    opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
-                    transition: 'opacity 0.15s ease-out'
-                  }} />
+
+                {isMobile ? (
+                  /* Mobile: full-width chart with stats row below */
+                  <div>
+                    <div style={{ display: 'flex', gap: '2px', height: '60px', alignItems: 'flex-end', marginBottom: '12px' }}>
+                      {stats.days.map((day, i) => (
+                        <div
+                          key={i}
+                          onClick={() => navigateToDay(day.dayNumber)}
+                          onMouseEnter={() => setHoveredDay(i)}
+                          onMouseLeave={() => setHoveredDay(null)}
+                          style={{
+                            flex: 1,
+                            height: `${(day.distance / stats.longestDay) * 100}%`,
+                            minHeight: '8px',
+                            background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
+                            opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.3),
+                            transition: 'opacity 0.15s ease-out',
+                            cursor: 'pointer'
+                          }}
+                        />
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline />
+                      <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} scale={scale} isLargeDesktop={isLargeDesktop} inline align="right" />
+                    </div>
+                  </div>
+                ) : (
+                  /* Desktop: thin lines with stats beside */
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
+                    <div style={{ display: 'flex', gap: '2px', height: '50px', alignItems: 'flex-end' }}>
+                      {stats.days.map((day, i) => (
+                        <div
+                          key={i}
+                          onClick={() => navigateToDay(day.dayNumber)}
+                          onMouseEnter={() => setHoveredDay(i)}
+                          onMouseLeave={() => setHoveredDay(null)}
+                          style={{
+                            width: '4px',
+                            height: `${(day.distance / stats.longestDay) * 100}%`,
+                            minHeight: '8px',
+                            background: dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length],
+                            opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
+                            transition: 'opacity 0.15s ease-out',
+                            cursor: 'pointer'
+                          }}
+                          title={`Day ${day.dayNumber}: ${day.distance} km`}
+                        />
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'row', gap: '24px', alignItems: 'baseline', flexShrink: 0 }}>
+                      <SmallStat value={stats.longestDay} unit="km" label="Longest" isMobile={isMobile} />
+                      <SmallStat value={Math.round(stats.totalDistance / stats.totalDays)} unit="km" label="Avg" isMobile={isMobile} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Elevation Group */}
+              {stats.hasElevation && (
+                <div style={{
+                  padding: isMobile ? '20px 16px' : '24px 28px'
+                }}>
+                  <div style={{ fontSize: '9px', fontWeight: 700, fontFamily: 'monospace', letterSpacing: '0.08em', color: '#6b7280', marginBottom: '16px' }}>
+                    ELEVATION
+                  </div>
+
+                  {isMobile ? (
+                    /* Mobile: full-width chart with stats row below */
+                    <div>
+                      <div style={{ display: 'flex', gap: '2px', height: '60px', position: 'relative', marginBottom: '12px' }}>
+                        {stats.days.map((day, i) => {
+                          const range = stats.maxElevation - stats.minElevation;
+                          const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
+                          const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
+                          const heightPct = topPct - bottomPct;
+                          const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
+                          return (
+                            <div
+                              key={i}
+                              onClick={() => navigateToDay(day.dayNumber)}
+                              onMouseEnter={() => setHoveredDay(i)}
+                              onMouseLeave={() => setHoveredDay(null)}
+                              style={{ flex: 1, position: 'relative', height: '100%', cursor: 'pointer' }}
+                            >
+                              <div style={{
+                                position: 'absolute',
+                                bottom: `${bottomPct}%`,
+                                height: `${Math.max(heightPct, 8)}%`,
+                                width: '100%',
+                                background: color,
+                                opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.3),
+                                transition: 'opacity 0.15s ease-out'
+                              }} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                        <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} />
+                        <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#059669" isMobile={isMobile} />
+                        <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#dc2626" isMobile={isMobile} align="right" />
+                      </div>
+                    </div>
+                  ) : (
+                    /* Desktop: thin lines with stats beside */
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '24px' }}>
+                      <div style={{ display: 'flex', gap: '2px', height: '50px', position: 'relative' }}>
+                        {stats.days.map((day, i) => {
+                          const range = stats.maxElevation - stats.minElevation;
+                          const topPct = range > 0 ? ((day.maxElevation - stats.minElevation) / range) * 100 : 50;
+                          const bottomPct = range > 0 ? ((day.minElevation - stats.minElevation) / range) * 100 : 50;
+                          const heightPct = topPct - bottomPct;
+                          const color = dayColors[i] || DEFAULT_DAY_COLORS[i % DEFAULT_DAY_COLORS.length];
+                          return (
+                            <div
+                              key={i}
+                              onClick={() => navigateToDay(day.dayNumber)}
+                              onMouseEnter={() => setHoveredDay(i)}
+                              onMouseLeave={() => setHoveredDay(null)}
+                              style={{ width: '4px', position: 'relative', height: '100%', cursor: 'pointer' }}
+                              title={`Day ${day.dayNumber}: ${day.minElevation}m – ${day.maxElevation}m`}
+                            >
+                              <div style={{
+                                position: 'absolute',
+                                bottom: `${bottomPct}%`,
+                                height: `${Math.max(heightPct, 8)}%`,
+                                width: '100%',
+                                background: color,
+                                opacity: hoveredDay === null ? 1 : (hoveredDay === i ? 1 : 0.25),
+                                transition: 'opacity 0.15s ease-out'
+                              }} />
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'flex-end', flexShrink: 0 }}>
+                        <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} />
+                        <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#059669" isMobile={isMobile} />
+                        <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#dc2626" isMobile={isMobile} />
+                      </div>
+                    </div>
+                  )}
                 </div>
-              );
-            })}
+              )}
+            </div>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '20px', alignItems: 'flex-end', flexShrink: 0 }}>
-            <SmallStat value={stats.maxElevation.toLocaleString()} unit="m" label="Peak" isMobile={isMobile} />
-            <SmallStat value={stats.totalAscent.toLocaleString()} unit="m" prefix="↑" prefixColor="#059669" isMobile={isMobile} />
-            <SmallStat value={stats.totalDescent.toLocaleString()} unit="m" prefix="↓" prefixColor="#dc2626" isMobile={isMobile} />
-          </div>
-        </div>
-      )}
-    </div>
-  )}
-</div>
 
           {/* Daily Breakdown - Card layout for mobile, table for desktop */}
           {isMobile ? (
