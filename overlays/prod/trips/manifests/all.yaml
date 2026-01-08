@@ -369,7 +369,7 @@ metadata:
     app.kubernetes.io/part-of: yukon-tracker
     app.kubernetes.io/component: imgproxy
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app.kubernetes.io/name: trips
@@ -448,11 +448,10 @@ spec:
             periodSeconds: 5
           resources:
             limits:
-              cpu: 1000m
               memory: 1Gi
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 500m
+              memory: 1Gi
 ---
 # Source: trips/templates/nginx-deployment.yaml
 apiVersion: apps/v1

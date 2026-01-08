@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { Link } from 'wouter';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import React, { useState } from "react";
+import { Link } from "wouter";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 // Nav link with hover inversion
 function NavLink({ href, disabled, children, style }) {
@@ -8,7 +8,14 @@ function NavLink({ href, disabled, children, style }) {
 
   if (disabled) {
     return (
-      <span style={{ ...style, opacity: 0.4, cursor: 'not-allowed', pointerEvents: 'none' }}>
+      <span
+        style={{
+          ...style,
+          opacity: 0.4,
+          cursor: "not-allowed",
+          pointerEvents: "none",
+        }}
+      >
         {children}
       </span>
     );
@@ -21,14 +28,19 @@ function NavLink({ href, disabled, children, style }) {
       onMouseLeave={() => setHovered(false)}
       style={{
         ...style,
-        background: hovered ? '#1a1a1a' : 'white',
-        color: hovered ? 'white' : '#1a1a1a',
-        transition: 'background 0.15s, color 0.15s'
+        background: hovered ? "#1a1a1a" : "white",
+        color: hovered ? "white" : "#1a1a1a",
+        transition: "background 0.15s, color 0.15s",
       }}
     >
-      {React.Children.map(children, child => {
-        if (React.isValidElement(child) && (child.type === ChevronLeft || child.type === ChevronRight)) {
-          return React.cloneElement(child, { color: hovered ? 'white' : '#1a1a1a' });
+      {React.Children.map(children, (child) => {
+        if (
+          React.isValidElement(child) &&
+          (child.type === ChevronLeft || child.type === ChevronRight)
+        ) {
+          return React.cloneElement(child, {
+            color: hovered ? "white" : "#1a1a1a",
+          });
         }
         return child;
       })}
@@ -47,44 +59,48 @@ export function DayNavigation({
   dayLabel,
   dayDate,
   dayColor,
-  isMobile = false
+  isMobile = false,
 }) {
   const hasPrev = dayNumber > 1;
   const hasNext = dayNumber < totalDays;
 
-  const formattedDate = dayDate ? dayDate.toLocaleDateString('en-US', {
-    timeZone: 'America/Vancouver',
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric'
-  }) : '';
+  const formattedDate = dayDate
+    ? dayDate.toLocaleDateString("en-US", {
+        timeZone: "America/Vancouver",
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      })
+    : "";
 
   const navButtonStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '4px',
-    padding: isMobile ? '8px 12px' : '8px 14px',
-    fontSize: isMobile ? '12px' : '13px',
+    display: "flex",
+    alignItems: "center",
+    gap: "4px",
+    padding: isMobile ? "8px 12px" : "8px 14px",
+    fontSize: isMobile ? "12px" : "13px",
     fontWeight: 600,
-    color: '#1a1a1a',
-    background: 'white',
-    border: '2px solid #1a1a1a',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    transition: 'background 0.1s ease'
+    color: "#1a1a1a",
+    background: "white",
+    border: "2px solid #1a1a1a",
+    cursor: "pointer",
+    textDecoration: "none",
+    transition: "background 0.1s ease",
   };
 
   return (
-    <nav style={{
-      display: 'flex',
-      flexDirection: isMobile ? 'column' : 'row',
-      justifyContent: 'space-between',
-      alignItems: isMobile ? 'stretch' : 'center',
-      gap: isMobile ? '16px' : '20px',
-      padding: isMobile ? '16px 0' : '20px 0',
-      borderBottom: '2px solid #1a1a1a',
-      marginBottom: isMobile ? '16px' : '24px'
-    }}>
+    <nav
+      style={{
+        display: "flex",
+        flexDirection: isMobile ? "column" : "row",
+        justifyContent: "space-between",
+        alignItems: isMobile ? "stretch" : "center",
+        gap: isMobile ? "16px" : "20px",
+        padding: isMobile ? "16px 0" : "20px 0",
+        borderBottom: "2px solid #1a1a1a",
+        marginBottom: isMobile ? "16px" : "24px",
+      }}
+    >
       {/* Back to Summary */}
       <NavLink href={`/${tripSlug}`} style={navButtonStyle}>
         <ChevronLeft size={16} />
@@ -92,49 +108,67 @@ export function DayNavigation({
       </NavLink>
 
       {/* Day Title - Center */}
-      <div style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        gap: '4px',
-        flex: 1,
-        textAlign: 'center'
-      }}>
-        <div style={{
-          fontSize: isMobile ? '10px' : '11px',
-          fontWeight: 500,
-          fontFamily: 'monospace',
-          letterSpacing: '0.05em',
-          color: '#9ca3af',
-          textTransform: 'uppercase'
-        }}>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: "4px",
+          flex: 1,
+          textAlign: "center",
+        }}
+      >
+        <div
+          style={{
+            fontSize: isMobile ? "10px" : "11px",
+            fontWeight: 500,
+            fontFamily: "monospace",
+            letterSpacing: "0.05em",
+            color: "#9ca3af",
+            textTransform: "uppercase",
+          }}
+        >
           Day {dayNumber} of {totalDays}
-          {formattedDate && <span style={{ marginLeft: '8px' }}>{formattedDate}</span>}
+          {formattedDate && (
+            <span style={{ marginLeft: "8px" }}>{formattedDate}</span>
+          )}
         </div>
-        <div style={{
-          fontSize: isMobile ? '16px' : '18px',
-          fontWeight: 700,
-          color: '#1a1a1a',
-          borderBottom: `3px solid ${dayColor}`,
-          paddingBottom: '4px',
-          letterSpacing: '0.02em'
-        }}>
+        <div
+          style={{
+            fontSize: isMobile ? "16px" : "18px",
+            fontWeight: 700,
+            color: "#1a1a1a",
+            borderBottom: `3px solid ${dayColor}`,
+            paddingBottom: "4px",
+            letterSpacing: "0.02em",
+          }}
+        >
           {dayLabel}
         </div>
       </div>
 
       {/* Prev/Next Buttons */}
-      <div style={{
-        display: 'flex',
-        gap: '8px',
-        justifyContent: isMobile ? 'center' : 'flex-end'
-      }}>
-        <NavLink href={`/${tripSlug}/day/${dayNumber - 1}`} disabled={!hasPrev} style={navButtonStyle}>
+      <div
+        style={{
+          display: "flex",
+          gap: "8px",
+          justifyContent: isMobile ? "center" : "flex-end",
+        }}
+      >
+        <NavLink
+          href={`/${tripSlug}/day/${dayNumber - 1}`}
+          disabled={!hasPrev}
+          style={navButtonStyle}
+        >
           <ChevronLeft size={16} />
           <span>Prev</span>
         </NavLink>
 
-        <NavLink href={`/${tripSlug}/day/${dayNumber + 1}`} disabled={!hasNext} style={navButtonStyle}>
+        <NavLink
+          href={`/${tripSlug}/day/${dayNumber + 1}`}
+          disabled={!hasNext}
+          style={navButtonStyle}
+        >
           <span>Next</span>
           <ChevronRight size={16} />
         </NavLink>

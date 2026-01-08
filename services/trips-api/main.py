@@ -47,11 +47,15 @@ class TripPoint(BaseModel):
     lng: float
     timestamp: str
     image: str | None = None  # Filename or None for gap points (route-only, no image)
-    source: str = "gopro"  # Image source: gopro, camera, phone, or "gap" for inferred routes
+    source: str = (
+        "gopro"  # Image source: gopro, camera, phone, or "gap" for inferred routes
+    )
     tags: list[str] = ["car"]  # User-defined tags; defaults to "car" for existing data
     elevation: float | None = None  # Elevation in meters (from NRCan CDEM API)
     # OPTICS - Camera exposure data from EXIF
-    light_value: float | None = None  # Exposure Value (EV) - e.g., 8.6 for dim conditions
+    light_value: float | None = (
+        None  # Exposure Value (EV) - e.g., 8.6 for dim conditions
+    )
     iso: int | None = None  # ISO sensitivity - e.g., 393
     shutter_speed: str | None = None  # Shutter speed as string - e.g., "1/240"
     aperture: float | None = None  # F-number - e.g., 2.5
@@ -234,7 +238,9 @@ class TripsState:
             point = TripPoint(**point_data)
             # Skip points with invalid coordinates
             if not is_valid_coordinates(point.lat, point.lng):
-                logger.warning(f"Skipping point {point.id} with invalid coords: ({point.lat}, {point.lng})")
+                logger.warning(
+                    f"Skipping point {point.id} with invalid coords: ({point.lat}, {point.lng})"
+                )
                 return None
             self.points[point.id] = point
             return point

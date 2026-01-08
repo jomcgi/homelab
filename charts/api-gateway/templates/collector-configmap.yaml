@@ -61,6 +61,13 @@ data:
       fi
     fi
 
+    # Count pods by status (for Pod Matrix visualization)
+    PODS_RUNNING=$(kubectl get pods -A --no-headers --field-selector=status.phase=Running 2>/dev/null | wc -l | tr -d ' ')
+    PODS_PENDING=$(kubectl get pods -A --no-headers --field-selector=status.phase=Pending 2>/dev/null | wc -l | tr -d ' ')
+    PODS_FAILED=$(kubectl get pods -A --no-headers --field-selector=status.phase=Failed 2>/dev/null | wc -l | tr -d ' ')
+    # Also count Succeeded (completed jobs) - these are healthy
+    PODS_SUCCEEDED=$(kubectl get pods -A --no-headers --field-selector=status.phase=Succeeded 2>/dev/null | wc -l | tr -d ' ')
+
     # Get ArgoCD app-of-apps status (canada)
     ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
     ARGO_REVISION=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.revision}' 2>/dev/null | cut -c1-7 || echo "")
@@ -77,8 +84,8 @@ data:
       GPU_FIELDS=$GPU_FIELDS',"vram":{"used":'$VRAM_USED',"total":'$VRAM_TOTAL'}'
     fi
 
-    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"gitops":{"status":"%s","revision":"%s"}%s}\n' \
-      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
+    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":{"running":%s,"pending":%s,"failed":%s,"succeeded":%s},"gitops":{"status":"%s","revision":"%s"}%s}\n' \
+      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$PODS_RUNNING" "$PODS_PENDING" "$PODS_FAILED" "$PODS_SUCCEEDED" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"

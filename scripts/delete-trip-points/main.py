@@ -63,7 +63,8 @@ def by_date(
 
         # Filter points by date and source
         to_delete = [
-            p for p in data["points"]
+            p
+            for p in data["points"]
             if p["timestamp"].startswith(date) and p["source"] == source
         ]
 

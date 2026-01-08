@@ -1,6 +1,6 @@
-import React from 'react';
-import { Link } from 'wouter';
-import { MapPin } from 'lucide-react';
+import React from "react";
+import { Link } from "wouter";
+import { MapPin } from "lucide-react";
 
 export function NotFound() {
   return (

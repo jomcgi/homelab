@@ -61,8 +61,7 @@ def parse_kml_coordinates(kml_path: Path) -> list[tuple[float, float]]:
 
 
 def sample_coordinates(
-    coords: list[tuple[float, float]],
-    max_points: int = 100
+    coords: list[tuple[float, float]], max_points: int = 100
 ) -> list[tuple[float, float]]:
     """Sample coordinates to reduce density while preserving route shape.
 
@@ -218,7 +217,7 @@ def publish(
         print("\n[DRY RUN] Would publish the following points:")
         for i, (lat, lng) in enumerate(coords[:5]):
             ts = (start_dt + timedelta(milliseconds=i)).isoformat()
-            print(f"  {i+1}. ({lat:.5f}, {lng:.5f}) @ {ts}")
+            print(f"  {i + 1}. ({lat:.5f}, {lng:.5f}) @ {ts}")
         if len(coords) > 5:
             print(f"  ... and {len(coords) - 5} more")
         return
@@ -263,7 +262,7 @@ def preview(
     # Show first and last few points
     print("\nFirst 5 points:")
     for i, (lat, lng) in enumerate(coords[:5]):
-        print(f"  {i+1}. ({lat:.5f}, {lng:.5f})")
+        print(f"  {i + 1}. ({lat:.5f}, {lng:.5f})")
 
     if len(coords) > 10:
         print(f"\n  ... {len(coords) - 10} more points ...")
