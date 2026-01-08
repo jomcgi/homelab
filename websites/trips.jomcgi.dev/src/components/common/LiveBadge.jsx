@@ -1,7 +1,12 @@
 import React from "react";
 import { Eye } from "lucide-react";
 
-export function LiveBadge({ isLive, onToggle, viewerCount = null, compact = false }) {
+export function LiveBadge({
+  isLive,
+  onToggle,
+  viewerCount = null,
+  compact = false,
+}) {
   if (compact) {
     return (
       <button

@@ -143,7 +143,11 @@ class ElevationCache:
             with_data = conn.execute(
                 "SELECT COUNT(*) FROM elevations WHERE elevation IS NOT NULL"
             ).fetchone()[0]
-            return {"total": total, "with_data": with_data, "no_data": total - with_data}
+            return {
+                "total": total,
+                "with_data": with_data,
+                "no_data": total - with_data,
+            }
 
 
 class ElevationClient:
@@ -169,7 +173,9 @@ class ElevationClient:
         url = f"{API_BASE}?lat={lat}&lon={lng}"
 
         try:
-            async with self._session.get(url, timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            async with self._session.get(
+                url, timeout=aiohttp.ClientTimeout(total=10)
+            ) as resp:
                 if resp.status == 200:
                     data = await resp.json()
                     return data.get("altitude")
@@ -223,10 +229,14 @@ class ElevationClient:
             key = (cache_key(lat), cache_key(lng))
             if key in cached:
                 results.append(
-                    ElevationResult(lat=lat, lng=lng, elevation=cached[key], cached=True)
+                    ElevationResult(
+                        lat=lat, lng=lng, elevation=cached[key], cached=True
+                    )
                 )
             else:
-                results.append(ElevationResult(lat=lat, lng=lng, elevation=None, cached=False))
+                results.append(
+                    ElevationResult(lat=lat, lng=lng, elevation=None, cached=False)
+                )
                 uncached_coords.append((i, lat, lng))
 
         if progress_callback:
@@ -247,11 +257,15 @@ class ElevationClient:
 
             # Update results and prepare cache entries
             for (idx, lat, lng), elev in zip(batch, elevations):
-                results[idx] = ElevationResult(lat=lat, lng=lng, elevation=elev, cached=False)
+                results[idx] = ElevationResult(
+                    lat=lat, lng=lng, elevation=elev, cached=False
+                )
                 to_cache.append((lat, lng, elev))
 
             if progress_callback:
-                completed = len(coords) - len(uncached_coords) + batch_start + len(batch)
+                completed = (
+                    len(coords) - len(uncached_coords) + batch_start + len(batch)
+                )
                 progress_callback(completed, len(coords))
 
             # Rate limit between batches
@@ -280,5 +294,7 @@ async def batch_fetch_elevation(
 ) -> list[float | None]:
     """Fetch elevations for multiple points."""
     async with ElevationClient() as client:
-        results = await client.get_elevations(coords, progress_callback=progress_callback)
+        results = await client.get_elevations(
+            coords, progress_callback=progress_callback
+        )
         return [r.elevation for r in results]

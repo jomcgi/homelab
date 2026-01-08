@@ -2,10 +2,10 @@ import React, { useRef, useState, useEffect, useMemo } from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { DAY_COLORS } from "../../constants/colors";
-import { 
-  calculateDayOffsets, 
-  groupPointsByDayNumber, 
-  calculateMarkerOffset 
+import {
+  calculateDayOffsets,
+  groupPointsByDayNumber,
+  calculateMarkerOffset,
 } from "../common/RouteOffsets";
 
 export function TripMap({
@@ -91,7 +91,10 @@ export function TripMap({
     if (mapDayBoundaries.length === 0 || points.length === 0) {
       const { realRuns, gapRuns } = splitIntoRuns(points, 1, DAY_COLORS[0]);
       return {
-        daySegments: realRuns.length > 0 ? realRuns : [{ dayNumber: 1, points: [], color: DAY_COLORS[0] }],
+        daySegments:
+          realRuns.length > 0
+            ? realRuns
+            : [{ dayNumber: 1, points: [], color: DAY_COLORS[0] }],
         gapSegments: gapRuns,
       };
     }
@@ -101,13 +104,18 @@ export function TripMap({
 
     for (let i = 0; i < mapDayBoundaries.length; i++) {
       const startIdx = mapDayBoundaries[i].index;
-      const endIdx = i < mapDayBoundaries.length - 1
-        ? mapDayBoundaries[i + 1].index
-        : points.length;
+      const endIdx =
+        i < mapDayBoundaries.length - 1
+          ? mapDayBoundaries[i + 1].index
+          : points.length;
 
       const dayPoints = points.slice(startIdx, endIdx);
-      const color = DAY_COLORS[(i) % DAY_COLORS.length];
-      const { realRuns, gapRuns } = splitIntoRuns(dayPoints, mapDayBoundaries[i].dayNumber, color);
+      const color = DAY_COLORS[i % DAY_COLORS.length];
+      const { realRuns, gapRuns } = splitIntoRuns(
+        dayPoints,
+        mapDayBoundaries[i].dayNumber,
+        color,
+      );
 
       allRealRuns.push(...realRuns);
       allGapRuns.push(...gapRuns);
@@ -120,10 +128,10 @@ export function TripMap({
   const dayOffsets = useMemo(() => {
     const allSegments = [...daySegments, ...gapSegments];
     if (allSegments.length === 0) return new Map();
-    
+
     const pointsByDay = groupPointsByDayNumber(allSegments);
     return calculateDayOffsets(pointsByDay, {
-      overlapThreshold: 1.0541,  // Original threshold for detailed view
+      overlapThreshold: 1.0541, // Original threshold for detailed view
       minOverlapPoints: 10,
       sampleRate: 5,
       offsetAmount: 4,
@@ -175,7 +183,7 @@ export function TripMap({
             "hillshade-illumination-direction": 315,
           },
         },
-        firstSymbolLayer?.id
+        firstSymbolLayer?.id,
       );
 
       // Create route layers for each segment
@@ -234,7 +242,10 @@ export function TripMap({
             data: {
               type: "Feature",
               properties: { day: segment.dayNumber },
-              geometry: { type: "Point", coordinates: [labelPoint.lng, labelPoint.lat] },
+              geometry: {
+                type: "Point",
+                coordinates: [labelPoint.lng, labelPoint.lat],
+              },
             },
           });
 
@@ -270,7 +281,9 @@ export function TripMap({
 
         let clickedDateStr = null;
         if (clickedDayNumber && mapDayBoundaries.length > 0) {
-          const boundary = mapDayBoundaries.find((b) => b.dayNumber === clickedDayNumber);
+          const boundary = mapDayBoundaries.find(
+            (b) => b.dayNumber === clickedDayNumber,
+          );
           if (boundary) {
             clickedDateStr = boundary.dateStr;
           }
@@ -297,7 +310,8 @@ export function TripMap({
         pointsToSearch.forEach((p) => {
           if (p.image === null) return;
 
-          const dist = Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
+          const dist =
+            Math.pow(p.lng - clickedLng, 2) + Math.pow(p.lat - clickedLat, 2);
           if (dist < minDist) {
             minDist = dist;
             closestId = p.id;
@@ -372,12 +386,28 @@ export function TripMap({
         });
         const offset = dayOffsets.get(segment.dayNumber) || 0;
         if (map.current.getLayer(`${sourceId}-glow`)) {
-          map.current.setPaintProperty(`${sourceId}-glow`, "line-color", segment.color);
-          map.current.setPaintProperty(`${sourceId}-glow`, "line-offset", offset);
+          map.current.setPaintProperty(
+            `${sourceId}-glow`,
+            "line-color",
+            segment.color,
+          );
+          map.current.setPaintProperty(
+            `${sourceId}-glow`,
+            "line-offset",
+            offset,
+          );
         }
         if (map.current.getLayer(`${sourceId}-line`)) {
-          map.current.setPaintProperty(`${sourceId}-line`, "line-color", segment.color);
-          map.current.setPaintProperty(`${sourceId}-line`, "line-offset", offset);
+          map.current.setPaintProperty(
+            `${sourceId}-line`,
+            "line-color",
+            segment.color,
+          );
+          map.current.setPaintProperty(
+            `${sourceId}-line`,
+            "line-offset",
+            offset,
+          );
         }
       }
     });
@@ -395,8 +425,16 @@ export function TripMap({
           geometry: { type: "LineString", coordinates: routeCoords },
         });
         if (map.current.getLayer(`${sourceId}-line`)) {
-          map.current.setPaintProperty(`${sourceId}-line`, "line-color", segment.color);
-          map.current.setPaintProperty(`${sourceId}-line`, "line-offset", offset);
+          map.current.setPaintProperty(
+            `${sourceId}-line`,
+            "line-color",
+            segment.color,
+          );
+          map.current.setPaintProperty(
+            `${sourceId}-line`,
+            "line-offset",
+            offset,
+          );
         }
       } else {
         map.current.addSource(sourceId, {
@@ -442,7 +480,9 @@ export function TripMap({
         month: "2-digit",
         day: "2-digit",
       });
-      const dayBoundary = mapDayBoundaries.find((b) => b.dateStr === pointDateStr);
+      const dayBoundary = mapDayBoundaries.find(
+        (b) => b.dateStr === pointDateStr,
+      );
       if (dayBoundary) {
         dayNumber = dayBoundary.dayNumber;
         dayColor = DAY_COLORS[(dayNumber - 1) % DAY_COLORS.length];
@@ -450,7 +490,12 @@ export function TripMap({
     }
 
     const lineOffset = dayOffsets.get(dayNumber) || 0;
-    const markerOffset = calculateMarkerOffset(point, pointIndex, points, lineOffset);
+    const markerOffset = calculateMarkerOffset(
+      point,
+      pointIndex,
+      points,
+      lineOffset,
+    );
 
     const el = document.createElement("div");
     el.className = "current-marker";
@@ -466,7 +511,10 @@ export function TripMap({
       ${isLive ? "animation: pulse 1.5s ease-in-out infinite;" : ""}
     `;
 
-    markerRef.current = new maplibregl.Marker({ element: el, offset: markerOffset })
+    markerRef.current = new maplibregl.Marker({
+      element: el,
+      offset: markerOffset,
+    })
       .setLngLat([point.lng, point.lat])
       .addTo(map.current);
 
@@ -474,8 +522,10 @@ export function TripMap({
     // Once user navigates, skipInitialZoom becomes false and we zoom in normally
     if (skipInitialZoom && points.length > 0) {
       // Calculate bounding box of all points
-      let minLng = Infinity, maxLng = -Infinity;
-      let minLat = Infinity, maxLat = -Infinity;
+      let minLng = Infinity,
+        maxLng = -Infinity;
+      let minLat = Infinity,
+        maxLat = -Infinity;
       for (const p of points) {
         if (p.lng < minLng) minLng = p.lng;
         if (p.lng > maxLng) maxLng = p.lng;
@@ -483,8 +533,11 @@ export function TripMap({
         if (p.lat > maxLat) maxLat = p.lat;
       }
       map.current.fitBounds(
-        [[minLng, minLat], [maxLng, maxLat]],
-        { padding: 40, duration: 800 }
+        [
+          [minLng, minLat],
+          [maxLng, maxLat],
+        ],
+        { padding: 40, duration: 800 },
       );
     } else {
       map.current.flyTo({
@@ -493,7 +546,15 @@ export function TripMap({
         duration: 800,
       });
     }
-  }, [selectedId, mapLoaded, points, isLive, mapDayBoundaries, dayOffsets, skipInitialZoom]);
+  }, [
+    selectedId,
+    mapLoaded,
+    points,
+    isLive,
+    mapDayBoundaries,
+    dayOffsets,
+    skipInitialZoom,
+  ]);
 
   return (
     <div

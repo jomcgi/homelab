@@ -34,7 +34,10 @@ export function ImagePanel({
     const deltaY = touchEndY - touchStartY.current;
 
     const minSwipeDistance = 50;
-    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > minSwipeDistance) {
+    if (
+      Math.abs(deltaX) > Math.abs(deltaY) &&
+      Math.abs(deltaX) > minSwipeDistance
+    ) {
       if (deltaX > 0 && onPrev) {
         onPrev();
       } else if (deltaX < 0 && onNext) {
@@ -210,21 +213,24 @@ export function ImagePanel({
             </div>
           )}
         </div>
-        {point.tags && point.tags.filter((t) => t.toLowerCase() !== "gap").length > 0 && (
-          <div className="mt-2 pt-2 border-t border-gray-200">
-            <div className="flex items-center gap-2 flex-wrap">
-              <Tag className="w-3 h-3 text-gray-400" />
-              {point.tags.filter((t) => t.toLowerCase() !== "gap").map((tag) => (
-                <span
-                  key={tag}
-                  className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
+        {point.tags &&
+          point.tags.filter((t) => t.toLowerCase() !== "gap").length > 0 && (
+            <div className="mt-2 pt-2 border-t border-gray-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Tag className="w-3 h-3 text-gray-400" />
+                {point.tags
+                  .filter((t) => t.toLowerCase() !== "gap")
+                  .map((tag) => (
+                    <span
+                      key={tag}
+                      className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium"
+                    >
+                      {tag}
+                    </span>
+                  ))}
+              </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
     </div>
   );

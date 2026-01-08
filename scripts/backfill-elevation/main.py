@@ -44,7 +44,9 @@ from elevation import ElevationClient
 # Configuration
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 
-app = typer.Typer(help="Backfill elevation data for trip points", invoke_without_command=True)
+app = typer.Typer(
+    help="Backfill elevation data for trip points", invoke_without_command=True
+)
 console = Console()
 
 
@@ -225,8 +227,7 @@ async def run_backfill(dry_run: bool = False, force: bool = False) -> None:
         fetched = sum(1 for r in results if r.elevation is not None)
         cached = sum(1 for r in results if r.cached)
         console.print(
-            f"[green]Fetched {fetched}/{len(results)} elevations "
-            f"({cached} from cache)"
+            f"[green]Fetched {fetched}/{len(results)} elevations ({cached} from cache)"
         )
 
         # Step 4: Update points with elevation

@@ -8,9 +8,8 @@ export function useFavicon(variant) {
   useEffect(() => {
     const favicon = document.querySelector('link[rel="icon"]');
     if (favicon) {
-      favicon.href = variant === "detail"
-        ? "/favicon-detail.svg"
-        : "/favicon-summary.svg";
+      favicon.href =
+        variant === "detail" ? "/favicon-detail.svg" : "/favicon-summary.svg";
     }
   }, [variant]);
 }

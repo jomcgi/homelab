@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { Link } from "wouter";
 import {
   MapPin,
@@ -64,7 +70,7 @@ export function TripTimeline() {
   const filteredTripData = useMemo(() => {
     if (selectedTags.length === 0) return tripData;
     return tripData.filter((point) =>
-      point.tags?.some((t) => selectedTags.includes(t.toLowerCase()))
+      point.tags?.some((t) => selectedTags.includes(t.toLowerCase())),
     );
   }, [tripData, selectedTags]);
 
@@ -81,19 +87,26 @@ export function TripTimeline() {
   }, [tripData, selectedTags]);
 
   // Navigation helpers for tag-constrained movement
-  const getNextFilteredIndex = useCallback((currentIdx) => {
-    if (!filteredIndices) return Math.min(tripData.length - 1, currentIdx + 1);
-    const nextIdx = filteredIndices.find((i) => i > currentIdx);
-    return nextIdx !== undefined ? nextIdx : currentIdx;
-  }, [filteredIndices, tripData.length]);
+  const getNextFilteredIndex = useCallback(
+    (currentIdx) => {
+      if (!filteredIndices)
+        return Math.min(tripData.length - 1, currentIdx + 1);
+      const nextIdx = filteredIndices.find((i) => i > currentIdx);
+      return nextIdx !== undefined ? nextIdx : currentIdx;
+    },
+    [filteredIndices, tripData.length],
+  );
 
-  const getPrevFilteredIndex = useCallback((currentIdx) => {
-    if (!filteredIndices) return Math.max(0, currentIdx - 1);
-    for (let i = filteredIndices.length - 1; i >= 0; i--) {
-      if (filteredIndices[i] < currentIdx) return filteredIndices[i];
-    }
-    return currentIdx;
-  }, [filteredIndices]);
+  const getPrevFilteredIndex = useCallback(
+    (currentIdx) => {
+      if (!filteredIndices) return Math.max(0, currentIdx - 1);
+      for (let i = filteredIndices.length - 1; i >= 0; i--) {
+        if (filteredIndices[i] < currentIdx) return filteredIndices[i];
+      }
+      return currentIdx;
+    },
+    [filteredIndices],
+  );
 
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -136,8 +149,8 @@ export function TripTimeline() {
       } else if (tripConfig?.timeline?.default_image) {
         // Look for default_image from config
         const defaultImageId = tripConfig.timeline.default_image;
-        const defaultIndex = tripData.findIndex((p) =>
-          p.id === defaultImageId || p.image?.includes(defaultImageId)
+        const defaultIndex = tripData.findIndex(
+          (p) => p.id === defaultImageId || p.image?.includes(defaultImageId),
         );
         if (defaultIndex !== -1) {
           setSelectedIndex(defaultIndex);
@@ -205,7 +218,14 @@ export function TripTimeline() {
         prefetchImage(getDisplayUrl(tripData[idx].image));
       }
     }
-  }, [isPlaying, selectedIndex, playbackSpeed, isLive, tripData, prefetchImage]);
+  }, [
+    isPlaying,
+    selectedIndex,
+    playbackSpeed,
+    isLive,
+    tripData,
+    prefetchImage,
+  ]);
 
   // Playback timer
   useEffect(() => {
@@ -233,7 +253,14 @@ export function TripTimeline() {
       }, 1000 / playbackSpeed);
     }
     return () => clearInterval(interval);
-  }, [isPlaying, playbackSpeed, isLive, tripData, getNextFilteredIndex, cachedImages]);
+  }, [
+    isPlaying,
+    playbackSpeed,
+    isLive,
+    tripData,
+    getNextFilteredIndex,
+    cachedImages,
+  ]);
 
   // Continuous priority-based prefetching
   useEffect(() => {
@@ -321,7 +348,7 @@ export function TripTimeline() {
         }
       }
     },
-    [tripData, latestIndex]
+    [tripData, latestIndex],
   );
 
   const visibleRange = useMemo(() => {
@@ -334,8 +361,14 @@ export function TripTimeline() {
     const scrollStart = scrollVisibleCenter - buffer;
     const scrollEnd = scrollVisibleCenter + buffer;
 
-    const start = Math.max(0, Math.min(selectedStart, scrollStart) - preloadPadding);
-    const end = Math.min(tripData.length, Math.max(selectedEnd, scrollEnd) + preloadPadding);
+    const start = Math.max(
+      0,
+      Math.min(selectedStart, scrollStart) - preloadPadding,
+    );
+    const end = Math.min(
+      tripData.length,
+      Math.max(selectedEnd, scrollEnd) + preloadPadding,
+    );
 
     return { start, end };
   }, [selectedIndex, scrollVisibleCenter, tripData.length]);
@@ -420,7 +453,9 @@ export function TripTimeline() {
                 />
               )}
               {!isMobile && (
-                <span className="text-sm font-medium text-gray-900">Winter Road Trip to Liard Hot Springs</span>
+                <span className="text-sm font-medium text-gray-900">
+                  Winter Road Trip to Liard Hot Springs
+                </span>
               )}
             </div>
             {LIVE_FEATURES_ENABLED && (
@@ -464,7 +499,9 @@ export function TripTimeline() {
             <div className="flex items-center gap-3 text-sm text-gray-600">
               <MapPin className="h-3 w-3 text-gray-400" />
               <span>{weather.temp}°C</span>
-              {!isTablet && <span>{getWeatherDescription(weather.symbol)}</span>}
+              {!isTablet && (
+                <span>{getWeatherDescription(weather.symbol)}</span>
+              )}
               <span className="flex items-center gap-1">
                 <Wind className="h-3 w-3" />
                 {weather.windSpeed} km/h
@@ -537,19 +574,27 @@ export function TripTimeline() {
                 isMobile={isMobile}
                 cachedImages={cachedImages}
                 onImageClick={() => setIsFullscreen(true)}
-                onPrev={canGoPrev ? () => {
-                  setSelectedIndex(getPrevFilteredIndex(selectedIndex));
-                  setIsPlaying(false);
-                  setIsLive(false);
-                  setIsInitialDefaultView(false);
-                } : null}
-                onNext={canGoNext ? () => {
-                  const nextIdx = getNextFilteredIndex(selectedIndex);
-                  setSelectedIndex(nextIdx);
-                  setIsPlaying(false);
-                  setIsInitialDefaultView(false);
-                  if (nextIdx !== tripData.length - 1) setIsLive(false);
-                } : null}
+                onPrev={
+                  canGoPrev
+                    ? () => {
+                        setSelectedIndex(getPrevFilteredIndex(selectedIndex));
+                        setIsPlaying(false);
+                        setIsLive(false);
+                        setIsInitialDefaultView(false);
+                      }
+                    : null
+                }
+                onNext={
+                  canGoNext
+                    ? () => {
+                        const nextIdx = getNextFilteredIndex(selectedIndex);
+                        setSelectedIndex(nextIdx);
+                        setIsPlaying(false);
+                        setIsInitialDefaultView(false);
+                        if (nextIdx !== tripData.length - 1) setIsLive(false);
+                      }
+                    : null
+                }
               />
             </div>
           </>
@@ -630,21 +675,29 @@ export function TripTimeline() {
         <FullscreenModal
           imageUrl={getDisplayUrl(selectedPoint.image)}
           onClose={() => setIsFullscreen(false)}
-          onPrev={canGoPrev ? () => {
-            setSelectedIndex(getPrevFilteredIndex(selectedIndex));
-            setIsPlaying(false);
-            setIsLive(false);
-            setIsInitialDefaultView(false);
-          } : null}
-          onNext={canGoNext ? () => {
-            const nextIdx = getNextFilteredIndex(selectedIndex);
-            setSelectedIndex(nextIdx);
-            setIsPlaying(false);
-            setIsInitialDefaultView(false);
-            if (nextIdx !== tripData.length - 1) {
-              setIsLive(false);
-            }
-          } : null}
+          onPrev={
+            canGoPrev
+              ? () => {
+                  setSelectedIndex(getPrevFilteredIndex(selectedIndex));
+                  setIsPlaying(false);
+                  setIsLive(false);
+                  setIsInitialDefaultView(false);
+                }
+              : null
+          }
+          onNext={
+            canGoNext
+              ? () => {
+                  const nextIdx = getNextFilteredIndex(selectedIndex);
+                  setSelectedIndex(nextIdx);
+                  setIsPlaying(false);
+                  setIsInitialDefaultView(false);
+                  if (nextIdx !== tripData.length - 1) {
+                    setIsLive(false);
+                  }
+                }
+              : null
+          }
         />
       )}
 
@@ -707,10 +760,14 @@ export function TripTimeline() {
           )}
 
           {!isMobile && dayBoundaries.length > 1 && (
-            <div className={`flex items-center gap-1 ${isLive ? "opacity-50" : ""}`}>
+            <div
+              className={`flex items-center gap-1 ${isLive ? "opacity-50" : ""}`}
+            >
               <button
                 onClick={() => {
-                  const prevDay = dayBoundaries.find((d) => d.dayNumber === currentDay - 1);
+                  const prevDay = dayBoundaries.find(
+                    (d) => d.dayNumber === currentDay - 1,
+                  );
                   if (prevDay) handleTimelineChange(prevDay.index);
                 }}
                 className="p-1 rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700"
@@ -724,7 +781,9 @@ export function TripTimeline() {
               </span>
               <button
                 onClick={() => {
-                  const nextDay = dayBoundaries.find((d) => d.dayNumber === currentDay + 1);
+                  const nextDay = dayBoundaries.find(
+                    (d) => d.dayNumber === currentDay + 1,
+                  );
                   if (nextDay) handleTimelineChange(nextDay.index);
                 }}
                 className="p-1 rounded hover:bg-gray-200 transition-colors disabled:opacity-30 text-gray-700"
@@ -773,7 +832,11 @@ export function TripTimeline() {
       {/* Image Reel */}
       <div
         className={`flex-none border-t bg-gray-100 overflow-x-auto transition-colors ${
-          isLive ? "border-red-500/30" : selectedTags.length > 0 ? "border-blue-500/30" : "border-gray-200"
+          isLive
+            ? "border-red-500/30"
+            : selectedTags.length > 0
+              ? "border-blue-500/30"
+              : "border-gray-200"
         }`}
         ref={scrollRef}
       >
@@ -781,7 +844,8 @@ export function TripTimeline() {
           <div className="flex items-center gap-2 px-3 py-1 bg-blue-50 border-b border-blue-100 text-xs text-blue-600">
             <Tag className="w-3 h-3" />
             <span>
-              Showing {filteredTripData.length} of {tripData.length} photos with tags: {selectedTags.join(", ")}
+              Showing {filteredTripData.length} of {tripData.length} photos with
+              tags: {selectedTags.join(", ")}
             </span>
           </div>
         )}
@@ -823,43 +887,49 @@ export function TripTimeline() {
             })
           ) : (
             <>
-              <div style={{ width: visibleRange.start * (isMobile ? 52 : 68) }} />
-              {tripData.slice(visibleRange.start, visibleRange.end).map((point) => {
-                const isSelected = point.id === selectedId;
-                const isLatest = point.id === tripData[latestIndex].id;
-                const hasSelectedTag = point.tags?.some((t) => selectedTags.includes(t.toLowerCase()));
-                return (
-                  <button
-                    key={point.id}
-                    ref={(el) => (imageRefs.current[point.id] = el)}
-                    onClick={() => handleMarkerClick(point.id)}
-                    className={`flex-none relative transition-all duration-150 origin-bottom ${
-                      isSelected
-                        ? isLive
-                          ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
-                          : "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
-                        : hasSelectedTag
-                          ? "ring-1 ring-blue-400 hover:scale-150 hover:z-20"
-                          : "hover:scale-150 hover:z-20 hover:ring-1 hover:ring-zinc-500"
-                    }`}
-                  >
-                    <div
-                      className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-gray-200`}
+              <div
+                style={{ width: visibleRange.start * (isMobile ? 52 : 68) }}
+              />
+              {tripData
+                .slice(visibleRange.start, visibleRange.end)
+                .map((point) => {
+                  const isSelected = point.id === selectedId;
+                  const isLatest = point.id === tripData[latestIndex].id;
+                  const hasSelectedTag = point.tags?.some((t) =>
+                    selectedTags.includes(t.toLowerCase()),
+                  );
+                  return (
+                    <button
+                      key={point.id}
+                      ref={(el) => (imageRefs.current[point.id] = el)}
+                      onClick={() => handleMarkerClick(point.id)}
+                      className={`flex-none relative transition-all duration-150 origin-bottom ${
+                        isSelected
+                          ? isLive
+                            ? "ring-2 ring-red-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                            : "ring-2 ring-blue-500 ring-offset-1 ring-offset-zinc-950 scale-105 z-10"
+                          : hasSelectedTag
+                            ? "ring-1 ring-blue-400 hover:scale-150 hover:z-20"
+                            : "hover:scale-150 hover:z-20 hover:ring-1 hover:ring-zinc-500"
+                      }`}
                     >
-                      <img
-                        src={getThumbUrl(point.image)}
-                        alt=""
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                        decoding="async"
-                      />
-                    </div>
-                    {isLive && isLatest && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-gray-100" />
-                    )}
-                  </button>
-                );
-              })}
+                      <div
+                        className={`${isMobile ? "w-12 h-8" : "w-16 h-11"} rounded overflow-hidden flex items-center justify-center bg-gray-200`}
+                      >
+                        <img
+                          src={getThumbUrl(point.image)}
+                          alt=""
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                          decoding="async"
+                        />
+                      </div>
+                      {isLive && isLatest && (
+                        <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-pulse border border-gray-100" />
+                      )}
+                    </button>
+                  );
+                })}
               <div
                 style={{
                   width:

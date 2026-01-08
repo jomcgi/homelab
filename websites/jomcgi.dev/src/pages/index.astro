@@ -200,7 +200,7 @@
         }
 
         /* Telemetry Grid - 4 columns, flush to section edge */
-        /* 7 elements: STATUS(span-2), GITOPS, VER | NODES, CPU, MEM, GPU */
+        /* 7 elements: STATUS+PODS(span-2), GITOPS, VER | NODES, CPU, MEM, GPU */
         #live-stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
@@ -352,6 +352,72 @@
             line-height: 1;
             vertical-align: middle;
         }
+
+        /* === STATUS + POD MATRIX CELL === */
+        /* Status on left, Pod Matrix (Scantron sheet) on right */
+        .stat-cell.status-pod-cell {
+            display: flex;
+            padding: 0;
+        }
+
+        .status-pod-cell .status-side {
+            padding: 12px;
+            flex-shrink: 0;
+        }
+
+        .status-pod-cell .pod-matrix-side {
+            flex: 1;
+            padding: 8px 12px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-left: 2px solid var(--fg);
+        }
+
+        .pod-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 2px;
+            font-family: monospace;
+            font-size: 8px;
+            line-height: 1;
+        }
+
+        /* Scantron Sheet: Black squares on white - rhymes with cp[■■■] */
+        .pod-unit {
+            width: 6px;
+            height: 6px;
+            background: var(--fg); /* Black square = Running */
+        }
+
+        .pod-unit.pending {
+            background: transparent;
+            border: 1px solid var(--fg); /* Hollow square = Pending */
+            animation: pod-pulse 1.5s ease-in-out infinite;
+        }
+
+        .pod-unit.failed {
+            background: #cc0000; /* Red = Failed */
+        }
+
+        .pod-unit.placeholder {
+            background: transparent;
+            border: 1px solid var(--fg);
+            opacity: 0.3;
+        }
+
+        @keyframes pod-pulse {
+            0%, 100% { opacity: 0.4; }
+            50% { opacity: 1; }
+        }
+
+        .pod-label {
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            margin-top: 6px;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -421,12 +487,18 @@
             </div>
             <div class="section-content">
                 <div id="live-stats">
-                    <!-- Row 1: Status (span 2) | GitOps | Ver -->
-                    <div class="stat-cell span-2">
-                        <div class="stat-label">Status</div>
-                        <div class="stat-value">
-                            <span id="sys-dot" class="status-dot st-dim">●</span>
-                            <span id="sys-text">CONNECTING</span>
+                    <!-- Row 1: Status + Pod Matrix (span 2) | GitOps | Ver -->
+                    <div class="stat-cell span-2 status-pod-cell">
+                        <div class="status-side">
+                            <div class="stat-label">Status</div>
+                            <div class="stat-value">
+                                <span id="sys-dot" class="status-dot st-dim">●</span>
+                                <span id="sys-text">CONNECTING</span>
+                            </div>
+                        </div>
+                        <div class="pod-matrix-side" id="pod-matrix">
+                            <div class="pod-grid" id="pod-grid"></div>
+                            <div class="pod-label"><span id="pod-count">--</span> pods</div>
                         </div>
                     </div>
                     <div class="stat-cell">
@@ -495,6 +567,71 @@
     </div>
 
     <script>
+        // Render the Pod Matrix - LED array visualization
+        function renderPodMatrix(els, podsData) {
+            // Clear existing
+            els.podGrid.innerHTML = '';
+
+            // If no pod data, show placeholder squares
+            if (!podsData || (!podsData.statuses && podsData.running === undefined)) {
+                // Placeholder: show dim hollow squares
+                for (let i = 0; i < 30; i++) {
+                    const dot = document.createElement('div');
+                    dot.className = 'pod-unit placeholder';
+                    els.podGrid.appendChild(dot);
+                }
+                els.podCount.innerText = '--';
+                return;
+            }
+
+            // Handle array of statuses: ["Running", "Running", "Pending", ...]
+            if (podsData.statuses && Array.isArray(podsData.statuses)) {
+                podsData.statuses.forEach(status => {
+                    const dot = document.createElement('div');
+                    const normalizedStatus = status.toLowerCase();
+                    if (normalizedStatus === 'running' || normalizedStatus === 'succeeded') {
+                        dot.className = 'pod-unit'; // Solid black square
+                    } else if (normalizedStatus === 'pending' || normalizedStatus === 'containercreating') {
+                        dot.className = 'pod-unit pending'; // Hollow square
+                    } else {
+                        dot.className = 'pod-unit failed'; // Red square
+                    }
+                    els.podGrid.appendChild(dot);
+                });
+                els.podCount.innerText = podsData.statuses.length;
+                return;
+            }
+
+            // Handle counts: { running: 38, pending: 2, failed: 1, succeeded: 5 }
+            const running = podsData.running || 0;
+            const succeeded = podsData.succeeded || 0;
+            const pending = podsData.pending || 0;
+            const failed = podsData.failed || 0;
+            const healthy = running + succeeded;
+            const total = healthy + pending + failed;
+
+            // Healthy pods (running + succeeded) - solid black squares ■
+            for (let i = 0; i < healthy; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'pod-unit';
+                els.podGrid.appendChild(dot);
+            }
+            // Pending pods - hollow squares □
+            for (let i = 0; i < pending; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'pod-unit pending';
+                els.podGrid.appendChild(dot);
+            }
+            // Failed pods - red squares
+            for (let i = 0; i < failed; i++) {
+                const dot = document.createElement('div');
+                dot.className = 'pod-unit failed';
+                els.podGrid.appendChild(dot);
+            }
+
+            els.podCount.innerText = total;
+        }
+
         async function fetchStats() {
             const els = {
                 dot: document.getElementById('sys-dot'),
@@ -504,7 +641,9 @@
                 mem: document.getElementById('sys-mem'),
                 gpu: document.getElementById('sys-gpu'),
                 gitops: document.getElementById('sys-gitops'),
-                ver: document.getElementById('sys-ver')
+                ver: document.getElementById('sys-ver'),
+                podGrid: document.getElementById('pod-grid'),
+                podCount: document.getElementById('pod-count')
             };
 
             try {
@@ -577,7 +716,7 @@
                 else if (memPercent > 80) memClass = 'st-warn';
                 els.mem.innerHTML = `<span class="${memClass}">${data.mem.used}/${data.mem.total}GB</span>`;
 
-                // Render GPU (util + VRAM combined)
+                // Render GPU
                 if (data.gpu_util !== undefined && data.gpu_util !== null) {
                     let gpuClass = '';
                     if (data.gpu_util > 90) gpuClass = 'st-err';
@@ -587,6 +726,9 @@
                 } else {
                     els.gpu.innerHTML = '<span class="st-dim">--</span>';
                 }
+
+                // Render Pod Matrix
+                renderPodMatrix(els, data.pods);
 
                 // Render GitOps status
                 if (data.gitops) {
@@ -616,6 +758,8 @@
             els.gpu.innerHTML = '<span class="st-dim">--</span>';
             els.gitops.innerHTML = '<span class="st-dim">[--]</span>';
             els.ver.innerHTML = '<span class="st-dim">[--]</span>';
+            // Reset pod matrix to placeholder state
+            renderPodMatrix(els, null);
         }
 
         fetchStats();
