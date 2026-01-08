@@ -108,8 +108,10 @@ async function main() {
   const args = process.argv.slice(2);
   const dryRun = args.includes("--dry-run");
   const force = args.includes("--force");
-  const concurrencyArg = args.find(a => a.startsWith("--concurrency="));
-  const concurrency = concurrencyArg ? parseInt(concurrencyArg.split("=")[1]) : 5;
+  const concurrencyArg = args.find((a) => a.startsWith("--concurrency="));
+  const concurrency = concurrencyArg
+    ? parseInt(concurrencyArg.split("=")[1])
+    : 5;
 
   const options = { dryRun, force };
 
@@ -132,45 +134,43 @@ async function main() {
   const points = await fetchPoints();
 
   // Get unique images
-  const images = [...new Set(points.map(p => p.image).filter(Boolean))];
+  const images = [...new Set(points.map((p) => p.image).filter(Boolean))];
   console.log(`Unique images: ${images.length}`);
-  console.log(`Variants: ${VARIANTS.map(v => v.name).join(", ")}`);
+  console.log(`Variants: ${VARIANTS.map((v) => v.name).join(", ")}`);
   console.log(`Total requests: ${images.length * VARIANTS.length}\n`);
 
   // Process each variant
   for (const variant of VARIANTS) {
-    console.log(`\n${dryRun ? "Checking" : "Warming"} ${variant.name} images...`);
+    console.log(
+      `\n${dryRun ? "Checking" : "Warming"} ${variant.name} images...`,
+    );
     console.log("-".repeat(40));
 
     const stats = { hits: 0, misses: 0, warmed: 0, errors: 0 };
     let processed = 0;
 
-    await processWithConcurrency(
-      images,
-      concurrency,
-      async (image) => {
-        const result = await processImage(image, variant, stats, options);
-        processed++;
+    await processWithConcurrency(images, concurrency, async (image) => {
+      const result = await processImage(image, variant, stats, options);
+      processed++;
 
-        // Progress update every 100 images
-        if (processed % 100 === 0 || processed === images.length) {
-          const pct = ((processed / images.length) * 100).toFixed(1);
-          if (dryRun) {
-            process.stdout.write(
-              `\r  Progress: ${processed}/${images.length} (${pct}%) | ` +
-              `Cached: ${stats.hits} | Need warming: ${stats.misses}`
-            );
-          } else {
-            process.stdout.write(
-              `\r  Progress: ${processed}/${images.length} (${pct}%) | ` +
-              `Cached: ${stats.hits} | Warmed: ${stats.warmed} | Errors: ${stats.errors}`
-            );
-          }
+      // Progress update every 100 images
+      if (processed % 100 === 0 || processed === images.length) {
+        const pct = ((processed / images.length) * 100).toFixed(1);
+        if (dryRun) {
+          process.stdout.write(
+            `\r  Progress: ${processed}/${images.length} (${pct}%) | ` +
+              `Cached: ${stats.hits} | Need warming: ${stats.misses}`,
+          );
+        } else {
+          process.stdout.write(
+            `\r  Progress: ${processed}/${images.length} (${pct}%) | ` +
+              `Cached: ${stats.hits} | Warmed: ${stats.warmed} | Errors: ${stats.errors}`,
+          );
         }
-
-        return result;
       }
-    );
+
+      return result;
+    });
 
     console.log("\n");
     console.log(`  ${variant.name} summary:`);
@@ -189,7 +189,7 @@ async function main() {
   console.log("=".repeat(60));
 }
 
-main().catch(error => {
+main().catch((error) => {
   console.error("Error:", error.message);
   process.exit(1);
 });

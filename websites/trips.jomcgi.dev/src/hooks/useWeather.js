@@ -29,7 +29,7 @@ export function useWeather(lat, lng) {
             headers: {
               "User-Agent": "trips.jomcgi.dev/1.0 github.com/jomcgi/homelab",
             },
-          }
+          },
         );
 
         if (!response.ok) throw new Error("Weather fetch failed");

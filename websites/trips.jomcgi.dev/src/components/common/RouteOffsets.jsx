@@ -4,7 +4,7 @@
  */
 export function calculateDayOffsets(pointsByDay, options = {}) {
   const {
-    overlapThreshold = 0.01,  // ~1km in lat/lng units
+    overlapThreshold = 0.01, // ~1km in lat/lng units
     minOverlapPoints = 10,
     sampleRate = 5,
     offsetAmount = 4,
@@ -52,12 +52,14 @@ export function calculateDayOffsets(pointsByDay, options = {}) {
     }
 
     // Determine travel direction (north vs south)
-    const dir1 = points1.length > 1
-      ? Math.sign(points1[points1.length - 1].lat - points1[0].lat)
-      : 0;
-    const dir2 = points2.length > 1
-      ? Math.sign(points2[points2.length - 1].lat - points2[0].lat)
-      : 0;
+    const dir1 =
+      points1.length > 1
+        ? Math.sign(points1[points1.length - 1].lat - points1[0].lat)
+        : 0;
+    const dir2 =
+      points2.length > 1
+        ? Math.sign(points2[points2.length - 1].lat - points2[0].lat)
+        : 0;
     const sameDirection = dir1 === dir2 || dir1 === 0 || dir2 === 0;
 
     let offset1, offset2;
@@ -108,9 +110,11 @@ export function calculateMarkerOffset(point, pointIndex, points, lineOffset) {
   if (lineOffset === 0) return [0, 0];
 
   const prevPoint = pointIndex > 0 ? points[pointIndex - 1] : null;
-  const nextPoint = pointIndex < points.length - 1 ? points[pointIndex + 1] : null;
+  const nextPoint =
+    pointIndex < points.length - 1 ? points[pointIndex + 1] : null;
 
-  let dx = 0, dy = 0;
+  let dx = 0,
+    dy = 0;
   if (prevPoint && nextPoint) {
     dx = nextPoint.lng - prevPoint.lng;
     dy = -(nextPoint.lat - prevPoint.lat);

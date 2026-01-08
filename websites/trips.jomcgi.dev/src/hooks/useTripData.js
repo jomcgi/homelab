@@ -134,7 +134,7 @@ export function useTripData(tripSlug = null) {
         clearTimeout(reconnectTimeoutRef.current);
       }
     };
-  // TODO: Add tripSlug to dependencies when multi-trip API is ready
+    // TODO: Add tripSlug to dependencies when multi-trip API is ready
   }, [transformPoint, connectWebSocket]);
 
   return { points, loading, error, stats };

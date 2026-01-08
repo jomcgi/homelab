@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { Tag, X } from "lucide-react";
 
-export function TagFilter({ availableTags, selectedTags, onTagsChange, isMobile = false }) {
+export function TagFilter({
+  availableTags,
+  selectedTags,
+  onTagsChange,
+  isMobile = false,
+}) {
   const [isOpen, setIsOpen] = useState(false);
 
   if (availableTags.length === 0) return null;
@@ -35,7 +40,9 @@ export function TagFilter({ availableTags, selectedTags, onTagsChange, isMobile 
           `}
           title="Filter by tags"
         >
-          <Tag className={`w-4 h-4 ${selectedTags.length > 0 ? "text-blue-600" : "text-gray-500"}`} />
+          <Tag
+            className={`w-4 h-4 ${selectedTags.length > 0 ? "text-blue-600" : "text-gray-500"}`}
+          />
           {selectedTags.length > 0 && (
             <span className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 text-white text-[10px] rounded-full flex items-center justify-center">
               {selectedTags.length}
@@ -45,7 +52,10 @@ export function TagFilter({ availableTags, selectedTags, onTagsChange, isMobile 
 
         {isOpen && (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
+            <div
+              className="fixed inset-0 z-40"
+              onClick={() => setIsOpen(false)}
+            />
             <div className="absolute right-0 top-12 z-50 bg-white border border-gray-200 rounded-lg shadow-lg p-2 min-w-[150px]">
               {selectedTags.length > 0 && (
                 <button

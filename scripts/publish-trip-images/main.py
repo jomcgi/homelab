@@ -26,7 +26,14 @@ import nats
 from botocore.config import Config
 from PIL import Image
 from PIL.ExifTags import TAGS, GPSTAGS
-from rich.progress import Progress, SpinnerColumn, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
+from rich.progress import (
+    Progress,
+    SpinnerColumn,
+    TextColumn,
+    BarColumn,
+    TaskProgressColumn,
+    TimeRemainingColumn,
+)
 import typer
 
 # Defaults
@@ -54,7 +61,10 @@ class UploadStatus(str, Enum):
 @dataclass
 class OpticsData:
     """Camera exposure data from EXIF."""
-    light_value: float | None = None  # Exposure Value (EV) - e.g., 8.6 for dim conditions
+
+    light_value: float | None = (
+        None  # Exposure Value (EV) - e.g., 8.6 for dim conditions
+    )
     iso: int | None = None  # ISO sensitivity - e.g., 393
     shutter_speed: str | None = None  # Shutter speed as string - e.g., "1/240"
     aperture: float | None = None  # F-number - e.g., 2.5
@@ -244,16 +254,35 @@ class UploadQueue:
 
         # Build OpticsData if any optics field is present
         optics = None
-        if any(col in keys for col in ["light_value", "iso", "shutter_speed", "aperture", "focal_length_35mm"]):
+        if any(
+            col in keys
+            for col in [
+                "light_value",
+                "iso",
+                "shutter_speed",
+                "aperture",
+                "focal_length_35mm",
+            ]
+        ):
             optics = OpticsData(
                 light_value=row["light_value"] if "light_value" in keys else None,
                 iso=row["iso"] if "iso" in keys else None,
                 shutter_speed=row["shutter_speed"] if "shutter_speed" in keys else None,
                 aperture=row["aperture"] if "aperture" in keys else None,
-                focal_length_35mm=row["focal_length_35mm"] if "focal_length_35mm" in keys else None,
+                focal_length_35mm=row["focal_length_35mm"]
+                if "focal_length_35mm" in keys
+                else None,
             )
             # Only keep optics if at least one field is non-None
-            if not any([optics.light_value, optics.iso, optics.shutter_speed, optics.aperture, optics.focal_length_35mm]):
+            if not any(
+                [
+                    optics.light_value,
+                    optics.iso,
+                    optics.shutter_speed,
+                    optics.aperture,
+                    optics.focal_length_35mm,
+                ]
+            ):
                 optics = None
 
         return ImageRecord(
@@ -316,7 +345,9 @@ def dms_to_decimal(dms: tuple, ref: str) -> float:
     return decimal
 
 
-def calculate_light_value(aperture: float | None, shutter_time: float | None, iso: int | None) -> float | None:
+def calculate_light_value(
+    aperture: float | None, shutter_time: float | None, iso: int | None
+) -> float | None:
     """Calculate Light Value (EV) from exposure triangle.
 
     LV = log2(N²/t) - log2(ISO/100)
@@ -328,7 +359,7 @@ def calculate_light_value(aperture: float | None, shutter_time: float | None, is
         return None
 
     try:
-        lv = math.log2((aperture ** 2) / shutter_time) - math.log2(iso / 100)
+        lv = math.log2((aperture**2) / shutter_time) - math.log2(iso / 100)
         return round(lv, 1)
     except (ValueError, ZeroDivisionError):
         return None
@@ -350,7 +381,9 @@ def format_shutter_speed(exposure_time: float | None) -> str | None:
         return f"1/{denominator}"
 
 
-def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | None, OpticsData | None]:
+def extract_exif(
+    image_path: Path,
+) -> tuple[float | None, float | None, str | None, OpticsData | None]:
     """Extract GPS coordinates, timestamp, and OPTICS data from EXIF."""
     try:
         img = Image.open(image_path)
@@ -413,10 +446,19 @@ def extract_exif(image_path: Path) -> tuple[float | None, float | None, str | No
             optics.focal_length_35mm = int(focal_35mm)
 
         # Calculate Light Value from exposure triangle
-        optics.light_value = calculate_light_value(optics.aperture, exposure_time_float, optics.iso)
+        optics.light_value = calculate_light_value(
+            optics.aperture, exposure_time_float, optics.iso
+        )
 
         # Only return optics if we have at least some data
-        has_optics = any([optics.iso, optics.aperture, optics.shutter_speed, optics.focal_length_35mm])
+        has_optics = any(
+            [
+                optics.iso,
+                optics.aperture,
+                optics.shutter_speed,
+                optics.focal_length_35mm,
+            ]
+        )
 
         return lat, lng, timestamp, optics if has_optics else None
 
@@ -567,7 +609,9 @@ def sample_images_by_time(
         # No sampling - return all with EXIF data
         return [(img, *extract_exif(img)) for img in images]
 
-    selected: list[tuple[Path, float | None, float | None, str | None, OpticsData | None]] = []
+    selected: list[
+        tuple[Path, float | None, float | None, str | None, OpticsData | None]
+    ] = []
     last_selected_time: datetime | None = None
 
     for img_path in images:
@@ -668,7 +712,11 @@ async def _run_upload(
         return
 
     # Sample images by time interval (e.g., 60s = at least 1 image per minute)
-    print("Extracting EXIF and sampling by time..." if interval_seconds > 0 else "Extracting EXIF...")
+    print(
+        "Extracting EXIF and sampling by time..."
+        if interval_seconds > 0
+        else "Extracting EXIF..."
+    )
     sampled = sample_images_by_time(images, interval_seconds)
     if interval_seconds > 0:
         print(f"Sampled to {len(sampled)} images (at least 1 per {interval_seconds}s)")
@@ -687,8 +735,12 @@ async def _run_upload(
             new_count += 1
             gps_info = f"({lat:.4f}, {lng:.4f})" if lat and lng else "(no GPS)"
             tags_info = f" [{', '.join(tags)}]" if tags else ""
-            optics_info = f" [EV:{optics.light_value}]" if optics and optics.light_value else ""
-            print(f"  Queued: {img_path.name} -> {dest_key} {gps_info}{tags_info}{optics_info}")
+            optics_info = (
+                f" [EV:{optics.light_value}]" if optics and optics.light_value else ""
+            )
+            print(
+                f"  Queued: {img_path.name} -> {dest_key} {gps_info}{tags_info}{optics_info}"
+            )
 
     if new_count:
         print(f"Queued {new_count} new images")
@@ -743,7 +795,9 @@ async def _run_upload(
 
                     try:
                         # Upload to S3 (skips if file unchanged)
-                        uploaded = upload_image(s3_client, bucket, source_file, record.dest_key)
+                        uploaded = upload_image(
+                            s3_client, bucket, source_file, record.dest_key
+                        )
 
                         # Publish to NATS if requested (even if upload skipped - metadata may differ)
                         if publish and js:
@@ -755,8 +809,12 @@ async def _run_upload(
                     except Exception as e:
                         error_msg = str(e)
                         queue.mark_failed(record.id, error_msg)
-                        retry_info = f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
-                        progress.console.print(f"[red][FAIL] {source_file.name}: {error_msg} ({retry_info})")
+                        retry_info = (
+                            f"retry {record.retry_count + 1}/{queue.MAX_RETRIES}"
+                        )
+                        progress.console.print(
+                            f"[red][FAIL] {source_file.name}: {error_msg} ({retry_info})"
+                        )
     finally:
         if nc:
             await nc.close()
@@ -803,7 +861,9 @@ def scan(
     ] = "gopro",
     tags: Annotated[
         str,
-        typer.Option("--tags", "-t", help="Comma-separated tags (e.g., 'hotspring,wildlife')"),
+        typer.Option(
+            "--tags", "-t", help="Comma-separated tags (e.g., 'hotspring,wildlife')"
+        ),
     ] = "",
 ) -> None:
     """
@@ -832,7 +892,11 @@ def scan(
     # Parse comma-separated tags into list
     tag_list = [t.strip() for t in tags.split(",") if t.strip()] if tags else None
 
-    asyncio.run(_run_upload(source_dir, db_path, bucket, dry_run, publish, interval, source, tag_list))
+    asyncio.run(
+        _run_upload(
+            source_dir, db_path, bucket, dry_run, publish, interval, source, tag_list
+        )
+    )
 
 
 @app.command()
@@ -989,8 +1053,7 @@ class OpticsCache:
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
-                "SELECT * FROM optics_cache WHERE image_key = ?",
-                (image_key,)
+                "SELECT * FROM optics_cache WHERE image_key = ?", (image_key,)
             ).fetchone()
             if not row:
                 return False, None
@@ -1036,11 +1099,16 @@ def backfill_optics(
         str, typer.Option("--bucket", "-b", help="S3 bucket name")
     ] = DEFAULT_BUCKET,
     dry_run: Annotated[
-        bool, typer.Option("--dry-run", "-n", help="Show what would be published without publishing")
+        bool,
+        typer.Option(
+            "--dry-run", "-n", help="Show what would be published without publishing"
+        ),
     ] = False,
     limit: Annotated[
         int,
-        typer.Option("--limit", "-l", help="Limit number of points to process (0 = all)"),
+        typer.Option(
+            "--limit", "-l", help="Limit number of points to process (0 = all)"
+        ),
     ] = 0,
     concurrency: Annotated[
         int,
@@ -1138,10 +1206,13 @@ def backfill_optics(
 
         # Filter to points with images that don't already have OPTICS
         points_to_process = [
-            p for p in points
+            p
+            for p in points
             if p.get("image") and not (p.get("iso") or p.get("light_value"))
         ]
-        skipped_already_has = len([p for p in points if p.get("iso") or p.get("light_value")])
+        skipped_already_has = len(
+            [p for p in points if p.get("iso") or p.get("light_value")]
+        )
 
         print(f"  {len(points_to_process)} need OPTICS data")
         if skipped_already_has:
@@ -1172,13 +1243,20 @@ def backfill_optics(
             TimeRemainingColumn(),
         ) as progress:
             # Phase 1: Download and extract (parallelized)
-            task = progress.add_task(f"Extracting OPTICS ({concurrency} workers)...", total=len(unique_images))
+            task = progress.add_task(
+                f"Extracting OPTICS ({concurrency} workers)...",
+                total=len(unique_images),
+            )
 
             with ThreadPoolExecutor(max_workers=concurrency) as executor:
                 # Submit all images - download_and_extract checks cache internally
-                futures = {executor.submit(download_and_extract, img): img for img in unique_images}
+                futures = {
+                    executor.submit(download_and_extract, img): img
+                    for img in unique_images
+                }
 
                 from concurrent.futures import as_completed
+
                 for future in as_completed(futures):
                     image_key = futures[future]
                     try:
@@ -1191,10 +1269,14 @@ def backfill_optics(
                     progress.advance(task)
 
             if cache_hits:
-                progress.console.print(f"[green]Cache hits: {cache_hits}/{len(unique_images)}")
+                progress.console.print(
+                    f"[green]Cache hits: {cache_hits}/{len(unique_images)}"
+                )
 
             # Phase 2: Publish enriched points
-            task2 = progress.add_task("Publishing to NATS...", total=len(points_to_process))
+            task2 = progress.add_task(
+                "Publishing to NATS...", total=len(points_to_process)
+            )
             processed = 0
             with_optics = 0
 
@@ -1250,7 +1332,9 @@ def backfill_optics(
     print(f"\nOPTICS cache now has {cache.stats()} entries")
 
     if dry_run:
-        print(f"[DRY RUN] Would publish {processed} points ({with_optics} with OPTICS data)")
+        print(
+            f"[DRY RUN] Would publish {processed} points ({with_optics} with OPTICS data)"
+        )
     else:
         print(f"Published {processed} points ({with_optics} with OPTICS data)")
     if skipped:

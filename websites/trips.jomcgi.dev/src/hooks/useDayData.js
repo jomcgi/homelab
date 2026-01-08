@@ -1,9 +1,18 @@
-import { useMemo } from 'react';
+import { useMemo } from "react";
 
 const DEFAULT_DAY_COLORS = [
-  "#2563eb", "#059669", "#d97706", "#dc2626", "#7c3aed",
-  "#0891b2", "#ea580c", "#db2777", "#16a34a", "#0d9488",
-  "#9333ea", "#0284c7"
+  "#2563eb",
+  "#059669",
+  "#d97706",
+  "#dc2626",
+  "#7c3aed",
+  "#0891b2",
+  "#ea580c",
+  "#db2777",
+  "#16a34a",
+  "#0d9488",
+  "#9333ea",
+  "#0284c7",
 ];
 
 // Calculate distance between points using Haversine formula
@@ -12,11 +21,16 @@ function calculateDistance(points) {
   const R = 6371; // Earth's radius in km
   let total = 0;
   for (let i = 0; i < points.length - 1; i++) {
-    const p1 = points[i], p2 = points[i + 1];
+    const p1 = points[i],
+      p2 = points[i + 1];
     if (!p1.lat || !p2.lat) continue;
     const dLat = ((p2.lat - p1.lat) * Math.PI) / 180;
     const dLon = ((p2.lng - p1.lng) * Math.PI) / 180;
-    const a = Math.sin(dLat / 2) ** 2 + Math.cos((p1.lat * Math.PI) / 180) * Math.cos((p2.lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+    const a =
+      Math.sin(dLat / 2) ** 2 +
+      Math.cos((p1.lat * Math.PI) / 180) *
+        Math.cos((p2.lat * Math.PI) / 180) *
+        Math.sin(dLon / 2) ** 2;
     total += R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   }
   return Math.round(total);
@@ -25,11 +39,11 @@ function calculateDistance(points) {
 // Group points by day and return array with day number
 function groupPointsByDay(points) {
   const days = {};
-  points.forEach(point => {
+  points.forEach((point) => {
     const ts = point.timestamp;
     const y = ts.getFullYear();
-    const m = String(ts.getMonth() + 1).padStart(2, '0');
-    const d = String(ts.getDate()).padStart(2, '0');
+    const m = String(ts.getMonth() + 1).padStart(2, "0");
+    const d = String(ts.getDate()).padStart(2, "0");
     const dayKey = `${y}-${m}-${d}`;
     if (!days[dayKey]) days[dayKey] = [];
     days[dayKey].push(point);
@@ -39,7 +53,7 @@ function groupPointsByDay(points) {
     .map(([date, pts], index) => ({
       dayNumber: index + 1,
       date,
-      points: pts
+      points: pts,
     }));
 }
 
@@ -63,7 +77,7 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
 
   // Get this day's route points (from raw data - includes all GPS points)
   const dayPoints = useMemo(() => {
-    const day = allDays.find(d => d.dayNumber === dayNumber);
+    const day = allDays.find((d) => d.dayNumber === dayNumber);
     return day?.points || [];
   }, [allDays, dayNumber]);
 
@@ -76,20 +90,20 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
     if (!dayStart || !dayEnd) return [];
 
     // Get the date string for this day
-    const dayDateStr = dayStart.toLocaleDateString('en-CA', {
-      timeZone: 'America/Vancouver',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
+    const dayDateStr = dayStart.toLocaleDateString("en-CA", {
+      timeZone: "America/Vancouver",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
     });
 
-    return tripData.filter(p => {
+    return tripData.filter((p) => {
       if (!p.image) return false;
-      const pointDateStr = p.timestamp.toLocaleDateString('en-CA', {
-        timeZone: 'America/Vancouver',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit'
+      const pointDateStr = p.timestamp.toLocaleDateString("en-CA", {
+        timeZone: "America/Vancouver",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
       });
       return pointDateStr === dayDateStr;
     });
@@ -103,12 +117,17 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
 
     // Get elevations with noise filtering
     const NOISE_THRESHOLD = 5;
-    const rawElevations = dayPoints.map(p => p.elevation).filter(e => e != null);
+    const rawElevations = dayPoints
+      .map((p) => p.elevation)
+      .filter((e) => e != null);
     const hasElevation = rawElevations.length > 0;
 
-    const validElevations = rawElevations.filter(e => e > NOISE_THRESHOLD);
-    const elevationFloor = validElevations.length > 0 ? Math.min(...validElevations) : 0;
-    const elevations = rawElevations.map(e => e <= NOISE_THRESHOLD ? elevationFloor : e);
+    const validElevations = rawElevations.filter((e) => e > NOISE_THRESHOLD);
+    const elevationFloor =
+      validElevations.length > 0 ? Math.min(...validElevations) : 0;
+    const elevations = rawElevations.map((e) =>
+      e <= NOISE_THRESHOLD ? elevationFloor : e,
+    );
 
     let ascent = 0;
     let descent = 0;
@@ -134,11 +153,15 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
       distance,
       ascent: Math.round(ascent),
       descent: Math.round(descent),
-      maxElevation: elevations.length ? Math.round(Math.max(...elevations)) : null,
-      minElevation: elevations.length ? Math.round(Math.min(...elevations)) : null,
+      maxElevation: elevations.length
+        ? Math.round(Math.max(...elevations))
+        : null,
+      minElevation: elevations.length
+        ? Math.round(Math.min(...elevations))
+        : null,
       hasElevation,
       photoCount: dayPhotos.length,
-      pointCount: dayPoints.length
+      pointCount: dayPoints.length,
     };
   }, [dayPoints, dayPhotos]);
 
@@ -153,7 +176,7 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
   // Get highlights for this day
   const dayHighlights = useMemo(() => {
     if (!tripConfig?.highlights) return [];
-    return tripConfig.highlights.filter(h => h.day === dayNumber);
+    return tripConfig.highlights.filter((h) => h.day === dayNumber);
   }, [tripConfig, dayNumber]);
 
   // Get the day's color
@@ -174,14 +197,14 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
   // Bounds for the map
   const bounds = useMemo(() => {
     if (!dayPoints.length) return null;
-    const lats = dayPoints.map(p => p.lat).filter(Boolean);
-    const lngs = dayPoints.map(p => p.lng).filter(Boolean);
+    const lats = dayPoints.map((p) => p.lat).filter(Boolean);
+    const lngs = dayPoints.map((p) => p.lng).filter(Boolean);
     if (!lats.length || !lngs.length) return null;
     return {
       minLat: Math.min(...lats),
       maxLat: Math.max(...lats),
       minLng: Math.min(...lngs),
-      maxLng: Math.max(...lngs)
+      maxLng: Math.max(...lngs),
     };
   }, [dayPoints]);
 
@@ -197,6 +220,6 @@ export function useDayData(rawTripData, tripData, tripConfig, dayNumber) {
     dayHighlights,
     bounds,
     totalDays,
-    isValidDay: dayNumber >= 1 && dayNumber <= totalDays
+    isValidDay: dayNumber >= 1 && dayNumber <= totalDays,
   };
 }

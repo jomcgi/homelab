@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useMemo, useRef, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useContext,
+  useMemo,
+  useRef,
+  useEffect,
+  useCallback,
+} from "react";
 import { useTripData } from "../hooks/useTripData";
 import { useTripConfig } from "../hooks/useTripConfig";
 import { getDisplayUrl } from "../utils/images";
@@ -7,8 +14,17 @@ const TripContext = createContext(null);
 
 export function TripProvider({ tripSlug, children }) {
   // Fetch trip data and config
-  const { points: rawTripData, loading: dataLoading, error: dataError, stats } = useTripData(tripSlug);
-  const { config: tripConfig, loading: configLoading, error: configError } = useTripConfig(tripSlug);
+  const {
+    points: rawTripData,
+    loading: dataLoading,
+    error: dataError,
+    stats,
+  } = useTripData(tripSlug);
+  const {
+    config: tripConfig,
+    loading: configLoading,
+    error: configError,
+  } = useTripConfig(tripSlug);
 
   // Combined loading/error states
   const loading = dataLoading || configLoading;
@@ -134,38 +150,37 @@ export function TripProvider({ tripSlug, children }) {
     }
   }, [loading, tripData, prefetchImage]);
 
-  const value = useMemo(() => ({
-    tripSlug,
-    tripConfig,
-    rawTripData,
-    tripData,
-    mapPoints,
-    dayBoundaries,
-    availableTags,
-    loading,
-    error,
-    stats,
-    cachedImages,
-    prefetchImage,
-  }), [
-    tripSlug,
-    tripConfig,
-    rawTripData,
-    tripData,
-    mapPoints,
-    dayBoundaries,
-    availableTags,
-    loading,
-    error,
-    stats,
-    prefetchImage,
-  ]);
-
-  return (
-    <TripContext.Provider value={value}>
-      {children}
-    </TripContext.Provider>
+  const value = useMemo(
+    () => ({
+      tripSlug,
+      tripConfig,
+      rawTripData,
+      tripData,
+      mapPoints,
+      dayBoundaries,
+      availableTags,
+      loading,
+      error,
+      stats,
+      cachedImages,
+      prefetchImage,
+    }),
+    [
+      tripSlug,
+      tripConfig,
+      rawTripData,
+      tripData,
+      mapPoints,
+      dayBoundaries,
+      availableTags,
+      loading,
+      error,
+      stats,
+      prefetchImage,
+    ],
   );
+
+  return <TripContext.Provider value={value}>{children}</TripContext.Provider>;
 }
 
 export function useTripContext() {
