@@ -383,27 +383,25 @@
         }
 
         /* Each pod is a small interactive square */
-        .pod-dot {
+        /* :global() needed because these elements are created dynamically via JS */
+        :global(.pod-dot) {
             width: 6px;
             height: 6px;
-            min-width: 6px;
-            min-height: 6px;
-            flex-shrink: 0;
             background: var(--fg);
-            transition: transform 0.05s;
+            flex-shrink: 0;
         }
 
-        .pod-dot:hover {
+        :global(.pod-dot:hover) {
             transform: scale(1.5);
         }
 
-        .pod-dot.pod-pending {
+        :global(.pod-dot.pod-pending) {
             background: transparent;
             border: 1px solid var(--fg);
             animation: pod-pulse 1.5s ease-in-out infinite;
         }
 
-        .pod-dot.pod-failed {
+        :global(.pod-dot.pod-failed) {
             background: #cc0000;
         }
 
@@ -421,15 +419,16 @@
             min-height: 14px;
         }
 
-        .pod-count-default {
+        /* :global() for dynamically created spans */
+        :global(.pod-count-default) {
             opacity: 0.5;
         }
 
-        .pod-inspector {
+        :global(.pod-inspector) {
             color: var(--fg);
         }
 
-        .pod-inspector b {
+        :global(.pod-inspector b) {
             font-weight: 700;
         }
 
@@ -604,15 +603,15 @@
                     let html = '';
                     // Failed first (red)
                     for (let i = 0; i < failed; i++) {
-                        html += '<span class="pod-dot pod-failed"></span>';
+                        html += '<div class="pod-dot pod-failed"></div>';
                     }
                     // Pending (hollow, pulsing)
                     for (let i = 0; i < pending; i++) {
-                        html += '<span class="pod-dot pod-pending"></span>';
+                        html += '<div class="pod-dot pod-pending"></div>';
                     }
                     // Healthy (solid)
                     for (let i = 0; i < running + succeeded; i++) {
-                        html += '<span class="pod-dot"></span>';
+                        html += '<div class="pod-dot"></div>';
                     }
                     els.podGrid.innerHTML = html;
                     els.podCount.innerHTML = `<span class="pod-count-default">${total} pods</span>`;
@@ -631,7 +630,7 @@
                 if (status === 'failed') cls += ' pod-failed';
                 else if (status === 'pending') cls += ' pod-pending';
                 // data attributes for hover inspection
-                html += `<span class="${cls}" data-ns="${pod.ns}" data-name="${pod.name}" data-idx="${i}"></span>`;
+                html += `<div class="${cls}" data-ns="${pod.ns}" data-name="${pod.name}" data-idx="${i}"></div>`;
             });
 
             els.podGrid.innerHTML = html;
