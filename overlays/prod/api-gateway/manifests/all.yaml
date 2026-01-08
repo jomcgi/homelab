@@ -234,6 +234,10 @@ rules:
   - apiGroups: [""]
     resources: ["nodes"]
     verbs: ["get", "list"]
+  # Read pod information (for Pod Matrix)
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
   # Read metrics from metrics-server
   - apiGroups: ["metrics.k8s.io"]
     resources: ["nodes"]
