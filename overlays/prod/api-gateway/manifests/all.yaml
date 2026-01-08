@@ -79,12 +79,22 @@ data:
       fi
     fi
 
-    # Count pods by status (for Pod Matrix visualization)
-    PODS_RUNNING=$(kubectl get pods -A --no-headers --field-selector=status.phase=Running 2>/dev/null | wc -l | tr -d ' ')
-    PODS_PENDING=$(kubectl get pods -A --no-headers --field-selector=status.phase=Pending 2>/dev/null | wc -l | tr -d ' ')
-    PODS_FAILED=$(kubectl get pods -A --no-headers --field-selector=status.phase=Failed 2>/dev/null | wc -l | tr -d ' ')
-    # Also count Succeeded (completed jobs) - these are healthy
-    PODS_SUCCEEDED=$(kubectl get pods -A --no-headers --field-selector=status.phase=Succeeded 2>/dev/null | wc -l | tr -d ' ')
+    # Get pod list with metadata (namespace,name,status) for Pod Matrix
+    # Sort by: Failed first (visibility), then by namespace (texture blocks)
+    # Output as JSON array directly using jq-style awk
+    POD_JSON=$(kubectl get pods -A --no-headers -o jsonpath='{range .items[*]}{.metadata.namespace},{.metadata.name},{.status.phase}{"\n"}{end}' 2>/dev/null | \
+      awk -F',' '{
+        if ($3 == "Failed") print "0," $0
+        else if ($3 == "Pending") print "1," $0
+        else print "2," $0
+      }' | sort -t',' -k1,1n -k2,2 | cut -d',' -f2- | \
+      awk -F',' 'BEGIN { printf "[" }
+        NR > 1 { printf "," }
+        { printf "{\"ns\":\"%s\",\"name\":\"%s\",\"status\":\"%s\"}", $1, $2, $3 }
+        END { printf "]" }')
+
+    # Fallback to empty array if no pods
+    [ -z "$POD_JSON" ] && POD_JSON="[]"
 
     # Get ArgoCD app-of-apps status (canada)
     ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
@@ -102,8 +112,8 @@ data:
       GPU_FIELDS=$GPU_FIELDS',"vram":{"used":'$VRAM_USED',"total":'$VRAM_TOTAL'}'
     fi
 
-    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":{"running":%s,"pending":%s,"failed":%s,"succeeded":%s},"gitops":{"status":"%s","revision":"%s"}%s}\n' \
-      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$PODS_RUNNING" "$PODS_PENDING" "$PODS_FAILED" "$PODS_SUCCEEDED" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
+    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":%s,"gitops":{"status":"%s","revision":"%s"}%s}\n' \
+      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$POD_JSON" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"
@@ -310,7 +320,7 @@ spec:
     metadata:
       annotations:
         checksum/nginx-config: bf461882832bd148aecf7851c5502bccc58b4219fa8fef6cb81b6fde3e09c118
-        checksum/collector-config: 11b7dbfe63c0554a8932023ba14e665d91ac9fa1fedd4577062305db5b072338
+        checksum/collector-config: ac3aea480bbd3b7edb428bcc96e2890b44aa56b907cb66b44abf6a96704798fc
       labels:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/instance: api-gateway
