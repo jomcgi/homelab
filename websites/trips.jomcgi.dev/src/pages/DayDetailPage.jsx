@@ -4,6 +4,8 @@ import SunCalc from 'suncalc';
 import { useTripContext } from '../contexts/TripContext';
 import { useDayData } from '../hooks/useDayData';
 import { useMediaQuery } from '../hooks/useMediaQuery';
+import { useFavicon } from '../hooks/useFavicon';
+import { usePageTitle } from '../hooks/usePageTitle';
 import { DayNavigation } from '../components/day/DayNavigation';
 import { DayMap } from '../components/map/DayMap';
 import { DayStatsCard } from '../components/day/DayStatsCard';
@@ -35,6 +37,13 @@ export function DayDetailPage({ dayNumber }) {
   } = useTripContext();
 
   const isMobile = useMediaQuery('(max-width: 768px)');
+
+  // Set favicon to solid dot (focus mode)
+  useFavicon("detail");
+
+  // Set page title (compact for tab display)
+  const shortTitle = tripConfig?.trip?.short_title;
+  usePageTitle(shortTitle ? `${shortTitle} ${dayNumber}` : null);
 
   // Get day-specific data
   const {

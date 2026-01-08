@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Joe McGinley</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>jomci</title>
     <style>
         * {
             margin: 0;
@@ -38,44 +39,80 @@
             padding: 20px;
         }
         
+        /* === IDENTITY MODULE === */
+        /* Matches the rack pattern: black header + content */
         header {
             border: 2px solid var(--fg);
-            padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 0; /* Sections touch */
         }
-        
+
+        .identity-header {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 8px 15px;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .identity-content {
+            padding: 15px;
+        }
+
         h1 {
-            font-size: 24px;
-            font-weight: normal;
+            font-size: 20px;
+            font-weight: 700;
             text-transform: uppercase;
             letter-spacing: 2px;
+            margin-bottom: 12px;
         }
-        
+
         .bio {
             margin-bottom: 8px;
+            font-size: 13px;
         }
-        
+
         .bio:last-of-type {
-            margin-bottom: 15px;
+            margin-bottom: 0;
         }
-        
-        .links {
-            display: flex;
-            gap: 20px;
-            flex-wrap: wrap;
-            font-size: 12px;
+
+        /* Contact grid - matches table aesthetic */
+        .contact-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            border-top: 2px solid var(--fg);
+            margin-top: 15px;
+            margin: 15px -15px -15px -15px; /* Flush to edges */
         }
-        
-        .links a:hover {
+
+        .contact-grid a {
+            padding: 10px;
+            text-align: center;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            border-right: 2px solid var(--fg);
+        }
+
+        .contact-grid a:last-child {
+            border-right: none;
+        }
+
+        .contact-grid a:hover {
             background: var(--fg);
             color: var(--bg);
         }
         
+        /* === SECTIONS === */
+        /* Rack units touch - no gaps */
         section {
             border: 2px solid var(--fg);
-            margin-bottom: 20px;
+            border-top: none; /* Shares border with section above */
         }
-        
+
         .section-header {
             background: var(--fg);
             color: var(--bg);
@@ -83,155 +120,224 @@
             font-size: 11px;
             text-transform: uppercase;
             letter-spacing: 3px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
-        
+
+        .section-header a {
+            color: var(--bg);
+            font-size: 10px;
+            opacity: 0.7;
+        }
+
+        .section-header a:hover {
+            opacity: 1;
+        }
+
         .section-content {
             padding: 15px;
         }
-        
+
+        /* Project rows */
         .project {
-            border-bottom: 1px solid var(--fg);
-            padding: 12px 0;
+            display: block;
+            border-bottom: 2px solid var(--fg);
+            padding: 12px 15px;
+            margin: 0 -15px;
+            transition: background 0.1s, color 0.1s;
         }
-        
+
         .project:last-child {
             border-bottom: none;
+            margin-bottom: -15px;
         }
-        
+
+        .project:first-child {
+            margin-top: -15px;
+        }
+
+        /* Only linked projects are interactive */
+        a.project {
+            cursor: pointer;
+        }
+
+        a.project:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
         .project-name {
             font-weight: bold;
             text-transform: uppercase;
             font-size: 12px;
             letter-spacing: 1px;
         }
-        
-        .project-name a:hover {
-            background: var(--fg);
-            color: var(--bg);
-        }
-        
+
         .project-desc {
             margin-top: 4px;
             font-size: 13px;
         }
-        
-        .arch-grid {
-            display: grid;
-            grid-template-columns: 120px 1fr;
-            gap: 2px;
-        }
-        
-        .arch-item {
-            display: contents;
-        }
-        
-        .arch-key {
-            background: var(--fg);
-            color: var(--bg);
-            padding: 6px 10px;
-            font-size: 11px;
-            text-transform: uppercase;
-            display: flex;
-            align-items: center;
-        }
-        
-        .arch-val {
-            border: 1px solid var(--fg);
-            padding: 6px 10px;
-            font-size: 12px;
-        }
-        
-        footer {
-            border: 2px solid var(--fg);
-            padding: 15px;
-            font-size: 12px;
-        }
-        
-        footer a:hover {
-            background: var(--fg);
-            color: var(--bg);
-        }
-        
-        .cluster-info {
-            font-size: 11px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            margin-bottom: 15px;
+
+        /* WIP projects - slightly dimmed */
+        .project.wip {
+            opacity: 0.7;
         }
 
+        .project.wip .project-name::after {
+            content: " [WIP]";
+            font-size: 9px;
+            opacity: 0.5;
+            letter-spacing: 0.05em;
+        }
+        
+
+        /* === HOMELAB RACK === */
+        /* Single unit: header is label, grid is faceplate, no nested boxes */
+
+        .homelab-section .section-content {
+            padding: 0; /* Flush - grid IS the content */
+        }
+
+        /* Telemetry Grid - 4 columns, flush to section edge */
+        /* 7 elements: STATUS(span-2), GITOPS, VER | NODES, CPU, MEM, GPU */
         #live-stats {
-            margin-bottom: 20px;
-            border-top: 1px solid var(--fg);
-            border-bottom: 1px solid var(--fg);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            border-bottom: 2px solid var(--fg);
         }
 
-        .status-strip {
-            display: flex;
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 15px;
-            padding: 10px 0;
-            font-size: 12px;
+        .stat-cell {
+            padding: 12px;
+            border-right: 2px solid var(--fg);
         }
 
-        .status-strip + .status-strip {
-            border-top: 1px dashed var(--fg);
+        /* Row 1: STATUS spans 2 columns */
+        .stat-cell.span-2 {
+            grid-column: span 2;
         }
 
-        .stat-group {
-            display: flex;
-            align-items: center;
-            gap: 6px;
+        /* Row divider: only row 1 (children 1-3) has border-bottom */
+        .stat-cell:nth-child(-n+3) {
+            border-bottom: 2px solid var(--fg);
+        }
+
+        /* Last column: no border-right (VER=3, GPU=7) */
+        .stat-cell:nth-child(3),
+        .stat-cell:nth-child(7) {
+            border-right: none;
         }
 
         .stat-label {
-            font-weight: bold;
-            opacity: 0.8;
+            font-size: 9px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            opacity: 0.6;
+            margin-bottom: 4px;
         }
 
-        .stat-sep {
-            opacity: 0.3;
+        .stat-value {
+            font-size: 12px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
+
+        /* Manifest Table - black sidebar is one continuous strip */
+        .arch-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 0; /* Ensure no gaps between rows */
+        }
+
+        .arch-item {
+            display: flex;
+            margin: 0; /* Ensure no margin between rows */
+        }
+
+        .arch-key {
+            width: 120px;
+            flex-shrink: 0;
+            background: var(--fg);
+            color: var(--bg);
+            padding: 10px 12px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            display: flex;
+            align-items: center;
+            border-right: 2px solid var(--fg); /* Vertical divider on black cell */
+            /* No border-bottom - creates infinite black bar */
+        }
+
+        .arch-val {
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 12px;
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid var(--fg); /* Only white cells have horizontal dividers */
+        }
+
+        .arch-item:last-child .arch-val {
+            border-bottom: none;
+        }
+
 
         @media (max-width: 600px) {
-            .arch-grid {
-                grid-template-columns: 100px 1fr;
+            /* Telemetry: 2 columns on mobile */
+            /* Layout: STATUS(full) | GITOPS, VER | NODES, CPU | MEM, GPU */
+            #live-stats {
+                grid-template-columns: repeat(2, 1fr);
             }
+            .stat-cell.span-2 {
+                grid-column: span 2; /* STATUS takes full width */
+            }
+            .stat-cell {
+                border-right: 2px solid var(--fg);
+                border-bottom: 2px solid var(--fg);
+            }
+            /* Right column: no border-right (children 1, 3, 5, 7) */
+            .stat-cell:nth-child(1), /* STATUS spans full */
+            .stat-cell:nth-child(3), /* VER */
+            .stat-cell:nth-child(5), /* CPU */
+            .stat-cell:nth-child(7) { /* GPU */
+                border-right: none;
+            }
+            /* Last row: no border-bottom (MEM=6, GPU=7) */
+            .stat-cell:nth-child(6),
+            .stat-cell:nth-child(7) {
+                border-bottom: none;
+            }
+            /* Manifest: narrower key column */
             .arch-key {
-                font-size: 10px;
+                width: 90px;
+                font-size: 9px;
+                padding: 8px 10px;
             }
-            .stat-sep {
-                display: none;
-            }
-            .status-strip {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 5px;
+            .arch-val {
+                padding: 8px 10px;
+                font-size: 11px;
             }
         }
         
         .toggle-btn {
-            background: var(--fg);
-            color: var(--bg);
+            background: var(--bg);
+            color: var(--fg);
             border: none;
-            padding: 6px 12px;
+            padding: 4px 8px;
             font-family: 'Courier New', Courier, monospace;
-            font-size: 11px;
+            font-size: 10px;
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.05em;
             cursor: pointer;
-            transition: background 0.2s, color 0.2s;
         }
-        
+
         .toggle-btn:hover {
-            opacity: 0.8;
-        }
-        
-        .header-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 15px;
+            opacity: 0.7;
         }
 
         /* Semantic Brutalist Colors */
@@ -251,108 +357,102 @@
 <body>
     <div class="container">
         <header>
-            <div class="header-row">
-                <h1>Joe McGinley</h1>
-                <button class="toggle-btn" onclick="document.body.classList.toggle('dark')">[INVERT]</button>
+            <div class="identity-header">
+                <span>Identity</span>
+                <button class="toggle-btn" onclick="document.body.classList.toggle('dark')">INVERT</button>
             </div>
-            <p class="bio">Mostly I build tools and infrastructure that other engineers don't have to think about.</p>
-            <p class="bio">Based in Vancouver, originally from Scotland.</p>
-            <p class="bio">Senior Platform Engineer @ <a href="https://semgrep.dev">Semgrep</a></p>
-            <div class="links">
-                <a href="mailto:joe@jomcgi.dev">[EMAIL]</a>
-                <a href="https://www.linkedin.com/in/jomcgi/">[LINKEDIN]</a>
-                <a href="https://github.com/jomcgi">[GITHUB]</a>
+            <div class="identity-content">
+                <h1>Joe McGinley</h1>
+                <p class="bio">Mostly I build tools and infrastructure that other engineers don't have to think about.</p>
+                <p class="bio">Based in Vancouver, originally from Scotland.</p>
+                <p class="bio">Senior Platform Engineer @ <a href="https://semgrep.dev">Semgrep</a></p>
+                <div class="contact-grid">
+                    <a href="mailto:joe@jomcgi.dev">EMAIL</a>
+                    <a href="https://www.linkedin.com/in/jomcgi/">LINKEDIN</a>
+                    <a href="https://github.com/jomcgi">GITHUB</a>
+                </div>
             </div>
         </header>
 
         <section>
             <div class="section-header">Side Quests</div>
             <div class="section-content">
-                <div class="project">
-                    <div class="project-name"><a href="https://trips.jomcgi.dev">trips.jomcgi.dev</a></div>
+                <a href="https://trips.jomcgi.dev" class="project">
+                    <div class="project-name">trips.jomcgi.dev</div>
                     <div class="project-desc">Road trip tracker for our Yukon drive. On-the-road inference to detect wildlife from a car-mounted GoPro.</div>
-                </div>
-                <div class="project">
-                    <div class="project-name"><a href="/frank">Frank x Vancouver</a></div>
+                </a>
+                <a href="/frank" class="project">
+                    <div class="project-name">Frank x Vancouver</div>
                     <div class="project-desc">Trip website for my sister's visit.</div>
-                </div>
-                <div class="project">
-                    <div class="project-name"><a href="https://hikes.jomcgi.dev">hikes.jomcgi.dev</a></div>
+                </a>
+                <a href="https://hikes.jomcgi.dev" class="project">
+                    <div class="project-name">hikes.jomcgi.dev</div>
                     <div class="project-desc">Find hikes in Scotland with good weather right now. Forecast updates every 30 minutes.</div>
-                </div>
+                </a>
             </div>
         </section>
 
         <section>
             <div class="section-header">Building</div>
             <div class="section-content">
-                <div class="project">
+                <div class="project wip">
                     <div class="project-name">Stargazer</div>
                     <div class="project-desc">Map of good stargazing spots. Filters for road access, low light pollution, clear forecasts.</div>
                 </div>
-                <div class="project">
+                <div class="project wip">
                     <div class="project-name">Sextant</div>
                     <div class="project-desc">Generates typed Go for Kubernetes operators from declarative state machines.</div>
                 </div>
-                <div class="project">
+                <div class="project wip">
                     <div class="project-name">Opencode WebUI</div>
                     <div class="project-desc">Self-hosted coding assistant. Sessions run as pods with access to multiple LLM backends.</div>
                 </div>
-                <div class="project">
+                <div class="project wip">
                     <div class="project-name">Cloudflare Operator</div>
                     <div class="project-desc">Annotate a service with a domain → operator creates tunnels, DNS records, zero trust rules.</div>
                 </div>
             </div>
         </section>
 
-        <section>
-            <div class="section-header">Homelab</div>
+        <section class="homelab-section">
+            <div class="section-header">
+                <span>Homelab</span>
+                <a href="https://github.com/jomcgi/homelab">github.com/jomcgi/homelab →</a>
+            </div>
             <div class="section-content">
-                <div class="cluster-info">4-node Kubernetes cluster running in my office</div>
-
                 <div id="live-stats">
-                    <div class="status-strip">
-                        <div class="stat-group">
-                            <span class="stat-label">STATUS:</span>
+                    <!-- Row 1: Status (span 2) | GitOps | Ver -->
+                    <div class="stat-cell span-2">
+                        <div class="stat-label">Status</div>
+                        <div class="stat-value">
                             <span id="sys-dot" class="status-dot st-dim">●</span>
                             <span id="sys-text">CONNECTING</span>
                         </div>
-                        <span class="stat-sep">|</span>
-                        <div class="stat-group">
-                            <span class="stat-label">GITOPS:</span>
-                            <span id="sys-gitops"><span class="st-dim">...</span></span>
-                        </div>
-                        <span class="stat-sep">|</span>
-                        <div class="stat-group">
-                            <span class="stat-label">VER:</span>
-                            <span id="sys-ver"><span class="st-dim">...</span></span>
-                        </div>
                     </div>
-                    <div class="status-strip">
-                        <div class="stat-group">
-                            <span class="stat-label">NODES:</span>
-                            <span id="sys-nodes"><span class="st-dim">...</span></span>
-                        </div>
-                        <span class="stat-sep">|</span>
-                        <div class="stat-group">
-                            <span class="stat-label">CPU:</span>
-                            <span id="sys-cpu"><span class="st-dim">...</span></span>
-                        </div>
-                        <span class="stat-sep">|</span>
-                        <div class="stat-group">
-                            <span class="stat-label">MEM:</span>
-                            <span id="sys-mem"><span class="st-dim">...</span></span>
-                        </div>
-                        <span class="stat-sep">|</span>
-                        <div class="stat-group">
-                            <span class="stat-label">GPU:</span>
-                            <span id="sys-gpu"><span class="st-dim">...</span></span>
-                        </div>
-                        <span class="stat-sep">|</span>
-                        <div class="stat-group">
-                            <span class="stat-label">VRAM:</span>
-                            <span id="sys-vram"><span class="st-dim">...</span></span>
-                        </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">GitOps</div>
+                        <div class="stat-value" id="sys-gitops"><span class="st-dim">...</span></div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">Ver</div>
+                        <div class="stat-value" id="sys-ver"><span class="st-dim">...</span></div>
+                    </div>
+                    <!-- Row 2: Nodes | CPU | Mem | GPU -->
+                    <div class="stat-cell">
+                        <div class="stat-label">Nodes</div>
+                        <div class="stat-value" id="sys-nodes"><span class="st-dim">...</span></div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">CPU</div>
+                        <div class="stat-value" id="sys-cpu"><span class="st-dim">...</span></div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">Mem</div>
+                        <div class="stat-value" id="sys-mem"><span class="st-dim">...</span></div>
+                    </div>
+                    <div class="stat-cell">
+                        <div class="stat-label">GPU</div>
+                        <div class="stat-value" id="sys-gpu"><span class="st-dim">...</span></div>
                     </div>
                 </div>
 
@@ -392,10 +492,6 @@
                 </div>
             </div>
         </section>
-
-        <footer>
-            <a href="https://github.com/jomcgi/homelab">github.com/jomcgi/homelab</a>
-        </footer>
     </div>
 
     <script>
@@ -407,7 +503,6 @@
                 cpu: document.getElementById('sys-cpu'),
                 mem: document.getElementById('sys-mem'),
                 gpu: document.getElementById('sys-gpu'),
-                vram: document.getElementById('sys-vram'),
                 gitops: document.getElementById('sys-gitops'),
                 ver: document.getElementById('sys-ver')
             };
@@ -470,37 +565,27 @@
                 els.nodes.innerHTML = html;
 
                 // Render CPU
-                els.cpu.innerText = `${data.cpu}%`;
-                els.cpu.className = '';
-                if (data.cpu > 80) els.cpu.className = 'st-err';
-                else if (data.cpu > 50) els.cpu.className = 'st-warn';
+                let cpuClass = '';
+                if (data.cpu > 80) cpuClass = 'st-err';
+                else if (data.cpu > 50) cpuClass = 'st-warn';
+                els.cpu.innerHTML = `<span class="${cpuClass}">${data.cpu}%</span>`;
 
                 // Render Memory
                 const memPercent = (data.mem.used / data.mem.total) * 100;
-                els.mem.innerText = `${data.mem.used}GB / ${data.mem.total}GB`;
-                els.mem.className = '';
-                if (memPercent > 90) els.mem.className = 'st-err';
-                else if (memPercent > 80) els.mem.className = 'st-warn';
+                let memClass = '';
+                if (memPercent > 90) memClass = 'st-err';
+                else if (memPercent > 80) memClass = 'st-warn';
+                els.mem.innerHTML = `<span class="${memClass}">${data.mem.used}/${data.mem.total}GB</span>`;
 
-                // Render GPU utilization
+                // Render GPU (util + VRAM combined)
                 if (data.gpu_util !== undefined && data.gpu_util !== null) {
-                    els.gpu.innerText = `${data.gpu_util}%`;
-                    els.gpu.className = '';
-                    if (data.gpu_util > 90) els.gpu.className = 'st-err';
-                    else if (data.gpu_util > 70) els.gpu.className = 'st-warn';
+                    let gpuClass = '';
+                    if (data.gpu_util > 90) gpuClass = 'st-err';
+                    else if (data.gpu_util > 70) gpuClass = 'st-warn';
+                    const vramStr = data.vram ? ` (${data.vram.used}/${data.vram.total}GB)` : '';
+                    els.gpu.innerHTML = `<span class="${gpuClass}">${data.gpu_util}%${vramStr}</span>`;
                 } else {
                     els.gpu.innerHTML = '<span class="st-dim">--</span>';
-                }
-
-                // Render VRAM
-                if (data.vram) {
-                    els.vram.innerText = `${data.vram.used}/${data.vram.total}GB`;
-                    const vramPercent = (data.vram.used / data.vram.total) * 100;
-                    els.vram.className = '';
-                    if (vramPercent > 95) els.vram.className = 'st-err';
-                    else if (vramPercent > 85) els.vram.className = 'st-warn';
-                } else {
-                    els.vram.innerHTML = '<span class="st-dim">--</span>';
                 }
 
                 // Render GitOps status
@@ -529,7 +614,6 @@
             els.cpu.innerHTML = '<span class="st-dim">--</span>';
             els.mem.innerHTML = '<span class="st-dim">--</span>';
             els.gpu.innerHTML = '<span class="st-dim">--</span>';
-            els.vram.innerHTML = '<span class="st-dim">--</span>';
             els.gitops.innerHTML = '<span class="st-dim">[--]</span>';
             els.ver.innerHTML = '<span class="st-dim">[--]</span>';
         }
