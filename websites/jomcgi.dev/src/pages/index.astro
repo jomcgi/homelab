@@ -652,6 +652,26 @@
             });
         }
 
+        // Fetch with exponential backoff retry
+        // Retries help survive brief network hiccups without immediately showing UNREACHABLE
+        async function fetchWithRetry(url, maxRetries = 3) {
+            let lastError;
+            for (let attempt = 0; attempt < maxRetries; attempt++) {
+                try {
+                    const res = await fetch(url);
+                    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                    return await res.json();
+                } catch (e) {
+                    lastError = e;
+                    if (attempt < maxRetries - 1) {
+                        // Exponential backoff: 1s, 2s, 4s
+                        await new Promise(r => setTimeout(r, 1000 * Math.pow(2, attempt)));
+                    }
+                }
+            }
+            throw lastError;
+        }
+
         async function fetchStats() {
             const els = {
                 dot: document.getElementById('sys-dot'),
@@ -667,22 +687,23 @@
             };
 
             try {
-                const res = await fetch('https://api.jomcgi.dev/cluster-info?t=' + Date.now());
-                if (!res.ok) throw new Error('Fetch failed');
-
-                const data = await res.json();
+                // Fetch with retry logic - CDN caching means we don't need cache busting
+                // Retry up to 3 times with exponential backoff before showing UNREACHABLE
+                const data = await fetchWithRetry('https://api.jomcgi.dev/cluster-info', 3);
                 const now = new Date();
                 const lastUpdate = new Date(data.updated_at);
                 const diffMs = now - lastUpdate;
 
-                // Deadman Switch: If data > 1 hour old, show OFFLINE
-                if (diffMs > 3600000) {
+                // Deadman Switch: If data > 5 minutes old, show OFFLINE
+                // (With CDN caching, data can be legitimately up to ~5.5min old)
+                if (diffMs > 300000) {
                     setOfflineState(els, 'OFFLINE');
                     return;
                 }
 
-                // Stale Data Check: If data > 60s old, warn but show data
-                if (diffMs > 60000) {
+                // Stale Data Check: If data > 2 minutes old, warn but show data
+                // (Accounts for collector interval + CDN cache age)
+                if (diffMs > 120000) {
                     els.dot.className = 'status-dot st-warn';
                     els.text.innerText = 'STALE';
                 } else {
@@ -783,7 +804,9 @@
         }
 
         fetchStats();
-        setInterval(fetchStats, 5000);
+        // Poll every 30s - matches CDN cache duration
+        // No need to poll faster since CDN serves cached response anyway
+        setInterval(fetchStats, 30000);
     </script>
 </body>
 </html>
