@@ -353,6 +353,21 @@
             vertical-align: middle;
         }
 
+        /* GitOps hover tooltip - shows sync time */
+        .gitops-status {
+            cursor: default;
+            position: relative;
+        }
+
+        .gitops-status.has-sync-time {
+            cursor: pointer;
+        }
+
+        .gitops-status.has-sync-time:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
         /* === STATUS + POD MATRIX CELL === */
         /* Status on left, Pod Matrix (Scantron sheet) on right */
         .stat-cell.status-pod-cell {
@@ -524,7 +539,7 @@
                     </div>
                     <div class="stat-cell">
                         <div class="stat-label">GitOps</div>
-                        <div class="stat-value" id="sys-gitops"><span class="st-dim">...</span></div>
+                        <div class="stat-value"><span class="gitops-status" id="sys-gitops"><span class="st-dim">...</span></span></div>
                     </div>
                     <div class="stat-cell">
                         <div class="stat-label">Ver</div>
@@ -652,6 +667,28 @@
             });
         }
 
+        // Format a timestamp as relative time (e.g., "2m ago", "1h 30m ago")
+        function formatTimeAgo(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffSec = Math.floor(diffMs / 1000);
+            const diffMin = Math.floor(diffSec / 60);
+            const diffHr = Math.floor(diffMin / 60);
+            const diffDays = Math.floor(diffHr / 24);
+
+            if (diffDays > 0) {
+                return diffDays === 1 ? '1d ago' : `${diffDays}d ago`;
+            }
+            if (diffHr > 0) {
+                const mins = diffMin % 60;
+                return mins > 0 ? `${diffHr}h ${mins}m ago` : `${diffHr}h ago`;
+            }
+            if (diffMin > 0) {
+                return `${diffMin}m ago`;
+            }
+            return 'just now';
+        }
+
         // Fetch with exponential backoff retry
         // Retries help survive brief network hiccups without immediately showing UNREACHABLE
         async function fetchWithRetry(url, maxRetries = 3) {
@@ -771,14 +808,38 @@
                 // Render Pod Matrix
                 renderPodMatrix(els, data.pods);
 
-                // Render GitOps status
+                // Render GitOps status with hover tooltip
                 if (data.gitops) {
                     const status = data.gitops.status || 'Unknown';
+                    const syncedAt = data.gitops.syncedAt;
+
                     els.gitops.innerText = `[${status}]`;
-                    els.gitops.className = '';
-                    if (status === 'Synced') els.gitops.className = 'st-ok';
-                    else if (status === 'OutOfSync') els.gitops.className = 'st-warn';
-                    else if (status === 'Unknown') els.gitops.className = 'st-err';
+                    els.gitops.className = 'gitops-status';
+                    if (status === 'Synced') els.gitops.classList.add('st-ok');
+                    else if (status === 'OutOfSync') els.gitops.classList.add('st-warn');
+                    else if (status === 'Unknown') els.gitops.classList.add('st-err');
+
+                    // Add hover behavior if we have sync time
+                    if (syncedAt) {
+                        els.gitops.classList.add('has-sync-time');
+                        els.gitops.dataset.status = status;
+                        els.gitops.dataset.syncedAt = syncedAt;
+
+                        // Remove old listeners by cloning
+                        const newGitops = els.gitops.cloneNode(true);
+                        els.gitops.parentNode.replaceChild(newGitops, els.gitops);
+                        els.gitops = newGitops;
+
+                        els.gitops.addEventListener('mouseenter', () => {
+                            const syncTime = new Date(els.gitops.dataset.syncedAt);
+                            const ago = formatTimeAgo(syncTime);
+                            els.gitops.innerText = `[${ago}]`;
+                        });
+
+                        els.gitops.addEventListener('mouseleave', () => {
+                            els.gitops.innerText = `[${els.gitops.dataset.status}]`;
+                        });
+                    }
 
                     // Render version (git revision)
                     const rev = data.gitops.revision || '';
