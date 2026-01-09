@@ -81,6 +81,7 @@ data:
     # Get ArgoCD app-of-apps status (canada)
     ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
     ARGO_REVISION=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.revision}' 2>/dev/null | cut -c1-7 || echo "")
+    ARGO_SYNCED_AT=$(kubectl get application -n argocd canada -o jsonpath='{.status.operationState.finishedAt}' 2>/dev/null || echo "")
 
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -94,8 +95,15 @@ data:
       GPU_FIELDS=$GPU_FIELDS',"vram":{"used":'$VRAM_USED',"total":'$VRAM_TOTAL'}'
     fi
 
-    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":%s,"gitops":{"status":"%s","revision":"%s"}%s}\n' \
-      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$POD_JSON" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
+    # Build gitops JSON with optional syncedAt
+    GITOPS_JSON='{"status":"'"$ARGO_STATUS"'","revision":"'"$ARGO_REVISION"'"'
+    if [ -n "$ARGO_SYNCED_AT" ]; then
+      GITOPS_JSON=$GITOPS_JSON',"syncedAt":"'"$ARGO_SYNCED_AT"'"'
+    fi
+    GITOPS_JSON=$GITOPS_JSON'}'
+
+    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":%s,"gitops":%s%s}\n' \
+      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$POD_JSON" "$GITOPS_JSON" "$GPU_FIELDS" > "$TEMP_FILE"
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"
