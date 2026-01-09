@@ -78,10 +78,11 @@ data:
     # Fallback to empty array if no pods
     [ -z "$POD_JSON" ] && POD_JSON="[]"
 
-    # Get ArgoCD app-of-apps status (canada)
+    # Get ArgoCD app-of-apps status (canada) for overall sync status
     ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
     ARGO_REVISION=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.revision}' 2>/dev/null | cut -c1-7 || echo "")
-    ARGO_SYNCED_AT=$(kubectl get application -n argocd canada -o jsonpath='{.status.operationState.finishedAt}' 2>/dev/null || echo "")
+    # Get the most recent sync time from ALL ArgoCD applications (not just app-of-apps)
+    ARGO_SYNCED_AT=$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.status.operationState.finishedAt}{"\n"}{end}' 2>/dev/null | sort -r | head -1 || echo "")
 
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
