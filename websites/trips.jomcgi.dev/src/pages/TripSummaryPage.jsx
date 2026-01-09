@@ -279,6 +279,7 @@ function RouteMap({
   dayColors,
   hoveredDay,
   onHoverDay,
+  onDayClick,
   mapHeight = 280,
   isMobile = false,
 }) {
@@ -432,7 +433,7 @@ function RouteMap({
           },
         });
 
-        // Only add hover handlers if map is not rotated (rotation causes coordinate mismatch)
+        // Only add hover/click handlers if map is not rotated (rotation causes coordinate mismatch)
         if (!shouldRotate) {
           map.current.on("mouseenter", `route-${i}`, () => {
             map.current.getCanvas().style.cursor = "pointer";
@@ -449,6 +450,13 @@ function RouteMap({
           map.current.on("mouseleave", `route-${i}-glow`, () => {
             map.current.getCanvas().style.cursor = "";
             onHoverDay?.(null);
+          });
+          // Click handlers for navigation
+          map.current.on("click", `route-${i}`, () => {
+            onDayClick?.(day.dayNumber);
+          });
+          map.current.on("click", `route-${i}-glow`, () => {
+            onDayClick?.(day.dayNumber);
           });
         }
       });
@@ -559,6 +567,35 @@ function RouteMap({
     }
   };
 
+  // Handle click on rotated map for navigation
+  const handleRotatedMapClick = (e) => {
+    if (!map.current || !mapReady || !onDayClick) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const screenX = e.clientX - rect.left;
+    const screenY = e.clientY - rect.top;
+
+    // Transform screen coordinates to map coordinates (90° clockwise rotation)
+    const mapX = screenY;
+    const mapY = containerWidth - screenX;
+
+    const features = map.current.queryRenderedFeatures([mapX, mapY]);
+
+    const routeFeature = features.find(
+      (f) => f.layer.id.startsWith("route-") && !f.layer.id.includes("glow"),
+    );
+    if (routeFeature) {
+      const dayIndex = parseInt(
+        routeFeature.layer.id.replace("route-", ""),
+        10,
+      );
+      // Navigate to day using dayNumber (1-indexed) from days array
+      if (days[dayIndex]) {
+        onDayClick(days[dayIndex].dayNumber);
+      }
+    }
+  };
+
   if (shouldRotate) {
     // For rotated maps: the map's height (after rotation) becomes the container width
     // So we render the map with width = displayHeight, height = containerWidth
@@ -568,7 +605,7 @@ function RouteMap({
         ref={wrapperRef}
         onMouseMove={handleRotatedMapHover}
         onMouseLeave={() => onHoverDay?.(null)}
-        onClick={handleRotatedMapHover}
+        onClick={handleRotatedMapClick}
         style={{
           position: "relative",
           width: "100%",
@@ -1042,6 +1079,7 @@ export function TripSummaryPage() {
               dayColors={dayColors}
               hoveredDay={hoveredDay}
               onHoverDay={setHoveredDay}
+              onDayClick={navigateToDay}
               mapHeight={
                 isLargeDesktop ? Math.round(220 * scale) : isMobile ? 240 : 280
               }
@@ -1055,11 +1093,12 @@ export function TripSummaryPage() {
                 borderTop: "2px solid #1a1a1a",
               }}
             >
-              {stats.days.map((_, i) => (
+              {stats.days.map((day, i) => (
                 <div
                   key={i}
                   onMouseEnter={() => setHoveredDay(i)}
                   onMouseLeave={() => setHoveredDay(null)}
+                  onClick={() => navigateToDay(day.dayNumber)}
                   style={{
                     flex: 1,
                     height: "6px",
