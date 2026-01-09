@@ -55,21 +55,25 @@ data:
             }
 
             # Cluster info endpoint - serve static JSON
+            # CDN caching: fresh for 30s, serve stale up to 5min while revalidating
+            # This ensures brief origin outages don't show UNREACHABLE to users
             location = /cluster-info {
                 alias /data/status.json;
                 default_type application/json;
-                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Cache-Control "public, s-maxage={{ .Values.clusterInfo.cache.maxAge }}, stale-while-revalidate={{ .Values.clusterInfo.cache.staleWhileRevalidate }}" always;
                 add_header Access-Control-Allow-Origin $cors_origin always;
                 add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+                add_header Access-Control-Max-Age "86400" always;
             }
 
             # Legacy endpoint for backwards compatibility
             location = /status.json {
                 alias /data/status.json;
                 default_type application/json;
-                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Cache-Control "public, s-maxage={{ .Values.clusterInfo.cache.maxAge }}, stale-while-revalidate={{ .Values.clusterInfo.cache.staleWhileRevalidate }}" always;
                 add_header Access-Control-Allow-Origin $cors_origin always;
                 add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+                add_header Access-Control-Max-Age "86400" always;
             }
 
             # Trips API - proxy to trips-nginx (keep /trips/ prefix)
