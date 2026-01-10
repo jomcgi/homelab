@@ -26,7 +26,6 @@ filegroup(
         "//overlays/dev/freshrss:render_manifests",
         "//overlays/dev/n8n-obsidian-api:render_manifests",
         "//overlays/dev/stargazer:render_manifests",
-        "//overlays/dev/ttyd-session-manager:render_manifests",
         "//overlays/prod/cloudflare-tunnel:render_manifests",
         "//overlays/prod/gh-arc-controller:render_manifests",
         "//overlays/prod/gh-arc-runners:render_manifests",

@@ -1,0 +1,102 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "code.fullname" . }}-init
+  labels:
+    {{- include "code.labels" . | nindent 4 }}
+data:
+  init.sh: |
+    #!/bin/bash
+    set -e
+
+    echo "Initializing Claude Workspace..."
+
+    # npm global directory on PVC (persists across restarts)
+    export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+    export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
+    mkdir -p "$NPM_CONFIG_PREFIX"
+
+    # Add npm-global to PATH for fish shell
+    mkdir -p "$HOME/.config/fish"
+    if ! grep -q "npm-global" "$HOME/.config/fish/config.fish" 2>/dev/null; then
+      echo 'set -gx PATH $HOME/.npm-global/bin $PATH' >> "$HOME/.config/fish/config.fish"
+    fi
+
+    # Install Claude Code if not already present
+    if ! command -v claude &> /dev/null; then
+        echo "Installing Claude Code..."
+        npm install -g @anthropic-ai/claude-code
+    else
+        echo "Claude Code already installed"
+    fi
+
+    # Install cui-server if not already present
+    if ! command -v cui-server &> /dev/null; then
+        echo "Installing cui-server..."
+        npm install -g cui-server
+    else
+        echo "cui-server already installed"
+    fi
+
+    # Configure cui-server
+    mkdir -p ~/.cui
+    cat > ~/.cui/config.json << EOF
+    {
+      "server": {
+        "host": "0.0.0.0",
+        "port": {{ .Values.cui.port }}
+      }
+    }
+    EOF
+
+    # Git configuration
+    git config --global user.name "${GIT_USER_NAME}"
+    git config --global user.email "${GIT_USER_EMAIL}"
+    git config --global credential.helper store
+    git config --global init.defaultBranch main
+    git config --global safe.directory '*'
+
+    # Git credentials
+    echo "https://oauth2:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
+    chmod 600 ~/.git-credentials
+
+    # opencode configuration (vLLM + Gemini only, NO Claude)
+    mkdir -p ~/.config/opencode
+    cat > ~/.config/opencode/config.json << EOF
+    {
+      "providers": {
+        "gemini": {
+          "apiKey": "${GEMINI_API_KEY:-}",
+          "models": {{ .Values.gemini.models | toJson }}
+        },
+        "vllm": {
+          "baseUrl": "{{ .Values.vllm.endpoint }}",
+          "apiKey": "not-needed",
+          "models": ["{{ .Values.vllm.model }}"]
+        }
+      },
+      "defaults": {
+        "provider": "vllm",
+        "model": "{{ .Values.vllm.model }}"
+      },
+      "theme": "dark"
+    }
+    EOF
+
+    # Claude Code directories
+    mkdir -p ~/.claude
+    mkdir -p ~/repos
+
+    # Check Claude auth status
+    echo ""
+    if claude /doctor 2>&1 | grep -q "Not authenticated"; then
+        echo "Claude Code not authenticated"
+        echo "Run: kubectl exec -it deploy/{{ include "code.fullname" . }} -n {{ .Release.Namespace }} -- claude /login"
+    else
+        echo "Claude Code authenticated"
+    fi
+
+    echo "Workspace ready!"
+
+    # Start cui-server (config already set in ~/.cui/config.json)
+    exec cui-server

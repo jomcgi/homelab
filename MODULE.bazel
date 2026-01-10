@@ -161,18 +161,7 @@ oci.pull(
     ],
 )
 use_repo(oci, "python_base", "python_base_linux_amd64", "python_base_linux_arm64_v8")
-
-# Alpine base for ttyd-session-manager
-oci.pull(
-    name = "alpine",
-    digest = "sha256:beefdbd8a1da6d2915566fde36db9db0b524eb737fc57cd1367effd16dc0d06d",
-    image = "docker.io/library/alpine",
-    platforms = [
-        "linux/amd64",
-        "linux/arm64/v8",
-    ],
-)
-use_repo(oci, "alpine", "alpine_linux_amd64", "alpine_linux_arm64_v8", "custom_crane_regctl_toolchains")
+use_repo(oci, "custom_crane_regctl_toolchains")
 
 # GDAL base for geospatial Python services (stargazer)
 # Using ubuntu-small variant with GDAL 3.6.3, includes gdal_translate, gdalwarp, etc.
@@ -189,34 +178,15 @@ oci.pull(
 )
 use_repo(oci, "gdal_base", "gdal_base_linux_amd64", "gdal_base_linux_arm64")
 
-# Configure apko for ttyd-session-manager images
+# Configure apko for container images
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(
-    name = "ttyd_lock",
-    lock = "//charts/ttyd-session-manager/backend:apko.lock.json",
+    name = "code_lock",
+    lock = "//charts/code/image:apko.lock.json",
 )
-apko.translate_lock(
-    name = "frontend_lock",
-    lock = "//charts/ttyd-session-manager/frontend:apko.lock.json",
-)
-use_repo(apko, "frontend_lock", "ttyd_lock")
+use_repo(apko, "code_lock")
 
-# Pattern for downloading third-party binaries:
-# 1. Define http_file here for each platform
-# 2. In BUILD, use genrule to rename from "downloaded" to desired name
-# Download multiarch binaries
-multiarch_http_file = use_repo_rule("//tools/http:multiarch_http_file.bzl", "multiarch_http_file")
-
-multiarch_http_file(
-    name = "ttyd",
-    amd64_sha256 = "8a217c968aba172e0dbf3f34447218dc015bc4d5e59bf51db2f2cd12b7be4f55",
-    amd64_url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.x86_64",
-    arm64_sha256 = "b38acadd89d1d396a0f5649aa52c539edbad07f4bc7348b27b4f4b7219dd4165",
-    arm64_url = "https://github.com/tsl0922/ttyd/releases/download/1.7.7/ttyd.aarch64",
-    binary_name = "ttyd",
-)
-
-# Download multiarch archives (zip files)
+# Download multiarch archives (binaries from zip files)
 multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
 
 multiarch_http_archive(
