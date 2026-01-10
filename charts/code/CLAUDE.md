@@ -50,8 +50,9 @@ git -C ~/repos/homelab worktree remove /tmp/homelab-feat-add-new-service
 ## Architecture
 
 Single pod deployment with:
+- **nginx proxy** (port 8080) - Handles automatic cui token injection
 - **CUI** (port 3000) - Web UI for Claude Code sessions
-- **Claude Code** - Max subscription via OAuth token
+- **Claude Code** - Max subscription (authenticate via `claude /login`)
 - **opencode** - Delegation to vLLM (in-cluster) and Gemini (long context)
 
 ## Key Files
@@ -73,8 +74,7 @@ PVC mounted at `/home/user` containing:
 From 1Password item `ttyd-session-manager`:
 - `github_token` - Git operations
 - `.dockerconfigjson` - GHCR pull secret
-- `claude_code_oauth_token` - Claude Max subscription auth
-- `google_api_key` - Gemini API for opencode
+- `google_api_key` - Gemini API for opencode/CUI voice
 
 ## Common Tasks
 
