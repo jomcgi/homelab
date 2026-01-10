@@ -6,31 +6,28 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
     - https://packages.cgr.dev/extras/chainguard-extras.rsa.pub
   packages:
+    # Core tools
     - git
     - fish
     - curl
     - bash
+    - openssh
+    # Node.js for Claude Code and cui-server
+    - nodejs-22
+    - npm
+    # Kubernetes tools (read-only cluster access)
+    - kubectl
+    - helm
+    # Dev tools required by Claude Code
+    - ripgrep    # Required for code search
+    - coreutils  # ls, cat, head, tail, etc.
+    - findutils  # find, xargs
+    - grep
+    - vim
+    - busybox    # which, etc.
+    # Python for scripts
     - python3
     - py3-pip
-    - nodejs
-    - npm
-    - bazelisk
-    - openssh
-    - tmux
-    # Kubernetes tools
-    - kubectl    # Kubernetes CLI (for cluster inspection)
-    - helm       # Helm package manager (for chart operations)
-    # Code formatters and linters
-    - shfmt      # Shell script formatter
-    - yamllint   # YAML linter
-    # Dev/debugging tools
-    - coreutils  # ls, find, cat, head, tail, etc.
-    - findutils  # find, xargs
-    - grep       # grep
-    - ripgrep    # rg (required by opencode for code search)
-    - tree       # tree
-    - vim        # text editor
-    - busybox    # which, and other utilities
 
 archs:
   - x86_64
@@ -39,13 +36,13 @@ archs:
 cmd: /usr/bin/fish
 
 environment:
-  PATH: /usr/local/lib/node_modules/.bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  PATH: /home/user/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
   EDITOR: vim
   TERM: xterm-256color
   FISH_GREETING: ""
   HOME: /home/user
 
-work-dir: /workspace
+work-dir: /home/user
 
 accounts:
   users:
@@ -58,11 +55,6 @@ accounts:
   run-as: 1000
 
 paths:
-  - path: /workspace
-    type: directory
-    uid: 1000
-    gid: 1000
-    permissions: 0o755
   - path: /home/user
     type: directory
     uid: 1000
@@ -78,25 +70,33 @@ paths:
     uid: 1000
     gid: 1000
     permissions: 0o755
-  - path: /home/user/.local
-    type: directory
-    uid: 1000
-    gid: 1000
-    permissions: 0o755
-  - path: /home/user/.local/share
-    type: directory
-    uid: 1000
-    gid: 1000
-    permissions: 0o755
-  - path: /home/user/.local/share/fish
-    type: directory
-    uid: 1000
-    gid: 1000
-    permissions: 0o755
   - path: /home/user/.config/opencode
     type: directory
     uid: 1000
     gid: 1000
     permissions: 0o755
-  # Note: Fish config files (setup-bazelrc.fish and bazel.fish) are added via pkg_tar in BUILD file
-  # Note: OpenCode config (opencode-config.json) is added via pkg_tar in BUILD file
+  - path: /home/user/.local
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.npm-global
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.claude
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.cui
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/repos
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755

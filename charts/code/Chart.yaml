@@ -1,0 +1,15 @@
+apiVersion: v2
+name: code
+description: Claude Code workspace with CUI web interface for persistent AI-assisted development
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - claude
+  - code
+  - ai
+  - development
+  - workspace
+maintainers:
+  - name: Joe McGinley
+    email: joe@jomcgi.dev

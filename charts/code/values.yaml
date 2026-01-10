@@ -1,0 +1,122 @@
+## Claude Code Workspace Configuration
+## Single persistent pod with Claude Code + CUI web interface
+
+## Container image
+image:
+  repository: ghcr.io/jomcgi/homelab/charts/code/workspace
+  pullPolicy: IfNotPresent
+  tag: "main"
+
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+## Git configuration
+git:
+  name: "Joe McGinley"
+  email: "joe@jomcgi.dev"
+
+## vLLM configuration for opencode delegation
+vllm:
+  endpoint: "http://vllm.vllm.svc.cluster.local:8000/v1"
+  model: "qwen3-coder-30b"
+
+## Gemini configuration for opencode delegation (long context)
+gemini:
+  enabled: true
+  models:
+    - "gemini-3-flash-preview"
+
+## CUI web server configuration
+cui:
+  port: 3000
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+## Secret management via 1Password
+## Reusing existing ttyd-session-manager item which has all required secrets
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+
+## Persistence configuration using Longhorn storage
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 200Gi
+  annotations:
+    helm.sh/resource-policy: keep
+
+## Resource limits
+resources:
+  requests:
+    cpu: "4"
+    memory: "8Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+
+## Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # Needs to write to home directory
+  capabilities:
+    drop:
+      - ALL
+
+## Liveness probe
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 120  # npm install can take time on first boot
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+## Readiness probe
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}
+
+## Deployment strategy (Recreate for stateful single-pod deployment)
+strategy:
+  type: Recreate

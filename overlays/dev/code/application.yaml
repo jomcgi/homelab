@@ -1,21 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ttyd-session-manager
+  name: code
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab
-    targetRevision: main
-    path: charts/ttyd-session-manager
+    targetRevision: HEAD
+    path: charts/code
     helm:
+      releaseName: code
       valueFiles:
         - values.yaml
-        - ../../overlays/dev/ttyd-session-manager/values.yaml
+        - ../../overlays/dev/code/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: ttyd-sessions
+    namespace: code
   syncPolicy:
     automated:
       prune: true
