@@ -20,6 +20,9 @@
       "WebFetch(domain:book.kubebuilder.io)",
       "WebFetch(domain:developers.cloudflare.com)",
       "WebFetch(domain:pkg.go.dev)"
+    ],
+    "additionalDirectories": [
+      "/tmp/claude-worktrees"
     ]
   },
   "cleanupPeriodDays": 60,
