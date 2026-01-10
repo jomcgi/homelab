@@ -32,6 +32,16 @@ gemini:
 ## CUI web server configuration
 cui:
   port: 3000
+  authToken: "c1a0dec0de00000000000000c1a0de00"
+
+## Nginx proxy for automatic token redirect
+proxy:
+  enabled: true
+  port: 8080
+  image:
+    repository: nginx
+    tag: "alpine"
+    pullPolicy: IfNotPresent
 
 ## Service configuration
 service:
