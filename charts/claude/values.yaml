@@ -1,0 +1,114 @@
+## Claude Web Interface Configuration
+## Single pod with Claude Code session management
+
+## Container image
+image:
+  repository: ghcr.io/jomcgi/homelab/charts/claude
+  pullPolicy: IfNotPresent
+  tag: "main"
+
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+nameOverride: ""
+fullnameOverride: ""
+
+## API server configuration
+api:
+  port: 3000
+
+## Git configuration
+git:
+  name: "Joe McGinley"
+  email: "joe@jomcgi.dev"
+
+## Gemini configuration for voice transcription
+gemini:
+  model: "gemini-2.0-flash"
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+## Secret management via 1Password
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/claude.jomcgi.dev"
+
+## Persistence configuration using Longhorn storage
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 200Gi
+  annotations:
+    helm.sh/resource-policy: keep
+
+## Resource limits
+resources:
+  requests:
+    cpu: "4"
+    memory: "8Gi"
+  limits:
+    cpu: "8"
+    memory: "16Gi"
+
+## Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # Needs to write to home directory
+  capabilities:
+    drop:
+      - ALL
+
+## Liveness probe
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+## Readiness probe
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /api/health
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}
+
+## Deployment strategy (Recreate for stateful single-pod deployment)
+strategy:
+  type: Recreate

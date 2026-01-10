@@ -24,6 +24,12 @@ ingress:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+    - hostname: claude.jomcgi.dev
+      service: http://claude.claude.svc.cluster.local:3000
+      originRequest:
+        keepAliveConnections: 100
+        keepAliveTimeout: 90s
+        tcpKeepAlive: 30s
     # Shared image hosting (projects use /project-name/ prefix)
     - hostname: img.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80

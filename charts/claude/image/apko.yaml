@@ -1,0 +1,80 @@
+contents:
+  repositories:
+    - https://packages.wolfi.dev/os
+    - https://packages.cgr.dev/extras
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+    - https://packages.cgr.dev/extras/chainguard-extras.rsa.pub
+  packages:
+    # Core tools
+    - git
+    - bash
+    - curl
+    # Node.js for API server and Claude Code
+    - nodejs-22
+    - npm
+    # Dev tools required by Claude Code
+    - ripgrep
+    - coreutils
+    - findutils
+    - grep
+
+archs:
+  - x86_64
+  - aarch64
+
+cmd: /app/start.sh
+
+environment:
+  PATH: /home/user/.npm-global/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+  HOME: /home/user
+  NODE_ENV: production
+
+work-dir: /app
+
+accounts:
+  users:
+    - username: user
+      uid: 1000
+      gid: 1000
+  groups:
+    - groupname: user
+      gid: 1000
+  run-as: 1000
+
+paths:
+  - path: /home/user
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.npm-global
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.claude
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /home/user/.claude-api
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /tmp/claude-worktrees
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /app
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
+  - path: /app/public
+    type: directory
+    uid: 1000
+    gid: 1000
+    permissions: 0o755
