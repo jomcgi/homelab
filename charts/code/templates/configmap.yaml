@@ -197,17 +197,17 @@ data:
         scgi_temp_path /tmp/scgi;
 
         map $cookie_cui_auth $redirect_to_token {
-            ""      1;
-            default 0;
+            "{{ .Values.cui.authToken }}" 0;
+            default 1;
         }
 
         server {
             listen {{ .Values.proxy.port }};
             default_type text/html;
 
-            # First request (no cookie) - serve redirect page
+            # First request (no cookie or wrong token) - serve redirect page
             if ($redirect_to_token) {
-                return 200 '<!DOCTYPE html><html><head><script>document.cookie="cui_auth=1;path=/;max-age=31536000";location.hash="token={{ .Values.cui.authToken }}";location.reload();</script></head><body>Redirecting...</body></html>';
+                return 200 '<!DOCTYPE html><html><head><script>document.cookie="cui_auth={{ .Values.cui.authToken }};path=/;max-age=31536000";location.hash="token={{ .Values.cui.authToken }}";location.reload();</script></head><body>Redirecting...</body></html>';
             }
 
             # Subsequent requests (has cookie) - proxy to cui
