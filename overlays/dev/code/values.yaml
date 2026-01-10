@@ -1,5 +1,2 @@
 # Dev environment overrides for code workspace
 # Image tags are managed by ArgoCD Image Updater
-
-image:
-  tag: "latest"
