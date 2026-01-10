@@ -8,11 +8,27 @@ signoz:
         cpu: 4
         memory: 8Gi
     persistence:
-      size: 50Gi
-      retention:
-        logs: 7
-        traces: 7
-        metrics: 7
+      size: 150Gi
+    # System table TTL settings (days) - prevents unbounded growth
+    clickhouseOperator:
+      queryLog:
+        ttl: 7
+      partLog:
+        ttl: 7
+      traceLog:
+        ttl: 3
+      metricLog:
+        ttl: 7
+      asynchronousMetricLog:
+        ttl: 7
+      sessionLog:
+        ttl: 7
+      zookeeperLog:
+        ttl: 7
+      processorsProfileLog:
+        ttl: 3
+      queryViewsLog:
+        ttl: 7
   zookeeper:
     resources:
       requests:
