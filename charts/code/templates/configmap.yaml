@@ -39,12 +39,26 @@ data:
     fi
 
     # Configure cui-server
+    # Note: authToken is required by cui-server, can't be disabled
+    # Using a fixed token - access via https://code.jomcgi.dev#token=claude
     mkdir -p ~/.cui
     cat > ~/.cui/config.json << EOF
     {
+      "machine_id": "claude-workspace",
+      "authToken": "claude",
       "server": {
         "host": "0.0.0.0",
         "port": {{ .Values.cui.port }}
+      },
+      "interface": {
+        "colorScheme": "dark",
+        "notifications": {
+          "enabled": false
+        }
+      },
+      "gemini": {
+        "apiKey": "${GEMINI_API_KEY}",
+        "model": "gemini-2.0-flash"
       }
     }
     EOF
