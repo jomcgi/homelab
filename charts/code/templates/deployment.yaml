@@ -145,10 +145,10 @@ spec:
           resources:
             requests:
               cpu: "10m"
-              memory: "32Mi"
+              memory: "64Mi"
             limits:
-              cpu: "100m"
-              memory: "128Mi"
+              cpu: "200m"
+              memory: "512Mi"
       volumes:
         - name: home
           {{- if .Values.persistence.enabled }}
