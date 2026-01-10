@@ -1,0 +1,14 @@
+apiVersion: v2
+name: claude-api
+description: Claude Code API server with WebSocket streaming and voice support
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - claude
+  - api
+  - websocket
+  - voice
+maintainers:
+  - name: Joe McGinley
+    email: joe@jomcgi.dev

@@ -1,4 +1,5 @@
 resources:
+  - ./claude-api
   - ./cloudflare-operator
   - ./cloudflare-operator-test
   - ./code
