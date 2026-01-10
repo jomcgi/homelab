@@ -2,6 +2,51 @@
 
 Persistent Claude Code environment running on Kubernetes with CUI web interface.
 
+## CRITICAL: Homelab Repository Workflow
+
+**NEVER commit directly to the `main` branch.**
+
+The homelab repo at `~/repos/homelab` is a read-only reference that auto-syncs to `origin/main` every 5 minutes. Any local changes will be discarded by the sync.
+
+### Working with Worktrees (Multi-Agent Safe)
+
+Use the `homelab-worktree` helper to create isolated working directories in `/tmp/`:
+
+```bash
+# Create a worktree for your feature branch
+homelab-worktree feat/add-new-service
+
+# This creates:
+#   /tmp/homelab-feat-add-new-service (working directory)
+#   Branch: feat/add-new-service (from origin/main)
+
+# Work in the worktree
+cd /tmp/homelab-feat-add-new-service
+
+# Make changes, commit, and push
+git add .
+git commit -m "Add new service"
+git push -u origin feat/add-new-service
+
+# Create PR via GitHub, then merge
+```
+
+**Why worktrees?**
+- Multiple agents can work on different branches simultaneously
+- Each agent gets an isolated `/tmp/` directory
+- Main clone stays clean and synced to main
+- Worktrees are ephemeral (lost on pod restart, but changes are pushed)
+
+### Cleanup
+
+```bash
+# List worktrees
+git -C ~/repos/homelab worktree list
+
+# Remove a worktree
+git -C ~/repos/homelab worktree remove /tmp/homelab-feat-add-new-service
+```
+
 ## Architecture
 
 Single pod deployment with:
