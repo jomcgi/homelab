@@ -79,12 +79,6 @@ spec:
                   name: {{ include "code.fullname" . }}-secret
                   key: google_api_key
                   optional: true
-            - name: CLAUDE_CODE_OAUTH_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "code.fullname" . }}-secret
-                  key: claude_code_oauth_token
-                  optional: true
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
