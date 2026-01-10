@@ -1,9 +1,9 @@
-## Claude API Server Configuration
+## Claude Web Interface Configuration
 ## Single pod with Claude Code session management
 
 ## Container image
 image:
-  repository: ghcr.io/jomcgi/homelab/charts/claude-api
+  repository: ghcr.io/jomcgi/homelab/charts/claude
   pullPolicy: IfNotPresent
   tag: "main"
 
@@ -35,7 +35,7 @@ service:
 secret:
   type: onepassword
   onepassword:
-    itemPath: "vaults/k8s-homelab/items/claude-api.jomcgi.dev"
+    itemPath: "vaults/k8s-homelab/items/claude.jomcgi.dev"
 
 ## Persistence configuration using Longhorn storage
 persistence:

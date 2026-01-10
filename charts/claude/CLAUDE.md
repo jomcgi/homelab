@@ -1,17 +1,20 @@
-# Claude API Server
+# Claude Web Interface
 
-Backend API for Claude Code web interface with WebSocket streaming and voice support.
+Claude Code web interface with React frontend, WebSocket streaming, and voice support.
 
 ## Architecture
 
 Single pod deployment with:
-- **API Server** (port 3000) - Express + WebSocket server
+- **Frontend** (React + Vite) - Served at `/`
+- **API Server** (Express) - Endpoints at `/api/*`
+- **WebSocket** - Claude Code streaming at `/ws`
 - **Claude Code** - Max subscription (authenticate via `claude /login`)
 - **Session Management** - File-based session persistence on PVC
 
 ## Key Files
 
-- `src/src/index.ts` - Main API server (TypeScript)
+- `frontend/` - React frontend (Vite + Tailwind)
+- `src/src/index.ts` - Express API server
 - `templates/deployment.yaml` - Single pod deployment
 - `templates/pvc.yaml` - 200GB Longhorn storage for sessions
 - `image/apko.yaml` - Container image definition
@@ -19,11 +22,11 @@ Single pod deployment with:
 ## API Endpoints
 
 ### REST
-- `GET /health` - Health check
-- `GET /sessions` - List all sessions
-- `POST /sessions` - Create new session
-- `GET /sessions/:id` - Get session details
-- `DELETE /sessions/:id` - Delete session
+- `GET /api/health` - Health check
+- `GET /api/sessions` - List all sessions
+- `POST /api/sessions` - Create new session
+- `GET /api/sessions/:id` - Get session details
+- `DELETE /api/sessions/:id` - Delete session
 
 ### WebSocket
 - `ws://host/ws?session=<id>` - Stream Claude Code I/O
@@ -37,7 +40,7 @@ PVC mounted at `/home/user` containing:
 
 ## Secrets
 
-From 1Password item `claude-api.jomcgi.dev`:
+From 1Password item `claude.jomcgi.dev`:
 - `github_token` - Git operations
 - `google_api_key` - Gemini API for voice transcription
 
@@ -46,11 +49,11 @@ From 1Password item `claude-api.jomcgi.dev`:
 ### Initial Setup
 ```bash
 # After first deployment, authenticate Claude Code
-kubectl exec -it deploy/claude-api -n claude-api -- claude /login
+kubectl exec -it deploy/claude -n claude -- claude /login
 ```
 
 ### Check Status
 ```bash
-kubectl logs -n claude-api deploy/claude-api -f
-kubectl exec -it deploy/claude-api -n claude-api -- claude /doctor
+kubectl logs -n claude deploy/claude -f
+kubectl exec -it deploy/claude -n claude -- claude /doctor
 ```

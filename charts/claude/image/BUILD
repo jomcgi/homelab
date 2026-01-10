@@ -29,8 +29,8 @@ pkg_tar(
 apko_image(
     name = "image",
     config = "apko.yaml",
-    contents = "@claude_api_lock//:contents",
-    repository = "ghcr.io/jomcgi/homelab/charts/claude-api",
+    contents = "@claude_lock//:contents",
+    repository = "ghcr.io/jomcgi/homelab/charts/claude",
     tars = [
         ":app_tar",
         ":frontend_tar",

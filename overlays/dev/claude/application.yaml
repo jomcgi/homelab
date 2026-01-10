@@ -1,23 +1,23 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: claude-api
+  name: claude
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab
     targetRevision: HEAD
-    path: charts/claude-api
+    path: charts/claude
     helm:
-      releaseName: claude-api
+      releaseName: claude
       valueFiles:
         - values.yaml
-        - ../../overlays/dev/claude-api/values.yaml
+        - ../../overlays/dev/claude/values.yaml
 
   destination:
     server: https://kubernetes.default.svc
-    namespace: claude-api
+    namespace: claude
   syncPolicy:
     automated:
       prune: true
