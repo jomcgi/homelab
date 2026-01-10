@@ -13,15 +13,14 @@ The homelab repo at `~/repos/homelab` is **read-only** (owned by root via git-sy
 
 ## Creating a Worktree for Changes
 
-Use the `homelab-worktree` helper to create an isolated working directory:
+Use git worktree to create an isolated working directory:
 
 ```bash
-# Create a worktree for your feature branch
-homelab-worktree feat/add-new-service
+# Fetch latest from origin
+git -C ~/repos/homelab fetch origin
 
-# Output:
-#   Created worktree: /tmp/homelab-feat-add-new-service
-#   Branch: feat/add-new-service (from origin/main)
+# Create a worktree with a new branch based on origin/main
+git -C ~/repos/homelab worktree add -b feat/add-new-service /tmp/homelab-feat-add-new-service origin/main
 ```
 
 Then work in the worktree:
@@ -45,10 +44,22 @@ git push -u origin feat/add-new-service
 
 ## Workflow Summary
 
-1. `homelab-worktree <branch-name>` - Create worktree in `/tmp/`
-2. `cd /tmp/homelab-<branch>` - Work in the worktree
-3. Commit and push to the branch
-4. Create PR via GitHub
+1. Create worktree:
+   ```bash
+   git -C ~/repos/homelab fetch origin
+   git -C ~/repos/homelab worktree add -b <branch-name> /tmp/homelab-<branch-name> origin/main
+   ```
+2. `cd /tmp/homelab-<branch-name>` - Work in the worktree
+3. Commit and push:
+   ```bash
+   git add .
+   git commit -m "Description of changes"
+   git push -u origin <branch-name>
+   ```
+4. Create PR using gh CLI:
+   ```bash
+   gh pr create --title "PR title" --body "Description of changes"
+   ```
 5. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
 
 ## Listing and Cleaning Worktrees
