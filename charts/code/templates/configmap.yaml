@@ -101,34 +101,12 @@ data:
     mkdir -p ~/.claude
     mkdir -p ~/repos
 
-    # Clone homelab repo if not present
-    HOMELAB_DIR="$HOME/repos/homelab"
-    if [ ! -d "$HOMELAB_DIR" ]; then
-        echo "Cloning homelab repository..."
-        git clone https://github.com/jomcgi/homelab.git "$HOMELAB_DIR"
-    else
-        echo "Homelab repository already present"
-        # Ensure we're on main and up to date
-        cd "$HOMELAB_DIR"
-        git fetch origin main
-        git checkout main
-        git reset --hard origin/main
-        cd -
-    fi
-
-    # Start background git pull loop (every 5 minutes)
-    echo "Starting homelab repo sync loop (every 5m)..."
-    (
-        while true; do
-            sleep 300  # 5 minutes
-            if [ -d "$HOMELAB_DIR" ]; then
-                cd "$HOMELAB_DIR"
-                git fetch origin main 2>/dev/null
-                git reset --hard origin/main 2>/dev/null
-                echo "[$(date)] Synced homelab repo to origin/main"
-            fi
-        done
-    ) &
+    # Wait for git-sync sidecar to clone the homelab repo
+    echo "Waiting for homelab repo (from git-sync sidecar)..."
+    while [ ! -d "$HOME/repos/homelab/.git" ]; do
+        sleep 2
+    done
+    echo "Homelab repo available"
 
     # Create homelab-worktree helper script for multi-agent workflows
     cat > "$NPM_CONFIG_PREFIX/bin/homelab-worktree" << 'SCRIPT'
@@ -136,6 +114,9 @@ data:
     # Create a git worktree for the homelab repo in /tmp/
     # Usage: homelab-worktree <branch-name>
     #   Creates /tmp/homelab-<branch-name> with a new branch from origin/main
+    #
+    # Note: The main repo is read-only (owned by git-sync sidecar).
+    # Worktrees are created in /tmp/ with full write access.
 
     set -e
     HOMELAB_DIR="$HOME/repos/homelab"
@@ -149,32 +130,38 @@ data:
         echo "  homelab-worktree feat/add-service"
         echo ""
         echo "Current worktrees:"
-        cd "$HOMELAB_DIR" && git worktree list
+        git -C "$HOMELAB_DIR" worktree list 2>/dev/null || echo "  (none)"
         exit 1
     fi
 
     BRANCH="$1"
     WORKTREE_DIR="/tmp/homelab-${BRANCH//\//-}"
 
-    # Fetch latest
-    cd "$HOMELAB_DIR"
-    git fetch origin main
-
     # Check if worktree already exists
     if [ -d "$WORKTREE_DIR" ]; then
         echo "Worktree already exists: $WORKTREE_DIR"
-        echo "To remove: git -C $HOMELAB_DIR worktree remove $WORKTREE_DIR"
+        echo "To remove it: rm -rf $WORKTREE_DIR && git -C $HOMELAB_DIR worktree prune"
         exit 1
     fi
 
     # Create worktree with new branch from origin/main
-    git worktree add -b "$BRANCH" "$WORKTREE_DIR" origin/main
+    # (git-sync sidecar keeps origin/main up to date)
+    git -C "$HOMELAB_DIR" worktree add -b "$BRANCH" "$WORKTREE_DIR" origin/main
+
+    # Set up git config in the worktree for pushing
+    cd "$WORKTREE_DIR"
+    git config user.name "${GIT_USER_NAME:-Claude}"
+    git config user.email "${GIT_USER_EMAIL:-claude@jomcgi.dev}"
 
     echo ""
     echo "Created worktree: $WORKTREE_DIR"
     echo "Branch: $BRANCH (from origin/main)"
     echo ""
-    echo "cd $WORKTREE_DIR"
+    echo "Next steps:"
+    echo "  cd $WORKTREE_DIR"
+    echo "  # make changes..."
+    echo "  git add . && git commit -m 'description'"
+    echo "  git push -u origin $BRANCH"
     SCRIPT
     chmod +x "$NPM_CONFIG_PREFIX/bin/homelab-worktree"
 
@@ -216,6 +203,7 @@ data:
 
         server {
             listen {{ .Values.proxy.port }};
+            default_type text/html;
 
             # First request (no cookie) - serve redirect page
             if ($redirect_to_token) {
@@ -237,3 +225,51 @@ data:
             }
         }
     }
+
+  git-sync.sh: |
+    #!/bin/bash
+    # Git sync sidecar - runs as root, syncs homelab repo every 5 minutes
+    # Files owned by root are read-only to the main container (uid 1000)
+    set -e
+
+    HOMELAB_DIR="/home/user/repos/homelab"
+    SYNC_INTERVAL=300  # 5 minutes
+
+    # Ensure repos directory exists with correct permissions
+    mkdir -p /home/user/repos
+    chown 1000:1000 /home/user/repos
+
+    # Git configuration for root user
+    git config --global user.name "git-sync"
+    git config --global user.email "git-sync@localhost"
+    git config --global safe.directory '*'
+
+    # Set up credentials
+    echo "https://oauth2:${GITHUB_TOKEN}@github.com" > /root/.git-credentials
+    git config --global credential.helper store
+
+    # Initial clone or sync
+    if [ ! -d "$HOMELAB_DIR" ]; then
+        echo "Cloning homelab repository..."
+        git clone https://github.com/jomcgi/homelab.git "$HOMELAB_DIR"
+    else
+        echo "Syncing existing homelab repository..."
+        cd "$HOMELAB_DIR"
+        git fetch origin main
+        git checkout main
+        git reset --hard origin/main
+    fi
+
+    echo "Git sync sidecar running (interval: ${SYNC_INTERVAL}s)"
+
+    # Sync loop
+    while true; do
+        sleep $SYNC_INTERVAL
+        if [ -d "$HOMELAB_DIR" ]; then
+            cd "$HOMELAB_DIR"
+            git fetch origin main 2>/dev/null
+            git reset --hard origin/main 2>/dev/null
+            git worktree prune 2>/dev/null  # Clean up stale worktree references
+            echo "[$(date)] Synced homelab repo to origin/main"
+        fi
+    done
