@@ -45,7 +45,7 @@ data:
     cat > ~/.cui/config.json << EOF
     {
       "machine_id": "claude-workspace",
-      "authToken": "claude",
+      "authToken": "c1a0dec0de00000000000000c1a0de00",
       "server": {
         "host": "0.0.0.0",
         "port": {{ .Values.cui.port }}
