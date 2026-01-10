@@ -49,11 +49,10 @@ service:
   port: 3000
 
 ## Secret management via 1Password
-## Reusing existing ttyd-session-manager item which has all required secrets
 secret:
   type: onepassword
   onepassword:
-    itemPath: "vaults/k8s-homelab/items/ttyd-session-manager"
+    itemPath: "vaults/k8s-homelab/items/code.jomcgi.dev"
 
 ## Persistence configuration using Longhorn storage
 persistence:
