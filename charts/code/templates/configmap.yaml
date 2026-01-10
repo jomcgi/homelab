@@ -244,9 +244,8 @@ data:
     git config --global user.email "git-sync@localhost"
     git config --global safe.directory '*'
 
-    # Set up credentials
-    echo "https://oauth2:${GITHUB_TOKEN}@github.com" > /root/.git-credentials
-    git config --global credential.helper store
+    # Set up credentials via URL rewrite (avoids credential file issues)
+    git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
     # Initial clone or sync
     if [ ! -d "$HOMELAB_DIR" ]; then
