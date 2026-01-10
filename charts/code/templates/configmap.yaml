@@ -70,10 +70,9 @@ data:
     git config --global init.defaultBranch main
     git config --global safe.directory '*'
 
-    # Git credentials (handle potential permission issues from previous runs)
-    rm -f ~/.git-credentials 2>/dev/null || true
-    echo "https://oauth2:${GITHUB_TOKEN}@github.com" > ~/.git-credentials
-    chmod 600 ~/.git-credentials 2>/dev/null || true
+    # Git credentials - use URL rewrite instead of credentials file to avoid permission issues
+    # This rewrites https://github.com/ URLs to include the token automatically
+    git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 
     # opencode configuration (vLLM + Gemini only, NO Claude)
     mkdir -p ~/.config/opencode
