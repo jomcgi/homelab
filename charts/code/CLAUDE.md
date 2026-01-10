@@ -26,7 +26,7 @@ PVC mounted at `/home/user` containing:
 
 ## Secrets
 
-From 1Password item `ttyd-session-manager`:
+From 1Password item `code.jomcgi.dev`:
 - `github_token` - Git operations
 - `.dockerconfigjson` - GHCR pull secret
 - `google_api_key` - Gemini API for opencode/CUI voice
