@@ -40,11 +40,12 @@ data:
 
     # Configure cui-server
     # Note: authToken is required by cui-server, can't be disabled
-    # Using a fixed token - access via https://code.jomcgi.dev#token=claude
+    # nginx sidecar handles redirect to add token automatically
     mkdir -p ~/.cui
     cat > ~/.cui/config.json << EOF
     {
       "machine_id": "claude-workspace",
+      "authToken": "{{ .Values.cui.authToken }}",
       "server": {
         "host": "0.0.0.0",
         "port": {{ .Values.cui.port }}
@@ -56,7 +57,8 @@ data:
         }
       },
       "gemini": {
-        "apiKey": "${GEMINI_API_KEY}"
+        "apiKey": "${GEMINI_API_KEY}",
+        "model": "gemini-2.0-flash"
       }
     }
     EOF
@@ -99,6 +101,83 @@ data:
     mkdir -p ~/.claude
     mkdir -p ~/repos
 
+    # Clone homelab repo if not present
+    HOMELAB_DIR="$HOME/repos/homelab"
+    if [ ! -d "$HOMELAB_DIR" ]; then
+        echo "Cloning homelab repository..."
+        git clone https://github.com/jomcgi/homelab.git "$HOMELAB_DIR"
+    else
+        echo "Homelab repository already present"
+        # Ensure we're on main and up to date
+        cd "$HOMELAB_DIR"
+        git fetch origin main
+        git checkout main
+        git reset --hard origin/main
+        cd -
+    fi
+
+    # Start background git pull loop (every 5 minutes)
+    echo "Starting homelab repo sync loop (every 5m)..."
+    (
+        while true; do
+            sleep 300  # 5 minutes
+            if [ -d "$HOMELAB_DIR" ]; then
+                cd "$HOMELAB_DIR"
+                git fetch origin main 2>/dev/null
+                git reset --hard origin/main 2>/dev/null
+                echo "[$(date)] Synced homelab repo to origin/main"
+            fi
+        done
+    ) &
+
+    # Create homelab-worktree helper script for multi-agent workflows
+    cat > "$NPM_CONFIG_PREFIX/bin/homelab-worktree" << 'SCRIPT'
+    #!/bin/bash
+    # Create a git worktree for the homelab repo in /tmp/
+    # Usage: homelab-worktree <branch-name>
+    #   Creates /tmp/homelab-<branch-name> with a new branch from origin/main
+
+    set -e
+    HOMELAB_DIR="$HOME/repos/homelab"
+
+    if [ -z "$1" ]; then
+        echo "Usage: homelab-worktree <branch-name>"
+        echo "Creates a worktree at /tmp/homelab-<branch-name>"
+        echo ""
+        echo "Examples:"
+        echo "  homelab-worktree fix/update-nginx"
+        echo "  homelab-worktree feat/add-service"
+        echo ""
+        echo "Current worktrees:"
+        cd "$HOMELAB_DIR" && git worktree list
+        exit 1
+    fi
+
+    BRANCH="$1"
+    WORKTREE_DIR="/tmp/homelab-${BRANCH//\//-}"
+
+    # Fetch latest
+    cd "$HOMELAB_DIR"
+    git fetch origin main
+
+    # Check if worktree already exists
+    if [ -d "$WORKTREE_DIR" ]; then
+        echo "Worktree already exists: $WORKTREE_DIR"
+        echo "To remove: git -C $HOMELAB_DIR worktree remove $WORKTREE_DIR"
+        exit 1
+    fi
+
+    # Create worktree with new branch from origin/main
+    git worktree add -b "$BRANCH" "$WORKTREE_DIR" origin/main
+
+    echo ""
+    echo "Created worktree: $WORKTREE_DIR"
+    echo "Branch: $BRANCH (from origin/main)"
+    echo ""
+    echo "cd $WORKTREE_DIR"
+    SCRIPT
+    chmod +x "$NPM_CONFIG_PREFIX/bin/homelab-worktree"
+
     # Check Claude auth status
     echo ""
     if claude /doctor 2>&1 | grep -q "Not authenticated"; then
@@ -112,3 +191,49 @@ data:
 
     # Start cui-server (config already set in ~/.cui/config.json)
     exec cui-server
+
+  nginx.conf: |
+    worker_processes 1;
+    error_log /dev/stderr warn;
+    pid /tmp/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        access_log /dev/stdout;
+        client_body_temp_path /tmp/client_body;
+        proxy_temp_path /tmp/proxy;
+        fastcgi_temp_path /tmp/fastcgi;
+        uwsgi_temp_path /tmp/uwsgi;
+        scgi_temp_path /tmp/scgi;
+
+        map $cookie_cui_auth $redirect_to_token {
+            ""      1;
+            default 0;
+        }
+
+        server {
+            listen {{ .Values.proxy.port }};
+
+            # First request (no cookie) - serve redirect page
+            if ($redirect_to_token) {
+                return 200 '<!DOCTYPE html><html><head><script>document.cookie="cui_auth=1;path=/;max-age=31536000";location.hash="token={{ .Values.cui.authToken }}";location.reload();</script></head><body>Redirecting...</body></html>';
+            }
+
+            # Subsequent requests (has cookie) - proxy to cui
+            location / {
+                proxy_pass http://127.0.0.1:{{ .Values.cui.port }};
+                proxy_http_version 1.1;
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+                proxy_read_timeout 86400;
+                proxy_send_timeout 86400;
+            }
+        }
+    }

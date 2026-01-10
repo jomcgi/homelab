@@ -92,6 +92,34 @@ spec:
               mountPath: /home/user
             - name: init-script
               mountPath: /scripts
+        {{- if .Values.proxy.enabled }}
+        - name: proxy
+          image: "{{ .Values.proxy.image.repository }}:{{ .Values.proxy.image.tag }}"
+          imagePullPolicy: {{ .Values.proxy.image.pullPolicy }}
+          ports:
+            - name: proxy
+              containerPort: {{ .Values.proxy.port }}
+              protocol: TCP
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx.conf
+            - name: nginx-tmp
+              mountPath: /tmp
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
+          resources:
+            requests:
+              cpu: "10m"
+              memory: "16Mi"
+            limits:
+              cpu: "100m"
+              memory: "64Mi"
+        {{- end }}
       volumes:
         - name: home
           {{- if .Values.persistence.enabled }}
@@ -104,6 +132,16 @@ spec:
           configMap:
             name: {{ include "code.fullname" . }}-init
             defaultMode: 0755
+        {{- if .Values.proxy.enabled }}
+        - name: nginx-config
+          configMap:
+            name: {{ include "code.fullname" . }}-init
+            items:
+              - key: nginx.conf
+                path: nginx.conf
+        - name: nginx-tmp
+          emptyDir: {}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
