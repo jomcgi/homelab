@@ -1,0 +1,2 @@
+# Dev environment overrides for claude
+# Inherits defaults from charts/claude/values.yaml
