@@ -21,6 +21,9 @@ manifest:
     PyObjCTools.Signals: pyobjc_core
     PyObjCTools.TestSupport: pyobjc_core
     affine: affine
+    aiohappyeyeballs: aiohappyeyeballs
+    aiohttp: aiohttp
+    aiosignal: aiosignal
     annotated_types: annotated_types
     anyio: anyio
     apscheduler: APScheduler
@@ -55,6 +58,7 @@ manifest:
     edfc647aaf02b20aa651__mypyc: mypy
     fastapi: fastapi
     fiona: fiona
+    frozenlist: frozenlist
     funcy: funcy
     geopandas: geopandas
     google.api.annotations_pb2: googleapis_common_protos
@@ -143,6 +147,7 @@ manifest:
     markdown_it: markdown_it_py
     markupsafe: markupsafe
     mdurl: mdurl
+    multidict: multidict
     multipart: python_multipart
     mypy: mypy
     mypy_extensions: mypy_extensions
@@ -202,6 +207,7 @@ manifest:
     pluggy: pluggy
     plumbum: plumbum
     prompt_toolkit: prompt_toolkit
+    propcache: propcache
     ptyprocess: ptyprocess
     py: pytest
     pydantic: pydantic
@@ -250,6 +256,7 @@ manifest:
     websockets: websockets
     wrapt: wrapt
     yaml: pyyaml
+    yarl: yarl
     zeroconf: zeroconf
     zipp: zipp
   pip_repository:
