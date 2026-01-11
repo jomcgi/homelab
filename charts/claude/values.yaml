@@ -46,14 +46,13 @@ persistence:
   annotations:
     helm.sh/resource-policy: keep
 
-## Resource limits
+## Resource limits (low request, burstable CPU)
 resources:
   requests:
-    cpu: "4"
-    memory: "8Gi"
+    cpu: "1"
+    memory: "12Gi"
   limits:
-    cpu: "8"
-    memory: "16Gi"
+    memory: "12Gi"
 
 ## Pod Security Context
 podSecurityContext:
