@@ -670,7 +670,7 @@ data:
         <query_log replace="1">
             <database>system</database>
             <table>query_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 30 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </query_log>
     </yandex>
@@ -679,7 +679,7 @@ data:
         <part_log replace="1">
             <database>system</database>
             <table>part_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 30 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </part_log>
     </yandex>
@@ -688,7 +688,7 @@ data:
         <trace_log replace="1">
             <database>system</database>
             <table>trace_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 3 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </trace_log>
     </yandex>
@@ -707,7 +707,7 @@ data:
         <asynchronous_metric_log replace="1">
             <database>system</database>
             <table>asynchronous_metric_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 30 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </asynchronous_metric_log>
     </yandex>
@@ -743,7 +743,7 @@ data:
         <metric_log replace="1">
             <database>system</database>
             <table>metric_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 30 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </metric_log>
     </yandex>
@@ -761,7 +761,7 @@ data:
         <query_views_log replace="1">
             <database>system</database>
             <table>query_views_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 15 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </query_views_log>
     </yandex>
@@ -770,7 +770,7 @@ data:
         <session_log replace="1">
             <database>system</database>
             <table>session_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 30 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </session_log>
     </yandex>
@@ -779,7 +779,7 @@ data:
         <zookeeper_log replace="1">
             <database>system</database>
             <table>zookeeper_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 30 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </zookeeper_log>
     </yandex>
@@ -788,7 +788,7 @@ data:
         <processors_profile_log replace="1">
             <database>system</database>
             <table>processors_profile_log</table>
-            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 7 day</engine>
+            <engine>Engine = MergeTree PARTITION BY event_date ORDER BY event_time TTL event_date + interval 3 day</engine>
             <flush_interval_milliseconds>7500</flush_interval_milliseconds>
         </processors_profile_log>
     </yandex>
@@ -2411,7 +2411,7 @@ spec:
         signoz.io/scrape: "true"
         checksum/files: c8d653d0277e2f36fadae729f5508e66acfb92307c8990324f56169d68566179
         checksum/confd-files: 94f3e09ff7956c5a88558260c7c4f78b39abaac064f1753a0d7783178237f648
-        checksum/configd-files: cf3d35a6112c36b0b929dbd91bd08e819e859f4a83044514f65976416c60d95c
+        checksum/configd-files: 6b19af85b78e34f484c76e4c2a7d89d93993ed709f78070b7f3689b432bb65be
         checksum/templatesd-files: d65e4c1431979c24903978a1679116472d94ea7e063f98fd8b83ef163a00c446
         checksum/usersd-files: 7924fd74a6d6fc630e48a6e867b458ebe2011175b536950821c5ccb05619ece7
       labels:
@@ -3656,7 +3656,7 @@ spec:
             - ReadWriteOnce
           resources:
             requests:
-              storage: 50Gi
+              storage: 150Gi
 ---
 # Source: signoz/charts/k8s-infra/templates/otel-agent/tests/test-connection.yaml
 apiVersion: v1

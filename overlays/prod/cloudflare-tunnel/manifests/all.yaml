@@ -42,8 +42,8 @@ data:
       service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
       service: http://signoz.signoz.svc.cluster.local:8080
-    - hostname: code.jomcgi.dev
-      service: http://code.code.svc.cluster.local:3000
+    - hostname: claude.jomcgi.dev
+      service: http://claude.claude.svc.cluster.local:3000
       originRequest:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
@@ -282,7 +282,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 4773f08e524947d496c3d1437d8378545c7112347250f090fbd04a70e92b5488
+        checksum/config: 7d275d497b8c2fe17648f23e24e7c147be123a990cc13e6f7f8a61f7fcd88d3e
         checksum/envoy-config: 9c0b260fe5faed6f6df6e3ab09dfc8b31025ead5ddadfa014fe3ea9c0dd27ee2
       labels:
         app.kubernetes.io/name: cloudflare-tunnel

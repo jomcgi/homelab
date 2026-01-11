@@ -6,17 +6,17 @@ load("//tools/oci:apko_image.bzl", "apko_image")
 pkg_tar(
     name = "app_tar",
     srcs = [
+        "start.sh",
         "//charts/claude/src:dist",
         "//charts/claude/src:package.json",
-        "start.sh",
     ],
     mode = "0755",
-    strip_prefix = "charts/claude",
     remap_paths = {
         "src/dist": "/app/dist",
         "src/package.json": "/app/package.json",
         "start.sh": "/app/start.sh",
     },
+    strip_prefix = "charts/claude",
 )
 
 # Package the compiled frontend
@@ -25,10 +25,10 @@ pkg_tar(
     name = "frontend_tar",
     srcs = ["//charts/claude/frontend:dist"],
     mode = "0644",
-    strip_prefix = "charts/claude",
     remap_paths = {
         "frontend/dist": "/app/public",
     },
+    strip_prefix = "charts/claude",
 )
 
 apko_image(

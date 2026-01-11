@@ -77,7 +77,7 @@ app.post("/api/sessions", (req, res) => {
       name: session.name,
       workdir: session.workdir,
       createdAt: session.createdAt,
-    })
+    }),
   );
 
   res.status(201).json({
@@ -193,7 +193,7 @@ wss.on("connection", (ws, req) => {
       sessionId: session.id,
       name: session.name,
       workdir: session.workdir,
-    })
+    }),
   );
 });
 
@@ -261,7 +261,7 @@ function loadSessions() {
 
     try {
       const data = JSON.parse(
-        fs.readFileSync(path.join(SESSIONS_DIR, file), "utf-8")
+        fs.readFileSync(path.join(SESSIONS_DIR, file), "utf-8"),
       );
       sessions.set(data.id, {
         id: data.id,
