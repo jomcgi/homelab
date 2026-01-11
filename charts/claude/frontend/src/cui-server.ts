@@ -675,8 +675,21 @@ export class CUIServer {
         });
       }
 
-      if (code === 0) {
-        // Session completion notification removed
+      // If process exited with non-zero code, broadcast error to clients before closing
+      if (code !== 0) {
+        const errorEvent: StreamEvent = {
+          type: "error" as const,
+          error: `Claude process exited unexpectedly (exit code: ${code}). Check server logs for details.`,
+          streamingId: streamingId,
+          timestamp: new Date().toISOString(),
+        };
+
+        this.logger.debug("Broadcasting process exit error to clients", {
+          streamingId,
+          exitCode: code,
+        });
+
+        this.streamManager.broadcast(streamingId, errorEvent);
       }
 
       this.streamManager.closeSession(streamingId);

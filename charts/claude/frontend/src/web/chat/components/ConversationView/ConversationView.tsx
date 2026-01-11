@@ -3,7 +3,7 @@ import { useParams, useLocation, useNavigate } from "react-router-dom";
 import { MessageList } from "../MessageList/MessageList";
 import { Composer, ComposerRef } from "@/web/chat/components/Composer";
 import { ConversationHeader } from "../ConversationHeader/ConversationHeader";
-import { api } from "../../services/api";
+import { api, ApiServiceError } from "../../services/api";
 import { useStreaming, useConversationMessages } from "../../hooks";
 import type {
   ChatMessage,
@@ -11,6 +11,17 @@ import type {
   ConversationMessage,
   ConversationSummary,
 } from "../../types";
+
+// Helper to format errors with full details
+function formatError(err: unknown): string {
+  if (err instanceof ApiServiceError) {
+    return err.toDisplayString();
+  }
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return String(err);
+}
 
 export function ConversationView() {
   const { sessionId } = useParams<{ sessionId: string }>();
@@ -158,8 +169,8 @@ export function ConversationView() {
             }
           }
         }
-      } catch (err: any) {
-        setError(err.message || "Failed to load conversation");
+      } catch (err: unknown) {
+        setError(formatError(err) || "Failed to load conversation");
       } finally {
         setIsLoading(false);
 
@@ -208,8 +219,8 @@ export function ConversationView() {
 
       // Navigate to the session (may be same URL for resume, but ensures URL is correct)
       navigate(`/c/${response.sessionId}`);
-    } catch (err: any) {
-      setError(err.message || "Failed to send message");
+    } catch (err: unknown) {
+      setError(formatError(err) || "Failed to send message");
     }
   };
 
@@ -227,9 +238,9 @@ export function ConversationView() {
       setStreamingId(null);
 
       // Streaming has stopped
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to stop conversation:", err);
-      setError(err.message || "Failed to stop conversation");
+      setError(formatError(err) || "Failed to stop conversation");
     }
   };
 
@@ -245,9 +256,9 @@ export function ConversationView() {
       await api.sendPermissionDecision(requestId, { action, denyReason });
       // Clear the permission request after successful decision
       clearPermissionRequest();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Failed to send permission decision:", err);
-      setError(err.message || "Failed to send permission decision");
+      setError(formatError(err) || "Failed to send permission decision");
     } finally {
       setIsPermissionDecisionLoading(false);
     }
@@ -341,11 +352,38 @@ export function ConversationView() {
 
       {error && (
         <div
-          className="bg-red-500/10 border-b border-red-500 text-red-600 dark:text-red-400 px-4 py-2 text-sm text-center animate-in slide-in-from-top duration-300"
+          className="bg-red-500/10 border-b border-red-500 text-red-600 dark:text-red-400 px-4 py-3 animate-in slide-in-from-top duration-300"
           role="alert"
           aria-label="Error message"
         >
-          {error}
+          <div className="max-w-3xl mx-auto flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="font-medium text-sm mb-1">Error</div>
+              <div className="text-sm whitespace-pre-wrap break-words font-mono">
+                {error}
+              </div>
+            </div>
+            <button
+              onClick={() => setError(null)}
+              className="shrink-0 p-1 hover:bg-red-500/20 rounded transition-colors"
+              aria-label="Dismiss error"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
 
