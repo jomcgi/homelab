@@ -49,7 +49,7 @@ persistence:
 ## Resource limits (low request, burstable CPU)
 resources:
   requests:
-    cpu: "500m"
+    cpu: "1"
     memory: "1Gi"
   limits:
     memory: "8Gi"
