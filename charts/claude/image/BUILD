@@ -42,4 +42,7 @@ apko_image(
         ":app_dist_tar",
         ":frontend_tar",
     ],
+    multiarch_tars = [
+        "@ttyd//:tar",
+    ],
 )
