@@ -196,8 +196,10 @@ export function ConversationView() {
         resumedSessionId: sessionId,
         initialPrompt: message,
         workingDirectory: workingDirectory || currentWorkingDirectory,
-        model,
-        permissionMode,
+        model: model === "default" ? undefined : model,
+        // Convert "default" to undefined to let server use DEFAULT_PERMISSION_MODE env var
+        permissionMode:
+          permissionMode === "default" ? undefined : permissionMode,
       });
 
       // Navigate immediately to the new session
