@@ -79,6 +79,15 @@ app.get("/api/auth/status", async (_req, res) => {
   }
 });
 
+// Get auth output (for debugging)
+app.get("/api/auth/output", (_req, res) => {
+  res.json({
+    output: authOutput,
+    authUrl: authUrl,
+    authInProgress: authProcess !== null,
+  });
+});
+
 // Start auth flow
 app.post("/api/auth/start", (req, res) => {
   // Clean up any existing auth process
@@ -91,14 +100,21 @@ app.post("/api/auth/start", (req, res) => {
   authOutput = "";
 
   try {
-    // Spawn claude /login
-    const process = spawn(CLAUDE_BIN, ["/login"], {
+    // Spawn claude in interactive mode, then send /login command
+    // This mimics the interactive terminal behavior more closely
+    const process = spawn(CLAUDE_BIN, [], {
       cwd: HOME,
       env: { ...process.env, HOME },
       stdio: ["pipe", "pipe", "pipe"],
     });
 
     authProcess = process;
+
+    // Send /login command via stdin once process starts
+    process.on("spawn", () => {
+      console.log("Claude process spawned, sending /login command...");
+      process.stdin?.write("/login\n");
+    });
 
     // Capture output to extract auth URL
     process.stdout.on("data", (data) => {
@@ -107,11 +123,13 @@ app.post("/api/auth/start", (req, res) => {
       console.log(`Auth stdout: ${output}`);
 
       // Look for the auth URL pattern
-      // Claude CLI typically outputs: "Please visit: https://..."
-      const urlMatch = output.match(/https:\/\/[^\s]+/);
-      if (urlMatch) {
+      // Claude CLI outputs URLs in format: https://...
+      // Try to match any https URL in the output
+      const urlMatch = output.match(/https:\/\/[^\s\)]+/);
+      if (urlMatch && !authUrl) {
+        // Only set if not already set
         authUrl = urlMatch[0];
-        console.log(`Found auth URL: ${authUrl}`);
+        console.log(`✓ Found auth URL: ${authUrl}`);
       }
     });
 
@@ -120,16 +138,17 @@ app.post("/api/auth/start", (req, res) => {
       authOutput += output;
       console.log(`Auth stderr: ${output}`);
 
-      // Also check stderr for URL
-      const urlMatch = output.match(/https:\/\/[^\s]+/);
-      if (urlMatch) {
+      // Also check stderr for URL (in case CLI outputs there)
+      const urlMatch = output.match(/https:\/\/[^\s\)]+/);
+      if (urlMatch && !authUrl) {
         authUrl = urlMatch[0];
-        console.log(`Found auth URL in stderr: ${authUrl}`);
+        console.log(`✓ Found auth URL in stderr: ${authUrl}`);
       }
     });
 
     process.on("close", (code) => {
       console.log(`Auth process exited with code ${code}`);
+      console.log(`Full auth output:\n${authOutput}`);
       authProcess = null;
     });
 
@@ -138,16 +157,17 @@ app.post("/api/auth/start", (req, res) => {
       authProcess = null;
     });
 
-    // Give it a moment to output the URL
+    // Give it a moment to output the URL (increased to 3s for reliability)
     setTimeout(() => {
       res.json({
         success: true,
         authUrl: authUrl,
         message: authUrl
           ? "Auth flow started. Please visit the URL to authorize."
-          : "Auth flow started. Waiting for URL...",
+          : "Auth flow started. Waiting for URL... (check logs if this persists)",
+        debug: authOutput.substring(0, 500), // Include first 500 chars for debugging
       });
-    }, 2000);
+    }, 3000);
   } catch (err) {
     console.error("Failed to start auth:", err);
     res.status(500).json({ error: "Failed to start auth flow" });
