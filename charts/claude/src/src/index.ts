@@ -168,16 +168,21 @@ wss.on("connection", (ws, req) => {
 
   ws.on("message", (data) => {
     const message = JSON.parse(data.toString());
+    console.log(`Received message for session ${session.id}: ${JSON.stringify(message).substring(0, 100)}`);
 
     if (message.type === "input") {
       // Start Claude Code process if not running
       if (!session.process) {
+        console.log(`Starting new Claude process for session ${session.id}`);
         startClaudeProcess(session);
       }
 
       // Send input to Claude
       if (session.process?.stdin) {
+        console.log(`Writing to Claude stdin: ${message.content}`);
         session.process.stdin.write(message.content + "\n");
+      } else {
+        console.log(`Warning: session.process.stdin not available`);
       }
     }
   });
@@ -198,6 +203,8 @@ wss.on("connection", (ws, req) => {
 });
 
 function startClaudeProcess(session: Session) {
+  console.log(`Starting Claude process for session ${session.id} in ${session.workdir}`);
+
   // Spawn Claude Code in the session's workdir
   const claude = spawn("claude", ["--dangerously-skip-permissions"], {
     cwd: session.workdir,
@@ -210,8 +217,17 @@ function startClaudeProcess(session: Session) {
 
   session.process = claude;
 
+  claude.on("spawn", () => {
+    console.log(`Claude process spawned with PID ${claude.pid}`);
+  });
+
+  claude.on("error", (err) => {
+    console.error(`Claude process error: ${err.message}`);
+  });
+
   // Stream stdout to WebSocket clients
   claude.stdout.on("data", (data) => {
+    console.log(`Claude stdout: ${data.toString().substring(0, 100)}...`);
     const message = JSON.stringify({
       type: "output",
       content: data.toString(),
@@ -225,6 +241,7 @@ function startClaudeProcess(session: Session) {
 
   // Stream stderr to WebSocket clients
   claude.stderr.on("data", (data) => {
+    console.log(`Claude stderr: ${data.toString().substring(0, 100)}...`);
     const message = JSON.stringify({
       type: "error",
       content: data.toString(),
@@ -238,6 +255,7 @@ function startClaudeProcess(session: Session) {
 
   // Handle process exit
   claude.on("close", (code) => {
+    console.log(`Claude process exited with code ${code}`);
     const message = JSON.stringify({
       type: "exit",
       code,
