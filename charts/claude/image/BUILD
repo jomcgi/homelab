@@ -29,6 +29,7 @@ pkg_tar(
     mode = "0644",
     owner = "1000.1000",
     package_dir = "app/public",
+    strip_prefix = "charts/claude/frontend/dist",
 )
 
 apko_image(
