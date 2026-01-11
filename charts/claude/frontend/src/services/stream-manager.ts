@@ -12,6 +12,13 @@ export class StreamManager extends EventEmitter {
   private logger: Logger;
   private heartbeatInterval?: NodeJS.Timeout;
 
+  // Buffer messages for sessions that don't have clients yet
+  // This prevents race conditions where messages arrive before client connects
+  private messageBuffer: Map<string, StreamEvent[]> = new Map();
+
+  // How long to keep buffered messages before discarding (5 minutes)
+  private readonly BUFFER_TTL_MS = 5 * 60 * 1000;
+
   // Send heartbeat every 30 seconds to keep connections alive
   private readonly HEARTBEAT_INTERVAL_MS = 30000;
 
@@ -59,6 +66,9 @@ export class StreamManager extends EventEmitter {
 
     this.sendSSEEvent(res, connectionMessage);
 
+    // Flush any buffered messages for this session
+    this.flushBuffer(streamingId);
+
     // Start heartbeat if this is the first client
     this.startHeartbeat();
 
@@ -71,6 +81,29 @@ export class StreamManager extends EventEmitter {
       this.logger.error("Stream error for session", error, { streamingId });
       this.removeClient(streamingId, res);
     });
+  }
+
+  /**
+   * Flush buffered messages to connected clients
+   */
+  private flushBuffer(streamingId: string): void {
+    const bufferedMessages = this.messageBuffer.get(streamingId);
+    if (!bufferedMessages || bufferedMessages.length === 0) {
+      return;
+    }
+
+    this.logger.info("Flushing buffered messages to newly connected client", {
+      streamingId,
+      messageCount: bufferedMessages.length,
+    });
+
+    // Send all buffered messages
+    for (const message of bufferedMessages) {
+      this.broadcastToClients(streamingId, message);
+    }
+
+    // Clear the buffer
+    this.messageBuffer.delete(streamingId);
   }
 
   /**
@@ -94,6 +127,7 @@ export class StreamManager extends EventEmitter {
 
   /**
    * Broadcast an event to all clients watching a session
+   * If no clients are connected, buffer the message for later delivery
    */
   broadcast(streamingId: string, event: StreamEvent): void {
     this.logger.debug("Broadcasting event to clients", {
@@ -104,10 +138,51 @@ export class StreamManager extends EventEmitter {
 
     const clients = this.clients.get(streamingId);
     if (!clients || clients.size === 0) {
-      this.logger.debug(
-        "No clients found for streaming session, dropping message",
-        { streamingId },
-      );
+      // Buffer the message instead of dropping it
+      this.bufferMessage(streamingId, event);
+      return;
+    }
+
+    this.broadcastToClients(streamingId, event);
+  }
+
+  /**
+   * Buffer a message for later delivery when a client connects
+   */
+  private bufferMessage(streamingId: string, event: StreamEvent): void {
+    if (!this.messageBuffer.has(streamingId)) {
+      this.messageBuffer.set(streamingId, []);
+    }
+
+    const buffer = this.messageBuffer.get(streamingId)!;
+    buffer.push(event);
+
+    this.logger.info("Buffered message for session without clients", {
+      streamingId,
+      eventType: event?.type,
+      eventSubtype: "subtype" in event ? event.subtype : undefined,
+      bufferSize: buffer.length,
+    });
+
+    // Set up auto-cleanup after TTL
+    setTimeout(() => {
+      const currentBuffer = this.messageBuffer.get(streamingId);
+      if (currentBuffer && currentBuffer.length > 0) {
+        this.logger.debug("Cleaning up expired message buffer", {
+          streamingId,
+          expiredMessageCount: currentBuffer.length,
+        });
+        this.messageBuffer.delete(streamingId);
+      }
+    }, this.BUFFER_TTL_MS);
+  }
+
+  /**
+   * Send event to all connected clients (internal helper)
+   */
+  private broadcastToClients(streamingId: string, event: StreamEvent): void {
+    const clients = this.clients.get(streamingId);
+    if (!clients || clients.size === 0) {
       return;
     }
 
@@ -200,6 +275,9 @@ export class StreamManager extends EventEmitter {
    * Close all connections for a session
    */
   closeSession(streamingId: string): void {
+    // Clean up message buffer for this session
+    this.messageBuffer.delete(streamingId);
+
     const clients = this.clients.get(streamingId);
     if (!clients) return;
 
