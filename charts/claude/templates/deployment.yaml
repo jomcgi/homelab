@@ -130,6 +130,10 @@ spec:
                   name: {{ include "claude-api.fullname" . }}-secret
                   key: google_api_key
                   optional: true
+            {{- if .Values.defaultWorkingDirectory }}
+            - name: DEFAULT_WORKING_DIRECTORY
+              value: {{ .Values.defaultWorkingDirectory | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:

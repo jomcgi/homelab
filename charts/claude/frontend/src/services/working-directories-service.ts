@@ -4,12 +4,15 @@ import { Logger } from "./logger.js";
 
 export class WorkingDirectoriesService {
   private logger: Logger;
+  private defaultWorkingDirectory: string | undefined;
 
   constructor(
     private historyReader: ClaudeHistoryReader,
     logger: Logger,
+    defaultWorkingDirectory?: string,
   ) {
     this.logger = logger.child({ component: "WorkingDirectoriesService" });
+    this.defaultWorkingDirectory = defaultWorkingDirectory || process.env.DEFAULT_WORKING_DIRECTORY;
   }
 
   async getWorkingDirectories(): Promise<WorkingDirectoriesResponse> {
@@ -63,6 +66,21 @@ export class WorkingDirectoriesService {
         (a, b) =>
           new Date(b.lastDate).getTime() - new Date(a.lastDate).getTime(),
       );
+
+      // Add default working directory if configured and not already in list
+      if (this.defaultWorkingDirectory && !directoryMap.has(this.defaultWorkingDirectory)) {
+        const defaultDir: WorkingDirectory = {
+          path: this.defaultWorkingDirectory,
+          shortname: this.defaultWorkingDirectory.split("/").pop() || this.defaultWorkingDirectory,
+          lastDate: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+          conversationCount: 0,
+        };
+        // Add to beginning of list
+        directories.unshift(defaultDir);
+        this.logger.debug("Added default working directory", {
+          path: this.defaultWorkingDirectory,
+        });
+      }
 
       this.logger.debug("Retrieved working directories", {
         totalDirectories: directories.length,

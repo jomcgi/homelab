@@ -1,2 +1,5 @@
 # Dev environment overrides for claude
 # Inherits defaults from charts/claude/values.yaml
+
+# Default working directory - shown in UI before any conversations exist
+defaultWorkingDirectory: "/home/user/repos/homelab"
