@@ -14,6 +14,7 @@ ts_project(
         "//:node_modules/@types/uuid",
         "//:node_modules/@types/ws",
         "//:node_modules/express",
+        "//:node_modules/http-proxy-middleware",
         "//:node_modules/uuid",
         "//:node_modules/ws",
     ],
