@@ -1,5 +1,13 @@
 # Dev environment overrides for claude
 # Inherits defaults from charts/claude/values.yaml
 
-# Default working directory - shown in UI before any conversations exist
-defaultWorkingDirectory: "/home/user/repos/homelab"
+# Git-sync sidecar to keep homelab repo available (read-only)
+gitSync:
+  enabled: true
+  repo: https://github.com/jomcgi/homelab
+  repoName: homelab
+  branch: main
+  period: 60s
+
+# Default working directory - points to git-sync'd repo
+defaultWorkingDirectory: "/repos/homelab/current"

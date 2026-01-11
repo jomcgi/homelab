@@ -139,6 +139,55 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/user
+            {{- if .Values.gitSync.enabled }}
+            - name: repo
+              mountPath: /repos/{{ .Values.gitSync.repoName }}
+            {{- end }}
+        {{- if .Values.gitSync.enabled }}
+        # Git-sync sidecar to keep repo in sync
+        - name: git-sync
+          image: {{ .Values.gitSync.image }}
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 1000
+            runAsGroup: 1000
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: GITSYNC_REPO
+              value: {{ .Values.gitSync.repo | quote }}
+            - name: GITSYNC_REF
+              value: {{ .Values.gitSync.branch | quote }}
+            - name: GITSYNC_ROOT
+              value: /repo
+            - name: GITSYNC_LINK
+              value: current
+            - name: GITSYNC_PERIOD
+              value: {{ .Values.gitSync.period | quote }}
+            - name: GITSYNC_ONE_TIME
+              value: "false"
+            # Required for git operations as non-root user
+            - name: GITSYNC_ADD_USER
+              value: "true"
+            # Clean up old worktrees after 1 hour
+            - name: GITSYNC_STALE_WORKTREE_TIMEOUT
+              value: "1h"
+          volumeMounts:
+            - name: repo
+              mountPath: /repo
+            - name: git-sync-tmp
+              mountPath: /tmp
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              memory: 64Mi
+        {{- end }}
       volumes:
         - name: home
           {{- if .Values.persistence.enabled }}
@@ -156,6 +205,12 @@ spec:
           emptyDir: {}
         - name: nginx-log
           emptyDir: {}
+        {{- if .Values.gitSync.enabled }}
+        - name: repo
+          emptyDir: {}
+        - name: git-sync-tmp
+          emptyDir: {}
+        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

@@ -27,8 +27,17 @@ gemini:
   model: "gemini-2.0-flash"
 
 ## Default working directory shown in UI when no conversation history exists
-## Set to a repo path like /home/user/repos/myproject
+## When gitSync is enabled, this is automatically set to /repos/<repoName>/current
 defaultWorkingDirectory: ""
+
+## Git-sync sidecar to keep a repo available for Claude to work with
+gitSync:
+  enabled: false
+  image: registry.k8s.io/git-sync/git-sync:v4.4.0
+  repo: ""  # e.g., https://github.com/user/repo
+  repoName: ""  # e.g., homelab (used for mount path)
+  branch: main
+  period: 60s  # Sync interval
 
 ## Service configuration
 service:
