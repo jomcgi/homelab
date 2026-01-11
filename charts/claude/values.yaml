@@ -52,7 +52,7 @@ resources:
     cpu: "1"
     memory: "12Gi"
   limits:
-    memory: "8Gi"
+    memory: "12Gi"
 
 ## Pod Security Context
 podSecurityContext:
