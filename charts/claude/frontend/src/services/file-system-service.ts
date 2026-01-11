@@ -254,8 +254,9 @@ export class FileSystemService {
     for (const segment of segments) {
       if (!segment) continue;
 
-      // Check for hidden files/directories
-      if (segment.startsWith(".")) {
+      // Check for hidden files/directories (allow git-related paths)
+      const allowedHiddenDirs = [".git", ".worktrees"];
+      if (segment.startsWith(".") && !allowedHiddenDirs.includes(segment)) {
         this.logger.warn("Hidden file/directory detected", {
           requestedPath,
           segment,
