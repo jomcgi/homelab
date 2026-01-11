@@ -104,6 +104,8 @@ affinity: {}
 
 ## Pod annotations
 podAnnotations:
+  # Disable Linkerd injection to debug WebSocket timeout issues
+  linkerd.io/inject: disabled
   # Mark ports as opaque to bypass Linkerd's HTTP detection
   # This prevents the default 10-second response timeout from killing WebSocket connections
   # Port 8080 (nginx) receives external traffic, port 3000 is the backend
