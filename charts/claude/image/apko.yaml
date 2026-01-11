@@ -11,6 +11,7 @@ contents:
     - bash
     - busybox  # Provides /bin/sh for npm scripts
     - curl
+    - ttyd     # Terminal over WebSocket for interactive auth
     # Node.js for API server and Claude Code
     - nodejs-22
     - npm

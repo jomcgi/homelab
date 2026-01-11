@@ -1,6 +1,7 @@
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { createServer } from "http";
+import { createServer, ServerResponse } from "http";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import { v4 as uuidv4 } from "uuid";
 import { spawn, ChildProcess } from "child_process";
 import path from "path";
@@ -15,10 +16,14 @@ const WORKTREES_DIR = "/tmp/claude-worktrees";
 const SESSIONS_DIR = path.join(HOME, ".claude-api", "sessions");
 const STATIC_DIR = process.env.STATIC_DIR || "/app/public";
 const CLAUDE_BIN = path.join(HOME, ".npm-global", "bin", "claude");
+const TTYD_PORT = 7681;
 
 // Ensure directories exist
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(WORKTREES_DIR, { recursive: true });
+
+// Authentication state
+let authTtydProcess: ChildProcess | null = null;
 
 interface Session {
   id: string;
@@ -35,6 +40,113 @@ const sessions = new Map<string, Session>();
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", sessions: sessions.size });
 });
+
+// Auth status - check if Claude is authenticated
+app.get("/api/auth/status", (_req, res) => {
+  const authFile = path.join(HOME, ".claude", "auth.json");
+  const authenticated = fs.existsSync(authFile);
+
+  res.json({
+    authenticated,
+    terminalActive: authTtydProcess !== null,
+  });
+});
+
+// Start auth terminal (spawn ttyd)
+app.post("/api/auth/start", (_req, res) => {
+  // Clean up any existing auth process
+  if (authTtydProcess) {
+    console.log("Killing existing ttyd process...");
+    authTtydProcess.kill();
+    authTtydProcess = null;
+  }
+
+  try {
+    // Spawn ttyd with claude /login
+    // -W: Don't wait for initial connection (start immediately)
+    // -p: Port to listen on
+    // -t: Set terminal type
+    console.log(`Starting ttyd on port ${TTYD_PORT}...`);
+
+    const ttyd = spawn(
+      "ttyd",
+      [
+        "-p", TTYD_PORT.toString(),
+        "-W", // Start immediately
+        "-t", "titleFixed=Claude Authentication",
+        "bash", "-c",
+        `echo "Starting Claude authentication..." && ${CLAUDE_BIN} /login`
+      ],
+      {
+        cwd: HOME,
+        env: { ...process.env, HOME },
+        stdio: ["ignore", "pipe", "pipe"],
+      }
+    );
+
+    authTtydProcess = ttyd;
+
+    ttyd.stdout.on("data", (data) => {
+      console.log(`[ttyd stdout] ${data.toString().trim()}`);
+    });
+
+    ttyd.stderr.on("data", (data) => {
+      console.log(`[ttyd stderr] ${data.toString().trim()}`);
+    });
+
+    ttyd.on("close", (code) => {
+      console.log(`ttyd process exited with code ${code}`);
+      authTtydProcess = null;
+    });
+
+    ttyd.on("error", (err) => {
+      console.error(`ttyd process error: ${err}`);
+      authTtydProcess = null;
+    });
+
+    // Give ttyd a moment to start
+    setTimeout(() => {
+      res.json({
+        success: true,
+        message: "Terminal started. Connect to /api/auth/terminal",
+        terminalUrl: "/api/auth/terminal",
+      });
+    }, 500);
+  } catch (err) {
+    console.error("Failed to start ttyd:", err);
+    res.status(500).json({ error: "Failed to start terminal" });
+  }
+});
+
+// Stop auth terminal
+app.post("/api/auth/stop", (_req, res) => {
+  if (authTtydProcess) {
+    console.log("Stopping ttyd process...");
+    authTtydProcess.kill();
+    authTtydProcess = null;
+  }
+  res.json({ success: true });
+});
+
+// Proxy to ttyd terminal (HTTP and WebSocket)
+app.use(
+  "/api/auth/terminal",
+  createProxyMiddleware({
+    target: `http://localhost:${TTYD_PORT}`,
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxying
+    pathRewrite: {
+      "^/api/auth/terminal": "", // Remove prefix
+    },
+    onError: (err, req, res) => {
+      console.error("Proxy error:", err);
+      if (res instanceof ServerResponse) {
+        res.writeHead(502);
+        res.end("Terminal not available");
+      }
+    },
+  })
+);
 
 // List sessions
 app.get("/api/sessions", (_req, res) => {
