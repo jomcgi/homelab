@@ -78,28 +78,27 @@ export function ConversationView() {
     },
   });
 
-  // Clear navigation state to prevent issues on refresh
-  useEffect(() => {
-    const state = location.state;
-
-    if (state) {
-      // Clear the state to prevent issues on refresh
-      window.history.replaceState({}, document.title);
-    }
-  }, [location]);
-
-  // Clear streaming when navigating away or sessionId changes
-  // EXCEPT if we're navigating with a new streamingId (resume/continuation)
+  // Handle streamingId from navigation state
+  // This effect SETS the streamingId when navigating with state (critical for streaming to work)
   useEffect(() => {
     const state = location.state as NavigationState | null;
-    // Only clear streamingId if we DON'T have one from navigation state
-    // This allows resumed conversations to maintain their streaming connection
+    if (state?.streamingId) {
+      // Set the streamingId to connect to the stream
+      setStreamingId(state.streamingId);
+      // Clear navigation state after extracting streamingId to prevent issues on refresh
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
+
+  // Clear streaming when sessionId changes without navigation state
+  useEffect(() => {
+    const state = location.state as NavigationState | null;
+    // Only clear if we don't have a fresh streamingId from navigation
     if (!state?.streamingId) {
       setStreamingId(null);
     }
 
     return () => {
-      // Clear streaming when navigating away
       setStreamingId(null);
     };
   }, [sessionId, location.state]);
