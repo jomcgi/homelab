@@ -267,8 +267,10 @@ const server = createServer(app);
 // WebSocket server for ttyd terminal proxy
 // Uses proper WebSocket-to-WebSocket proxying (like ttyd-session-manager did with gorilla/websocket)
 // IMPORTANT: Must accept "tty" subprotocol or ttyd client will reject the connection
+// IMPORTANT: Disable compression on server - browser may negotiate it but ttyd doesn't use it
 const ttydWss = new WebSocketServer({
   noServer: true,
+  perMessageDeflate: false,
   handleProtocols: (protocols) => {
     // Accept "tty" subprotocol if client requests it (ttyd always does)
     if (protocols.has("tty")) {
