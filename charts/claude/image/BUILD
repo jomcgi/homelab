@@ -11,12 +11,7 @@ pkg_tar(
         "//charts/claude/src:package.json",
     ],
     mode = "0755",
-    remap_paths = {
-        "src/dist": "/app/dist",
-        "src/package.json": "/app/package.json",
-        "image/start.sh": "/app/start.sh",
-    },
-    strip_prefix = "charts/claude",
+    package_dir = "app",
 )
 
 # Package the compiled frontend
@@ -25,10 +20,7 @@ pkg_tar(
     name = "frontend_tar",
     srcs = ["//charts/claude/frontend:dist"],
     mode = "0644",
-    remap_paths = {
-        "frontend/dist": "/app/public",
-    },
-    strip_prefix = "charts/claude",
+    package_dir = "app/public",
 )
 
 apko_image(
