@@ -31,7 +31,9 @@ interface Session {
   name: string;
   workdir: string;
   createdAt: Date;
+  claudeSessionId?: string; // Claude's internal session ID for --resume
   process?: ChildProcess;
+  isProcessing: boolean; // Prevent concurrent requests
   wsClients: Set<WebSocket>;
 }
 
@@ -182,6 +184,7 @@ app.post("/api/sessions", (req, res) => {
     name: name || `Session ${id.slice(0, 8)}`,
     workdir: sessionWorkdir,
     createdAt: new Date(),
+    isProcessing: false,
     wsClients: new Set(),
   };
 
@@ -417,19 +420,18 @@ wss.on("connection", (ws, req) => {
     );
 
     if (message.type === "input") {
-      // Start Claude Code process if not running
-      if (!session.process) {
-        console.log(`Starting new Claude process for session ${session.id}`);
-        startClaudeProcess(session);
+      if (session.isProcessing) {
+        console.log(`Session ${session.id} is already processing, queuing not implemented`);
+        ws.send(JSON.stringify({
+          type: "error",
+          content: "Please wait for the current response to complete",
+        }));
+        return;
       }
 
-      // Send input to Claude
-      if (session.process?.stdin) {
-        console.log(`Writing to Claude stdin: ${message.content}`);
-        session.process.stdin.write(message.content + "\n");
-      } else {
-        console.log(`Warning: session.process.stdin not available`);
-      }
+      // Run Claude in print mode with the user's message
+      console.log(`Running Claude for session ${session.id} with message: ${message.content.substring(0, 50)}...`);
+      runClaudeMessage(session, message.content);
     }
   });
 
@@ -461,22 +463,44 @@ wss.on("connection", (ws, req) => {
   }
 });
 
-function startClaudeProcess(session: Session) {
+// Run Claude in print mode with a single message (like cui does)
+function runClaudeMessage(session: Session, userMessage: string) {
   console.log(
-    `Starting Claude process for session ${session.id} in ${session.workdir}`,
+    `Running Claude for session ${session.id} in ${session.workdir}`,
   );
   console.log(`Using Claude binary: ${CLAUDE_BIN}`);
 
-  // Spawn Claude Code in the session's workdir
-  // Use shell: true because npm global installs create shell wrapper scripts
-  // that need shell execution to properly resolve
-  const claude = spawn(CLAUDE_BIN, ["--dangerously-skip-permissions"], {
+  session.isProcessing = true;
+
+  // Build args for print mode
+  // -p: print mode (non-interactive)
+  // --output-format stream-json: structured JSONL output
+  // --verbose: required with stream-json
+  // --dangerously-skip-permissions: skip permission prompts
+  const args = [
+    "-p", // Print mode
+    "--output-format", "stream-json",
+    "--verbose",
+    "--dangerously-skip-permissions",
+  ];
+
+  // If we have a previous Claude session, resume it
+  if (session.claudeSessionId) {
+    args.push("--resume", session.claudeSessionId);
+  }
+
+  // Add the user message as the last argument
+  args.push(userMessage);
+
+  console.log(`Claude args: ${args.join(" ")}`);
+
+  const claude = spawn(CLAUDE_BIN, args, {
     cwd: session.workdir,
     env: {
       ...process.env,
       HOME,
     },
-    stdio: ["pipe", "pipe", "pipe"],
+    stdio: ["inherit", "pipe", "pipe"], // stdin inherit, stdout/stderr piped
     shell: true,
   });
 
@@ -488,50 +512,126 @@ function startClaudeProcess(session: Session) {
 
   claude.on("error", (err) => {
     console.error(`Claude process error: ${err.message}`);
+    session.isProcessing = false;
+    session.process = undefined;
+    broadcast(session, { type: "error", content: `Process error: ${err.message}` });
   });
 
-  // Stream stdout to WebSocket clients
-  claude.stdout.on("data", (data) => {
-    console.log(`Claude stdout: ${data.toString().substring(0, 100)}...`);
-    const message = JSON.stringify({
-      type: "output",
-      content: data.toString(),
-    });
-    session.wsClients.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
+  // Buffer for incomplete JSON lines
+  let buffer = "";
+
+  // Parse JSONL output from stdout
+  claude.stdout.on("data", (data: Buffer) => {
+    buffer += data.toString();
+    const lines = buffer.split("\n");
+
+    // Keep the last incomplete line in the buffer
+    buffer = lines.pop() || "";
+
+    for (const line of lines) {
+      if (!line.trim()) continue;
+
+      try {
+        const event = JSON.parse(line);
+        handleClaudeEvent(session, event);
+      } catch (err) {
+        // Not valid JSON, might be regular output
+        console.log(`Claude non-JSON output: ${line.substring(0, 100)}`);
       }
-    });
+    }
   });
 
   // Stream stderr to WebSocket clients
-  claude.stderr.on("data", (data) => {
-    console.log(`Claude stderr: ${data.toString().substring(0, 100)}...`);
-    const message = JSON.stringify({
-      type: "error",
-      content: data.toString(),
-    });
-    session.wsClients.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
-      }
-    });
+  claude.stderr.on("data", (data: Buffer) => {
+    const content = data.toString();
+    console.log(`Claude stderr: ${content.substring(0, 200)}`);
+    // Don't broadcast all stderr - it's often just logging
   });
 
   // Handle process exit
   claude.on("close", (code) => {
     console.log(`Claude process exited with code ${code}`);
-    const message = JSON.stringify({
-      type: "exit",
-      code,
-    });
-    session.wsClients.forEach((ws) => {
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(message);
-      }
-    });
+    session.isProcessing = false;
     session.process = undefined;
+
+    // Process any remaining buffer
+    if (buffer.trim()) {
+      try {
+        const event = JSON.parse(buffer);
+        handleClaudeEvent(session, event);
+      } catch {
+        // Ignore
+      }
+    }
+
+    broadcast(session, { type: "done", code });
   });
+}
+
+// Handle Claude stream-json events
+function handleClaudeEvent(session: Session, event: Record<string, unknown>) {
+  console.log(`Claude event: ${event.type || "unknown"}`);
+
+  // Extract the Claude session ID for future --resume calls
+  if (event.type === "system" && event.subtype === "init") {
+    const init = event as { session_id?: string };
+    if (init.session_id) {
+      session.claudeSessionId = init.session_id;
+      console.log(`Captured Claude session ID: ${session.claudeSessionId}`);
+      saveSession(session);
+    }
+  }
+
+  // Forward assistant messages to clients
+  if (event.type === "assistant") {
+    const msg = event as { message?: { content?: Array<{ type: string; text?: string }> } };
+    if (msg.message?.content) {
+      for (const block of msg.message.content) {
+        if (block.type === "text" && block.text) {
+          broadcast(session, { type: "output", content: block.text });
+        }
+      }
+    }
+  }
+
+  // Forward content block deltas (streaming text)
+  if (event.type === "content_block_delta") {
+    const delta = event as { delta?: { type: string; text?: string } };
+    if (delta.delta?.type === "text_delta" && delta.delta.text) {
+      broadcast(session, { type: "output", content: delta.delta.text });
+    }
+  }
+
+  // Handle errors
+  if (event.type === "error") {
+    const err = event as { error?: { message?: string } };
+    broadcast(session, { type: "error", content: err.error?.message || "Unknown error" });
+  }
+}
+
+// Broadcast message to all session clients
+function broadcast(session: Session, message: Record<string, unknown>) {
+  const data = JSON.stringify(message);
+  session.wsClients.forEach((ws) => {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(data);
+    }
+  });
+}
+
+// Save session metadata to disk
+function saveSession(session: Session) {
+  const metaPath = path.join(SESSIONS_DIR, `${session.id}.json`);
+  fs.writeFileSync(
+    metaPath,
+    JSON.stringify({
+      id: session.id,
+      name: session.name,
+      workdir: session.workdir,
+      createdAt: session.createdAt,
+      claudeSessionId: session.claudeSessionId,
+    }),
+  );
 }
 
 // Load existing sessions on startup
@@ -551,6 +651,8 @@ function loadSessions() {
         name: data.name,
         workdir: data.workdir,
         createdAt: new Date(data.createdAt),
+        claudeSessionId: data.claudeSessionId,
+        isProcessing: false,
         wsClients: new Set(),
       });
     } catch (err) {
