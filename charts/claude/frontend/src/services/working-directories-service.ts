@@ -12,7 +12,8 @@ export class WorkingDirectoriesService {
     defaultWorkingDirectory?: string,
   ) {
     this.logger = logger.child({ component: "WorkingDirectoriesService" });
-    this.defaultWorkingDirectory = defaultWorkingDirectory || process.env.DEFAULT_WORKING_DIRECTORY;
+    this.defaultWorkingDirectory =
+      defaultWorkingDirectory || process.env.DEFAULT_WORKING_DIRECTORY;
   }
 
   async getWorkingDirectories(): Promise<WorkingDirectoriesResponse> {
@@ -68,10 +69,15 @@ export class WorkingDirectoriesService {
       );
 
       // Add default working directory if configured and not already in list
-      if (this.defaultWorkingDirectory && !directoryMap.has(this.defaultWorkingDirectory)) {
+      if (
+        this.defaultWorkingDirectory &&
+        !directoryMap.has(this.defaultWorkingDirectory)
+      ) {
         const defaultDir: WorkingDirectory = {
           path: this.defaultWorkingDirectory,
-          shortname: this.defaultWorkingDirectory.split("/").pop() || this.defaultWorkingDirectory,
+          shortname:
+            this.defaultWorkingDirectory.split("/").pop() ||
+            this.defaultWorkingDirectory,
           lastDate: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
           conversationCount: 0,
         };
