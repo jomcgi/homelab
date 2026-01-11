@@ -150,6 +150,7 @@ app.post("/api/sessions", (req, res) => {
         wsClients: new Set(),
     };
     sessions.set(id, session);
+    console.log(`Session created: ${id}, Total sessions in memory: ${sessions.size}`);
     // Save session metadata
     const metaPath = path_1.default.join(SESSIONS_DIR, `${id}.json`);
     fs_1.default.writeFileSync(metaPath, JSON.stringify({
@@ -215,15 +216,33 @@ app.get("*", (req, res) => {
 const server = (0, http_1.createServer)(app);
 // WebSocket server for ttyd terminal proxy
 // Uses proper WebSocket-to-WebSocket proxying (like ttyd-session-manager did with gorilla/websocket)
-const ttydWss = new ws_1.WebSocketServer({ noServer: true });
+// IMPORTANT: Must accept "tty" subprotocol or ttyd client will reject the connection
+// IMPORTANT: Disable compression on server - browser may negotiate it but ttyd doesn't use it
+const ttydWss = new ws_1.WebSocketServer({
+    noServer: true,
+    perMessageDeflate: false,
+    handleProtocols: (protocols) => {
+        // Accept "tty" subprotocol if client requests it (ttyd always does)
+        if (protocols.has("tty")) {
+            return "tty";
+        }
+        return false;
+    },
+});
 ttydWss.on("connection", (clientWs) => {
     console.log("Client WebSocket connected, connecting to ttyd...");
     // Connect to ttyd using WebSocket protocol with "tty" subprotocol
-    const ttydWs = new ws_1.WebSocket(`ws://localhost:${TTYD_PORT}/ws`, ["tty"]);
+    // IMPORTANT: Disable perMessageDeflate to avoid compression mismatch with ttyd
+    const ttydWs = new ws_1.WebSocket(`ws://localhost:${TTYD_PORT}/ws`, ["tty"], {
+        perMessageDeflate: false,
+    });
     // Set binary type to match ttyd expectations
     ttydWs.binaryType = "arraybuffer";
+    // Track connection state
+    let ttydConnected = false;
     ttydWs.on("open", () => {
         console.log("Connected to ttyd WebSocket");
+        ttydConnected = true;
     });
     ttydWs.on("message", (data, isBinary) => {
         // Forward ttyd messages to client, preserving binary/text type
@@ -233,11 +252,17 @@ ttydWss.on("connection", (clientWs) => {
     });
     ttydWs.on("close", (code, reason) => {
         console.log(`ttyd WebSocket closed: ${code} ${reason}`);
-        clientWs.close(code, reason.toString());
+        ttydConnected = false;
+        if (clientWs.readyState === ws_1.WebSocket.OPEN) {
+            clientWs.close(code, reason.toString());
+        }
     });
     ttydWs.on("error", (err) => {
         console.error("ttyd WebSocket error:", err);
-        clientWs.close(1011, "ttyd connection error");
+        ttydConnected = false;
+        if (clientWs.readyState === ws_1.WebSocket.OPEN) {
+            clientWs.close(1011, "ttyd connection error");
+        }
     });
     clientWs.on("message", (data, isBinary) => {
         // Forward client messages to ttyd, preserving binary/text type
@@ -247,36 +272,68 @@ ttydWss.on("connection", (clientWs) => {
     });
     clientWs.on("close", (code, reason) => {
         console.log(`Client WebSocket closed: ${code} ${reason}`);
-        ttydWs.close();
+        // Only close ttyd connection if it's open or connecting
+        if (ttydConnected || ttydWs.readyState === ws_1.WebSocket.CONNECTING) {
+            ttydWs.close();
+        }
     });
     clientWs.on("error", (err) => {
         console.error("Client WebSocket error:", err);
-        ttydWs.close();
+        if (ttydConnected || ttydWs.readyState === ws_1.WebSocket.CONNECTING) {
+            ttydWs.close();
+        }
     });
 });
-// Handle WebSocket upgrades for ttyd proxy
+// WebSocket server for streaming (also noServer to avoid duplicate upgrade handlers)
+const wss = new ws_1.WebSocketServer({ noServer: true });
+// Handle ALL WebSocket upgrades in one place to avoid conflicts
+// When using { server, path } option, ws library registers its own upgrade handler
+// which can conflict with manual handlers and send duplicate responses
 server.on("upgrade", (req, socket, head) => {
-    if (req.url?.startsWith("/api/auth/terminal/ws")) {
-        console.log(`WebSocket upgrade request: ${req.url}`);
+    const url = req.url || "";
+    console.log(`[UPGRADE] Request received: ${url}, headers: ${JSON.stringify(req.headers)}`);
+    if (url.startsWith("/api/auth/terminal/ws")) {
+        console.log(`WebSocket upgrade request for ttyd: ${url}`);
         ttydWss.handleUpgrade(req, socket, head, (ws) => {
             ttydWss.emit("connection", ws, req);
         });
     }
+    else if (url.startsWith("/ws")) {
+        console.log(`WebSocket upgrade request for session: ${url}`);
+        wss.handleUpgrade(req, socket, head, (ws) => {
+            wss.emit("connection", ws, req);
+        });
+    }
+    else {
+        console.log(`Unknown WebSocket upgrade request: ${url}`);
+        socket.destroy();
+    }
 });
-// WebSocket server for streaming
-const wss = new ws_1.WebSocketServer({ server, path: "/ws" });
 wss.on("connection", (ws, req) => {
-    const url = new URL(req.url || "", `http://localhost:${PORT}`);
+    console.log(`Session WebSocket connection received, URL: ${req.url}`);
+    let url;
+    try {
+        url = new URL(req.url || "", `http://localhost:${PORT}`);
+    }
+    catch (err) {
+        console.error(`Failed to parse WebSocket URL: ${req.url}`, err);
+        ws.close(4001, "Invalid URL");
+        return;
+    }
     const sessionId = url.searchParams.get("session");
+    console.log(`Session ID from URL: ${sessionId}`);
     if (!sessionId) {
+        console.log("Missing session parameter, closing connection");
         ws.close(4000, "Missing session parameter");
         return;
     }
     const session = sessions.get(sessionId);
     if (!session) {
+        console.log(`Session ${sessionId} not found. Available sessions: ${Array.from(sessions.keys()).join(", ")}`);
         ws.close(4004, "Session not found");
         return;
     }
+    console.log(`Session ${sessionId} found, adding client`);
     // Add client to session
     session.wsClients.add(ws);
     ws.on("message", (data) => {
@@ -298,21 +355,34 @@ wss.on("connection", (ws, req) => {
             }
         }
     });
-    ws.on("close", () => {
+    ws.on("close", (code, reason) => {
+        console.log(`Session ${session.id} WebSocket closed: ${code} ${reason.toString()}`);
         session.wsClients.delete(ws);
     });
+    ws.on("error", (err) => {
+        console.error(`Session ${session.id} WebSocket error:`, err);
+    });
     // Send welcome message
-    ws.send(JSON.stringify({
-        type: "connected",
-        sessionId: session.id,
-        name: session.name,
-        workdir: session.workdir,
-    }));
+    console.log(`Sending welcome message to session ${session.id}`);
+    try {
+        ws.send(JSON.stringify({
+            type: "connected",
+            sessionId: session.id,
+            name: session.name,
+            workdir: session.workdir,
+        }));
+        console.log(`Welcome message sent successfully to session ${session.id}`);
+    }
+    catch (err) {
+        console.error(`Failed to send welcome message to session ${session.id}:`, err);
+    }
 });
 function startClaudeProcess(session) {
     console.log(`Starting Claude process for session ${session.id} in ${session.workdir}`);
     console.log(`Using Claude binary: ${CLAUDE_BIN}`);
     // Spawn Claude Code in the session's workdir
+    // Use shell: true because npm global installs create shell wrapper scripts
+    // that need shell execution to properly resolve
     const claude = (0, child_process_1.spawn)(CLAUDE_BIN, ["--dangerously-skip-permissions"], {
         cwd: session.workdir,
         env: {
@@ -320,6 +390,7 @@ function startClaudeProcess(session) {
             HOME,
         },
         stdio: ["pipe", "pipe", "pipe"],
+        shell: true,
     });
     session.process = claude;
     claude.on("spawn", () => {
@@ -392,6 +463,7 @@ function loadSessions() {
         }
     }
     console.log(`Loaded ${sessions.size} existing sessions`);
+    console.log(`Session IDs: ${Array.from(sessions.keys()).join(", ")}`);
 }
 loadSessions();
 // Disable server-level timeouts for WebSocket support
