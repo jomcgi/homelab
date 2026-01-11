@@ -32,6 +32,18 @@ type RawJsonEntry = {
 };
 
 /**
+ * Git-sync worktree path remapping configuration.
+ * When Claude Code resolves symlinks (e.g., /repos/homelab/current -> /repos/homelab/.worktrees/abc123),
+ * we need to remap these back to stable symlink paths for conversation persistence.
+ */
+interface WorktreeRemapping {
+  /** Pattern to match resolved worktree paths (e.g., /repos/homelab/.worktrees/) */
+  worktreePattern: RegExp;
+  /** Stable symlink path to use instead (e.g., /repos/homelab/current) */
+  stableSymlink: string;
+}
+
+/**
  * Reads conversation history from Claude's local storage
  */
 export class ClaudeHistoryReader {
@@ -41,6 +53,7 @@ export class ClaudeHistoryReader {
   private conversationCache: ConversationCache;
   private toolMetricsService: ToolMetricsService;
   private messageFilter: MessageFilter;
+  private worktreeRemappings: WorktreeRemapping[];
 
   constructor(sessionInfoService?: SessionInfoService) {
     this.claudeHomePath = path.join(os.homedir(), ".claude");
@@ -49,6 +62,82 @@ export class ClaudeHistoryReader {
     this.conversationCache = new ConversationCache();
     this.toolMetricsService = new ToolMetricsService();
     this.messageFilter = new MessageFilter();
+    this.worktreeRemappings = this.loadWorktreeRemappings();
+  }
+
+  /**
+   * Load worktree remapping configuration from environment.
+   * Format: WORKTREE_REMAP_<n>=<worktree-base>:<stable-symlink>
+   * Example: WORKTREE_REMAP_0=/repos/homelab/.worktrees:/repos/homelab/current
+   */
+  private loadWorktreeRemappings(): WorktreeRemapping[] {
+    const remappings: WorktreeRemapping[] = [];
+
+    // Check for indexed remapping variables (WORKTREE_REMAP_0, WORKTREE_REMAP_1, etc.)
+    for (let i = 0; i < 10; i++) {
+      const envVar = process.env[`WORKTREE_REMAP_${i}`];
+      if (envVar) {
+        const [worktreeBase, stableSymlink] = envVar.split(":");
+        if (worktreeBase && stableSymlink) {
+          remappings.push({
+            worktreePattern: new RegExp(`^${this.escapeRegExp(worktreeBase)}/[^/]+(/.*)?$`),
+            stableSymlink,
+          });
+          this.logger.info("Loaded worktree remapping", { worktreeBase, stableSymlink });
+        }
+      }
+    }
+
+    // Also check DEFAULT_WORKING_DIRECTORY - if it ends with /current, set up auto-remapping
+    const defaultDir = process.env.DEFAULT_WORKING_DIRECTORY;
+    if (defaultDir && defaultDir.endsWith("/current")) {
+      const repoBase = defaultDir.replace(/\/current$/, "");
+      const worktreeBase = `${repoBase}/.worktrees`;
+      // Only add if not already configured
+      const alreadyConfigured = remappings.some(
+        (r) => r.stableSymlink === defaultDir
+      );
+      if (!alreadyConfigured) {
+        remappings.push({
+          worktreePattern: new RegExp(`^${this.escapeRegExp(worktreeBase)}/[^/]+(/.*)?$`),
+          stableSymlink: defaultDir,
+        });
+        this.logger.info("Auto-configured worktree remapping from DEFAULT_WORKING_DIRECTORY", {
+          worktreeBase,
+          stableSymlink: defaultDir,
+        });
+      }
+    }
+
+    return remappings;
+  }
+
+  /**
+   * Escape special regex characters in a string
+   */
+  private escapeRegExp(str: string): string {
+    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /**
+   * Normalize a project path by remapping resolved worktree paths back to stable symlinks.
+   * This handles the case where Claude Code resolves symlinks when writing conversation history.
+   */
+  private normalizeProjectPath(projectPath: string): string {
+    for (const remapping of this.worktreeRemappings) {
+      const match = projectPath.match(remapping.worktreePattern);
+      if (match) {
+        // Extract the subpath after the worktree hash (if any)
+        const subPath = match[1] || "";
+        const normalizedPath = remapping.stableSymlink + subPath;
+        this.logger.debug("Remapped worktree path to stable symlink", {
+          original: projectPath,
+          normalized: normalizedPath,
+        });
+        return normalizedPath;
+      }
+    }
+    return projectPath;
   }
 
   get homePath(): string {
@@ -495,6 +584,10 @@ export class ClaudeHistoryReader {
         const sourceProject = entries[0].sourceProject;
         projectPath = this.decodeProjectPath(sourceProject);
       }
+
+      // Normalize worktree paths back to stable symlinks
+      // This handles the case where Claude Code resolved symlinks when writing history
+      projectPath = this.normalizeProjectPath(projectPath);
 
       // Determine conversation summary
       const summary = this.determineConversationSummary(
