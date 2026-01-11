@@ -247,10 +247,10 @@ function App() {
                 msg.type === "user"
                   ? "ml-auto bg-[#e94560] max-w-[80%]"
                   : msg.type === "error"
-                  ? "bg-red-900/50 max-w-[80%]"
-                  : msg.type === "system"
-                  ? "bg-gray-700/50 text-sm text-gray-300 max-w-full"
-                  : "bg-[#16213e] max-w-[80%]"
+                    ? "bg-red-900/50 max-w-[80%]"
+                    : msg.type === "system"
+                      ? "bg-gray-700/50 text-sm text-gray-300 max-w-full"
+                      : "bg-[#16213e] max-w-[80%]"
               } rounded-lg p-3`}
             >
               <pre className="whitespace-pre-wrap font-mono text-sm break-words">

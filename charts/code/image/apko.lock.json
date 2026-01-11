@@ -1524,22 +1524,22 @@
       },
       {
         "name": "vim",
-        "url": "https://packages.wolfi.dev/os/x86_64/vim-9.1.2072-r0.apk",
-        "version": "9.1.2072-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/vim-9.1.2077-r0.apk",
+        "version": "9.1.2077-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5382",
-          "checksum": "sha1-MQJQLffXmASCR0yvf5K4NhAM69U="
+          "range": "bytes=0-5386",
+          "checksum": "sha1-fLNt7qmlWolJYGWyjaX+T87Zj7g="
         },
         "data": {
-          "range": "bytes=5383-11402101",
-          "checksum": "sha256-GkGuZBwWkut1rY5ApJs2wJFHVdRvf/AtT4v8kD84xT4="
+          "range": "bytes=5387-11400013",
+          "checksum": "sha256-7k+6bEb9ljEvxNkFj8OvSThJesQpO7wJNL+Ry3JKmto="
         },
-        "checksum": "Q1MQJQLffXmASCR0yvf5K4NhAM69U="
+        "checksum": "Q1fLNt7qmlWolJYGWyjaX+T87Zj7g="
       },
       {
         "name": "wolfi-baselayout",
@@ -3025,22 +3025,22 @@
       },
       {
         "name": "vim",
-        "url": "https://packages.wolfi.dev/os/aarch64/vim-9.1.2072-r0.apk",
-        "version": "9.1.2072-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/vim-9.1.2077-r0.apk",
+        "version": "9.1.2077-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5412",
-          "checksum": "sha1-/9mWf2X8wkcX0YDMehBbqOMMPNc="
+          "range": "bytes=0-5418",
+          "checksum": "sha1-xLT0/1o0wg2gLiyThhcbStCbmK4="
         },
         "data": {
-          "range": "bytes=5413-11388379",
-          "checksum": "sha256-9LNlsl2xYODUh5qeaMJboer0e6qAjp/n+dO8dw6eawI="
+          "range": "bytes=5419-11388916",
+          "checksum": "sha256-pkgTXLUAUIVFbCqCFUGBE5wb1DseIJMtOKuQ62S+v90="
         },
-        "checksum": "Q1/9mWf2X8wkcX0YDMehBbqOMMPNc="
+        "checksum": "Q1xLT0/1o0wg2gLiyThhcbStCbmK4="
       }
     ]
   }
