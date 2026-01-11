@@ -66,6 +66,26 @@ git push -u origin feat/my-feature
    ```
 6. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
 
+## Before Pushing Changes
+
+**Always check if your PR has been merged before pushing additional commits:**
+
+```bash
+# Check PR status before pushing
+gh pr view <branch-name> --json state -q .state
+```
+
+- If state is `MERGED`: Your branch was already merged. **Create a new branch and PR** for additional changes.
+- If state is `OPEN`: Safe to push additional commits to the existing PR.
+
+**Why?** Pushing to a merged branch creates orphaned commits that won't reach main. You'll need to rebase onto main and create a new PR anyway.
+
+```bash
+# If PR was merged, start fresh:
+git -C ~/repos/homelab fetch origin
+git -C ~/repos/homelab worktree add -b fix/new-issue /tmp/claude-worktrees/new-issue origin/main
+```
+
 ## Listing and Cleaning Worktrees
 
 ```bash
