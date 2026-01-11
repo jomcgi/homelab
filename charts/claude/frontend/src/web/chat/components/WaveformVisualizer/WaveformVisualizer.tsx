@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from "react";
 
 interface WaveformVisualizerProps {
   audioData: Uint8Array | null;
@@ -6,10 +6,10 @@ interface WaveformVisualizerProps {
   isPaused: boolean;
 }
 
-export function WaveformVisualizer({ 
-  audioData, 
-  isRecording, 
-  isPaused
+export function WaveformVisualizer({
+  audioData,
+  isRecording,
+  isPaused,
 }: WaveformVisualizerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number>();
@@ -25,11 +25,11 @@ export function WaveformVisualizer({
   const frameInterval = 1000 / frameRate;
 
   const getBarColor = useCallback(() => {
-    if (typeof window !== 'undefined') {
-      const isDark = document.documentElement.classList.contains('dark');
-      return isDark ? '#ececec' : '#0d0d0d';
+    if (typeof window !== "undefined") {
+      const isDark = document.documentElement.classList.contains("dark");
+      return isDark ? "#ececec" : "#0d0d0d";
     }
-    return '#000000';
+    return "#000000";
   }, []);
 
   const initializeCanvas = useCallback(() => {
@@ -37,7 +37,7 @@ export function WaveformVisualizer({
     const container = containerRef.current;
     if (!canvas || !container) return;
 
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
     // Get container dimensions
@@ -51,10 +51,10 @@ export function WaveformVisualizer({
 
     // Enable antialiasing
     ctx.imageSmoothingEnabled = true;
-    ctx.imageSmoothingQuality = 'high';
+    ctx.imageSmoothingQuality = "high";
 
     contextRef.current = ctx;
-    
+
     // Calculate max bars based on actual width
     const maxBars = Math.floor(width / (barWidth + barSpacing));
     barsDataRef.current = new Array(maxBars).fill(0.08); // Very short bars at initialization
@@ -78,7 +78,7 @@ export function WaveformVisualizer({
     barsDataRef.current.forEach((amplitude, index) => {
       const x = index * (barWidth + barSpacing);
       const barHeight = amplitude * maxBarHeight;
-      
+
       // Draw mirrored bars (above and below centerline)
       if (barHeight > 0) {
         // Bar above centerline
@@ -89,50 +89,56 @@ export function WaveformVisualizer({
     });
   }, [barWidth, barSpacing, getBarColor]);
 
-  const updateBars = useCallback((currentTime: number) => {
-    if (!audioData || isPaused) return false;
+  const updateBars = useCallback(
+    (currentTime: number) => {
+      if (!audioData || isPaused) return false;
 
-    // Check if enough time has passed for next frame
-    if (currentTime - lastUpdateTimeRef.current < frameInterval) {
-      return false;
-    }
+      // Check if enough time has passed for next frame
+      if (currentTime - lastUpdateTimeRef.current < frameInterval) {
+        return false;
+      }
 
-    lastUpdateTimeRef.current = currentTime;
+      lastUpdateTimeRef.current = currentTime;
 
-    // Process audio data to get a single amplitude value
-    let sum = 0;
-    for (let i = 0; i < audioData.length; i++) {
-      sum += audioData[i];
-    }
-    const averageAmplitude = sum / audioData.length;
-    
-    // Normalize to 0-1 range and apply more aggressive boosting for taller bars
-    let normalizedAmplitude = (averageAmplitude / 255) * 3.0; // Much higher boost for sensitivity
-    normalizedAmplitude = Math.min(normalizedAmplitude, 1); // Cap at 1
-    
-    // Add some randomness for natural feel (optional)
-    normalizedAmplitude *= (0.7 + Math.random() * 0.6);
+      // Process audio data to get a single amplitude value
+      let sum = 0;
+      for (let i = 0; i < audioData.length; i++) {
+        sum += audioData[i];
+      }
+      const averageAmplitude = sum / audioData.length;
 
-    // Ensure minimum base height of 0.08
-    const baseHeight = 0.08;
-    normalizedAmplitude = Math.max(normalizedAmplitude, baseHeight);
+      // Normalize to 0-1 range and apply more aggressive boosting for taller bars
+      let normalizedAmplitude = (averageAmplitude / 255) * 3.0; // Much higher boost for sensitivity
+      normalizedAmplitude = Math.min(normalizedAmplitude, 1); // Cap at 1
 
-    // Shift existing bars left and add new bar on right
-    barsDataRef.current.shift();
-    barsDataRef.current.push(normalizedAmplitude);
-    return true;
-  }, [audioData, isPaused, frameInterval]);
+      // Add some randomness for natural feel (optional)
+      normalizedAmplitude *= 0.7 + Math.random() * 0.6;
 
-  const animate = useCallback((currentTime: number) => {
-    if (!isRecording) return;
+      // Ensure minimum base height of 0.08
+      const baseHeight = 0.08;
+      normalizedAmplitude = Math.max(normalizedAmplitude, baseHeight);
 
-    const shouldUpdate = updateBars(currentTime);
-    if (shouldUpdate) {
-      drawWaveform();
-    }
+      // Shift existing bars left and add new bar on right
+      barsDataRef.current.shift();
+      barsDataRef.current.push(normalizedAmplitude);
+      return true;
+    },
+    [audioData, isPaused, frameInterval],
+  );
 
-    animationFrameRef.current = requestAnimationFrame(animate);
-  }, [isRecording, updateBars, drawWaveform]);
+  const animate = useCallback(
+    (currentTime: number) => {
+      if (!isRecording) return;
+
+      const shouldUpdate = updateBars(currentTime);
+      if (shouldUpdate) {
+        drawWaveform();
+      }
+
+      animationFrameRef.current = requestAnimationFrame(animate);
+    },
+    [isRecording, updateBars, drawWaveform],
+  );
 
   // Initialize canvas
   useEffect(() => {
@@ -174,8 +180,8 @@ export function WaveformVisualizer({
   }, [drawWaveform]);
 
   return (
-    <div 
-      ref={containerRef} 
+    <div
+      ref={containerRef}
       className="w-full bg-transparent flex items-center justify-start"
       aria-label="Audio waveform visualization"
     >

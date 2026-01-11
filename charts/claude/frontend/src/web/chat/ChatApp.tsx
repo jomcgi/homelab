@@ -1,12 +1,12 @@
-import React from 'react';
-import { Routes, Route } from 'react-router-dom';
-import { Layout } from './components/Layout/Layout';
-import { Home } from './components/Home/Home';
-import { ConversationView } from './components/ConversationView/ConversationView';
-import { ConversationsProvider } from './contexts/ConversationsContext';
-import { StreamStatusProvider } from './contexts/StreamStatusContext';
-import { PreferencesProvider } from './contexts/PreferencesContext';
-import './styles/global.css';
+import React from "react";
+import { Routes, Route } from "react-router-dom";
+import { Layout } from "./components/Layout/Layout";
+import { Home } from "./components/Home/Home";
+import { ConversationView } from "./components/ConversationView/ConversationView";
+import { ConversationsProvider } from "./contexts/ConversationsContext";
+import { StreamStatusProvider } from "./contexts/StreamStatusContext";
+import { PreferencesProvider } from "./contexts/PreferencesContext";
+import "./styles/global.css";
 
 function ChatApp() {
   return (
@@ -14,16 +14,22 @@ function ChatApp() {
       <StreamStatusProvider>
         <ConversationsProvider>
           <Routes>
-            <Route path="/" element={
-              <Layout>
-                <Home />
-              </Layout>
-            } />
-            <Route path="/c/:sessionId" element={
-              <Layout>
-                <ConversationView />
-              </Layout>
-            } />
+            <Route
+              path="/"
+              element={
+                <Layout>
+                  <Home />
+                </Layout>
+              }
+            />
+            <Route
+              path="/c/:sessionId"
+              element={
+                <Layout>
+                  <ConversationView />
+                </Layout>
+              }
+            />
           </Routes>
         </ConversationsProvider>
       </StreamStatusProvider>

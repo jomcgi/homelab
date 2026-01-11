@@ -1,26 +1,28 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useConversations } from '../../contexts/ConversationsContext';
-import { api } from '../../services/api';
-import { Header } from './Header';
-import { Composer, ComposerRef } from '@/web/chat/components/Composer';
-import { TaskTabs } from './TaskTabs';
-import { TaskList } from './TaskList';
+import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { useConversations } from "../../contexts/ConversationsContext";
+import { api } from "../../services/api";
+import { Header } from "./Header";
+import { Composer, ComposerRef } from "@/web/chat/components/Composer";
+import { TaskTabs } from "./TaskTabs";
+import { TaskList } from "./TaskList";
 
 export function Home() {
   const navigate = useNavigate();
-  const { 
-    conversations, 
-    loading, 
-    loadingMore, 
-    hasMore, 
-    error, 
-    loadConversations, 
+  const {
+    conversations,
+    loading,
+    loadingMore,
+    hasMore,
+    error,
+    loadConversations,
     loadMoreConversations,
     recentDirectories,
-    getMostRecentWorkingDirectory 
+    getMostRecentWorkingDirectory,
   } = useConversations();
-  const [activeTab, setActiveTab] = useState<'tasks' | 'history' | 'archive'>('tasks');
+  const [activeTab, setActiveTab] = useState<"tasks" | "history" | "archive">(
+    "tasks",
+  );
   const [isSubmitting, setIsSubmitting] = useState(false);
   const conversationCountRef = useRef(conversations.length);
   const composerRef = useRef<ComposerRef>(null);
@@ -31,13 +33,13 @@ export function Home() {
   }, [conversations.length]);
 
   // Get filter parameters based on active tab
-  const getFiltersForTab = (tab: 'tasks' | 'history' | 'archive') => {
+  const getFiltersForTab = (tab: "tasks" | "history" | "archive") => {
     switch (tab) {
-      case 'tasks':
+      case "tasks":
         return { archived: false, hasContinuation: false };
-      case 'history':
+      case "history":
         return { hasContinuation: true };
-      case 'archive':
+      case "archive":
         return { archived: true, hasContinuation: false };
       default:
         return {};
@@ -48,22 +50,25 @@ export function Home() {
   useEffect(() => {
     // Refresh on component mount if we have conversations
     if (conversationCountRef.current > 0) {
-      loadConversations(conversationCountRef.current, getFiltersForTab(activeTab));
+      loadConversations(
+        conversationCountRef.current,
+        getFiltersForTab(activeTab),
+      );
     }
-    
+
     // Focus the input after a brief delay to ensure DOM is ready
     const timer = setTimeout(() => {
       composerRef.current?.focusInput();
     }, 100);
-    
+
     return () => clearTimeout(timer);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty dependency array means this runs only on mount
 
   // Reload conversations when tab changes
   useEffect(() => {
     loadConversations(undefined, getFiltersForTab(activeTab));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
 
   // Auto-refresh on focus
@@ -71,49 +76,65 @@ export function Home() {
     const handleFocus = () => {
       // Only refresh if we have loaded conversations before
       if (conversationCountRef.current > 0) {
-        loadConversations(conversationCountRef.current, getFiltersForTab(activeTab));
+        loadConversations(
+          conversationCountRef.current,
+          getFiltersForTab(activeTab),
+        );
       }
     };
 
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && conversationCountRef.current > 0) {
-        loadConversations(conversationCountRef.current, getFiltersForTab(activeTab));
+      if (
+        document.visibilityState === "visible" &&
+        conversationCountRef.current > 0
+      ) {
+        loadConversations(
+          conversationCountRef.current,
+          getFiltersForTab(activeTab),
+        );
       }
     };
 
     // Listen for window focus
-    window.addEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
     // Listen for tab visibility change
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   }, [loadConversations, activeTab]);
 
   // Get the most recent working directory from conversations
-  const recentWorkingDirectory = conversations.length > 0 
-    ? conversations[0].projectPath 
-    : undefined;
+  const recentWorkingDirectory =
+    conversations.length > 0 ? conversations[0].projectPath : undefined;
 
-  const handleComposerSubmit = async (text: string, workingDirectory: string, model: string, permissionMode: string) => {
+  const handleComposerSubmit = async (
+    text: string,
+    workingDirectory: string,
+    model: string,
+    permissionMode: string,
+  ) => {
     setIsSubmitting(true);
-    
+
     try {
       const response = await api.startConversation({
         workingDirectory,
         initialPrompt: text,
-        model: model === 'default' ? undefined : model,
-        permissionMode: permissionMode === 'default' ? undefined : permissionMode,
+        model: model === "default" ? undefined : model,
+        permissionMode:
+          permissionMode === "default" ? undefined : permissionMode,
       });
-      
+
       // Navigate to the conversation page
       navigate(`/c/${response.sessionId}`);
     } catch (error) {
-      console.error('Failed to start conversation:', error);
+      console.error("Failed to start conversation:", error);
       // You might want to show an error message to the user here
-      alert(`Failed to start conversation: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(
+        `Failed to start conversation: ${error instanceof Error ? error.message : "Unknown error"}`,
+      );
       setIsSubmitting(false);
     }
   };
@@ -129,7 +150,12 @@ export function Home() {
               <div className="flex items-center gap-3 mb-4 pt-4">
                 <div className="flex items-center">
                   <div className="w-[27px] h-[27px] flex items-center justify-center">
-                    <svg width="24" height="24" viewBox="4.5 5.2 11.7 13.3" fill="currentColor">
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="4.5 5.2 11.7 13.3"
+                      fill="currentColor"
+                    >
                       <circle cx="10.3613" cy="6.44531" r="1.03516" />
                       <circle cx="5.69336" cy="9.15039" r="1.03516" />
                       <circle cx="15.0195" cy="9.15039" r="1.03516" />
@@ -140,11 +166,13 @@ export function Home() {
                     </svg>
                   </div>
                 </div>
-                <h1 className="text-2xl font-semibold font-sans text-foreground">What is the next task?</h1>
+                <h1 className="text-2xl font-semibold font-sans text-foreground">
+                  What is the next task?
+                </h1>
               </div>
-              
+
               <div className="w-full">
-                <Composer 
+                <Composer
                   ref={composerRef}
                   workingDirectory={recentWorkingDirectory}
                   onSubmit={handleComposerSubmit}
@@ -182,13 +210,10 @@ export function Home() {
                 />
               </div>
 
-              <TaskTabs 
-                activeTab={activeTab}
-                onTabChange={setActiveTab}
-              />
+              <TaskTabs activeTab={activeTab} onTabChange={setActiveTab} />
             </div>
 
-            <TaskList 
+            <TaskList
               conversations={conversations}
               loading={loading}
               loadingMore={loadingMore}
