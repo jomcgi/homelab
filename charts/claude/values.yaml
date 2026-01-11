@@ -26,6 +26,10 @@ git:
 gemini:
   model: "gemini-2.0-flash"
 
+## Default working directory shown in UI when no conversation history exists
+## Set to a repo path like /home/user/repos/myproject
+defaultWorkingDirectory: ""
+
 ## Service configuration
 service:
   type: ClusterIP
