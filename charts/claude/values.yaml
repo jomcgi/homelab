@@ -4,7 +4,7 @@
 ## Container image
 image:
   repository: ghcr.io/jomcgi/homelab/charts/claude
-  pullPolicy: IfNotPresent
+  pullPolicy: Always  # Always pull since we use mutable 'main' tag
   tag: "main"
 
 imagePullSecrets:
