@@ -1,6 +1,6 @@
 import express, { Request, Response } from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { createServer, ServerResponse } from "http";
+import { createServer, ServerResponse, IncomingMessage } from "http";
 import { Socket } from "net";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { v4 as uuidv4 } from "uuid";
@@ -69,6 +69,7 @@ app.post("/api/auth/start", (_req, res) => {
     // -t: Set terminal type
     console.log(`Starting ttyd on port ${TTYD_PORT}...`);
 
+    // Run claude interactively - user types /login inside the session
     const ttyd = spawn(
       "ttyd",
       [
@@ -77,9 +78,7 @@ app.post("/api/auth/start", (_req, res) => {
         "-W", // Start immediately
         "-t",
         "titleFixed=Claude Authentication",
-        "bash",
-        "-c",
-        `echo "Starting Claude authentication..." && ${CLAUDE_BIN} /login`,
+        CLAUDE_BIN,
       ],
       {
         cwd: HOME,
@@ -132,31 +131,28 @@ app.post("/api/auth/stop", (_req, res) => {
   res.json({ success: true });
 });
 
-// Proxy to ttyd terminal (HTTP and WebSocket)
-app.use(
-  "/api/auth/terminal",
-  createProxyMiddleware({
-    target: `http://localhost:${TTYD_PORT}`,
-    changeOrigin: true,
-    ws: true, // Enable WebSocket proxying
-    pathRewrite: {
-      "^/api/auth/terminal": "", // Remove prefix
+// Proxy to ttyd terminal (HTTP only - WebSocket handled separately)
+const ttydProxy = createProxyMiddleware({
+  target: `http://localhost:${TTYD_PORT}`,
+  changeOrigin: true,
+  pathRewrite: {
+    "^/api/auth/terminal": "", // Remove prefix
+  },
+  on: {
+    error: (
+      err: Error,
+      req: Request,
+      res: Response | ServerResponse | Socket,
+    ) => {
+      console.error("Proxy error:", err);
+      if (res instanceof ServerResponse) {
+        res.writeHead(502);
+        res.end("Terminal not available");
+      }
     },
-    on: {
-      error: (
-        err: Error,
-        req: Request,
-        res: Response | ServerResponse | Socket,
-      ) => {
-        console.error("Proxy error:", err);
-        if (res instanceof ServerResponse) {
-          res.writeHead(502);
-          res.end("Terminal not available");
-        }
-      },
-    },
-  }),
-);
+  },
+});
+app.use("/api/auth/terminal", ttydProxy);
 
 // List sessions
 app.get("/api/sessions", (_req, res) => {
@@ -267,6 +263,76 @@ app.get("*", (req, res) => {
 
 // Create HTTP server
 const server = createServer(app);
+
+// Handle WebSocket upgrades for ttyd proxy using raw TCP socket
+server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
+  if (req.url?.startsWith("/api/auth/terminal")) {
+    // Rewrite the URL to remove the prefix
+    const targetUrl = req.url.replace("/api/auth/terminal", "") || "/";
+    console.log(`WebSocket upgrade request: ${req.url} -> ${targetUrl}`);
+
+    // Disable timeout on incoming socket
+    socket.setTimeout(0);
+    socket.setKeepAlive(true, 30000);
+
+    // Create raw TCP connection to ttyd
+    const net = require("net");
+    const ttydSocket = net.createConnection(TTYD_PORT, "localhost", () => {
+      console.log("Raw socket connected to ttyd");
+
+      // Disable timeout on ttyd socket
+      ttydSocket.setTimeout(0);
+      ttydSocket.setKeepAlive(true, 30000);
+
+      // Forward the original HTTP upgrade request with rewritten path
+      const headers = Object.entries(req.headers)
+        .filter(([k]) => k.toLowerCase() !== "host") // Remove original host
+        .map(([k, v]) => `${k}: ${v}`)
+        .join("\r\n");
+
+      ttydSocket.write(
+        `GET ${targetUrl} HTTP/1.1\r\n` +
+          `Host: localhost:${TTYD_PORT}\r\n` +
+          headers +
+          "\r\n\r\n",
+      );
+
+      // Send any buffered data from the upgrade request
+      if (head.length > 0) {
+        ttydSocket.write(head);
+      }
+
+      // Pipe data bidirectionally
+      socket.pipe(ttydSocket);
+      ttydSocket.pipe(socket);
+
+      socket.on("error", (err) => {
+        console.error("Client socket error:", err);
+        ttydSocket.destroy();
+      });
+
+      ttydSocket.on("error", (err: Error) => {
+        console.error("ttyd socket error:", err);
+        socket.destroy();
+      });
+
+      socket.on("close", () => {
+        console.log("Client socket closed");
+        ttydSocket.destroy();
+      });
+
+      ttydSocket.on("close", () => {
+        console.log("ttyd socket closed");
+        socket.destroy();
+      });
+    });
+
+    ttydSocket.on("error", (err: Error) => {
+      console.error("Failed to connect to ttyd:", err);
+      socket.destroy();
+    });
+  }
+});
 
 // WebSocket server for streaming
 const wss = new WebSocketServer({ server, path: "/ws" });
@@ -424,6 +490,11 @@ function loadSessions() {
 }
 
 loadSessions();
+
+// Disable server-level timeouts for WebSocket support
+server.timeout = 0;
+server.keepAliveTimeout = 0;
+server.headersTimeout = 0;
 
 server.listen(PORT, () => {
   console.log(`Claude API server listening on port ${PORT}`);
