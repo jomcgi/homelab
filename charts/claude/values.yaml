@@ -50,7 +50,7 @@ persistence:
 resources:
   requests:
     cpu: "1"
-    memory: "1Gi"
+    memory: "12Gi"
   limits:
     memory: "8Gi"
 
