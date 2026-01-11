@@ -1,6 +1,10 @@
-import { EventEmitter } from 'events';
-import { createLogger, type Logger } from './logger.js';
-import { ConversationSummary, ConversationMessage, ConversationDetailsResponse } from '@/types/index.js';
+import { EventEmitter } from "events";
+import { createLogger, type Logger } from "./logger.js";
+import {
+  ConversationSummary,
+  ConversationMessage,
+  ConversationDetailsResponse,
+} from "@/types/index.js";
 
 /**
  * Context data stored for active conversations that have not yet been written to local directories
@@ -16,7 +20,7 @@ export interface ConversationStatusContext {
 /**
  * Unified service for managing conversation status and tracking active session status.
  * This service combines the functionality of ConversationStatusTracker and optimistic conversation handling.
- * 
+ *
  * Responsibilities:
  * - Track active streaming sessions and their Claude session IDs
  * - Store conversation status contexts for active sessions
@@ -34,38 +38,50 @@ export class ConversationStatusManager extends EventEmitter {
 
   constructor() {
     super();
-    this.logger = createLogger('ConversationStatusManager');
+    this.logger = createLogger("ConversationStatusManager");
   }
 
   /**
    * Register a new active streaming session with optional conversation context
    * This is called when we extract the session_id from the first stream message
    */
-  registerActiveSession(streamingId: string, claudeSessionId: string, conversationContext?: { initialPrompt: string; workingDirectory: string; model?: string; inheritedMessages?: ConversationMessage[] }): void {
-    this.logger.debug('Registering active session', { 
-      streamingId, 
+  registerActiveSession(
+    streamingId: string,
+    claudeSessionId: string,
+    conversationContext?: {
+      initialPrompt: string;
+      workingDirectory: string;
+      model?: string;
+      inheritedMessages?: ConversationMessage[];
+    },
+  ): void {
+    this.logger.debug("Registering active session", {
+      streamingId,
       claudeSessionId,
-      hasConversationContext: !!conversationContext
+      hasConversationContext: !!conversationContext,
     });
 
     // Remove any existing mapping for this Claude session
     const existingStreamingId = this.sessionToStreaming.get(claudeSessionId);
     if (existingStreamingId && existingStreamingId !== streamingId) {
-      this.logger.debug('Removing existing mapping for Claude session', { 
-        claudeSessionId, 
+      this.logger.debug("Removing existing mapping for Claude session", {
+        claudeSessionId,
         oldStreamingId: existingStreamingId,
-        newStreamingId: streamingId
+        newStreamingId: streamingId,
       });
       this.streamingToSession.delete(existingStreamingId);
     }
 
     // Remove any existing mapping for this streaming ID
     const existingClaudeSessionId = this.streamingToSession.get(streamingId);
-    if (existingClaudeSessionId && existingClaudeSessionId !== claudeSessionId) {
-      this.logger.debug('Removing existing mapping for streaming ID', { 
-        streamingId, 
+    if (
+      existingClaudeSessionId &&
+      existingClaudeSessionId !== claudeSessionId
+    ) {
+      this.logger.debug("Removing existing mapping for streaming ID", {
+        streamingId,
         oldClaudeSessionId: existingClaudeSessionId,
-        newClaudeSessionId: claudeSessionId
+        newClaudeSessionId: claudeSessionId,
       });
       this.sessionToStreaming.delete(existingClaudeSessionId);
       this.sessionContext.delete(existingClaudeSessionId);
@@ -80,29 +96,29 @@ export class ConversationStatusManager extends EventEmitter {
       const context: ConversationStatusContext = {
         initialPrompt: conversationContext.initialPrompt,
         workingDirectory: conversationContext.workingDirectory,
-        model: conversationContext.model || 'default',
+        model: conversationContext.model || "default",
         timestamp: new Date().toISOString(),
-        inheritedMessages: conversationContext.inheritedMessages
+        inheritedMessages: conversationContext.inheritedMessages,
       };
       this.sessionContext.set(claudeSessionId, context);
-      
-      this.logger.debug('Stored conversation status context', {
+
+      this.logger.debug("Stored conversation status context", {
         claudeSessionId,
         hasInitialPrompt: !!context.initialPrompt,
         workingDirectory: context.workingDirectory,
         model: context.model,
-        inheritedMessageCount: context.inheritedMessages?.length || 0
+        inheritedMessageCount: context.inheritedMessages?.length || 0,
       });
     }
 
-    this.logger.debug('Active session registered', { 
-      streamingId, 
+    this.logger.debug("Active session registered", {
+      streamingId,
       claudeSessionId,
       totalActiveSessions: this.sessionToStreaming.size,
-      hasConversationContext: !!conversationContext
+      hasConversationContext: !!conversationContext,
     });
 
-    this.emit('session-started', { streamingId, claudeSessionId });
+    this.emit("session-started", { streamingId, claudeSessionId });
   }
 
   /**
@@ -110,37 +126,41 @@ export class ConversationStatusManager extends EventEmitter {
    */
   unregisterActiveSession(streamingId: string): void {
     const claudeSessionId = this.streamingToSession.get(streamingId);
-    
+
     if (claudeSessionId) {
-      this.logger.debug('Unregistering active session', { 
-        streamingId, 
-        claudeSessionId 
+      this.logger.debug("Unregistering active session", {
+        streamingId,
+        claudeSessionId,
       });
 
       this.sessionToStreaming.delete(claudeSessionId);
       this.streamingToSession.delete(streamingId);
       this.sessionContext.delete(claudeSessionId);
 
-      this.logger.info('Active session unregistered', { 
-        streamingId, 
+      this.logger.info("Active session unregistered", {
+        streamingId,
         claudeSessionId,
-        totalActiveSessions: this.sessionToStreaming.size
+        totalActiveSessions: this.sessionToStreaming.size,
       });
 
-      this.emit('session-ended', { streamingId, claudeSessionId });
+      this.emit("session-ended", { streamingId, claudeSessionId });
     } else {
-      this.logger.debug('Attempted to unregister unknown streaming session', { streamingId });
+      this.logger.debug("Attempted to unregister unknown streaming session", {
+        streamingId,
+      });
     }
   }
 
   /**
    * Get conversation context for an active session
    */
-  getConversationContext(claudeSessionId: string): ConversationStatusContext | undefined {
+  getConversationContext(
+    claudeSessionId: string,
+  ): ConversationStatusContext | undefined {
     const context = this.sessionContext.get(claudeSessionId);
-    this.logger.debug('Getting conversation context', {
+    this.logger.debug("Getting conversation context", {
       claudeSessionId,
-      hasContext: !!context
+      hasContext: !!context,
     });
     return context;
   }
@@ -158,9 +178,9 @@ export class ConversationStatusManager extends EventEmitter {
    */
   getStreamingId(claudeSessionId: string): string | undefined {
     const streamingId = this.sessionToStreaming.get(claudeSessionId);
-    this.logger.debug('Getting streaming ID for Claude session', { 
-      claudeSessionId, 
-      streamingId: streamingId || 'not found' 
+    this.logger.debug("Getting streaming ID for Claude session", {
+      claudeSessionId,
+      streamingId: streamingId || "not found",
     });
     return streamingId;
   }
@@ -170,9 +190,9 @@ export class ConversationStatusManager extends EventEmitter {
    */
   getSessionId(streamingId: string): string | undefined {
     const claudeSessionId = this.streamingToSession.get(streamingId);
-    this.logger.debug('Getting Claude session ID for streaming ID', { 
-      streamingId, 
-      claudeSessionId: claudeSessionId || 'not found' 
+    this.logger.debug("Getting Claude session ID for streaming ID", {
+      streamingId,
+      claudeSessionId: claudeSessionId || "not found",
     });
     return claudeSessionId;
   }
@@ -182,9 +202,9 @@ export class ConversationStatusManager extends EventEmitter {
    */
   getActiveSessionIds(): string[] {
     const sessions = Array.from(this.sessionToStreaming.keys());
-    this.logger.debug('Getting all active session IDs', { 
+    this.logger.debug("Getting all active session IDs", {
       count: sessions.length,
-      sessions 
+      sessions,
     });
     return sessions;
   }
@@ -194,9 +214,9 @@ export class ConversationStatusManager extends EventEmitter {
    */
   getActiveStreamingIds(): string[] {
     const streamingIds = Array.from(this.streamingToSession.keys());
-    this.logger.debug('Getting all active streaming IDs', { 
+    this.logger.debug("Getting all active streaming IDs", {
       count: streamingIds.length,
-      streamingIds 
+      streamingIds,
     });
     return streamingIds;
   }
@@ -204,9 +224,11 @@ export class ConversationStatusManager extends EventEmitter {
   /**
    * Get conversation status for a Claude session ID
    */
-  getConversationStatus(claudeSessionId: string): 'completed' | 'ongoing' | 'pending' {
+  getConversationStatus(
+    claudeSessionId: string,
+  ): "completed" | "ongoing" | "pending" {
     const isActive = this.isSessionActive(claudeSessionId);
-    const status = isActive ? 'ongoing' : 'completed';
+    const status = isActive ? "ongoing" : "completed";
     return status;
   }
 
@@ -214,59 +236,64 @@ export class ConversationStatusManager extends EventEmitter {
    * Get conversations that haven't appeared in history yet
    * Used by the conversation list endpoint
    */
-  getConversationsNotInHistory(existingSessionIds: Set<string>): ConversationSummary[] {
+  getConversationsNotInHistory(
+    existingSessionIds: Set<string>,
+  ): ConversationSummary[] {
     const activeSessionIds = this.getActiveSessionIds();
-    
+
     const conversationsNotInHistory = activeSessionIds
-      .filter(sessionId => !existingSessionIds.has(sessionId))
-      .map(sessionId => {
+      .filter((sessionId) => !existingSessionIds.has(sessionId))
+      .map((sessionId) => {
         const context = this.getConversationContext(sessionId);
         const streamingId = this.getStreamingId(sessionId);
-        
+
         if (context && streamingId) {
           // Create conversation entry for active session
           const conversationSummary: ConversationSummary = {
             sessionId,
             projectPath: context.workingDirectory,
-            summary: '', // No summary for active conversation
+            summary: "", // No summary for active conversation
             sessionInfo: {
-              custom_name: '', // No custom name yet
+              custom_name: "", // No custom name yet
               created_at: context.timestamp,
               updated_at: context.timestamp,
               version: 4,
               pinned: false,
               archived: false,
-              continuation_session_id: '',
-              initial_commit_head: '',
-              permission_mode: 'default'
+              continuation_session_id: "",
+              initial_commit_head: "",
+              permission_mode: "default",
             },
             createdAt: context.timestamp,
             updatedAt: context.timestamp,
             messageCount: 1, // At least the initial user message
             totalDuration: 0, // No duration yet
-            model: context.model || 'unknown',
-            status: 'ongoing' as const,
-            streamingId
+            model: context.model || "unknown",
+            status: "ongoing" as const,
+            streamingId,
           };
-          
-          this.logger.debug('Created conversation summary for active session', {
+
+          this.logger.debug("Created conversation summary for active session", {
             sessionId,
             streamingId,
             workingDirectory: context.workingDirectory,
-            model: context.model
+            model: context.model,
           });
-          
+
           return conversationSummary;
         }
-        
+
         return null;
       })
-      .filter((conversation): conversation is ConversationSummary => conversation !== null);
+      .filter(
+        (conversation): conversation is ConversationSummary =>
+          conversation !== null,
+      );
 
-    this.logger.debug('Generated conversations not in history', {
+    this.logger.debug("Generated conversations not in history", {
       activeSessionCount: activeSessionIds.length,
       existingSessionCount: existingSessionIds.size,
-      conversationsNotInHistoryCount: conversationsNotInHistory.length
+      conversationsNotInHistoryCount: conversationsNotInHistory.length,
     });
 
     return conversationsNotInHistory;
@@ -276,60 +303,62 @@ export class ConversationStatusManager extends EventEmitter {
    * Get conversation details if session is active but not in history
    * Used by the conversation details endpoint
    */
-  getActiveConversationDetails(sessionId: string): ConversationDetailsResponse | null {
+  getActiveConversationDetails(
+    sessionId: string,
+  ): ConversationDetailsResponse | null {
     const isActive = this.isSessionActive(sessionId);
     const context = this.getConversationContext(sessionId);
-    
-    this.logger.debug('Checking for active conversation details', {
+
+    this.logger.debug("Checking for active conversation details", {
       sessionId,
       isActive,
-      hasContext: !!context
+      hasContext: !!context,
     });
-    
+
     if (!isActive || !context) {
       return null;
     }
 
     // Create messages array
     const messages: ConversationMessage[] = [];
-    
+
     // Add inherited messages first (if any)
     if (context.inheritedMessages) {
       messages.push(...context.inheritedMessages);
     }
-    
+
     // Add the current initial prompt message
     const activeMessage: ConversationMessage = {
       uuid: `active-${sessionId}-user`,
-      type: 'user',
+      type: "user",
       message: {
-        role: 'user',
-        content: context.initialPrompt
+        role: "user",
+        content: context.initialPrompt,
       },
       timestamp: context.timestamp,
       sessionId: sessionId,
-      cwd: context.workingDirectory
+      cwd: context.workingDirectory,
     };
     messages.push(activeMessage);
-    
+
     const response: ConversationDetailsResponse = {
       messages,
-      summary: '', // No summary for active conversation
+      summary: "", // No summary for active conversation
       projectPath: context.workingDirectory,
       metadata: {
         totalDuration: 0,
-        model: context.model || 'unknown'
-      }
+        model: context.model || "unknown",
+      },
     };
-    
-    this.logger.debug('Created active conversation details', {
+
+    this.logger.debug("Created active conversation details", {
       sessionId,
       workingDirectory: context.workingDirectory,
       model: context.model,
       totalMessageCount: messages.length,
-      inheritedMessageCount: context.inheritedMessages?.length || 0
+      inheritedMessageCount: context.inheritedMessages?.length || 0,
     });
-    
+
     return response;
   }
 
@@ -337,7 +366,7 @@ export class ConversationStatusManager extends EventEmitter {
    * Clear all mappings (useful for testing)
    */
   clear(): void {
-    this.logger.debug('Clearing all session mappings');
+    this.logger.debug("Clearing all session mappings");
     this.sessionToStreaming.clear();
     this.streamingToSession.clear();
     this.sessionContext.clear();
@@ -353,14 +382,14 @@ export class ConversationStatusManager extends EventEmitter {
     activeSessions: Array<{ claudeSessionId: string; streamingId: string }>;
   } {
     const activeSessions = Array.from(this.sessionToStreaming.entries()).map(
-      ([claudeSessionId, streamingId]) => ({ claudeSessionId, streamingId })
+      ([claudeSessionId, streamingId]) => ({ claudeSessionId, streamingId }),
     );
 
     return {
       activeSessionsCount: this.sessionToStreaming.size,
       activeStreamingIdsCount: this.streamingToSession.size,
       activeContextsCount: this.sessionContext.size,
-      activeSessions
+      activeSessions,
     };
   }
 }

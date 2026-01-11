@@ -1,30 +1,29 @@
-import React, { useState } from 'react';
-import { ArrowUp } from 'lucide-react';
-import { Button } from '@/web/chat/components/ui/button';
-import { Input } from '@/web/chat/components/ui/input';
+import React, { useState } from "react";
+import { ArrowUp } from "lucide-react";
+import { Button } from "@/web/chat/components/ui/button";
+import { Input } from "@/web/chat/components/ui/input";
 
 interface LoginProps {
   onLogin: (token: string) => void;
 }
 
 export default function Login({ onLogin }: LoginProps) {
-  const [token, setToken] = useState('');
-  const [error, setError] = useState('');
+  const [token, setToken] = useState("");
+  const [error, setError] = useState("");
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate token format (32 character hex string)
     if (token.length !== 32 || !/^[a-f0-9]+$/.test(token)) {
-      setError('Invalid token');
+      setError("Invalid token");
       return;
     }
-    
-    setError('');
+
+    setError("");
     onLogin(token);
     // Refresh the page
     window.location.reload();
-    
   };
 
   return (
@@ -33,7 +32,7 @@ export default function Login({ onLogin }: LoginProps) {
         <h2 className="text-lg font-normal mb-4 text-neutral-900 dark:text-neutral-100 text-center tracking-tight">
           Access token:
         </h2>
-        
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div className="flex gap-2 items-center">
             <Input
@@ -46,10 +45,10 @@ export default function Login({ onLogin }: LoginProps) {
               autoComplete="off"
               aria-label="Access token input"
             />
-            
+
             {token && (
-              <Button 
-                type="submit" 
+              <Button
+                type="submit"
                 size="icon"
                 className="w-11 h-11 rounded-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200 hover:-translate-y-px hover:shadow-[0_2px_8px_rgba(0,0,0,0.15)] active:translate-y-0 transition-all"
                 aria-label="Submit access token"
@@ -58,7 +57,7 @@ export default function Login({ onLogin }: LoginProps) {
               </Button>
             )}
           </div>
-          
+
           {error && (
             <div className="text-[13px] text-red-500 text-center -mt-2">
               {error}

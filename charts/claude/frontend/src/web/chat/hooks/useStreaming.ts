@@ -1,6 +1,6 @@
-import { useEffect, useRef, useCallback, useState } from 'react';
-import type { StreamEvent } from '../types';
-import { getAuthToken } from '../../hooks/useAuth';
+import { useEffect, useRef, useCallback, useState } from "react";
+import type { StreamEvent } from "../types";
+import { getAuthToken } from "../../hooks/useAuth";
 
 interface UseStreamingOptions {
   onMessage: (event: StreamEvent) => void;
@@ -11,15 +11,17 @@ interface UseStreamingOptions {
 
 export function useStreaming(
   streamingId: string | null,
-  options: UseStreamingOptions
+  options: UseStreamingOptions,
 ) {
   const [isConnected, setIsConnected] = useState(false);
   const [shouldReconnect, setShouldReconnect] = useState(true);
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(
+    null,
+  );
   const abortControllerRef = useRef<AbortController | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
   const optionsRef = useRef(options);
-  
+
   // Keep options ref up to date
   useEffect(() => {
     optionsRef.current = options;
@@ -27,12 +29,12 @@ export function useStreaming(
 
   const disconnect = useCallback(() => {
     setShouldReconnect(false); // Mark as intentional disconnect
-    
+
     if (readerRef.current) {
       readerRef.current.cancel().catch(() => {});
       readerRef.current = null;
     }
-    
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -56,16 +58,16 @@ export function useStreaming(
 
     try {
       abortControllerRef.current = new AbortController();
-      
+
       // Get auth token for Bearer authorization
       const authToken = getAuthToken();
       const headers: Record<string, string> = {};
-      
+
       // Add Bearer token if available
       if (authToken) {
         headers.Authorization = `Bearer ${authToken}`;
       }
-      
+
       const response = await fetch(`/api/stream/${streamingId}`, {
         signal: abortControllerRef.current.signal,
         headers,
@@ -76,7 +78,7 @@ export function useStreaming(
       }
 
       if (!response.body) {
-        throw new Error('No response body');
+        throw new Error("No response body");
       }
 
       const reader = response.body.getReader();
@@ -85,7 +87,7 @@ export function useStreaming(
       optionsRef.current.onConnect?.();
 
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -93,43 +95,47 @@ export function useStreaming(
 
         const decoded = decoder.decode(value, { stream: true });
         buffer += decoded;
-        
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.trim()) {
             try {
               // Handle SSE format: remove "data: " prefix
               let jsonLine = line;
-              if (line.startsWith('data: ')) {
+              if (line.startsWith("data: ")) {
                 jsonLine = line.substring(6);
               }
-              
+
               // Skip SSE comments (lines starting with :)
-              if (line.startsWith(':')) {
+              if (line.startsWith(":")) {
                 continue;
               }
-              
+
               const event = JSON.parse(jsonLine) as StreamEvent;
               optionsRef.current.onMessage(event);
             } catch (err) {
-              console.error('Failed to parse stream message:', line, err);
+              console.error("Failed to parse stream message:", line, err);
             }
           }
         }
       }
     } catch (error: any) {
-      if (error.name !== 'AbortError') {
-        console.error('Stream error:', error);
+      if (error.name !== "AbortError") {
+        console.error("Stream error:", error);
         optionsRef.current.onError?.(error);
       }
     } finally {
       const wasIntentional = !shouldReconnect;
       disconnect();
-      
+
       // Auto-reconnect if unintentional and page visible
-      if (!wasIntentional && document.visibilityState === 'visible' && streamingId) {
+      if (
+        !wasIntentional &&
+        document.visibilityState === "visible" &&
+        streamingId
+      ) {
         reconnectTimeoutRef.current = setTimeout(() => {
           setShouldReconnect(true);
           connect();
@@ -153,18 +159,20 @@ export function useStreaming(
   // Handle visibility change for reconnection
   useEffect(() => {
     const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible' && 
-          !isConnected && 
-          shouldReconnect && 
-          streamingId) {
+      if (
+        document.visibilityState === "visible" &&
+        !isConnected &&
+        shouldReconnect &&
+        streamingId
+      ) {
         clearTimeout(reconnectTimeoutRef.current);
         connect();
       }
     };
-    
-    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
     return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
       clearTimeout(reconnectTimeoutRef.current);
     };
   }, [isConnected, shouldReconnect, streamingId, connect]);

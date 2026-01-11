@@ -1,11 +1,11 @@
-import React from 'react';
-import type { ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
-import type { ChatMessage, ToolResult } from '../../types';
-import { ToolLabel } from './ToolLabel';
-import { ToolContent } from './ToolContent';
+import React from "react";
+import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages/messages";
+import type { ChatMessage, ToolResult } from "../../types";
+import { ToolLabel } from "./ToolLabel";
+import { ToolContent } from "./ToolContent";
 
 interface ToolUse {
-  type: 'tool_use';
+  type: "tool_use";
   id: string;
   name: string;
   input: any;
@@ -21,18 +21,18 @@ interface ToolUseRendererProps {
   onToggleTaskExpanded?: (toolUseId: string) => void;
 }
 
-export function ToolUseRenderer({ 
-  toolUse, 
-  toolResult, 
+export function ToolUseRenderer({
+  toolUse,
+  toolResult,
   toolResults = {},
   workingDirectory,
   childrenMessages = {},
   expandedTasks = new Set(),
-  onToggleTaskExpanded
+  onToggleTaskExpanded,
 }: ToolUseRendererProps) {
   return (
     <>
-      <ToolLabel 
+      <ToolLabel
         toolName={toolUse.name}
         toolInput={toolUse.input}
         workingDirectory={workingDirectory}

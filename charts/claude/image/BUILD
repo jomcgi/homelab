@@ -27,12 +27,12 @@ apko_image(
     name = "image",
     config = "apko.yaml",
     contents = "@claude_lock//:contents",
+    multiarch_tars = [
+        "@ttyd//:tar",
+    ],
     repository = "ghcr.io/jomcgi/homelab/charts/claude",
     tars = [
         ":app_base_tar",
         ":frontend_tar",
-    ],
-    multiarch_tars = [
-        "@ttyd//:tar",
     ],
 )

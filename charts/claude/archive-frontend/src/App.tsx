@@ -454,10 +454,12 @@ function App() {
                 <div className="space-y-4">
                   <div className="text-sm text-gray-400">
                     <p className="mb-2">
-                      Type <code>/login</code> in the terminal below to authenticate.
+                      Type <code>/login</code> in the terminal below to
+                      authenticate.
                     </p>
                     <p>
-                      Follow the prompts. When done, close this modal and refresh the page.
+                      Follow the prompts. When done, close this modal and
+                      refresh the page.
                     </p>
                   </div>
 

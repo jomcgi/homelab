@@ -1,5 +1,9 @@
-import React from 'react';
-import { formatFilePath, formatToolInput, extractDomain } from '../../utils/tool-utils';
+import React from "react";
+import {
+  formatFilePath,
+  formatToolInput,
+  extractDomain,
+} from "../../utils/tool-utils";
 
 interface ToolLabelProps {
   toolName: string;
@@ -8,17 +12,21 @@ interface ToolLabelProps {
   onClick?: () => void;
 }
 
-export function ToolLabel({ toolName, toolInput, workingDirectory, onClick }: ToolLabelProps) {
-  
+export function ToolLabel({
+  toolName,
+  toolInput,
+  workingDirectory,
+  onClick,
+}: ToolLabelProps) {
   const generateLabel = (): React.ReactNode => {
     switch (toolName) {
-      case 'Read': {
+      case "Read": {
         const filePath = formatFilePath(toolInput.file_path, workingDirectory);
         const offset = toolInput.offset;
         const limit = toolInput.limit;
-        
+
         let pathWithRange = filePath;
-        
+
         if (offset !== undefined && limit !== undefined) {
           pathWithRange = `${filePath}:${offset},${offset + limit}`;
         } else if (offset !== undefined) {
@@ -26,7 +34,7 @@ export function ToolLabel({ toolName, toolInput, workingDirectory, onClick }: To
         } else if (limit !== undefined) {
           pathWithRange = `${filePath}:0,${limit}`;
         }
-        
+
         return (
           <>
             <span className="font-semibold">Read</span>
@@ -34,89 +42,101 @@ export function ToolLabel({ toolName, toolInput, workingDirectory, onClick }: To
           </>
         );
       }
-      
-      case 'Edit':
+
+      case "Edit":
         return (
           <>
             <span className="font-semibold">Update</span>
-            <span className="font-normal">({formatFilePath(toolInput.file_path, workingDirectory)})</span>
+            <span className="font-normal">
+              ({formatFilePath(toolInput.file_path, workingDirectory)})
+            </span>
           </>
         );
-      
-      case 'MultiEdit':
+
+      case "MultiEdit":
         return (
           <>
             <span className="font-semibold">MultiEdit</span>
-            <span className="font-normal">({formatFilePath(toolInput.file_path, workingDirectory)})</span>
+            <span className="font-normal">
+              ({formatFilePath(toolInput.file_path, workingDirectory)})
+            </span>
           </>
         );
-      
-      case 'Bash':
+
+      case "Bash":
         return (
           <>
             <span className="font-semibold">Bash</span>
-            <span className="font-normal">({toolInput.command || ''})</span>
+            <span className="font-normal">({toolInput.command || ""})</span>
           </>
         );
-      
-      case 'Grep':
+
+      case "Grep":
         return (
           <>
             <span className="font-semibold">Search</span>
-            <span className="font-normal">(pattern: "{toolInput.pattern || ''}", path: "{toolInput.path || ''}")</span>
+            <span className="font-normal">
+              (pattern: "{toolInput.pattern || ""}", path: "
+              {toolInput.path || ""}")
+            </span>
           </>
         );
-      
-      case 'Glob':
+
+      case "Glob":
         return (
           <>
             <span className="font-semibold">Search</span>
-            <span className="font-normal">(pattern: "{toolInput.pattern || ''}", path: "{toolInput.path || ''}")</span>
+            <span className="font-normal">
+              (pattern: "{toolInput.pattern || ""}", path: "
+              {toolInput.path || ""}")
+            </span>
           </>
         );
-      
-      case 'LS':
+
+      case "LS":
         return (
           <>
             <span className="font-semibold">List</span>
-            <span className="font-normal">({formatFilePath(toolInput.path, workingDirectory)})</span>
+            <span className="font-normal">
+              ({formatFilePath(toolInput.path, workingDirectory)})
+            </span>
           </>
         );
-      
-      case 'TodoRead':
+
+      case "TodoRead":
         return <span className="font-semibold">Read Todos</span>;
-      
-      case 'TodoWrite':
+
+      case "TodoWrite":
         return <span className="font-semibold">Update Todos</span>;
-      
-      case 'WebSearch':
+
+      case "WebSearch":
         return (
           <>
             <span className="font-semibold">Web Search</span>
-            <span className="font-normal">("{toolInput.query || ''}")</span>
+            <span className="font-normal">("{toolInput.query || ""}")</span>
           </>
         );
-      
-      case 'WebFetch':
+
+      case "WebFetch":
         return (
           <>
             <span className="font-semibold">Fetch</span>
-            <span className="font-normal">({toolInput.url || ''})</span>
+            <span className="font-normal">({toolInput.url || ""})</span>
           </>
         );
-      
-      case 'Task':
+
+      case "Task":
         return (
           <>
             <span className="font-semibold">Task</span>
-            <span className="font-normal">({toolInput.description || ''})</span>
+            <span className="font-normal">({toolInput.description || ""})</span>
           </>
         );
-      
-      case 'exit_plan_mode':
-      case 'ExitPlanMode':
+
+      case "exit_plan_mode":
+      case "ExitPlanMode":
         return <span className="font-semibold">Plan</span>;
-      
+
       default:
         // Fallback for any unspecified tool
         return (
@@ -129,8 +149,8 @@ export function ToolLabel({ toolName, toolInput, workingDirectory, onClick }: To
   };
 
   return (
-    <div 
-      className={`text-sm font-mono text-foreground mb-1 ${onClick ? 'cursor-pointer' : ''}`}
+    <div
+      className={`text-sm font-mono text-foreground mb-1 ${onClick ? "cursor-pointer" : ""}`}
       onClick={onClick}
       aria-label={`Tool: ${toolName}`}
     >

@@ -1,4 +1,4 @@
-import { Logger } from '../services/logger.js';
+import { Logger } from "../services/logger.js";
 
 export interface ServerStartupOptions {
   host: string;
@@ -15,7 +15,7 @@ export function displayServerStartup(options: ServerStartupOptions): void {
   const { host, port, authToken, skipAuthToken, logger } = options;
   const serverUrl = `http://${host}:${port}`;
   let authUrl = `http://localhost:${port}#token=${authToken}`;
-  if (host !== '0.0.0.0') {
+  if (host !== "0.0.0.0") {
     authUrl = `http://${host}:${port}#token=${authToken}`;
   }
 
@@ -24,8 +24,6 @@ export function displayServerStartup(options: ServerStartupOptions): void {
     logger.info(`🔗 Access with auth token: ${authUrl}`);
   } else {
     logger.info(`🚀 Server listening on ${serverUrl}`);
-    logger.info('Authentication is disabled (--skip-auth-token)');
+    logger.info("Authentication is disabled (--skip-auth-token)");
   }
 }
-
- 

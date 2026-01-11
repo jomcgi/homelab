@@ -1,11 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import { ArrowLeft, Archive, Check, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { api } from '../../services/api';
-import { Button } from '@/web/chat/components/ui/button';
-import { Input } from '@/web/chat/components/ui/input';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/web/chat/components/ui/tooltip';
-import { MoreOptionsMenu } from '../MoreOptionsMenu';
+import React, { useState, useEffect } from "react";
+import { ArrowLeft, Archive, Check, X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { api } from "../../services/api";
+import { Button } from "@/web/chat/components/ui/button";
+import { Input } from "@/web/chat/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/web/chat/components/ui/tooltip";
+import { MoreOptionsMenu } from "../MoreOptionsMenu";
 
 interface ConversationHeaderProps {
   title: string;
@@ -25,7 +30,15 @@ interface ConversationHeaderProps {
   onPinToggle?: (isPinned: boolean) => void;
 }
 
-export function ConversationHeader({ title, sessionId, isArchived = false, isPinned = false, subtitle, onTitleUpdate, onPinToggle }: ConversationHeaderProps) {
+export function ConversationHeader({
+  title,
+  sessionId,
+  isArchived = false,
+  isPinned = false,
+  subtitle,
+  onTitleUpdate,
+  onPinToggle,
+}: ConversationHeaderProps) {
   const navigate = useNavigate();
   const [isRenaming, setIsRenaming] = useState(false);
   const [newTitle, setNewTitle] = useState(title);
@@ -40,17 +53,20 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
   }, [title, isRenaming]);
 
   const handleBack = () => {
-    navigate('/');
+    navigate("/");
   };
 
   const handleArchive = async () => {
     if (!sessionId) return;
-    
+
     try {
       await api.updateSession(sessionId, { archived: !isArchived });
-      navigate('/');
+      navigate("/");
     } catch (err) {
-      console.error(`Failed to ${isArchived ? 'unarchive' : 'archive'} session:`, err);
+      console.error(
+        `Failed to ${isArchived ? "unarchive" : "archive"} session:`,
+        err,
+      );
     }
   };
 
@@ -61,7 +77,7 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
         setLocalTitle(newTitle.trim());
         onTitleUpdate?.(newTitle.trim());
       } catch (error) {
-        console.error('Failed to rename session:', error);
+        console.error("Failed to rename session:", error);
       }
     }
     setIsRenaming(false);
@@ -97,9 +113,9 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
               <p>Go back to tasks</p>
             </TooltipContent>
           </Tooltip>
-          
+
           <div className="w-px h-4 bg-border mx-1" />
-          
+
           <div className="flex flex-col min-w-0 gap-0.5">
             <div className="flex items-center gap-3">
               {isRenaming ? (
@@ -108,9 +124,9 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
                     value={newTitle}
                     onChange={(e) => setNewTitle(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+                      if (e.key === "Enter") {
                         handleRenameSubmit();
-                      } else if (e.key === 'Escape') {
+                      } else if (e.key === "Escape") {
                         handleRenameCancel();
                       }
                     }}
@@ -123,7 +139,11 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
                     onClick={handleRenameSubmit}
                     className="h-7 w-7 rounded-full hover:bg-muted/50"
                   >
-                    <Check size={16} strokeWidth={2.5} className="text-foreground" />
+                    <Check
+                      size={16}
+                      strokeWidth={2.5}
+                      className="text-foreground"
+                    />
                   </Button>
                   <Button
                     size="icon"
@@ -131,7 +151,11 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
                     onClick={handleRenameCancel}
                     className="h-7 w-7 rounded-full hover:bg-muted/50"
                   >
-                    <X size={16} strokeWidth={2.5} className="text-foreground" />
+                    <X
+                      size={16}
+                      strokeWidth={2.5}
+                      className="text-foreground"
+                    />
                   </Button>
                 </div>
               ) : (
@@ -143,18 +167,28 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
             {subtitle && (
               <div className="flex items-center gap-4 text-xs text-muted-foreground">
                 {subtitle.date && (
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">{subtitle.date}</span>
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {subtitle.date}
+                  </span>
                 )}
                 {subtitle.repo && (
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">{subtitle.repo}</span>
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {subtitle.repo}
+                  </span>
                 )}
                 {subtitle.commitSHA && (
-                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">{subtitle.commitSHA.slice(0, 7)}</span>
+                  <span className="overflow-hidden text-ellipsis whitespace-nowrap">
+                    {subtitle.commitSHA.slice(0, 7)}
+                  </span>
                 )}
                 {subtitle.changes && (
                   <span className="flex gap-2 font-medium">
-                    <span className="text-green-600">+{subtitle.changes.additions}</span>
-                    <span className="text-red-600">-{subtitle.changes.deletions}</span>
+                    <span className="text-green-600">
+                      +{subtitle.changes.additions}
+                    </span>
+                    <span className="text-red-600">
+                      -{subtitle.changes.deletions}
+                    </span>
                   </span>
                 )}
               </div>
@@ -174,14 +208,16 @@ export function ConversationHeader({ title, sessionId, isArchived = false, isPin
                 className="flex items-center gap-1.5 px-3 py-2 text-sm font-normal text-foreground hover:bg-secondary transition-colors whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Archive size={20} className="flex-shrink-0" />
-                <span className="hidden sm:inline">{isArchived ? 'Unarchive' : 'Archive'}</span>
+                <span className="hidden sm:inline">
+                  {isArchived ? "Unarchive" : "Archive"}
+                </span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
-              <p>{isArchived ? 'Unarchive Task' : 'Archive Task'}</p>
+              <p>{isArchived ? "Unarchive Task" : "Archive Task"}</p>
             </TooltipContent>
           </Tooltip>
-          
+
           {sessionId && (
             <MoreOptionsMenu
               sessionId={sessionId}

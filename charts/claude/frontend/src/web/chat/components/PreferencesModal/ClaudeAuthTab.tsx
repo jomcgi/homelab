@@ -1,16 +1,16 @@
-import React, { useEffect, useState } from 'react';
-import { Button } from '../ui/button';
-import { Label } from '../ui/label';
-import { AuthTerminal } from '../AuthTerminal';
+import React, { useEffect, useState } from "react";
+import { Button } from "../ui/button";
+import { Label } from "../ui/label";
+import { AuthTerminal } from "../AuthTerminal";
 
 interface AuthStatus {
   authenticated: boolean;
   terminalActive: boolean;
 }
 
-const WS_PROTOCOL = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
 const WS_BASE = `${WS_PROTOCOL}//${window.location.host}`;
-const API_BASE = '/api';
+const API_BASE = "/api";
 
 export function ClaudeAuthTab() {
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
@@ -29,8 +29,8 @@ export function ClaudeAuthTab() {
       const data = await res.json();
       setAuthStatus(data);
     } catch (err) {
-      console.error('Failed to fetch auth status:', err);
-      setError('Failed to fetch authentication status');
+      console.error("Failed to fetch auth status:", err);
+      setError("Failed to fetch authentication status");
     }
   };
 
@@ -38,17 +38,17 @@ export function ClaudeAuthTab() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/auth/start`, { method: 'POST' });
+      const res = await fetch(`${API_BASE}/auth/start`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
         setTerminalUrl(`${WS_BASE}/api/auth/terminal/ws`);
         await fetchAuthStatus();
       } else {
-        setError(data.error || 'Failed to start terminal');
+        setError(data.error || "Failed to start terminal");
       }
     } catch (err) {
-      console.error('Failed to start auth terminal:', err);
-      setError('Failed to start terminal');
+      console.error("Failed to start auth terminal:", err);
+      setError("Failed to start terminal");
     } finally {
       setLoading(false);
     }
@@ -56,11 +56,11 @@ export function ClaudeAuthTab() {
 
   const stopTerminal = async () => {
     try {
-      await fetch(`${API_BASE}/auth/stop`, { method: 'POST' });
+      await fetch(`${API_BASE}/auth/stop`, { method: "POST" });
       setTerminalUrl(null);
       await fetchAuthStatus();
     } catch (err) {
-      console.error('Failed to stop auth terminal:', err);
+      console.error("Failed to stop auth terminal:", err);
     }
   };
 
@@ -102,14 +102,14 @@ export function ClaudeAuthTab() {
         <div className="py-4">
           <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-3">
             {authStatus?.authenticated
-              ? 'Re-authenticate Claude CLI'
-              : 'Authenticate Claude CLI'}
+              ? "Re-authenticate Claude CLI"
+              : "Authenticate Claude CLI"}
           </h3>
           <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
-            Click below to open an interactive terminal. Run{' '}
+            Click below to open an interactive terminal. Run{" "}
             <code className="bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded text-xs font-mono">
               /login
-            </code>{' '}
+            </code>{" "}
             to authenticate with your Anthropic account.
           </p>
           <Button
@@ -117,22 +117,20 @@ export function ClaudeAuthTab() {
             disabled={loading}
             className="w-full bg-neutral-900 dark:bg-neutral-100 text-white dark:text-neutral-900 hover:bg-neutral-800 dark:hover:bg-neutral-200"
           >
-            {loading ? 'Starting...' : 'Open Authentication Terminal'}
+            {loading ? "Starting..." : "Open Authentication Terminal"}
           </Button>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="text-sm text-neutral-500 dark:text-neutral-400">
             <p className="mb-2">
-              Type{' '}
+              Type{" "}
               <code className="bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded text-xs font-mono">
                 /login
-              </code>{' '}
+              </code>{" "}
               in the terminal below to authenticate.
             </p>
-            <p>
-              Follow the prompts. When done, click "Close Terminal" below.
-            </p>
+            <p>Follow the prompts. When done, click "Close Terminal" below.</p>
           </div>
 
           {/* Terminal */}
@@ -151,8 +149,9 @@ export function ClaudeAuthTab() {
       {/* Help text */}
       <div className="mt-6 text-xs text-neutral-400 dark:text-neutral-500">
         <p>
-          Claude authentication is required to use the Claude Code CLI. Your credentials are stored
-          locally on the server and are not shared with anyone.
+          Claude authentication is required to use the Claude Code CLI. Your
+          credentials are stored locally on the server and are not shared with
+          anyone.
         </p>
       </div>
     </div>

@@ -18,10 +18,13 @@ import type {
   FileSystemListResponse,
   CommandsResponse,
   GeminiHealthResponse,
-} from '@/types';
+} from "@/types";
 
 // Import ContentBlock from Anthropic SDK
-import type { ContentBlock, ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
+import type {
+  ContentBlock,
+  ContentBlockParam,
+} from "@anthropic-ai/sdk/resources/messages/messages";
 
 export type {
   ConversationSummary,
@@ -47,13 +50,13 @@ export type {
 // Chat-specific types
 export interface Command {
   name: string;
-  type: 'builtin' | 'custom';
+  type: "builtin" | "custom";
   description?: string;
 }
 export interface ChatMessage {
   id: string; // Backend message ID (may not be unique, empty for pending user messages)
   messageId: string; // Client-side unique ID for React rendering
-  type: 'user' | 'assistant' | 'system' | 'error';
+  type: "user" | "assistant" | "system" | "error";
   content: string | ContentBlock[];
   timestamp: string;
   workingDirectory?: string; // Working directory when the message was created
@@ -62,9 +65,9 @@ export interface ChatMessage {
 }
 
 export interface Theme {
-  mode: 'light' | 'dark';
+  mode: "light" | "dark";
   toggle: () => void;
-  colorScheme: 'light' | 'dark' | 'system';
+  colorScheme: "light" | "dark" | "system";
 }
 
 export interface ApiError {
@@ -74,9 +77,9 @@ export interface ApiError {
 
 // Working directories types
 export interface WorkingDirectory {
-  path: string;              // Full absolute path
-  shortname: string;         // Smart suffix
-  lastDate: string;          // ISO timestamp
+  path: string; // Full absolute path
+  shortname: string; // Smart suffix
+  lastDate: string; // ISO timestamp
   conversationCount: number; // Total conversations
 }
 
@@ -86,7 +89,7 @@ export interface WorkingDirectoriesResponse {
 }
 
 export interface Preferences {
-  colorScheme: 'light' | 'dark' | 'system';
+  colorScheme: "light" | "dark" | "system";
   language: string;
   notifications?: {
     enabled: boolean;
@@ -96,14 +99,14 @@ export interface Preferences {
 
 // Tool result types
 export interface ToolResult {
-  status: 'pending' | 'completed';
+  status: "pending" | "completed";
   result?: string | ContentBlockParam[];
   is_error?: boolean;
 }
 
 // Stream status types for live updates
 export interface StreamStatus {
-  connectionState: 'connecting' | 'connected' | 'disconnected' | 'error';
+  connectionState: "connecting" | "connected" | "disconnected" | "error";
   lastEvent?: StreamEvent;
   lastEventTime?: string;
   currentStatus: string;

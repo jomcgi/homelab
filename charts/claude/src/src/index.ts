@@ -78,7 +78,7 @@ app.post("/api/sessions", (req, res) => {
 
   sessions.set(id, session);
   console.log(
-    `Session created: ${id}, Total sessions in memory: ${sessions.size}`
+    `Session created: ${id}, Total sessions in memory: ${sessions.size}`,
   );
 
   // Save session metadata
@@ -90,7 +90,7 @@ app.post("/api/sessions", (req, res) => {
       name: session.name,
       workdir: session.workdir,
       createdAt: session.createdAt,
-    })
+    }),
   );
 
   res.status(201).json({
@@ -203,7 +203,7 @@ wss.on("connection", (ws, req) => {
   const session = sessions.get(sessionId);
   if (!session) {
     console.log(
-      `Session ${sessionId} not found. Available sessions: ${Array.from(sessions.keys()).join(", ")}`
+      `Session ${sessionId} not found. Available sessions: ${Array.from(sessions.keys()).join(", ")}`,
     );
     ws.close(4004, "Session not found");
     return;
@@ -217,26 +217,26 @@ wss.on("connection", (ws, req) => {
   ws.on("message", (data) => {
     const message = JSON.parse(data.toString());
     console.log(
-      `Received message for session ${session.id}: ${JSON.stringify(message).substring(0, 100)}`
+      `Received message for session ${session.id}: ${JSON.stringify(message).substring(0, 100)}`,
     );
 
     if (message.type === "input") {
       if (session.isProcessing) {
         console.log(
-          `Session ${session.id} is already processing, queuing not implemented`
+          `Session ${session.id} is already processing, queuing not implemented`,
         );
         ws.send(
           JSON.stringify({
             type: "error",
             content: "Please wait for the current response to complete",
-          })
+          }),
         );
         return;
       }
 
       // Run Claude in print mode with the user's message
       console.log(
-        `Running Claude for session ${session.id} with message: ${message.content.substring(0, 50)}...`
+        `Running Claude for session ${session.id} with message: ${message.content.substring(0, 50)}...`,
       );
       runClaudeMessage(session, message.content);
     }
@@ -244,7 +244,7 @@ wss.on("connection", (ws, req) => {
 
   ws.on("close", (code, reason) => {
     console.log(
-      `Session ${session.id} WebSocket closed: ${code} ${reason.toString()}`
+      `Session ${session.id} WebSocket closed: ${code} ${reason.toString()}`,
     );
     session.wsClients.delete(ws);
   });
@@ -262,22 +262,20 @@ wss.on("connection", (ws, req) => {
         sessionId: session.id,
         name: session.name,
         workdir: session.workdir,
-      })
+      }),
     );
     console.log(`Welcome message sent successfully to session ${session.id}`);
   } catch (err) {
     console.error(
       `Failed to send welcome message to session ${session.id}:`,
-      err
+      err,
     );
   }
 });
 
 // Run Claude in print mode with a single message (like cui does)
 function runClaudeMessage(session: Session, userMessage: string) {
-  console.log(
-    `Running Claude for session ${session.id} in ${session.workdir}`
-  );
+  console.log(`Running Claude for session ${session.id} in ${session.workdir}`);
   console.log(`Using Claude binary: ${CLAUDE_BIN}`);
 
   // Ensure workdir exists (may have been cleared if in /tmp after pod restart)
@@ -454,7 +452,7 @@ function saveSession(session: Session) {
       workdir: session.workdir,
       createdAt: session.createdAt,
       claudeSessionId: session.claudeSessionId,
-    })
+    }),
   );
 }
 
@@ -468,7 +466,7 @@ function loadSessions() {
 
     try {
       const data = JSON.parse(
-        fs.readFileSync(path.join(SESSIONS_DIR, file), "utf-8")
+        fs.readFileSync(path.join(SESSIONS_DIR, file), "utf-8"),
       );
       sessions.set(data.id, {
         id: data.id,

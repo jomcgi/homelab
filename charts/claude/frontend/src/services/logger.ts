@@ -1,6 +1,6 @@
-import pino, { Logger as PinoLogger } from 'pino';
-import { PassThrough } from 'stream';
-import { LogFormatter } from './log-formatter.js';
+import pino, { Logger as PinoLogger } from "pino";
+import { PassThrough } from "stream";
+import { LogFormatter } from "./log-formatter.js";
 
 export interface LogContext {
   component?: string;
@@ -101,44 +101,49 @@ class LoggerService {
 
   private constructor() {
     // Get log level from environment variable, default to 'info'
-    const logLevel = process.env.LOG_LEVEL || 'info';
-    
+    const logLevel = process.env.LOG_LEVEL || "info";
+
     // Create a pass-through stream to intercept logs
     this.logInterceptStream = new PassThrough();
-    
+
     // Forward logs to the log buffer (lazy loaded to avoid circular dependency)
-    this.logInterceptStream.on('data', (chunk) => {
+    this.logInterceptStream.on("data", (chunk) => {
       const logLine = chunk.toString().trim();
       if (logLine) {
         // Lazy load to avoid circular dependency
-        import('@/services/log-stream-buffer').then(({ logStreamBuffer }) => {
-          logStreamBuffer.addLog(logLine);
-        }).catch(() => {
-          // Silently ignore if log buffer is not available
-        });
+        import("@/services/log-stream-buffer")
+          .then(({ logStreamBuffer }) => {
+            logStreamBuffer.addLog(logLine);
+          })
+          .catch(() => {
+            // Silently ignore if log buffer is not available
+          });
       }
     });
-    
+
     const formatter = new LogFormatter();
     formatter.pipe(process.stdout);
-    
+
     // Create multi-stream configuration with formatter
     const streams = [
       { level: logLevel as pino.Level, stream: formatter },
-      { level: logLevel as pino.Level, stream: this.logInterceptStream }
+      { level: logLevel as pino.Level, stream: this.logInterceptStream },
     ];
-    
-    this.baseLogger = pino({
-      level: logLevel,
-      formatters: {
-        level: (label) => {
-          return { level: label };
-        }
+
+    this.baseLogger = pino(
+      {
+        level: logLevel,
+        formatters: {
+          level: (label) => {
+            return { level: label };
+          },
+        },
+        timestamp: pino.stdTimeFunctions.isoTime,
+        // Enable in test environment if debug level, otherwise suppress
+        enabled: process.env.NODE_ENV !== "test" || logLevel === "debug",
       },
-      timestamp: pino.stdTimeFunctions.isoTime,
-      // Enable in test environment if debug level, otherwise suppress
-      enabled: process.env.NODE_ENV !== 'test' || logLevel === 'debug'
-    }, pino.multistream(streams));
+      pino.multistream(streams),
+    );
   }
 
   /**
@@ -231,7 +236,10 @@ class LoggerService {
 export const logger = LoggerService.getInstance();
 
 // Export factory function for creating component loggers
-export function createLogger(component: string, baseContext?: LogContext): CUILogger {
+export function createLogger(
+  component: string,
+  baseContext?: LogContext,
+): CUILogger {
   const context = { component, ...baseContext };
   return logger.child(context);
 }
