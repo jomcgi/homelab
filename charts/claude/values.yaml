@@ -30,6 +30,11 @@ gemini:
 ## When gitSync is enabled, this is automatically set to /repos/<repoName>/current
 defaultWorkingDirectory: ""
 
+## Default permission mode for Claude Code conversations
+## Valid values: default, acceptEdits, bypassPermissions, plan
+## Set to bypassPermissions to skip all permission prompts
+defaultPermissionMode: ""
+
 ## Git-sync sidecar to keep a repo available for Claude to work with
 gitSync:
   enabled: false

@@ -21,6 +21,15 @@ import { ConversationStatusManager } from "@/services/conversation-status-manage
 import { createLogger } from "@/services/logger.js";
 import { ToolMetricsService } from "@/services/ToolMetricsService.js";
 
+// Valid permission modes for Claude Code
+const VALID_PERMISSION_MODES = ["acceptEdits", "bypassPermissions", "default", "plan"] as const;
+type PermissionMode = typeof VALID_PERMISSION_MODES[number];
+
+// Default permission mode from environment variable
+// Set DEFAULT_PERMISSION_MODE=bypassPermissions to skip all permission prompts
+const DEFAULT_PERMISSION_MODE: PermissionMode =
+  (process.env.DEFAULT_PERMISSION_MODE as PermissionMode) || "default";
+
 export function createConversationRoutes(
   processManager: ClaudeProcessManager,
   historyReader: ClaudeHistoryReader,
@@ -79,16 +88,10 @@ export function createConversationRoutes(
 
         // Validate permissionMode if provided
         if (req.body.permissionMode) {
-          const validModes = [
-            "acceptEdits",
-            "bypassPermissions",
-            "default",
-            "plan",
-          ];
-          if (!validModes.includes(req.body.permissionMode)) {
+          if (!VALID_PERMISSION_MODES.includes(req.body.permissionMode as PermissionMode)) {
             throw new CUIError(
               "INVALID_PERMISSION_MODE",
-              `permissionMode must be one of: ${validModes.join(", ")}`,
+              `permissionMode must be one of: ${VALID_PERMISSION_MODES.join(", ")}`,
               400,
             );
           }
@@ -141,15 +144,21 @@ export function createConversationRoutes(
         }
 
         // Prepare config with previous messages if resuming
+        // Permission mode priority: request body > inherited from resumed session > env default
         const conversationConfig = {
           ...req.body,
           previousMessages:
             previousMessages.length > 0 ? previousMessages : undefined,
-          permissionMode: req.body.permissionMode || inheritedPermissionMode,
+          permissionMode: req.body.permissionMode || inheritedPermissionMode || DEFAULT_PERMISSION_MODE,
         };
 
         const { streamingId, systemInit } =
           await processManager.startConversation(conversationConfig);
+
+        // Normalize the cwd to handle git-sync worktree path resolution
+        // Claude Code resolves symlinks, so /repos/homelab/current becomes /repos/homelab/.worktrees/abc123
+        // We remap this back to the stable symlink path for consistent conversation persistence
+        const normalizedCwd = historyReader.normalizeProjectPath(systemInit.cwd);
 
         // Update original session with continuation session ID if resuming
         if (req.body.resumedSessionId) {
@@ -181,7 +190,7 @@ export function createConversationRoutes(
               systemInit.session_id,
               {
                 initialPrompt: req.body.initialPrompt,
-                workingDirectory: systemInit.cwd,
+                workingDirectory: normalizedCwd,
                 model: systemInit.model,
                 inheritedMessages:
                   previousMessages.length > 0 ? previousMessages : undefined,
@@ -231,6 +240,7 @@ export function createConversationRoutes(
           sessionId: systemInit.session_id,
           model: systemInit.model,
           cwd: systemInit.cwd,
+          normalizedCwd,
           previousMessageCount: previousMessages.length,
         });
 
@@ -239,7 +249,7 @@ export function createConversationRoutes(
           streamUrl: `/api/stream/${streamingId}`,
           // System init fields
           sessionId: systemInit.session_id,
-          cwd: systemInit.cwd,
+          cwd: normalizedCwd,
           tools: systemInit.tools,
           mcpServers: systemInit.mcp_servers,
           model: systemInit.model,

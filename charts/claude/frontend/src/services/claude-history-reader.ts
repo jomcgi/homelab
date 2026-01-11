@@ -122,8 +122,10 @@ export class ClaudeHistoryReader {
   /**
    * Normalize a project path by remapping resolved worktree paths back to stable symlinks.
    * This handles the case where Claude Code resolves symlinks when writing conversation history.
+   * This method is public so it can be used by other services (e.g., conversation routes) to
+   * normalize the cwd returned by Claude Code's system/init message.
    */
-  private normalizeProjectPath(projectPath: string): string {
+  public normalizeProjectPath(projectPath: string): string {
     for (const remapping of this.worktreeRemappings) {
       const match = projectPath.match(remapping.worktreePattern);
       if (match) {
