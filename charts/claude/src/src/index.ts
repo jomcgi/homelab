@@ -186,6 +186,9 @@ app.post("/api/sessions", (req, res) => {
   };
 
   sessions.set(id, session);
+  console.log(
+    `Session created: ${id}, Total sessions in memory: ${sessions.size}`,
+  );
 
   // Save session metadata
   const metaPath = path.join(SESSIONS_DIR, `${id}.json`);
@@ -354,6 +357,7 @@ const wss = new WebSocketServer({ noServer: true });
 // which can conflict with manual handlers and send duplicate responses
 server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
   const url = req.url || "";
+  console.log(`[UPGRADE] Request received: ${url}, headers: ${JSON.stringify(req.headers)}`);
 
   if (url.startsWith("/api/auth/terminal/ws")) {
     console.log(`WebSocket upgrade request for ttyd: ${url}`);
@@ -372,19 +376,36 @@ server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
 });
 
 wss.on("connection", (ws, req) => {
-  const url = new URL(req.url || "", `http://localhost:${PORT}`);
+  console.log(`Session WebSocket connection received, URL: ${req.url}`);
+
+  let url: URL;
+  try {
+    url = new URL(req.url || "", `http://localhost:${PORT}`);
+  } catch (err) {
+    console.error(`Failed to parse WebSocket URL: ${req.url}`, err);
+    ws.close(4001, "Invalid URL");
+    return;
+  }
+
   const sessionId = url.searchParams.get("session");
+  console.log(`Session ID from URL: ${sessionId}`);
 
   if (!sessionId) {
+    console.log("Missing session parameter, closing connection");
     ws.close(4000, "Missing session parameter");
     return;
   }
 
   const session = sessions.get(sessionId);
   if (!session) {
+    console.log(
+      `Session ${sessionId} not found. Available sessions: ${Array.from(sessions.keys()).join(", ")}`,
+    );
     ws.close(4004, "Session not found");
     return;
   }
+
+  console.log(`Session ${sessionId} found, adding client`);
 
   // Add client to session
   session.wsClients.add(ws);
@@ -412,19 +433,32 @@ wss.on("connection", (ws, req) => {
     }
   });
 
-  ws.on("close", () => {
+  ws.on("close", (code, reason) => {
+    console.log(
+      `Session ${session.id} WebSocket closed: ${code} ${reason.toString()}`,
+    );
     session.wsClients.delete(ws);
   });
 
+  ws.on("error", (err) => {
+    console.error(`Session ${session.id} WebSocket error:`, err);
+  });
+
   // Send welcome message
-  ws.send(
-    JSON.stringify({
-      type: "connected",
-      sessionId: session.id,
-      name: session.name,
-      workdir: session.workdir,
-    }),
-  );
+  console.log(`Sending welcome message to session ${session.id}`);
+  try {
+    ws.send(
+      JSON.stringify({
+        type: "connected",
+        sessionId: session.id,
+        name: session.name,
+        workdir: session.workdir,
+      }),
+    );
+    console.log(`Welcome message sent successfully to session ${session.id}`);
+  } catch (err) {
+    console.error(`Failed to send welcome message to session ${session.id}:`, err);
+  }
 });
 
 function startClaudeProcess(session: Session) {
@@ -521,6 +555,7 @@ function loadSessions() {
     }
   }
   console.log(`Loaded ${sessions.size} existing sessions`);
+  console.log(`Session IDs: ${Array.from(sessions.keys()).join(", ")}`);
 }
 
 loadSessions();
