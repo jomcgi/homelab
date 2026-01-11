@@ -1,10 +1,18 @@
-import { spawn, IPty } from 'node-pty';
+import { spawn, ChildProcess } from 'child_process';
+import { WebSocket as WsWebSocket, WebSocketServer } from 'ws';
 import { createLogger } from './logger.js';
 import { existsSync } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
+import type { Server } from 'http';
+import type { IncomingMessage } from 'http';
+import type { Socket } from 'net';
 
 const logger = createLogger('AuthTerminalService');
+
+const HOME = process.env.HOME || homedir();
+const CLAUDE_BIN = join(HOME, '.npm-global', 'bin', 'claude');
+const TTYD_PORT = 7681;
 
 interface AuthStatus {
   authenticated: boolean;
@@ -12,204 +20,102 @@ interface AuthStatus {
 }
 
 /**
- * Service for managing Claude authentication terminal sessions
+ * Service for managing Claude authentication terminal sessions using ttyd
  */
 export class AuthTerminalService {
-  private pty: IPty | null = null;
-  private clients: Set<WebSocket> = new Set();
+  private ttydProcess: ChildProcess | null = null;
+  private wss: WebSocketServer | null = null;
 
   /**
-   * Check if Claude is authenticated by looking for OAuth tokens
+   * Check if Claude is authenticated by looking for credentials
    */
   getAuthStatus(): AuthStatus {
-    const claudeDir = join(homedir(), '.claude');
-    const authFile = join(claudeDir, '.credentials.json');
-
     // Check for the credentials file that Claude creates after authentication
-    const authenticated = existsSync(authFile);
+    const credentialsFile = join(HOME, '.claude', '.credentials.json');
+    const authFile = join(HOME, '.claude', 'auth.json');
+
+    // Either file indicates authentication
+    const authenticated = existsSync(credentialsFile) || existsSync(authFile);
 
     logger.debug('Auth status check', {
-      claudeDir,
+      credentialsFile,
       authFile,
       authenticated,
-      terminalActive: this.pty !== null
+      terminalActive: this.ttydProcess !== null
     });
 
     return {
       authenticated,
-      terminalActive: this.pty !== null
+      terminalActive: this.ttydProcess !== null
     };
   }
 
   /**
-   * Start an interactive terminal session for Claude authentication
+   * Start ttyd with Claude for authentication
    */
   startTerminal(): boolean {
-    if (this.pty) {
-      logger.warn('Terminal already active');
-      return true;
+    // Clean up any existing process
+    if (this.ttydProcess) {
+      logger.warn('Killing existing ttyd process');
+      this.ttydProcess.kill();
+      this.ttydProcess = null;
     }
 
     try {
-      // Spawn an interactive Claude session for authentication
-      this.pty = spawn('claude', [], {
-        name: 'xterm-256color',
-        cols: 80,
-        rows: 24,
-        cwd: homedir(),
-        env: {
-          ...process.env,
-          TERM: 'xterm-256color',
-          COLORTERM: 'truecolor'
+      logger.info('Starting ttyd on port', { port: TTYD_PORT });
+
+      // Spawn ttyd with claude
+      // -W: Start immediately (don't wait for initial connection)
+      // -p: Port to listen on
+      // -t: Set terminal title
+      this.ttydProcess = spawn(
+        'ttyd',
+        [
+          '-p', TTYD_PORT.toString(),
+          '-W', // Start immediately
+          '-t', 'titleFixed=Claude Authentication',
+          CLAUDE_BIN,
+        ],
+        {
+          cwd: HOME,
+          env: { ...process.env, HOME },
+          stdio: ['ignore', 'pipe', 'pipe'],
         }
+      );
+
+      this.ttydProcess.stdout?.on('data', (data) => {
+        logger.debug('ttyd stdout', { output: data.toString().trim() });
       });
 
-      logger.info('Auth terminal started', { pid: this.pty.pid });
-
-      // Handle PTY data
-      this.pty.onData((data) => {
-        this.broadcastToClients('0' + data); // ttyd protocol: '0' prefix for output
+      this.ttydProcess.stderr?.on('data', (data) => {
+        logger.debug('ttyd stderr', { output: data.toString().trim() });
       });
 
-      // Handle PTY exit
-      this.pty.onExit(({ exitCode }) => {
-        logger.info('Auth terminal exited', { exitCode });
-        this.pty = null;
-        // Notify clients that terminal closed
-        this.broadcastToClients('\r\n\x1b[33mTerminal session ended.\x1b[0m\r\n');
+      this.ttydProcess.on('close', (code) => {
+        logger.info('ttyd process exited', { code });
+        this.ttydProcess = null;
+      });
+
+      this.ttydProcess.on('error', (err) => {
+        logger.error('ttyd process error', err);
+        this.ttydProcess = null;
       });
 
       return true;
     } catch (error) {
-      logger.error('Failed to start auth terminal', error);
+      logger.error('Failed to start ttyd', error);
       return false;
     }
   }
 
   /**
-   * Stop the active terminal session
+   * Stop the ttyd process
    */
   stopTerminal(): void {
-    if (this.pty) {
-      logger.info('Stopping auth terminal', { pid: this.pty.pid });
-      this.pty.kill();
-      this.pty = null;
-    }
-
-    // Close all client connections
-    for (const client of this.clients) {
-      try {
-        client.close();
-      } catch (e) {
-        // Ignore close errors
-      }
-    }
-    this.clients.clear();
-  }
-
-  /**
-   * Handle a new WebSocket client connection
-   */
-  handleClient(ws: WebSocket): void {
-    if (!this.pty) {
-      logger.warn('No active terminal for client connection');
-      ws.close();
-      return;
-    }
-
-    this.clients.add(ws);
-    logger.debug('Client connected to auth terminal', { clientCount: this.clients.size });
-
-    // Handle incoming messages from client (ttyd protocol)
-    ws.addEventListener('message', (event) => {
-      const data = event.data;
-
-      // Handle initial auth message (JSON with dimensions)
-      if (typeof data === 'string') {
-        try {
-          const parsed = JSON.parse(data);
-          if (parsed.columns && parsed.rows) {
-            this.pty?.resize(parsed.columns, parsed.rows);
-            logger.debug('Terminal resized', { cols: parsed.columns, rows: parsed.rows });
-            return;
-          }
-        } catch {
-          // Not JSON, treat as regular input
-        }
-      }
-
-      // Handle binary or string input (ttyd protocol)
-      let inputData: string;
-      if (data instanceof ArrayBuffer) {
-        const view = new Uint8Array(data);
-        const messageType = view[0];
-        const payload = new TextDecoder().decode(view.slice(1));
-
-        if (messageType === 48) { // '0' - INPUT
-          inputData = payload;
-        } else if (messageType === 49) { // '1' - RESIZE
-          try {
-            const resize = JSON.parse(payload);
-            this.pty?.resize(resize.columns, resize.rows);
-            logger.debug('Terminal resized', { cols: resize.columns, rows: resize.rows });
-          } catch (e) {
-            logger.warn('Failed to parse resize message', e);
-          }
-          return;
-        } else {
-          return;
-        }
-      } else if (typeof data === 'string' && data.length > 0) {
-        const messageType = data[0];
-        const payload = data.substring(1);
-
-        if (messageType === '0') { // INPUT
-          inputData = payload;
-        } else if (messageType === '1') { // RESIZE
-          try {
-            const resize = JSON.parse(payload);
-            this.pty?.resize(resize.columns, resize.rows);
-          } catch (e) {
-            logger.warn('Failed to parse resize message', e);
-          }
-          return;
-        } else {
-          return;
-        }
-      } else {
-        return;
-      }
-
-      // Write input to PTY
-      if (inputData && this.pty) {
-        this.pty.write(inputData);
-      }
-    });
-
-    // Handle client disconnect
-    ws.addEventListener('close', () => {
-      this.clients.delete(ws);
-      logger.debug('Client disconnected from auth terminal', { clientCount: this.clients.size });
-    });
-
-    ws.addEventListener('error', (error) => {
-      logger.error('WebSocket error', error);
-      this.clients.delete(ws);
-    });
-  }
-
-  /**
-   * Broadcast data to all connected clients
-   */
-  private broadcastToClients(data: string): void {
-    for (const client of this.clients) {
-      try {
-        if (client.readyState === WebSocket.OPEN) {
-          client.send(data);
-        }
-      } catch (e) {
-        logger.warn('Failed to send to client', e);
-      }
+    if (this.ttydProcess) {
+      logger.info('Stopping ttyd process');
+      this.ttydProcess.kill();
+      this.ttydProcess = null;
     }
   }
 
@@ -217,7 +123,109 @@ export class AuthTerminalService {
    * Check if terminal is active
    */
   isTerminalActive(): boolean {
-    return this.pty !== null;
+    return this.ttydProcess !== null;
+  }
+
+  /**
+   * Set up WebSocket server for proxying to ttyd
+   */
+  setupWebSocket(server: Server): void {
+    // Create WebSocket server for auth terminal
+    this.wss = new WebSocketServer({
+      noServer: true,
+      perMessageDeflate: false,
+      handleProtocols: (protocols) => {
+        // Accept "tty" subprotocol if client requests it (ttyd always does)
+        if (protocols.has('tty')) {
+          return 'tty';
+        }
+        return false;
+      },
+    });
+
+    this.wss.on('connection', (clientWs: WsWebSocket) => {
+      logger.info('Client WebSocket connected, connecting to ttyd...');
+
+      // Connect to ttyd using WebSocket protocol with "tty" subprotocol
+      const ttydWs = new WsWebSocket(`ws://localhost:${TTYD_PORT}/ws`, ['tty'], {
+        perMessageDeflate: false,
+      });
+
+      ttydWs.binaryType = 'arraybuffer';
+
+      let ttydConnected = false;
+
+      ttydWs.on('open', () => {
+        logger.info('Connected to ttyd WebSocket');
+        ttydConnected = true;
+      });
+
+      ttydWs.on('message', (data: Buffer, isBinary: boolean) => {
+        // Forward ttyd messages to client
+        if (clientWs.readyState === WsWebSocket.OPEN) {
+          clientWs.send(data, { binary: isBinary });
+        }
+      });
+
+      ttydWs.on('close', (code, reason) => {
+        logger.info('ttyd WebSocket closed', { code, reason: reason.toString() });
+        ttydConnected = false;
+        if (clientWs.readyState === WsWebSocket.OPEN) {
+          clientWs.close(code, reason.toString());
+        }
+      });
+
+      ttydWs.on('error', (err) => {
+        logger.error('ttyd WebSocket error', err);
+        ttydConnected = false;
+        if (clientWs.readyState === WsWebSocket.OPEN) {
+          clientWs.close(1011, 'ttyd connection error');
+        }
+      });
+
+      clientWs.on('message', (data: Buffer, isBinary: boolean) => {
+        // Forward client messages to ttyd
+        if (ttydWs.readyState === WsWebSocket.OPEN) {
+          ttydWs.send(data, { binary: isBinary });
+        }
+      });
+
+      clientWs.on('close', (code, reason) => {
+        logger.info('Client WebSocket closed', { code, reason: reason.toString() });
+        if (ttydConnected || ttydWs.readyState === WsWebSocket.CONNECTING) {
+          ttydWs.close();
+        }
+      });
+
+      clientWs.on('error', (err) => {
+        logger.error('Client WebSocket error', err);
+        if (ttydConnected || ttydWs.readyState === WsWebSocket.CONNECTING) {
+          ttydWs.close();
+        }
+      });
+    });
+
+    // Handle upgrade requests for auth terminal
+    server.on('upgrade', (req: IncomingMessage, socket: Socket, head: Buffer) => {
+      const url = req.url || '';
+
+      if (url.startsWith('/api/auth/terminal/ws')) {
+        if (!this.isTerminalActive()) {
+          logger.warn('No active terminal for WebSocket connection');
+          socket.write('HTTP/1.1 503 Service Unavailable\r\n\r\n');
+          socket.destroy();
+          return;
+        }
+
+        logger.info('Handling WebSocket upgrade for auth terminal');
+        this.wss!.handleUpgrade(req, socket, head, (ws) => {
+          this.wss!.emit('connection', ws, req);
+        });
+      }
+      // Other upgrade requests are handled elsewhere (streaming routes, etc.)
+    });
+
+    logger.info('Auth terminal WebSocket server initialized');
   }
 }
 
