@@ -162,6 +162,13 @@ spec:
               value: {{ .Values.gitSync.repo | quote }}
             - name: GITSYNC_REF
               value: {{ .Values.gitSync.branch | quote }}
+            - name: GITSYNC_USERNAME
+              value: oauth2
+            - name: GITSYNC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "claude-api.fullname" . }}-secret
+                  key: github_token
             - name: GITSYNC_ROOT
               value: /repo
             - name: GITSYNC_LINK
