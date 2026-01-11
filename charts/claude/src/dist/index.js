@@ -15,7 +15,7 @@ const app = (0, express_1.default)();
 app.use(express_1.default.json());
 const PORT = parseInt(process.env.PORT || "3000", 10);
 const HOME = process.env.HOME || "/home/user";
-const WORKTREES_DIR = "/tmp/claude-worktrees";
+const WORKTREES_DIR = path_1.default.join(HOME, ".claude-api", "worktrees"); // Persistent on PVC
 const SESSIONS_DIR = path_1.default.join(HOME, ".claude-api", "sessions");
 const STATIC_DIR = process.env.STATIC_DIR || "/app/public";
 const CLAUDE_BIN = path_1.default.join(HOME, ".npm-global", "bin", "claude");
@@ -380,6 +380,11 @@ wss.on("connection", (ws, req) => {
 function runClaudeMessage(session, userMessage) {
     console.log(`Running Claude for session ${session.id} in ${session.workdir}`);
     console.log(`Using Claude binary: ${CLAUDE_BIN}`);
+    // Ensure workdir exists (may have been cleared if in /tmp after pod restart)
+    if (!fs_1.default.existsSync(session.workdir)) {
+        console.log(`Creating workdir: ${session.workdir}`);
+        fs_1.default.mkdirSync(session.workdir, { recursive: true });
+    }
     session.isProcessing = true;
     // Build args for print mode
     // -p: print mode (non-interactive)
