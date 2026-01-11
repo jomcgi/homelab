@@ -346,19 +346,30 @@ ttydWss.on("connection", (clientWs: WebSocket) => {
   });
 });
 
-// Handle WebSocket upgrades for ttyd proxy
-server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
-  if (req.url?.startsWith("/api/auth/terminal/ws")) {
-    console.log(`WebSocket upgrade request: ${req.url}`);
+// WebSocket server for streaming (also noServer to avoid duplicate upgrade handlers)
+const wss = new WebSocketServer({ noServer: true });
 
+// Handle ALL WebSocket upgrades in one place to avoid conflicts
+// When using { server, path } option, ws library registers its own upgrade handler
+// which can conflict with manual handlers and send duplicate responses
+server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
+  const url = req.url || "";
+
+  if (url.startsWith("/api/auth/terminal/ws")) {
+    console.log(`WebSocket upgrade request for ttyd: ${url}`);
     ttydWss.handleUpgrade(req, socket, head, (ws) => {
       ttydWss.emit("connection", ws, req);
     });
+  } else if (url.startsWith("/ws")) {
+    console.log(`WebSocket upgrade request for session: ${url}`);
+    wss.handleUpgrade(req, socket, head, (ws) => {
+      wss.emit("connection", ws, req);
+    });
+  } else {
+    console.log(`Unknown WebSocket upgrade request: ${url}`);
+    socket.destroy();
   }
 });
-
-// WebSocket server for streaming
-const wss = new WebSocketServer({ server, path: "/ws" });
 
 wss.on("connection", (ws, req) => {
   const url = new URL(req.url || "", `http://localhost:${PORT}`);
