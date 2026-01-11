@@ -72,17 +72,20 @@ app.post("/api/auth/start", (_req, res) => {
     const ttyd = spawn(
       "ttyd",
       [
-        "-p", TTYD_PORT.toString(),
+        "-p",
+        TTYD_PORT.toString(),
         "-W", // Start immediately
-        "-t", "titleFixed=Claude Authentication",
-        "bash", "-c",
-        `echo "Starting Claude authentication..." && ${CLAUDE_BIN} /login`
+        "-t",
+        "titleFixed=Claude Authentication",
+        "bash",
+        "-c",
+        `echo "Starting Claude authentication..." && ${CLAUDE_BIN} /login`,
       ],
       {
         cwd: HOME,
         env: { ...process.env, HOME },
         stdio: ["ignore", "pipe", "pipe"],
-      }
+      },
     );
 
     authTtydProcess = ttyd;
@@ -140,7 +143,11 @@ app.use(
       "^/api/auth/terminal": "", // Remove prefix
     },
     on: {
-      error: (err: Error, req: Request, res: Response | ServerResponse | Socket) => {
+      error: (
+        err: Error,
+        req: Request,
+        res: Response | ServerResponse | Socket,
+      ) => {
         console.error("Proxy error:", err);
         if (res instanceof ServerResponse) {
           res.writeHead(502);
@@ -148,7 +155,7 @@ app.use(
         }
       },
     },
-  })
+  }),
 );
 
 // List sessions
@@ -284,7 +291,9 @@ wss.on("connection", (ws, req) => {
 
   ws.on("message", (data) => {
     const message = JSON.parse(data.toString());
-    console.log(`Received message for session ${session.id}: ${JSON.stringify(message).substring(0, 100)}`);
+    console.log(
+      `Received message for session ${session.id}: ${JSON.stringify(message).substring(0, 100)}`,
+    );
 
     if (message.type === "input") {
       // Start Claude Code process if not running
@@ -319,7 +328,9 @@ wss.on("connection", (ws, req) => {
 });
 
 function startClaudeProcess(session: Session) {
-  console.log(`Starting Claude process for session ${session.id} in ${session.workdir}`);
+  console.log(
+    `Starting Claude process for session ${session.id} in ${session.workdir}`,
+  );
   console.log(`Using Claude binary: ${CLAUDE_BIN}`);
 
   // Spawn Claude Code in the session's workdir
