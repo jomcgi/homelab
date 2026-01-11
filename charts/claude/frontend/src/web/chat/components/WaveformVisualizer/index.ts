@@ -1,0 +1,1 @@
+export { WaveformVisualizer } from './WaveformVisualizer';

@@ -30,27 +30,30 @@ if [ -n "$GITHUB_TOKEN" ]; then
 	git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 fi
 
-# Install API server dependencies
-cd /app
+# Build and start CUI server (new frontend with built-in API)
+cd /app/frontend/charts/claude/frontend
+
+# Install dependencies if needed
 if [ ! -d "node_modules" ]; then
-	echo "Installing API server dependencies..."
-	npm install --omit=dev
+	echo "Installing CUI server dependencies..."
+	npm install
 else
-	echo "API server dependencies already installed"
+	echo "CUI server dependencies already installed"
 fi
 
-# Build frontend if not already built
-if [ ! -f "/app/public/index.html" ]; then
-	echo "Building frontend..."
-	cd /app/frontend/charts/claude/frontend
-	npm install --include=dev
-	npx vite build
-	mkdir -p /app/public
-	cp -r dist/* /app/public/
-	cd /app
+# Build the server and frontend
+if [ ! -d "dist" ]; then
+	echo "Building CUI server..."
+	npm run build
 else
-	echo "Frontend already built"
+	echo "CUI server already built"
 fi
 
-echo "Starting Claude API server..."
-exec node /app/dist/index.js
+# Configure Google API key for voice transcription if set
+if [ -n "$GEMINI_API_KEY" ]; then
+	export GOOGLE_API_KEY="$GEMINI_API_KEY"
+fi
+
+# Start CUI server with auth disabled (Cloudflare handles SSO)
+echo "Starting CUI server..."
+exec node dist/server.js --port ${PORT:-3000} --skip-auth-token
