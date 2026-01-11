@@ -468,6 +468,8 @@ function startClaudeProcess(session: Session) {
   console.log(`Using Claude binary: ${CLAUDE_BIN}`);
 
   // Spawn Claude Code in the session's workdir
+  // Use shell: true because npm global installs create shell wrapper scripts
+  // that need shell execution to properly resolve
   const claude = spawn(CLAUDE_BIN, ["--dangerously-skip-permissions"], {
     cwd: session.workdir,
     env: {
@@ -475,6 +477,7 @@ function startClaudeProcess(session: Session) {
       HOME,
     },
     stdio: ["pipe", "pipe", "pipe"],
+    shell: true,
   });
 
   session.process = claude;
