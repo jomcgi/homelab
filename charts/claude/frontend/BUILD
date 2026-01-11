@@ -1,7 +1,17 @@
-# Pre-built frontend assets
-# Build locally with: cd charts/claude/frontend && pnpm install && pnpm exec vite build
+# Frontend source files for runtime build
 filegroup(
-    name = "dist",
-    srcs = glob(["dist/**/*"]),
+    name = "src",
+    srcs = glob([
+        "src/**/*",
+        "public/**/*",
+    ]) + [
+        "index.html",
+        "package.json",
+        "postcss.config.js",
+        "tailwind.config.js",
+        "tsconfig.json",
+        "tsconfig.node.json",
+        "vite.config.ts",
+    ],
     visibility = ["//charts/claude/image:__pkg__"],
 )
