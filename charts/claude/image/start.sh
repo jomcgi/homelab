@@ -58,5 +58,6 @@ if [ -n "$GEMINI_API_KEY" ]; then
 fi
 
 # Start CUI server with auth disabled (Cloudflare handles SSO)
+# --host 0.0.0.0 required for Kubernetes readiness probes (default is localhost)
 echo "Starting CUI server..."
-exec node dist/server.js --port ${PORT:-3000} --skip-auth-token
+exec node dist/server.js --port ${PORT:-3000} --host 0.0.0.0 --skip-auth-token
