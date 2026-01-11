@@ -8,7 +8,7 @@ image:
   tag: "main"
 
 imagePullSecrets:
-  - name: claude-secret
+  - name: ghcr-pull-secret
 
 nameOverride: ""
 fullnameOverride: ""
