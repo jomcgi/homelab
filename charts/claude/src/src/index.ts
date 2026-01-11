@@ -14,6 +14,7 @@ const HOME = process.env.HOME || "/home/user";
 const WORKTREES_DIR = "/tmp/claude-worktrees";
 const SESSIONS_DIR = path.join(HOME, ".claude-api", "sessions");
 const STATIC_DIR = process.env.STATIC_DIR || "/app/public";
+const CLAUDE_BIN = path.join(HOME, ".npm-global", "bin", "claude");
 
 // Ensure directories exist
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -204,9 +205,10 @@ wss.on("connection", (ws, req) => {
 
 function startClaudeProcess(session: Session) {
   console.log(`Starting Claude process for session ${session.id} in ${session.workdir}`);
+  console.log(`Using Claude binary: ${CLAUDE_BIN}`);
 
   // Spawn Claude Code in the session's workdir
-  const claude = spawn("claude", ["--dangerously-skip-permissions"], {
+  const claude = spawn(CLAUDE_BIN, ["--dangerously-skip-permissions"], {
     cwd: session.workdir,
     env: {
       ...process.env,
