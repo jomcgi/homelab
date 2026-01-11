@@ -1,6 +1,7 @@
 import express, { Request, Response } from "express";
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer, ServerResponse } from "http";
+import { Socket } from "net";
 import { createProxyMiddleware } from "http-proxy-middleware";
 import { v4 as uuidv4 } from "uuid";
 import { spawn, ChildProcess } from "child_process";
@@ -139,7 +140,7 @@ app.use(
       "^/api/auth/terminal": "", // Remove prefix
     },
     on: {
-      error: (err: Error, req: Request, res: Response | ServerResponse) => {
+      error: (err: Error, req: Request, res: Response | ServerResponse | Socket) => {
         console.error("Proxy error:", err);
         if (res instanceof ServerResponse) {
           res.writeHead(502);
