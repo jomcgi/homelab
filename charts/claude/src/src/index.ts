@@ -501,7 +501,7 @@ function runClaudeMessage(session: Session, userMessage: string) {
       HOME,
     },
     stdio: ["inherit", "pipe", "pipe"], // stdin inherit, stdout/stderr piped
-    shell: true,
+    shell: "/bin/bash", // wolfi container doesn't have /bin/sh
   });
 
   session.process = claude;
