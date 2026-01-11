@@ -170,9 +170,6 @@ spec:
               value: {{ .Values.gitSync.period | quote }}
             - name: GITSYNC_ONE_TIME
               value: "false"
-            # Required for git operations as non-root user
-            - name: GITSYNC_ADD_USER
-              value: "true"
             # Clean up old worktrees after 1 hour
             - name: GITSYNC_STALE_WORKTREE_TIMEOUT
               value: "1h"
