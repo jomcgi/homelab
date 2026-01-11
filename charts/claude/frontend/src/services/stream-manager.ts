@@ -275,10 +275,27 @@ export class StreamManager extends EventEmitter {
    * Close all connections for a session
    */
   closeSession(streamingId: string): void {
-    // Clean up message buffer for this session
-    this.messageBuffer.delete(streamingId);
-
     const clients = this.clients.get(streamingId);
+
+    // If there are clients connected, they'll receive the close event
+    // and we can clear the buffer since messages were delivered
+    if (clients && clients.size > 0) {
+      this.messageBuffer.delete(streamingId);
+    } else {
+      // No clients connected - buffer the close event so late-connecting
+      // clients can receive all messages including the close
+      this.bufferMessage(streamingId, {
+        type: "closed",
+        streamingId: streamingId,
+        timestamp: new Date().toISOString(),
+      });
+      this.logger.info("Session closed with no clients - buffered close event", {
+        streamingId,
+        bufferSize: this.messageBuffer.get(streamingId)?.length || 0,
+      });
+      return; // Don't proceed with client cleanup since there are none
+    }
+
     if (!clients) return;
 
     const closeEvent: StreamEvent = {
