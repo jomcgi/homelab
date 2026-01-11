@@ -90,18 +90,17 @@ export function ConversationView() {
     }
   }, [location.state]);
 
-  // Clear streaming when sessionId changes without navigation state
+  // Clear streaming when sessionId changes (navigating to different conversation)
+  const prevSessionIdRef = React.useRef(sessionId);
   useEffect(() => {
-    const state = location.state as NavigationState | null;
-    // Only clear if we don't have a fresh streamingId from navigation
-    if (!state?.streamingId) {
+    // Only clear streamingId if sessionId actually changed (different conversation)
+    // Don't clear when location.state changes - that's how we receive new streamingId
+    if (prevSessionIdRef.current !== sessionId) {
       setStreamingId(null);
+      prevSessionIdRef.current = sessionId;
     }
-
-    return () => {
-      setStreamingId(null);
-    };
-  }, [sessionId, location.state]);
+    // Note: No cleanup - useStreaming handles its own cleanup
+  }, [sessionId]);
 
   // Load conversation history
   useEffect(() => {
