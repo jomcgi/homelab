@@ -60,7 +60,11 @@ git push -u origin feat/my-feature
    ```bash
    gh pr create --title "PR title" --body "Description of changes"
    ```
-5. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
+5. **Always share the PR link with the user** after creating or pushing changes:
+   ```bash
+   gh pr view --json url -q .url
+   ```
+6. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
 
 ## Listing and Cleaning Worktrees
 
