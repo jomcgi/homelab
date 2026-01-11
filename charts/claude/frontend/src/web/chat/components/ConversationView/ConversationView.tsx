@@ -23,11 +23,19 @@ function formatError(err: unknown): string {
   return String(err);
 }
 
+interface NavigationState {
+  streamingId?: string;
+}
+
 export function ConversationView() {
   const { sessionId } = useParams<{ sessionId: string }>();
   const location = useLocation();
   const navigate = useNavigate();
-  const [streamingId, setStreamingId] = useState<string | null>(null);
+  // Initialize streamingId from navigation state if available (for resume/continuation)
+  const [streamingId, setStreamingId] = useState<string | null>(() => {
+    const state = location.state as NavigationState | null;
+    return state?.streamingId || null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [conversationTitle, setConversationTitle] =
@@ -81,15 +89,20 @@ export function ConversationView() {
   }, [location]);
 
   // Clear streaming when navigating away or sessionId changes
+  // EXCEPT if we're navigating with a new streamingId (resume/continuation)
   useEffect(() => {
-    // Clear streamingId when sessionId changes
-    setStreamingId(null);
+    const state = location.state as NavigationState | null;
+    // Only clear streamingId if we DON'T have one from navigation state
+    // This allows resumed conversations to maintain their streaming connection
+    if (!state?.streamingId) {
+      setStreamingId(null);
+    }
 
     return () => {
       // Clear streaming when navigating away
       setStreamingId(null);
     };
-  }, [sessionId]);
+  }, [sessionId, location.state]);
 
   // Load conversation history
   useEffect(() => {
@@ -217,8 +230,12 @@ export function ConversationView() {
       // This is critical for receiving Claude's response after resume
       setStreamingId(response.streamingId);
 
-      // Navigate to the session (may be same URL for resume, but ensures URL is correct)
-      navigate(`/c/${response.sessionId}`);
+      // Navigate to the session with streamingId in state
+      // This is needed because navigation to a new session unmounts this component,
+      // and the new component instance needs the streamingId to connect to the stream
+      navigate(`/c/${response.sessionId}`, {
+        state: { streamingId: response.streamingId } as NavigationState,
+      });
     } catch (err: unknown) {
       setError(formatError(err) || "Failed to send message");
     }

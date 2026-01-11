@@ -127,8 +127,11 @@ export function Home() {
           permissionMode === "default" ? undefined : permissionMode,
       });
 
-      // Navigate to the conversation page
-      navigate(`/c/${response.sessionId}`);
+      // Navigate to the conversation page with streamingId in state
+      // This allows the ConversationView to connect to the stream immediately
+      navigate(`/c/${response.sessionId}`, {
+        state: { streamingId: response.streamingId },
+      });
     } catch (error) {
       console.error("Failed to start conversation:", error);
       // Show detailed error message to user
