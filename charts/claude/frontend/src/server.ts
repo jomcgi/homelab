@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+// IMPORTANT: Import instrumentation FIRST to ensure all libraries are traced
+import "./instrumentation.js";
+
 import { CUIServer } from "./cui-server.js";
 import { createLogger } from "./services/logger.js";
 import { parseArgs } from "./cli-parser.js";
