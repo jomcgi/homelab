@@ -33,9 +33,6 @@ importers:
       '@types/express':
         specifier: ^4.17.21
         version: 4.17.25
-      '@types/http-proxy-middleware':
-        specifier: ^1.0.0
-        version: 1.0.0
       '@types/node':
         specifier: ^22.0.0
         version: 22.14.0
@@ -715,10 +712,6 @@ packages:
 
   '@types/http-errors@2.0.5':
     resolution: {integrity: sha512-r8Tayk8HJnX0FztbZN7oVqGccWgw98T/0neJphO91KkmOzug1KkofZURD4UaD5uH8AqcFLfdPErnBod0u71/qg==}
-
-  '@types/http-proxy-middleware@1.0.0':
-    resolution: {integrity: sha512-/s8lFX6rT43hSPqjjD8KNuu0SkPKY7uIdR6u9DCxVqCRhAvfKxGbVOixJsAT2mdpSnCyrGFAGoB39KFh6tmRxw==}
-    deprecated: This is a stub types definition. http-proxy-middleware provides its own type definitions, so you do not need this installed.
 
   '@types/http-proxy@1.17.17':
     resolution: {integrity: sha512-ED6LB+Z1AVylNTu7hdzuBqOgMnvG/ld6wGCG8wFnAzKX5uyW2K3WD52v0gnLCTK/VLpXtKckgWuyScYK6cSPaw==}
@@ -4646,12 +4639,6 @@ snapshots:
   '@types/http-cache-semantics@4.0.4': {}
 
   '@types/http-errors@2.0.5': {}
-
-  '@types/http-proxy-middleware@1.0.0':
-    dependencies:
-      http-proxy-middleware: 3.0.5
-    transitivePeerDependencies:
-      - supports-color
 
   '@types/http-proxy@1.17.17':
     dependencies:
