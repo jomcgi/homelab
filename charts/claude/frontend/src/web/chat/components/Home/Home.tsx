@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useConversations } from "../../contexts/ConversationsContext";
-import { api } from "../../services/api";
+import { api, ApiServiceError } from "../../services/api";
 import { Header } from "./Header";
 import { Composer, ComposerRef } from "@/web/chat/components/Composer";
 import { TaskTabs } from "./TaskTabs";
@@ -131,10 +131,14 @@ export function Home() {
       navigate(`/c/${response.sessionId}`);
     } catch (error) {
       console.error("Failed to start conversation:", error);
-      // You might want to show an error message to the user here
-      alert(
-        `Failed to start conversation: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
+      // Show detailed error message to user
+      const errorMessage =
+        error instanceof ApiServiceError
+          ? error.toDisplayString()
+          : error instanceof Error
+            ? error.message
+            : "Unknown error";
+      alert(`Failed to start conversation: ${errorMessage}`);
       setIsSubmitting(false);
     }
   };

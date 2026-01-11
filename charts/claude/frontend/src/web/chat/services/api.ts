@@ -19,6 +19,32 @@ type GeminiHealthResponse = {
   apiKeyValid: boolean;
 };
 
+// Custom error class that includes the error code from the API
+export class ApiServiceError extends Error {
+  code?: string;
+  statusCode?: number;
+
+  constructor(message: string, code?: string, statusCode?: number) {
+    super(message);
+    this.name = "ApiServiceError";
+    this.code = code;
+    this.statusCode = statusCode;
+  }
+
+  // Format error for display with all available details
+  toDisplayString(): string {
+    const parts: string[] = [];
+    if (this.code) {
+      parts.push(`[${this.code}]`);
+    }
+    parts.push(this.message);
+    if (this.statusCode && this.statusCode !== 500) {
+      parts.push(`(HTTP ${this.statusCode})`);
+    }
+    return parts.join(" ");
+  }
+}
+
 class ApiService {
   private baseUrl = "";
 
@@ -55,15 +81,26 @@ class ApiService {
 
       if (!response.ok) {
         if (response.status === 401) {
-          throw new Error("Unauthorized");
+          throw new ApiServiceError("Unauthorized", "UNAUTHORIZED", 401);
         }
-        throw new Error((data as ApiError).error || `HTTP ${response.status}`);
+        // Extract error details from response
+        const apiError = data as ApiError & { code?: string };
+        const errorMessage = apiError.error || `HTTP ${response.status}`;
+        const errorCode = apiError.code;
+        throw new ApiServiceError(errorMessage, errorCode, response.status);
       }
 
       return data;
     } catch (error) {
-      // console.error(`[API Error] ${fullUrl}:`, error);
-      throw error;
+      // Re-throw ApiServiceError as-is
+      if (error instanceof ApiServiceError) {
+        throw error;
+      }
+      // Wrap other errors
+      throw new ApiServiceError(
+        error instanceof Error ? error.message : String(error),
+        "UNKNOWN_ERROR",
+      );
     }
   }
 
