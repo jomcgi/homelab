@@ -1,4 +1,4 @@
-import express from "express";
+import express, { Request, Response } from "express";
 import { WebSocketServer, WebSocket } from "ws";
 import { createServer, ServerResponse } from "http";
 import { createProxyMiddleware } from "http-proxy-middleware";
@@ -138,7 +138,7 @@ app.use(
     pathRewrite: {
       "^/api/auth/terminal": "", // Remove prefix
     },
-    onError: (err, req, res) => {
+    onError: (err: Error, req: Request, res: Response | ServerResponse) => {
       console.error("Proxy error:", err);
       if (res instanceof ServerResponse) {
         res.writeHead(502);
