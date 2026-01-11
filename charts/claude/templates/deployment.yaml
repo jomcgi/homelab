@@ -134,6 +134,10 @@ spec:
             - name: DEFAULT_WORKING_DIRECTORY
               value: {{ .Values.defaultWorkingDirectory | quote }}
             {{- end }}
+            {{- if .Values.defaultPermissionMode }}
+            - name: DEFAULT_PERMISSION_MODE
+              value: {{ .Values.defaultPermissionMode | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
