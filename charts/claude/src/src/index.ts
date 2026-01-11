@@ -20,6 +20,11 @@ const CLAUDE_BIN = path.join(HOME, ".npm-global", "bin", "claude");
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(WORKTREES_DIR, { recursive: true });
 
+// Authentication state
+let authProcess: ChildProcess | null = null;
+let authUrl: string | null = null;
+let authOutput: string = "";
+
 interface Session {
   id: string;
   name: string;
@@ -34,6 +39,175 @@ const sessions = new Map<string, Session>();
 // Health check
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", sessions: sessions.size });
+});
+
+// Auth status - check if Claude is authenticated
+app.get("/api/auth/status", async (_req, res) => {
+  try {
+    // Try to run a simple command to check auth status
+    const testProcess = spawn(CLAUDE_BIN, ["--help"], {
+      env: { ...process.env, HOME },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let output = "";
+    let error = "";
+
+    testProcess.stdout.on("data", (data) => {
+      output += data.toString();
+    });
+
+    testProcess.stderr.on("data", (data) => {
+      error += data.toString();
+    });
+
+    testProcess.on("close", (code) => {
+      // If help runs successfully, CLI is installed
+      // Check if auth file exists
+      const authFile = path.join(HOME, ".claude", "auth.json");
+      const authenticated = fs.existsSync(authFile);
+
+      res.json({
+        authenticated,
+        cliInstalled: code === 0,
+        authInProgress: authProcess !== null,
+        authUrl: authUrl,
+      });
+    });
+  } catch (err) {
+    res.status(500).json({ error: "Failed to check auth status" });
+  }
+});
+
+// Start auth flow
+app.post("/api/auth/start", (req, res) => {
+  // Clean up any existing auth process
+  if (authProcess) {
+    authProcess.kill();
+    authProcess = null;
+  }
+
+  authUrl = null;
+  authOutput = "";
+
+  try {
+    // Spawn claude /login
+    const process = spawn(CLAUDE_BIN, ["/login"], {
+      cwd: HOME,
+      env: { ...process.env, HOME },
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    authProcess = process;
+
+    // Capture output to extract auth URL
+    process.stdout.on("data", (data) => {
+      const output = data.toString();
+      authOutput += output;
+      console.log(`Auth stdout: ${output}`);
+
+      // Look for the auth URL pattern
+      // Claude CLI typically outputs: "Please visit: https://..."
+      const urlMatch = output.match(/https:\/\/[^\s]+/);
+      if (urlMatch) {
+        authUrl = urlMatch[0];
+        console.log(`Found auth URL: ${authUrl}`);
+      }
+    });
+
+    process.stderr.on("data", (data) => {
+      const output = data.toString();
+      authOutput += output;
+      console.log(`Auth stderr: ${output}`);
+
+      // Also check stderr for URL
+      const urlMatch = output.match(/https:\/\/[^\s]+/);
+      if (urlMatch) {
+        authUrl = urlMatch[0];
+        console.log(`Found auth URL in stderr: ${authUrl}`);
+      }
+    });
+
+    process.on("close", (code) => {
+      console.log(`Auth process exited with code ${code}`);
+      authProcess = null;
+    });
+
+    process.on("error", (err) => {
+      console.error(`Auth process error: ${err}`);
+      authProcess = null;
+    });
+
+    // Give it a moment to output the URL
+    setTimeout(() => {
+      res.json({
+        success: true,
+        authUrl: authUrl,
+        message: authUrl
+          ? "Auth flow started. Please visit the URL to authorize."
+          : "Auth flow started. Waiting for URL...",
+      });
+    }, 2000);
+  } catch (err) {
+    console.error("Failed to start auth:", err);
+    res.status(500).json({ error: "Failed to start auth flow" });
+  }
+});
+
+// Complete auth flow with code
+app.post("/api/auth/complete", (req, res) => {
+  const { code } = req.body;
+
+  if (!authProcess) {
+    return res.status(400).json({ error: "No auth process in progress" });
+  }
+
+  if (!code) {
+    return res.status(400).json({ error: "Auth code is required" });
+  }
+
+  try {
+    // Send the code to the waiting process
+    authProcess.stdin?.write(code + "\n");
+
+    // Wait a bit for the process to complete
+    setTimeout(() => {
+      // Check if auth file was created
+      const authFile = path.join(HOME, ".claude", "auth.json");
+      const success = fs.existsSync(authFile);
+
+      if (success) {
+        res.json({
+          success: true,
+          message: "Authentication successful!",
+        });
+      } else {
+        res.json({
+          success: false,
+          message: "Authentication may have failed. Please check the code and try again.",
+        });
+      }
+
+      // Clean up
+      authProcess = null;
+      authUrl = null;
+      authOutput = "";
+    }, 3000);
+  } catch (err) {
+    console.error("Failed to complete auth:", err);
+    res.status(500).json({ error: "Failed to complete auth" });
+  }
+});
+
+// Cancel auth flow
+app.post("/api/auth/cancel", (_req, res) => {
+  if (authProcess) {
+    authProcess.kill();
+    authProcess = null;
+    authUrl = null;
+    authOutput = "";
+  }
+  res.json({ success: true });
 });
 
 // List sessions
