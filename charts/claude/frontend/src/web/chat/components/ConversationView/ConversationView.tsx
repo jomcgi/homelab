@@ -202,7 +202,11 @@ export function ConversationView() {
           permissionMode === "default" ? undefined : permissionMode,
       });
 
-      // Navigate immediately to the new session
+      // Set the new streamingId to connect to the response stream
+      // This is critical for receiving Claude's response after resume
+      setStreamingId(response.streamingId);
+
+      // Navigate to the session (may be same URL for resume, but ensures URL is correct)
       navigate(`/c/${response.sessionId}`);
     } catch (err: any) {
       setError(err.message || "Failed to send message");
