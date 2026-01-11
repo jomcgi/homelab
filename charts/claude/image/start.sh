@@ -33,10 +33,13 @@ fi
 # Build and start CUI server (new frontend with built-in API)
 cd /app/frontend/charts/claude/frontend
 
-# Install dependencies if needed (--ignore-scripts skips husky/prepare hooks)
+# Install dependencies if needed
+# --include=dev is required because NODE_ENV=production skips devDependencies,
+# but vite/typescript/etc are needed to build the frontend
+# Note: Cannot use --ignore-scripts because better-sqlite3 needs to compile native bindings
 if [ ! -d "node_modules" ]; then
 	echo "Installing CUI server dependencies..."
-	npm install --ignore-scripts
+	npm install --include=dev
 else
 	echo "CUI server dependencies already installed"
 fi
