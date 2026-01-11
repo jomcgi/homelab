@@ -119,9 +119,7 @@ export class FileSystemService {
   /**
    * Read file contents with security checks
    */
-  async readFile(
-    requestedPath: string,
-  ): Promise<{
+  async readFile(requestedPath: string): Promise<{
     path: string;
     content: string;
     size: number;

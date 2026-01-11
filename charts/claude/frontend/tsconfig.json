@@ -18,6 +18,7 @@
     "dist",
     "tests",
     "src/web/**/*",
-    "src/components/**/*"
+    "src/components/**/*",
+    "src/**/*.tsx"
   ]
 }
