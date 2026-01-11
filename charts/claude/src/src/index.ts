@@ -138,12 +138,14 @@ app.use(
     pathRewrite: {
       "^/api/auth/terminal": "", // Remove prefix
     },
-    onError: (err: Error, req: Request, res: Response | ServerResponse) => {
-      console.error("Proxy error:", err);
-      if (res instanceof ServerResponse) {
-        res.writeHead(502);
-        res.end("Terminal not available");
-      }
+    on: {
+      error: (err: Error, req: Request, res: Response | ServerResponse) => {
+        console.error("Proxy error:", err);
+        if (res instanceof ServerResponse) {
+          res.writeHead(502);
+          res.end("Terminal not available");
+        }
+      },
     },
   })
 );
