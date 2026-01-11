@@ -741,11 +741,14 @@ export class ClaudeProcessManager extends EventEmitter {
         config.message.substring(0, 50) +
         (config.message.length > 50 ? "..." : ""),
     });
-    const args = this.buildBaseArgs();
+    // For resume, --resume must come BEFORE -p
+    // Correct order: claude --resume <sessionId> -p "<message>" ...
+    const args: string[] = [];
 
     args.push(
       "--resume",
       config.sessionId, // Resume existing session
+      "-p", // Print mode flag
       config.message, // Message to continue with
       "--output-format",
       "stream-json", // JSONL output format
