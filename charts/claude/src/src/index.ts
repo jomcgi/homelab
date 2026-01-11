@@ -354,6 +354,7 @@ const wss = new WebSocketServer({ noServer: true });
 // which can conflict with manual handlers and send duplicate responses
 server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
   const url = req.url || "";
+  console.log(`[UPGRADE] Request received: ${url}, headers: ${JSON.stringify(req.headers)}`);
 
   if (url.startsWith("/api/auth/terminal/ws")) {
     console.log(`WebSocket upgrade request for ttyd: ${url}`);
