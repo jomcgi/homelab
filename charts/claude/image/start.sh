@@ -41,9 +41,9 @@ fi
 # Build frontend if not already built
 if [ ! -f "/app/public/index.html" ]; then
 	echo "Building frontend..."
-	cd /app/frontend
-	npm install
-	npm run build
+	cd /app/frontend/charts/claude/frontend
+	npm install --include=dev
+	npx vite build
 	mkdir -p /app/public
 	cp -r dist/* /app/public/
 	cd /app
