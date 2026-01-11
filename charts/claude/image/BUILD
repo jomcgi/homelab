@@ -14,7 +14,7 @@ pkg_tar(
     remap_paths = {
         "src/dist": "/app/dist",
         "src/package.json": "/app/package.json",
-        "start.sh": "/app/start.sh",
+        "image/start.sh": "/app/start.sh",
     },
     strip_prefix = "charts/claude",
 )
