@@ -22,14 +22,14 @@ pkg_tar(
     package_dir = "app/dist",
 )
 
-# Package the compiled frontend at /app/public/
+# Package the frontend source for runtime build
 pkg_tar(
     name = "frontend_tar",
-    srcs = ["//charts/claude/frontend:dist"],
+    srcs = ["//charts/claude/frontend:src"],
     mode = "0644",
     owner = "1000.1000",
-    package_dir = "app/public",
-    strip_prefix = "charts/claude/frontend/dist",
+    package_dir = "app/frontend",
+    strip_prefix = "charts/claude/frontend",
 )
 
 apko_image(
