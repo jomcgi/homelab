@@ -213,6 +213,15 @@ export function ConversationView() {
 
     setError(null);
 
+    // Add optimistic user message to UI immediately
+    addMessage({
+      id: `optimistic-${Date.now()}`,
+      type: "user",
+      content: message,
+      timestamp: new Date().toISOString(),
+      workingDirectory: workingDirectory || currentWorkingDirectory,
+    });
+
     try {
       const response = await api.startConversation({
         resumedSessionId: sessionId,
