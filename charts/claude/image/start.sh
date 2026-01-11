@@ -29,13 +29,13 @@ if [ -n "$GITHUB_TOKEN" ]; then
 	git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 fi
 
-# Check Claude auth status
-echo ""
-if claude /doctor 2>&1 | grep -q "Not authenticated"; then
-	echo "WARNING: Claude Code not authenticated"
-	echo "Run: kubectl exec -it deploy/claude-api -n claude-api -- claude /login"
+# Install API server dependencies
+cd /app
+if [ ! -d "node_modules" ]; then
+	echo "Installing API server dependencies..."
+	npm install --omit=dev
 else
-	echo "Claude Code authenticated"
+	echo "API server dependencies already installed"
 fi
 
 echo "Starting Claude API server..."

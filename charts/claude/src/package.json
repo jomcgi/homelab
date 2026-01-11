@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "description": "Claude Code API server with WebSocket streaming",
   "main": "dist/index.js",
-  "type": "module",
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
