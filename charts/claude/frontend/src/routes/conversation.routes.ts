@@ -151,6 +151,11 @@ export function createConversationRoutes(
         const { streamingId, systemInit } =
           await processManager.startConversation(conversationConfig);
 
+        // Normalize the cwd to handle git-sync worktree path resolution
+        // Claude Code resolves symlinks, so /repos/homelab/current becomes /repos/homelab/.worktrees/abc123
+        // We remap this back to the stable symlink path for consistent conversation persistence
+        const normalizedCwd = historyReader.normalizeProjectPath(systemInit.cwd);
+
         // Update original session with continuation session ID if resuming
         if (req.body.resumedSessionId) {
           try {
@@ -181,7 +186,7 @@ export function createConversationRoutes(
               systemInit.session_id,
               {
                 initialPrompt: req.body.initialPrompt,
-                workingDirectory: systemInit.cwd,
+                workingDirectory: normalizedCwd,
                 model: systemInit.model,
                 inheritedMessages:
                   previousMessages.length > 0 ? previousMessages : undefined,
@@ -231,6 +236,7 @@ export function createConversationRoutes(
           sessionId: systemInit.session_id,
           model: systemInit.model,
           cwd: systemInit.cwd,
+          normalizedCwd,
           previousMessageCount: previousMessages.length,
         });
 
@@ -239,7 +245,7 @@ export function createConversationRoutes(
           streamUrl: `/api/stream/${streamingId}`,
           // System init fields
           sessionId: systemInit.session_id,
-          cwd: systemInit.cwd,
+          cwd: normalizedCwd,
           tools: systemInit.tools,
           mcpServers: systemInit.mcp_servers,
           model: systemInit.model,
