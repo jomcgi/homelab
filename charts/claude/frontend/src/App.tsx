@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { AuthTerminal } from "./AuthTerminal";
 
 interface Message {
   id: string;
@@ -78,7 +79,8 @@ function App() {
       const res = await fetch(`${API_BASE}/auth/start`, { method: "POST" });
       const data = await res.json();
       if (data.success) {
-        setTerminalUrl(`${API_BASE}/auth/terminal`);
+        // Use WebSocket URL for xterm.js direct connection
+        setTerminalUrl(`${WS_BASE}/api/auth/terminal/ws`);
         await fetchAuthStatus();
       }
     } catch (err) {
@@ -459,14 +461,8 @@ function App() {
                     </p>
                   </div>
 
-                  {/* Terminal iframe */}
-                  <div className="bg-black rounded overflow-hidden">
-                    <iframe
-                      src={terminalUrl}
-                      className="w-full h-[500px] border-0"
-                      title="Authentication Terminal"
-                    />
-                  </div>
+                  {/* Terminal with xterm.js */}
+                  <AuthTerminal wsUrl={terminalUrl} />
 
                   <button
                     onClick={() => {
