@@ -104,9 +104,10 @@ affinity: {}
 
 ## Pod annotations
 podAnnotations:
-  # Mark port 3000 as opaque to bypass Linkerd's HTTP detection
+  # Mark ports as opaque to bypass Linkerd's HTTP detection
   # This prevents the default 10-second response timeout from killing WebSocket connections
-  config.linkerd.io/opaque-ports: "3000"
+  # Port 8080 (nginx) receives external traffic, port 3000 is the backend
+  config.linkerd.io/opaque-ports: "8080,3000"
 
 ## Pod labels
 podLabels: {}
