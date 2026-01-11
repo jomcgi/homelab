@@ -57,8 +57,8 @@ vllm-stack:
           - name: VLLM_LOGGING_LEVEL
             value: "INFO"
 
-        # Resource allocation (dedicated GPU node - use generously)
-        requestCPU: 10
+        # Resource allocation (dedicated GPU node - low request, burstable)
+        requestCPU: 2
         requestMemory: "32Gi"
         requestGPU: 1
 
@@ -115,14 +115,13 @@ vllm-stack:
           seccompProfile:
             type: RuntimeDefault
 
-        # Resource limits (match requests for GPU, allow CPU bursting)
+        # Resource limits (low request, burstable CPU, GPU pinned)
         resources:
           requests:
-            cpu: 10
+            cpu: 2
             memory: "32Gi"
             nvidia.com/gpu: 1
           limits:
-            cpu: 12
             memory: "48Gi"
             nvidia.com/gpu: 1
 
