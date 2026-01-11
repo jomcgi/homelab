@@ -10,10 +10,12 @@ ts_project(
     visibility = ["//charts/claude/image:__pkg__"],
     deps = [
         "//:node_modules/@types/express",
+        "//:node_modules/@types/http-proxy-middleware",
         "//:node_modules/@types/node",
         "//:node_modules/@types/uuid",
         "//:node_modules/@types/ws",
         "//:node_modules/express",
+        "//:node_modules/http-proxy-middleware",
         "//:node_modules/uuid",
         "//:node_modules/ws",
     ],
