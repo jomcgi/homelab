@@ -33,10 +33,10 @@ fi
 # Build and start CUI server (new frontend with built-in API)
 cd /app/frontend/charts/claude/frontend
 
-# Install dependencies if needed
+# Install dependencies if needed (--ignore-scripts skips husky/prepare hooks)
 if [ ! -d "node_modules" ]; then
 	echo "Installing CUI server dependencies..."
-	npm install
+	npm install --ignore-scripts
 else
 	echo "CUI server dependencies already installed"
 fi
