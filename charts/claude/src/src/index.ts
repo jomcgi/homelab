@@ -272,13 +272,20 @@ ttydWss.on("connection", (clientWs: WebSocket) => {
   console.log("Client WebSocket connected, connecting to ttyd...");
 
   // Connect to ttyd using WebSocket protocol with "tty" subprotocol
-  const ttydWs = new WebSocket(`ws://localhost:${TTYD_PORT}/ws`, ["tty"]);
+  // IMPORTANT: Disable perMessageDeflate to avoid compression mismatch with ttyd
+  const ttydWs = new WebSocket(`ws://localhost:${TTYD_PORT}/ws`, ["tty"], {
+    perMessageDeflate: false,
+  });
 
   // Set binary type to match ttyd expectations
   ttydWs.binaryType = "arraybuffer";
 
+  // Track connection state
+  let ttydConnected = false;
+
   ttydWs.on("open", () => {
     console.log("Connected to ttyd WebSocket");
+    ttydConnected = true;
   });
 
   ttydWs.on("message", (data: Buffer, isBinary: boolean) => {
@@ -290,12 +297,18 @@ ttydWss.on("connection", (clientWs: WebSocket) => {
 
   ttydWs.on("close", (code, reason) => {
     console.log(`ttyd WebSocket closed: ${code} ${reason}`);
-    clientWs.close(code, reason.toString());
+    ttydConnected = false;
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.close(code, reason.toString());
+    }
   });
 
   ttydWs.on("error", (err) => {
     console.error("ttyd WebSocket error:", err);
-    clientWs.close(1011, "ttyd connection error");
+    ttydConnected = false;
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.close(1011, "ttyd connection error");
+    }
   });
 
   clientWs.on("message", (data: Buffer, isBinary: boolean) => {
@@ -307,12 +320,17 @@ ttydWss.on("connection", (clientWs: WebSocket) => {
 
   clientWs.on("close", (code, reason) => {
     console.log(`Client WebSocket closed: ${code} ${reason}`);
-    ttydWs.close();
+    // Only close ttyd connection if it's open or connecting
+    if (ttydConnected || ttydWs.readyState === WebSocket.CONNECTING) {
+      ttydWs.close();
+    }
   });
 
   clientWs.on("error", (err) => {
     console.error("Client WebSocket error:", err);
-    ttydWs.close();
+    if (ttydConnected || ttydWs.readyState === WebSocket.CONNECTING) {
+      ttydWs.close();
+    }
   });
 });
 
