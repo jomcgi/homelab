@@ -69,6 +69,7 @@ app.post("/api/auth/start", (_req, res) => {
     // -t: Set terminal type
     console.log(`Starting ttyd on port ${TTYD_PORT}...`);
 
+    // Run claude interactively - user types /login inside the session
     const ttyd = spawn(
       "ttyd",
       [
@@ -77,9 +78,7 @@ app.post("/api/auth/start", (_req, res) => {
         "-W", // Start immediately
         "-t",
         "titleFixed=Claude Authentication",
-        "bash",
-        "-c",
-        `echo "Starting Claude authentication..." && ${CLAUDE_BIN} /login`,
+        CLAUDE_BIN,
       ],
       {
         cwd: HOME,
