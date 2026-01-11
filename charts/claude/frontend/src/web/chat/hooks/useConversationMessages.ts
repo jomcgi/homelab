@@ -1,7 +1,10 @@
-import { useState, useCallback } from 'react';
-import type { ChatMessage, StreamEvent, ToolResult } from '../types';
-import type { ContentBlock, ContentBlockParam } from '@anthropic-ai/sdk/resources/messages/messages';
-import type { PermissionRequest } from '@/types';
+import { useState, useCallback } from "react";
+import type { ChatMessage, StreamEvent, ToolResult } from "../types";
+import type {
+  ContentBlock,
+  ContentBlockParam,
+} from "@anthropic-ai/sdk/resources/messages/messages";
+import type { PermissionRequest } from "@/types";
 
 interface UseConversationMessagesOptions {
   onUserMessage?: (message: ChatMessage) => void;
@@ -16,17 +19,26 @@ interface UseConversationMessagesOptions {
  * Shared hook for managing conversation messages
  * Handles message state and streaming events
  */
-export function useConversationMessages(options: UseConversationMessagesOptions = {}) {
+export function useConversationMessages(
+  options: UseConversationMessagesOptions = {},
+) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [toolResults, setToolResults] = useState<Record<string, ToolResult>>({});
-  const [currentWorkingDirectory, setCurrentWorkingDirectory] = useState<string | undefined>();
-  const [currentPermissionRequest, setCurrentPermissionRequest] = useState<PermissionRequest | null>(null);
-  const [childrenMessages, setChildrenMessages] = useState<Record<string, ChatMessage[]>>({});
+  const [toolResults, setToolResults] = useState<Record<string, ToolResult>>(
+    {},
+  );
+  const [currentWorkingDirectory, setCurrentWorkingDirectory] = useState<
+    string | undefined
+  >();
+  const [currentPermissionRequest, setCurrentPermissionRequest] =
+    useState<PermissionRequest | null>(null);
+  const [childrenMessages, setChildrenMessages] = useState<
+    Record<string, ChatMessage[]>
+  >({});
   const [expandedTasks, setExpandedTasks] = useState<Set<string>>(new Set());
 
   // Clear messages
   const clearMessages = useCallback(() => {
-    setMessages(prev => {
+    setMessages((prev) => {
       return [];
     });
     setToolResults({});
@@ -38,25 +50,25 @@ export function useConversationMessages(options: UseConversationMessagesOptions 
 
   // Add a message
   const addMessage = useCallback((message: ChatMessage) => {
-    setMessages(prev => {
+    setMessages((prev) => {
       return [...prev, message];
     });
 
     // Track tool uses in assistant messages
-    if (message.type === 'assistant' && Array.isArray(message.content)) {
+    if (message.type === "assistant" && Array.isArray(message.content)) {
       const toolUseIds: string[] = [];
       message.content.forEach((block) => {
-        if (block.type === 'tool_use' && block.id) {
+        if (block.type === "tool_use" && block.id) {
           toolUseIds.push(block.id);
         }
       });
 
       if (toolUseIds.length > 0) {
-        setToolResults(prev => {
+        setToolResults((prev) => {
           const updates: Record<string, ToolResult> = {};
-          toolUseIds.forEach(id => {
+          toolUseIds.forEach((id) => {
             if (!prev[id]) {
-              updates[id] = { status: 'pending' };
+              updates[id] = { status: "pending" };
             }
           });
           return { ...prev, ...updates };
@@ -66,151 +78,162 @@ export function useConversationMessages(options: UseConversationMessagesOptions 
   }, []);
 
   // Handle streaming messages
-  const handleStreamMessage = useCallback((event: StreamEvent) => {
-    switch (event.type) {
-      case 'connected':
-        // Stream connected
-        break;
-      
-      case 'system_init':
-        // Capture working directory from system init
-        setCurrentWorkingDirectory(event.cwd);
-        break;
+  const handleStreamMessage = useCallback(
+    (event: StreamEvent) => {
+      switch (event.type) {
+        case "connected":
+          // Stream connected
+          break;
 
-      case 'user':
-        // Process tool results first - if this message contains tool results, handle them and return early
-        if (event.message && Array.isArray(event.message.content)) {
-          const toolResultUpdates: Record<string, ToolResult> = {};
-          let hasToolResults = false;
-          
-          event.message.content.forEach((block) => {
-            if (block.type === 'tool_result' && 'tool_use_id' in block) {
-              hasToolResults = true;
-              const toolUseId = block.tool_use_id;
-              let result: string | ContentBlockParam[] = '';
-              
-              // Extract result content
-              if (typeof block.content === 'string') {
-                result = block.content;
-              } else if (Array.isArray(block.content)) {
-                result = block.content;
+        case "system_init":
+          // Capture working directory from system init
+          setCurrentWorkingDirectory(event.cwd);
+          break;
+
+        case "user":
+          // Process tool results first - if this message contains tool results, handle them and return early
+          if (event.message && Array.isArray(event.message.content)) {
+            const toolResultUpdates: Record<string, ToolResult> = {};
+            let hasToolResults = false;
+
+            event.message.content.forEach((block) => {
+              if (block.type === "tool_result" && "tool_use_id" in block) {
+                hasToolResults = true;
+                const toolUseId = block.tool_use_id;
+                let result: string | ContentBlockParam[] = "";
+
+                // Extract result content
+                if (typeof block.content === "string") {
+                  result = block.content;
+                } else if (Array.isArray(block.content)) {
+                  result = block.content;
+                }
+
+                toolResultUpdates[toolUseId] = {
+                  status: "completed",
+                  result,
+                  is_error: block.is_error,
+                };
               }
-              
-              toolResultUpdates[toolUseId] = {
-                status: 'completed',
-                result,
-                is_error: block.is_error
-              };
+            });
+
+            if (hasToolResults) {
+              setToolResults((prev) => ({ ...prev, ...toolResultUpdates }));
+              // Tool result messages should not be added as child messages - return early
+              break;
             }
-          });
-          
-          if (hasToolResults) {
-            setToolResults(prev => ({ ...prev, ...toolResultUpdates }));
-            // Tool result messages should not be added as child messages - return early
-            break;
           }
-        }
-        
-        // If no tool results, check if this is a child message
-        const userParentToolUseId = event.parent_tool_use_id;
-        
-        if (userParentToolUseId) {
-          // This is a child message - create a user message and add to childrenMessages
-          const userMessage: ChatMessage = {
-            id: '',
-            messageId: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-            type: 'user',
-            content: event.message.content,
+
+          // If no tool results, check if this is a child message
+          const userParentToolUseId = event.parent_tool_use_id;
+
+          if (userParentToolUseId) {
+            // This is a child message - create a user message and add to childrenMessages
+            const userMessage: ChatMessage = {
+              id: "",
+              messageId: `user-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+              type: "user",
+              content: event.message.content,
+              timestamp: new Date().toISOString(),
+              workingDirectory: currentWorkingDirectory,
+              parentToolUseId: userParentToolUseId,
+            };
+
+            setChildrenMessages((prev) => {
+              const newChildren = { ...prev };
+              if (!newChildren[userParentToolUseId]) {
+                newChildren[userParentToolUseId] = [];
+              }
+              newChildren[userParentToolUseId] = [
+                ...newChildren[userParentToolUseId],
+                userMessage,
+              ];
+              return newChildren;
+            });
+          }
+          break;
+
+        case "assistant":
+          // Check if this is a child message
+          const parentToolUseId = event.parent_tool_use_id;
+          const assistantMessage: ChatMessage = {
+            id: event.message.id,
+            messageId: `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            type: "assistant",
+            content: Array.isArray(event.message.content)
+              ? event.message.content
+              : [event.message.content],
             timestamp: new Date().toISOString(),
             workingDirectory: currentWorkingDirectory,
-            parentToolUseId: userParentToolUseId,
+            parentToolUseId,
           };
-          
-          setChildrenMessages(prev => {
-            const newChildren = { ...prev };
-            if (!newChildren[userParentToolUseId]) {
-              newChildren[userParentToolUseId] = [];
-            }
-            newChildren[userParentToolUseId] = [...newChildren[userParentToolUseId], userMessage];
-            return newChildren;
-          });
-        }
-        break;
 
-      case 'assistant':
-        // Check if this is a child message
-        const parentToolUseId = event.parent_tool_use_id;
-        const assistantMessage: ChatMessage = {
-          id: event.message.id,
-          messageId: `assistant-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          type: 'assistant',
-          content: Array.isArray(event.message.content) ? event.message.content : [event.message.content],
-          timestamp: new Date().toISOString(),
-          workingDirectory: currentWorkingDirectory,
-          parentToolUseId,
-        };
-        
-        if (parentToolUseId) {
-          // This is a child message - add to childrenMessages instead
-          setChildrenMessages(prev => {
-            const newChildren = { ...prev };
-            if (!newChildren[parentToolUseId]) {
-              newChildren[parentToolUseId] = [];
-            }
-            newChildren[parentToolUseId] = [...newChildren[parentToolUseId], assistantMessage];
-            return newChildren;
-          });
-        } else {
-          // Regular message - add to main list
-          addMessage(assistantMessage);
-          options.onAssistantMessage?.(assistantMessage);
-        }
-        break;
+          if (parentToolUseId) {
+            // This is a child message - add to childrenMessages instead
+            setChildrenMessages((prev) => {
+              const newChildren = { ...prev };
+              if (!newChildren[parentToolUseId]) {
+                newChildren[parentToolUseId] = [];
+              }
+              newChildren[parentToolUseId] = [
+                ...newChildren[parentToolUseId],
+                assistantMessage,
+              ];
+              return newChildren;
+            });
+          } else {
+            // Regular message - add to main list
+            addMessage(assistantMessage);
+            options.onAssistantMessage?.(assistantMessage);
+          }
+          break;
 
-      case 'result':
-        // Only update conversation status, don't update messages
-        if (event.session_id) {
-          options.onResult?.(event.session_id);
-        }
-        break;
+        case "result":
+          // Only update conversation status, don't update messages
+          if (event.session_id) {
+            options.onResult?.(event.session_id);
+          }
+          break;
 
-      case 'error':
-        // Add as a new error message
-        const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-        const errorMessage: ChatMessage = {
-          id: errorId,
-          messageId: errorId, // For error messages, use the same ID for both
-          type: 'error',
-          content: event.error,
-          timestamp: new Date().toISOString(),
-        };
-        
-        addMessage(errorMessage);
-        options.onError?.(event.error);
-        break;
+        case "error":
+          // Add as a new error message
+          const errorId = `error-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          const errorMessage: ChatMessage = {
+            id: errorId,
+            messageId: errorId, // For error messages, use the same ID for both
+            type: "error",
+            content: event.error,
+            timestamp: new Date().toISOString(),
+          };
 
-      case 'closed':
-        // Stream closed
-        options.onClosed?.();
-        // Clear permission request when stream closes
-        setCurrentPermissionRequest(null);
-        break;
+          addMessage(errorMessage);
+          options.onError?.(event.error);
+          break;
 
-      case 'permission_request':
-        // Handle permission request
-        setCurrentPermissionRequest(event.data);
-        options.onPermissionRequest?.(event.data);
-        break;
-    }
-  }, [addMessage, options, currentWorkingDirectory]);
+        case "closed":
+          // Stream closed
+          options.onClosed?.();
+          // Clear permission request when stream closes
+          setCurrentPermissionRequest(null);
+          break;
+
+        case "permission_request":
+          // Handle permission request
+          setCurrentPermissionRequest(event.data);
+          options.onPermissionRequest?.(event.data);
+          break;
+      }
+    },
+    [addMessage, options, currentWorkingDirectory],
+  );
 
   // Set all messages at once (for loading from API)
   const setAllMessages = useCallback((newMessages: ChatMessage[]) => {
     // Separate parent and child messages
     const parentMessages: ChatMessage[] = [];
     const newChildrenMessages: Record<string, ChatMessage[]> = {};
-    
-    newMessages.forEach(message => {
+
+    newMessages.forEach((message) => {
       if (message.parentToolUseId) {
         // This is a child message
         if (!newChildrenMessages[message.parentToolUseId]) {
@@ -222,55 +245,55 @@ export function useConversationMessages(options: UseConversationMessagesOptions 
         parentMessages.push(message);
       }
     });
-    
-    setMessages(prev => {
+
+    setMessages((prev) => {
       return parentMessages;
     });
-    
+
     setChildrenMessages(newChildrenMessages);
 
     // Extract the working directory from the loaded messages (use the most recent one)
     const mostRecentWorkingDir = newMessages
       .slice()
       .reverse()
-      .find(msg => msg.workingDirectory)?.workingDirectory;
-    
+      .find((msg) => msg.workingDirectory)?.workingDirectory;
+
     if (mostRecentWorkingDir) {
       setCurrentWorkingDirectory(mostRecentWorkingDir);
     }
 
     // Build tool results from loaded messages in chronological order
     const newToolResults: Record<string, ToolResult> = {};
-    
+
     // Process messages in order to properly track tool use/result pairs
-    newMessages.forEach(message => {
-      if (message.type === 'assistant' && Array.isArray(message.content)) {
+    newMessages.forEach((message) => {
+      if (message.type === "assistant" && Array.isArray(message.content)) {
         // Track tool uses from assistant messages
-        message.content.forEach(block => {
-          if (block.type === 'tool_use' && block.id) {
-            newToolResults[block.id] = { status: 'pending' };
+        message.content.forEach((block) => {
+          if (block.type === "tool_use" && block.id) {
+            newToolResults[block.id] = { status: "pending" };
           }
         });
-      } else if (message.type === 'user' && Array.isArray(message.content)) {
+      } else if (message.type === "user" && Array.isArray(message.content)) {
         // Update with tool results from user messages
-        message.content.forEach(block => {
-          if (block.type === 'tool_result' && 'tool_use_id' in block) {
+        message.content.forEach((block) => {
+          if (block.type === "tool_result" && "tool_use_id" in block) {
             const toolUseId = block.tool_use_id;
-            
+
             // Only update if we've seen this tool use before
             if (newToolResults[toolUseId]) {
-              let result: string | ContentBlockParam[] = '';
-              
-              if (typeof block.content === 'string') {
+              let result: string | ContentBlockParam[] = "";
+
+              if (typeof block.content === "string") {
                 result = block.content;
               } else if (Array.isArray(block.content)) {
                 result = block.content;
               }
-              
+
               newToolResults[toolUseId] = {
-                status: 'completed',
+                status: "completed",
                 result,
-                is_error: block.is_error
+                is_error: block.is_error,
               };
             }
           }
@@ -283,7 +306,7 @@ export function useConversationMessages(options: UseConversationMessagesOptions 
 
   // Toggle task expansion
   const toggleTaskExpanded = useCallback((toolUseId: string) => {
-    setExpandedTasks(prev => {
+    setExpandedTasks((prev) => {
       const next = new Set(prev);
       if (next.has(toolUseId)) {
         next.delete(toolUseId);

@@ -1,8 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { api } from '../chat/services/api';
-import { Button } from '@/web/chat/components/ui/button';
-import { Input } from '@/web/chat/components/ui/input';
-import { cn } from '@/web/chat/lib/utils';
+import React, { useState, useEffect, useRef } from "react";
+import { api } from "../chat/services/api";
+import { Button } from "@/web/chat/components/ui/button";
+import { Input } from "@/web/chat/components/ui/input";
+import { cn } from "@/web/chat/lib/utils";
 
 interface LogEntry {
   timestamp: string;
@@ -19,10 +19,12 @@ interface LogMonitorProps {
 
 function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
   const [logs, setLogs] = useState<string[]>([]);
-  const [filter, setFilter] = useState('');
+  const [filter, setFilter] = useState("");
   const [isConnected, setIsConnected] = useState(false);
   const logContainerRef = useRef<HTMLDivElement>(null);
-  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(null);
+  const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(
+    null,
+  );
 
   useEffect(() => {
     if (isVisible && !readerRef.current) {
@@ -37,7 +39,6 @@ function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
     };
   }, [isVisible]);
 
-
   const connectToLogStream = async () => {
     try {
       // First get recent logs
@@ -47,13 +48,13 @@ function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
           setLogs(recentData.logs);
         }
       } catch (error) {
-        console.error('Failed to get recent logs:', error);
+        console.error("Failed to get recent logs:", error);
       }
 
       // Then connect to stream
       const response = await api.fetchWithAuth(api.getLogStreamUrl());
       if (!response.ok) {
-        console.error('Failed to connect to log stream');
+        console.error("Failed to connect to log stream");
         return;
       }
 
@@ -62,69 +63,85 @@ function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
       readerRef.current = reader;
       setIsConnected(true);
 
-      let buffer = '';
+      let buffer = "";
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
 
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
-        
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
+
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || "";
 
         for (const line of lines) {
           if (line.trim()) {
             // Handle SSE format
-            if (line.startsWith('data: ')) {
+            if (line.startsWith("data: ")) {
               const data = line.substring(6);
-              setLogs(prev => [...prev, data]);
+              setLogs((prev) => [...prev, data]);
             }
           }
         }
       }
     } catch (error) {
-      console.error('Log stream error:', error);
+      console.error("Log stream error:", error);
     } finally {
       setIsConnected(false);
       readerRef.current = null;
     }
   };
 
-  const parseLogLine = (line: string): { formatted: JSX.Element; matchesFilter: boolean } => {
+  const parseLogLine = (
+    line: string,
+  ): { formatted: JSX.Element; matchesFilter: boolean } => {
     // Check if line matches filter
-    const matchesFilter = !filter || line.toLowerCase().includes(filter.toLowerCase());
+    const matchesFilter =
+      !filter || line.toLowerCase().includes(filter.toLowerCase());
 
     try {
       // Try to parse as JSON
       const parsed: LogEntry = JSON.parse(line);
-      
+
       // Extract relevant fields, hide redundant ones
-      const { level, time, component, msg, pid, hostname, requestId, ...rest } = parsed;
-      
+      const { level, time, component, msg, pid, hostname, requestId, ...rest } =
+        parsed;
+
       // Format timestamp
-      const timestamp = time ? new Date(time).toLocaleTimeString() : '';
-      
+      const timestamp = time ? new Date(time).toLocaleTimeString() : "";
+
       // Determine color based on log level
       const levelColors: Record<string, string> = {
-        'debug': 'text-neutral-500',
-        'info': 'text-green-400',
-        'warn': 'text-yellow-300',
-        'error': 'text-red-400',
-        'fatal': 'text-red-600'
+        debug: "text-neutral-500",
+        info: "text-green-400",
+        warn: "text-yellow-300",
+        error: "text-red-400",
+        fatal: "text-red-600",
       };
-      const levelColorClass = levelColors[level] || 'text-neutral-300';
+      const levelColorClass = levelColors[level] || "text-neutral-300";
 
       // Build compact display
       const formatted = (
         <div className="flex items-baseline gap-2 py-0.5 border-b border-neutral-700">
           <span className="text-neutral-500 text-[11px]">{timestamp}</span>
-          <span className={cn("font-bold text-[11px]", levelColorClass)}>[{level?.toUpperCase() || 'LOG'}]</span>
-          {component && <span className="text-blue-400 text-[11px]">[{component}]</span>}
+          <span className={cn("font-bold text-[11px]", levelColorClass)}>
+            [{level?.toUpperCase() || "LOG"}]
+          </span>
+          {component && (
+            <span className="text-blue-400 text-[11px]">[{component}]</span>
+          )}
           <span className="flex-1 text-neutral-300">{msg}</span>
-          {requestId && <span className="text-neutral-500 text-[11px]"> (req: {requestId})</span>}
+          {requestId && (
+            <span className="text-neutral-500 text-[11px]">
+              {" "}
+              (req: {requestId})
+            </span>
+          )}
           {Object.keys(rest).length > 0 && (
-            <span className="text-neutral-500 text-[11px]"> {JSON.stringify(rest)}</span>
+            <span className="text-neutral-500 text-[11px]">
+              {" "}
+              {JSON.stringify(rest)}
+            </span>
           )}
         </div>
       );
@@ -149,17 +166,21 @@ function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
     .filter(Boolean);
 
   return (
-    <div className={cn(
-      "flex flex-col border-t-2 border-neutral-300 bg-neutral-900",
-      isVisible ? "absolute top-0 left-0 right-0 bottom-0 h-full z-[100]" : "h-10"
-    )}>
+    <div
+      className={cn(
+        "flex flex-col border-t-2 border-neutral-300 bg-neutral-900",
+        isVisible
+          ? "absolute top-0 left-0 right-0 bottom-0 h-full z-[100]"
+          : "h-10",
+      )}
+    >
       <div className="flex items-center p-2.5 bg-neutral-800 border-b border-neutral-600 gap-2.5">
-        <Button 
+        <Button
           className="bg-neutral-700 hover:bg-neutral-600 text-white border-0 py-1 px-4 text-xs rounded h-auto"
           onClick={onToggle}
           aria-label={isVisible ? "Collapse log monitor" : "Expand log monitor"}
         >
-          {isVisible ? '▼' : '▲'} Logs
+          {isVisible ? "▼" : "▲"} Logs
         </Button>
         <Input
           type="text"
@@ -170,7 +191,7 @@ function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
           disabled={!isVisible}
           aria-label="Filter log entries"
         />
-        <Button 
+        <Button
           className="bg-neutral-700 hover:bg-neutral-600 text-white border-0 py-1 px-4 text-xs rounded h-auto disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={() => setLogs([])}
           disabled={!isVisible}
@@ -178,20 +199,26 @@ function LogMonitor({ isVisible, onToggle }: LogMonitorProps) {
         >
           Clear
         </Button>
-        <span className={cn(
-          "text-xs",
-          isConnected ? "text-green-400" : "text-neutral-500"
-        )}>
-          {isConnected ? '● Connected' : '○ Disconnected'}
+        <span
+          className={cn(
+            "text-xs",
+            isConnected ? "text-green-400" : "text-neutral-500",
+          )}
+        >
+          {isConnected ? "● Connected" : "○ Disconnected"}
         </span>
       </div>
       {isVisible && (
-        <div 
+        <div
           className="flex-1 overflow-y-auto p-2.5 bg-neutral-900 text-neutral-300 font-mono text-xs leading-relaxed min-h-0"
           ref={logContainerRef}
         >
-          {filteredLogs.length > 0 ? filteredLogs : (
-            <div className="text-neutral-500 text-center py-5">No logs to display</div>
+          {filteredLogs.length > 0 ? (
+            filteredLogs
+          ) : (
+            <div className="text-neutral-500 text-center py-5">
+              No logs to display
+            </div>
           )}
         </div>
       )}

@@ -100,7 +100,7 @@ ttydWss.on("connection", (clientWs: WebSocket) => {
 export function handleTtydUpgrade(
   req: IncomingMessage,
   socket: Socket,
-  head: Buffer
+  head: Buffer,
 ) {
   console.log(`WebSocket upgrade request for ttyd: ${req.url}`);
   ttydWss.handleUpgrade(req, socket, head, (ws) => {
@@ -152,7 +152,7 @@ export function setupAuthRoutes(app: Express) {
           cwd: HOME,
           env: { ...process.env, HOME },
           stdio: ["ignore", "pipe", "pipe"],
-        }
+        },
       );
 
       authTtydProcess = ttyd;
@@ -210,7 +210,7 @@ export function setupAuthRoutes(app: Express) {
       error: (
         err: Error,
         _req: Request,
-        res: Response | ServerResponse | Socket
+        res: Response | ServerResponse | Socket,
       ) => {
         console.error("Proxy error:", err);
         if (res instanceof ServerResponse) {

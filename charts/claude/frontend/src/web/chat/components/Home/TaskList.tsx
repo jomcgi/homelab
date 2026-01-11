@@ -1,9 +1,9 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { TaskItem } from './TaskItem';
-import type { ConversationSummary } from '../../types';
-import { useConversations } from '../../contexts/ConversationsContext';
-import { api } from '../../services/api';
+import React, { useEffect, useRef, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
+import { TaskItem } from "./TaskItem";
+import type { ConversationSummary } from "../../types";
+import { useConversations } from "../../contexts/ConversationsContext";
+import { api } from "../../services/api";
 
 interface TaskListProps {
   conversations: ConversationSummary[];
@@ -11,7 +11,7 @@ interface TaskListProps {
   loadingMore: boolean;
   hasMore: boolean;
   error: string | null;
-  activeTab: 'tasks' | 'history' | 'archive';
+  activeTab: "tasks" | "history" | "archive";
   onLoadMore: (filters?: {
     hasContinuation?: boolean;
     archived?: boolean;
@@ -19,29 +19,31 @@ interface TaskListProps {
   }) => void;
 }
 
-export function TaskList({ 
-  conversations, 
-  loading, 
-  loadingMore, 
-  hasMore, 
-  error, 
-  activeTab, 
-  onLoadMore 
+export function TaskList({
+  conversations,
+  loading,
+  loadingMore,
+  hasMore,
+  error,
+  activeTab,
+  onLoadMore,
 }: TaskListProps) {
   const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const loadingRef = useRef<HTMLDivElement>(null);
   const { recentDirectories, loadConversations } = useConversations();
-  const [renamingSessionId, setRenamingSessionId] = React.useState<string | null>(null);
+  const [renamingSessionId, setRenamingSessionId] = React.useState<
+    string | null
+  >(null);
 
   // Get filter parameters based on active tab
-  const getFiltersForTab = (tab: 'tasks' | 'history' | 'archive') => {
+  const getFiltersForTab = (tab: "tasks" | "history" | "archive") => {
     switch (tab) {
-      case 'tasks':
+      case "tasks":
         return { archived: false, hasContinuation: false };
-      case 'history':
+      case "history":
         return { archived: false, hasContinuation: true };
-      case 'archive':
+      case "archive":
         return { archived: true };
       default:
         return {};
@@ -58,49 +60,53 @@ export function TaskList({
 
   const handleCancelTask = (sessionId: string) => {
     // Mock cancel functionality
-    console.log('Cancel task:', sessionId);
+    console.log("Cancel task:", sessionId);
   };
 
   const handleArchiveTask = async (sessionId: string) => {
     // Optimistically remove the item from the current view
-    const element = document.querySelector(`[data-session-id="${sessionId}"]`) as HTMLElement;
+    const element = document.querySelector(
+      `[data-session-id="${sessionId}"]`,
+    ) as HTMLElement;
     if (element) {
-      element.style.display = 'none';
+      element.style.display = "none";
     }
-    
+
     try {
       // Call the API to persist the change
       await api.updateSession(sessionId, { archived: true });
-      
+
       // Refresh the conversations list to ensure consistency
       loadConversations(undefined, getFiltersForTab(activeTab));
     } catch (error) {
-      console.error('Failed to archive task:', error);
+      console.error("Failed to archive task:", error);
       // Restore visibility if the API call fails
       if (element) {
-        (element as HTMLElement).style.display = '';
+        (element as HTMLElement).style.display = "";
       }
     }
   };
 
   const handleUnarchiveTask = async (sessionId: string) => {
     // Optimistically remove the item from the current view
-    const element = document.querySelector(`[data-session-id="${sessionId}"]`) as HTMLElement;
+    const element = document.querySelector(
+      `[data-session-id="${sessionId}"]`,
+    ) as HTMLElement;
     if (element) {
-      element.style.display = 'none';
+      element.style.display = "none";
     }
-    
+
     try {
       // Call the API to persist the change
       await api.updateSession(sessionId, { archived: false });
-      
+
       // Refresh the conversations list to ensure consistency
       loadConversations(undefined, getFiltersForTab(activeTab));
     } catch (error) {
-      console.error('Failed to unarchive task:', error);
+      console.error("Failed to unarchive task:", error);
       // Restore visibility if the API call fails
       if (element) {
-        (element as HTMLElement).style.display = '';
+        (element as HTMLElement).style.display = "";
       }
     }
   };
@@ -129,7 +135,7 @@ export function TaskList({
     // Pinned items come first
     if (a.sessionInfo.pinned && !b.sessionInfo.pinned) return -1;
     if (!a.sessionInfo.pinned && b.sessionInfo.pinned) return 1;
-    
+
     // Then sort by updatedAt (most recent first)
     return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
   });
@@ -142,13 +148,13 @@ export function TaskList({
         onLoadMore(getFiltersForTab(activeTab));
       }
     },
-    [hasMore, loadingMore, loading, onLoadMore, activeTab]
+    [hasMore, loadingMore, loading, onLoadMore, activeTab],
   );
 
   useEffect(() => {
     const observer = new IntersectionObserver(handleIntersection, {
       root: scrollRef.current,
-      rootMargin: '100px',
+      rootMargin: "100px",
       threshold: 0.1,
     });
 
@@ -167,7 +173,9 @@ export function TaskList({
   if (loading && conversations.length === 0) {
     return (
       <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-border scrollbar-track-transparent">
-        <div className="flex items-center justify-center w-full py-12 px-4 text-muted-foreground text-sm text-center bg-background">Loading tasks...</div>
+        <div className="flex items-center justify-center w-full py-12 px-4 text-muted-foreground text-sm text-center bg-background">
+          Loading tasks...
+        </div>
       </div>
     );
   }
@@ -175,7 +183,9 @@ export function TaskList({
   if (error) {
     return (
       <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-border scrollbar-track-transparent">
-        <div className="flex items-center justify-center w-full py-12 px-4 text-destructive text-sm text-center bg-background">{error}</div>
+        <div className="flex items-center justify-center w-full py-12 px-4 text-destructive text-sm text-center bg-background">
+          {error}
+        </div>
       </div>
     );
   }
@@ -184,16 +194,26 @@ export function TaskList({
     return (
       <div className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-border scrollbar-track-transparent">
         <div className="flex items-center justify-center w-full py-12 px-4 text-muted-foreground text-sm text-center bg-background">
-          {activeTab === 'tasks' ? 'No active tasks.' : activeTab === 'history' ? 'No history tasks.' : 'No archived tasks.'}
+          {activeTab === "tasks"
+            ? "No active tasks."
+            : activeTab === "history"
+              ? "No history tasks."
+              : "No archived tasks."}
         </div>
       </div>
     );
   }
 
   return (
-    <div ref={scrollRef} className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-border scrollbar-track-transparent">
+    <div
+      ref={scrollRef}
+      className="flex flex-col w-full flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-transparent hover:scrollbar-thumb-border scrollbar-track-transparent"
+    >
       {sortedConversations.map((conversation) => (
-        <div key={conversation.sessionId} data-session-id={conversation.sessionId}>
+        <div
+          key={conversation.sessionId}
+          data-session-id={conversation.sessionId}
+        >
           <TaskItem
             id={conversation.sessionId}
             title={conversation.sessionInfo.custom_name || conversation.summary}
@@ -204,21 +224,21 @@ export function TaskList({
             messageCount={conversation.messageCount}
             toolMetrics={conversation.toolMetrics}
             liveStatus={conversation.liveStatus}
-            isArchived={activeTab === 'archive'}
+            isArchived={activeTab === "archive"}
             isPinned={conversation.sessionInfo.pinned}
             onClick={() => handleTaskClick(conversation.sessionId)}
             onCancel={
-              conversation.status === 'ongoing' 
+              conversation.status === "ongoing"
                 ? () => handleCancelTask(conversation.sessionId)
                 : undefined
             }
             onArchive={
-              conversation.status === 'completed' && activeTab !== 'archive'
+              conversation.status === "completed" && activeTab !== "archive"
                 ? () => handleArchiveTask(conversation.sessionId)
                 : undefined
             }
             onUnarchive={
-              conversation.status === 'completed' && activeTab === 'archive'
+              conversation.status === "completed" && activeTab === "archive"
                 ? () => handleUnarchiveTask(conversation.sessionId)
                 : undefined
             }
@@ -230,10 +250,13 @@ export function TaskList({
           />
         </div>
       ))}
-      
+
       {/* Loading indicator for infinite scroll */}
       {hasMore && (
-        <div ref={loadingRef} className="flex items-center justify-center w-full p-4 min-h-[60px]">
+        <div
+          ref={loadingRef}
+          className="flex items-center justify-center w-full p-4 min-h-[60px]"
+        >
           {loadingMore && (
             <div className="flex items-center justify-center text-muted-foreground text-sm animate-pulse">
               Loading more tasks...
@@ -241,7 +264,7 @@ export function TaskList({
           )}
         </div>
       )}
-      
+
       {/* End of list message */}
       {!hasMore && conversations.length > 0 && (
         <div className="flex items-center justify-center w-full p-4 text-muted-foreground/70 text-xs text-center">

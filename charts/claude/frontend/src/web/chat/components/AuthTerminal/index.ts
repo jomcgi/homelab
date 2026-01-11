@@ -1,1 +1,1 @@
-export { AuthTerminal } from './AuthTerminal';
+export { AuthTerminal } from "./AuthTerminal";

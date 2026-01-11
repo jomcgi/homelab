@@ -1,10 +1,10 @@
-import fs from 'fs';
-import path from 'path';
-import os from 'os';
-import Database from 'better-sqlite3';
-import type { SessionInfo } from '@/types/index.js';
-import { createLogger } from './logger.js';
-import { type Logger } from './logger.js';
+import fs from "fs";
+import path from "path";
+import os from "os";
+import Database from "better-sqlite3";
+import type { SessionInfo } from "@/types/index.js";
+import { createLogger } from "./logger.js";
+import { type Logger } from "./logger.js";
 
 type SessionRow = {
   custom_name: string;
@@ -42,7 +42,7 @@ export class SessionInfoService {
   private getMetadataStmt!: Database.Statement;
 
   constructor(customConfigDir?: string) {
-    this.logger = createLogger('SessionInfoService');
+    this.logger = createLogger("SessionInfoService");
     this.initializePaths(customConfigDir);
   }
 
@@ -62,21 +62,21 @@ export class SessionInfoService {
 
   private initializePaths(customConfigDir?: string): void {
     if (customConfigDir) {
-      if (customConfigDir === ':memory:') {
-        this.configDir = ':memory:';
-        this.dbPath = ':memory:';
+      if (customConfigDir === ":memory:") {
+        this.configDir = ":memory:";
+        this.dbPath = ":memory:";
         return;
       }
-      this.configDir = path.join(customConfigDir, '.cui');
+      this.configDir = path.join(customConfigDir, ".cui");
     } else {
-      this.configDir = path.join(os.homedir(), '.cui');
+      this.configDir = path.join(os.homedir(), ".cui");
     }
-    this.dbPath = path.join(this.configDir, 'session-info.db');
+    this.dbPath = path.join(this.configDir, "session-info.db");
 
-    this.logger.debug('Initializing paths', {
+    this.logger.debug("Initializing paths", {
       homedir: os.homedir(),
       configDir: this.configDir,
-      dbPath: this.dbPath
+      dbPath: this.dbPath,
     });
   }
 
@@ -86,13 +86,13 @@ export class SessionInfoService {
     }
 
     try {
-      if (this.dbPath !== ':memory:' && !fs.existsSync(this.configDir)) {
+      if (this.dbPath !== ":memory:" && !fs.existsSync(this.configDir)) {
         fs.mkdirSync(this.configDir, { recursive: true });
-        this.logger.debug('Created config directory', { dir: this.configDir });
+        this.logger.debug("Created config directory", { dir: this.configDir });
       }
 
       this.db = new Database(this.dbPath);
-      this.db.pragma('journal_mode = WAL');
+      this.db.pragma("journal_mode = WAL");
 
       this.db.exec(`
         CREATE TABLE IF NOT EXISTS sessions (
@@ -117,13 +117,17 @@ export class SessionInfoService {
       this.ensureMetadata();
       this.isInitialized = true;
     } catch (error) {
-      this.logger.error('Failed to initialize session info database', error);
-      throw new Error(`Session info database initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error("Failed to initialize session info database", error);
+      throw new Error(
+        `Session info database initialization failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   private prepareStatements(): void {
-    this.getSessionStmt = this.db.prepare('SELECT * FROM sessions WHERE session_id = ?');
+    this.getSessionStmt = this.db.prepare(
+      "SELECT * FROM sessions WHERE session_id = ?",
+    );
     this.insertSessionStmt = this.db.prepare(`
       INSERT INTO sessions (
         session_id,
@@ -161,21 +165,31 @@ export class SessionInfoService {
         version=@version
       WHERE session_id=@session_id
     `);
-    this.deleteSessionStmt = this.db.prepare('DELETE FROM sessions WHERE session_id = ?');
-    this.getAllStmt = this.db.prepare('SELECT * FROM sessions');
-    this.countStmt = this.db.prepare('SELECT COUNT(*) as count FROM sessions');
-    this.archiveAllStmt = this.db.prepare('UPDATE sessions SET archived=1, updated_at=@updated_at WHERE archived=0');
-    this.setMetadataStmt = this.db.prepare('INSERT INTO metadata (key, value) VALUES (@key, @value) ON CONFLICT(key) DO UPDATE SET value=excluded.value');
-    this.getMetadataStmt = this.db.prepare('SELECT value FROM metadata WHERE key = ?');
+    this.deleteSessionStmt = this.db.prepare(
+      "DELETE FROM sessions WHERE session_id = ?",
+    );
+    this.getAllStmt = this.db.prepare("SELECT * FROM sessions");
+    this.countStmt = this.db.prepare("SELECT COUNT(*) as count FROM sessions");
+    this.archiveAllStmt = this.db.prepare(
+      "UPDATE sessions SET archived=1, updated_at=@updated_at WHERE archived=0",
+    );
+    this.setMetadataStmt = this.db.prepare(
+      "INSERT INTO metadata (key, value) VALUES (@key, @value) ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+    );
+    this.getMetadataStmt = this.db.prepare(
+      "SELECT value FROM metadata WHERE key = ?",
+    );
   }
 
   private ensureMetadata(): void {
     const now = new Date().toISOString();
-    const schema = this.getMetadataStmt.get('schema_version') as { value?: string } | undefined;
+    const schema = this.getMetadataStmt.get("schema_version") as
+      | { value?: string }
+      | undefined;
     if (!schema) {
-      this.setMetadataStmt.run({ key: 'schema_version', value: '3' });
-      this.setMetadataStmt.run({ key: 'created_at', value: now });
-      this.setMetadataStmt.run({ key: 'last_updated', value: now });
+      this.setMetadataStmt.run({ key: "schema_version", value: "3" });
+      this.setMetadataStmt.run({ key: "created_at", value: now });
+      this.setMetadataStmt.run({ key: "last_updated", value: now });
     }
   }
 
@@ -189,7 +203,7 @@ export class SessionInfoService {
       archived: !!row.archived,
       continuation_session_id: row.continuation_session_id,
       initial_commit_head: row.initial_commit_head,
-      permission_mode: row.permission_mode
+      permission_mode: row.permission_mode,
     };
   }
 
@@ -202,56 +216,61 @@ export class SessionInfoService {
 
       const now = new Date().toISOString();
       const defaultSession: SessionInfo = {
-        custom_name: '',
+        custom_name: "",
         created_at: now,
         updated_at: now,
         version: 3,
         pinned: false,
         archived: false,
-        continuation_session_id: '',
-        initial_commit_head: '',
-        permission_mode: 'default'
+        continuation_session_id: "",
+        initial_commit_head: "",
+        permission_mode: "default",
       };
       this.insertSessionStmt.run({
         session_id: sessionId,
-        custom_name: '',
+        custom_name: "",
         created_at: now,
         updated_at: now,
         version: 3,
         pinned: 0,
         archived: 0,
-        continuation_session_id: '',
-        initial_commit_head: '',
-        permission_mode: 'default'
+        continuation_session_id: "",
+        initial_commit_head: "",
+        permission_mode: "default",
       });
-      this.setMetadataStmt.run({ key: 'last_updated', value: now });
+      this.setMetadataStmt.run({ key: "last_updated", value: now });
       return defaultSession;
     } catch (error) {
-      this.logger.error('Failed to get session info', { sessionId, error });
+      this.logger.error("Failed to get session info", { sessionId, error });
       const now = new Date().toISOString();
       return {
-        custom_name: '',
+        custom_name: "",
         created_at: now,
         updated_at: now,
         version: 3,
         pinned: false,
         archived: false,
-        continuation_session_id: '',
-        initial_commit_head: '',
-        permission_mode: 'default'
+        continuation_session_id: "",
+        initial_commit_head: "",
+        permission_mode: "default",
       };
     }
   }
 
-  async updateSessionInfo(sessionId: string, updates: Partial<SessionInfo>): Promise<SessionInfo> {
+  async updateSessionInfo(
+    sessionId: string,
+    updates: Partial<SessionInfo>,
+  ): Promise<SessionInfo> {
     try {
-      const existingRow = this.getSessionStmt.get(sessionId) as SessionRow | undefined;
+      const existingRow = this.getSessionStmt.get(sessionId) as
+        | SessionRow
+        | undefined;
       const now = new Date().toISOString();
       if (existingRow) {
         const updatedSession: SessionInfo = {
           ...this.mapRow(existingRow),
           ...updates,
-          updated_at: now
+          updated_at: now,
         };
         this.updateSessionStmt.run({
           session_id: sessionId,
@@ -262,22 +281,22 @@ export class SessionInfoService {
           continuation_session_id: updatedSession.continuation_session_id,
           initial_commit_head: updatedSession.initial_commit_head,
           permission_mode: updatedSession.permission_mode,
-          version: updatedSession.version
+          version: updatedSession.version,
         });
-        this.setMetadataStmt.run({ key: 'last_updated', value: now });
+        this.setMetadataStmt.run({ key: "last_updated", value: now });
         return updatedSession;
       } else {
         const newSession: SessionInfo = {
-          custom_name: '',
+          custom_name: "",
           created_at: now,
           updated_at: now,
           version: 3,
           pinned: false,
           archived: false,
-          continuation_session_id: '',
-          initial_commit_head: '',
-          permission_mode: 'default',
-          ...updates
+          continuation_session_id: "",
+          initial_commit_head: "",
+          permission_mode: "default",
+          ...updates,
         };
         this.insertSessionStmt.run({
           session_id: sessionId,
@@ -289,14 +308,20 @@ export class SessionInfoService {
           archived: newSession.archived ? 1 : 0,
           continuation_session_id: newSession.continuation_session_id,
           initial_commit_head: newSession.initial_commit_head,
-          permission_mode: newSession.permission_mode
+          permission_mode: newSession.permission_mode,
         });
-        this.setMetadataStmt.run({ key: 'last_updated', value: now });
+        this.setMetadataStmt.run({ key: "last_updated", value: now });
         return newSession;
       }
     } catch (error) {
-      this.logger.error('Failed to update session info', { sessionId, updates, error });
-      throw new Error(`Failed to update session info: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error("Failed to update session info", {
+        sessionId,
+        updates,
+        error,
+      });
+      throw new Error(
+        `Failed to update session info: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -305,42 +330,50 @@ export class SessionInfoService {
   }
 
   async deleteSession(sessionId: string): Promise<void> {
-    this.logger.info('Deleting session info', { sessionId });
+    this.logger.info("Deleting session info", { sessionId });
     try {
       const result = this.deleteSessionStmt.run(sessionId);
       if (result.changes > 0) {
         const now = new Date().toISOString();
-        this.setMetadataStmt.run({ key: 'last_updated', value: now });
-        this.logger.info('Session info deleted successfully', { sessionId });
+        this.setMetadataStmt.run({ key: "last_updated", value: now });
+        this.logger.info("Session info deleted successfully", { sessionId });
       } else {
-        this.logger.debug('Session info not found for deletion', { sessionId });
+        this.logger.debug("Session info not found for deletion", { sessionId });
       }
     } catch (error) {
-      this.logger.error('Failed to delete session info', { sessionId, error });
-      throw new Error(`Failed to delete session info: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error("Failed to delete session info", { sessionId, error });
+      throw new Error(
+        `Failed to delete session info: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
   async getAllSessionInfo(): Promise<Record<string, SessionInfo>> {
-    this.logger.debug('Getting all session info');
+    this.logger.debug("Getting all session info");
     try {
-      const rows = this.getAllStmt.all() as Array<SessionRow & { session_id: string }>;
+      const rows = this.getAllStmt.all() as Array<
+        SessionRow & { session_id: string }
+      >;
       const result: Record<string, SessionInfo> = {};
       for (const row of rows) {
         result[row.session_id] = this.mapRow(row);
       }
       return result;
     } catch (error) {
-      this.logger.error('Failed to get all session info', error);
+      this.logger.error("Failed to get all session info", error);
       return {};
     }
   }
 
-  async getStats(): Promise<{ sessionCount: number; dbSize: number; lastUpdated: string }> {
+  async getStats(): Promise<{
+    sessionCount: number;
+    dbSize: number;
+    lastUpdated: string;
+  }> {
     try {
       const countRow = this.countStmt.get() as { count: number };
       let dbSize = 0;
-      if (this.dbPath !== ':memory:') {
+      if (this.dbPath !== ":memory:") {
         try {
           const stats = fs.statSync(this.dbPath);
           dbSize = stats.size;
@@ -348,18 +381,20 @@ export class SessionInfoService {
           dbSize = 0;
         }
       }
-      const lastUpdatedRow = this.getMetadataStmt.get('last_updated') as { value?: string } | undefined;
+      const lastUpdatedRow = this.getMetadataStmt.get("last_updated") as
+        | { value?: string }
+        | undefined;
       return {
         sessionCount: countRow.count,
         dbSize,
-        lastUpdated: lastUpdatedRow?.value || new Date().toISOString()
+        lastUpdated: lastUpdatedRow?.value || new Date().toISOString(),
       };
     } catch (error) {
-      this.logger.error('Failed to get database stats', error);
+      this.logger.error("Failed to get database stats", error);
       return {
         sessionCount: 0,
         dbSize: 0,
-        lastUpdated: new Date().toISOString()
+        lastUpdated: new Date().toISOString(),
       };
     }
   }
@@ -377,22 +412,24 @@ export class SessionInfoService {
   }
 
   async archiveAllSessions(): Promise<number> {
-    this.logger.info('Archiving all sessions');
+    this.logger.info("Archiving all sessions");
     try {
       const now = new Date().toISOString();
       const transaction = this.db.transaction(() => {
         const info = this.archiveAllStmt.run({ updated_at: now });
         if (info.changes > 0) {
-          this.setMetadataStmt.run({ key: 'last_updated', value: now });
+          this.setMetadataStmt.run({ key: "last_updated", value: now });
         }
         return info.changes;
       });
       const archivedCount = transaction();
-      this.logger.info('Sessions archived successfully', { archivedCount });
+      this.logger.info("Sessions archived successfully", { archivedCount });
       return archivedCount;
     } catch (error) {
-      this.logger.error('Failed to archive all sessions', error);
-      throw new Error(`Failed to archive all sessions: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error("Failed to archive all sessions", error);
+      throw new Error(
+        `Failed to archive all sessions: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 
@@ -431,15 +468,16 @@ export class SessionInfoService {
           if (info.changes > 0) inserted++;
         }
         if (inserted > 0) {
-          this.setMetadataStmt.run({ key: 'last_updated', value: now });
+          this.setMetadataStmt.run({ key: "last_updated", value: now });
         }
         return inserted;
       });
       return transaction(sessionIds);
     } catch (error) {
-      this.logger.error('Failed to sync missing sessions', error);
-      throw new Error(`Failed to sync missing sessions: ${error instanceof Error ? error.message : String(error)}`);
+      this.logger.error("Failed to sync missing sessions", error);
+      throw new Error(
+        `Failed to sync missing sessions: ${error instanceof Error ? error.message : String(error)}`,
+      );
     }
   }
 }
-

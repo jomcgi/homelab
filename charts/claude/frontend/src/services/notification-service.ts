@@ -1,12 +1,12 @@
-import { PermissionRequest } from '@/types/index.js';
-import { createLogger, type Logger } from './logger.js';
-import { ConfigService } from './config-service.js';
-import { WebPushService } from './web-push-service.js';
+import { PermissionRequest } from "@/types/index.js";
+import { createLogger, type Logger } from "./logger.js";
+import { ConfigService } from "./config-service.js";
+import { WebPushService } from "./web-push-service.js";
 
 export interface Notification {
   title: string;
   message: string;
-  priority: 'min' | 'low' | 'default' | 'high' | 'urgent';
+  priority: "min" | "low" | "default" | "high" | "urgent";
   tags: string[];
   sessionId: string;
   streamingId: string;
@@ -23,7 +23,7 @@ export class NotificationService {
   private webPushService: WebPushService;
 
   constructor() {
-    this.logger = createLogger('NotificationService');
+    this.logger = createLogger("NotificationService");
     this.configService = ConfigService.getInstance();
     this.webPushService = WebPushService.getInstance();
   }
@@ -37,8 +37,8 @@ export class NotificationService {
         const config = this.configService.getConfig();
         this.machineId = config.machine_id;
       } catch (error) {
-        this.logger.error('Failed to get machine ID from config', error);
-        this.machineId = 'unknown';
+        this.logger.error("Failed to get machine ID from config", error);
+        this.machineId = "unknown";
       }
     }
     return this.machineId;
@@ -57,7 +57,7 @@ export class NotificationService {
    */
   private async getNtfyUrl(): Promise<string> {
     const config = this.configService.getConfig();
-    return config.interface.notifications?.ntfyUrl || 'https://ntfy.sh';
+    return config.interface.notifications?.ntfyUrl || "https://ntfy.sh";
   }
 
   /**
@@ -66,10 +66,12 @@ export class NotificationService {
   async sendPermissionNotification(
     request: PermissionRequest,
     sessionId?: string,
-    summary?: string
+    summary?: string,
   ): Promise<void> {
     if (!(await this.isEnabled())) {
-      this.logger.debug('Notifications disabled, skipping permission notification');
+      this.logger.debug(
+        "Notifications disabled, skipping permission notification",
+      );
       return;
     }
 
@@ -79,15 +81,15 @@ export class NotificationService {
       const ntfyUrl = await this.getNtfyUrl();
 
       const notification: Notification = {
-        title: 'CUI Permission Request',
-        message: summary 
+        title: "CUI Permission Request",
+        message: summary
           ? `${summary} - ${request.toolName}`
           : `${request.toolName} tool: ${JSON.stringify(request.toolInput).substring(0, 100)}...`,
-        priority: 'default',
-        tags: ['cui-permission'],
-        sessionId: sessionId || 'unknown',
+        priority: "default",
+        tags: ["cui-permission"],
+        sessionId: sessionId || "unknown",
         streamingId: request.streamingId,
-        permissionRequestId: request.id
+        permissionRequestId: request.id,
       };
 
       // Send via ntfy
@@ -105,22 +107,24 @@ export class NotificationService {
               sessionId: notification.sessionId,
               streamingId: notification.streamingId,
               permissionRequestId: notification.permissionRequestId,
-              type: 'permission',
+              type: "permission",
             },
           });
         }
       } catch (err) {
-        this.logger.debug('Web push broadcast failed (non-fatal)', { error: (err as Error)?.message });
+        this.logger.debug("Web push broadcast failed (non-fatal)", {
+          error: (err as Error)?.message,
+        });
       }
-      
-      this.logger.info('Permission notification sent', {
+
+      this.logger.info("Permission notification sent", {
         requestId: request.id,
         toolName: request.toolName,
-        topic
+        topic,
       });
     } catch (error) {
-      this.logger.error('Failed to send permission notification', error, {
-        requestId: request.id
+      this.logger.error("Failed to send permission notification", error, {
+        requestId: request.id,
       });
     }
   }
@@ -131,10 +135,12 @@ export class NotificationService {
   async sendConversationEndNotification(
     streamingId: string,
     sessionId: string,
-    summary?: string
+    summary?: string,
   ): Promise<void> {
     if (!(await this.isEnabled())) {
-      this.logger.debug('Notifications disabled, skipping conversation end notification');
+      this.logger.debug(
+        "Notifications disabled, skipping conversation end notification",
+      );
       return;
     }
 
@@ -144,12 +150,12 @@ export class NotificationService {
       const ntfyUrl = await this.getNtfyUrl();
 
       const notification: Notification = {
-        title: 'Task Finished',
-        message: summary || 'Task completed',
-        priority: 'default',
-        tags: ['cui-complete'],
+        title: "Task Finished",
+        message: summary || "Task completed",
+        priority: "default",
+        tags: ["cui-complete"],
         sessionId,
-        streamingId
+        streamingId,
       };
 
       // Send via ntfy
@@ -166,23 +172,25 @@ export class NotificationService {
             data: {
               sessionId: notification.sessionId,
               streamingId: notification.streamingId,
-              type: 'conversation-end',
+              type: "conversation-end",
             },
           });
         }
       } catch (err) {
-        this.logger.debug('Web push broadcast failed (non-fatal)', { error: (err as Error)?.message });
+        this.logger.debug("Web push broadcast failed (non-fatal)", {
+          error: (err as Error)?.message,
+        });
       }
-      
-      this.logger.info('Conversation end notification sent', {
+
+      this.logger.info("Conversation end notification sent", {
         sessionId,
         streamingId,
-        topic
+        topic,
       });
     } catch (error) {
-      this.logger.error('Failed to send conversation end notification', error, {
+      this.logger.error("Failed to send conversation end notification", error, {
         sessionId,
-        streamingId
+        streamingId,
       });
     }
   }
@@ -193,31 +201,33 @@ export class NotificationService {
   private async sendNotification(
     ntfyUrl: string,
     topic: string,
-    notification: Notification
+    notification: Notification,
   ): Promise<void> {
     const url = `${ntfyUrl}/${topic}`;
-    
+
     const headers: Record<string, string> = {
-      'Title': notification.title,
-      'Priority': notification.priority,
-      'Tags': notification.tags.join(',')
+      Title: notification.title,
+      Priority: notification.priority,
+      Tags: notification.tags.join(","),
     };
 
     // Add custom headers for CUI metadata
-    headers['X-CUI-SessionId'] = notification.sessionId;
-    headers['X-CUI-StreamingId'] = notification.streamingId;
+    headers["X-CUI-SessionId"] = notification.sessionId;
+    headers["X-CUI-StreamingId"] = notification.streamingId;
     if (notification.permissionRequestId) {
-      headers['X-CUI-PermissionRequestId'] = notification.permissionRequestId;
+      headers["X-CUI-PermissionRequestId"] = notification.permissionRequestId;
     }
 
     const response = await fetch(url, {
-      method: 'POST',
+      method: "POST",
       headers,
-      body: notification.message
+      body: notification.message,
     });
 
     if (!response.ok) {
-      throw new Error(`Ntfy returned ${response.status}: ${await response.text()}`);
+      throw new Error(
+        `Ntfy returned ${response.status}: ${await response.text()}`,
+      );
     }
   }
 }

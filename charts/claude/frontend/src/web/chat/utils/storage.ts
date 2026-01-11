@@ -7,7 +7,7 @@ export const storage = {
       return defaultValue;
     }
   },
-  
+
   set<T>(key: string, value: T): void {
     try {
       localStorage.setItem(key, JSON.stringify(value));
@@ -15,12 +15,12 @@ export const storage = {
       // Silently fail for storage quota exceeded, etc.
     }
   },
-  
+
   remove(key: string): void {
     try {
       localStorage.removeItem(key);
     } catch {
       // Silently fail
     }
-  }
+  },
 };

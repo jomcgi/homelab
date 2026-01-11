@@ -1,18 +1,18 @@
 {
   "version": "v1",
   "config": {
-    "name": "charts/claude/image/apko.yaml",
+    "name": "./charts/claude/image/apko.yaml",
     "checksum": "sha256-wvhNKO3nldiAITg4nB8s/7weeo4T0/T+23+RepFNslU="
   },
   "contents": {
     "keyring": [
       {
-        "name": "packages.cgr.dev/extras/chainguard-extras.rsa.pub",
-        "url": "https://packages.cgr.dev/extras/chainguard-extras.rsa.pub"
-      },
-      {
         "name": "packages.wolfi.dev/os/wolfi-signing.rsa.pub",
         "url": "https://packages.wolfi.dev/os/wolfi-signing.rsa.pub"
+      },
+      {
+        "name": "packages.cgr.dev/extras/chainguard-extras.rsa.pub",
+        "url": "https://packages.cgr.dev/extras/chainguard-extras.rsa.pub"
       }
     ],
     "build_repositories": [],

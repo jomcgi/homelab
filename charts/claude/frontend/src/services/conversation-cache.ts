@@ -1,6 +1,6 @@
-import { ConversationMessage } from '@/types/index.js';
-import { createLogger, type Logger } from './logger.js';
-import Anthropic from '@anthropic-ai/sdk';
+import { ConversationMessage } from "@/types/index.js";
+import { createLogger, type Logger } from "./logger.js";
+import Anthropic from "@anthropic-ai/sdk";
 
 export interface ConversationChain {
   sessionId: string;
@@ -30,9 +30,9 @@ interface RawJsonEntry {
 }
 
 interface FileCache {
-  entries: RawJsonEntry[];     // Parsed JSONL entries from this file
-  mtime: number;              // File modification time when cached
-  sourceProject: string;      // Project directory name
+  entries: RawJsonEntry[]; // Parsed JSONL entries from this file
+  mtime: number; // File modification time when cached
+  sourceProject: string; // Project directory name
 }
 
 interface ConversationCacheData {
@@ -49,25 +49,29 @@ export class ConversationCache {
   private parsingPromise: Promise<ConversationChain[]> | null = null;
 
   constructor() {
-    this.logger = createLogger('ConversationCache');
+    this.logger = createLogger("ConversationCache");
   }
 
   /**
    * Clear the conversation cache to force a refresh on next read
    */
   clear(): void {
-    this.logger.debug('Clearing conversation cache');
-    const previousStats = this.cache ? {
-      cachedFileCount: this.cache.fileCache.size,
-      totalEntries: Array.from(this.cache.fileCache.values())
-        .reduce((sum, cache) => sum + cache.entries.length, 0)
-    } : { cachedFileCount: 0, totalEntries: 0 };
-    
+    this.logger.debug("Clearing conversation cache");
+    const previousStats = this.cache
+      ? {
+          cachedFileCount: this.cache.fileCache.size,
+          totalEntries: Array.from(this.cache.fileCache.values()).reduce(
+            (sum, cache) => sum + cache.entries.length,
+            0,
+          ),
+        }
+      : { cachedFileCount: 0, totalEntries: 0 };
+
     this.cache = null;
     this.parsingPromise = null;
-    this.logger.info('Conversation cache cleared', { 
+    this.logger.info("Conversation cache cleared", {
       previousStats,
-      timestamp: new Date().toISOString() 
+      timestamp: new Date().toISOString(),
     });
   }
 
@@ -77,18 +81,18 @@ export class ConversationCache {
   async getCachedFileEntries(
     currentFileModTimes: Map<string, number>,
     parseFileFunction: (filePath: string) => Promise<RawJsonEntry[]>,
-    getSourceProject: (filePath: string) => string
+    getSourceProject: (filePath: string) => string,
   ): Promise<(RawJsonEntry & { sourceProject: string })[]> {
-    this.logger.debug('Getting cached file entries', {
+    this.logger.debug("Getting cached file entries", {
       hasCachedData: !!this.cache,
-      currentFileCount: currentFileModTimes.size
+      currentFileCount: currentFileModTimes.size,
     });
 
     // Initialize cache if it doesn't exist
     if (!this.cache) {
       this.cache = {
         fileCache: new Map(),
-        lastCacheTime: Date.now()
+        lastCacheTime: Date.now(),
       };
     }
 
@@ -99,12 +103,12 @@ export class ConversationCache {
     // Process each file: use cache OR re-parse if changed
     for (const [filePath, currentMtime] of currentFileModTimes) {
       const cached = this.cache.fileCache.get(filePath);
-      
+
       if (cached && cached.mtime === currentMtime) {
         // Use cached entries (skip expensive file I/O + JSON parsing)
-        const entriesWithSource = cached.entries.map(entry => ({
+        const entriesWithSource = cached.entries.map((entry) => ({
           ...entry,
-          sourceProject: cached.sourceProject
+          sourceProject: cached.sourceProject,
         }));
         allEntries.push(...entriesWithSource);
         filesFromCache++;
@@ -113,22 +117,25 @@ export class ConversationCache {
         try {
           const entries = await parseFileFunction(filePath);
           const sourceProject = getSourceProject(filePath);
-          
+
           // Update cache for this file
           this.cache.fileCache.set(filePath, {
             entries,
             mtime: currentMtime,
-            sourceProject
+            sourceProject,
           });
-          
-          const entriesWithSource = entries.map(entry => ({
+
+          const entriesWithSource = entries.map((entry) => ({
             ...entry,
-            sourceProject
+            sourceProject,
           }));
           allEntries.push(...entriesWithSource);
           filesReparsed++;
         } catch (error) {
-          this.logger.warn('Failed to parse file, skipping', { filePath, error });
+          this.logger.warn("Failed to parse file, skipping", {
+            filePath,
+            error,
+          });
           // Remove from cache if it exists
           this.cache.fileCache.delete(filePath);
         }
@@ -138,17 +145,19 @@ export class ConversationCache {
     // Clean up cache entries for files that no longer exist
     for (const [cachedFilePath] of this.cache.fileCache) {
       if (!currentFileModTimes.has(cachedFilePath)) {
-        this.logger.debug('Removing cache entry for deleted file', { filePath: cachedFilePath });
+        this.logger.debug("Removing cache entry for deleted file", {
+          filePath: cachedFilePath,
+        });
         this.cache.fileCache.delete(cachedFilePath);
       }
     }
 
-    this.logger.debug('File cache processing complete', {
+    this.logger.debug("File cache processing complete", {
       totalFiles: currentFileModTimes.size,
       filesFromCache,
       filesReparsed,
       totalEntries: allEntries.length,
-      cachedFileCount: this.cache.fileCache.size
+      cachedFileCount: this.cache.fileCache.size,
     });
 
     return allEntries;
@@ -161,26 +170,26 @@ export class ConversationCache {
     filePath: string,
     entries: RawJsonEntry[],
     mtime: number,
-    sourceProject: string
+    sourceProject: string,
   ): void {
     if (!this.cache) {
       this.cache = {
         fileCache: new Map(),
-        lastCacheTime: Date.now()
+        lastCacheTime: Date.now(),
       };
     }
 
     this.cache.fileCache.set(filePath, {
       entries,
       mtime,
-      sourceProject
+      sourceProject,
     });
 
-    this.logger.debug('File cache updated', {
+    this.logger.debug("File cache updated", {
       filePath,
       entryCount: entries.length,
       sourceProject,
-      mtime: new Date(mtime).toISOString()
+      mtime: new Date(mtime).toISOString(),
     });
   }
 
@@ -190,7 +199,7 @@ export class ConversationCache {
   clearFileCache(filePath: string): void {
     if (this.cache?.fileCache.has(filePath)) {
       this.cache.fileCache.delete(filePath);
-      this.logger.debug('File cache cleared', { filePath });
+      this.logger.debug("File cache cleared", { filePath });
     }
   }
 
@@ -213,25 +222,27 @@ export class ConversationCache {
     currentFileModTimes: Map<string, number>,
     parseFileFunction: (filePath: string) => Promise<RawJsonEntry[]>,
     getSourceProject: (filePath: string) => string,
-    processAllEntries: (allEntries: (RawJsonEntry & { sourceProject: string })[]) => ConversationChain[]
+    processAllEntries: (
+      allEntries: (RawJsonEntry & { sourceProject: string })[],
+    ) => ConversationChain[],
   ): Promise<ConversationChain[]> {
-    this.logger.debug('Request for conversations received', {
+    this.logger.debug("Request for conversations received", {
       hasCachedData: !!this.cache,
       isCurrentlyParsing: !!this.parsingPromise,
-      currentFileCount: currentFileModTimes.size
+      currentFileCount: currentFileModTimes.size,
     });
 
     // If already parsing, wait for it to complete
     if (this.parsingPromise) {
-      this.logger.debug('Parsing already in progress, waiting for completion');
+      this.logger.debug("Parsing already in progress, waiting for completion");
       try {
         const result = await this.parsingPromise;
-        this.logger.debug('Concurrent parsing completed, returning result', {
-          conversationCount: result.length
+        this.logger.debug("Concurrent parsing completed, returning result", {
+          conversationCount: result.length,
         });
         return result;
       } catch (error) {
-        this.logger.error('Concurrent parsing failed', error);
+        this.logger.error("Concurrent parsing failed", error);
         // Clear the failed promise and fall through to retry
         this.parsingPromise = null;
       }
@@ -241,7 +252,7 @@ export class ConversationCache {
       currentFileModTimes,
       parseFileFunction,
       getSourceProject,
-      processAllEntries
+      processAllEntries,
     );
 
     try {
@@ -261,27 +272,29 @@ export class ConversationCache {
     currentFileModTimes: Map<string, number>,
     parseFileFunction: (filePath: string) => Promise<RawJsonEntry[]>,
     getSourceProject: (filePath: string) => string,
-    processAllEntries: (allEntries: (RawJsonEntry & { sourceProject: string })[]) => ConversationChain[]
+    processAllEntries: (
+      allEntries: (RawJsonEntry & { sourceProject: string })[],
+    ) => ConversationChain[],
   ): Promise<ConversationChain[]> {
     const parseStartTime = Date.now();
-    
-    this.logger.debug('Executing file-based parsing');
-    
+
+    this.logger.debug("Executing file-based parsing");
+
     // Get all entries using file-level caching
     const allEntries = await this.getCachedFileEntries(
       currentFileModTimes,
       parseFileFunction,
-      getSourceProject
+      getSourceProject,
     );
-    
+
     // Process entries into conversations (cheap in-memory operation)
     const conversations = processAllEntries(allEntries);
     const parseElapsed = Date.now() - parseStartTime;
 
-    this.logger.debug('File-based parsing completed', {
+    this.logger.debug("File-based parsing completed", {
       conversationCount: conversations.length,
       totalEntries: allEntries.length,
-      parseElapsedMs: parseElapsed
+      parseElapsedMs: parseElapsed,
     });
 
     return conversations;
@@ -307,19 +320,22 @@ export class ConversationCache {
         lastCacheTime: null,
         cacheAge: null,
         isCurrentlyParsing: !!this.parsingPromise,
-        fileCacheDetails: []
+        fileCacheDetails: [],
       };
     }
 
-    const totalCachedEntries = Array.from(this.cache.fileCache.values())
-      .reduce((sum, cache) => sum + cache.entries.length, 0);
+    const totalCachedEntries = Array.from(this.cache.fileCache.values()).reduce(
+      (sum, cache) => sum + cache.entries.length,
+      0,
+    );
 
-    const fileCacheDetails = Array.from(this.cache.fileCache.entries())
-      .map(([filePath, cache]) => ({
+    const fileCacheDetails = Array.from(this.cache.fileCache.entries()).map(
+      ([filePath, cache]) => ({
         filePath,
         entryCount: cache.entries.length,
-        mtime: new Date(cache.mtime).toISOString()
-      }));
+        mtime: new Date(cache.mtime).toISOString(),
+      }),
+    );
 
     return {
       isLoaded: true,
@@ -328,7 +344,7 @@ export class ConversationCache {
       lastCacheTime: this.cache.lastCacheTime,
       cacheAge: Date.now() - this.cache.lastCacheTime,
       isCurrentlyParsing: !!this.parsingPromise,
-      fileCacheDetails
+      fileCacheDetails,
     };
   }
 }

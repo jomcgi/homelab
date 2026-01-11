@@ -7,10 +7,10 @@ filegroup(
         "public/**/*",
         "scripts/**/*",
     ]) + [
+        "LICENSE",
         "components.json",
         "eslint.config.js",
         "knip.json",
-        "LICENSE",
         "package.json",
         "package-lock.json",
         "tailwind.config.js",

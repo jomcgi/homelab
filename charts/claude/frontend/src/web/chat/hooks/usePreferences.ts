@@ -1,4 +1,4 @@
-import { usePreferencesContext } from '../contexts/PreferencesContext';
+import { usePreferencesContext } from "../contexts/PreferencesContext";
 
 export function usePreferences() {
   const { preferences, updatePreferences } = usePreferencesContext();

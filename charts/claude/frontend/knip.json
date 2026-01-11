@@ -1,12 +1,7 @@
 {
   "$schema": "https://unpkg.com/knip@latest/schema.json",
-  "entry": [
-    "src/web/main.tsx"
-  ],
-  "project": [
-    "src/**/*.{ts,tsx}",
-    "!src/**/*.d.ts"
-  ],
+  "entry": ["src/web/main.tsx"],
+  "project": ["src/**/*.{ts,tsx}", "!src/**/*.d.ts"],
   "ignore": [
     "dist/**",
     "coverage/**",
@@ -14,27 +9,16 @@
     "cc-worktrees/**",
     "cc-workfiles/**"
   ],
-  "ignoreDependencies": [
-    "@anthropic-ai/claude-code",
-    "@types/eventsource"
-  ],
+  "ignoreDependencies": ["@anthropic-ai/claude-code", "@types/eventsource"],
   "ignoreExportsUsedInFile": true,
   "includeEntryExports": true,
   "workspaces": {
     ".": {
-      "entry": [
-        "src/server.ts",
-        "src/web/main.tsx",
-        "src/mcp-server/index.ts"
-      ],
-      "project": [
-        "src/**/*.{ts,tsx}",
-        "tests/**/*.{ts,tsx}",
-        "!src/**/*.d.ts"
-      ],
+      "entry": ["src/server.ts", "src/web/main.tsx", "src/mcp-server/index.ts"],
+      "project": ["src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "!src/**/*.d.ts"],
       "ignoreDependencies": [
         "@anthropic-ai/claude-code",
-        "@types/eventsource", 
+        "@types/eventsource",
         "@types/react",
         "@types/react-dom",
         "@types/prismjs"

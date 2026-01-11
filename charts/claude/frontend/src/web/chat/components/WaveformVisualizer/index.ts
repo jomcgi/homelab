@@ -1,1 +1,1 @@
-export { WaveformVisualizer } from './WaveformVisualizer';
+export { WaveformVisualizer } from "./WaveformVisualizer";

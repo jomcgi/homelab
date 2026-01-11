@@ -1,4 +1,4 @@
-declare module '@musistudio/llms' {
+declare module "@musistudio/llms" {
   interface ServerConfig {
     initialConfig?: {
       providers?: unknown[];
