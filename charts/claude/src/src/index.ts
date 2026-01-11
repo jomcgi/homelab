@@ -186,6 +186,9 @@ app.post("/api/sessions", (req, res) => {
   };
 
   sessions.set(id, session);
+  console.log(
+    `Session created: ${id}, Total sessions in memory: ${sessions.size}`,
+  );
 
   // Save session metadata
   const metaPath = path.join(SESSIONS_DIR, `${id}.json`);
@@ -552,6 +555,7 @@ function loadSessions() {
     }
   }
   console.log(`Loaded ${sessions.size} existing sessions`);
+  console.log(`Session IDs: ${Array.from(sessions.keys()).join(", ")}`);
 }
 
 loadSessions();
