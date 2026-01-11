@@ -6,12 +6,13 @@ export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"
 
-# Install Claude Code if not already present
-if ! command -v claude &>/dev/null; then
+# Install Claude Code if not already present at expected location
+CLAUDE_BIN="$NPM_CONFIG_PREFIX/bin/claude"
+if [ ! -f "$CLAUDE_BIN" ]; then
 	echo "Installing Claude Code..."
 	npm install -g @anthropic-ai/claude-code
 else
-	echo "Claude Code already installed"
+	echo "Claude Code already installed at $CLAUDE_BIN"
 fi
 
 # Git configuration
