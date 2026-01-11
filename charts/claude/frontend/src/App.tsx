@@ -17,9 +17,7 @@ interface Session {
 
 interface AuthStatus {
   authenticated: boolean;
-  cliInstalled: boolean;
-  authInProgress: boolean;
-  authUrl?: string;
+  terminalActive: boolean;
 }
 
 // Same-origin API - no CORS needed
@@ -38,8 +36,7 @@ function App() {
   // Auth state
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
-  const [authCode, setAuthCode] = useState("");
-  const [authMessage, setAuthMessage] = useState("");
+  const [terminalUrl, setTerminalUrl] = useState<string | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -76,73 +73,32 @@ function App() {
     }
   };
 
-  const startAuth = async () => {
+  const startAuthTerminal = async () => {
     try {
-      setAuthMessage("Starting authentication flow...");
       const res = await fetch(`${API_BASE}/auth/start`, { method: "POST" });
       const data = await res.json();
-      setAuthMessage(data.message);
-
-      // Poll for auth URL if not immediately available
-      if (!data.authUrl) {
-        const pollInterval = setInterval(async () => {
-          const statusRes = await fetch(`${API_BASE}/auth/status`);
-          const status = await statusRes.json();
-          setAuthStatus(status);
-          if (status.authUrl) {
-            clearInterval(pollInterval);
-          }
-        }, 1000);
-
-        // Stop polling after 10 seconds
-        setTimeout(() => clearInterval(pollInterval), 10000);
-      } else {
+      if (data.success) {
+        setTerminalUrl(`${API_BASE}/auth/terminal`);
         await fetchAuthStatus();
       }
     } catch (err) {
-      console.error("Failed to start auth:", err);
-      setAuthMessage("Failed to start authentication flow");
+      console.error("Failed to start auth terminal:", err);
     }
   };
 
-  const completeAuth = async () => {
-    if (!authCode.trim()) {
-      setAuthMessage("Please enter the authorization code");
-      return;
-    }
-
+  const stopAuthTerminal = async () => {
     try {
-      setAuthMessage("Completing authentication...");
-      const res = await fetch(`${API_BASE}/auth/complete`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ code: authCode }),
-      });
-      const data = await res.json();
-      setAuthMessage(data.message);
-
-      if (data.success) {
-        setAuthCode("");
-        setTimeout(() => {
-          fetchAuthStatus();
-          setShowAuthModal(false);
-        }, 2000);
-      }
-    } catch (err) {
-      console.error("Failed to complete auth:", err);
-      setAuthMessage("Failed to complete authentication");
-    }
-  };
-
-  const cancelAuth = async () => {
-    try {
-      await fetch(`${API_BASE}/auth/cancel`, { method: "POST" });
+      await fetch(`${API_BASE}/auth/stop`, { method: "POST" });
+      setTerminalUrl(null);
       await fetchAuthStatus();
-      setAuthCode("");
-      setAuthMessage("");
     } catch (err) {
-      console.error("Failed to cancel auth:", err);
+      console.error("Failed to stop auth terminal:", err);
     }
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+    stopAuthTerminal();
   };
 
   const createSession = async () => {
@@ -435,10 +391,7 @@ function App() {
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold">Authentication</h2>
                 <button
-                  onClick={() => {
-                    setShowAuthModal(false);
-                    cancelAuth();
-                  }}
+                  onClick={closeAuthModal}
                   className="text-gray-400 hover:text-white"
                 >
                   <svg
@@ -460,7 +413,7 @@ function App() {
 
               {/* Auth Status */}
               <div className="mb-6 p-4 bg-[#1a1a2e] rounded">
-                <div className="flex items-center gap-2 mb-2">
+                <div className="flex items-center gap-2">
                   <span className="font-semibold">Status:</span>
                   {authStatus?.authenticated ? (
                     <span className="text-green-400 flex items-center gap-1">
@@ -474,15 +427,10 @@ function App() {
                     </span>
                   )}
                 </div>
-                {authStatus?.cliInstalled && (
-                  <div className="text-sm text-gray-400">
-                    Claude CLI is installed
-                  </div>
-                )}
               </div>
 
-              {/* Instructions */}
-              {!authStatus?.authInProgress && (
+              {/* Terminal or Start Button */}
+              {!terminalUrl ? (
                 <div className="mb-6">
                   <h3 className="font-semibold mb-2">
                     {authStatus?.authenticated
@@ -490,102 +438,46 @@ function App() {
                       : "Authenticate Claude CLI"}
                   </h3>
                   <p className="text-sm text-gray-400 mb-4">
-                    Click the button below to start the authentication flow.
-                    You'll be able to scan a QR code or click a link to
-                    authorize on any device.
+                    Click below to open an interactive terminal. Type commands
+                    directly, follow the prompts, and authenticate with Claude.
                   </p>
                   <button
-                    onClick={startAuth}
+                    onClick={startAuthTerminal}
                     className="w-full py-3 px-4 bg-[#e94560] text-white rounded hover:bg-[#d63d56] transition"
                   >
-                    Start Authentication
+                    Open Terminal
                   </button>
                 </div>
-              )}
-
-              {/* Auth Flow */}
-              {authStatus?.authInProgress && (
+              ) : (
                 <div className="space-y-4">
-                  <div>
-                    <h3 className="font-semibold mb-2">Step 1: Authorize</h3>
-                    {authStatus.authUrl ? (
-                      <div className="space-y-4">
-                        {/* QR Code */}
-                        <div className="bg-white p-4 rounded flex justify-center">
-                          <img
-                            src={`https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(authStatus.authUrl)}`}
-                            alt="Auth QR Code"
-                            className="w-48 h-48"
-                          />
-                        </div>
-
-                        {/* URL Link */}
-                        <div className="p-3 bg-[#1a1a2e] rounded">
-                          <div className="text-sm text-gray-400 mb-1">
-                            Or click the link:
-                          </div>
-                          <a
-                            href={authStatus.authUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[#e94560] hover:underline break-all text-sm"
-                          >
-                            {authStatus.authUrl}
-                          </a>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="text-gray-400">
-                        Waiting for authentication URL...
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    <h3 className="font-semibold mb-2">
-                      Step 2: Enter Authorization Code
-                    </h3>
-                    <p className="text-sm text-gray-400 mb-3">
-                      After authorizing, paste the code here:
+                  <div className="text-sm text-gray-400">
+                    <p className="mb-2">
+                      Interactive terminal running <code>claude /login</code>
                     </p>
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={authCode}
-                        onChange={(e) => setAuthCode(e.target.value)}
-                        placeholder="Paste authorization code"
-                        className="flex-1 bg-[#1a1a2e] rounded px-4 py-2 focus:outline-none focus:ring-2 focus:ring-[#e94560]"
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            completeAuth();
-                          }
-                        }}
-                      />
-                      <button
-                        onClick={completeAuth}
-                        disabled={!authCode.trim()}
-                        className="px-6 py-2 bg-[#e94560] rounded hover:bg-[#d63d56] transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        Submit
-                      </button>
-                    </div>
+                    <p>
+                      Follow the prompts in the terminal below. When done,
+                      close this modal and refresh the page.
+                    </p>
                   </div>
 
-                  <div className="flex gap-2">
-                    <button
-                      onClick={cancelAuth}
-                      className="w-full py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 transition"
-                    >
-                      Cancel
-                    </button>
+                  {/* Terminal iframe */}
+                  <div className="bg-black rounded overflow-hidden">
+                    <iframe
+                      src={terminalUrl}
+                      className="w-full h-[500px] border-0"
+                      title="Authentication Terminal"
+                    />
                   </div>
-                </div>
-              )}
 
-              {/* Status Message */}
-              {authMessage && (
-                <div className="mt-4 p-3 bg-[#1a1a2e] rounded text-sm">
-                  {authMessage}
+                  <button
+                    onClick={() => {
+                      stopAuthTerminal();
+                      fetchAuthStatus();
+                    }}
+                    className="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                  >
+                    Done - Close Terminal
+                  </button>
                 </div>
               )}
             </div>

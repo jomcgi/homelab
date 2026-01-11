@@ -1,6 +1,7 @@
 import express from "express";
 import { WebSocketServer, WebSocket } from "ws";
-import { createServer } from "http";
+import { createServer, ServerResponse } from "http";
+import { createProxyMiddleware } from "http-proxy-middleware";
 import { v4 as uuidv4 } from "uuid";
 import { spawn, ChildProcess } from "child_process";
 import path from "path";
@@ -15,15 +16,14 @@ const WORKTREES_DIR = "/tmp/claude-worktrees";
 const SESSIONS_DIR = path.join(HOME, ".claude-api", "sessions");
 const STATIC_DIR = process.env.STATIC_DIR || "/app/public";
 const CLAUDE_BIN = path.join(HOME, ".npm-global", "bin", "claude");
+const TTYD_PORT = 7681;
 
 // Ensure directories exist
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(WORKTREES_DIR, { recursive: true });
 
 // Authentication state
-let authProcess: ChildProcess | null = null;
-let authUrl: string | null = null;
-let authOutput: string = "";
+let authTtydProcess: ChildProcess | null = null;
 
 interface Session {
   id: string;
@@ -42,193 +42,111 @@ app.get("/api/health", (_req, res) => {
 });
 
 // Auth status - check if Claude is authenticated
-app.get("/api/auth/status", async (_req, res) => {
-  try {
-    // Try to run a simple command to check auth status
-    const testProcess = spawn(CLAUDE_BIN, ["--help"], {
-      env: { ...process.env, HOME },
-      stdio: ["ignore", "pipe", "pipe"],
-    });
+app.get("/api/auth/status", (_req, res) => {
+  const authFile = path.join(HOME, ".claude", "auth.json");
+  const authenticated = fs.existsSync(authFile);
 
-    let output = "";
-    let error = "";
-
-    testProcess.stdout.on("data", (data) => {
-      output += data.toString();
-    });
-
-    testProcess.stderr.on("data", (data) => {
-      error += data.toString();
-    });
-
-    testProcess.on("close", (code) => {
-      // If help runs successfully, CLI is installed
-      // Check if auth file exists
-      const authFile = path.join(HOME, ".claude", "auth.json");
-      const authenticated = fs.existsSync(authFile);
-
-      res.json({
-        authenticated,
-        cliInstalled: code === 0,
-        authInProgress: authProcess !== null,
-        authUrl: authUrl,
-      });
-    });
-  } catch (err) {
-    res.status(500).json({ error: "Failed to check auth status" });
-  }
-});
-
-// Get auth output (for debugging)
-app.get("/api/auth/output", (_req, res) => {
   res.json({
-    output: authOutput,
-    authUrl: authUrl,
-    authInProgress: authProcess !== null,
+    authenticated,
+    terminalActive: authTtydProcess !== null,
   });
 });
 
-// Start auth flow
-app.post("/api/auth/start", (req, res) => {
+// Start auth terminal (spawn ttyd)
+app.post("/api/auth/start", (_req, res) => {
   // Clean up any existing auth process
-  if (authProcess) {
-    authProcess.kill();
-    authProcess = null;
+  if (authTtydProcess) {
+    console.log("Killing existing ttyd process...");
+    authTtydProcess.kill();
+    authTtydProcess = null;
   }
 
-  authUrl = null;
-  authOutput = "";
-
   try {
-    // Spawn claude in interactive mode, then send /login command
-    // This mimics the interactive terminal behavior more closely
-    const process = spawn(CLAUDE_BIN, [], {
-      cwd: HOME,
-      env: { ...process.env, HOME },
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    // Spawn ttyd with claude /login
+    // -W: Don't wait for initial connection (start immediately)
+    // -p: Port to listen on
+    // -t: Set terminal type
+    console.log(`Starting ttyd on port ${TTYD_PORT}...`);
 
-    authProcess = process;
-
-    // Send /login command via stdin once process starts
-    process.on("spawn", () => {
-      console.log("Claude process spawned, sending /login command...");
-      process.stdin?.write("/login\n");
-    });
-
-    // Capture output to extract auth URL
-    process.stdout.on("data", (data) => {
-      const output = data.toString();
-      authOutput += output;
-      console.log(`Auth stdout: ${output}`);
-
-      // Look for the auth URL pattern
-      // Claude CLI outputs URLs in format: https://...
-      // Try to match any https URL in the output
-      const urlMatch = output.match(/https:\/\/[^\s\)]+/);
-      if (urlMatch && !authUrl) {
-        // Only set if not already set
-        authUrl = urlMatch[0];
-        console.log(`✓ Found auth URL: ${authUrl}`);
+    const ttyd = spawn(
+      "ttyd",
+      [
+        "-p", TTYD_PORT.toString(),
+        "-W", // Start immediately
+        "-t", "titleFixed=Claude Authentication",
+        "bash", "-c",
+        `echo "Starting Claude authentication..." && ${CLAUDE_BIN} /login`
+      ],
+      {
+        cwd: HOME,
+        env: { ...process.env, HOME },
+        stdio: ["ignore", "pipe", "pipe"],
       }
+    );
+
+    authTtydProcess = ttyd;
+
+    ttyd.stdout.on("data", (data) => {
+      console.log(`[ttyd stdout] ${data.toString().trim()}`);
     });
 
-    process.stderr.on("data", (data) => {
-      const output = data.toString();
-      authOutput += output;
-      console.log(`Auth stderr: ${output}`);
-
-      // Also check stderr for URL (in case CLI outputs there)
-      const urlMatch = output.match(/https:\/\/[^\s\)]+/);
-      if (urlMatch && !authUrl) {
-        authUrl = urlMatch[0];
-        console.log(`✓ Found auth URL in stderr: ${authUrl}`);
-      }
+    ttyd.stderr.on("data", (data) => {
+      console.log(`[ttyd stderr] ${data.toString().trim()}`);
     });
 
-    process.on("close", (code) => {
-      console.log(`Auth process exited with code ${code}`);
-      console.log(`Full auth output:\n${authOutput}`);
-      authProcess = null;
+    ttyd.on("close", (code) => {
+      console.log(`ttyd process exited with code ${code}`);
+      authTtydProcess = null;
     });
 
-    process.on("error", (err) => {
-      console.error(`Auth process error: ${err}`);
-      authProcess = null;
+    ttyd.on("error", (err) => {
+      console.error(`ttyd process error: ${err}`);
+      authTtydProcess = null;
     });
 
-    // Give it a moment to output the URL (increased to 3s for reliability)
+    // Give ttyd a moment to start
     setTimeout(() => {
       res.json({
         success: true,
-        authUrl: authUrl,
-        message: authUrl
-          ? "Auth flow started. Please visit the URL to authorize."
-          : "Auth flow started. Waiting for URL... (check logs if this persists)",
-        debug: authOutput.substring(0, 500), // Include first 500 chars for debugging
+        message: "Terminal started. Connect to /api/auth/terminal",
+        terminalUrl: "/api/auth/terminal",
       });
-    }, 3000);
+    }, 500);
   } catch (err) {
-    console.error("Failed to start auth:", err);
-    res.status(500).json({ error: "Failed to start auth flow" });
+    console.error("Failed to start ttyd:", err);
+    res.status(500).json({ error: "Failed to start terminal" });
   }
 });
 
-// Complete auth flow with code
-app.post("/api/auth/complete", (req, res) => {
-  const { code } = req.body;
-
-  if (!authProcess) {
-    return res.status(400).json({ error: "No auth process in progress" });
-  }
-
-  if (!code) {
-    return res.status(400).json({ error: "Auth code is required" });
-  }
-
-  try {
-    // Send the code to the waiting process
-    authProcess.stdin?.write(code + "\n");
-
-    // Wait a bit for the process to complete
-    setTimeout(() => {
-      // Check if auth file was created
-      const authFile = path.join(HOME, ".claude", "auth.json");
-      const success = fs.existsSync(authFile);
-
-      if (success) {
-        res.json({
-          success: true,
-          message: "Authentication successful!",
-        });
-      } else {
-        res.json({
-          success: false,
-          message: "Authentication may have failed. Please check the code and try again.",
-        });
-      }
-
-      // Clean up
-      authProcess = null;
-      authUrl = null;
-      authOutput = "";
-    }, 3000);
-  } catch (err) {
-    console.error("Failed to complete auth:", err);
-    res.status(500).json({ error: "Failed to complete auth" });
-  }
-});
-
-// Cancel auth flow
-app.post("/api/auth/cancel", (_req, res) => {
-  if (authProcess) {
-    authProcess.kill();
-    authProcess = null;
-    authUrl = null;
-    authOutput = "";
+// Stop auth terminal
+app.post("/api/auth/stop", (_req, res) => {
+  if (authTtydProcess) {
+    console.log("Stopping ttyd process...");
+    authTtydProcess.kill();
+    authTtydProcess = null;
   }
   res.json({ success: true });
 });
+
+// Proxy to ttyd terminal (HTTP and WebSocket)
+app.use(
+  "/api/auth/terminal",
+  createProxyMiddleware({
+    target: `http://localhost:${TTYD_PORT}`,
+    changeOrigin: true,
+    ws: true, // Enable WebSocket proxying
+    pathRewrite: {
+      "^/api/auth/terminal": "", // Remove prefix
+    },
+    onError: (err, req, res) => {
+      console.error("Proxy error:", err);
+      if (res instanceof ServerResponse) {
+        res.writeHead(502);
+        res.end("Terminal not available");
+      }
+    },
+  })
+);
 
 // List sessions
 app.get("/api/sessions", (_req, res) => {
