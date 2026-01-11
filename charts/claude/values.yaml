@@ -49,11 +49,11 @@ persistence:
 ## Resource limits
 resources:
   requests:
+    cpu: "500m"
+    memory: "1Gi"
+  limits:
     cpu: "4"
     memory: "8Gi"
-  limits:
-    cpu: "8"
-    memory: "16Gi"
 
 ## Pod Security Context
 podSecurityContext:
