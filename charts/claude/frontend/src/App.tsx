@@ -15,6 +15,11 @@ interface Session {
   active: boolean;
 }
 
+interface AuthStatus {
+  authenticated: boolean;
+  terminalActive: boolean;
+}
+
 // Same-origin API - no CORS needed
 const API_BASE = "/api";
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -28,6 +33,11 @@ function App() {
   const [connected, setConnected] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
+  // Auth state
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
+  const [terminalUrl, setTerminalUrl] = useState<string | null>(null);
+
   const wsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -40,6 +50,7 @@ function App() {
   // Fetch sessions on mount
   useEffect(() => {
     fetchSessions();
+    fetchAuthStatus();
   }, []);
 
   const fetchSessions = async () => {
@@ -50,6 +61,44 @@ function App() {
     } catch (err) {
       console.error("Failed to fetch sessions:", err);
     }
+  };
+
+  const fetchAuthStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/status`);
+      const data = await res.json();
+      setAuthStatus(data);
+    } catch (err) {
+      console.error("Failed to fetch auth status:", err);
+    }
+  };
+
+  const startAuthTerminal = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/auth/start`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setTerminalUrl(`${API_BASE}/auth/terminal`);
+        await fetchAuthStatus();
+      }
+    } catch (err) {
+      console.error("Failed to start auth terminal:", err);
+    }
+  };
+
+  const stopAuthTerminal = async () => {
+    try {
+      await fetch(`${API_BASE}/auth/stop`, { method: "POST" });
+      setTerminalUrl(null);
+      await fetchAuthStatus();
+    } catch (err) {
+      console.error("Failed to stop auth terminal:", err);
+    }
+  };
+
+  const closeAuthModal = () => {
+    setShowAuthModal(false);
+    stopAuthTerminal();
   };
 
   const createSession = async () => {
@@ -188,12 +237,36 @@ function App() {
           <h1 className="text-xl font-bold">Claude Code</h1>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 space-y-2">
           <button
             onClick={createSession}
             className="w-full py-2 px-4 bg-[#e94560] text-white rounded hover:bg-[#d63d56] transition"
           >
             New Session
+          </button>
+
+          <button
+            onClick={() => setShowAuthModal(true)}
+            className="w-full py-2 px-4 bg-gray-700 text-white rounded hover:bg-gray-600 transition flex items-center justify-center gap-2"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              strokeWidth={1.5}
+              stroke="currentColor"
+              className="w-4 h-4"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M15.75 5.25a3 3 0 013 3m3 0a6 6 0 01-7.029 5.912c-.563-.097-1.159.026-1.563.43L10.5 17.25H8.25v2.25H6v2.25H2.25v-2.818c0-.597.237-1.17.659-1.591l6.499-6.499c.404-.404.527-1 .43-1.563A6 6 0 1121.75 8.25z"
+              />
+            </svg>
+            Auth
+            {authStatus?.authenticated && (
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+            )}
           </button>
         </div>
 
@@ -309,6 +382,108 @@ function App() {
           </div>
         </form>
       </div>
+
+      {/* Auth Modal */}
+      {showAuthModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-[#16213e] rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Authentication</h2>
+                <button
+                  onClick={closeAuthModal}
+                  className="text-gray-400 hover:text-white"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    strokeWidth={1.5}
+                    stroke="currentColor"
+                    className="w-6 h-6"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Auth Status */}
+              <div className="mb-6 p-4 bg-[#1a1a2e] rounded">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">Status:</span>
+                  {authStatus?.authenticated ? (
+                    <span className="text-green-400 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-green-400" />
+                      Authenticated
+                    </span>
+                  ) : (
+                    <span className="text-red-400 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-red-400" />
+                      Not Authenticated
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Terminal or Start Button */}
+              {!terminalUrl ? (
+                <div className="mb-6">
+                  <h3 className="font-semibold mb-2">
+                    {authStatus?.authenticated
+                      ? "Re-authenticate Claude CLI"
+                      : "Authenticate Claude CLI"}
+                  </h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Click below to open an interactive terminal. Type commands
+                    directly, follow the prompts, and authenticate with Claude.
+                  </p>
+                  <button
+                    onClick={startAuthTerminal}
+                    className="w-full py-3 px-4 bg-[#e94560] text-white rounded hover:bg-[#d63d56] transition"
+                  >
+                    Open Terminal
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="text-sm text-gray-400">
+                    <p className="mb-2">
+                      Interactive terminal running <code>claude /login</code>
+                    </p>
+                    <p>
+                      Follow the prompts in the terminal below. When done,
+                      close this modal and refresh the page.
+                    </p>
+                  </div>
+
+                  {/* Terminal iframe */}
+                  <div className="bg-black rounded overflow-hidden">
+                    <iframe
+                      src={terminalUrl}
+                      className="w-full h-[500px] border-0"
+                      title="Authentication Terminal"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      stopAuthTerminal();
+                      fetchAuthStatus();
+                    }}
+                    className="w-full py-2 px-4 bg-green-600 text-white rounded hover:bg-green-700 transition"
+                  >
+                    Done - Close Terminal
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
