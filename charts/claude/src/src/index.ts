@@ -264,72 +264,65 @@ app.get("*", (req, res) => {
 // Create HTTP server
 const server = createServer(app);
 
-// Handle WebSocket upgrades for ttyd proxy using raw TCP socket
+// WebSocket server for ttyd terminal proxy
+// Uses proper WebSocket-to-WebSocket proxying (like ttyd-session-manager did with gorilla/websocket)
+const ttydWss = new WebSocketServer({ noServer: true });
+
+ttydWss.on("connection", (clientWs: WebSocket) => {
+  console.log("Client WebSocket connected, connecting to ttyd...");
+
+  // Connect to ttyd using WebSocket protocol with "tty" subprotocol
+  const ttydWs = new WebSocket(`ws://localhost:${TTYD_PORT}/ws`, ["tty"]);
+
+  // Set binary type to match ttyd expectations
+  ttydWs.binaryType = "arraybuffer";
+
+  ttydWs.on("open", () => {
+    console.log("Connected to ttyd WebSocket");
+  });
+
+  ttydWs.on("message", (data: Buffer, isBinary: boolean) => {
+    // Forward ttyd messages to client, preserving binary/text type
+    if (clientWs.readyState === WebSocket.OPEN) {
+      clientWs.send(data, { binary: isBinary });
+    }
+  });
+
+  ttydWs.on("close", (code, reason) => {
+    console.log(`ttyd WebSocket closed: ${code} ${reason}`);
+    clientWs.close(code, reason.toString());
+  });
+
+  ttydWs.on("error", (err) => {
+    console.error("ttyd WebSocket error:", err);
+    clientWs.close(1011, "ttyd connection error");
+  });
+
+  clientWs.on("message", (data: Buffer, isBinary: boolean) => {
+    // Forward client messages to ttyd, preserving binary/text type
+    if (ttydWs.readyState === WebSocket.OPEN) {
+      ttydWs.send(data, { binary: isBinary });
+    }
+  });
+
+  clientWs.on("close", (code, reason) => {
+    console.log(`Client WebSocket closed: ${code} ${reason}`);
+    ttydWs.close();
+  });
+
+  clientWs.on("error", (err) => {
+    console.error("Client WebSocket error:", err);
+    ttydWs.close();
+  });
+});
+
+// Handle WebSocket upgrades for ttyd proxy
 server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
-  if (req.url?.startsWith("/api/auth/terminal")) {
-    // Rewrite the URL to remove the prefix
-    const targetUrl = req.url.replace("/api/auth/terminal", "") || "/";
-    console.log(`WebSocket upgrade request: ${req.url} -> ${targetUrl}`);
+  if (req.url?.startsWith("/api/auth/terminal/ws")) {
+    console.log(`WebSocket upgrade request: ${req.url}`);
 
-    // Disable timeout on incoming socket
-    socket.setTimeout(0);
-    socket.setKeepAlive(true, 30000);
-
-    // Create raw TCP connection to ttyd
-    const net = require("net");
-    const ttydSocket = net.createConnection(TTYD_PORT, "localhost", () => {
-      console.log("Raw socket connected to ttyd");
-
-      // Disable timeout on ttyd socket
-      ttydSocket.setTimeout(0);
-      ttydSocket.setKeepAlive(true, 30000);
-
-      // Forward the original HTTP upgrade request with rewritten path
-      const headers = Object.entries(req.headers)
-        .filter(([k]) => k.toLowerCase() !== "host") // Remove original host
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\r\n");
-
-      ttydSocket.write(
-        `GET ${targetUrl} HTTP/1.1\r\n` +
-          `Host: localhost:${TTYD_PORT}\r\n` +
-          headers +
-          "\r\n\r\n",
-      );
-
-      // Send any buffered data from the upgrade request
-      if (head.length > 0) {
-        ttydSocket.write(head);
-      }
-
-      // Pipe data bidirectionally
-      socket.pipe(ttydSocket);
-      ttydSocket.pipe(socket);
-
-      socket.on("error", (err) => {
-        console.error("Client socket error:", err);
-        ttydSocket.destroy();
-      });
-
-      ttydSocket.on("error", (err: Error) => {
-        console.error("ttyd socket error:", err);
-        socket.destroy();
-      });
-
-      socket.on("close", () => {
-        console.log("Client socket closed");
-        ttydSocket.destroy();
-      });
-
-      ttydSocket.on("close", () => {
-        console.log("ttyd socket closed");
-        socket.destroy();
-      });
-    });
-
-    ttydSocket.on("error", (err: Error) => {
-      console.error("Failed to connect to ttyd:", err);
-      socket.destroy();
+    ttydWss.handleUpgrade(req, socket, head, (ws) => {
+      ttydWss.emit("connection", ws, req);
     });
   }
 });
