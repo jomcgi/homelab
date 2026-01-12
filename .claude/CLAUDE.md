@@ -43,21 +43,24 @@ External Ingress        Service Mesh              Observability
 
 ```
 charts/                     # Helm charts
+├── api-gateway/            # API Gateway for external service routing
 ├── argocd/                 # ArgoCD GitOps controller
 ├── argocd-image-updater/   # Automatic image updates for ArgoCD
 ├── cert-manager/           # X.509 certificate management
+├── claude/                 # Claude Code deployment
 ├── cloudflare-tunnel/      # Cloudflare tunnel chart
-├── freshrss/               # FreshRSS RSS aggregator chart
+├── coredns/                # CoreDNS for internal DNS resolution
 ├── gh-arc-controller/      # GitHub Actions Runner Controller
 ├── gh-arc-runners/         # GitHub Actions Runners
 ├── kyverno/                # Policy engine for Kubernetes
 ├── linkerd/                # Linkerd service mesh for automatic tracing
 ├── longhorn/               # Distributed persistent storage
-├── n8n/                    # N8N workflow automation
-├── n8n-obsidian-api/       # N8N Obsidian API service chart
+├── nats/                   # NATS messaging system
 ├── nvidia-gpu-operator/    # NVIDIA GPU operator for GPU workloads
+├── seaweedfs/              # SeaweedFS distributed storage
 ├── signoz/                 # SigNoz observability platform
-├── ttyd-session-manager/   # Terminal session manager
+├── stargazer/              # Stargazer service
+├── trips/                  # Trips management service
 └── vllm/                   # vLLM inference server for LLMs
 
 clusters/                   # Cluster entry points
@@ -78,6 +81,7 @@ overlays/                   # Environment-based deployments
 │   │   └── values.yaml
 │   ├── argocd-image-updater/
 │   ├── cert-manager/       # Certificate management (required for Linkerd)
+│   ├── coredns/            # CoreDNS for cluster DNS
 │   ├── kyverno/            # Policy engine
 │   ├── linkerd/            # Linkerd service mesh
 │   ├── longhorn/
@@ -97,25 +101,20 @@ overlays/                   # Environment-based deployments
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
 │   ├── gh-arc-runners/     # GitHub Actions Runners with persistent cache
-│   ├── n8n/
-│   │   ├── application.yaml
-│   │   ├── kustomization.yaml
-│   │   ├── values.yaml
-│   │   └── manifests/       # Helm-rendered n8n manifests (for review)
-│   │       └── all.yaml
+│   ├── api-gateway/        # API Gateway service
+│   ├── nats/               # NATS messaging system
+│   ├── seaweedfs/          # SeaweedFS distributed storage
+│   ├── trips/              # Trips management service
 │   └── vllm/               # vLLM inference server
 └── dev/                    # Development services
     ├── kustomization.yaml
+    ├── claude/             # Claude Code deployment
     ├── cloudflare-operator/# Cloudflare operator deployment
-    ├── freshrss/           # RSS feed aggregator
-    ├── n8n-obsidian-api/   # N8N Obsidian API service
-    └── ttyd-session-manager/# Terminal session manager
+    └── stargazer/          # Stargazer service
 
 pkg/                        # Shared Go libraries
-└── n8n/                    # N8N Go client (auto-generated from OpenAPI)
 
 services/                   # Backend services
-├── n8n_obsidian_api/       # N8N Obsidian API service
 └── hikes/                  # Hikes data scraping and processing
     ├── scrape_walkhighlands/
     └── update_forecast/
@@ -202,6 +201,12 @@ We test **actual behavior**, not implementation details:
 - **Required by**: Linkerd (generates mTLS certificates)
 - **Deployed via**: ArgoCD Application
 
+#### CoreDNS
+- **Cluster DNS resolution** for Kubernetes services
+- **Custom DNS zones** for internal domain resolution
+- **Service discovery** via Kubernetes DNS
+- **Deployed via**: ArgoCD Application
+
 #### Linkerd Service Mesh
 - **Automatic distributed tracing** for all pod-to-pod traffic
 - **Mutual TLS** between all services
@@ -257,13 +262,29 @@ We test **actual behavior**, not implementation details:
 - **Scalable CI/CD** infrastructure within the cluster (1-10 runners)
 - **Deployed via**: ArgoCD Applications
 
-#### N8N Workflow Automation
-- **Workflow automation platform** for integrations and automations
-- **Workflows managed via UI** with persistence in Longhorn storage
-- **Persistent storage** via Longhorn (15Gi)
-- **API enabled** for programmatic access
-- **Ingress**: `n8n.jomcgi.dev` via Cloudflare Tunnel
-- **Deployed via**: ArgoCD Application with Helm chart
+#### API Gateway
+- **External service routing** with advanced traffic management
+- **Rate limiting** and **authentication** for APIs
+- **Protocol translation** and **request transformation**
+- **Deployed via**: ArgoCD Application
+
+#### NATS
+- **High-performance messaging system** for microservices
+- **Pub/sub messaging** and **request-reply patterns**
+- **Persistent streams** with JetStream
+- **Deployed via**: ArgoCD Application
+
+#### SeaweedFS
+- **Distributed object storage** system
+- **S3-compatible API** for application integration
+- **High-performance** blob storage
+- **Deployed via**: ArgoCD Application
+
+#### Trips
+- **Trip management service** for travel planning
+- **Integration with mapping** and **weather services**
+- **Data persistence** via Longhorn
+- **Deployed via**: ArgoCD Application
 
 #### vLLM Inference Server
 - **LLM inference server** for serving large language models
@@ -276,24 +297,19 @@ We test **actual behavior**, not implementation details:
 
 ### Development Services
 
+#### Claude
+- **Claude Code deployment** for AI-assisted development
+- **Integrated with cluster services** for development workflows
+- **Deployed via**: ArgoCD Application
+
 #### Cloudflare Operator
 - **Custom Kubernetes operator** for Cloudflare resource management
 - **Automated tunnel provisioning** and **DNS management**
 - **Deployed via**: ArgoCD Application referencing operators/cloudflare/helm/
 
-#### FreshRSS
-- **Self-hosted RSS aggregator** for feed management
-- **Web-based interface** for reading feeds
-- **Deployed via**: ArgoCD Application
-
-#### N8N Obsidian API
-- **API service** for N8N integration with Obsidian
-- **Custom Go service** for note automation
-- **Deployed via**: ArgoCD Application
-
-#### ttyd Session Manager
-- **Terminal session manager** for web-based terminal access
-- **Secure terminal access** via browser
+#### Stargazer
+- **Experimental service** for testing new features
+- **Development sandbox** environment
 - **Deployed via**: ArgoCD Application
 
 ### Static Websites
