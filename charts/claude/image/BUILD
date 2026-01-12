@@ -2,15 +2,16 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
 
 # OpenCode configuration for vLLM and provider access
+# Stored in /etc/opencode/ because /home/user is a PVC mount
+# start.sh copies this to ~/.config/opencode/ at runtime
 pkg_tar(
     name = "opencode_config_tar",
     srcs = [
         "opencode.json",
     ],
     mode = "0644",
-    owner = "1000.1000",
     remap_paths = {
-        "opencode.json": "/home/user/.config/opencode/opencode.json",
+        "opencode.json": "/etc/opencode/opencode.json",
     },
 )
 
@@ -27,13 +28,14 @@ pkg_tar(
 
 # Package the CUI frontend source for runtime build
 # CUI is a complete Express server with React frontend
+# Use strip_prefix="." to preserve directory structure from the source package
 pkg_tar(
     name = "frontend_tar",
     srcs = ["//charts/claude/frontend:src"],
     mode = "0644",
     owner = "1000.1000",
     package_dir = "app/frontend",
-    strip_prefix = "charts/claude/frontend",
+    strip_prefix = ".",
 )
 
 apko_image(

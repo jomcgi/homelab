@@ -12,7 +12,15 @@
 
   "provider": {
     "google": {
-      "models": {},
+      "models": {
+        "gemini-3-flash-preview": {
+          "name": "Gemini 3 Flash Preview",
+          "limit": {
+            "context": 1000000,
+            "output": 65536
+          }
+        }
+      },
       "options": {
         "apiKey": "{env:GOOGLE_API_KEY}"
       }
