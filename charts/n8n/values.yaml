@@ -1,8 +1,0 @@
-
-n8n:
-  main:
-    # Persistence using Longhorn
-    persistence:
-      enabled: true
-      storageClass: "longhorn"
-      size: 10Gi# test comment for cache invalidation
