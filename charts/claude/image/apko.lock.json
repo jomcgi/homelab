@@ -1,8 +1,8 @@
 {
   "version": "v1",
   "config": {
-    "name": "./charts/claude/image/apko.yaml",
-    "checksum": "sha256-Qq9DtCasBPEZR2iR3orGvtuECoP5j2P2gCHfQEW+Clc="
+    "name": "charts/claude/image/apko.yaml",
+    "checksum": "sha256-BVZ9u6DdGaJ4ao9TR4rLREE9N9H7YnxTfgfVzzSJ9fA="
   },
   "contents": {
     "keyring": [
@@ -212,6 +212,44 @@
         "checksum": "Q1iOqqGFee8KnAMAiigIso6EN+u7o="
       },
       {
+        "name": "libstdc++",
+        "url": "https://packages.wolfi.dev/os/x86_64/libstdc++-15.2.0-r6.apk",
+        "version": "15.2.0-r6",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-8368",
+          "checksum": "sha1-aThNAEN2oOPEwMp8DkjdhrBZ684="
+        },
+        "data": {
+          "range": "bytes=8369-1127042",
+          "checksum": "sha256-qIFoDHPsgD2fcHqTPQVukNOZOxAVOIYxJy37TkgAeCk="
+        },
+        "checksum": "Q1aThNAEN2oOPEwMp8DkjdhrBZ684="
+      },
+      {
+        "name": "bazelisk",
+        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.27.0-r2.apk",
+        "version": "1.27.0-r2",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4359",
+          "checksum": "sha1-vAiw1MBFfTC3lTsJ3gpPNOxWF+s="
+        },
+        "data": {
+          "range": "bytes=4360-3056848",
+          "checksum": "sha256-ZIt3CX50XhSH92EviIXvG/BewOSNKldEmRR57VDv5As="
+        },
+        "checksum": "Q1vAiw1MBFfTC3lTsJ3gpPNOxWF+s="
+      },
+      {
         "name": "make",
         "url": "https://packages.wolfi.dev/os/x86_64/make-4.4.1-r8.apk",
         "version": "4.4.1-r8",
@@ -267,25 +305,6 @@
           "checksum": "sha256-nm5dDN8/Zv8V2r8ltNMgeI/9xoMxb8mVDfoxMOBvtxw="
         },
         "checksum": "Q171cqOQB4o/0atHGJpLEzYm0qk7k="
-      },
-      {
-        "name": "libstdc++",
-        "url": "https://packages.wolfi.dev/os/x86_64/libstdc++-15.2.0-r6.apk",
-        "version": "15.2.0-r6",
-        "architecture": "x86_64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-8368",
-          "checksum": "sha1-aThNAEN2oOPEwMp8DkjdhrBZ684="
-        },
-        "data": {
-          "range": "bytes=8369-1127042",
-          "checksum": "sha256-qIFoDHPsgD2fcHqTPQVukNOZOxAVOIYxJy37TkgAeCk="
-        },
-        "checksum": "Q1aThNAEN2oOPEwMp8DkjdhrBZ684="
       },
       {
         "name": "binutils",
@@ -1314,6 +1333,63 @@
         "checksum": "Q18M3uqCX19rCN2eWY/c5RJWV+GLs="
       },
       {
+        "name": "helm-4",
+        "url": "https://packages.wolfi.dev/os/x86_64/helm-4-4.0.4-r0.apk",
+        "version": "4.0.4-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4109",
+          "checksum": "sha1-39+QOrbI9A6978jNM0a41/Z8iHM="
+        },
+        "data": {
+          "range": "bytes=4110-21229609",
+          "checksum": "sha256-i10OZx/suw3QFAB3E8faKEoK2ydfGb/9xWJluGlOGBk="
+        },
+        "checksum": "Q139+QOrbI9A6978jNM0a41/Z8iHM="
+      },
+      {
+        "name": "kubectl-1.35",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.35-1.35.0-r1.apk",
+        "version": "1.35.0-r1",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-12163",
+          "checksum": "sha1-ZzPh4O9RAloC0ei7fh/LDpAvjW4="
+        },
+        "data": {
+          "range": "bytes=12164-18474828",
+          "checksum": "sha256-axlDHHbTZZn59ROhzSRJEjTqCg7f3doDlA6XJAj6d7o="
+        },
+        "checksum": "Q1ZzPh4O9RAloC0ei7fh/LDpAvjW4="
+      },
+      {
+        "name": "kubectl-1.35-default",
+        "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.35-default-1.35.0-r1.apk",
+        "version": "1.35.0-r1",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-12231",
+          "checksum": "sha1-1XaOXYMcWEgEI2IVgxVMywdZjLg="
+        },
+        "data": {
+          "range": "bytes=12232-13963",
+          "checksum": "sha256-HZ4+eWWcEzBAvIY/WGSdw3BTBlQURfgqadSjBUrNTcM="
+        },
+        "checksum": "Q11XaOXYMcWEgEI2IVgxVMywdZjLg="
+      },
+      {
         "name": "icu78-data-full",
         "url": "https://packages.wolfi.dev/os/x86_64/icu78-data-full-78.1-r0.apk",
         "version": "78.1-r0",
@@ -1789,6 +1865,44 @@
         "checksum": "Q1wi3iFZ06oQu2q3y1EQybK/0aIXM="
       },
       {
+        "name": "libstdc++",
+        "url": "https://packages.wolfi.dev/os/aarch64/libstdc++-15.2.0-r6.apk",
+        "version": "15.2.0-r6",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-8398",
+          "checksum": "sha1-DjuiSNwVPINOrCp1jUtblBEdohw="
+        },
+        "data": {
+          "range": "bytes=8399-1079315",
+          "checksum": "sha256-So40ipm8L9DFnN4dEvmk4c5p7xTFg7Of02nK0KCxmSY="
+        },
+        "checksum": "Q1DjuiSNwVPINOrCp1jUtblBEdohw="
+      },
+      {
+        "name": "bazelisk",
+        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.27.0-r2.apk",
+        "version": "1.27.0-r2",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4392",
+          "checksum": "sha1-54IDtakL2iXH6xH2/hK+ZxkxnLY="
+        },
+        "data": {
+          "range": "bytes=4393-2776346",
+          "checksum": "sha256-PIMTu5nCD7pTiYZDafsXPVittvMviV3q98bvwLlM5es="
+        },
+        "checksum": "Q154IDtakL2iXH6xH2/hK+ZxkxnLY="
+      },
+      {
         "name": "make",
         "url": "https://packages.wolfi.dev/os/aarch64/make-4.4.1-r8.apk",
         "version": "4.4.1-r8",
@@ -1844,25 +1958,6 @@
           "checksum": "sha256-g/TY2fIw2Q2/pos7Pjt1CCHOxnpO84OQU22TViKJRew="
         },
         "checksum": "Q1s3Vl6a7q85zUWsmdDlKdnkT73Wg="
-      },
-      {
-        "name": "libstdc++",
-        "url": "https://packages.wolfi.dev/os/aarch64/libstdc++-15.2.0-r6.apk",
-        "version": "15.2.0-r6",
-        "architecture": "aarch64",
-        "signature": {
-          "range": "",
-          "checksum": ""
-        },
-        "control": {
-          "range": "bytes=0-8398",
-          "checksum": "sha1-DjuiSNwVPINOrCp1jUtblBEdohw="
-        },
-        "data": {
-          "range": "bytes=8399-1079315",
-          "checksum": "sha256-So40ipm8L9DFnN4dEvmk4c5p7xTFg7Of02nK0KCxmSY="
-        },
-        "checksum": "Q1DjuiSNwVPINOrCp1jUtblBEdohw="
       },
       {
         "name": "binutils",
@@ -2889,6 +2984,63 @@
           "checksum": "sha256-4Qpx3zTJo/Sfk1AoNb7gKbH/5qCKq99aFmKzUszKe7A="
         },
         "checksum": "Q1ujeCwhRYs1aq82JI2fVpHPUBp78="
+      },
+      {
+        "name": "helm-4",
+        "url": "https://packages.wolfi.dev/os/aarch64/helm-4-4.0.4-r0.apk",
+        "version": "4.0.4-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-4143",
+          "checksum": "sha1-zjiBdVxsco4go2DcmKvd/zLX8Kc="
+        },
+        "data": {
+          "range": "bytes=4144-18904758",
+          "checksum": "sha256-blbhMz6VMzG6R0FgikWBeAkbS1SQAZiOGEECgDmtBlM="
+        },
+        "checksum": "Q1zjiBdVxsco4go2DcmKvd/zLX8Kc="
+      },
+      {
+        "name": "kubectl-1.35",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.35-1.35.0-r1.apk",
+        "version": "1.35.0-r1",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-12197",
+          "checksum": "sha1-zugZwfYGM1Z9HHvkoxkrcbTT80I="
+        },
+        "data": {
+          "range": "bytes=12198-16414774",
+          "checksum": "sha256-wCcJ6YEMcU0d4oJ6qVuUEDIbKIQkr3m1twzyzHMKYPw="
+        },
+        "checksum": "Q1zugZwfYGM1Z9HHvkoxkrcbTT80I="
+      },
+      {
+        "name": "kubectl-1.35-default",
+        "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.35-default-1.35.0-r1.apk",
+        "version": "1.35.0-r1",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-12261",
+          "checksum": "sha1-XXYdlzMc/icn2yWJiQmycg//EwA="
+        },
+        "data": {
+          "range": "bytes=12262-13984",
+          "checksum": "sha256-+9WPMfhs2KQwqpZnzEzPgNX92RhHF4v0wnBFRMMS7Ms="
+        },
+        "checksum": "Q1XXYdlzMc/icn2yWJiQmycg//EwA="
       },
       {
         "name": "icu78-data-full",

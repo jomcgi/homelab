@@ -22,8 +22,13 @@ import { createLogger } from "@/services/logger.js";
 import { ToolMetricsService } from "@/services/ToolMetricsService.js";
 
 // Valid permission modes for Claude Code
-const VALID_PERMISSION_MODES = ["acceptEdits", "bypassPermissions", "default", "plan"] as const;
-type PermissionMode = typeof VALID_PERMISSION_MODES[number];
+const VALID_PERMISSION_MODES = [
+  "acceptEdits",
+  "bypassPermissions",
+  "default",
+  "plan",
+] as const;
+type PermissionMode = (typeof VALID_PERMISSION_MODES)[number];
 
 // Default permission mode from environment variable
 // Set DEFAULT_PERMISSION_MODE=bypassPermissions to skip all permission prompts
@@ -88,7 +93,11 @@ export function createConversationRoutes(
 
         // Validate permissionMode if provided
         if (req.body.permissionMode) {
-          if (!VALID_PERMISSION_MODES.includes(req.body.permissionMode as PermissionMode)) {
+          if (
+            !VALID_PERMISSION_MODES.includes(
+              req.body.permissionMode as PermissionMode,
+            )
+          ) {
             throw new CUIError(
               "INVALID_PERMISSION_MODE",
               `permissionMode must be one of: ${VALID_PERMISSION_MODES.join(", ")}`,
@@ -149,7 +158,10 @@ export function createConversationRoutes(
           ...req.body,
           previousMessages:
             previousMessages.length > 0 ? previousMessages : undefined,
-          permissionMode: req.body.permissionMode || inheritedPermissionMode || DEFAULT_PERMISSION_MODE,
+          permissionMode:
+            req.body.permissionMode ||
+            inheritedPermissionMode ||
+            DEFAULT_PERMISSION_MODE,
         };
 
         const { streamingId, systemInit } =
@@ -158,7 +170,9 @@ export function createConversationRoutes(
         // Normalize the cwd to handle git-sync worktree path resolution
         // Claude Code resolves symlinks, so /repos/homelab/current becomes /repos/homelab/.worktrees/abc123
         // We remap this back to the stable symlink path for consistent conversation persistence
-        const normalizedCwd = historyReader.normalizeProjectPath(systemInit.cwd);
+        const normalizedCwd = historyReader.normalizeProjectPath(
+          systemInit.cwd,
+        );
 
         // Update original session with continuation session ID if resuming
         if (req.body.resumedSessionId) {

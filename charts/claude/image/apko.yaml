@@ -26,8 +26,8 @@ contents:
     - kubectl
     # Helm package manager for Kubernetes
     - helm
-    # Bazel build system for running homelab tools
-    - bazel-6
+    # Bazel build system for running homelab tools (uses .bazelversion)
+    - bazelisk
 
 archs:
   - x86_64

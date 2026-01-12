@@ -71,7 +71,9 @@ if (otlpEndpoint) {
     sdk
       ?.shutdown()
       .then(() => console.log("[OTEL] SDK shut down successfully"))
-      .catch((error) => console.error("[OTEL] Error shutting down SDK:", error));
+      .catch((error) =>
+        console.error("[OTEL] Error shutting down SDK:", error),
+      );
   });
 } else {
   console.log(
