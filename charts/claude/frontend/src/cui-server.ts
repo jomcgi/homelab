@@ -22,6 +22,10 @@ import { NotificationService } from "./services/notification-service.js";
 import { WebPushService } from "./services/web-push-service.js";
 import { geminiService } from "./services/gemini-service.js";
 import { ClaudeRouterService } from "./services/claude-router-service.js";
+import {
+  getRepoSyncService,
+  RepoSyncService,
+} from "./services/repo-sync-service.js";
 import { StreamEvent, CUIError, PermissionRequest } from "./types/index.js";
 import { createLogger, type Logger } from "./services/logger.js";
 import { createConversationRoutes } from "./routes/conversation.routes.js";
@@ -65,6 +69,7 @@ export class CUIServer {
   private notificationService: NotificationService;
   private webPushService: WebPushService;
   private routerService?: ClaudeRouterService;
+  private repoSyncService?: RepoSyncService;
   private logger: Logger;
   private port: number;
   private host: string;
@@ -190,6 +195,9 @@ export class CUIServer {
       this.logger.debug("Initializing Gemini service");
       await geminiService.initialize();
       this.logger.debug("Gemini service initialized successfully");
+
+      // Initialize repo sync service if configured via environment
+      await this.initializeRepoSync();
 
       // Initialize router service if configured
       await this.initializeOrReloadRouter(config);
@@ -411,6 +419,11 @@ export class CUIServer {
 
     if (this.routerService) {
       await this.routerService.stop();
+    }
+
+    // Stop repo sync service
+    if (this.repoSyncService) {
+      this.repoSyncService.stop();
     }
 
     // Stop accepting new connections
@@ -769,6 +782,56 @@ export class CUIServer {
     );
 
     this.logger.debug("PermissionTracker integration setup complete");
+  }
+
+  /**
+   * Initialize repository sync service from environment variables.
+   *
+   * Environment variables:
+   * - REPO_SYNC_URL: Git remote URL (required to enable repo sync)
+   * - REPO_SYNC_PATH: Local path for the repository (default: /repos/homelab)
+   * - REPO_SYNC_BRANCH: Branch to track (default: main)
+   * - REPO_SYNC_INTERVAL: Sync interval in seconds (default: 60)
+   */
+  private async initializeRepoSync(): Promise<void> {
+    const repoUrl = process.env.REPO_SYNC_URL;
+
+    if (!repoUrl) {
+      this.logger.debug("Repo sync not configured (REPO_SYNC_URL not set)");
+      return;
+    }
+
+    const localPath = process.env.REPO_SYNC_PATH || "/repos/homelab";
+    const branch = process.env.REPO_SYNC_BRANCH || "main";
+    const intervalSeconds = parseInt(
+      process.env.REPO_SYNC_INTERVAL || "60",
+      10,
+    );
+
+    this.logger.info("Initializing repo sync service", {
+      url: repoUrl,
+      localPath,
+      branch,
+      intervalSeconds,
+    });
+
+    try {
+      this.repoSyncService = getRepoSyncService();
+      this.repoSyncService.addRepo({
+        url: repoUrl,
+        localPath,
+        branch,
+        syncIntervalMs: intervalSeconds * 1000,
+      });
+      await this.repoSyncService.initialize();
+      this.logger.info("Repo sync service initialized successfully");
+    } catch (error) {
+      this.logger.error(
+        "Failed to initialize repo sync service, continuing without it",
+        error,
+      );
+      this.repoSyncService = undefined;
+    }
   }
 
   private async initializeOrReloadRouter(

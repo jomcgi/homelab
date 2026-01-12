@@ -5,9 +5,9 @@ description: Use when making changes to the homelab repository (charts/, overlay
 
 # Homelab Repository Worktree Workflow
 
-## CRITICAL: Read-Only Main Clone
+## Repository Structure
 
-The homelab repo at `~/repos/homelab` is **read-only** (owned by root via git-sync sidecar) and auto-syncs to `origin/main` every 5 minutes. File writes will fail with "Permission denied".
+The homelab repo at `~/repos/homelab` is a writable clone that auto-fetches from `origin/main` every 60 seconds. While you CAN write to this directory, you should use git worktrees for feature branches to enable multi-agent workflows.
 
 **NEVER commit directly to the `main` branch.**
 
@@ -40,7 +40,8 @@ git push -u origin feat/my-feature
 1. **Multi-agent safe**: Multiple Claude sessions can work on different branches simultaneously
 2. **GitOps compliant**: All changes go through PR review before reaching main
 3. **No conflicts**: Each agent gets an isolated directory in `/tmp/claude-worktrees/`
-4. **Auto-cleanup**: Worktrees are ephemeral (changes persist via git push)
+4. **Persistent repo**: The main clone persists on PVC, only worktrees are ephemeral
+5. **Auto-sync**: The sync loop runs `git fetch origin` every 60s to keep refs fresh
 
 ## Workflow Summary
 
@@ -57,7 +58,7 @@ git push -u origin feat/my-feature
    git push -u origin <branch-name>
    ```
 4. Create PR using the `gh-pr` skill
-5. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
+5. Merge PR - the sync loop will fetch the changes automatically
 
 ## Listing and Cleaning Worktrees
 
@@ -67,7 +68,9 @@ git -C ~/repos/homelab worktree list
 
 # Remove a worktree when done (just delete the directory)
 rm -rf /tmp/claude-worktrees/<worktree-name>
-# The git-sync sidecar will clean up stale worktree references automatically
+
+# Clean up stale worktree references
+git -C ~/repos/homelab worktree prune
 ```
 
 ## Starting Fresh After PR Merge
@@ -77,4 +80,19 @@ If your PR was merged and you need to make more changes:
 ```bash
 git -C ~/repos/homelab fetch origin
 git -C ~/repos/homelab worktree add -b fix/new-issue /tmp/claude-worktrees/new-issue origin/main
+```
+
+## Working Directly in Main Clone (Not Recommended)
+
+While you can work directly in `~/repos/homelab`, this is NOT recommended because:
+- The sync loop runs `git fetch` every 60s which could conflict with your work
+- Multiple Claude sessions would conflict with each other
+- Direct commits to main bypass PR review
+
+If you must work directly:
+```bash
+cd ~/repos/homelab
+git checkout -b feat/my-feature origin/main
+# Make changes, commit, push, create PR
+git checkout main  # Return to main when done
 ```
