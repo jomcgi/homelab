@@ -36,6 +36,7 @@ defaultWorkingDirectory: ""
 defaultPermissionMode: ""
 
 ## Git-sync sidecar to keep a repo available for Claude to work with
+## DEPRECATED: Use repoSync instead for simpler worktree-compatible sync
 gitSync:
   enabled: false
   image: registry.k8s.io/git-sync/git-sync:v4.4.0
@@ -43,6 +44,16 @@ gitSync:
   repoName: ""  # e.g., homelab (used for mount path)
   branch: main
   period: 60s  # Sync interval
+
+## Custom repo sync (replaces git-sync sidecar)
+## Clones repo on startup, runs periodic `git fetch` to keep refs fresh
+## Works better with git worktrees for multi-agent workflows
+repoSync:
+  enabled: false
+  repo: ""  # e.g., https://github.com/user/repo
+  repoName: ""  # e.g., homelab (used for mount path)
+  branch: main
+  intervalSeconds: 60  # How often to run git fetch
 
 ## Service configuration
 service:
