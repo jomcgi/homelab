@@ -48,11 +48,6 @@ else
 	echo "CUI server already built"
 fi
 
-# Configure Google API key for voice transcription if set
-if [ -n "$GEMINI_API_KEY" ]; then
-	export GOOGLE_API_KEY="$GEMINI_API_KEY"
-fi
-
 # Start CUI server with auth disabled (Cloudflare handles SSO)
 # --host 0.0.0.0 required for Kubernetes readiness probes (default is localhost)
 echo "Starting CUI server..."
