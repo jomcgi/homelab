@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "config": {
-    "name": "charts/claude/image/apko.yaml",
+    "name": "./charts/claude/image/apko.yaml",
     "checksum": "sha256-hqBUpHXe7pzfH8UESTAQDoq3y2fH+e6h2GqIJwK/bkQ="
   },
   "contents": {
