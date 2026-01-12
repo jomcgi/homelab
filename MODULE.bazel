@@ -181,14 +181,10 @@ use_repo(oci, "gdal_base", "gdal_base_linux_amd64", "gdal_base_linux_arm64")
 # Configure apko for container images
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(
-    name = "code_lock",
-    lock = "//charts/code/image:apko.lock.json",
-)
-apko.translate_lock(
     name = "claude_lock",
     lock = "//charts/claude/image:apko.lock.json",
 )
-use_repo(apko, "claude_lock", "code_lock")
+use_repo(apko, "claude_lock")
 
 # Download multiarch archives (binaries from zip files)
 multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")

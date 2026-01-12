@@ -289,10 +289,13 @@ export class StreamManager extends EventEmitter {
         streamingId: streamingId,
         timestamp: new Date().toISOString(),
       });
-      this.logger.info("Session closed with no clients - buffered close event", {
-        streamingId,
-        bufferSize: this.messageBuffer.get(streamingId)?.length || 0,
-      });
+      this.logger.info(
+        "Session closed with no clients - buffered close event",
+        {
+          streamingId,
+          bufferSize: this.messageBuffer.get(streamingId)?.length || 0,
+        },
+      );
       return; // Don't proceed with client cleanup since there are none
     }
 

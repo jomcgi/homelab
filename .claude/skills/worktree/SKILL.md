@@ -1,9 +1,9 @@
 ---
-name: homelab-repo
+name: worktree
 description: Use when making changes to the homelab repository (charts/, overlays/, operators/, or any infrastructure code). Handles git worktree setup for safe multi-agent workflows. Required for any file modifications in ~/repos/homelab.
 ---
 
-# Homelab Repository Workflow
+# Homelab Repository Worktree Workflow
 
 ## CRITICAL: Read-Only Main Clone
 
@@ -56,35 +56,8 @@ git push -u origin feat/my-feature
    git commit -m "Description of changes"
    git push -u origin <branch-name>
    ```
-4. Create PR using gh CLI:
-   ```bash
-   gh pr create --title "PR title" --body "Description of changes"
-   ```
-5. **Always share the PR link with the user** after creating or pushing changes:
-   ```bash
-   gh pr view --json url -q .url
-   ```
-6. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
-
-## Before Pushing Changes
-
-**Always check if your PR has been merged before pushing additional commits:**
-
-```bash
-# Check PR status before pushing
-gh pr view <branch-name> --json state -q .state
-```
-
-- If state is `MERGED`: Your branch was already merged. **Create a new branch and PR** for additional changes.
-- If state is `OPEN`: Safe to push additional commits to the existing PR.
-
-**Why?** Pushing to a merged branch creates orphaned commits that won't reach main. You'll need to rebase onto main and create a new PR anyway.
-
-```bash
-# If PR was merged, start fresh:
-git -C ~/repos/homelab fetch origin
-git -C ~/repos/homelab worktree add -b fix/new-issue /tmp/claude-worktrees/new-issue origin/main
-```
+4. Create PR using the `gh-pr` skill
+5. Merge PR - the sync loop pulls changes to `~/repos/homelab` automatically
 
 ## Listing and Cleaning Worktrees
 
@@ -95,4 +68,13 @@ git -C ~/repos/homelab worktree list
 # Remove a worktree when done (just delete the directory)
 rm -rf /tmp/claude-worktrees/<worktree-name>
 # The git-sync sidecar will clean up stale worktree references automatically
+```
+
+## Starting Fresh After PR Merge
+
+If your PR was merged and you need to make more changes:
+
+```bash
+git -C ~/repos/homelab fetch origin
+git -C ~/repos/homelab worktree add -b fix/new-issue /tmp/claude-worktrees/new-issue origin/main
 ```
