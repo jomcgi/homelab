@@ -135,3 +135,19 @@ podLabels: {}
 ## Deployment strategy (Recreate for stateful single-pod deployment)
 strategy:
   type: Recreate
+
+## Service Account configuration
+serviceAccount:
+  # Create a service account for the Claude pod
+  create: true
+  # Automatically mount the ServiceAccount token
+  automount: true
+  # Annotations to add to the service account
+  annotations: {}
+  # The name of the service account to use (defaults to fullname)
+  name: ""
+
+## RBAC configuration
+rbac:
+  # Create ClusterRole and ClusterRoleBinding for read-only cluster access
+  create: true
