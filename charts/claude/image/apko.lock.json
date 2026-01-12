@@ -2,7 +2,7 @@
   "version": "v1",
   "config": {
     "name": "charts/claude/image/apko.yaml",
-    "checksum": "sha256-BVZ9u6DdGaJ4ao9TR4rLREE9N9H7YnxTfgfVzzSJ9fA="
+    "checksum": "sha256-hqBUpHXe7pzfH8UESTAQDoq3y2fH+e6h2GqIJwK/bkQ="
   },
   "contents": {
     "keyring": [
@@ -1274,6 +1274,25 @@
           "checksum": "sha256-Q2VLUU7eIPYLoW11+pNCu03EoX7ybqdKu8/wEhhKgYg="
         },
         "checksum": "Q1IDNI2OlP3uE/IgzbR0U0cK3v94o="
+      },
+      {
+        "name": "gh",
+        "url": "https://packages.wolfi.dev/os/x86_64/gh-2.83.2-r0.apk",
+        "version": "2.83.2-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5073",
+          "checksum": "sha1-m4y8u3aZn+3k3CtOx7h0jTrgh5g="
+        },
+        "data": {
+          "range": "bytes=5074-14770628",
+          "checksum": "sha256-orVt6hud1n7VAdLeKeHHw+CN8c9lfjXUjNpYPGllp9M="
+        },
+        "checksum": "Q1m4y8u3aZn+3k3CtOx7h0jTrgh5g="
       },
       {
         "name": "libexpat1",
@@ -2927,6 +2946,25 @@
           "checksum": "sha256-CMksUfsJnBTdAsmM2EzzxRWlBumz1YBeRc0lque4A4k="
         },
         "checksum": "Q1KWpJvx5lTv7EBTPlGeJL5n672xo="
+      },
+      {
+        "name": "gh",
+        "url": "https://packages.wolfi.dev/os/aarch64/gh-2.83.2-r0.apk",
+        "version": "2.83.2-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5108",
+          "checksum": "sha1-nLsg9Hf7f5kWCH05r/qBtY3CAkA="
+        },
+        "data": {
+          "range": "bytes=5109-13432185",
+          "checksum": "sha256-MPXOwO5caS8aO88yWYiJuXY2pJyBW7nKaJrZMLFKY8w="
+        },
+        "checksum": "Q1nLsg9Hf7f5kWCH05r/qBtY3CAkA="
       },
       {
         "name": "libexpat1",
