@@ -139,6 +139,17 @@ spec:
             - name: DEFAULT_PERMISSION_MODE
               value: {{ .Values.defaultPermissionMode | quote }}
             {{- end }}
+            {{- if .Values.repoSync.enabled }}
+            # Repo sync configuration (replaces git-sync sidecar)
+            - name: REPO_SYNC_URL
+              value: {{ .Values.repoSync.repo | quote }}
+            - name: REPO_SYNC_PATH
+              value: /repos/{{ .Values.repoSync.repoName }}
+            - name: REPO_SYNC_BRANCH
+              value: {{ .Values.repoSync.branch | quote }}
+            - name: REPO_SYNC_INTERVAL
+              value: {{ .Values.repoSync.intervalSeconds | quote }}
+            {{- end }}
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
@@ -147,6 +158,11 @@ spec:
             {{- if .Values.gitSync.enabled }}
             - name: repo
               mountPath: /repos/{{ .Values.gitSync.repoName }}
+            {{- else if .Values.repoSync.enabled }}
+            # Repo sync uses a subdirectory on the home PVC for persistence
+            - name: home
+              mountPath: /repos/{{ .Values.repoSync.repoName }}
+              subPath: repos/{{ .Values.repoSync.repoName }}
             {{- end }}
         {{- if .Values.gitSync.enabled }}
         # Git-sync sidecar to keep repo in sync
