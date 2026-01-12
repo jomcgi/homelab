@@ -22,6 +22,14 @@ contents:
     - coreutils
     - findutils
     - grep
+    # Kubernetes CLI for cluster operations
+    - kubectl
+    # Helm package manager for Kubernetes
+    - helm
+    # Bazel build system for running homelab tools (uses .bazelversion)
+    - bazelisk
+    # GitHub CLI for creating PRs and managing repos
+    - gh
 
 archs:
   - x86_64

@@ -80,10 +80,15 @@ export class ClaudeHistoryReader {
         const [worktreeBase, stableSymlink] = envVar.split(":");
         if (worktreeBase && stableSymlink) {
           remappings.push({
-            worktreePattern: new RegExp(`^${this.escapeRegExp(worktreeBase)}/[^/]+(/.*)?$`),
+            worktreePattern: new RegExp(
+              `^${this.escapeRegExp(worktreeBase)}/[^/]+(/.*)?$`,
+            ),
             stableSymlink,
           });
-          this.logger.info("Loaded worktree remapping", { worktreeBase, stableSymlink });
+          this.logger.info("Loaded worktree remapping", {
+            worktreeBase,
+            stableSymlink,
+          });
         }
       }
     }
@@ -95,17 +100,22 @@ export class ClaudeHistoryReader {
       const worktreeBase = `${repoBase}/.worktrees`;
       // Only add if not already configured
       const alreadyConfigured = remappings.some(
-        (r) => r.stableSymlink === defaultDir
+        (r) => r.stableSymlink === defaultDir,
       );
       if (!alreadyConfigured) {
         remappings.push({
-          worktreePattern: new RegExp(`^${this.escapeRegExp(worktreeBase)}/[^/]+(/.*)?$`),
+          worktreePattern: new RegExp(
+            `^${this.escapeRegExp(worktreeBase)}/[^/]+(/.*)?$`,
+          ),
           stableSymlink: defaultDir,
         });
-        this.logger.info("Auto-configured worktree remapping from DEFAULT_WORKING_DIRECTORY", {
-          worktreeBase,
-          stableSymlink: defaultDir,
-        });
+        this.logger.info(
+          "Auto-configured worktree remapping from DEFAULT_WORKING_DIRECTORY",
+          {
+            worktreeBase,
+            stableSymlink: defaultDir,
+          },
+        );
       }
     }
 

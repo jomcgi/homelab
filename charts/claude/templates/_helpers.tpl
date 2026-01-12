@@ -47,3 +47,14 @@ Selector labels
 app.kubernetes.io/name: {{ include "claude-api.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "claude-api.serviceAccountName" -}}
+{{- if .Values.serviceAccount.create }}
+{{- default (include "claude-api.fullname" .) .Values.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.serviceAccount.name }}
+{{- end }}
+{{- end }}
