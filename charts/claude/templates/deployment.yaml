@@ -125,7 +125,7 @@ spec:
                 secretKeyRef:
                   name: {{ include "claude-api.fullname" . }}-secret
                   key: github_token
-            - name: GEMINI_API_KEY
+            - name: GOOGLE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: {{ include "claude-api.fullname" . }}-secret

@@ -21,7 +21,7 @@
       "npm": "@ai-sdk/openai-compatible",
       "name": "vLLM Local",
       "options": {
-        "baseURL": "http://vllm-router-service.vllm.svc.cluster.local/v1",
+        "baseURL": "http://vllm-router-service.vllm.svc.cluster.local/v1"
       },
       "models": {
         "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit": {
@@ -48,7 +48,7 @@
       "model": "google/gemini-3-flash-preview",
       "temperature": 0.5,
       "mode": "primary"
-    },
+    }
   },
 
   // Permissions - allow everything since sessions run in sandboxed pods
@@ -67,6 +67,5 @@
   "share": "manual",
 
   // Additional instruction files to load
-  "instructions": ["**/.claude/CLAUDE.md", "**/CLAUDE.md"],
-
+  "instructions": ["**/.claude/CLAUDE.md", "**/CLAUDE.md"]
 }
