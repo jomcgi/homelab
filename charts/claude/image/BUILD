@@ -1,6 +1,19 @@
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
 
+# OpenCode configuration for vLLM and provider access
+pkg_tar(
+    name = "opencode_config_tar",
+    srcs = [
+        "opencode.json",
+    ],
+    mode = "0644",
+    owner = "1000.1000",
+    remap_paths = {
+        "opencode.json": "/home/user/.config/opencode/opencode.json",
+    },
+)
+
 # Package start.sh at /app/
 pkg_tar(
     name = "app_base_tar",
@@ -28,11 +41,13 @@ apko_image(
     config = "apko.yaml",
     contents = "@claude_lock//:contents",
     multiarch_tars = [
+        "@opencode//:tar",
         "@ttyd//:tar",
     ],
     repository = "ghcr.io/jomcgi/homelab/charts/claude",
     tars = [
         ":app_base_tar",
         ":frontend_tar",
+        ":opencode_config_tar",
     ],
 )
