@@ -1,6 +1,13 @@
 # Runners chart values
 # This chart deploys the GitHub Actions Runner Scale Set
 
+# Bazel cache configuration (shared PVC - disabled by default)
+# Note: Per-runner volumeClaimTemplates is preferred over shared RWX PVC
+bazelCache:
+  enabled: false
+  storageClassName: longhorn
+  size: 50Gi
+
 # GitHub configuration
 github:
   configUrl: "https://github.com/jomcgi/homelab"
