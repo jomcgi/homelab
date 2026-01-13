@@ -1,8 +1,9 @@
 # Self-hosted GitHub Actions runners
 # Supports Docker-in-Docker for container builds
 
-# Bazel cache disabled - Longhorn RWX volumes have I/O errors
-# BuildBuddy remote cache handles caching instead
+# Bazel cache configured via volumeClaimTemplates in gha-runner-scale-set.template
+# Each runner gets its own RWO PVC (avoids Longhorn RWX I/O errors)
+# Shared PVC approach disabled - see volumeClaimTemplates below
 bazelCache:
   enabled: false
 
@@ -32,7 +33,7 @@ gha-runner-scale-set:
   githubConfigUrl: "https://github.com/jomcgi/homelab"
   runnerScaleSetName: "homelab-runners"
   minRunners: 1
-  maxRunners: 10
+  maxRunners: 2
 
   controllerServiceAccount:
     namespace: "gh-arc-controller"
@@ -71,6 +72,22 @@ gha-runner-scale-set:
             cpu: 4000m      # 4 CPUs for parallel builds
             memory: 8Gi
             ephemeral-storage: 100Gi
+
+        volumeMounts:
+        - name: bazel-cache
+          mountPath: /home/runner/.cache/bazel
+
+      # Per-runner persistent cache (like StatefulSet volumeClaimTemplates)
+      # Each runner pod gets its own RWO PVC for Bazel cache
+      volumeClaimTemplates:
+      - metadata:
+          name: bazel-cache
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          storageClassName: longhorn
+          resources:
+            requests:
+              storage: 50Gi
 
   listenerTemplate:
     spec:
