@@ -12,15 +12,32 @@ export class WorkingDirectoriesService {
     defaultWorkingDirectory?: string,
   ) {
     this.logger = logger.child({ component: "WorkingDirectoriesService" });
+    // Fall back to REPO_SYNC_PATH if DEFAULT_WORKING_DIRECTORY is not set
     this.defaultWorkingDirectory =
-      defaultWorkingDirectory || process.env.DEFAULT_WORKING_DIRECTORY;
+      defaultWorkingDirectory ||
+      process.env.DEFAULT_WORKING_DIRECTORY ||
+      process.env.REPO_SYNC_PATH;
   }
 
   async getWorkingDirectories(): Promise<WorkingDirectoriesResponse> {
+    let conversations: Awaited<
+      ReturnType<ClaudeHistoryReader["listConversations"]>
+    >["conversations"] = [];
+
     try {
       // Get all conversations from history
-      const { conversations } = await this.historyReader.listConversations();
+      const result = await this.historyReader.listConversations();
+      conversations = result.conversations;
+    } catch (error) {
+      // If we can't read conversation history, continue with empty list
+      // We can still return the default working directory
+      this.logger.warn(
+        "Failed to read conversation history, using defaults only",
+        error,
+      );
+    }
 
+    try {
       // Build directory map with metadata
       const directoryMap = new Map<
         string,
@@ -98,7 +115,32 @@ export class WorkingDirectoriesService {
       };
     } catch (error) {
       this.logger.error("Failed to get working directories", error);
-      throw error;
+
+      // Return at least the default directory if available
+      if (this.defaultWorkingDirectory) {
+        const fallbackDir: WorkingDirectory = {
+          path: this.defaultWorkingDirectory,
+          shortname:
+            this.defaultWorkingDirectory.split("/").pop() ||
+            this.defaultWorkingDirectory,
+          lastDate: new Date().toISOString().replace(/\.\d{3}Z$/, "Z"),
+          conversationCount: 0,
+        };
+        this.logger.info("Returning fallback default directory due to error", {
+          path: this.defaultWorkingDirectory,
+        });
+        return {
+          directories: [fallbackDir],
+          totalCount: 1,
+        };
+      }
+
+      // If no default directory, return empty list rather than failing
+      this.logger.warn("No default directory configured, returning empty list");
+      return {
+        directories: [],
+        totalCount: 0,
+      };
     }
   }
 
