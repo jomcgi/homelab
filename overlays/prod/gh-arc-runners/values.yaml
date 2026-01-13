@@ -1,11 +1,12 @@
-# Self-hosted GitHub Actions runners with remote cache
-# Supports Docker-in-Docker for container builds with Bazel remote cache
+# Self-hosted GitHub Actions runners with persistent Bazel cache
+# Supports Docker-in-Docker for container builds
 
-# Persistent Bazel cache (repository_cache + output_base)
-# Size breakdown: ~5Gi repository downloads, ~30-40Gi output_base (unpacked repos + build artifacts)
+# Persistent Bazel repository cache (safe to share between runners)
+# IMPORTANT: Only repository_cache is shared. output_base uses per-runner ephemeral storage
+# because it contains locks and per-runner state that cannot be shared.
 bazelCache:
   enabled: true
-  size: 50Gi
+  size: 10Gi  # ~5Gi for repository downloads, headroom for growth
   storageClassName: longhorn
 
 secret:
