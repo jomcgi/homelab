@@ -22,11 +22,8 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
 
-# CI: Override to use mounted PVC at /mnt/bazel-cache for repository cache only
-# Use common:ci so it applies to all commands (build, test, run, fetch, etc.)
-# IMPORTANT: Only repository_cache is safe to share between runners.
-# output_base must NOT be shared - it contains locks and per-runner state.
-common:ci --repository_cache=/mnt/bazel-cache/repository_cache
+# CI: Use default repository cache location (ephemeral per-runner)
+# Longhorn RWX volumes have I/O errors, BuildBuddy handles remote caching
 
 # rules_python is working to enable this default to avoid dependency on a system interpreter
 # See https://github.com/bazel-contrib/rules_python/issues/3187
