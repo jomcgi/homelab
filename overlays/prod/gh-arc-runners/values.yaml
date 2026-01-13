@@ -1,12 +1,6 @@
 # Self-hosted GitHub Actions runners
 # Supports Docker-in-Docker for container builds
 
-# Bazel cache configured via volumeClaimTemplates in gha-runner-scale-set.template
-# Each runner gets its own RWO PVC (avoids Longhorn RWX I/O errors)
-# Shared PVC approach disabled - see volumeClaimTemplates below
-bazelCache:
-  enabled: false
-
 secret:
   # Create the secret via OnePasswordItem
   create: true
