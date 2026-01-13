@@ -4,8 +4,8 @@
 ## Container image
 image:
   repository: ghcr.io/jomcgi/homelab/charts/claude
-  pullPolicy: Always  # Always pull since we use mutable 'main' tag
-  tag: "main"
+  pullPolicy: IfNotPresent  # Use IfNotPresent since image updater uses immutable tags
+  tag: "main"  # Default tag, overridden by ArgoCD Image Updater
 
 imagePullSecrets:
   - name: ghcr-pull-secret
