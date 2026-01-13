@@ -74,7 +74,29 @@ class ApiService {
         headers,
       });
 
-      const data = await response.json();
+      // Handle empty responses (204 No Content, etc.)
+      const contentType = response.headers.get("content-type");
+      const text = await response.text();
+
+      // Parse JSON only if we have content
+      let data: unknown = null;
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (parseError) {
+          // If response is not JSON, provide better error context
+          console.error(`[API] JSON parse error for ${fullUrl}:`, {
+            status: response.status,
+            contentType,
+            bodyPreview: text.substring(0, 200),
+          });
+          throw new ApiServiceError(
+            `Invalid JSON response from server (status ${response.status})`,
+            "JSON_PARSE_ERROR",
+            response.status,
+          );
+        }
+      }
 
       // Log response
       console.log(`[API Response] ${fullUrl}:`, data);
@@ -85,12 +107,12 @@ class ApiService {
         }
         // Extract error details from response
         const apiError = data as ApiError & { code?: string };
-        const errorMessage = apiError.error || `HTTP ${response.status}`;
-        const errorCode = apiError.code;
+        const errorMessage = apiError?.error || `HTTP ${response.status}`;
+        const errorCode = apiError?.code;
         throw new ApiServiceError(errorMessage, errorCode, response.status);
       }
 
-      return data;
+      return data as T;
     } catch (error) {
       // Re-throw ApiServiceError as-is
       if (error instanceof ApiServiceError) {
