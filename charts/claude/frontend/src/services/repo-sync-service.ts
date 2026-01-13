@@ -188,6 +188,90 @@ export class RepoSyncService {
           });
         }
 
+        // Check if HEAD is valid before proceeding
+        let headValid = false;
+        try {
+          await execAsync("git rev-parse --verify HEAD", {
+            cwd: config.localPath,
+          });
+          headValid = true;
+          this.logger.debug("Repository HEAD is valid", {
+            localPath: config.localPath,
+          });
+        } catch {
+          this.logger.warn(
+            "Repository has invalid HEAD, attempting to fix",
+            {
+              localPath: config.localPath,
+              branch: config.branch,
+            },
+          );
+        }
+
+        // If HEAD is not valid, try to fetch and checkout before regular sync
+        if (!headValid) {
+          try {
+            // Fetch from remote with authentication
+            const authUrl = this.getAuthenticatedUrl(config.url);
+            const needsAuth = authUrl !== config.url;
+
+            if (needsAuth) {
+              await execAsync(`git remote set-url origin "${authUrl}"`, {
+                cwd: config.localPath,
+              });
+            }
+
+            try {
+              await execAsync("git fetch origin", {
+                cwd: config.localPath,
+                env: {
+                  ...process.env,
+                  GIT_TERMINAL_PROMPT: "0",
+                },
+              });
+            } finally {
+              if (needsAuth) {
+                await execAsync(`git remote set-url origin "${config.url}"`, {
+                  cwd: config.localPath,
+                });
+              }
+            }
+
+            // Now try to checkout the branch
+            await execAsync(
+              `git checkout -B "${config.branch}" "origin/${config.branch}"`,
+              {
+                cwd: config.localPath,
+                env: {
+                  ...process.env,
+                  GIT_TERMINAL_PROMPT: "0",
+                },
+              },
+            );
+
+            this.logger.info(
+              "Successfully fixed invalid HEAD by checking out branch",
+              {
+                localPath: config.localPath,
+                branch: config.branch,
+              },
+            );
+          } catch (checkoutError) {
+            this.logger.error(
+              "Failed to fix invalid HEAD, repository may be corrupted",
+              checkoutError,
+              {
+                localPath: config.localPath,
+                branch: config.branch,
+              },
+            );
+            throw new Error(
+              `Repository at ${config.localPath} has invalid HEAD and could not be fixed. ` +
+                `Please delete the directory and let it be re-cloned: ${checkoutError}`,
+            );
+          }
+        }
+
         status.isCloned = true;
 
         // Do initial fetch
