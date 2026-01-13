@@ -60,6 +60,31 @@ export class RepoSyncService {
   }
 
   /**
+   * Get an authenticated URL by embedding credentials if GITHUB_TOKEN is available.
+   * Uses oauth2 as the username (standard for GitHub token auth).
+   */
+  private getAuthenticatedUrl(url: string): string {
+    const token = process.env.GITHUB_TOKEN;
+    if (!token) {
+      return url;
+    }
+
+    try {
+      const parsed = new URL(url);
+      // Only add credentials for HTTPS URLs without existing auth
+      if (parsed.protocol === "https:" && !parsed.username) {
+        parsed.username = "oauth2";
+        parsed.password = token;
+        return parsed.toString();
+      }
+    } catch {
+      // If URL parsing fails, return original URL
+      this.logger.warn("Failed to parse URL for authentication", { url });
+    }
+    return url;
+  }
+
+  /**
    * Add a repository to sync
    */
   addRepo(config: RepoSyncConfig): void {
@@ -130,14 +155,30 @@ export class RepoSyncService {
         localPath: config.localPath,
       });
 
-      // Verify the remote URL matches
+      // Verify the remote URL matches (or add it if missing)
       try {
-        const { stdout } = await execAsync("git remote get-url origin", {
-          cwd: config.localPath,
-        });
-        const currentUrl = stdout.trim();
+        let hasOrigin = false;
+        let currentUrl = "";
 
-        if (currentUrl !== config.url) {
+        try {
+          const { stdout } = await execAsync("git remote get-url origin", {
+            cwd: config.localPath,
+          });
+          currentUrl = stdout.trim();
+          hasOrigin = true;
+        } catch {
+          // Origin remote doesn't exist
+          hasOrigin = false;
+        }
+
+        if (!hasOrigin) {
+          this.logger.info("No origin remote found, adding it", {
+            url: config.url,
+          });
+          await execAsync(`git remote add origin "${config.url}"`, {
+            cwd: config.localPath,
+          });
+        } else if (currentUrl !== config.url) {
           this.logger.warn("Remote URL mismatch, updating", {
             currentUrl,
             expectedUrl: config.url,
@@ -168,10 +209,11 @@ export class RepoSyncService {
       const parentDir = path.dirname(config.localPath);
       await fs.mkdir(parentDir, { recursive: true });
 
-      // Clone the repository
+      // Clone the repository with authentication if available
+      const cloneUrl = this.getAuthenticatedUrl(config.url);
       try {
         await execAsync(
-          `git clone --branch "${config.branch}" "${config.url}" "${config.localPath}"`,
+          `git clone --branch "${config.branch}" "${cloneUrl}" "${config.localPath}"`,
           {
             env: {
               ...process.env,
@@ -179,6 +221,12 @@ export class RepoSyncService {
             },
           },
         );
+
+        // After clone, set the remote URL to the non-authenticated version
+        // to avoid storing credentials in .git/config
+        await execAsync(`git remote set-url origin "${config.url}"`, {
+          cwd: config.localPath,
+        });
 
         status.isCloned = true;
         this.logger.info("Repository cloned successfully", {
@@ -221,30 +269,104 @@ export class RepoSyncService {
         branch: config.branch,
       });
 
-      // Fetch all refs from origin
-      await execAsync("git fetch origin", {
-        cwd: config.localPath,
-        env: {
-          ...process.env,
-          GIT_TERMINAL_PROMPT: "0",
-        },
-      });
+      // Temporarily set authenticated URL for fetch, then restore original
+      const authUrl = this.getAuthenticatedUrl(config.url);
+      const needsAuth = authUrl !== config.url;
 
-      // Get local and remote HEAD
-      const [localResult, remoteResult] = await Promise.all([
-        execAsync("git rev-parse HEAD", { cwd: config.localPath }),
-        execAsync(`git rev-parse origin/${config.branch}`, {
+      if (needsAuth) {
+        await execAsync(`git remote set-url origin "${authUrl}"`, {
           cwd: config.localPath,
-        }),
-      ]);
+        });
+      }
 
-      status.localHead = localResult.stdout.trim();
+      try {
+        // Fetch all refs from origin
+        await execAsync("git fetch origin", {
+          cwd: config.localPath,
+          env: {
+            ...process.env,
+            GIT_TERMINAL_PROMPT: "0",
+          },
+        });
+      } finally {
+        // Always restore the original URL (without credentials)
+        if (needsAuth) {
+          await execAsync(`git remote set-url origin "${config.url}"`, {
+            cwd: config.localPath,
+          });
+        }
+      }
+
+      // Check if HEAD is valid (handles unborn HEAD / empty repo state)
+      let headValid = false;
+      try {
+        await execAsync("git rev-parse --verify HEAD", {
+          cwd: config.localPath,
+        });
+        headValid = true;
+      } catch {
+        // HEAD is not valid (unborn or empty repo)
+        this.logger.info("HEAD is not valid, attempting to checkout branch", {
+          localPath: config.localPath,
+          branch: config.branch,
+        });
+
+        // Try to checkout the remote branch to establish HEAD
+        try {
+          await execAsync(
+            `git checkout -B "${config.branch}" "origin/${config.branch}"`,
+            {
+              cwd: config.localPath,
+              env: {
+                ...process.env,
+                GIT_TERMINAL_PROMPT: "0",
+              },
+            },
+          );
+          headValid = true;
+          this.logger.info("Successfully checked out branch from remote", {
+            localPath: config.localPath,
+            branch: config.branch,
+          });
+        } catch (checkoutError) {
+          this.logger.error(
+            "Failed to checkout branch from remote",
+            checkoutError,
+            {
+              localPath: config.localPath,
+              branch: config.branch,
+            },
+          );
+          // Continue without local HEAD tracking
+        }
+      }
+
+      // Get local and remote HEAD (only if HEAD is valid)
+      let localResult: { stdout: string } | undefined;
+      if (headValid) {
+        localResult = await execAsync("git rev-parse HEAD", {
+          cwd: config.localPath,
+        });
+      }
+      const remoteResult = await execAsync(
+        `git rev-parse origin/${config.branch}`,
+        {
+          cwd: config.localPath,
+        },
+      );
+
+      status.localHead = localResult?.stdout.trim();
       status.remoteHead = remoteResult.stdout.trim();
       status.lastFetchTime = new Date();
       status.lastFetchError = undefined;
 
-      // Log if local is behind remote
-      if (status.localHead !== status.remoteHead) {
+      // Log sync status
+      if (!status.localHead) {
+        this.logger.warn("Repository has no local HEAD", {
+          localPath: config.localPath,
+          remoteHead: status.remoteHead.substring(0, 8),
+        });
+      } else if (status.localHead !== status.remoteHead) {
         this.logger.info("Repository has new commits available", {
           localPath: config.localPath,
           localHead: status.localHead.substring(0, 8),
