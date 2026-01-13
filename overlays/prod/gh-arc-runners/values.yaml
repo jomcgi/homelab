@@ -1,12 +1,10 @@
-# Self-hosted GitHub Actions runners with remote cache
-# Supports Docker-in-Docker for container builds with Bazel remote cache
+# Self-hosted GitHub Actions runners
+# Supports Docker-in-Docker for container builds
 
-# Persistent Bazel cache (repository_cache + output_base)
-# Size breakdown: ~5Gi repository downloads, ~30-40Gi output_base (unpacked repos + build artifacts)
+# Bazel cache disabled - Longhorn RWX volumes have I/O errors
+# BuildBuddy remote cache handles caching instead
 bazelCache:
-  enabled: true
-  size: 50Gi
-  storageClassName: longhorn
+  enabled: false
 
 secret:
   # Create the secret via OnePasswordItem
@@ -50,11 +48,9 @@ gha-runner-scale-set:
       imagePullSecrets:
       - name: ghcr-imagepull-secret
 
-      # Set fsGroup so mounted volumes are writable by runner user
-      # Remove runAsNonRoot from pod level to allow DinD and init containers to run
+      # Remove runAsNonRoot from pod level to allow DinD containers to run
       securityContext:
         runAsNonRoot: false  # Override default - set per-container instead
-        fsGroup: 1001        # runner user GID (for volume permissions)
 
       containers:
       - name: runner
@@ -69,21 +65,12 @@ gha-runner-scale-set:
 
         resources:
           limits:
-            memory: 8Gi     # Increased for Bazel with shared output_base cache
-            ephemeral-storage: 100Gi  # Disk space for build artifacts in /home/runner/_work
+            memory: 8Gi
+            ephemeral-storage: 100Gi  # Disk space for build artifacts
           requests:
             cpu: 4000m      # 4 CPUs for parallel builds
             memory: 8Gi
-            ephemeral-storage: 100Gi  # Reserve disk space for Bazel builds
-
-        volumeMounts:
-        - name: bazel-cache
-          mountPath: /mnt/bazel-cache
-
-      volumes:
-      - name: bazel-cache
-        persistentVolumeClaim:
-          claimName: bazel-repository-cache
+            ephemeral-storage: 100Gi
 
   listenerTemplate:
     spec:
