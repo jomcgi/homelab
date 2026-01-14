@@ -201,13 +201,10 @@ export class RepoSyncService {
             localPath: config.localPath,
           });
         } catch {
-          this.logger.warn(
-            "Repository has invalid HEAD, attempting to fix",
-            {
-              localPath: config.localPath,
-              branch: config.branch,
-            },
-          );
+          this.logger.warn("Repository has invalid HEAD, attempting to fix", {
+            localPath: config.localPath,
+            branch: config.branch,
+          });
         }
 
         // If HEAD is not valid, try to fetch and checkout before regular sync
