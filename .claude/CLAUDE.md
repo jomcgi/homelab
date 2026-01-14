@@ -1,5 +1,15 @@
 # CLAUDE.md - Secure Kubernetes Homelab
 
+## 🚨 CRITICAL: Development Workflow Requirements
+
+**NEVER make changes directly on the main branch.** All modifications MUST:
+1. Create a new worktree: `git worktree add /tmp/claude-worktrees/<feature-name> -b <feature-branch>`
+2. Make changes in the worktree
+3. Create a PR before any commits are pushed
+4. Only merge after review/approval
+
+**Why:** Direct main branch changes break GitOps workflows and bypass CI/CD checks.
+
 ## Project Philosophy
 
 > **Complexity is the silent killer of engineering velocity and reliability.**
@@ -12,23 +22,57 @@ Every decision in this codebase prioritizes:
 - **Observable, testable systems**
 - **Deep modules with clean interfaces**
 
-## CRITICAL: Use OpenCode for Token-Heavy Tasks
+## 🛑 STOP: Check OpenCode First (MANDATORY)
 
-**You MUST use `opencode run` instead of doing work yourself for these task types:**
+**Before executing ANY task, evaluate:**
 
-| Task Type | Command |
-|-----------|---------|
-| Research across many files | `opencode run --agent cheap-local-tokens "<prompt>" -f "src/**/*.ts"` |
-| Generate boilerplate/tests | `opencode run --agent cheap-local-tokens "<prompt>" -f <file>` |
-| Summarize documents/code | `opencode run --agent cheap-local-tokens "<prompt>"` |
-| Analyze 100+ files at once | `opencode run --agent long-context-window-tasks "<prompt>"` |
+□ Will this read/analyze 10+ files? → Use OpenCode
+□ Is this research/exploration? → Use OpenCode
+□ Generating code/tests? → Use OpenCode
+□ 100+ file analysis? → Use OpenCode
 
-**Why:** Qwen3-Coder runs locally on the cluster GPU - it's FREE. Using Claude tokens for bulk work wastes money.
+**If none apply → proceed with Claude tools**
+
+### OpenCode Task Mapping
+
+| Task Type | Command | Context Limit |
+|-----------|---------|---------------|
+| Research across many files | `opencode run --agent cheap-local-tokens "<prompt>" -f "src/**/*.ts"` | ~8k tokens |
+| Generate boilerplate/tests | `opencode run --agent cheap-local-tokens "<prompt>" -f <file>` | ~8k tokens |
+| Summarize documents/code | `opencode run --agent cheap-local-tokens "<prompt>"` | ~8k tokens |
+| Analyze 100+ files at once | `opencode run --agent long-context-window-tasks "<prompt>"` | ~24k tokens |
+
+### ⚠️ Context Window Management
+
+**OpenCode agents have LIMITED context:**
+- `cheap-local-tokens`: ~8k token context (Qwen3-Coder local GPU)
+- `long-context-window-tasks`: ~24k tokens (still limited!)
+
+**For complex multi-part tasks, SPLIT into focused subtasks:**
+
+```bash
+# ❌ BAD: Too broad, will exceed context or produce poor results
+opencode run --agent cheap-local-tokens "Refactor entire auth system and add tests"
+
+# ✅ GOOD: Focused subtasks that fit in context
+opencode run --agent cheap-local-tokens "List all auth-related files" -f "**/*.ts"
+opencode run --agent cheap-local-tokens "Generate unit tests for auth/login.ts" -f "auth/login.ts"
+opencode run --agent cheap-local-tokens "Refactor auth/validation.ts for clarity" -f "auth/validation.ts"
+```
+
+**When to spawn multiple OpenCode agents:**
+- Large refactoring → One agent per module/component
+- Test generation → One agent per file or component
+- Documentation → One agent per service
+- Code analysis → One agent per subsystem
+
+**Why:** Qwen3-Coder runs on cluster GPU - it's FREE. Claude tokens are expensive.
 
 **When to use Claude (yourself) instead:**
 - Quick questions about current conversation context
 - Complex multi-step reasoning requiring judgment
-- Tasks that need your tool access (file editing, kubectl, etc.)
+- Tasks needing tool access (file editing, kubectl, git operations)
+- Orchestrating multiple OpenCode agents
 
 See `.claude/skills/opencode/SKILL.md` for full documentation.
 
