@@ -34,4 +34,4 @@ actions:
           # Install PROJ library for pyproj (used by geopandas/rasterio in stargazer)
           sudo apt-get update && sudo apt-get install -y libproj-dev
           bazel test //... --deleted_packages=tools/python
-      - run: bazel build //images:push_all  # Build images, don't push
+      - run: bazel build //images:push_all
