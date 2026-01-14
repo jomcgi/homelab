@@ -1,6 +1,7 @@
 
 actions:
   - name: "Test and push"
+    container_image: "ubuntu-24.04"
     triggers:
       push:
         branches:
@@ -12,8 +13,6 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # Install PROJ library for pyproj (used by geopandas/rasterio in stargazer)
-          sudo apt-get update && sudo apt-get install -y libproj-dev proj-bin
           bazel test //... --deleted_packages=tools/python
 
       - run: |
@@ -25,13 +24,11 @@ actions:
           bazel run //images:push_all
 
   - name: "Test"
+    container_image: "ubuntu-24.04"
     triggers:
       pull_request:
         branches:
           - "*"
     steps:
-      - run: |
-          # Install PROJ library for pyproj (used by geopandas/rasterio in stargazer)
-          sudo apt-get update && sudo apt-get install -y libproj-dev proj-bin
-          bazel test //... --deleted_packages=tools/python
-      - run: bazel build //images:push_all
+      - run: bazel test //... --deleted_packages=tools/python
+      - run: bazel build //images:push_all  # Build images, don't push
