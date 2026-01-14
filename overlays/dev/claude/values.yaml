@@ -1,6 +1,10 @@
 # Dev environment overrides for claude
 # Inherits defaults from charts/claude/values.yaml
 
+# Container image - managed by ArgoCD Image Updater
+image:
+  tag: "2026.01.14.01.56.24-aeceebc"
+
 # Custom repo sync (replaces git-sync sidecar)
 # Clones repo on startup and runs periodic git fetch
 # Works with git worktrees for multi-agent workflows
