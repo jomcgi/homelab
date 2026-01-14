@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "cui",
-  "short_name": "cui",
+  "name": "Claude",
+  "short_name": "Claude",
   "description": "Web interface for Claude CLI tool with real-time streaming",
   "start_url": "/",
   "scope": "/",
