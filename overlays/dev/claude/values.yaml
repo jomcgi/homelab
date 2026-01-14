@@ -3,7 +3,7 @@
 
 # Container image - managed by ArgoCD Image Updater
 image:
-  tag: "2026.01.14.02.28.24-d684611"
+  tag: "2026.01.14.04.29.23-4f254d1"
   repository: ghcr.io/jomcgi/homelab/charts/claude
 # Custom repo sync (replaces git-sync sidecar)
 # Clones repo on startup and runs periodic git fetch
