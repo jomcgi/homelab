@@ -33,6 +33,7 @@ export interface RepoSyncStatus {
   remoteHead?: string;
   isCloned: boolean;
   isSyncing: boolean;
+  consecutiveFailures: number;
 }
 
 /**
@@ -100,6 +101,7 @@ export class RepoSyncService {
       branch: config.branch || "main",
       isCloned: false,
       isSyncing: false,
+      consecutiveFailures: 0,
     });
   }
 
@@ -258,17 +260,67 @@ export class RepoSyncService {
             );
           } catch (checkoutError) {
             this.logger.error(
-              "Failed to fix invalid HEAD, repository may be corrupted",
+              "Failed to fix invalid HEAD, attempting to delete and re-clone repository",
               checkoutError,
               {
                 localPath: config.localPath,
                 branch: config.branch,
               },
             );
-            throw new Error(
-              `Repository at ${config.localPath} has invalid HEAD and could not be fixed. ` +
-                `Please delete the directory and let it be re-cloned: ${checkoutError}`,
-            );
+
+            // Repository is corrupted beyond repair, delete and re-clone
+            try {
+              this.logger.info("Deleting corrupted repository", {
+                localPath: config.localPath,
+              });
+              await fs.rm(config.localPath, { recursive: true, force: true });
+
+              this.logger.info("Re-cloning repository", {
+                url: config.url,
+                localPath: config.localPath,
+                branch: config.branch,
+              });
+
+              // Ensure parent directory exists
+              const parentDir = path.dirname(config.localPath);
+              await fs.mkdir(parentDir, { recursive: true });
+
+              // Clone with authentication
+              const cloneUrl = this.getAuthenticatedUrl(config.url);
+              await execAsync(
+                `git clone --branch "${config.branch}" "${cloneUrl}" "${config.localPath}"`,
+                {
+                  env: {
+                    ...process.env,
+                    GIT_TERMINAL_PROMPT: "0",
+                  },
+                },
+              );
+
+              // Set remote URL to non-authenticated version
+              await execAsync(`git remote set-url origin "${config.url}"`, {
+                cwd: config.localPath,
+              });
+
+              this.logger.info(
+                "Successfully re-cloned repository after corruption",
+                {
+                  localPath: config.localPath,
+                },
+              );
+            } catch (recloneError) {
+              this.logger.error(
+                "Failed to re-clone repository after corruption",
+                recloneError,
+                {
+                  localPath: config.localPath,
+                },
+              );
+              throw new Error(
+                `Repository at ${config.localPath} is corrupted and could not be re-cloned. ` +
+                  `Original error: ${checkoutError}. Re-clone error: ${recloneError}`,
+              );
+            }
           }
         }
 
@@ -345,6 +397,13 @@ export class RepoSyncService {
       return;
     }
 
+    // If we've had many consecutive failures, reduce logging frequency
+    // Log only every 10th failure after the 10th failure
+    const shouldLogError =
+      status.consecutiveFailures === 0 ||
+      status.consecutiveFailures < 10 ||
+      status.consecutiveFailures % 10 === 0;
+
     status.isSyncing = true;
 
     try {
@@ -390,7 +449,7 @@ export class RepoSyncService {
         headValid = true;
       } catch {
         // HEAD is not valid (unborn or empty repo)
-        this.logger.info("HEAD is not valid, attempting to checkout branch", {
+        this.logger.warn("HEAD is not valid, attempting to checkout branch", {
           localPath: config.localPath,
           branch: config.branch,
         });
@@ -414,14 +473,20 @@ export class RepoSyncService {
           });
         } catch (checkoutError) {
           this.logger.error(
-            "Failed to checkout branch from remote",
+            "Failed to checkout branch, repository may be corrupted. Will retry on next sync.",
             checkoutError,
             {
               localPath: config.localPath,
               branch: config.branch,
             },
           );
-          // Continue without local HEAD tracking
+
+          // Mark the repository as having a persistent error
+          status.lastFetchError =
+            "Repository has invalid HEAD and could not be fixed. " +
+            "This may resolve on next pod restart when the repository is re-initialized.";
+
+          // Continue without local HEAD tracking - don't throw to avoid crashing the service
         }
       }
 
@@ -443,6 +508,7 @@ export class RepoSyncService {
       status.remoteHead = remoteResult.stdout.trim();
       status.lastFetchTime = new Date();
       status.lastFetchError = undefined;
+      status.consecutiveFailures = 0; // Reset on success
 
       // Log sync status
       if (!status.localHead) {
@@ -466,9 +532,15 @@ export class RepoSyncService {
       const errorMessage =
         error instanceof Error ? error.message : String(error);
       status.lastFetchError = errorMessage;
-      this.logger.error("Failed to fetch from remote", error, {
-        localPath: config.localPath,
-      });
+      status.consecutiveFailures++;
+
+      // Only log errors periodically to avoid log spam
+      if (shouldLogError) {
+        this.logger.error("Failed to fetch from remote", error, {
+          localPath: config.localPath,
+          consecutiveFailures: status.consecutiveFailures,
+        });
+      }
     } finally {
       status.isSyncing = false;
     }
