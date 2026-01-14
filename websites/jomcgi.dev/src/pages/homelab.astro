@@ -256,6 +256,7 @@ const claudeCodeDiagram = `flowchart LR
 
         .deep-dive {
             margin-bottom: 80px;
+            scroll-margin-top: 40px;
         }
 
         .deep-dive-header {
@@ -329,6 +330,20 @@ const claudeCodeDiagram = `flowchart LR
             height: auto;
         }
 
+        .mermaid svg .edgeLabel {
+            background-color: var(--bg) !important;
+        }
+
+        .mermaid svg .edgeLabel rect {
+            fill: var(--bg) !important;
+            opacity: 1 !important;
+        }
+
+        .mermaid svg .cluster rect {
+            stroke: #888 !important;
+            stroke-dasharray: 5 5 !important;
+        }
+
         .execution {
             margin-top: 25px;
         }
@@ -387,8 +402,7 @@ const claudeCodeDiagram = `flowchart LR
 
         .subsection {
             margin: 40px 0;
-            padding-left: 20px;
-            border-left: 3px solid var(--fg);
+            scroll-margin-top: 40px;
         }
 
         .subsection-header {
@@ -560,9 +574,8 @@ const claudeCodeDiagram = `flowchart LR
             <div class="motivation">
                 <div class="motivation-label">Motivation</div>
                 <div class="motivation-text">
-                    Road tripping through the Yukon in winter, I wanted to capture the journey without distraction.
-                    A GoPro mounted on the dash shoots automatically. Images flow through my homelab to a web interface
-                    where friends can follow along live or replay the trip later. The complete pipeline: camera → processing → delivery → display.
+                    I wanted an easy way to share trips with friends and family. A GoPro on the dash captures photos automatically,
+                    and my homelab turns them into a live feed they can follow along with - or replay later. Works for anything with GPS-tagged photos.
                 </div>
             </div>
 
@@ -841,6 +854,10 @@ transitions:
                     fontSize: '12px',
                     background: 'transparent',
                     mainBkg: 'transparent',
+                    edgeLabelBackground: isDark ? '#000' : '#fff',
+                    tertiaryColor: isDark ? '#000' : '#fff',
+                    clusterBkg: 'transparent',
+                    clusterBorder: '#888',
                 }
             };
         }
@@ -873,6 +890,42 @@ transitions:
         observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
 
         renderMermaidDiagrams();
+    </script>
+
+    <script is:inline>
+        // Keyboard navigation: H/L to jump between sections (vim-style)
+        (function() {
+            function getAnchors() {
+                return Array.from(document.querySelectorAll('section.deep-dive[id], .subsection'));
+            }
+
+            function getCurrentIndex(anchors) {
+                const scrollY = window.scrollY + 100;
+                for (let i = anchors.length - 1; i >= 0; i--) {
+                    if (anchors[i].offsetTop <= scrollY) return i;
+                }
+                return 0;
+            }
+
+            document.addEventListener('keydown', (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+                const anchors = getAnchors();
+                if (!anchors.length) return;
+
+                const current = getCurrentIndex(anchors);
+
+                if (e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    const next = Math.min(current + 1, anchors.length - 1);
+                    anchors[next].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    const prev = Math.max(current - 1, 0);
+                    anchors[prev].scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        })();
     </script>
 </body>
 </html>
