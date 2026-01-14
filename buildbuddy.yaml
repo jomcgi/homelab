@@ -2,7 +2,6 @@
 actions:
   - name: "Test and push"
     container_image: "ubuntu-24.04"
-    # Claude image includes build-base (gcc), helm, nodejs, bazelisk - needs more disk
     resource_requests:
       disk: "50GB"
     triggers:
