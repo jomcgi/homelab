@@ -9,6 +9,8 @@ common --noexperimental_merged_skyframe_analysis_execution
 
 # also see: https://blog.aspect.build/configuring-bazels-downloader
 common --downloader_config=tools/downloader.cfg
+# Scale HTTP timeouts for better reliability with slow connections
+common --http_timeout_scaling=2.0
 # for speed, passes an argument `--skipLibCheck` to *every* spawn of tsc
 common --@aspect_rules_ts//ts:skipLibCheck=always
 # use `tsc` for transpiling, even though it's slow.
