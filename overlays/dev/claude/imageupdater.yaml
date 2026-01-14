@@ -23,4 +23,4 @@ spec:
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:overlays/dev/claude/values.yaml
+      writeBackTarget: helmvalues:../../overlays/dev/claude/values.yaml

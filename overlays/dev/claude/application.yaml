@@ -3,15 +3,8 @@ kind: Application
 metadata:
   name: claude
   namespace: argocd
-  annotations:
-    # ArgoCD Image Updater configuration
-    # Track the Claude image and update on new builds from main
-    argocd-image-updater.argoproj.io/image-list: claude=ghcr.io/jomcgi/homelab/charts/claude
-    argocd-image-updater.argoproj.io/claude.update-strategy: newest-build
-    argocd-image-updater.argoproj.io/claude.allow-tags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
-    argocd-image-updater.argoproj.io/claude.helm.image-name: image.repository
-    argocd-image-updater.argoproj.io/claude.helm.image-tag: image.tag
-    argocd-image-updater.argoproj.io/write-back-method: argocd
+  # Image updates are managed by the ImageUpdater CRD in imageupdater.yaml
+  annotations: {}
 spec:
   project: default
   source:
