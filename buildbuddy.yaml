@@ -1,0 +1,32 @@
+
+actions:
+  - name: "Test and push"
+    triggers:
+      push:
+        branches:
+          - "main"
+    steps:
+      - run: |
+          # Skip if commit is from argocd-image-updater
+          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+            echo "Skipping argocd-image-updater commit"
+            exit 0
+          fi
+          bazel test //... --deleted_packages=tools/python
+
+      - run: |
+          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+            exit 0
+          fi
+          # GHCR_TOKEN set in BuildBuddy Settings → Secrets
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
+          bazel run //images:push_all
+
+  - name: "Test"
+    triggers:
+      pull_request:
+        branches:
+          - "*"
+    steps:
+      - run: bazel test //... --deleted_packages=tools/python
+      - run: bazel build //images:push_all  # Build images, don't push
