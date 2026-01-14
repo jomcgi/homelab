@@ -5,7 +5,7 @@
   "model": "google/gemini-3-flash-preview",
 
   // Smaller model for lightweight tasks (title generation, summaries)
-  "small_model": "Qwen3 Coder 30B",
+  "small_model": "vllm/cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
 
   // Username shown in conversation (optional)
   "username": "jomcgi",
