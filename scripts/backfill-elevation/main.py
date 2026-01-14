@@ -37,9 +37,7 @@ from rich.progress import (
 )
 from rich.console import Console
 
-# Add parent directory to path for elevation module
-sys.path.insert(0, str(Path(__file__).parent.parent))
-from elevation import ElevationClient
+from scripts.elevation import ElevationClient, ElevationCache
 
 # Configuration
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
@@ -299,8 +297,6 @@ def backfill(
 @app.command()
 def cache_stats() -> None:
     """Show elevation cache statistics."""
-    from elevation import ElevationCache
-
     cache = ElevationCache()
     stats = cache.stats()
 

@@ -1,31 +1,27 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 
+py_binary(
+    name = "main",
+    srcs = ["main.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//scripts/elevation",
+        "@pip//nats_py",
+        "@pip//rich",
+        "@pip//typer",
+    ],
+)
+
 py_library(
-    name = "publish-trip-images",
+    name = "backfill-elevation",
     srcs = [
         "__init__.py",
         "main.py",
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        "@pip//boto3",
-        "@pip//botocore",
+        "//scripts/elevation",
         "@pip//nats_py",
-        "@pip//pillow",
-        "@pip//rich",
-        "@pip//typer",
-    ],
-)
-
-py_binary(
-    name = "main",
-    srcs = ["main.py"],
-    visibility = ["//:__subpackages__"],
-    deps = [
-        "@pip//boto3",
-        "@pip//botocore",
-        "@pip//nats_py",
-        "@pip//pillow",
         "@pip//rich",
         "@pip//typer",
     ],

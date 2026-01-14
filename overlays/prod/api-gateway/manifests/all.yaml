@@ -96,9 +96,11 @@ data:
     # Fallback to empty array if no pods
     [ -z "$POD_JSON" ] && POD_JSON="[]"
 
-    # Get ArgoCD app-of-apps status (canada)
+    # Get ArgoCD app-of-apps status (canada) for overall sync status
     ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
     ARGO_REVISION=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.revision}' 2>/dev/null | cut -c1-7 || echo "")
+    # Get the most recent sync time from ALL ArgoCD applications (not just app-of-apps)
+    ARGO_SYNCED_AT=$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.status.operationState.finishedAt}{"\n"}{end}' 2>/dev/null | sort -r | head -1 || echo "")
 
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -112,8 +114,15 @@ data:
       GPU_FIELDS=$GPU_FIELDS',"vram":{"used":'$VRAM_USED',"total":'$VRAM_TOTAL'}'
     fi
 
-    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":%s,"gitops":{"status":"%s","revision":"%s"}%s}\n' \
-      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$POD_JSON" "$ARGO_STATUS" "$ARGO_REVISION" "$GPU_FIELDS" > "$TEMP_FILE"
+    # Build gitops JSON with optional syncedAt
+    GITOPS_JSON='{"status":"'"$ARGO_STATUS"'","revision":"'"$ARGO_REVISION"'"'
+    if [ -n "$ARGO_SYNCED_AT" ]; then
+      GITOPS_JSON=$GITOPS_JSON',"syncedAt":"'"$ARGO_SYNCED_AT"'"'
+    fi
+    GITOPS_JSON=$GITOPS_JSON'}'
+
+    printf '{"updated_at":"%s","nodes":{"cp":{"total":%s,"ready":%s},"gpu":{"total":%s,"ready":%s}},"cpu":%s,"mem":{"used":%s,"total":%s},"pods":%s,"gitops":%s%s}\n' \
+      "$TIMESTAMP" "$CP_TOTAL" "$CP_READY" "$GPU_TOTAL" "$GPU_READY" "$CPU_AVG" "$MEM_USED_GB" "$MEM_TOTAL_GB" "$POD_JSON" "$GITOPS_JSON" "$GPU_FIELDS" > "$TEMP_FILE"
 
     # Atomic move
     mv "$TEMP_FILE" "$OUTPUT_FILE"
@@ -181,21 +190,25 @@ data:
             }
 
             # Cluster info endpoint - serve static JSON
+            # CDN caching: fresh for 30s, serve stale up to 5min while revalidating
+            # This ensures brief origin outages don't show UNREACHABLE to users
             location = /cluster-info {
                 alias /data/status.json;
                 default_type application/json;
-                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Cache-Control "public, s-maxage=30, stale-while-revalidate=300" always;
                 add_header Access-Control-Allow-Origin $cors_origin always;
                 add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+                add_header Access-Control-Max-Age "86400" always;
             }
 
             # Legacy endpoint for backwards compatibility
             location = /status.json {
                 alias /data/status.json;
                 default_type application/json;
-                add_header Cache-Control "no-cache, no-store, must-revalidate";
+                add_header Cache-Control "public, s-maxage=30, stale-while-revalidate=300" always;
                 add_header Access-Control-Allow-Origin $cors_origin always;
                 add_header Access-Control-Allow-Methods "GET, OPTIONS" always;
+                add_header Access-Control-Max-Age "86400" always;
             }
 
             # Trips API - proxy to trips-nginx (keep /trips/ prefix)
@@ -319,8 +332,8 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/nginx-config: bf461882832bd148aecf7851c5502bccc58b4219fa8fef6cb81b6fde3e09c118
-        checksum/collector-config: ac3aea480bbd3b7edb428bcc96e2890b44aa56b907cb66b44abf6a96704798fc
+        checksum/nginx-config: 4b5f9d467c388502fb5f99e7e90683cad0b995b3e20becbf26c71f012d75a514
+        checksum/collector-config: d3187019a8acac2b2460628f02686505f2d28c10950d9363a90659af9cc06ad8
       labels:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/instance: api-gateway
@@ -362,7 +375,6 @@ spec:
               drop: [ALL]
           resources:
             limits:
-              cpu: 50m
               memory: 256Mi
             requests:
               cpu: 50m
@@ -418,7 +430,7 @@ spec:
             - |
               while true; do
                 /scripts/collect.sh
-                sleep 5
+                sleep 30
               done
           volumeMounts:
             - name: data
@@ -434,7 +446,6 @@ spec:
               drop: [ALL]
           resources:
             limits:
-              cpu: 50m
               memory: 256Mi
             requests:
               cpu: 50m
