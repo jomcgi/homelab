@@ -2,6 +2,8 @@
 actions:
   - name: "Test and push"
     container_image: "ubuntu-24.04"
+    resource_requests:
+      disk: "50GB"
     triggers:
       push:
         branches:
@@ -25,6 +27,8 @@ actions:
 
   - name: "Test"
     container_image: "ubuntu-24.04"
+    resource_requests:
+      disk: "50GB"
     triggers:
       pull_request:
         branches:
