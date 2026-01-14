@@ -12,6 +12,26 @@ Every decision in this codebase prioritizes:
 - **Observable, testable systems**
 - **Deep modules with clean interfaces**
 
+## CRITICAL: Use OpenCode for Token-Heavy Tasks
+
+**You MUST use `opencode run` instead of doing work yourself for these task types:**
+
+| Task Type | Command |
+|-----------|---------|
+| Research across many files | `opencode run --agent cheap-local-tokens "<prompt>" -f "src/**/*.ts"` |
+| Generate boilerplate/tests | `opencode run --agent cheap-local-tokens "<prompt>" -f <file>` |
+| Summarize documents/code | `opencode run --agent cheap-local-tokens "<prompt>"` |
+| Analyze 100+ files at once | `opencode run --agent long-context-window-tasks "<prompt>"` |
+
+**Why:** Qwen3-Coder runs locally on the cluster GPU - it's FREE. Using Claude tokens for bulk work wastes money.
+
+**When to use Claude (yourself) instead:**
+- Quick questions about current conversation context
+- Complex multi-step reasoning requiring judgment
+- Tasks that need your tool access (file editing, kubectl, etc.)
+
+See `.claude/skills/opencode/SKILL.md` for full documentation.
+
 ## Architecture Overview
 
 This is a **security-first Kubernetes homelab** running K3s, designed for:
