@@ -1,0 +1,878 @@
+---
+import MermaidDiagram from '../components/homelab/MermaidDiagram.astro';
+
+const sextantDiagram = `flowchart LR
+    YAML[YAML Schema]
+    Parse[Parse & Validate]
+    Gen[Code Generator]
+    Types[types.go]
+    Trans[transitions.go]
+    Metrics[metrics.go]
+    Status[status.go]
+
+    YAML --> Parse --> Gen
+    Gen --> Types
+    Gen --> Trans
+    Gen --> Metrics
+    Gen --> Status
+
+    style YAML fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Parse fill:#ffa502,stroke:#ffa502,color:#fff
+    style Gen fill:#ffd93d,stroke:#ffd93d,color:#000
+    style Types fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Trans fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Metrics fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style Status fill:#e056fd,stroke:#e056fd,color:#fff`;
+
+const cloudflareDiagram = `flowchart LR
+    Deploy[Deployment]
+    Watch[Operator Watch]
+    DNS[DNS Record]
+    ZT[Zero Trust App]
+    Config[Tunnel Config]
+    CF[(Cloudflare)]
+
+    Deploy -->|Annotations| Watch
+    Watch --> DNS
+    Watch --> ZT
+    Watch --> Config
+    DNS --> CF
+    ZT --> CF
+    Config --> CF
+
+    style Deploy fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Watch fill:#ffa502,stroke:#ffa502,color:#fff
+    style DNS fill:#ffd93d,stroke:#ffd93d,color:#000
+    style ZT fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Config fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style CF fill:#9b59b6,stroke:#9b59b6,color:#fff`;
+
+const tripsPipelineDiagram = `flowchart LR
+    subgraph Capture
+        GoPro[GoPro Hero]
+        Queue[(SQLite)]
+    end
+
+    subgraph Process
+        EXIF[EXIF + GPS]
+        S3[(SeaweedFS)]
+        NATS[(NATS JetStream)]
+    end
+
+    subgraph Deliver
+        Proxy[imgproxy]
+        CDN[Cloudflare CDN]
+    end
+
+    subgraph Display
+        UI[trips.jomcgi.dev]
+    end
+
+    GoPro -->|27MP| Queue
+    Queue --> EXIF
+    EXIF -->|Images| S3
+    EXIF -->|Events| NATS
+    S3 --> Proxy
+    Proxy --> CDN
+    CDN --> UI
+    NATS -->|WebSocket| UI
+
+    style GoPro fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Queue fill:#ffa502,stroke:#ffa502,color:#fff
+    style EXIF fill:#ffd93d,stroke:#ffd93d,color:#000
+    style S3 fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style NATS fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Proxy fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style CDN fill:#e056fd,stroke:#e056fd,color:#fff
+    style UI fill:#ff6b6b,stroke:#ff6b6b,color:#fff`;
+
+const stargazerDiagram = `flowchart TB
+    subgraph Acquire
+        LP[Light Pollution Atlas]
+        Roads[OSM Road Network]
+        Elev[SRTM Elevation]
+        Weather[MET Norway API]
+    end
+
+    subgraph Process
+        Dark[Dark Region Extract]
+        Buffer[Road Buffering]
+        Zones[Zone Classification]
+    end
+
+    subgraph Score
+        Cloud[Cloud Cover]
+        Humid[Humidity]
+        Wind[Wind Speed]
+        Final[Final Score]
+    end
+
+    LP --> Dark
+    Roads --> Buffer
+    Elev --> Zones
+    Dark --> Final
+    Buffer --> Final
+    Zones --> Final
+    Weather --> Cloud --> Final
+    Weather --> Humid --> Final
+    Weather --> Wind --> Final
+
+    style LP fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Roads fill:#ffa502,stroke:#ffa502,color:#fff
+    style Elev fill:#ffd93d,stroke:#ffd93d,color:#000
+    style Weather fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Dark fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Buffer fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style Zones fill:#e056fd,stroke:#e056fd,color:#fff
+    style Cloud fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Humid fill:#ffa502,stroke:#ffa502,color:#fff
+    style Wind fill:#ffd93d,stroke:#ffd93d,color:#000
+    style Final fill:#6bcb77,stroke:#6bcb77,color:#fff`;
+
+const claudeCodeDiagram = `flowchart LR
+    subgraph Browser
+        UI[claude.jomcgi.dev]
+    end
+
+    subgraph Cluster
+        Web[Claude Code Web]
+        vLLM[vLLM Server]
+        SigNoz[(SigNoz MCP)]
+        K8s[(Kubernetes API)]
+    end
+
+    subgraph External
+        Claude[Claude API]
+    end
+
+    UI --> Web
+    Web -->|Complex tasks| Claude
+    Web -->|Code tasks| vLLM
+    Web -->|Logs & Traces| SigNoz
+    Web -->|Pod status| K8s
+
+    style UI fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Web fill:#ffa502,stroke:#ffa502,color:#fff
+    style vLLM fill:#ffd93d,stroke:#ffd93d,color:#000
+    style SigNoz fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style K8s fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Claude fill:#9b59b6,stroke:#9b59b6,color:#fff`;
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>Homelab Engineering | jomcgi</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 14px;
+            line-height: 1.6;
+            background: var(--bg);
+            color: var(--fg);
+            --bg: #fff;
+            --fg: #000;
+        }
+
+        body.dark {
+            --bg: #000;
+            --fg: #fff;
+        }
+
+        a {
+            color: var(--fg);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            margin-bottom: 60px;
+            padding-bottom: 30px;
+            border-bottom: 2px solid var(--fg);
+        }
+
+        .header-top {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .back-link {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-decoration: none;
+            opacity: 0.7;
+        }
+
+        .back-link:hover {
+            opacity: 1;
+        }
+
+        .toggle-btn {
+            background: transparent;
+            color: var(--fg);
+            border: 2px solid var(--fg);
+            padding: 6px 12px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer;
+        }
+
+        .toggle-btn:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        h1 {
+            font-size: 28px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            margin-bottom: 15px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            opacity: 0.7;
+            max-width: 600px;
+        }
+
+        .deep-dive {
+            margin-bottom: 80px;
+        }
+
+        .deep-dive-header {
+            display: flex;
+            align-items: baseline;
+            gap: 15px;
+            margin-bottom: 25px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid var(--fg);
+        }
+
+        .deep-dive-number {
+            font-size: 11px;
+            opacity: 0.5;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        h2 {
+            font-size: 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+        }
+
+        h3 {
+            font-size: 14px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin: 30px 0 15px 0;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        .motivation {
+            background: var(--fg);
+            color: var(--bg);
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+
+        .motivation-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.7;
+            margin-bottom: 8px;
+        }
+
+        .motivation-text {
+            font-size: 15px;
+            line-height: 1.5;
+        }
+
+        .diagram-container {
+            margin: 25px 0;
+            padding: 30px;
+            border: 2px solid var(--fg);
+            background: var(--bg);
+            overflow-x: auto;
+        }
+
+        .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
+
+        .execution {
+            margin-top: 25px;
+        }
+
+        .execution-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.5;
+            margin-bottom: 15px;
+        }
+
+        .execution-grid {
+            display: grid;
+            grid-template-columns: 140px 1fr;
+            gap: 0;
+            border: 2px solid var(--fg);
+        }
+
+        .execution-row {
+            display: contents;
+        }
+
+        .execution-key {
+            padding: 12px 15px;
+            font-weight: 700;
+            font-size: 12px;
+            border-bottom: 1px solid var(--fg);
+            border-right: 2px solid var(--fg);
+            background: var(--bg);
+        }
+
+        .execution-value {
+            padding: 12px 15px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--fg);
+        }
+
+        .execution-row:last-child .execution-key,
+        .execution-row:last-child .execution-value {
+            border-bottom: none;
+        }
+
+        pre {
+            border: 2px solid var(--fg);
+            padding: 15px;
+            font-size: 12px;
+            overflow-x: auto;
+            margin: 20px 0;
+            background: var(--bg);
+        }
+
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .subsection {
+            margin: 40px 0;
+            padding-left: 20px;
+            border-left: 3px solid var(--fg);
+        }
+
+        .subsection-header {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 15px;
+            opacity: 0.7;
+        }
+
+        .live-link {
+            display: inline-block;
+            margin-top: 20px;
+            padding: 10px 20px;
+            border: 2px solid var(--fg);
+            text-decoration: none;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .live-link:hover {
+            background: var(--fg);
+            color: var(--bg);
+        }
+
+        footer {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 2px solid var(--fg);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-links {
+            display: flex;
+            gap: 20px;
+        }
+
+        .footer-links a {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            text-decoration: none;
+            opacity: 0.7;
+        }
+
+        .footer-links a:hover {
+            opacity: 1;
+        }
+
+        @media (max-width: 600px) {
+            .execution-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .execution-key {
+                border-right: none;
+                border-bottom: 1px solid var(--fg);
+                background: var(--fg);
+                color: var(--bg);
+            }
+
+            .execution-row:last-child .execution-key {
+                border-bottom: 1px solid var(--fg);
+            }
+
+            .header-top {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+
+            .subsection {
+                padding-left: 15px;
+            }
+        }
+    </style>
+    <script is:inline>
+        // Dark mode: check localStorage first, then system preference
+        (function() {
+            const stored = localStorage.getItem('darkMode');
+            if (stored === 'true') {
+                document.documentElement.classList.add('dark-pending');
+            } else if (stored === 'false') {
+                // Explicitly light mode
+            } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                document.documentElement.classList.add('dark-pending');
+            }
+        })();
+    </script>
+</head>
+<body>
+    <script is:inline>
+        // Apply dark mode immediately to avoid flash
+        if (document.documentElement.classList.contains('dark-pending')) {
+            document.body.classList.add('dark');
+            document.documentElement.classList.remove('dark-pending');
+        }
+
+        window.toggleDarkMode = function() {
+            document.body.classList.toggle('dark');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark'));
+        };
+    </script>
+    <div class="container">
+        <header>
+            <div class="header-top">
+                <a href="/" class="back-link">&larr; jomcgi.dev</a>
+                <button class="toggle-btn" onclick="toggleDarkMode()">INVERT</button>
+            </div>
+            <h1>Engineering Notes</h1>
+            <p class="subtitle">Deep dives into interesting problems I've solved. Each section covers the motivation and execution.</p>
+        </header>
+
+        <!-- Deep Dive 1: Claude Code Web -->
+        <section class="deep-dive" id="claude-code">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">01</span>
+                <h2>Claude Code Web: In-Cluster AI Assistant</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    I wanted a coding assistant that could see what's actually happening in my cluster—read logs,
+                    check pod status, query traces—without me having to copy-paste context. Running Claude Code
+                    in-cluster with MCP servers gives it direct access. A local vLLM instance handles simpler
+                    tasks without external API calls.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={claudeCodeDiagram} id="claude-code" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">vLLM In-Cluster</div>
+                        <div class="execution-value">Qwen3-Coder-30B on a 4090. AWQ 4-bit quantization fits in 24GB VRAM. 24k context window. Fast inference for code completion and simple tasks.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Model Routing</div>
+                        <div class="execution-value">Claude for complex reasoning and architecture decisions. Local vLLM for code generation, refactoring, and directed tasks. Dramatically lower API costs.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">SigNoz MCP</div>
+                        <div class="execution-value">Direct access to logs, traces, and metrics. "Why is this pod crashlooping?" becomes answerable without leaving the conversation.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Cluster Context</div>
+                        <div class="execution-value">Read-only Kubernetes API access. Check deployment status, resource usage, recent events. The assistant knows what's running and what's broken.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deep Dive 2: Trips - Camera to Browser -->
+        <section class="deep-dive" id="trips">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">02</span>
+                <h2>Trips: Camera to Browser</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Road tripping through the Yukon in winter, I wanted to capture the journey without distraction.
+                    A GoPro mounted on the dash shoots automatically. Images flow through my homelab to a web interface
+                    where friends can follow along live or replay the trip later. The complete pipeline: camera → processing → delivery → display.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={tripsPipelineDiagram} id="trips" />
+            </div>
+
+            <a href="https://trips.jomcgi.dev" target="_blank" class="live-link">View Live at trips.jomcgi.dev →</a>
+
+            <!-- Subsection A: Capture -->
+            <div class="subsection">
+                <div class="subsection-header">A. Capture</div>
+                <p>The GoPro shoots on interval while driving. A Python controller manages the camera over WiFi, handling connection drops and queueing downloads for later.</p>
+
+                <div class="execution">
+                    <div class="execution-grid">
+                        <div class="execution-row">
+                            <div class="execution-key">Async Camera</div>
+                            <div class="execution-value">Python asyncio controller. GPS-triggered capture at configurable intervals. 27MP RAW with JPG fallback when storage is tight.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">SQLite Queue</div>
+                            <div class="execution-value">Persistent download queue survives restarts. Exponential backoff on WiFi drops. Resume exactly where we left off.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">EXIF Extraction</div>
+                            <div class="execution-value">Camera optics preserved: ISO, aperture, shutter speed, focal length. GPS coordinates embedded. Deterministic UUIDs from content hash.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subsection B: Event Store -->
+            <div class="subsection">
+                <div class="subsection-header">B. Event Store</div>
+                <p>Trip points are events in NATS JetStream. The API replays the stream on startup to rebuild state. No database needed—just an append-only log.</p>
+
+                <div class="execution">
+                    <div class="execution-grid">
+                        <div class="execution-row">
+                            <div class="execution-key">Stream Replay</div>
+                            <div class="execution-value">On startup, ephemeral consumer replays entire stream. Rebuilds in-memory cache from event history. ~200ms for 10k events.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">Live Subscribe</div>
+                            <div class="execution-value">After replay, durable consumer subscribes to new events. Cache stays current. Multiple API pods can subscribe without conflicts.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">Tombstones</div>
+                            <div class="execution-value">Deletions are events too. Tombstone message marks a point as deleted. Replay respects tombstones. No orphaned data.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subsection C: Delivery -->
+            <div class="subsection">
+                <div class="subsection-header">C. Delivery</div>
+                <p>GoPro images are 27MB each. imgproxy generates thumbnails and display sizes on-the-fly. Cloudflare CDN caches everything at the edge—most requests never hit my homelab.</p>
+
+                <div class="execution">
+                    <div class="execution-grid">
+                        <div class="execution-row">
+                            <div class="execution-key">Deterministic Keys</div>
+                            <div class="execution-value">UUID v5 from namespace + content hash. Same image always gets same key. Idempotent uploads. No duplicates ever.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">imgproxy</div>
+                            <div class="execution-value">On-the-fly resizing from SeaweedFS. /thumb/* → 300px, /display/* → 1920x1080. WebP/AVIF based on Accept header.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">Cloudflare CDN</div>
+                            <div class="execution-value">Immutable cache-control headers. Content-addressed keys mean cache invalidation is never needed. Edge-cached globally.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Subsection D: Display -->
+            <div class="subsection">
+                <div class="subsection-header">D. Display</div>
+                <p>The web interface at trips.jomcgi.dev shows the route on a map, photos by day, elevation profiles, and trip statistics. WebSocket connection for live updates during active trips.</p>
+
+                <div class="execution">
+                    <div class="execution-grid">
+                        <div class="execution-row">
+                            <div class="execution-key">MapLibre</div>
+                            <div class="execution-value">Vector tiles with terrain hillshade. Route colored by day with offset calculations for overlapping paths. Smooth animations between points.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">Live Updates</div>
+                            <div class="execution-value">WebSocket broadcasts new points as they arrive. Viewer count tracking. Follow along in real-time during active trips.</div>
+                        </div>
+                        <div class="execution-row">
+                            <div class="execution-key">Day-by-Day</div>
+                            <div class="execution-value">Distance sparklines, elevation profiles, photo galleries per day. Rainbow route coloring shows progression through the journey.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deep Dive 3: Sextant -->
+        <section class="deep-dive" id="sextant">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">03</span>
+                <h2>Sextant: Type-Safe Operator State Machines</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Kubernetes operators are state machines, but we write them as imperative reconciliation loops.
+                    Every operator I wrote had the same bugs: invalid state transitions, forgotten error handling,
+                    missing metrics. I wanted to define the state machine declaratively and generate the boilerplate.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={sextantDiagram} id="sextant" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">States as Types</div>
+                        <div class="execution-value">Each state becomes a Go struct. Transitions are methods that return the next state type. The compiler catches invalid transitions.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Idempotency</div>
+                        <div class="execution-value">Transition methods require request IDs as parameters. Forces correct ordering: call external API → get ID → transition → persist.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Guard Conditions</div>
+                        <div class="execution-value">Custom Go expressions embedded in YAML. Evaluated at transition time. Invalid expressions fail at compile time, not runtime.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Generated Metrics</div>
+                        <div class="execution-value">Prometheus counters, histograms, and gauges. state_duration_seconds for SLO measurement. Automatic cleanup on resource deletion.</div>
+                    </div>
+                </div>
+            </div>
+
+            <pre><code>states:
+  - name: Pending
+    initial: true
+  - name: Creating
+    fields:
+      requestID: string
+  - name: Ready
+    terminal: true
+
+transitions:
+  - from: Pending
+    to: Creating
+    action: StartCreation
+    params:
+      - requestID: string</code></pre>
+        </section>
+
+        <!-- Deep Dive 4: Cloudflare Operator -->
+        <section class="deep-dive" id="cloudflare-operator">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">04</span>
+                <h2>Cloudflare Operator</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Every new service meant clicking through the Cloudflare dashboard: create DNS record, create Zero Trust
+                    application, update tunnel config. I wanted to annotate a Deployment and have everything provisioned
+                    automatically. Zero Trust ingress without the toil.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={cloudflareDiagram} id="cloudflare" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">Annotation-Driven</div>
+                        <div class="execution-value">cloudflare.ingress.hostname and cloudflare.zero-trust.policy annotations trigger reconciliation. No CRDs to manage.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">State Machine</div>
+                        <div class="execution-value">Built with Sextant. States: Pending → CreatingDNS → CreatingZTApp → UpdatingConfig → Ready. Each step idempotent.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Finalizers</div>
+                        <div class="execution-value">Cleanup on Deployment deletion. DNS records, ZT apps, and tunnel routes removed. No orphaned Cloudflare resources.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Drift Detection</div>
+                        <div class="execution-value">Periodic reconciliation detects manual Cloudflare changes. Operator is source of truth. Dashboard edits get reverted.</div>
+                    </div>
+                </div>
+            </div>
+
+            <pre><code>metadata:
+  annotations:
+    cloudflare.ingress.hostname: myapp.jomcgi.dev
+    cloudflare.zero-trust.policy: joe-only</code></pre>
+        </section>
+
+        <!-- Deep Dive 5: Stargazer -->
+        <section class="deep-dive" id="stargazer">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">05</span>
+                <h2>Stargazer: Dark Sky Location Finder</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Finding good stargazing spots requires combining multiple data sources: light pollution maps, road
+                    access, elevation for horizon clearance, and weather forecasts. I built a pipeline that scores
+                    locations based on all these factors and updates continuously.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={stargazerDiagram} id="stargazer" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">16-Task DAG</div>
+                        <div class="execution-value">Parallel acquisition of light pollution atlas, OSM roads, SRTM elevation, and MET Norway weather. Tasks scheduled by dependency.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Spatial Analysis</div>
+                        <div class="execution-value">Dark region extraction from light pollution raster. Road network buffering for accessibility. Zone classification by sky quality.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Weather Scoring</div>
+                        <div class="execution-value">Cloud cover, humidity, fog probability, wind speed, dew point. Configurable weights. Updated hourly from forecast API.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Final Score</div>
+                        <div class="execution-value">Composite score 0-100. Factors: darkness (40%), accessibility (20%), horizon (15%), weather (25%). Filterable by threshold.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <div class="footer-links">
+                <a href="https://github.com/jomcgi/homelab" target="_blank">GitHub</a>
+                <a href="/">Home</a>
+                <a href="mailto:joe@jomcgi.dev">Contact</a>
+            </div>
+            <span style="font-size: 11px; opacity: 0.5;">Last updated: January 2025</span>
+        </footer>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+
+        function getMermaidConfig() {
+            const isDark = document.body.classList.contains('dark');
+            return {
+                theme: 'base',
+                themeVariables: {
+                    primaryColor: 'transparent',
+                    primaryBorderColor: isDark ? '#fff' : '#000',
+                    primaryTextColor: isDark ? '#fff' : '#000',
+                    lineColor: isDark ? '#fff' : '#000',
+                    fontFamily: "'Courier New', Courier, monospace",
+                    fontSize: '12px',
+                    background: 'transparent',
+                    mainBkg: 'transparent',
+                }
+            };
+        }
+
+        async function renderMermaidDiagrams() {
+            mermaid.initialize({
+                startOnLoad: false,
+                ...getMermaidConfig()
+            });
+
+            const diagrams = document.querySelectorAll('.mermaid');
+            for (const diagram of diagrams) {
+                const id = diagram.id || `mermaid-${Date.now()}`;
+                const encodedDiagram = diagram.dataset.diagram;
+                const graphDefinition = encodedDiagram
+                    ? atob(encodedDiagram)
+                    : (diagram.textContent || diagram.innerText);
+
+                try {
+                    const renderId = `${id}-${Date.now()}`;
+                    const { svg } = await mermaid.render(renderId, graphDefinition);
+                    diagram.innerHTML = svg;
+                } catch (error) {
+                    console.error('Mermaid rendering error:', error);
+                }
+            }
+        }
+
+        const observer = new MutationObserver(() => renderMermaidDiagrams());
+        observer.observe(document.body, { attributes: true, attributeFilter: ['class'] });
+
+        renderMermaidDiagrams();
+    </script>
+</body>
+</html>
