@@ -196,3 +196,8 @@ statefulset:
   enabled: false
   # Pod management policy (Parallel = faster scaling)
   podManagementPolicy: Parallel
+
+## Leader election configuration for HA deployments
+leaderElection:
+  # Enable leader election for multi-replica deployments
+  enabled: false
