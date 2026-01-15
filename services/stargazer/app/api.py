@@ -39,7 +39,10 @@ class StargazerAPIHandler(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
-        status = {"status": "healthy", "timestamp": datetime.now(timezone.utc).isoformat()}
+        status = {
+            "status": "healthy",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
         self.wfile.write(json.dumps(status).encode())
 
     def send_locations(self):
@@ -96,21 +99,41 @@ class StargazerAPIHandler(BaseHTTPRequestHandler):
                     # Find best scoring hour
                     best_hour = max(location["hours"], key=lambda h: h.get("score", 0))
 
-                transformed.append({
-                    "id": location.get("id", f"loc_{location.get('lat', 0)}_{location.get('lon', 0)}"),
-                    "name": location.get("name", f"Location {location.get('lat', 0):.2f}, {location.get('lon', 0):.2f}"),
-                    "lat": location.get("coordinates", {}).get("lat") or location.get("lat", 0),
-                    "lon": location.get("coordinates", {}).get("lon") or location.get("lon", 0),
-                    "altitude_m": location.get("altitude_m", 0),
-                    "lp_zone": location.get("lp_zone", "unknown"),
-                    "score": best_hour.get("score", 0) if best_hour else 0,
-                    "cloud_cover": best_hour.get("cloud_area_fraction", 0) if best_hour else 100,
-                    "humidity": best_hour.get("relative_humidity", 0) if best_hour else 100,
-                    "wind_speed": best_hour.get("wind_speed", 0) if best_hour else 0,
-                    "next_clear": best_hour.get("time", "Unknown") if best_hour else "Unknown",
-                    "moon_phase": "New Moon",  # TODO: Calculate actual moon phase
-                    "best_hours": location.get("best_hours", [])[:5]  # Limit to 5 best hours
-                })
+                transformed.append(
+                    {
+                        "id": location.get(
+                            "id",
+                            f"loc_{location.get('lat', 0)}_{location.get('lon', 0)}",
+                        ),
+                        "name": location.get(
+                            "name",
+                            f"Location {location.get('lat', 0):.2f}, {location.get('lon', 0):.2f}",
+                        ),
+                        "lat": location.get("coordinates", {}).get("lat")
+                        or location.get("lat", 0),
+                        "lon": location.get("coordinates", {}).get("lon")
+                        or location.get("lon", 0),
+                        "altitude_m": location.get("altitude_m", 0),
+                        "lp_zone": location.get("lp_zone", "unknown"),
+                        "score": best_hour.get("score", 0) if best_hour else 0,
+                        "cloud_cover": best_hour.get("cloud_area_fraction", 0)
+                        if best_hour
+                        else 100,
+                        "humidity": best_hour.get("relative_humidity", 0)
+                        if best_hour
+                        else 100,
+                        "wind_speed": best_hour.get("wind_speed", 0)
+                        if best_hour
+                        else 0,
+                        "next_clear": best_hour.get("time", "Unknown")
+                        if best_hour
+                        else "Unknown",
+                        "moon_phase": "New Moon",  # TODO: Calculate actual moon phase
+                        "best_hours": location.get("best_hours", [])[
+                            :5
+                        ],  # Limit to 5 best hours
+                    }
+                )
 
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
@@ -144,7 +167,7 @@ class StargazerAPIHandler(BaseHTTPRequestHandler):
                 "wind_speed": 0,
                 "next_clear": "No data available - run cronjob",
                 "moon_phase": "Unknown",
-                "best_hours": []
+                "best_hours": [],
             }
         ]
         self.wfile.write(json.dumps(demo_data).encode())
