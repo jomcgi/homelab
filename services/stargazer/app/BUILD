@@ -18,6 +18,7 @@ py_library(
     srcs = [
         "__init__.py",
         "acquisition.py",
+        "api.py",
         "config.py",
         "main.py",
         "preprocessing.py",
@@ -105,4 +106,10 @@ py_library(
         "@pip//geopandas",
         "@pip//httpx",
     ],
+)
+
+py_binary(
+    name = "api",
+    srcs = ["api.py"],
+    visibility = ["//:__subpackages__"],
 )
