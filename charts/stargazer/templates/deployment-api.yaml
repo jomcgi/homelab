@@ -69,6 +69,10 @@ spec:
         - name: data
           mountPath: {{ .Values.config.dataDir }}
           readOnly: true
+        {{- else if .Values.testData.enabled }}
+        - name: testdata
+          mountPath: {{ .Values.config.dataDir }}/output
+          readOnly: true
         {{- end }}
       volumes:
       - name: nginx-config
@@ -84,6 +88,10 @@ spec:
       - name: data
         persistentVolumeClaim:
           claimName: {{ include "stargazer.fullname" . }}-data
+      {{- else if .Values.testData.enabled }}
+      - name: testdata
+        configMap:
+          name: {{ include "stargazer.fullname" . }}-testdata
       {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

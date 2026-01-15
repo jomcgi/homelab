@@ -3,11 +3,11 @@
 # Run every 6 hours
 schedule: "0 */6 * * *"
 
-# Use Python Alpine for dev (until proper image is built)
+# Stargazer service image
 image:
-  repository: python
-  tag: "3.11-alpine"
-  # TODO: Switch back to ghcr.io/jomcgi/homelab/services/stargazer:latest
+  repository: ghcr.io/jomcgi/homelab/stargazer
+  tag: "latest"
+  pullPolicy: Always
 
 # Persistent storage
 persistence:
@@ -48,3 +48,7 @@ api:
 webServer:
   enabled: true
   replicas: 1
+
+# Enable test data until CronJob runs successfully
+testData:
+  enabled: true
