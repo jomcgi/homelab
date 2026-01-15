@@ -12,7 +12,7 @@ metadata:
 spec:
   accessModes:
     {{- if .Values.leaderElection.enabled }}
-    - ReadWriteMany  # Multiple pods need access for leader election
+    - ReadWriteMany
     {{- else }}
     - {{ .Values.persistence.accessMode }}
     {{- end }}

@@ -2,7 +2,7 @@
 ## Single pod with Claude Code session management
 
 ## Number of replicas (use 2+ with leader election for HA)
-replicas: 1
+replicas: 2
 
 ## Container image
 image:
@@ -196,3 +196,7 @@ statefulset:
   enabled: false
   # Pod management policy (Parallel = faster scaling)
   podManagementPolicy: Parallel
+
+leaderElection:
+  # Enable leader election for HA deployments
+  enabled: true

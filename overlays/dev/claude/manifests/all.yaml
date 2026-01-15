@@ -100,11 +100,11 @@ metadata:
     helm.sh/resource-policy: keep
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   storageClassName: longhorn
   resources:
     requests:
-      storage: 200Gi
+      storage: 100Gi
 ---
 # Source: claude/templates/clusterrole.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -159,6 +159,29 @@ subjects:
     name: claude
     namespace: claude
 ---
+# Source: claude/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: claude-headless
+  labels:
+    helm.sh/chart: claude-0.1.0
+    app.kubernetes.io/name: claude
+    app.kubernetes.io/instance: claude
+    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless service for StatefulSet
+  ports:
+    - port: 3000
+      targetPort: backend
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: claude
+    app.kubernetes.io/instance: claude
+---
 # Source: claude/templates/service.yaml
 apiVersion: v1
 kind: Service
@@ -172,6 +195,10 @@ metadata:
     app.kubernetes.io/managed-by: Helm
 spec:
   type: ClusterIP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 7200
   ports:
     - port: 3000
       targetPort: 8080  # nginx proxy
@@ -181,9 +208,9 @@ spec:
     app.kubernetes.io/name: claude
     app.kubernetes.io/instance: claude
 ---
-# Source: claude/templates/deployment.yaml
+# Source: claude/templates/statefulset.yaml
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: claude
   labels:
@@ -193,9 +220,13 @@ metadata:
     app.kubernetes.io/version: "1.0.0"
     app.kubernetes.io/managed-by: Helm
 spec:
-  replicas: 1
-  strategy:
-    type: Recreate
+  serviceName: claude-headless
+  replicas: 2
+  podManagementPolicy: Parallel  # Start all pods in parallel for faster scaling
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0  # Update all pods
   selector:
     matchLabels:
       app.kubernetes.io/name: claude
@@ -220,8 +251,9 @@ spec:
         runAsUser: 1000
         seccompProfile:
           type: RuntimeDefault
+      terminationGracePeriodSeconds: 30
       containers:
-        # Nginx reverse proxy for WebSocket support with long timeouts
+        # Nginx reverse proxy for WebSocket support
         - name: nginx
           image: nginx:1.27-alpine
           imagePullPolicy: IfNotPresent
@@ -244,12 +276,28 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 2
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]  # Grace period for connections to drain
           volumeMounts:
             - name: nginx-config
               mountPath: /etc/nginx/nginx.conf
@@ -273,7 +321,7 @@ spec:
               drop:
               - ALL
             readOnlyRootFilesystem: false
-          image: "ghcr.io/jomcgi/homelab/charts/claude:2026.01.14.04.29.23-4f254d1"
+          image: "ghcr.io/jomcgi/homelab/charts/claude:2026.01.14.07.57.13-d287bff"
           imagePullPolicy: IfNotPresent
           ports:
             - name: backend
@@ -294,13 +342,30 @@ spec:
             httpGet:
               path: /health
               port: backend
-            initialDelaySeconds: 10
-            periodSeconds: 10
-            timeoutSeconds: 5
-            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 2
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health
+              port: backend
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 60  # 2 minutes to start
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
           env:
             - name: HOME
               value: /home/user
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: PORT
               value: "3000"
             - name: GIT_USER_NAME
@@ -320,14 +385,18 @@ spec:
                   name: claude-secret
                   key: google_api_key
                   optional: true
-            # OpenCode config path (baked into image, not on PVC)
+            - name: BUILDBUDDY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: claude-secret
+                  key: buildbuddy_api_key
+                  optional: true
             - name: OPENCODE_CONFIG
               value: /etc/opencode/opencode.json
             - name: DEFAULT_WORKING_DIRECTORY
               value: "/repos/homelab"
             - name: DEFAULT_PERMISSION_MODE
               value: "bypassPermissions"
-            # Repo sync configuration (replaces git-sync sidecar)
             - name: REPO_SYNC_URL
               value: "https://github.com/jomcgi/homelab"
             - name: REPO_SYNC_PATH
@@ -345,14 +414,10 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/user
-            # Repo sync uses a subdirectory on the home PVC for persistence
             - name: home
               mountPath: /repos/homelab
               subPath: repos/homelab
       volumes:
-        - name: home
-          persistentVolumeClaim:
-            claimName: claude-home
         - name: nginx-config
           configMap:
             name: claude-nginx
@@ -362,6 +427,21 @@ spec:
           emptyDir: {}
         - name: nginx-log
           emptyDir: {}
+  volumeClaimTemplates:
+    - metadata:
+        name: home
+        labels:
+          helm.sh/chart: claude-0.1.0
+          app.kubernetes.io/name: claude
+          app.kubernetes.io/instance: claude
+          app.kubernetes.io/version: "1.0.0"
+          app.kubernetes.io/managed-by: Helm
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: longhorn
+        resources:
+          requests:
+            storage: 100Gi
 ---
 # Source: claude/templates/secret.yaml
 apiVersion: onepassword.com/v1
