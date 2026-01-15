@@ -13,6 +13,7 @@ image:
 persistence:
   enabled: true
   storageClass: longhorn
+  accessMode: ReadWriteMany  # Allow multiple pods to access the same volume
   size: 5Gi
 
 # Resource limits
