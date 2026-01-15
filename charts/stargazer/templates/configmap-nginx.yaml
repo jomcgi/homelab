@@ -14,38 +14,79 @@ data:
 
         root /data;
 
-        # Enable CORS
-        add_header Access-Control-Allow-Origin *;
-        add_header Access-Control-Allow-Methods "GET, OPTIONS";
-        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept";
-
-        # JSON content type for data files
-        location ~ \.json$ {
-            add_header Content-Type application/json;
-            add_header Access-Control-Allow-Origin *;
-        }
-
         # Health check
         location /health {
-            add_header Content-Type application/json;
-            add_header Access-Control-Allow-Origin *;
+            # Handle CORS preflight OPTIONS request
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
+            add_header 'Content-Type' 'application/json' always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
             return 200 '{"status":"healthy"}';
         }
 
-        # API endpoints
+        # API endpoints with caching headers for Cloudflare CDN
         location /api/best {
+            # Handle CORS preflight OPTIONS request
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
             alias /data/output/best_locations.json;
-            add_header Content-Type application/json;
-            add_header Access-Control-Allow-Origin *;
+            add_header 'Content-Type' 'application/json' always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+            # Cache for 1 hour (data updates every 6 hours)
+            add_header 'Cache-Control' 'public, max-age=3600, s-maxage=3600' always;
+            add_header 'CDN-Cache-Control' 'max-age=3600' always;
+            add_header 'X-Content-Type-Options' 'nosniff' always;
+
+            # Add last-modified header based on file modification time
+            add_header 'Last-Modified' $date_gmt always;
+            etag on;
 
             # Fallback if file doesn't exist
             try_files $uri /api/empty.json;
         }
 
         location /api/locations {
+            # Handle CORS preflight OPTIONS request
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
             alias /data/output/forecasts_scored.json;
-            add_header Content-Type application/json;
-            add_header Access-Control-Allow-Origin *;
+            add_header 'Content-Type' 'application/json' always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+            # Cache for 1 hour
+            add_header 'Cache-Control' 'public, max-age=3600, s-maxage=3600' always;
+            add_header 'CDN-Cache-Control' 'max-age=3600' always;
+            add_header 'X-Content-Type-Options' 'nosniff' always;
+
+            # Add last-modified header based on file modification time
+            add_header 'Last-Modified' $date_gmt always;
+            etag on;
 
             # Fallback if file doesn't exist
             try_files $uri /api/empty.json;
@@ -53,14 +94,55 @@ data:
 
         # Empty response fallback
         location /api/empty.json {
-            add_header Content-Type application/json;
-            add_header Access-Control-Allow-Origin *;
+            # Handle CORS preflight OPTIONS request
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
+            add_header 'Content-Type' 'application/json' always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
             return 200 '[]';
+        }
+
+        # JSON content type for data files
+        location ~ \.json$ {
+            # Handle CORS preflight OPTIONS request
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
+            add_header 'Content-Type' 'application/json' always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
+            add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
         }
 
         # Default
         location / {
-            add_header Content-Type text/html;
+            # Handle CORS preflight OPTIONS request
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Origin, X-Requested-With, Content-Type, Accept' always;
+                add_header 'Access-Control-Max-Age' 86400 always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
+            add_header 'Content-Type' 'text/html' always;
+            add_header 'Access-Control-Allow-Origin' '*' always;
             return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /api/best, /api/locations, /health</p></body></html>';
         }
     }
