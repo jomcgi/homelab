@@ -1,0 +1,126 @@
+apiVersion: controlflow.io/v1alpha1
+kind: StateMachine
+
+metadata:
+  name: CloudflareTunnel
+  group: tunnels.cloudflare.io
+  version: v1
+
+status:
+  phaseField: phase
+  conditionsField: conditions
+
+fieldGroups:
+  tunnelIdentity:
+    tunnelID: string
+  secretInfo:
+    secretName: string
+
+states:
+  - name: Pending
+    initial: true
+
+  - name: CreatingTunnel
+    requeue: 5s
+
+  - name: CreatingSecret
+    requeue: 5s
+    fieldGroups: [tunnelIdentity]
+
+  - name: ConfiguringIngress
+    requeue: 5s
+    fieldGroups: [tunnelIdentity, secretInfo]
+
+  - name: Ready
+    requeue: 5m
+    fieldGroups: [tunnelIdentity, secretInfo]
+    fields:
+      active: bool
+
+  - name: Failed
+    error: true
+    requeue: 1m
+    fields:
+      lastState: string
+      errorMessage: string
+      retryCount: int
+
+  - name: DeletingTunnel
+    deletion: true
+    requeue: 5s
+    fieldGroups: [tunnelIdentity]
+
+  - name: Deleted
+    terminal: true
+    deletion: true
+
+transitions:
+  - from: Pending
+    to: CreatingTunnel
+    action: StartCreation
+
+  - from: CreatingTunnel
+    to: CreatingSecret
+    action: TunnelCreated
+    params:
+      - tunnelID: string
+
+  - from: CreatingSecret
+    to: ConfiguringIngress
+    action: SecretCreated
+    params:
+      - secretName: string
+
+  - from: ConfiguringIngress
+    to: Ready
+    action: IngressConfigured
+    params:
+      - active: bool
+
+  - from: [CreatingTunnel, CreatingSecret, ConfiguringIngress]
+    to: Failed
+    action: MarkFailed
+    params:
+      - lastState: string
+      - errorMessage: string
+      - retryCount: int
+
+  - from: Failed
+    to: Pending
+    action: Retry
+    guard: retryable
+
+  - from: [Pending, CreatingTunnel, CreatingSecret, ConfiguringIngress, Ready, Failed]
+    to: DeletingTunnel
+    action: StartDeletion
+
+  - from: DeletingTunnel
+    to: Deleted
+    action: DeletionComplete
+
+  - from: Ready
+    to: ConfiguringIngress
+    action: ReconfigureIngress
+
+guards:
+  retryable:
+    description: "Can retry if under max retry limit"
+    maxRetries: 10
+
+errorHandling:
+  maxRetries: 10
+  backoff:
+    base: 5s
+    multiplier: 2
+    max: 5m
+    jitter: 0.1
+
+specChangeHandling:
+  enabled: true
+  observedGenerationField: observedGeneration
+
+observability:
+  onTransition: true
+  otelTracing: true
+  embedDiagram: true
+  metrics: true
