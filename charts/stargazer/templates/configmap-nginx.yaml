@@ -32,11 +32,19 @@ data:
             return 200 '{"status":"healthy"}';
         }
 
-        # API endpoints
+        # API endpoints with caching headers for Cloudflare CDN
         location /api/best {
             alias /data/output/best_locations.json;
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
+            # Cache for 1 hour (data updates every 6 hours)
+            add_header Cache-Control "public, max-age=3600, s-maxage=3600";
+            add_header CDN-Cache-Control "max-age=3600";
+            add_header X-Content-Type-Options "nosniff";
+
+            # Add last-modified header based on file modification time
+            add_header Last-Modified $date_gmt;
+            etag on;
 
             # Fallback if file doesn't exist
             try_files $uri /api/empty.json;
@@ -46,6 +54,14 @@ data:
             alias /data/output/forecasts_scored.json;
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
+            # Cache for 1 hour
+            add_header Cache-Control "public, max-age=3600, s-maxage=3600";
+            add_header CDN-Cache-Control "max-age=3600";
+            add_header X-Content-Type-Options "nosniff";
+
+            # Add last-modified header based on file modification time
+            add_header Last-Modified $date_gmt;
+            etag on;
 
             # Fallback if file doesn't exist
             try_files $uri /api/empty.json;
