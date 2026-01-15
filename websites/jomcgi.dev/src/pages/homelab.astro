@@ -157,6 +157,40 @@ const claudeCodeDiagram = `flowchart LR
     style SigNoz fill:#6bcb77,stroke:#6bcb77,color:#fff
     style K8s fill:#4d96ff,stroke:#4d96ff,color:#fff
     style Claude fill:#9b59b6,stroke:#9b59b6,color:#fff`;
+
+const bazelDiagram = `flowchart LR
+    subgraph Developer
+        Fmt[format]
+    end
+
+    subgraph Bazel
+        Code[Formatters]
+        Helm[Helm Render]
+        OCI[Container Build]
+        Cache[(BuildBuddy)]
+    end
+
+    subgraph Output
+        Git[Git + ArgoCD]
+        GHCR[GHCR Registry]
+    end
+
+    Fmt --> Code
+    Fmt --> Helm
+    Fmt --> OCI
+    Code --> Cache
+    Helm --> Cache
+    OCI --> Cache
+    Cache --> Git
+    Cache --> GHCR
+
+    style Fmt fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Code fill:#ffa502,stroke:#ffa502,color:#fff
+    style Helm fill:#ffd93d,stroke:#ffd93d,color:#000
+    style OCI fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Cache fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Git fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style GHCR fill:#e056fd,stroke:#e056fd,color:#fff`;
 ---
 
 <!DOCTYPE html>
@@ -826,6 +860,96 @@ transitions:
                     </div>
                 </div>
             </div>
+        </section>
+
+        <!-- Deep Dive 6: Bazel Build System -->
+        <section class="deep-dive" id="bazel">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">06</span>
+                <h2>One Command: Hermetic Builds Across Projects</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Every project reinvents the wheel: different formatters, different container tools,
+                    different CI setups. I wanted one command that handles everything—format code, render
+                    manifests, build multi-platform containers—with results cached forever. Build the
+                    tooling once, reuse it for years.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={bazelDiagram} id="bazel" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">One Command</div>
+                        <div class="execution-value"><code>format</code> orchestrates 10+ parallel tasks via multirun. Code formatting, manifest rendering, APKO lock updates, config validation. All cached.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Custom Rules</div>
+                        <div class="execution-value">Starlark rules for Go, Python, and APKO container images. Multi-platform builds (amd64/arm64) from single source. Add a service in 5 lines of BUILD.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">BuildBuddy RBE</div>
+                        <div class="execution-value">Remote execution on CI with 80 cores (free tier). Remote caching for all builds. CI runs in under 60 seconds regardless of repo size.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Hermetic Tooling</div>
+                        <div class="execution-value">15+ tools pinned via rules_multitool: helm, crane, ruff, shellcheck, buildifier. Same versions everywhere, forever. No "works on my machine".</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>GitOps-Ready Manifests</h3>
+            <p>Helm charts render to cached genrules. Outputs copy to source tree. Git tracks the rendered manifests. ArgoCD syncs from Git. Change a value, run <code>format</code>, commit, deploy.</p>
+
+            <div class="execution">
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">Parallel Render</div>
+                        <div class="execution-value">Each service gets a genrule. All genrules build in parallel. Bazel cache means unchanged charts don't re-render.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Source of Truth</div>
+                        <div class="execution-value">Rendered manifests committed to Git. PR diffs show exactly what Kubernetes will see. No surprises at deploy time.</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Multi-Platform Containers</h3>
+            <p>Custom rules handle the complexity of multi-architecture builds. Define once, get amd64 and arm64 images automatically layered into an OCI index.</p>
+
+            <div class="execution">
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">APKO Images</div>
+                        <div class="execution-value">Alpine-based images built from declarative YAML. Lock files pin package versions. Minimal attack surface, fast builds.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Platform Transitions</div>
+                        <div class="execution-value">Bazel platform transitions build both architectures from single target. OCI index creation automatic. <code>bazel run :image.push</code> handles everything.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Binary Vendoring</div>
+                        <div class="execution-value">Custom rules download platform-specific binaries with SHA256 verification. Auto-generate tars for OCI layers. No runtime downloads.</div>
+                    </div>
+                </div>
+            </div>
+
+            <pre><code># One command to rule them all
+$ format
+
+# What happens:
+# - gofumpt, prettier, ruff, shfmt, buildifier (parallel)
+# - helm template for 20+ services (parallel, cached)
+# - APKO lock file updates
+# - Config validation
+# All cached. Incremental. &lt;10s if nothing changed.</code></pre>
         </section>
 
         <footer>
