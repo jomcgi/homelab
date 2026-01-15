@@ -33,7 +33,7 @@ data:
         }
 
         # API endpoints with caching headers for Cloudflare CDN
-        location /api/best {
+        location /best {
             alias /data/output/best_locations.json;
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
@@ -47,10 +47,10 @@ data:
             etag on;
 
             # Fallback if file doesn't exist
-            try_files $uri /api/empty.json;
+            try_files $uri /empty;
         }
 
-        location /api/locations {
+        location /locations {
             alias /data/output/forecasts_scored.json;
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
@@ -64,11 +64,11 @@ data:
             etag on;
 
             # Fallback if file doesn't exist
-            try_files $uri /api/empty.json;
+            try_files $uri /empty;
         }
 
         # Empty response fallback
-        location /api/empty.json {
+        location /empty {
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
             return 200 '[]';
@@ -77,7 +77,7 @@ data:
         # Default
         location / {
             add_header Content-Type text/html;
-            return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /api/best, /api/locations, /health</p></body></html>';
+            return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /best, /locations, /health</p></body></html>';
         }
     }
 {{- end }}
