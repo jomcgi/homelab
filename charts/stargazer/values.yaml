@@ -116,3 +116,10 @@ api:
 # Test data configuration
 testData:
   enabled: false
+
+# Image pull secret configuration
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
