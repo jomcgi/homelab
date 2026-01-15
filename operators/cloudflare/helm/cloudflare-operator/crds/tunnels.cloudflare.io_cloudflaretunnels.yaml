@@ -14,7 +14,20 @@ spec:
     singular: cloudflaretunnel
   scope: Namespaced
   versions:
-  - name: v1
+  - additionalPrinterColumns:
+    - jsonPath: .status.phase
+      name: Phase
+      type: string
+    - jsonPath: .status.tunnelId
+      name: TunnelID
+      type: string
+    - jsonPath: .status.active
+      name: Active
+      type: boolean
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    name: v1
     schema:
       openAPIV3Schema:
         description: CloudflareTunnel is the Schema for the cloudflaretunnels API.
@@ -132,14 +145,42 @@ spec:
                   - type
                   type: object
                 type: array
+              errorMessage:
+                description: ErrorMessage contains the error that caused the Failed state
+                type: string
+              lastState:
+                description: LastState stores the state before transitioning to Failed
+                type: string
               observedGeneration:
                 description: ObservedGeneration reflects the generation of the most
                   recently observed spec
                 format: int64
                 type: integer
+              observedPhase:
+                description: ObservedPhase stores the phase value when it was unrecognized (for Unknown state)
+                type: string
+              phase:
+                description: Phase is the current state machine phase
+                enum:
+                - Pending
+                - CreatingTunnel
+                - CreatingSecret
+                - ConfiguringIngress
+                - Ready
+                - Failed
+                - DeletingTunnel
+                - Deleted
+                - Unknown
+                type: string
               ready:
                 description: Ready indicates if the tunnel is ready for use
                 type: boolean
+              retryCount:
+                description: RetryCount tracks retry attempts from Failed state
+                type: integer
+              secretName:
+                description: SecretName is the name of the Secret containing the tunnel credentials
+                type: string
               tunnelId:
                 description: TunnelID is the Cloudflare tunnel ID
                 type: string
