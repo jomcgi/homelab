@@ -41,6 +41,7 @@ import (
 	tunnelsv1 "github.com/jomcgi/homelab/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/controller"
+	sm "github.com/jomcgi/homelab/operators/cloudflare/internal/statemachine"
 	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
 	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 	// +kubebuilder:scaffold:imports
@@ -249,10 +250,20 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Initialize state machine calculator and observer
+	calculator := sm.NewCloudflareTunnelCalculator(ctrl.Log.WithName("calculator"))
+	observer := sm.CompositeObserver{
+		sm.LoggingObserver{},
+		sm.NewOTelObserver("cloudflare-tunnel-controller"),
+		sm.NewMetricsObserver(),
+	}
+
 	reconciler := &controller.CloudflareTunnelReconciler{
-		Client:   mgr.GetClient(),
-		Scheme:   mgr.GetScheme(),
-		CFClient: cfClient,
+		Client:     mgr.GetClient(),
+		Scheme:     mgr.GetScheme(),
+		CFClient:   cfClient,
+		Calculator: calculator,
+		Observer:   observer,
 	}
 
 	if err := reconciler.SetupWithManager(mgr); err != nil {

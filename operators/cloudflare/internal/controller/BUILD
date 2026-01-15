@@ -15,6 +15,7 @@ go_library(
     deps = [
         "//operators/cloudflare/api/v1:api",
         "//operators/cloudflare/internal/cloudflare",
+        "//operators/cloudflare/internal/statemachine",
         "//operators/cloudflare/internal/telemetry",
         "@com_github_cloudflare_cloudflare_go//:cloudflare-go",
         "@io_k8s_api//apps/v1:apps",

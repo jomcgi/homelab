@@ -65,6 +65,10 @@ type CloudflareTunnelStatus struct {
 	// Standard Kubernetes conditions
 	Conditions []metav1.Condition `json:"conditions,omitempty"`
 
+	// Phase is the current state machine phase
+	// +kubebuilder:validation:Enum=Pending;CreatingTunnel;CreatingSecret;ConfiguringIngress;Ready;Failed;DeletingTunnel;Deleted;Unknown
+	Phase string `json:"phase,omitempty"`
+
 	// TunnelID is the Cloudflare tunnel ID
 	TunnelID string `json:"tunnelId,omitempty"`
 
@@ -80,10 +84,30 @@ type CloudflareTunnelStatus struct {
 
 	// ObservedGeneration reflects the generation of the most recently observed spec
 	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// LastState stores the state before transitioning to Failed
+	// +optional
+	LastState string `json:"lastState,omitempty"`
+
+	// ErrorMessage contains the error that caused the Failed state
+	// +optional
+	ErrorMessage string `json:"errorMessage,omitempty"`
+
+	// RetryCount tracks retry attempts from Failed state
+	// +optional
+	RetryCount int `json:"retryCount,omitempty"`
+
+	// ObservedPhase stores the phase value when it was unrecognized (for Unknown state)
+	// +optional
+	ObservedPhase string `json:"observedPhase,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:printcolumn:name="Phase",type=string,JSONPath=`.status.phase`
+// +kubebuilder:printcolumn:name="TunnelID",type=string,JSONPath=`.status.tunnelId`
+// +kubebuilder:printcolumn:name="Active",type=boolean,JSONPath=`.status.active`
+// +kubebuilder:printcolumn:name="Age",type=date,JSONPath=`.metadata.creationTimestamp`
 
 // CloudflareTunnel is the Schema for the cloudflaretunnels API.
 type CloudflareTunnel struct {
