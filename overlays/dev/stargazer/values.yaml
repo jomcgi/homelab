@@ -52,3 +52,11 @@ webServer:
 # Enable test data until CronJob runs successfully
 testData:
   enabled: true
+
+# Enable image pull secret for GHCR
+imagePullSecret:
+  enabled: true
+
+# Configure pods to use the image pull secret
+imagePullSecrets:
+  - name: ghcr-imagepull-secret
