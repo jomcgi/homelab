@@ -178,6 +178,20 @@ oci.pull(
 )
 use_repo(oci, "gdal_base", "gdal_base_linux_amd64", "gdal_base_linux_arm64")
 
+# GDAL Python base - includes GDAL with Python 3.10 and pip installed
+# Using ubuntu-full variant which has Python bindings properly configured
+oci.pull(
+    name = "gdal_python_base",
+    # Note: not specifying digest to allow using latest manifest
+    image = "docker.io/osgeo/gdal",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64",
+    ],
+    tag = "ubuntu-full-3.6.3",
+)
+use_repo(oci, "gdal_python_base", "gdal_python_base_linux_amd64", "gdal_python_base_linux_arm64")
+
 # Configure apko for container images
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(
