@@ -8,11 +8,12 @@ py_library(
 )
 
 # Container image for stargazer with GDAL tools
-# Base includes: gdal_translate, gdalwarp, ogr2ogr
+# Using ubuntu-full variant which includes Python 3.10 with GDAL bindings
+# Base includes: gdal_translate, gdalwarp, ogr2ogr, Python GDAL bindings
 # Note: osmium-tool not included - need to install via apt or use alternative
 py3_image(
     name = "image",
-    base = "@gdal_base",
+    base = "@gdal_python_base",
     binary = "//services/stargazer/app:main",
     env = {
         "GDAL_DATA": "/usr/share/gdal",
