@@ -1,0 +1,139 @@
+{{- if .Values.frontend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "claude-api.fullname" . }}-frontend
+  labels:
+    {{- include "claude-api.labels" . | nindent 4 }}
+    component: frontend
+spec:
+  replicas: {{ .Values.frontend.replicas }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 50%  # Allow 50% more pods during rollout for instant switchover
+  selector:
+    matchLabels:
+      {{- include "claude-api.selectorLabels" . | nindent 6 }}
+      component: frontend
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: nginx
+        {{- with .Values.frontend.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "claude-api.selectorLabels" . | nindent 8 }}
+        component: frontend
+    spec:
+      # Frontend pods are completely stateless and can be aggressively scheduled
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              {{- include "claude-api.selectorLabels" . | nindent 14 }}
+              component: frontend
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchExpressions:
+                    - key: component
+                      operator: In
+                      values:
+                        - frontend
+                topologyKey: kubernetes.io/hostname
+      containers:
+        - name: nginx
+          image: nginx:1.27-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 101
+            runAsGroup: 101
+            capabilities:
+              drop:
+                - ALL
+          # Aggressive probes for fast rollouts
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 2
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 1
+            periodSeconds: 1
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 2
+          # Startup probe for initial boot
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 10
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 2"]  # Give time for endpoints to update
+          volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/nginx.conf
+              subPath: nginx-frontend.conf
+            - name: nginx-tmp
+              mountPath: /tmp
+            - name: nginx-cache
+              mountPath: /var/cache/nginx
+            - name: nginx-log
+              mountPath: /var/log/nginx
+            {{- if .Values.frontend.staticFiles }}
+            - name: static-files
+              mountPath: /usr/share/nginx/html
+            {{- end }}
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 32Mi
+      volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "claude-api.fullname" . }}-nginx-frontend
+        - name: nginx-tmp
+          emptyDir:
+            medium: Memory  # Use tmpfs for speed
+        - name: nginx-cache
+          emptyDir:
+            medium: Memory
+        - name: nginx-log
+          emptyDir: {}
+        {{- if .Values.frontend.staticFiles }}
+        - name: static-files
+          configMap:
+            name: {{ include "claude-api.fullname" . }}-static
+        {{- end }}
+{{- end }}
