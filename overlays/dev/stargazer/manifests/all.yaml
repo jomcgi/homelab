@@ -11,6 +11,77 @@ metadata:
     app.kubernetes.io/version: "0.1.0"
     app.kubernetes.io/managed-by: Helm
 ---
+# Source: stargazer/templates/configmap-nginx.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stargazer-nginx
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: api
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+
+        root /data;
+
+        # Enable CORS
+        add_header Access-Control-Allow-Origin *;
+        add_header Access-Control-Allow-Methods "GET, OPTIONS";
+        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept";
+
+        # JSON content type for data files
+        location ~ \.json$ {
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+        }
+
+        # Health check
+        location /health {
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+            return 200 '{"status":"healthy"}';
+        }
+
+        # API endpoints
+        location /api/best {
+            alias /data/output/best_locations.json;
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+
+            # Fallback if file doesn't exist
+            try_files $uri /api/empty.json;
+        }
+
+        location /api/locations {
+            alias /data/output/forecasts_scored.json;
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+
+            # Fallback if file doesn't exist
+            try_files $uri /api/empty.json;
+        }
+
+        # Empty response fallback
+        location /api/empty.json {
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+            return 200 '[]';
+        }
+
+        # Default
+        location / {
+            add_header Content-Type text/html;
+            return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /api/best, /api/locations, /health</p></body></html>';
+        }
+    }
+---
 # Source: stargazer/templates/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
@@ -130,18 +201,12 @@ spec:
           runAsUser: 65532
           seccompProfile:
             type: RuntimeDefault
-        image: "ghcr.io/jomcgi/homelab/services/stargazer:latest"
+        image: "nginx:alpine"
         imagePullPolicy: IfNotPresent
-        command: ["python3", "-m", "services.stargazer.app.api"]
         ports:
         - name: http
           containerPort: 8080
           protocol: TCP
-        env:
-        - name: DATA_DIR
-          value: /data
-        - name: PORT
-          value: "8080"
         livenessProbe:
           httpGet:
             path: /health
@@ -162,10 +227,16 @@ spec:
             cpu: 50m
             memory: 128Mi
         volumeMounts:
+        - name: nginx-config
+          mountPath: /etc/nginx/conf.d/
+          readOnly: true
         - name: data
           mountPath: /data
           readOnly: true
       volumes:
+      - name: nginx-config
+        configMap:
+          name: stargazer-nginx
       - name: data
         persistentVolumeClaim:
           claimName: stargazer-data
@@ -217,7 +288,7 @@ spec:
               runAsUser: 65532
               seccompProfile:
                 type: RuntimeDefault
-            image: "ghcr.io/jomcgi/homelab/services/stargazer:latest"
+            image: "python:3.11-alpine"
             imagePullPolicy: IfNotPresent
             command: ["python3", "-m", "services.stargazer.app.main"]
             env:
