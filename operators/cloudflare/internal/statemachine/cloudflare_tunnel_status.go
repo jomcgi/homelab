@@ -47,6 +47,9 @@ func SSAPatch(state CloudflareTunnelState) (client.Patch, error) {
 	// Clear everything except metadata identifiers and status
 	obj.Spec = v1.CloudflareTunnelSpec{}
 
+	// Clear ManagedFields - SSA patches must not include managedFields
+	obj.ManagedFields = nil
+
 	// Apply the state to status
 	applyStateToStatus(state, &obj.Status)
 
