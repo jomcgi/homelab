@@ -11,7 +11,11 @@ metadata:
   {{- end }}
 spec:
   accessModes:
+    {{- if .Values.leaderElection.enabled }}
+    - ReadWriteMany
+    {{- else }}
     - {{ .Values.persistence.accessMode }}
+    {{- end }}
   {{- if .Values.persistence.storageClass }}
   storageClassName: {{ .Values.persistence.storageClass }}
   {{- end }}

@@ -6,6 +6,12 @@ metadata:
     {{- include "claude-api.labels" . | nindent 4 }}
 spec:
   type: {{ .Values.service.type }}
+  {{- if .Values.service.sessionAffinity }}
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: {{ .Values.service.sessionAffinityTimeout }}
+  {{- end }}
   ports:
     - port: {{ .Values.service.port }}
       targetPort: 8080  # nginx proxy
