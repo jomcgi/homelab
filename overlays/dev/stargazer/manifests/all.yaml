@@ -61,6 +61,112 @@ spec:
     requests:
       storage: 5Gi
 ---
+# Source: stargazer/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: stargazer-web
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: web
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/component: web
+---
+# Source: stargazer/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: stargazer-web
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: web
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: stargazer
+      app.kubernetes.io/instance: stargazer
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: stargazer
+        app.kubernetes.io/instance: stargazer
+        app.kubernetes.io/component: web
+    spec:
+      serviceAccountName: stargazer
+      securityContext:
+        fsGroup: 65532
+        runAsGroup: 65532
+        runAsNonRoot: true
+        runAsUser: 65532
+      containers:
+      - name: stargazer-web
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+            - ALL
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 65532
+          seccompProfile:
+            type: RuntimeDefault
+        image: "ghcr.io/jomcgi/homelab/services/stargazer:sha256:8122b4d2b5d27c54debaecd4a5a098a99801c10ed8e0b1ae282ae96571f46fed"
+        imagePullPolicy: IfNotPresent
+        command: ["python3", "-m", "services.stargazer.app.server"]
+        env:
+        - name: DATA_DIR
+          value: /data
+        ports:
+        - name: http
+          containerPort: 8080
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 10
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        volumeMounts:
+        - name: data
+          mountPath: /data
+          readOnly: true
+        resources:
+          limits:
+            cpu: 100m
+            memory: 128Mi
+          requests:
+            cpu: 50m
+            memory: 64Mi
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: stargazer-data
+---
 # Source: stargazer/templates/cronjob.yaml
 apiVersion: batch/v1
 kind: CronJob
@@ -108,8 +214,9 @@ spec:
               runAsUser: 65532
               seccompProfile:
                 type: RuntimeDefault
-            image: "ghcr.io/jomcgi/homelab/services/stargazer:latest"
+            image: "ghcr.io/jomcgi/homelab/services/stargazer:sha256:8122b4d2b5d27c54debaecd4a5a098a99801c10ed8e0b1ae282ae96571f46fed"
             imagePullPolicy: IfNotPresent
+            command: ["python3", "-m", "services.stargazer.app.main"]
             env:
             - name: DATA_DIR
               valueFrom:
