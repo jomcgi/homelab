@@ -9,7 +9,7 @@ spec:
     - alias: operator
       commonUpdateSettings:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
-        updateStrategy: alphabetical
+        updateStrategy: newest-build
         forceUpdate: false
       imageName: ghcr.io/jomcgi/homelab/operators/cloudflare
       manifestTargets:
@@ -23,4 +23,4 @@ spec:
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:overlays/dev/cloudflare-operator/values.yaml
+      writeBackTarget: helmvalues:../../../../overlays/dev/cloudflare-operator/values.yaml
