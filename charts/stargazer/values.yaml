@@ -112,3 +112,7 @@ api:
     hostname: api.jomcgi.dev
     gateway: api-gateway
     gatewayNamespace: api-gateway
+
+# Test data configuration
+testData:
+  enabled: false
