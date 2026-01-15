@@ -59,6 +59,12 @@ spec:
         - name: nginx-config
           mountPath: /etc/nginx/conf.d/
           readOnly: true
+        - name: cache
+          mountPath: /var/cache/nginx
+        - name: tmp
+          mountPath: /tmp
+        - name: run
+          mountPath: /var/run
         {{- if .Values.persistence.enabled }}
         - name: data
           mountPath: {{ .Values.config.dataDir }}
@@ -68,6 +74,12 @@ spec:
       - name: nginx-config
         configMap:
           name: {{ include "stargazer.fullname" . }}-nginx
+      - name: cache
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
       {{- if .Values.persistence.enabled }}
       - name: data
         persistentVolumeClaim:
