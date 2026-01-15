@@ -159,22 +159,30 @@ const claudeCodeDiagram = `flowchart LR
     style Claude fill:#9b59b6,stroke:#9b59b6,color:#fff`;
 
 const bazelDiagram = `flowchart LR
-    subgraph Developer
-        Fmt[format]
+    subgraph Anywhere
+        Laptop[Laptop]
+        CI[CI]
+        Claude[Claude Code]
     end
 
-    subgraph Bazel
+    Fmt[format]
+
+    subgraph Build
         Code[Formatters]
-        Helm[Helm Render]
-        OCI[Container Build]
-        Cache[(BuildBuddy)]
+        Helm[Manifests]
+        OCI[Images]
     end
+
+    Cache[(BuildBuddy)]
 
     subgraph Output
-        Git[Git + ArgoCD]
-        GHCR[GHCR Registry]
+        Git[Git]
+        Reg[Registry]
     end
 
+    Laptop --> Fmt
+    CI --> Fmt
+    Claude --> Fmt
     Fmt --> Code
     Fmt --> Helm
     Fmt --> OCI
@@ -182,15 +190,18 @@ const bazelDiagram = `flowchart LR
     Helm --> Cache
     OCI --> Cache
     Cache --> Git
-    Cache --> GHCR
+    Cache --> Reg
 
-    style Fmt fill:#ff6b6b,stroke:#ff6b6b,color:#fff
-    style Code fill:#ffa502,stroke:#ffa502,color:#fff
-    style Helm fill:#ffd93d,stroke:#ffd93d,color:#000
-    style OCI fill:#6bcb77,stroke:#6bcb77,color:#fff
-    style Cache fill:#4d96ff,stroke:#4d96ff,color:#fff
-    style Git fill:#9b59b6,stroke:#9b59b6,color:#fff
-    style GHCR fill:#e056fd,stroke:#e056fd,color:#fff`;
+    style Laptop fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style CI fill:#ffa502,stroke:#ffa502,color:#fff
+    style Claude fill:#ffd93d,stroke:#ffd93d,color:#000
+    style Fmt fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Code fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Helm fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style OCI fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Cache fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style Git fill:#e056fd,stroke:#e056fd,color:#fff
+    style Reg fill:#e056fd,stroke:#e056fd,color:#fff`;
 ---
 
 <!DOCTYPE html>
@@ -584,7 +595,7 @@ const bazelDiagram = `flowchart LR
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Model Routing</div>
-                        <div class="execution-value">Claude for complex reasoning and architecture decisions. Local vLLM for code generation, refactoring, and directed tasks. Dramatically lower API costs.</div>
+                        <div class="execution-value">Claude for complex reasoning and architecture decisions. Local vLLM for code generation, refactoring, and directed tasks.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">SigNoz MCP</div>
@@ -736,20 +747,20 @@ const bazelDiagram = `flowchart LR
                 <div class="execution-label">Execution</div>
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">States as Types</div>
-                        <div class="execution-value">Each state becomes a Go struct. Transitions are methods that return the next state type. The compiler catches invalid transitions.</div>
+                        <div class="execution-key">Compile-Time Safety</div>
+                        <div class="execution-value">Each state is a Go struct. Transitions return the next state type. Try to go from Pending to Ready without passing through Creating? Compiler error.</div>
                     </div>
                     <div class="execution-row">
-                        <div class="execution-key">Idempotency</div>
-                        <div class="execution-value">Transition methods require request IDs as parameters. Forces correct ordering: call external API → get ID → transition → persist.</div>
+                        <div class="execution-key">Forced Idempotency</div>
+                        <div class="execution-value">Transition methods require request IDs. You can't transition without the ID, which forces you to call the external API first.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Guard Conditions</div>
-                        <div class="execution-value">Custom Go expressions embedded in YAML. Evaluated at transition time. Invalid expressions fail at compile time, not runtime.</div>
+                        <div class="execution-value">Go expressions embedded in YAML, evaluated at transition time. Invalid expressions fail at compile time, not runtime.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Generated Metrics</div>
-                        <div class="execution-value">Prometheus counters, histograms, and gauges. state_duration_seconds for SLO measurement. Automatic cleanup on resource deletion.</div>
+                        <div class="execution-value">Prometheus counters, histograms, gauges. state_duration_seconds for SLOs. Automatic cleanup on resource deletion.</div>
                     </div>
                 </div>
             </div>
@@ -866,16 +877,15 @@ transitions:
         <section class="deep-dive" id="bazel">
             <div class="deep-dive-header">
                 <span class="deep-dive-number">06</span>
-                <h2>One Command: Hermetic Builds Across Projects</h2>
+                <h2>Bazel: One Way to Build Everything</h2>
             </div>
 
             <div class="motivation">
                 <div class="motivation-label">Motivation</div>
                 <div class="motivation-text">
-                    Every project reinvents the wheel: different formatters, different container tools,
-                    different CI setups. I wanted one command that handles everything—format code, render
-                    manifests, build multi-platform containers—with results cached forever. Build the
-                    tooling once, reuse it for years.
+                    Different build commands for different projects gets old. I wanted one system that
+                    works the same everywhere—laptop, CI, Claude Code in the cluster. Everything's vendored,
+                    so there's nothing to install beyond Bazel itself.
                 </div>
             </div>
 
@@ -887,69 +897,59 @@ transitions:
                 <div class="execution-label">Execution</div>
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">One Command</div>
-                        <div class="execution-value"><code>format</code> orchestrates 10+ parallel tasks via multirun. Code formatting, manifest rendering, APKO lock updates, config validation. All cached.</div>
+                        <div class="execution-key">format</div>
+                        <div class="execution-value">One command for formatters, manifests, lock files. Runs in parallel, seconds if nothing changed.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Custom Rules</div>
-                        <div class="execution-value">Starlark rules for Go, Python, and APKO container images. Multi-platform builds (amd64/arm64) from single source. Add a service in 5 lines of BUILD.</div>
+                        <div class="execution-value">Starlark for Go, Python, APKO images. Few lines per service, multi-platform containers out.</div>
                     </div>
                     <div class="execution-row">
-                        <div class="execution-key">BuildBuddy RBE</div>
-                        <div class="execution-value">Remote execution on CI with 80 cores (free tier). Remote caching for all builds. CI runs in under 60 seconds regardless of repo size.</div>
+                        <div class="execution-key">Vendored Tools</div>
+                        <div class="execution-value">Helm, crane, ruff, shellcheck—pinned in one lock file. Nothing to install, works anywhere Bazel runs.</div>
                     </div>
                     <div class="execution-row">
-                        <div class="execution-key">Hermetic Tooling</div>
-                        <div class="execution-value">15+ tools pinned via rules_multitool: helm, crane, ruff, shellcheck, buildifier. Same versions everywhere, forever. No "works on my machine".</div>
+                        <div class="execution-key">BuildBuddy</div>
+                        <div class="execution-value">Remote cache so unchanged code doesn't rebuild. 80 cores on free tier, CI under a minute.</div>
                     </div>
                 </div>
             </div>
 
-            <h3>GitOps-Ready Manifests</h3>
-            <p>Helm charts render to cached genrules. Outputs copy to source tree. Git tracks the rendered manifests. ArgoCD syncs from Git. Change a value, run <code>format</code>, commit, deploy.</p>
+            <h3>GitOps Manifests</h3>
+            <p>Helm charts render through Bazel. Output goes to the source tree so Git tracks it. PR diffs show exactly what's changing in the cluster.</p>
 
             <div class="execution">
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">Parallel Render</div>
-                        <div class="execution-value">Each service gets a genrule. All genrules build in parallel. Bazel cache means unchanged charts don't re-render.</div>
+                        <div class="execution-key">Cached</div>
+                        <div class="execution-value">Each chart is a genrule. Unchanged charts skip. 20+ services render in parallel.</div>
                     </div>
                     <div class="execution-row">
-                        <div class="execution-key">Source of Truth</div>
-                        <div class="execution-value">Rendered manifests committed to Git. PR diffs show exactly what Kubernetes will see. No surprises at deploy time.</div>
+                        <div class="execution-key">In Git</div>
+                        <div class="execution-value">Manifests committed, not generated at deploy. I review what's going to the cluster before it goes.</div>
                     </div>
                 </div>
             </div>
 
-            <h3>Multi-Platform Containers</h3>
-            <p>Custom rules handle the complexity of multi-architecture builds. Define once, get amd64 and arm64 images automatically layered into an OCI index.</p>
+            <h3>Multi-Platform Images</h3>
+            <p>arm64 on my laptop, amd64 in CI. Same rules build both and push a multi-platform index.</p>
 
             <div class="execution">
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">APKO Images</div>
-                        <div class="execution-value">Alpine-based images built from declarative YAML. Lock files pin package versions. Minimal attack surface, fast builds.</div>
+                        <div class="execution-key">APKO</div>
+                        <div class="execution-value">Alpine images from YAML. Lock files pin versions. Small, fast.</div>
                     </div>
                     <div class="execution-row">
-                        <div class="execution-key">Platform Transitions</div>
-                        <div class="execution-value">Bazel platform transitions build both architectures from single target. OCI index creation automatic. <code>bazel run :image.push</code> handles everything.</div>
-                    </div>
-                    <div class="execution-row">
-                        <div class="execution-key">Binary Vendoring</div>
-                        <div class="execution-value">Custom rules download platform-specific binaries with SHA256 verification. Auto-generate tars for OCI layers. No runtime downloads.</div>
+                        <div class="execution-key">One Target</div>
+                        <div class="execution-value">Define once, Bazel handles platform transitions and index creation.</div>
                     </div>
                 </div>
             </div>
 
-            <pre><code># One command to rule them all
-$ format
-
-# What happens:
-# - gofumpt, prettier, ruff, shfmt, buildifier (parallel)
-# - helm template for 20+ services (parallel, cached)
-# - APKO lock file updates
-# - Config validation
-# All cached. Incremental. &lt;10s if nothing changed.</code></pre>
+            <pre><code>$ format
+# formatters, helm renders, apko locks—all parallel
+# ~10s if nothing changed</code></pre>
         </section>
 
         <footer>
