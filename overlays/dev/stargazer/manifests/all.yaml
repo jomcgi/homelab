@@ -49,27 +49,43 @@ data:
             return 200 '{"status":"healthy"}';
         }
 
-        # API endpoints
-        location /api/best {
+        # API endpoints with caching headers for Cloudflare CDN
+        location /best {
             alias /data/output/best_locations.json;
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
+            # Cache for 1 hour (data updates every 6 hours)
+            add_header Cache-Control "public, max-age=3600, s-maxage=3600";
+            add_header CDN-Cache-Control "max-age=3600";
+            add_header X-Content-Type-Options "nosniff";
+
+            # Add last-modified header based on file modification time
+            add_header Last-Modified $date_gmt;
+            etag on;
 
             # Fallback if file doesn't exist
-            try_files $uri /api/empty.json;
+            try_files $uri /empty;
         }
 
-        location /api/locations {
+        location /locations {
             alias /data/output/forecasts_scored.json;
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
+            # Cache for 1 hour
+            add_header Cache-Control "public, max-age=3600, s-maxage=3600";
+            add_header CDN-Cache-Control "max-age=3600";
+            add_header X-Content-Type-Options "nosniff";
+
+            # Add last-modified header based on file modification time
+            add_header Last-Modified $date_gmt;
+            etag on;
 
             # Fallback if file doesn't exist
-            try_files $uri /api/empty.json;
+            try_files $uri /empty;
         }
 
         # Empty response fallback
-        location /api/empty.json {
+        location /empty {
             add_header Content-Type application/json;
             add_header Access-Control-Allow-Origin *;
             return 200 '[]';
@@ -78,9 +94,55 @@ data:
         # Default
         location / {
             add_header Content-Type text/html;
-            return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /api/best, /api/locations, /health</p></body></html>';
+            return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /best, /locations, /health</p></body></html>';
         }
     }
+---
+# Source: stargazer/templates/configmap-testdata.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: stargazer-testdata
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+data:
+  best_locations.json: |
+    [
+      {
+        "id": "galloway-1",
+        "coordinates": [-4.5, 55.0],
+        "altitude_m": 300,
+        "lp_zone": "Dark Sky Park",
+        "best_score": 85,
+        "best_hours": [{
+          "hour": "2024-01-15T22:00:00Z",
+          "cloud_cover": 15,
+          "humidity": 65,
+          "wind_speed": 3.2,
+          "moon_illumination": 0.25
+        }]
+      },
+      {
+        "id": "highlands-1",
+        "coordinates": [-4.8, 56.8],
+        "altitude_m": 450,
+        "lp_zone": "Remote Highland",
+        "best_score": 92,
+        "best_hours": [{
+          "hour": "2024-01-15T23:00:00Z",
+          "cloud_cover": 5,
+          "humidity": 55,
+          "wind_speed": 2.1,
+          "moon_illumination": 0.25
+        }]
+      }
+    ]
+  forecasts_scored.json: |
+    []
 ---
 # Source: stargazer/templates/configmap.yaml
 apiVersion: v1
@@ -126,7 +188,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   storageClassName: longhorn
   resources:
     requests:
@@ -183,6 +245,8 @@ spec:
         app.kubernetes.io/instance: stargazer
         app.kubernetes.io/component: api
     spec:
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
       serviceAccountName: stargazer
       securityContext:
         fsGroup: 65532
@@ -230,6 +294,12 @@ spec:
         - name: nginx-config
           mountPath: /etc/nginx/conf.d/
           readOnly: true
+        - name: cache
+          mountPath: /var/cache/nginx
+        - name: tmp
+          mountPath: /tmp
+        - name: run
+          mountPath: /var/run
         - name: data
           mountPath: /data
           readOnly: true
@@ -237,6 +307,12 @@ spec:
       - name: nginx-config
         configMap:
           name: stargazer-nginx
+      - name: cache
+        emptyDir: {}
+      - name: tmp
+        emptyDir: {}
+      - name: run
+        emptyDir: {}
       - name: data
         persistentVolumeClaim:
           claimName: stargazer-data
@@ -270,6 +346,8 @@ spec:
             app.kubernetes.io/instance: stargazer
         spec:
           restartPolicy: OnFailure
+          imagePullSecrets:
+            - name: ghcr-imagepull-secret
           serviceAccountName: stargazer
           securityContext:
             fsGroup: 65532
@@ -288,7 +366,7 @@ spec:
               runAsUser: 65532
               seccompProfile:
                 type: RuntimeDefault
-            image: "python:3.11-alpine"
+            image: "ghcr.io/jomcgi/homelab/services/stargazer:2026.01.15.19.20.05-442085c"
             imagePullPolicy: IfNotPresent
             command: ["python3", "-m", "services.stargazer.app.main"]
             env:
@@ -396,6 +474,35 @@ spec:
   hostnames:
     - api.jomcgi.dev
   rules:
-    - backendRefs:
+    - matches:
+      - path:
+          type: PathPrefix
+          value: /stargazer
+      filters:
+      - type: URLRewrite
+        urlRewrite:
+          path:
+            type: ReplacePrefixMatch
+            replacePrefixMatch: /
+      backendRefs:
       - name: stargazer-api
         port: 80
+---
+# Source: stargazer/templates/image-pull-secret.yaml
+# GHCR Pull Secret (for Kubernetes image pulls)
+# Allows stargazer to pull private images from GitHub Container Registry
+# Type: kubernetes.io/dockerconfigjson (used for imagePullSecrets)
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+type: kubernetes.io/dockerconfigjson
+metadata:
+  name: ghcr-imagepull-secret
+  namespace: stargazer
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
