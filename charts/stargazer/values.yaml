@@ -92,3 +92,23 @@ config:
     enabled: true
     serviceName: "stargazer"
     otlpEndpoint: ""
+
+# API server configuration
+api:
+  enabled: false
+  replicas: 1
+  service:
+    type: ClusterIP
+    port: 80
+  resources:
+    limits:
+      cpu: 200m
+      memory: 256Mi
+    requests:
+      cpu: 50m
+      memory: 128Mi
+  httproute:
+    enabled: false
+    hostname: api.jomcgi.dev
+    gateway: api-gateway
+    gatewayNamespace: api-gateway
