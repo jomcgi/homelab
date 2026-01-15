@@ -1,6 +1,9 @@
 ## Claude Web Interface Configuration
 ## Single pod with Claude Code session management
 
+## Number of replicas (use 2+ with leader election for HA)
+replicas: 1
+
 ## Container image
 image:
   repository: ghcr.io/jomcgi/homelab/charts/claude
@@ -59,6 +62,9 @@ repoSync:
 service:
   type: ClusterIP
   port: 3000
+  # Session affinity ensures requests from same client go to same pod
+  sessionAffinity: false
+  sessionAffinityTimeout: 3600  # 1 hour
 
 ## Secret management via 1Password
 secret:
@@ -111,15 +117,16 @@ livenessProbe:
   timeoutSeconds: 10
   failureThreshold: 3
 
-## Readiness probe
+## Readiness probe - aggressive for faster rollouts
 readinessProbe:
   enabled: true
   httpGet:
     path: /health
     port: http
-  initialDelaySeconds: 10
-  periodSeconds: 10
+  initialDelaySeconds: 5  # Start checking earlier
+  periodSeconds: 2  # Check more frequently
   timeoutSeconds: 5
+  successThreshold: 2  # Only need 2 successful checks
   failureThreshold: 3
 
 ## Node selector
@@ -143,9 +150,12 @@ podAnnotations:
 ## Pod labels
 podLabels: {}
 
-## Deployment strategy (Recreate for stateful single-pod deployment)
+## Deployment strategy - RollingUpdate for zero downtime
 strategy:
-  type: Recreate
+  type: RollingUpdate
+  rollingUpdate:
+    maxUnavailable: 0  # Never take down the old pod until new one is ready
+    maxSurge: 1  # Allow one extra pod during rollout
 
 ## Service Account configuration
 serviceAccount:
@@ -162,3 +172,27 @@ serviceAccount:
 rbac:
   # Create ClusterRole and ClusterRoleBinding for read-only cluster access
   create: true
+
+## Frontend deployment for HA and zero-downtime rollouts
+frontend:
+  # Enable separate frontend deployment
+  enabled: false
+  # Number of frontend replicas (stateless, can scale freely)
+  replicas: 2
+  # Frontend service configuration
+  service:
+    port: 8080
+  # Pod annotations for frontend
+  podAnnotations:
+    linkerd.io/inject: disabled
+    config.linkerd.io/opaque-ports: "8080"
+  # Optional static files to serve
+  staticFiles: false
+
+## StatefulSet mode for HA deployments
+## Each pod gets its own PVC, sessions are sticky to specific pods
+statefulset:
+  # Use StatefulSet instead of Deployment
+  enabled: false
+  # Pod management policy (Parallel = faster scaling)
+  podManagementPolicy: Parallel

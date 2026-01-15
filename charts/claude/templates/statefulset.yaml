@@ -1,14 +1,18 @@
-{{- if not .Values.statefulset.enabled }}
+{{- if .Values.statefulset.enabled }}
 apiVersion: apps/v1
-kind: Deployment
+kind: StatefulSet
 metadata:
   name: {{ include "claude-api.fullname" . }}
   labels:
     {{- include "claude-api.labels" . | nindent 4 }}
 spec:
+  serviceName: {{ include "claude-api.fullname" . }}-headless
   replicas: {{ .Values.replicas }}
-  strategy:
-    {{- toYaml .Values.strategy | nindent 4 }}
+  podManagementPolicy: Parallel  # Start all pods in parallel for faster scaling
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      partition: 0  # Update all pods
   selector:
     matchLabels:
       {{- include "claude-api.selectorLabels" . | nindent 6 }}
@@ -32,44 +36,9 @@ spec:
       serviceAccountName: {{ include "claude-api.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      terminationGracePeriodSeconds: 30
       containers:
-        {{- if .Values.leaderElection.enabled }}
-        # Leader election sidecar using kubectl
-        - name: leader-elector
-          image: bitnami/kubectl:latest
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh"]
-          args: ["/scripts/leader-election.sh"]
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          volumeMounts:
-            - name: leader-election-scripts
-              mountPath: /scripts
-            - name: leader-status
-              mountPath: /tmp
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              memory: 32Mi
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false  # Needs to write to /tmp
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop:
-                - ALL
-        {{- end }}
-        # Nginx reverse proxy for WebSocket support with long timeouts
+        # Nginx reverse proxy for WebSocket support
         - name: nginx
           image: nginx:1.27-alpine
           imagePullPolicy: IfNotPresent
@@ -92,12 +61,28 @@ spec:
               port: 8080
             initialDelaySeconds: 5
             periodSeconds: 10
+            timeoutSeconds: 2
           readinessProbe:
             httpGet:
               path: /health
               port: 8080
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 2
+            periodSeconds: 2
+            timeoutSeconds: 1
+            successThreshold: 1
+            failureThreshold: 2
+          startupProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 0
+            periodSeconds: 1
+            timeoutSeconds: 1
+            failureThreshold: 30
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]  # Grace period for connections to drain
           volumeMounts:
             - name: nginx-config
               mountPath: /etc/nginx/nginx.conf
@@ -138,22 +123,34 @@ spec:
           {{- end }}
           {{- if .Values.readinessProbe.enabled }}
           readinessProbe:
-            {{- if .Values.leaderElection.enabled }}
-            exec:
-              command: ["/bin/sh", "/scripts/health-check.sh"]
-            {{- else }}
             httpGet:
               path: {{ .Values.readinessProbe.httpGet.path }}
               port: backend
-            {{- end }}
-            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
-            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
-            timeoutSeconds: {{ .Values.readinessProbe.timeoutSeconds }}
-            failureThreshold: {{ .Values.readinessProbe.failureThreshold }}
+            initialDelaySeconds: 5
+            periodSeconds: 2
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 2
           {{- end }}
+          startupProbe:
+            httpGet:
+              path: /health
+              port: backend
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 60  # 2 minutes to start
+          lifecycle:
+            preStop:
+              exec:
+                command: ["/bin/sh", "-c", "sleep 5"]
           env:
             - name: HOME
               value: /home/user
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
             - name: PORT
               value: {{ .Values.api.port | quote }}
             - name: GIT_USER_NAME
@@ -173,7 +170,6 @@ spec:
                   name: {{ include "claude-api.fullname" . }}-secret
                   key: google_api_key
                   optional: true
-            # OpenCode config path (baked into image, not on PVC)
             - name: OPENCODE_CONFIG
               value: /etc/opencode/opencode.json
             {{- if .Values.defaultWorkingDirectory }}
@@ -185,7 +181,6 @@ spec:
               value: {{ .Values.defaultPermissionMode | quote }}
             {{- end }}
             {{- if .Values.repoSync.enabled }}
-            # Repo sync configuration (replaces git-sync sidecar)
             - name: REPO_SYNC_URL
               value: {{ .Values.repoSync.repo | quote }}
             - name: REPO_SYNC_PATH
@@ -200,88 +195,12 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/user
-            {{- if .Values.leaderElection.enabled }}
-            - name: leader-election-scripts
-              mountPath: /scripts
-              readOnly: true
-            - name: leader-status
-              mountPath: /tmp
-              readOnly: true
-            {{- end }}
-            {{- if .Values.gitSync.enabled }}
-            - name: repo
-              mountPath: /repos/{{ .Values.gitSync.repoName }}
-            {{- else if .Values.repoSync.enabled }}
-            # Repo sync uses a subdirectory on the home PVC for persistence
+            {{- if .Values.repoSync.enabled }}
             - name: home
               mountPath: /repos/{{ .Values.repoSync.repoName }}
               subPath: repos/{{ .Values.repoSync.repoName }}
             {{- end }}
-        {{- if .Values.gitSync.enabled }}
-        # Git-sync sidecar to keep repo in sync
-        - name: git-sync
-          image: {{ .Values.gitSync.image }}
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            capabilities:
-              drop:
-                - ALL
-          env:
-            - name: GITSYNC_REPO
-              value: {{ .Values.gitSync.repo | quote }}
-            - name: GITSYNC_REF
-              value: {{ .Values.gitSync.branch | quote }}
-            - name: GITSYNC_USERNAME
-              value: oauth2
-            - name: GITSYNC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "claude-api.fullname" . }}-secret
-                  key: github_token
-            - name: GITSYNC_ROOT
-              value: /repo
-            - name: GITSYNC_LINK
-              value: current
-            - name: GITSYNC_PERIOD
-              value: {{ .Values.gitSync.period | quote }}
-            - name: GITSYNC_ONE_TIME
-              value: "false"
-            # Clean up old worktrees after 1 hour
-            - name: GITSYNC_STALE_WORKTREE_TIMEOUT
-              value: "1h"
-          volumeMounts:
-            - name: repo
-              mountPath: /repo
-            - name: git-sync-tmp
-              mountPath: /tmp
-          resources:
-            requests:
-              cpu: 10m
-              memory: 32Mi
-            limits:
-              memory: 64Mi
-        {{- end }}
       volumes:
-        - name: home
-          {{- if .Values.persistence.enabled }}
-          persistentVolumeClaim:
-            claimName: {{ include "claude-api.fullname" . }}-home
-          {{- else }}
-          emptyDir: {}
-          {{- end }}
-        {{- if .Values.leaderElection.enabled }}
-        - name: leader-election-scripts
-          configMap:
-            name: {{ include "claude-api.fullname" . }}-leader-election
-            defaultMode: 0755
-        - name: leader-status
-          emptyDir: {}
-        {{- end }}
         - name: nginx-config
           configMap:
             name: {{ include "claude-api.fullname" . }}-nginx
@@ -291,12 +210,6 @@ spec:
           emptyDir: {}
         - name: nginx-log
           emptyDir: {}
-        {{- if .Values.gitSync.enabled }}
-        - name: repo
-          emptyDir: {}
-        - name: git-sync-tmp
-          emptyDir: {}
-        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
@@ -309,5 +222,17 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-
+  volumeClaimTemplates:
+    - metadata:
+        name: home
+        labels:
+          {{- include "claude-api.labels" . | nindent 10 }}
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        {{- if .Values.persistence.storageClass }}
+        storageClassName: {{ .Values.persistence.storageClass }}
+        {{- end }}
+        resources:
+          requests:
+            storage: {{ .Values.persistence.size }}
 {{- end }}
