@@ -3,11 +3,11 @@
 # Run every 6 hours
 schedule: "0 */6 * * *"
 
-# Use latest image for dev
+# Use Python Alpine for dev (until proper image is built)
 image:
-  repository: ghcr.io/jomcgi/homelab/services/stargazer
-  tag: "latest"
-  # Digest for pinning: @sha256:8122b4d2b5d27c54debaecd4a5a098a99801c10ed8e0b1ae282ae96571f46fed
+  repository: python
+  tag: "3.11-alpine"
+  # TODO: Switch back to ghcr.io/jomcgi/homelab/services/stargazer:latest
 
 # Persistent storage
 persistence:

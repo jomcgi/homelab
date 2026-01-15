@@ -1,0 +1,67 @@
+{{- if .Values.api.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "stargazer.fullname" . }}-nginx
+  labels:
+    {{- include "stargazer.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+data:
+  default.conf: |
+    server {
+        listen 8080;
+        server_name _;
+
+        root /data;
+
+        # Enable CORS
+        add_header Access-Control-Allow-Origin *;
+        add_header Access-Control-Allow-Methods "GET, OPTIONS";
+        add_header Access-Control-Allow-Headers "Origin, X-Requested-With, Content-Type, Accept";
+
+        # JSON content type for data files
+        location ~ \.json$ {
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+        }
+
+        # Health check
+        location /health {
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+            return 200 '{"status":"healthy"}';
+        }
+
+        # API endpoints
+        location /api/best {
+            alias /data/output/best_locations.json;
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+
+            # Fallback if file doesn't exist
+            try_files $uri /api/empty.json;
+        }
+
+        location /api/locations {
+            alias /data/output/forecasts_scored.json;
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+
+            # Fallback if file doesn't exist
+            try_files $uri /api/empty.json;
+        }
+
+        # Empty response fallback
+        location /api/empty.json {
+            add_header Content-Type application/json;
+            add_header Access-Control-Allow-Origin *;
+            return 200 '[]';
+        }
+
+        # Default
+        location / {
+            add_header Content-Type text/html;
+            return 200 '<html><body><h1>Stargazer Data API</h1><p>Endpoints: /api/best, /api/locations, /health</p></body></html>';
+        }
+    }
+{{- end }}
