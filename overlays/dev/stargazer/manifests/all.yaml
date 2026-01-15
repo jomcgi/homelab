@@ -61,18 +61,18 @@ spec:
     requests:
       storage: 5Gi
 ---
-# Source: stargazer/templates/service.yaml
+# Source: stargazer/templates/service-api.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: stargazer-web
+  name: stargazer-api
   labels:
     helm.sh/chart: stargazer-0.1.0
     app.kubernetes.io/name: stargazer
     app.kubernetes.io/instance: stargazer
     app.kubernetes.io/version: "0.1.0"
     app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: api
 spec:
   type: ClusterIP
   ports:
@@ -83,33 +83,34 @@ spec:
   selector:
     app.kubernetes.io/name: stargazer
     app.kubernetes.io/instance: stargazer
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: api
 ---
-# Source: stargazer/templates/deployment.yaml
+# Source: stargazer/templates/deployment-api.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: stargazer-web
+  name: stargazer-api
   labels:
     helm.sh/chart: stargazer-0.1.0
     app.kubernetes.io/name: stargazer
     app.kubernetes.io/instance: stargazer
     app.kubernetes.io/version: "0.1.0"
     app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/component: web
+    app.kubernetes.io/component: api
 spec:
   replicas: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: stargazer
       app.kubernetes.io/instance: stargazer
-      app.kubernetes.io/component: web
+      app.kubernetes.io/component: api
   template:
     metadata:
+      annotations:
       labels:
         app.kubernetes.io/name: stargazer
         app.kubernetes.io/instance: stargazer
-        app.kubernetes.io/component: web
+        app.kubernetes.io/component: api
     spec:
       serviceAccountName: stargazer
       securityContext:
@@ -118,7 +119,7 @@ spec:
         runAsNonRoot: true
         runAsUser: 65532
       containers:
-      - name: stargazer-web
+      - name: api
         securityContext:
           allowPrivilegeEscalation: false
           capabilities:
@@ -129,16 +130,18 @@ spec:
           runAsUser: 65532
           seccompProfile:
             type: RuntimeDefault
-        image: "ghcr.io/jomcgi/homelab/services/stargazer:sha256:8122b4d2b5d27c54debaecd4a5a098a99801c10ed8e0b1ae282ae96571f46fed"
+        image: "ghcr.io/jomcgi/homelab/services/stargazer:latest"
         imagePullPolicy: IfNotPresent
-        command: ["python3", "-m", "services.stargazer.app.server"]
-        env:
-        - name: DATA_DIR
-          value: /data
+        command: ["python3", "-m", "services.stargazer.app.api"]
         ports:
         - name: http
           containerPort: 8080
           protocol: TCP
+        env:
+        - name: DATA_DIR
+          value: /data
+        - name: PORT
+          value: "8080"
         livenessProbe:
           httpGet:
             path: /health
@@ -151,17 +154,17 @@ spec:
             port: http
           initialDelaySeconds: 5
           periodSeconds: 10
+        resources:
+          limits:
+            cpu: 200m
+            memory: 256Mi
+          requests:
+            cpu: 50m
+            memory: 128Mi
         volumeMounts:
         - name: data
           mountPath: /data
           readOnly: true
-        resources:
-          limits:
-            cpu: 100m
-            memory: 128Mi
-          requests:
-            cpu: 50m
-            memory: 64Mi
       volumes:
       - name: data
         persistentVolumeClaim:
@@ -214,7 +217,7 @@ spec:
               runAsUser: 65532
               seccompProfile:
                 type: RuntimeDefault
-            image: "ghcr.io/jomcgi/homelab/services/stargazer:sha256:8122b4d2b5d27c54debaecd4a5a098a99801c10ed8e0b1ae282ae96571f46fed"
+            image: "ghcr.io/jomcgi/homelab/services/stargazer:latest"
             imagePullPolicy: IfNotPresent
             command: ["python3", "-m", "services.stargazer.app.main"]
             env:
@@ -302,3 +305,26 @@ spec:
           - name: data
             persistentVolumeClaim:
               claimName: stargazer-data
+---
+# Source: stargazer/templates/httproute.yaml
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: stargazer-api
+  labels:
+    helm.sh/chart: stargazer-0.1.0
+    app.kubernetes.io/name: stargazer
+    app.kubernetes.io/instance: stargazer
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: api
+spec:
+  parentRefs:
+    - name: api-gateway
+      namespace: api-gateway
+  hostnames:
+    - api.jomcgi.dev
+  rules:
+    - backendRefs:
+      - name: stargazer-api
+        port: 80
