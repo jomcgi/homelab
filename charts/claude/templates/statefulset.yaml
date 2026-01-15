@@ -170,6 +170,12 @@ spec:
                   name: {{ include "claude-api.fullname" . }}-secret
                   key: google_api_key
                   optional: true
+            - name: BUILDBUDDY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "claude-api.fullname" . }}-secret
+                  key: buildbuddy_api_key
+                  optional: true
             - name: OPENCODE_CONFIG
               value: /etc/opencode/opencode.json
             {{- if .Values.defaultWorkingDirectory }}
