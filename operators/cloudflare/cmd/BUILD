@@ -9,6 +9,7 @@ go_library(
         "//operators/cloudflare/api/v1:api",
         "//operators/cloudflare/internal/cloudflare",
         "//operators/cloudflare/internal/controller",
+        "//operators/cloudflare/internal/statemachine",
         "//operators/cloudflare/internal/telemetry",
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_apimachinery//pkg/util/runtime",

@@ -18,16 +18,13 @@ package controller
 
 import (
 	"context"
-	goerrors "errors"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/cloudflare/cloudflare-go"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -40,10 +37,7 @@ import (
 
 	tunnelsv1 "github.com/jomcgi/homelab/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/operators/cloudflare/internal/cloudflare"
-	"github.com/jomcgi/homelab/operators/cloudflare/internal/telemetry"
-	"go.opentelemetry.io/otel/attribute"
-	"go.opentelemetry.io/otel/codes"
-	"go.opentelemetry.io/otel/trace"
+	sm "github.com/jomcgi/homelab/operators/cloudflare/internal/statemachine"
 )
 
 const (
@@ -54,9 +48,10 @@ const (
 // CloudflareTunnelReconciler reconciles a CloudflareTunnel object
 type CloudflareTunnelReconciler struct {
 	client.Client
-	Scheme   *runtime.Scheme
-	CFClient cfclient.TunnelClientInterface
-	tracer   trace.Tracer
+	Scheme     *runtime.Scheme
+	CFClient   cfclient.TunnelClientInterface
+	Calculator *sm.CloudflareTunnelCalculator
+	Observer   sm.TransitionObserver
 }
 
 // +kubebuilder:rbac:groups=tunnels.cloudflare.io,resources=cloudflaretunnels,verbs=get;list;watch;create;update;patch;delete
@@ -69,416 +64,138 @@ type CloudflareTunnelReconciler struct {
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 func (r *CloudflareTunnelReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	// Start span for reconciliation
-	ctx, span := r.tracer.Start(ctx, "Reconcile",
-		trace.WithAttributes(
-			attribute.String("k8s.resource.name", req.Name),
-			attribute.String("k8s.resource.namespace", req.Namespace),
-		),
-	)
-	defer span.End()
-
 	log := logf.FromContext(ctx)
+	startTime := time.Now()
 
-	// Fetch the CloudflareTunnel instance
+	// 1. Fetch the resource
 	var tunnel tunnelsv1.CloudflareTunnel
 	if err := r.Get(ctx, req.NamespacedName, &tunnel); err != nil {
 		if errors.IsNotFound(err) {
 			log.V(1).Info("CloudflareTunnel resource not found, ignoring since object must be deleted")
-			span.SetStatus(codes.Ok, "resource not found")
+			sm.CleanupResourceMetrics(req.Namespace, req.Name)
 			return ctrl.Result{}, nil
 		}
-		log.Error(err, "failed to get CloudflareTunnel")
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "failed to get resource")
 		return ctrl.Result{}, err
 	}
 
-	// Add resource information to span
-	span.SetAttributes(
-		attribute.String("tunnel.name", tunnel.Spec.Name),
-		attribute.String("tunnel.id", tunnel.Status.TunnelID),
-		attribute.String("account.id", tunnel.Spec.AccountID),
-	)
+	// 2. Calculate current state from status
+	currentState := r.Calculator.Calculate(&tunnel)
+	phase := currentState.Phase()
+	log.V(1).Info("Calculated state", "phase", phase)
 
-	// Skip reconciliation if spec hasn't changed (generation-based reconciliation)
-	// This prevents unnecessary API calls to Cloudflare on status-only updates
-	if tunnel.Generation == tunnel.Status.ObservedGeneration && tunnel.DeletionTimestamp == nil {
-		log.V(1).Info("Skipping reconciliation - no spec changes detected",
-			"generation", tunnel.Generation,
-			"observedGeneration", tunnel.Status.ObservedGeneration)
-		span.AddEvent("skipped - no spec changes")
-		span.SetStatus(codes.Ok, "no changes")
-		// Still requeue for periodic status checks
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	// 3. Visit the state to determine next action
+	visitor := &tunnelVisitor{
+		reconciler: r,
+		ctx:        ctx,
 	}
+	result := sm.Visit(currentState, visitor)
+
+	// 4. Record metrics
+	sm.RecordReconcile(phase, time.Since(startTime), result.Error == nil)
+
+	return result.Result, result.Error
+}
+
+// VisitResult is returned by visitor methods
+type VisitResult struct {
+	Result ctrl.Result
+	Error  error
+}
+
+// tunnelVisitor implements sm.CloudflareTunnelVisitor[VisitResult]
+type tunnelVisitor struct {
+	reconciler *CloudflareTunnelReconciler
+	ctx        context.Context
+}
+
+// Compile-time check that tunnelVisitor implements the visitor interface
+var _ sm.CloudflareTunnelVisitor[VisitResult] = (*tunnelVisitor)(nil)
+
+// VisitPending handles the Pending state - add finalizer and start creation
+func (v *tunnelVisitor) VisitPending(s sm.CloudflareTunnelPending) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
 
 	// Handle deletion
-	if tunnel.DeletionTimestamp != nil {
-		result, err := r.handleDeletion(ctx, &tunnel)
-		if err != nil {
-			span.RecordError(err)
-			span.SetStatus(codes.Error, "deletion failed")
-		} else {
-			span.SetStatus(codes.Ok, "resource deleted")
-		}
-		return result, err
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
 	}
 
 	// Add finalizer if not present
-	if !controllerutil.ContainsFinalizer(&tunnel, FinalizerName) {
-		controllerutil.AddFinalizer(&tunnel, FinalizerName)
-		span.AddEvent("finalizer added")
-		return ctrl.Result{}, r.Update(ctx, &tunnel)
-	}
-
-	// Handle creation/update
-	result, err := r.handleCreateOrUpdate(ctx, &tunnel)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "reconciliation failed")
-	} else {
-		span.SetStatus(codes.Ok, "reconciliation successful")
-	}
-	return result, err
-}
-
-// handleDeletion handles the deletion of a CloudflareTunnel
-func (r *CloudflareTunnelReconciler) handleDeletion(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-
 	if !controllerutil.ContainsFinalizer(tunnel, FinalizerName) {
-		return ctrl.Result{}, nil
-	}
-
-	log.Info("Deleting CloudflareTunnel", "tunnel", tunnel.Name, "tunnelID", tunnel.Status.TunnelID)
-
-	// Delete tunnel from Cloudflare if it exists
-	if tunnel.Status.TunnelID != "" {
-		err := r.CFClient.DeleteTunnel(ctx, tunnel.Spec.AccountID, tunnel.Status.TunnelID)
-		if err != nil && !cfclient.IsNotFoundError(err) {
-			log.Error(err, "Failed to delete tunnel from Cloudflare")
-
-			// Update status to indicate deletion failure
-			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-				Type:    tunnelsv1.TypeDegraded,
-				Status:  metav1.ConditionTrue,
-				Reason:  tunnelsv1.ReasonAPIError,
-				Message: fmt.Sprintf("Failed to delete tunnel: %v", err),
-			})
-			if err := r.Status().Update(ctx, tunnel); err != nil {
-				log.Error(err, "Failed to update tunnel status")
-			}
-
-			// Retry deletion after backoff
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+		log.Info("Adding finalizer")
+		controllerutil.AddFinalizer(tunnel, FinalizerName)
+		if err := v.reconciler.Update(v.ctx, tunnel); err != nil {
+			return VisitResult{Error: err}
 		}
+		return VisitResult{Result: ctrl.Result{Requeue: true}}
 	}
 
-	// Remove finalizer
-	controllerutil.RemoveFinalizer(tunnel, FinalizerName)
-	return ctrl.Result{}, r.Update(ctx, tunnel)
+	// Transition to CreatingTunnel
+	log.Info("Starting tunnel creation")
+	newState := s.StartCreation()
+	return v.updateStatus(newState)
 }
 
-// handleCreateOrUpdate handles the creation or update of a CloudflareTunnel
-func (r *CloudflareTunnelReconciler) handleCreateOrUpdate(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
-	// Update observed generation
-	tunnel.Status.ObservedGeneration = tunnel.Generation
+// VisitCreatingTunnel handles the CreatingTunnel state - create tunnel in Cloudflare
+func (v *tunnelVisitor) VisitCreatingTunnel(s sm.CloudflareTunnelCreatingTunnel) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
 
-	// Create tunnel if it doesn't exist
-	if tunnel.Status.TunnelID == "" {
-		return r.createTunnel(ctx, tunnel)
+	// Handle deletion
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
 	}
 
-	// Update tunnel status
-	return r.updateTunnelStatus(ctx, tunnel)
-}
-
-// createTunnel creates a new tunnel in Cloudflare
-func (r *CloudflareTunnelReconciler) createTunnel(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-
-	// Auto-generate unique tunnel name if not specified
+	// Generate tunnel name
 	tunnelName := tunnel.Spec.Name
 	if tunnelName == "" {
-		// Use CRD name + short UID prefix for globally unique name
-		// Format: {crd-name}-{first-8-chars-of-uid}
-		uidPrefix := string(tunnel.UID)[:8]
-		tunnelName = fmt.Sprintf("%s-%s", tunnel.Name, uidPrefix)
+		tunnelName = fmt.Sprintf("%s-%s", tunnel.Name, string(tunnel.UID)[:8])
 		log.Info("Auto-generating unique tunnel name", "tunnelName", tunnelName)
 	}
 
-	log.Info("Creating CloudflareTunnel", "tunnel", tunnelName, "account", tunnel.Spec.AccountID)
+	log.Info("Creating CloudflareTunnel", "tunnelName", tunnelName, "accountID", tunnel.Spec.AccountID)
 
-	// Set progressing condition
-	meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-		Type:    tunnelsv1.TypeProgressing,
-		Status:  metav1.ConditionTrue,
-		Reason:  tunnelsv1.ReasonCreating,
-		Message: "Creating tunnel in Cloudflare",
-	})
-
-	if err := r.Status().Update(ctx, tunnel); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Create tunnel via Cloudflare API
-	cfTunnel, _, err := r.CFClient.CreateTunnel(ctx, tunnel.Spec.AccountID, tunnelName)
+	// Create tunnel in Cloudflare
+	cfTunnel, _, err := v.reconciler.CFClient.CreateTunnel(v.ctx, tunnel.Spec.AccountID, tunnelName)
 	if err != nil {
-		// Check if the error is because tunnel name already exists (code 1013)
+		// Check if tunnel already exists (adopt it)
 		if strings.Contains(err.Error(), "(1013)") || strings.Contains(err.Error(), "already have a tunnel with this name") {
 			log.Info("Tunnel name already exists, attempting to adopt existing tunnel", "tunnelName", tunnelName)
-
-			// List all tunnels to find the one with this name
-			tunnels, listErr := r.CFClient.ListTunnels(ctx, tunnel.Spec.AccountID)
-			if listErr != nil {
-				log.Error(listErr, "Failed to list tunnels for adoption")
-				meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-					Type:    tunnelsv1.TypeDegraded,
-					Status:  metav1.ConditionTrue,
-					Reason:  tunnelsv1.ReasonAPIError,
-					Message: fmt.Sprintf("Failed to adopt tunnel: %v", listErr),
-				})
-				if err := r.Status().Update(ctx, tunnel); err != nil {
-					log.Error(err, "Failed to update tunnel status")
-				}
-				return r.handleAPIError(listErr)
-			}
-
-			// Find the tunnel with the matching name
-			var existingTunnel *cloudflare.Tunnel
-			for i := range tunnels {
-				if tunnels[i].Name == tunnelName {
-					existingTunnel = &tunnels[i]
-					break
-				}
-			}
-
-			if existingTunnel == nil {
-				log.Error(fmt.Errorf("tunnel not found"), "Tunnel name exists but not found in list", "tunnelName", tunnelName)
-				meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-					Type:    tunnelsv1.TypeDegraded,
-					Status:  metav1.ConditionTrue,
-					Reason:  tunnelsv1.ReasonAPIError,
-					Message: fmt.Sprintf("Tunnel name exists but not found: %s", tunnelName),
-				})
-				if err := r.Status().Update(ctx, tunnel); err != nil {
-					log.Error(err, "Failed to update tunnel status")
-				}
-				return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-			}
-
-			log.Info("Successfully adopted existing tunnel", "tunnelName", tunnelName, "tunnelID", existingTunnel.ID)
-			cfTunnel = existingTunnel
-			// Note: Tunnel secret/token will be retrieved via GetTunnelToken below regardless of create vs adopt
-		} else {
-			// Different error, handle as before
-			log.Error(err, "Failed to create tunnel")
-			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-				Type:    tunnelsv1.TypeDegraded,
-				Status:  metav1.ConditionTrue,
-				Reason:  tunnelsv1.ReasonAPIError,
-				Message: fmt.Sprintf("Failed to create tunnel: %v", err),
-			})
-			if err := r.Status().Update(ctx, tunnel); err != nil {
-				log.Error(err, "Failed to update tunnel status")
-			}
-			return r.handleAPIError(err)
+			return v.adoptExistingTunnel(s, tunnelName, tunnel.Spec.AccountID)
 		}
+
+		// Handle error
+		return v.handleError(s, err)
 	}
 
-	// Update status with tunnel ID
-	tunnel.Status.TunnelID = cfTunnel.ID
-	tunnel.Status.Ready = true
-
-	// Create tunnel secret before final status update to avoid resourceVersion conflicts
-	// (multiple status updates would cause "object has been modified" errors)
-	if tunnel.Status.SecretName == "" {
-		secretName, err := r.ensureTunnelSecret(ctx, tunnel)
-		if err != nil {
-			log.Error(err, "Failed to create tunnel secret")
-			meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-				Type:    tunnelsv1.TypeDegraded,
-				Status:  metav1.ConditionTrue,
-				Reason:  tunnelsv1.ReasonAPIError,
-				Message: fmt.Sprintf("Failed to create tunnel secret: %v", err),
-			})
-			if statusErr := r.Status().Update(ctx, tunnel); statusErr != nil {
-				log.Error(statusErr, "Failed to update tunnel status")
-			}
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, err
-		}
-		tunnel.Status.SecretName = secretName
-		log.Info("Tunnel secret created", "secretName", secretName)
-	}
-
-	// Set ready condition
-	meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-		Type:    tunnelsv1.TypeReady,
-		Status:  metav1.ConditionTrue,
-		Reason:  "TunnelCreated",
-		Message: fmt.Sprintf("Tunnel %s created successfully", cfTunnel.ID),
-	})
-
-	// Remove progressing condition
-	meta.RemoveStatusCondition(&tunnel.Status.Conditions, tunnelsv1.TypeProgressing)
-
-	// Single status update with TunnelID, Ready, SecretName, and conditions
-	if err := r.Status().Update(ctx, tunnel); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	log.Info("CloudflareTunnel created successfully", "tunnelID", cfTunnel.ID)
-
-	// Update tunnel configuration if ingress rules are specified
-	if len(tunnel.Spec.Ingress) > 0 {
-		return r.updateTunnelConfiguration(ctx, tunnel)
-	}
-
-	// Schedule status check
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+	// Transition to CreatingSecret with tunnelID
+	log.Info("Tunnel created successfully", "tunnelID", cfTunnel.ID)
+	newState := s.TunnelCreated(cfTunnel.ID)
+	return v.updateStatus(newState)
 }
 
-// updateTunnelStatus updates the tunnel status from Cloudflare
-func (r *CloudflareTunnelReconciler) updateTunnelStatus(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
+// VisitCreatingSecret handles the CreatingSecret state - create K8s secret with tunnel token
+func (v *tunnelVisitor) VisitCreatingSecret(s sm.CloudflareTunnelCreatingSecret) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
 
-	// Ensure secret exists and SecretName is set (recovery for tunnels created before this fix)
-	if tunnel.Status.SecretName == "" {
-		secretName, err := r.ensureTunnelSecret(ctx, tunnel)
-		if err != nil {
-			log.Error(err, "Failed to create/verify tunnel secret")
-			// Continue anyway - we'll retry on next reconcile
-		} else {
-			tunnel.Status.SecretName = secretName
-			log.Info("Recovered tunnel secret name", "secretName", secretName)
-		}
+	// Handle deletion
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
 	}
 
-	// Get tunnel status from Cloudflare
-	cfTunnel, err := r.CFClient.GetTunnel(ctx, tunnel.Spec.AccountID, tunnel.Status.TunnelID)
-	if err != nil {
-		if cfclient.IsNotFoundError(err) {
-			log.Info("Tunnel not found in Cloudflare, recreating", "tunnelID", tunnel.Status.TunnelID)
-			tunnel.Status.TunnelID = ""
-			tunnel.Status.Ready = false
-			tunnel.Status.Active = false
-			return r.createTunnel(ctx, tunnel)
-		}
-
-		log.Error(err, "Failed to get tunnel status")
-		meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-			Type:    tunnelsv1.TypeDegraded,
-			Status:  metav1.ConditionTrue,
-			Reason:  tunnelsv1.ReasonAPIError,
-			Message: fmt.Sprintf("Failed to get tunnel status: %v", err),
-		})
-
-		if err := r.Status().Update(ctx, tunnel); err != nil {
-			log.Error(err, "Failed to update tunnel status")
-		}
-		return r.handleAPIError(err)
-	}
-
-	// Update active status based on tunnel connections
-	hasConnections := len(cfTunnel.Connections) > 0
-	tunnel.Status.Active = hasConnections
-
-	if hasConnections {
-		meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-			Type:    tunnelsv1.TypeActive,
-			Status:  metav1.ConditionTrue,
-			Reason:  tunnelsv1.ReasonTunnelConnected,
-			Message: fmt.Sprintf("Tunnel has %d active connections", len(cfTunnel.Connections)),
-		})
-	} else {
-		meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-			Type:    tunnelsv1.TypeActive,
-			Status:  metav1.ConditionFalse,
-			Reason:  tunnelsv1.ReasonTunnelDisconnected,
-			Message: "Tunnel exists but has no active connections",
-		})
-	}
-
-	if err := r.Status().Update(ctx, tunnel); err != nil {
-		return ctrl.Result{}, err
-	}
-
-	// Schedule next status check
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-}
-
-// updateTunnelConfiguration updates tunnel ingress rules
-func (r *CloudflareTunnelReconciler) updateTunnelConfiguration(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (ctrl.Result, error) {
-	log := logf.FromContext(ctx)
-
-	if len(tunnel.Spec.Ingress) == 0 {
-		return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-	}
-
-	log.Info("Updating tunnel configuration", "tunnelID", tunnel.Status.TunnelID, "ingress_rules", len(tunnel.Spec.Ingress))
-
-	// Convert ingress rules to Cloudflare format
-	ingressRules := make([]cloudflare.UnvalidatedIngressRule, 0, len(tunnel.Spec.Ingress)+1)
-	hasCatchAll := false
-
-	for _, rule := range tunnel.Spec.Ingress {
-		ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
-			Hostname: rule.Hostname,
-			Service:  rule.Service,
-		})
-		// Check if this is already a catch-all rule (no hostname and http_status service)
-		if rule.Hostname == "" && strings.HasPrefix(rule.Service, "http_status:") {
-			hasCatchAll = true
-		}
-	}
-
-	// Add catch-all rule only if one doesn't already exist
-	if !hasCatchAll {
-		ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
-			Service: "http_status:404",
-		})
-	}
-
-	config := cloudflare.TunnelConfiguration{
-		Ingress: ingressRules,
-	}
-
-	err := r.CFClient.UpdateTunnelConfiguration(ctx, tunnel.Spec.AccountID, tunnel.Status.TunnelID, config)
-	if err != nil {
-		log.Error(err, "Failed to update tunnel configuration")
-
-		meta.SetStatusCondition(&tunnel.Status.Conditions, metav1.Condition{
-			Type:    tunnelsv1.TypeDegraded,
-			Status:  metav1.ConditionTrue,
-			Reason:  tunnelsv1.ReasonAPIError,
-			Message: fmt.Sprintf("Failed to update tunnel configuration: %v", err),
-		})
-
-		if err := r.Status().Update(ctx, tunnel); err != nil {
-			log.Error(err, "Failed to update tunnel status")
-		}
-		return r.handleAPIError(err)
-	}
-
-	log.Info("Tunnel configuration updated successfully")
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
-}
-
-// ensureTunnelSecret creates or updates the Secret containing tunnel credentials
-func (r *CloudflareTunnelReconciler) ensureTunnelSecret(ctx context.Context, tunnel *tunnelsv1.CloudflareTunnel) (string, error) {
-	log := logf.FromContext(ctx)
+	log.Info("Creating tunnel secret", "tunnelID", s.TunnelID)
 
 	// Get tunnel token from Cloudflare
-	tunnelToken, err := r.CFClient.GetTunnelToken(ctx, tunnel.Spec.AccountID, tunnel.Status.TunnelID)
+	tunnelToken, err := v.reconciler.CFClient.GetTunnelToken(v.ctx, tunnel.Spec.AccountID, s.TunnelID)
 	if err != nil {
-		return "", fmt.Errorf("failed to get tunnel token: %w", err)
+		log.Error(err, "Failed to get tunnel token")
+		return v.handleError(s, err)
 	}
 
-	// Generate secret name
+	// Create the secret
 	secretName := fmt.Sprintf("%s-tunnel-token", tunnel.Name)
-
-	// Create secret
 	secret := &corev1.Secret{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      secretName,
@@ -502,54 +219,337 @@ func (r *CloudflareTunnelReconciler) ensureTunnelSecret(ctx context.Context, tun
 
 	// Create or update the secret
 	existingSecret := &corev1.Secret{}
-	err = r.Get(ctx, types.NamespacedName{Name: secretName, Namespace: tunnel.Namespace}, existingSecret)
+	err = v.reconciler.Get(v.ctx, types.NamespacedName{Name: secretName, Namespace: tunnel.Namespace}, existingSecret)
 	if err != nil {
 		if errors.IsNotFound(err) {
-			// Create new secret
-			if err := r.Create(ctx, secret); err != nil {
-				return "", fmt.Errorf("failed to create secret: %w", err)
+			if err := v.reconciler.Create(v.ctx, secret); err != nil {
+				log.Error(err, "Failed to create secret")
+				return v.handleError(s, err)
 			}
 			log.Info("Created tunnel secret", "secretName", secretName)
 		} else {
-			return "", fmt.Errorf("failed to get secret: %w", err)
+			log.Error(err, "Failed to get secret")
+			return v.handleError(s, err)
 		}
 	} else {
-		// Update existing secret
 		existingSecret.StringData = secret.StringData
-		if err := r.Update(ctx, existingSecret); err != nil {
-			return "", fmt.Errorf("failed to update secret: %w", err)
+		if err := v.reconciler.Update(v.ctx, existingSecret); err != nil {
+			log.Error(err, "Failed to update secret")
+			return v.handleError(s, err)
 		}
 		log.Info("Updated tunnel secret", "secretName", secretName)
 	}
 
-	return secretName, nil
+	// Transition to ConfiguringIngress
+	newState := s.SecretCreated(secretName)
+	return v.updateStatus(newState)
 }
 
-// handleAPIError handles Cloudflare API errors and determines retry behavior
-func (r *CloudflareTunnelReconciler) handleAPIError(err error) (ctrl.Result, error) {
-	var cfErr *cloudflare.Error
-	if goerrors.As(err, &cfErr) {
-		switch cfErr.StatusCode {
-		case http.StatusTooManyRequests:
-			return ctrl.Result{RequeueAfter: 2 * time.Minute}, nil
-		case http.StatusNotFound:
-			// Resource doesn't exist, treat as success for deletion
-			return ctrl.Result{}, nil
-		case http.StatusBadRequest:
-			// Permanent error, don't retry
-			return ctrl.Result{}, nil
-		default:
-			return ctrl.Result{RequeueAfter: 30 * time.Second}, nil
+// VisitConfiguringIngress handles the ConfiguringIngress state - configure tunnel ingress rules
+func (v *tunnelVisitor) VisitConfiguringIngress(s sm.CloudflareTunnelConfiguringIngress) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
+
+	// Handle deletion
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
+	}
+
+	// Configure ingress rules if specified
+	if len(tunnel.Spec.Ingress) > 0 {
+		log.Info("Configuring tunnel ingress", "tunnelID", s.TunnelID, "rules", len(tunnel.Spec.Ingress))
+
+		// Convert ingress rules to Cloudflare format
+		ingressRules := make([]cloudflare.UnvalidatedIngressRule, 0, len(tunnel.Spec.Ingress)+1)
+		hasCatchAll := false
+
+		for _, rule := range tunnel.Spec.Ingress {
+			ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
+				Hostname: rule.Hostname,
+				Service:  rule.Service,
+			})
+			if rule.Hostname == "" && strings.HasPrefix(rule.Service, "http_status:") {
+				hasCatchAll = true
+			}
+		}
+
+		// Add catch-all rule if needed
+		if !hasCatchAll {
+			ingressRules = append(ingressRules, cloudflare.UnvalidatedIngressRule{
+				Service: "http_status:404",
+			})
+		}
+
+		config := cloudflare.TunnelConfiguration{
+			Ingress: ingressRules,
+		}
+
+		err := v.reconciler.CFClient.UpdateTunnelConfiguration(v.ctx, tunnel.Spec.AccountID, s.TunnelID, config)
+		if err != nil {
+			log.Error(err, "Failed to update tunnel configuration")
+			return v.handleError(s, err)
+		}
+
+		log.Info("Tunnel configuration updated successfully")
+	}
+
+	// Transition to Ready
+	newState := s.IngressConfigured(false) // Will check active status on next reconcile
+	return v.updateStatus(newState)
+}
+
+// VisitReady handles the Ready state - monitor tunnel and handle spec changes
+func (v *tunnelVisitor) VisitReady(s sm.CloudflareTunnelReady) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
+
+	// Handle deletion
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
+	}
+
+	// Check for spec changes
+	if sm.HasSpecChanged(tunnel) {
+		log.Info("Spec changed, reconfiguring ingress")
+		// Update status to ConfiguringIngress while preserving tunnelID and secretName
+		tunnel.Status.Phase = sm.PhaseConfiguringIngress
+		tunnel.Status.ObservedGeneration = tunnel.Generation
+		if err := v.reconciler.Status().Update(v.ctx, tunnel); err != nil {
+			return VisitResult{Error: err}
+		}
+		return VisitResult{Result: ctrl.Result{Requeue: true}}
+	}
+
+	// Periodic status check - verify tunnel exists and get connection status
+	cfTunnel, err := v.reconciler.CFClient.GetTunnel(v.ctx, tunnel.Spec.AccountID, s.TunnelID)
+	if err != nil {
+		if cfclient.IsNotFoundError(err) {
+			log.Info("Tunnel deleted externally, will recreate")
+			// Reset to Pending to recreate
+			tunnel.Status.Phase = sm.PhasePending
+			tunnel.Status.TunnelID = ""
+			tunnel.Status.SecretName = ""
+			if err := v.reconciler.Status().Update(v.ctx, tunnel); err != nil {
+				return VisitResult{Error: err}
+			}
+			return VisitResult{Result: ctrl.Result{Requeue: true}}
+		}
+		log.Error(err, "Failed to get tunnel status")
+		// Don't fail, just requeue
+		return VisitResult{Result: ctrl.Result{RequeueAfter: s.RequeueAfter()}}
+	}
+
+	// Update active status based on tunnel connections
+	hasConnections := len(cfTunnel.Connections) > 0
+	if hasConnections != s.Active {
+		log.Info("Updating active status", "active", hasConnections, "connections", len(cfTunnel.Connections))
+		tunnel.Status.Active = hasConnections
+		if err := v.reconciler.Status().Update(v.ctx, tunnel); err != nil {
+			return VisitResult{Error: err}
 		}
 	}
-	return ctrl.Result{RequeueAfter: 30 * time.Second}, err
+
+	// All good, requeue for next check
+	log.V(1).Info("Tunnel ready", "active", s.Active)
+	return VisitResult{Result: ctrl.Result{RequeueAfter: s.RequeueAfter()}}
+}
+
+// VisitFailed handles the Failed state - retry or give up
+func (v *tunnelVisitor) VisitFailed(s sm.CloudflareTunnelFailed) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
+
+	// Handle deletion (always allow deletion from Failed)
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
+	}
+
+	log.Info("In Failed state", "lastState", s.LastState, "retryCount", s.RetryCount, "error", s.ErrorMessage)
+
+	// Check if we can retry
+	if newState := s.Retry(); newState != nil {
+		log.Info("Retrying from Failed state", "retryCount", s.RetryCount)
+		return v.updateStatus(*newState)
+	}
+
+	// Max retries exceeded - stay in Failed, requeue slowly
+	log.Info("Max retries exceeded, staying in Failed state")
+	return VisitResult{Result: ctrl.Result{RequeueAfter: s.RetryBackoff()}}
+}
+
+// VisitDeletingTunnel handles the DeletingTunnel state - cleanup Cloudflare resources
+func (v *tunnelVisitor) VisitDeletingTunnel(s sm.CloudflareTunnelDeletingTunnel) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
+
+	log.Info("Deleting tunnel from Cloudflare", "tunnelID", s.TunnelID)
+
+	// Delete tunnel from Cloudflare if it exists
+	if s.TunnelID != "" {
+		err := v.reconciler.CFClient.DeleteTunnel(v.ctx, tunnel.Spec.AccountID, s.TunnelID)
+		if err != nil && !cfclient.IsNotFoundError(err) {
+			log.Error(err, "Failed to delete tunnel from Cloudflare")
+			return VisitResult{Result: ctrl.Result{RequeueAfter: 30 * time.Second}}
+		}
+		log.Info("Tunnel deleted from Cloudflare")
+	}
+
+	// Secret will be garbage collected via OwnerReferences
+
+	// Transition to Deleted
+	newState := s.DeletionComplete()
+	return v.updateStatus(newState)
+}
+
+// VisitDeleted handles the Deleted state - remove finalizer
+func (v *tunnelVisitor) VisitDeleted(s sm.CloudflareTunnelDeleted) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
+
+	// Remove finalizer
+	if controllerutil.ContainsFinalizer(tunnel, FinalizerName) {
+		log.Info("Removing finalizer")
+		controllerutil.RemoveFinalizer(tunnel, FinalizerName)
+		if err := v.reconciler.Update(v.ctx, tunnel); err != nil {
+			return VisitResult{Error: err}
+		}
+	}
+
+	// Cleanup metrics
+	sm.CleanupResourceMetrics(tunnel.Namespace, tunnel.Name)
+
+	log.Info("CloudflareTunnel deletion complete")
+	return VisitResult{}
+}
+
+// VisitUnknown handles the Unknown state - reset to Pending
+func (v *tunnelVisitor) VisitUnknown(s sm.CloudflareTunnelUnknown) VisitResult {
+	tunnel := s.Resource()
+	log := logf.FromContext(v.ctx)
+
+	log.Info("Unknown state detected, resetting to Pending", "observedPhase", s.ObservedPhase)
+
+	// Handle deletion
+	if !tunnel.DeletionTimestamp.IsZero() {
+		return v.transitionToDeleting(s)
+	}
+
+	// Reset to Pending
+	newState := s.Reset()
+	return v.updateStatus(newState)
+}
+
+// Helper methods
+
+// updateStatus updates the resource status with the new state using Server-Side Apply
+func (v *tunnelVisitor) updateStatus(newState sm.CloudflareTunnelState) VisitResult {
+	// Create SSA patch from the state
+	patch, err := sm.SSAPatch(newState)
+	if err != nil {
+		return VisitResult{Error: fmt.Errorf("failed to create SSA patch: %w", err)}
+	}
+
+	// Apply the patch to update status
+	resource := newState.Resource()
+	if err := v.reconciler.Status().Patch(v.ctx, resource, patch, client.FieldOwner(sm.FieldManager)); err != nil {
+		return VisitResult{Error: err}
+	}
+
+	return VisitResult{Result: ctrl.Result{RequeueAfter: newState.RequeueAfter()}}
+}
+
+// handleError transitions to Failed state for permanent errors or requeues for transient errors
+func (v *tunnelVisitor) handleError(from sm.CloudflareTunnelState, err error) VisitResult {
+	log := logf.FromContext(v.ctx)
+
+	// Classify error
+	if cfclient.IsRetryableError(err) {
+		log.Info("Transient error, will retry", "error", err)
+		sm.RecordError("transient")
+		return VisitResult{Result: ctrl.Result{RequeueAfter: 30 * time.Second}}
+	}
+
+	// Permanent error - transition to Failed
+	log.Error(err, "Permanent error, transitioning to Failed")
+	sm.RecordError("permanent")
+
+	// Get current retry count
+	retryCount := 0
+	if failed, ok := from.(sm.CloudflareTunnelFailed); ok {
+		retryCount = failed.RetryCount + 1
+	}
+
+	// Create Failed state manually since MarkFailed is only available from specific states
+	tunnel := from.Resource()
+	tunnel.Status.Phase = sm.PhaseFailed
+	tunnel.Status.LastState = from.Phase()
+	tunnel.Status.ErrorMessage = err.Error()
+	tunnel.Status.RetryCount = retryCount
+	tunnel.Status.ObservedGeneration = tunnel.Generation
+
+	if updateErr := v.reconciler.Status().Update(v.ctx, tunnel); updateErr != nil {
+		return VisitResult{Error: updateErr}
+	}
+
+	return VisitResult{Result: ctrl.Result{RequeueAfter: 1 * time.Minute}}
+}
+
+// transitionToDeleting handles the deletion trigger from any state
+func (v *tunnelVisitor) transitionToDeleting(from sm.CloudflareTunnelState) VisitResult {
+	tunnel := from.Resource()
+	log := logf.FromContext(v.ctx)
+
+	log.Info("Resource marked for deletion, transitioning to DeletingTunnel")
+
+	// Get tunnelID from current state or status
+	tunnelID := tunnel.Status.TunnelID
+
+	// Create DeletingTunnel state
+	tunnel.Status.Phase = sm.PhaseDeletingTunnel
+	tunnel.Status.TunnelID = tunnelID // Preserve for deletion
+
+	if err := v.reconciler.Status().Update(v.ctx, tunnel); err != nil {
+		return VisitResult{Error: err}
+	}
+
+	return VisitResult{Result: ctrl.Result{Requeue: true}}
+}
+
+// adoptExistingTunnel attempts to adopt an existing tunnel with the same name
+func (v *tunnelVisitor) adoptExistingTunnel(s sm.CloudflareTunnelCreatingTunnel, tunnelName, accountID string) VisitResult {
+	log := logf.FromContext(v.ctx)
+
+	// List all tunnels to find the one with this name
+	tunnels, err := v.reconciler.CFClient.ListTunnels(v.ctx, accountID)
+	if err != nil {
+		log.Error(err, "Failed to list tunnels for adoption")
+		return v.handleError(s, err)
+	}
+
+	// Find the tunnel with the matching name
+	var existingTunnel *cloudflare.Tunnel
+	for i := range tunnels {
+		if tunnels[i].Name == tunnelName {
+			existingTunnel = &tunnels[i]
+			break
+		}
+	}
+
+	if existingTunnel == nil {
+		err := fmt.Errorf("tunnel name exists but not found in list: %s", tunnelName)
+		log.Error(err, "Failed to find existing tunnel")
+		return v.handleError(s, err)
+	}
+
+	log.Info("Successfully adopted existing tunnel", "tunnelName", tunnelName, "tunnelID", existingTunnel.ID)
+
+	// Transition to CreatingSecret with adopted tunnelID
+	newState := s.TunnelCreated(existingTunnel.ID)
+	return v.updateStatus(newState)
 }
 
 // SetupWithManager sets up the controller with the Manager.
 func (r *CloudflareTunnelReconciler) SetupWithManager(mgr ctrl.Manager) error {
-	// Initialize tracer
-	r.tracer = telemetry.GetTracer("cloudflare-tunnel-controller")
-
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&tunnelsv1.CloudflareTunnel{}).
 		Named("cloudflaretunnel").
