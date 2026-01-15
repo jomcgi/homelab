@@ -40,6 +40,8 @@ api:
   httproute:
     enabled: true
     hostname: api.jomcgi.dev
+    # Path prefix for stargazer API
+    pathPrefix: /stargazer
 
 # Enable web server for dev
 webServer:

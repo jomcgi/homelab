@@ -602,7 +602,26 @@ import { ViewTransitions } from 'astro:transitions';
             try {
                 const response = await fetch(API_URL);
                 if (response.ok) {
-                    locations = await response.json();
+                    const apiData = await response.json();
+                    // Transform API data to frontend format
+                    locations = apiData.map((loc, index) => {
+                        const bestHour = loc.best_hours && loc.best_hours[0] || {};
+                        return {
+                            id: loc.id || `location-${index}`,
+                            name: `Location ${loc.id}`,
+                            lat: loc.coordinates[1],
+                            lon: loc.coordinates[0],
+                            altitude_m: loc.altitude_m,
+                            lp_zone: loc.lp_zone || 'Unknown',
+                            score: Math.round(loc.best_score || 0),
+                            cloud_cover: Math.round(bestHour.cloud_cover || 0),
+                            humidity: Math.round(bestHour.humidity || 0),
+                            wind_speed: bestHour.wind_speed ? bestHour.wind_speed.toFixed(1) : '0',
+                            next_clear: bestHour.hour || 'Unknown',
+                            moon_phase: bestHour.moon_illumination ?
+                                `Moon: ${Math.round(bestHour.moon_illumination * 100)}%` : 'Moon: Unknown'
+                        };
+                    });
                     console.log(`Loaded ${locations.length} locations from API`);
                 } else {
                     console.warn('API unavailable, using demo data');

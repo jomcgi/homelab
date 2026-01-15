@@ -13,7 +13,23 @@ spec:
   hostnames:
     - {{ .Values.api.httproute.hostname }}
   rules:
+    {{- if .Values.api.httproute.pathPrefix }}
+    - matches:
+      - path:
+          type: PathPrefix
+          value: {{ .Values.api.httproute.pathPrefix }}
+      filters:
+      - type: URLRewrite
+        urlRewrite:
+          path:
+            type: ReplacePrefixMatch
+            replacePrefixMatch: /
+      backendRefs:
+      - name: {{ include "stargazer.fullname" . }}-api
+        port: {{ .Values.api.service.port }}
+    {{- else }}
     - backendRefs:
       - name: {{ include "stargazer.fullname" . }}-api
         port: {{ .Values.api.service.port }}
+    {{- end }}
 {{- end }}
