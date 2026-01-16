@@ -42,6 +42,9 @@ backends:
   trips:
     host: trips-nginx.trips.svc.cluster.local
     port: 80
+  stargazer:
+    host: stargazer-api.stargazer.svc.cluster.local
+    port: 80
 
 service:
   type: ClusterIP
