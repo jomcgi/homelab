@@ -293,7 +293,7 @@ spec:
         - --leader-elect
         - --health-probe-bind-address=:8081
         - --metrics-bind-address=:8443
-        image: "ghcr.io/jomcgi/homelab/operators/cloudflare:2026.01.15.21.46.06-bec0a3b"
+        image: "ghcr.io/jomcgi/homelab/operators/cloudflare:2026.01.16.06.31.33-56da1b9"
         imagePullPolicy: Always
         name: manager
         securityContext:

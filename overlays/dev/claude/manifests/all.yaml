@@ -321,7 +321,7 @@ spec:
               drop:
               - ALL
             readOnlyRootFilesystem: false
-          image: "ghcr.io/jomcgi/homelab/charts/claude:2026.01.15.21.46.06-bec0a3b"
+          image: "ghcr.io/jomcgi/homelab/charts/claude:2026.01.16.06.31.33-56da1b9"
           imagePullPolicy: IfNotPresent
           ports:
             - name: backend
