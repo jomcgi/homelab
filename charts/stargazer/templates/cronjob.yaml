@@ -42,6 +42,9 @@ spec:
             # Use image entrypoint (Bazel binary with deps in runfiles)
             # NOT "python3 -m" which uses system Python without dependencies
             env:
+            # aspect_rules_py needs writable cache dir for venv bootstrap
+            - name: HOME
+              value: /tmp
             - name: DATA_DIR
               valueFrom:
                 configMapKeyRef:
