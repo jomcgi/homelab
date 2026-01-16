@@ -116,39 +116,125 @@ import { ViewTransitions } from 'astro:transitions';
             border-color: #0f0;
         }
 
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
         .location-name {
             font-weight: bold;
-            margin-bottom: 8px;
-            color: #0f0;
+            color: #fff;
+            font-size: 13px;
         }
 
-        .location-meta {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 12px;
-            color: #888;
+        .rank-badge {
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-weight: bold;
         }
 
-        .location-score {
+        .rank-1 { background: #ffd700; color: #000; }
+        .rank-2 { background: #c0c0c0; color: #000; }
+        .rank-3 { background: #cd7f32; color: #000; }
+
+        .score-display {
             display: flex;
             align-items: center;
-            gap: 8px;
-            margin-top: 10px;
+            gap: 10px;
+            margin-bottom: 12px;
+        }
+
+        .score-value {
+            font-size: 24px;
+            font-weight: bold;
+            min-width: 40px;
         }
 
         .score-bar {
             flex: 1;
-            height: 4px;
+            height: 6px;
             background: #333;
-            border-radius: 2px;
+            border-radius: 3px;
             overflow: hidden;
         }
 
         .score-fill {
             height: 100%;
-            background: linear-gradient(90deg, #f00, #ff0, #0f0);
             transition: width 0.3s;
+        }
+
+        .location-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 6px;
+            font-size: 11px;
+            margin-bottom: 10px;
+        }
+
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 8px;
+            background: #0a0a0a;
+            border-radius: 3px;
+        }
+
+        .detail-label {
+            color: #666;
+        }
+
+        .detail-value {
+            color: #aaa;
+            font-weight: bold;
+        }
+
+        .next-clear {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px;
+            background: #0a2a0a;
+            border-radius: 3px;
+            border: 1px solid #0f02;
+            font-size: 11px;
+        }
+
+        .next-clear-label {
+            color: #0a0;
+        }
+
+        .next-clear-value {
+            color: #0f0;
+            font-weight: bold;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            text-align: center;
+            color: #666;
+        }
+
+        .empty-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .empty-title {
+            font-size: 16px;
+            color: #888;
+            margin-bottom: 8px;
+        }
+
+        .empty-hint {
+            font-size: 12px;
+            color: #555;
         }
 
         /* Map container */
@@ -285,30 +371,30 @@ import { ViewTransitions } from 'astro:transitions';
 
         /* Custom marker styles */
         .marker {
-            width: 20px;
-            height: 20px;
+            width: 16px;
+            height: 16px;
             border-radius: 50%;
-            border: 2px solid #0f0;
-            background: rgba(0, 255, 0, 0.3);
+            border: 2px solid;
             cursor: pointer;
             transition: all 0.2s;
         }
 
         .marker:hover {
             transform: scale(1.5);
-            background: rgba(0, 255, 0, 0.6);
-            box-shadow: 0 0 20px #0f0;
+            filter: brightness(1.3);
+            box-shadow: 0 0 15px currentColor;
         }
 
         .marker.selected {
-            background: #0f0;
-            box-shadow: 0 0 30px #0f0;
+            transform: scale(1.3);
+            filter: brightness(1.5);
+            box-shadow: 0 0 25px currentColor;
             animation: pulse 2s infinite;
         }
 
         @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.2); }
+            0%, 100% { transform: scale(1.3); }
+            50% { transform: scale(1.5); }
         }
     </style>
 </head>
@@ -355,8 +441,8 @@ import { ViewTransitions } from 'astro:transitions';
                 <div class="control-group">
                     <div class="control-label">Min Score</div>
                     <div class="control-buttons">
-                        <button class="control-btn" data-score="60">60+</button>
-                        <button class="control-btn active" data-score="70">70+</button>
+                        <button class="control-btn active" data-score="60">60+</button>
+                        <button class="control-btn" data-score="70">70+</button>
                         <button class="control-btn" data-score="80">80+</button>
                         <button class="control-btn" data-score="90">90+</button>
                     </div>
@@ -523,6 +609,12 @@ import { ViewTransitions } from 'astro:transitions';
                 el.className = 'marker';
                 el.id = `marker-${location.id}`;
 
+                // Color based on score
+                const color = getScoreColor(location.score);
+                const rgba = hexToRgba(color, 0.3);
+                el.style.borderColor = color;
+                el.style.background = rgba;
+
                 const marker = new maplibregl.Marker(el)
                     .setLngLat([location.lon, location.lat])
                     .addTo(map);
@@ -531,6 +623,34 @@ import { ViewTransitions } from 'astro:transitions';
 
                 markers.push({ marker, location });
             });
+
+            // Update location count
+            updateLocationCount();
+        }
+
+        // Update location count display
+        function updateLocationCount() {
+            const subtitle = document.querySelector('.header .subtitle');
+            if (subtitle) {
+                subtitle.textContent = `Dark Sky Locations • ${locations.length} spots in Scotland`;
+            }
+        }
+
+        // Get score color based on value
+        function getScoreColor(score) {
+            if (score >= 90) return '#00ff00';
+            if (score >= 80) return '#88ff00';
+            if (score >= 70) return '#ffff00';
+            if (score >= 60) return '#ff8800';
+            return '#ff0000';
+        }
+
+        // Convert hex color to rgba
+        function hexToRgba(hex, alpha) {
+            const r = parseInt(hex.slice(1, 3), 16);
+            const g = parseInt(hex.slice(3, 5), 16);
+            const b = parseInt(hex.slice(5, 7), 16);
+            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
         }
 
         // Render location cards
@@ -539,32 +659,65 @@ import { ViewTransitions } from 'astro:transitions';
             container.innerHTML = '';
 
             if (locations.length === 0) {
-                container.innerHTML = '<div class="loading">No locations available</div>';
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-icon">&#9734;</div>
+                        <div class="empty-title">No locations match filters</div>
+                        <div class="empty-hint">Try lowering the minimum score or expanding the time range</div>
+                    </div>
+                `;
                 return;
             }
 
-            locations.forEach(location => {
+            // Sort by score descending
+            const sorted = [...locations].sort((a, b) => b.score - a.score);
+
+            sorted.forEach((location, index) => {
                 const card = document.createElement('div');
                 card.className = 'location-card';
                 card.id = `card-${location.id}`;
                 card.onclick = () => selectLocation(location.id);
 
+                const scoreColor = getScoreColor(location.score);
+                const rankBadge = index < 3 ? `<span class="rank-badge rank-${index + 1}">#${index + 1}</span>` : '';
+
                 card.innerHTML = `
-                    <div class="location-name">${location.name}</div>
-                    <div class="location-meta">
-                        <div>Zone: ${location.lp_zone}</div>
-                        <div>Alt: ${location.altitude_m}m</div>
-                        <div>Cloud: ${location.cloud_cover}%</div>
-                        <div>Wind: ${location.wind_speed} m/s</div>
-                        <div>${location.moon_phase}</div>
-                        <div>${location.next_clear}</div>
+                    <div class="card-header">
+                        <div class="location-name">${location.name}</div>
+                        ${rankBadge}
                     </div>
-                    <div class="location-score">
-                        <span>Score: ${location.score}</span>
+                    <div class="score-display">
+                        <span class="score-value" style="color: ${scoreColor}">${location.score}</span>
                         <div class="score-bar">
-                            <div class="score-fill" style="width: ${location.score}%"></div>
+                            <div class="score-fill" style="width: ${location.score}%; background: ${scoreColor}"></div>
                         </div>
                     </div>
+                    <div class="location-details">
+                        <div class="detail-row">
+                            <span class="detail-label">Zone</span>
+                            <span class="detail-value">${location.lp_zone}</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Cloud</span>
+                            <span class="detail-value">${location.cloud_cover}%</span>
+                        </div>
+                        <div class="detail-row">
+                            <span class="detail-label">Wind</span>
+                            <span class="detail-value">${location.wind_speed} m/s</span>
+                        </div>
+                        ${location.temperature !== null ? `
+                        <div class="detail-row">
+                            <span class="detail-label">Temp</span>
+                            <span class="detail-value">${location.temperature}°C</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                    ${location.next_clear ? `
+                    <div class="next-clear">
+                        <span class="next-clear-label">Best time:</span>
+                        <span class="next-clear-value">${location.next_clear}</span>
+                    </div>
+                    ` : ''}
                 `;
 
                 container.appendChild(card);
@@ -597,6 +750,38 @@ import { ViewTransitions } from 'astro:transitions';
             }
         }
 
+        // Format time for display
+        function formatTime(isoString) {
+            if (!isoString) return null;
+            const date = new Date(isoString);
+            const now = new Date();
+            const tomorrow = new Date(now);
+            tomorrow.setDate(tomorrow.getDate() + 1);
+
+            const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+
+            if (date.toDateString() === now.toDateString()) {
+                return `Tonight ${timeStr}`;
+            } else if (date.toDateString() === tomorrow.toDateString()) {
+                return `Tomorrow ${timeStr}`;
+            } else {
+                return date.toLocaleDateString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
+            }
+        }
+
+        // Format location ID into readable name
+        function formatLocationName(id) {
+            if (!id) return 'Unknown Location';
+            // Convert "scotland_0010" to "Scotland #10"
+            const parts = id.split('_');
+            if (parts.length === 2) {
+                const region = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+                const num = parseInt(parts[1], 10);
+                return `${region} #${num}`;
+            }
+            return id;
+        }
+
         // Fetch locations from API
         async function fetchLocations() {
             try {
@@ -604,25 +789,42 @@ import { ViewTransitions } from 'astro:transitions';
                 if (response.ok) {
                     const apiData = await response.json();
                     // Transform API data to frontend format
-                    locations = apiData.map((loc, index) => {
-                        const bestHour = loc.best_hours && loc.best_hours[0] || {};
-                        return {
-                            id: loc.id || `location-${index}`,
-                            name: `Location ${loc.id}`,
-                            lat: loc.coordinates[1],
-                            lon: loc.coordinates[0],
-                            altitude_m: loc.altitude_m,
-                            lp_zone: loc.lp_zone || 'Unknown',
-                            score: Math.round(loc.best_score || 0),
-                            cloud_cover: Math.round(bestHour.cloud_cover || 0),
-                            humidity: Math.round(bestHour.humidity || 0),
-                            wind_speed: bestHour.wind_speed ? bestHour.wind_speed.toFixed(1) : '0',
-                            next_clear: bestHour.hour || 'Unknown',
-                            moon_phase: bestHour.moon_illumination ?
-                                `Moon: ${Math.round(bestHour.moon_illumination * 100)}%` : 'Moon: Unknown'
-                        };
-                    });
-                    console.log(`Loaded ${locations.length} locations from API`);
+                    locations = apiData
+                        .map((loc, index) => {
+                            // Validate coordinates - API returns {lat, lon} object
+                            const lat = loc.coordinates?.lat;
+                            const lon = loc.coordinates?.lon;
+
+                            if (typeof lat !== 'number' || typeof lon !== 'number' ||
+                                isNaN(lat) || isNaN(lon)) {
+                                console.warn(`Skipping location ${loc.id}: invalid coordinates`, loc.coordinates);
+                                return null;
+                            }
+
+                            const bestHour = loc.best_hours && loc.best_hours[0] || {};
+                            return {
+                                id: loc.id || `location-${index}`,
+                                name: loc.name || formatLocationName(loc.id),
+                                lat,
+                                lon,
+                                altitude_m: loc.altitude_m || 0,
+                                lp_zone: loc.lp_zone || 'Unknown',
+                                score: Math.round(loc.best_score || 0),
+                                cloud_cover: Math.round(bestHour.cloud_area_fraction || 0),
+                                humidity: Math.round(bestHour.relative_humidity || 0),
+                                wind_speed: bestHour.wind_speed ? bestHour.wind_speed.toFixed(1) : '0',
+                                temperature: bestHour.air_temperature ? Math.round(bestHour.air_temperature) : null,
+                                next_clear: formatTime(bestHour.time)
+                            };
+                        })
+                        .filter(loc => loc !== null); // Remove invalid locations
+
+                    console.log(`Loaded ${locations.length} valid locations from API`);
+
+                    if (locations.length === 0) {
+                        console.warn('No valid locations from API, using demo data');
+                        locations = mockLocations;
+                    }
                 } else {
                     console.warn('API unavailable, using demo data');
                     locations = mockLocations;
