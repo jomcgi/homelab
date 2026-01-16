@@ -42,13 +42,6 @@ spec:
             # Use image entrypoint (Bazel binary with deps in runfiles)
             # NOT "python3 -m" which uses system Python without dependencies
             env:
-            # rules_uv/aspect_rules_py need writable cache dirs for venv bootstrap
-            - name: HOME
-              value: /tmp
-            - name: UV_CACHE_DIR
-              value: /tmp/.cache/uv
-            - name: XDG_CACHE_HOME
-              value: /tmp/.cache
             - name: DATA_DIR
               valueFrom:
                 configMapKeyRef:
