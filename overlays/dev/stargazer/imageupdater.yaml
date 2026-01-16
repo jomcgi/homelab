@@ -1,0 +1,26 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: stargazer
+  namespace: argocd
+spec:
+  applicationRefs:
+  - images:
+    - alias: stargazer
+      commonUpdateSettings:
+        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
+        updateStrategy: newest-build
+        forceUpdate: false
+      imageName: ghcr.io/jomcgi/homelab/services/stargazer
+      manifestTargets:
+        helm:
+          name: image.repository
+          tag: image.tag
+    namePattern: stargazer
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:../../overlays/dev/stargazer/values.yaml
