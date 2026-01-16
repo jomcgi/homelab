@@ -132,16 +132,18 @@ def extract_palette(settings: Settings) -> Path:
 
 
 # Highway types to include for drivable road access
-ROAD_HIGHWAY_TYPES = frozenset([
-    "motorway",
-    "trunk",
-    "primary",
-    "secondary",
-    "tertiary",
-    "unclassified",
-    "residential",
-    "track",
-])
+ROAD_HIGHWAY_TYPES = frozenset(
+    [
+        "motorway",
+        "trunk",
+        "primary",
+        "secondary",
+        "tertiary",
+        "unclassified",
+        "residential",
+        "track",
+    ]
+)
 
 
 def extract_roads(settings: Settings) -> Path:
