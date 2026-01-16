@@ -368,7 +368,8 @@ spec:
                 type: RuntimeDefault
             image: "ghcr.io/jomcgi/homelab/services/stargazer:2026.01.15.19.20.05-442085c"
             imagePullPolicy: IfNotPresent
-            command: ["python3", "-m", "services.stargazer.app.main"]
+            # Use image entrypoint (Bazel binary with deps in runfiles)
+            # NOT "python3 -m" which uses system Python without dependencies
             env:
             - name: DATA_DIR
               valueFrom:
