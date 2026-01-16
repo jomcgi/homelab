@@ -232,22 +232,22 @@
       },
       {
         "name": "bazelisk",
-        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.27.0-r2.apk",
-        "version": "1.27.0-r2",
+        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.28.0-r0.apk",
+        "version": "1.28.0-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4359",
-          "checksum": "sha1-vAiw1MBFfTC3lTsJ3gpPNOxWF+s="
+          "range": "bytes=0-4513",
+          "checksum": "sha1-Hl5rH0LTrBFsr6oGccCeB8VpKx0="
         },
         "data": {
-          "range": "bytes=4360-3056848",
-          "checksum": "sha256-ZIt3CX50XhSH92EviIXvG/BewOSNKldEmRR57VDv5As="
+          "range": "bytes=4514-3067527",
+          "checksum": "sha256-aWuIHERjlqHZdjkK7ZAtdS/QNAmZHwBBrzWDfGO0pVk="
         },
-        "checksum": "Q1vAiw1MBFfTC3lTsJ3gpPNOxWF+s="
+        "checksum": "Q1Hl5rH0LTrBFsr6oGccCeB8VpKx0="
       },
       {
         "name": "make",
@@ -1410,41 +1410,41 @@
       },
       {
         "name": "icu78-data-full",
-        "url": "https://packages.wolfi.dev/os/x86_64/icu78-data-full-78.1-r0.apk",
-        "version": "78.1-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/icu78-data-full-78.2-r0.apk",
+        "version": "78.2-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5571",
-          "checksum": "sha1-UBfjXpnvMyoPF49lr70dNgHIkx8="
+          "range": "bytes=0-5588",
+          "checksum": "sha1-5hXurelz0z5tMLyhvLCDg97CxQU="
         },
         "data": {
-          "range": "bytes=5572-13963230",
-          "checksum": "sha256-eqoj4kU4jdUaMRXXx6UDaa1SK67gm4Yo13GVdd789Dk="
+          "range": "bytes=5589-13975201",
+          "checksum": "sha256-snqGr9oGKnNJJ2HeUC1wXoR3qgp8wTLTLEhNh/zGSTk="
         },
-        "checksum": "Q1UBfjXpnvMyoPF49lr70dNgHIkx8="
+        "checksum": "Q15hXurelz0z5tMLyhvLCDg97CxQU="
       },
       {
         "name": "libicu78",
-        "url": "https://packages.wolfi.dev/os/x86_64/libicu78-78.1-r0.apk",
-        "version": "78.1-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/libicu78-78.2-r0.apk",
+        "version": "78.2-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5673",
-          "checksum": "sha1-K7YtyYSd4orejMIUYGLZumO7vY4="
+          "range": "bytes=0-5683",
+          "checksum": "sha1-evtOYNphwXT6883kspGcZ2U8hjA="
         },
         "data": {
-          "range": "bytes=5674-3042977",
-          "checksum": "sha256-KXWAXK7rhs6091PcP4wPmPVAsQNK2QpJ6/9k3KmixLQ="
+          "range": "bytes=5684-3044652",
+          "checksum": "sha256-ZFE6Eez5jLJNTy1Cid9cskUjjeJG7cWBj5zq6NTcbfU="
         },
-        "checksum": "Q1K7YtyYSd4orejMIUYGLZumO7vY4="
+        "checksum": "Q1evtOYNphwXT6883kspGcZ2U8hjA="
       },
       {
         "name": "libbrotlienc1",
@@ -1904,22 +1904,22 @@
       },
       {
         "name": "bazelisk",
-        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.27.0-r2.apk",
-        "version": "1.27.0-r2",
+        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.28.0-r0.apk",
+        "version": "1.28.0-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4392",
-          "checksum": "sha1-54IDtakL2iXH6xH2/hK+ZxkxnLY="
+          "range": "bytes=0-4539",
+          "checksum": "sha1-nDX4EJfUEmeURP68IJYdvS4WPOA="
         },
         "data": {
-          "range": "bytes=4393-2776346",
-          "checksum": "sha256-PIMTu5nCD7pTiYZDafsXPVittvMviV3q98bvwLlM5es="
+          "range": "bytes=4540-2786758",
+          "checksum": "sha256-EOLRdHsYg8bZA3F01yr/TKQOBjqkXTSYEYVwTcCe0as="
         },
-        "checksum": "Q154IDtakL2iXH6xH2/hK+ZxkxnLY="
+        "checksum": "Q1nDX4EJfUEmeURP68IJYdvS4WPOA="
       },
       {
         "name": "make",
@@ -3082,41 +3082,41 @@
       },
       {
         "name": "icu78-data-full",
-        "url": "https://packages.wolfi.dev/os/aarch64/icu78-data-full-78.1-r0.apk",
-        "version": "78.1-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/icu78-data-full-78.2-r0.apk",
+        "version": "78.2-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5610",
-          "checksum": "sha1-/YrPevCE35e61uSoS0wGMjly/0U="
+          "range": "bytes=0-5622",
+          "checksum": "sha1-sVSbb9aRjiJMMPVnn1ypcGxEZqo="
         },
         "data": {
-          "range": "bytes=5611-13963266",
-          "checksum": "sha256-90ZKz38H9symxnMpMv7TEQEJYedKH1430PhP5sPQfn8="
+          "range": "bytes=5623-13975237",
+          "checksum": "sha256-SDRlr+jE3IJb/sbiUe4LXBX6sSbMoronafza+JNw8Xg="
         },
-        "checksum": "Q1/YrPevCE35e61uSoS0wGMjly/0U="
+        "checksum": "Q1sVSbb9aRjiJMMPVnn1ypcGxEZqo="
       },
       {
         "name": "libicu78",
-        "url": "https://packages.wolfi.dev/os/aarch64/libicu78-78.1-r0.apk",
-        "version": "78.1-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/libicu78-78.2-r0.apk",
+        "version": "78.2-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5703",
-          "checksum": "sha1-cTK1KI5fCm5fpOzbGlTR4WRf+Rk="
+          "range": "bytes=0-5717",
+          "checksum": "sha1-yVIpndO/naYqzGzG4KQwrEHt0qY="
         },
         "data": {
-          "range": "bytes=5704-2941333",
-          "checksum": "sha256-9vDC9QYmpfpbOsFDYfU69u2fT80clh/3OuMkAST7Id0="
+          "range": "bytes=5718-2941066",
+          "checksum": "sha256-4WHVrLg3Rl+CGq8SIUE/8MaiMo6DPlSf02gDi5PcPVE="
         },
-        "checksum": "Q1cTK1KI5fCm5fpOzbGlTR4WRf+Rk="
+        "checksum": "Q1yVIpndO/naYqzGzG4KQwrEHt0qY="
       },
       {
         "name": "libbrotlienc1",

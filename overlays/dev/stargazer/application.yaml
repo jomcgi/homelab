@@ -3,15 +3,7 @@ kind: Application
 metadata:
   name: stargazer
   namespace: argocd
-  annotations:
-    # ArgoCD Image Updater configuration
-    argocd-image-updater.argoproj.io/image-list: stargazer=ghcr.io/jomcgi/homelab/services/stargazer
-    argocd-image-updater.argoproj.io/stargazer.update-strategy: newest-build
-    argocd-image-updater.argoproj.io/stargazer.allow-tags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
-    argocd-image-updater.argoproj.io/stargazer.helm.image-name: image.repository
-    argocd-image-updater.argoproj.io/stargazer.helm.image-tag: image.tag
-    argocd-image-updater.argoproj.io/write-back-method: argocd
-    argocd-image-updater.argoproj.io/write-back-target: overlays/dev/stargazer/values.yaml
+  # Image updates are managed by the ImageUpdater CRD in imageupdater.yaml
 spec:
   project: default
   source:
