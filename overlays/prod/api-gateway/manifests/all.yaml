@@ -227,10 +227,23 @@ data:
                 proxy_read_timeout 86400;
             }
 
+            # Stargazer API - proxy to stargazer-api (strip /stargazer prefix)
+            # Backend expects /best, /locations, /health - not /stargazer/best
+            location /stargazer/ {
+                proxy_pass http://stargazer-api.stargazer.svc.cluster.local:80/;
+                proxy_http_version 1.1;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+
+                # Cache headers are set by stargazer-api
+            }
+
             # Root - return API info
             location = / {
                 default_type application/json;
-                return 200 '{"service":"api-gateway","endpoints":["/cluster-info","/trips/"]}';
+                return 200 '{"service":"api-gateway","endpoints":["/cluster-info","/trips/","/stargazer/"]}';
             }
 
             # Catch-all 404
@@ -332,7 +345,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/nginx-config: 4b5f9d467c388502fb5f99e7e90683cad0b995b3e20becbf26c71f012d75a514
+        checksum/nginx-config: e792c375cd719b870324034e5745cd1cfa503fa5cda24cf290e670f7858705db
         checksum/collector-config: d3187019a8acac2b2460628f02686505f2d28c10950d9363a90659af9cc06ad8
       labels:
         app.kubernetes.io/name: api-gateway
