@@ -17,6 +17,9 @@ spec:
         metadata:
           annotations:
             checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+            # Disable Linkerd sidecar injection - sidecars prevent Job completion
+            # because they don't know when the main container finishes
+            linkerd.io/inject: disabled
             {{- with .Values.podAnnotations }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
