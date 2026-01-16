@@ -2,20 +2,17 @@
 
 # Run every 6 hours
 schedule: "0 */6 * * *"
-
 # Stargazer service image
 image:
   repository: ghcr.io/jomcgi/homelab/services/stargazer
-  tag: "2026.01.15.19.20.05-442085c"
+  tag: "2026.01.15.20.19.54-bd931c8"
   pullPolicy: IfNotPresent
-
 # Persistent storage
 persistence:
   enabled: true
   storageClass: longhorn
-  accessMode: ReadWriteMany  # Allow multiple pods to access the same volume
+  accessMode: ReadWriteMany # Allow multiple pods to access the same volume
   size: 5Gi
-
 # Resource limits
 resources:
   limits:
@@ -24,7 +21,6 @@ resources:
   requests:
     cpu: 500m
     memory: 1Gi
-
 # OpenTelemetry configuration
 config:
   opentelemetry:
@@ -33,7 +29,6 @@ config:
     # OTEL collector endpoint (SigNoz)
     # otlpEndpoint: "http://signoz-otel-collector.signoz:4317"
     otlpEndpoint: ""
-
 # Enable API server for data access
 api:
   enabled: true
@@ -43,20 +38,16 @@ api:
     hostname: api.jomcgi.dev
     # Path prefix for stargazer API
     pathPrefix: /stargazer
-
 # Enable web server for dev
 webServer:
   enabled: true
   replicas: 1
-
 # Enable test data until CronJob runs successfully
 testData:
   enabled: true
-
 # Enable image pull secret for GHCR
 imagePullSecret:
   enabled: true
-
 # Configure pods to use the image pull secret
 imagePullSecrets:
-  - name: ghcr-imagepull-secret
+- name: ghcr-imagepull-secret
