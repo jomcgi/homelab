@@ -249,10 +249,7 @@ spec:
         - name: ghcr-imagepull-secret
       serviceAccountName: stargazer
       securityContext:
-        fsGroup: 65532
-        runAsGroup: 65532
-        runAsNonRoot: true
-        runAsUser: 65532
+        {}
       containers:
       - name: api
         securityContext:
@@ -262,10 +259,8 @@ spec:
             - ALL
           readOnlyRootFilesystem: false
           runAsNonRoot: true
-          runAsUser: 65532
-          seccompProfile:
-            type: RuntimeDefault
-        image: "nginx:alpine"
+          runAsUser: 101
+        image: "nginxinc/nginx-unprivileged:alpine"
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
@@ -350,10 +345,7 @@ spec:
             - name: ghcr-imagepull-secret
           serviceAccountName: stargazer
           securityContext:
-            fsGroup: 65532
-            runAsGroup: 65532
-            runAsNonRoot: true
-            runAsUser: 65532
+            {}
           containers:
           - name: stargazer
             securityContext:
@@ -362,18 +354,11 @@ spec:
                 drop:
                 - ALL
               readOnlyRootFilesystem: false
-              runAsNonRoot: true
-              runAsUser: 65532
-              seccompProfile:
-                type: RuntimeDefault
             image: "ghcr.io/jomcgi/homelab/services/stargazer:2026.01.15.19.20.05-442085c"
             imagePullPolicy: IfNotPresent
             # Use image entrypoint (Bazel binary with deps in runfiles)
             # NOT "python3 -m" which uses system Python without dependencies
             env:
-            # aspect_rules_py needs writable cache dir for venv bootstrap
-            - name: HOME
-              value: /tmp
             - name: DATA_DIR
               valueFrom:
                 configMapKeyRef:

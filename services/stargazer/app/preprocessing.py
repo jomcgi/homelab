@@ -5,6 +5,7 @@ import logging
 import subprocess
 from pathlib import Path
 
+import osmium
 from PIL import Image
 
 from services.stargazer.app.config import Settings
@@ -130,9 +131,22 @@ def extract_palette(settings: Settings) -> Path:
     return output_path
 
 
+# Highway types to include for drivable road access
+ROAD_HIGHWAY_TYPES = frozenset([
+    "motorway",
+    "trunk",
+    "primary",
+    "secondary",
+    "tertiary",
+    "unclassified",
+    "residential",
+    "track",
+])
+
+
 def extract_roads(settings: Settings) -> Path:
     """
-    Extract drivable roads from OSM PBF using osmium.
+    Extract drivable roads from OSM PBF using pyosmium.
 
     Includes: motorway, trunk, primary, secondary, tertiary, unclassified, residential, track
     Excludes: footway, path, cycleway, service, access=private
@@ -147,20 +161,25 @@ def extract_roads(settings: Settings) -> Path:
 
     settings.processed_dir.mkdir(parents=True, exist_ok=True)
 
-    # Step 1: Filter roads with osmium
+    # Step 1: Filter roads with pyosmium
+    # BackReferenceWriter ensures nodes referenced by ways are included
     logger.info("Filtering roads from OSM data...")
-    subprocess.run(
-        [
-            "osmium",
-            "tags-filter",
-            str(input_pbf),
-            "w/highway=motorway,trunk,primary,secondary,tertiary,unclassified,residential,track",
-            "-o",
-            str(filtered_pbf),
-            "--overwrite",
-        ],
-        check=True,
+
+    writer = osmium.BackReferenceWriter(
+        str(filtered_pbf),
+        ref_src=str(input_pbf),
+        overwrite=True,
     )
+
+    # Process the file and filter ways with matching highway tags
+    with writer:
+        for obj in osmium.FileProcessor(str(input_pbf)):
+            if obj.is_way():
+                highway = obj.tags.get("highway")
+                if highway in ROAD_HIGHWAY_TYPES:
+                    writer.add(obj)
+
+    logger.info(f"Filtered roads written to {filtered_pbf}")
 
     # Step 2: Convert to GeoJSON with ogr2ogr
     logger.info("Converting to GeoJSON...")

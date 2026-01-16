@@ -34,8 +34,8 @@ spec:
       containers:
       - name: api
         securityContext:
-          {{- toYaml .Values.securityContext | nindent 10 }}
-        image: "nginx:alpine"
+          {{- toYaml .Values.api.securityContext | nindent 10 }}
+        image: "nginxinc/nginx-unprivileged:alpine"
         imagePullPolicy: IfNotPresent
         ports:
         - name: http

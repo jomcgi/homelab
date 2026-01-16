@@ -35,6 +35,7 @@ py_library(
         "@pip//opentelemetry_api",
         "@pip//opentelemetry_exporter_otlp_proto_grpc",
         "@pip//opentelemetry_sdk",
+        "@pip//osmium",
         "@pip//pillow",
         "@pip//pydantic",
         "@pip//pydantic_settings",
@@ -78,6 +79,7 @@ py_library(
     visibility = ["//:__subpackages__"],
     deps = [
         ":config",
+        "@pip//osmium",
         "@pip//pillow",
     ],
 )
