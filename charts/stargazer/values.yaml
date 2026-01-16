@@ -92,6 +92,15 @@ api:
   service:
     type: ClusterIP
     port: 80
+  # Security context for nginx-unprivileged
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: false
+    runAsNonRoot: true
+    runAsUser: 101  # nginx user in nginx-unprivileged image
   resources:
     limits:
       cpu: 200m
