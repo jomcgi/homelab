@@ -53,8 +53,8 @@
 
         .filter-btn {
             background: #000;
-            border: 1px solid #333;
-            color: #666;
+            border: 2px solid #666;
+            color: #888;
             padding: clamp(6px, 0.6vw, 12px) clamp(12px, 1.2vw, 24px);
             font-family: inherit;
             font-size: clamp(10px, 0.8vw, 14px);
@@ -65,20 +65,20 @@
 
         .filter-btn:hover {
             color: #fff;
-            border-color: #666;
+            border-color: #fff;
         }
 
         .filter-btn.active {
             background: #fff;
             color: #000;
-            border-color: #fff;
+            border: 2px solid #fff;
         }
 
         /* Invert button - inline with header */
         .invert-btn {
             background: #000;
-            border: 1px solid #333;
-            color: #666;
+            border: 2px solid #666;
+            color: #888;
             padding: clamp(4px, 0.4vw, 8px) clamp(8px, 0.8vw, 16px);
             font-family: inherit;
             font-size: clamp(9px, 0.7vw, 12px);
@@ -89,7 +89,7 @@
 
         .invert-btn:hover {
             color: #fff;
-            border-color: #666;
+            border-color: #fff;
         }
 
         /* Inverted mode */
@@ -103,35 +103,35 @@
 
         body.inverted .filter-btn {
             background: #fff;
-            border-color: #ccc;
-            color: #999;
+            border: 2px solid #999;
+            color: #666;
         }
 
         body.inverted .filter-btn:hover {
             color: #000;
-            border-color: #999;
+            border-color: #000;
         }
 
         body.inverted .filter-btn.active {
             background: #000;
             color: #fff;
-            border-color: #000;
+            border: 2px solid #000;
         }
 
         body.inverted .invert-btn {
             background: #fff;
-            border-color: #ccc;
-            color: #999;
+            border: 2px solid #999;
+            color: #666;
         }
 
         body.inverted .invert-btn:hover {
             color: #000;
-            border-color: #999;
+            border-color: #000;
         }
 
         body.inverted .tooltip {
             background: #fff;
-            border-color: #ccc;
+            border: 2px solid #000;
         }
 
         body.inverted .tooltip-coords a {
@@ -153,11 +153,11 @@
 
         body.inverted .tooltip-time {
             color: #000;
-            border-top-color: #ddd;
+            border-top: 2px solid #ccc;
         }
 
         body.inverted .status {
-            color: #bbb;
+            color: #666;
         }
 
         body.inverted .score-exceptional { color: #090; }
@@ -169,11 +169,11 @@
             position: fixed;
             z-index: 1001;
             background: #000;
-            border: 1px solid #333;
-            padding: clamp(10px, 1vw, 16px);
+            border: 2px solid #fff;
+            padding: clamp(12px, 1.2vw, 18px);
             pointer-events: auto;
             opacity: 0;
-            transition: opacity 0.15s;
+            transition: opacity 0.1s;
             min-width: clamp(160px, 14vw, 220px);
         }
 
@@ -221,9 +221,9 @@
         }
 
         .tooltip-time {
-            margin-top: clamp(6px, 0.6vw, 10px);
-            padding-top: clamp(6px, 0.6vw, 10px);
-            border-top: 1px solid #222;
+            margin-top: clamp(8px, 0.8vw, 12px);
+            padding-top: clamp(8px, 0.8vw, 12px);
+            border-top: 2px solid #444;
             color: #fff;
         }
 
@@ -247,7 +247,7 @@
             left: clamp(12px, 2vw, 24px);
             z-index: 1000;
             font-size: clamp(9px, 0.7vw, 12px);
-            color: #444;
+            color: #888;
         }
 
         /* Hide maplibre controls we don't need */
@@ -267,22 +267,24 @@
             left: 0;
             margin-top: clamp(8px, 0.8vw, 16px);
             width: clamp(220px, 20vw, 320px);
-            padding: clamp(10px, 1vw, 18px);
+            padding: clamp(12px, 1.2vw, 20px);
             background: #000;
-            border: 1px solid #333;
+            border: 2px solid #fff;
             font-size: clamp(10px, 0.8vw, 13px);
-            line-height: 1.5;
+            line-height: 1.6;
             letter-spacing: 0;
-            color: #888;
+            color: #aaa;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.15s, visibility 0.15s;
+            pointer-events: none;
+            transition: opacity 0.1s, visibility 0.1s;
             z-index: 1002;
         }
 
         .header-title:hover .header-tooltip {
             opacity: 1;
             visibility: visible;
+            pointer-events: auto;
         }
 
         .header-tooltip strong {
@@ -295,8 +297,8 @@
 
         body.inverted .header-tooltip {
             background: #fff;
-            border-color: #ccc;
-            color: #666;
+            border-color: #000;
+            color: #555;
         }
 
         body.inverted .header-tooltip strong {
