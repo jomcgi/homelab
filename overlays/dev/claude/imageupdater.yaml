@@ -8,10 +8,9 @@ spec:
   - images:
     - alias: claude
       commonUpdateSettings:
-        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
-        updateStrategy: newest-build
+        updateStrategy: digest
         forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/charts/claude
+      imageName: ghcr.io/jomcgi/homelab/charts/claude:main
       manifestTargets:
         helm:
           name: image.repository
