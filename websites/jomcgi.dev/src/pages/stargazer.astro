@@ -1,884 +1,577 @@
----
-import { ViewTransitions } from 'astro:transitions';
----
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <title>Stargazer - Dark Sky Scotland</title>
-    <ViewTransitions />
-
-    <!-- MapLibre GL CSS -->
+    <title>Stargazer</title>
     <link href='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css' rel='stylesheet' />
-
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
         body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-            line-height: 1.6;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
             background: #000;
             color: #fff;
             overflow: hidden;
         }
 
-        #app {
-            height: 100vh;
-            display: grid;
-            grid-template-columns: 400px 1fr;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            background: #111;
-            border-right: 1px solid #333;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .header {
-            padding: 20px;
-            border-bottom: 1px solid #333;
-        }
-
-        .header h1 {
-            font-size: 24px;
-            font-weight: normal;
-            margin-bottom: 8px;
-        }
-
-        .header .subtitle {
-            color: #888;
-            font-size: 12px;
-        }
-
-        /* Status indicators */
-        .status-bar {
-            display: flex;
-            gap: 20px;
-            padding: 15px 20px;
-            background: #0a0a0a;
-            border-bottom: 1px solid #333;
-            font-size: 12px;
-        }
-
-        .status-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #444;
-        }
-
-        .status-indicator.active {
-            background: #0f0;
-            box-shadow: 0 0 8px #0f0;
-        }
-
-        /* Location list */
-        .locations {
-            flex: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .location-card {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 4px;
-            padding: 15px;
-            margin-bottom: 15px;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .location-card:hover {
-            background: #222;
-            border-color: #0f0;
-            transform: translateX(5px);
-        }
-
-        .location-card.selected {
-            background: #0a2a0a;
-            border-color: #0f0;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 10px;
-        }
-
-        .location-name {
-            font-weight: bold;
-            color: #fff;
-            font-size: 13px;
-        }
-
-        .rank-badge {
-            font-size: 10px;
-            padding: 2px 6px;
-            border-radius: 3px;
-            font-weight: bold;
-        }
-
-        .rank-1 { background: #ffd700; color: #000; }
-        .rank-2 { background: #c0c0c0; color: #000; }
-        .rank-3 { background: #cd7f32; color: #000; }
-
-        .score-display {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 12px;
-        }
-
-        .score-value {
-            font-size: 24px;
-            font-weight: bold;
-            min-width: 40px;
-        }
-
-        .score-bar {
-            flex: 1;
-            height: 6px;
-            background: #333;
-            border-radius: 3px;
-            overflow: hidden;
-        }
-
-        .score-fill {
-            height: 100%;
-            transition: width 0.3s;
-        }
-
-        .location-details {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 6px;
-            font-size: 11px;
-            margin-bottom: 10px;
-        }
-
-        .detail-row {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 8px;
-            background: #0a0a0a;
-            border-radius: 3px;
-        }
-
-        .detail-label {
-            color: #666;
-        }
-
-        .detail-value {
-            color: #aaa;
-            font-weight: bold;
-        }
-
-        .next-clear {
-            display: flex;
-            justify-content: space-between;
-            padding: 8px;
-            background: #0a2a0a;
-            border-radius: 3px;
-            border: 1px solid #0f02;
-            font-size: 11px;
-        }
-
-        .next-clear-label {
-            color: #0a0;
-        }
-
-        .next-clear-value {
-            color: #0f0;
-            font-weight: bold;
-        }
-
-        .empty-state {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 200px;
-            text-align: center;
-            color: #666;
-        }
-
-        .empty-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-
-        .empty-title {
-            font-size: 16px;
-            color: #888;
-            margin-bottom: 8px;
-        }
-
-        .empty-hint {
-            font-size: 12px;
-            color: #555;
-        }
-
-        /* Map container */
         #map {
-            position: relative;
-            width: 100%;
-            height: 100%;
-            background: #0a0a0a;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
         }
 
-        /* Map controls overlay */
-        .map-controls {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.9);
-            border: 1px solid #333;
-            border-radius: 4px;
-            padding: 10px;
+        /* Header - top left */
+        .header {
+            position: fixed;
+            top: 16px;
+            left: 16px;
             z-index: 1000;
-        }
-
-        .control-group {
-            margin-bottom: 15px;
-        }
-
-        .control-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .control-label {
-            font-size: 11px;
-            color: #888;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-
-        .control-buttons {
-            display: flex;
-            gap: 5px;
-        }
-
-        .control-btn {
-            padding: 5px 10px;
-            background: #222;
-            border: 1px solid #444;
-            color: #fff;
             font-size: 12px;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-family: inherit;
-        }
-
-        .control-btn:hover {
-            background: #333;
-            border-color: #0f0;
-        }
-
-        .control-btn.active {
-            background: #0a2a0a;
-            border-color: #0f0;
-            color: #0f0;
-        }
-
-        /* Loading state */
-        .loading {
+            letter-spacing: 2px;
+            color: #666;
             display: flex;
             align-items: center;
-            justify-content: center;
-            height: 100%;
-            font-size: 14px;
-            color: #888;
+            gap: 16px;
         }
 
-        .loading::after {
-            content: '';
-            animation: dots 1.5s infinite;
+        .header-title {
+            /* just text */
         }
 
-        @keyframes dots {
-            0%, 20% { content: ''; }
-            40% { content: '.'; }
-            60% { content: '..'; }
-            80%, 100% { content: '...'; }
+        /* Filters - top right */
+        .filters {
+            position: fixed;
+            top: 16px;
+            right: 16px;
+            z-index: 1000;
+            display: flex;
+            gap: 16px;
         }
 
-        /* Light pollution legend */
-        .legend {
-            position: absolute;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0, 0, 0, 0.9);
+        .filter-group {
+            display: flex;
+            gap: 4px;
+        }
+
+        .filter-btn {
+            background: #000;
             border: 1px solid #333;
-            border-radius: 4px;
-            padding: 10px;
+            color: #666;
+            padding: 8px 14px;
+            font-family: inherit;
             font-size: 11px;
-        }
-
-        .legend-title {
-            color: #888;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-        }
-
-        .legend-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            margin-bottom: 4px;
-        }
-
-        .legend-color {
-            width: 20px;
-            height: 12px;
-            border: 1px solid #444;
-        }
-
-        /* Mobile responsive */
-        @media (max-width: 768px) {
-            #app {
-                grid-template-columns: 1fr;
-                grid-template-rows: 1fr 1fr;
-            }
-
-            .sidebar {
-                border-right: none;
-                border-bottom: 1px solid #333;
-            }
-
-            .map-controls, .legend {
-                transform: scale(0.9);
-            }
-        }
-
-        /* Custom marker styles */
-        .marker {
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            border: 2px solid;
             cursor: pointer;
-            transition: all 0.2s;
+            transition: all 0.1s;
         }
 
-        .marker:hover {
-            transform: scale(1.5);
-            filter: brightness(1.3);
-            box-shadow: 0 0 15px currentColor;
+        .filter-btn:hover {
+            color: #fff;
+            border-color: #666;
         }
 
-        .marker.selected {
-            transform: scale(1.3);
-            filter: brightness(1.5);
-            box-shadow: 0 0 25px currentColor;
-            animation: pulse 2s infinite;
+        .filter-btn.active {
+            background: #fff;
+            color: #000;
+            border-color: #fff;
         }
 
-        @keyframes pulse {
-            0%, 100% { transform: scale(1.3); }
-            50% { transform: scale(1.5); }
+        /* Invert button - inline with header */
+        .invert-btn {
+            background: #000;
+            border: 1px solid #333;
+            color: #666;
+            padding: 4px 10px;
+            font-family: inherit;
+            font-size: 10px;
+            cursor: pointer;
+            transition: all 0.1s;
+            letter-spacing: 1px;
+        }
+
+        .invert-btn:hover {
+            color: #fff;
+            border-color: #666;
+        }
+
+        /* Inverted mode */
+        body.inverted {
+            background: #fff;
+        }
+
+        body.inverted .header {
+            color: #999;
+        }
+
+        body.inverted .filter-btn {
+            background: #fff;
+            border-color: #ccc;
+            color: #999;
+        }
+
+        body.inverted .filter-btn:hover {
+            color: #000;
+            border-color: #999;
+        }
+
+        body.inverted .filter-btn.active {
+            background: #000;
+            color: #fff;
+            border-color: #000;
+        }
+
+        body.inverted .invert-btn {
+            background: #fff;
+            border-color: #ccc;
+            color: #999;
+        }
+
+        body.inverted .invert-btn:hover {
+            color: #000;
+            border-color: #999;
+        }
+
+        body.inverted .tooltip {
+            background: #fff;
+            border-color: #ccc;
+        }
+
+        body.inverted .tooltip-coords a {
+            color: #666;
+            border-bottom-color: #ccc;
+        }
+
+        body.inverted .tooltip-coords a:hover {
+            color: #000;
+        }
+
+        body.inverted .tooltip-score-value {
+            color: #000;
+        }
+
+        body.inverted .tooltip-details {
+            color: #666;
+        }
+
+        body.inverted .tooltip-time {
+            color: #000;
+            border-top-color: #ddd;
+        }
+
+        body.inverted .status {
+            color: #bbb;
+        }
+
+        body.inverted .score-exceptional { color: #090; }
+        body.inverted .score-good { color: #333; }
+        body.inverted .score-ok { color: #666; }
+
+        /* Tooltip - follows mouse on hover */
+        .tooltip {
+            position: fixed;
+            z-index: 1001;
+            background: #000;
+            border: 1px solid #333;
+            padding: 12px;
+            pointer-events: auto;
+            opacity: 0;
+            transition: opacity 0.15s;
+            min-width: 180px;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        .tooltip-coords {
+            font-size: 11px;
+            margin-bottom: 8px;
+        }
+
+        .tooltip-coords a {
+            color: #888;
+            text-decoration: none;
+            border-bottom: 1px dashed #444;
+        }
+
+        .tooltip-coords a:hover {
+            color: #fff;
+            border-bottom-color: #888;
+        }
+
+        .tooltip-score {
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .tooltip-score-value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .tooltip-score-label {
+            font-size: 10px;
+            color: #666;
+        }
+
+        .tooltip-details {
+            font-size: 11px;
+            color: #888;
+            line-height: 1.6;
+        }
+
+        .tooltip-time {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #222;
+            color: #fff;
+        }
+
+        /* Markers - now handled by MapLibre layer */
+        
+        /* Only exceptional spots get color - handled in layer paint */
+
+        .marker.exceptional:hover {
+            box-shadow: 0 0 16px #0f0;
+        }
+
+        /* Score color in tooltip */
+        .score-exceptional { color: #0f0; }
+        .score-good { color: #fff; }
+        .score-ok { color: #888; }
+
+        /* Status - bottom left */
+        .status {
+            position: fixed;
+            bottom: 16px;
+            left: 16px;
+            z-index: 1000;
+            font-size: 10px;
+            color: #444;
+        }
+
+        /* Hide maplibre controls we don't need */
+        .maplibregl-ctrl-attrib {
+            display: none;
         }
     </style>
 </head>
 <body>
-    <div id="app">
-        <div class="sidebar">
-            <div class="header">
-                <h1>STARGAZER</h1>
-                <div class="subtitle">Dark Sky Locations • Scotland</div>
-            </div>
+    <div id="map"></div>
 
-            <div class="status-bar">
-                <div class="status-item">
-                    <div class="status-indicator" id="data-status"></div>
-                    <span>Data</span>
-                </div>
-                <div class="status-item">
-                    <div class="status-indicator" id="weather-status"></div>
-                    <span>Weather</span>
-                </div>
-                <div class="status-item">
-                    <div class="status-indicator" id="forecast-status"></div>
-                    <span>72h Forecast</span>
-                </div>
-            </div>
+    <div class="header">
+        <span class="header-title">STARGAZER</span>
+        <button class="invert-btn" id="invert-btn">INVERT</button>
+    </div>
 
-            <div class="locations" id="locations">
-                <div class="loading">Loading locations</div>
-            </div>
+    <div class="filters">
+        <div class="filter-group">
+            <button class="filter-btn active" data-time="tonight">TONIGHT</button>
+            <button class="filter-btn" data-time="72h">72H</button>
         </div>
-
-        <div id="map">
-            <div class="map-controls">
-                <div class="control-group">
-                    <div class="control-label">Time Range</div>
-                    <div class="control-buttons">
-                        <button class="control-btn active" data-range="tonight">Tonight</button>
-                        <button class="control-btn" data-range="24h">24h</button>
-                        <button class="control-btn" data-range="48h">48h</button>
-                        <button class="control-btn" data-range="72h">72h</button>
-                    </div>
-                </div>
-
-                <div class="control-group">
-                    <div class="control-label">Min Score</div>
-                    <div class="control-buttons">
-                        <button class="control-btn active" data-score="60">60+</button>
-                        <button class="control-btn" data-score="70">70+</button>
-                        <button class="control-btn" data-score="80">80+</button>
-                        <button class="control-btn" data-score="90">90+</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="legend">
-                <div class="legend-title">Light Pollution</div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #000"></div>
-                    <span>Pristine (Bortle 1)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #111"></div>
-                    <span>Dark (Bortle 2)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #222"></div>
-                    <span>Rural (Bortle 3)</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background: #444"></div>
-                    <span>Suburban (Bortle 4+)</span>
-                </div>
-            </div>
+        <div class="filter-group">
+            <button class="filter-btn active" data-score="0">ALL</button>
+            <button class="filter-btn" data-score="70">70+</button>
+            <button class="filter-btn" data-score="80">80+</button>
         </div>
     </div>
 
-    <!-- MapLibre GL JS -->
+    <div class="tooltip" id="tooltip">
+        <div class="tooltip-coords"><a id="t-coords" href="#" target="_blank">56.6°N 6.6°W</a></div>
+        <div class="tooltip-score">
+            <span class="tooltip-score-value" id="t-score">95</span>
+            <span class="tooltip-score-label">/ 100</span>
+        </div>
+        <div class="tooltip-details">
+            <div>Zone <span id="t-zone">0</span></div>
+            <div>Cloud <span id="t-cloud">5%</span></div>
+            <div>Wind <span id="t-wind">4.2 m/s</span></div>
+        </div>
+        <div class="tooltip-time" id="t-time">Clear from 21:30</div>
+    </div>
+
+    <div class="status" id="status">Loading...</div>
+
     <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
-
     <script>
-        // API endpoint for Stargazer data
+        document.addEventListener('DOMContentLoaded', init);
+        
+        function init() {
         const API_URL = 'https://api.jomcgi.dev/stargazer/best';
-
-        let locations = [];
-        const mockLocations = [
-            {
-                id: 'galloway-1',
-                name: 'Galloway Forest Dark Sky Park',
-                lat: 55.0833,
-                lon: -4.5000,
-                altitude_m: 320,
-                lp_zone: '1a',
-                score: 92,
-                cloud_cover: 8,
-                humidity: 65,
-                wind_speed: 2.8,
-                next_clear: 'Tonight 22:00',
-                moon_phase: 'New Moon'
-            },
-            {
-                id: 'cairngorms-1',
-                name: 'Cairngorms National Park',
-                lat: 57.0488,
-                lon: -3.6106,
-                altitude_m: 450,
-                lp_zone: '1b',
-                score: 87,
-                cloud_cover: 15,
-                humidity: 70,
-                wind_speed: 3.5,
-                next_clear: 'Tonight 23:00',
-                moon_phase: 'New Moon'
-            },
-            {
-                id: 'coll-1',
-                name: 'Isle of Coll',
-                lat: 56.6189,
-                lon: -6.5572,
-                altitude_m: 25,
-                lp_zone: '0',
-                score: 95,
-                cloud_cover: 5,
-                humidity: 60,
-                wind_speed: 4.2,
-                next_clear: 'Tonight 21:30',
-                moon_phase: 'New Moon'
-            },
-            {
-                id: 'skye-1',
-                name: 'Quiraing, Isle of Skye',
-                lat: 57.6433,
-                lon: -6.2653,
-                altitude_m: 280,
-                lp_zone: '1a',
-                score: 78,
-                cloud_cover: 25,
-                humidity: 75,
-                wind_speed: 5.1,
-                next_clear: 'Tomorrow 02:00',
-                moon_phase: 'New Moon'
-            },
-            {
-                id: 'sutherland-1',
-                name: 'Northwest Sutherland',
-                lat: 58.3500,
-                lon: -4.7500,
-                altitude_m: 150,
-                lp_zone: '0',
-                score: 88,
-                cloud_cover: 12,
-                humidity: 68,
-                wind_speed: 3.2,
-                next_clear: 'Tonight 22:30',
-                moon_phase: 'New Moon'
-            }
+        
+        // Demo data fallback
+        const demoLocations = [
+            { id: '1', lat: 56.6189, lon: -6.5572, zone: '0', score: 95, cloud: 5, wind: 4.2, time: 'Tonight 21:30' },
+            { id: '2', lat: 55.0833, lon: -4.5000, zone: '1a', score: 92, cloud: 8, wind: 2.8, time: 'Tonight 22:00' },
+            { id: '3', lat: 58.3500, lon: -4.7500, zone: '0', score: 88, cloud: 12, wind: 3.2, time: 'Tonight 22:30' },
+            { id: '4', lat: 57.0488, lon: -3.6106, zone: '1b', score: 87, cloud: 15, wind: 3.5, time: 'Tonight 23:00' },
+            { id: '5', lat: 57.6433, lon: -6.2653, zone: '1a', score: 78, cloud: 25, wind: 5.1, time: 'Tomorrow 02:00' },
+            { id: '6', lat: 56.8, lon: -5.1, zone: '1b', score: 72, cloud: 30, wind: 3.8, time: 'Tomorrow 01:00' },
+            { id: '7', lat: 55.5, lon: -5.5, zone: '2', score: 65, cloud: 35, wind: 4.5, time: 'Tomorrow 03:00' },
+            { id: '8', lat: 57.2, lon: -4.2, zone: '1a', score: 81, cloud: 18, wind: 2.9, time: 'Tonight 23:30' },
         ];
 
-        let map;
-        let markers = [];
-        let selectedLocationId = null;
+        let locations = [];
+        let currentFilters = { time: 'tonight', score: 0 };
 
-        // Initialize map
-        function initMap() {
-            map = new maplibregl.Map({
-                container: 'map',
-                style: {
-                    version: 8,
-                    sources: {
-                        'osm': {
-                            type: 'raster',
-                            tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
-                            tileSize: 256,
-                            attribution: '© OpenStreetMap contributors'
-                        }
-                    },
-                    layers: [{
-                        id: 'osm',
-                        type: 'raster',
-                        source: 'osm',
-                        paint: {
-                            'raster-brightness-min': 0.2,
-                            'raster-brightness-max': 0.4,
-                            'raster-contrast': 0.8
-                        }
-                    }],
-                    glyphs: 'https://fonts.openmaptiles.org/{fontstack}/{range}.pbf'
-                },
-                center: [-4.5, 56.5], // Center of Scotland
-                zoom: 6,
-                pitch: 0,
-                bearing: 0
-            });
+        const tooltip = document.getElementById('tooltip');
+        const status = document.getElementById('status');
 
-            // Add navigation controls
-            map.addControl(new maplibregl.NavigationControl(), 'top-left');
-
-            // Add markers for locations
-            map.on('load', () => {
-                addLocationMarkers();
-                updateStatus();
-            });
+        // Format coordinates
+        function formatCoords(lat, lon) {
+            const latDir = lat >= 0 ? 'N' : 'S';
+            const lonDir = lon >= 0 ? 'E' : 'W';
+            return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`;
         }
 
-        // Add markers to map
-        function addLocationMarkers() {
-            // Clear existing markers
-            markers.forEach(m => m.marker.remove());
-            markers = [];
-
-            locations.forEach(location => {
-                const el = document.createElement('div');
-                el.className = 'marker';
-                el.id = `marker-${location.id}`;
-
-                // Color based on score
-                const color = getScoreColor(location.score);
-                const rgba = hexToRgba(color, 0.3);
-                el.style.borderColor = color;
-                el.style.background = rgba;
-
-                const marker = new maplibregl.Marker(el)
-                    .setLngLat([location.lon, location.lat])
-                    .addTo(map);
-
-                el.addEventListener('click', () => selectLocation(location.id));
-
-                markers.push({ marker, location });
-            });
-
-            // Update location count
-            updateLocationCount();
-        }
-
-        // Update location count display
-        function updateLocationCount() {
-            const subtitle = document.querySelector('.header .subtitle');
-            if (subtitle) {
-                subtitle.textContent = `Dark Sky Locations • ${locations.length} spots in Scotland`;
-            }
-        }
-
-        // Get score color based on value
-        function getScoreColor(score) {
-            if (score >= 90) return '#00ff00';
-            if (score >= 80) return '#88ff00';
-            if (score >= 70) return '#ffff00';
-            if (score >= 60) return '#ff8800';
-            return '#ff0000';
-        }
-
-        // Convert hex color to rgba
-        function hexToRgba(hex, alpha) {
-            const r = parseInt(hex.slice(1, 3), 16);
-            const g = parseInt(hex.slice(3, 5), 16);
-            const b = parseInt(hex.slice(5, 7), 16);
-            return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-        }
-
-        // Render location cards
-        function renderLocations() {
-            const container = document.getElementById('locations');
-            container.innerHTML = '';
-
-            if (locations.length === 0) {
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-icon">&#9734;</div>
-                        <div class="empty-title">No locations match filters</div>
-                        <div class="empty-hint">Try lowering the minimum score or expanding the time range</div>
-                    </div>
-                `;
-                return;
-            }
-
-            // Sort by score descending
-            const sorted = [...locations].sort((a, b) => b.score - a.score);
-
-            sorted.forEach((location, index) => {
-                const card = document.createElement('div');
-                card.className = 'location-card';
-                card.id = `card-${location.id}`;
-                card.onclick = () => selectLocation(location.id);
-
-                const scoreColor = getScoreColor(location.score);
-                const rankBadge = index < 3 ? `<span class="rank-badge rank-${index + 1}">#${index + 1}</span>` : '';
-
-                card.innerHTML = `
-                    <div class="card-header">
-                        <div class="location-name">${location.name}</div>
-                        ${rankBadge}
-                    </div>
-                    <div class="score-display">
-                        <span class="score-value" style="color: ${scoreColor}">${location.score}</span>
-                        <div class="score-bar">
-                            <div class="score-fill" style="width: ${location.score}%; background: ${scoreColor}"></div>
-                        </div>
-                    </div>
-                    <div class="location-details">
-                        <div class="detail-row">
-                            <span class="detail-label">Zone</span>
-                            <span class="detail-value">${location.lp_zone}</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Cloud</span>
-                            <span class="detail-value">${location.cloud_cover}%</span>
-                        </div>
-                        <div class="detail-row">
-                            <span class="detail-label">Wind</span>
-                            <span class="detail-value">${location.wind_speed} m/s</span>
-                        </div>
-                        ${location.temperature !== null ? `
-                        <div class="detail-row">
-                            <span class="detail-label">Temp</span>
-                            <span class="detail-value">${location.temperature}°C</span>
-                        </div>
-                        ` : ''}
-                    </div>
-                    ${location.next_clear ? `
-                    <div class="next-clear">
-                        <span class="next-clear-label">Best time:</span>
-                        <span class="next-clear-value">${location.next_clear}</span>
-                    </div>
-                    ` : ''}
-                `;
-
-                container.appendChild(card);
-            });
-        }
-
-        // Select location
-        function selectLocation(locationId) {
-            // Update selected state
-            selectedLocationId = locationId;
-
-            // Update cards
-            document.querySelectorAll('.location-card').forEach(card => {
-                card.classList.toggle('selected', card.id === `card-${locationId}`);
-            });
-
-            // Update markers
-            document.querySelectorAll('.marker').forEach(marker => {
-                marker.classList.toggle('selected', marker.id === `marker-${locationId}`);
-            });
-
-            // Pan map to location
-            const location = locations.find(l => l.id === locationId);
-            if (location) {
-                map.flyTo({
-                    center: [location.lon, location.lat],
-                    zoom: 10,
-                    duration: 1500
-                });
-            }
-        }
-
-        // Format time for display
+        // Format time
         function formatTime(isoString) {
             if (!isoString) return null;
             const date = new Date(isoString);
             const now = new Date();
             const tomorrow = new Date(now);
             tomorrow.setDate(tomorrow.getDate() + 1);
-
             const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-
-            if (date.toDateString() === now.toDateString()) {
-                return `Tonight ${timeStr}`;
-            } else if (date.toDateString() === tomorrow.toDateString()) {
-                return `Tomorrow ${timeStr}`;
-            } else {
-                return date.toLocaleDateString('en-GB', { weekday: 'short', hour: '2-digit', minute: '2-digit' });
-            }
+            if (date.toDateString() === now.toDateString()) return `Tonight ${timeStr}`;
+            if (date.toDateString() === tomorrow.toDateString()) return `Tomorrow ${timeStr}`;
+            return date.toLocaleDateString('en-GB', { weekday: 'short' }) + ` ${timeStr}`;
         }
 
-        // Format location ID into readable name
-        function formatLocationName(id) {
-            if (!id) return 'Unknown Location';
-            // Convert "scotland_0010" to "Scotland #10"
-            const parts = id.split('_');
-            if (parts.length === 2) {
-                const region = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
-                const num = parseInt(parts[1], 10);
-                return `${region} #${num}`;
-            }
-            return id;
-        }
-
-        // Fetch locations from API
-        async function fetchLocations() {
-            try {
-                const response = await fetch(API_URL);
-                if (response.ok) {
-                    const apiData = await response.json();
-                    // Transform API data to frontend format
-                    locations = apiData
-                        .map((loc, index) => {
-                            // Validate coordinates - API returns {lat, lon} object
-                            const lat = loc.coordinates?.lat;
-                            const lon = loc.coordinates?.lon;
-
-                            if (typeof lat !== 'number' || typeof lon !== 'number' ||
-                                isNaN(lat) || isNaN(lon)) {
-                                console.warn(`Skipping location ${loc.id}: invalid coordinates`, loc.coordinates);
-                                return null;
-                            }
-
-                            const bestHour = loc.best_hours && loc.best_hours[0] || {};
-                            return {
-                                id: loc.id || `location-${index}`,
-                                name: loc.name || formatLocationName(loc.id),
-                                lat,
-                                lon,
-                                altitude_m: loc.altitude_m || 0,
-                                lp_zone: loc.lp_zone || 'Unknown',
-                                score: Math.round(loc.best_score || 0),
-                                cloud_cover: Math.round(bestHour.cloud_area_fraction || 0),
-                                humidity: Math.round(bestHour.relative_humidity || 0),
-                                wind_speed: bestHour.wind_speed ? bestHour.wind_speed.toFixed(1) : '0',
-                                temperature: bestHour.air_temperature ? Math.round(bestHour.air_temperature) : null,
-                                next_clear: formatTime(bestHour.time)
-                            };
-                        })
-                        .filter(loc => loc !== null); // Remove invalid locations
-
-                    console.log(`Loaded ${locations.length} valid locations from API`);
-
-                    if (locations.length === 0) {
-                        console.warn('No valid locations from API, using demo data');
-                        locations = mockLocations;
+        // Map setup
+        const map = new maplibregl.Map({
+            container: 'map',
+            style: {
+                version: 8,
+                sources: {
+                    'osm': {
+                        type: 'raster',
+                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tileSize: 256
                     }
-                } else {
-                    console.warn('API unavailable, using demo data');
-                    locations = mockLocations;
-                }
-            } catch (error) {
-                console.error('Failed to fetch locations:', error);
-                locations = mockLocations;
+                },
+                layers: [{
+                    id: 'osm',
+                    type: 'raster',
+                    source: 'osm',
+                    paint: {
+                        'raster-brightness-min': 0.1,
+                        'raster-brightness-max': 0.35,
+                        'raster-contrast': 0.8,
+                        'raster-saturation': -1
+                    }
+                }]
+            },
+            center: [-4.5, 56.8],
+            zoom: 6.5
+        });
+
+        // Add markers using native MapLibre layer
+        function renderMarkers() {
+            const filtered = locations.filter(loc => loc.score >= currentFilters.score);
+            console.log('Rendering', filtered.length, 'markers');
+
+            // Build GeoJSON
+            const geojson = {
+                type: 'FeatureCollection',
+                features: filtered.map(loc => ({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [loc.lon, loc.lat]
+                    },
+                    properties: {
+                        id: loc.id,
+                        score: loc.score,
+                        zone: loc.zone,
+                        cloud: loc.cloud,
+                        wind: loc.wind,
+                        time: loc.time,
+                        exceptional: loc.score >= 90
+                    }
+                }))
+            };
+
+            // Update or create source
+            if (map.getSource('locations')) {
+                map.getSource('locations').setData(geojson);
+            } else {
+                map.addSource('locations', {
+                    type: 'geojson',
+                    data: geojson
+                });
+
+                // Add circle layer for all points - colored by score
+                map.addLayer({
+                    id: 'locations-circle',
+                    type: 'circle',
+                    source: 'locations',
+                    paint: {
+                        'circle-radius': [
+                            'case',
+                            ['>=', ['get', 'score'], 90], 8,
+                            ['>=', ['get', 'score'], 80], 7,
+                            6
+                        ],
+                        'circle-color': [
+                            'case',
+                            ['>=', ['get', 'score'], 90], '#0f0',
+                            ['>=', ['get', 'score'], 80], '#8f0',
+                            ['>=', ['get', 'score'], 70], '#ff0',
+                            '#f80'
+                        ],
+                        'circle-stroke-width': 1,
+                        'circle-stroke-color': '#fff',
+                        'circle-opacity': 0.9
+                    }
+                });
+
+                // Add glow layer for exceptional points
+                map.addLayer({
+                    id: 'locations-glow',
+                    type: 'circle',
+                    source: 'locations',
+                    filter: ['==', ['get', 'exceptional'], true],
+                    paint: {
+                        'circle-radius': 16,
+                        'circle-color': '#0f0',
+                        'circle-opacity': 0.2,
+                        'circle-blur': 1
+                    }
+                }, 'locations-circle');
+
+                // Set up hover handlers
+                let hideTimeout;
+                
+                map.on('mouseenter', 'locations-circle', (e) => {
+                    clearTimeout(hideTimeout);
+                    map.getCanvas().style.cursor = 'pointer';
+                    if (e.features.length > 0) {
+                        const props = e.features[0].properties;
+                        const coords = e.features[0].geometry.coordinates;
+                        const lat = coords[1];
+                        const lon = coords[0];
+                        
+                        const coordsEl = document.getElementById('t-coords');
+                        coordsEl.textContent = formatCoords(lat, lon);
+                        coordsEl.href = `https://www.google.com/maps?q=${lat},${lon}`;
+                        
+                        const scoreEl = document.getElementById('t-score');
+                        scoreEl.textContent = props.score;
+                        scoreEl.className = 'tooltip-score-value ' + 
+                            (props.score >= 90 ? 'score-exceptional' : props.score >= 75 ? 'score-good' : 'score-ok');
+
+                        document.getElementById('t-zone').textContent = props.zone;
+                        document.getElementById('t-cloud').textContent = props.cloud + '%';
+                        document.getElementById('t-wind').textContent = props.wind + ' m/s';
+                        document.getElementById('t-time').textContent = props.time ? `Clear from ${props.time.split(' ').pop()}` : 'Check forecast';
+
+                        tooltip.classList.add('visible');
+                    }
+                });
+
+                map.on('mousemove', 'locations-circle', (e) => {
+                    tooltip.style.left = (e.originalEvent.clientX + 16) + 'px';
+                    tooltip.style.top = (e.originalEvent.clientY + 16) + 'px';
+                });
+                
+                map.on('mouseleave', 'locations-circle', () => {
+                    map.getCanvas().style.cursor = '';
+                    // Delay hiding so user can move to tooltip
+                    hideTimeout = setTimeout(() => {
+                        tooltip.classList.remove('visible');
+                    }, 100);
+                });
+
+                // Keep tooltip visible when hovering it
+                tooltip.addEventListener('mouseenter', () => {
+                    clearTimeout(hideTimeout);
+                });
+
+                tooltip.addEventListener('mouseleave', () => {
+                    tooltip.classList.remove('visible');
+                });
             }
 
-            // Update UI
-            renderLocations();
-            if (map && map.loaded()) {
-                addLocationMarkers();
-            }
+            status.textContent = `${filtered.length} locations`;
         }
 
-        // Update status indicators
-        function updateStatus() {
-            document.getElementById('data-status').classList.add('active');
-            setTimeout(() => {
-                document.getElementById('weather-status').classList.add('active');
-            }, 500);
-            setTimeout(() => {
-                document.getElementById('forecast-status').classList.add('active');
-            }, 1000);
-        }
-
-        // Handle control buttons
-        document.addEventListener('DOMContentLoaded', async () => {
-            // Initialize map
-            initMap();
-
-            // Fetch and render locations
-            await fetchLocations();
-
-            // Time range controls
-            document.querySelectorAll('[data-range]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('[data-range]').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    // TODO: Filter locations by time range
-                });
-            });
-
-            // Score filter controls
-            document.querySelectorAll('[data-score]').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    document.querySelectorAll('[data-score]').forEach(b => b.classList.remove('active'));
-                    e.target.classList.add('active');
-                    const minScore = parseInt(e.target.dataset.score);
-                    // TODO: Filter locations by minimum score
-                });
+        // Filter handlers
+        document.querySelectorAll('[data-time]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilters.time = btn.dataset.time;
+                // Would refetch with different time range
+                renderMarkers();
             });
         });
+
+        document.querySelectorAll('[data-score]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('[data-score]').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                currentFilters.score = parseInt(btn.dataset.score);
+                renderMarkers();
+            });
+        });
+
+        // Fetch data
+        async function fetchLocations() {
+            try {
+                const res = await fetch(API_URL);
+                if (res.ok) {
+                    const data = await res.json();
+                    locations = data
+                        .map(loc => {
+                            const lat = loc.coordinates?.lat;
+                            const lon = loc.coordinates?.lon;
+                            if (typeof lat !== 'number' || typeof lon !== 'number') return null;
+                            const best = loc.best_hours?.[0] || {};
+                            return {
+                                id: loc.id,
+                                lat, lon,
+                                zone: loc.lp_zone || '?',
+                                score: Math.round(loc.best_score || 0),
+                                cloud: Math.round(best.cloud_area_fraction || 0),
+                                wind: best.wind_speed?.toFixed(1) || '?',
+                                time: formatTime(best.time)
+                            };
+                        })
+                        .filter(Boolean);
+                } else {
+                    locations = demoLocations;
+                }
+            } catch {
+                locations = demoLocations;
+            }
+            renderMarkers();
+        }
+
+        map.on('load', fetchLocations);
+
+        // Invert toggle
+        let inverted = false;
+        document.getElementById('invert-btn').addEventListener('click', () => {
+            inverted = !inverted;
+            document.body.classList.toggle('inverted', inverted);
+            
+            // Update map brightness
+            if (inverted) {
+                map.setPaintProperty('osm', 'raster-brightness-min', 0.7);
+                map.setPaintProperty('osm', 'raster-brightness-max', 1);
+                map.setPaintProperty('osm', 'raster-contrast', 0.5);
+            } else {
+                map.setPaintProperty('osm', 'raster-brightness-min', 0.1);
+                map.setPaintProperty('osm', 'raster-brightness-max', 0.35);
+                map.setPaintProperty('osm', 'raster-contrast', 0.8);
+            }
+        });
+        }
     </script>
 </body>
 </html>
