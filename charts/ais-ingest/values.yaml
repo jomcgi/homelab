@@ -44,16 +44,17 @@ serviceAccount:
 podAnnotations: {}
 
 # Pod security context
+# Note: Running as root because aspect_rules_py venv needs to write
+# to the installation directory. TODO: Fix image to run as non-root
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  fsGroup: 1000
   seccompProfile:
     type: RuntimeDefault
 
 # Container security context
 securityContext:
-  readOnlyRootFilesystem: false  # aspect_rules_py needs write access
+  # Note: readOnlyRootFilesystem disabled because aspect_rules_py
+  # creates a virtualenv at runtime (by design)
+  readOnlyRootFilesystem: false
   allowPrivilegeEscalation: false
   capabilities:
     drop:
