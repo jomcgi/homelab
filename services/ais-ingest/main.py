@@ -63,13 +63,24 @@ class AISIngestService:
         stream_config = StreamConfig(
             name="ais",
             subjects=["ais.>"],
-            max_age=int(timedelta(hours=24).total_seconds() * 1e9),  # nanoseconds
+            max_age=timedelta(hours=24).total_seconds(),  # seconds, not nanoseconds
             storage=StorageType.FILE,
             discard=DiscardPolicy.OLD,
             description="AIS position reports from AISStream.io",
         )
-        await self.js.add_stream(stream_config)
-        logger.info("Created/updated 'ais' stream with 24h retention")
+
+        try:
+            await self.js.add_stream(stream_config)
+            logger.info("Created/updated 'ais' stream with 24h retention")
+        except Exception as e:
+            logger.error(f"Failed to create/update stream: {e}")
+            # Try to get existing stream info for debugging
+            try:
+                stream_info = await self.js.stream_info("ais")
+                logger.info(f"Existing stream config: {stream_info}")
+            except:
+                logger.info("No existing stream found")
+            raise
 
     async def publish_position(self, mmsi: str, data: dict) -> None:
         """Publish a position report to NATS."""
