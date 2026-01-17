@@ -46,9 +46,6 @@ spec:
               value: /tmp
             - name: UV_CACHE_DIR
               value: /tmp/.uv-cache
-            # rules_python bootstrap files need writable location for non-root
-            - name: RULES_PYTHON_EXTRACT_ROOT
-              value: /tmp
             - name: NATS_URL
               value: {{ .Values.nats.url | quote }}
             - name: AISSTREAM_URL
