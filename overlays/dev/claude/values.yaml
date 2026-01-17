@@ -2,8 +2,9 @@
 # Inherits defaults from charts/claude/values.yaml
 
 # Container image - managed by ArgoCD Image Updater
+# Uses digest strategy: only updates when image content actually changes
 image:
-  tag: "2026.01.17.18.46.01-4ecb10e"
+  tag: "main"
   repository: ghcr.io/jomcgi/homelab/charts/claude
 # Custom repo sync (replaces git-sync sidecar)
 # Clones repo on startup and runs periodic git fetch
@@ -19,17 +20,14 @@ defaultWorkingDirectory: "/repos/homelab"
 # Bypass all permission prompts by default
 # Claude Code will run tools without asking for confirmation
 defaultPermissionMode: "bypassPermissions"
-# Enable HA with StatefulSet - each pod gets its own PVC
-# This gives us zero-downtime deployments with fast pod startups
+# Single replica with shared PVC for conversation persistence
+# Digest-based image updates prevent unnecessary pod rolls
 statefulset:
-  enabled: true
-  podManagementPolicy: Parallel
-# Run 2 replicas for HA
-replicas: 2
-# Session affinity ensures WebSocket connections stick to same pod
+  enabled: false
+replicas: 1
+# Session affinity not needed with single replica
 service:
-  sessionAffinity: true
-  sessionAffinityTimeout: 7200 # 2 hours for long Claude sessions
-# Reduce PVC size since each pod gets its own
+  sessionAffinity: false
+# Shared PVC for conversation history persistence across restarts
 persistence:
-  size: 100Gi # Half the original size per pod
+  size: 200Gi
