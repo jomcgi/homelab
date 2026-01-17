@@ -47,6 +47,8 @@ dependencies = [
     "opentelemetry-exporter-otlp~=1.22",
     # Trips API dependencies
     "nats-py~=2.9",
+    # AIS ingest dependencies
+    "websockets~=12.0",
     # Stargazer geospatial dependencies
     "rasterio~=1.3",
     "geopandas~=0.14",

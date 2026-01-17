@@ -415,6 +415,32 @@ We **define errors out of existence** where possible:
   - Example: `lstr -L 2 charts/` to view 2 levels deep
   - Use `-d` for directories only, `--icons` for file icons
 
+### Adding Python Dependencies
+
+When adding a new Python dependency to `pyproject.toml`, you must regenerate the lock files:
+
+```bash
+# 1. Add dependency to pyproject.toml
+#    e.g., "websockets~=12.0" in the dependencies list
+
+# 2. Regenerate runtime.txt (locks pyproject.toml dependencies)
+bazel run //requirements:runtime
+
+# 3. Regenerate all.txt (includes test/tools dependencies)
+bazel run //requirements:requirements.all
+
+# 4. Run the test to verify sync
+bazel test //requirements:runtime_test
+```
+
+**Why this is needed:**
+- `pyproject.toml` defines direct dependencies with version constraints
+- `requirements/runtime.txt` is the pinned lock file with exact versions + hashes
+- `requirements/all.txt` includes runtime + test + tools dependencies
+- The `runtime_test` verifies that lock files are in sync with pyproject.toml
+
+**Common error:** If `//requirements:runtime_test` fails with a diff, it means the lock file doesn't match pyproject.toml. Regenerate with the commands above.
+
 ### Rendering Manifests
 
 To render Helm manifests and verify changes before committing:
