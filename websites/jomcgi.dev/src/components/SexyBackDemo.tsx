@@ -85,9 +85,10 @@ export default function SexyBackDemo() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Constantly moving button - gets faster each phase, extra fast on mobile
+  // Button behavior: Desktop = runs away from cursor + shrinks, Mobile = bounces around fast
   const kickButtonAnimRef = useRef<number | null>(null);
   const buttonVelocityRef = useRef({ vx: 2, vy: 1.5 });
+  const [buttonScale, setButtonScale] = useState(1);
   const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
   useEffect(() => {
@@ -107,53 +108,91 @@ export default function SexyBackDemo() {
       const container = containerRef.current;
       const buttonRect = button.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
+      const margin = 20;
+      const maxX = containerRect.width - buttonRect.width - margin;
+      const maxY = containerRect.height - buttonRect.height - margin;
 
-      // Speed increases with phase - MUCH faster on mobile
-      const mobileMultiplier = isTouchDevice ? 3 : 1;
-      const baseSpeed = (4 + (phaseRef.current - 5) * 4) * mobileMultiplier;
+      if (isTouchDevice) {
+        // MOBILE: Constant bouncing movement
+        const baseSpeed = 4 + (phaseRef.current - 5) * 4;
 
-      setKickButtonPos(prev => {
-        let newX = prev.x + buttonVelocityRef.current.vx * baseSpeed;
-        let newY = prev.y + buttonVelocityRef.current.vy * baseSpeed;
+        setKickButtonPos(prev => {
+          let newX = prev.x + buttonVelocityRef.current.vx * baseSpeed;
+          let newY = prev.y + buttonVelocityRef.current.vy * baseSpeed;
 
-        // Bounce off walls
-        const margin = 20;
-        const maxX = containerRect.width - buttonRect.width - margin;
-        const maxY = containerRect.height - buttonRect.height - margin;
+          if (newX <= margin || newX >= maxX) {
+            buttonVelocityRef.current.vx *= -1;
+            buttonVelocityRef.current.vy += (Math.random() - 0.5) * 1.5;
+            newX = Math.max(margin, Math.min(maxX, newX));
+          }
+          if (newY <= margin || newY >= maxY) {
+            buttonVelocityRef.current.vy *= -1;
+            buttonVelocityRef.current.vx += (Math.random() - 0.5) * 1.5;
+            newY = Math.max(margin, Math.min(maxY, newY));
+          }
 
-        if (newX <= margin || newX >= maxX) {
-          buttonVelocityRef.current.vx *= -1;
-          // More randomness on bounce for unpredictability
-          buttonVelocityRef.current.vy += (Math.random() - 0.5) * 1.5;
-          newX = Math.max(margin, Math.min(maxX, newX));
+          // Clamp velocity
+          const maxVel = 5;
+          const minVel = 1;
+          buttonVelocityRef.current.vx = Math.sign(buttonVelocityRef.current.vx) *
+            Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vx)));
+          buttonVelocityRef.current.vy = Math.sign(buttonVelocityRef.current.vy) *
+            Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vy)));
+
+          return { x: newX, y: newY };
+        });
+      } else {
+        // DESKTOP: Run away from cursor + shrink when close
+        const cursor = cursorPosRef.current;
+        const cursorX = (cursor.x / 100) * containerRect.width;
+        const cursorY = (cursor.y / 100) * containerRect.height;
+
+        const buttonCenterX = buttonRect.left - containerRect.left + buttonRect.width / 2;
+        const buttonCenterY = buttonRect.top - containerRect.top + buttonRect.height / 2;
+
+        const dx = cursorX - buttonCenterX;
+        const dy = cursorY - buttonCenterY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Threshold increases with phase
+        const threshold = 300 + (phaseRef.current - 5) * 100;
+
+        // Shrink as cursor gets closer (1.0 at threshold, 0.4 minimum at distance 0)
+        const newScale = distance < threshold
+          ? 0.4 + 0.6 * (distance / threshold)
+          : 1;
+        setButtonScale(newScale);
+
+        if (distance < threshold && distance > 0) {
+          const escapeX = -dx / distance;
+          const escapeY = -dy / distance;
+
+          const proximity = 1 - (distance / threshold);
+          const baseSpeed = 30 + (phaseRef.current - 5) * 15;
+          const speed = baseSpeed * proximity * proximity;
+
+          setKickButtonPos(prev => {
+            let newX = prev.x + escapeX * speed;
+            let newY = prev.y - escapeY * speed;
+
+            newX = Math.max(margin, Math.min(maxX, newX));
+            newY = Math.max(margin, Math.min(maxY, newY));
+
+            return { x: newX, y: newY };
+          });
         }
-        if (newY <= margin || newY >= maxY) {
-          buttonVelocityRef.current.vy *= -1;
-          // More randomness on bounce
-          buttonVelocityRef.current.vx += (Math.random() - 0.5) * 1.5;
-          newY = Math.max(margin, Math.min(maxY, newY));
-        }
-
-        // Clamp velocity - allow faster on mobile
-        const maxVel = isTouchDevice ? 5 : 3;
-        const minVel = isTouchDevice ? 1 : 0.5;
-        buttonVelocityRef.current.vx = Math.sign(buttonVelocityRef.current.vx) *
-          Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vx)));
-        buttonVelocityRef.current.vy = Math.sign(buttonVelocityRef.current.vy) *
-          Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vy)));
-
-        return { x: newX, y: newY };
-      });
+      }
 
       kickButtonAnimRef.current = requestAnimationFrame(updateButtonPosition);
     };
 
-    // Randomize initial direction - faster initial velocity on mobile
-    const initSpeed = isTouchDevice ? 2 : 1;
-    buttonVelocityRef.current = {
-      vx: (Math.random() > 0.5 ? 1 : -1) * (initSpeed + Math.random() * 2),
-      vy: (Math.random() > 0.5 ? 1 : -1) * (initSpeed + Math.random() * 2),
-    };
+    // Randomize initial direction for mobile
+    if (isTouchDevice) {
+      buttonVelocityRef.current = {
+        vx: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2),
+        vy: (Math.random() > 0.5 ? 1 : -1) * (2 + Math.random() * 2),
+      };
+    }
 
     kickButtonAnimRef.current = requestAnimationFrame(updateButtonPosition);
     return () => {
@@ -705,7 +744,10 @@ export default function SexyBackDemo() {
             background: '#ff4444',
             color: '#fff',
             cursor: 'pointer',
-            willChange: 'left, bottom',  // GPU acceleration hint
+            willChange: 'left, bottom, transform',
+            transform: `scale(${buttonScale})`,
+            transformOrigin: 'center',
+            transition: 'transform 0.1s ease-out',
           }}
         >
           🚫 Kick Justin Out
