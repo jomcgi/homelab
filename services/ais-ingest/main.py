@@ -15,7 +15,7 @@ from contextlib import asynccontextmanager
 from datetime import timedelta
 
 import nats
-import nats.js.api
+from nats.js.api import DiscardPolicy, StorageType, StreamConfig
 import websockets
 from fastapi import FastAPI
 
@@ -60,14 +60,15 @@ class AISIngestService:
         logger.info("Connected to NATS")
 
         # Create or update the AIS stream (add_stream is idempotent if config matches)
-        await self.js.add_stream(
+        stream_config = StreamConfig(
             name="ais",
             subjects=["ais.>"],
             max_age=int(timedelta(hours=24).total_seconds() * 1e9),  # nanoseconds
-            storage=nats.js.api.StorageType.FILE,
-            discard=nats.js.api.DiscardPolicy.OLD,
+            storage=StorageType.FILE,
+            discard=DiscardPolicy.OLD,
             description="AIS position reports from AISStream.io",
         )
+        await self.js.add_stream(stream_config)
         logger.info("Created/updated 'ais' stream with 24h retention")
 
     async def publish_position(self, mmsi: str, data: dict) -> None:
