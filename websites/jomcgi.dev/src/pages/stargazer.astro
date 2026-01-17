@@ -10,7 +10,7 @@
         
         body {
             font-family: 'Courier New', monospace;
-            font-size: 13px;
+            font-size: clamp(13px, 1vw, 16px);
             background: #000;
             color: #fff;
             overflow: hidden;
@@ -27,26 +27,27 @@
         /* Header - top left */
         .header {
             position: fixed;
-            top: 16px;
-            left: 16px;
+            top: clamp(12px, 2vw, 24px);
+            left: clamp(12px, 2vw, 24px);
             z-index: 1000;
-            font-size: 12px;
-            letter-spacing: 2px;
+            font-size: clamp(11px, 0.9vw, 14px);
+            letter-spacing: clamp(1px, 0.2vw, 3px);
             color: #666;
             display: flex;
             align-items: center;
-            gap: 16px;
+            gap: clamp(12px, 1.5vw, 24px);
         }
 
         .header-title {
-            /* just text */
+            display: inline-block;
+            /* Needed for position: relative to work with absolute children */
         }
 
         /* Filters - top right */
         .filters {
             position: fixed;
-            top: 16px;
-            right: 16px;
+            top: clamp(12px, 2vw, 24px);
+            right: clamp(12px, 2vw, 24px);
             z-index: 1000;
         }
 
@@ -54,12 +55,12 @@
             background: #000;
             border: 1px solid #333;
             color: #666;
-            padding: 8px 16px;
+            padding: clamp(6px, 0.6vw, 12px) clamp(12px, 1.2vw, 24px);
             font-family: inherit;
-            font-size: 11px;
+            font-size: clamp(10px, 0.8vw, 14px);
             cursor: pointer;
             transition: all 0.1s;
-            min-width: 80px;
+            min-width: clamp(70px, 6vw, 100px);
         }
 
         .filter-btn:hover {
@@ -78,12 +79,12 @@
             background: #000;
             border: 1px solid #333;
             color: #666;
-            padding: 4px 10px;
+            padding: clamp(4px, 0.4vw, 8px) clamp(8px, 0.8vw, 16px);
             font-family: inherit;
-            font-size: 10px;
+            font-size: clamp(9px, 0.7vw, 12px);
             cursor: pointer;
             transition: all 0.1s;
-            letter-spacing: 1px;
+            letter-spacing: clamp(0.5px, 0.1vw, 2px);
         }
 
         .invert-btn:hover {
@@ -169,11 +170,11 @@
             z-index: 1001;
             background: #000;
             border: 1px solid #333;
-            padding: 12px;
+            padding: clamp(10px, 1vw, 16px);
             pointer-events: auto;
             opacity: 0;
             transition: opacity 0.15s;
-            min-width: 180px;
+            min-width: clamp(160px, 14vw, 220px);
         }
 
         .tooltip.visible {
@@ -181,8 +182,8 @@
         }
 
         .tooltip-coords {
-            font-size: 11px;
-            margin-bottom: 8px;
+            font-size: clamp(10px, 0.8vw, 13px);
+            margin-bottom: clamp(6px, 0.6vw, 10px);
         }
 
         .tooltip-coords a {
@@ -199,29 +200,29 @@
         .tooltip-score {
             display: flex;
             align-items: baseline;
-            gap: 8px;
-            margin-bottom: 8px;
+            gap: clamp(6px, 0.6vw, 10px);
+            margin-bottom: clamp(6px, 0.6vw, 10px);
         }
 
         .tooltip-score-value {
-            font-size: 24px;
+            font-size: clamp(20px, 1.8vw, 28px);
             font-weight: bold;
         }
 
         .tooltip-score-label {
-            font-size: 10px;
+            font-size: clamp(9px, 0.7vw, 12px);
             color: #666;
         }
 
         .tooltip-details {
-            font-size: 11px;
+            font-size: clamp(10px, 0.8vw, 13px);
             color: #888;
             line-height: 1.6;
         }
 
         .tooltip-time {
-            margin-top: 8px;
-            padding-top: 8px;
+            margin-top: clamp(6px, 0.6vw, 10px);
+            padding-top: clamp(6px, 0.6vw, 10px);
             border-top: 1px solid #222;
             color: #fff;
         }
@@ -242,10 +243,10 @@
         /* Status - bottom left */
         .status {
             position: fixed;
-            bottom: 16px;
-            left: 16px;
+            bottom: clamp(12px, 2vw, 24px);
+            left: clamp(12px, 2vw, 24px);
             z-index: 1000;
-            font-size: 10px;
+            font-size: clamp(9px, 0.7vw, 12px);
             color: #444;
         }
 
@@ -264,12 +265,12 @@
             position: absolute;
             top: 100%;
             left: 0;
-            margin-top: 12px;
-            width: 280px;
-            padding: 14px;
+            margin-top: clamp(8px, 0.8vw, 16px);
+            width: clamp(220px, 20vw, 320px);
+            padding: clamp(10px, 1vw, 18px);
             background: #000;
             border: 1px solid #333;
-            font-size: 11px;
+            font-size: clamp(10px, 0.8vw, 13px);
             line-height: 1.5;
             letter-spacing: 0;
             color: #888;
@@ -287,9 +288,9 @@
         .header-tooltip strong {
             color: #fff;
             display: block;
-            margin-bottom: 8px;
-            font-size: 10px;
-            letter-spacing: 1px;
+            margin-bottom: clamp(6px, 0.6vw, 10px);
+            font-size: clamp(9px, 0.7vw, 12px);
+            letter-spacing: clamp(0.5px, 0.1vw, 2px);
         }
 
         body.inverted .header-tooltip {
@@ -367,8 +368,35 @@
 
     <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
     <script>
-        document.addEventListener('DOMContentLoaded', init);
-        
+        // Invert button - works independently of map
+        let mapInstance = null;
+        document.addEventListener('DOMContentLoaded', () => {
+            const invertBtn = document.getElementById('invert-btn');
+            invertBtn.addEventListener('click', () => {
+                document.body.classList.toggle('inverted');
+                const isInverted = document.body.classList.contains('inverted');
+
+                // Update map brightness if map is loaded
+                if (mapInstance) {
+                    if (isInverted) {
+                        mapInstance.setPaintProperty('osm', 'raster-brightness-min', 0.4);
+                        mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.7);
+                        mapInstance.setPaintProperty('osm', 'raster-contrast', 0.6);
+                    } else {
+                        mapInstance.setPaintProperty('osm', 'raster-brightness-min', 0.1);
+                        mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.35);
+                        mapInstance.setPaintProperty('osm', 'raster-contrast', 0.8);
+                    }
+                }
+
+                // Save preference - stargazer inverted = light mode = darkMode false
+                localStorage.setItem('darkMode', isInverted ? 'false' : 'true');
+            });
+
+            // Initialize map
+            init();
+        });
+
         function init() {
         const API_URL = 'https://api.jomcgi.dev/stargazer/best';
         
@@ -426,7 +454,7 @@
 
         // Map setup - check if starting in inverted mode
         const startInverted = document.body.classList.contains('inverted');
-        const map = new maplibregl.Map({
+        const map = mapInstance = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
@@ -633,28 +661,6 @@
         }
 
         map.on('load', fetchLocations);
-
-        // Invert toggle - syncs with homepage/engineering via localStorage
-        let inverted = document.body.classList.contains('inverted');
-
-        document.getElementById('invert-btn').addEventListener('click', () => {
-            inverted = !inverted;
-            document.body.classList.toggle('inverted', inverted);
-
-            // Update map brightness
-            if (inverted) {
-                map.setPaintProperty('osm', 'raster-brightness-min', 0.4);
-                map.setPaintProperty('osm', 'raster-brightness-max', 0.7);
-                map.setPaintProperty('osm', 'raster-contrast', 0.6);
-            } else {
-                map.setPaintProperty('osm', 'raster-brightness-min', 0.1);
-                map.setPaintProperty('osm', 'raster-brightness-max', 0.35);
-                map.setPaintProperty('osm', 'raster-contrast', 0.8);
-            }
-
-            // Save preference - stargazer inverted = light mode = darkMode false
-            localStorage.setItem('darkMode', inverted ? 'false' : 'true');
-        });
         }
     </script>
 </body>
