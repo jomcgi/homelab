@@ -454,7 +454,7 @@ function showResults(results) {
                 <div class="best-weather-window">
                     <span class="best-time">${bestWindow.start.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })} - ${bestWindow.end.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
                     <div class="weather-info">
-                        🌡️ ${Math.round(bestWindow.weather.temp_c)}°C 💧 ${bestWindow.weather.precip_mm.toFixed(1)}mm 💨 ${Math.round(bestWindow.weather.wind_kmh)}km/h ☁️ ${Math.round(bestWindow.weather.cloud_pct)}%
+                        ${Math.round(bestWindow.weather.temp_c)}C / ${bestWindow.weather.precip_mm.toFixed(1)}mm / ${Math.round(bestWindow.weather.wind_kmh)}km/h / ${Math.round(bestWindow.weather.cloud_pct)}% cloud
                     </div>
                 </div>
             `
@@ -488,7 +488,7 @@ function showResults(results) {
                             <div class="window-time">
                                 ${startTime} - ${displayEndTime}
                                 <div class="weather-info">
-                                    🌡️ ${Math.round(weather.temp_c)}°C 💧 ${weather.precip_mm.toFixed(1)}mm 💨 ${Math.round(weather.wind_kmh)}km/h ☁️ ${Math.round(weather.cloud_pct)}%
+                                    ${Math.round(weather.temp_c)}C / ${weather.precip_mm.toFixed(1)}mm / ${Math.round(weather.wind_kmh)}km/h / ${Math.round(weather.cloud_pct)}% cloud
                                 </div>
                             </div>
                         `;
@@ -657,14 +657,14 @@ function getUserLocation() {
 
   if (!navigator.geolocation) {
     locationStatus.innerHTML =
-      '<span class="error">❌ Geolocation not supported by this browser</span>';
+      '<span class="error">Geolocation not supported by this browser</span>';
     return;
   }
 
   useLocationBtn.disabled = true;
-  useLocationBtn.textContent = "🔄 Getting location...";
+  useLocationBtn.textContent = "Getting location...";
   locationStatus.innerHTML =
-    '<span class="info">📍 Requesting location access...</span>';
+    '<span class="info">Requesting location access...</span>';
 
   navigator.geolocation.getCurrentPosition(
     function (position) {
@@ -676,12 +676,12 @@ function getUserLocation() {
       longitudeInput.value = lon.toFixed(4);
 
       useLocationBtn.disabled = false;
-      useLocationBtn.textContent = "✅ Location Updated";
-      locationStatus.innerHTML = `<span class="success">✅ Location found (±${accuracy}m accuracy)</span>`;
+      useLocationBtn.textContent = "Location Updated";
+      locationStatus.innerHTML = `<span class="success">Location found (${accuracy}m accuracy)</span>`;
 
       // Reset button text after 3 seconds
       setTimeout(() => {
-        useLocationBtn.textContent = "📍 Use My Location";
+        useLocationBtn.textContent = "Use My Location";
       }, 3000);
     },
     function (error) {
@@ -689,11 +689,11 @@ function getUserLocation() {
       let helpMessage = "";
       switch (error.code) {
         case error.PERMISSION_DENIED:
-          errorMessage = "❌ Location access denied by user";
+          errorMessage = "Location access denied";
           helpMessage = "Please allow location access and try again";
           break;
         case error.POSITION_UNAVAILABLE:
-          errorMessage = "❌ Location information unavailable";
+          errorMessage = "Location unavailable";
           helpMessage =
             window.location.protocol === "http:" &&
             window.location.hostname !== "localhost"
@@ -701,16 +701,16 @@ function getUserLocation() {
               : "Check if location services are enabled";
           break;
         case error.TIMEOUT:
-          errorMessage = "❌ Location request timed out";
+          errorMessage = "Location request timed out";
           helpMessage = "Please try again";
           break;
         default:
-          errorMessage = "❌ Unknown error occurred";
+          errorMessage = "Unknown error occurred";
           helpMessage = "Please try again";
           break;
       }
       useLocationBtn.disabled = false;
-      useLocationBtn.textContent = "📍 Use My Location";
+      useLocationBtn.textContent = "Use My Location";
       locationStatus.innerHTML = `<span class="error">${errorMessage}</span><br><small>${helpMessage}</small>`;
     },
     {
