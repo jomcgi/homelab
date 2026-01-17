@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 
 const JT_GIF_URL = '/jt.gif';
+const JT_HEAD_URL = '/justin_head.png';
 
 const MAX_JTS = 10000;
 
@@ -41,8 +42,9 @@ interface JT {
 
 export default function SexyBackDemo() {
   const [jts, setJts] = useState<JT[]>([]);
+  const [hasEntered, setHasEntered] = useState(false);
+  const [isHoveringEnter, setIsHoveringEnter] = useState(false);
   const [isActive, setIsActive] = useState(false);
-  const [isLoaded, setIsLoaded] = useState(false);
   const [isKicked, setIsKicked] = useState(false);
   const [phase, setPhase] = useState(0);
   const [spawnedInPhase, setSpawnedInPhase] = useState(0);
@@ -62,14 +64,24 @@ export default function SexyBackDemo() {
     audio.loop = true;
     audioRef.current = audio;
 
-    audio.addEventListener('canplaythrough', () => setIsLoaded(true));
-    audio.addEventListener('error', () => setIsLoaded(true)); // Allow playing without audio on error
-
     return () => {
       audio.pause();
       audio.src = '';
     };
   }, []);
+
+  // Start music + JTs 5 seconds after user enters
+  useEffect(() => {
+    if (!hasEntered) return;
+
+    const startTimeout = setTimeout(() => {
+      setIsActive(true);
+      audioRef.current?.play();
+      spawnJT();
+    }, 5000);
+
+    return () => clearTimeout(startTimeout);
+  }, [hasEntered]);
 
   // 🆕 Cursor tracking for stalker Justins and evasive button
   useEffect(() => {
@@ -90,7 +102,7 @@ export default function SexyBackDemo() {
   const kickButtonAnimRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const shouldShowKickButton = phase >= 3 && !isKicked;
+    const shouldShowKickButton = phase >= 5 && !isKicked;
     if (!shouldShowKickButton) {
       if (kickButtonAnimRef.current) cancelAnimationFrame(kickButtonAnimRef.current);
       return;
@@ -123,7 +135,7 @@ export default function SexyBackDemo() {
 
       // VERY aggressive threshold - runs away from far away
       const baseThreshold = 300;
-      const phaseMultiplier = 1 + (phaseRef.current - 3) * 0.4;
+      const phaseMultiplier = 1 + (phaseRef.current - 5) * 0.4;
       const threshold = baseThreshold * phaseMultiplier;
 
       if (distance < threshold && distance > 0) {
@@ -133,7 +145,7 @@ export default function SexyBackDemo() {
 
         // FAST escape - gets really hard to catch
         const proximity = 1 - (distance / threshold);
-        const baseSpeed = 40 + (phaseRef.current - 3) * 20;  // Much faster
+        const baseSpeed = 40 + (phaseRef.current - 5) * 20;  // Much faster
         const speed = baseSpeed * proximity * proximity;  // Quadratic for extra panic when close
 
         // New position
@@ -371,13 +383,6 @@ export default function SexyBackDemo() {
     return () => clearInterval(interval);
   }, [isActive, isKicked, phase, spawnJT]);
 
-  const bringSexyBack = () => {
-    if (isActive) return;
-    setIsActive(true);
-    audioRef.current?.play();
-    spawnJT();
-  };
-
   const kickJustinOut = () => {
     setIsKicked(true);
     kickTimeRef.current = Date.now();
@@ -406,9 +411,7 @@ export default function SexyBackDemo() {
 
   const bgColor = darkMode ? '#000' : '#fff';
   const fgColor = darkMode ? '#fff' : '#000';
-  const landedCount = jts.filter(jt => jt.landed && !jt.kicked).length;
-  const fallingCount = jts.filter(jt => !jt.landed && !jt.kicked).length;
-  const showKickButton = phase >= 3 && !isKicked;
+  const showKickButton = phase >= 5 && !isKicked;  // Appears when chromatic aberration starts
 
   // 🆕 Chromatic aberration intensity (px) - only in phase 5+
   const chromaticOffset = isActive && !isKicked && phase >= 5
@@ -420,6 +423,32 @@ export default function SexyBackDemo() {
     ? Math.min(0.03 + (phase - 4) * 0.04, 0.15)
     : 0;
 
+  // Entry screen
+  if (!hasEntered) {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center cursor-pointer font-mono"
+        style={{
+          background: isHoveringEnter ? '#fff' : '#000',
+          transition: 'background 0.15s ease-out',
+        }}
+        onClick={() => setHasEntered(true)}
+      >
+        <span
+          className="text-4xl font-bold uppercase tracking-[0.5em] select-none"
+          style={{
+            color: isHoveringEnter ? '#000' : '#fff',
+            transition: 'color 0.15s ease-out',
+          }}
+          onMouseEnter={() => setIsHoveringEnter(true)}
+          onMouseLeave={() => setIsHoveringEnter(false)}
+        >
+          Enter
+        </span>
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -430,6 +459,7 @@ export default function SexyBackDemo() {
         animation: phase >= 4 && !isKicked ? 'shake 0.3s ease-in-out infinite' : 'none',
         filter: isInverted ? 'invert(1)' : 'none',
         transition: 'filter 0.05s ease-out',
+        cursor: isActive && !isKicked && phase >= 3 ? 'none' : 'auto',
       }}
     >
 
@@ -505,6 +535,29 @@ export default function SexyBackDemo() {
             </defs>
           </svg>
         </>
+      )}
+
+      {/* Custom JT head cursor - kicks in at phase 3 */}
+      {isActive && !isKicked && phase >= 3 && (
+        <div
+          className="fixed pointer-events-none"
+          style={{
+            zIndex: 10000,
+            left: `${cursorPos.x}%`,
+            top: `${cursorPos.y}%`,
+            width: '48px',
+            height: '48px',
+            backgroundImage: `url(${JT_HEAD_URL})`,
+            backgroundSize: 'contain',
+            backgroundRepeat: 'no-repeat',
+            backgroundPosition: 'center',
+            transform: 'translate(-50%, -50%)',
+            filter: darkMode ? 'invert(1)' : 'none',
+            animation: phase >= 5
+              ? `cursorSpin ${Math.max(2 - (phase - 5) * 0.5, 0.3)}s linear infinite, cursorPulse ${Math.max(1 - (phase - 5) * 0.2, 0.2)}s ease-in-out infinite`
+              : 'none',
+          }}
+        />
       )}
 
       {/* Dancing JTs */}
@@ -622,37 +675,6 @@ export default function SexyBackDemo() {
         </div>
       </div>
 
-      {/* BRING SEXY BACK button */}
-      {!isActive && (
-        <div className="fixed bottom-6 left-6" style={{ zIndex: 100 }}>
-          {!isLoaded ? (
-            <div
-              className="px-5 py-3 text-sm uppercase tracking-wide"
-              style={{
-                border: `2px solid ${fgColor}`,
-                background: bgColor,
-                color: fgColor,
-                opacity: 0.5,
-              }}
-            >
-              Loading...
-            </div>
-          ) : (
-            <button
-              onClick={bringSexyBack}
-              className="px-5 py-3 text-sm uppercase tracking-wide transition-all hover:scale-105"
-              style={{
-                border: `2px solid ${fgColor}`,
-                background: bgColor,
-                color: fgColor,
-                animation: 'buttonPulse 1s ease-in-out infinite',
-              }}
-            >
-              🕺 Bring Sexy Back
-            </button>
-          )}
-        </div>
-      )}
 
       {/* KICK JUSTIN OUT button - 🆕 VERY evasive! */}
       {showKickButton && (
@@ -675,28 +697,6 @@ export default function SexyBackDemo() {
         </button>
       )}
 
-      {/* Stats counter */}
-      {isActive && (
-        <div
-          className="fixed top-4 right-4 px-4 py-2 text-xs uppercase tracking-wide font-bold"
-          style={{
-            zIndex: 100,
-            background: fgColor,
-            color: bgColor,
-          }}
-        >
-          {isKicked ? (
-            <div>👋 Bye Justin {jts.length > 0 ? `(${jts.length} yeeting)` : '✓'}</div>
-          ) : (
-            <>
-              <div>🌧️ {fallingCount} | 🕺 {landedCount} | Total: {jts.length.toLocaleString()}</div>
-              <div style={{ fontSize: '9px', opacity: 0.7, marginTop: '4px' }}>
-                Phase {phase + 1}/{SPAWN_SCHEDULE.length} {phase >= 6 ? '🔥 MAX CHAOS' : ''}
-              </div>
-            </>
-          )}
-        </div>
-      )}
 
       <style>{`
         @keyframes shake {
@@ -739,6 +739,14 @@ export default function SexyBackDemo() {
           70% { background-position: 0% 15%; }
           80% { background-position: 25% 35%; }
           90% { background-position: -10% 10%; }
+        }
+        @keyframes cursorSpin {
+          0% { transform: translate(-50%, -50%) rotate(0deg); }
+          100% { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        @keyframes cursorPulse {
+          0%, 100% { width: 48px; height: 48px; }
+          50% { width: 72px; height: 72px; }
         }
       `}</style>
     </div>
