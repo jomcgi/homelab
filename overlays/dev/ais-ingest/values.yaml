@@ -3,7 +3,7 @@
 # Service image
 image:
   repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-  tag: "2026.01.17.08.30.56-5d52164"
+  tag: "2026.01.17.08.44.59-da4a98e"
   pullPolicy: Always
 # Enable image pull secret for GHCR
 imagePullSecret:
