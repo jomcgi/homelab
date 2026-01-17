@@ -48,24 +48,18 @@
             top: 16px;
             right: 16px;
             z-index: 1000;
-            display: flex;
-            gap: 16px;
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 4px;
         }
 
         .filter-btn {
             background: #000;
             border: 1px solid #333;
             color: #666;
-            padding: 8px 14px;
+            padding: 8px 16px;
             font-family: inherit;
             font-size: 11px;
             cursor: pointer;
             transition: all 0.1s;
+            min-width: 80px;
         }
 
         .filter-btn:hover {
@@ -259,26 +253,97 @@
         .maplibregl-ctrl-attrib {
             display: none;
         }
+
+        /* Header tooltip */
+        .header-title {
+            position: relative;
+            cursor: help;
+        }
+
+        .header-tooltip {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            margin-top: 12px;
+            width: 280px;
+            padding: 14px;
+            background: #000;
+            border: 1px solid #333;
+            font-size: 11px;
+            line-height: 1.5;
+            letter-spacing: 0;
+            color: #888;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.15s, visibility 0.15s;
+            z-index: 1002;
+        }
+
+        .header-title:hover .header-tooltip {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .header-tooltip strong {
+            color: #fff;
+            display: block;
+            margin-bottom: 8px;
+            font-size: 10px;
+            letter-spacing: 1px;
+        }
+
+        body.inverted .header-tooltip {
+            background: #fff;
+            border-color: #ccc;
+            color: #666;
+        }
+
+        body.inverted .header-tooltip strong {
+            color: #000;
+        }
     </style>
+    <script>
+        // Theme: check localStorage first, then system preference
+        // Note: stargazer defaults to dark, so "inverted" = light mode
+        (function() {
+            const stored = localStorage.getItem('darkMode');
+            if (stored === 'false') {
+                // User explicitly chose light mode
+                document.documentElement.classList.add('light-pending');
+            } else if (stored === 'true') {
+                // User explicitly chose dark mode - stargazer default
+            } else if (!window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                // No preference, system is light
+                document.documentElement.classList.add('light-pending');
+            }
+        })();
+    </script>
 </head>
 <body>
+    <script>
+        // Apply theme immediately to avoid flash
+        // Stargazer defaults to dark, so light-pending = inverted mode
+        if (document.documentElement.classList.contains('light-pending')) {
+            document.body.classList.add('inverted');
+            document.documentElement.classList.remove('light-pending');
+        }
+    </script>
     <div id="map"></div>
 
     <div class="header">
-        <span class="header-title">STARGAZER</span>
+        <span class="header-title">STARGAZER
+            <div class="header-tooltip">
+                <strong>DARK SKY FINDER</strong>
+                Locations scored by light pollution zone, road accessibility, and weather forecast.
+                Green markers indicate exceptional conditions (90+).
+                Data updates hourly from MET Norway.
+            </div>
+        </span>
         <button class="invert-btn" id="invert-btn">INVERT</button>
     </div>
 
     <div class="filters">
-        <div class="filter-group">
-            <button class="filter-btn active" data-time="tonight">TONIGHT</button>
-            <button class="filter-btn" data-time="72h">72H</button>
-        </div>
-        <div class="filter-group">
-            <button class="filter-btn active" data-score="0">ALL</button>
-            <button class="filter-btn" data-score="70">70+</button>
-            <button class="filter-btn" data-score="80">80+</button>
-        </div>
+        <button class="filter-btn active" id="tonight-btn">TONIGHT</button>
     </div>
 
     <div class="tooltip" id="tooltip">
@@ -295,7 +360,10 @@
         <div class="tooltip-time" id="t-time">Clear from 21:30</div>
     </div>
 
-    <div class="status" id="status">Loading...</div>
+    <div class="status">
+        <span id="status">Loading...</span>
+        <span id="updated"></span>
+    </div>
 
     <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
     <script>
@@ -317,10 +385,24 @@
         ];
 
         let locations = [];
-        let currentFilters = { time: 'tonight', score: 0 };
+        let tonightOnly = true; // Default: show tonight only
+        const MIN_SCORE = 80; // Always show 80+ only
 
         const tooltip = document.getElementById('tooltip');
         const status = document.getElementById('status');
+        const updated = document.getElementById('updated');
+
+        // Format relative time for "updated X ago"
+        function formatRelativeTime(date) {
+            const now = new Date();
+            const diffMs = now - date;
+            const diffMin = Math.floor(diffMs / 60000);
+            if (diffMin < 1) return 'just now';
+            if (diffMin < 60) return `${diffMin}m ago`;
+            const diffHr = Math.floor(diffMin / 60);
+            if (diffHr < 24) return `${diffHr}h ago`;
+            return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
+        }
 
         // Format coordinates
         function formatCoords(lat, lon) {
@@ -342,7 +424,8 @@
             return date.toLocaleDateString('en-GB', { weekday: 'short' }) + ` ${timeStr}`;
         }
 
-        // Map setup
+        // Map setup - check if starting in inverted mode
+        const startInverted = document.body.classList.contains('inverted');
         const map = new maplibregl.Map({
             container: 'map',
             style: {
@@ -359,9 +442,9 @@
                     type: 'raster',
                     source: 'osm',
                     paint: {
-                        'raster-brightness-min': 0.1,
-                        'raster-brightness-max': 0.35,
-                        'raster-contrast': 0.8,
+                        'raster-brightness-min': startInverted ? 0.4 : 0.1,
+                        'raster-brightness-max': startInverted ? 0.7 : 0.35,
+                        'raster-contrast': startInverted ? 0.6 : 0.8,
                         'raster-saturation': -1
                     }
                 }]
@@ -372,7 +455,7 @@
 
         // Add markers using native MapLibre layer
         function renderMarkers() {
-            const filtered = locations.filter(loc => loc.score >= currentFilters.score);
+            const filtered = locations.filter(loc => loc.score >= MIN_SCORE);
             console.log('Rendering', filtered.length, 'markers');
 
             // Build GeoJSON
@@ -500,24 +583,14 @@
             status.textContent = `${filtered.length} locations`;
         }
 
-        // Filter handlers
-        document.querySelectorAll('[data-time]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('[data-time]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentFilters.time = btn.dataset.time;
-                // Would refetch with different time range
-                renderMarkers();
-            });
-        });
-
-        document.querySelectorAll('[data-score]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('[data-score]').forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                currentFilters.score = parseInt(btn.dataset.score);
-                renderMarkers();
-            });
+        // Tonight toggle - simple on/off
+        const tonightBtn = document.getElementById('tonight-btn');
+        tonightBtn.addEventListener('click', () => {
+            tonightOnly = !tonightOnly;
+            tonightBtn.classList.toggle('active', tonightOnly);
+            tonightBtn.textContent = tonightOnly ? 'TONIGHT' : '72H';
+            // Would refetch with different time range in production
+            renderMarkers();
         });
 
         // Fetch data
@@ -525,6 +598,13 @@
             try {
                 const res = await fetch(API_URL);
                 if (res.ok) {
+                    // Show when data was last updated
+                    const lastModified = res.headers.get('last-modified');
+                    if (lastModified) {
+                        const updateDate = new Date(lastModified);
+                        updated.textContent = `· updated ${formatRelativeTime(updateDate)}`;
+                    }
+
                     const data = await res.json();
                     locations = data
                         .map(loc => {
@@ -554,22 +634,26 @@
 
         map.on('load', fetchLocations);
 
-        // Invert toggle
-        let inverted = false;
+        // Invert toggle - syncs with homepage/engineering via localStorage
+        let inverted = document.body.classList.contains('inverted');
+
         document.getElementById('invert-btn').addEventListener('click', () => {
             inverted = !inverted;
             document.body.classList.toggle('inverted', inverted);
-            
+
             // Update map brightness
             if (inverted) {
-                map.setPaintProperty('osm', 'raster-brightness-min', 0.7);
-                map.setPaintProperty('osm', 'raster-brightness-max', 1);
-                map.setPaintProperty('osm', 'raster-contrast', 0.5);
+                map.setPaintProperty('osm', 'raster-brightness-min', 0.4);
+                map.setPaintProperty('osm', 'raster-brightness-max', 0.7);
+                map.setPaintProperty('osm', 'raster-contrast', 0.6);
             } else {
                 map.setPaintProperty('osm', 'raster-brightness-min', 0.1);
                 map.setPaintProperty('osm', 'raster-brightness-max', 0.35);
                 map.setPaintProperty('osm', 'raster-contrast', 0.8);
             }
+
+            // Save preference - stargazer inverted = light mode = darkMode false
+            localStorage.setItem('darkMode', inverted ? 'false' : 'true');
         });
         }
     </script>
