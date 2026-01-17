@@ -70,7 +70,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ais-ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.17.07.23.08-c801724"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.17.07.34.03-01c5a42"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -88,6 +88,9 @@ spec:
               value: /tmp
             - name: UV_CACHE_DIR
               value: /tmp/.uv-cache
+            # rules_python bootstrap files need writable location for non-root
+            - name: RULES_PYTHON_EXTRACT_ROOT
+              value: /tmp
             - name: NATS_URL
               value: "nats://nats.nats.svc.cluster.local:4222"
             - name: AISSTREAM_URL
