@@ -70,19 +70,6 @@ export default function SexyBackDemo() {
     };
   }, []);
 
-  // Start music + JTs 5 seconds after user enters
-  useEffect(() => {
-    if (!hasEntered) return;
-
-    const startTimeout = setTimeout(() => {
-      setIsActive(true);
-      audioRef.current?.play();
-      spawnJT();
-    }, 5000);
-
-    return () => clearTimeout(startTimeout);
-  }, [hasEntered]);
-
   // 🆕 Cursor tracking for stalker Justins and evasive button
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -98,8 +85,9 @@ export default function SexyBackDemo() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // 🆕 Evasive button - VERY aggressive dodge, runs on rAF for priority
+  // Constantly moving button - gets faster each phase
   const kickButtonAnimRef = useRef<number | null>(null);
+  const buttonVelocityRef = useRef({ vx: 2, vy: 1.5 });
 
   useEffect(() => {
     const shouldShowKickButton = phase >= 5 && !isKicked;
@@ -118,54 +106,50 @@ export default function SexyBackDemo() {
       const container = containerRef.current;
       const buttonRect = button.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
-      const cursor = cursorPosRef.current;
 
-      // Convert cursor position to pixels
-      const cursorX = (cursor.x / 100) * containerRect.width;
-      const cursorY = (cursor.y / 100) * containerRect.height;
+      // Speed increases with phase
+      const baseSpeed = 2 + (phaseRef.current - 5) * 2;
 
-      // Button center (from bottom-left positioning)
-      const buttonCenterX = buttonRect.left - containerRect.left + buttonRect.width / 2;
-      const buttonCenterY = buttonRect.top - containerRect.top + buttonRect.height / 2;
+      setKickButtonPos(prev => {
+        let newX = prev.x + buttonVelocityRef.current.vx * baseSpeed;
+        let newY = prev.y + buttonVelocityRef.current.vy * baseSpeed;
 
-      // Distance from cursor to button center
-      const dx = cursorX - buttonCenterX;
-      const dy = cursorY - buttonCenterY;
-      const distance = Math.sqrt(dx * dx + dy * dy);
+        // Bounce off walls
+        const margin = 20;
+        const maxX = containerRect.width - buttonRect.width - margin;
+        const maxY = containerRect.height - buttonRect.height - margin;
 
-      // VERY aggressive threshold - runs away from far away
-      const baseThreshold = 300;
-      const phaseMultiplier = 1 + (phaseRef.current - 5) * 0.4;
-      const threshold = baseThreshold * phaseMultiplier;
-
-      if (distance < threshold && distance > 0) {
-        // Calculate escape vector (away from cursor)
-        const escapeX = -dx / distance;
-        const escapeY = -dy / distance;
-
-        // FAST escape - gets really hard to catch
-        const proximity = 1 - (distance / threshold);
-        const baseSpeed = 40 + (phaseRef.current - 5) * 20;  // Much faster
-        const speed = baseSpeed * proximity * proximity;  // Quadratic for extra panic when close
-
-        // New position
-        setKickButtonPos(prev => {
-          let newX = prev.x + escapeX * speed;
-          let newY = prev.y - escapeY * speed;
-
-          // Constrain to screen bounds
-          const margin = 20;
-          const maxX = containerRect.width - buttonRect.width - margin;
-          const maxY = containerRect.height - buttonRect.height - margin;
-
+        if (newX <= margin || newX >= maxX) {
+          buttonVelocityRef.current.vx *= -1;
+          // Add some randomness on bounce
+          buttonVelocityRef.current.vy += (Math.random() - 0.5) * 0.5;
           newX = Math.max(margin, Math.min(maxX, newX));
+        }
+        if (newY <= margin || newY >= maxY) {
+          buttonVelocityRef.current.vy *= -1;
+          // Add some randomness on bounce
+          buttonVelocityRef.current.vx += (Math.random() - 0.5) * 0.5;
           newY = Math.max(margin, Math.min(maxY, newY));
+        }
 
-          return { x: newX, y: newY };
-        });
-      }
+        // Clamp velocity to prevent getting too fast/slow
+        const maxVel = 3;
+        const minVel = 0.5;
+        buttonVelocityRef.current.vx = Math.sign(buttonVelocityRef.current.vx) *
+          Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vx)));
+        buttonVelocityRef.current.vy = Math.sign(buttonVelocityRef.current.vy) *
+          Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vy)));
+
+        return { x: newX, y: newY };
+      });
 
       kickButtonAnimRef.current = requestAnimationFrame(updateButtonPosition);
+    };
+
+    // Randomize initial direction
+    buttonVelocityRef.current = {
+      vx: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random()),
+      vy: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random()),
     };
 
     kickButtonAnimRef.current = requestAnimationFrame(updateButtonPosition);
@@ -423,6 +407,34 @@ export default function SexyBackDemo() {
     ? Math.min(0.03 + (phase - 4) * 0.04, 0.15)
     : 0;
 
+  // Handle enter - unlock audio immediately for mobile, then delay start
+  const handleEnter = () => {
+    setHasEntered(true);
+
+    // Unlock audio on mobile by playing then immediately pausing
+    const audio = audioRef.current;
+    if (audio) {
+      audio.play().then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+
+        // Now we can play after delay since audio is "unlocked"
+        setTimeout(() => {
+          setIsActive(true);
+          audio.play();
+          spawnJT();
+        }, 5000);
+      }).catch(() => {
+        // Fallback if play fails - just start after delay anyway
+        setTimeout(() => {
+          setIsActive(true);
+          audio.play();
+          spawnJT();
+        }, 5000);
+      });
+    }
+  };
+
   // Entry screen
   if (!hasEntered) {
     return (
@@ -432,7 +444,7 @@ export default function SexyBackDemo() {
           background: isHoveringEnter ? '#fff' : '#000',
           transition: 'background 0.15s ease-out',
         }}
-        onClick={() => setHasEntered(true)}
+        onClick={handleEnter}
       >
         <span
           className="text-4xl font-bold uppercase tracking-[0.5em] select-none"
