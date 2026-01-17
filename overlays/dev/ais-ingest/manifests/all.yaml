@@ -70,7 +70,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ais-ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.17.07.23.08-c801724"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -127,8 +127,12 @@ spec:
           emptyDir: {}
 ---
 # Source: ais-ingest/templates/image-pull-secret.yaml
+# GHCR Pull Secret (for Kubernetes image pulls)
+# Allows ais-ingest to pull private images from GitHub Container Registry
+# Type: kubernetes.io/dockerconfigjson (used for imagePullSecrets)
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
+type: kubernetes.io/dockerconfigjson
 metadata:
   name: ghcr-imagepull-secret
   namespace: ais-ingest
