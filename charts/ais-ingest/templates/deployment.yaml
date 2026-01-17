@@ -46,6 +46,9 @@ spec:
               value: /tmp
             - name: UV_CACHE_DIR
               value: /tmp/.uv-cache
+            # Point Python SSL to system CA certificates
+            - name: SSL_CERT_FILE
+              value: /etc/ssl/certs/ca-certificates.crt
             - name: NATS_URL
               value: {{ .Values.nats.url | quote }}
             - name: AISSTREAM_URL
