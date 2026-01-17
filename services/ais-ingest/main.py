@@ -59,19 +59,16 @@ class AISIngestService:
         self.js = self.nc.jetstream()
         logger.info("Connected to NATS")
 
-        # Create or update the AIS stream
-        try:
-            await self.js.add_stream(
-                name="ais",
-                subjects=["ais.>"],
-                max_age=int(timedelta(hours=24).total_seconds() * 1e9),  # nanoseconds
-                storage=nats.js.api.StorageType.FILE,
-                discard=nats.js.api.DiscardPolicy.OLD,
-                description="AIS position reports from AISStream.io",
-            )
-            logger.info("Created/updated 'ais' stream with 24h retention")
-        except nats.js.errors.StreamNameAlreadyInUseError:
-            logger.info("Stream 'ais' already exists")
+        # Create or update the AIS stream (add_stream is idempotent if config matches)
+        await self.js.add_stream(
+            name="ais",
+            subjects=["ais.>"],
+            max_age=int(timedelta(hours=24).total_seconds() * 1e9),  # nanoseconds
+            storage=nats.js.api.StorageType.FILE,
+            discard=nats.js.api.DiscardPolicy.OLD,
+            description="AIS position reports from AISStream.io",
+        )
+        logger.info("Created/updated 'ais' stream with 24h retention")
 
     async def publish_position(self, mmsi: str, data: dict) -> None:
         """Publish a position report to NATS."""
