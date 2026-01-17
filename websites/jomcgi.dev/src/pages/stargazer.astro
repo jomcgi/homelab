@@ -383,9 +383,9 @@
                         mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.7);
                         mapInstance.setPaintProperty('osm', 'raster-contrast', 0.6);
                     } else {
-                        mapInstance.setPaintProperty('osm', 'raster-brightness-min', 0.1);
-                        mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.35);
-                        mapInstance.setPaintProperty('osm', 'raster-contrast', 0.8);
+                        mapInstance.setPaintProperty('osm', 'raster-brightness-min', 0);
+                        mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.15);
+                        mapInstance.setPaintProperty('osm', 'raster-contrast', 1);
                     }
                 }
 
@@ -470,9 +470,9 @@
                     type: 'raster',
                     source: 'osm',
                     paint: {
-                        'raster-brightness-min': startInverted ? 0.4 : 0.1,
-                        'raster-brightness-max': startInverted ? 0.7 : 0.35,
-                        'raster-contrast': startInverted ? 0.6 : 0.8,
+                        'raster-brightness-min': startInverted ? 0.4 : 0,
+                        'raster-brightness-max': startInverted ? 0.7 : 0.15,
+                        'raster-contrast': startInverted ? 0.6 : 1,
                         'raster-saturation': -1
                     }
                 }]
