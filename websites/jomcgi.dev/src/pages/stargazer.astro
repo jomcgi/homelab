@@ -40,7 +40,7 @@
 
         .header-title {
             display: inline-block;
-            /* Needed for position: relative to work with absolute children */
+            position: relative;
         }
 
         /* Filters - top right */
@@ -76,6 +76,8 @@
 
         /* Invert button - inline with header */
         .invert-btn {
+            position: relative;
+            z-index: 1;
             background: #000;
             border: 2px solid #666;
             color: #888;
@@ -157,7 +159,7 @@
         }
 
         body.inverted .status {
-            color: #666;
+            color: #333;
         }
 
         body.inverted .score-exceptional { color: #090; }
@@ -247,7 +249,40 @@
             left: clamp(12px, 2vw, 24px);
             z-index: 1000;
             font-size: clamp(9px, 0.7vw, 12px);
-            color: #888;
+            color: #ccc;
+        }
+
+        #updated {
+            color: #fff;
+        }
+
+        body.inverted #updated {
+            color: #000;
+        }
+
+        .attribution {
+            color: #666;
+        }
+
+        body.inverted .attribution {
+            color: #999;
+        }
+
+        .status a {
+            color: #666;
+            text-decoration: none;
+        }
+
+        .status a:hover {
+            color: #fff;
+        }
+
+        body.inverted .status a {
+            color: #999;
+        }
+
+        body.inverted .status a:hover {
+            color: #000;
         }
 
         /* Hide maplibre controls we don't need */
@@ -366,29 +401,25 @@
     <div class="status">
         <span id="status">Loading...</span>
         <span id="updated"></span>
+        <span class="attribution">· © <a href="https://carto.com/attributions" target="_blank">CARTO</a> © <a href="https://www.openstreetmap.org/copyright" target="_blank">OSM</a></span>
     </div>
 
     <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
     <script>
         // Invert button - works independently of map
         let mapInstance = null;
+        const darkTilesUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
+        const lightTilesUrl = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
+
         document.addEventListener('DOMContentLoaded', () => {
             const invertBtn = document.getElementById('invert-btn');
             invertBtn.addEventListener('click', () => {
                 document.body.classList.toggle('inverted');
                 const isInverted = document.body.classList.contains('inverted');
 
-                // Update map brightness if map is loaded
-                if (mapInstance) {
-                    if (isInverted) {
-                        mapInstance.setPaintProperty('osm', 'raster-brightness-min', 0.4);
-                        mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.7);
-                        mapInstance.setPaintProperty('osm', 'raster-contrast', 0.6);
-                    } else {
-                        mapInstance.setPaintProperty('osm', 'raster-brightness-min', 0);
-                        mapInstance.setPaintProperty('osm', 'raster-brightness-max', 0.15);
-                        mapInstance.setPaintProperty('osm', 'raster-contrast', 1);
-                    }
+                // Swap tile source for map
+                if (mapInstance && mapInstance.getSource('carto')) {
+                    mapInstance.getSource('carto').setTiles([isInverted ? lightTilesUrl : darkTilesUrl]);
                 }
 
                 // Save preference - stargazer inverted = light mode = darkMode false
@@ -456,26 +487,24 @@
 
         // Map setup - check if starting in inverted mode
         const startInverted = document.body.classList.contains('inverted');
+
         const map = mapInstance = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
                 sources: {
-                    'osm': {
+                    'carto': {
                         type: 'raster',
-                        tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],
+                        tiles: [startInverted ? lightTilesUrl : darkTilesUrl],
                         tileSize: 256
                     }
                 },
                 layers: [{
-                    id: 'osm',
+                    id: 'carto',
                     type: 'raster',
-                    source: 'osm',
+                    source: 'carto',
                     paint: {
-                        'raster-brightness-min': startInverted ? 0.4 : 0,
-                        'raster-brightness-max': startInverted ? 0.7 : 0.15,
-                        'raster-contrast': startInverted ? 0.6 : 1,
-                        'raster-saturation': -1
+                        'raster-saturation': -0.5
                     }
                 }]
             },
