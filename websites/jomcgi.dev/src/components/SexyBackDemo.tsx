@@ -85,9 +85,10 @@ export default function SexyBackDemo() {
     return () => window.removeEventListener('mousemove', handleMouseMove);
   }, []);
 
-  // Constantly moving button - gets faster each phase
+  // Constantly moving button - gets faster each phase, extra fast on mobile
   const kickButtonAnimRef = useRef<number | null>(null);
   const buttonVelocityRef = useRef({ vx: 2, vy: 1.5 });
+  const isTouchDevice = typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0);
 
   useEffect(() => {
     const shouldShowKickButton = phase >= 5 && !isKicked;
@@ -107,8 +108,9 @@ export default function SexyBackDemo() {
       const buttonRect = button.getBoundingClientRect();
       const containerRect = container.getBoundingClientRect();
 
-      // Speed increases with phase
-      const baseSpeed = 2 + (phaseRef.current - 5) * 2;
+      // Speed increases with phase - MUCH faster on mobile
+      const mobileMultiplier = isTouchDevice ? 3 : 1;
+      const baseSpeed = (4 + (phaseRef.current - 5) * 4) * mobileMultiplier;
 
       setKickButtonPos(prev => {
         let newX = prev.x + buttonVelocityRef.current.vx * baseSpeed;
@@ -121,20 +123,20 @@ export default function SexyBackDemo() {
 
         if (newX <= margin || newX >= maxX) {
           buttonVelocityRef.current.vx *= -1;
-          // Add some randomness on bounce
-          buttonVelocityRef.current.vy += (Math.random() - 0.5) * 0.5;
+          // More randomness on bounce for unpredictability
+          buttonVelocityRef.current.vy += (Math.random() - 0.5) * 1.5;
           newX = Math.max(margin, Math.min(maxX, newX));
         }
         if (newY <= margin || newY >= maxY) {
           buttonVelocityRef.current.vy *= -1;
-          // Add some randomness on bounce
-          buttonVelocityRef.current.vx += (Math.random() - 0.5) * 0.5;
+          // More randomness on bounce
+          buttonVelocityRef.current.vx += (Math.random() - 0.5) * 1.5;
           newY = Math.max(margin, Math.min(maxY, newY));
         }
 
-        // Clamp velocity to prevent getting too fast/slow
-        const maxVel = 3;
-        const minVel = 0.5;
+        // Clamp velocity - allow faster on mobile
+        const maxVel = isTouchDevice ? 5 : 3;
+        const minVel = isTouchDevice ? 1 : 0.5;
         buttonVelocityRef.current.vx = Math.sign(buttonVelocityRef.current.vx) *
           Math.max(minVel, Math.min(maxVel, Math.abs(buttonVelocityRef.current.vx)));
         buttonVelocityRef.current.vy = Math.sign(buttonVelocityRef.current.vy) *
@@ -146,10 +148,11 @@ export default function SexyBackDemo() {
       kickButtonAnimRef.current = requestAnimationFrame(updateButtonPosition);
     };
 
-    // Randomize initial direction
+    // Randomize initial direction - faster initial velocity on mobile
+    const initSpeed = isTouchDevice ? 2 : 1;
     buttonVelocityRef.current = {
-      vx: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random()),
-      vy: (Math.random() > 0.5 ? 1 : -1) * (1 + Math.random()),
+      vx: (Math.random() > 0.5 ? 1 : -1) * (initSpeed + Math.random() * 2),
+      vy: (Math.random() > 0.5 ? 1 : -1) * (initSpeed + Math.random() * 2),
     };
 
     kickButtonAnimRef.current = requestAnimationFrame(updateButtonPosition);
