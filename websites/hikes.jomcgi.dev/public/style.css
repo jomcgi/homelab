@@ -698,6 +698,11 @@ section,
     border-radius: 0;
 }
 
+.best-weather-window .weather-info {
+    color: var(--bg);
+    opacity: 0.8;
+}
+
 .best-time {
     font-weight: 700;
     color: inherit;
@@ -863,9 +868,11 @@ section,
     padding: 8px 15px;
     font-size: 11px;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     border-bottom: 2px solid var(--fg);
-    color: var(--fg);
-    background: none;
+    color: var(--bg);
+    background: var(--fg);
 }
 
 .window-times {
