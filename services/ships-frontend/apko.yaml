@@ -5,14 +5,14 @@ contents:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - bun
-    - busybox
     - ca-certificates-bundle
 
 archs:
   - x86_64
   - aarch64
 
-cmd: /app/start.sh
+# Run server directly - dist is pre-built during CI
+cmd: bun run /app/server.ts
 
 work-dir: /app
 

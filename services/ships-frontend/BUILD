@@ -4,24 +4,21 @@ load("//tools/oci:apko_image.bzl", "apko_image")
 # Package the Bun server
 pkg_tar(
     name = "server_tar",
-    srcs = [
-        "server.ts",
-        "start.sh",
-    ],
+    srcs = ["server.ts"],
     mode = "0755",
     owner = "65532.65532",
     package_dir = "app",
 )
 
-# Package the website source for runtime build
-# Use strip_prefix="." to preserve directory structure from the source package
+# Package the pre-built website dist
+# Built during CI by //websites/ships.jomcgi.dev:build (vite build)
 pkg_tar(
-    name = "website_tar",
-    srcs = ["//websites/ships.jomcgi.dev:src"],
+    name = "dist_tar",
+    srcs = ["//websites/ships.jomcgi.dev:dist"],
     mode = "0644",
     owner = "65532.65532",
-    package_dir = "app/website",
-    strip_prefix = ".",
+    package_dir = "app/public",
+    strip_prefix = "websites/ships.jomcgi.dev/dist",
 )
 
 apko_image(
@@ -31,6 +28,6 @@ apko_image(
     repository = "ghcr.io/jomcgi/homelab/services/ships-frontend",
     tars = [
         ":server_tar",
-        ":website_tar",
+        ":dist_tar",
     ],
 )
