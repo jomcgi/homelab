@@ -3,11 +3,14 @@ actions:
   - name: "Test and push"
     container_image: "ubuntu-24.04"
     resource_requests:
-      disk: "50GB"
+      disk: "75GB"
     triggers:
       push:
         branches:
           - "main"
+      pull_request:
+        branches:
+          - "*"
     steps:
       - run: |
           # Skip if commit is from argocd-image-updater
@@ -24,15 +27,3 @@ actions:
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_all
-
-  - name: "Test"
-    container_image: "ubuntu-24.04"
-    resource_requests:
-      disk: "50GB"
-    triggers:
-      pull_request:
-        branches:
-          - "*"
-    steps:
-      - run: bazel test //... --deleted_packages=tools/python
-      - run: bazel build //images:push_all  # Build images, don't push
