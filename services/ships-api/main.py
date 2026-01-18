@@ -15,7 +15,7 @@ from typing import Any
 
 import nats
 from nats.js.api import ConsumerConfig, DeliverPolicy
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 # Configure logging
@@ -115,9 +115,10 @@ class ShipsAPIService:
         self.ws_manager = WebSocketManager()
         self.running = False
         self.ready = False
-        self.subscription_task: asyncio.Task | None = None
+        self.replay_task: asyncio.Task | None = None
         self.messages_received = 0
         self.replay_complete = False
+        self.replay_count = 0
 
     async def connect_nats(self) -> None:
         """Connect to NATS."""
@@ -127,8 +128,8 @@ class ShipsAPIService:
         logger.info("Connected to NATS")
 
     async def replay_stream(self) -> None:
-        """Replay the ais stream to build initial vessel cache."""
-        logger.info("Replaying AIS stream to build vessel cache...")
+        """Replay the ais stream to build initial vessel cache (runs in background)."""
+        logger.info("Starting AIS stream replay in background...")
 
         try:
             # Create ephemeral consumer starting from the beginning
@@ -144,8 +145,7 @@ class ShipsAPIService:
                 config=consumer_config,
             )
 
-            replayed = 0
-            while True:
+            while self.running:
                 try:
                     # Fetch messages in batches
                     msgs = await psub.fetch(batch=100, timeout=2)
@@ -153,9 +153,13 @@ class ShipsAPIService:
                         break
 
                     for msg in msgs:
-                        await self._process_message(msg.data)
+                        await self._process_message(msg.data, broadcast=False)
                         await msg.ack()
-                        replayed += 1
+                        self.replay_count += 1
+
+                    # Log progress periodically
+                    if self.replay_count % 1000 == 0:
+                        logger.info(f"Replay progress: {self.replay_count} messages")
 
                 except asyncio.TimeoutError:
                     # No more messages to replay
@@ -165,14 +169,16 @@ class ShipsAPIService:
                     break
 
             await psub.unsubscribe()
+            vessel_count = await self.cache.count()
             logger.info(
-                f"Replay complete. Loaded {replayed} positions for {await self.cache.count()} vessels"
+                f"Replay complete. Loaded {self.replay_count} positions for {vessel_count} vessels"
             )
             self.replay_complete = True
 
         except Exception as e:
             logger.error(f"Failed to replay stream: {e}")
-            # Continue anyway - we can still receive live updates
+            # Mark as complete anyway so we can still receive live updates
+            self.replay_complete = True
 
     async def subscribe_live(self) -> None:
         """Subscribe to live vessel position updates."""
@@ -212,15 +218,15 @@ class ShipsAPIService:
             logger.error(f"Failed to subscribe to live updates: {e}")
             self.ready = False
 
-    async def _process_message(self, data: bytes) -> None:
+    async def _process_message(self, data: bytes, broadcast: bool = True) -> None:
         """Process a vessel position message."""
         try:
             position = json.loads(data)
             mmsi = position.get("mmsi")
             if mmsi:
                 await self.cache.update(mmsi, position)
-                # Broadcast to WebSocket clients
-                if self.replay_complete:
+                # Broadcast to WebSocket clients (skip during replay)
+                if broadcast and self.replay_complete:
                     await self.ws_manager.broadcast(position)
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse message: {e}")
@@ -232,12 +238,22 @@ class ShipsAPIService:
         # Connect to NATS
         await self.connect_nats()
 
-        # Replay stream to build cache
+        # Start replay in background (non-blocking so liveness checks work)
+        self.replay_task = asyncio.create_task(self._replay_and_subscribe())
+
+        logger.info("Ships API service started (replay running in background)")
+
+    async def _replay_and_subscribe(self) -> None:
+        """Replay stream then start live subscription."""
+        # Replay historical data first
         await self.replay_stream()
 
-        # Start live subscription in background
-        self.subscription_task = asyncio.create_task(self.subscribe_live())
-        logger.info("Ships API service started")
+        # Only mark ready after replay completes
+        self.ready = True
+        logger.info("Service ready - replay complete")
+
+        # Start live subscription
+        await self.subscribe_live()
 
     async def stop(self) -> None:
         """Stop the Ships API service."""
@@ -245,10 +261,11 @@ class ShipsAPIService:
         self.running = False
         self.ready = False
 
-        if self.subscription_task:
-            self.subscription_task.cancel()
+        # Cancel background task
+        if self.replay_task:
+            self.replay_task.cancel()
             try:
-                await self.subscription_task
+                await self.replay_task
             except asyncio.CancelledError:
                 pass
 
@@ -296,13 +313,32 @@ app.add_middleware(
 
 @app.get("/health")
 async def health():
-    """Health check endpoint for liveness/readiness probes."""
+    """Liveness probe - returns 200 if the service is alive."""
     vessel_count = await service.cache.count()
     return {
-        "status": "healthy" if service.ready else "starting",
+        "status": "alive",
         "nats_connected": service.nc is not None and service.nc.is_connected,
         "vessel_count": vessel_count,
         "replay_complete": service.replay_complete,
+        "replay_count": service.replay_count,
+    }
+
+
+@app.get("/ready")
+async def ready(response: Response):
+    """Readiness probe - returns 200 only when ready to serve traffic."""
+    vessel_count = await service.cache.count()
+    if not service.ready:
+        response.status_code = 503
+        return {
+            "status": "not_ready",
+            "reason": "replay_in_progress" if not service.replay_complete else "starting",
+            "vessel_count": vessel_count,
+            "replay_count": service.replay_count,
+        }
+    return {
+        "status": "ready",
+        "vessel_count": vessel_count,
     }
 
 
