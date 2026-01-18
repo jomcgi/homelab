@@ -22,3 +22,7 @@ frontend:
   image:
     tag: 2026.01.18.18.47.29-dc0813a
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
+
+  # Zero Trust access policy
+  zeroTrust:
+    policy: joe-anna-only
