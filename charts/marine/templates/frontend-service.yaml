@@ -9,7 +9,10 @@ metadata:
     # Cloudflare operator annotations
     cloudflare.ingress.hostname: {{ .Values.frontend.hostname }}
     {{- if and .Values.frontend.zeroTrust.enabled .Values.frontend.zeroTrust.policyId }}
+    cloudflare.zero-trust.enabled: "true"
     cloudflare.zero-trust.policy: {{ .Values.frontend.zeroTrust.policyId }}
+    {{- else }}
+    cloudflare.zero-trust.enabled: "false"
     {{- end }}
 spec:
   type: ClusterIP
