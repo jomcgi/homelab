@@ -111,12 +111,18 @@ export default function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const ws = useRef(null);
-  const pendingSelection = useRef(null);
 
   const [vessels, setVessels] = useState({});
-  const [selectedVessel, setSelectedVessel] = useState(null);
+  const [selectedMmsi, setSelectedMmsi] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [stats, setStats] = useState({ vessels: 0 });
+
+  // Derive selected vessel from MMSI - always up to date
+  const selectedVessel = selectedMmsi ? vessels[selectedMmsi] : null;
+
+  // Ref for click handler to access setter (defined once in map.on('load'))
+  const setSelectedMmsiRef = useRef(setSelectedMmsi);
+  setSelectedMmsiRef.current = setSelectedMmsi;
 
   const updateVessel = useCallback((data) => {
     setVessels((prev) => ({
@@ -247,8 +253,7 @@ export default function App() {
       const handleClick = (e) => {
         if (e.features && e.features.length > 0) {
           const mmsi = e.features[0].properties.mmsi;
-          pendingSelection.current = mmsi;
-          setVessels((v) => ({ ...v }));
+          setSelectedMmsiRef.current(mmsi);
         }
       };
 
@@ -297,19 +302,7 @@ export default function App() {
     }
 
     setStats({ vessels: Object.keys(vessels).length });
-
-    if (pendingSelection.current && vessels[pendingSelection.current]) {
-      setSelectedVessel(vessels[pendingSelection.current]);
-      pendingSelection.current = null;
-    }
   }, [vessels]);
-
-  // Update selected vessel data
-  useEffect(() => {
-    if (selectedVessel && vessels[selectedVessel.mmsi]) {
-      setSelectedVessel(vessels[selectedVessel.mmsi]);
-    }
-  }, [vessels, selectedVessel?.mmsi]);
 
   return (
     <div className="app">
@@ -333,7 +326,7 @@ export default function App() {
               <span>{selectedVessel.ship_name || selectedVessel.mmsi}</span>
               <button
                 className="vessel-panel-close"
-                onClick={() => setSelectedVessel(null)}
+                onClick={() => setSelectedMmsi(null)}
               >
                 ×
               </button>
