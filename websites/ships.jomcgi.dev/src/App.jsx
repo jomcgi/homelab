@@ -94,16 +94,20 @@ function vesselsToGeoJSON(vessels) {
   };
 }
 
-// Arrow SVG - orange/red fill with thick white stroke for visibility (32x32 for better touch targets)
-const ARROW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+// Arrow SVG generator - scales with device pixel ratio for sharp rendering on high-DPI displays
+function createArrowSvg(size) {
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 32 32">
   <path d="M16 2 L26 22 L16 15 L6 22 Z" fill="#ff4400" stroke="#fff" stroke-width="2.5"/>
 </svg>`;
+}
 
 function createArrowImage() {
+  const pixelRatio = window.devicePixelRatio || 1;
+  const size = Math.round(32 * pixelRatio);
   return new Promise((resolve) => {
     const img = new Image();
-    img.onload = () => resolve(img);
-    img.src = "data:image/svg+xml," + encodeURIComponent(ARROW_SVG);
+    img.onload = () => resolve({ img, pixelRatio });
+    img.src = "data:image/svg+xml," + encodeURIComponent(createArrowSvg(size));
   });
 }
 
@@ -206,9 +210,9 @@ export default function App() {
     );
 
     map.current.on("load", async () => {
-      // Add arrow image for moving vessels
-      const arrowImg = await createArrowImage();
-      map.current.addImage("arrow", arrowImg, { sdf: false });
+      // Add arrow image for moving vessels (scaled for device pixel ratio)
+      const { img: arrowImg, pixelRatio } = await createArrowImage();
+      map.current.addImage("arrow", arrowImg, { sdf: false, pixelRatio });
 
       map.current.addSource("vessels", {
         type: "geojson",
