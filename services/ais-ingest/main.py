@@ -11,9 +11,11 @@ import json
 import logging
 import os
 import signal
+import ssl
 from contextlib import asynccontextmanager
 from datetime import timedelta
 
+import certifi
 import nats
 from nats.js.api import DiscardPolicy, StorageType, StreamConfig
 import websockets
@@ -147,10 +149,13 @@ class AISIngestService:
         """Connect to AISStream and process messages with reconnection logic."""
         reconnect_delay = INITIAL_RECONNECT_DELAY
 
+        # Create SSL context with certifi CA bundle (needed for minimal container images)
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+
         while self.running:
             try:
                 logger.info(f"Connecting to AISStream at {AISSTREAM_URL}")
-                async with websockets.connect(AISSTREAM_URL) as ws:
+                async with websockets.connect(AISSTREAM_URL, ssl=ssl_context) as ws:
                     # Send subscription message within 3 seconds
                     subscription = {
                         "APIKey": AISSTREAM_API_KEY,
