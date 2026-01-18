@@ -202,6 +202,41 @@ const bazelDiagram = `flowchart LR
     style Cache fill:#9b59b6,stroke:#9b59b6,color:#fff
     style Git fill:#e056fd,stroke:#e056fd,color:#fff
     style Reg fill:#e056fd,stroke:#e056fd,color:#fff`;
+
+const shipsDiagram = `flowchart LR
+    subgraph Ingest
+        AIS[AISStream.io]
+        Ingest[ais-ingest]
+    end
+
+    subgraph Store
+        NATS[(NATS JetStream)]
+    end
+
+    subgraph Serve
+        API[ships-api]
+        WS[WebSocket]
+    end
+
+    subgraph Display
+        UI[ships.jomcgi.dev]
+        Map[MapLibre]
+    end
+
+    AIS -->|WebSocket| Ingest
+    Ingest -->|Publish| NATS
+    NATS -->|Subscribe| API
+    API --> WS
+    WS --> UI
+    UI --> Map
+
+    style AIS fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Ingest fill:#ffa502,stroke:#ffa502,color:#fff
+    style NATS fill:#ffd93d,stroke:#ffd93d,color:#000
+    style API fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style WS fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style UI fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style Map fill:#e056fd,stroke:#e056fd,color:#fff`;
 ---
 
 <!DOCTYPE html>
@@ -723,10 +758,55 @@ const bazelDiagram = `flowchart LR
             </div>
         </section>
 
-        <!-- Deep Dive 3: Sextant -->
-        <section class="deep-dive" id="sextant">
+        <!-- Deep Dive 3: Ships - Real-Time Vessel Tracking -->
+        <section class="deep-dive" id="ships">
             <div class="deep-dive-header">
                 <span class="deep-dive-number">03</span>
+                <h2>Ships: Real-Time AIS Vessel Tracking</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Living near the coast, I wanted to see what ships are passing by in real-time. AIS (Automatic
+                    Identification System) data is publicly broadcast by vessels, but there's no simple way to
+                    visualize it locally. I built a pipeline that streams AIS data through my cluster to a live map.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={shipsDiagram} id="ships" />
+            </div>
+
+            <a href="https://ships.jomcgi.dev" target="_blank" class="live-link">View Live at ships.jomcgi.dev →</a>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">AIS Ingest</div>
+                        <div class="execution-value">Python service connects to AISStream.io WebSocket. Filters for Pacific Northwest bounding box. Publishes position reports to NATS JetStream.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Event Sourcing</div>
+                        <div class="execution-value">Same pattern as Trips: NATS JetStream as the source of truth. API replays stream on startup to rebuild vessel state. No database needed.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Ships API</div>
+                        <div class="execution-value">Go service with REST endpoints and WebSocket streaming. Clients subscribe to real-time position updates. 3 replicas for availability.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">MapLibre UI</div>
+                        <div class="execution-value">React frontend with MapLibre GL. Vessels rendered as directional arrows based on heading. Click for details: ship type, speed, course, destination.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deep Dive 4: Sextant -->
+        <section class="deep-dive" id="sextant">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">04</span>
                 <h2>Sextant: Type-Safe Operator State Machines</h2>
             </div>
 
@@ -782,10 +862,10 @@ transitions:
       - requestID: string</code></pre>
         </section>
 
-        <!-- Deep Dive 4: Cloudflare Operator -->
+        <!-- Deep Dive 5: Cloudflare Operator -->
         <section class="deep-dive" id="cloudflare-operator">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">04</span>
+                <span class="deep-dive-number">05</span>
                 <h2>Cloudflare Operator</h2>
             </div>
 
@@ -830,10 +910,10 @@ transitions:
     cloudflare.zero-trust.policy: joe-only</code></pre>
         </section>
 
-        <!-- Deep Dive 5: Stargazer -->
+        <!-- Deep Dive 6: Stargazer -->
         <section class="deep-dive" id="stargazer">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">05</span>
+                <span class="deep-dive-number">06</span>
                 <h2>Stargazer: Dark Sky Location Finder</h2>
             </div>
 
@@ -873,10 +953,10 @@ transitions:
             </div>
         </section>
 
-        <!-- Deep Dive 6: Bazel Build System -->
+        <!-- Deep Dive 7: Bazel Build System -->
         <section class="deep-dive" id="bazel">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">06</span>
+                <span class="deep-dive-number">07</span>
                 <h2>Bazel: One Way to Build Everything</h2>
             </div>
 
