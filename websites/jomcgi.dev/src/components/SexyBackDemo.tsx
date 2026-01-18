@@ -37,6 +37,8 @@ interface JT {
   landed: boolean;
   kicked: boolean;
   kickSpeed: number;
+  kickVelocityX: number;  // 🆕 Horizontal kick velocity for cursor bounce
+  cursorBounced: boolean; // 🆕 Was this bounced off cursor? (grows as it flies)
   stalker: boolean;  // 🆕 Cursor-stalking Justins
 }
 
@@ -274,6 +276,8 @@ export default function SexyBackDemo() {
         landed: false,
         kicked: false,
         kickSpeed: 0,
+        kickVelocityX: 0,
+        cursorBounced: false,
         stalker: isStalker,
       };
 
@@ -298,8 +302,11 @@ export default function SexyBackDemo() {
       const currentPhase = phaseRef.current;
 
       setJts(prev => {
-        // Remove JTs that have flown off the top
-        const filtered = prev.filter(jt => !jt.kicked || jt.y > -30);
+        // Remove JTs that have flown off any edge
+        const filtered = prev.filter(jt => {
+          if (!jt.kicked) return true;
+          return jt.y > -30 && jt.y < 130 && jt.x > -30 && jt.x < 130;
+        });
 
         if (filtered.length === 0 && isKicked) {
           // All JTs gone, could trigger something here
@@ -307,12 +314,18 @@ export default function SexyBackDemo() {
 
         let changed = filtered.length !== prev.length;
         const updated = filtered.map(jt => {
-          // If kicked, fly upward fast
+          // If kicked, fly off screen (upward + horizontal)
           if (jt.kicked) {
             changed = true;
+            // 🆕 Cursor-bounced Justins grow MASSIVE as they fly away
+            const newScale = jt.cursorBounced
+              ? jt.scale * 1.4  // ~10x size over 6-7 frames
+              : jt.scale;
             return {
               ...jt,
+              x: jt.x + jt.kickVelocityX,
               y: jt.y - jt.kickSpeed,
+              scale: newScale,
               rotation: jt.rotation + jt.rotationSpeed * 3,
             };
           }
@@ -324,34 +337,55 @@ export default function SexyBackDemo() {
               const dy = cursor.y - jt.y;
               const distance = Math.sqrt(dx * dx + dy * dy);
 
-              if (distance > 2) {  // Only move if not already at cursor
-                // Base drift speed - significantly faster on desktop
-                let baseDriftSpeed = 0.08 + currentPhase * 0.04;
+              // Calculate proximity multiplier for EXTREME button acceleration
+              let proximityMultiplier = 1;
+              const kickBtn = kickButtonPosRef.current;
+              const container = containerRef.current;
+              if (container && currentPhase >= 5) {
+                const containerRect = container.getBoundingClientRect();
+                const kickBtnX = (kickBtn.x / containerRect.width) * 100;
+                const kickBtnY = ((containerRect.height - kickBtn.y) / containerRect.height) * 100;
 
-                // 🆕 Accelerate when cursor is near kick button (desktop only)
-                const kickBtn = kickButtonPosRef.current;
-                const container = containerRef.current;
-                if (container && currentPhase >= 5) {
-                  const containerRect = container.getBoundingClientRect();
-                  // Convert kick button position (px from bottom-left) to percentage
-                  const kickBtnX = (kickBtn.x / containerRect.width) * 100;
-                  const kickBtnY = ((containerRect.height - kickBtn.y) / containerRect.height) * 100;
+                const cursorToKickDx = cursor.x - kickBtnX;
+                const cursorToKickDy = cursor.y - kickBtnY;
+                const cursorToKickDist = Math.sqrt(cursorToKickDx * cursorToKickDx + cursorToKickDy * cursorToKickDy);
 
-                  // Distance from cursor to kick button (in %)
-                  const cursorToKickDx = cursor.x - kickBtnX;
-                  const cursorToKickDy = cursor.y - kickBtnY;
-                  const cursorToKickDist = Math.sqrt(cursorToKickDx * cursorToKickDx + cursorToKickDy * cursorToKickDy);
-
-                  // Acceleration zone: within 30% of screen, max 3x speed boost at 0 distance
-                  const accelThreshold = 30;
-                  if (cursorToKickDist < accelThreshold) {
-                    const proximity = 1 - (cursorToKickDist / accelThreshold);
-                    baseDriftSpeed *= 1 + proximity * 2;  // Up to 3x speed when right on button
-                  }
+                // EXTREME acceleration near button - up to 8x speed!
+                const accelThreshold = 35;
+                if (cursorToKickDist < accelThreshold) {
+                  const proximity = 1 - (cursorToKickDist / accelThreshold);
+                  proximityMultiplier = 1 + proximity * proximity * 7;  // Exponential ramp to 8x
                 }
+              }
+
+              // 🆕 Cursor collision! Bounce off in random direction - bigger hitbox near button
+              const collisionRadius = (3 + jt.scale * 2) * Math.min(proximityMultiplier, 2);
+              if (distance < collisionRadius) {
+                changed = true;
+                // Random angle, biased away from cursor
+                const awayAngle = Math.atan2(-dy, -dx);
+                const randomSpread = (Math.random() - 0.5) * Math.PI;  // ±90° spread
+                const kickAngle = awayAngle + randomSpread;
+
+                // Kick power scales with proximity - EXPLOSIVE near button!
+                const kickPower = (1.5 + Math.random() * 1.5 + currentPhase * 0.3) * Math.min(proximityMultiplier, 3);
+                return {
+                  ...jt,
+                  kicked: true,
+                  landed: false,
+                  cursorBounced: true,  // 🆕 Will grow massive as it flies
+                  kickSpeed: Math.abs(Math.sin(kickAngle)) * kickPower + 0.5,  // Always some upward
+                  kickVelocityX: Math.cos(kickAngle) * kickPower,
+                  rotationSpeed: (3 + Math.random() * 5) * (Math.random() > 0.5 ? 1 : -1),
+                };
+              }
+
+              if (distance > 2) {  // Only move if not already at cursor
+                // Base drift speed with EXTREME multiplier near button
+                const baseDriftSpeed = (0.08 + currentPhase * 0.04) * proximityMultiplier;
 
                 const driftX = (dx / distance) * baseDriftSpeed;
-                const driftY = (dy / distance) * baseDriftSpeed * 0.4;  // Slightly more vertical drift
+                const driftY = (dy / distance) * baseDriftSpeed * 0.4;
 
                 changed = true;
                 return {
@@ -372,9 +406,11 @@ export default function SexyBackDemo() {
           // 🆕 Falling stalkers drift towards cursor horizontally - faster on desktop
           if (jt.stalker) {
             const dx = cursor.x - jt.x;
-            let driftSpeed = 0.15 + currentPhase * 0.06;  // Much faster base drift
+            const dy = cursor.y - jt.y;
+            const distanceToCursor = Math.sqrt(dx * dx + dy * dy);
 
-            // 🆕 Accelerate when cursor is near kick button
+            // Calculate proximity multiplier for button acceleration
+            let proximityMultiplier = 1;
             const kickBtn = kickButtonPosRef.current;
             const container = containerRef.current;
             if (container && currentPhase >= 5) {
@@ -386,14 +422,36 @@ export default function SexyBackDemo() {
               const cursorToKickDy = cursor.y - kickBtnY;
               const cursorToKickDist = Math.sqrt(cursorToKickDx * cursorToKickDx + cursorToKickDy * cursorToKickDy);
 
-              const accelThreshold = 30;
+              // EXTREME acceleration near button - up to 8x speed!
+              const accelThreshold = 35;
               if (cursorToKickDist < accelThreshold) {
                 const proximity = 1 - (cursorToKickDist / accelThreshold);
-                driftSpeed *= 1 + proximity * 2;  // Up to 3x speed
+                proximityMultiplier = 1 + proximity * proximity * 7;  // Exponential ramp to 8x
               }
             }
 
-            newX = jt.x + Math.sign(dx) * Math.min(Math.abs(dx) * 0.04, driftSpeed);  // Also increased tracking responsiveness
+            // 🆕 Cursor collision for falling stalkers too!
+            const collisionRadius = (4 + jt.scale * 2) * Math.min(proximityMultiplier, 2);  // Bigger hitbox near button
+            if (distanceToCursor < collisionRadius) {
+              const awayAngle = Math.atan2(-dy, -dx);
+              const randomSpread = (Math.random() - 0.5) * Math.PI;
+              const kickAngle = awayAngle + randomSpread;
+
+              const kickPower = (1.5 + Math.random() * 1.5 + currentPhase * 0.3) * Math.min(proximityMultiplier, 3);
+              changed = true;
+              return {
+                ...jt,
+                kicked: true,
+                landed: false,
+                cursorBounced: true,  // 🆕 Will grow massive as it flies
+                kickSpeed: Math.abs(Math.sin(kickAngle)) * kickPower + 0.5,
+                kickVelocityX: Math.cos(kickAngle) * kickPower,
+                rotationSpeed: (3 + Math.random() * 5) * (Math.random() > 0.5 ? 1 : -1),
+              };
+            }
+
+            let driftSpeed = (0.15 + currentPhase * 0.06) * proximityMultiplier;
+            newX = jt.x + Math.sign(dx) * Math.min(Math.abs(dx) * 0.04 * proximityMultiplier, driftSpeed);
           }
 
           if (newY >= groundLevel) {
@@ -474,7 +532,9 @@ export default function SexyBackDemo() {
         ...jt,
         kicked: true,
         landed: false,
+        cursorBounced: false,  // Button kick - don't grow
         kickSpeed: kickSpeed,
+        kickVelocityX: (Math.random() - 0.5) * 0.8,  // Slight horizontal scatter
         rotationSpeed: (2 + Math.random() * 4) * (Math.random() > 0.5 ? 1 : -1),
       };
     }));
