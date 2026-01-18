@@ -35,6 +35,34 @@ spec:
     app.kubernetes.io/instance: marine
     app.kubernetes.io/component: api
 ---
+# Source: marine/templates/frontend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: marine-frontend
+  labels:
+    helm.sh/chart: marine-0.1.0
+    app.kubernetes.io/name: marine
+    app.kubernetes.io/instance: marine
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: frontend
+  annotations:
+    # Cloudflare operator annotations
+    cloudflare.ingress.hostname: ships.jomcgi.dev
+    cloudflare.zero-trust.policy: joe-only
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app.kubernetes.io/name: marine
+    app.kubernetes.io/instance: marine
+    app.kubernetes.io/component: frontend
+---
 # Source: marine/templates/ingest-service.yaml
 apiVersion: v1
 kind: Service
@@ -96,7 +124,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.06.31.17-4abf106"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.08.49.46-8ee4e99"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -145,6 +173,91 @@ spec:
         - name: tmp
           emptyDir: {}
 ---
+# Source: marine/templates/frontend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: marine-frontend
+  labels:
+    helm.sh/chart: marine-0.1.0
+    app.kubernetes.io/name: marine
+    app.kubernetes.io/instance: marine
+    app.kubernetes.io/version: "0.1.0"
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: frontend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: marine
+      app.kubernetes.io/instance: marine
+      app.kubernetes.io/component: frontend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: marine
+        app.kubernetes.io/instance: marine
+        app.kubernetes.io/component: frontend
+      annotations:
+    spec:
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      serviceAccountName: marine
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: frontend
+          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:latest"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            readOnlyRootFilesystem: false
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: PORT
+              value: "3000"
+            - name: API_URL
+              value: "http://marine-api:8000"
+            - name: PUBLIC_DIR
+              value: /app/public
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 5
+            failureThreshold: 60
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 50m
+              memory: 128Mi
+          volumeMounts:
+            - name: public
+              mountPath: /app/public
+      volumes:
+        - name: public
+          emptyDir: {}
+---
 # Source: marine/templates/ingest-deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -182,7 +295,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.06.31.17-4abf106"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.08.49.46-8ee4e99"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

@@ -12,6 +12,7 @@ multirun(
         "//services/ais-ingest:image.push",
         "//services/hikes/update_forecast:update_image.push",
         "//services/ships-api:image.push",
+        "//services/ships-frontend:image.push",
         "//services/stargazer:image.push",
         "//services/trips-api:image.push",
     ],
