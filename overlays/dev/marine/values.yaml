@@ -16,7 +16,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "2026.01.18.19.48.26-55ad3ef"
+    tag: "main@sha256:962bf9519c16266bd577f38a2eb5dffdeb102d4d8cb070026e9f29725ccca255"
     pullPolicy: Always
 frontend:
   image:
