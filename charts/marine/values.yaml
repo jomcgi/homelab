@@ -106,7 +106,7 @@ api:
     pullPolicy: IfNotPresent
 
   # Can run multiple replicas for HA
-  replicas: 1
+  replicas: 3
 
   # Service configuration
   service:
