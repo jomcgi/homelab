@@ -120,32 +120,33 @@ def apko_image(
             tag = "latest",
         )
 
-        # Use the extracted platform-specific tars
-
-        # Layer tars on top of amd64 base
-        oci_image(
-            name = name + "_layered_amd64",
-            base = ":" + name + "_base_amd64",
-            tars = tars_amd64,
-        )
-
+        # Transition the base images to their target platforms
+        # (apko bases are already platform-specific, this just sets the platform metadata)
         platform_transition_filegroup(
-            name = name + "_amd64",
-            srcs = [":" + name + "_layered_amd64"],
+            name = name + "_base_amd64_transitioned",
+            srcs = [":" + name + "_base_amd64"],
             target_platform = "@rules_go//go/toolchain:linux_amd64",
         )
 
-        # Layer tars on top of arm64 base
-        oci_image(
-            name = name + "_layered_arm64",
-            base = ":" + name + "_base_arm64",
-            tars = tars_arm64,
+        platform_transition_filegroup(
+            name = name + "_base_arm64_transitioned",
+            srcs = [":" + name + "_base_arm64"],
+            target_platform = "@rules_go//go/toolchain:linux_arm64",
         )
 
-        platform_transition_filegroup(
+        # Layer tars on top of the transitioned bases
+        # Note: tars are NOT transitioned because they contain platform-independent files
+        # (e.g., JavaScript bundles, config files) that are built on the exec platform
+        oci_image(
+            name = name + "_amd64",
+            base = ":" + name + "_base_amd64_transitioned",
+            tars = tars_amd64,
+        )
+
+        oci_image(
             name = name + "_arm64",
-            srcs = [":" + name + "_layered_arm64"],
-            target_platform = "@rules_go//go/toolchain:linux_arm64",
+            base = ":" + name + "_base_arm64_transitioned",
+            tars = tars_arm64,
         )
 
         # Create multi-platform index

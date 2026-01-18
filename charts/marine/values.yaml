@@ -159,13 +159,14 @@ frontend:
     port: 80
 
   # Resource limits
+  # Note: Low memory since build happens during CI, not at runtime
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 10m
+      memory: 64Mi
     limits:
-      cpu: 500m
-      memory: 512Mi
+      cpu: 200m
+      memory: 256Mi
 
   # Pod annotations
   podAnnotations: {}
