@@ -403,22 +403,22 @@
       },
       {
         "name": "linux-headers",
-        "url": "https://packages.wolfi.dev/os/x86_64/linux-headers-6.18.5-r0.apk",
-        "version": "6.18.5-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/linux-headers-6.18.6-r0.apk",
+        "version": "6.18.6-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4005",
-          "checksum": "sha1-KT4zVYDxx1Jf1E2iW97+arXY0dc="
+          "range": "bytes=0-4001",
+          "checksum": "sha1-fP8wJvTLS8rtUQzIuqhnd0HgXjA="
         },
         "data": {
-          "range": "bytes=4006-2061030",
-          "checksum": "sha256-k+mEGJQKZaixFWu9lUwoKe2W+CbR37iHdztlYF0h9iM="
+          "range": "bytes=4002-2061050",
+          "checksum": "sha256-MUolBHegqrbHARHh1y9hXlE8i+T5xPWUUx3edjZv5ns="
         },
-        "checksum": "Q1KT4zVYDxx1Jf1E2iW97+arXY0dc="
+        "checksum": "Q1fP8wJvTLS8rtUQzIuqhnd0HgXjA="
       },
       {
         "name": "glibc-dev",
@@ -2075,22 +2075,22 @@
       },
       {
         "name": "linux-headers",
-        "url": "https://packages.wolfi.dev/os/aarch64/linux-headers-6.18.5-r0.apk",
-        "version": "6.18.5-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/linux-headers-6.18.6-r0.apk",
+        "version": "6.18.6-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4034",
-          "checksum": "sha1-ZkTyO485Bv8xwlWoXTQ58XNt5as="
+          "range": "bytes=0-4033",
+          "checksum": "sha1-DE5J6bVbnEJ8qe2pRQebjRlSWM0="
         },
         "data": {
-          "range": "bytes=4035-2023542",
-          "checksum": "sha256-i6CsVSoGhBZ2PUzcdi11WfPczi6rVL4uRdjWhCykfCY="
+          "range": "bytes=4034-2023573",
+          "checksum": "sha256-hAEB+5X7dOa+ArB3IjDcG4IEBfixfmn+fxnAB9WoXdM="
         },
-        "checksum": "Q1ZkTyO485Bv8xwlWoXTQ58XNt5as="
+        "checksum": "Q1DE5J6bVbnEJ8qe2pRQebjRlSWM0="
       },
       {
         "name": "glibc-dev",

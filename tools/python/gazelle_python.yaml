@@ -24,6 +24,7 @@ manifest:
     aiohappyeyeballs: aiohappyeyeballs
     aiohttp: aiohttp
     aiosignal: aiosignal
+    aiosqlite: aiosqlite
     annotated_types: annotated_types
     anyio: anyio
     apscheduler: APScheduler
@@ -197,6 +198,7 @@ manifest:
     opentelemetry.util.re: opentelemetry_api
     opentelemetry.util.types: opentelemetry_api
     opentelemetry.version: opentelemetry_api
+    osmium: osmium
     packaging: packaging
     pandas: pandas
     parse: parse
