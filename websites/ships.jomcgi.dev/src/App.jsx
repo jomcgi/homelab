@@ -329,23 +329,22 @@ export default function App() {
       map.current.on("click", "vessels-anchored", handleVesselClick);
       map.current.on("click", "vessels-moving", handleVesselClick);
 
-      // Click handler for clusters - zoom to bounding box of all points
+      // Click handler for clusters - zoom to expansion level
       map.current.on("click", "vessel-clusters", (e) => {
-        const features = map.current.queryRenderedFeatures(e.point, {
-          layers: ["vessel-clusters"],
-        });
-        const clusterId = features[0].properties.cluster_id;
-        const pointCount = features[0].properties.point_count;
-        map.current
-          .getSource("vessels")
-          .getClusterLeaves(clusterId, pointCount, 0, (err, leaves) => {
-            if (err || !leaves.length) return;
-            const bounds = new maplibregl.LngLatBounds();
-            leaves.forEach((leaf) => {
-              bounds.extend(leaf.geometry.coordinates);
-            });
-            map.current.fitBounds(bounds, { padding: 50 });
+        const feature = e.features[0];
+        if (!feature) return;
+
+        const clusterId = feature.properties.cluster_id;
+        const coordinates = feature.geometry.coordinates;
+        const source = map.current.getSource("vessels");
+
+        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
+          if (err) return;
+          map.current.easeTo({
+            center: coordinates,
+            zoom: zoom,
           });
+        });
       });
 
       const setCursor = () => {
