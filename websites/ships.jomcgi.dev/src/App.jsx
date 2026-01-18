@@ -60,6 +60,19 @@ function formatTimestamp(ts) {
   return date.toLocaleTimeString();
 }
 
+// Ship is considered moving if speed > 0.5 knots
+function isMoving(vessel) {
+  const speed = vessel.speed ?? 0;
+  return speed > 0.5;
+}
+
+// Get rotation angle - prefer heading, fall back to course
+function getRotation(vessel) {
+  if (vessel.heading != null && vessel.heading !== 511) return vessel.heading;
+  if (vessel.course != null && vessel.course !== 360) return vessel.course;
+  return 0;
+}
+
 function vesselsToGeoJSON(vessels) {
   return {
     type: "FeatureCollection",
@@ -73,9 +86,25 @@ function vesselsToGeoJSON(vessels) {
         },
         properties: {
           mmsi: v.mmsi,
+          moving: isMoving(v),
+          rotation: getRotation(v),
+          speed: v.speed ?? 0,
         },
       })),
   };
+}
+
+// Arrow SVG - orange/red fill with thick white stroke for visibility
+const ARROW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <path d="M12 2 L19 16 L12 11 L5 16 Z" fill="#ff4400" stroke="#fff" stroke-width="2"/>
+</svg>`;
+
+function createArrowImage() {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.src = "data:image/svg+xml," + encodeURIComponent(ARROW_SVG);
+  });
 }
 
 export default function App() {
@@ -167,16 +196,22 @@ export default function App() {
 
     map.current.addControl(new maplibregl.NavigationControl(), "top-left");
 
-    map.current.on("load", () => {
+    map.current.on("load", async () => {
+      // Add arrow image for moving vessels
+      const arrowImg = await createArrowImage();
+      map.current.addImage("arrow", arrowImg, { sdf: false });
+
       map.current.addSource("vessels", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
       });
 
+      // Anchored vessels - black dots
       map.current.addLayer({
-        id: "vessels",
+        id: "vessels-anchored",
         type: "circle",
         source: "vessels",
+        filter: ["==", ["get", "moving"], false],
         paint: {
           "circle-radius": 4,
           "circle-color": "#000",
@@ -185,21 +220,52 @@ export default function App() {
         },
       });
 
-      map.current.on("click", "vessels", (e) => {
+      // Moving vessels - orange arrows, size scales with speed
+      map.current.addLayer({
+        id: "vessels-moving",
+        type: "symbol",
+        source: "vessels",
+        filter: ["==", ["get", "moving"], true],
+        layout: {
+          "icon-image": "arrow",
+          "icon-size": [
+            "interpolate",
+            ["linear"],
+            ["get", "speed"],
+            0, 0.6,
+            5, 0.8,
+            15, 1.0,
+            30, 1.2,
+          ],
+          "icon-rotate": ["get", "rotation"],
+          "icon-allow-overlap": true,
+          "icon-ignore-placement": true,
+        },
+      });
+
+      // Click handlers
+      const handleClick = (e) => {
         if (e.features && e.features.length > 0) {
           const mmsi = e.features[0].properties.mmsi;
           pendingSelection.current = mmsi;
           setVessels((v) => ({ ...v }));
         }
-      });
+      };
 
-      map.current.on("mouseenter", "vessels", () => {
+      map.current.on("click", "vessels-anchored", handleClick);
+      map.current.on("click", "vessels-moving", handleClick);
+
+      const setCursor = () => {
         map.current.getCanvas().style.cursor = "pointer";
-      });
-
-      map.current.on("mouseleave", "vessels", () => {
+      };
+      const resetCursor = () => {
         map.current.getCanvas().style.cursor = "";
-      });
+      };
+
+      map.current.on("mouseenter", "vessels-anchored", setCursor);
+      map.current.on("mouseenter", "vessels-moving", setCursor);
+      map.current.on("mouseleave", "vessels-anchored", resetCursor);
+      map.current.on("mouseleave", "vessels-moving", resetCursor);
     });
 
     return () => {
