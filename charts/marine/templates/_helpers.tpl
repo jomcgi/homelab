@@ -81,6 +81,22 @@ app.kubernetes.io/component: api
 {{- end }}
 
 {{/*
+Frontend component labels
+*/}}
+{{- define "marine.frontend.labels" -}}
+{{ include "marine.labels" . }}
+app.kubernetes.io/component: frontend
+{{- end }}
+
+{{/*
+Frontend component selector labels
+*/}}
+{{- define "marine.frontend.selectorLabels" -}}
+{{ include "marine.selectorLabels" . }}
+app.kubernetes.io/component: frontend
+{{- end }}
+
+{{/*
 Create the name of the service account to use
 */}}
 {{- define "marine.serviceAccountName" -}}
