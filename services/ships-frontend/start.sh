@@ -3,8 +3,8 @@ set -e
 
 echo "Building ships-frontend..."
 
-# Build the Vite app
-cd /app/website
+# Build the Vite app (path matches Bazel package structure)
+cd /app/website/websites/ships.jomcgi.dev
 bun install
 bun run build
 
