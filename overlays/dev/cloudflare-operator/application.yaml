@@ -6,7 +6,7 @@ metadata:
   annotations:
     # ArgoCD Image Updater configuration
     argocd-image-updater.argoproj.io/image-list: operator=ghcr.io/jomcgi/homelab/operators/cloudflare
-    argocd-image-updater.argoproj.io/operator.update-strategy: newest-build
+    argocd-image-updater.argoproj.io/operator.update-strategy: digest
     argocd-image-updater.argoproj.io/operator.allow-tags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
     argocd-image-updater.argoproj.io/operator.helm.image-name: controllerManager.image.repository
     argocd-image-updater.argoproj.io/operator.helm.image-tag: controllerManager.image.tag
