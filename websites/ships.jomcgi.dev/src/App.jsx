@@ -214,8 +214,8 @@ export default function App() {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
         cluster: true,
-        clusterMaxZoom: 10,
-        clusterRadius: 50,
+        clusterMaxZoom: 8,
+        clusterRadius: 30,
       });
 
       // Cluster circles - sized by point count
@@ -269,19 +269,19 @@ export default function App() {
             "interpolate",
             ["linear"],
             ["zoom"],
-            6, 4,
-            10, 6,
-            14, 10,
-            18, 16,
+            6, 6,
+            10, 10,
+            14, 16,
+            18, 24,
           ],
           "circle-color": "#000",
           "circle-stroke-width": [
             "interpolate",
             ["linear"],
             ["zoom"],
-            6, 1,
-            14, 2,
-            18, 3,
+            6, 1.5,
+            14, 2.5,
+            18, 3.5,
           ],
           "circle-stroke-color": "#fff",
         },
@@ -304,13 +304,13 @@ export default function App() {
             ["linear"],
             ["zoom"],
             6,
-            ["interpolate", ["linear"], ["get", "speed"], 0, 0.5, 30, 0.9],
+            ["interpolate", ["linear"], ["get", "speed"], 0, 0.7, 30, 1.2],
             10,
-            ["interpolate", ["linear"], ["get", "speed"], 0, 0.7, 30, 1.1],
+            ["interpolate", ["linear"], ["get", "speed"], 0, 1.0, 30, 1.4],
             14,
-            ["interpolate", ["linear"], ["get", "speed"], 0, 1.0, 30, 1.5],
+            ["interpolate", ["linear"], ["get", "speed"], 0, 1.3, 30, 1.8],
             18,
-            ["interpolate", ["linear"], ["get", "speed"], 0, 1.4, 30, 2.0],
+            ["interpolate", ["linear"], ["get", "speed"], 0, 1.8, 30, 2.5],
           ],
           "icon-rotate": ["get", "rotation"],
           "icon-allow-overlap": true,
@@ -329,20 +329,22 @@ export default function App() {
       map.current.on("click", "vessels-anchored", handleVesselClick);
       map.current.on("click", "vessels-moving", handleVesselClick);
 
-      // Click handler for clusters - zoom in to expand
+      // Click handler for clusters - zoom to bounding box of all points
       map.current.on("click", "vessel-clusters", (e) => {
         const features = map.current.queryRenderedFeatures(e.point, {
           layers: ["vessel-clusters"],
         });
         const clusterId = features[0].properties.cluster_id;
+        const pointCount = features[0].properties.point_count;
         map.current
           .getSource("vessels")
-          .getClusterExpansionZoom(clusterId, (err, zoom) => {
-            if (err) return;
-            map.current.easeTo({
-              center: features[0].geometry.coordinates,
-              zoom: zoom,
+          .getClusterLeaves(clusterId, pointCount, 0, (err, leaves) => {
+            if (err || !leaves.length) return;
+            const bounds = new maplibregl.LngLatBounds();
+            leaves.forEach((leaf) => {
+              bounds.extend(leaf.geometry.coordinates);
             });
+            map.current.fitBounds(bounds, { padding: 50 });
           });
       });
 
