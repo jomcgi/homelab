@@ -182,7 +182,7 @@ use_repo(oci, "gdal_base", "gdal_base_linux_amd64", "gdal_base_linux_arm64")
 # Using ubuntu-full variant which has Python bindings properly configured
 oci.pull(
     name = "gdal_python_base",
-    # Note: not specifying digest to allow using latest manifest
+    digest = "sha256:88a83d8c787d67fe16102fdca3f3bcbc2f5010611af7957c77c67f7f0cfad876",
     image = "docker.io/osgeo/gdal",
     platforms = [
         "linux/amd64",
