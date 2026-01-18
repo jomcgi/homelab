@@ -13,7 +13,7 @@ import os
 import signal
 import ssl
 from contextlib import asynccontextmanager
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 import certifi
 import nats
@@ -40,6 +40,47 @@ BOUNDING_BOX = os.getenv(
 INITIAL_RECONNECT_DELAY = 1.0
 MAX_RECONNECT_DELAY = 60.0
 RECONNECT_BACKOFF_FACTOR = 2.0
+
+
+def format_eta(eta: dict | None) -> str | None:
+    """Convert AISStream ETA dict to ISO timestamp string.
+
+    AIS ETA (per ITU-R M.1371-5) has no year, only Month, Day, Hour, Minute.
+    Unavailable values: Month=0, Day=0, Hour=24, Minute=60.
+
+    We infer the year: if the date is in the past, assume next year.
+    Returns ISO format: "2026-01-18T12:00:00Z"
+    """
+    if not eta or not isinstance(eta, dict):
+        return None
+
+    month = eta.get("Month", 0)
+    day = eta.get("Day", 0)
+    hour = eta.get("Hour", 24)
+    minute = eta.get("Minute", 60)
+
+    # Month=0 or Day=0 means unavailable
+    if month == 0 or day == 0:
+        return None
+
+    # Hour=24 or Minute=60 means unavailable, default to 00:00
+    if hour == 24:
+        hour = 0
+    if minute == 60:
+        minute = 0
+
+    # Infer year: if date is in the past, use next year
+    now = datetime.now(timezone.utc)
+    year = now.year
+
+    try:
+        eta_dt = datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+        if eta_dt < now:
+            eta_dt = datetime(year + 1, month, day, hour, minute, tzinfo=timezone.utc)
+        return eta_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        # Invalid date (e.g., Feb 30)
+        return None
 
 
 class AISIngestService:
@@ -174,7 +215,7 @@ class AISIngestService:
             "dimension_c": dimension.get("C"),
             "dimension_d": dimension.get("D"),
             "destination": static.get("Destination", "").strip(),
-            "eta": static.get("Eta"),
+            "eta": format_eta(static.get("Eta")),
             "draught": static.get("MaximumStaticDraught"),
             "timestamp": metadata.get("time_utc"),
         }
