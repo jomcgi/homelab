@@ -1,12 +1,12 @@
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
-  name: ais-ingest
+  name: marine
   namespace: argocd
 spec:
   applicationRefs:
   - images:
-    - alias: ais-ingest
+    - alias: ingest
       commonUpdateSettings:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: newest-build
@@ -14,13 +14,23 @@ spec:
       imageName: ghcr.io/jomcgi/homelab/services/ais-ingest
       manifestTargets:
         helm:
-          name: image.repository
-          tag: image.tag
-    namePattern: ais-ingest
+          name: ingest.image.repository
+          tag: ingest.image.tag
+    - alias: api
+      commonUpdateSettings:
+        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
+        updateStrategy: newest-build
+        forceUpdate: false
+      imageName: ghcr.io/jomcgi/homelab/services/ships-api
+      manifestTargets:
+        helm:
+          name: api.image.repository
+          tag: api.image.tag
+    namePattern: marine
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:../../overlays/dev/ais-ingest/values.yaml
+      writeBackTarget: helmvalues:../../overlays/dev/marine/values.yaml

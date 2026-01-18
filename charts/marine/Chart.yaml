@@ -1,6 +1,6 @@
 apiVersion: v2
-name: ais-ingest
-description: AIS data ingestion service - streams vessel positions to NATS
+name: marine
+description: Marine services - AIS vessel tracking and API
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
@@ -12,3 +12,4 @@ keywords:
   - vessels
   - maritime
   - tracking
+  - api

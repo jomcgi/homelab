@@ -1,22 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: ais-ingest
+  name: marine
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: charts/ais-ingest
+    path: charts/marine
     targetRevision: HEAD
     helm:
-      releaseName: ais-ingest
+      releaseName: marine
       valueFiles:
         - values.yaml
-        - ../../overlays/dev/ais-ingest/values.yaml
+        - ../../overlays/dev/marine/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: ais-ingest
+    namespace: marine
   # Ignore fields injected by Kyverno policies (OTEL env vars)
   ignoreDifferences:
     - group: apps

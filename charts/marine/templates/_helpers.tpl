@@ -1,14 +1,14 @@
 {{/*
 Expand the name of the chart.
 */}}
-{{- define "ais-ingest.name" -}}
+{{- define "marine.name" -}}
 {{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Create a default fully qualified app name.
 */}}
-{{- define "ais-ingest.fullname" -}}
+{{- define "marine.fullname" -}}
 {{- if .Values.fullnameOverride }}
 {{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" }}
 {{- else }}
@@ -24,16 +24,16 @@ Create a default fully qualified app name.
 {{/*
 Create chart name and version as used by the chart label.
 */}}
-{{- define "ais-ingest.chart" -}}
+{{- define "marine.chart" -}}
 {{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Common labels
 */}}
-{{- define "ais-ingest.labels" -}}
-helm.sh/chart: {{ include "ais-ingest.chart" . }}
-{{ include "ais-ingest.selectorLabels" . }}
+{{- define "marine.labels" -}}
+helm.sh/chart: {{ include "marine.chart" . }}
+{{ include "marine.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
@@ -43,17 +43,49 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{/*
 Selector labels
 */}}
-{{- define "ais-ingest.selectorLabels" -}}
-app.kubernetes.io/name: {{ include "ais-ingest.name" . }}
+{{- define "marine.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "marine.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
+Ingest component labels
+*/}}
+{{- define "marine.ingest.labels" -}}
+{{ include "marine.labels" . }}
+app.kubernetes.io/component: ingest
+{{- end }}
+
+{{/*
+Ingest component selector labels
+*/}}
+{{- define "marine.ingest.selectorLabels" -}}
+{{ include "marine.selectorLabels" . }}
+app.kubernetes.io/component: ingest
+{{- end }}
+
+{{/*
+API component labels
+*/}}
+{{- define "marine.api.labels" -}}
+{{ include "marine.labels" . }}
+app.kubernetes.io/component: api
+{{- end }}
+
+{{/*
+API component selector labels
+*/}}
+{{- define "marine.api.selectorLabels" -}}
+{{ include "marine.selectorLabels" . }}
+app.kubernetes.io/component: api
 {{- end }}
 
 {{/*
 Create the name of the service account to use
 */}}
-{{- define "ais-ingest.serviceAccountName" -}}
+{{- define "marine.serviceAccountName" -}}
 {{- if .Values.serviceAccount.create }}
-{{- default (include "ais-ingest.fullname" .) .Values.serviceAccount.name }}
+{{- default (include "marine.fullname" .) .Values.serviceAccount.name }}
 {{- else }}
 {{- default "default" .Values.serviceAccount.name }}
 {{- end }}
