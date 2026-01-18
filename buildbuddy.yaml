@@ -23,7 +23,7 @@ actions:
           fi
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
-          bazel run //images:push_all
+          bazel run //images:push_all --config=ci
 
   - name: "Test"
     container_image: "ubuntu-24.04"

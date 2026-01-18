@@ -8,10 +8,9 @@ spec:
   - images:
     - alias: ais-ingest
       commonUpdateSettings:
-        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
-        updateStrategy: newest-build
+        updateStrategy: digest
         forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ais-ingest
+      imageName: ghcr.io/jomcgi/homelab/services/ais-ingest:main
       manifestTargets:
         helm:
           name: image.repository
