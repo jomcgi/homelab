@@ -50,7 +50,7 @@ metadata:
   annotations:
     # Cloudflare operator annotations
     cloudflare.ingress.hostname: ships.jomcgi.dev
-    cloudflare.zero-trust.policy: joe-only
+    cloudflare.zero-trust.enabled: "false"
 spec:
   type: ClusterIP
   ports:
@@ -100,7 +100,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/component: api
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app.kubernetes.io/name: marine
@@ -124,7 +124,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.09.10.58-63d1b0d"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.19.48.26-55ad3ef"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -211,7 +211,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:main"
+          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:2026.01.18.19.48.26-55ad3ef"
           imagePullPolicy: IfNotPresent
           securityContext:
             readOnlyRootFilesystem: false
@@ -246,11 +246,11 @@ spec:
             failureThreshold: 60
           resources:
             limits:
-              cpu: 500m
-              memory: 512Mi
+              cpu: 200m
+              memory: 256Mi
             requests:
-              cpu: 50m
-              memory: 128Mi
+              cpu: 10m
+              memory: 64Mi
           volumeMounts:
             - name: public
               mountPath: /app/public
@@ -295,7 +295,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.09.10.58-63d1b0d"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.19.48.26-55ad3ef"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
