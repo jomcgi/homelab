@@ -50,6 +50,8 @@ dependencies = [
     # AIS ingest dependencies
     "websockets~=12.0",
     "certifi",  # CA certificates for SSL in minimal containers
+    # Ships API dependencies
+    "aiosqlite~=0.20",
     # Stargazer geospatial dependencies
     "rasterio~=1.3",
     "geopandas~=0.14",

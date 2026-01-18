@@ -105,45 +105,95 @@ class AISIngestService:
         try:
             message = json.loads(raw_message)
             msg_type = message.get("MessageType")
-
-            # Only process PositionReport messages
-            if msg_type != "PositionReport":
-                return
-
-            # Extract the position report
-            position = message.get("Message", {}).get("PositionReport", {})
             metadata = message.get("MetaData", {})
-
-            if not position or not metadata:
-                return
 
             mmsi = str(metadata.get("MMSI", ""))
             if not mmsi:
                 return
 
-            # Build the position data
-            data = {
-                "mmsi": mmsi,
-                "lat": position.get("Latitude"),
-                "lon": position.get("Longitude"),
-                "speed": position.get("Sog"),  # Speed over ground
-                "course": position.get("Cog"),  # Course over ground
-                "heading": position.get("TrueHeading"),
-                "timestamp": metadata.get("time_utc"),
-                "ship_name": metadata.get("ShipName", "").strip(),
-            }
-
-            # Skip if coordinates are invalid
-            if data["lat"] is None or data["lon"] is None:
-                return
-
-            await self.publish_position(mmsi, data)
-            logger.debug(f"Published position for MMSI {mmsi}")
+            if msg_type == "PositionReport":
+                await self._process_position_report(message, mmsi, metadata)
+            elif msg_type == "ShipStaticData":
+                await self._process_static_data(message, mmsi, metadata)
 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse message: {e}")
         except Exception as e:
             logger.error(f"Error processing message: {e}")
+
+    async def _process_position_report(
+        self, message: dict, mmsi: str, metadata: dict
+    ) -> None:
+        """Process a PositionReport message."""
+        position = message.get("Message", {}).get("PositionReport", {})
+        if not position:
+            return
+
+        # Build the position data with all available fields
+        data = {
+            "mmsi": mmsi,
+            "lat": position.get("Latitude"),
+            "lon": position.get("Longitude"),
+            "speed": position.get("Sog"),  # Speed over ground
+            "course": position.get("Cog"),  # Course over ground
+            "heading": position.get("TrueHeading"),
+            "nav_status": position.get("NavigationalStatus"),
+            "rate_of_turn": position.get("RateOfTurn"),
+            "position_accuracy": position.get("PositionAccuracy"),
+            "timestamp": metadata.get("time_utc"),
+            "ship_name": metadata.get("ShipName", "").strip(),
+        }
+
+        # Skip if coordinates are invalid
+        if data["lat"] is None or data["lon"] is None:
+            return
+
+        await self.publish_position(mmsi, data)
+        logger.debug(f"Published position for MMSI {mmsi}")
+
+    async def _process_static_data(
+        self, message: dict, mmsi: str, metadata: dict
+    ) -> None:
+        """Process a ShipStaticData message."""
+        static = message.get("Message", {}).get("ShipStaticData", {})
+        if not static:
+            return
+
+        # Extract dimensions (A=bow, B=stern, C=port, D=starboard to ref point)
+        dimension = static.get("Dimension", {})
+
+        data = {
+            "mmsi": mmsi,
+            "imo": static.get("ImoNumber"),
+            "call_sign": static.get("CallSign", "").strip(),
+            "name": static.get("Name", "").strip() or metadata.get("ShipName", "").strip(),
+            "ship_type": static.get("Type"),
+            "dimension_a": dimension.get("A"),
+            "dimension_b": dimension.get("B"),
+            "dimension_c": dimension.get("C"),
+            "dimension_d": dimension.get("D"),
+            "destination": static.get("Destination", "").strip(),
+            "eta": static.get("Eta"),
+            "draught": static.get("MaximumStaticDraught"),
+            "timestamp": metadata.get("time_utc"),
+        }
+
+        await self.publish_static(mmsi, data)
+        logger.debug(f"Published static data for MMSI {mmsi}")
+
+    async def publish_static(self, mmsi: str, data: dict) -> None:
+        """Publish static vessel data to NATS."""
+        subject = f"ais.static.{mmsi}"
+        payload = json.dumps(data).encode()
+
+        # Use MMSI + timestamp as message ID for deduplication
+        msg_id = f"static-{mmsi}-{data.get('timestamp', '')}"
+
+        await self.js.publish(
+            subject,
+            payload,
+            headers={"Nats-Msg-Id": msg_id},
+        )
 
     async def subscribe_to_aisstream(self) -> None:
         """Connect to AISStream and process messages with reconnection logic."""
@@ -160,7 +210,7 @@ class AISIngestService:
                     subscription = {
                         "APIKey": AISSTREAM_API_KEY,
                         "BoundingBoxes": json.loads(BOUNDING_BOX),
-                        "FilterMessageTypes": ["PositionReport"],
+                        "FilterMessageTypes": ["PositionReport", "ShipStaticData"],
                     }
                     await ws.send(json.dumps(subscription))
                     logger.info("Sent subscription to AISStream")
