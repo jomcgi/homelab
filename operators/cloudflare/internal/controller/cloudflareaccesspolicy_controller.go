@@ -417,20 +417,28 @@ func (r *CloudflareAccessPolicyReconciler) buildPolicyConfig(accessPolicy *tunne
 		decision = "allow"
 	}
 
-	// Convert rules to Include rules
-	// Note: CRD has Name and GitHubUsers fields, but the Cloudflare API client doesn't support them directly
 	var includeRules []cfclient.AccessPolicyRule
-	for _, rule := range policy.Rules {
-		cfRule := cfclient.AccessPolicyRule{
-			EmailsEndingIn:      rule.EmailsEndingIn,
-			Emails:              rule.Emails,
-			EmailDomains:        rule.EmailDomains,
-			IPRanges:            rule.IPRanges,
-			Everyone:            rule.Everyone,
-			GitHubOrganizations: rule.GitHubOrganizations, // Use GitHubOrganizations instead of GitHubUsers
-			Countries:           rule.Countries,
+
+	// If ExternalPolicyID is set, use it as a group reference instead of inline rules
+	if policy.ExternalPolicyID != "" {
+		includeRules = []cfclient.AccessPolicyRule{
+			{GroupID: policy.ExternalPolicyID},
 		}
-		includeRules = append(includeRules, cfRule)
+	} else {
+		// Convert rules to Include rules
+		// Note: CRD has Name and GitHubUsers fields, but the Cloudflare API client doesn't support them directly
+		for _, rule := range policy.Rules {
+			cfRule := cfclient.AccessPolicyRule{
+				EmailsEndingIn:      rule.EmailsEndingIn,
+				Emails:              rule.Emails,
+				EmailDomains:        rule.EmailDomains,
+				IPRanges:            rule.IPRanges,
+				Everyone:            rule.Everyone,
+				GitHubOrganizations: rule.GitHubOrganizations, // Use GitHubOrganizations instead of GitHubUsers
+				Countries:           rule.Countries,
+			}
+			includeRules = append(includeRules, cfRule)
+		}
 	}
 
 	return cfclient.AccessPolicyConfig{
