@@ -119,6 +119,7 @@ charts/                     # Helm charts
 ├── kyverno/                # Policy engine for Kubernetes
 ├── linkerd/                # Linkerd service mesh for automatic tracing
 ├── longhorn/               # Distributed persistent storage
+├── marine/                 # AIS vessel tracking and API
 ├── nats/                   # NATS messaging system
 ├── nvidia-gpu-operator/    # NVIDIA GPU operator for GPU workloads
 ├── seaweedfs/              # SeaweedFS distributed storage
@@ -174,6 +175,7 @@ overlays/                   # Environment-based deployments
     ├── kustomization.yaml
     ├── claude/             # Claude Code deployment
     ├── cloudflare-operator/# Cloudflare operator deployment
+    ├── marine/             # AIS vessel tracking service
     └── stargazer/          # Stargazer service
 
 pkg/                        # Shared Go libraries
@@ -185,7 +187,8 @@ services/                   # Backend services
 
 websites/                   # Static websites
 ├── hikes.jomcgi.dev/       # Hiking route finder (static)
-└── jomcgi.dev/             # Personal website (Astro-based)
+├── jomcgi.dev/             # Personal website (Astro-based)
+└── ships.jomcgi.dev/       # Real-time vessel tracking UI
 
 ```
 
@@ -370,6 +373,13 @@ We test **actual behavior**, not implementation details:
 - **Custom Kubernetes operator** for Cloudflare resource management
 - **Automated tunnel provisioning** and **DNS management**
 - **Deployed via**: ArgoCD Application referencing operators/cloudflare/helm/
+
+#### Marine (ships.jomcgi.dev)
+- **Real-time AIS vessel tracking** for Pacific Northwest waters
+- **AIS ingest service** streams from AISStream.io to NATS JetStream
+- **Ships API** with REST endpoints and WebSocket for live updates
+- **React/MapLibre frontend** for vessel visualization
+- **Deployed via**: ArgoCD Application
 
 #### Stargazer
 - **Experimental service** for testing new features
