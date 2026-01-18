@@ -26,4 +26,10 @@ rules:
   - apiGroups: ["batch"]
     resources: ["jobs"]
     verbs: ["create"]
+  {{- if .Values.leaderElection.enabled }}
+  # Leader election requires lease management
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "create", "update", "patch"]
+  {{- end }}
 {{- end }}
