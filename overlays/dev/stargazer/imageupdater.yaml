@@ -11,7 +11,7 @@ spec:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/stargazer
+      imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
       manifestTargets:
         helm:
           name: image.repository
