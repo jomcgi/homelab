@@ -96,7 +96,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.05.49.37-ea63a78"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.06.31.17-4abf106"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -182,7 +182,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.05.49.37-ea63a78"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.06.31.17-4abf106"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
