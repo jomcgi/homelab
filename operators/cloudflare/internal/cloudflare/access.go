@@ -71,6 +71,7 @@ type AccessPolicyRule struct {
 	Everyone            bool
 	GitHubOrganizations []string
 	Countries           []string
+	GroupID             string // Reference to an existing Access Group by ID
 }
 
 // CreateAccessApplication creates a new Cloudflare Zero Trust access application
@@ -428,6 +429,14 @@ func convertAccessPolicyRules(rules []AccessPolicyRule) []interface{} {
 
 	for _, rule := range rules {
 		cfRule := make(map[string]interface{})
+
+		// Group reference takes precedence - if set, use it exclusively
+		if rule.GroupID != "" {
+			cfRules = append(cfRules, map[string]interface{}{
+				"group": map[string]interface{}{"id": rule.GroupID},
+			})
+			continue
+		}
 
 		if len(rule.Emails) > 0 {
 			cfRule["email"] = map[string]interface{}{"email": rule.Emails}
