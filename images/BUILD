@@ -11,6 +11,7 @@ multirun(
         "//operators/cloudflare:image.push",
         "//services/ais-ingest:image.push",
         "//services/hikes/update_forecast:update_image.push",
+        "//services/ships-api:image.push",
         "//services/stargazer:image.push",
         "//services/trips-api:image.push",
     ],
