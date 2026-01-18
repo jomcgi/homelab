@@ -25,6 +25,9 @@ defaultPermissionMode: "bypassPermissions"
 statefulset:
   enabled: false
 replicas: 1
+# Leader election not needed with single replica
+leaderElection:
+  enabled: false
 # Session affinity not needed with single replica
 service:
   sessionAffinity: false
