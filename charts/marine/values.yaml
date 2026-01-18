@@ -70,7 +70,7 @@ ingest:
 
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-    tag: "latest"
+    tag: "main"
     pullPolicy: IfNotPresent
 
   # Single replica - no need for HA for data ingestion
@@ -102,7 +102,7 @@ api:
 
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "latest"
+    tag: "main"
     pullPolicy: IfNotPresent
 
   # Can run multiple replicas for HA
@@ -138,7 +138,7 @@ frontend:
 
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
-    tag: "latest"
+    tag: "main"
     pullPolicy: IfNotPresent
 
   # Single replica
