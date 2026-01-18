@@ -11,7 +11,7 @@ spec:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ais-ingest
+      imageName: ghcr.io/jomcgi/homelab/services/ais-ingest:main
       manifestTargets:
         helm:
           name: ingest.image.repository
@@ -21,7 +21,7 @@ spec:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ships-api
+      imageName: ghcr.io/jomcgi/homelab/services/ships-api:main
       manifestTargets:
         helm:
           name: api.image.repository
@@ -31,7 +31,7 @@ spec:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ships-frontend
+      imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
       manifestTargets:
         helm:
           name: frontend.image.repository
