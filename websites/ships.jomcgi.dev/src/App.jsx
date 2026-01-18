@@ -94,9 +94,9 @@ function vesselsToGeoJSON(vessels) {
   };
 }
 
-// Arrow SVG - orange/red fill with thick white stroke for visibility
-const ARROW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
-  <path d="M12 2 L19 16 L12 11 L5 16 Z" fill="#ff4400" stroke="#fff" stroke-width="2"/>
+// Arrow SVG - orange/red fill with thick white stroke for visibility (32x32 for better touch targets)
+const ARROW_SVG = `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32">
+  <path d="M16 2 L26 22 L16 15 L6 22 Z" fill="#ff4400" stroke="#fff" stroke-width="2.5"/>
 </svg>`;
 
 function createArrowImage() {
@@ -210,38 +210,104 @@ export default function App() {
       map.current.addSource("vessels", {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
+        cluster: true,
+        clusterMaxZoom: 10,
+        clusterRadius: 50,
       });
 
-      // Anchored vessels - black dots
+      // Cluster circles - sized by point count
       map.current.addLayer({
-        id: "vessels-anchored",
+        id: "vessel-clusters",
         type: "circle",
         source: "vessels",
-        filter: ["==", ["get", "moving"], false],
+        filter: ["has", "point_count"],
         paint: {
-          "circle-radius": 4,
-          "circle-color": "#000",
-          "circle-stroke-width": 1,
+          "circle-color": "#ff4400",
+          "circle-radius": [
+            "step",
+            ["get", "point_count"],
+            15,
+            10, 20,
+            50, 25,
+            100, 30,
+          ],
+          "circle-stroke-width": 2,
           "circle-stroke-color": "#fff",
         },
       });
 
-      // Moving vessels - orange arrows, size scales with speed
+      // Cluster count labels
+      map.current.addLayer({
+        id: "vessel-cluster-count",
+        type: "symbol",
+        source: "vessels",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-size": 12,
+        },
+        paint: {
+          "text-color": "#fff",
+        },
+      });
+
+      // Anchored vessels - black dots with zoom-responsive sizing
+      map.current.addLayer({
+        id: "vessels-anchored",
+        type: "circle",
+        source: "vessels",
+        filter: [
+          "all",
+          ["==", ["get", "moving"], false],
+          ["!", ["has", "point_count"]],
+        ],
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            6, 4,
+            10, 6,
+            14, 10,
+            18, 16,
+          ],
+          "circle-color": "#000",
+          "circle-stroke-width": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            6, 1,
+            14, 2,
+            18, 3,
+          ],
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      // Moving vessels - orange arrows, size scales with zoom and speed
       map.current.addLayer({
         id: "vessels-moving",
         type: "symbol",
         source: "vessels",
-        filter: ["==", ["get", "moving"], true],
+        filter: [
+          "all",
+          ["==", ["get", "moving"], true],
+          ["!", ["has", "point_count"]],
+        ],
         layout: {
           "icon-image": "arrow",
           "icon-size": [
             "interpolate",
             ["linear"],
-            ["get", "speed"],
-            0, 0.6,
-            5, 0.8,
-            15, 1.0,
-            30, 1.2,
+            ["zoom"],
+            6,
+            ["interpolate", ["linear"], ["get", "speed"], 0, 0.5, 30, 0.9],
+            10,
+            ["interpolate", ["linear"], ["get", "speed"], 0, 0.7, 30, 1.1],
+            14,
+            ["interpolate", ["linear"], ["get", "speed"], 0, 1.0, 30, 1.5],
+            18,
+            ["interpolate", ["linear"], ["get", "speed"], 0, 1.4, 30, 2.0],
           ],
           "icon-rotate": ["get", "rotation"],
           "icon-allow-overlap": true,
@@ -249,16 +315,33 @@ export default function App() {
         },
       });
 
-      // Click handlers
-      const handleClick = (e) => {
+      // Click handler for individual vessels
+      const handleVesselClick = (e) => {
         if (e.features && e.features.length > 0) {
           const mmsi = e.features[0].properties.mmsi;
           setSelectedMmsiRef.current(mmsi);
         }
       };
 
-      map.current.on("click", "vessels-anchored", handleClick);
-      map.current.on("click", "vessels-moving", handleClick);
+      map.current.on("click", "vessels-anchored", handleVesselClick);
+      map.current.on("click", "vessels-moving", handleVesselClick);
+
+      // Click handler for clusters - zoom in to expand
+      map.current.on("click", "vessel-clusters", (e) => {
+        const features = map.current.queryRenderedFeatures(e.point, {
+          layers: ["vessel-clusters"],
+        });
+        const clusterId = features[0].properties.cluster_id;
+        map.current
+          .getSource("vessels")
+          .getClusterExpansionZoom(clusterId, (err, zoom) => {
+            if (err) return;
+            map.current.easeTo({
+              center: features[0].geometry.coordinates,
+              zoom: zoom,
+            });
+          });
+      });
 
       const setCursor = () => {
         map.current.getCanvas().style.cursor = "pointer";
@@ -267,8 +350,10 @@ export default function App() {
         map.current.getCanvas().style.cursor = "";
       };
 
+      map.current.on("mouseenter", "vessel-clusters", setCursor);
       map.current.on("mouseenter", "vessels-anchored", setCursor);
       map.current.on("mouseenter", "vessels-moving", setCursor);
+      map.current.on("mouseleave", "vessel-clusters", resetCursor);
       map.current.on("mouseleave", "vessels-anchored", resetCursor);
       map.current.on("mouseleave", "vessels-moving", resetCursor);
     });
