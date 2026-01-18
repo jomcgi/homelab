@@ -128,3 +128,43 @@ api:
 
   # Pod annotations
   podAnnotations: {}
+
+# =============================================================================
+# Frontend Component
+# Bun-based server serving MapLibre UI + proxying to API
+# =============================================================================
+frontend:
+  enabled: true
+
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/ships-frontend
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Single replica
+  replicas: 1
+
+  # Cloudflare ingress hostname
+  hostname: ships.jomcgi.dev
+
+  # Zero Trust access policy
+  zeroTrust:
+    enabled: true
+    policy: joe-only
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 80
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Pod annotations
+  podAnnotations: {}
