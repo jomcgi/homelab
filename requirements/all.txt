@@ -147,6 +147,12 @@ aiosignal==1.4.0 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   aiohttp
+aiosqlite==0.22.1 \
+    --hash=sha256:043e0bd78d32888c0a9ca90fc788b38796843360c855a7262a532813133a0650 \
+    --hash=sha256:21c002eb13823fad740196c5a2e9d8e62f6243bd9e7e4a1f87fb5e44ecb4fceb
+    # via
+    #   -c requirements/runtime.txt
+    #   -r requirements/runtime.txt
 annotated-types==0.7.0 \
     --hash=sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53 \
     --hash=sha256:aff07c09a53a08bc8cfccb9c85b05f1aa9a2a6f23728d790723543408344ce89

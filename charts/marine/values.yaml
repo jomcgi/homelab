@@ -118,13 +118,13 @@ api:
     origins: "http://localhost:3000"
 
   # Resource limits
+  # Note: No CPU limit to allow burst during stream replay
   resources:
     requests:
-      cpu: 20m
-      memory: 64Mi
+      cpu: 50m
+      memory: 128Mi
     limits:
-      cpu: 200m
-      memory: 256Mi
+      memory: 512Mi
 
   # Pod annotations
   podAnnotations: {}

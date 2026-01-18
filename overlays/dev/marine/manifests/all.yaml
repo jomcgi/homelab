@@ -96,7 +96,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:latest"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.05.49.37-ea63a78"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -122,22 +122,22 @@ spec:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 10
-            periodSeconds: 30
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /health
-              port: http
             initialDelaySeconds: 5
             periodSeconds: 10
+            failureThreshold: 6
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 60
           resources:
             limits:
-              cpu: 200m
-              memory: 256Mi
+              memory: 512Mi
             requests:
-              cpu: 20m
-              memory: 64Mi
+              cpu: 50m
+              memory: 128Mi
           volumeMounts:
             - name: tmp
               mountPath: /tmp
@@ -182,7 +182,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.05.21.33-f1bd8cb"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.05.49.37-ea63a78"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
