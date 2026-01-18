@@ -6,6 +6,7 @@ py_binary(
     srcs = ["main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//aiosqlite",
         "@pip//fastapi",
         "@pip//nats_py",
         "@pip//uvicorn",
@@ -20,6 +21,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//aiosqlite",
         "@pip//fastapi",
         "@pip//nats_py",
         "@pip//uvicorn",

@@ -100,7 +100,7 @@ metadata:
     helm.sh/resource-policy: keep
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   storageClassName: longhorn
   resources:
     requests:
@@ -224,40 +224,6 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        # Leader election sidecar using kubectl
-        - name: leader-elector
-          image: bitnami/kubectl:latest
-          imagePullPolicy: IfNotPresent
-          command: ["/bin/sh"]
-          args: ["/scripts/leader-election.sh"]
-          env:
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-          volumeMounts:
-            - name: leader-election-scripts
-              mountPath: /scripts
-            - name: leader-status
-              mountPath: /tmp
-          resources:
-            requests:
-              cpu: 10m
-              memory: 16Mi
-            limits:
-              memory: 32Mi
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: false  # Needs to write to /tmp
-            runAsNonRoot: true
-            runAsUser: 1000
-            capabilities:
-              drop:
-                - ALL
         # Nginx reverse proxy for WebSocket support with long timeouts
         - name: nginx
           image: nginx:1.27-alpine
@@ -310,7 +276,7 @@ spec:
               drop:
               - ALL
             readOnlyRootFilesystem: false
-          image: "ghcr.io/jomcgi/homelab/charts/claude:main"
+          image: "ghcr.io/jomcgi/homelab/charts/claude:main@sha256:609cab1513b62c4921aa40b48566d8c19ac9e1840708c56771fae8bf8c215115"
           imagePullPolicy: IfNotPresent
           ports:
             - name: backend
@@ -328,8 +294,9 @@ spec:
             timeoutSeconds: 10
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command: ["/bin/sh", "/scripts/health-check.sh"]
+            httpGet:
+              path: /health
+              port: backend
             initialDelaySeconds: 5
             periodSeconds: 2
             timeoutSeconds: 5
@@ -387,12 +354,6 @@ spec:
           volumeMounts:
             - name: home
               mountPath: /home/user
-            - name: leader-election-scripts
-              mountPath: /scripts
-              readOnly: true
-            - name: leader-status
-              mountPath: /tmp
-              readOnly: true
             # Repo sync uses a subdirectory on the home PVC for persistence
             - name: home
               mountPath: /repos/homelab
@@ -401,12 +362,6 @@ spec:
         - name: home
           persistentVolumeClaim:
             claimName: claude-home
-        - name: leader-election-scripts
-          configMap:
-            name: claude-leader-election
-            defaultMode: 0755
-        - name: leader-status
-          emptyDir: {}
         - name: nginx-config
           configMap:
             name: claude-nginx

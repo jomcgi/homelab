@@ -247,9 +247,7 @@ class Database:
 
     async def get_vessel_count(self) -> int:
         """Get count of unique vessels."""
-        cursor = await self.db.execute(
-            "SELECT COUNT(DISTINCT mmsi) FROM positions"
-        )
+        cursor = await self.db.execute("SELECT COUNT(DISTINCT mmsi) FROM positions")
         row = await cursor.fetchone()
         return row[0] if row else 0
 
@@ -354,7 +352,9 @@ class ShipsAPIService:
                         break
 
                     for msg in msgs:
-                        await self._process_message(msg.subject, msg.data, broadcast=False)
+                        await self._process_message(
+                            msg.subject, msg.data, broadcast=False
+                        )
                         await msg.ack()
                         self.replay_count += 1
                         self._pending_commits += 1
@@ -550,7 +550,9 @@ async def ready(response: Response):
         response.status_code = 503
         return {
             "status": "not_ready",
-            "reason": "replay_in_progress" if not service.replay_complete else "starting",
+            "reason": "replay_in_progress"
+            if not service.replay_complete
+            else "starting",
             "vessel_count": vessel_count,
             "replay_count": service.replay_count,
         }

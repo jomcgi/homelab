@@ -166,7 +166,8 @@ class AISIngestService:
             "mmsi": mmsi,
             "imo": static.get("ImoNumber"),
             "call_sign": static.get("CallSign", "").strip(),
-            "name": static.get("Name", "").strip() or metadata.get("ShipName", "").strip(),
+            "name": static.get("Name", "").strip()
+            or metadata.get("ShipName", "").strip(),
             "ship_type": static.get("Type"),
             "dimension_a": dimension.get("A"),
             "dimension_b": dimension.get("B"),
