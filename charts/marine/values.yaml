@@ -150,7 +150,8 @@ frontend:
   # Zero Trust access policy
   zeroTrust:
     enabled: true
-    policy: joe-only
+    # Cloudflare Access Group UUID (find in Zero Trust dashboard)
+    policyId: ""
 
   # Service configuration
   service:

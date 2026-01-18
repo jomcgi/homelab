@@ -25,4 +25,4 @@ frontend:
 
   # Zero Trust access policy (references Cloudflare Access Group by UUID)
   zeroTrust:
-    policy: 2b8d1e44-d1f5-41d9-a8ac-6fa9cde4aa06
+    policyId: 2b8d1e44-d1f5-41d9-a8ac-6fa9cde4aa06

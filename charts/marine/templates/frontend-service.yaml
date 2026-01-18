@@ -8,8 +8,8 @@ metadata:
   annotations:
     # Cloudflare operator annotations
     cloudflare.ingress.hostname: {{ .Values.frontend.hostname }}
-    {{- if .Values.frontend.zeroTrust.enabled }}
-    cloudflare.zero-trust.policy: {{ .Values.frontend.zeroTrust.policy }}
+    {{- if and .Values.frontend.zeroTrust.enabled .Values.frontend.zeroTrust.policyId }}
+    cloudflare.zero-trust.policy: {{ .Values.frontend.zeroTrust.policyId }}
     {{- end }}
 spec:
   type: ClusterIP
