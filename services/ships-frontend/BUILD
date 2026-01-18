@@ -14,6 +14,7 @@ pkg_tar(
 )
 
 # Package the website source for runtime build
+# Use strip_prefix="." to preserve directory structure from the source package
 pkg_tar(
     name = "website_tar",
     srcs = ["//websites/ships.jomcgi.dev:src"],
