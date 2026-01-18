@@ -18,12 +18,19 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          bazel test //... --deleted_packages=tools/python
+          bazel test //... --config=ci --deleted_packages=tools/python
 
       - run: |
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
             exit 0
           fi
+          # Only push images on main branch (not PRs)
+          # GITHUB_REF_NAME is set by BuildBuddy for GitHub webhook events
+          if [ "${GITHUB_REF_NAME:-}" != "main" ]; then
+            echo "Skipping image push for non-main branch: ${GITHUB_REF_NAME:-unknown}"
+            exit 0
+          fi
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
-          bazel run //images:push_all
+          # --config=ci enables branch tag (e.g., "main") in addition to timestamp tag
+          bazel run //images:push_all --config=ci
