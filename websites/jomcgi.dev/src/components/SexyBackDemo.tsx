@@ -284,8 +284,10 @@ export default function SexyBackDemo() {
   // Store cursor position in a ref for physics loop (avoids re-creating the loop on every mouse move)
   const cursorPosRef = useRef(cursorPos);
   const phaseRef = useRef(phase);
+  const kickButtonPosRef = useRef(kickButtonPos);
   useEffect(() => { cursorPosRef.current = cursorPos; }, [cursorPos]);
   useEffect(() => { phaseRef.current = phase; }, [phase]);
+  useEffect(() => { kickButtonPosRef.current = kickButtonPos; }, [kickButtonPos]);
 
   // Physics update loop
   useEffect(() => {
@@ -316,17 +318,40 @@ export default function SexyBackDemo() {
           }
 
           if (jt.landed) {
-            // 🆕 Landed stalkers slowly drift towards cursor
+            // 🆕 Landed stalkers drift towards cursor - faster on desktop, accelerate near kick button
             if (jt.stalker) {
               const dx = cursor.x - jt.x;
               const dy = cursor.y - jt.y;
               const distance = Math.sqrt(dx * dx + dy * dy);
 
               if (distance > 2) {  // Only move if not already at cursor
-                // Drift speed increases with phase
-                const baseDriftSpeed = 0.02 + currentPhase * 0.015;
+                // Base drift speed - significantly faster on desktop
+                let baseDriftSpeed = 0.08 + currentPhase * 0.04;
+
+                // 🆕 Accelerate when cursor is near kick button (desktop only)
+                const kickBtn = kickButtonPosRef.current;
+                const container = containerRef.current;
+                if (container && currentPhase >= 5) {
+                  const containerRect = container.getBoundingClientRect();
+                  // Convert kick button position (px from bottom-left) to percentage
+                  const kickBtnX = (kickBtn.x / containerRect.width) * 100;
+                  const kickBtnY = ((containerRect.height - kickBtn.y) / containerRect.height) * 100;
+
+                  // Distance from cursor to kick button (in %)
+                  const cursorToKickDx = cursor.x - kickBtnX;
+                  const cursorToKickDy = cursor.y - kickBtnY;
+                  const cursorToKickDist = Math.sqrt(cursorToKickDx * cursorToKickDx + cursorToKickDy * cursorToKickDy);
+
+                  // Acceleration zone: within 30% of screen, max 3x speed boost at 0 distance
+                  const accelThreshold = 30;
+                  if (cursorToKickDist < accelThreshold) {
+                    const proximity = 1 - (cursorToKickDist / accelThreshold);
+                    baseDriftSpeed *= 1 + proximity * 2;  // Up to 3x speed when right on button
+                  }
+                }
+
                 const driftX = (dx / distance) * baseDriftSpeed;
-                const driftY = (dy / distance) * baseDriftSpeed * 0.3;  // Less vertical drift
+                const driftY = (dy / distance) * baseDriftSpeed * 0.4;  // Slightly more vertical drift
 
                 changed = true;
                 return {
@@ -344,11 +369,31 @@ export default function SexyBackDemo() {
           let newY = jt.y + jt.fallSpeed;
           let newRotation = jt.rotation + jt.rotationSpeed;
 
-          // 🆕 Falling stalkers drift towards cursor horizontally
+          // 🆕 Falling stalkers drift towards cursor horizontally - faster on desktop
           if (jt.stalker) {
             const dx = cursor.x - jt.x;
-            const driftSpeed = 0.05 + currentPhase * 0.02;
-            newX = jt.x + Math.sign(dx) * Math.min(Math.abs(dx) * 0.02, driftSpeed);
+            let driftSpeed = 0.15 + currentPhase * 0.06;  // Much faster base drift
+
+            // 🆕 Accelerate when cursor is near kick button
+            const kickBtn = kickButtonPosRef.current;
+            const container = containerRef.current;
+            if (container && currentPhase >= 5) {
+              const containerRect = container.getBoundingClientRect();
+              const kickBtnX = (kickBtn.x / containerRect.width) * 100;
+              const kickBtnY = ((containerRect.height - kickBtn.y) / containerRect.height) * 100;
+
+              const cursorToKickDx = cursor.x - kickBtnX;
+              const cursorToKickDy = cursor.y - kickBtnY;
+              const cursorToKickDist = Math.sqrt(cursorToKickDx * cursorToKickDx + cursorToKickDy * cursorToKickDy);
+
+              const accelThreshold = 30;
+              if (cursorToKickDist < accelThreshold) {
+                const proximity = 1 - (cursorToKickDist / accelThreshold);
+                driftSpeed *= 1 + proximity * 2;  // Up to 3x speed
+              }
+            }
+
+            newX = jt.x + Math.sign(dx) * Math.min(Math.abs(dx) * 0.04, driftSpeed);  // Also increased tracking responsiveness
           }
 
           if (newY >= groundLevel) {
