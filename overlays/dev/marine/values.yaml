@@ -10,11 +10,11 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-    tag: "2026.01.18.09.10.58-63d1b0d"
+    tag: "2026.01.18.09.35.39-a383017"
     pullPolicy: Always
 # Ships API component
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "2026.01.18.09.10.58-63d1b0d"
+    tag: "2026.01.18.09.35.39-a383017"
     pullPolicy: Always
