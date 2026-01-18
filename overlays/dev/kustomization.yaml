@@ -1,5 +1,5 @@
 resources:
-  - ./ais-ingest
+  - ./marine
   - ./claude
   - ./cloudflare-operator
   - ./cloudflare-operator-test

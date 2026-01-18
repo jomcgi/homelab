@@ -1,0 +1,130 @@
+# Marine Services Chart
+# Combined AIS ingestion and Ships API services
+
+# Shared settings
+nameOverride: ""
+fullnameOverride: ""
+
+# Image pull secrets (shared by all components)
+imagePullSecrets: []
+
+# Image pull secret configuration (OnePassword)
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
+# Secret configuration for AISStream API key
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/marine"
+  manual:
+    apiKey: ""
+
+# Service account (shared)
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# NATS configuration (shared)
+nats:
+  url: nats://nats.nats.svc.cluster.local:4222
+
+# AISStream configuration (for ingest)
+aisstream:
+  url: wss://stream.aisstream.io/v0/stream
+  # Pacific Northwest bounding box: BC/WA coast
+  # SW corner (46.876152, -129.552155) to NE corner (51.413769, -121.213531)
+  boundingBox: "[[[46.876152, -129.552155], [51.413769, -121.213531]]]"
+
+# Pod security context (shared)
+# Note: Running as root because aspect_rules_py venv needs to write
+# to the installation directory. TODO: Fix image to run as non-root
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context (shared)
+securityContext:
+  # Note: readOnlyRootFilesystem disabled because aspect_rules_py
+  # creates a virtualenv at runtime (by design)
+  readOnlyRootFilesystem: false
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# =============================================================================
+# AIS Ingest Component
+# Streams vessel position reports from AISStream.io to NATS
+# =============================================================================
+ingest:
+  enabled: true
+
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/ais-ingest
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Single replica - no need for HA for data ingestion
+  replicas: 1
+
+  # Service configuration for health endpoint
+  service:
+    type: ClusterIP
+    port: 8000
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+  # Pod annotations
+  podAnnotations: {}
+
+# =============================================================================
+# Ships API Component
+# REST API + WebSocket for real-time vessel data
+# =============================================================================
+api:
+  enabled: true
+
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/ships-api
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  # Can run multiple replicas for HA
+  replicas: 1
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    port: 8000
+
+  # CORS configuration
+  cors:
+    origins: "http://localhost:3000"
+
+  # Resource limits
+  resources:
+    requests:
+      cpu: 20m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+  # Pod annotations
+  podAnnotations: {}
