@@ -1,0 +1,23 @@
+# Development overrides for marine services
+
+# Enable image pull secret for GHCR
+imagePullSecret:
+  enabled: true
+
+# Configure pods to use the image pull secret
+imagePullSecrets:
+  - name: ghcr-imagepull-secret
+
+# AIS Ingest component
+ingest:
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/ais-ingest
+    tag: "2026.01.18.05.21.33-f1bd8cb"
+    pullPolicy: Always
+
+# Ships API component
+api:
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/ships-api
+    tag: "latest"
+    pullPolicy: Always
