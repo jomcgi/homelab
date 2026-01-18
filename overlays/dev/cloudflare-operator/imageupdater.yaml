@@ -9,7 +9,7 @@ spec:
     - alias: operator
       commonUpdateSettings:
         allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
-        updateStrategy: newest-build
+        updateStrategy: digest
         forceUpdate: false
       imageName: ghcr.io/jomcgi/homelab/operators/cloudflare
       manifestTargets:
