@@ -60,16 +60,34 @@ function formatTimestamp(ts) {
   return date.toLocaleTimeString();
 }
 
+function vesselsToGeoJSON(vessels) {
+  return {
+    type: "FeatureCollection",
+    features: Object.values(vessels)
+      .filter((v) => v.lat && v.lon)
+      .map((v) => ({
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [v.lon, v.lat],
+        },
+        properties: {
+          mmsi: v.mmsi,
+        },
+      })),
+  };
+}
+
 export default function App() {
   const mapContainer = useRef(null);
   const map = useRef(null);
   const ws = useRef(null);
-  const markers = useRef({});
+  const pendingSelection = useRef(null);
 
   const [vessels, setVessels] = useState({});
   const [selectedVessel, setSelectedVessel] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
-  const [stats, setStats] = useState({ vessels: 0, positions: 0 });
+  const [stats, setStats] = useState({ vessels: 0 });
 
   const updateVessel = useCallback((data) => {
     setVessels((prev) => ({
@@ -100,7 +118,7 @@ export default function App() {
             vesselMap[v.mmsi] = v;
           });
           setVessels(vesselMap);
-          setStats((s) => ({ ...s, vessels: data.vessels.length }));
+          setStats({ vessels: data.vessels.length });
         } else if (data.mmsi) {
           updateVessel(data);
         }
@@ -149,6 +167,41 @@ export default function App() {
 
     map.current.addControl(new maplibregl.NavigationControl(), "top-left");
 
+    map.current.on("load", () => {
+      map.current.addSource("vessels", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.current.addLayer({
+        id: "vessels",
+        type: "circle",
+        source: "vessels",
+        paint: {
+          "circle-radius": 4,
+          "circle-color": "#000",
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      map.current.on("click", "vessels", (e) => {
+        if (e.features && e.features.length > 0) {
+          const mmsi = e.features[0].properties.mmsi;
+          pendingSelection.current = mmsi;
+          setVessels((v) => ({ ...v }));
+        }
+      });
+
+      map.current.on("mouseenter", "vessels", () => {
+        map.current.getCanvas().style.cursor = "pointer";
+      });
+
+      map.current.on("mouseleave", "vessels", () => {
+        map.current.getCanvas().style.cursor = "";
+      });
+    });
+
     return () => {
       if (map.current) {
         map.current.remove();
@@ -168,50 +221,21 @@ export default function App() {
     };
   }, [connectWebSocket]);
 
-  // Update markers
+  // Update GeoJSON source when vessels change
   useEffect(() => {
     if (!map.current) return;
 
-    Object.values(vessels).forEach((vessel) => {
-      if (!vessel.lat || !vessel.lon) return;
+    const source = map.current.getSource("vessels");
+    if (source) {
+      source.setData(vesselsToGeoJSON(vessels));
+    }
 
-      const mmsi = vessel.mmsi;
+    setStats({ vessels: Object.keys(vessels).length });
 
-      if (markers.current[mmsi]) {
-        markers.current[mmsi].setLngLat([vessel.lon, vessel.lat]);
-        const el = markers.current[mmsi].getElement();
-        if (vessel.heading !== null && vessel.heading !== undefined) {
-          el.style.transform = `rotate(${vessel.heading}deg)`;
-        }
-      } else {
-        const el = document.createElement("div");
-        el.className = "vessel-marker";
-        el.style.cssText = `
-          width: 0;
-          height: 0;
-          border-left: 6px solid transparent;
-          border-right: 6px solid transparent;
-          border-bottom: 16px solid #0066ff;
-          cursor: pointer;
-          transform-origin: center bottom;
-        `;
-        if (vessel.heading !== null && vessel.heading !== undefined) {
-          el.style.transform = `rotate(${vessel.heading}deg)`;
-        }
-
-        el.addEventListener("click", () => {
-          setSelectedVessel(vessel);
-        });
-
-        const marker = new maplibregl.Marker({ element: el })
-          .setLngLat([vessel.lon, vessel.lat])
-          .addTo(map.current);
-
-        markers.current[mmsi] = marker;
-      }
-    });
-
-    setStats((s) => ({ ...s, vessels: Object.keys(vessels).length }));
+    if (pendingSelection.current && vessels[pendingSelection.current]) {
+      setSelectedVessel(vessels[pendingSelection.current]);
+      pendingSelection.current = null;
+    }
   }, [vessels]);
 
   // Update selected vessel data
@@ -226,17 +250,11 @@ export default function App() {
       <header className="header">
         <h1 className="title">Ships</h1>
         <div className="stats">
-          <div className="stat">
-            <span>Vessels:</span>
-            <span className="stat-value">{stats.vessels}</span>
-          </div>
-          <div className="connection-status">
-            <span
-              className={`status-dot ${connectionStatus}`}
-              title={connectionStatus}
-            />
-            <span>{connectionStatus.toUpperCase()}</span>
-          </div>
+          <span className="stat">{stats.vessels}</span>
+          <span
+            className={`status-dot ${connectionStatus}`}
+            title={connectionStatus}
+          />
         </div>
       </header>
 
@@ -251,7 +269,7 @@ export default function App() {
                 className="vessel-panel-close"
                 onClick={() => setSelectedVessel(null)}
               >
-                x
+                ×
               </button>
             </div>
             <div className="vessel-panel-content">
