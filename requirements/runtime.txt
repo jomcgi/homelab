@@ -328,6 +328,7 @@ certifi==2025.10.5 \
     --hash=sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de \
     --hash=sha256:47c09d31ccf2acf0be3f701ea53595ee7e0b8fa08801c6624be771df09ae7b43
     # via
+    #   homelab (pyproject.toml)
     #   fiona
     #   httpcore
     #   httpx
