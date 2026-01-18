@@ -6,6 +6,7 @@ py_binary(
     srcs = ["main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//certifi",
         "@pip//fastapi",
         "@pip//nats_py",
         "@pip//uvicorn",
@@ -15,9 +16,13 @@ py_binary(
 
 py_library(
     name = "ais-ingest",
-    srcs = ["main.py"],
+    srcs = [
+        "__init__.py",
+        "main.py",
+    ],
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//certifi",
         "@pip//fastapi",
         "@pip//nats_py",
         "@pip//uvicorn",
