@@ -26,6 +26,16 @@ spec:
         helm:
           name: api.image.repository
           tag: api.image.tag
+    - alias: frontend
+      commonUpdateSettings:
+        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
+        updateStrategy: newest-build
+        forceUpdate: false
+      imageName: ghcr.io/jomcgi/homelab/services/ships-frontend
+      manifestTargets:
+        helm:
+          name: frontend.image.repository
+          tag: frontend.image.tag
     namePattern: marine
   namespace: argocd
   writeBackConfig:
