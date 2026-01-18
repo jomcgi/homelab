@@ -200,7 +200,10 @@ export default function App() {
       zoom: 7,
     });
 
-    map.current.addControl(new maplibregl.NavigationControl(), "top-left");
+    map.current.addControl(
+      new maplibregl.NavigationControl({ showCompass: false }),
+      "top-left"
+    );
 
     map.current.on("load", async () => {
       // Add arrow image for moving vessels
