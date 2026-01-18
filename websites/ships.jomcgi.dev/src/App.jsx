@@ -214,8 +214,8 @@ export default function App() {
         type: "geojson",
         data: { type: "FeatureCollection", features: [] },
         cluster: true,
-        clusterMaxZoom: 10,
-        clusterRadius: 50,
+        clusterMaxZoom: 8,
+        clusterRadius: 30,
       });
 
       // Cluster circles - sized by point count
@@ -329,20 +329,22 @@ export default function App() {
       map.current.on("click", "vessels-anchored", handleVesselClick);
       map.current.on("click", "vessels-moving", handleVesselClick);
 
-      // Click handler for clusters - zoom in to expand
+      // Click handler for clusters - zoom to bounding box of all points
       map.current.on("click", "vessel-clusters", (e) => {
         const features = map.current.queryRenderedFeatures(e.point, {
           layers: ["vessel-clusters"],
         });
         const clusterId = features[0].properties.cluster_id;
+        const pointCount = features[0].properties.point_count;
         map.current
           .getSource("vessels")
-          .getClusterExpansionZoom(clusterId, (err, zoom) => {
-            if (err) return;
-            map.current.easeTo({
-              center: features[0].geometry.coordinates,
-              zoom: zoom,
+          .getClusterLeaves(clusterId, pointCount, 0, (err, leaves) => {
+            if (err || !leaves.length) return;
+            const bounds = new maplibregl.LngLatBounds();
+            leaves.forEach((leaf) => {
+              bounds.extend(leaf.geometry.coordinates);
             });
+            map.current.fitBounds(bounds, { padding: 50 });
           });
       });
 
