@@ -206,7 +206,7 @@ const bazelDiagram = `flowchart LR
 const shipsDiagram = `flowchart LR
     subgraph Ingest
         AIS[AISStream.io]
-        Ingest[ais-ingest]
+        Svc[ais-ingest]
     end
 
     subgraph Store
@@ -223,15 +223,15 @@ const shipsDiagram = `flowchart LR
         Map[MapLibre]
     end
 
-    AIS -->|WebSocket| Ingest
-    Ingest -->|Publish| NATS
+    AIS -->|WebSocket| Svc
+    Svc -->|Publish| NATS
     NATS -->|Subscribe| API
     API --> WS
     WS --> UI
     UI --> Map
 
     style AIS fill:#ff6b6b,stroke:#ff6b6b,color:#fff
-    style Ingest fill:#ffa502,stroke:#ffa502,color:#fff
+    style Svc fill:#ffa502,stroke:#ffa502,color:#fff
     style NATS fill:#ffd93d,stroke:#ffd93d,color:#000
     style API fill:#6bcb77,stroke:#6bcb77,color:#fff
     style WS fill:#4d96ff,stroke:#4d96ff,color:#fff
