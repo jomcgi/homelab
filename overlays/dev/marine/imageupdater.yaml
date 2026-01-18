@@ -8,7 +8,6 @@ spec:
   - images:
     - alias: ingest
       commonUpdateSettings:
-        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
       imageName: ghcr.io/jomcgi/homelab/services/ais-ingest:main
@@ -18,7 +17,6 @@ spec:
           tag: ingest.image.tag
     - alias: api
       commonUpdateSettings:
-        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
       imageName: ghcr.io/jomcgi/homelab/services/ships-api:main
@@ -28,7 +26,6 @@ spec:
           tag: api.image.tag
     - alias: frontend
       commonUpdateSettings:
-        allowTags: regexp:^\d{4}\.\d{2}\.\d{2}\.\d{2}\.\d{2}\.\d{2}-[0-9a-f]{7}$
         updateStrategy: digest
         forceUpdate: false
       imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
