@@ -30,6 +30,8 @@ contents:
     - bazelisk
     # GitHub CLI for creating PRs and managing repos
     - gh
+    # Docker CLI for container debugging and inspection
+    - docker-cli
 
 archs:
   - x86_64
