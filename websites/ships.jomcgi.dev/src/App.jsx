@@ -163,9 +163,15 @@ export default function App() {
   // Derive selected vessel from MMSI - always up to date
   const selectedVessel = selectedMmsi ? vessels[selectedMmsi] : null;
 
-  // Ref for click handler to access setter (defined once in map.on('load'))
+  // Refs for websocket handler to access current state
   const setSelectedMmsiRef = useRef(setSelectedMmsi);
   setSelectedMmsiRef.current = setSelectedMmsi;
+
+  const selectedMmsiRef = useRef(selectedMmsi);
+  selectedMmsiRef.current = selectedMmsi;
+
+  const setSelectedTrackRef = useRef(setSelectedTrack);
+  setSelectedTrackRef.current = setSelectedTrack;
 
   const updateVessel = useCallback((data) => {
     setVessels((prev) => ({
@@ -199,6 +205,30 @@ export default function App() {
           setStats({ vessels: data.vessels.length });
         } else if (data.mmsi) {
           updateVessel(data);
+
+          // Append to track if this is the selected vessel
+          if (
+            data.mmsi === selectedMmsiRef.current &&
+            data.lat != null &&
+            data.lon != null
+          ) {
+            setSelectedTrackRef.current((prevTrack) => {
+              if (!prevTrack) return prevTrack;
+              // Avoid duplicates - check if last point is the same
+              const lastPoint = prevTrack[prevTrack.length - 1];
+              if (
+                lastPoint &&
+                lastPoint.lat === data.lat &&
+                lastPoint.lon === data.lon
+              ) {
+                return prevTrack;
+              }
+              return [
+                ...prevTrack,
+                { lat: data.lat, lon: data.lon, timestamp: data.timestamp },
+              ];
+            });
+          }
         }
       } catch (e) {
         console.error("Failed to parse message:", e);
