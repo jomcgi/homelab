@@ -70,12 +70,6 @@ spec:
             failureThreshold: 60
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
-          volumeMounts:
-            - name: public
-              mountPath: /app/public
-      volumes:
-        - name: public
-          emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
