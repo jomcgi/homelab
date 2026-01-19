@@ -53,7 +53,7 @@ spec:
             - name: API_URL
               value: "http://{{ include "marine.fullname" . }}-api:{{ .Values.api.service.port }}"
             - name: PUBLIC_DIR
-              value: /app/public
+              value: /app/public/websites/ships.jomcgi.dev/dist
           livenessProbe:
             httpGet:
               path: /health
