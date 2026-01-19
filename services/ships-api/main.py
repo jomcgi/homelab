@@ -351,7 +351,9 @@ class Database:
                 "DELETE FROM positions WHERE timestamp < ?", (cutoff,)
             )
             await self.db.commit()
-            logger.info(f"Cleaned up {count} positions older than {POSITION_RETENTION_DAYS} days")
+            logger.info(
+                f"Cleaned up {count} positions older than {POSITION_RETENTION_DAYS} days"
+            )
 
         return count
 
@@ -517,7 +519,9 @@ class ShipsAPIService:
         self.messages_deduplicated = 0
         self.replay_complete = False
         self._pending_commits = 0
-        self._commit_interval = 500  # Commit every N inserts (increased for global volume)
+        self._commit_interval = (
+            500  # Commit every N inserts (increased for global volume)
+        )
 
     async def connect_nats(self) -> None:
         """Connect to NATS."""
