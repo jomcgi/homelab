@@ -10,7 +10,7 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-    tag: "latest@sha256:25d869b0be81ca6958db54e8c4f61382dbfb49e131e7e244f146dde1ae7c074b"
+    tag: "main@sha256:06a9488a1395112a20d96a81147b15072c6de5e94cec074c7a3504b0ea7f14bf"
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
@@ -19,7 +19,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "main@sha256:00280291c388e2cb4318da2533bb1b4c3a1af7b073584c20a68c3ea0060d3154"
+    tag: "latest@sha256:00280291c388e2cb4318da2533bb1b4c3a1af7b073584c20a68c3ea0060d3154"
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
