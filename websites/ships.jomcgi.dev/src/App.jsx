@@ -467,7 +467,7 @@ export default function App() {
         );
         if (response.ok) {
           const data = await response.json();
-          setSelectedTrack(data);
+          setSelectedTrack(data.track || []);
         } else {
           setSelectedTrack(null);
         }
