@@ -12,6 +12,9 @@ seaweedfs:
     replicas: 1
     # Disable anti-affinity for single-node homelab
     affinity: ""
+    # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    podAnnotations:
+      otel.injected-by: kyverno/inject-otel-env-vars
     data:
       type: "persistentVolumeClaim"
       size: "1Gi"
@@ -31,6 +34,9 @@ seaweedfs:
     replicas: 1
     # Disable anti-affinity for single-node homelab
     affinity: ""
+    # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    podAnnotations:
+      otel.injected-by: kyverno/inject-otel-env-vars
     dataDirs:
       - name: data
         type: "persistentVolumeClaim"
@@ -54,6 +60,9 @@ seaweedfs:
     replicas: 1
     # Disable anti-affinity for single-node homelab
     affinity: ""
+    # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    podAnnotations:
+      otel.injected-by: kyverno/inject-otel-env-vars
     data:
       type: "persistentVolumeClaim"
       size: "5Gi"
@@ -73,6 +82,9 @@ seaweedfs:
     replicas: 1
     port: 8333
     enableAuth: false
+    # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    podAnnotations:
+      otel.injected-by: kyverno/inject-otel-env-vars
     resources:
       requests:
         cpu: 50m
