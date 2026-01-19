@@ -3,11 +3,15 @@
 
 nats:
   # Mark NATS port as opaque for Linkerd (binary protocol)
+  # Pin to node-4 which has SSD storage for high-volume streams
   podTemplate:
     merge:
       metadata:
         annotations:
           config.linkerd.io/opaque-ports: "4222"
+      spec:
+        nodeSelector:
+          kubernetes.io/hostname: node-4
 
   config:
     # Single-node cluster for homelab
@@ -26,6 +30,9 @@ nats:
           enabled: true
           size: 50Gi
           storageClassName: longhorn
+          # Single replica on node-4 (has most storage)
+          annotations:
+            numberOfReplicas: "1"
 
   # Container configuration
   container:
