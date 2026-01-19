@@ -894,7 +894,10 @@ export const Composer = forwardRef<ComposerRef, ComposerProps>(
       const textarea = textareaRef.current;
       if (textarea) {
         textarea.style.height = "auto";
-        const maxHeight = Math.floor(window.innerHeight * 0.8); // Up to 80% of viewport
+        // Use 40% on mobile (to account for keyboard), 80% on desktop
+        const isMobile = window.innerWidth < 768;
+        const maxHeightPercent = isMobile ? 0.4 : 0.8;
+        const maxHeight = Math.floor(window.innerHeight * maxHeightPercent);
         textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`;
       }
     };
