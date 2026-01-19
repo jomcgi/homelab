@@ -19,14 +19,14 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "latest@sha256:efc8c87841507ab1cb31ade9b302ada87f0f6cc53da817b3f636853019f67d15"
+    tag: "main@sha256:00280291c388e2cb4318da2533bb1b4c3a1af7b073584c20a68c3ea0060d3154"
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
 frontend:
   image:
-    tag: main@sha256:40054cf2473c30bf1b06e249a59d2446a140569385a50e10985585de2554ac2e
+    tag: latest@sha256:40054cf2473c30bf1b06e249a59d2446a140569385a50e10985585de2554ac2e
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
