@@ -10,17 +10,17 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-    tag: "2026.01.18.19.48.26-55ad3ef"
+    tag: "main@sha256:25d869b0be81ca6958db54e8c4f61382dbfb49e131e7e244f146dde1ae7c074b"
     pullPolicy: Always
 # Ships API component
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "main@sha256:962bf9519c16266bd577f38a2eb5dffdeb102d4d8cb070026e9f29725ccca255"
+    tag: "main@sha256:efc8c87841507ab1cb31ade9b302ada87f0f6cc53da817b3f636853019f67d15"
     pullPolicy: Always
 frontend:
   image:
-    tag: 2026.01.18.19.48.26-55ad3ef
+    tag: main@sha256:617285f2a046daeae0982bdc33890f6a173ec15e8cd2d274aeb09eb3b4072d74
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
