@@ -248,6 +248,7 @@ spec:
       
       annotations:
       
+        otel.injected-by: kyverno/inject-otel-env-vars
     spec:
       restartPolicy: Always
       
@@ -365,6 +366,7 @@ spec:
         app.kubernetes.io/instance: seaweedfs
         app.kubernetes.io/component: filer
       annotations:
+        otel.injected-by: kyverno/inject-otel-env-vars
         checksum/s3config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
     spec:
       restartPolicy: Always
@@ -534,6 +536,7 @@ spec:
       
       annotations:
       
+        otel.injected-by: kyverno/inject-otel-env-vars
     spec:
       restartPolicy: Always
       
@@ -680,6 +683,7 @@ spec:
       
       annotations:
       
+        otel.injected-by: kyverno/inject-otel-env-vars
     spec:
       restartPolicy: Always
       
@@ -832,7 +836,7 @@ stringData:
   user: "YourSWUser"
   password: "HardCodedPassword"
   # better to random generate and create in DB
-  # password: Y2M4M2U3MmM3MmUxNTFlNTQ2ODUyYjJl
+  # password: NWNjNGMwMWZhMmZhNTlmOWE5MzVlMGE5
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-resize-hook.yaml
 apiVersion: rbac.authorization.k8s.io/v1

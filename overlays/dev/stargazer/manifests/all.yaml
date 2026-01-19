@@ -240,6 +240,7 @@ spec:
   template:
     metadata:
       annotations:
+        otel.injected-by: kyverno/inject-otel-env-vars
       labels:
         app.kubernetes.io/name: stargazer
         app.kubernetes.io/instance: stargazer
@@ -324,7 +325,7 @@ metadata:
     app.kubernetes.io/version: "0.1.0"
     app.kubernetes.io/managed-by: Helm
 spec:
-  schedule: "0 */6 * * *"
+  schedule: "0,30 * * * *"
   concurrencyPolicy: Forbid
   successfulJobsHistoryLimit: 3
   failedJobsHistoryLimit: 3
@@ -339,6 +340,7 @@ spec:
             # Disable Linkerd sidecar injection - sidecars prevent Job completion
             # because they don't know when the main container finishes
             linkerd.io/inject: disabled
+            otel.injected-by: kyverno/inject-otel-env-vars
           labels:
             app.kubernetes.io/name: stargazer
             app.kubernetes.io/instance: stargazer
@@ -357,7 +359,7 @@ spec:
                 drop:
                 - ALL
               readOnlyRootFilesystem: false
-            image: "ghcr.io/jomcgi/homelab/services/stargazer:main@sha256:fca469dfd1fb77aeffa1a5dcea4be05e252da6051078ad1361cab8c422a45fd1"
+            image: "ghcr.io/jomcgi/homelab/services/stargazer:main@sha256:4f450c6f8d7101eec2f7675abaab93f4ead42b3040a7356e511a6e3583f578dd"
             imagePullPolicy: IfNotPresent
             # Use image entrypoint (Bazel binary with deps in runfiles)
             # NOT "python3 -m" which uses system Python without dependencies
