@@ -25,9 +25,11 @@ actions:
             exit 0
           fi
           # Only push images on main branch (not PRs)
-          # GITHUB_REF_NAME is set by BuildBuddy for GitHub webhook events
-          if [ "${GITHUB_REF_NAME:-}" != "main" ]; then
-            echo "Skipping image push for non-main branch: ${GITHUB_REF_NAME:-unknown}"
+          # BuildBuddy provides GIT_BRANCH or GITHUB_REF for branch detection
+          # workspace_status.sh will check multiple environment variables
+          branch="${GIT_BRANCH:-${GITHUB_REF_NAME:-}}"
+          if [ "${branch}" != "main" ] && [ "${branch}" != "refs/heads/main" ]; then
+            echo "Skipping image push for non-main branch: ${branch:-unknown}"
             exit 0
           fi
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
