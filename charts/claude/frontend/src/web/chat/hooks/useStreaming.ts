@@ -14,12 +14,14 @@ export function useStreaming(
   options: UseStreamingOptions,
 ) {
   const [isConnected, setIsConnected] = useState(false);
+  const [isReconnecting, setIsReconnecting] = useState(false);
   const [shouldReconnect, setShouldReconnect] = useState(true);
   const readerRef = useRef<ReadableStreamDefaultReader<Uint8Array> | null>(
     null,
   );
   const abortControllerRef = useRef<AbortController | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout>();
+  const reconnectAttemptsRef = useRef(0);
   const optionsRef = useRef(options);
 
   // Keep options ref up to date
@@ -27,8 +29,12 @@ export function useStreaming(
     optionsRef.current = options;
   }, [options]);
 
-  const disconnect = useCallback(() => {
-    setShouldReconnect(false); // Mark as intentional disconnect
+  const disconnect = useCallback((isIntentional = true) => {
+    if (isIntentional) {
+      setShouldReconnect(false); // Mark as intentional disconnect
+      reconnectAttemptsRef.current = 0; // Reset retry counter
+      clearTimeout(reconnectTimeoutRef.current);
+    }
 
     if (readerRef.current) {
       readerRef.current.cancel().catch(() => {});
@@ -46,6 +52,7 @@ export function useStreaming(
       }
       return false;
     });
+    setIsReconnecting(false);
   }, []);
 
   const connect = useCallback(async () => {
@@ -84,6 +91,8 @@ export function useStreaming(
       const reader = response.body.getReader();
       readerRef.current = reader;
       setIsConnected(true);
+      setIsReconnecting(false);
+      reconnectAttemptsRef.current = 0; // Reset on successful connection
       optionsRef.current.onConnect?.();
 
       const decoder = new TextDecoder();
@@ -124,22 +133,32 @@ export function useStreaming(
     } catch (error: any) {
       if (error.name !== "AbortError") {
         console.error("Stream error:", error);
-        optionsRef.current.onError?.(error);
+
+        // Only report transient errors to user, not reconnection attempts
+        if (reconnectAttemptsRef.current === 0) {
+          optionsRef.current.onError?.(error);
+        }
       }
     } finally {
       const wasIntentional = !shouldReconnect;
-      disconnect();
+      disconnect(false); // Don't reset reconnect state
 
       // Auto-reconnect if unintentional and page visible
       if (
         !wasIntentional &&
         document.visibilityState === "visible" &&
-        streamingId
+        streamingId &&
+        navigator.onLine // Check if browser is online
       ) {
+        reconnectAttemptsRef.current++;
+
+        // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
+        const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
+
+        setIsReconnecting(true);
         reconnectTimeoutRef.current = setTimeout(() => {
-          setShouldReconnect(true);
           connect();
-        }, 5000);
+        }, delay);
       }
     }
   }, [streamingId, disconnect]);
@@ -156,29 +175,53 @@ export function useStreaming(
     };
   }, [streamingId]); // Only depend on streamingId, not the callbacks
 
-  // Handle visibility change for reconnection
+  // Handle visibility change and online/offline for reconnection
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (
         document.visibilityState === "visible" &&
         !isConnected &&
         shouldReconnect &&
-        streamingId
+        streamingId &&
+        navigator.onLine
       ) {
         clearTimeout(reconnectTimeoutRef.current);
+        setIsReconnecting(true);
         connect();
       }
     };
 
+    const handleOnline = () => {
+      // Immediately try to reconnect when coming back online
+      if (!isConnected && shouldReconnect && streamingId) {
+        clearTimeout(reconnectTimeoutRef.current);
+        reconnectAttemptsRef.current = 0; // Reset attempts on network recovery
+        setIsReconnecting(true);
+        connect();
+      }
+    };
+
+    const handleOffline = () => {
+      // Clear any pending reconnection attempts when going offline
+      clearTimeout(reconnectTimeoutRef.current);
+      setIsReconnecting(false);
+    };
+
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
       clearTimeout(reconnectTimeoutRef.current);
     };
   }, [isConnected, shouldReconnect, streamingId, connect]);
 
   return {
     isConnected,
+    isReconnecting,
     connect,
     disconnect,
   };
