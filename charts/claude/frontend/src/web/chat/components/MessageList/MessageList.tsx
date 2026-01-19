@@ -24,10 +24,23 @@ export const MessageList: React.FC<MessageListProps> = ({
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Auto-scroll to bottom when messages change
+  // Auto-scroll to bottom when messages change, but only if user is already near bottom
   useEffect(() => {
     if (containerRef.current) {
-      containerRef.current.scrollTop = containerRef.current.scrollHeight;
+      const container = containerRef.current;
+      const scrollThreshold = 100; // px from bottom
+      const isNearBottom =
+        container.scrollHeight - container.scrollTop - container.clientHeight <=
+        scrollThreshold;
+
+      // Only auto-scroll if user is already near the bottom (following the conversation)
+      // or if this is the first message
+      if (isNearBottom || messages.length === 1) {
+        container.scrollTo({
+          top: container.scrollHeight,
+          behavior: "smooth",
+        });
+      }
     }
   }, [messages]);
 
@@ -70,7 +83,7 @@ export const MessageList: React.FC<MessageListProps> = ({
 
   return (
     <div className="flex-1 overflow-y-auto bg-background" ref={containerRef}>
-      <div className="flex flex-col py-6 pb-[140px] max-w-3xl mx-auto w-full box-border">
+      <div className="flex flex-col py-6 pb-[200px] max-w-3xl mx-auto w-full box-border">
         {messageGroups.map((group, groupIndex) => (
           <div
             key={`group-${groupIndex}`}
