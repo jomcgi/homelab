@@ -277,12 +277,28 @@
         }
 
         // Format time for display (in UK timezone since locations are in Scotland)
+        // Shows "HH:MM" for today, "Thu HH:MM" for other days
         function formatTimeShort(date) {
-            return date.toLocaleTimeString('en-GB', {
+            const timeStr = date.toLocaleTimeString('en-GB', {
                 hour: '2-digit',
                 minute: '2-digit',
                 timeZone: 'Europe/London'
             });
+
+            // Get today's date in UK timezone
+            const ukNow = new Date().toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
+            const ukDate = date.toLocaleDateString('en-GB', { timeZone: 'Europe/London' });
+
+            if (ukDate === ukNow) {
+                return timeStr;
+            }
+
+            // Show day name for other days
+            const dayName = date.toLocaleDateString('en-GB', {
+                weekday: 'short',
+                timeZone: 'Europe/London'
+            });
+            return `${dayName} ${timeStr}`;
         }
 
         // Map setup
