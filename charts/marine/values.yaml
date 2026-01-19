@@ -36,9 +36,9 @@ nats:
 # AISStream configuration (for ingest)
 aisstream:
   url: wss://stream.aisstream.io/v0/stream
-  # Pacific Northwest bounding box: BC/WA coast
-  # SW corner (46.876152, -129.552155) to NE corner (51.413769, -121.213531)
-  boundingBox: "[[[46.876152, -129.552155], [51.413769, -121.213531]]]"
+  # Global coverage - all vessels worldwide
+  # ~300 messages/second, ~10GB/day storage
+  boundingBox: "[[[-90, -180], [90, 180]]]"
 
 # Pod security context (shared)
 # Note: Running as root because aspect_rules_py venv needs to write
@@ -82,13 +82,14 @@ ingest:
     port: 8000
 
   # Resource limits
+  # Increased for global AIS coverage (~300 msg/sec)
   resources:
     requests:
-      cpu: 20m
-      memory: 64Mi
-    limits:
-      cpu: 200m
+      cpu: 100m
       memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
 
   # Pod annotations
   podAnnotations: {}
@@ -105,8 +106,16 @@ api:
     tag: "main"
     pullPolicy: IfNotPresent
 
-  # Can run multiple replicas for HA
-  replicas: 3
+  # Single replica required for SQLite (single-writer lock)
+  replicas: 1
+
+  # Persistent storage for SQLite database
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClassName: longhorn
+    # Path where the database is stored
+    mountPath: /data
 
   # Service configuration
   service:
@@ -118,13 +127,13 @@ api:
     origins: "http://localhost:3000"
 
   # Resource limits
-  # Note: No CPU limit to allow burst during stream replay
+  # Increased memory for larger SQLite operations
   resources:
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 100m
+      memory: 256Mi
     limits:
-      memory: 512Mi
+      memory: 1Gi
 
   # Pod annotations
   podAnnotations: {}
