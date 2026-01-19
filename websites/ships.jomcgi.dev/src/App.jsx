@@ -113,6 +113,25 @@ function trackToGeoJSON(track) {
   };
 }
 
+function selectedVesselToGeoJSON(vessel) {
+  if (!vessel || !vessel.lat || !vessel.lon) {
+    return { type: "FeatureCollection", features: [] };
+  }
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: {
+          type: "Point",
+          coordinates: [vessel.lon, vessel.lat],
+        },
+        properties: {},
+      },
+    ],
+  };
+}
+
 // Arrow SVG generator - scales with device pixel ratio for sharp rendering on high-DPI displays
 function createArrowSvg(size) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 32 32">
@@ -322,6 +341,40 @@ export default function App() {
         "vessels-anchored",
       );
 
+      // Selection indicator source and layer
+      map.current.addSource("selected-vessel", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.current.addLayer(
+        {
+          id: "selected-vessel-ring",
+          type: "circle",
+          source: "selected-vessel",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              5,
+              8,
+              8,
+              12,
+              12,
+              18,
+              16,
+              24,
+            ],
+            "circle-color": "transparent",
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#3b82f6",
+            "circle-stroke-opacity": 0.9,
+          },
+        },
+        "vessels-anchored",
+      );
+
       // Click handler for individual vessels
       const handleVesselClick = (e) => {
         if (e.features && e.features.length > 0) {
@@ -413,6 +466,16 @@ export default function App() {
       source.setData(trackToGeoJSON(selectedTrack));
     }
   }, [selectedTrack]);
+
+  // Update selection indicator when selected vessel changes
+  useEffect(() => {
+    if (!map.current) return;
+
+    const source = map.current.getSource("selected-vessel");
+    if (source) {
+      source.setData(selectedVesselToGeoJSON(selectedVessel));
+    }
+  }, [selectedVessel]);
 
   return (
     <div className="app">
