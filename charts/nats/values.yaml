@@ -1,5 +1,6 @@
 # NATS JetStream configuration for homelab
 # This is shared infrastructure for multiple projects
+# Storage isolation is enforced at the stream level (max_bytes per stream)
 
 nats:
   # Mark NATS port as opaque for Linkerd (binary protocol)
