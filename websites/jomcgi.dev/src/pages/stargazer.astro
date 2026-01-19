@@ -210,9 +210,14 @@
         <div class="header-title">STARGAZER
             <div class="header-tooltip">
                 <strong>DARK SKY FINDER</strong>
-                Locations scored by light pollution zone, road accessibility, and weather forecast.
-                Green markers indicate exceptional conditions (90+).
-                Data updates every 30 minutes from MET Norway.
+                Low light pollution locations scored by weather conditions:<br><br>
+                • Cloud cover (50%)<br>
+                • Humidity & dew risk (30%)<br>
+                • Wind & fog (20%)<br>
+                • High pressure bonus<br><br>
+                Green markers = exceptional (90+).<br>
+                Times shown in UK timezone.<br>
+                Updated every 30 min via MET Norway.
             </div>
         </div>
     </div>
@@ -271,9 +276,13 @@
             return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`;
         }
 
-        // Format time for display
+        // Format time for display (in UK timezone since locations are in Scotland)
         function formatTimeShort(date) {
-            return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleTimeString('en-GB', {
+                hour: '2-digit',
+                minute: '2-digit',
+                timeZone: 'Europe/London'
+            });
         }
 
         // Map setup
