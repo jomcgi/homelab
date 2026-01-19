@@ -26,7 +26,7 @@ api:
     otel.injected-by: kyverno/inject-otel-env-vars
 frontend:
   image:
-    tag: main@sha256:87c3b6024cff58c849e77903afc6a6563a6d3e263f1c019c11b70cb19e7d2fc7
+    tag: main@sha256:c63a28af085003e753869d22ef071e9c8837b7d75be00f8c1b016b623830df5b
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
