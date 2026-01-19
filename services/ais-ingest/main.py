@@ -116,16 +116,14 @@ class AISIngestService:
 
         try:
             await self.js.add_stream(stream_config)
-            logger.info("Created/updated 'ais' stream with 24h retention, 40GB max")
-        except Exception as e:
-            logger.error(f"Failed to create/update stream: {e}")
-            # Try to get existing stream info for debugging
-            try:
-                stream_info = await self.js.stream_info("ais")
-                logger.info(f"Existing stream config: {stream_info}")
-            except:
-                logger.info("No existing stream found")
-            raise
+            logger.info("Created 'ais' stream with 24h retention, 40GB max")
+        except nats.js.errors.BadRequestError as e:
+            if "already in use" in str(e):
+                # Stream exists with different config, update it
+                await self.js.update_stream(stream_config)
+                logger.info("Updated 'ais' stream with 24h retention, 40GB max")
+            else:
+                raise
 
     async def publish_position(self, mmsi: str, data: dict) -> None:
         """Publish a position report to NATS."""
