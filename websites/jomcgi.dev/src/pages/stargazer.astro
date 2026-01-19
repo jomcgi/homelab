@@ -7,12 +7,12 @@
     <link href='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.css' rel='stylesheet' />
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        
+
         body {
             font-family: 'Courier New', monospace;
             font-size: clamp(13px, 1vw, 16px);
-            background: #000;
-            color: #fff;
+            background: #fff;
+            color: #000;
             overflow: hidden;
         }
 
@@ -32,7 +32,7 @@
             z-index: 1000;
             font-size: clamp(11px, 0.9vw, 14px);
             letter-spacing: clamp(1px, 0.2vw, 3px);
-            color: #666;
+            color: #999;
             display: flex;
             align-items: center;
             gap: clamp(12px, 1.5vw, 24px);
@@ -41,137 +41,15 @@
         .header-title {
             display: inline-block;
             position: relative;
+            cursor: help;
         }
-
-        /* Filters - top right */
-        .filters {
-            position: fixed;
-            top: clamp(12px, 2vw, 24px);
-            right: clamp(12px, 2vw, 24px);
-            z-index: 1000;
-        }
-
-        .filter-btn {
-            background: #000;
-            border: 2px solid #666;
-            color: #888;
-            padding: clamp(6px, 0.6vw, 12px) clamp(12px, 1.2vw, 24px);
-            font-family: inherit;
-            font-size: clamp(10px, 0.8vw, 14px);
-            cursor: pointer;
-            transition: all 0.1s;
-            min-width: clamp(70px, 6vw, 100px);
-        }
-
-        .filter-btn:hover {
-            color: #fff;
-            border-color: #fff;
-        }
-
-        .filter-btn.active {
-            background: #fff;
-            color: #000;
-            border: 2px solid #fff;
-        }
-
-        /* Invert button - inline with header */
-        .invert-btn {
-            position: relative;
-            z-index: 1;
-            background: #000;
-            border: 2px solid #666;
-            color: #888;
-            padding: clamp(4px, 0.4vw, 8px) clamp(8px, 0.8vw, 16px);
-            font-family: inherit;
-            font-size: clamp(9px, 0.7vw, 12px);
-            cursor: pointer;
-            transition: all 0.1s;
-            letter-spacing: clamp(0.5px, 0.1vw, 2px);
-        }
-
-        .invert-btn:hover {
-            color: #fff;
-            border-color: #fff;
-        }
-
-        /* Inverted mode */
-        body.inverted {
-            background: #fff;
-        }
-
-        body.inverted .header {
-            color: #999;
-        }
-
-        body.inverted .filter-btn {
-            background: #fff;
-            border: 2px solid #999;
-            color: #666;
-        }
-
-        body.inverted .filter-btn:hover {
-            color: #000;
-            border-color: #000;
-        }
-
-        body.inverted .filter-btn.active {
-            background: #000;
-            color: #fff;
-            border: 2px solid #000;
-        }
-
-        body.inverted .invert-btn {
-            background: #fff;
-            border: 2px solid #999;
-            color: #666;
-        }
-
-        body.inverted .invert-btn:hover {
-            color: #000;
-            border-color: #000;
-        }
-
-        body.inverted .tooltip {
-            background: #fff;
-            border: 2px solid #000;
-        }
-
-        body.inverted .tooltip-coords a {
-            color: #666;
-            border-bottom-color: #ccc;
-        }
-
-        body.inverted .tooltip-coords a:hover {
-            color: #000;
-        }
-
-        body.inverted .tooltip-score-value {
-            color: #000;
-        }
-
-        body.inverted .tooltip-details {
-            color: #666;
-        }
-
-        body.inverted .tooltip-time {
-            color: #000;
-            border-top: 2px solid #ccc;
-        }
-
-        body.inverted .status {
-            color: #333;
-        }
-
-        body.inverted .score-exceptional { color: #090; }
-        body.inverted .score-good { color: #333; }
-        body.inverted .score-ok { color: #666; }
 
         /* Tooltip - follows mouse on hover */
         .tooltip {
             position: fixed;
             z-index: 1001;
-            background: #000;
-            border: 2px solid #fff;
+            background: #fff;
+            border: 2px solid #000;
             padding: clamp(12px, 1.2vw, 18px);
             pointer-events: auto;
             opacity: 0;
@@ -189,13 +67,13 @@
         }
 
         .tooltip-coords a {
-            color: #888;
+            color: #666;
             text-decoration: none;
-            border-bottom: 1px dashed #444;
+            border-bottom: 1px dashed #ccc;
         }
 
         .tooltip-coords a:hover {
-            color: #fff;
+            color: #000;
             border-bottom-color: #888;
         }
 
@@ -209,6 +87,7 @@
         .tooltip-score-value {
             font-size: clamp(20px, 1.8vw, 28px);
             font-weight: bold;
+            color: #000;
         }
 
         .tooltip-score-label {
@@ -218,29 +97,43 @@
 
         .tooltip-details {
             font-size: clamp(10px, 0.8vw, 13px);
-            color: #888;
+            color: #666;
             line-height: 1.6;
         }
 
-        .tooltip-time {
+        .tooltip-windows {
             margin-top: clamp(8px, 0.8vw, 12px);
             padding-top: clamp(8px, 0.8vw, 12px);
-            border-top: 2px solid #444;
-            color: #fff;
+            border-top: 2px solid #ccc;
+            color: #000;
+            font-size: clamp(10px, 0.8vw, 13px);
         }
 
-        /* Markers - now handled by MapLibre layer */
-        
-        /* Only exceptional spots get color - handled in layer paint */
-
-        .marker.exceptional:hover {
-            box-shadow: 0 0 16px #0f0;
+        .tooltip-windows-title {
+            font-size: clamp(9px, 0.7vw, 11px);
+            color: #666;
+            margin-bottom: clamp(4px, 0.4vw, 6px);
+            letter-spacing: 1px;
         }
 
-        /* Score color in tooltip */
-        .score-exceptional { color: #0f0; }
-        .score-good { color: #fff; }
-        .score-ok { color: #888; }
+        .tooltip-window {
+            display: flex;
+            justify-content: space-between;
+            padding: clamp(2px, 0.2vw, 4px) 0;
+        }
+
+        .tooltip-window-time {
+            color: #000;
+        }
+
+        .tooltip-window-score {
+            color: #666;
+        }
+
+        /* Score colors */
+        .score-exceptional { color: #090; }
+        .score-good { color: #333; }
+        .score-ok { color: #666; }
 
         /* Status - bottom left */
         .status {
@@ -249,39 +142,23 @@
             left: clamp(12px, 2vw, 24px);
             z-index: 1000;
             font-size: clamp(9px, 0.7vw, 12px);
-            color: #ccc;
+            color: #333;
         }
 
         #updated {
-            color: #fff;
-        }
-
-        body.inverted #updated {
             color: #000;
         }
 
         .attribution {
-            color: #666;
-        }
-
-        body.inverted .attribution {
             color: #999;
         }
 
         .status a {
-            color: #666;
+            color: #999;
             text-decoration: none;
         }
 
         .status a:hover {
-            color: #fff;
-        }
-
-        body.inverted .status a {
-            color: #999;
-        }
-
-        body.inverted .status a:hover {
             color: #000;
         }
 
@@ -291,11 +168,6 @@
         }
 
         /* Header tooltip */
-        .header-title {
-            position: relative;
-            cursor: help;
-        }
-
         .header-tooltip {
             position: absolute;
             top: 100%;
@@ -303,12 +175,12 @@
             margin-top: clamp(8px, 0.8vw, 16px);
             width: clamp(220px, 20vw, 320px);
             padding: clamp(12px, 1.2vw, 20px);
-            background: #000;
-            border: 2px solid #fff;
+            background: #fff;
+            border: 2px solid #000;
             font-size: clamp(10px, 0.8vw, 13px);
             line-height: 1.6;
             letter-spacing: 0;
-            color: #aaa;
+            color: #555;
             opacity: 0;
             visibility: hidden;
             pointer-events: none;
@@ -323,49 +195,15 @@
         }
 
         .header-tooltip strong {
-            color: #fff;
+            color: #000;
             display: block;
             margin-bottom: clamp(6px, 0.6vw, 10px);
             font-size: clamp(9px, 0.7vw, 12px);
             letter-spacing: clamp(0.5px, 0.1vw, 2px);
         }
-
-        body.inverted .header-tooltip {
-            background: #fff;
-            border-color: #000;
-            color: #555;
-        }
-
-        body.inverted .header-tooltip strong {
-            color: #000;
-        }
     </style>
-    <script>
-        // Theme: check localStorage first, then system preference
-        // Note: stargazer defaults to dark, so "inverted" = light mode
-        (function() {
-            const stored = localStorage.getItem('darkMode');
-            if (stored === 'false') {
-                // User explicitly chose light mode
-                document.documentElement.classList.add('light-pending');
-            } else if (stored === 'true') {
-                // User explicitly chose dark mode - stargazer default
-            } else if (!window.matchMedia('(prefers-color-scheme: dark)').matches) {
-                // No preference, system is light
-                document.documentElement.classList.add('light-pending');
-            }
-        })();
-    </script>
 </head>
 <body>
-    <script>
-        // Apply theme immediately to avoid flash
-        // Stargazer defaults to dark, so light-pending = inverted mode
-        if (document.documentElement.classList.contains('light-pending')) {
-            document.body.classList.add('inverted');
-            document.documentElement.classList.remove('light-pending');
-        }
-    </script>
     <div id="map"></div>
 
     <div class="header">
@@ -374,14 +212,9 @@
                 <strong>DARK SKY FINDER</strong>
                 Locations scored by light pollution zone, road accessibility, and weather forecast.
                 Green markers indicate exceptional conditions (90+).
-                Data updates hourly from MET Norway.
+                Data updates every 30 minutes from MET Norway.
             </div>
         </div>
-        <button class="invert-btn" id="invert-btn">INVERT</button>
-    </div>
-
-    <div class="filters">
-        <button class="filter-btn active" id="tonight-btn">TONIGHT</button>
     </div>
 
     <div class="tooltip" id="tooltip">
@@ -395,7 +228,10 @@
             <div>Cloud <span id="t-cloud">5%</span></div>
             <div>Wind <span id="t-wind">4.2 m/s</span></div>
         </div>
-        <div class="tooltip-time" id="t-time">Clear from 21:30</div>
+        <div class="tooltip-windows" id="t-windows">
+            <div class="tooltip-windows-title">CLEAR WINDOWS</div>
+            <div id="t-windows-list"></div>
+        </div>
     </div>
 
     <div class="status">
@@ -406,48 +242,11 @@
 
     <script src='https://unpkg.com/maplibre-gl@4.0.0/dist/maplibre-gl.js'></script>
     <script>
-        // Invert button - works independently of map
-        let mapInstance = null;
-        const darkTilesUrl = 'https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}@2x.png';
+        const API_URL = 'https://api.jomcgi.dev/stargazer/best';
+        const MIN_SCORE = 80;
         const lightTilesUrl = 'https://basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            const invertBtn = document.getElementById('invert-btn');
-            invertBtn.addEventListener('click', () => {
-                document.body.classList.toggle('inverted');
-                const isInverted = document.body.classList.contains('inverted');
-
-                // Swap tile source for map
-                if (mapInstance && mapInstance.getSource('carto')) {
-                    mapInstance.getSource('carto').setTiles([isInverted ? lightTilesUrl : darkTilesUrl]);
-                }
-
-                // Save preference - stargazer inverted = light mode = darkMode false
-                localStorage.setItem('darkMode', isInverted ? 'false' : 'true');
-            });
-
-            // Initialize map
-            init();
-        });
-
-        function init() {
-        const API_URL = 'https://api.jomcgi.dev/stargazer/best';
-        
-        // Demo data fallback
-        const demoLocations = [
-            { id: '1', lat: 56.6189, lon: -6.5572, zone: '0', score: 95, cloud: 5, wind: 4.2, time: 'Tonight 21:30' },
-            { id: '2', lat: 55.0833, lon: -4.5000, zone: '1a', score: 92, cloud: 8, wind: 2.8, time: 'Tonight 22:00' },
-            { id: '3', lat: 58.3500, lon: -4.7500, zone: '0', score: 88, cloud: 12, wind: 3.2, time: 'Tonight 22:30' },
-            { id: '4', lat: 57.0488, lon: -3.6106, zone: '1b', score: 87, cloud: 15, wind: 3.5, time: 'Tonight 23:00' },
-            { id: '5', lat: 57.6433, lon: -6.2653, zone: '1a', score: 78, cloud: 25, wind: 5.1, time: 'Tomorrow 02:00' },
-            { id: '6', lat: 56.8, lon: -5.1, zone: '1b', score: 72, cloud: 30, wind: 3.8, time: 'Tomorrow 01:00' },
-            { id: '7', lat: 55.5, lon: -5.5, zone: '2', score: 65, cloud: 35, wind: 4.5, time: 'Tomorrow 03:00' },
-            { id: '8', lat: 57.2, lon: -4.2, zone: '1a', score: 81, cloud: 18, wind: 2.9, time: 'Tonight 23:30' },
-        ];
-
         let locations = [];
-        let tonightOnly = true; // Default: show tonight only
-        const MIN_SCORE = 80; // Always show 80+ only
 
         const tooltip = document.getElementById('tooltip');
         const status = document.getElementById('status');
@@ -472,30 +271,37 @@
             return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`;
         }
 
-        // Format time
-        function formatTime(isoString) {
-            if (!isoString) return null;
-            const date = new Date(isoString);
+        // Check if a date is tonight (between now and 6am tomorrow)
+        function isTonight(date) {
             const now = new Date();
-            const tomorrow = new Date(now);
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            const timeStr = date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
-            if (date.toDateString() === now.toDateString()) return `Tonight ${timeStr}`;
-            if (date.toDateString() === tomorrow.toDateString()) return `Tomorrow ${timeStr}`;
-            return date.toLocaleDateString('en-GB', { weekday: 'short' }) + ` ${timeStr}`;
+            const tonight = new Date(now);
+            tonight.setHours(18, 0, 0, 0); // 6pm today
+
+            const tomorrowMorning = new Date(now);
+            tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
+            tomorrowMorning.setHours(6, 0, 0, 0); // 6am tomorrow
+
+            // If it's before 6pm, "tonight" starts at 6pm today
+            // If it's after 6pm, we're already in "tonight"
+            const windowStart = now < tonight ? tonight : now;
+
+            return date >= windowStart && date <= tomorrowMorning;
         }
 
-        // Map setup - check if starting in inverted mode
-        const startInverted = document.body.classList.contains('inverted');
+        // Format time for display
+        function formatTimeShort(date) {
+            return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
+        }
 
-        const map = mapInstance = new maplibregl.Map({
+        // Map setup
+        const map = new maplibregl.Map({
             container: 'map',
             style: {
                 version: 8,
                 sources: {
                     'carto': {
                         type: 'raster',
-                        tiles: [startInverted ? lightTilesUrl : darkTilesUrl],
+                        tiles: [lightTilesUrl],
                         tileSize: 256
                     }
                 },
@@ -514,7 +320,7 @@
 
         // Add markers using native MapLibre layer
         function renderMarkers() {
-            const filtered = locations.filter(loc => loc.score >= MIN_SCORE);
+            const filtered = locations.filter(loc => loc.score >= MIN_SCORE && loc.windows.length > 0);
             console.log('Rendering', filtered.length, 'markers');
 
             // Build GeoJSON
@@ -532,7 +338,7 @@
                         zone: loc.zone,
                         cloud: loc.cloud,
                         wind: loc.wind,
-                        time: loc.time,
+                        windows: JSON.stringify(loc.windows),
                         exceptional: loc.score >= 90
                     }
                 }))
@@ -561,10 +367,10 @@
                         ],
                         'circle-color': [
                             'case',
-                            ['>=', ['get', 'score'], 90], '#0f0',
-                            ['>=', ['get', 'score'], 80], '#8f0',
-                            ['>=', ['get', 'score'], 70], '#ff0',
-                            '#f80'
+                            ['>=', ['get', 'score'], 90], '#090',
+                            ['>=', ['get', 'score'], 80], '#4a0',
+                            ['>=', ['get', 'score'], 70], '#880',
+                            '#a50'
                         ],
                         'circle-stroke-width': 1,
                         'circle-stroke-color': '#fff',
@@ -580,7 +386,7 @@
                     filter: ['==', ['get', 'exceptional'], true],
                     paint: {
                         'circle-radius': 16,
-                        'circle-color': '#0f0',
+                        'circle-color': '#090',
                         'circle-opacity': 0.2,
                         'circle-blur': 1
                     }
@@ -588,7 +394,7 @@
 
                 // Set up hover handlers
                 let hideTimeout;
-                
+
                 map.on('mouseenter', 'locations-circle', (e) => {
                     clearTimeout(hideTimeout);
                     map.getCanvas().style.cursor = 'pointer';
@@ -597,20 +403,36 @@
                         const coords = e.features[0].geometry.coordinates;
                         const lat = coords[1];
                         const lon = coords[0];
-                        
+
                         const coordsEl = document.getElementById('t-coords');
                         coordsEl.textContent = formatCoords(lat, lon);
                         coordsEl.href = `https://www.google.com/maps?q=${lat},${lon}`;
-                        
+
                         const scoreEl = document.getElementById('t-score');
                         scoreEl.textContent = props.score;
-                        scoreEl.className = 'tooltip-score-value ' + 
+                        scoreEl.className = 'tooltip-score-value ' +
                             (props.score >= 90 ? 'score-exceptional' : props.score >= 75 ? 'score-good' : 'score-ok');
 
                         document.getElementById('t-zone').textContent = props.zone;
                         document.getElementById('t-cloud').textContent = props.cloud + '%';
                         document.getElementById('t-wind').textContent = props.wind + ' m/s';
-                        document.getElementById('t-time').textContent = props.time ? `Clear from ${props.time.split(' ').pop()}` : 'Check forecast';
+
+                        // Show windows
+                        const windows = JSON.parse(props.windows);
+                        const windowsEl = document.getElementById('t-windows');
+                        const windowsListEl = document.getElementById('t-windows-list');
+
+                        if (windows.length > 0) {
+                            windowsListEl.innerHTML = windows.map(w =>
+                                `<div class="tooltip-window">
+                                    <span class="tooltip-window-time">${w.time}</span>
+                                    <span class="tooltip-window-score">${w.score}</span>
+                                </div>`
+                            ).join('');
+                            windowsEl.style.display = 'block';
+                        } else {
+                            windowsEl.style.display = 'none';
+                        }
 
                         tooltip.classList.add('visible');
                     }
@@ -620,7 +442,7 @@
                     tooltip.style.left = (e.originalEvent.clientX + 16) + 'px';
                     tooltip.style.top = (e.originalEvent.clientY + 16) + 'px';
                 });
-                
+
                 map.on('mouseleave', 'locations-circle', () => {
                     map.getCanvas().style.cursor = '';
                     // Delay hiding so user can move to tooltip
@@ -642,16 +464,6 @@
             status.textContent = `${filtered.length} locations`;
         }
 
-        // Tonight toggle - simple on/off
-        const tonightBtn = document.getElementById('tonight-btn');
-        tonightBtn.addEventListener('click', () => {
-            tonightOnly = !tonightOnly;
-            tonightBtn.classList.toggle('active', tonightOnly);
-            tonightBtn.textContent = tonightOnly ? 'TONIGHT' : '72H';
-            // Would refetch with different time range in production
-            renderMarkers();
-        });
-
         // Fetch data
         async function fetchLocations() {
             try {
@@ -670,29 +482,46 @@
                             const lat = loc.coordinates?.lat;
                             const lon = loc.coordinates?.lon;
                             if (typeof lat !== 'number' || typeof lon !== 'number') return null;
-                            const best = loc.best_hours?.[0] || {};
+
+                            // Filter best_hours to tonight only
+                            const tonightHours = (loc.best_hours || [])
+                                .filter(h => {
+                                    if (!h.time) return false;
+                                    const date = new Date(h.time);
+                                    return isTonight(date) && h.score >= MIN_SCORE;
+                                })
+                                .sort((a, b) => b.score - a.score) // Sort by score descending
+                                .slice(0, 5); // Limit to top 5 windows
+
+                            if (tonightHours.length === 0) return null;
+
+                            // Use the best tonight hour for the main score
+                            const best = tonightHours[0];
+
                             return {
                                 id: loc.id,
                                 lat, lon,
                                 zone: loc.lp_zone || '?',
-                                score: Math.round(loc.best_score || 0),
+                                score: Math.round(best.score || 0),
                                 cloud: Math.round(best.cloud_area_fraction || 0),
                                 wind: best.wind_speed?.toFixed(1) || '?',
-                                time: formatTime(best.time)
+                                windows: tonightHours.map(h => ({
+                                    time: formatTimeShort(new Date(h.time)),
+                                    score: Math.round(h.score)
+                                }))
                             };
                         })
                         .filter(Boolean);
                 } else {
-                    locations = demoLocations;
+                    locations = [];
                 }
             } catch {
-                locations = demoLocations;
+                locations = [];
             }
             renderMarkers();
         }
 
         map.on('load', fetchLocations);
-        }
     </script>
 </body>
 </html>
