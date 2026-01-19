@@ -58,8 +58,9 @@ const (
 	// GatewayAnnotationAccountID stores the Cloudflare account ID
 	GatewayAnnotationAccountID = "gateway.cloudflare.io/account-id"
 
-	// DefaultCloudflaredImage is the default cloudflared image
-	DefaultCloudflaredImage = "cloudflare/cloudflared:latest"
+	// DefaultCloudflaredImage is the default cloudflared image with a pinned version
+	// Using a specific version ensures reliability and prevents Docker Hub rate limiting issues
+	DefaultCloudflaredImage = "cloudflare/cloudflared:2025.11.1"
 
 	// DefaultCloudflaredReplicas is the default number of cloudflared replicas
 	DefaultCloudflaredReplicas = 2
@@ -68,8 +69,9 @@ const (
 // GatewayReconciler reconciles a Gateway object
 type GatewayReconciler struct {
 	client.Client
-	Scheme *runtime.Scheme
-	tracer trace.Tracer
+	Scheme           *runtime.Scheme
+	tracer           trace.Tracer
+	CloudflaredImage string // Configurable cloudflared image
 }
 
 // +kubebuilder:rbac:groups=gateway.networking.k8s.io,resources=gateways,verbs=get;list;watch;update;patch
@@ -587,6 +589,14 @@ func (r *GatewayReconciler) ensureTunnelSecret(ctx context.Context, gateway *gat
 	return secretName, nil
 }
 
+// getCloudflaredImage returns the cloudflared image to use, either from configuration or default
+func (r *GatewayReconciler) getCloudflaredImage() string {
+	if r.CloudflaredImage != "" {
+		return r.CloudflaredImage
+	}
+	return DefaultCloudflaredImage
+}
+
 // ensureCloudflaredDeployment creates or updates the cloudflared daemon deployment
 func (r *GatewayReconciler) ensureCloudflaredDeployment(ctx context.Context, gateway *gatewayv1.Gateway, secretName string) (string, error) {
 	log := log.FromContext(ctx)
@@ -624,7 +634,7 @@ func (r *GatewayReconciler) ensureCloudflaredDeployment(ctx context.Context, gat
 					Containers: []corev1.Container{
 						{
 							Name:  "cloudflared",
-							Image: DefaultCloudflaredImage,
+							Image: r.getCloudflaredImage(),
 							Args: []string{
 								"tunnel",
 								"--no-autoupdate",

@@ -74,6 +74,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- if .Values.controllerManager.cloudflaredImage }}
+        - name: CLOUDFLARED_IMAGE
+          value: {{ .Values.controllerManager.cloudflaredImage | quote }}
+        {{- end }}
         {{- if .Values.controllerManager.tracing.endpoint }}
         # OpenTelemetry standard environment variables
         - name: OTEL_EXPORTER_OTLP_ENDPOINT

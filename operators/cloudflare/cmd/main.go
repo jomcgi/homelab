@@ -289,9 +289,16 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Get cloudflared image from environment variable if set
+	cloudflaredImage := os.Getenv("CLOUDFLARED_IMAGE")
+	if cloudflaredImage != "" {
+		setupLog.Info("using custom cloudflared image", "image", cloudflaredImage)
+	}
+
 	if err := (&controller.GatewayReconciler{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
+		Client:           mgr.GetClient(),
+		Scheme:           mgr.GetScheme(),
+		CloudflaredImage: cloudflaredImage,
 	}).SetupWithManager(mgr); err != nil {
 		setupLog.Error(err, "unable to create controller", "controller", "Gateway")
 		os.Exit(1)
