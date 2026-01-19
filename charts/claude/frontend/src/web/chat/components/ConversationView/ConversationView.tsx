@@ -195,17 +195,20 @@ export function ConversationView() {
     loadConversation();
   }, [sessionId, setAllMessages]);
 
-  const { isConnected, isReconnecting, disconnect } = useStreaming(streamingId, {
-    onMessage: handleStreamMessage,
-    onError: (err) => {
-      // Show error but DON'T clear streamingId - let auto-reconnect handle it
-      console.error("Streaming error:", err);
-      // Only show persistent errors, not transient network issues
-      if (!err.message.includes("Failed to fetch")) {
-        setError(err.message);
-      }
+  const { isConnected, isReconnecting, disconnect } = useStreaming(
+    streamingId,
+    {
+      onMessage: handleStreamMessage,
+      onError: (err) => {
+        // Show error but DON'T clear streamingId - let auto-reconnect handle it
+        console.error("Streaming error:", err);
+        // Only show persistent errors, not transient network issues
+        if (!err.message.includes("Failed to fetch")) {
+          setError(err.message);
+        }
+      },
     },
-  });
+  );
 
   const handleSendMessage = async (
     message: string,
@@ -459,7 +462,7 @@ export function ConversationView() {
 
       <div
         className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm z-10 w-full flex justify-center px-2 pb-6"
-        style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
+        style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom))" }}
         aria-label="Message composer section"
       >
         <div className="w-full max-w-3xl">

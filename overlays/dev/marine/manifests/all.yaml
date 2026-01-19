@@ -124,7 +124,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:2026.01.18.19.48.26-55ad3ef"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:latest@sha256:efc8c87841507ab1cb31ade9b302ada87f0f6cc53da817b3f636853019f67d15"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -211,7 +211,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:2026.01.18.19.48.26-55ad3ef"
+          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:main@sha256:f4a098089718a696512175b896954e7b5b703a1583e68126584f7bb617c1f334"
           imagePullPolicy: IfNotPresent
           securityContext:
             readOnlyRootFilesystem: false
@@ -229,7 +229,7 @@ spec:
             - name: API_URL
               value: "http://marine-api:8000"
             - name: PUBLIC_DIR
-              value: /app/public
+              value: /app/public/websites/ships.jomcgi.dev/dist
           livenessProbe:
             httpGet:
               path: /health
@@ -251,12 +251,6 @@ spec:
             requests:
               cpu: 10m
               memory: 64Mi
-          volumeMounts:
-            - name: public
-              mountPath: /app/public
-      volumes:
-        - name: public
-          emptyDir: {}
 ---
 # Source: marine/templates/ingest-deployment.yaml
 apiVersion: apps/v1
@@ -295,7 +289,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:2026.01.18.19.48.26-55ad3ef"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest@sha256:25d869b0be81ca6958db54e8c4f61382dbfb49e131e7e244f146dde1ae7c074b"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
