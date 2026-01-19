@@ -206,7 +206,9 @@ def output_best_locations(settings: Settings) -> Path:
     min_display_score = 80
     ranked = []
     for point_id, data in scored_data.items():
-        best_hours = [h for h in data["scored_hours"] if h["score"] >= min_display_score]
+        best_hours = [
+            h for h in data["scored_hours"] if h["score"] >= min_display_score
+        ]
         if best_hours:
             ranked.append(
                 {

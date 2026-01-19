@@ -153,7 +153,10 @@ export function useStreaming(
         reconnectAttemptsRef.current++;
 
         // Exponential backoff: 2s, 4s, 8s, 16s, max 30s
-        const delay = Math.min(2000 * Math.pow(2, reconnectAttemptsRef.current - 1), 30000);
+        const delay = Math.min(
+          2000 * Math.pow(2, reconnectAttemptsRef.current - 1),
+          30000,
+        );
 
         setIsReconnecting(true);
         reconnectTimeoutRef.current = setTimeout(() => {
