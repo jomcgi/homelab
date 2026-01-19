@@ -42,12 +42,12 @@ export interface RepoSyncStatus {
  * Replaces the git-sync sidecar with simpler custom logic that:
  * - Clones the repo on startup if not present
  * - Runs `git fetch origin` periodically to keep refs fresh
+ * - Auto-pulls with rebase when new commits are available
  * - Allows worktrees to be created without interference
  *
- * Unlike git-sync, this service:
- * - Does NOT use worktrees internally for sync
- * - Does NOT reset the working directory
- * - Only fetches to update remote refs
+ * The auto-pull uses `git pull --rebase` to keep the working directory
+ * up to date with the remote branch. Agents working in worktrees can
+ * handle any conflicts or rebasing as needed.
  */
 export class RepoSyncService {
   private logger: Logger;
@@ -507,18 +507,51 @@ export class RepoSyncService {
       status.lastFetchError = undefined;
       status.consecutiveFailures = 0; // Reset on success
 
-      // Log sync status
+      // Handle sync status and auto-pull if needed
       if (!status.localHead) {
         this.logger.warn("Repository has no local HEAD", {
           localPath: config.localPath,
           remoteHead: status.remoteHead.substring(0, 8),
         });
       } else if (status.localHead !== status.remoteHead) {
-        this.logger.info("Repository has new commits available", {
+        this.logger.info("New commits available, pulling with rebase", {
           localPath: config.localPath,
           localHead: status.localHead.substring(0, 8),
           remoteHead: status.remoteHead.substring(0, 8),
         });
+
+        // Auto-pull with rebase to update the working directory
+        await this.pullRepo(config);
+
+        // Update local HEAD after pull
+        const newLocalResult = await execAsync("git rev-parse HEAD", {
+          cwd: config.localPath,
+        });
+        status.localHead = newLocalResult.stdout.trim();
+
+        if (status.localHead === status.remoteHead) {
+          this.logger.info("Repository successfully updated", {
+            localPath: config.localPath,
+            head: status.localHead.substring(0, 8),
+          });
+        } else {
+          // Local has commits ahead of remote after rebase - push them
+          this.logger.info(
+            "Local branch ahead of remote after rebase, pushing",
+            {
+              localPath: config.localPath,
+              localHead: status.localHead.substring(0, 8),
+              remoteHead: status.remoteHead.substring(0, 8),
+            },
+          );
+
+          await this.pushRepo(config);
+
+          this.logger.info("Successfully pushed rebased commits", {
+            localPath: config.localPath,
+            head: status.localHead.substring(0, 8),
+          });
+        }
       } else {
         this.logger.debug("Repository is up to date", {
           localPath: config.localPath,
@@ -540,6 +573,120 @@ export class RepoSyncService {
       }
     } finally {
       status.isSyncing = false;
+    }
+  }
+
+  /**
+   * Pull changes from remote with rebase
+   */
+  private async pullRepo(config: RepoSyncConfig): Promise<void> {
+    this.logger.debug("Pulling from remote with rebase", {
+      localPath: config.localPath,
+      branch: config.branch,
+    });
+
+    // Temporarily set authenticated URL for pull, then restore original
+    const authUrl = this.getAuthenticatedUrl(config.url);
+    const needsAuth = authUrl !== config.url;
+
+    if (needsAuth) {
+      await execAsync(`git remote set-url origin "${authUrl}"`, {
+        cwd: config.localPath,
+      });
+    }
+
+    try {
+      // Pull with rebase to keep history clean
+      await execAsync(`git pull --rebase origin ${config.branch}`, {
+        cwd: config.localPath,
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: "0",
+        },
+      });
+    } catch (pullError) {
+      // If rebase fails due to conflicts, abort and try a regular pull
+      this.logger.warn(
+        "Pull with rebase failed, attempting to abort and retry with merge",
+        {
+          localPath: config.localPath,
+          error:
+            pullError instanceof Error ? pullError.message : String(pullError),
+        },
+      );
+
+      // Try to abort any in-progress rebase
+      try {
+        await execAsync("git rebase --abort", {
+          cwd: config.localPath,
+        });
+      } catch {
+        // Ignore if no rebase in progress
+      }
+
+      // Try a regular pull (merge strategy)
+      try {
+        await execAsync(`git pull origin ${config.branch}`, {
+          cwd: config.localPath,
+          env: {
+            ...process.env,
+            GIT_TERMINAL_PROMPT: "0",
+          },
+        });
+        this.logger.info("Successfully pulled with merge strategy", {
+          localPath: config.localPath,
+        });
+      } catch (mergeError) {
+        this.logger.error("Pull with merge also failed", mergeError, {
+          localPath: config.localPath,
+        });
+        throw mergeError;
+      }
+    } finally {
+      // Always restore the original URL (without credentials)
+      if (needsAuth) {
+        await execAsync(`git remote set-url origin "${config.url}"`, {
+          cwd: config.localPath,
+        });
+      }
+    }
+  }
+
+  /**
+   * Push local commits to remote (no force push)
+   */
+  private async pushRepo(config: RepoSyncConfig): Promise<void> {
+    this.logger.debug("Pushing to remote", {
+      localPath: config.localPath,
+      branch: config.branch,
+    });
+
+    // Temporarily set authenticated URL for push, then restore original
+    const authUrl = this.getAuthenticatedUrl(config.url);
+    const needsAuth = authUrl !== config.url;
+
+    if (needsAuth) {
+      await execAsync(`git remote set-url origin "${authUrl}"`, {
+        cwd: config.localPath,
+      });
+    }
+
+    try {
+      // Push without --force to preserve history
+      await execAsync(`git push origin ${config.branch}`, {
+        cwd: config.localPath,
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: "0",
+        },
+      });
+    } finally {
+      // Always restore the original URL (without credentials)
+      if (needsAuth) {
+        await execAsync(`git remote set-url origin "${config.url}"`, {
+          cwd: config.localPath,
+        });
+      }
     }
   }
 
