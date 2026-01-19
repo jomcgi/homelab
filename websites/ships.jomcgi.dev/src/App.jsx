@@ -94,6 +94,25 @@ function vesselsToGeoJSON(vessels) {
   };
 }
 
+function trackToGeoJSON(track) {
+  if (!track || track.length < 2) {
+    return { type: "FeatureCollection", features: [] };
+  }
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        geometry: {
+          type: "LineString",
+          coordinates: track.map((p) => [p.lon, p.lat]),
+        },
+        properties: {},
+      },
+    ],
+  };
+}
+
 // Arrow SVG generator - scales with device pixel ratio for sharp rendering on high-DPI displays
 function createArrowSvg(size) {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 32 32">
@@ -118,6 +137,7 @@ export default function App() {
 
   const [vessels, setVessels] = useState({});
   const [selectedMmsi, setSelectedMmsi] = useState(null);
+  const [selectedTrack, setSelectedTrack] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState("disconnected");
   const [stats, setStats] = useState({ vessels: 0 });
 
@@ -332,6 +352,26 @@ export default function App() {
         },
       });
 
+      // Vessel track line source and layer
+      map.current.addSource("vessel-track", {
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+
+      map.current.addLayer(
+        {
+          id: "vessel-track-line",
+          type: "line",
+          source: "vessel-track",
+          paint: {
+            "line-color": "#22c55e",
+            "line-width": 3,
+            "line-opacity": 0.8,
+          },
+        },
+        "vessels-anchored",
+      );
+
       // Click handler for individual vessels
       const handleVesselClick = (e) => {
         if (e.features && e.features.length > 0) {
@@ -343,20 +383,26 @@ export default function App() {
       map.current.on("click", "vessels-anchored", handleVesselClick);
       map.current.on("click", "vessels-moving", handleVesselClick);
 
-      // Click handler for clusters - zoom to expansion level
+      // Click handler for clusters - zoom to bounding box of all ships in cluster
       map.current.on("click", "vessel-clusters", (e) => {
         const feature = e.features[0];
         if (!feature) return;
 
         const clusterId = feature.properties.cluster_id;
-        const coordinates = feature.geometry.coordinates;
+        const pointCount = feature.properties.point_count;
         const source = map.current.getSource("vessels");
 
-        source.getClusterExpansionZoom(clusterId, (err, zoom) => {
-          if (err) return;
-          map.current.easeTo({
-            center: coordinates,
-            zoom: zoom,
+        source.getClusterLeaves(clusterId, pointCount, 0, (err, leaves) => {
+          if (err || !leaves || leaves.length === 0) return;
+
+          const bounds = new maplibregl.LngLatBounds();
+          leaves.forEach((leaf) => {
+            bounds.extend(leaf.geometry.coordinates);
+          });
+
+          map.current.fitBounds(bounds, {
+            padding: 50,
+            maxZoom: 14,
           });
         });
       });
@@ -406,6 +452,43 @@ export default function App() {
 
     setStats({ vessels: Object.keys(vessels).length });
   }, [vessels]);
+
+  // Fetch track when vessel is selected
+  useEffect(() => {
+    if (!selectedMmsi) {
+      setSelectedTrack(null);
+      return;
+    }
+
+    const fetchTrack = async () => {
+      try {
+        const response = await fetch(
+          `/api/vessels/${selectedMmsi}/track?since=24h&limit=1000`,
+        );
+        if (response.ok) {
+          const data = await response.json();
+          setSelectedTrack(data);
+        } else {
+          setSelectedTrack(null);
+        }
+      } catch (e) {
+        console.error("Failed to fetch track:", e);
+        setSelectedTrack(null);
+      }
+    };
+
+    fetchTrack();
+  }, [selectedMmsi]);
+
+  // Update track source when track data changes
+  useEffect(() => {
+    if (!map.current) return;
+
+    const source = map.current.getSource("vessel-track");
+    if (source) {
+      source.setData(trackToGeoJSON(selectedTrack));
+    }
+  }, [selectedTrack]);
 
   return (
     <div className="app">
