@@ -21,6 +21,13 @@ api:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
     tag: "latest@sha256:00280291c388e2cb4318da2533bb1b4c3a1af7b073584c20a68c3ea0060d3154"
     pullPolicy: Always
+  # Overprovisioned for catchup - reduce after caught up
+  resources:
+    requests:
+      cpu: 1
+      memory: 1Gi
+    limits:
+      memory: 10Gi
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
