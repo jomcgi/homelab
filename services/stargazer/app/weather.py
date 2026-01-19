@@ -3,7 +3,7 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import geopandas as gpd
@@ -15,7 +15,6 @@ from services.stargazer.app.config import Settings
 from services.stargazer.app.scoring import (
     WeatherData,
     calculate_astronomy_score,
-    is_dark_enough,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,17 +45,12 @@ async def fetch_all_forecasts(settings: Settings) -> Path:
     """
     Fetch forecasts for all sample points with rate limiting.
 
-    Respects MET Norway rate limits and caches responses.
+    Always fetches fresh data - cron schedule controls refresh frequency.
     """
     points_path = settings.processed_dir / "sample_points_enriched.geojson"
     output_path = settings.output_dir / "forecasts_raw.json"
 
-    if output_path.exists():
-        logger.info(f"Skipping forecast fetch, file exists: {output_path}")
-        return output_path
-
     settings.output_dir.mkdir(parents=True, exist_ok=True)
-    settings.cache_dir.mkdir(parents=True, exist_ok=True)
 
     points = gpd.read_file(points_path)
     logger.info(f"Fetching forecasts for {len(points)} locations...")
@@ -67,12 +61,6 @@ async def fetch_all_forecasts(settings: Settings) -> Path:
     async def fetch_with_limit(row):
         async with semaphore:
             point_id = row["id"]
-            cache_file = settings.cache_dir / f"{point_id}.json"
-
-            # Check cache
-            if cache_file.exists():
-                with open(cache_file) as f:
-                    return point_id, json.load(f)
 
             async with httpx.AsyncClient(timeout=30) as client:
                 forecast = await fetch_forecast(
@@ -82,10 +70,6 @@ async def fetch_all_forecasts(settings: Settings) -> Path:
                     client=client,
                     settings=settings,
                 )
-
-            if forecast:
-                with open(cache_file, "w") as f:
-                    json.dump(forecast, f)
 
             # Rate limiting delay
             await asyncio.sleep(1.0 / settings.met_norway_rate_limit)
@@ -116,10 +100,6 @@ def score_locations(settings: Settings) -> Path:
     forecasts_path = settings.output_dir / "forecasts_raw.json"
     points_path = settings.processed_dir / "sample_points_enriched.geojson"
     output_path = settings.output_dir / "forecasts_scored.json"
-
-    if output_path.exists():
-        logger.info(f"Skipping scoring, file exists: {output_path}")
-        return output_path
 
     with open(forecasts_path) as f:
         forecasts = json.load(f)
@@ -214,7 +194,7 @@ def output_best_locations(settings: Settings) -> Path:
     """
     Produce final ranked list of best viewing opportunities.
 
-    Filters to score >= 70, sorts by best score, limits to top 20.
+    Returns all locations with score >= 80, sorted by best score.
     """
     scored_path = settings.output_dir / "forecasts_scored.json"
     output_path = settings.output_dir / "best_locations.json"
@@ -222,10 +202,11 @@ def output_best_locations(settings: Settings) -> Path:
     with open(scored_path) as f:
         scored_data = json.load(f)
 
-    # Rank by best score
+    # Filter to locations with best_score >= 80 (matches frontend MIN_SCORE)
+    min_display_score = 80
     ranked = []
     for point_id, data in scored_data.items():
-        best_hours = [h for h in data["scored_hours"] if h["score"] >= 70]
+        best_hours = [h for h in data["scored_hours"] if h["score"] >= min_display_score]
         if best_hours:
             ranked.append(
                 {
@@ -238,12 +219,11 @@ def output_best_locations(settings: Settings) -> Path:
                 }
             )
 
-    # Sort by best score, take top 20
+    # Sort by best score
     ranked.sort(key=lambda x: x["best_score"], reverse=True)
-    top_locations = ranked[:20]
 
     with open(output_path, "w") as f:
-        json.dump(top_locations, f, indent=2)
+        json.dump(ranked, f, indent=2)
 
-    logger.info(f"Output {len(top_locations)} best locations: {output_path}")
+    logger.info(f"Output {len(ranked)} best locations: {output_path}")
     return output_path
