@@ -103,18 +103,20 @@ class AISIngestService:
         logger.info("Connected to NATS")
 
         # Create or update the AIS stream (add_stream is idempotent if config matches)
+        # Storage limits: 40GB max, 24h retention, whichever is hit first
         stream_config = StreamConfig(
             name="ais",
             subjects=["ais.>"],
             max_age=timedelta(hours=24).total_seconds(),  # seconds, not nanoseconds
+            max_bytes=40 * 1024 * 1024 * 1024,  # 40GB hard limit
             storage=StorageType.FILE,
             discard=DiscardPolicy.OLD,
-            description="AIS position reports from AISStream.io",
+            description="AIS position reports from AISStream.io (global coverage)",
         )
 
         try:
             await self.js.add_stream(stream_config)
-            logger.info("Created/updated 'ais' stream with 24h retention")
+            logger.info("Created/updated 'ais' stream with 24h retention, 40GB max")
         except Exception as e:
             logger.error(f"Failed to create/update stream: {e}")
             # Try to get existing stream info for debugging
