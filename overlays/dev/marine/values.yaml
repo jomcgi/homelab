@@ -16,11 +16,11 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "main@sha256:efc8c87841507ab1cb31ade9b302ada87f0f6cc53da817b3f636853019f67d15"
+    tag: "latest@sha256:efc8c87841507ab1cb31ade9b302ada87f0f6cc53da817b3f636853019f67d15"
     pullPolicy: Always
 frontend:
   image:
-    tag: latest@sha256:617285f2a046daeae0982bdc33890f6a173ec15e8cd2d274aeb09eb3b4072d74
+    tag: main@sha256:f4a098089718a696512175b896954e7b5b703a1583e68126584f7bb617c1f334
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
