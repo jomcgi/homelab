@@ -4,15 +4,17 @@ Ships API Service
 Serves AIS vessel data via REST API and WebSocket.
 - Replays NATS JetStream on startup to build SQLite database
 - Subscribes to live updates and broadcasts to WebSocket clients
-- Stores full vessel metadata and position history
+- Stores full vessel metadata and position history (7-day retention)
+- Deduplicates positions for stationary vessels
 """
 
 import asyncio
 import json
 import logging
+import math
 import os
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import aiosqlite
@@ -32,6 +34,19 @@ logger = logging.getLogger(__name__)
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
 DB_PATH = os.getenv("DB_PATH", "/tmp/ships.db")
+
+# Position retention (days)
+POSITION_RETENTION_DAYS = int(os.getenv("POSITION_RETENTION_DAYS", "7"))
+
+# Deduplication settings
+# Skip position if within this distance (meters) and speed below threshold
+DEDUP_DISTANCE_METERS = float(os.getenv("DEDUP_DISTANCE_METERS", "100"))
+DEDUP_SPEED_THRESHOLD = float(os.getenv("DEDUP_SPEED_THRESHOLD", "0.5"))  # knots
+DEDUP_TIME_THRESHOLD = int(os.getenv("DEDUP_TIME_THRESHOLD", "300"))  # seconds
+
+# Moored detection settings
+MOORED_RADIUS_METERS = float(os.getenv("MOORED_RADIUS_METERS", "500"))
+MOORED_MIN_DURATION_HOURS = float(os.getenv("MOORED_MIN_DURATION_HOURS", "1"))
 
 # SQL Schema
 SCHEMA = """
@@ -53,7 +68,7 @@ CREATE TABLE IF NOT EXISTS vessels (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Position history (append-only)
+-- Position history (append-only, 7-day retention)
 CREATE TABLE IF NOT EXISTS positions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     mmsi TEXT NOT NULL,
@@ -70,14 +85,51 @@ CREATE TABLE IF NOT EXISTS positions (
     received_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Latest position cache for fast lookups and deduplication
+CREATE TABLE IF NOT EXISTS latest_positions (
+    mmsi TEXT PRIMARY KEY,
+    lat REAL NOT NULL,
+    lon REAL NOT NULL,
+    speed REAL,
+    course REAL,
+    heading INTEGER,
+    nav_status INTEGER,
+    ship_name TEXT,
+    timestamp TEXT NOT NULL,
+    first_seen_at_location TEXT,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Index for efficient latest position and track queries
 CREATE INDEX IF NOT EXISTS idx_positions_mmsi_timestamp
 ON positions(mmsi, timestamp DESC);
 
--- Index for time-based queries
+-- Index for time-based queries and cleanup
 CREATE INDEX IF NOT EXISTS idx_positions_timestamp
 ON positions(timestamp DESC);
+
+-- Index for retention cleanup
+CREATE INDEX IF NOT EXISTS idx_positions_received_at
+ON positions(received_at);
 """
+
+
+def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    """Calculate distance between two points in meters using Haversine formula."""
+    R = 6371000  # Earth's radius in meters
+
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    delta_phi = math.radians(lat2 - lat1)
+    delta_lambda = math.radians(lon2 - lon1)
+
+    a = (
+        math.sin(delta_phi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(delta_lambda / 2) ** 2
+    )
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+    return R * c
 
 
 class Database:
@@ -98,6 +150,8 @@ class Database:
         # Enable WAL mode for better concurrent performance
         await self.db.execute("PRAGMA journal_mode=WAL")
         await self.db.execute("PRAGMA synchronous=NORMAL")
+        # Increase cache for better performance with large datasets
+        await self.db.execute("PRAGMA cache_size=-64000")  # 64MB cache
 
         # Create schema
         await self.db.executescript(SCHEMA)
@@ -109,8 +163,66 @@ class Database:
         if self.db:
             await self.db.close()
 
-    async def insert_position(self, data: dict) -> None:
-        """Insert a position record."""
+    async def get_latest_position(self, mmsi: str) -> dict | None:
+        """Get cached latest position for deduplication."""
+        cursor = await self.db.execute(
+            "SELECT * FROM latest_positions WHERE mmsi = ?",
+            (mmsi,),
+        )
+        row = await cursor.fetchone()
+        return dict(row) if row else None
+
+    async def should_insert_position(self, data: dict) -> bool:
+        """Check if position should be inserted (deduplication logic)."""
+        mmsi = data.get("mmsi")
+        if not mmsi:
+            return False
+
+        last = await self.get_latest_position(mmsi)
+        if not last:
+            return True  # First position for this vessel
+
+        # Always insert if speed is above threshold (vessel is moving)
+        speed = data.get("speed") or 0
+        if speed > DEDUP_SPEED_THRESHOLD:
+            return True
+
+        # Calculate distance from last position
+        distance = haversine_distance(
+            last["lat"], last["lon"], data.get("lat", 0), data.get("lon", 0)
+        )
+
+        # Insert if moved more than threshold
+        if distance > DEDUP_DISTANCE_METERS:
+            return True
+
+        # Check time since last update
+        try:
+            last_ts = datetime.fromisoformat(last["timestamp"].replace("Z", "+00:00"))
+            new_ts = datetime.fromisoformat(
+                data.get("timestamp", "").replace("Z", "+00:00")
+            )
+            time_diff = (new_ts - last_ts).total_seconds()
+
+            # Insert if enough time has passed (even for stationary vessels)
+            if time_diff > DEDUP_TIME_THRESHOLD:
+                return True
+        except (ValueError, TypeError):
+            return True  # Insert if timestamp parsing fails
+
+        return False
+
+    async def insert_position(self, data: dict) -> bool:
+        """Insert a position record if not duplicate. Returns True if inserted."""
+        if not await self.should_insert_position(data):
+            return False
+
+        mmsi = data.get("mmsi")
+        lat = data.get("lat")
+        lon = data.get("lon")
+        timestamp = data.get("timestamp")
+
+        # Insert into positions history
         await self.db.execute(
             """
             INSERT INTO positions (
@@ -120,9 +232,9 @@ class Database:
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                data.get("mmsi"),
-                data.get("lat"),
-                data.get("lon"),
+                mmsi,
+                lat,
+                lon,
                 data.get("speed"),
                 data.get("course"),
                 data.get("heading"),
@@ -130,9 +242,54 @@ class Database:
                 data.get("rate_of_turn"),
                 data.get("position_accuracy"),
                 data.get("ship_name"),
-                data.get("timestamp"),
+                timestamp,
             ),
         )
+
+        # Update latest position cache
+        # Check if vessel has moved significantly to reset first_seen_at_location
+        last = await self.get_latest_position(mmsi)
+        first_seen = timestamp
+
+        if last:
+            distance = haversine_distance(last["lat"], last["lon"], lat, lon)
+            if distance <= MOORED_RADIUS_METERS:
+                # Still in same area, keep original first_seen time
+                first_seen = last.get("first_seen_at_location") or timestamp
+
+        await self.db.execute(
+            """
+            INSERT INTO latest_positions (
+                mmsi, lat, lon, speed, course, heading, nav_status,
+                ship_name, timestamp, first_seen_at_location, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(mmsi) DO UPDATE SET
+                lat = excluded.lat,
+                lon = excluded.lon,
+                speed = excluded.speed,
+                course = excluded.course,
+                heading = excluded.heading,
+                nav_status = excluded.nav_status,
+                ship_name = COALESCE(excluded.ship_name, latest_positions.ship_name),
+                timestamp = excluded.timestamp,
+                first_seen_at_location = excluded.first_seen_at_location,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (
+                mmsi,
+                lat,
+                lon,
+                data.get("speed"),
+                data.get("course"),
+                data.get("heading"),
+                data.get("nav_status"),
+                data.get("ship_name"),
+                timestamp,
+                first_seen,
+            ),
+        )
+
+        return True
 
     async def upsert_vessel(self, data: dict) -> None:
         """Insert or update vessel metadata."""
@@ -177,50 +334,90 @@ class Database:
         """Commit pending changes."""
         await self.db.commit()
 
+    async def cleanup_old_positions(self) -> int:
+        """Delete positions older than retention period. Returns count deleted."""
+        cutoff = (
+            datetime.now(timezone.utc) - timedelta(days=POSITION_RETENTION_DAYS)
+        ).isoformat()
+
+        cursor = await self.db.execute(
+            "SELECT COUNT(*) FROM positions WHERE timestamp < ?", (cutoff,)
+        )
+        row = await cursor.fetchone()
+        count = row[0] if row else 0
+
+        if count > 0:
+            await self.db.execute(
+                "DELETE FROM positions WHERE timestamp < ?", (cutoff,)
+            )
+            await self.db.commit()
+            logger.info(f"Cleaned up {count} positions older than {POSITION_RETENTION_DAYS} days")
+
+        return count
+
     async def get_latest_positions(self) -> list[dict]:
-        """Get latest position for each vessel."""
+        """Get latest position for each vessel using cache table."""
         cursor = await self.db.execute(
             """
-            SELECT p.*, v.imo, v.call_sign, v.ship_type, v.destination,
+            SELECT lp.*, v.imo, v.call_sign, v.ship_type, v.destination,
                    v.dimension_a, v.dimension_b, v.dimension_c, v.dimension_d,
-                   v.draught
-            FROM positions p
-            INNER JOIN (
-                SELECT mmsi, MAX(timestamp) as max_ts
-                FROM positions
-                GROUP BY mmsi
-            ) latest ON p.mmsi = latest.mmsi AND p.timestamp = latest.max_ts
-            LEFT JOIN vessels v ON p.mmsi = v.mmsi
-            ORDER BY p.timestamp DESC
+                   v.draught, v.eta
+            FROM latest_positions lp
+            LEFT JOIN vessels v ON lp.mmsi = v.mmsi
+            ORDER BY lp.timestamp DESC
             """
         )
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
 
     async def get_vessel(self, mmsi: str) -> dict | None:
-        """Get vessel with latest position."""
+        """Get vessel with latest position and analytics."""
         cursor = await self.db.execute(
             """
-            SELECT p.*, v.imo, v.call_sign, v.ship_type, v.destination,
+            SELECT lp.*, v.imo, v.call_sign, v.ship_type, v.destination,
                    v.dimension_a, v.dimension_b, v.dimension_c, v.dimension_d,
                    v.draught, v.eta
-            FROM positions p
-            LEFT JOIN vessels v ON p.mmsi = v.mmsi
-            WHERE p.mmsi = ?
-            ORDER BY p.timestamp DESC
-            LIMIT 1
+            FROM latest_positions lp
+            LEFT JOIN vessels v ON lp.mmsi = v.mmsi
+            WHERE lp.mmsi = ?
             """,
             (mmsi,),
         )
         row = await cursor.fetchone()
-        return dict(row) if row else None
+        if not row:
+            return None
+
+        result = dict(row)
+
+        # Calculate time at current location
+        first_seen = result.get("first_seen_at_location")
+        if first_seen:
+            try:
+                first_dt = datetime.fromisoformat(first_seen.replace("Z", "+00:00"))
+                now = datetime.now(timezone.utc)
+                duration = now - first_dt
+                result["time_at_location_seconds"] = int(duration.total_seconds())
+                result["time_at_location_hours"] = round(
+                    duration.total_seconds() / 3600, 1
+                )
+
+                # Determine if moored (at location for > threshold)
+                result["is_moored"] = (
+                    duration.total_seconds() >= MOORED_MIN_DURATION_HOURS * 3600
+                )
+            except (ValueError, TypeError):
+                result["time_at_location_seconds"] = None
+                result["time_at_location_hours"] = None
+                result["is_moored"] = None
+
+        return result
 
     async def get_vessel_track(
         self, mmsi: str, since: timedelta | None = None, limit: int = 1000
     ) -> list[dict]:
         """Get position history for a vessel."""
         if since:
-            since_time = (datetime.utcnow() - since).isoformat()
+            since_time = (datetime.now(timezone.utc) - since).isoformat()
             cursor = await self.db.execute(
                 """
                 SELECT lat, lon, speed, course, heading, nav_status, timestamp
@@ -247,7 +444,7 @@ class Database:
 
     async def get_vessel_count(self) -> int:
         """Get count of unique vessels."""
-        cursor = await self.db.execute("SELECT COUNT(DISTINCT mmsi) FROM positions")
+        cursor = await self.db.execute("SELECT COUNT(*) FROM latest_positions")
         row = await cursor.fetchone()
         return row[0] if row else 0
 
@@ -315,11 +512,13 @@ class ShipsAPIService:
         self.running = False
         self.ready = False
         self.replay_task: asyncio.Task | None = None
+        self.cleanup_task: asyncio.Task | None = None
         self.messages_received = 0
+        self.messages_deduplicated = 0
         self.replay_complete = False
         self.replay_count = 0
         self._pending_commits = 0
-        self._commit_interval = 100  # Commit every N inserts
+        self._commit_interval = 500  # Commit every N inserts (increased for global volume)
 
     async def connect_nats(self) -> None:
         """Connect to NATS."""
@@ -347,7 +546,7 @@ class ShipsAPIService:
 
             while self.running:
                 try:
-                    msgs = await psub.fetch(batch=100, timeout=2)
+                    msgs = await psub.fetch(batch=500, timeout=2)
                     if not msgs:
                         break
 
@@ -364,7 +563,7 @@ class ShipsAPIService:
                             await self.db.commit()
                             self._pending_commits = 0
 
-                    if self.replay_count % 1000 == 0:
+                    if self.replay_count % 10000 == 0:
                         logger.info(f"Replay progress: {self.replay_count} messages")
 
                 except asyncio.TimeoutError:
@@ -410,7 +609,7 @@ class ShipsAPIService:
 
             while self.running:
                 try:
-                    msgs = await psub.fetch(batch=10, timeout=1)
+                    msgs = await psub.fetch(batch=100, timeout=1)
                     for msg in msgs:
                         await self._process_message(msg.subject, msg.data)
                         await msg.ack()
@@ -441,8 +640,10 @@ class ShipsAPIService:
                 return
 
             if subject.startswith("ais.position."):
-                await self.db.insert_position(payload)
-                if broadcast and self.replay_complete:
+                inserted = await self.db.insert_position(payload)
+                if not inserted:
+                    self.messages_deduplicated += 1
+                elif broadcast and self.replay_complete:
                     await self.ws_manager.broadcast(payload)
 
             elif subject.startswith("ais.static."):
@@ -450,6 +651,18 @@ class ShipsAPIService:
 
         except json.JSONDecodeError as e:
             logger.warning(f"Failed to parse message: {e}")
+
+    async def cleanup_loop(self) -> None:
+        """Periodic cleanup of old positions."""
+        while self.running:
+            try:
+                await asyncio.sleep(3600)  # Run every hour
+                if self.running:
+                    await self.db.cleanup_old_positions()
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in cleanup loop: {e}")
 
     async def start(self) -> None:
         """Start the Ships API service."""
@@ -463,6 +676,9 @@ class ShipsAPIService:
 
         # Start replay in background
         self.replay_task = asyncio.create_task(self._replay_and_subscribe())
+
+        # Start cleanup task
+        self.cleanup_task = asyncio.create_task(self.cleanup_loop())
 
         logger.info("Ships API service started (replay running in background)")
 
@@ -478,6 +694,13 @@ class ShipsAPIService:
         logger.info("Stopping Ships API service...")
         self.running = False
         self.ready = False
+
+        if self.cleanup_task:
+            self.cleanup_task.cancel()
+            try:
+                await self.cleanup_task
+            except asyncio.CancelledError:
+                pass
 
         if self.replay_task:
             self.replay_task.cancel()
@@ -515,7 +738,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Ships API",
     description="Real-time vessel tracking API with historical data",
-    version="1.0.0",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
@@ -574,7 +797,7 @@ async def list_vessels():
 
 @app.get("/api/vessels/{mmsi}")
 async def get_vessel(mmsi: str):
-    """Get single vessel by MMSI with latest position."""
+    """Get single vessel by MMSI with latest position and analytics."""
     vessel = await service.db.get_vessel(mmsi)
     if vessel is None:
         return {"error": "Vessel not found"}, 404
@@ -619,8 +842,10 @@ async def get_stats():
         "vessel_count": vessel_count,
         "position_count": position_count,
         "messages_received": service.messages_received,
+        "messages_deduplicated": service.messages_deduplicated,
         "connected_clients": client_count,
         "replay_complete": service.replay_complete,
+        "retention_days": POSITION_RETENTION_DAYS,
     }
 
 
