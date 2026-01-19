@@ -108,6 +108,10 @@ ON positions(mmsi, timestamp DESC);
 CREATE INDEX IF NOT EXISTS idx_positions_timestamp
 ON positions(timestamp DESC);
 
+-- Index for track queries (ASC order matches query pattern)
+CREATE INDEX IF NOT EXISTS idx_positions_mmsi_timestamp_asc
+ON positions(mmsi, timestamp ASC);
+
 -- Index for retention cleanup
 CREATE INDEX IF NOT EXISTS idx_positions_received_at
 ON positions(received_at);
