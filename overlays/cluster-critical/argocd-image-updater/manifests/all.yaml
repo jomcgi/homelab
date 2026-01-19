@@ -1093,11 +1093,10 @@ spec:
             periodSeconds: 30
           resources:
             limits:
-              cpu: 100m
-              memory: 128Mi
+              memory: 512Mi
             requests:
-              cpu: 10m
-              memory: 64Mi
+              cpu: 500m
+              memory: 512Mi
           volumeMounts:
           - mountPath: /app/config
             name: image-updater-conf
