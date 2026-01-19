@@ -20,7 +20,7 @@ api:
     pullPolicy: Always
 frontend:
   image:
-    tag: main@sha256:f4a098089718a696512175b896954e7b5b703a1583e68126584f7bb617c1f334
+    tag: main@sha256:9447fae9117980a9cc258cf02e78dc2e98bb536220acec700dc017c29c42d87d
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
