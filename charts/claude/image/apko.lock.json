@@ -1,8 +1,8 @@
 {
   "version": "v1",
   "config": {
-    "name": "./charts/claude/image/apko.yaml",
-    "checksum": "sha256-hqBUpHXe7pzfH8UESTAQDoq3y2fH+e6h2GqIJwK/bkQ="
+    "name": "charts/claude/image/apko.yaml",
+    "checksum": "sha256-T2aQI8HFrFMe0+YLPgn5F/rIs2Nh4BWSXH91qNCd/i0="
   },
   "contents": {
     "keyring": [
@@ -1255,6 +1255,25 @@
           "checksum": "sha256-JyLeE7DPfs8Gt11rgQ3Ra+yADBZnT/miPYOvLRcqiVs="
         },
         "checksum": "Q1UuoIsHf3iq0yMDEU3uxRYAR4yf0="
+      },
+      {
+        "name": "docker-cli",
+        "url": "https://packages.wolfi.dev/os/x86_64/docker-cli-29.1.5-r0.apk",
+        "version": "29.1.5-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5836",
+          "checksum": "sha1-WW/WLSqHeMbUcjZMMI0Vb38qISA="
+        },
+        "data": {
+          "range": "bytes=5837-19759172",
+          "checksum": "sha256-k5tr4ptfctGpXQZLW4o4DKrF25MMYo6dRmol82Pb7Ms="
+        },
+        "checksum": "Q1WW/WLSqHeMbUcjZMMI0Vb38qISA="
       },
       {
         "name": "findutils",
@@ -2927,6 +2946,25 @@
           "checksum": "sha256-+Hqdh6RLZ4cT1Iq4+tEol0i+J811U6tKBw9Rzui9Ffo="
         },
         "checksum": "Q1V+ZH8odiTx2jdYuuJiD2WfJeW0w="
+      },
+      {
+        "name": "docker-cli",
+        "url": "https://packages.wolfi.dev/os/aarch64/docker-cli-29.1.5-r0.apk",
+        "version": "29.1.5-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5862",
+          "checksum": "sha1-RRHyIZGGE2gw/TNQz00cR8P01co="
+        },
+        "data": {
+          "range": "bytes=5863-18235939",
+          "checksum": "sha256-QuE9f17Y8/1XF28YejU12TWe5WwBL4gu8OD2UejA8j4="
+        },
+        "checksum": "Q1RRHyIZGGE2gw/TNQz00cR8P01co="
       },
       {
         "name": "findutils",
