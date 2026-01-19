@@ -135,9 +135,23 @@ class StargazerAPIHandler(BaseHTTPRequestHandler):
                     }
                 )
 
+            # Get file modification time for Last-Modified header
+            file_mtime = datetime.fromtimestamp(
+                best_file.stat().st_mtime, tz=timezone.utc
+            )
+
+            # Next update expected 30 minutes after last modification
+            next_update = file_mtime.timestamp() + 1800  # 30 minutes
+            now = datetime.now(timezone.utc).timestamp()
+            max_age = max(60, int(next_update - now))  # At least 60 seconds
+
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Expose-Headers", "X-Next-Update, Last-Modified")
+            self.send_header("Last-Modified", file_mtime.strftime("%a, %d %b %Y %H:%M:%S GMT"))
+            self.send_header("X-Next-Update", str(int(next_update * 1000)))  # Unix ms for JS
+            self.send_header("Cache-Control", f"public, max-age={max_age}")
             self.end_headers()
             self.wfile.write(json.dumps(transformed).encode())
 

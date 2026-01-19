@@ -3,13 +3,13 @@
 import asyncio
 import json
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
 
 import geopandas as gpd
 import httpx
 from astral import LocationInfo
-from astral.sun import sun
+from astral.sun import elevation
 
 from services.stargazer.app.config import Settings
 from services.stargazer.app.scoring import (
@@ -94,7 +94,7 @@ def score_locations(settings: Settings) -> Path:
     Calculate astronomy suitability score for each forecast hour.
 
     Filters to:
-    - Only hours during astronomical darkness (sun >18° below horizon)
+    - Only hours during nautical darkness (sun below -12°)
     - Only hours with score >= min_astronomy_score
     """
     forecasts_path = settings.output_dir / "forecasts_raw.json"
@@ -124,11 +124,10 @@ def score_locations(settings: Settings) -> Path:
             time_str = entry["time"]
             time = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
 
-            # Check if it's dark enough
+            # Check if it's dark enough (nautical twilight: sun below -12°)
             try:
-                s = sun(location.observer, date=time.date())
-                # Simple approximation: check if between sunset and sunrise
-                if not (s["sunset"] <= time <= s["sunrise"] + timedelta(days=1)):
+                sun_alt = elevation(location.observer, time)
+                if sun_alt > -12:
                     continue
             except Exception:
                 # If sun calculation fails, skip

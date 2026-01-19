@@ -271,23 +271,6 @@
             return `${Math.abs(lat).toFixed(1)}°${latDir} ${Math.abs(lon).toFixed(1)}°${lonDir}`;
         }
 
-        // Check if a date is tonight (between now and 6am tomorrow)
-        function isTonight(date) {
-            const now = new Date();
-            const tonight = new Date(now);
-            tonight.setHours(18, 0, 0, 0); // 6pm today
-
-            const tomorrowMorning = new Date(now);
-            tomorrowMorning.setDate(tomorrowMorning.getDate() + 1);
-            tomorrowMorning.setHours(6, 0, 0, 0); // 6am tomorrow
-
-            // If it's before 6pm, "tonight" starts at 6pm today
-            // If it's after 6pm, we're already in "tonight"
-            const windowStart = now < tonight ? tonight : now;
-
-            return date >= windowStart && date <= tomorrowMorning;
-        }
-
         // Format time for display
         function formatTimeShort(date) {
             return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' });
@@ -464,7 +447,9 @@
             status.textContent = `${filtered.length} locations`;
         }
 
-        // Fetch data
+        // Fetch data and schedule refresh
+        let refreshTimer = null;
+
         async function fetchLocations() {
             try {
                 const res = await fetch(API_URL);
@@ -476,6 +461,16 @@
                         updated.textContent = `· updated ${formatRelativeTime(updateDate)}`;
                     }
 
+                    // Schedule refresh when new data is expected
+                    const nextUpdate = res.headers.get('x-next-update');
+                    if (nextUpdate) {
+                        const nextUpdateMs = parseInt(nextUpdate, 10);
+                        const delayMs = Math.max(60000, nextUpdateMs - Date.now() + 5000); // +5s buffer
+                        if (refreshTimer) clearTimeout(refreshTimer);
+                        refreshTimer = setTimeout(fetchLocations, delayMs);
+                        console.log(`Next refresh in ${Math.round(delayMs / 60000)}m`);
+                    }
+
                     const data = await res.json();
                     locations = data
                         .map(loc => {
@@ -483,20 +478,11 @@
                             const lon = loc.coordinates?.lon;
                             if (typeof lat !== 'number' || typeof lon !== 'number') return null;
 
-                            // Filter best_hours to tonight only
-                            const tonightHours = (loc.best_hours || [])
-                                .filter(h => {
-                                    if (!h.time) return false;
-                                    const date = new Date(h.time);
-                                    return isTonight(date) && h.score >= MIN_SCORE;
-                                })
-                                .sort((a, b) => b.score - a.score) // Sort by score descending
-                                .slice(0, 5); // Limit to top 5 windows
+                            // API returns only dark hours (sun below -12°), sorted by score
+                            const hours = (loc.best_hours || []).slice(0, 5);
+                            if (hours.length === 0) return null;
 
-                            if (tonightHours.length === 0) return null;
-
-                            // Use the best tonight hour for the main score
-                            const best = tonightHours[0];
+                            const best = hours[0];
 
                             return {
                                 id: loc.id,
@@ -505,7 +491,7 @@
                                 score: Math.round(best.score || 0),
                                 cloud: Math.round(best.cloud_area_fraction || 0),
                                 wind: best.wind_speed?.toFixed(1) || '?',
-                                windows: tonightHours.map(h => ({
+                                windows: hours.map(h => ({
                                     time: formatTimeShort(new Date(h.time)),
                                     score: Math.round(h.score)
                                 }))
@@ -514,9 +500,15 @@
                         .filter(Boolean);
                 } else {
                     locations = [];
+                    // Retry in 5 minutes on error
+                    if (refreshTimer) clearTimeout(refreshTimer);
+                    refreshTimer = setTimeout(fetchLocations, 300000);
                 }
             } catch {
                 locations = [];
+                // Retry in 5 minutes on error
+                if (refreshTimer) clearTimeout(refreshTimer);
+                refreshTimer = setTimeout(fetchLocations, 300000);
             }
             renderMarkers();
         }
