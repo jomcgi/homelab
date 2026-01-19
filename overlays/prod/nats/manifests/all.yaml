@@ -45,7 +45,7 @@ data:
     {
       "http_port": 8222,
       "jetstream": {
-        "max_file_store": 10Gi,
+        "max_file_store": 50Gi,
         "max_memory_store": 0,
         "store_dir": "/data"
       },
@@ -204,7 +204,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 8af3cfe7fc367fbae9a1e8b2ce572fb3356566627469c94fb680c3e47595024b
+        checksum/config: 89cc427e11f9b5cac3729d57151836925a58d8976253e2cd32f1d2cdec51f75f
         config.linkerd.io/opaque-ports: "4222"
       labels:
         app.kubernetes.io/component: nats
@@ -293,6 +293,8 @@ spec:
         - mountPath: /etc/nats-config
           name: config
       enableServiceLinks: false
+      nodeSelector:
+        kubernetes.io/hostname: node-4
       shareProcessNamespace: true
       terminationGracePeriodSeconds: 60
       volumes:
@@ -309,7 +311,7 @@ spec:
       - ReadWriteOnce
       resources:
         requests:
-          storage: 10Gi
+          storage: 50Gi
       storageClassName: longhorn
 ---
 # Source: nats/charts/nats/templates/tests/request-reply.yaml

@@ -232,22 +232,22 @@
       },
       {
         "name": "bazelisk",
-        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.28.0-r0.apk",
-        "version": "1.28.0-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/bazelisk-1.28.1-r0.apk",
+        "version": "1.28.1-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4513",
-          "checksum": "sha1-Hl5rH0LTrBFsr6oGccCeB8VpKx0="
+          "range": "bytes=0-4511",
+          "checksum": "sha1-igN/hvhm6QuygC0JCalQNOqla5w="
         },
         "data": {
-          "range": "bytes=4514-3067527",
-          "checksum": "sha256-aWuIHERjlqHZdjkK7ZAtdS/QNAmZHwBBrzWDfGO0pVk="
+          "range": "bytes=4512-3067438",
+          "checksum": "sha256-wtr3KupbpDP/hhA+nV7hd+u5mdrV6v+1/bt3B0XG3Jg="
         },
-        "checksum": "Q1Hl5rH0LTrBFsr6oGccCeB8VpKx0="
+        "checksum": "Q1igN/hvhm6QuygC0JCalQNOqla5w="
       },
       {
         "name": "make",
@@ -1923,22 +1923,22 @@
       },
       {
         "name": "bazelisk",
-        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.28.0-r0.apk",
-        "version": "1.28.0-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/bazelisk-1.28.1-r0.apk",
+        "version": "1.28.1-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4539",
-          "checksum": "sha1-nDX4EJfUEmeURP68IJYdvS4WPOA="
+          "range": "bytes=0-4540",
+          "checksum": "sha1-7eyZGxoK5lWqp7JFVmQYMBwwTH8="
         },
         "data": {
-          "range": "bytes=4540-2786758",
-          "checksum": "sha256-EOLRdHsYg8bZA3F01yr/TKQOBjqkXTSYEYVwTcCe0as="
+          "range": "bytes=4541-2786795",
+          "checksum": "sha256-YxgKa/BZqvO4rfSUjXiiOlDI7UDgAa2htmm5o0Srngw="
         },
-        "checksum": "Q1nDX4EJfUEmeURP68IJYdvS4WPOA="
+        "checksum": "Q17eyZGxoK5lWqp7JFVmQYMBwwTH8="
       },
       {
         "name": "make",

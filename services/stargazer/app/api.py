@@ -148,9 +148,15 @@ class StargazerAPIHandler(BaseHTTPRequestHandler):
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Expose-Headers", "X-Next-Update, Last-Modified")
-            self.send_header("Last-Modified", file_mtime.strftime("%a, %d %b %Y %H:%M:%S GMT"))
-            self.send_header("X-Next-Update", str(int(next_update * 1000)))  # Unix ms for JS
+            self.send_header(
+                "Access-Control-Expose-Headers", "X-Next-Update, Last-Modified"
+            )
+            self.send_header(
+                "Last-Modified", file_mtime.strftime("%a, %d %b %Y %H:%M:%S GMT")
+            )
+            self.send_header(
+                "X-Next-Update", str(int(next_update * 1000))
+            )  # Unix ms for JS
             self.send_header("Cache-Control", f"public, max-age={max_age}")
             self.end_headers()
             self.wfile.write(json.dumps(transformed).encode())
