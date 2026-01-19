@@ -80,6 +80,11 @@ controllerManager:
   # Enable daemon mode to auto-create default tunnel
   enableDaemon: true
 
+  # Cloudflared image configuration
+  # This image is used for the cloudflared daemon pods created by the operator
+  # If not set, defaults to cloudflare/cloudflared:2025.11.1
+  cloudflaredImage: ""
+
   # OpenTelemetry tracing configuration using standard OTEL environment variables
   # See: https://opentelemetry.io/docs/specs/otel/configuration/sdk-environment-variables/
   tracing:
