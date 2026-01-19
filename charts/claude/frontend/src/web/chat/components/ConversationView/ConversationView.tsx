@@ -423,6 +423,7 @@ export function ConversationView() {
 
       <div
         className="fixed bottom-0 left-0 right-0 bg-white/80 dark:bg-zinc-900/80 backdrop-blur-sm z-10 w-full flex justify-center px-2 pb-6"
+        style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}
         aria-label="Message composer section"
       >
         <div className="w-full max-w-3xl">
