@@ -1,14 +1,9 @@
 repos:
 - repo: local
   hooks:
-    - id: render-argocd-manifests
-      name: Render ArgoCD manifests
-      entry: tools/argocd/pre-commit-render-manifests.sh
+    - id: protect-main-branch
+      name: Protect main branch
+      entry: tools/git/protect-main.sh
       language: script
-      files: '(application\.yaml|values\.yaml|Chart\.yaml)$'
+      always_run: true
       pass_filenames: false
-      description: 'Auto-renders Helm manifests when chart or values files change'
-- repo: https://github.com/semgrep/pre-commit
-  rev: 'v1.143.0'
-  hooks:
-    - id:  semgrep-ci
