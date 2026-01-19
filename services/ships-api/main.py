@@ -511,12 +511,11 @@ class ShipsAPIService:
         self.ws_manager = WebSocketManager()
         self.running = False
         self.ready = False
-        self.replay_task: asyncio.Task | None = None
+        self.subscription_task: asyncio.Task | None = None
         self.cleanup_task: asyncio.Task | None = None
         self.messages_received = 0
         self.messages_deduplicated = 0
         self.replay_complete = False
-        self.replay_count = 0
         self._pending_commits = 0
         self._commit_interval = 500  # Commit every N inserts (increased for global volume)
 
@@ -527,35 +526,57 @@ class ShipsAPIService:
         self.js = self.nc.jetstream()
         logger.info("Connected to NATS")
 
-    async def replay_stream(self) -> None:
-        """Replay the ais stream to build database (runs in background)."""
-        logger.info("Starting AIS stream replay...")
+    async def subscribe_ais_stream(self) -> None:
+        """Subscribe to AIS stream using durable consumer.
+
+        Uses a durable consumer so NATS tracks our position. On restart:
+        - First run: processes all messages from the beginning
+        - Subsequent runs: resumes from last acknowledged message
+
+        This eliminates the need for separate replay/live phases.
+        """
+        logger.info("Subscribing to AIS stream with durable consumer...")
 
         try:
+            # Durable consumer - NATS tracks position across restarts
+            # deliver_policy=ALL only applies on first creation; after that
+            # NATS resumes from last ack'd position
             consumer_config = ConsumerConfig(
+                durable_name="ships-api",
                 deliver_policy=DeliverPolicy.ALL,
-                ack_wait=30,
+                ack_wait=60,  # Longer ack wait for batch processing
             )
 
-            # Replay position messages
             psub = await self.js.pull_subscribe(
-                "ais.>",  # Both position and static
-                durable=None,
+                "ais.>",
+                durable="ships-api",
                 config=consumer_config,
             )
 
+            # Check if we're catching up or already live
+            consumer_info = await psub.consumer_info()
+            pending = consumer_info.num_pending
+            if pending > 0:
+                logger.info(f"Catching up on {pending} pending messages...")
+            else:
+                logger.info("Consumer is caught up, processing live messages")
+                self.replay_complete = True
+                self.ready = True
+
             while self.running:
                 try:
-                    msgs = await psub.fetch(batch=500, timeout=2)
-                    if not msgs:
-                        break
+                    # Use larger batches when catching up, smaller for live
+                    batch_size = 500 if not self.replay_complete else 100
+                    timeout = 2 if not self.replay_complete else 1
+
+                    msgs = await psub.fetch(batch=batch_size, timeout=timeout)
 
                     for msg in msgs:
-                        await self._process_message(
-                            msg.subject, msg.data, broadcast=False
-                        )
+                        # Don't broadcast during catchup to avoid flooding clients
+                        broadcast = self.replay_complete
+                        await self._process_message(msg.subject, msg.data, broadcast)
                         await msg.ack()
-                        self.replay_count += 1
+                        self.messages_received += 1
                         self._pending_commits += 1
 
                         # Batch commits for performance
@@ -563,71 +584,42 @@ class ShipsAPIService:
                             await self.db.commit()
                             self._pending_commits = 0
 
-                    if self.replay_count % 10000 == 0:
-                        logger.info(f"Replay progress: {self.replay_count} messages")
-
-                except asyncio.TimeoutError:
-                    break
-                except Exception as e:
-                    logger.warning(f"Error during replay: {e}")
-                    break
-
-            # Final commit
-            if self._pending_commits > 0:
-                await self.db.commit()
-                self._pending_commits = 0
-
-            await psub.unsubscribe()
-            vessel_count = await self.db.get_vessel_count()
-            position_count = await self.db.get_position_count()
-            logger.info(
-                f"Replay complete. {position_count} positions for {vessel_count} vessels"
-            )
-            self.replay_complete = True
-
-        except Exception as e:
-            logger.error(f"Failed to replay stream: {e}")
-            self.replay_complete = True
-
-    async def subscribe_live(self) -> None:
-        """Subscribe to live vessel updates."""
-        logger.info("Subscribing to live AIS updates...")
-
-        try:
-            consumer_config = ConsumerConfig(
-                deliver_policy=DeliverPolicy.NEW,
-                ack_wait=30,
-            )
-
-            psub = await self.js.pull_subscribe(
-                "ais.>",
-                durable=None,
-                config=consumer_config,
-            )
-
-            logger.info("Subscribed to live updates")
-
-            while self.running:
-                try:
-                    msgs = await psub.fetch(batch=100, timeout=1)
-                    for msg in msgs:
-                        await self._process_message(msg.subject, msg.data)
-                        await msg.ack()
-                        self.messages_received += 1
-
-                    # Commit after each batch of live messages
-                    if msgs:
+                    # Commit remaining after each batch
+                    if self._pending_commits > 0:
                         await self.db.commit()
+                        self._pending_commits = 0
+
+                    # Log progress during catchup
+                    if not self.replay_complete and self.messages_received % 10000 == 0:
+                        info = await psub.consumer_info()
+                        logger.info(
+                            f"Catchup progress: {self.messages_received} processed, "
+                            f"{info.num_pending} pending"
+                        )
 
                 except asyncio.TimeoutError:
+                    # Timeout means no messages - check if we've caught up
+                    if not self.replay_complete:
+                        info = await psub.consumer_info()
+                        if info.num_pending == 0:
+                            vessel_count = await self.db.get_vessel_count()
+                            position_count = await self.db.get_position_count()
+                            logger.info(
+                                f"Catchup complete. {position_count} positions "
+                                f"for {vessel_count} vessels"
+                            )
+                            self.replay_complete = True
+                            self.ready = True
                     continue
                 except Exception as e:
                     if self.running:
-                        logger.error(f"Error receiving message: {e}")
-                    break
+                        logger.error(f"Error processing messages: {e}")
+                    # Brief pause before retry
+                    await asyncio.sleep(1)
 
         except Exception as e:
-            logger.error(f"Failed to subscribe to live updates: {e}")
+            logger.error(f"Failed to subscribe to AIS stream: {e}")
+            raise
 
     async def _process_message(
         self, subject: str, data: bytes, broadcast: bool = True
@@ -674,20 +666,17 @@ class ShipsAPIService:
         # Connect to NATS
         await self.connect_nats()
 
-        # Start replay in background
-        self.replay_task = asyncio.create_task(self._replay_and_subscribe())
+        # Start AIS subscription (handles both catchup and live)
+        self.subscription_task = asyncio.create_task(self._run_subscription())
 
         # Start cleanup task
         self.cleanup_task = asyncio.create_task(self.cleanup_loop())
 
-        logger.info("Ships API service started (replay running in background)")
+        logger.info("Ships API service started (durable subscription active)")
 
-    async def _replay_and_subscribe(self) -> None:
-        """Replay stream then start live subscription."""
-        await self.replay_stream()
-        self.ready = True
-        logger.info("Service ready - replay complete")
-        await self.subscribe_live()
+    async def _run_subscription(self) -> None:
+        """Run the durable AIS stream subscription."""
+        await self.subscribe_ais_stream()
 
     async def stop(self) -> None:
         """Stop the Ships API service."""
@@ -702,10 +691,10 @@ class ShipsAPIService:
             except asyncio.CancelledError:
                 pass
 
-        if self.replay_task:
-            self.replay_task.cancel()
+        if self.subscription_task:
+            self.subscription_task.cancel()
             try:
-                await self.replay_task
+                await self.subscription_task
             except asyncio.CancelledError:
                 pass
 
@@ -760,8 +749,8 @@ async def health():
         "status": "alive",
         "nats_connected": service.nc is not None and service.nc.is_connected,
         "vessel_count": vessel_count,
-        "replay_complete": service.replay_complete,
-        "replay_count": service.replay_count,
+        "caught_up": service.replay_complete,
+        "messages_processed": service.messages_received,
     }
 
 
@@ -773,11 +762,9 @@ async def ready(response: Response):
         response.status_code = 503
         return {
             "status": "not_ready",
-            "reason": "replay_in_progress"
-            if not service.replay_complete
-            else "starting",
+            "reason": "catching_up" if not service.replay_complete else "starting",
             "vessel_count": vessel_count,
-            "replay_count": service.replay_count,
+            "messages_processed": service.messages_received,
         }
     return {
         "status": "ready",
