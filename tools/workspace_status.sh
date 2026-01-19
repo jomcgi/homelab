@@ -17,11 +17,44 @@ auto_version=$(
 base_image_tag=$(date -u +"%Y.%m.%d.%H.%M.%S")-${git_short_sha}
 
 # Get branch name (sanitized for Docker tags)
-# In CI: use GITHUB_REF_NAME, otherwise use git
+# Check multiple CI environment variables for branch name
 if [ -n "${GITHUB_REF_NAME:-}" ]; then
+	# GitHub Actions provides this directly
 	branch="${GITHUB_REF_NAME}"
+elif [ -n "${GIT_BRANCH:-}" ]; then
+	# BuildBuddy and Jenkins provide this
+	branch="${GIT_BRANCH}"
+elif [ -n "${GITHUB_REF:-}" ]; then
+	# GitHub webhook events provide refs/heads/branch-name
+	# Extract branch name from refs/heads/ or refs/pull/
+	if [[ "${GITHUB_REF}" == refs/heads/* ]]; then
+		branch="${GITHUB_REF#refs/heads/}"
+	elif [[ "${GITHUB_REF}" == refs/pull/* ]]; then
+		# For pull requests, use PR branch name if available
+		branch="${GITHUB_HEAD_REF:-pr-${GITHUB_REF#refs/pull/}}"
+	else
+		branch="${GITHUB_REF}"
+	fi
+elif [ -n "${BUILDKITE_BRANCH:-}" ]; then
+	# Buildkite CI
+	branch="${BUILDKITE_BRANCH}"
+elif [ -n "${CIRCLE_BRANCH:-}" ]; then
+	# CircleCI
+	branch="${CIRCLE_BRANCH}"
+elif [ -n "${CI_COMMIT_BRANCH:-}" ]; then
+	# GitLab CI
+	branch="${CI_COMMIT_BRANCH}"
 else
-	branch=$(git rev-parse --abbrev-ref HEAD)
+	# Fallback to git command (may fail in detached HEAD state)
+	branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+fi
+
+# Debug output when CI is set (only visible in build logs)
+if [ "${CI:-}" = "true" ] || [ "${CI:-}" = "1" ]; then
+	>&2 echo "workspace_status.sh: Detected branch '${branch}' from environment"
+	>&2 echo "  GITHUB_REF_NAME=${GITHUB_REF_NAME:-<not set>}"
+	>&2 echo "  GIT_BRANCH=${GIT_BRANCH:-<not set>}"
+	>&2 echo "  GITHUB_REF=${GITHUB_REF:-<not set>}"
 fi
 # Sanitize: replace / with - and convert to lowercase
 branch_tag=$(echo "${branch}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
