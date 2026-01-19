@@ -836,7 +836,7 @@ stringData:
   user: "YourSWUser"
   password: "HardCodedPassword"
   # better to random generate and create in DB
-  # password: NWNjNGMwMWZhMmZhNTlmOWE5MzVlMGE5
+  # password: YTNlMDQ2YzIxYjMzOTIzYWQwMzRiOWU1
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-resize-hook.yaml
 apiVersion: rbac.authorization.k8s.io/v1

@@ -359,7 +359,7 @@ spec:
                 drop:
                 - ALL
               readOnlyRootFilesystem: false
-            image: "ghcr.io/jomcgi/homelab/services/stargazer:main@sha256:4f450c6f8d7101eec2f7675abaab93f4ead42b3040a7356e511a6e3583f578dd"
+            image: "ghcr.io/jomcgi/homelab/services/stargazer:main@sha256:af482e7f79852ad5b3a97b150cc961d32fcc3bc1234144432cc4618f66849a47"
             imagePullPolicy: IfNotPresent
             # Use image entrypoint (Bazel binary with deps in runfiles)
             # NOT "python3 -m" which uses system Python without dependencies
