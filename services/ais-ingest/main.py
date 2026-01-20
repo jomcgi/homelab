@@ -103,12 +103,13 @@ class AISIngestService:
         logger.info("Connected to NATS")
 
         # Create or update the AIS stream (add_stream is idempotent if config matches)
-        # Storage limits: 40GB max, 24h retention, whichever is hit first
+        # Storage limits: 10GB max, 24h retention, whichever is hit first
+        # Note: Reduced from 40GB to fit NATS JetStream storage quota
         stream_config = StreamConfig(
             name="ais",
             subjects=["ais.>"],
-            max_age=timedelta(hours=24).total_seconds(),  # seconds, not nanoseconds
-            max_bytes=40 * 1024 * 1024 * 1024,  # 40GB hard limit
+            max_age=86400_000_000_000,  # 24h in nanoseconds (NATS native unit)
+            max_bytes=10 * 1024 * 1024 * 1024,  # 10GB hard limit
             storage=StorageType.FILE,
             discard=DiscardPolicy.OLD,
             description="AIS position reports from AISStream.io (global coverage)",
@@ -116,12 +117,12 @@ class AISIngestService:
 
         try:
             await self.js.add_stream(stream_config)
-            logger.info("Created 'ais' stream with 24h retention, 40GB max")
+            logger.info("Created 'ais' stream with 24h retention, 10GB max")
         except nats.js.errors.BadRequestError as e:
             if "already in use" in str(e):
                 # Stream exists with different config, update it
                 await self.js.update_stream(stream_config)
-                logger.info("Updated 'ais' stream with 24h retention, 40GB max")
+                logger.info("Updated 'ais' stream with 24h retention, 10GB max")
             else:
                 raise
 
