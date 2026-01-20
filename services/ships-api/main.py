@@ -29,12 +29,15 @@ from nats.js.api import ConsumerConfig, DeliverPolicy
 from fastapi import FastAPI, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-# Configure logging
+# Configure logging - DEBUG level for troubleshooting
 logging.basicConfig(
-    level=logging.INFO,
+    level=logging.DEBUG,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
+# Reduce noise from other libraries
+logging.getLogger("nats").setLevel(logging.WARNING)
+logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
 # Configuration from environment
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
@@ -666,7 +669,14 @@ class ShipsAPIService:
                     batch_size = 5000 if not self.replay_complete else 500
                     timeout = 5 if not self.replay_complete else 1
 
+                    logger.debug(
+                        f"[FETCH] Starting fetch: batch_size={batch_size}, "
+                        f"timeout={timeout}, replay_complete={self.replay_complete}"
+                    )
+
                     msgs = await psub.fetch(batch=batch_size, timeout=timeout)
+
+                    logger.debug(f"[FETCH] Got {len(msgs)} messages")
 
                     # Process batch and collect DB operations
                     positions_to_insert: list[tuple[dict, str | None]] = []
@@ -692,6 +702,12 @@ class ShipsAPIService:
                         if i % 500 == 0:
                             await asyncio.sleep(0)
 
+                    logger.debug(
+                        f"[PROCESS] Processed batch: {len(positions_to_insert)} positions, "
+                        f"{len(vessels_to_upsert)} vessels, "
+                        f"{self.messages_deduplicated} deduplicated total"
+                    )
+
                     # Batch DB writes
                     if positions_to_insert:
                         await self.db.insert_positions_batch(positions_to_insert)
@@ -701,6 +717,8 @@ class ShipsAPIService:
                     # Commit after batch
                     await self.db.commit()
 
+                    logger.debug(f"[DB] Committed batch to database")
+
                     # Batch ack all messages at once (after successful DB commit)
                     for i, msg in enumerate(msgs):
                         await msg.ack()
@@ -708,26 +726,30 @@ class ShipsAPIService:
                         if i % 500 == 0:
                             await asyncio.sleep(0)
 
+                    logger.debug(f"[ACK] Acked {len(msgs)} messages")
+
                     # Broadcast to WebSocket clients (after catchup)
                     if self.replay_complete and positions_for_broadcast:
                         for pos in positions_for_broadcast:
                             await self.ws_manager.broadcast(pos)
 
-                    # Log progress during catchup
-                    if not self.replay_complete and self.messages_received % 50000 == 0:
+                    # Log progress during catchup (every batch for debugging)
+                    if not self.replay_complete:
                         info = await psub.consumer_info()
-                        rate = len(positions_to_insert)
                         logger.info(
-                            f"Catchup progress: {self.messages_received} processed, "
-                            f"{info.num_pending} pending, "
-                            f"{self.db.get_cache_size()} vessels cached, "
-                            f"batch: {rate} positions"
+                            f"[BATCH] total={self.messages_received}, "
+                            f"batch={len(msgs)}, pending={info.num_pending}, "
+                            f"positions={len(positions_to_insert)}"
                         )
 
                     # Check for catchup completion after each batch
                     # (not just on timeout, since new messages may keep arriving)
                     if not self.replay_complete and len(msgs) < batch_size:
                         info = await psub.consumer_info()
+                        logger.info(
+                            f"[CATCHUP CHECK] len(msgs)={len(msgs)} < batch_size={batch_size}, "
+                            f"num_pending={info.num_pending}"
+                        )
                         if info.num_pending == 0:
                             vessel_count = await self.db.get_vessel_count()
                             position_count = await self.db.get_position_count()
@@ -737,11 +759,14 @@ class ShipsAPIService:
                             )
                             self.replay_complete = True
                             self.ready = True
+                            logger.info(f"[READY] Set ready=True, replay_complete=True")
 
                 except asyncio.TimeoutError:
                     # Timeout means no messages - check if we've caught up
+                    logger.debug(f"[TIMEOUT] Fetch timed out, replay_complete={self.replay_complete}")
                     if not self.replay_complete:
                         info = await psub.consumer_info()
+                        logger.info(f"[TIMEOUT CHECK] num_pending={info.num_pending}")
                         if info.num_pending == 0:
                             vessel_count = await self.db.get_vessel_count()
                             position_count = await self.db.get_position_count()
@@ -751,10 +776,11 @@ class ShipsAPIService:
                             )
                             self.replay_complete = True
                             self.ready = True
+                            logger.info(f"[READY] Set ready=True via timeout path")
                     continue
                 except Exception as e:
                     if self.running:
-                        logger.error(f"Error processing messages: {e}")
+                        logger.error(f"[ERROR] Error processing messages: {e}", exc_info=True)
                     # Brief pause before retry
                     await asyncio.sleep(1)
 
