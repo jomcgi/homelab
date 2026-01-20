@@ -29,15 +29,12 @@ from nats.js.api import ConsumerConfig, DeliverPolicy
 from fastapi import FastAPI, Query, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
-# Configure logging - DEBUG level for troubleshooting
+# Configure logging
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger(__name__)
-# Reduce noise from other libraries
-logging.getLogger("nats").setLevel(logging.WARNING)
-logging.getLogger("aiosqlite").setLevel(logging.WARNING)
 
 # Configuration from environment
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")
@@ -46,6 +43,9 @@ DB_PATH = os.getenv("DB_PATH", "/tmp/ships.db")
 
 # Position retention (days)
 POSITION_RETENTION_DAYS = int(os.getenv("POSITION_RETENTION_DAYS", "7"))
+
+# Catchup threshold - consider "caught up" when pending is below this
+CATCHUP_PENDING_THRESHOLD = int(os.getenv("CATCHUP_PENDING_THRESHOLD", "100"))
 
 # Deduplication settings
 # Skip position if within this distance (meters) and speed below threshold
@@ -179,7 +179,8 @@ class Database:
         await self.db.execute("PRAGMA temp_store=MEMORY")  # Temp tables in RAM
         await self.db.execute("PRAGMA mmap_size=268435456")  # 256MB memory-mapped I/O
         await self.db.execute("PRAGMA cache_size=-512000")  # 512MB cache
-        await self.db.execute("PRAGMA wal_autocheckpoint=10000")  # Checkpoint every 10k pages
+        await self.db.execute("PRAGMA wal_autocheckpoint=1000")  # Smaller checkpoints, less blocking
+        await self.db.execute("PRAGMA busy_timeout=5000")  # Wait up to 5s for locks
 
         # Create schema
         await self.db.executescript(SCHEMA)
@@ -665,18 +666,11 @@ class ShipsAPIService:
 
             while self.running:
                 try:
-                    # Use larger batches when catching up, smaller for live
-                    batch_size = 5000 if not self.replay_complete else 500
+                    # Use smaller batches to reduce DB lock duration
+                    batch_size = 1000 if not self.replay_complete else 100
                     timeout = 5 if not self.replay_complete else 1
 
-                    logger.debug(
-                        f"[FETCH] Starting fetch: batch_size={batch_size}, "
-                        f"timeout={timeout}, replay_complete={self.replay_complete}"
-                    )
-
                     msgs = await psub.fetch(batch=batch_size, timeout=timeout)
-
-                    logger.debug(f"[FETCH] Got {len(msgs)} messages")
 
                     # Process batch and collect DB operations
                     positions_to_insert: list[tuple[dict, str | None]] = []
@@ -702,12 +696,6 @@ class ShipsAPIService:
                         if i % 500 == 0:
                             await asyncio.sleep(0)
 
-                    logger.debug(
-                        f"[PROCESS] Processed batch: {len(positions_to_insert)} positions, "
-                        f"{len(vessels_to_upsert)} vessels, "
-                        f"{self.messages_deduplicated} deduplicated total"
-                    )
-
                     # Batch DB writes
                     if positions_to_insert:
                         await self.db.insert_positions_batch(positions_to_insert)
@@ -717,8 +705,6 @@ class ShipsAPIService:
                     # Commit after batch
                     await self.db.commit()
 
-                    logger.debug(f"[DB] Committed batch to database")
-
                     # Batch ack all messages at once (after successful DB commit)
                     for i, msg in enumerate(msgs):
                         await msg.ack()
@@ -726,31 +712,32 @@ class ShipsAPIService:
                         if i % 500 == 0:
                             await asyncio.sleep(0)
 
-                    logger.debug(f"[ACK] Acked {len(msgs)} messages")
-
                     # Broadcast to WebSocket clients (after catchup)
+                    # Send as batch with only latest position per vessel
                     if self.replay_complete and positions_for_broadcast:
+                        # Dedupe: keep only latest position per MMSI
+                        latest_by_mmsi: dict[str, dict] = {}
                         for pos in positions_for_broadcast:
-                            await self.ws_manager.broadcast(pos)
+                            latest_by_mmsi[pos["mmsi"]] = pos
+                        # Send as single batched message
+                        await self.ws_manager.broadcast({
+                            "type": "positions",
+                            "positions": list(latest_by_mmsi.values())
+                        })
 
-                    # Log progress during catchup (every batch for debugging)
-                    if not self.replay_complete:
+                    # Log progress during catchup (every 10k messages)
+                    if not self.replay_complete and self.messages_received % 10000 == 0:
                         info = await psub.consumer_info()
                         logger.info(
-                            f"[BATCH] total={self.messages_received}, "
-                            f"batch={len(msgs)}, pending={info.num_pending}, "
-                            f"positions={len(positions_to_insert)}"
+                            f"Catchup progress: {self.messages_received} processed, "
+                            f"{info.num_pending} pending"
                         )
 
                     # Check for catchup completion after each batch
-                    # (not just on timeout, since new messages may keep arriving)
+                    # Use threshold to avoid waiting for exactly 0 pending
                     if not self.replay_complete and len(msgs) < batch_size:
                         info = await psub.consumer_info()
-                        logger.info(
-                            f"[CATCHUP CHECK] len(msgs)={len(msgs)} < batch_size={batch_size}, "
-                            f"num_pending={info.num_pending}"
-                        )
-                        if info.num_pending == 0:
+                        if info.num_pending <= CATCHUP_PENDING_THRESHOLD:
                             vessel_count = await self.db.get_vessel_count()
                             position_count = await self.db.get_position_count()
                             logger.info(
@@ -759,15 +746,12 @@ class ShipsAPIService:
                             )
                             self.replay_complete = True
                             self.ready = True
-                            logger.info(f"[READY] Set ready=True, replay_complete=True")
 
                 except asyncio.TimeoutError:
                     # Timeout means no messages - check if we've caught up
-                    logger.debug(f"[TIMEOUT] Fetch timed out, replay_complete={self.replay_complete}")
                     if not self.replay_complete:
                         info = await psub.consumer_info()
-                        logger.info(f"[TIMEOUT CHECK] num_pending={info.num_pending}")
-                        if info.num_pending == 0:
+                        if info.num_pending <= CATCHUP_PENDING_THRESHOLD:
                             vessel_count = await self.db.get_vessel_count()
                             position_count = await self.db.get_position_count()
                             logger.info(
@@ -776,11 +760,10 @@ class ShipsAPIService:
                             )
                             self.replay_complete = True
                             self.ready = True
-                            logger.info(f"[READY] Set ready=True via timeout path")
                     continue
                 except Exception as e:
                     if self.running:
-                        logger.error(f"[ERROR] Error processing messages: {e}", exc_info=True)
+                        logger.error(f"Error processing messages: {e}")
                     # Brief pause before retry
                     await asyncio.sleep(1)
 
