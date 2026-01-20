@@ -170,11 +170,13 @@ class Database:
         self.db = await aiosqlite.connect(self.db_path)
         self.db.row_factory = aiosqlite.Row
 
-        # Enable WAL mode for better concurrent performance
+        # Aggressive SQLite tuning for high-throughput ingestion
         await self.db.execute("PRAGMA journal_mode=WAL")
-        await self.db.execute("PRAGMA synchronous=NORMAL")
-        # Increase cache for better performance with large datasets
-        await self.db.execute("PRAGMA cache_size=-384000")  # 384MB cache
+        await self.db.execute("PRAGMA synchronous=OFF")  # Skip fsync (WAL provides crash safety)
+        await self.db.execute("PRAGMA temp_store=MEMORY")  # Temp tables in RAM
+        await self.db.execute("PRAGMA mmap_size=268435456")  # 256MB memory-mapped I/O
+        await self.db.execute("PRAGMA cache_size=-512000")  # 512MB cache
+        await self.db.execute("PRAGMA wal_autocheckpoint=10000")  # Checkpoint every 10k pages
 
         # Create schema
         await self.db.executescript(SCHEMA)
@@ -661,8 +663,8 @@ class ShipsAPIService:
             while self.running:
                 try:
                     # Use larger batches when catching up, smaller for live
-                    batch_size = 2000 if not self.replay_complete else 200
-                    timeout = 2 if not self.replay_complete else 1
+                    batch_size = 5000 if not self.replay_complete else 500
+                    timeout = 5 if not self.replay_complete else 1
 
                     msgs = await psub.fetch(batch=batch_size, timeout=timeout)
 
