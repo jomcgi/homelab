@@ -741,16 +741,17 @@ class ShipsAPIService:
                             "positions": list(latest_by_mmsi.values())
                         })
 
-                    # Log progress and check catchup every 10k messages
+                    # Log progress every 10k messages
                     if not self.replay_complete and self.messages_received % 10000 == 0:
                         info = await psub.consumer_info()
                         logger.info(
                             f"Catchup progress: {self.messages_received} processed, "
                             f"{info.num_pending} pending"
                         )
-                        # Check if we've caught up enough to serve traffic
-                        # Don't require len(msgs) < batch_size - messages may arrive
-                        # faster than we process, but we can still serve data
+
+                    # Check catchup after each batch (especially important for small backlogs)
+                    if not self.replay_complete:
+                        info = await psub.consumer_info()
                         if info.num_pending <= CATCHUP_PENDING_THRESHOLD:
                             vessel_count = await self.db.get_vessel_count()
                             position_count = await self.db.get_position_count()
