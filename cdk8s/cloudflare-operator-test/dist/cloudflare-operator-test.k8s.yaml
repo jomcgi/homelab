@@ -1,0 +1,193 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: noauth
+    app.kubernetes.io/instance: cf-test
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cloudflare-operator-test
+    app.kubernetes.io/version: "1.0"
+    helm.sh/chart: cloudflare-operator-test-0.1.0
+  name: cf-test-cloudflare-operator-test-noauth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: noauth
+      app.kubernetes.io/instance: cf-test
+      app.kubernetes.io/name: cloudflare-operator-test
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: noauth
+        app.kubernetes.io/instance: cf-test
+        app.kubernetes.io/name: cloudflare-operator-test
+    spec:
+      containers:
+        - args:
+            - -text=Hello from public service (no auth required)
+            - -listen=:5678
+          image: hashicorp/http-echo:1.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          name: http-echo
+          ports:
+            - containerPort: 5678
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    cloudflare.ingress.hostname: cf-noauth-test.jomcgi.dev
+    cloudflare.zero-trust.enabled: "false"
+  labels:
+    app.kubernetes.io/component: noauth
+    app.kubernetes.io/instance: cf-test
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cloudflare-operator-test
+    app.kubernetes.io/version: "1.0"
+    helm.sh/chart: cloudflare-operator-test-0.1.0
+  name: cf-test-cloudflare-operator-test-noauth
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/component: noauth
+    app.kubernetes.io/instance: cf-test
+    app.kubernetes.io/name: cloudflare-operator-test
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: auth
+    app.kubernetes.io/instance: cf-test
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cloudflare-operator-test
+    app.kubernetes.io/version: "1.0"
+    helm.sh/chart: cloudflare-operator-test-0.1.0
+  name: cf-test-cloudflare-operator-test-auth
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: auth
+      app.kubernetes.io/instance: cf-test
+      app.kubernetes.io/name: cloudflare-operator-test
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/component: auth
+        app.kubernetes.io/instance: cf-test
+        app.kubernetes.io/name: cloudflare-operator-test
+    spec:
+      containers:
+        - args:
+            - -text=Hello from protected service (Zero Trust enabled)
+            - -listen=:5678
+          image: hashicorp/http-echo:1.0
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          name: http-echo
+          ports:
+            - containerPort: 5678
+              name: http
+              protocol: TCP
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            limits:
+              cpu: 100m
+              memory: 64Mi
+            requests:
+              cpu: 10m
+              memory: 32Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            seccompProfile:
+              type: RuntimeDefault
+      securityContext:
+        fsGroup: 65534
+        runAsNonRoot: true
+        runAsUser: 65534
+        seccompProfile:
+          type: RuntimeDefault
+---
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    cloudflare.ingress.hostname: cf-auth-test.jomcgi.dev
+    cloudflare.zero-trust.policy: joe-only
+  labels:
+    app.kubernetes.io/component: auth
+    app.kubernetes.io/instance: cf-test
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: cloudflare-operator-test
+    app.kubernetes.io/version: "1.0"
+    helm.sh/chart: cloudflare-operator-test-0.1.0
+  name: cf-test-cloudflare-operator-test-auth
+spec:
+  ports:
+    - name: http
+      port: 80
+      protocol: TCP
+      targetPort: http
+  selector:
+    app.kubernetes.io/component: auth
+    app.kubernetes.io/instance: cf-test
+    app.kubernetes.io/name: cloudflare-operator-test
+  type: ClusterIP
