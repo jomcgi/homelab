@@ -108,7 +108,7 @@ class AISIngestService:
         stream_config = StreamConfig(
             name="ais",
             subjects=["ais.>"],
-            max_age=86400_000_000_000,  # 24h in nanoseconds (NATS native unit)
+            max_age=86400,  # 24h in seconds (nats-py converts to nanoseconds)
             max_bytes=10 * 1024 * 1024 * 1024,  # 10GB hard limit
             storage=StorageType.FILE,
             discard=DiscardPolicy.OLD,
