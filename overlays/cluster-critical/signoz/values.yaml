@@ -16,10 +16,16 @@ k8s-infra:
                       service: nats
       service:
         pipelines:
-          metrics:
+          # Add NATS metrics to the scraper pipeline
+          metrics/scraper:
             receivers:
-              - otlp
               - prometheus/nats
+            processors:
+              - k8sattributes
+              - resourcedetection
+              - batch
+            exporters:
+              - otlp
 
 signoz:
   clickhouse:
