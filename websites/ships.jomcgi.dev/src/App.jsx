@@ -203,7 +203,36 @@ export default function App() {
           });
           setVessels(vesselMap);
           setStats({ vessels: data.vessels.length });
+        } else if (data.type === "positions") {
+          // Batched position updates - process all at once
+          data.positions.forEach((pos) => {
+            updateVessel(pos);
+
+            // Append to track if this is the selected vessel
+            if (
+              pos.mmsi === selectedMmsiRef.current &&
+              pos.lat != null &&
+              pos.lon != null
+            ) {
+              setSelectedTrackRef.current((prevTrack) => {
+                if (!prevTrack) return prevTrack;
+                const lastPoint = prevTrack[prevTrack.length - 1];
+                if (
+                  lastPoint &&
+                  lastPoint.lat === pos.lat &&
+                  lastPoint.lon === pos.lon
+                ) {
+                  return prevTrack;
+                }
+                return [
+                  ...prevTrack,
+                  { lat: pos.lat, lon: pos.lon, timestamp: pos.timestamp },
+                ];
+              });
+            }
+          });
         } else if (data.mmsi) {
+          // Legacy: single position update
           updateVessel(data);
 
           // Append to track if this is the selected vessel
