@@ -59,17 +59,19 @@ spec:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /ready
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
             # Allow longer startup for large replay
-            failureThreshold: 120
+            failureThreshold: 360
           resources:
             {{- toYaml .Values.api.resources | nindent 12 }}
           volumeMounts:
