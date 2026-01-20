@@ -673,7 +673,7 @@ class ShipsAPIService:
                     vessels_to_upsert: list[dict] = []
                     positions_for_broadcast: list[dict] = []
 
-                    for msg in msgs:
+                    for i, msg in enumerate(msgs):
                         result = self._process_message_sync(msg.subject, msg.data)
                         if result:
                             msg_type, data, first_seen = result
@@ -688,6 +688,10 @@ class ShipsAPIService:
 
                         self.messages_received += 1
 
+                        # Yield to event loop periodically to allow health checks
+                        if i % 500 == 0:
+                            await asyncio.sleep(0)
+
                     # Batch DB writes
                     if positions_to_insert:
                         await self.db.insert_positions_batch(positions_to_insert)
@@ -698,8 +702,11 @@ class ShipsAPIService:
                     await self.db.commit()
 
                     # Batch ack all messages at once (after successful DB commit)
-                    for msg in msgs:
+                    for i, msg in enumerate(msgs):
                         await msg.ack()
+                        # Yield periodically during acks
+                        if i % 500 == 0:
+                            await asyncio.sleep(0)
 
                     # Broadcast to WebSocket clients (after catchup)
                     if self.replay_complete and positions_for_broadcast:
@@ -716,6 +723,20 @@ class ShipsAPIService:
                             f"{self.db.get_cache_size()} vessels cached, "
                             f"batch: {rate} positions"
                         )
+
+                    # Check for catchup completion after each batch
+                    # (not just on timeout, since new messages may keep arriving)
+                    if not self.replay_complete and len(msgs) < batch_size:
+                        info = await psub.consumer_info()
+                        if info.num_pending == 0:
+                            vessel_count = await self.db.get_vessel_count()
+                            position_count = await self.db.get_position_count()
+                            logger.info(
+                                f"Catchup complete. {position_count} positions "
+                                f"for {vessel_count} vessels"
+                            )
+                            self.replay_complete = True
+                            self.ready = True
 
                 except asyncio.TimeoutError:
                     # Timeout means no messages - check if we've caught up
