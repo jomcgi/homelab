@@ -2,6 +2,11 @@
 # These are sensible defaults that can be overridden per environment
 
 argocd-image-updater:
+  # Polling interval (default: 2m)
+  extraArgs:
+    - --interval
+    - 10s
+
   # Image updater configuration
   config:
     # Supported registries
