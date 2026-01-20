@@ -60,6 +60,9 @@ dependencies = [
     "astral~=3.2",
     "networkx~=3.0",
     "osmium~=4.0",
+    # cdk8s for Kubernetes manifest generation
+    "cdk8s~=2.68",
+    "constructs~=10.0",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
