@@ -8,6 +8,10 @@ interface AuthStatus {
   terminalActive: boolean;
 }
 
+interface ShellStatus {
+  active: boolean;
+}
+
 const WS_PROTOCOL = window.location.protocol === "https:" ? "wss:" : "ws:";
 const WS_BASE = `${WS_PROTOCOL}//${window.location.host}`;
 const API_BASE = "/api";
@@ -18,9 +22,16 @@ export function ClaudeAuthTab() {
   const [terminalUrl, setTerminalUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Fetch auth status on mount
+  // Shell terminal state
+  const [shellStatus, setShellStatus] = useState<ShellStatus | null>(null);
+  const [shellLoading, setShellLoading] = useState(false);
+  const [shellTerminalUrl, setShellTerminalUrl] = useState<string | null>(null);
+  const [shellError, setShellError] = useState<string | null>(null);
+
+  // Fetch status on mount
   useEffect(() => {
     fetchAuthStatus();
+    fetchShellStatus();
   }, []);
 
   const fetchAuthStatus = async () => {
@@ -31,6 +42,16 @@ export function ClaudeAuthTab() {
     } catch (err) {
       console.error("Failed to fetch auth status:", err);
       setError("Failed to fetch authentication status");
+    }
+  };
+
+  const fetchShellStatus = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/shell/status`);
+      const data = await res.json();
+      setShellStatus(data);
+    } catch (err) {
+      console.error("Failed to fetch shell status:", err);
     }
   };
 
@@ -61,6 +82,36 @@ export function ClaudeAuthTab() {
       await fetchAuthStatus();
     } catch (err) {
       console.error("Failed to stop auth terminal:", err);
+    }
+  };
+
+  const startShellTerminal = async () => {
+    setShellLoading(true);
+    setShellError(null);
+    try {
+      const res = await fetch(`${API_BASE}/shell/start`, { method: "POST" });
+      const data = await res.json();
+      if (data.success) {
+        setShellTerminalUrl(`${WS_BASE}/api/shell/terminal/ws`);
+        await fetchShellStatus();
+      } else {
+        setShellError(data.error || "Failed to start shell terminal");
+      }
+    } catch (err) {
+      console.error("Failed to start shell terminal:", err);
+      setShellError("Failed to start shell terminal");
+    } finally {
+      setShellLoading(false);
+    }
+  };
+
+  const stopShellTerminal = async () => {
+    try {
+      await fetch(`${API_BASE}/shell/stop`, { method: "POST" });
+      setShellTerminalUrl(null);
+      await fetchShellStatus();
+    } catch (err) {
+      console.error("Failed to stop shell terminal:", err);
     }
   };
 
@@ -142,6 +193,81 @@ export function ClaudeAuthTab() {
             className="w-full border-green-600 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
           >
             Done - Close Terminal
+          </Button>
+        </div>
+      )}
+
+      {/* Divider */}
+      <div className="my-6 border-t border-neutral-200 dark:border-neutral-700" />
+
+      {/* Shell Terminal Section */}
+      <div className="py-4">
+        <div className="flex items-center justify-between min-h-[60px] py-2">
+          <Label className="text-sm text-neutral-900 dark:text-neutral-100 font-normal">
+            Shell Terminal
+          </Label>
+          <div className="text-sm">
+            {shellStatus === null ? (
+              <span className="text-neutral-500">Loading...</span>
+            ) : shellStatus.active ? (
+              <span className="text-green-600 dark:text-green-400 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-green-500" />
+                Active
+              </span>
+            ) : (
+              <span className="text-neutral-500 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-neutral-400" />
+                Inactive
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Shell error message */}
+      {shellError && (
+        <div className="mb-4 p-3 rounded-md bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm">
+          {shellError}
+        </div>
+      )}
+
+      {/* Shell Terminal or Start Button */}
+      {!shellTerminalUrl ? (
+        <div className="py-4">
+          <h3 className="text-sm font-semibold text-neutral-900 dark:text-neutral-100 mb-3">
+            Open Shell Terminal
+          </h3>
+          <p className="text-sm text-neutral-500 dark:text-neutral-400 mb-4">
+            Open a bash shell in the Claude pod for running commands, debugging,
+            or managing files.
+          </p>
+          <Button
+            onClick={startShellTerminal}
+            disabled={shellLoading}
+            variant="outline"
+            className="w-full"
+          >
+            {shellLoading ? "Starting..." : "Open Shell Terminal"}
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="text-sm text-neutral-500 dark:text-neutral-400">
+            <p>
+              Shell terminal is running. Use it to run commands, manage files,
+              or debug issues.
+            </p>
+          </div>
+
+          {/* Shell Terminal */}
+          <AuthTerminal wsUrl={shellTerminalUrl} />
+
+          <Button
+            onClick={stopShellTerminal}
+            variant="outline"
+            className="w-full border-green-600 text-green-600 hover:bg-green-50 dark:border-green-400 dark:text-green-400 dark:hover:bg-green-900/20"
+          >
+            Close Shell Terminal
           </Button>
         </div>
       )}

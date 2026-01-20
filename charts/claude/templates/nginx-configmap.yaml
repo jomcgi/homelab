@@ -63,5 +63,37 @@ data:
                 return 200 "healthy\n";
                 add_header Content-Type text/plain;
             }
+
+            # Dev server preview routing
+            # Proxies /preview/:port/* to localhost:port/*
+            # Example: /preview/5173/index.html → localhost:5173/index.html
+            location ~ ^/preview/(\d+)/(.*)$ {
+                set $preview_port $1;
+                set $preview_path $2;
+
+                # Proxy to the dev server running in the same pod
+                proxy_pass http://127.0.0.1:$preview_port/$preview_path$is_args$args;
+                proxy_http_version 1.1;
+
+                # WebSocket support for HMR (Hot Module Reload)
+                proxy_set_header Upgrade $http_upgrade;
+                proxy_set_header Connection "upgrade";
+
+                # Standard proxy headers
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+
+                # Reasonable timeouts for dev servers
+                proxy_connect_timeout 60s;
+                proxy_send_timeout 60s;
+                proxy_read_timeout 60s;
+            }
+
+            # Handle /preview/:port without trailing slash
+            location ~ ^/preview/(\d+)$ {
+                return 301 $scheme://$host/preview/$1/;
+            }
         }
     }
