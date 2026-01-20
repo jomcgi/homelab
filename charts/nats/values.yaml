@@ -35,6 +35,27 @@ nats:
           annotations:
             numberOfReplicas: "1"
 
+    # Enable monitoring endpoint for Prometheus exporter
+    monitor:
+      enabled: true
+      port: 8222
+
+  # Prometheus metrics exporter sidecar
+  promExporter:
+    enabled: true
+    image:
+      repository: natsio/prometheus-nats-exporter
+      tag: 0.18.0
+    port: 7777
+    merge:
+      resources:
+        requests:
+          cpu: 10m
+          memory: 32Mi
+        limits:
+          cpu: 100m
+          memory: 64Mi
+
   # Container configuration
   container:
     image:
@@ -61,3 +82,10 @@ nats:
       nats:
         enabled: true
         port: 4222
+    # Prometheus scrape annotations for SigNoz
+    merge:
+      metadata:
+        annotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "7777"
+          prometheus.io/path: "/metrics"
