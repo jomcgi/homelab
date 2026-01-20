@@ -36,9 +36,9 @@ nats:
 # AISStream configuration (for ingest)
 aisstream:
   url: wss://stream.aisstream.io/v0/stream
-  # Global coverage - all vessels worldwide
-  # ~300 messages/second, ~10GB/day storage
-  boundingBox: "[[[-90, -180], [90, 180]]]"
+  # Americas coverage - Pacific to Atlantic, equator to Arctic
+  # West: -173, South: -2.5, East: -32, North: 71.4
+  boundingBox: "[[[-173.009262, -2.455379], [-32.0327, -2.455379], [-32.0327, 71.414709], [-173.009262, 71.414709], [-173.009262, -2.455379]]]"
 
 # Pod security context (shared)
 # Note: Running as root because aspect_rules_py venv needs to write
