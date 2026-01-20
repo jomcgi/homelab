@@ -6,6 +6,11 @@ Serves AIS vessel data via REST API and WebSocket.
 - Subscribes to live updates and broadcasts to WebSocket clients
 - Stores full vessel metadata and position history (7-day retention)
 - Deduplicates positions for stationary vessels
+
+Performance optimizations:
+- In-memory position cache for fast deduplication (no DB reads per message)
+- Batch message acknowledgments to reduce NATS round-trips
+- Batch DB writes with executemany for high throughput
 """
 
 import asyncio
@@ -14,6 +19,7 @@ import logging
 import math
 import os
 from contextlib import asynccontextmanager
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -118,6 +124,17 @@ ON positions(received_at);
 """
 
 
+@dataclass
+class CachedPosition:
+    """In-memory cache entry for latest vessel position."""
+
+    lat: float
+    lon: float
+    speed: float | None
+    timestamp: str
+    first_seen_at_location: str | None
+
+
 def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """Calculate distance between two points in meters using Haversine formula."""
     R = 6371000  # Earth's radius in meters
@@ -137,11 +154,13 @@ def haversine_distance(lat1: float, lon1: float, lat2: float, lon2: float) -> fl
 
 
 class Database:
-    """Async SQLite database wrapper."""
+    """Async SQLite database wrapper with in-memory position cache."""
 
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.db: aiosqlite.Connection | None = None
+        # In-memory cache for deduplication - avoids DB reads per message
+        self._position_cache: dict[str, CachedPosition] = {}
 
     async def connect(self) -> None:
         """Connect to database and initialize schema."""
@@ -162,72 +181,159 @@ class Database:
         await self.db.commit()
         logger.info(f"Database initialized at {self.db_path}")
 
+        # Load existing positions into memory cache
+        await self._load_position_cache()
+
+    async def _load_position_cache(self) -> None:
+        """Load latest positions from DB into memory cache."""
+        cursor = await self.db.execute(
+            "SELECT mmsi, lat, lon, speed, timestamp, first_seen_at_location "
+            "FROM latest_positions"
+        )
+        rows = await cursor.fetchall()
+        for row in rows:
+            self._position_cache[row["mmsi"]] = CachedPosition(
+                lat=row["lat"],
+                lon=row["lon"],
+                speed=row["speed"],
+                timestamp=row["timestamp"],
+                first_seen_at_location=row["first_seen_at_location"],
+            )
+        logger.info(f"Loaded {len(self._position_cache)} positions into memory cache")
+
     async def close(self) -> None:
         """Close database connection."""
         if self.db:
             await self.db.close()
 
-    async def get_latest_position(self, mmsi: str) -> dict | None:
-        """Get cached latest position for deduplication."""
-        cursor = await self.db.execute(
-            "SELECT * FROM latest_positions WHERE mmsi = ?",
-            (mmsi,),
-        )
-        row = await cursor.fetchone()
-        return dict(row) if row else None
+    def get_cached_position(self, mmsi: str) -> CachedPosition | None:
+        """Get cached latest position for deduplication (no DB access)."""
+        return self._position_cache.get(mmsi)
 
-    async def should_insert_position(self, data: dict) -> bool:
-        """Check if position should be inserted (deduplication logic)."""
+    def should_insert_position(self, data: dict) -> tuple[bool, str | None]:
+        """Check if position should be inserted (deduplication logic).
+
+        Returns (should_insert, first_seen_at_location).
+        Uses in-memory cache - no DB access.
+        """
         mmsi = data.get("mmsi")
         if not mmsi:
-            return False
+            return False, None
 
-        last = await self.get_latest_position(mmsi)
+        lat = data.get("lat", 0)
+        lon = data.get("lon", 0)
+        timestamp = data.get("timestamp", "")
+
+        last = self._position_cache.get(mmsi)
         if not last:
-            return True  # First position for this vessel
+            return True, timestamp  # First position for this vessel
 
         # Always insert if speed is above threshold (vessel is moving)
         speed = data.get("speed") or 0
         if speed > DEDUP_SPEED_THRESHOLD:
-            return True
+            # Check if moved significantly to reset first_seen
+            distance = haversine_distance(last.lat, last.lon, lat, lon)
+            first_seen = (
+                last.first_seen_at_location
+                if distance <= MOORED_RADIUS_METERS
+                else timestamp
+            )
+            return True, first_seen
 
         # Calculate distance from last position
-        distance = haversine_distance(
-            last["lat"], last["lon"], data.get("lat", 0), data.get("lon", 0)
-        )
+        distance = haversine_distance(last.lat, last.lon, lat, lon)
 
         # Insert if moved more than threshold
         if distance > DEDUP_DISTANCE_METERS:
-            return True
+            first_seen = (
+                last.first_seen_at_location
+                if distance <= MOORED_RADIUS_METERS
+                else timestamp
+            )
+            return True, first_seen
 
         # Check time since last update
         try:
-            last_ts = datetime.fromisoformat(last["timestamp"].replace("Z", "+00:00"))
-            new_ts = datetime.fromisoformat(
-                data.get("timestamp", "").replace("Z", "+00:00")
-            )
+            last_ts = datetime.fromisoformat(last.timestamp.replace("Z", "+00:00"))
+            new_ts = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
             time_diff = (new_ts - last_ts).total_seconds()
 
             # Insert if enough time has passed (even for stationary vessels)
             if time_diff > DEDUP_TIME_THRESHOLD:
-                return True
+                # Still in same area, keep original first_seen
+                return True, last.first_seen_at_location or timestamp
         except (ValueError, TypeError):
-            return True  # Insert if timestamp parsing fails
+            return True, timestamp  # Insert if timestamp parsing fails
 
-        return False
+        return False, None
 
-    async def insert_position(self, data: dict) -> bool:
-        """Insert a position record if not duplicate. Returns True if inserted."""
-        if not await self.should_insert_position(data):
-            return False
+    def update_cache(self, mmsi: str, data: dict, first_seen: str | None) -> None:
+        """Update the in-memory position cache."""
+        self._position_cache[mmsi] = CachedPosition(
+            lat=data.get("lat", 0),
+            lon=data.get("lon", 0),
+            speed=data.get("speed"),
+            timestamp=data.get("timestamp", ""),
+            first_seen_at_location=first_seen,
+        )
 
-        mmsi = data.get("mmsi")
-        lat = data.get("lat")
-        lon = data.get("lon")
-        timestamp = data.get("timestamp")
+    async def insert_positions_batch(
+        self, positions: list[tuple[dict, str | None]]
+    ) -> int:
+        """Batch insert positions. Returns count inserted.
 
-        # Insert into positions history
-        await self.db.execute(
+        Args:
+            positions: List of (data_dict, first_seen_at_location) tuples
+        """
+        if not positions:
+            return 0
+
+        # Prepare batch data for positions table
+        position_rows = []
+        latest_rows = []
+
+        for data, first_seen in positions:
+            mmsi = data.get("mmsi")
+            lat = data.get("lat")
+            lon = data.get("lon")
+            timestamp = data.get("timestamp")
+
+            position_rows.append(
+                (
+                    mmsi,
+                    lat,
+                    lon,
+                    data.get("speed"),
+                    data.get("course"),
+                    data.get("heading"),
+                    data.get("nav_status"),
+                    data.get("rate_of_turn"),
+                    data.get("position_accuracy"),
+                    data.get("ship_name"),
+                    timestamp,
+                )
+            )
+
+            latest_rows.append(
+                (
+                    mmsi,
+                    lat,
+                    lon,
+                    data.get("speed"),
+                    data.get("course"),
+                    data.get("heading"),
+                    data.get("nav_status"),
+                    data.get("ship_name"),
+                    timestamp,
+                    first_seen,
+                )
+            )
+
+            # Update in-memory cache
+            self.update_cache(mmsi, data, first_seen)
+
+        # Batch insert into positions table
+        await self.db.executemany(
             """
             INSERT INTO positions (
                 mmsi, lat, lon, speed, course, heading,
@@ -235,33 +341,11 @@ class Database:
                 ship_name, timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (
-                mmsi,
-                lat,
-                lon,
-                data.get("speed"),
-                data.get("course"),
-                data.get("heading"),
-                data.get("nav_status"),
-                data.get("rate_of_turn"),
-                data.get("position_accuracy"),
-                data.get("ship_name"),
-                timestamp,
-            ),
+            position_rows,
         )
 
-        # Update latest position cache
-        # Check if vessel has moved significantly to reset first_seen_at_location
-        last = await self.get_latest_position(mmsi)
-        first_seen = timestamp
-
-        if last:
-            distance = haversine_distance(last["lat"], last["lon"], lat, lon)
-            if distance <= MOORED_RADIUS_METERS:
-                # Still in same area, keep original first_seen time
-                first_seen = last.get("first_seen_at_location") or timestamp
-
-        await self.db.execute(
+        # Batch upsert into latest_positions table
+        await self.db.executemany(
             """
             INSERT INTO latest_positions (
                 mmsi, lat, lon, speed, course, heading, nav_status,
@@ -279,25 +363,35 @@ class Database:
                 first_seen_at_location = excluded.first_seen_at_location,
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (
-                mmsi,
-                lat,
-                lon,
-                data.get("speed"),
-                data.get("course"),
-                data.get("heading"),
-                data.get("nav_status"),
-                data.get("ship_name"),
-                timestamp,
-                first_seen,
-            ),
+            latest_rows,
         )
 
-        return True
+        return len(positions)
 
-    async def upsert_vessel(self, data: dict) -> None:
-        """Insert or update vessel metadata."""
-        await self.db.execute(
+    async def upsert_vessels_batch(self, vessels: list[dict]) -> None:
+        """Batch insert or update vessel metadata."""
+        if not vessels:
+            return
+
+        rows = [
+            (
+                v.get("mmsi"),
+                v.get("imo"),
+                v.get("call_sign"),
+                v.get("name"),
+                v.get("ship_type"),
+                v.get("dimension_a"),
+                v.get("dimension_b"),
+                v.get("dimension_c"),
+                v.get("dimension_d"),
+                v.get("destination"),
+                v.get("eta"),
+                v.get("draught"),
+            )
+            for v in vessels
+        ]
+
+        await self.db.executemany(
             """
             INSERT INTO vessels (
                 mmsi, imo, call_sign, name, ship_type,
@@ -318,20 +412,7 @@ class Database:
                 draught = COALESCE(excluded.draught, vessels.draught),
                 updated_at = CURRENT_TIMESTAMP
             """,
-            (
-                data.get("mmsi"),
-                data.get("imo"),
-                data.get("call_sign"),
-                data.get("name"),
-                data.get("ship_type"),
-                data.get("dimension_a"),
-                data.get("dimension_b"),
-                data.get("dimension_c"),
-                data.get("dimension_d"),
-                data.get("destination"),
-                data.get("eta"),
-                data.get("draught"),
-            ),
+            rows,
         )
 
     async def commit(self) -> None:
@@ -460,6 +541,10 @@ class Database:
         row = await cursor.fetchone()
         return row[0] if row else 0
 
+    def get_cache_size(self) -> int:
+        """Get current size of in-memory position cache."""
+        return len(self._position_cache)
+
 
 class WebSocketManager:
     """Manages WebSocket connections for live updates."""
@@ -508,7 +593,13 @@ class WebSocketManager:
 
 
 class ShipsAPIService:
-    """Ships API service with NATS integration and SQLite storage."""
+    """Ships API service with NATS integration and SQLite storage.
+
+    Performance optimizations:
+    - In-memory position cache for O(1) deduplication lookups
+    - Batch message acknowledgments (ack after processing batch, not per message)
+    - Batch DB writes with executemany
+    """
 
     def __init__(self):
         self.nc: nats.NATS | None = None
@@ -522,10 +613,6 @@ class ShipsAPIService:
         self.messages_received = 0
         self.messages_deduplicated = 0
         self.replay_complete = False
-        self._pending_commits = 0
-        self._commit_interval = (
-            1500  # Commit every N inserts (increased for global volume)
-        )
 
     async def connect_nats(self) -> None:
         """Connect to NATS."""
@@ -541,18 +628,16 @@ class ShipsAPIService:
         - First run: processes all messages from the beginning
         - Subsequent runs: resumes from last acknowledged message
 
-        This eliminates the need for separate replay/live phases.
+        Performance: Processes messages in batches with batch acks.
         """
         logger.info("Subscribing to AIS stream with durable consumer...")
 
         try:
             # Durable consumer - NATS tracks position across restarts
-            # deliver_policy=ALL only applies on first creation; after that
-            # NATS resumes from last ack'd position
             consumer_config = ConsumerConfig(
                 durable_name="ships-api",
                 deliver_policy=DeliverPolicy.ALL,
-                ack_wait=60,  # Longer ack wait for batch processing
+                ack_wait=120,  # Longer ack wait for batch processing
             )
 
             psub = await self.js.pull_subscribe(
@@ -574,35 +659,58 @@ class ShipsAPIService:
             while self.running:
                 try:
                     # Use larger batches when catching up, smaller for live
-                    batch_size = 1000 if not self.replay_complete else 100
+                    batch_size = 2000 if not self.replay_complete else 200
                     timeout = 2 if not self.replay_complete else 1
 
                     msgs = await psub.fetch(batch=batch_size, timeout=timeout)
 
+                    # Process batch and collect DB operations
+                    positions_to_insert: list[tuple[dict, str | None]] = []
+                    vessels_to_upsert: list[dict] = []
+                    positions_for_broadcast: list[dict] = []
+
                     for msg in msgs:
-                        # Don't broadcast during catchup to avoid flooding clients
-                        broadcast = self.replay_complete
-                        await self._process_message(msg.subject, msg.data, broadcast)
-                        await msg.ack()
+                        result = self._process_message_sync(msg.subject, msg.data)
+                        if result:
+                            msg_type, data, first_seen = result
+                            if msg_type == "position":
+                                positions_to_insert.append((data, first_seen))
+                                if self.replay_complete:
+                                    positions_for_broadcast.append(data)
+                            elif msg_type == "vessel":
+                                vessels_to_upsert.append(data)
+                            elif msg_type == "deduplicated":
+                                self.messages_deduplicated += 1
+
                         self.messages_received += 1
-                        self._pending_commits += 1
 
-                        # Batch commits for performance
-                        if self._pending_commits >= self._commit_interval:
-                            await self.db.commit()
-                            self._pending_commits = 0
+                    # Batch DB writes
+                    if positions_to_insert:
+                        await self.db.insert_positions_batch(positions_to_insert)
+                    if vessels_to_upsert:
+                        await self.db.upsert_vessels_batch(vessels_to_upsert)
 
-                    # Commit remaining after each batch
-                    if self._pending_commits > 0:
-                        await self.db.commit()
-                        self._pending_commits = 0
+                    # Commit after batch
+                    await self.db.commit()
+
+                    # Batch ack all messages at once (after successful DB commit)
+                    for msg in msgs:
+                        await msg.ack()
+
+                    # Broadcast to WebSocket clients (after catchup)
+                    if self.replay_complete and positions_for_broadcast:
+                        for pos in positions_for_broadcast:
+                            await self.ws_manager.broadcast(pos)
 
                     # Log progress during catchup
-                    if not self.replay_complete and self.messages_received % 10000 == 0:
+                    if not self.replay_complete and self.messages_received % 50000 == 0:
                         info = await psub.consumer_info()
+                        rate = len(positions_to_insert)
                         logger.info(
                             f"Catchup progress: {self.messages_received} processed, "
-                            f"{info.num_pending} pending"
+                            f"{info.num_pending} pending, "
+                            f"{self.db.get_cache_size()} vessels cached, "
+                            f"batch: {rate} positions"
                         )
 
                 except asyncio.TimeoutError:
@@ -629,28 +737,36 @@ class ShipsAPIService:
             logger.error(f"Failed to subscribe to AIS stream: {e}")
             raise
 
-    async def _process_message(
-        self, subject: str, data: bytes, broadcast: bool = True
-    ) -> None:
-        """Process a NATS message."""
+    def _process_message_sync(
+        self, subject: str, data: bytes
+    ) -> tuple[str, dict, str | None] | None:
+        """Process a NATS message synchronously (no async DB calls).
+
+        Returns:
+            None if message should be skipped
+            ("position", data, first_seen) for position messages to insert
+            ("vessel", data, None) for vessel messages
+            ("deduplicated", {}, None) for deduplicated positions
+        """
         try:
             payload = json.loads(data)
             mmsi = payload.get("mmsi")
             if not mmsi:
-                return
+                return None
 
             if subject.startswith("ais.position."):
-                inserted = await self.db.insert_position(payload)
-                if not inserted:
-                    self.messages_deduplicated += 1
-                elif broadcast and self.replay_complete:
-                    await self.ws_manager.broadcast(payload)
+                should_insert, first_seen = self.db.should_insert_position(payload)
+                if should_insert:
+                    return ("position", payload, first_seen)
+                return ("deduplicated", {}, None)
 
             elif subject.startswith("ais.static."):
-                await self.db.upsert_vessel(payload)
+                return ("vessel", payload, None)
 
-        except json.JSONDecodeError as e:
-            logger.warning(f"Failed to parse message: {e}")
+            return None
+
+        except json.JSONDecodeError:
+            return None
 
     async def cleanup_loop(self) -> None:
         """Periodic cleanup of old positions."""
@@ -735,7 +851,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Ships API",
     description="Real-time vessel tracking API with historical data",
-    version="2.0.0",
+    version="2.1.0",
     lifespan=lifespan,
 )
 
@@ -757,6 +873,7 @@ async def health():
         "status": "alive",
         "nats_connected": service.nc is not None and service.nc.is_connected,
         "vessel_count": vessel_count,
+        "cache_size": service.db.get_cache_size(),
         "caught_up": service.replay_complete,
         "messages_processed": service.messages_received,
     }
@@ -772,6 +889,7 @@ async def ready(response: Response):
             "status": "not_ready",
             "reason": "catching_up" if not service.replay_complete else "starting",
             "vessel_count": vessel_count,
+            "cache_size": service.db.get_cache_size(),
             "messages_processed": service.messages_received,
         }
     return {
@@ -836,6 +954,7 @@ async def get_stats():
     return {
         "vessel_count": vessel_count,
         "position_count": position_count,
+        "cache_size": service.db.get_cache_size(),
         "messages_received": service.messages_received,
         "messages_deduplicated": service.messages_deduplicated,
         "connected_clients": client_count,
