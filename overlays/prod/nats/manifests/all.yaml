@@ -99,6 +99,10 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "7777"
+    prometheus.io/scrape: "true"
   labels:
     app.kubernetes.io/component: nats
     app.kubernetes.io/instance: nats
@@ -292,6 +296,28 @@ spec:
           name: pid
         - mountPath: /etc/nats-config
           name: config
+      - args:
+        - -port=7777
+        - -connz
+        - -routez
+        - -subz
+        - -varz
+        - -prefix=nats
+        - -use_internal_server_id
+        - -jsz=all
+        - http://localhost:8222/
+        image: natsio/prometheus-nats-exporter:0.18.0
+        name: prom-exporter
+        ports:
+        - containerPort: 7777
+          name: prom-metrics
+        resources:
+          limits:
+            cpu: 100m
+            memory: 64Mi
+          requests:
+            cpu: 10m
+            memory: 32Mi
       enableServiceLinks: false
       nodeSelector:
         kubernetes.io/hostname: node-4
