@@ -19,7 +19,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "main@sha256:29f47528db084ebe15e6e4b32f3e5d4779010ae5a36ac49a6f15be1e3e3b6d2d"
+    tag: "main@sha256:29af318cbbfadc2036b8cbaab7416ae34f1cd605146d1df8639c4496e890e75e"
     pullPolicy: Always
   # Overprovisioned for catchup - reduce after caught up
   resources:
@@ -33,7 +33,7 @@ api:
     otel.injected-by: kyverno/inject-otel-env-vars
 frontend:
   image:
-    tag: latest@sha256:40054cf2473c30bf1b06e249a59d2446a140569385a50e10985585de2554ac2e
+    tag: main@sha256:f9c6db3208a94839c7733e10317721986435f52ae3255acb92073a19d67fb12f
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
