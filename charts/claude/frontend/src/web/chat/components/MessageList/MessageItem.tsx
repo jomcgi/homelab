@@ -22,6 +22,7 @@ import ReactMarkdown from "react-markdown";
 import { JsonViewer } from "../JsonViewer/JsonViewer";
 import { ToolUseRenderer } from "../ToolRendering/ToolUseRenderer";
 import { CodeHighlight } from "../CodeHighlight";
+import { MermaidDiagram } from "../MermaidDiagram";
 import type { ChatMessage, ToolResult } from "../../types";
 import type { ContentBlockParam } from "@anthropic-ai/sdk/resources/messages/messages";
 
@@ -73,11 +74,17 @@ const markdownComponents = {
   code({ node, inline, className, children, ...props }: any) {
     const match = /language-(\w+)/.exec(className || "");
     const language = match ? match[1] : "text";
+    const codeContent = String(children).replace(/\n$/, "");
 
     if (!inline && match) {
+      // Render Mermaid diagrams with the MermaidDiagram component
+      if (language === "mermaid") {
+        return <MermaidDiagram code={codeContent} />;
+      }
+
       return (
         <CodeHighlight
-          code={String(children).replace(/\n$/, "")}
+          code={codeContent}
           language={language}
           className="bg-neutral-900 rounded-md overflow-hidden max-w-full box-border"
         />

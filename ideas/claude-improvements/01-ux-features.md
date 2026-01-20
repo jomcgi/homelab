@@ -14,7 +14,7 @@ Enhance Claude Code's user experience with better visualization capabilities and
 ### 2. Development Server Integration
 - **Port Routing**: Proxy development server ports (3000-3999) to accessible URLs
 - **Service URL**: Route `npm run dev` output to `claude.jomcgi.dev/preview/*`
-- **Terminal Integration**: Embed ttyd for terminal access within Claude UI
+<!-- - **Terminal Integration**: Embed ttyd for terminal access within Claude UI (LOW VALUE - login page already has pod exec) -->
 - **Port Forwarding UI**: Visual interface to manage and expose local dev servers
 
 ### 3. Enhanced Code Editor Features
@@ -66,3 +66,38 @@ location ~ ^/preview/(\d+)/(.*)$ {
 - Increased usage of diagram features
 - Improved developer satisfaction scores
 - Decreased context switching between tools
+
+---
+
+## Implementation Todo List
+
+### Phase 1: Dev Server Preview Routing (Backend)
+- [x] Add preview location to Claude nginx config (`/preview/:port/*` → localhost:port)
+- [x] WebSocket support for HMR included in nginx config
+- [ ] Test end-to-end with a dev server (manual verification after deploy)
+
+### Phase 2: Diagram Rendering (Frontend)
+- [x] Add Mermaid.js to Claude frontend for client-side rendering
+- [x] Implement dark mode for diagrams (uses theme context)
+- [x] Add copy SVG functionality
+- [ ] Add markdown preview with GFM support (future enhancement)
+
+### Phase 3: Login Page Terminal Button (Frontend)
+- [x] Add "Shell Terminal" section in Auth tab
+- [x] Backend routes for `/api/shell/start|stop|status`
+- [x] WebSocket proxy for shell terminal
+
+### Phase 4: Port Forwarding UI (Frontend - Optional)
+- [ ] Create UI to list active dev server ports
+- [ ] Show clickable preview URLs for running servers
+- [ ] Add start/stop controls for common dev commands
+
+---
+
+## Progress Log
+
+### 2026-01-19
+- Added dev server preview routing to nginx config (`/preview/:port/*` proxies to localhost:port)
+- Added MermaidDiagram component with dark mode support and copy SVG functionality
+- Added shell terminal backend routes and WebSocket proxy
+- Added Shell Terminal UI section in the Auth tab

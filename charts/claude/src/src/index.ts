@@ -7,7 +7,11 @@ import { spawn, ChildProcess } from "child_process";
 import path from "path";
 import fs from "fs";
 
-import { setupAuthRoutes, handleTtydUpgrade } from "./auth";
+import {
+  setupAuthRoutes,
+  handleAuthTtydUpgrade,
+  handleShellTtydUpgrade,
+} from "./auth";
 
 const app = express();
 app.use(express.json());
@@ -167,7 +171,9 @@ server.on("upgrade", (req: IncomingMessage, socket: Socket, head: Buffer) => {
   console.log(`[UPGRADE] Request received: ${url}`);
 
   if (url.startsWith("/api/auth/terminal/ws")) {
-    handleTtydUpgrade(req, socket, head);
+    handleAuthTtydUpgrade(req, socket, head);
+  } else if (url.startsWith("/api/shell/terminal/ws")) {
+    handleShellTtydUpgrade(req, socket, head);
   } else if (url.startsWith("/ws")) {
     console.log(`WebSocket upgrade request for session: ${url}`);
     wss.handleUpgrade(req, socket, head, (ws) => {
