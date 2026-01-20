@@ -634,10 +634,12 @@ class ShipsAPIService:
 
         try:
             # Durable consumer - NATS tracks position across restarts
+            # max_ack_pending allows larger batches without NATS throttling
             consumer_config = ConsumerConfig(
                 durable_name="ships-api",
                 deliver_policy=DeliverPolicy.ALL,
                 ack_wait=120,  # Longer ack wait for batch processing
+                max_ack_pending=10000,  # Allow 10k unacked msgs (default 1000 throttles us)
             )
 
             psub = await self.js.pull_subscribe(
