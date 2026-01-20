@@ -155,7 +155,7 @@ class Database:
         await self.db.execute("PRAGMA journal_mode=WAL")
         await self.db.execute("PRAGMA synchronous=NORMAL")
         # Increase cache for better performance with large datasets
-        await self.db.execute("PRAGMA cache_size=-64000")  # 64MB cache
+        await self.db.execute("PRAGMA cache_size=-384000")  # 384MB cache
 
         # Create schema
         await self.db.executescript(SCHEMA)
@@ -524,7 +524,7 @@ class ShipsAPIService:
         self.replay_complete = False
         self._pending_commits = 0
         self._commit_interval = (
-            500  # Commit every N inserts (increased for global volume)
+            1500  # Commit every N inserts (increased for global volume)
         )
 
     async def connect_nats(self) -> None:
@@ -574,7 +574,7 @@ class ShipsAPIService:
             while self.running:
                 try:
                     # Use larger batches when catching up, smaller for live
-                    batch_size = 500 if not self.replay_complete else 100
+                    batch_size = 1000 if not self.replay_complete else 100
                     timeout = 2 if not self.replay_complete else 1
 
                     msgs = await psub.fetch(batch=batch_size, timeout=timeout)
