@@ -110,22 +110,16 @@ CREATE TABLE IF NOT EXISTS latest_positions (
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
--- Index for efficient latest position and track queries
-CREATE INDEX IF NOT EXISTS idx_positions_mmsi_timestamp
-ON positions(mmsi, timestamp DESC);
-
--- Index for time-based queries and cleanup
-CREATE INDEX IF NOT EXISTS idx_positions_timestamp
-ON positions(timestamp DESC);
-
--- Index for track queries (ASC order matches query pattern)
-CREATE INDEX IF NOT EXISTS idx_positions_mmsi_timestamp_asc
-ON positions(mmsi, timestamp ASC);
-
--- Index for retention cleanup
-CREATE INDEX IF NOT EXISTS idx_positions_received_at
-ON positions(received_at);
+-- Indexes are created separately after catchup completes for faster bulk inserts
 """
+
+# Only indexes actually needed by queries:
+# - (mmsi, timestamp) for track queries: WHERE mmsi=? ORDER BY timestamp ASC
+# - (timestamp) for cleanup: DELETE WHERE timestamp < ?
+INDEXES = [
+    "CREATE INDEX IF NOT EXISTS idx_positions_mmsi_timestamp ON positions(mmsi, timestamp)",
+    "CREATE INDEX IF NOT EXISTS idx_positions_timestamp ON positions(timestamp)",
+]
 
 
 @dataclass
@@ -212,6 +206,26 @@ class Database:
         """Close database connection."""
         if self.db:
             await self.db.close()
+
+    async def drop_indexes(self) -> None:
+        """Drop indexes for faster bulk inserts during catchup."""
+        logger.info("Dropping indexes for bulk insert performance...")
+        # Drop any existing indexes on positions table
+        await self.db.execute("DROP INDEX IF EXISTS idx_positions_mmsi_timestamp")
+        await self.db.execute("DROP INDEX IF EXISTS idx_positions_timestamp")
+        # Also drop legacy indexes that may exist from old schema
+        await self.db.execute("DROP INDEX IF EXISTS idx_positions_mmsi_timestamp_asc")
+        await self.db.execute("DROP INDEX IF EXISTS idx_positions_received_at")
+        await self.db.commit()
+        logger.info("Indexes dropped")
+
+    async def create_indexes(self) -> None:
+        """Create indexes after catchup for query performance."""
+        logger.info("Creating indexes for query performance...")
+        for idx_sql in INDEXES:
+            await self.db.execute(idx_sql)
+        await self.db.commit()
+        logger.info("Indexes created")
 
     def get_cached_position(self, mmsi: str) -> CachedPosition | None:
         """Get cached latest position for deduplication (no DB access)."""
@@ -660,8 +674,12 @@ class ShipsAPIService:
             pending = consumer_info.num_pending
             if pending > 0:
                 logger.info(f"Catching up on {pending} pending messages...")
+                # Drop indexes for faster bulk inserts during catchup
+                await self.db.drop_indexes()
             else:
                 logger.info("Consumer is caught up, processing live messages")
+                # Ensure indexes exist for query performance
+                await self.db.create_indexes()
                 self.replay_complete = True
                 self.ready = True
 
@@ -740,6 +758,8 @@ class ShipsAPIService:
                                 f"Catchup complete. {position_count} positions "
                                 f"for {vessel_count} vessels"
                             )
+                            # Create indexes now that bulk insert is done
+                            await self.db.create_indexes()
                             self.replay_complete = True
                             self.ready = True
 
@@ -754,6 +774,8 @@ class ShipsAPIService:
                                 f"Catchup complete. {position_count} positions "
                                 f"for {vessel_count} vessels"
                             )
+                            # Create indexes now that bulk insert is done
+                            await self.db.create_indexes()
                             self.replay_complete = True
                             self.ready = True
                     continue
