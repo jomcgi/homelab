@@ -10,7 +10,7 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-    tag: "main@sha256:375465ed84e89ae7567972a5e283fbd54e4f394b45a4075cc08a8f3e8c0df3db"
+    tag: "main@sha256:e4387da3faf332751fc13665aab56bcbabf3c4eae131ef8d6f587e980e26ee2c"
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
