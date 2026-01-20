@@ -1,3 +1,32 @@
+# k8s-infra subchart configuration
+k8s-infra:
+  otelDeployment:
+    config:
+      receivers:
+        # Prometheus scraper for NATS JetStream metrics
+        prometheus/nats:
+          config:
+            scrape_configs:
+              - job_name: 'nats'
+                scrape_interval: 30s
+                static_configs:
+                  - targets:
+                      - 'nats.nats.svc.cluster.local:7777'
+                    labels:
+                      service: nats
+      service:
+        pipelines:
+          # Add NATS metrics to the scraper pipeline
+          metrics/scraper:
+            receivers:
+              - prometheus/nats
+            processors:
+              - k8sattributes
+              - resourcedetection
+              - batch
+            exporters:
+              - otlp
+
 signoz:
   clickhouse:
     resources:
