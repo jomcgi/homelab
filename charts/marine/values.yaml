@@ -37,8 +37,9 @@ nats:
 aisstream:
   url: wss://stream.aisstream.io/v0/stream
   # Americas coverage - Pacific to Atlantic, equator to Arctic
-  # West: -173, South: -2.5, East: -32, North: 71.4
-  boundingBox: "[[[-173.009262, -2.455379], [-32.0327, -2.455379], [-32.0327, 71.414709], [-173.009262, 71.414709], [-173.009262, -2.455379]]]"
+  # Format: [[[lat_min, lon_min], [lat_max, lon_max]]]
+  # South: -2.5, West: -173, North: 71.4, East: -32
+  boundingBox: "[[[-2.455379, -173.009262], [71.414709, -32.0327]]]"
 
 # Pod security context (shared)
 # Note: Running as root because aspect_rules_py venv needs to write
