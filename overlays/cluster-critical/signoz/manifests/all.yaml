@@ -470,6 +470,16 @@ data:
             enabled: true
       k8s_events:
         auth_type: serviceAccount
+      prometheus/nats:
+        config:
+          scrape_configs:
+          - job_name: nats
+            scrape_interval: 30s
+            static_configs:
+            - labels:
+                service: nats
+              targets:
+              - nats.nats.svc.cluster.local:7777
     service:
       extensions:
       - health_check
@@ -494,6 +504,15 @@ data:
           - batch
           receivers:
           - k8s_cluster
+        metrics/scraper:
+          exporters:
+          - otlp
+          processors:
+          - resourcedetection
+          - k8sattributes
+          - batch
+          receivers:
+          - prometheus/nats
       telemetry:
         logs:
           encoding: json
@@ -2286,7 +2305,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 0016ce3956d9ea4b46a0516b1acccbe7d2de4d3971c62b594f1ac22b1fd8db96
+        checksum/config: 1b4e0b907467effd8f97c9be5d4cdb6b101222c12a4a8d72a6c3c928d149396e
       labels:
         app.kubernetes.io/name: k8s-infra
         app.kubernetes.io/instance: signoz
