@@ -45,7 +45,8 @@ DB_PATH = os.getenv("DB_PATH", "/tmp/ships.db")
 POSITION_RETENTION_DAYS = int(os.getenv("POSITION_RETENTION_DAYS", "7"))
 
 # Catchup threshold - consider "caught up" when pending is below this
-CATCHUP_PENDING_THRESHOLD = int(os.getenv("CATCHUP_PENDING_THRESHOLD", "100"))
+# With ~200 msg/min arrival rate, 10k pending = ~50 min of data, acceptable lag
+CATCHUP_PENDING_THRESHOLD = int(os.getenv("CATCHUP_PENDING_THRESHOLD", "10000"))
 
 # Deduplication settings
 # Skip position if within this distance (meters) and speed below threshold
