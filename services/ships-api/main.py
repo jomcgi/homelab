@@ -45,7 +45,8 @@ DB_PATH = os.getenv("DB_PATH", "/tmp/ships.db")
 POSITION_RETENTION_DAYS = int(os.getenv("POSITION_RETENTION_DAYS", "7"))
 
 # Catchup threshold - consider "caught up" when pending is below this
-CATCHUP_PENDING_THRESHOLD = int(os.getenv("CATCHUP_PENDING_THRESHOLD", "100"))
+# With ~200 msg/min arrival rate, 10k pending = ~50 min of data, acceptable lag
+CATCHUP_PENDING_THRESHOLD = int(os.getenv("CATCHUP_PENDING_THRESHOLD", "10000"))
 
 # Deduplication settings
 # Skip position if within this distance (meters) and speed below threshold
@@ -666,8 +667,9 @@ class ShipsAPIService:
 
             while self.running:
                 try:
-                    # Use smaller batches to reduce DB lock duration
-                    batch_size = 1000 if not self.replay_complete else 100
+                    # Large batches during catchup (not serving reads yet)
+                    # Smaller batches when live to reduce DB lock duration
+                    batch_size = 10000 if not self.replay_complete else 100
                     timeout = 5 if not self.replay_complete else 1
 
                     msgs = await psub.fetch(batch=batch_size, timeout=timeout)
@@ -705,12 +707,8 @@ class ShipsAPIService:
                     # Commit after batch
                     await self.db.commit()
 
-                    # Batch ack all messages at once (after successful DB commit)
-                    for i, msg in enumerate(msgs):
-                        await msg.ack()
-                        # Yield periodically during acks
-                        if i % 500 == 0:
-                            await asyncio.sleep(0)
+                    # Batch ack all messages in parallel (after successful DB commit)
+                    await asyncio.gather(*[msg.ack() for msg in msgs])
 
                     # Broadcast to WebSocket clients (after catchup)
                     # Send as batch with only latest position per vessel
@@ -725,18 +723,16 @@ class ShipsAPIService:
                             "positions": list(latest_by_mmsi.values())
                         })
 
-                    # Log progress during catchup (every 10k messages)
+                    # Log progress and check catchup every 10k messages
                     if not self.replay_complete and self.messages_received % 10000 == 0:
                         info = await psub.consumer_info()
                         logger.info(
                             f"Catchup progress: {self.messages_received} processed, "
                             f"{info.num_pending} pending"
                         )
-
-                    # Check for catchup completion after each batch
-                    # Use threshold to avoid waiting for exactly 0 pending
-                    if not self.replay_complete and len(msgs) < batch_size:
-                        info = await psub.consumer_info()
+                        # Check if we've caught up enough to serve traffic
+                        # Don't require len(msgs) < batch_size - messages may arrive
+                        # faster than we process, but we can still serve data
                         if info.num_pending <= CATCHUP_PENDING_THRESHOLD:
                             vessel_count = await self.db.get_vessel_count()
                             position_count = await self.db.get_position_count()
