@@ -10,7 +10,7 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais-ingest
-    tag: "latest@sha256:bf6773517df17b434fa1bd7ed78ec6c09507856baf59aa479b76cc54a8b08cb8"
+    tag: "main@sha256:375465ed84e89ae7567972a5e283fbd54e4f394b45a4075cc08a8f3e8c0df3db"
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
@@ -33,7 +33,7 @@ api:
     otel.injected-by: kyverno/inject-otel-env-vars
 frontend:
   image:
-    tag: main@sha256:f9c6db3208a94839c7733e10317721986435f52ae3255acb92073a19d67fb12f
+    tag: latest@sha256:f9c6db3208a94839c7733e10317721986435f52ae3255acb92073a19d67fb12f
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
