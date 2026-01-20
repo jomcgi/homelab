@@ -205,7 +205,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest@sha256:25d869b0be81ca6958db54e8c4f61382dbfb49e131e7e244f146dde1ae7c074b"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest@sha256:bf6773517df17b434fa1bd7ed78ec6c09507856baf59aa479b76cc54a8b08cb8"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -303,7 +303,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:main@sha256:00280291c388e2cb4318da2533bb1b4c3a1af7b073584c20a68c3ea0060d3154"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:main@sha256:14a0f0371c8af09a1acc087e86aa1fd63f0c454295d40054a57e900a8be51ff0"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -344,10 +344,10 @@ spec:
             failureThreshold: 120
           resources:
             limits:
-              memory: 1Gi
+              memory: 10Gi
             requests:
-              cpu: 100m
-              memory: 256Mi
+              cpu: 1
+              memory: 1Gi
           volumeMounts:
             - name: tmp
               mountPath: /tmp

@@ -99,8 +99,10 @@ data:
     # Get ArgoCD app-of-apps status (canada) for overall sync status
     ARGO_STATUS=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.status}' 2>/dev/null || echo "Unknown")
     ARGO_REVISION=$(kubectl get application -n argocd canada -o jsonpath='{.status.sync.revision}' 2>/dev/null | cut -c1-7 || echo "")
-    # Get the most recent sync time from ALL ArgoCD applications (not just app-of-apps)
-    ARGO_SYNCED_AT=$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{.status.operationState.finishedAt}{"\n"}{end}' 2>/dev/null | sort -r | head -1 || echo "")
+    # Get the most recent deployment time from ALL ArgoCD applications
+    # Iterates through all history entries (not just history[0] which is oldest)
+    # and finds the most recent deployedAt timestamp
+    ARGO_SYNCED_AT=$(kubectl get applications -n argocd -o jsonpath='{range .items[*]}{range .status.history[*]}{.deployedAt}{"\n"}{end}{end}' 2>/dev/null | sort -r | head -1 || echo "")
 
     # Generate timestamp
     TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
@@ -346,7 +348,7 @@ spec:
     metadata:
       annotations:
         checksum/nginx-config: e792c375cd719b870324034e5745cd1cfa503fa5cda24cf290e670f7858705db
-        checksum/collector-config: d3187019a8acac2b2460628f02686505f2d28c10950d9363a90659af9cc06ad8
+        checksum/collector-config: 4df2347ee01d35c867bb41794e9602cf21434654c9a1a7cbdabe785d829e3c6e
       labels:
         app.kubernetes.io/name: api-gateway
         app.kubernetes.io/instance: api-gateway
