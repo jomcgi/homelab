@@ -174,6 +174,7 @@ attrs==25.4.0 \
     #   aiohttp
     #   cattrs
     #   fiona
+    #   jsii
     #   rasterio
     #   requests-cache
 beautifulsoup4==4.14.2 \
@@ -327,7 +328,13 @@ brotli==1.1.0 \
 cattrs==25.3.0 \
     --hash=sha256:1ac88d9e5eda10436c4517e390a4142d88638fe682c436c93db7ce4a277b884a \
     --hash=sha256:9896e84e0a5bf723bc7b4b68f4481785367ce07a8a02e7e9ee6eb2819bc306ff
-    # via requests-cache
+    # via
+    #   jsii
+    #   requests-cache
+cdk8s==2.70.43 \
+    --hash=sha256:27fa64d8fe3bd44d0385eead7639963feb6a0f844741b43a83b06fc84fb2cfc5 \
+    --hash=sha256:7254ca5562aa49c493686dc8ecb97d70e9eaa35bb5ad0209656d303d3581a94d
+    # via homelab (pyproject.toml)
 certifi==2025.10.5 \
     --hash=sha256:0f212c2744a9bb6de0c56639a6f68afe01ecd92d91f14ae897c4fe7bbeeef0de \
     --hash=sha256:47c09d31ccf2acf0be3f701ea53595ee7e0b8fa08801c6624be771df09ae7b43
@@ -493,6 +500,12 @@ construct==2.10.70 \
     --hash=sha256:4d2472f9684731e58cc9c56c463be63baa1447d674e0d66aeb5627b22f512c29 \
     --hash=sha256:c80be81ef595a1a821ec69dc16099550ed22197615f4320b57cc9ce2a672cb30
     # via open-gopro
+constructs==10.4.5 \
+    --hash=sha256:e63d6675ba2e8a9076db8df1d4c7af78efdb96182ba28abe938384ba321e4b81 \
+    --hash=sha256:efa0f9e4fe65bd334bad719d00e0c8d9e3e4c6d873da8e874e67517a029c190b
+    # via
+    #   homelab (pyproject.toml)
+    #   cdk8s
 dbus-fast==2.46.4 \
     --hash=sha256:018c7d878857599e3478c56575aa2ed9ff52eb7a88c5118685db8e033b3916e9 \
     --hash=sha256:0cc59b9d6ee59ab58d8cdc58f19a4e5ad6451392d215933eedd4482925e8ecf1 \
@@ -852,6 +865,10 @@ importlib-metadata==8.7.0 \
     --hash=sha256:d13b81ad223b890aa16c5471f2ac3056cf76c5f10f82d6f9292f0b415f389000 \
     --hash=sha256:e5dd1551894c77868a30651cef00984d50e1002d06942a7101d34870c5f02afd
     # via opentelemetry-api
+importlib-resources==6.5.2 \
+    --hash=sha256:185f87adef5bcc288449d98fb4fba07cea78bc036455dd44c5fc4a2fe78fed2c \
+    --hash=sha256:789cfdc3ed28c78b67a06acb8126751ced69a3d5f79c095a98298cd8a760ccec
+    # via jsii
 iniconfig==2.3.0 \
     --hash=sha256:c76315c77db068650d49c5b56314774a7804df16fee4402c1f19d6d15d8c4730 \
     --hash=sha256:f631c04d2c48c52b84d0d0549c99ff3859c98df65b3101406327ecc7d53fbf12
@@ -866,6 +883,12 @@ jmespath==1.0.1 \
     # via
     #   boto3
     #   botocore
+jsii==1.125.0 \
+    --hash=sha256:37664c25ac8dfaf6c1bab214ff58eec62d515e70311c349240b43bdd733beccb \
+    --hash=sha256:895b1f27f67e1fac3797abeeeb0ded0e1a64a155a32e1547174735d293eca0cb
+    # via
+    #   cdk8s
+    #   constructs
 mako==1.3.10 \
     --hash=sha256:99579a6f39583fa7e5630a28c3c1f440e4e97a414b80372649c0ce338da2ea28 \
     --hash=sha256:baef24a52fc4fc514a0887ac600f9f1cff3d82c61d4d700a1fa84d597b88db59
@@ -1732,6 +1755,13 @@ ptyprocess==0.7.0 \
     --hash=sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35 \
     --hash=sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220
     # via pexpect
+publication==0.0.3 \
+    --hash=sha256:0248885351febc11d8a1098d5c8e3ab2dabcf3e8c0c96db1e17ecd12b53afbe6 \
+    --hash=sha256:68416a0de76dddcdd2930d1c8ef853a743cc96c82416c4e4d3b5d901c6276dc4
+    # via
+    #   cdk8s
+    #   constructs
+    #   jsii
 pydantic==2.12.3 \
     --hash=sha256:1da1c82b0fc140bb0103bc1441ffe062154c8d38491189751ee00fd8ca65ce74 \
     --hash=sha256:6986454a854bc3bc6e5443e1369e06a3a456af9d339eda45510f517d9ea5c6bf
@@ -2006,6 +2036,7 @@ python-dateutil==2.9.0.post0 \
     # via
     #   homelab (pyproject.toml)
     #   botocore
+    #   jsii
     #   pandas
     #   sqlite-utils
 python-dotenv==1.2.1 \
@@ -2260,6 +2291,13 @@ tinydb==4.8.2 \
     --hash=sha256:f7dfc39b8d7fda7a1ca62a8dbb449ffd340a117c1206b68c50b1a481fb95181d \
     --hash=sha256:f97030ee5cbc91eeadd1d7af07ab0e48ceb04aa63d4a983adbaca4cba16e86c3
     # via open-gopro
+typeguard==2.13.3 \
+    --hash=sha256:00edaa8da3a133674796cf5ea87d9f4b4c367d77476e185e80251cc13dfbb8c4 \
+    --hash=sha256:5e3e3be01e887e7eafae5af63d1f36c849aaa94e3a0112097312aabfa16284f1
+    # via
+    #   cdk8s
+    #   constructs
+    #   jsii
 typer==0.20.0 \
     --hash=sha256:1aaf6494031793e4876fb0bacfa6a912b551cf43c1e63c800df8b1a866720c37 \
     --hash=sha256:5b463df6793ec1dca6213a3cf4c0f03bc6e322ac5e16e13ddd622a889489784a
@@ -2272,6 +2310,7 @@ typing-extensions==4.15.0 \
     #   cattrs
     #   fastapi
     #   grpcio
+    #   jsii
     #   mypy
     #   opentelemetry-api
     #   opentelemetry-exporter-otlp-proto-grpc

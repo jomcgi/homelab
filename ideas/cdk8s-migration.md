@@ -508,6 +508,252 @@ argocd app get stargazer --show-operation
 
 ---
 
+## POC Validation Results
+
+A proof-of-concept was created for `charts/cloudflare-operator-test/` that validates the approach.
+
+### Key Findings
+
+1. **Semantic equivalence confirmed**: cdk8s output is identical to Helm output when normalized
+2. **K8s imports are large**: ~2.5MB / 51k lines of generated Python code
+3. **Type safety works**: IDE autocomplete, type checking with `k8s.KubeDeployment`, etc.
+
+### POC Location
+
+```
+cdk8s/cloudflare-operator-test/
+├── main.py                 # Chart implementation
+├── cdk8s.yaml              # cdk8s config
+├── imports/k8s/            # Generated K8s types (cdk8s import k8s)
+└── dist/                   # Synthesized YAML output
+```
+
+### Verification Command
+
+```bash
+# Compare cdk8s vs Helm output (after normalizing key order)
+python3 << 'EOF'
+import yaml
+from pathlib import Path
+
+def normalize(docs):
+    def sort_dict(d):
+        if isinstance(d, dict):
+            return {k: sort_dict(v) for k, v in sorted(d.items())}
+        elif isinstance(d, list):
+            return [sort_dict(i) for i in d]
+        return d
+    return sorted([sort_dict(d) for d in docs], key=lambda d: f"{d['kind']}-{d['metadata']['name']}")
+
+helm = normalize(list(yaml.safe_load_all(Path('/tmp/helm.yaml').read_text())))
+cdk8s = normalize(list(yaml.safe_load_all(Path('dist/cloudflare-operator-test.k8s.yaml').read_text())))
+
+print("✅ IDENTICAL" if helm == cdk8s else "❌ DIFFER")
+EOF
+```
+
+---
+
+## K8s Imports Management
+
+### Strategy: Pre-generate and Version Control
+
+The K8s imports (~2.5MB) should be:
+1. **Pre-generated** once via `cdk8s import k8s`
+2. **Version-controlled** in `cdk8s/imports/k8s/`
+3. **Shared** across all charts via Bazel `py_library`
+
+**Rationale**:
+- Generated code rarely changes (only on K8s API version bumps)
+- Generating at build time adds ~5s latency
+- Version control provides audit trail
+
+### Regeneration Script
+
+```bash
+#!/usr/bin/env bash
+# tools/cdk8s/regenerate-imports.sh
+cd "$(dirname "$0")/../../cdk8s/imports"
+cdk8s import k8s --output .
+echo "Imports regenerated. Commit changes."
+```
+
+### Bazel Integration
+
+```starlark
+# cdk8s/imports/BUILD
+py_library(
+    name = "k8s",
+    srcs = glob(["k8s/**/*.py"]),
+    data = glob(["k8s/_jsii/*.tgz"]),
+    deps = ["@pip//jsii", "@pip//publication", "@pip//typeguard"],
+    visibility = ["//cdk8s:__subpackages__"],
+)
+```
+
+---
+
+## Helm Chart Distribution
+
+### Problem: cdk8s `--format helm` Limitations
+
+cdk8s can output Helm charts (`cdk8s synth --format helm`), but:
+- Templates are **static YAML** (no `{{ .Values }}` templating)
+- Users cannot customize via `values.yaml`
+- Cannot deploy multiple releases (resource names collide)
+
+### Problem: Helmify Limitations
+
+[Helmify](https://github.com/arttor/helmify) converts K8s YAML → Helm charts, but:
+- Only templates "known" fields (image, replicas, resources)
+- **Does NOT template custom annotations** (e.g., `cloudflare.ingress.hostname`)
+
+### Solution: Custom Post-Processor
+
+Since cdk8s construct inputs map directly to Helm values, we build a custom post-processor.
+
+**1. Value Placeholders** (`cdk8s/lib/values.py`):
+```python
+class HelmValue:
+    """Marker for values that should become Helm template variables."""
+    def __init__(self, path: str, default: Any):
+        self.path = path
+        self.default = default
+
+    def __str__(self) -> str:
+        return f"__HELM_VALUE__{self.path}__"
+
+# Usage in construct:
+annotations = {
+    "cloudflare.ingress.hostname": HelmValue("noauth.hostname", "example.com"),
+}
+```
+
+**2. Post-Processor** (`tools/cdk8s/helm_export.py`):
+```python
+import re
+from dataclasses import fields
+
+def convert_to_helm_chart(yaml_content: str, config_class: type) -> tuple[str, dict]:
+    """Convert cdk8s YAML with placeholders to Helm chart."""
+
+    # Replace placeholders with Helm template syntax
+    template = re.sub(
+        r'__HELM_VALUE__([^_]+)__',
+        r'{{ .Values.\1 }}',
+        yaml_content
+    )
+
+    # Generate values.yaml from dataclass defaults
+    values = {}
+    for field in fields(config_class):
+        parts = field.name.split('_')
+        # Convert noauth_hostname → noauth.hostname
+        nested_set(values, parts, field.default)
+
+    return template, values
+```
+
+**3. Bazel Rule** (`tools/cdk8s/defs.bzl`):
+```starlark
+def py_cdk8s_helm_chart(name, srcs, deps = [], chart_version = "0.1.0"):
+    """Generate distributable Helm chart from cdk8s code."""
+
+    # First synth to YAML with placeholders
+    py_cdk8s_synth(name = name + "_raw", srcs = srcs, deps = deps)
+
+    # Then post-process to Helm chart
+    native.genrule(
+        name = name,
+        srcs = [name + "_raw"],
+        outs = ["helm/Chart.yaml", "helm/values.yaml", "helm/templates/manifests.yaml"],
+        cmd = "$(location //tools/cdk8s:helm_export) --input $< --output $(RULEDIR)/helm --version {}".format(chart_version),
+        tools = ["//tools/cdk8s:helm_export"],
+    )
+```
+
+### Generated Helm Chart Structure
+
+```
+dist/helm/<chart-name>/
+├── Chart.yaml              # Generated from cdk8s metadata
+├── values.yaml             # Generated from Config dataclass defaults
+├── values.schema.json      # Optional: JSON schema from type hints
+└── templates/
+    └── manifests.yaml      # Templated YAML with {{ .Values.xxx }}
+```
+
+### Conceptual Mapping
+
+| cdk8s | Helm |
+|-------|------|
+| `Config.noauth_hostname` | `.Values.noauth.hostname` |
+| Dataclass defaults | `values.yaml` |
+| Type hints | `values.schema.json` |
+| `HelmValue("path", default)` | `{{ .Values.path }}` |
+
+---
+
+## Updated Directory Structure
+
+```
+cdk8s/
+├── imports/                    # Pre-generated K8s types (version controlled)
+│   ├── k8s/                    # From `cdk8s import k8s`
+│   └── BUILD
+├── lib/                        # Shared constructs
+│   ├── __init__.py             # Labels, ResourceRequirements
+│   ├── security.py             # SecureDeployment
+│   ├── cloudflare.py           # ClusterIPService with CF annotations
+│   ├── values.py               # HelmValue class for templating
+│   └── BUILD
+├── charts/                     # cdk8s chart implementations
+│   └── cloudflare-operator-test/
+│       ├── __init__.py         # Config dataclass + Chart class
+│       ├── main.py             # Entrypoint
+│       ├── cdk8s.yaml          # CMP discovery
+│       └── BUILD
+└── cmp/                        # ArgoCD CMP sidecar
+    ├── image/
+    │   ├── BUILD               # py3_image for CMP
+    │   └── main.py             # CMP entrypoint
+    └── plugin.yaml             # CMP plugin config
+
+tools/cdk8s/
+├── defs.bzl                    # py_cdk8s_synth, py_cdk8s_helm_chart rules
+├── helm_export.py              # Post-processor for Helm chart generation
+└── regenerate-imports.sh       # Script to regenerate K8s imports
+```
+
+---
+
+## Revised Implementation Phases
+
+### Phase 1: Bazel Foundation
+1. Move POC imports to `cdk8s/imports/k8s/`
+2. Create `tools/cdk8s/defs.bzl` with `py_cdk8s_synth`
+3. Regenerate requirements locks: `bazel run //requirements:runtime`
+4. Validate: `bazel build //cdk8s/charts/cloudflare-operator-test`
+
+### Phase 2: ArgoCD CMP (Optional)
+1. Create `cdk8s/cmp/image/` with py3_image
+2. Solve argocd-cmp-server binary inclusion
+3. Push image to GHCR
+4. Update ArgoCD values with sidecar
+
+### Phase 3: Helm Distribution
+1. Create `cdk8s/lib/values.py` with `HelmValue` class
+2. Create `tools/cdk8s/helm_export.py` post-processor
+3. Add `py_cdk8s_helm_chart` Bazel rule
+4. Test: `helm install test ./dist/helm/cloudflare-operator-test --set noauth.hostname=custom.example.com`
+
+### Phase 4: Service Migration
+1. Migrate simple service (cloudflare-operator-test)
+2. Migrate complex service (marine with multiple components)
+3. Build out shared construct library based on patterns discovered
+
+---
+
 ## Sources
 
 - [cdk8s GitHub](https://github.com/cdk8s-team/cdk8s)
@@ -518,3 +764,5 @@ argocd app get stargazer --show-operation
 - [Gazelle](https://github.com/bazel-contrib/bazel-gazelle)
 - [ArgoCD Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/)
 - [akuity/cdk8s-cmp](https://github.com/akuity/cdk8s-cmp)
+- [cdk8s synth documentation](https://cdk8s.io/docs/latest/cli/synth/)
+- [Helmify](https://github.com/arttor/helmify)
