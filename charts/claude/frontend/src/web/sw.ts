@@ -15,9 +15,8 @@ declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: ManifestEntry[];
 };
 
-self.addEventListener("install", (_event) => {
-  self.skipWaiting();
-});
+// Removed forced skipWaiting on install - let vite-plugin-pwa control update strategy
+// with registerType: "prompt" to avoid mid-session cache issues
 
 self.addEventListener("activate", (event: ExtendableEvent) => {
   event.waitUntil(self.clients.claim());
