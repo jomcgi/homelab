@@ -92,10 +92,6 @@ def apko_image(
             if "arm64" in tar_dict:
                 tars_arm64.append(tar_dict["arm64"])
 
-    # Tags to avoid cache conflicts when rules_apko version changes
-    # See: https://github.com/chainguard-dev/rules_apko/issues/245
-    apko_tags = ["no-remote-cache"]
-
     # If no tars are provided, use the simple multi-platform apko image
     if not tars_amd64 and not tars_arm64:
         _apko_image(
@@ -103,7 +99,6 @@ def apko_image(
             config = config,
             contents = contents,
             tag = "latest",
-            tags = apko_tags,
         )
         push_image = name
         use_oci_push = False
@@ -115,7 +110,6 @@ def apko_image(
             config = config,
             contents = contents,
             tag = "latest",
-            tags = apko_tags,
         )
 
         _apko_image(
@@ -124,7 +118,6 @@ def apko_image(
             config = config,
             contents = contents,
             tag = "latest",
-            tags = apko_tags,
         )
 
         # Transition the base images to their target platforms
