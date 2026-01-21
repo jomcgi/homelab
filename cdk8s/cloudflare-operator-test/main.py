@@ -6,6 +6,7 @@ Run with: cdk8s synth
 """
 
 import sys
+
 sys.path.insert(0, str(__file__).rsplit("/", 2)[0])  # Add cdk8s/ to path
 
 from cdk8s import App, Chart
@@ -71,26 +72,36 @@ class SecureDeployment(Construct):
                                 ],
                                 liveness_probe=k8s.Probe(
                                     http_get=k8s.HttpGetAction(
-                                        path=health_path, port=k8s.IntOrString.from_string("http")
+                                        path=health_path,
+                                        port=k8s.IntOrString.from_string("http"),
                                     ),
                                     initial_delay_seconds=5,
                                     period_seconds=10,
                                 ),
                                 readiness_probe=k8s.Probe(
                                     http_get=k8s.HttpGetAction(
-                                        path=health_path, port=k8s.IntOrString.from_string("http")
+                                        path=health_path,
+                                        port=k8s.IntOrString.from_string("http"),
                                     ),
                                     initial_delay_seconds=5,
                                     period_seconds=5,
                                 ),
                                 resources=k8s.ResourceRequirements(
                                     limits={
-                                        "cpu": k8s.Quantity.from_string(resources.cpu_limit),
-                                        "memory": k8s.Quantity.from_string(resources.memory_limit),
+                                        "cpu": k8s.Quantity.from_string(
+                                            resources.cpu_limit
+                                        ),
+                                        "memory": k8s.Quantity.from_string(
+                                            resources.memory_limit
+                                        ),
                                     },
                                     requests={
-                                        "cpu": k8s.Quantity.from_string(resources.cpu_request),
-                                        "memory": k8s.Quantity.from_string(resources.memory_request),
+                                        "cpu": k8s.Quantity.from_string(
+                                            resources.cpu_request
+                                        ),
+                                        "memory": k8s.Quantity.from_string(
+                                            resources.memory_request
+                                        ),
                                     },
                                 ),
                                 security_context=k8s.SecurityContext(
@@ -98,7 +109,9 @@ class SecureDeployment(Construct):
                                     read_only_root_filesystem=True,
                                     run_as_non_root=True,
                                     capabilities=k8s.Capabilities(drop=["ALL"]),
-                                    seccomp_profile=k8s.SeccompProfile(type="RuntimeDefault"),
+                                    seccomp_profile=k8s.SeccompProfile(
+                                        type="RuntimeDefault"
+                                    ),
                                 ),
                             )
                         ],

@@ -949,6 +949,8 @@ spec:
           args:
             - --metrics-bind-address=:8443
             - run
+            - --interval
+            - 10s
           env:
           - name: IMAGE_UPDATER_INTERVAL
             valueFrom:
