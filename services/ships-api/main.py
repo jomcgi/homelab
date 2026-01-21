@@ -170,11 +170,15 @@ class Database:
 
         # Aggressive SQLite tuning for high-throughput ingestion
         await self.db.execute("PRAGMA journal_mode=WAL")
-        await self.db.execute("PRAGMA synchronous=OFF")  # Skip fsync (WAL provides crash safety)
+        await self.db.execute(
+            "PRAGMA synchronous=OFF"
+        )  # Skip fsync (WAL provides crash safety)
         await self.db.execute("PRAGMA temp_store=MEMORY")  # Temp tables in RAM
         await self.db.execute("PRAGMA mmap_size=268435456")  # 256MB memory-mapped I/O
         await self.db.execute("PRAGMA cache_size=-512000")  # 512MB cache
-        await self.db.execute("PRAGMA wal_autocheckpoint=1000")  # Smaller checkpoints, less blocking
+        await self.db.execute(
+            "PRAGMA wal_autocheckpoint=1000"
+        )  # Smaller checkpoints, less blocking
         await self.db.execute("PRAGMA busy_timeout=5000")  # Wait up to 5s for locks
 
         # Create schema
@@ -736,10 +740,12 @@ class ShipsAPIService:
                         for pos in positions_for_broadcast:
                             latest_by_mmsi[pos["mmsi"]] = pos
                         # Send as single batched message
-                        await self.ws_manager.broadcast({
-                            "type": "positions",
-                            "positions": list(latest_by_mmsi.values())
-                        })
+                        await self.ws_manager.broadcast(
+                            {
+                                "type": "positions",
+                                "positions": list(latest_by_mmsi.values()),
+                            }
+                        )
 
                     # Log progress every 10k messages
                     if not self.replay_complete and self.messages_received % 10000 == 0:
