@@ -10,7 +10,7 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: "autoUpdate",
+      registerType: "prompt", // Changed from "autoUpdate" to prompt user for updates
       includeAssets: ["favicon.svg", "icon-192x192.png", "icon-512x512.png"],
       manifest: false, // Use our existing manifest.json
       strategies: "injectManifest",
@@ -22,7 +22,7 @@ export default defineConfig({
       workbox: {
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        // Removed skipWaiting: true to prevent forced updates mid-session
       },
     }),
   ],
