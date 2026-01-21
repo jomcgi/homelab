@@ -126,7 +126,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:latest@sha256:40054cf2473c30bf1b06e249a59d2446a140569385a50e10985585de2554ac2e"
+          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:latest@sha256:f9c6db3208a94839c7733e10317721986435f52ae3255acb92073a19d67fb12f"
           imagePullPolicy: IfNotPresent
           securityContext:
             readOnlyRootFilesystem: false
@@ -205,7 +205,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest@sha256:bf6773517df17b434fa1bd7ed78ec6c09507856baf59aa479b76cc54a8b08cb8"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest@sha256:e4387da3faf332751fc13665aab56bcbabf3c4eae131ef8d6f587e980e26ee2c"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -231,7 +231,7 @@ spec:
             - name: AISSTREAM_URL
               value: "wss://stream.aisstream.io/v0/stream"
             - name: BOUNDING_BOX
-              value: "[[[-90, -180], [90, 180]]]"
+              value: "[[[-2.455379, -173.009262], [71.414709, -32.0327]]]"
             - name: AISSTREAM_API_KEY
               valueFrom:
                 secretKeyRef:
@@ -303,7 +303,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:main@sha256:14a0f0371c8af09a1acc087e86aa1fd63f0c454295d40054a57e900a8be51ff0"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:main@sha256:fa4e18829db149bc98b4e6c480511af7bb1a3a20d858d498ba933361d99ec7ed"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -331,17 +331,19 @@ spec:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 10
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            timeoutSeconds: 10
             failureThreshold: 6
           readinessProbe:
             httpGet:
               path: /ready
               port: http
-            initialDelaySeconds: 5
-            periodSeconds: 5
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 10
             # Allow longer startup for large replay
-            failureThreshold: 120
+            failureThreshold: 360
           resources:
             limits:
               memory: 10Gi

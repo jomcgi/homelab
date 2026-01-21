@@ -528,6 +528,14 @@ export class CUIServer {
       const staticPath = path.join(__dirname, "web");
       this.logger.debug("Serving static files from", { path: staticPath });
       this.app.use(express.static(staticPath));
+
+      // Prevent caching of index.html to ensure users always get the latest version
+      this.app.get("/index.html", (_req, res, next) => {
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
+        next();
+      });
     }
     // In development, ViteExpress handles static file serving
 
@@ -609,6 +617,10 @@ export class CUIServer {
     if (!isDev) {
       // In production/test, serve index.html for all non-API routes
       this.app.get("*", (req, res) => {
+        // Prevent caching of HTML to ensure users always get the latest version
+        res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        res.setHeader("Pragma", "no-cache");
+        res.setHeader("Expires", "0");
         res.sendFile(path.join(__dirname, "web", "index.html"));
       });
     }

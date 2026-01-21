@@ -11,12 +11,12 @@ export default defineConfig({
       host: true,
       hmr: {
         clientPort: 443,
-        protocol: 'wss',
+        protocol: "wss",
       },
     },
   },
   server: {
     host: true,
-    allowedHosts: ['claude.jomcgi.dev'],
+    allowedHosts: ["claude.jomcgi.dev"],
   },
 });
