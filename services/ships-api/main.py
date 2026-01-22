@@ -181,8 +181,10 @@ class Database:
         )  # Smaller checkpoints, less blocking
         await self.db.execute("PRAGMA busy_timeout=5000")  # Wait up to 5s for locks
 
-        # Create schema
+        # Create schema and indexes
         await self.db.executescript(SCHEMA)
+        for idx_sql in INDEXES:
+            await self.db.execute(idx_sql)
         await self.db.commit()
         logger.info(f"Database initialized at {self.db_path}")
 
@@ -692,12 +694,8 @@ class ShipsAPIService:
             pending = consumer_info.num_pending
             if pending > 0:
                 logger.info(f"Catching up on {pending} pending messages...")
-                # Drop indexes for faster bulk inserts during catchup
-                await self.db.drop_indexes()
             else:
                 logger.info("Consumer is caught up, processing live messages")
-                # Ensure indexes exist for query performance
-                await self.db.create_indexes()
                 self.replay_complete = True
                 self.ready = True
 
@@ -779,8 +777,6 @@ class ShipsAPIService:
                                 f"Catchup complete. {position_count} positions "
                                 f"for {vessel_count} vessels"
                             )
-                            # Create indexes now that bulk insert is done
-                            await self.db.create_indexes()
                             self.replay_complete = True
                             self.ready = True
 
@@ -795,8 +791,6 @@ class ShipsAPIService:
                                 f"Catchup complete. {position_count} positions "
                                 f"for {vessel_count} vessels"
                             )
-                            # Create indexes now that bulk insert is done
-                            await self.db.create_indexes()
                             self.replay_complete = True
                             self.ready = True
                     continue
