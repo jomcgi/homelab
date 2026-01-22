@@ -19,7 +19,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships-api
-    tag: "latest@sha256:e753bb7fbac0e768d64a42c21953790618ef41e3822331c731beec3bb4fa3634"
+    tag: "main@sha256:cd00e8b393dc6f0558630382c5876eb0109c9eaabdc8561bd8a61aa56badf8ac"
     pullPolicy: Always
   # Overprovisioned for catchup - reduce after caught up
   resources:
