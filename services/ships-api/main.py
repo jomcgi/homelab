@@ -445,27 +445,41 @@ class Database:
         await self.db.commit()
 
     async def cleanup_old_positions(self) -> int:
-        """Delete positions older than retention period. Returns count deleted."""
+        """Delete positions older than retention period in batches.
+
+        Deletes in batches of 10k rows to avoid long DB locks that could
+        cause liveness probe timeouts and pod restarts.
+        """
         cutoff = (
             datetime.now(timezone.utc) - timedelta(days=POSITION_RETENTION_DAYS)
         ).isoformat()
+        total_deleted = 0
+        batch_size = 10000
 
-        cursor = await self.db.execute(
-            "SELECT COUNT(*) FROM positions WHERE timestamp < ?", (cutoff,)
-        )
-        row = await cursor.fetchone()
-        count = row[0] if row else 0
-
-        if count > 0:
-            await self.db.execute(
-                "DELETE FROM positions WHERE timestamp < ?", (cutoff,)
+        while True:
+            # Delete in small batches to avoid long locks
+            cursor = await self.db.execute(
+                "DELETE FROM positions WHERE rowid IN "
+                "(SELECT rowid FROM positions WHERE timestamp < ? LIMIT ?)",
+                (cutoff, batch_size),
             )
+            deleted = cursor.rowcount
             await self.db.commit()
+            total_deleted += deleted
+
+            if deleted < batch_size:
+                break
+
+            # Yield to allow other operations (health checks, message processing)
+            await asyncio.sleep(0.1)
+
+        if total_deleted > 0:
             logger.info(
-                f"Cleaned up {count} positions older than {POSITION_RETENTION_DAYS} days"
+                f"Cleaned up {total_deleted} positions older than "
+                f"{POSITION_RETENTION_DAYS} days"
             )
 
-        return count
+        return total_deleted
 
     async def get_latest_positions(self) -> list[dict]:
         """Get latest position for each vessel using cache table."""
