@@ -30,12 +30,11 @@ fi
 cd /app/frontend/charts/claude/frontend
 
 # Install dependencies if needed
-# --include=dev is required because NODE_ENV=production skips devDependencies,
-# but vite/typescript/etc are needed to build the frontend
+# We need to temporarily unset NODE_ENV to install devDependencies for building
 # Note: Cannot use --ignore-scripts because better-sqlite3 needs to compile native bindings
 if [ ! -d "node_modules" ]; then
 	echo "Installing CUI server dependencies..."
-	npm install --include=dev
+	NODE_ENV= npm install
 else
 	echo "CUI server dependencies already installed"
 fi
