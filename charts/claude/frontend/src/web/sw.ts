@@ -15,8 +15,12 @@ declare const self: ServiceWorkerGlobalScope & {
   __WB_MANIFEST: ManifestEntry[];
 };
 
-// Removed forced skipWaiting on install - let vite-plugin-pwa control update strategy
-// with registerType: "prompt" to avoid mid-session cache issues
+// Handle SKIP_WAITING message from vite-plugin-pwa when user clicks "Refresh Now"
+self.addEventListener("message", (event: MessageEvent) => {
+  if (event.data && event.data.type === "SKIP_WAITING") {
+    self.skipWaiting();
+  }
+});
 
 self.addEventListener("activate", (event: ExtendableEvent) => {
   event.waitUntil(self.clients.claim());
