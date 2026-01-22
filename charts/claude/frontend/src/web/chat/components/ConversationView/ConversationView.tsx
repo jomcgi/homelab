@@ -44,8 +44,8 @@ export function ConversationView() {
     useState(false);
   const [conversationSummary, setConversationSummary] =
     useState<ConversationSummary | null>(null);
-  const [currentWorkingDirectory, setCurrentWorkingDirectory] =
-    useState<string>("");
+  // Always use /repos/homelab as the working directory
+  const currentWorkingDirectory = "/repos/homelab";
   const composerRef = useRef<ComposerRef>(null);
 
   // Use shared conversation messages hook
@@ -226,15 +226,16 @@ export function ConversationView() {
       type: "user",
       content: message,
       timestamp: new Date().toISOString(),
-      workingDirectory: workingDirectory || currentWorkingDirectory,
+      workingDirectory: "/repos/homelab",
     });
 
     try {
+      // Always use /repos/homelab and opus model
       const response = await api.startConversation({
         resumedSessionId: sessionId,
         initialPrompt: message,
-        workingDirectory: workingDirectory || currentWorkingDirectory,
-        model: model === "default" ? undefined : model,
+        workingDirectory: "/repos/homelab",
+        model: "opus",
         // Convert "default" to undefined to let server use DEFAULT_PERMISSION_MODE env var
         permissionMode:
           permissionMode === "default" ? undefined : permissionMode,
@@ -478,11 +479,14 @@ export function ConversationView() {
             showStopButton={true}
             enableFileAutocomplete={true}
             dropdownPosition="above"
-            workingDirectory={conversationSummary?.projectPath}
-            onFetchFileSystem={async (directory) => {
+            workingDirectory="/repos/homelab"
+            showDirectorySelector={false}
+            showModelSelector={false}
+            model="opus"
+            onFetchFileSystem={async () => {
               try {
                 const response = await api.listDirectory({
-                  path: directory || currentWorkingDirectory,
+                  path: "/repos/homelab",
                   recursive: true,
                   respectGitignore: true,
                 });
@@ -492,11 +496,9 @@ export function ConversationView() {
                 return [];
               }
             }}
-            onFetchCommands={async (workingDirectory) => {
+            onFetchCommands={async () => {
               try {
-                const response = await api.getCommands(
-                  workingDirectory || currentWorkingDirectory,
-                );
+                const response = await api.getCommands("/repos/homelab");
                 return response.commands;
               } catch (error) {
                 console.error("Failed to fetch commands:", error);

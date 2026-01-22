@@ -106,9 +106,8 @@ export function Home() {
     };
   }, [loadConversations, activeTab]);
 
-  // Get the most recent working directory from conversations
-  const recentWorkingDirectory =
-    conversations.length > 0 ? conversations[0].projectPath : undefined;
+  // Always use /repos/homelab as the working directory
+  const recentWorkingDirectory = "/repos/homelab";
 
   const handleComposerSubmit = async (
     text: string,
@@ -119,10 +118,11 @@ export function Home() {
     setIsSubmitting(true);
 
     try {
+      // Always use /repos/homelab and opus model
       const response = await api.startConversation({
-        workingDirectory,
+        workingDirectory: "/repos/homelab",
         initialPrompt: text,
-        model: model === "default" ? undefined : model,
+        model: "opus",
         permissionMode:
           permissionMode === "default" ? undefined : permissionMode,
       });
@@ -181,37 +181,24 @@ export function Home() {
               <div className="w-full">
                 <Composer
                   ref={composerRef}
-                  workingDirectory={recentWorkingDirectory}
+                  workingDirectory="/repos/homelab"
                   onSubmit={handleComposerSubmit}
                   isLoading={isSubmitting}
                   placeholder="Describe your task"
-                  showDirectorySelector={true}
-                  showModelSelector={true}
+                  showDirectorySelector={false}
+                  showModelSelector={false}
                   enableFileAutocomplete={true}
-                  recentDirectories={recentDirectories}
-                  getMostRecentWorkingDirectory={getMostRecentWorkingDirectory}
-                  onDirectoryChange={(directory) => {
-                    // Focus input after directory change
-                    setTimeout(() => {
-                      composerRef.current?.focusInput();
-                    }, 50);
-                  }}
-                  onModelChange={(model) => {
-                    // Focus input after model change
-                    setTimeout(() => {
-                      composerRef.current?.focusInput();
-                    }, 50);
-                  }}
-                  onFetchFileSystem={async (directory) => {
+                  model="opus"
+                  onFetchFileSystem={async () => {
                     const response = await api.listDirectory({
-                      path: directory,
+                      path: "/repos/homelab",
                       recursive: true,
                       respectGitignore: true,
                     });
                     return response.entries;
                   }}
-                  onFetchCommands={async (workingDirectory) => {
-                    const response = await api.getCommands(workingDirectory);
+                  onFetchCommands={async () => {
+                    const response = await api.getCommands("/repos/homelab");
                     return response.commands;
                   }}
                 />
