@@ -26,6 +26,19 @@ if [ -n "$GITHUB_TOKEN" ]; then
 	git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 fi
 
+# Install pre-commit to prevent direct commits to main branch
+echo "Installing pre-commit hooks..."
+pip install --user pre-commit
+export PATH="$HOME/.local/bin:$PATH"
+
+# Initialize pre-commit in the repository if it exists
+if [ -d "/repos/homelab/.git" ] && [ -f "/repos/homelab/.pre-commit-config.yaml" ]; then
+	echo "Setting up pre-commit hooks in /repos/homelab..."
+	cd /repos/homelab
+	pre-commit install || echo "Warning: Failed to install pre-commit hooks"
+	cd - > /dev/null
+fi
+
 # Build and start CUI server (new frontend with built-in API)
 cd /app/frontend/charts/claude/frontend
 

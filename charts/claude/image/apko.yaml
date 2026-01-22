@@ -16,6 +16,7 @@ contents:
     - npm
     # Build tools for native Node.js modules (better-sqlite3)
     - python-3.12
+    - py3.12-pip  # For installing pre-commit
     - build-base
     # Dev tools required by Claude Code
     - ripgrep
