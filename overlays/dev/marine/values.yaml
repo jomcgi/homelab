@@ -32,8 +32,10 @@ api:
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
 frontend:
+  # Disabled until CI/CD pipeline is set up to build the image
+  enabled: false
   image:
-    tag: main@sha256:f618f0916cc58b4e6a093400b3a24f626c878fcb6d20da08c5791cf57648b246
+    tag: "main"
     repository: ghcr.io/jomcgi/homelab/services/ships-frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
