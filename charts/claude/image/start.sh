@@ -25,7 +25,6 @@ git config --global safe.directory '*'
 if [ -n "$GITHUB_TOKEN" ]; then
 	git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
 fi
-
 # Build and start CUI server (new frontend with built-in API)
 cd /app/frontend/charts/claude/frontend
 
