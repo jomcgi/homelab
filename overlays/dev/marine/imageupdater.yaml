@@ -24,15 +24,16 @@ spec:
         helm:
           name: api.image.repository
           tag: api.image.tag
-    - alias: frontend
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
-      manifestTargets:
-        helm:
-          name: frontend.image.repository
-          tag: frontend.image.tag
+    # Frontend image not built/pushed yet - disabled
+    # - alias: frontend
+    #   commonUpdateSettings:
+    #     updateStrategy: digest
+    #     forceUpdate: false
+    #   imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
+    #   manifestTargets:
+    #     helm:
+    #       name: frontend.image.repository
+    #       tag: frontend.image.tag
     namePattern: marine
   namespace: argocd
   writeBackConfig:
