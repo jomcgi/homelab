@@ -591,8 +591,15 @@ export default function App() {
               <div className="vessel-row">
                 <span className="vessel-label">Position</span>
                 <span className="vessel-value">
-                  {selectedVessel.lat?.toFixed(4)},{" "}
-                  {selectedVessel.lon?.toFixed(4)}
+                  <a
+                    href={`https://maps.google.com/maps?q=${selectedVessel.lat},${selectedVessel.lon}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="position-link"
+                  >
+                    {selectedVessel.lat?.toFixed(4)},{" "}
+                    {selectedVessel.lon?.toFixed(4)}
+                  </a>
                 </span>
               </div>
               <div className="vessel-row">
