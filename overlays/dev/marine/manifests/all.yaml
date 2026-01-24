@@ -126,7 +126,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:latest@sha256:f9c6db3208a94839c7733e10317721986435f52ae3255acb92073a19d67fb12f"
+          image: "ghcr.io/jomcgi/homelab/services/ships-frontend:main@sha256:f618f0916cc58b4e6a093400b3a24f626c878fcb6d20da08c5791cf57648b246"
           imagePullPolicy: IfNotPresent
           securityContext:
             readOnlyRootFilesystem: false
@@ -205,7 +205,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: ingest
-          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:latest@sha256:e4387da3faf332751fc13665aab56bcbabf3c4eae131ef8d6f587e980e26ee2c"
+          image: "ghcr.io/jomcgi/homelab/services/ais-ingest:main@sha256:f1f4b610559997c7ae204f0ff7a66da4b7fe61c57c905ed36a19ba3db179342a"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
@@ -303,7 +303,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:main@sha256:fa4e18829db149bc98b4e6c480511af7bb1a3a20d858d498ba933361d99ec7ed"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:latest@sha256:3ca2d8a633e7592a8500e69f901c4a07cde368c66142fa5f64b532d4bf3b6dfe"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false

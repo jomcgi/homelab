@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "config": {
-    "name": "services/ships-frontend/apko.yaml",
+    "name": "./services/ships-frontend/apko.yaml",
     "checksum": "sha256-hnxc2KolbT8M3L4fdmA3c8LvSNuk1y1nOjn1/A4ZAXs="
   },
   "contents": {
