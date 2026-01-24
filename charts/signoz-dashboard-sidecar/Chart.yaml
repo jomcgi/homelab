@@ -1,0 +1,13 @@
+apiVersion: v2
+name: signoz-dashboard-sidecar
+description: GitOps sidecar for syncing SigNoz dashboards from ConfigMaps
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - signoz
+  - dashboards
+  - gitops
+  - observability
+maintainers:
+  - name: jomcgi

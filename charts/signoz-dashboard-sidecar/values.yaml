@@ -1,0 +1,100 @@
+# SigNoz Dashboard Sidecar configuration
+
+image:
+  repository: ghcr.io/jomcgi/signoz-dashboard-sidecar
+  tag: ""  # Defaults to appVersion
+  pullPolicy: IfNotPresent
+
+# SigNoz API configuration
+signoz:
+  # URL to SigNoz query-service (internal cluster DNS)
+  url: "http://signoz-query-service.signoz.svc.cluster.local:8080"
+  # API key for authentication (optional, leave empty if not required)
+  apiKey: ""
+  # Secret containing API key (alternative to apiKey)
+  # apiKeySecret:
+  #   name: signoz-api-key
+  #   key: api-key
+
+# Watch configuration
+watch:
+  # Namespace to watch for dashboard ConfigMaps (empty = all namespaces)
+  namespace: ""
+  # Label selector for dashboard ConfigMaps
+  labelSelector: "signoz.io/dashboard=true"
+
+# Reconciliation settings
+reconcile:
+  # How often to enforce desired state (drift correction)
+  interval: "5m"
+
+# Metrics configuration
+metrics:
+  enabled: true
+  port: 9090
+
+# Resource limits
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    cpu: 100m
+    memory: 64Mi
+
+# Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop:
+      - ALL
+
+# Service account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Pod annotations
+podAnnotations: {}
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity
+affinity: {}
+
+# Bundled dashboards to deploy as ConfigMaps
+# Each entry creates a ConfigMap with the dashboard JSON
+dashboards:
+  # Kubernetes Infrastructure dashboards (from SigNoz/dashboards repo)
+  kubernetes-cluster-metrics:
+    enabled: true
+  kubernetes-pod-metrics-overall:
+    enabled: true
+  kubernetes-pod-metrics-detailed:
+    enabled: true
+  kubernetes-node-metrics-overall:
+    enabled: true
+  kubernetes-node-metrics-detailed:
+    enabled: true
+  kubernetes-pvc-metrics:
+    enabled: true
+  host-metrics:
+    enabled: true
+  # SigNoz self-monitoring
+  signoz-ingestion-analysis:
+    enabled: true

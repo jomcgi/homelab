@@ -1,0 +1,37 @@
+# Environment-specific overrides for signoz-dashboard-sidecar
+
+# Use the image from our container registry
+image:
+  repository: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar
+  # tag will be updated by argocd-image-updater
+
+# SigNoz configuration - use cluster-internal DNS
+signoz:
+  url: "http://signoz-query-service.signoz.svc.cluster.local:8080"
+
+# Watch all namespaces for dashboard ConfigMaps
+watch:
+  namespace: ""
+
+# Reconcile every 5 minutes to enforce GitOps (drift correction)
+reconcile:
+  interval: "5m"
+
+# Enable all bundled dashboards
+dashboards:
+  kubernetes-cluster-metrics:
+    enabled: true
+  kubernetes-pod-metrics-overall:
+    enabled: true
+  kubernetes-pod-metrics-detailed:
+    enabled: true
+  kubernetes-node-metrics-overall:
+    enabled: true
+  kubernetes-node-metrics-detailed:
+    enabled: true
+  kubernetes-pvc-metrics:
+    enabled: true
+  host-metrics:
+    enabled: true
+  signoz-ingestion-analysis:
+    enabled: true

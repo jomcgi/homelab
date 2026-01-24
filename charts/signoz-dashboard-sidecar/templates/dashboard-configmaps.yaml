@@ -1,0 +1,19 @@
+{{- $root := . -}}
+{{- range $name, $config := .Values.dashboards }}
+{{- if $config.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "signoz-dashboard-sidecar.fullname" $root }}-{{ $name }}
+  namespace: {{ $root.Release.Namespace }}
+  labels:
+    {{- include "signoz-dashboard-sidecar.labels" $root | nindent 4 }}
+    signoz.io/dashboard: "true"
+  annotations:
+    signoz.io/dashboard-name: {{ $name | replace "-" " " | title | quote }}
+data:
+  dashboard.json: |-
+    {{- $root.Files.Get (printf "dashboards/%s.json" $name) | nindent 4 }}
+{{- end }}
+{{- end }}
