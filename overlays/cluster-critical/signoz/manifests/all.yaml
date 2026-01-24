@@ -480,6 +480,67 @@ data:
                 service: nats
               targets:
               - nats.nats.svc.cluster.local:7777
+      prometheus/scraper:
+        config:
+          scrape_configs:
+          - job_name: signoz-scraper
+            kubernetes_sd_configs:
+            - role: pod
+            relabel_configs:
+            - action: keep
+              regex: true
+              source_labels:
+              - __meta_kubernetes_pod_annotation_signoz_io_scrape
+            - action: replace
+              regex: (.+)
+              source_labels:
+              - __meta_kubernetes_pod_annotation_signoz_io_path
+              target_label: __metrics_path__
+            - action: replace
+              separator: ':'
+              source_labels:
+              - __meta_kubernetes_pod_ip
+              - __meta_kubernetes_pod_annotation_signoz_io_port
+              target_label: __address__
+            - replacement: signoz-scraper
+              target_label: job_name
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_label_app_kubernetes_io_name
+              target_label: signoz_k8s_name
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_label_app_kubernetes_io_instance
+              target_label: signoz_k8s_instance
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_label_app_kubernetes_io_component
+              target_label: signoz_k8s_component
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_namespace
+              target_label: k8s_namespace_name
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_name
+              target_label: k8s_pod_name
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_uid
+              target_label: k8s_pod_uid
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_node_name
+              target_label: k8s_node_name
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_ready
+              target_label: k8s_pod_ready
+            - action: replace
+              source_labels:
+              - __meta_kubernetes_pod_phase
+              target_label: k8s_pod_phase
+            scrape_interval: 60s
     service:
       extensions:
       - health_check
@@ -513,6 +574,7 @@ data:
           - batch
           receivers:
           - prometheus/nats
+          - prometheus/scraper
       telemetry:
         logs:
           encoding: json
@@ -2305,7 +2367,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/config: 1b4e0b907467effd8f97c9be5d4cdb6b101222c12a4a8d72a6c3c928d149396e
+        checksum/config: e44efd573836bda6cd1c0abecf8d684a042d243a3b3acf70cbc92d56a4c7cf67
       labels:
         app.kubernetes.io/name: k8s-infra
         app.kubernetes.io/instance: signoz
