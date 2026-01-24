@@ -71,6 +71,6 @@ bazel_env(
 )
 
 sh_binary(
-    name = "workspace_statu",
+    name = "workspace_status",
     srcs = ["workspace_status.sh"],
 )

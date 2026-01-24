@@ -477,9 +477,9 @@ This command:
 - Manifests are committed to Git for transparency and review
 
 **Example workflow:**
-1. Modify chart values: `overlays/prod/n8n/values.yaml`
+1. Modify chart values: `overlays/prod/trips/values.yaml`
 2. Run `format` to render manifests
-3. Review changes: `git diff overlays/prod/n8n/manifests/all.yaml`
+3. Review changes: `git diff overlays/prod/trips/manifests/all.yaml`
 4. Commit and push - ArgoCD auto-syncs the changes
 
 ### Kubernetes Operations (kubectl)
