@@ -1,13 +1,9 @@
-# Secure Kubernetes Homelab
+# Homelab
 
-A production-grade Kubernetes homelab running K3s with security-first design, GitOps deployment, and full observability.
+K3s cluster running in my office. GitOps via ArgoCD, automatic mTLS via Linkerd, observability via SigNoz.
 
-## Design Principles
-
-- **Zero direct internet exposure** - All ingress via Cloudflare Tunnel
-- **Security by default** - Non-root containers, read-only filesystems, mTLS everywhere
-- **Observable everything** - Automatic distributed tracing via Linkerd + SigNoz
-- **GitOps workflow** - ArgoCD syncs all changes from Git
+> Complexity is the silent killer of engineering velocity and reliability.
+> — *A Philosophy of Software Design*, John Ousterhout
 
 ## Architecture
 
@@ -16,72 +12,59 @@ flowchart LR
     subgraph Internet
         User([User])
     end
-
     subgraph Cloudflare
         CF[Cloudflare Tunnel]
     end
-
     subgraph K3s Cluster
         subgraph Ingress
             TUN[Tunnel Pod]
         end
-
         subgraph Service Mesh
             L[Linkerd]
         end
-
         subgraph Workloads
             SVC[Services]
         end
-
         subgraph Observability
             SIG[SigNoz]
         end
     end
-
     User --> CF --> TUN
     TUN --> L --> SVC
     L -.->|traces| SIG
     SVC -.->|metrics/logs| SIG
 ```
 
-All pod-to-pod traffic is automatically meshed by Linkerd for mTLS and distributed tracing.
+Internet → Cloudflare Tunnel → pod-to-pod. Linkerd meshes everything after the tunnel terminates, so all internal traffic gets mTLS and tracing without touching application code.
 
-## Directory Structure
+## Decisions
+
+- **Ingress** — Cloudflare Tunnel only. Nothing exposed directly.
+- **Service mesh** — Linkerd. Automatic mTLS and tracing for all pod-to-pod traffic without application changes.
+- **Observability** — SigNoz. One thing instead of Prometheus/Loki/Tempo.
+- **Storage** — Longhorn. Avoiding state where possible.
+- **Policy** — Kyverno enforces non-root + read-only filesystems. No peer reviews here so I need something catching mistakes.
+- **Secrets** — 1Password operator.
+
+## Structure
 
 ```
-charts/           # Helm charts for all services
-overlays/         # Environment-specific configurations
-  cluster-critical/   # Core infrastructure (argocd, linkerd, signoz)
-  prod/               # Production services
-  dev/                # Development services
-clusters/         # Cluster entry points for ArgoCD
-operators/        # Custom Kubernetes operators
-services/         # Backend service code
-websites/         # Frontend applications
+charts/               # Helm charts
+overlays/
+  cluster-critical/   # argocd, linkerd, signoz, kyverno, longhorn
+  prod/               # cloudflare-tunnel, gh-arc, nats, trips, vllm
+  dev/                # cloudflare-operator, marine, stargazer
+clusters/             # ArgoCD entry points
+operators/            # Custom operators (cloudflare)
+services/             # Backend code
+websites/             # Frontend apps
 ```
 
-## Key Components
+## Running this
 
-| Component | Purpose |
-|-----------|---------|
-| **ArgoCD** | GitOps continuous deployment |
-| **Linkerd** | Service mesh with automatic mTLS and tracing |
-| **SigNoz** | Unified metrics, logs, and traces |
-| **Cloudflare Tunnel** | Zero-trust ingress |
-| **Longhorn** | Distributed persistent storage |
-| **Kyverno** | Policy engine for security and auto-injection |
+You can't — it's tied to my 1Password secrets and hardware. Patterns might be useful if you're building something similar.
 
-## Getting Started
-
-1. Clone this repository
-2. Review [.claude/CLAUDE.md](.claude/CLAUDE.md) for detailed architecture and workflows
-3. Bootstrap ArgoCD pointing to `clusters/homelab/`
-
-## Documentation
-
-- [Architecture & Workflows](.claude/CLAUDE.md) - Detailed technical documentation
-- [Bazel Build System](README.bazel.md) - Build tooling reference
+See [.claude/CLAUDE.md](.claude/CLAUDE.md) for operational details.
 
 ## License
 
