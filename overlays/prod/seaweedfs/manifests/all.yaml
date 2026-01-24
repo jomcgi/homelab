@@ -1,3 +1,4 @@
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/service-account.yaml
 apiVersion: v1
@@ -11,6 +12,7 @@ metadata:
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/instance: seaweedfs
 automountServiceAccountToken: true
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/master-configmap.yaml
 apiVersion: v1
@@ -28,6 +30,7 @@ data:
     
     # Enter any extra configuration for master.toml here.
     # It may be a multi-line string.
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/cluster-role.yaml
 kind: ClusterRole
@@ -43,6 +46,7 @@ rules:
   - apiGroups: [""]
     resources: ["pods"]
     verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/cluster-role.yaml
 kind: ClusterRoleBinding
@@ -62,6 +66,7 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: seaweedfs-rw-cr
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/filer-service-client.yaml
 apiVersion: v1
@@ -94,6 +99,7 @@ spec:
   selector:
     app.kubernetes.io/name: seaweedfs
     app.kubernetes.io/component: filer
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/filer-service.yaml
 apiVersion: v1
@@ -128,6 +134,7 @@ spec:
   selector:
     app.kubernetes.io/name: seaweedfs
     app.kubernetes.io/component: filer
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/master-service.yaml
 apiVersion: v1
@@ -161,6 +168,7 @@ spec:
   selector:
     app.kubernetes.io/name: seaweedfs
     app.kubernetes.io/component: master
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/s3-service.yaml
 apiVersion: v1
@@ -187,6 +195,7 @@ spec:
   selector:
     app.kubernetes.io/name: seaweedfs
     app.kubernetes.io/component: s3
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-service.yaml
 apiVersion: v1
@@ -218,6 +227,7 @@ spec:
   selector:
     app.kubernetes.io/name: seaweedfs
     app.kubernetes.io/component: volume
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/s3-deployment.yaml
 apiVersion: apps/v1
@@ -336,175 +346,7 @@ spec:
         
       nodeSelector:
         kubernetes.io/arch: amd64
----
-# Source: seaweedfs/charts/seaweedfs/templates/filer-statefulset.yaml
-apiVersion: apps/v1
-kind: StatefulSet
-metadata:
-  name: seaweedfs-filer
-  namespace: seaweedfs
-  labels:
-    app.kubernetes.io/name: seaweedfs
-    helm.sh/chart: seaweedfs-4.0.0
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: seaweedfs
-    app.kubernetes.io/component: filer
-spec:
-  serviceName: seaweedfs-filer
-  podManagementPolicy: Parallel
-  replicas: 1
-  selector:
-    matchLabels:
-      app.kubernetes.io/name: seaweedfs
-      app.kubernetes.io/instance: seaweedfs
-      app.kubernetes.io/component: filer
-  template:
-    metadata:
-      labels:
-        app.kubernetes.io/name: seaweedfs
-        helm.sh/chart: seaweedfs-4.0.0
-        app.kubernetes.io/instance: seaweedfs
-        app.kubernetes.io/component: filer
-      annotations:
-        otel.injected-by: kyverno/inject-otel-env-vars
-        checksum/s3config: 01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b
-    spec:
-      restartPolicy: Always
-      
-      serviceAccountName: "seaweedfs" # for deleting statefulset pods after migration
-      terminationGracePeriodSeconds: 60
-      enableServiceLinks: false
-      containers:
-        - name: seaweedfs
-          image: chrislusf/seaweedfs:3.73
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: POD_IP
-              valueFrom:
-                fieldRef:
-                  fieldPath: status.podIP
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.name
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: WEED_MYSQL_USERNAME
-              valueFrom:
-                secretKeyRef:
-                  name: secret-seaweedfs-db
-                  key: user
-                  optional: true
-            - name: WEED_MYSQL_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: secret-seaweedfs-db
-                  key: password
-                  optional: true
-            - name: SEAWEEDFS_FULLNAME
-              value: "seaweedfs"
-            - name: WEED_FILER_BUCKETS_FOLDER
-              value: "/buckets"
-            - name: WEED_FILER_OPTIONS_RECURSIVE_DELETE
-              value: "false"
-            - name: WEED_LEVELDB2_ENABLED
-              value: "true"
-            - name: WEED_MYSQL_CONNECTION_MAX_IDLE
-              value: "5"
-            - name: WEED_MYSQL_CONNECTION_MAX_LIFETIME_SECONDS
-              value: "600"
-            - name: WEED_MYSQL_CONNECTION_MAX_OPEN
-              value: "75"
-            - name: WEED_MYSQL_DATABASE
-              value: "sw_database"
-            - name: WEED_MYSQL_ENABLED
-              value: "false"
-            - name: WEED_MYSQL_HOSTNAME
-              value: "mysql-db-host"
-            - name: WEED_MYSQL_INTERPOLATEPARAMS
-              value: "true"
-            - name: WEED_MYSQL_PORT
-              value: "3306"
-            - name: WEED_CLUSTER_DEFAULT
-              value: "sw"
-            - name: WEED_CLUSTER_SW_FILER
-              value: "seaweedfs-filer-client.seaweedfs:8888"
-            - name: WEED_CLUSTER_SW_MASTER
-              value: "seaweedfs-master.seaweedfs:9333"
-          command:
-            - "/bin/sh"
-            - "-ec"
-            - |
-              exec /usr/bin/weed \
-              -logdir=/logs \
-              -v=1 \
-              filer \
-              -port=8888 \
-              -metricsPort=9327 \
-              -dirListLimit=100000 \
-              -defaultReplicaPlacement=000 \
-              -ip=${POD_IP} \
-              -master=${SEAWEEDFS_FULLNAME}-master-0.${SEAWEEDFS_FULLNAME}-master.seaweedfs:9333
-          volumeMounts:
-            - name: seaweedfs-filer-log-volume
-              mountPath: "/logs/"
-            - name: data-filer
-              mountPath: /data
-            
-          ports:
-            - containerPort: 8888
-              name: swfs-filer
-            - containerPort: 9327
-              name: metrics
-            - containerPort: 18888
-              #name: swfs-filer-grpc
-          readinessProbe:
-            httpGet:
-              path: /
-              port: 8888
-              scheme: 
-            initialDelaySeconds: 10
-            periodSeconds: 15
-            successThreshold: 1
-            failureThreshold: 100
-            timeoutSeconds: 10
-          livenessProbe:
-            httpGet:
-              path: /
-              port: 8888
-              scheme: 
-            initialDelaySeconds: 20
-            periodSeconds: 30
-            successThreshold: 1
-            failureThreshold: 5
-            timeoutSeconds: 10
-          resources:
-            limits:
-              cpu: 500m
-              memory: 512Mi
-            requests:
-              cpu: 100m
-              memory: 128Mi
-      volumes:
-        - name: seaweedfs-filer-log-volume
-          emptyDir: {}
-        - name: db-schema-config-volume
-          configMap:
-            name: seaweedfs-db-init-config
-        
-      nodeSelector:
-        kubernetes.io/arch: amd64
-  volumeClaimTemplates:
-    - metadata:
-        name: data-filer
-      spec:
-        accessModes: [ "ReadWriteOnce" ]
-        storageClassName: longhorn
-        resources:
-          requests:
-            storage: 5Gi
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/master-statefulset.yaml
 apiVersion: apps/v1
@@ -652,6 +494,7 @@ spec:
         resources:
           requests:
             storage: 1Gi
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-statefulset.yaml
 apiVersion: apps/v1
@@ -803,9 +646,11 @@ spec:
         resources:
           requests:
             storage: 100Gi
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/cluster-role.yaml
 #hack for delete pod master after migration
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-resize-hook.yaml
 apiVersion: v1
@@ -816,27 +661,7 @@ metadata:
     helm.sh/hook: pre-install,pre-upgrade
     helm.sh/hook-weight: "-5"
     helm.sh/hook-delete-policy: before-hook-creation
----
-# Source: seaweedfs/charts/seaweedfs/templates/secret-seaweedfs-db.yaml
-apiVersion: v1
-kind: Secret
-type: Opaque
-metadata:
-  name: secret-seaweedfs-db
-  namespace: seaweedfs
-  annotations:
-    "helm.sh/resource-policy": keep
-    "helm.sh/hook": "pre-install"
-  labels:
-    app.kubernetes.io/name: seaweedfs
-    helm.sh/chart: seaweedfs-4.0.0
-    app.kubernetes.io/managed-by: Helm
-    app.kubernetes.io/instance: seaweedfs
-stringData:
-  user: "YourSWUser"
-  password: "HardCodedPassword"
-  # better to random generate and create in DB
-  # password: NDI0YWZkNWI2ZDc0ZGFkMjQ5MjU2NWU1
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-resize-hook.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -854,6 +679,7 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["patch", "get", "list", "watch"]
+
 ---
 # Source: seaweedfs/charts/seaweedfs/templates/volume-resize-hook.yaml
 apiVersion: rbac.authorization.k8s.io/v1
@@ -871,3 +697,4 @@ roleRef:
   kind: Role
   name: seaweedfs-volume-resize-hook
   apiGroup: rbac.authorization.k8s.io
+
