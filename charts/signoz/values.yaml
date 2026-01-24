@@ -1,4 +1,5 @@
 k8s-infra:
   otelCollectorEndpoint: signoz-otel-collector.signoz.svc.cluster.local:4317
-  prometheus:
-    enabled: true
+  presets:
+    prometheus:
+      enabled: true
