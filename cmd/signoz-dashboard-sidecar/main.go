@@ -17,6 +17,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -35,7 +36,11 @@ import (
 const (
 	dashboardLabel   = "signoz.io/dashboard"
 	dashboardNameKey = "signoz.io/dashboard-name"
+	dashboardTagsKey = "signoz.io/dashboard-tags"
 	dashboardPath    = "api/v1/dashboards"
+
+	// Default tag applied to all sidecar-managed dashboards
+	defaultManagedTag = "iac-managed"
 
 	// State ConfigMap details
 	stateConfigMapName = "signoz-dashboard-sidecar-state"
@@ -278,6 +283,42 @@ func hashContent(content []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// mergeTags combines existing dashboard tags with default and annotation-provided tags.
+// It ensures no duplicates and always includes the defaultManagedTag.
+func mergeTags(existingTags []interface{}, annotationTags string) []string {
+	tagSet := make(map[string]bool)
+	result := []string{}
+
+	// Add existing tags from dashboard JSON
+	for _, t := range existingTags {
+		if tag, ok := t.(string); ok && tag != "" {
+			if !tagSet[tag] {
+				tagSet[tag] = true
+				result = append(result, tag)
+			}
+		}
+	}
+
+	// Add default managed tag
+	if !tagSet[defaultManagedTag] {
+		tagSet[defaultManagedTag] = true
+		result = append(result, defaultManagedTag)
+	}
+
+	// Add tags from annotation (comma-separated)
+	if annotationTags != "" {
+		for _, tag := range strings.Split(annotationTags, ",") {
+			tag = strings.TrimSpace(tag)
+			if tag != "" && !tagSet[tag] {
+				tagSet[tag] = true
+				result = append(result, tag)
+			}
+		}
+	}
+
+	return result
+}
+
 // Watch and reconcile
 
 func (s *Sidecar) watchConfigMaps(ctx context.Context) {
@@ -446,6 +487,14 @@ func (s *Sidecar) syncDashboard(ctx context.Context, cm *corev1.ConfigMap, force
 	if name, ok := cm.Annotations[dashboardNameKey]; ok {
 		dashboard["title"] = name
 	}
+
+	// Merge tags: existing + "iac-managed" + annotation-provided tags
+	var existingTags []interface{}
+	if tags, ok := dashboard["tags"].([]interface{}); ok {
+		existingTags = tags
+	}
+	annotationTags := cm.Annotations[dashboardTagsKey]
+	dashboard["tags"] = mergeTags(existingTags, annotationTags)
 
 	if exists {
 		// Update existing dashboard

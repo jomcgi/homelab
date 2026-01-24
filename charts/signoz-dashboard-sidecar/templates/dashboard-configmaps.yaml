@@ -12,6 +12,9 @@ metadata:
     signoz.io/dashboard: "true"
   annotations:
     signoz.io/dashboard-name: {{ $name | replace "-" " " | title | quote }}
+    {{- if $config.tags }}
+    signoz.io/dashboard-tags: {{ $config.tags | quote }}
+    {{- end }}
 data:
   dashboard.json: |-
     {{- $root.Files.Get (printf "dashboards/%s.json" $name) | nindent 4 }}

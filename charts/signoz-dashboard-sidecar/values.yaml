@@ -23,6 +23,12 @@ watch:
   # Label selector for dashboard ConfigMaps
   labelSelector: "signoz.io/dashboard=true"
 
+# Dashboard tagging
+# All dashboards managed by this sidecar get "iac-managed" tag by default.
+# ConfigMap annotations:
+#   signoz.io/dashboard-name: "Custom Title"  - Override dashboard title
+#   signoz.io/dashboard-tags: "tag1,tag2"     - Add custom tags (comma-separated)
+
 # Reconciliation settings
 reconcile:
   # How often to enforce desired state (drift correction)
@@ -79,22 +85,33 @@ affinity: {}
 
 # Bundled dashboards to deploy as ConfigMaps
 # Each entry creates a ConfigMap with the dashboard JSON
+# Options per dashboard:
+#   enabled: true/false  - Whether to deploy this dashboard
+#   tags: "tag1,tag2"    - Custom tags (comma-separated, added to "iac-managed")
 dashboards:
   # Kubernetes Infrastructure dashboards (from SigNoz/dashboards repo)
   kubernetes-cluster-metrics:
     enabled: true
+    tags: "k8s,cluster"
   kubernetes-pod-metrics-overall:
     enabled: true
+    tags: "k8s,pods"
   kubernetes-pod-metrics-detailed:
     enabled: true
+    tags: "k8s,pods"
   kubernetes-node-metrics-overall:
     enabled: true
+    tags: "k8s,nodes"
   kubernetes-node-metrics-detailed:
     enabled: true
+    tags: "k8s,nodes"
   kubernetes-pvc-metrics:
     enabled: true
+    tags: "k8s,storage"
   host-metrics:
     enabled: true
+    tags: "infrastructure"
   # SigNoz self-monitoring
   signoz-ingestion-analysis:
     enabled: true
+    tags: "signoz,monitoring"
