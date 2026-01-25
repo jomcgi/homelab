@@ -11,3 +11,4 @@ resources:
   - ./longhorn
   - ./nvidia-gpu-operator
   - ./signoz
+  - ./signoz-dashboard-sidecar  # Must be after signoz
