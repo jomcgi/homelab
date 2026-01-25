@@ -258,11 +258,15 @@ func (s *Sidecar) saveState(ctx context.Context) error {
 		},
 	}
 
-	_, err = s.clientset.CoreV1().ConfigMaps(s.config.StateNamespace).Get(ctx, stateConfigMapName, metav1.GetOptions{})
-	if errors.IsNotFound(err) {
+	existingCM, getErr := s.clientset.CoreV1().ConfigMaps(s.config.StateNamespace).Get(ctx, stateConfigMapName, metav1.GetOptions{})
+	if errors.IsNotFound(getErr) {
 		_, err = s.clientset.CoreV1().ConfigMaps(s.config.StateNamespace).Create(ctx, cm, metav1.CreateOptions{})
-	} else if err == nil {
+	} else if getErr == nil {
+		// Preserve the current resourceVersion to satisfy Kubernetes optimistic concurrency
+		cm.ResourceVersion = existingCM.ResourceVersion
 		_, err = s.clientset.CoreV1().ConfigMaps(s.config.StateNamespace).Update(ctx, cm, metav1.UpdateOptions{})
+	} else {
+		err = getErr
 	}
 
 	if err != nil {
@@ -423,20 +427,44 @@ func (s *Sidecar) reconcileAll(ctx context.Context) error {
 	}
 
 	// Clean up orphaned dashboards (ConfigMap was deleted while sidecar was down)
+	// First, collect orphaned entries under lock to keep the critical section small.
+	type orphanedDashboard struct {
+		uid       string
+		uuid      string
+		namespace string
+		name      string
+	}
+
+	var orphaned []orphanedDashboard
+
 	s.stateMu.Lock()
 	for uid, state := range s.state {
 		if !seenUIDs[uid] {
-			s.logger.Info("Cleaning up orphaned dashboard",
-				"uuid", state.UUID, "namespace", state.Namespace, "name", state.Name)
-
-			if err := s.deleteDashboardByUUID(ctx, state.UUID); err != nil {
-				s.logger.Error("Failed to delete orphaned dashboard", "uuid", state.UUID, "error", err)
-			} else {
-				delete(s.state, uid)
-			}
+			orphaned = append(orphaned, orphanedDashboard{
+				uid:       uid,
+				uuid:      state.UUID,
+				namespace: state.Namespace,
+				name:      state.Name,
+			})
 		}
 	}
 	s.stateMu.Unlock()
+
+	// Perform external deletions without holding the state mutex.
+	for _, od := range orphaned {
+		s.logger.Info("Cleaning up orphaned dashboard",
+			"uuid", od.uuid, "namespace", od.namespace, "name", od.name)
+
+		if err := s.deleteDashboardByUUID(ctx, od.uuid); err != nil {
+			s.logger.Error("Failed to delete orphaned dashboard", "uuid", od.uuid, "error", err)
+			continue
+		}
+
+		// On successful deletion, remove from state with a short lock.
+		s.stateMu.Lock()
+		delete(s.state, od.uid)
+		s.stateMu.Unlock()
+	}
 
 	if err := s.saveState(ctx); err != nil {
 		s.logger.Error("Failed to save state after reconciliation", "error", err)

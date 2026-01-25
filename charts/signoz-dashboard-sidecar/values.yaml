@@ -20,8 +20,7 @@ signoz:
 watch:
   # Namespace to watch for dashboard ConfigMaps (empty = all namespaces)
   namespace: ""
-  # Label selector for dashboard ConfigMaps
-  labelSelector: "signoz.io/dashboard=true"
+  # Note: Label selector is hardcoded to "signoz.io/dashboard=true"
 
 # Dashboard tagging
 # All dashboards managed by this sidecar get "iac-managed" tag by default.
