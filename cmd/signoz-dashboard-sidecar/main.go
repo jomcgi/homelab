@@ -287,6 +287,18 @@ func hashContent(content []byte) string {
 	return hex.EncodeToString(hash[:])
 }
 
+// computeConfigHash computes a hash that includes both the dashboard JSON content
+// and the relevant annotations (title, tags). This ensures that annotation-only
+// changes are detected and trigger immediate sync on watch events.
+func computeConfigHash(jsonContent []byte, annotations map[string]string) string {
+	h := sha256.New()
+	h.Write(jsonContent)
+	// Include relevant annotations in deterministic order
+	h.Write([]byte(annotations[dashboardNameKey]))
+	h.Write([]byte(annotations[dashboardTagsKey]))
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 // mergeTags combines existing dashboard tags with default and annotation-provided tags.
 // It ensures no duplicates and always includes the defaultManagedTag.
 func mergeTags(existingTags []interface{}, annotationTags string) []string {
@@ -490,7 +502,9 @@ func (s *Sidecar) syncDashboard(ctx context.Context, cm *corev1.ConfigMap, force
 		return err
 	}
 
-	contentHash := hashContent(dashboardJSON)
+	// Hash includes both JSON content and relevant annotations (title, tags)
+	// so annotation-only changes are detected and trigger immediate sync
+	contentHash := computeConfigHash(dashboardJSON, cm.Annotations)
 	uid := string(cm.UID)
 
 	// Check if content has changed (only skip if not forcing update)
