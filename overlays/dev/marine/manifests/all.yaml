@@ -303,7 +303,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: api
-          image: "ghcr.io/jomcgi/homelab/services/ships-api:latest@sha256:3ca2d8a633e7592a8500e69f901c4a07cde368c66142fa5f64b532d4bf3b6dfe"
+          image: "ghcr.io/jomcgi/homelab/services/ships-api:main@sha256:3ca2d8a633e7592a8500e69f901c4a07cde368c66142fa5f64b532d4bf3b6dfe"
           imagePullPolicy: Always
           securityContext:
             allowPrivilegeEscalation: false
