@@ -70,3 +70,15 @@ sh_binary(
     srcs = ["validate-apko-configs.sh"],
 )
 
+# Fast format script - builds once, runs in parallel
+# Use this instead of multirun for better performance
+sh_binary(
+    name = "fast_format",
+    srcs = ["fast-format.sh"],
+    data = [
+        ":update_apko_locks",
+        ":update_python_requirements",
+        ":validate_apko_configs",
+    ],
+)
+
