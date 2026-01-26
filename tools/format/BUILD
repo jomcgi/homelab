@@ -81,4 +81,3 @@ sh_binary(
         ":validate_apko_configs",
     ],
 )
-
