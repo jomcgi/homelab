@@ -1,116 +1,130 @@
-# Bazel workflows
+# Bazel Workflows
 
-This repository uses [Aspect Workflows](https://aspect.build) to provide an excellent Bazel developer experience.
+This repository uses [Aspect Workflows](https://aspect.build) to provide a consistent developer experience for building, testing, and linting code.
 
-## Formatting code
+## Formatting Code
 
-The `format` command is provided by the `.envrc` file, and the bazel-env.bzl setup in this repo.
+The `format` command is provided by the `.envrc` file and the bazel-env.bzl setup in this repo.
 
-- Run `format` to re-format all files locally.
-- Run `format path/to/file` to re-format a single file.
-- Run `git config core.hooksPath githooks` to add the formatter pre-commit hook. 
-- For CI verification, setup `format` task, see https://docs.aspect.build/workflows/features/lint#formatting## Linting code
+```shell
+# Re-format all files in the repository
+format
 
-Projects use [rules_lint](https://github.com/aspect-build/rules_lint) to run linting tools using Bazel's aspects feature.
-Linters produce report files, which they cache like any other Bazel actions.
-You can print the report files to the terminal in a couple ways, as follows.
+# Re-format a single file
+format path/to/file
+```
 
-The Aspect CLI provides the [`lint` command](https://docs.aspect.build/cli/commands/aspect_lint) but it is *not* part of the Bazel CLI provided by Google.
-The command collects the correct report files, presents them with colored boundaries, gives you interactive suggestions to apply fixes, produces a matching exit code, and more.
+**Pre-commit hook:** Run `git config core.hooksPath githooks` to automatically format files before committing.
 
-- Run `aspect lint //...` to check for lint violations.
+## Linting Code
 
-## Installing dev tools
+This project uses [rules_lint](https://github.com/aspect-build/rules_lint) to run linting tools via Bazel's aspects feature. Linters produce cached report files like any other Bazel action.
 
-For developers to be able to run additional CLI tools without needing manual installation:
+The Aspect CLI provides the [`lint` command](https://docs.aspect.build/cli/commands/aspect_lint) which collects report files, presents them with colored output, offers interactive fix suggestions, and returns appropriate exit codes.
+
+```shell
+# Check for lint violations across the entire repository
+aspect lint //...
+
+# Lint a specific package
+aspect lint //path/to/package:all
+```
+
+## Installing Dev Tools
+
+To make CLI tools available without manual installation:
 
 1. Add the tool to `tools/tools.lock.json`
-2. Run `bazel run //tools:bazel_env` (following any instructions it prints)
-3. When working within the workspace, tools will be available on the PATH
+2. Run `bazel run //tools:bazel_env` and follow any printed instructions
+3. Tools will be available on your PATH when working in the repository
 
-See https://blog.aspect.build/run-tools-installed-by-bazel for details.
+See [Run Tools Installed by Bazel](https://blog.aspect.build/run-tools-installed-by-bazel) for details.
 
-## Working with npm packages
+## Working with npm Packages
 
-To install a `node_modules` tree locally for the editor or other tooling outside of Bazel:
-
-```shell
-% pnpm install
-```
-
-Similarly, you can run other `pnpm` commands to add or remove packages. Use `bazel info workspace` to avoid having a bunch of `../` segments when running tools from a subdirectory:
+To install a `node_modules` tree locally for your editor or tooling outside of Bazel:
 
 ```shell
-path/to/package% $(bazel info workspace)/tools/pnpm add http-server
+pnpm install
 ```
 
-This ensures you use the same pnpm version as other developers, and the lockfile format stays constant.## Working with Python packages
+To add or remove packages, use the workspace-local pnpm to ensure consistent lockfile format:
+
+```shell
+# From any subdirectory
+$(bazel info workspace)/tools/pnpm add <package-name>
+```
+
+## Working with Python Packages
 
 After adding a new `import` statement in Python code, run `bazel run gazelle` to update the BUILD file.
 
-If the package is not already a dependency of the project, you have to do some additional steps:
+If the package is not already a dependency, add it to the project:
 
 ```shell
-# Update dependencies table to include your new dependency
-% vim pyproject.toml
-# Update lock files to pin this dependency
-% ./tools/repin
+# 1. Add the dependency to pyproject.toml
+vim pyproject.toml
+
+# 2. Update lock files to pin the dependency
+./tools/repin
+
+# 3. Update BUILD files
+bazel run gazelle
 ```
 
-To create a runnable binary for a console script from a third-party package, run the following:
+**Console scripts:** To create a runnable binary for a console script from a third-party package:
 
 ```shell
-% cat<<'EOF' | buildozer -f -
+cat<<'EOF' | buildozer -f -
 new_load @rules_python//python/entry_points:py_console_script_binary.bzl py_console_script_binary|new py_console_script_binary scriptname|tools:__pkg__
 set pkg "@pip//package_name_snake_case"|tools:scriptname
 EOF
 ```
 
-Then edit the new entry in `tools/BUILD` to replace `package_name_snake_case` with the name of the package that exports a console script, and `scriptname` with the name of the script.
+Then edit the new entry in `tools/BUILD` to replace `package_name_snake_case` with the package name and `scriptname` with the script name.
 
->[!NOTE]
->See https://rules-python.readthedocs.io/en/stable/api/python/entry_points/py_console_script_binary.html for more details.## Working with Go modules
+See the [py_console_script_binary documentation](https://rules-python.readthedocs.io/en/stable/api/python/entry_points/py_console_script_binary.html) for details.
+
+## Working with Go Modules
 
 After adding a new `import` statement in Go code, run `bazel run gazelle` to update the BUILD file.
 
-If the package is not already a dependency of the project, you have to do some additional steps:
+If the package is not already a dependency, add it to the project:
 
 ```shell
-# Update go.mod and go.sum, using same Go SDK as Bazel (it comes from direnv)
-% go mod tidy -v
-# Update MODULE.bazel to include the package in `use_repo`
-% bazel mod tidy
-# Repeat
-% bazel run gazelle
-```## Stamping release builds
+# 1. Update go.mod and go.sum (uses the same Go SDK as Bazel via direnv)
+go mod tidy -v
 
-Stamping produces non-deterministic outputs by including information such as a version number or commit hash.
+# 2. Update MODULE.bazel to include the package in use_repo
+bazel mod tidy
 
-Read more: https://blog.aspect.build/stamping-bazel-builds-with-selective-delivery
-
-To declare a build output which can be stamped, use a rule that is stamp-aware such as
-[expand_template](https://docs.aspect.build/rulesets/aspect_bazel_lib/docs/expand_template).
-
-The `/tools/workspace_status.sh` file lists available keys and may include:
-
-- `STABLE_GIT_COMMIT`: the commit hash of the HEAD (current) commit
-- `STABLE_MONOREPO_VERSION`: a semver-compatible version in the form `2020.44.123+abc1234`
-
-To request stamped build outputs, add the flag `-config=release`.## Working with Cargo
-
-You can run `cargo` outside of Bazel, using the tool installed on the PATH.
-
-```console
-% cargo add reqwest
-    Updating crates.io index
-      Adding reqwest v0.12.7 to dependencies.
-             Features:
-             + __tls
-             + charset
-             + default-tls
-             + h2
-             + http2
-             + macos-system-configuration
-             25 deactivated features
-    Updating crates.io index
+# 3. Update BUILD files
+bazel run gazelle
 ```
+
+## Working with Cargo
+
+You can run `cargo` outside of Bazel using the tool installed on the PATH:
+
+```shell
+cargo add <crate-name>
+```
+
+After adding dependencies, run `bazel run gazelle` if your project uses Gazelle for Rust.
+
+## Stamping Release Builds
+
+Stamping produces non-deterministic outputs by including information such as version numbers or commit hashes.
+
+Read more: [Stamping Bazel Builds with Selective Delivery](https://blog.aspect.build/stamping-bazel-builds-with-selective-delivery)
+
+To declare a build output which can be stamped, use a stamp-aware rule such as [expand_template](https://docs.aspect.build/rulesets/aspect_bazel_lib/docs/expand_template).
+
+The `tools/workspace_status.sh` file provides these stamp keys:
+
+| Key | Description |
+|-----|-------------|
+| `STABLE_GIT_COMMIT` | The commit hash of HEAD |
+| `STABLE_MONOREPO_VERSION` | A semver-compatible version (e.g., `2020.44.123+abc1234`) |
+
+To request stamped build outputs, add the flag `--config=release` to your Bazel command.

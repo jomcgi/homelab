@@ -15,7 +15,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jomcgi/homelab
+    repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: main
     path: operators/cloudflare/helm/cloudflare-operator
     helm:

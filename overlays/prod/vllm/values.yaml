@@ -36,7 +36,7 @@ vllm-stack:
       - name: "qwen3-coder-30b"
         # Standard vLLM image (no LMCache)
         repository: "vllm/vllm-openai"
-        tag: "latest"
+        tag: "latest@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c"
         imagePullPolicy: IfNotPresent
         # Qwen3-Coder 30B with AWQ 4-bit quantization
         modelURL: "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit"
