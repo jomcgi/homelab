@@ -4,7 +4,7 @@ load("//tools/oci:go_image.bzl", "go_image")
 go_library(
     name = "signoz-dashboard-sidecar_lib",
     srcs = ["main.go"],
-    importpath = "github.com/jomcgi/homelab/cmd/signoz-dashboard-sidecar",
+    importpath = "github.com/jomcgi/homelab/charts/signoz-dashboard-sidecar/cmd",
     visibility = ["//visibility:private"],
     deps = [
         "@com_github_prometheus_client_golang//prometheus",

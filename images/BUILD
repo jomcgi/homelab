@@ -8,7 +8,7 @@ multirun(
     name = "push_all",
     commands = [
         "//charts/claude/image:image.push",
-        "//cmd/signoz-dashboard-sidecar:image.push",
+        "//charts/signoz-dashboard-sidecar/cmd:image.push",
         "//operators/cloudflare:image.push",
         "//services/ais-ingest:image.push",
         "//services/hikes/update_forecast:update_image.push",
