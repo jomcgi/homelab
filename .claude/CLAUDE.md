@@ -59,9 +59,8 @@ kubectl delete deployment ...    # NO
 
 | Command | Purpose |
 |---------|---------|
-| `format` | Render Helm manifests, format code |
+| `format` | Format code, update lock files (apko, Python) |
 | `lstr -L 2 <path>` | Directory tree viewer |
-| `bazel run //requirements:runtime` | Regenerate Python lock files |
 
 ## GitOps Application Structure
 

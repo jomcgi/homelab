@@ -25,25 +25,22 @@ This document covers common tasks and workflows for contributing to the homelab.
    - Commit and push to Git
    - ArgoCD automatically discovers and syncs the new application to the cluster
 
-## Rendering Manifests
+## Format Command
 
-To render Helm manifests and verify changes before committing:
+Run before committing changes:
 
 ```bash
 format
 ```
 
 This command:
-- **Renders all Helm charts** to `overlays/<env>/<service>/manifests/all.yaml`
-- **Validates apko configurations** (container image definitions)
-- **Formats code** (Go, Python, JavaScript, Shell, etc.)
+- **Formats code** (Go, Python, JavaScript, Shell, Starlark)
+- **Updates apko lock files** (container image definitions)
+- **Updates Python lock files** (from pyproject.toml)
+- **Validates apko configurations**
 - **Runs in parallel** using Bazel for fast builds
-- **Caches results** for incremental builds
 
-**When to use:**
-- After modifying Helm chart templates or values
-- Before committing changes (to verify manifests render correctly)
-- To debug ArgoCD sync issues (compare rendered vs. deployed manifests)
+Note: Helm manifests are rendered by ArgoCD at deploy time, not committed to the repo.
 
 ## Adding Python Dependencies
 
@@ -51,12 +48,8 @@ When adding a new Python dependency to `pyproject.toml`:
 
 ```bash
 # 1. Add dependency to pyproject.toml
-# 2. Regenerate lock files
-bazel run //requirements:runtime
-bazel run //requirements:requirements.all
-
-# 3. Verify sync
-bazel test //requirements:runtime_test
+# 2. Regenerate lock files (included in format command)
+format
 ```
 
 ## CLI Tools
@@ -68,7 +61,7 @@ bazel test //requirements:runtime_test
 ## Development Workflow
 
 1. **Make changes** in feature branch (via worktree)
-2. **Test locally** with `format` to render manifests
+2. **Run `format`** to format code and update lock files
 3. **Verify deployment** works end-to-end
 4. **Check observability** - metrics, logs, traces
 5. **Create PR** - GitHub Actions runs integration tests
