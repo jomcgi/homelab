@@ -12,16 +12,16 @@ Create "one way to do anything" via Bazel - simple, consistent interfaces optimi
 
 ### Existing Skills (8 total)
 
-| Skill | Mechanism | Bazel-ified? |
-|-------|-----------|--------------|
-| bazelisk | `bazel run/build/test` | Yes |
-| gh-pr | `gh` CLI | No (appropriate) |
-| helm | `helm template/lint` | **Redundant** |
-| kubectl | `kubectl get/logs` | No |
-| signoz | MCP tools | No (appropriate) |
-| buildbuddy | curl API | No |
-| worktree | `git worktree` | No (appropriate) |
-| opencode | `opencode` CLI | No (appropriate) |
+| Skill      | Mechanism              | Bazel-ified?     |
+| ---------- | ---------------------- | ---------------- |
+| bazelisk   | `bazel run/build/test` | Yes              |
+| gh-pr      | `gh` CLI               | No (appropriate) |
+| helm       | `helm template/lint`   | **Redundant**    |
+| kubectl    | `kubectl get/logs`     | No               |
+| signoz     | MCP tools              | No (appropriate) |
+| buildbuddy | curl API               | No               |
+| worktree   | `git worktree`         | No (appropriate) |
+| opencode   | `opencode` CLI         | No (appropriate) |
 
 ### Key Redundancies Found
 
@@ -43,11 +43,13 @@ Create "one way to do anything" via Bazel - simple, consistent interfaces optimi
 ### 1. Deprecate `helm` Skill (Merge into bazelisk)
 
 **Why:** helm skill documents raw CLI commands that are already covered by Bazel:
+
 - `helm template` → `bazel run //overlays/<env>/<svc>:render_manifests`
 - `helm lint` → Should add `bazel run //charts/<svc>:lint`
 - Rendering all → `format`
 
 **Action:**
+
 - Add `:lint` target generation to ArgoCD Gazelle extension
 - Update bazelisk skill to document chart operations
 - Archive helm skill (keep for reference, mark deprecated)
@@ -113,18 +115,22 @@ IMAGES:
 ### 5. Update Skills to Reference Bazel Targets
 
 **kubectl skill** - Change from documenting raw commands to:
+
 ```markdown
 ## Quick Reference
-bazel run //tools/cluster:pods      # List all pods
-bazel run //tools/cluster:status    # Cluster health
-bazel run //overlays/dev/claude:logs  # Service logs
+
+bazel run //tools/cluster:pods # List all pods
+bazel run //tools/cluster:status # Cluster health
+bazel run //overlays/dev/claude:logs # Service logs
 
 ## Raw kubectl (when Bazel targets insufficient)
+
 kubectl get pods -n <namespace>
 ...
 ```
 
 **bazelisk skill** - Expand with:
+
 - Chart linting: `bazel run //charts/<svc>:lint`
 - Service inspection: `bazel run //overlays/<env>/<svc>:status`
 - Discovery: `bazel run //tools:help`
@@ -210,15 +216,18 @@ tools/argocd/generate.go              # Add :lint, :status, :logs generation
 ## Best Practices Applied (from research)
 
 **From [Addy Osmani's LLM Workflow](https://addyosmani.com/blog/ai-coding-workflow/):**
+
 - Small, focused operations that fit in context
 - Strong automation keeps AI honest
 
 **From [CLI-Based LLMs Trend](https://medium.com/@saiteja.adapala/the-rise-of-cli-based-llms-why-the-terminal-is-becoming-ais-most-powerful-interface-e94099bfec3c):**
+
 - CLI is fast, programmable, frictionless
 - Easy to script and combine with other tools
 - Plugs directly into build pipelines
 
 **Applied to this repo:**
+
 - `bazel run //...` as universal pattern
 - Discovery via `//tools:help`
 - Self-documenting target names
@@ -245,6 +254,7 @@ tools/argocd/generate.go              # Add :lint, :status, :logs generation
 ## Next Steps
 
 After this proposal is reviewed and approved:
+
 1. Create implementation PR for Phase 1 (core infrastructure)
 2. Iterate based on feedback
 3. Continue with Phases 2-4

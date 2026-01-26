@@ -373,10 +373,7 @@
       ]
     }
   },
-  "tags": [
-    "usage",
-    "ingestion"
-  ],
+  "tags": ["usage", "ingestion"],
   "title": "IngestionV2",
   "uploadedGrafana": false,
   "version": "v4",

@@ -25,6 +25,7 @@ When investigating issues, follow this order:
 ```
 mcp__signoz__list_services
 ```
+
 Lists all services reporting to SigNoz. Use this first to discover service names.
 
 **Parameters:** `start`, `end` (nanoseconds, optional - defaults to last 24h)
@@ -34,9 +35,11 @@ Lists all services reporting to SigNoz. Use this first to discover service names
 ```
 mcp__signoz__get_error_logs
 ```
+
 Find ERROR or FATAL severity logs.
 
 **Parameters:**
+
 - `start`, `end` (milliseconds) - Required
 - `service` - Optional service filter
 - `limit` - Max results (default: 100)
@@ -44,9 +47,11 @@ Find ERROR or FATAL severity logs.
 ```
 mcp__signoz__search_logs_by_service
 ```
+
 Search logs for a specific service.
 
 **Parameters:**
+
 - `service` - Required
 - `start`, `end` (milliseconds) - Required
 - `severity` - DEBUG, INFO, WARN, ERROR, FATAL
@@ -58,9 +63,11 @@ Search logs for a specific service.
 ```
 mcp__signoz__search_traces_by_service
 ```
+
 Find traces for a service with optional filters.
 
 **Parameters:**
+
 - `service` - Required
 - `start`, `end` (milliseconds) - Optional (defaults to last 24h)
 - `operation` - Filter by operation name
@@ -71,9 +78,11 @@ Find traces for a service with optional filters.
 ```
 mcp__signoz__get_trace_details
 ```
+
 Get comprehensive trace information including all spans.
 
 **Parameters:**
+
 - `traceId` - Required
 - `start`, `end` (milliseconds) - Optional
 - `includeSpans` - Include span details (default: true)
@@ -81,18 +90,22 @@ Get comprehensive trace information including all spans.
 ```
 mcp__signoz__get_trace_span_hierarchy
 ```
+
 Get span relationships and hierarchy for a trace.
 
 **Parameters:**
+
 - `traceId` - Required
 - `start`, `end` (milliseconds) - Optional
 
 ```
 mcp__signoz__get_trace_error_analysis
 ```
+
 Analyze error patterns in traces.
 
 **Parameters:**
+
 - `start`, `end` (milliseconds) - Optional
 - `service` - Optional service filter
 
@@ -101,22 +114,27 @@ Analyze error patterns in traces.
 ```
 mcp__signoz__list_alerts
 ```
+
 List all active alert rules. No parameters required.
 
 ```
 mcp__signoz__get_alert
 ```
+
 Get details of a specific alert rule.
 
 **Parameters:**
+
 - `ruleId` - Required
 
 ```
 mcp__signoz__get_logs_for_alert
 ```
+
 Get logs related to a specific alert.
 
 **Parameters:**
+
 - `alertId` - Required
 - `timeRange` - e.g., '1h', '30m' (default: '1h')
 - `limit` - Max results (default: 100)
@@ -126,22 +144,27 @@ Get logs related to a specific alert.
 ```
 mcp__signoz__list_metric_keys
 ```
+
 List available metric keys. No parameters required.
 
 ```
 mcp__signoz__search_metric_keys
 ```
+
 Search metrics by text.
 
 **Parameters:**
+
 - `searchText` - Required
 
 ```
 mcp__signoz__get_service_top_operations
 ```
+
 Get top operations for a service (latency, throughput).
 
 **Parameters:**
+
 - `service` - Required
 - `start`, `end` (nanoseconds) - Optional
 
@@ -150,47 +173,54 @@ Get top operations for a service (latency, throughput).
 ```
 mcp__signoz__list_dashboards
 ```
+
 List all dashboards. No parameters required.
 
 ```
 mcp__signoz__get_dashboard
 ```
+
 Get full dashboard configuration.
 
 **Parameters:**
+
 - `uuid` - Dashboard UUID
 
 ```
 mcp__signoz__list_log_views
 ```
+
 List saved log views. No parameters required.
 
 ```
 mcp__signoz__get_log_view
 ```
+
 Get log view configuration.
 
 **Parameters:**
+
 - `viewId` - Required
 
 ## Time Formats
 
 **Important:** Different functions use different time units:
 
-| Function Type | Time Unit | Example |
-|---------------|-----------|---------|
-| Logs | milliseconds | `1704067200000` |
-| Traces (search) | milliseconds | `1704067200000` |
-| Services | nanoseconds | `1704067200000000000` |
-| Top operations | nanoseconds | `1704067200000000000` |
+| Function Type   | Time Unit    | Example               |
+| --------------- | ------------ | --------------------- |
+| Logs            | milliseconds | `1704067200000`       |
+| Traces (search) | milliseconds | `1704067200000`       |
+| Services        | nanoseconds  | `1704067200000000000` |
+| Top operations  | nanoseconds  | `1704067200000000000` |
 
 **Getting current timestamps:**
+
 ```javascript
 // Milliseconds (for logs, trace search)
-Date.now()
+Date.now();
 
 // Nanoseconds (for services, top operations)
-Date.now() * 1000000
+Date.now() * 1000000;
 ```
 
 ## Common Debugging Scenarios
@@ -198,11 +228,13 @@ Date.now() * 1000000
 ### "Service is returning errors"
 
 1. Find error logs:
+
    ```
    mcp__signoz__get_error_logs(start, end, service="my-service")
    ```
 
 2. Search for error traces:
+
    ```
    mcp__signoz__search_traces_by_service(service="my-service", error="true")
    ```
@@ -215,6 +247,7 @@ Date.now() * 1000000
 ### "Service is slow"
 
 1. Check top operations:
+
    ```
    mcp__signoz__get_service_top_operations(service="my-service")
    ```
@@ -228,11 +261,13 @@ Date.now() * 1000000
 ### "What's happening in the cluster?"
 
 1. List services:
+
    ```
    mcp__signoz__list_services()
    ```
 
 2. Check alerts:
+
    ```
    mcp__signoz__list_alerts()
    ```
@@ -244,10 +279,10 @@ Date.now() * 1000000
 
 ## Common Service Names
 
-| Service | Description |
-|---------|-------------|
-| `cui-server` | Claude web interface API server |
-| `argocd-server` | ArgoCD GitOps controller |
-| `linkerd-*` | Service mesh components |
+| Service         | Description                     |
+| --------------- | ------------------------------- |
+| `cui-server`    | Claude web interface API server |
+| `argocd-server` | ArgoCD GitOps controller        |
+| `linkerd-*`     | Service mesh components         |
 
 Use `mcp__signoz__list_services()` to discover all available services.

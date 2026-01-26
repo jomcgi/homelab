@@ -13,21 +13,21 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: cloudflaretunnel-editor-role
 rules:
-- apiGroups:
-  - tunnels.tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - tunnels.tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels/status
-  verbs:
-  - get
+  - apiGroups:
+      - tunnels.tunnels.cloudflare.io
+    resources:
+      - cloudflaretunnels
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - tunnels.tunnels.cloudflare.io
+    resources:
+      - cloudflaretunnels/status
+    verbs:
+      - get

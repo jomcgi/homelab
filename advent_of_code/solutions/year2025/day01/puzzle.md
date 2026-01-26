@@ -12,7 +12,7 @@ The bad news is that they've realized they have a **different** emergency: accor
 
 To save Christmas, the Elves need **you** to **finish decorating the North Pole by December 12th**.
 
-Collect stars by solving puzzles.  Two puzzles will be made available on each day; the second puzzle is unlocked when you complete the first.  Each puzzle grants ⭐one star. Good luck!
+Collect stars by solving puzzles. Two puzzles will be made available on each day; the second puzzle is unlocked when you complete the first. Each puzzle grants ⭐one star. Good luck!
 
 You arrive at the secret entrance to the North Pole base ready to start decorating. Unfortunately, the **password** seems to have been changed, so you can't get in. A document taped to the wall helpfully explains:
 

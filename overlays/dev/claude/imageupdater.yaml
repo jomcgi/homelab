@@ -5,17 +5,17 @@ metadata:
   namespace: argocd
 spec:
   applicationRefs:
-  - images:
-    - alias: claude
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/charts/claude:main
-      manifestTargets:
-        helm:
-          name: image.repository
-          tag: image.tag
-    namePattern: claude
+    - images:
+        - alias: claude
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/charts/claude:main
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag
+      namePattern: claude
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token

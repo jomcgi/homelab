@@ -5,35 +5,35 @@ metadata:
   namespace: argocd
 spec:
   applicationRefs:
-  - images:
-    - alias: ingest
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ais-ingest:main
-      manifestTargets:
-        helm:
-          name: ingest.image.repository
-          tag: ingest.image.tag
-    - alias: api
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ships-api:main
-      manifestTargets:
-        helm:
-          name: api.image.repository
-          tag: api.image.tag
-    - alias: frontend
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
-      manifestTargets:
-        helm:
-          name: frontend.image.repository
-          tag: frontend.image.tag
-    namePattern: marine
+    - images:
+        - alias: ingest
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/ais-ingest:main
+          manifestTargets:
+            helm:
+              name: ingest.image.repository
+              tag: ingest.image.tag
+        - alias: api
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/ships-api:main
+          manifestTargets:
+            helm:
+              name: api.image.repository
+              tag: api.image.tag
+        - alias: frontend
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
+          manifestTargets:
+            helm:
+              name: frontend.image.repository
+              tag: frontend.image.tag
+      namePattern: marine
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token

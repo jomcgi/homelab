@@ -4,7 +4,7 @@
 # OpenTelemetry injection configuration
 otelInjection:
   enabled: true
-  background: true  # Apply to existing AND new resources
+  background: true # Apply to existing AND new resources
   endpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
   protocol: "grpc"
   targetKinds:
@@ -18,22 +18,22 @@ otelInjection:
 
 # Linkerd namespace injection configuration
 linkerdInjection:
-  enabled: true  # Auto-enable Linkerd injection for all namespaces
-  background: true  # Apply to existing AND new namespaces
+  enabled: true # Auto-enable Linkerd injection for all namespaces
+  background: true # Apply to existing AND new namespaces
   excludeNamespaces:
     # System namespaces
     - kube-system
     - kube-public
     - kube-node-lease
     # Infrastructure that shouldn't be meshed
-    - linkerd  # Linkerd control plane itself
-    - linkerd-cni  # Linkerd CNI (if using CNI mode)
-    - cert-manager  # Certificate management
-    - kyverno  # Policy engine
-    - argocd  # GitOps controller
-    - longhorn-system  # Storage system
+    - linkerd # Linkerd control plane itself
+    - linkerd-cni # Linkerd CNI (if using CNI mode)
+    - cert-manager # Certificate management
+    - kyverno # Policy engine
+    - argocd # GitOps controller
+    - longhorn-system # Storage system
     # Observability (optional - can mesh these if desired)
-    - signoz  # SigNoz collector (avoid circular tracing)
+    - signoz # SigNoz collector (avoid circular tracing)
 
 kyverno:
   # Admission controller configuration
@@ -52,7 +52,7 @@ kyverno:
       readOnlyRootFilesystem: true
       capabilities:
         drop:
-        - ALL
+          - ALL
       seccompProfile:
         type: RuntimeDefault
 
@@ -112,18 +112,18 @@ kyverno:
   config:
     excludeKyvernoNamespace: true
     resourceFilters:
-      - '[*,kube-system,*]'
-      - '[*,kube-public,*]'
-      - '[*,kube-node-lease,*]'
-      - '[Event,*,*]'
-      - '[Node,*,*]'
-      - '[APIService,*,*]'
-      - '[TokenReview,*,*]'
-      - '[SubjectAccessReview,*,*]'
-      - '[SelfSubjectAccessReview,*,*]'
-      - '[Binding,*,*]'
-      - '[ReplicaSet,*,*]'
-      - '[AdmissionReport,*,*]'
-      - '[ClusterAdmissionReport,*,*]'
-      - '[BackgroundScanReport,*,*]'
-      - '[ClusterBackgroundScanReport,*,*]'
+      - "[*,kube-system,*]"
+      - "[*,kube-public,*]"
+      - "[*,kube-node-lease,*]"
+      - "[Event,*,*]"
+      - "[Node,*,*]"
+      - "[APIService,*,*]"
+      - "[TokenReview,*,*]"
+      - "[SubjectAccessReview,*,*]"
+      - "[SelfSubjectAccessReview,*,*]"
+      - "[Binding,*,*]"
+      - "[ReplicaSet,*,*]"
+      - "[AdmissionReport,*,*]"
+      - "[ClusterAdmissionReport,*,*]"
+      - "[BackgroundScanReport,*,*]"
+      - "[ClusterBackgroundScanReport,*,*]"

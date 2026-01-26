@@ -88,10 +88,7 @@
   ],
   "name": "",
   "panelMap": {},
-  "tags": [
-    "pod",
-    "k8s"
-  ],
+  "tags": ["pod", "k8s"],
   "title": "Kubernetes Pod Metrics - Detailed",
   "uploadedGrafana": false,
   "variables": {
@@ -106,9 +103,7 @@
       "name": "k8s.node.name",
       "order": 1,
       "queryValue": "SELECT JSONExtractString(labels, 'k8s.node.name') AS `k8s.node.name` FROM signoz_metrics.distributed_time_series_v4_1day WHERE `metric_name` = 'k8s.node.cpu.time' AND JSONExtractString(labels, 'k8s.cluster.name') = $k8s.cluster.name GROUP BY `k8s.node.name`",
-      "selectedValue": [
-        "default"
-      ],
+      "selectedValue": ["default"],
       "showALLOption": true,
       "sort": "ASC",
       "textboxValue": "",
@@ -196,9 +191,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "b5db2e8e",
@@ -210,9 +203,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -322,9 +313,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "3dcc5b09",
@@ -336,9 +325,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -448,9 +435,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "b5f79c98",
@@ -462,9 +447,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -574,9 +557,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "539e5b96",
@@ -588,9 +569,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -700,9 +679,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "77d4b139",
@@ -714,9 +691,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -826,9 +801,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "3d87a431",
@@ -840,9 +813,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -952,9 +923,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "79d14065",
@@ -966,9 +935,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1078,9 +1045,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "c284ecd1",
@@ -1092,9 +1057,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1218,9 +1181,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "c0d7e589",
@@ -1232,9 +1193,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"

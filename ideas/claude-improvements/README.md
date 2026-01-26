@@ -5,21 +5,27 @@ This directory contains detailed improvement proposals for the Claude Code deplo
 ## Improvement Areas
 
 ### 1. [UX Features](./01-ux-features.md)
+
 Enhanced user experience with diagram rendering, markdown preview, development server integration, and improved code editing capabilities.
 
 ### 2. [Brutalist Design](./02-brutalist-design.md)
+
 Visual alignment with the homelab's brutalist aesthetic - monospace fonts, stark contrasts, and raw geometric layouts.
 
 ### 3. [Sandbox Environments](./03-sandbox-environments.md)
+
 Kubernetes-native development sandboxes with session-isolated namespaces, enabling safe experimentation without affecting production.
 
 ### 4. [Mobile Experience](./04-mobile-experience.md)
+
 Responsive design, Progressive Web App features, and touch-optimized interfaces for seamless mobile usage.
 
 ### 5. [Continuous Voice Chat](./05-continuous-voice-chat.md)
+
 Always-on voice interaction using Whisper on GPU nodes, with wake word detection and real-time transcription.
 
 ### 6. [Bazel Optimization](./06-bazel-optimization.md)
+
 BuildBuddy deployment for remote caching and execution, dramatically improving build performance.
 
 ## Implementation Priority
@@ -27,21 +33,25 @@ BuildBuddy deployment for remote caching and execution, dramatically improving b
 The improvements are organized in a phased approach:
 
 **Phase 1 (Immediate Impact)**
+
 - Brutalist design alignment
 - Mobile responsive layout
 - Basic UX improvements
 
 **Phase 2 (Developer Experience)**
+
 - Sandbox environments
 - Dev server integration
 - Enhanced code editing
 
 **Phase 3 (Advanced Features)**
+
 - Continuous voice chat
 - Whisper deployment
 - Wake word detection
 
 **Phase 4 (Performance)**
+
 - BuildBuddy setup
 - Remote caching
 - Build optimization
@@ -66,6 +76,7 @@ The improvements are organized in a phased approach:
 ## Success Metrics
 
 Each improvement includes specific success metrics:
+
 - User satisfaction scores
 - Performance benchmarks
 - Adoption rates
@@ -83,6 +94,7 @@ Each improvement includes specific success metrics:
 ## Contributing
 
 When adding new improvement ideas:
+
 1. Create a new numbered markdown file
 2. Follow the existing document structure
 3. Include concrete implementation details

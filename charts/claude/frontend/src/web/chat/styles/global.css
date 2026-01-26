@@ -1,4 +1,4 @@
-@import './theme.css';
+@import "./theme.css";
 
 * {
   box-sizing: border-box;
@@ -19,14 +19,16 @@ body {
   line-height: 1.5;
   color: var(--color-text-primary);
   background-color: var(--color-bg-primary);
-  transition: background-color var(--transition-normal), color var(--transition-normal);
-  
+  transition:
+    background-color var(--transition-normal),
+    color var(--transition-normal);
+
   /* Prevent scrolling and elastic bounce */
   overflow-x: hidden;
   overflow-y: hidden;
   overscroll-behavior: none;
   -webkit-overflow-scrolling: touch;
-  
+
   /* Safe area support for iOS */
   padding-top: var(--safe-area-inset-top);
   padding-bottom: var(--safe-area-inset-bottom);

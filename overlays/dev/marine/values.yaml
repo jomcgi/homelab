@@ -5,7 +5,7 @@ imagePullSecret:
   enabled: true
 # Configure pods to use the image pull secret
 imagePullSecrets:
-- name: ghcr-imagepull-secret
+  - name: ghcr-imagepull-secret
 # AIS Ingest component
 ingest:
   image:

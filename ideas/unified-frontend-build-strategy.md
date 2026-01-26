@@ -8,24 +8,25 @@
 
 ## Current State
 
-| Project | Framework | Build System | Deployment | Notes |
-|---------|-----------|--------------|------------|-------|
-| **ships.jomcgi.dev** | React + Vite | Bazel (js_run_binary) | K8s container | Gold standard for K8s |
-| **trips.jomcgi.dev** | React + Vite | npm only | Cloudflare Pages | Works fine as-is |
-| **claude/frontend** | React + Vite + Express | filegroup only | K8s (runtime build) | Has native modules |
-| **jomcgi.dev** | Astro | npm only | Cloudflare Pages | Different framework |
-| **hikes.jomcgi.dev** | Static HTML | None | Cloudflare Pages | No build needed |
+| Project              | Framework              | Build System          | Deployment          | Notes                 |
+| -------------------- | ---------------------- | --------------------- | ------------------- | --------------------- |
+| **ships.jomcgi.dev** | React + Vite           | Bazel (js_run_binary) | K8s container       | Gold standard for K8s |
+| **trips.jomcgi.dev** | React + Vite           | npm only              | Cloudflare Pages    | Works fine as-is      |
+| **claude/frontend**  | React + Vite + Express | filegroup only        | K8s (runtime build) | Has native modules    |
+| **jomcgi.dev**       | Astro                  | npm only              | Cloudflare Pages    | Different framework   |
+| **hikes.jomcgi.dev** | Static HTML            | None                  | Cloudflare Pages    | No build needed       |
 
 ## Architecture Decision
 
 ### Two Serving Patterns
 
-| Pattern | Use Case | Build | Serve | API Access |
-|---------|----------|-------|-------|------------|
-| **K8s + Proxy** | Private sites needing cluster APIs | Bazel Vite | Bun/Node proxy in pod | In-cluster routing |
-| **CF Pages** | Public static sites | Bazel Vite | Cloudflare CDN | N/A or separate tunnel |
+| Pattern         | Use Case                           | Build      | Serve                 | API Access             |
+| --------------- | ---------------------------------- | ---------- | --------------------- | ---------------------- |
+| **K8s + Proxy** | Private sites needing cluster APIs | Bazel Vite | Bun/Node proxy in pod | In-cluster routing     |
+| **CF Pages**    | Public static sites                | Bazel Vite | Cloudflare CDN        | N/A or separate tunnel |
 
 **The proxy pattern (ships-frontend) remains the right choice** for private sites that need to call internal APIs. It provides:
+
 - Single tunnel endpoint (subdomain → pod)
 - In-cluster API routing without auth complexity
 - WebSocket support for real-time features
@@ -37,6 +38,7 @@
 Create `tools/js/vite_build.bzl` to standardize frontend builds.
 
 **File:** `tools/js/vite_build.bzl`
+
 ```starlark
 """Unified Vite build macro for React/frontend projects."""
 
@@ -113,6 +115,7 @@ tools/wrangler/
 ```
 
 **File:** `tools/wrangler/wrangler_pages.bzl`
+
 ```starlark
 """Bazel rules for Cloudflare Pages deployment."""
 
@@ -166,6 +169,7 @@ def wrangler_pages(name, dist, project_name, visibility = None):
 ```
 
 **File:** `tools/wrangler/wrangler_push.sh.tpl`
+
 ```bash
 #!/usr/bin/env bash
 set -euo pipefail
@@ -192,6 +196,7 @@ exec "${WRANGLER}" pages deploy "${DIST_DIR}" \
 Create a reusable Bun server template for K8s deployments.
 
 **File:** `tools/js/frontend_server.ts.tpl`
+
 ```typescript
 // Template for frontend servers with API proxying
 const PORT = process.env.PORT || "3000";
@@ -223,6 +228,7 @@ const server = Bun.serve({
 ### Phase 4: Migrate Existing Projects
 
 **ships.jomcgi.dev** - Already uses Bazel, update to use shared macro:
+
 ```starlark
 load("//tools/js:vite_build.bzl", "vite_build")
 
@@ -235,6 +241,7 @@ vite_build(
 ```
 
 **trips.jomcgi.dev** - Add Bazel BUILD for CF Pages deployment:
+
 ```starlark
 load("//tools/js:vite_build.bzl", "vite_build")
 load("//tools/wrangler:wrangler_pages.bzl", "wrangler_pages")
@@ -257,6 +264,7 @@ Deploy with: `bazel run //websites/trips.jomcgi.dev:trips.push`
 ### Phase 5: Centralized Push Targets
 
 **File:** `websites/BUILD`
+
 ```starlark
 # Push all static sites to Cloudflare Pages
 sh_binary(
@@ -272,29 +280,31 @@ sh_binary(
 
 ## File Changes Summary
 
-| File | Action | Purpose |
-|------|--------|---------|
-| `tools/js/vite_build.bzl` | Create | Shared Vite build macro |
-| `tools/js/BUILD` | Create | Package for JS tools |
-| `tools/wrangler/wrangler_pages.bzl` | Create | CF Pages push rule |
-| `tools/wrangler/wrangler_push.sh.tpl` | Create | Push script template |
-| `tools/wrangler/BUILD` | Create | Package for wrangler tools |
-| `websites/ships.jomcgi.dev/BUILD` | Update | Use shared macro |
-| `websites/trips.jomcgi.dev/BUILD` | Create | Add Bazel build + CF push |
-| `websites/jomcgi.dev/BUILD` | Create | Add Astro build + CF push |
-| `websites/hikes.jomcgi.dev/BUILD` | Create | Add CF push (no build needed) |
-| `pnpm-workspace.yaml` | Update | Add trips.jomcgi.dev |
-| `MODULE.bazel` | Update | Add wrangler npm dependency |
+| File                                  | Action | Purpose                       |
+| ------------------------------------- | ------ | ----------------------------- |
+| `tools/js/vite_build.bzl`             | Create | Shared Vite build macro       |
+| `tools/js/BUILD`                      | Create | Package for JS tools          |
+| `tools/wrangler/wrangler_pages.bzl`   | Create | CF Pages push rule            |
+| `tools/wrangler/wrangler_push.sh.tpl` | Create | Push script template          |
+| `tools/wrangler/BUILD`                | Create | Package for wrangler tools    |
+| `websites/ships.jomcgi.dev/BUILD`     | Update | Use shared macro              |
+| `websites/trips.jomcgi.dev/BUILD`     | Create | Add Bazel build + CF push     |
+| `websites/jomcgi.dev/BUILD`           | Create | Add Astro build + CF push     |
+| `websites/hikes.jomcgi.dev/BUILD`     | Create | Add CF push (no build needed) |
+| `pnpm-workspace.yaml`                 | Update | Add trips.jomcgi.dev          |
+| `MODULE.bazel`                        | Update | Add wrangler npm dependency   |
 
 ## Verification
 
 1. **Build verification:**
+
    ```bash
    bazel build //websites/ships.jomcgi.dev:build
    bazel build //websites/trips.jomcgi.dev:build
    ```
 
 2. **Push verification (dry-run):**
+
    ```bash
    # Test wrangler is available
    bazel run //websites/trips.jomcgi.dev:trips.push -- --help
@@ -317,11 +327,13 @@ sh_binary(
 The claude/frontend has `better-sqlite3` which requires native compilation. To bring it into the unified build:
 
 **Research needed:**
+
 - `rules_nodejs` native module support via `node-gyp`
 - Pre-built binaries from `@aspect_rules_js`
 - Cross-compilation for multi-arch (x86_64 + aarch64)
 
 **Potential approach:**
+
 ```starlark
 # If aspect_rules_js supports native modules:
 npm_link_all_packages(
@@ -333,6 +345,7 @@ npm_link_all_packages(
 **Fallback:** If native compilation proves too complex, keep claude/frontend on runtime builds but use the same `vite_build` macro for the frontend portion, with a separate server build step.
 
 **Files to investigate:**
+
 - `charts/claude/frontend/package.json` - Native dependencies
 - `charts/claude/image/apko.yaml` - Build tools available (python, build-base)
 - aspect_rules_js docs on native modules

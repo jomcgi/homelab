@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - '.github/runners/Dockerfile'
-      - '.github/workflows/gh-arc-runner-image.yaml'
+      - ".github/runners/Dockerfile"
+      - ".github/workflows/gh-arc-runner-image.yaml"
   pull_request:
     paths:
-      - '.github/runners/Dockerfile'
-      - '.github/workflows/gh-arc-runner-image.yaml'
+      - ".github/runners/Dockerfile"
+      - ".github/workflows/gh-arc-runner-image.yaml"
   workflow_dispatch:
 
 env:
@@ -20,7 +20,7 @@ env:
 jobs:
   build-and-push:
     name: Build and Push Runner Image
-    runs-on: ubuntu-latest  # Use GitHub-hosted runner to bootstrap
+    runs-on: ubuntu-latest # Use GitHub-hosted runner to bootstrap
     permissions:
       contents: read
       packages: write

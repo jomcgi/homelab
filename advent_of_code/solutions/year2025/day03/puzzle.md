@@ -27,7 +27,7 @@ You'll need to find the largest possible joltage each bank can produce. In the a
 
 - In `**98**7654321111111`, you can make the largest joltage possible, **`98`**, by turning on the first two batteries.
 
-- In **`81111111111111**9`**, you can make the largest joltage possible by turning on the batteries labeled `8` and `9`, producing `89`** jolts.
+- In **`81111111111111**9`**, you can make the largest joltage possible by turning on the batteries labeled `8`and`9`, producing `89`\*\* jolts.
 
 - In `2342342342342**78**`, you can make **`78`** by turning on the last two batteries (marked `7` and `8`).
 

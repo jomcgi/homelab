@@ -30,7 +30,7 @@ cert-manager:
     readOnlyRootFilesystem: true
     capabilities:
       drop:
-      - ALL
+        - ALL
     seccompProfile:
       type: RuntimeDefault
 
@@ -50,7 +50,7 @@ cert-manager:
       readOnlyRootFilesystem: true
       capabilities:
         drop:
-        - ALL
+          - ALL
       seccompProfile:
         type: RuntimeDefault
 
@@ -70,7 +70,7 @@ cert-manager:
       readOnlyRootFilesystem: true
       capabilities:
         drop:
-        - ALL
+          - ALL
       seccompProfile:
         type: RuntimeDefault
 
@@ -78,7 +78,7 @@ cert-manager:
   prometheus:
     enabled: true
     servicemonitor:
-      enabled: false  # Enable if you have Prometheus Operator
+      enabled: false # Enable if you have Prometheus Operator
 
   # Startup API check
   startupapicheck:

@@ -4,11 +4,11 @@ kind: Kustomization
 resources:
   - ./argocd
   - ./argocd-image-updater
-  - ./cert-manager  # Must be before linkerd
+  - ./cert-manager # Must be before linkerd
   - ./coredns
   - ./kyverno
   - ./linkerd
   - ./longhorn
   - ./nvidia-gpu-operator
   - ./signoz
-  - ./signoz-dashboard-sidecar  # Must be after signoz
+  - ./signoz-dashboard-sidecar # Must be after signoz

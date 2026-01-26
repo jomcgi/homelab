@@ -42,10 +42,7 @@
   ],
   "name": "",
   "panelMap": {},
-  "tags": [
-    "pod",
-    "k8s"
-  ],
+  "tags": ["pod", "k8s"],
   "title": "Kubernetes Pod Metrics - Overall",
   "uploadedGrafana": false,
   "variables": {
@@ -60,9 +57,7 @@
       "name": "k8s.node.name",
       "order": 1,
       "queryValue": "SELECT JSONExtractString(labels, 'k8s.node.name') AS `k8s.node.name` FROM signoz_metrics.distributed_time_series_v4_1day WHERE `metric_name` = 'k8s.node.cpu.time' AND JSONExtractString(labels, 'k8s.cluster.name') = $k8s.cluster.name GROUP BY `k8s.node.name`",
-      "selectedValue": [
-        "default"
-      ],
+      "selectedValue": ["default"],
       "showALLOption": true,
       "sort": "ASC",
       "textboxValue": "",
@@ -156,9 +151,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "61f9230d",
@@ -170,9 +163,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -295,9 +286,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "a9fb8a7e",
@@ -309,9 +298,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -387,9 +374,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "58740964",
@@ -401,9 +386,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -533,9 +516,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "9e3c50e2",
@@ -547,9 +528,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -672,9 +651,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "7605354f",
@@ -686,9 +663,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   }
                 ],
                 "op": "AND"

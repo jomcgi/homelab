@@ -223,6 +223,7 @@ gh pr merge --squash --delete-branch
 The `Closes #43` in the commit/PR body auto-closes the issue on merge.
 
 Verify:
+
 ```bash
 gh issue view $CHILD_ISSUE --json state -q .state
 # Should be "CLOSED"
@@ -329,12 +330,12 @@ fi
 
 ## Labels Convention
 
-| Label | Purpose |
-|-------|---------|
-| `lock:<agent>:<timestamp>` | Indicates active work |
-| `agent-ready` | Parent is ready for agent pickup |
-| `needs-attention` | Requires human intervention |
-| `blocked` | Issue is blocked by external factor |
+| Label                      | Purpose                             |
+| -------------------------- | ----------------------------------- |
+| `lock:<agent>:<timestamp>` | Indicates active work               |
+| `agent-ready`              | Parent is ready for agent pickup    |
+| `needs-attention`          | Requires human intervention         |
+| `blocked`                  | Issue is blocked by external factor |
 
 ## Tips
 

@@ -15,6 +15,7 @@ Local Machine                         Kubernetes (port-forwarded)
 ```
 
 **Pain points:**
+
 - Requires SSH + port-forwarding to cluster
 - Local dependencies on NATS and S3 clients
 - Slow iteration when testing
@@ -32,6 +33,7 @@ Local Machine                    Cloudflare           Kubernetes
 ```
 
 **Benefits:**
+
 - No port-forwarding or SSH required
 - Zero Trust auth via Cloudflare Access
 - All processing logic server-side
@@ -42,6 +44,7 @@ Local Machine                    Cloudflare           Kubernetes
 ### `POST /api/images`
 
 **Headers:**
+
 - `CF-Access-Client-Id` + `CF-Access-Client-Secret` (service token from Cloudflare Access)
 - `X-Image-Source`: `gopro` | `camera` | `phone` (optional, default: `gopro`)
 
@@ -58,6 +61,7 @@ Local Machine                    Cloudflare           Kubernetes
 ### Idempotency
 
 The same image always produces the same S3 key via `uuid5(source:timestamp:filename)`:
+
 - **Same key + same hash** → 200, skip upload
 - **Same key + different hash** → 201, overwrite (handles rotation/edits)
 - **New key** → 201, upload
@@ -108,6 +112,7 @@ The same image always produces the same S3 key via `uuid5(source:timestamp:filen
 ## Environment Variables
 
 ### Server (trips-api)
+
 ```bash
 SEAWEEDFS_ENDPOINT=http://seaweedfs-s3:8333
 SEAWEEDFS_BUCKET=trips
@@ -117,6 +122,7 @@ SEAWEEDFS_SECRET_KEY=...
 ```
 
 ### Client (local)
+
 ```bash
 TRIPS_API_URL=https://trips-api.jomcgi.dev
 CF_ACCESS_CLIENT_ID=<from cloudflare>

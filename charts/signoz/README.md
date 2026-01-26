@@ -29,9 +29,9 @@ flowchart LR
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
-| `signoz.*` | Upstream SigNoz chart values | See [signoz chart](https://charts.signoz.io) |
+| Value         | Description                         | Default                                         |
+| ------------- | ----------------------------------- | ----------------------------------------------- |
+| `signoz.*`    | Upstream SigNoz chart values        | See [signoz chart](https://charts.signoz.io)    |
 | `k8s-infra.*` | Kubernetes infrastructure collector | See [k8s-infra chart](https://charts.signoz.io) |
 
 ## OTEL Integration

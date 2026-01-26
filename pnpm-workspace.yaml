@@ -1,5 +1,5 @@
 # See https://pnpm.io/pnpm-workspace_yaml
 packages:
- - packages/*
- - tools
- - websites/ships.jomcgi.dev
+  - packages/*
+  - tools
+  - websites/ships.jomcgi.dev

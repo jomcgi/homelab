@@ -22,6 +22,7 @@ This skill converts a design document into structured GitHub Issues for autonomo
 ```
 
 Or via controller prompt:
+
 ```bash
 claude "Use /gh-issue-create to convert ideas/agent-controller.md into GitHub issues"
 ```
@@ -33,6 +34,7 @@ cat ~/repos/homelab/ideas/<design-doc>.md
 ```
 
 Identify:
+
 - **Goal**: What does "done" look like?
 - **Phases**: Major milestones or stages
 - **Tasks**: Discrete, implementable units of work
@@ -128,6 +130,7 @@ gh issue edit "$PARENT" --repo "$REPO" --add-label "agent-ready"
 ```
 
 **Note:** If the `agent-ready` label doesn't exist, create it first:
+
 ```bash
 gh label create "agent-ready" --repo "$REPO" --description "Issue ready for autonomous agent pickup" --color "2ea44f"
 ```
@@ -145,20 +148,20 @@ gh label create "agent-ready" --repo "$REPO" --description "Issue ready for auto
 
 From `ideas/agent-controller.md`:
 
-| Child Issue | Why It's Good |
-|-------------|---------------|
-| "Create controller.sh script" | Single file, clear scope |
-| "Add controller Kubernetes deployment" | Single manifest, depends on script |
-| "Add controller values.yaml config" | Clear scope, complements deployment |
-| "Test end-to-end flow" | Validation step, depends on others |
+| Child Issue                            | Why It's Good                       |
+| -------------------------------------- | ----------------------------------- |
+| "Create controller.sh script"          | Single file, clear scope            |
+| "Add controller Kubernetes deployment" | Single manifest, depends on script  |
+| "Add controller values.yaml config"    | Clear scope, complements deployment |
+| "Test end-to-end flow"                 | Validation step, depends on others  |
 
 ### Anti-patterns
 
-| Bad | Better |
-|-----|--------|
+| Bad                                | Better                                |
+| ---------------------------------- | ------------------------------------- |
 | "Implement controller" (too broad) | Split into script, deployment, config |
-| "Fix bugs" (vague) | Specific: "Handle GitHub API timeout" |
-| "Add tests and docs" (two things) | Separate: "Add tests", "Add docs" |
+| "Fix bugs" (vague)                 | Specific: "Handle GitHub API timeout" |
+| "Add tests and docs" (two things)  | Separate: "Add tests", "Add docs"     |
 
 ## Ordering Hints
 
@@ -281,6 +284,7 @@ then use /gh-issue to start working on them."
 ```
 
 Or as separate steps:
+
 1. Human or scheduled job runs `/gh-issue-create` on new design docs
 2. Controller polls for `agent-ready` issues
 3. Controller spawns Claude with `/gh-issue` to execute

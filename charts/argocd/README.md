@@ -21,8 +21,8 @@ flowchart LR
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
+| Value       | Description           | Default                                                                             |
+| ----------- | --------------------- | ----------------------------------------------------------------------------------- |
 | `argo-cd.*` | Upstream chart values | See [argo-cd chart](https://github.com/argoproj/argo-helm/tree/main/charts/argo-cd) |
 
 ## Application Discovery Pattern

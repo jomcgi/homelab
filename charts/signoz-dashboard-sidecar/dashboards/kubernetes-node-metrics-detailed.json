@@ -115,11 +115,7 @@
   ],
   "name": "",
   "panelMap": {},
-  "tags": [
-    "node",
-    "k8s",
-    "kubelet"
-  ],
+  "tags": ["node", "k8s", "kubelet"],
   "title": "Kubernetes Node Metrics - Detailed",
   "uploadedGrafana": false,
   "variables": {
@@ -133,9 +129,7 @@
       "name": "k8s.node.name",
       "order": 1,
       "queryValue": "SELECT JSONExtractString(labels, 'k8s.node.name') AS `k8s.node.name` FROM signoz_metrics.distributed_time_series_v4_1day WHERE `metric_name` = 'k8s.node.cpu.time' AND JSONExtractString(labels, 'k8s.cluster.name') = $k8s.cluster.name GROUP BY `k8s.node.name`",
-      "selectedValue": [
-        "default"
-      ],
+      "selectedValue": ["default"],
       "showALLOption": true,
       "sort": "ASC",
       "textboxValue": "",
@@ -213,9 +207,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -325,9 +317,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -440,9 +430,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -504,9 +492,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -568,9 +554,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -679,9 +663,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -790,9 +772,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -895,9 +875,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -999,9 +977,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1110,9 +1086,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1221,9 +1195,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1346,9 +1318,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1471,9 +1441,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1535,9 +1503,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1652,9 +1618,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1716,9 +1680,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1780,9 +1742,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1844,9 +1804,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"
@@ -1908,9 +1866,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   }
                 ],
                 "op": "AND"

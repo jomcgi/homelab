@@ -22,7 +22,7 @@ parameters:
   staleReplicaTimeout: "30"
   fromBackup: ""
   fsType: "ext4"
-  dataLocality: "strict-local"  # Keep data on same node as workload
+  dataLocality: "strict-local" # Keep data on same node as workload
   unmapMarkSnapChainRemoved: "ignored"
   disableRevisionCounter: "true"
   dataEngine: "v1"
