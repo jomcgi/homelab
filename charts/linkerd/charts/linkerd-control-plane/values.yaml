@@ -281,8 +281,8 @@ proxy:
       lifetime: "1h"
   # Configures proxy metrics
   metrics:
-      # -- Whether or not to export hostname labels in outbound request metrics.
-      hostnameLabels: false
+    # -- Whether or not to export hostname labels in outbound request metrics.
+    hostnameLabels: false
   # Configures tracing in the proxy and how they are exported
   tracing:
     # -- Enables trace collection and export in the proxy
@@ -402,7 +402,7 @@ networkValidator:
     allowPrivilegeEscalation: false
     capabilities:
       drop:
-      - ALL
+        - ALL
     readOnlyRootFilesystem: true
     runAsGroup: 65534
     runAsNonRoot: true
@@ -532,23 +532,23 @@ proxyInjector:
   # -- Namespace selector used by admission webhook.
   namespaceSelector:
     matchExpressions:
-    - key: config.linkerd.io/admission-webhooks
-      operator: NotIn
-      values:
-      - disabled
-    - key: kubernetes.io/metadata.name
-      operator: NotIn
-      values:
-      - kube-system
-      - cert-manager
+      - key: config.linkerd.io/admission-webhooks
+        operator: NotIn
+        values:
+          - disabled
+      - key: kubernetes.io/metadata.name
+        operator: NotIn
+        values:
+          - kube-system
+          - cert-manager
 
   # -- Object selector used by admission webhook.
   objectSelector:
     matchExpressions:
-    - key: linkerd.io/control-plane-component
-      operator: DoesNotExist
-    - key: linkerd.io/cni-resource
-      operator: DoesNotExist
+      - key: linkerd.io/control-plane-component
+        operator: DoesNotExist
+      - key: linkerd.io/cni-resource
+        operator: DoesNotExist
 
   # -- Certificate for the proxy injector. If not provided and not using an external secret
   # then Helm will generate one.
@@ -605,10 +605,10 @@ profileValidator:
   # -- Namespace selector used by admission webhook
   namespaceSelector:
     matchExpressions:
-    - key: config.linkerd.io/admission-webhooks
-      operator: NotIn
-      values:
-      - disabled
+      - key: config.linkerd.io/admission-webhooks
+        operator: NotIn
+        values:
+          - disabled
 
   # -- Certificate for the service profile validator. If not provided and not using an external secret
   # then Helm will generate one.
@@ -650,10 +650,10 @@ policyValidator:
   # -- Namespace selector used by admission webhook
   namespaceSelector:
     matchExpressions:
-    - key: config.linkerd.io/admission-webhooks
-      operator: NotIn
-      values:
-      - disabled
+      - key: config.linkerd.io/admission-webhooks
+        operator: NotIn
+        values:
+          - disabled
 
   # -- Certificate for the policy validator. If not provided and not using an external secret
   # then Helm will generate one.
@@ -738,7 +738,6 @@ podMonitor:
   proxy:
     # -- Enables the creation of PodMonitor for the data-plane
     enabled: true
-
 
 # Egress related configuration
 egress:

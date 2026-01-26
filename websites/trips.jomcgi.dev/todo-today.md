@@ -1,6 +1,7 @@
 # Trips App Improvements
 
 ## TODO TODAY
+
 - [ ] **Deep linking** - Sync URL with current frame (`?frame=500`) for shareability, allow filtering / sharing by tag (`?tags=hotspring`)
 - [ ] **Photo fullscreen** - Click to expand photo, escape/click to close
 - [ ] **Swipe gestures** - Left/right swipe on mobile to navigate photos

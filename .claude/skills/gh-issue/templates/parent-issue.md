@@ -8,8 +8,8 @@ Design doc: ideas/<design-doc>.md
 
 ## Constraints
 
-<!-- Any requirements, limitations, or considerations -->
--
+## <!-- Any requirements, limitations, or considerations -->
+
 -
 
 ## Sub-issues

@@ -5,17 +5,17 @@ metadata:
   namespace: argocd
 spec:
   applicationRefs:
-  - images:
-    - alias: operator
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/operators/cloudflare:main
-      manifestTargets:
-        helm:
-          name: controllerManager.image.repository
-          tag: controllerManager.image.tag
-    namePattern: cloudflare-operator
+    - images:
+        - alias: operator
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/operators/cloudflare:main
+          manifestTargets:
+            helm:
+              name: controllerManager.image.repository
+              tag: controllerManager.image.tag
+      namePattern: cloudflare-operator
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token

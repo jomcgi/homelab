@@ -1,6 +1,6 @@
 replicaCount: 2
 
-overlayName: ""  # Should be set by overlay (e.g., homelab, prod)
+overlayName: "" # Should be set by overlay (e.g., homelab, prod)
 
 image:
   repository: cloudflare/cloudflared
@@ -15,8 +15,8 @@ serviceAccount:
   name: ""
 
 tunnel:
-  id: ""  # Will be set from secret when using OnePassword
-  name: ""  # Will be set from secret when using OnePassword
+  id: "" # Will be set from secret when using OnePassword
+  name: "" # Will be set from secret when using OnePassword
   # Protocol: auto (default), quic, or http2.
   # Note: http2 doesn't work with envoy transparent proxy enabled.
   protocol: ""
@@ -32,7 +32,7 @@ secret:
     credentialsJson: ""
 
 ingress:
-  routes: []  # Define routes in overlay values
+  routes: [] # Define routes in overlay values
   catchAll:
     service: http_status:404
 
@@ -61,7 +61,7 @@ securityContext:
   runAsUser: 65532
   capabilities:
     drop:
-    - ALL
+      - ALL
   seccompProfile:
     type: RuntimeDefault
 
@@ -73,8 +73,8 @@ livenessProbe:
       - --metrics
       - 127.0.0.1:2000
       - ready
-  failureThreshold: 6  # Allow 6 failures (60s) before restarting - QUIC can have temporary hiccups
-  initialDelaySeconds: 30  # Give tunnel time to connect
+  failureThreshold: 6 # Allow 6 failures (60s) before restarting - QUIC can have temporary hiccups
+  initialDelaySeconds: 30 # Give tunnel time to connect
   periodSeconds: 10
   timeoutSeconds: 5
 
@@ -123,7 +123,7 @@ envoy:
     allowPrivilegeEscalation: false
     capabilities:
       drop:
-      - ALL
+        - ALL
     seccompProfile:
       type: RuntimeDefault
   # OpenTelemetry tracing configuration

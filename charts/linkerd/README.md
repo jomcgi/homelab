@@ -32,11 +32,11 @@ flowchart TB
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
-| `certManager.enabled` | Use cert-manager for trust anchor | `true` |
-| `linkerd-control-plane.controllerReplicas` | HA replicas | `2` |
-| `linkerd-control-plane.proxy.resources` | Sidecar resources | See values.yaml |
+| Value                                      | Description                       | Default         |
+| ------------------------------------------ | --------------------------------- | --------------- |
+| `certManager.enabled`                      | Use cert-manager for trust anchor | `true`          |
+| `linkerd-control-plane.controllerReplicas` | HA replicas                       | `2`             |
+| `linkerd-control-plane.proxy.resources`    | Sidecar resources                 | See values.yaml |
 
 ## Integration with cert-manager
 

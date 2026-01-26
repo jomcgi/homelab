@@ -86,6 +86,7 @@ curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
 When debugging failed PR checks:
 
 1. **Get check details from GitHub:**
+
    ```bash
    # Get all checks for current PR
    gh pr checks --json name,link,conclusion,startedAt,completedAt
@@ -99,6 +100,7 @@ When debugging failed PR checks:
    - Extract the invocation ID from the URL
 
 3. **Fetch detailed logs from BuildBuddy:**
+
    ```bash
    INVOCATION_ID="<extracted_id>"
 
@@ -116,16 +118,19 @@ When debugging failed PR checks:
 ## Workflow for PR Debugging
 
 1. **Check PR status:**
+
    ```bash
    gh pr checks
    ```
 
 2. **If checks are failing, get BuildBuddy invocation:**
+
    ```bash
    gh pr checks --json link | jq -r '.[] | .link' | grep buildbuddy
    ```
 
 3. **Fetch detailed error information:**
+
    ```bash
    # Parse invocation ID from URL and fetch details
    INVOCATION_ID=$(echo $BUILDBUDDY_URL | sed 's/.*invocation\///')
@@ -153,6 +158,7 @@ When debugging failed PR checks:
 ## Environment Setup
 
 Ensure `BUILDBUDDY_API_KEY` is available:
+
 ```bash
 # Should be automatically set from 1Password
 echo $BUILDBUDDY_API_KEY | head -c 10  # Check first 10 chars only

@@ -15,6 +15,7 @@ The codebase is **well-architected with strong engineering fundamentals**, but n
 No top-level README exists. New users land on a blank page with no orientation.
 
 **Fix:** Create a 500-1000 word README with:
+
 - Project purpose and philosophy
 - Architecture overview (adapt from CLAUDE.md)
 - Quick start link
@@ -23,6 +24,7 @@ No top-level README exists. New users land on a blank page with no orientation.
 ### 2. Orphaned Overlay Directories
 
 These create confusion and clutter:
+
 ```
 overlays/cluster-critical/envoy/
 overlays/dev/fizzy/
@@ -39,20 +41,21 @@ overlays/prod/n8n/
 Only `charts/coredns/README.md` exists - excellent model but singular. 22 other charts have no documentation.
 
 **Fix:** Add README to each chart explaining:
+
 - What it does
 - Key configuration options
 - Troubleshooting tips
 
 ### 4. Services/Websites Missing Documentation
 
-| Component | README | Notes |
-|-----------|--------|-------|
-| services/hikes | Missing | Complex scraper with multiple components |
-| services/ais-ingest | Missing | Clean code, needs usage docs |
-| services/ships-api | Missing | WebSocket + NATS integration undocumented |
-| services/trips-api | Missing | No API schema documentation |
-| websites/ships.jomcgi.dev | Missing | React app with no build instructions |
-| services/stargazer | Present | Excellent - use as template for others |
+| Component                 | README  | Notes                                     |
+| ------------------------- | ------- | ----------------------------------------- |
+| services/hikes            | Missing | Complex scraper with multiple components  |
+| services/ais-ingest       | Missing | Clean code, needs usage docs              |
+| services/ships-api        | Missing | WebSocket + NATS integration undocumented |
+| services/trips-api        | Missing | No API schema documentation               |
+| websites/ships.jomcgi.dev | Missing | React app with no build instructions      |
+| services/stargazer        | Present | Excellent - use as template for others    |
 
 ---
 
@@ -76,6 +79,7 @@ All 20+ charts copy identical `_helpers.tpl` templates (~95% identical code). No
 ### 7. Cloudflare Operator Needs Documentation
 
 Code quality is excellent (circuit breakers, rate limiting, state machines), but:
+
 - No getting-started guide for users
 - Incomplete sample CRDs in `config/samples/`
 - TODOs scattered throughout code
@@ -99,16 +103,16 @@ Code quality is excellent (circuit breakers, rate limiting, state machines), but
 
 ## What's Already Good
 
-| Area | Status | Notes |
-|------|--------|-------|
-| Architecture | Excellent | Clear separation: charts/ → overlays/ → clusters/ |
-| Security practices | Excellent | Non-root, read-only FS, proper securityContext |
-| CLAUDE.md | Excellent | Comprehensive internal docs |
-| Naming conventions | Good | Consistent kebab-case throughout |
-| Error handling | Excellent | Cloudflare operator has production-grade patterns |
-| Observability | Excellent | Automatic OTEL + Linkerd injection via Kyverno |
-| Bazel docs | Good | README.bazel.md is solid |
-| Stargazer service | Excellent | Use as documentation template |
+| Area               | Status    | Notes                                             |
+| ------------------ | --------- | ------------------------------------------------- |
+| Architecture       | Excellent | Clear separation: charts/ → overlays/ → clusters/ |
+| Security practices | Excellent | Non-root, read-only FS, proper securityContext    |
+| CLAUDE.md          | Excellent | Comprehensive internal docs                       |
+| Naming conventions | Good      | Consistent kebab-case throughout                  |
+| Error handling     | Excellent | Cloudflare operator has production-grade patterns |
+| Observability      | Excellent | Automatic OTEL + Linkerd injection via Kyverno    |
+| Bazel docs         | Good      | README.bazel.md is solid                          |
+| Stargazer service  | Excellent | Use as documentation template                     |
 
 ---
 
@@ -166,6 +170,7 @@ Code quality is excellent (circuit breakers, rate limiting, state machines), but
 ### Repository Structure
 
 The three-tier organization is intuitive:
+
 - **cluster-critical/**: Core infrastructure (argocd, cert-manager, linkerd, longhorn, signoz)
 - **prod/**: Production services (cloudflare-tunnel, trips, nats, seaweedfs, vllm)
 - **dev/**: Development/experimental services (marine, claude, cloudflare-operator, stargazer)
@@ -175,11 +180,13 @@ The three-tier organization is intuitive:
 ### Helm Charts
 
 **Strengths:**
+
 - All charts follow standard Helm 3 structure
 - Consistent naming conventions for helpers
 - Good parameterization for different environments
 
 **Issues:**
+
 - 95% code duplication in `_helpers.tpl` across charts
 - Inconsistent component label handling (some in helpers, some inline)
 - Four charts have `readOnlyRootFilesystem: false` with TODOs to fix
@@ -187,10 +194,12 @@ The three-tier organization is intuitive:
 ### Overlays/Kustomize
 
 **Strengths:**
+
 - Minimal duplication in values.yaml files (correctly defers to chart defaults)
 - Clear ArgoCD Application pattern
 
 **Issues:**
+
 - `namePrefix: prod-` in prod/kustomization.yaml conflicts with explicit prefixes in Application names
 - Inconsistent `ignoreMissingValueFiles` usage
 - Inconsistent retry configuration (only cluster-critical services have it)
@@ -198,11 +207,13 @@ The three-tier organization is intuitive:
 ### Cloudflare Operator
 
 **Strengths:**
+
 - Production-grade error handling (circuit breakers, rate limiting)
 - Clean state machine implementation via Sextant
 - Excellent OpenTelemetry tracing throughout
 
 **Issues:**
+
 - Missing getting-started documentation
 - Chart version 0.2.0 (should be 1.0.0 for public release)
 - `appVersion: latest` should be pinned
@@ -210,11 +221,13 @@ The three-tier organization is intuitive:
 ### Services and Websites
 
 **Strengths:**
+
 - High Python code quality with type hints
 - Consistent async/await patterns
 - Good database patterns (batch inserts, indexing)
 
 **Issues:**
+
 - Mixed logging patterns in hikes service (`print()` vs `logger`)
 - No standalone Docker build instructions (relies entirely on Bazel)
 - No docker-compose.yml for local multi-service testing
@@ -222,11 +235,13 @@ The three-tier organization is intuitive:
 ### CI/CD and Build System
 
 **Strengths:**
+
 - Well-commented `.bazelrc` files
 - Good README.bazel.md technical reference
 - BuildBuddy integration for remote caching
 
 **Issues:**
+
 - Steep learning curve with no "Getting Started" guide
 - Multiple `.bazelrc` files with unclear usage
 - Complex workspace_status.sh with undocumented CI detection logic

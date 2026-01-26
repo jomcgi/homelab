@@ -122,9 +122,9 @@ To declare a build output which can be stamped, use a stamp-aware rule such as [
 
 The `tools/workspace_status.sh` file provides these stamp keys:
 
-| Key | Description |
-|-----|-------------|
-| `STABLE_GIT_COMMIT` | The commit hash of HEAD |
+| Key                       | Description                                               |
+| ------------------------- | --------------------------------------------------------- |
+| `STABLE_GIT_COMMIT`       | The commit hash of HEAD                                   |
 | `STABLE_MONOREPO_VERSION` | A semver-compatible version (e.g., `2020.44.123+abc1234`) |
 
 To request stamped build outputs, add the flag `--config=release` to your Bazel command.

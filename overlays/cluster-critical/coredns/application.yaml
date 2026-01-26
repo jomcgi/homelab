@@ -19,7 +19,7 @@ spec:
     namespace: kube-system
   syncPolicy:
     automated:
-      prune: false  # Don't prune - K3s manages CoreDNS resources
+      prune: false # Don't prune - K3s manages CoreDNS resources
       selfHeal: true
     syncOptions:
       - CreateNamespace=false

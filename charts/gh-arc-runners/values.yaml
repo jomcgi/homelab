@@ -68,39 +68,39 @@ gha-runner-scale-set:
       securityContext:
         runAsNonRoot: true #:
       imagePullSecrets:
-      - name: ghcr-imagepull-secret
+        - name: ghcr-imagepull-secret
       containers:
-      - securityContext:
-          allowPrivilegeEscalation: false
-        name: runner
-        # Custom image with build tools (gcc, g++, make, Bazel support)
-        # Built from .github/runners/Dockerfile
-        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
-        command: ["/home/runner/run.sh"]
-        resources:
-          limits:
-            cpu: 2000m
-            memory: 4Gi
-          requests:
-            cpu: 500m
-            memory: 1Gi
+        - securityContext:
+            allowPrivilegeEscalation: false
+          name: runner
+          # Custom image with build tools (gcc, g++, make, Bazel support)
+          # Built from .github/runners/Dockerfile
+          image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
+          command: ["/home/runner/run.sh"]
+          resources:
+            limits:
+              cpu: 2000m
+              memory: 4Gi
+            requests:
+              cpu: 500m
+              memory: 1Gi
 
   listenerTemplate:
     spec:
       securityContext:
         runAsNonRoot: true #:
       containers:
-      - name: listener
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          readOnlyRootFilesystem: true
-        resources:
-          limits:
-            cpu: 500m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
+        - name: listener
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

@@ -1,10 +1,9 @@
-
 # Linkerd Service Mesh Configuration
 # Provides automatic distributed tracing for all pod-to-pod communication
 
 # cert-manager integration for automatic certificate management
 certManager:
-  enabled: true  # Use cert-manager to generate trust anchor certificates
+  enabled: true # Use cert-manager to generate trust anchor certificates
 
 # Linkerd CRDs chart (installed first)
 linkerd-crds:
@@ -15,9 +14,9 @@ linkerd-crds:
 linkerd-control-plane:
   # Identity configuration - using cert-manager generated certificates
   identity:
-    externalCA: true  # Use external CA (cert-manager) for certificate management
+    externalCA: true # Use external CA (cert-manager) for certificate management
     issuer:
-      scheme: kubernetes.io/tls  # Use cert-manager managed certificates
+      scheme: kubernetes.io/tls # Use cert-manager managed certificates
 
   # Identity trust anchor certificate (managed by cert-manager)
   # The trust anchor is automatically created by cert-manager resources in templates/trust-anchor.yaml

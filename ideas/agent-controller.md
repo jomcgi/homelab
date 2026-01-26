@@ -5,6 +5,7 @@
 A lightweight controller service that polls GitHub Issues for work and spawns Claude Code sessions to execute them autonomously. Combined with the `/gh-issue` skill, this enables fully automated task execution driven by GitHub Issues.
 
 **Architecture:**
+
 ```
 GitHub Issues (work queue)
         │
@@ -39,12 +40,12 @@ PRs merged, issues closed
 
 ### Components
 
-| Component | Location | Purpose |
-|-----------|----------|---------|
-| Controller script | `charts/claude/src/controller.sh` | Polls issues, spawns sessions |
-| Controller deployment | `charts/claude/templates/controller.yaml` | K8s deployment |
-| gh-issue-create skill | `.claude/skills/gh-issue-create/` | Bootstrap: design doc → issues |
-| gh-issue skill | `.claude/skills/gh-issue/` | Execute: work issues → PRs |
+| Component             | Location                                  | Purpose                        |
+| --------------------- | ----------------------------------------- | ------------------------------ |
+| Controller script     | `charts/claude/src/controller.sh`         | Polls issues, spawns sessions  |
+| Controller deployment | `charts/claude/templates/controller.yaml` | K8s deployment                 |
+| gh-issue-create skill | `.claude/skills/gh-issue-create/`         | Bootstrap: design doc → issues |
+| gh-issue skill        | `.claude/skills/gh-issue/`                | Execute: work issues → PRs     |
 
 ### Issue States
 
@@ -81,6 +82,7 @@ Example: `lock:claude-abc123:1706012345`
 ### Option A: Shell Script (Recommended for Simplicity)
 
 **`charts/claude/src/controller.sh`:**
+
 ```bash
 #!/bin/bash
 set -euo pipefail
@@ -193,6 +195,7 @@ main "$@"
 ### Option B: Go Implementation (If More Control Needed)
 
 A Go implementation would provide:
+
 - Better error handling
 - Structured logging for SigNoz
 - Prometheus metrics endpoint
@@ -207,6 +210,7 @@ Only pursue this if the shell script proves insufficient.
 ### Deployment Manifest
 
 **`charts/claude/templates/controller.yaml`:**
+
 ```yaml
 {{- if .Values.controller.enabled }}
 apiVersion: apps/v1
@@ -266,12 +270,13 @@ spec:
 ### Values Configuration
 
 **`charts/claude/values.yaml`** (additions):
+
 ```yaml
 controller:
-  enabled: false  # Enable when ready
-  pollInterval: "60"      # Seconds
-  lockTTL: "1800"         # 30 minutes
-  maxConcurrent: "1"      # Max parallel sessions
+  enabled: false # Enable when ready
+  pollInterval: "60" # Seconds
+  lockTTL: "1800" # 30 minutes
+  maxConcurrent: "1" # Max parallel sessions
   repository: "jomcgi/homelab"
   readyLabel: "agent-ready"
   githubTokenSecret: "github-token"
@@ -295,6 +300,7 @@ claude --skill gh-issue <issue-number>
 ```
 
 This:
+
 1. Starts Claude Code CLI
 2. Loads the `/gh-issue` skill instructions
 3. Passes the issue number as argument
@@ -309,6 +315,7 @@ claude --prompt-file /app/prompts/gh-issue.md --context "Parent issue: $ISSUE_NU
 ```
 
 **`charts/claude/src/prompts/gh-issue.md`:**
+
 ```markdown
 You are working on a GitHub issue task. Follow the /gh-issue skill workflow:
 
@@ -333,6 +340,7 @@ Start by reading the parent issue to understand the task context.
 ### Logging
 
 Controller logs to stdout in structured format:
+
 ```
 [2024-01-23T10:15:30+00:00] Agent Controller starting
 [2024-01-23T10:15:30+00:00] Config: POLL_INTERVAL=60s, LOCK_TTL=1800s, MAX_CONCURRENT=1
@@ -347,6 +355,7 @@ SigNoz ingests these via OTEL collector (auto-injected by Kyverno).
 ### Metrics (Future Enhancement)
 
 If Go implementation is pursued:
+
 ```go
 var (
     issuesPolled = prometheus.NewCounter(...)
@@ -427,22 +436,26 @@ tmux attach -t claude-issue-<number>
 ## Implementation Phases
 
 ### Phase 1: Skill Validation
+
 - [x] Create `/gh-issue` skill
 - [ ] Test skill manually with a real issue
 - [ ] Verify lock acquire/release works
 
 ### Phase 2: Controller Script
+
 - [ ] Implement `controller.sh`
 - [ ] Test locally with mock issues
 - [ ] Verify session spawning works
 
 ### Phase 3: Kubernetes Deployment
+
 - [ ] Add controller deployment to claude chart
 - [ ] Add values configuration
 - [ ] Deploy to cluster
 - [ ] Verify end-to-end flow
 
 ### Phase 4: Hardening
+
 - [ ] Add structured logging
 - [ ] Add retry logic for transient failures
 - [ ] Add metrics (optional)
@@ -461,6 +474,7 @@ claude "/gh-issue-create ideas/agent-controller.md"
 ```
 
 This reads the design doc and creates:
+
 - Parent issue with context/goal
 - Child issues for each discrete task
 - Labels parent as `agent-ready`
@@ -472,6 +486,7 @@ claude "/gh-issue 42"
 ```
 
 Where `42` is the parent issue number. This:
+
 - Acquires lock on parent
 - Reads context (parent + design doc)
 - Picks and works child issues

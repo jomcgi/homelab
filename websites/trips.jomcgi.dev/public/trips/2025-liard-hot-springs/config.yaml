@@ -4,11 +4,11 @@ trip:
   subtitle: "Vancouver → Yukon → Vancouver"
 
 timeline:
-  default_image: "img_2d30f3c65619"  # Starting frame when navigating to timeline
-  default_zoom: 4                     # Initial map zoom level (zoomed out)
+  default_image: "img_2d30f3c65619" # Starting frame when navigating to timeline
+  default_zoom: 4 # Initial map zoom level (zoomed out)
 
 stats:
-  coldest_temp: -34  # Manual measurement
+  coldest_temp: -34 # Manual measurement
 
 days:
   1:

@@ -90,7 +90,15 @@ transitions:
     action: Retry
     guard: retryable
 
-  - from: [Pending, CreatingTunnel, CreatingSecret, ConfiguringIngress, Ready, Failed]
+  - from:
+      [
+        Pending,
+        CreatingTunnel,
+        CreatingSecret,
+        ConfiguringIngress,
+        Ready,
+        Failed,
+      ]
     to: DeletingTunnel
     action: StartDeletion
 

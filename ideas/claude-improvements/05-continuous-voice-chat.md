@@ -1,11 +1,13 @@
 # Continuous Voice Chat Implementation
 
 ## Overview
+
 Implement always-on voice interaction with Claude using Whisper for transcription, enabling hands-free coding and natural conversation flow.
 
 ## Architecture
 
 ### Components
+
 ```
 ┌─────────────────────────────────────────────┐
 │                Browser/Client                │
@@ -35,6 +37,7 @@ Implement always-on voice interaction with Claude using Whisper for transcriptio
 ## Whisper Deployment
 
 ### Kubernetes Deployment
+
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
@@ -54,27 +57,28 @@ spec:
       nodeSelector:
         nvidia.com/gpu: "true"
       containers:
-      - name: whisper
-        image: ghcr.io/jomcgi/whisper-gpu:latest
-        ports:
-        - containerPort: 8000
-        env:
-        - name: MODEL_SIZE
-          value: "large-v3"
-        - name: COMPUTE_TYPE
-          value: "float16"
-        - name: DEVICE
-          value: "cuda"
-        resources:
-          limits:
-            nvidia.com/gpu: 1
-            memory: "8Gi"
-          requests:
-            nvidia.com/gpu: 1
-            memory: "4Gi"
+        - name: whisper
+          image: ghcr.io/jomcgi/whisper-gpu:latest
+          ports:
+            - containerPort: 8000
+          env:
+            - name: MODEL_SIZE
+              value: "large-v3"
+            - name: COMPUTE_TYPE
+              value: "float16"
+            - name: DEVICE
+              value: "cuda"
+          resources:
+            limits:
+              nvidia.com/gpu: 1
+              memory: "8Gi"
+            requests:
+              nvidia.com/gpu: 1
+              memory: "4Gi"
 ```
 
 ### Whisper Service API
+
 ```python
 from faster_whisper import WhisperModel
 import asyncio
@@ -116,6 +120,7 @@ async def transcribe_stream(websocket: WebSocket):
 ## Client Implementation
 
 ### Voice Activity Detection (VAD)
+
 ```typescript
 class VoiceActivityDetector {
   private audioContext: AudioContext;
@@ -148,12 +153,13 @@ class VoiceActivityDetector {
 ```
 
 ### Continuous Recording Manager
+
 ```typescript
 interface ContinuousRecordingOptions {
   alwaysListening: boolean;
-  wakeWord?: string;  // "Hey Claude"
+  wakeWord?: string; // "Hey Claude"
   autoSubmit: boolean;
-  silenceTimeout: number;  // ms before considering speech ended
+  silenceTimeout: number; // ms before considering speech ended
 }
 
 class ContinuousRecorder {
@@ -168,15 +174,15 @@ class ContinuousRecorder {
         echoCancellation: true,
         noiseSuppression: true,
         autoGainControl: true,
-        sampleRate: 16000
-      }
+        sampleRate: 16000,
+      },
     });
 
     this.vad = new VoiceActivityDetector(stream);
     this.mediaRecorder = new MediaRecorder(stream);
 
     // Connect to Whisper WebSocket
-    this.websocket = new WebSocket('wss://claude.jomcgi.dev/whisper');
+    this.websocket = new WebSocket("wss://claude.jomcgi.dev/whisper");
 
     // Send audio chunks as they're available
     this.mediaRecorder.ondataavailable = (event) => {
@@ -204,8 +210,7 @@ class ContinuousRecorder {
         }
 
         // Update UI to show speaking
-        this.updateUI('speaking');
-
+        this.updateUI("speaking");
       } else if (!this.silenceTimer) {
         // Start silence timer
         this.silenceTimer = setTimeout(() => {
@@ -219,17 +224,18 @@ class ContinuousRecorder {
 ```
 
 ### Wake Word Detection
+
 ```typescript
 class WakeWordDetector {
-  private buffer: string = '';
-  private wakeWords = ['hey claude', 'okay claude', 'claude'];
+  private buffer: string = "";
+  private wakeWords = ["hey claude", "okay claude", "claude"];
 
   processTranscription(text: string): boolean {
-    this.buffer = (this.buffer + ' ' + text.toLowerCase()).slice(-100);
+    this.buffer = (this.buffer + " " + text.toLowerCase()).slice(-100);
 
     for (const wakeWord of this.wakeWords) {
       if (this.buffer.includes(wakeWord)) {
-        this.buffer = ''; // Clear buffer
+        this.buffer = ""; // Clear buffer
         return true; // Wake word detected
       }
     }
@@ -242,24 +248,28 @@ class WakeWordDetector {
 ## UI Components
 
 ### Voice Interface
+
 ```tsx
 interface VoiceInterfaceProps {
-  mode: 'always-on' | 'push-to-talk' | 'wake-word';
+  mode: "always-on" | "push-to-talk" | "wake-word";
   visualizer: boolean;
 }
 
-const VoiceInterface: React.FC<VoiceInterfaceProps> = ({ mode, visualizer }) => {
+const VoiceInterface: React.FC<VoiceInterfaceProps> = ({
+  mode,
+  visualizer,
+}) => {
   return (
     <div className="voice-interface">
       {/* Mode Toggle */}
       <div className="voice-mode-selector">
-        <button className={mode === 'always-on' ? 'active' : ''}>
+        <button className={mode === "always-on" ? "active" : ""}>
           Always Listening
         </button>
-        <button className={mode === 'wake-word' ? 'active' : ''}>
+        <button className={mode === "wake-word" ? "active" : ""}>
           Wake Word
         </button>
-        <button className={mode === 'push-to-talk' ? 'active' : ''}>
+        <button className={mode === "push-to-talk" ? "active" : ""}>
           Push to Talk
         </button>
       </div>
@@ -283,6 +293,7 @@ const VoiceInterface: React.FC<VoiceInterfaceProps> = ({ mode, visualizer }) => 
 ```
 
 ### Waveform Visualizer
+
 ```typescript
 class WaveformVisualizer {
   private canvas: HTMLCanvasElement;
@@ -294,11 +305,11 @@ class WaveformVisualizer {
     const dataArray = new Uint8Array(bufferLength);
     this.analyser.getByteTimeDomainData(dataArray);
 
-    this.ctx.fillStyle = 'var(--bg)';
+    this.ctx.fillStyle = "var(--bg)";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     this.ctx.lineWidth = 2;
-    this.ctx.strokeStyle = 'var(--fg)';
+    this.ctx.strokeStyle = "var(--fg)";
     this.ctx.beginPath();
 
     const sliceWidth = this.canvas.width / bufferLength;
@@ -306,7 +317,7 @@ class WaveformVisualizer {
 
     for (let i = 0; i < bufferLength; i++) {
       const v = dataArray[i] / 128.0;
-      const y = v * this.canvas.height / 2;
+      const y = (v * this.canvas.height) / 2;
 
       if (i === 0) {
         this.ctx.moveTo(x, y);
@@ -326,18 +337,21 @@ class WaveformVisualizer {
 ## Features
 
 ### Modes of Operation
+
 1. **Always Listening**: Continuous transcription with VAD
 2. **Wake Word**: Activate with "Hey Claude"
 3. **Push to Talk**: Traditional button hold
 4. **Auto Mode**: Switch based on context
 
 ### Smart Features
+
 - **Context Awareness**: Adjust sensitivity based on conversation
 - **Noise Cancellation**: Filter background noise
 - **Speaker Diarization**: Identify different speakers
 - **Language Detection**: Auto-detect language
 
 ### Fallback Options
+
 - **Gemini API**: Backup transcription service
 - **Local VAD**: Client-side speech detection
 - **Manual Input**: Type if voice fails
@@ -345,17 +359,20 @@ class WaveformVisualizer {
 ## Performance Optimization
 
 ### Audio Processing
+
 - **Chunking**: Process in 0.5-second chunks
 - **Buffering**: Maintain 2-second buffer
 - **Compression**: Opus codec for transmission
 - **Sample Rate**: 16kHz for optimal quality/size
 
 ### GPU Utilization
+
 - **Batch Processing**: Group requests when possible
 - **Model Caching**: Keep model in GPU memory
 - **Dynamic Scaling**: Scale replicas based on load
 
 ### Network Optimization
+
 - **WebSocket Compression**: permessage-deflate
 - **Binary Protocol**: Send audio as binary
 - **Reconnection Logic**: Auto-reconnect on failure
@@ -364,17 +381,20 @@ class WaveformVisualizer {
 ## Privacy & Security
 
 ### Data Handling
+
 - **No Persistent Storage**: Audio deleted after processing
 - **Encryption**: TLS for all connections
 - **User Consent**: Explicit permission for microphone
 - **Opt-out Option**: Disable voice features entirely
 
 ### Access Control
+
 - **Session-based**: Voice tied to Claude session
 - **Rate Limiting**: Prevent abuse
 - **Authentication**: Require valid session token
 
 ## Success Metrics
+
 - Transcription accuracy (> 95%)
 - Latency (< 500ms for first word)
 - User adoption rate
@@ -384,21 +404,25 @@ class WaveformVisualizer {
 ## Implementation Timeline
 
 ### Week 1: Infrastructure
+
 - Deploy Whisper on GPU nodes
 - Set up WebSocket server
 - Implement basic transcription API
 
 ### Week 2: Client Integration
+
 - Add VAD implementation
 - Build continuous recording
 - Create UI components
 
 ### Week 3: Enhanced Features
+
 - Wake word detection
 - Waveform visualization
 - Real-time feedback
 
 ### Week 4: Polish & Optimization
+
 - Performance tuning
 - Fallback mechanisms
 - Testing & debugging

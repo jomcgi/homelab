@@ -50,12 +50,7 @@
     }
   ],
   "panelMap": {},
-  "tags": [
-    "pvc",
-    "pod",
-    "volume",
-    "k8s"
-  ],
+  "tags": ["pvc", "pod", "volume", "k8s"],
   "title": "Kubernetes PVC Metrics",
   "uploadedGrafana": false,
   "variables": {
@@ -87,9 +82,7 @@
       "name": "k8s.node.name",
       "order": 1,
       "queryValue": "SELECT JSONExtractString(labels, 'k8s.node.name') AS `k8s.node.name` FROM signoz_metrics.distributed_time_series_v4_1day WHERE `metric_name` = 'k8s.node.cpu.time' AND JSONExtractString(labels, 'k8s.cluster.name') = $k8s.cluster.name GROUP BY `k8s.node.name`",
-      "selectedValue": [
-        "default"
-      ],
+      "selectedValue": ["default"],
       "showALLOption": true,
       "sort": "ASC",
       "textboxValue": "",
@@ -166,9 +159,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "6077fbc2",
@@ -180,9 +171,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   },
                   {
                     "id": "217757e9",
@@ -194,9 +183,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "persistentVolumeClaim"
-                    ]
+                    "value": ["persistentVolumeClaim"]
                   }
                 ],
                 "op": "AND"
@@ -312,9 +299,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "0cdebb88",
@@ -326,9 +311,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   },
                   {
                     "id": "e0e880ce",
@@ -340,9 +323,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "persistentVolumeClaim"
-                    ]
+                    "value": ["persistentVolumeClaim"]
                   }
                 ],
                 "op": "AND"
@@ -452,9 +433,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "5a604bad",
@@ -466,9 +445,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   },
                   {
                     "id": "24b074f3",
@@ -480,9 +457,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "persistentVolumeClaim"
-                    ]
+                    "value": ["persistentVolumeClaim"]
                   }
                 ],
                 "op": "AND"
@@ -585,9 +560,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "8f01b14d",
@@ -599,9 +572,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   },
                   {
                     "id": "a72c99da",
@@ -613,9 +584,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "persistentVolumeClaim"
-                    ]
+                    "value": ["persistentVolumeClaim"]
                   }
                 ],
                 "op": "AND"
@@ -718,9 +687,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.node.name}}"
-                    ]
+                    "value": ["{{.k8s.node.name}}"]
                   },
                   {
                     "id": "46393c61",
@@ -732,9 +699,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "{{.k8s.namespace.name}}"
-                    ]
+                    "value": ["{{.k8s.namespace.name}}"]
                   },
                   {
                     "id": "450ee3cb",
@@ -746,9 +711,7 @@
                       "type": "tag"
                     },
                     "op": "in",
-                    "value": [
-                      "persistentVolumeClaim"
-                    ]
+                    "value": ["persistentVolumeClaim"]
                   }
                 ],
                 "op": "AND"

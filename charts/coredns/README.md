@@ -31,8 +31,8 @@ To customize DNS settings, override values in `overlays/cluster-critical/coredns
 ```yaml
 # Use different DNS forwarders
 forwarders:
-  - 9.9.9.9   # Quad9
-  - 8.8.8.8   # Google
+  - 9.9.9.9 # Quad9
+  - 8.8.8.8 # Google
 
 # Increase cache TTL
 cacheTTL: 60
