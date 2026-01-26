@@ -3,7 +3,7 @@ cloudflareCredentials:
   secretName: cloudflare-credentials
 # Explicitly set imagePullSecrets for private GHCR images
 imagePullSecrets:
-- name: ghcr-pull-secret
+  - name: ghcr-pull-secret
 # Container image
 controllerManager:
   image:
@@ -19,17 +19,17 @@ controllerManager:
     sampler: "parentbased_traceidratio"
     samplerArg: "1.0"
 extraResources:
-- apiVersion: onepassword.com/v1
-  kind: OnePasswordItem
-  metadata:
-    name: cloudflare-credentials
-  spec:
-    itemPath: "vaults/k8s-homelab/items/cloudflare"
-# GHCR pull secret for private container images
-- apiVersion: onepassword.com/v1
-  kind: OnePasswordItem
-  metadata:
-    name: ghcr-pull-secret
-  spec:
-    itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
-  type: "kubernetes.io/dockerconfigjson"
+  - apiVersion: onepassword.com/v1
+    kind: OnePasswordItem
+    metadata:
+      name: cloudflare-credentials
+    spec:
+      itemPath: "vaults/k8s-homelab/items/cloudflare"
+  # GHCR pull secret for private container images
+  - apiVersion: onepassword.com/v1
+    kind: OnePasswordItem
+    metadata:
+      name: ghcr-pull-secret
+    spec:
+      itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
+    type: "kubernetes.io/dockerconfigjson"

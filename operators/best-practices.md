@@ -8,12 +8,12 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
     if err := r.Get(ctx, req.NamespacedName, resource); err != nil {
         return ctrl.Result{}, client.IgnoreNotFound(err)
     }
-    
+
     // Compare metadata.generation with status.observedGeneration
     if resource.Generation != resource.Status.ObservedGeneration {
         return r.reconcileResource(ctx, resource)
     }
-    
+
     // Periodic drift detection for external resources
     return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 }
@@ -61,12 +61,12 @@ kind: Role
 metadata:
   name: operator-role
 rules:
-- apiGroups: [""]
-  resources: ["secrets", "configmaps"]
-  verbs: ["get", "list", "create", "update"]
-- apiGroups: ["myoperator.example.com"]
-  resources: ["resources", "resources/status", "resources/finalizers"]
-  verbs: ["get", "list", "watch", "create", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["secrets", "configmaps"]
+    verbs: ["get", "list", "create", "update"]
+  - apiGroups: ["myoperator.example.com"]
+    resources: ["resources", "resources/status", "resources/finalizers"]
+    verbs: ["get", "list", "watch", "create", "update", "patch"]
 ```
 
 ### Container Security
@@ -90,7 +90,6 @@ securityContext:
 - Integrate with external secret managers (Vault, External Secrets Operator)
 - Implement secret rotation mechanisms
 
-
 ### Complete Tracing Setup
 
 Initialize OpenTelemetry with comprehensive configuration:
@@ -101,7 +100,7 @@ func InitializeOpenTelemetry(ctx context.Context, cfg Config) (*sdktrace.TracerP
         otlptracegrpc.WithEndpoint(cfg.CollectorURL),
         otlptracegrpc.WithInsecure(),
     )
-    
+
     res, err := resource.Merge(
         resource.Default(),
         resource.NewWithAttributes(
@@ -111,7 +110,7 @@ func InitializeOpenTelemetry(ctx context.Context, cfg Config) (*sdktrace.TracerP
             attribute.String("k8s.operator.type", "custom-controller"),
         ),
     )
-    
+
     tp := sdktrace.NewTracerProvider(
         sdktrace.WithBatcher(exporter),
         sdktrace.WithResource(res),
@@ -119,7 +118,7 @@ func InitializeOpenTelemetry(ctx context.Context, cfg Config) (*sdktrace.TracerP
             sdktrace.TraceIDRatioBased(cfg.SampleRate),
         )),
     )
-    
+
     otel.SetTracerProvider(tp)
     return tp, nil
 }
@@ -138,14 +137,14 @@ func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
         ),
     )
     defer span.End()
-    
+
     // Reconciliation logic with span status updates
     if err != nil {
         span.RecordError(err)
         span.SetStatus(codes.Error, "reconciliation failed")
         return ctrl.Result{}, err
     }
-    
+
     span.SetStatus(codes.Ok, "reconciliation successful")
     return ctrl.Result{}, nil
 }
@@ -154,18 +153,21 @@ func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 ## 6. Well-Written Operator Examples
 
 **CloudNativePG** demonstrates excellence in PostgreSQL operator design:
+
 - Direct Kubernetes API integration without StatefulSets
 - Comprehensive backup and recovery
 - Native streaming replication
 - 5,000+ GitHub stars
 
 **Strimzi Kafka Operator** showcases complex distributed system management:
+
 - Complete Kafka ecosystem coverage
 - Custom StrimziPodSet for pod management
 - External access configuration
 - Production-grade at scale
 
 **AWS Controllers for Kubernetes (ACK)** provides patterns for cloud resource management:
+
 - Service-specific controllers
 - Direct AWS API integration
 - IRSA authentication support
@@ -174,6 +176,7 @@ func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 ### Testing
 
 **Unit Tests** (80-90% coverage):
+
 ```go
 func TestReconciler_Reconcile(t *testing.T) {
     scheme := runtime.NewScheme()
@@ -181,7 +184,7 @@ func TestReconciler_Reconcile(t *testing.T) {
         WithScheme(scheme).
         WithObjects(existingObjects...).
         Build()
-        
+
     reconciler := &MyReconciler{Client: client}
     _, err := reconciler.Reconcile(context.Background(), ctrl.Request{})
     assert.NoError(t, err)
@@ -189,6 +192,7 @@ func TestReconciler_Reconcile(t *testing.T) {
 ```
 
 **Integration Tests** with EnvTest:
+
 ```go
 var _ = BeforeSuite(func() {
     testEnv = &envtest.Environment{
@@ -252,15 +256,15 @@ const (
 
 func (r *ResourceReconciler) updateConditions(ctx context.Context, resource *v1alpha1.MyResource) error {
     if r.isProgressing(resource) {
-        r.setCondition(resource, TypeProgressing, "True", "Reconciling", 
+        r.setCondition(resource, TypeProgressing, "True", "Reconciling",
             "Resource is being reconciled")
     }
-    
+
     if r.isHealthy(resource) && !r.isProgressing(resource) {
-        r.setCondition(resource, TypeReady, "True", "Ready", 
+        r.setCondition(resource, TypeReady, "True", "Ready",
             "Resource is ready for use")
     }
-    
+
     resource.Status.ObservedGeneration = resource.Generation
     return r.Status().Update(ctx, resource)
 }

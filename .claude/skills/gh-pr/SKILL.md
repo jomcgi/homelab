@@ -32,6 +32,7 @@ gh pr view --json state,url -q '"\(.state): \(.url)"'
 ```
 
 Possible states:
+
 - `OPEN` - PR is open and can receive updates
 - `MERGED` - PR was merged (don't share as "open")
 - `CLOSED` - PR was closed without merging

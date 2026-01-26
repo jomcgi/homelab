@@ -19,6 +19,7 @@ format
 ```
 
 This runs multiple tasks in parallel:
+
 - Updates apko lock files
 - Validates apko configs
 - Formats Go, Python, JS, Shell code
@@ -72,11 +73,11 @@ bazelisk query "deps(//charts/claude/image:image)"
 
 ## Key Targets
 
-| Target | Description |
-|--------|-------------|
-| `//charts/claude/image:image` | Claude container image |
-| `//charts/claude/image:push` | Push Claude image to registry |
-| `//tools/format:format` | Format + render all |
+| Target                        | Description                   |
+| ----------------------------- | ----------------------------- |
+| `//charts/claude/image:image` | Claude container image        |
+| `//charts/claude/image:push`  | Push Claude image to registry |
+| `//tools/format:format`       | Format + render all           |
 
 ## Container Images with apko
 
@@ -87,15 +88,15 @@ apko is Chainguard's declarative container image builder. Images are defined in 
 ```yaml
 contents:
   repositories:
-    - https://packages.wolfi.dev/os        # Wolfi packages
-    - https://packages.cgr.dev/extras      # Chainguard extras
+    - https://packages.wolfi.dev/os # Wolfi packages
+    - https://packages.cgr.dev/extras # Chainguard extras
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
     - nodejs-22
     - npm
     - kubectl
-    - bazelisk    # NOT bazel-9 (use bazelisk for version management)
+    - bazelisk # NOT bazel-9 (use bazelisk for version management)
 
 archs:
   - x86_64
@@ -143,15 +144,15 @@ curl -s https://packages.wolfi.dev/os/x86_64/APKINDEX.tar.gz | \
 
 ### Common Package Names
 
-| Want | Package Name | Notes |
-|------|--------------|-------|
-| Bazel | `bazelisk` | Auto-selects version from .bazelversion |
-| Node.js | `nodejs-22` | Version-specific |
-| Python | `python-3.12` | Version-specific |
-| kubectl | `kubectl` | Latest stable |
-| Helm | `helm` | Resolves to helm-4 |
-| GitHub CLI | `gh` | |
-| ripgrep | `ripgrep` | |
+| Want       | Package Name  | Notes                                   |
+| ---------- | ------------- | --------------------------------------- |
+| Bazel      | `bazelisk`    | Auto-selects version from .bazelversion |
+| Node.js    | `nodejs-22`   | Version-specific                        |
+| Python     | `python-3.12` | Version-specific                        |
+| kubectl    | `kubectl`     | Latest stable                           |
+| Helm       | `helm`        | Resolves to helm-4                      |
+| GitHub CLI | `gh`          |                                         |
+| ripgrep    | `ripgrep`     |                                         |
 
 ### Troubleshooting "nothing provides" Errors
 
@@ -164,13 +165,14 @@ If `apko lock` fails with "nothing provides X":
 
 ### Image Locations
 
-| Service | apko.yaml Location |
-|---------|-------------------|
-| Claude | `charts/claude/image/apko.yaml` |
+| Service | apko.yaml Location              |
+| ------- | ------------------------------- |
+| Claude  | `charts/claude/image/apko.yaml` |
 
 ## Caching
 
 Bazel caches build artifacts aggressively:
+
 - Local cache in `~/.cache/bazel`
 - Remote cache via BuildBuddy (see build output URLs)
 

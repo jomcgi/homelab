@@ -85,11 +85,13 @@ git -C ~/repos/homelab worktree add -b fix/new-issue /tmp/claude-worktrees/new-i
 ## Working Directly in Main Clone (Not Recommended)
 
 While you can work directly in `~/repos/homelab`, this is NOT recommended because:
+
 - The sync loop runs `git fetch` every 60s which could conflict with your work
 - Multiple Claude sessions would conflict with each other
 - Direct commits to main bypass PR review
 
 If you must work directly:
+
 ```bash
 cd ~/repos/homelab
 git checkout -b feat/my-feature origin/main

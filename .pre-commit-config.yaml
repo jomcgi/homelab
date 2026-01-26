@@ -1,36 +1,36 @@
 default_stages: [pre-commit]
 
 repos:
-- repo: local
-  hooks:
-    - id: protect-main-branch
-      name: Protect main branch
-      entry: tools/git/protect-main.sh
-      language: script
-      always_run: true
-      pass_filenames: false
+  - repo: local
+    hooks:
+      - id: protect-main-branch
+        name: Protect main branch
+        entry: tools/git/protect-main.sh
+        language: script
+        always_run: true
+        pass_filenames: false
 
-    # Fast format - builds all tools once, runs in parallel
-    # Only triggered when code files change
-    - id: format-code
-      name: Format code
-      entry: tools/format/fast-format.sh staged
-      language: script
-      pass_filenames: false
-      types_or: [python, go, shell, javascript, json, markdown, yaml]
-      files: '\.(py|go|sh|js|jsx|ts|tsx|json|md|yaml|yml|bzl)$|BUILD'
+      # Fast format - builds all tools once, runs in parallel
+      # Only triggered when code files change
+      - id: format-code
+        name: Format code
+        entry: tools/format/fast-format.sh staged
+        language: script
+        pass_filenames: false
+        types_or: [python, go, shell, javascript, json, markdown, yaml]
+        files: '\.(py|go|sh|js|jsx|ts|tsx|json|md|yaml|yml|bzl)$|BUILD'
 
-    # Lock file updates - only when source files change
-    - id: update-python-requirements
-      name: Update Python requirements
-      entry: tools/format/update-python-requirements-if-needed.sh
-      language: script
-      files: 'pyproject\.toml$'
-      pass_filenames: false
+      # Lock file updates - only when source files change
+      - id: update-python-requirements
+        name: Update Python requirements
+        entry: tools/format/update-python-requirements-if-needed.sh
+        language: script
+        files: 'pyproject\.toml$'
+        pass_filenames: false
 
-    - id: update-apko-locks
-      name: Update apko locks
-      entry: tools/format/update-apko-locks.sh
-      language: script
-      files: 'apko\.yaml$'
-      pass_filenames: false
+      - id: update-apko-locks
+        name: Update apko locks
+        entry: tools/format/update-apko-locks.sh
+        language: script
+        files: 'apko\.yaml$'
+        pass_filenames: false

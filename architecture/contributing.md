@@ -13,8 +13,8 @@ This document covers common tasks and workflows for contributing to the homelab.
    - `application.yaml` - ArgoCD Application pointing to your chart
      ```yaml
      valueFiles:
-       - values.yaml  # Chart defaults
-       - ../../overlays/<env>/<name>/values.yaml  # Environment overrides
+       - values.yaml # Chart defaults
+       - ../../overlays/<env>/<name>/values.yaml # Environment overrides
      ```
    - `kustomization.yaml` - Reference to application.yaml
    - `values.yaml` - Environment-specific Helm value overrides
@@ -34,6 +34,7 @@ format
 ```
 
 This command:
+
 - **Formats code** (Go, Python, JavaScript, Shell, Starlark)
 - **Updates apko lock files** (container image definitions)
 - **Updates Python lock files** (from pyproject.toml)
@@ -72,12 +73,14 @@ format
 We test **actual behavior**, not implementation details:
 
 **Good Tests:**
+
 - Deploy the actual service to a test cluster
 - Verify the service responds correctly via HTTP
 - Confirm metrics are exported and observable
 - Test the complete user journey
 
 **Bad Tests:**
+
 - Unit tests that mock everything
 - Tests that verify internal implementation
 - Tests that don't exercise real deployment paths

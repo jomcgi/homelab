@@ -735,7 +735,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: signoz-dashboard-sidecar
-  namespace: {{ .Release.Namespace }}
+  namespace: { { .Release.Namespace } }
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -761,7 +761,7 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: signoz-dashboard-sidecar
-    namespace: {{ .Release.Namespace }}
+    namespace: { { .Release.Namespace } }
 ```
 
 **Example ServiceMonitor:**

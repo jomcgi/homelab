@@ -46,6 +46,7 @@ actions:
 ```
 
 This is superior to GitHub Actions because:
+
 1. **Preserved analysis cache** - Firecracker VMs restore Bazel's analysis cache
 2. **No cache upload/download overhead** - Cache is local to the VM
 3. **Consistent environments** - Same Ubuntu 24.04 image every time
@@ -56,31 +57,35 @@ This is superior to GitHub Actions because:
 ## Key Strengths
 
 ### 1. Modern Bazel Configuration
+
 - **Fully migrated to bzlmod** - no legacy WORKSPACE file
 - **44 direct dependencies** explicitly declared with `bazel_dep()`
 - **Well-documented .bazelrc** with explanatory comments on every setting
 - **BuildBuddy RBE** with 80-core remote execution and intelligent caching
 
 ### 2. Custom Rules Quality
+
 - **OCI image macros** (`go_image`, `py3_image`, `apko_image`) are well-designed and reusable
 - **Multi-platform support** (amd64/arm64) built into all image rules
 - **Excellent docstrings** with examples in most macros
 - **Stamped builds** with conditional CI/local tagging
 
 ### 3. Developer Experience
+
 - **Unified `format` command** runs all formatters in parallel
 - **Hermetic tooling** - no system dependencies via `bazel_env`
 - **VS Code integration** with Buildifier, Starpls language server
 - **Pre-commit hook** enforces GitOps workflow (prevents direct main commits)
 
 ### 4. Multi-Language Support
-| Language | Tooling | Version | Status |
-|----------|---------|---------|--------|
-| Go | rules_go + Gazelle | 0.59.0 | Excellent |
-| Python | rules_python + pip_compile | 3.13 | Excellent |
-| JavaScript | aspect_rules_js | Latest | Good |
-| Rust | rules_rust | Latest | Good |
-| Helm/K8s | Custom Gazelle extension | N/A | Excellent |
+
+| Language   | Tooling                    | Version | Status    |
+| ---------- | -------------------------- | ------- | --------- |
+| Go         | rules_go + Gazelle         | 0.59.0  | Excellent |
+| Python     | rules_python + pip_compile | 3.13    | Excellent |
+| JavaScript | aspect_rules_js            | Latest  | Good      |
+| Rust       | rules_rust                 | Latest  | Good      |
+| Helm/K8s   | Custom Gazelle extension   | N/A     | Excellent |
 
 ---
 
@@ -89,6 +94,7 @@ This is superior to GitHub Actions because:
 ### High Priority (Before Public Release)
 
 #### 1. Pre-commit Hooks Underutilized
+
 **Current State**: Only `protect-main-branch` hook exists
 **Impact**: Developers can commit without formatting/linting
 **Recommendation**: Add format validation hook
@@ -107,6 +113,7 @@ This is superior to GitHub Actions because:
 **Note**: Full formatting in pre-commit is slow. Consider a lightweight check that validates manifests are fresh.
 
 #### 2. No Kubernetes Manifest Validation
+
 **Current State**: Validates manifest freshness, not schema correctness
 **Impact**: Invalid manifests can pass CI and fail at deploy time
 **Recommendation**: Add kubeconform validation
@@ -117,6 +124,7 @@ kubeconform --summary --strict overlays/*/manifests/all.yaml
 ```
 
 Could be added as a Bazel test target:
+
 ```python
 sh_test(
     name = "validate_manifests",
@@ -127,6 +135,7 @@ sh_test(
 ```
 
 #### 3. Missing Documentation for BuildBuddy CI
+
 **Current State**: `buildbuddy.yaml` exists but not documented in CLAUDE.md
 **Impact**: Contributors won't understand why we don't use GitHub Actions
 **Recommendation**: Add section to CLAUDE.md explaining BuildBuddy workflow
@@ -140,6 +149,7 @@ giving us ~30 second build/test/deploy times vs minutes with cold cache.
 ```
 
 #### 4. Minor Typo in tools/BUILD
+
 **Location**: `tools/BUILD` line 74
 **Issue**: `sh_binary(name = "workspace_statu",` → missing "s"
 **Fix**: Rename to `workspace_status`
@@ -147,6 +157,7 @@ giving us ~30 second build/test/deploy times vs minutes with cold cache.
 ### Medium Priority (Polish)
 
 #### 5. Sequential Format Pipeline
+
 **Current State**: `multirun` uses `jobs = 10` (effectively sequential for most runs)
 **Impact**: Format takes longer than needed
 **Fix**: Change to `jobs = 0` for unlimited parallelism
@@ -162,14 +173,17 @@ multirun(
 ```
 
 #### 6. Test Coverage Gaps
+
 **Current State**: Good test patterns exist but limited coverage
 **Missing Tests**:
+
 - Production services (hikes, marine, stargazer) lack `py_test` targets
 - No integration tests for Helm chart rendering
 
 **Recommendation**: Add test targets to production services
 
 #### 7. Test Tags Standardization
+
 **Current State**: Only `manual` and `no-remote` tags used
 **Recommendation**: Add `size` tags for timeout management
 
@@ -191,7 +205,9 @@ go_test(
 ### Low Priority (Nice-to-Have)
 
 #### 8. Container CVE Scanning
+
 Add Trivy integration for image vulnerability scanning:
+
 ```yaml
 # buildbuddy.yaml addition
 - run: |
@@ -199,11 +215,13 @@ Add Trivy integration for image vulnerability scanning:
 ```
 
 #### 9. IDE Support Documentation
+
 - Only VS Code configured
 - Add JetBrains/IntelliJ setup instructions
 - Consider Neovim configuration
 
 #### 10. Pin Bazel Version
+
 **Current**: `.bazelversion` set to `rolling` (Bazel 9 pre-release)
 **Recommendation**: Consider pinning to `8.x` when Bazel 9 reaches GA for stability
 
@@ -211,35 +229,39 @@ Add Trivy integration for image vulnerability scanning:
 
 ## File Quality Summary
 
-| Category | Quality | Key Files |
-|----------|---------|-----------|
-| Core Config | ★★★★★ | `MODULE.bazel`, `.bazelrc`, `tools/preset.bazelrc` |
-| Custom Rules | ★★★★½ | `tools/oci/*.bzl`, `tools/argocd/defs.bzl` |
-| CI/CD | ★★★★ | `buildbuddy.yaml` (excellent), `.pre-commit-config.yaml` (minimal) |
-| Python | ★★★★★ | `requirements/BUILD`, `tools/pytest/defs.bzl` |
-| Go | ★★★★★ | `go.mod`, `operators/*/BUILD` |
-| Helm/K8s | ★★★★ | `tools/argocd/`, `overlays/*/BUILD` |
-| Tests | ★★★★ | Good patterns, needs expansion |
-| Dev Workflow | ★★★★★ | `tools/format/BUILD`, `.envrc`, `.vscode/` |
+| Category     | Quality | Key Files                                                          |
+| ------------ | ------- | ------------------------------------------------------------------ |
+| Core Config  | ★★★★★   | `MODULE.bazel`, `.bazelrc`, `tools/preset.bazelrc`                 |
+| Custom Rules | ★★★★½   | `tools/oci/*.bzl`, `tools/argocd/defs.bzl`                         |
+| CI/CD        | ★★★★    | `buildbuddy.yaml` (excellent), `.pre-commit-config.yaml` (minimal) |
+| Python       | ★★★★★   | `requirements/BUILD`, `tools/pytest/defs.bzl`                      |
+| Go           | ★★★★★   | `go.mod`, `operators/*/BUILD`                                      |
+| Helm/K8s     | ★★★★    | `tools/argocd/`, `overlays/*/BUILD`                                |
+| Tests        | ★★★★    | Good patterns, needs expansion                                     |
+| Dev Workflow | ★★★★★   | `tools/format/BUILD`, `.envrc`, `.vscode/`                         |
 
 ---
 
 ## Implementation Plan
 
 ### Phase 1: Documentation (This PR)
+
 - [x] Create this review document in `.ideas/`
 - [ ] Update CLAUDE.md with BuildBuddy CI context
 
 ### Phase 2: Quick Fixes
+
 - [ ] Fix `workspace_statu` typo
 - [ ] Change format `jobs = 10` to `jobs = 0`
 
 ### Phase 3: Validation Improvements
+
 - [ ] Add kubeconform manifest validation
 - [ ] Add format freshness check to pre-commit
 - [ ] Standardize test size tags
 
 ### Phase 4: Test Coverage
+
 - [ ] Add `py_test` to production services
 - [ ] Add Helm chart rendering integration tests
 
@@ -263,13 +285,13 @@ tools/argocd/defs.bzl     # Helm rendering rules
 
 ## Appendix: BuildBuddy vs GitHub Actions
 
-| Aspect | BuildBuddy Workflows | GitHub Actions |
-|--------|---------------------|----------------|
-| Cache Strategy | Firecracker VM with preserved cache | Upload/download cache artifacts |
-| Cold Start | ~30s (cache preserved) | 2-5 minutes (cache restore) |
-| Remote Execution | Native 80-core RBE | Not available |
-| Analysis Cache | Preserved between runs | Lost between runs |
-| Build Observability | Integrated BES UI | Requires setup |
-| Cost | Included with BuildBuddy | GitHub compute minutes |
+| Aspect              | BuildBuddy Workflows                | GitHub Actions                  |
+| ------------------- | ----------------------------------- | ------------------------------- |
+| Cache Strategy      | Firecracker VM with preserved cache | Upload/download cache artifacts |
+| Cold Start          | ~30s (cache preserved)              | 2-5 minutes (cache restore)     |
+| Remote Execution    | Native 80-core RBE                  | Not available                   |
+| Analysis Cache      | Preserved between runs              | Lost between runs               |
+| Build Observability | Integrated BES UI                   | Requires setup                  |
+| Cost                | Included with BuildBuddy            | GitHub compute minutes          |
 
 The Firecracker microVM approach means our CI never starts "cold" - the analysis cache from the previous run is already there, making incremental builds extremely fast.

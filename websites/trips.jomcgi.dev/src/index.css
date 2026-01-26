@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
-html, body, #root {
+html,
+body,
+#root {
   /* Use dvh for mobile browsers with dynamic URL bar */
   height: 100dvh;
   /* Fallback for older browsers */

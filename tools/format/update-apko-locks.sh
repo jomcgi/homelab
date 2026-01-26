@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-cd "$BUILD_WORKSPACE_DIRECTORY"
+cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 echo "Updating apko lock files..."
 

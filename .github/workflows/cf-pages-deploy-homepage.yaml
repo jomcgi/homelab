@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'websites/jomcgi.dev/**'
-      - '.github/workflows/cf-pages-deploy-homepage.yaml'
+      - "websites/jomcgi.dev/**"
+      - ".github/workflows/cf-pages-deploy-homepage.yaml"
   workflow_dispatch:
 
 concurrency:
@@ -24,13 +24,13 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: 'websites/jomcgi.dev/package-lock.json'
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: "websites/jomcgi.dev/package-lock.json"
 
       - name: Install dependencies
         run: npm ci

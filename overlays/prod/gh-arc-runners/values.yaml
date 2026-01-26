@@ -41,48 +41,48 @@ gha-runner-scale-set:
   template:
     spec:
       imagePullSecrets:
-      - name: ghcr-imagepull-secret
+        - name: ghcr-imagepull-secret
 
       # Remove runAsNonRoot from pod level to allow DinD containers to run
       securityContext:
-        runAsNonRoot: false  # Override default - set per-container instead
+        runAsNonRoot: false # Override default - set per-container instead
 
       containers:
-      - name: runner
-        # Security context for runner container (runs as non-root)
-        securityContext:
-          runAsUser: 1001   # runner user UID
-          runAsGroup: 1001  # runner user GID
-          runAsNonRoot: true
-          allowPrivilegeEscalation: false
-        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest@sha256:8e37d498033ed7a868fcc00dca13f1c6613895c7f9f94a78195200b165f8375f
-        command: ["/home/runner/run.sh"]
+        - name: runner
+          # Security context for runner container (runs as non-root)
+          securityContext:
+            runAsUser: 1001 # runner user UID
+            runAsGroup: 1001 # runner user GID
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest@sha256:8e37d498033ed7a868fcc00dca13f1c6613895c7f9f94a78195200b165f8375f
+          command: ["/home/runner/run.sh"]
 
-        resources:
-          limits:
-            memory: 8Gi
-            ephemeral-storage: 100Gi  # Disk space for build artifacts
-          requests:
-            cpu: 4000m      # 4 CPUs for parallel builds
-            memory: 8Gi
-            ephemeral-storage: 100Gi
+          resources:
+            limits:
+              memory: 8Gi
+              ephemeral-storage: 100Gi # Disk space for build artifacts
+            requests:
+              cpu: 4000m # 4 CPUs for parallel builds
+              memory: 8Gi
+              ephemeral-storage: 100Gi
 
   listenerTemplate:
     spec:
       securityContext:
         runAsNonRoot: true #:
       containers:
-      - name: listener
-        securityContext:
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          readOnlyRootFilesystem: true
-        resources:
-          limits:
-            cpu: 500m
-            memory: 512Mi
-          requests:
-            cpu: 100m
-            memory: 128Mi
+        - name: listener
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          resources:
+            limits:
+              cpu: 500m
+              memory: 512Mi
+            requests:
+              cpu: 100m
+              memory: 128Mi

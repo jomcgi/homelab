@@ -29,8 +29,8 @@ flowchart TB
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
+| Value        | Description           | Default                                          |
+| ------------ | --------------------- | ------------------------------------------------ |
 | `longhorn.*` | Upstream chart values | See [longhorn chart](https://charts.longhorn.io) |
 
 ## Storage Classes

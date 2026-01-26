@@ -2,14 +2,14 @@ name: CF Pages - Deploy hikes.jomcgi.dev
 
 on:
   schedule:
-    - cron: '0,30 * * * *'
+    - cron: "0,30 * * * *"
   push:
     branches:
       - main
     paths:
-      - 'websites/hikes.jomcgi.dev/**'
-      - 'services/hikes/**'
-      - '.github/workflows/cf-pages-deploy-hikes.yaml'
+      - "websites/hikes.jomcgi.dev/**"
+      - "services/hikes/**"
+      - ".github/workflows/cf-pages-deploy-hikes.yaml"
   workflow_dispatch:
 
 concurrency:
@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   update-data:
-    runs-on: homelab-runners  # Needs Docker-in-Docker to pull and run images
+    runs-on: homelab-runners # Needs Docker-in-Docker to pull and run images
     timeout-minutes: 10
     name: Update Hike Data
 
@@ -55,7 +55,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
       - name: Deploy hikes.jomcgi.dev to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:

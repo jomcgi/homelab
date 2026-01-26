@@ -7,11 +7,11 @@ k8s-infra:
         prometheus/nats:
           config:
             scrape_configs:
-              - job_name: 'nats'
+              - job_name: "nats"
                 scrape_interval: 30s
                 static_configs:
                   - targets:
-                      - 'nats.nats.svc.cluster.local:7777'
+                      - "nats.nats.svc.cluster.local:7777"
                     labels:
                       service: nats
       service:
