@@ -44,7 +44,8 @@ fi
 bazel build "${TARGETS[@]}" 2>&1 | grep -v "^INFO:" || true
 
 # Find binaries in bazel-bin (faster than cquery)
-find_bin() { find bazel-bin -name "$1" -type f -perm +111 2>/dev/null | head -1; }
+# -L follows symlinks (bazel-bin itself is a symlink)
+find_bin() { find -L bazel-bin -name "$1" -type f -perm +111 2>/dev/null | head -1; }
 
 RUFF=$(find_bin ruff)
 SHFMT=$(find_bin shfmt)
