@@ -4,8 +4,8 @@ set -euo pipefail
 
 # Quick check: are requirements in sync?
 if bazel test //requirements:runtime_test 2>/dev/null; then
-    echo "✓ Python requirements in sync"
-    exit 0
+	echo "✓ Python requirements in sync"
+	exit 0
 fi
 
 echo "Python requirements out of sync, regenerating..."
