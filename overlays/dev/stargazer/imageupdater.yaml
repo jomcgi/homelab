@@ -5,17 +5,17 @@ metadata:
   namespace: argocd
 spec:
   applicationRefs:
-  - images:
-    - alias: stargazer
-      commonUpdateSettings:
-        updateStrategy: digest
-        forceUpdate: false
-      imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
-      manifestTargets:
-        helm:
-          name: image.repository
-          tag: image.tag
-    namePattern: stargazer
+    - images:
+        - alias: stargazer
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag
+      namePattern: stargazer
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token

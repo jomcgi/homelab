@@ -7,6 +7,7 @@
 ArgoCD supports cdk8s via [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/operator-manual/config-management-plugins/) (CMP), which means cdk8s definitions can be your source of truth. Combined with Bazel's caching and Gazelle's auto-generation, you could create a powerful "fix once, fix everywhere" workflow.
 
 **Key insight**: The investment isn't just about your 23 charts today - it's about:
+
 1. Type-safe infrastructure that catches errors at compile time
 2. Reusable constructs that compound in value as you add services
 3. Bazel caching making `cdk8s synth` incremental and fast
@@ -18,13 +19,13 @@ ArgoCD supports cdk8s via [Config Management Plugins](https://argo-cd.readthedoc
 
 ### Your Pain Points (Validated by Codebase Exploration)
 
-| Issue | Evidence |
-|-------|----------|
-| Helper duplication | 8 charts with nearly-identical `_helpers.tpl` (name, fullname, labels, selectorLabels) |
-| Deployment boilerplate | Security contexts, probes, resource blocks repeated 34+ times |
-| Multi-component repetition | marine/trips/claude charts repeat image/replicas/resources per component |
-| No shared templates | Helm doesn't support chart inheritance, only dependencies |
-| Values repetition | Each overlay defines everything independently, no layering |
+| Issue                      | Evidence                                                                               |
+| -------------------------- | -------------------------------------------------------------------------------------- |
+| Helper duplication         | 8 charts with nearly-identical `_helpers.tpl` (name, fullname, labels, selectorLabels) |
+| Deployment boilerplate     | Security contexts, probes, resource blocks repeated 34+ times                          |
+| Multi-component repetition | marine/trips/claude charts repeat image/replicas/resources per component               |
+| No shared templates        | Helm doesn't support chart inheritance, only dependencies                              |
+| Values repetition          | Each overlay defines everything independently, no layering                             |
 
 ### What cdk8s Would Solve
 
@@ -53,6 +54,7 @@ ArgoCD supports cdk8s through [Config Management Plugins](https://argo-cd.readth
 ```
 
 **Available images** from [akuity/cdk8s-cmp](https://github.com/akuity/cdk8s-cmp):
+
 - `ghcr.io/akuity/cdk8s-cmp-typescript`
 - `ghcr.io/akuity/cdk8s-cmp-python`
 - `ghcr.io/akuity/cdk8s-cmp-go`
@@ -99,21 +101,21 @@ argo-cd:
 
 ### Risks
 
-| Risk | Mitigation |
-|------|------------|
+| Risk                                                                                 | Mitigation                                                           |
+| ------------------------------------------------------------------------------------ | -------------------------------------------------------------------- |
 | **Resource naming hashes** - Refactoring construct names can trigger delete/recreate | Use explicit `name` in construct props, establish naming conventions |
-| **CMP maturity** - akuity/cdk8s-cmp has 18 stars, 8 commits | Fork and maintain your own if needed, or use custom images |
-| **rules_cdk8s doesn't exist** - You'd build it from scratch | Start simple (genrule wrapper), evolve as needed |
-| **Learning curve** - Team needs to learn cdk8s patterns | TypeScript is familiar, cdk8s API mirrors K8s API |
+| **CMP maturity** - akuity/cdk8s-cmp has 18 stars, 8 commits                          | Fork and maintain your own if needed, or use custom images           |
+| **rules_cdk8s doesn't exist** - You'd build it from scratch                          | Start simple (genrule wrapper), evolve as needed                     |
+| **Learning curve** - Team needs to learn cdk8s patterns                              | TypeScript is familiar, cdk8s API mirrors K8s API                    |
 
 ### Benefits That Compound
 
-| Benefit | Year 1 | Year 3+ |
-|---------|--------|---------|
-| **Type safety** | Catches misconfigurations | Prevents entire classes of bugs |
-| **Reusable constructs** | `SecureDeployment`, `ServiceWithProbes` | Library of battle-tested patterns |
-| **Bazel caching** | Faster synth on unchanged charts | Near-instant builds for small changes |
-| **Gazelle auto-gen** | Less BUILD file maintenance | Zero-friction new services |
+| Benefit                 | Year 1                                  | Year 3+                               |
+| ----------------------- | --------------------------------------- | ------------------------------------- |
+| **Type safety**         | Catches misconfigurations               | Prevents entire classes of bugs       |
+| **Reusable constructs** | `SecureDeployment`, `ServiceWithProbes` | Library of battle-tested patterns     |
+| **Bazel caching**       | Faster synth on unchanged charts        | Near-instant builds for small changes |
+| **Gazelle auto-gen**    | Less BUILD file maintenance             | Zero-friction new services            |
 
 ---
 
@@ -145,6 +147,7 @@ argo-cd:
 **Goal**: Build CMP sidecar using your existing `py3_image` patterns
 
 **1. Add cdk8s to dependencies** (`pyproject.toml`):
+
 ```toml
 dependencies = [
     # ... existing deps
@@ -155,6 +158,7 @@ dependencies = [
 ```
 
 **2. Create CMP entrypoint** (`tools/cdk8s-cmp/main.py`):
+
 ```python
 #!/usr/bin/env python3
 """cdk8s Config Management Plugin for ArgoCD."""
@@ -175,6 +179,7 @@ if __name__ == "__main__":
 ```
 
 **3. Plugin config** (`tools/cdk8s-cmp/plugin.yaml`):
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
@@ -183,12 +188,13 @@ metadata:
 spec:
   version: v1.0
   discover:
-    fileName: "cdk8s.yaml"  # Only trigger on cdk8s projects
+    fileName: "cdk8s.yaml" # Only trigger on cdk8s projects
   generate:
-    command: [python, -m, cdk8s_cmp]  # Or direct cdk8s synth
+    command: [python, -m, cdk8s_cmp] # Or direct cdk8s synth
 ```
 
 **4. BUILD file** (`tools/cdk8s-cmp/BUILD`):
+
 ```python
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
@@ -213,6 +219,7 @@ py3_image(
 ```
 
 **5. ArgoCD sidecar config** (`clusters/homelab/argocd/values.yaml`):
+
 ```yaml
 argo-cd:
   repoServer:
@@ -235,10 +242,12 @@ argo-cd:
 ### Phase 1b: CMP Image Details
 
 The CMP image needs two things the akuity images provide:
+
 1. **argocd-cmp-server binary** - gRPC server that ArgoCD calls
 2. **cdk8s + Python deps** - for running synth
 
 **Option A**: Multi-stage build
+
 ```dockerfile
 FROM quay.io/argoproj/argocd:latest AS argocd
 FROM your-py3-image AS final
@@ -246,6 +255,7 @@ COPY --from=argocd /usr/local/bin/argocd-cmp-server /usr/local/bin/
 ```
 
 **Option B**: Bazel `oci_image` with layers
+
 ```python
 oci_image(
     name = "cdk8s_cmp_image",
@@ -262,6 +272,7 @@ oci_image(
 **Goal**: Migrate one service to validate the workflow
 
 **Directory structure**:
+
 ```
 cdk8s/
 ├── lib/                          # Shared constructs (py_library)
@@ -278,6 +289,7 @@ cdk8s/
 ```
 
 **cdk8s/lib/secure_deployment.py**:
+
 ```python
 from constructs import Construct
 from cdk8s import Chart
@@ -339,6 +351,7 @@ class SecureDeployment(Construct):
 ```
 
 **cdk8s/stargazer/main.py**:
+
 ```python
 from cdk8s import App, Chart
 from constructs import Construct
@@ -361,6 +374,7 @@ app.synth()
 ```
 
 **cdk8s/stargazer/cdk8s.yaml**:
+
 ```yaml
 language: python
 app: python main.py
@@ -371,6 +385,7 @@ app: python main.py
 **Goal**: Local development + CI validation with Bazel
 
 **tools/cdk8s/defs.bzl**:
+
 ```python
 """Bazel rules for cdk8s synthesis."""
 
@@ -420,6 +435,7 @@ def py_cdk8s_chart(name, srcs, deps = [], **kwargs):
 ```
 
 **Usage in BUILD**:
+
 ```python
 load("//tools/cdk8s:defs.bzl", "py_cdk8s_chart")
 
@@ -431,6 +447,7 @@ py_cdk8s_chart(
 ```
 
 **Benefits**:
+
 - `bazel build //cdk8s/stargazer` - synthesizes locally for review
 - `bazel test //cdk8s/...` - validates all charts compile
 - Gazelle can auto-generate `py_cdk8s_chart` targets (Phase 4)
@@ -466,6 +483,7 @@ This is optional - explicit `py_cdk8s_chart` macros work fine.
 ## Verification Plan
 
 ### Phase 1 Validation
+
 ```bash
 # 1. Build CMP image
 bazel build //tools/cdk8s-cmp:image
@@ -483,6 +501,7 @@ kubectl logs -n argocd <repo-server-pod> -c cdk8s-cmp
 ```
 
 ### Phase 2 Validation
+
 ```bash
 # 1. Local synth
 bazel build //cdk8s/stargazer
@@ -497,14 +516,14 @@ argocd app get stargazer --show-operation
 
 ## Critical Files to Create/Modify
 
-| File | Action |
-|------|--------|
-| `pyproject.toml` | Add cdk8s, constructs deps |
-| `tools/cdk8s-cmp/` | New directory for CMP image |
-| `tools/cdk8s/defs.bzl` | New Bazel rules |
-| `clusters/homelab/argocd/values.yaml` | Add CMP sidecar |
-| `cdk8s/lib/` | Shared constructs library |
-| `cdk8s/stargazer/` | First migrated service |
+| File                                  | Action                      |
+| ------------------------------------- | --------------------------- |
+| `pyproject.toml`                      | Add cdk8s, constructs deps  |
+| `tools/cdk8s-cmp/`                    | New directory for CMP image |
+| `tools/cdk8s/defs.bzl`                | New Bazel rules             |
+| `clusters/homelab/argocd/values.yaml` | Add CMP sidecar             |
+| `cdk8s/lib/`                          | Shared constructs library   |
+| `cdk8s/stargazer/`                    | First migrated service      |
 
 ---
 
@@ -559,11 +578,13 @@ EOF
 ### Strategy: Pre-generate and Version Control
 
 The K8s imports (~2.5MB) should be:
+
 1. **Pre-generated** once via `cdk8s import k8s`
 2. **Version-controlled** in `cdk8s/imports/k8s/`
 3. **Shared** across all charts via Bazel `py_library`
 
 **Rationale**:
+
 - Generated code rarely changes (only on K8s API version bumps)
 - Generating at build time adds ~5s latency
 - Version control provides audit trail
@@ -598,6 +619,7 @@ py_library(
 ### Problem: cdk8s `--format helm` Limitations
 
 cdk8s can output Helm charts (`cdk8s synth --format helm`), but:
+
 - Templates are **static YAML** (no `{{ .Values }}` templating)
 - Users cannot customize via `values.yaml`
 - Cannot deploy multiple releases (resource names collide)
@@ -605,6 +627,7 @@ cdk8s can output Helm charts (`cdk8s synth --format helm`), but:
 ### Problem: Helmify Limitations
 
 [Helmify](https://github.com/arttor/helmify) converts K8s YAML → Helm charts, but:
+
 - Only templates "known" fields (image, replicas, resources)
 - **Does NOT template custom annotations** (e.g., `cloudflare.ingress.hostname`)
 
@@ -613,6 +636,7 @@ cdk8s can output Helm charts (`cdk8s synth --format helm`), but:
 Since cdk8s construct inputs map directly to Helm values, we build a custom post-processor.
 
 **1. Value Placeholders** (`cdk8s/lib/values.py`):
+
 ```python
 class HelmValue:
     """Marker for values that should become Helm template variables."""
@@ -630,6 +654,7 @@ annotations = {
 ```
 
 **2. Post-Processor** (`tools/cdk8s/helm_export.py`):
+
 ```python
 import re
 from dataclasses import fields
@@ -655,6 +680,7 @@ def convert_to_helm_chart(yaml_content: str, config_class: type) -> tuple[str, d
 ```
 
 **3. Bazel Rule** (`tools/cdk8s/defs.bzl`):
+
 ```starlark
 def py_cdk8s_helm_chart(name, srcs, deps = [], chart_version = "0.1.0"):
     """Generate distributable Helm chart from cdk8s code."""
@@ -685,12 +711,12 @@ dist/helm/<chart-name>/
 
 ### Conceptual Mapping
 
-| cdk8s | Helm |
-|-------|------|
-| `Config.noauth_hostname` | `.Values.noauth.hostname` |
-| Dataclass defaults | `values.yaml` |
-| Type hints | `values.schema.json` |
-| `HelmValue("path", default)` | `{{ .Values.path }}` |
+| cdk8s                        | Helm                      |
+| ---------------------------- | ------------------------- |
+| `Config.noauth_hostname`     | `.Values.noauth.hostname` |
+| Dataclass defaults           | `values.yaml`             |
+| Type hints                   | `values.schema.json`      |
+| `HelmValue("path", default)` | `{{ .Values.path }}`      |
 
 ---
 
@@ -730,24 +756,28 @@ tools/cdk8s/
 ## Revised Implementation Phases
 
 ### Phase 1: Bazel Foundation
+
 1. Move POC imports to `cdk8s/imports/k8s/`
 2. Create `tools/cdk8s/defs.bzl` with `py_cdk8s_synth`
 3. Regenerate requirements locks: `bazel run //requirements:runtime`
 4. Validate: `bazel build //cdk8s/charts/cloudflare-operator-test`
 
 ### Phase 2: ArgoCD CMP (Optional)
+
 1. Create `cdk8s/cmp/image/` with py3_image
 2. Solve argocd-cmp-server binary inclusion
 3. Push image to GHCR
 4. Update ArgoCD values with sidecar
 
 ### Phase 3: Helm Distribution
+
 1. Create `cdk8s/lib/values.py` with `HelmValue` class
 2. Create `tools/cdk8s/helm_export.py` post-processor
 3. Add `py_cdk8s_helm_chart` Bazel rule
 4. Test: `helm install test ./dist/helm/cloudflare-operator-test --set noauth.hostname=custom.example.com`
 
 ### Phase 4: Service Migration
+
 1. Migrate simple service (cloudflare-operator-test)
 2. Migrate complex service (marine with multiple components)
 3. Build out shared construct library based on patterns discovered

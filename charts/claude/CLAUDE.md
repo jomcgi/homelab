@@ -5,6 +5,7 @@ Claude Code web interface with React frontend, WebSocket streaming, and voice su
 ## Architecture
 
 Single pod deployment with:
+
 - **Frontend** (React + Vite) - Served at `/`
 - **API Server** (Express) - Endpoints at `/api/*`
 - **WebSocket** - Claude Code streaming at `/ws`
@@ -22,6 +23,7 @@ Single pod deployment with:
 ## API Endpoints
 
 ### REST
+
 - `GET /api/health` - Health check
 - `GET /api/sessions` - List all sessions
 - `POST /api/sessions` - Create new session
@@ -29,11 +31,13 @@ Single pod deployment with:
 - `DELETE /api/sessions/:id` - Delete session
 
 ### WebSocket
+
 - `ws://host/ws?session=<id>` - Stream Claude Code I/O
 
 ## Persistence
 
 PVC mounted at `/home/user` containing:
+
 - `.claude/` - Claude Code OAuth tokens and state
 - `.claude-api/sessions/` - Session metadata
 - `.npm-global/` - Installed npm packages
@@ -41,18 +45,21 @@ PVC mounted at `/home/user` containing:
 ## Secrets
 
 From 1Password item `claude.jomcgi.dev`:
+
 - `github_token` - Git operations
 - `google_api_key` - Gemini API for voice transcription
 
 ## Common Tasks
 
 ### Initial Setup
+
 ```bash
 # After first deployment, authenticate Claude Code
 kubectl exec -it deploy/claude -n claude -- claude /login
 ```
 
 ### Check Status
+
 ```bash
 kubectl logs -n claude deploy/claude -f
 kubectl exec -it deploy/claude -n claude -- claude /doctor
@@ -70,6 +77,7 @@ Supported diagram types: flowcharts, sequence diagrams, class diagrams, state di
 ER diagrams, gantt charts, pie charts, and more.
 
 Example:
+
 ```mermaid
 graph TD
     A[User Request] --> B[API Gateway]
@@ -78,6 +86,7 @@ graph TD
 ```
 
 Use diagrams when they help explain:
+
 - System architecture
 - Request/response flows
 - State machines
@@ -94,16 +103,19 @@ https://claude.jomcgi.dev/preview/<port>/
 ```
 
 Example workflow:
+
 1. Run `npm run dev` - starts dev server on port 5173
 2. Tell user: "Preview available at https://claude.jomcgi.dev/preview/5173/"
 3. Use Playwright to screenshot or interact with the preview if needed
 
 Features:
+
 - WebSocket support for HMR (hot module reload)
 - Works with any dev server on ports 3000-9999
 - No additional configuration needed
 
 Common dev server ports:
+
 - Vite: 5173
 - Next.js: 3000
 - Create React App: 3000

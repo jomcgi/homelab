@@ -77,12 +77,14 @@ kubectl set image ...  # NO - modify values.yaml instead
 ## Why Read-Only?
 
 Direct modifications create **configuration drift** between Git (source of truth) and the cluster. ArgoCD will either:
+
 - Revert your changes automatically (auto-sync enabled)
 - Show the application as "OutOfSync" indefinitely
 
 ## Making Changes
 
 To modify cluster resources:
+
 1. Edit the appropriate files in Git (charts/, overlays/)
 2. Use the `worktree` skill for worktree workflow
 3. Commit and push, then create PR with `gh-pr` skill
@@ -91,12 +93,12 @@ To modify cluster resources:
 
 ## Common Namespaces
 
-| Namespace | Purpose |
-|-----------|---------|
-| `argocd` | GitOps controller |
-| `claude` | Claude Code deployment |
-| `signoz` | Observability stack |
-| `linkerd` | Service mesh |
-| `longhorn-system` | Distributed storage |
-| `cert-manager` | Certificate management |
-| `kyverno` | Policy engine |
+| Namespace         | Purpose                |
+| ----------------- | ---------------------- |
+| `argocd`          | GitOps controller      |
+| `claude`          | Claude Code deployment |
+| `signoz`          | Observability stack    |
+| `linkerd`         | Service mesh           |
+| `longhorn-system` | Distributed storage    |
+| `cert-manager`    | Certificate management |
+| `kyverno`         | Policy engine          |

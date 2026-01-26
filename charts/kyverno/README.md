@@ -32,6 +32,7 @@ OTEL_EXPORTER_OTLP_PROTOCOL: grpc
 ```
 
 **Opt-out:**
+
 ```yaml
 metadata:
   labels:
@@ -43,6 +44,7 @@ metadata:
 Automatically enables Linkerd mesh for all namespaces.
 
 **Opt-out:**
+
 ```yaml
 metadata:
   labels:
@@ -51,12 +53,12 @@ metadata:
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
-| `otelInjection.enabled` | Enable OTEL env var injection | `true` |
-| `otelInjection.endpoint` | OTEL collector endpoint | `signoz-otel-collector...` |
-| `linkerdInjection.enabled` | Enable Linkerd namespace injection | `true` |
-| `kyverno.*` | Upstream chart values | See [kyverno chart](https://kyverno.github.io/kyverno) |
+| Value                      | Description                        | Default                                                |
+| -------------------------- | ---------------------------------- | ------------------------------------------------------ |
+| `otelInjection.enabled`    | Enable OTEL env var injection      | `true`                                                 |
+| `otelInjection.endpoint`   | OTEL collector endpoint            | `signoz-otel-collector...`                             |
+| `linkerdInjection.enabled` | Enable Linkerd namespace injection | `true`                                                 |
+| `kyverno.*`                | Upstream chart values              | See [kyverno chart](https://kyverno.github.io/kyverno) |
 
 ## Excluded Namespaces
 

@@ -13,15 +13,15 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: cloudflaretunnel-admin-role
 rules:
-- apiGroups:
-  - tunnels.tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels
-  verbs:
-  - '*'
-- apiGroups:
-  - tunnels.tunnels.cloudflare.io
-  resources:
-  - cloudflaretunnels/status
-  verbs:
-  - get
+  - apiGroups:
+      - tunnels.tunnels.cloudflare.io
+    resources:
+      - cloudflaretunnels
+    verbs:
+      - "*"
+  - apiGroups:
+      - tunnels.tunnels.cloudflare.io
+    resources:
+      - cloudflaretunnels/status
+    verbs:
+      - get

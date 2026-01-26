@@ -4,14 +4,14 @@
 
 Rewrite the Cloudflare operator's 6 controllers using sextant state machine code generation to replace imperative reconciliation code with declarative state machines.
 
-| Controller | CRD Owner | Phase Storage | Approach |
-|------------|-----------|---------------|----------|
-| CloudflareTunnel | Us | Status.Phase | Sextant generated |
-| CloudflareAccessPolicy | Us | Status.Phase | Sextant generated |
-| Gateway | Gateway API (external) | Annotation | Manual state machine |
-| HTTPRoute | Gateway API (external) | Annotation | Manual state machine |
-| GatewayClass | Gateway API (external) | Status.Conditions | Keep simple (validation only) |
-| Service | N/A (helper) | N/A | Keep simple (annotation-based routing) |
+| Controller             | CRD Owner              | Phase Storage     | Approach                               |
+| ---------------------- | ---------------------- | ----------------- | -------------------------------------- |
+| CloudflareTunnel       | Us                     | Status.Phase      | Sextant generated                      |
+| CloudflareAccessPolicy | Us                     | Status.Phase      | Sextant generated                      |
+| Gateway                | Gateway API (external) | Annotation        | Manual state machine                   |
+| HTTPRoute              | Gateway API (external) | Annotation        | Manual state machine                   |
+| GatewayClass           | Gateway API (external) | Status.Conditions | Keep simple (validation only)          |
+| Service                | N/A (helper)           | N/A               | Keep simple (annotation-based routing) |
 
 **Key Constraint**: Gateway/HTTPRoute/GatewayClass are external Gateway API types - we cannot add `Status.Phase` fields. Use annotation-based phase storage for Gateway/HTTPRoute.
 
@@ -39,6 +39,7 @@ All controllers must implement consistent error handling:
 | Delete | Already deleted | Treat as success (idempotent) |
 
 **Exponential Backoff:**
+
 ```
 Base: 5s
 Multiplier: 2x
@@ -49,11 +50,13 @@ Sequence: 5s → 10s → 20s → 40s → 80s → 160s → 300s (cap)
 ```
 
 **Retry Limits:**
+
 - Transient errors: Max 10 retries before moving to Failed
 - Failed state requeue: 1 hour (allows manual intervention)
 - `RetryCount` resets on successful state transition
 
 **Circuit Breaker (future consideration):**
+
 - If >50% of reconciliations fail in 5 minutes, pause reconciliation for 1 minute
 - Prevents cascading failures during Cloudflare outages
 - **Interim Step**: Implement `golang.org/x/time/rate` limiter in Reconciler struct to respect global API limits.
@@ -65,10 +68,12 @@ Sequence: 5s → 10s → 20s → 40s → 80s → 160s → 300s (cap)
 When a resource spec changes while in `Ready` state:
 
 **Detection:**
+
 - Compare `status.observedGeneration` vs `metadata.generation`
 - If different, spec has changed since last reconciliation
 
 **Behavior:**
+
 ```
 Ready (observedGeneration != generation) → Re-evaluate
   ├── If ingress config changed → ConfiguringIngress
@@ -77,6 +82,7 @@ Ready (observedGeneration != generation) → Re-evaluate
 ```
 
 **Implementation:**
+
 - `VisitReady` checks generation mismatch
 - Determines which fields changed
 - Transitions to appropriate state for incremental update
@@ -89,30 +95,34 @@ Ready (observedGeneration != generation) → Re-evaluate
 Deletion (via `deletionTimestamp`) must be handled from ANY non-terminal state:
 
 **CloudflareTunnel:**
+
 ```
 ANY STATE + deletionTimestamp → DeletingTunnel → Deleted
 ```
 
-| From State | Cleanup Required |
-|------------|------------------|
-| Pending | None - just remove finalizer |
-| CreatingTunnel | Delete tunnel if tunnelID exists |
-| CreatingSecret | Delete tunnel + secret |
-| ConfiguringIngress | Delete tunnel + secret |
-| Ready | Delete tunnel + secret |
-| Failed | Delete tunnel + secret (if they exist) |
+| From State         | Cleanup Required                       |
+| ------------------ | -------------------------------------- |
+| Pending            | None - just remove finalizer           |
+| CreatingTunnel     | Delete tunnel if tunnelID exists       |
+| CreatingSecret     | Delete tunnel + secret                 |
+| ConfiguringIngress | Delete tunnel + secret                 |
+| Ready              | Delete tunnel + secret                 |
+| Failed             | Delete tunnel + secret (if they exist) |
 
 **Implementation:**
+
 - Every `Visit*` method checks `deletionTimestamp` first
 - If set, transition to appropriate deletion state
 - Deletion states are idempotent (safe to retry)
 
 **CloudflareAccessPolicy:**
+
 ```
 ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → Deleted
 ```
 
 **Gateway/HTTPRoute:**
+
 - Use OwnerReferences for cascading deletion
 - Finalizer only needed for external Cloudflare resources (DNS records)
 
@@ -139,11 +149,13 @@ ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → D
 | `CloudflareAPIHighLatency` | p99 > 10s for 5m | Warning |
 
 **Tracing:**
+
 - Span per reconciliation with phase transitions as events
 - Span per Cloudflare API call
 - Trace context propagated through all operations
 
 **Logging:**
+
 - Structured JSON logs
 - Required fields: `controller`, `namespace`, `name`, `phase`, `generation`
 - Log level: INFO for state transitions, WARN for retries, ERROR for failures
@@ -155,6 +167,7 @@ ANY STATE + deletionTimestamp → DeletingPolicies → DeletingApplication → D
 Gateway and HTTPRoute are external Gateway API types. Phase must be stored in annotations.
 
 **Annotation Schema:**
+
 ```yaml
 metadata:
   annotations:
@@ -165,12 +178,14 @@ metadata:
 ```
 
 **Validation Requirements:**
+
 - `getPhase()` must validate annotation value against known phases
 - Invalid/missing annotation → return `Pending` (not Unknown, to avoid infinite loops)
 - Log warning when invalid phase detected
 - Never trust user-editable annotations without validation
 
 **Implementation:**
+
 ```go
 func getGatewayPhase(gw *gatewayv1.Gateway) string {
     phase := gw.Annotations["cloudflare.tunnels.io/phase"]
@@ -188,6 +203,7 @@ func getGatewayPhase(gw *gatewayv1.Gateway) string {
 ### Concurrency Considerations
 
 **Controller Configuration:**
+
 ```go
 ctrl.NewControllerManagedBy(mgr).
     WithOptions(controller.Options{
@@ -198,15 +214,18 @@ ctrl.NewControllerManagedBy(mgr).
 ```
 
 **ResourceVersion Conflicts:**
+
 - Status updates may fail with conflict errors if resource changed during reconciliation
 - Treat 409 Conflict on status update as transient → requeue immediately
 - Do NOT retry in-loop; let controller-runtime handle requeue
 
 **Rate Limiting:**
+
 - Default controller-runtime rate limiter is sufficient for most cases
 - Consider custom rate limiter if Cloudflare API quota is a concern
 
 **Idempotency:**
+
 - All Visit methods must be idempotent (safe to retry)
 - External API calls should use idempotency keys where supported
 - State transitions should be deterministic from current state
@@ -223,6 +242,7 @@ The core tunnel controller - most complex, proves the pattern.
 - [ ] Create `operators/cloudflare/statemachines/cloudflaretunnel.sextant.yaml`
 
 **State Machine Design:**
+
 ```
 Pending → CreatingTunnel → CreatingSecret → ConfiguringIngress → Ready
                 ↓              ↓                  ↓                 │
@@ -248,6 +268,7 @@ ANY STATE + deletionTimestamp → DeletingTunnel → Deleted
 | Deleted | terminal, deletion | - | - |
 
 **Note on Deletion Granularity:** Single `DeletingTunnel` state handles both tunnel and secret cleanup. This is acceptable because:
+
 1. Secret deletion is a local K8s operation (fast, reliable)
 2. Tunnel deletion is the slow/fallible external operation
 3. If secret deletion fails, the next reconcile will retry (idempotent)
@@ -322,6 +343,7 @@ Similar pattern to CloudflareTunnel but simpler.
 - [ ] Create `operators/cloudflare/statemachines/cloudflareaccesspolicy.sextant.yaml`
 
 **State Machine Design:**
+
 ```
 Pending → ResolvingTarget → CreatingApplication → CreatingPolicies → Ready
                ↓                   ↓                    ↓               │
@@ -393,6 +415,7 @@ Gateway is external Gateway API type - cannot modify its Status. Use annotation-
   - [ ] Phase data storage annotations for tunnelID, accountID, etc.
 
 **State Machine Design:**
+
 ```
 Pending → ResolvingCredentials → CreatingTunnelCRD → WaitingForTunnel → CreatingDeployment → Ready
                  ↓                     ↓                  ↓                    ↓              │
@@ -441,6 +464,7 @@ Simplest controller - DNS record management.
   - [ ] Annotation helpers for phase + DNS record IDs
 
 **State Machine Design:**
+
 ```
 Pending → ResolvingGateway → UpdatingRoutes → CreatingDNS → Ready
                ↓                  ↓               ↓            │
@@ -485,6 +509,7 @@ The GatewayClass controller is a validation-only controller - it validates Gatew
 - [ ] Ensure consistent error handling with other controllers
 
 **Current Behavior (keep as-is):**
+
 - Validates GatewayClass `spec.controllerName` matches our controller
 - Validates `spec.parametersRef` Secret exists with required fields
 - Sets `Accepted` condition True/False based on validation
@@ -503,6 +528,7 @@ The Service controller watches Services with `cloudflare.ingress.hostname` annot
 - [ ] Ensure consistent error handling with other controllers
 
 **Current Behavior (keep as-is):**
+
 - Watches Services with `cloudflare.ingress.hostname` annotation
 - Creates/updates HTTPRoute resources for annotated Services
 - Optionally creates CloudflareAccessPolicy for zero-trust
@@ -573,31 +599,34 @@ The Service controller watches Services with `cloudflare.ingress.hostname` annot
 ## File Changes Summary
 
 ### Create (new files)
-| File | Purpose |
-|------|---------|
-| `statemachines/cloudflaretunnel.sextant.yaml` | CloudflareTunnel state machine definition |
+
+| File                                                | Purpose                                         |
+| --------------------------------------------------- | ----------------------------------------------- |
+| `statemachines/cloudflaretunnel.sextant.yaml`       | CloudflareTunnel state machine definition       |
 | `statemachines/cloudflareaccesspolicy.sextant.yaml` | CloudflareAccessPolicy state machine definition |
-| `internal/statemachine/*.go` | Generated code (14 files) |
-| `internal/controller/gateway_phases.go` | Gateway phase constants + helpers |
-| `internal/controller/httproute_phases.go` | HTTPRoute phase constants + helpers |
+| `internal/statemachine/*.go`                        | Generated code (14 files)                       |
+| `internal/controller/gateway_phases.go`             | Gateway phase constants + helpers               |
+| `internal/controller/httproute_phases.go`           | HTTPRoute phase constants + helpers             |
 
 ### Modify (existing files)
-| File | Changes |
-|------|---------|
-| `api/v1/cloudflaretunnel_types.go` | Add Phase + error tracking fields |
-| `api/v1/cloudflareaccesspolicy_types.go` | Add Phase + error tracking fields |
-| `internal/controller/cloudflaretunnel_controller.go` | Full rewrite with visitor pattern |
-| `internal/controller/cloudflareaccesspolicy_controller.go` | Full rewrite with visitor pattern |
-| `internal/controller/gateway_controller.go` | Full rewrite with manual state machine |
-| `internal/controller/httproute_controller.go` | Full rewrite with manual state machine |
-| `cmd/main.go` | Initialize state machine calculators |
-| `BUILD` | Add generate-statemachines Bazel rule |
+
+| File                                                       | Changes                                |
+| ---------------------------------------------------------- | -------------------------------------- |
+| `api/v1/cloudflaretunnel_types.go`                         | Add Phase + error tracking fields      |
+| `api/v1/cloudflareaccesspolicy_types.go`                   | Add Phase + error tracking fields      |
+| `internal/controller/cloudflaretunnel_controller.go`       | Full rewrite with visitor pattern      |
+| `internal/controller/cloudflareaccesspolicy_controller.go` | Full rewrite with visitor pattern      |
+| `internal/controller/gateway_controller.go`                | Full rewrite with manual state machine |
+| `internal/controller/httproute_controller.go`              | Full rewrite with manual state machine |
+| `cmd/main.go`                                              | Initialize state machine calculators   |
+| `BUILD`                                                    | Add generate-statemachines Bazel rule  |
 
 ### Preserve (no changes)
-| File | Reason |
-|------|--------|
-| `internal/cloudflare/*` | API client - reused |
-| `internal/telemetry/*` | OTEL setup - reused |
-| `internal/controller/gatewayclass_controller.go` | Validation controller - keep simple |
-| `internal/controller/service_controller.go` | Helper controller - keep simple |
-| `api/v1/conditions.go` | Condition constants - kept for compatibility |
+
+| File                                             | Reason                                       |
+| ------------------------------------------------ | -------------------------------------------- |
+| `internal/cloudflare/*`                          | API client - reused                          |
+| `internal/telemetry/*`                           | OTEL setup - reused                          |
+| `internal/controller/gatewayclass_controller.go` | Validation controller - keep simple          |
+| `internal/controller/service_controller.go`      | Helper controller - keep simple              |
+| `api/v1/conditions.go`                           | Condition constants - kept for compatibility |

@@ -50,7 +50,7 @@ imagePullSecret:
   enabled: true
 # Configure pods to use the image pull secret
 imagePullSecrets:
-- name: ghcr-imagepull-secret
+  - name: ghcr-imagepull-secret
 # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
 podAnnotations:
   otel.injected-by: kyverno/inject-otel-env-vars

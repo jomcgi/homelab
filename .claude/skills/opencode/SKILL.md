@@ -19,10 +19,10 @@ OpenCode runs AI tasks non-interactively via `opencode run`. Use it to minimize 
 
 ## Available Agents
 
-| Agent | Model | Context | Cost | Use For |
-|-------|-------|---------|------|---------|
-| `cheap-local-tokens` | Qwen3 Coder 30B | 24k | FREE | Directed tasks, code gen, research |
-| `long-context-window-tasks` | Gemini 3 Flash | 1M+ | Paid | Massive context analysis |
+| Agent                       | Model           | Context | Cost | Use For                            |
+| --------------------------- | --------------- | ------- | ---- | ---------------------------------- |
+| `cheap-local-tokens`        | Qwen3 Coder 30B | 24k     | FREE | Directed tasks, code gen, research |
+| `long-context-window-tasks` | Gemini 3 Flash  | 1M+     | Paid | Massive context analysis           |
 
 ## Qwen3 Coder 30B (Local)
 
@@ -31,6 +31,7 @@ OpenCode runs AI tasks non-interactively via `opencode run`. Use it to minimize 
 **Agent:** `--agent cheap-local-tokens`
 
 **Use for:**
+
 - Directed, well-scoped tasks
 - Research summaries
 - Code generation with clear specs
@@ -57,6 +58,7 @@ opencode run --agent cheap-local-tokens "add JSDoc comments to all exported func
 **Agent:** `--agent long-context-window-tasks`
 
 **Use ONLY for:**
+
 - Tasks requiring 1M+ token context window
 - Analyzing entire large codebases at once
 - Very long document analysis
@@ -69,15 +71,15 @@ opencode run --agent long-context-window-tasks "analyze the entire codebase arch
 
 ## When to Use OpenCode vs Claude
 
-| Task Type | Use |
-|-----------|-----|
-| Quick question about current context | Claude (you) |
-| Research across many files | `--agent cheap-local-tokens` (FREE) |
-| Generate boilerplate code | `--agent cheap-local-tokens` (FREE) |
-| Summarize documents | `--agent cheap-local-tokens` (FREE) |
-| Complex multi-step reasoning | Claude (you) |
-| Tasks needing conversation context | Claude (you) |
-| Analyzing 100+ files at once | `--agent long-context-window-tasks` |
+| Task Type                            | Use                                 |
+| ------------------------------------ | ----------------------------------- |
+| Quick question about current context | Claude (you)                        |
+| Research across many files           | `--agent cheap-local-tokens` (FREE) |
+| Generate boilerplate code            | `--agent cheap-local-tokens` (FREE) |
+| Summarize documents                  | `--agent cheap-local-tokens` (FREE) |
+| Complex multi-step reasoning         | Claude (you)                        |
+| Tasks needing conversation context   | Claude (you)                        |
+| Analyzing 100+ files at once         | `--agent long-context-window-tasks` |
 
 ## Command Reference
 
@@ -103,6 +105,7 @@ opencode run -c "<follow-up prompt>"
 ### Research Tasks
 
 Instead of reading many files yourself:
+
 ```bash
 # Let Qwen do the heavy lifting (FREE)
 opencode run --agent cheap-local-tokens "find all usages of the AuthService class and explain how authentication flows through the system" -f "src/**/*.ts"
@@ -111,6 +114,7 @@ opencode run --agent cheap-local-tokens "find all usages of the AuthService clas
 ### Code Generation
 
 Instead of generating repetitive code:
+
 ```bash
 # Generate boilerplate with Qwen (FREE)
 opencode run --agent cheap-local-tokens "create unit tests for all exported functions" -f src/utils.ts
@@ -119,6 +123,7 @@ opencode run --agent cheap-local-tokens "create unit tests for all exported func
 ### Documentation
 
 Instead of writing docs manually:
+
 ```bash
 # Let Qwen document the codebase (FREE)
 opencode run --agent cheap-local-tokens "generate API documentation for all HTTP endpoints" -f "src/routes/**/*.ts"
@@ -127,11 +132,13 @@ opencode run --agent cheap-local-tokens "generate API documentation for all HTTP
 ## Anti-Patterns
 
 **DON'T use Gemini for:**
+
 - Tasks Qwen can handle (wastes money)
 - Small file sets under 24k tokens
 - Quick lookups (use Qwen)
 
 **DON'T use OpenCode for:**
+
 - Tasks requiring current conversation context
 - Interactive debugging sessions
 - Tasks where you need to iterate quickly with Claude
