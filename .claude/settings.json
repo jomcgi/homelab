@@ -2,6 +2,19 @@
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
   },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '⚡ TOKEN CHECK: Reading 10+ files or generating code? Use /opencode (FREE local Qwen). See .claude/skills/opencode/SKILL.md'"
+          }
+        ]
+      }
+    ]
+  },
   "permissions": {
     "allow": [
       "Bash(git:*)",

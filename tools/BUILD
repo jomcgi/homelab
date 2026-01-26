@@ -46,7 +46,7 @@ bazel_env(
     tools = {
         # Mapping from tool binary name ($PATH entry) to Bazel label
         "buildifier": "@buildifier_prebuilt//:buildifier",
-        "format": "//tools/format:format",
+        "format": "//tools/format:fast_format",
         "cargo": "@rules_rust//tools/upstream_wrapper:cargo",
         "copier": ":copier",
         "go": "@rules_go//go",
@@ -71,6 +71,6 @@ bazel_env(
 )
 
 sh_binary(
-    name = "workspace_statu",
+    name = "workspace_status",
     srcs = ["workspace_status.sh"],
 )

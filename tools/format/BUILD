@@ -45,9 +45,9 @@ multirun(
         "//scripts:generate-push-all",
         "//scripts:generate-render-all",
         ":update_apko_locks",
+        ":update_python_requirements",
         ":validate_apko_configs",
         ":format_code",
-        ":render_manifests_wrapper",
     ],
     jobs = 10,
 )
@@ -58,16 +58,27 @@ sh_binary(
     srcs = ["update-apko-locks.sh"],
 )
 
+# Update Python requirements lock files
+sh_binary(
+    name = "update_python_requirements",
+    srcs = ["update-python-requirements.sh"],
+)
+
 # Validate apko config files
 sh_binary(
     name = "validate_apko_configs",
     srcs = ["validate-apko-configs.sh"],
 )
 
-# Wrapper script to build all manifests using Bazel
-# We use a script because multirun expects executables, not build targets
+# Fast format script - builds once, runs in parallel
+# Use this instead of multirun for better performance
 sh_binary(
-    name = "render_manifests_wrapper",
-    srcs = ["render-manifests-wrapper.sh"],
-    data = ["//tools/argocd-parallel:render_all_parallel"],
+    name = "fast_format",
+    srcs = ["fast-format.sh"],
+    data = [
+        ":update_apko_locks",
+        ":update_python_requirements",
+        ":validate_apko_configs",
+    ],
 )
+

@@ -55,7 +55,7 @@ gha-runner-scale-set:
           runAsGroup: 1001  # runner user GID
           runAsNonRoot: true
           allowPrivilegeEscalation: false
-        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest
+        image: ghcr.io/jomcgi/homelab/gh-arc-runner:latest@sha256:8e37d498033ed7a868fcc00dca13f1c6613895c7f9f94a78195200b165f8375f
         command: ["/home/runner/run.sh"]
 
         resources:

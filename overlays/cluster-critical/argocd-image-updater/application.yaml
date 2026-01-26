@@ -10,7 +10,7 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/jomcgi/homelab
+    repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: HEAD
     path: charts/argocd-image-updater
     helm:
