@@ -573,9 +573,9 @@ constructs==10.4.5 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   cdk8s
-copier==9.10.3 \
-    --hash=sha256:6e965d8f719678ee3bc5e611ef0d1b182d6b01a3d5385a5f1ba43aaade51caf7 \
-    --hash=sha256:7165239566f68e9e36c148f71e0552bf1e4911eef96bfa7cf33e6a0dbfed3c96
+copier==9.11.3 \
+    --hash=sha256:ab4bc7e2944edc030b4c14ec84fffd6bf810b9b8fd56938e8ccbab1b169ea6ca \
+    --hash=sha256:f4da98c7f3dd2243480433541b3b4d9daa788bce13b7b6d43c0c6d84bd50e889
     # via -r requirements/tools.in
 dbus-fast==2.46.4 \
     --hash=sha256:018c7d878857599e3478c56575aa2ed9ff52eb7a88c5118685db8e033b3916e9 \
