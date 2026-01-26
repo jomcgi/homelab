@@ -7,11 +7,9 @@ cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 # Colors for output
 GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
 NC='\033[0m'
 
 log() { echo -e "${GREEN}▶${NC} $1"; }
-warn() { echo -e "${YELLOW}▶${NC} $1"; }
 
 # Check if any staged files match a pattern
 staged_matches() {
@@ -26,32 +24,34 @@ else
 	log "Full format"
 fi
 
-# Build all format tools in one shot (cached after first run)
+# Build all format tools + script generators in one shot
 log "Building tools..."
 TARGETS=(
 	@aspect_rules_lint//format:ruff
 	@aspect_rules_lint//format:shfmt
 	@buildifier_prebuilt//:buildifier
+	//tools/format:prettier
 )
 
-# Only build go/prettier if we need them
 if [[ "$MODE" == "all" ]] || staged_matches '\.go$'; then
 	TARGETS+=(@aspect_rules_lint//format:gofumpt)
 fi
-if [[ "$MODE" == "all" ]] || staged_matches '\.(js|jsx|ts|tsx|json|md|yaml|yml)$'; then
-	TARGETS+=(//tools/format:prettier)
+
+if [[ "$MODE" == "all" ]]; then
+	TARGETS+=(//scripts:generate-push-all //scripts:generate-render-all)
 fi
 
 bazel build "${TARGETS[@]}" 2>&1 | grep -v "^INFO:" || true
 
-# Get binary paths via cquery (handles bzlmod naming)
-get_bin() { bazel cquery --output=files "$1" 2>/dev/null | head -1; }
+# Find binaries in bazel-bin (faster than cquery)
+find_bin() { find bazel-bin -name "$1" -type f -perm +111 2>/dev/null | head -1; }
 
-RUFF=$(get_bin @aspect_rules_lint//format:ruff)
-SHFMT=$(get_bin @aspect_rules_lint//format:shfmt)
-BUILDIFIER=$(get_bin @buildifier_prebuilt//:buildifier)
+RUFF=$(find_bin ruff)
+SHFMT=$(find_bin shfmt)
+BUILDIFIER=$(find_bin buildifier)
+PRETTIER=$(find_bin prettier)
 
-# Run formatters in parallel
+# Run formatters AND script generators in parallel
 log "Formatting..."
 PIDS=()
 
@@ -76,26 +76,27 @@ fi
 
 # Go
 if [[ "$MODE" == "all" ]] || staged_matches '\.go$'; then
-	GOFUMPT=$(get_bin @aspect_rules_lint//format:gofumpt)
+	GOFUMPT=$(find_bin gofumpt)
 	(find . -name '*.go' -not -path './bazel-*' -not -path './.git/*' -print0 |
 		xargs -0 "$GOFUMPT" -w 2>/dev/null || true) &
 	PIDS+=($!)
 fi
 
-# Prettier (JS/TS/JSON/YAML/MD) - still needs bazel run for config
+# Prettier (JS/TS/JSON/YAML/MD)
 if [[ "$MODE" == "all" ]] || staged_matches '\.(js|jsx|ts|tsx|json|md|yaml|yml)$'; then
-	bazel run //tools/format:prettier -- --write . 2>/dev/null &
+	"$PRETTIER" --write . 2>/dev/null &
 	PIDS+=($!)
 fi
 
-# Wait for formatters
-for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
-
-# Generate scripts (fast, idempotent)
+# Script generators (run in parallel with formatters)
 if [[ "$MODE" == "all" ]]; then
-	log "Generating scripts..."
-	bazel run //scripts:generate-push-all 2>&1 | grep -v "^INFO:" || true
-	bazel run //scripts:generate-render-all 2>&1 | grep -v "^INFO:" || true
+	$(find_bin generate-push-all) 2>/dev/null &
+	PIDS+=($!)
+	$(find_bin generate-render-all) &
+	PIDS+=($!)
 fi
+
+# Wait for all parallel tasks
+for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
 
 log "Done!"
