@@ -846,14 +846,14 @@ export default function SexyBackDemo() {
               padding: "0 4px",
             }}
           >
-            Engineering Notes
+            The JT Archives
           </h1>
         </div>
         <p
           className="opacity-70 mb-12"
           style={{ background: bgColor, display: "inline", padding: "0 4px" }}
         >
-          Deep dives into interesting problems I've solved.
+          A comprehensive study of bringing sexy back.
         </p>
 
         <div className="mb-12 mt-8">
@@ -871,7 +871,7 @@ export default function SexyBackDemo() {
               className="text-lg font-bold uppercase tracking-wide"
               style={{ background: bgColor, padding: "0 4px" }}
             >
-              Claude Code Web
+              SexyBack (2006)
             </h2>
           </div>
 
@@ -880,11 +880,11 @@ export default function SexyBackDemo() {
             style={{ background: fgColor, color: bgColor }}
           >
             <div className="text-xs uppercase tracking-widest opacity-70 mb-2">
-              Motivation
+              Cultural Impact
             </div>
             <p>
-              I wanted a coding assistant that could see what's actually
-              happening in my cluster.
+              The track that redefined pop music. Timbaland's production
+              created something the world wasn't ready for.
             </p>
           </div>
 
@@ -896,8 +896,7 @@ export default function SexyBackDemo() {
               marginBottom: "8px",
             }}
           >
-            vLLM runs Qwen3-Coder-30B on a 4090. AWQ 4-bit quantization fits in
-            24GB VRAM.
+            "I'm bringing sexy back. Them other boys don't know how to act."
           </p>
           <br />
           <p
@@ -908,7 +907,7 @@ export default function SexyBackDemo() {
               marginBottom: "8px",
             }}
           >
-            SigNoz MCP gives direct access to logs, traces, and metrics.
+            Peak position: #1 in 11 countries. Grammy Award winner.
           </p>
         </div>
 
@@ -927,7 +926,7 @@ export default function SexyBackDemo() {
               className="text-lg font-bold uppercase tracking-wide"
               style={{ background: bgColor, padding: "0 4px" }}
             >
-              Trips: Camera to Browser
+              The *NSYNC Era
             </h2>
           </div>
 
@@ -936,11 +935,11 @@ export default function SexyBackDemo() {
             style={{ background: fgColor, color: bgColor }}
           >
             <div className="text-xs uppercase tracking-widest opacity-70 mb-2">
-              Motivation
+              Foundation
             </div>
             <p>
-              A GoPro on the dash captures photos automatically, and my homelab
-              turns them into a live feed.
+              Before the solo career, there was the boy band that
+              sold 70 million records worldwide.
             </p>
           </div>
 
@@ -952,7 +951,7 @@ export default function SexyBackDemo() {
               marginBottom: "8px",
             }}
           >
-            Python asyncio controller with GPS-triggered capture.
+            "It's gonna be me." — a prophecy fulfilled.
           </p>
           <br />
           <p
@@ -963,8 +962,7 @@ export default function SexyBackDemo() {
               marginBottom: "8px",
             }}
           >
-            NATS JetStream for event sourcing. imgproxy + Cloudflare CDN for
-            delivery.
+            Ramen noodle hair. Denim on denim. Icons only.
           </p>
         </div>
       </div>
