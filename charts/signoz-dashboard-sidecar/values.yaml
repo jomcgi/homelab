@@ -22,9 +22,18 @@ signoz:
   # API key for authentication (optional, leave empty if not required)
   apiKey: ""
   # Secret containing API key (alternative to apiKey)
-  # apiKeySecret:
-  #   name: signoz-api-key
-  #   key: api-key
+  apiKeySecret:
+    # Set to true to use a secret for the API key
+    enabled: false
+    # Set to true to create the OnePasswordItem for the API key
+    create: false
+    # Name of the Kubernetes secret
+    name: "signoz-api-key"
+    # Key within the secret containing the API key
+    key: "api-key"
+    # OnePassword configuration (used when create: true)
+    onepassword:
+      itemPath: "vaults/k8s-homelab/items/signoz"
 
 # Watch configuration
 watch:

@@ -16,6 +16,10 @@ imagePullSecret:
 # SigNoz configuration - use cluster-internal DNS
 signoz:
   url: "http://signoz.signoz.svc.cluster.local:8080"
+  # API key for SigNoz authentication (from 1Password)
+  apiKeySecret:
+    enabled: true
+    create: true
 
 # Watch all namespaces for dashboard ConfigMaps
 watch:
