@@ -1,0 +1,25 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: signoz-dashboard-sidecar
+  namespace: argocd
+spec:
+  applicationRefs:
+    - images:
+        - alias: sidecar
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar:main
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag
+      namePattern: signoz-dashboard-sidecar
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:../../../../overlays/cluster-critical/signoz-dashboard-sidecar/values.yaml
