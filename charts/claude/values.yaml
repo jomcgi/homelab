@@ -30,7 +30,7 @@ gemini:
   model: "gemini-2.0-flash"
 
 ## Default working directory shown in UI when no conversation history exists
-## When gitSync is enabled, this is automatically set to /repos/<repoName>/current
+## When repoSync is enabled, this is automatically set to /repos/<repoName>
 defaultWorkingDirectory: ""
 
 ## Default permission mode for Claude Code conversations
@@ -38,17 +38,7 @@ defaultWorkingDirectory: ""
 ## Set to bypassPermissions to skip all permission prompts
 defaultPermissionMode: ""
 
-## Git-sync sidecar to keep a repo available for Claude to work with
-## DEPRECATED: Use repoSync instead for simpler worktree-compatible sync
-gitSync:
-  enabled: false
-  image: registry.k8s.io/git-sync/git-sync:v4.4.0
-  repo: "" # e.g., https://github.com/user/repo
-  repoName: "" # e.g., homelab (used for mount path)
-  branch: main
-  period: 60s # Sync interval
-
-## Custom repo sync (replaces git-sync sidecar)
+## Custom repo sync for keeping a repo available for Claude to work with
 ## Clones repo on startup, runs periodic `git fetch` to keep refs fresh
 ## Works better with git worktrees for multi-agent workflows
 repoSync:
