@@ -214,64 +214,12 @@ spec:
               mountPath: /tmp
               readOnly: true
             {{- end }}
-            {{- if .Values.gitSync.enabled }}
-            - name: repo
-              mountPath: /repos/{{ .Values.gitSync.repoName }}
-            {{- else if .Values.repoSync.enabled }}
+            {{- if .Values.repoSync.enabled }}
             # Repo sync uses a subdirectory on the home PVC for persistence
             - name: home
               mountPath: /repos/{{ .Values.repoSync.repoName }}
               subPath: repos/{{ .Values.repoSync.repoName }}
             {{- end }}
-        {{- if .Values.gitSync.enabled }}
-        # Git-sync sidecar to keep repo in sync
-        - name: git-sync
-          image: {{ .Values.gitSync.image }}
-          imagePullPolicy: IfNotPresent
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            runAsNonRoot: true
-            runAsUser: 1000
-            runAsGroup: 1000
-            capabilities:
-              drop:
-                - ALL
-          env:
-            - name: GITSYNC_REPO
-              value: {{ .Values.gitSync.repo | quote }}
-            - name: GITSYNC_REF
-              value: {{ .Values.gitSync.branch | quote }}
-            - name: GITSYNC_USERNAME
-              value: oauth2
-            - name: GITSYNC_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "claude-api.fullname" . }}-secret
-                  key: github_token
-            - name: GITSYNC_ROOT
-              value: /repo
-            - name: GITSYNC_LINK
-              value: current
-            - name: GITSYNC_PERIOD
-              value: {{ .Values.gitSync.period | quote }}
-            - name: GITSYNC_ONE_TIME
-              value: "false"
-            # Clean up old worktrees after 1 hour
-            - name: GITSYNC_STALE_WORKTREE_TIMEOUT
-              value: "1h"
-          volumeMounts:
-            - name: repo
-              mountPath: /repo
-            - name: git-sync-tmp
-              mountPath: /tmp
-          resources:
-            requests:
-              cpu: 10m
-              memory: 32Mi
-            limits:
-              memory: 64Mi
-        {{- end }}
       volumes:
         - name: home
           {{- if .Values.persistence.enabled }}
@@ -297,12 +245,6 @@ spec:
           emptyDir: {}
         - name: nginx-log
           emptyDir: {}
-        {{- if .Values.gitSync.enabled }}
-        - name: repo
-          emptyDir: {}
-        - name: git-sync-tmp
-          emptyDir: {}
-        {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
