@@ -40,7 +40,7 @@ spec:
             {{- if .Values.signoz.apiKey }}
             - name: SIGNOZ_API_KEY
               value: {{ .Values.signoz.apiKey | quote }}
-            {{- else if .Values.signoz.apiKeySecret }}
+            {{- else if .Values.signoz.apiKeySecret.enabled }}
             - name: SIGNOZ_API_KEY
               valueFrom:
                 secretKeyRef:
