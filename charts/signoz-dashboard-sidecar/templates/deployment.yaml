@@ -20,6 +20,12 @@ spec:
         {{- include "signoz-dashboard-sidecar.labels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ include "signoz-dashboard-sidecar.serviceAccountName" . }}
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ .name }}
+        {{- end }}
+      {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:

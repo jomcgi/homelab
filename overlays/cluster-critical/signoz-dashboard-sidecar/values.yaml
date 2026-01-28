@@ -5,6 +5,13 @@ image:
   repository: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar
   # tag will be updated by argocd-image-updater
 
+# GHCR image pull authentication
+imagePullSecrets:
+  - name: ghcr-imagepull-secret
+
+imagePullSecret:
+  enabled: true
+
 # SigNoz configuration - use cluster-internal DNS
 signoz:
   url: "http://signoz-query-service.signoz.svc.cluster.local:8080"
