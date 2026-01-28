@@ -5,6 +5,16 @@ image:
   tag: "" # Defaults to appVersion
   pullPolicy: IfNotPresent
 
+# Image pull secrets for private registries
+imagePullSecrets: []
+
+# Image pull secret configuration (OnePassword)
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 # SigNoz API configuration
 signoz:
   # URL to SigNoz query-service (internal cluster DNS)
