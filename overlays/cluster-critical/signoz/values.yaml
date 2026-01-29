@@ -1,6 +1,21 @@
 # k8s-infra subchart configuration
 k8s-infra:
+  otelAgent:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 500m
+        memory: 500Mi
   otelDeployment:
+    resources:
+      requests:
+        cpu: 100m
+        memory: 200Mi
+      limits:
+        cpu: 500m
+        memory: 400Mi
     config:
       receivers:
         # Prometheus scraper for NATS JetStream metrics
@@ -32,7 +47,7 @@ signoz:
     resources:
       requests:
         cpu: 2
-        memory: 4Gi
+        memory: 3Gi
       limits:
         cpu: 4
         memory: 8Gi
@@ -58,14 +73,15 @@ signoz:
         ttl: 3
       queryViewsLog:
         ttl: 7
-  zookeeper:
-    resources:
-      requests:
-        cpu: 100m
-        memory: 1Gi
-      limits:
-        cpu: 1
-        memory: 1.5Gi
+    # Zookeeper is a subchart of clickhouse
+    zookeeper:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 1Gi
+        limits:
+          cpu: 1
+          memory: 1.5Gi
   otelCollector:
     resources:
       requests:
@@ -79,7 +95,15 @@ signoz:
       resources:
         requests:
           cpu: 100m
-          memory: 300Mi
+          memory: 200Mi
+        limits:
+          cpu: 500m
+          memory: 500Mi
+    otelDeployment:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 200Mi
         limits:
           cpu: 500m
           memory: 400Mi
