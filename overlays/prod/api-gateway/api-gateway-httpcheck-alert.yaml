@@ -1,18 +1,18 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-httpcheck-alert
-  namespace: argocd
+  name: api-gateway-httpcheck-alert
+  namespace: api-gateway
   labels:
     signoz.io/alert: "true"
   annotations:
-    signoz.io/alert-name: "ArgoCD Unreachable"
+    signoz.io/alert-name: "api-gateway Unreachable"
     signoz.io/severity: "critical"
     signoz.io/notification-channels: "pagerduty-homelab"
 data:
   alert.json: |
     {
-      "alert": "ArgoCD Unreachable",
+      "alert": "api-gateway Unreachable",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
       "broadcastToAll": false,
@@ -21,12 +21,12 @@ data:
       "frequency": "2m0s",
       "severity": "critical",
       "labels": {
-        "service": "argocd",
+        "service": "api-gateway",
         "environment": "production"
       },
       "annotations": {
-        "summary": "ArgoCD at argocd.jomcgi.dev is unreachable",
-        "description": "HTTP health check has failed 5 consecutive times over 10 minutes"
+        "summary": "api-gateway at https://api.jomcgi.dev/status.json is unreachable",
+        "description": "HTTP health check has failed 5 consecutive times over 10 minutes. This could indicate the service is down or Cloudflare auth is failing (3xx redirect)."
       },
       "condition": {
         "compositeQuery": {
@@ -45,7 +45,7 @@ data:
                   {
                     "key": {"key": "http.url"},
                     "op": "=",
-                    "value": "https://argocd.jomcgi.dev"
+                    "value": "https://api.jomcgi.dev/status.json"
                   }
                 ]
               }
