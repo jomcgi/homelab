@@ -12,11 +12,11 @@ flowchart LR
     subgraph Cloudflare
         CF[Cloudflare Tunnel]
     end
-    subgraph K3s Cluster
+    subgraph "K3s Cluster"
         subgraph Ingress
             TUN[Tunnel Pod]
         end
-        subgraph Service Mesh
+        subgraph "Service Mesh"
             L[Linkerd]
         end
         subgraph Workloads
