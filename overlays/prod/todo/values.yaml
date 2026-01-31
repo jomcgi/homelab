@@ -2,8 +2,8 @@
 # Uses the homelab monorepo for data storage
 
 git:
-  # No override needed - uses homelab repo from chart defaults
-  secretName: todo-git-ssh  # SSH key with write access to homelab repo
+  # Uses the same 1Password item as argocd-image-updater (has repo write access)
+  onePasswordItem: "vaults/k8s-homelab/items/argocd-image-updater"
 
 cloudflare:
   publicHostname: todo.jomcgi.dev

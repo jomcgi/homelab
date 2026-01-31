@@ -29,3 +29,6 @@ websites/hikes.jomcgi.dev/test-results/
 
 # Rendered manifests - ArgoCD renders at deploy time, no need to commit
 **/manifests/
+
+# Local logs
+logs/
