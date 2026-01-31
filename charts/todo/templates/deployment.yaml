@@ -92,9 +92,15 @@ spec:
               mountPath: /usr/share/nginx/html
               subPath: {{ .Values.git.dataPath }}/public
               readOnly: true
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
           resources:
             {{- toYaml .Values.resources.static | nindent 12 }}
       volumes:
         - name: repo
           persistentVolumeClaim:
             claimName: {{ include "todo.fullname" . }}
+        - name: nginx-config
+          configMap:
+            name: {{ include "todo.fullname" . }}-nginx-config
