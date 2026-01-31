@@ -96,10 +96,10 @@ rules_ts_ext = use_extension(
 rules_ts_ext.deps()
 use_repo(rules_ts_ext, "npm_typescript")
 
-# Node.js toolchain - required for production builds (ships-frontend vite build)
+# Node.js toolchain - required for production builds (ships_frontend vite build)
 # Toolchains are registered for all platforms to support cross-platform container builds
 node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
-node.toolchain(node_version = "20.18.0")
+node.toolchain(node_version = "20.19.0")
 use_repo(
     node,
     "nodejs_toolchains",
@@ -210,7 +210,7 @@ apko.translate_lock(
 )
 apko.translate_lock(
     name = "ships_frontend_lock",
-    lock = "//services/ships-frontend:apko.lock.json",
+    lock = "//services/ships_frontend:apko.lock.json",
 )
 apko.translate_lock(
     name = "todo_lock",

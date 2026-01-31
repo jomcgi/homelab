@@ -1,5 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 sh_binary(
     name = "signoz-mcp-wrapper",
@@ -22,4 +24,12 @@ py_library(
     name = "scripts",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
+)
+
+# Helm chart linting - standalone script for local use
+# For CI, use individual chart lint targets in charts/*/BUILD
+sh_binary(
+    name = "test_charts",
+    srcs = ["test-charts.sh"],
+    visibility = ["//visibility:public"],
 )

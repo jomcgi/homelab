@@ -1,6 +1,6 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 exports_files(["render-manifests.sh"])
@@ -46,8 +46,24 @@ go_library(
     ],
 )
 
+go_test(
+    name = "argocd_test",
+    srcs = [
+        "config_test.go",
+        "generate_test.go",
+        "language_test.go",
+    ],
+    embed = [":argocd"],
+    deps = [
+        "@gazelle//config",
+        "@gazelle//label",
+        "@gazelle//rule",
+    ],
+)
+
 bzl_library(
     name = "defs",
     srcs = ["defs.bzl"],
     visibility = ["//visibility:public"],
+    deps = ["@rules_shell//shell:rules_bzl"],
 )

@@ -236,7 +236,7 @@ vite_build(
     name = "build",
     srcs = glob(["src/**/*", "public/**/*"]) + ["index.html", "package.json"],
     deps = ["react", "react-dom", "maplibre-gl", "@vitejs/plugin-react"],
-    visibility = ["//services/ships-frontend:__pkg__"],
+    visibility = ["//services/ships_frontend:__pkg__"],
 )
 ```
 

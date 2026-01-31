@@ -1,3 +1,4 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
 
@@ -25,9 +26,15 @@ apko_image(
     name = "image",
     config = "apko.yaml",
     contents = "@ships_frontend_lock//:contents",
-    repository = "ghcr.io/jomcgi/homelab/services/ships-frontend",
+    repository = "ghcr.io/jomcgi/homelab/services/ships_frontend",
     tars = [
         ":server_tar",
         ":dist_tar",
     ],
+)
+
+py_library(
+    name = "ships_frontend",
+    srcs = ["__init__.py"],
+    visibility = ["//:__subpackages__"],
 )

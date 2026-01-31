@@ -4,6 +4,28 @@ This file defines specialized agents for common tasks in this repository. Each a
 
 ---
 
+## CRITICAL: All Tests Must Use Bazel
+
+**NEVER run tests directly with `pytest`, `go test`, `vitest`, or `npm test`.** All tests in this repository MUST be run via Bazel:
+
+```bash
+# Run all tests
+bazelisk test //...
+
+# Run specific test target
+bazelisk test //services/ships_api:ships_api_test
+
+# Run tests in CI mode (remote caching)
+bazelisk test //... --config=ci
+```
+
+**When adding new tests:**
+1. Create test files (e.g., `mylib_test.py`, `mylib_test.go`, `mylib.test.ts`)
+2. Add corresponding `BUILD.bazel` file with test targets
+3. Use the patterns shown in the language-specific sections below
+
+---
+
 ## bazel
 
 Bazel build system specialist using bzlmod (MODULE.bazel). This repo uses Bazel 8 via bazelisk with aspect_rules_py, rules_js, rules_oci, and rules_apko.
@@ -951,7 +973,7 @@ flowchart LR
 | `key` | Description | `value` |
 ```
 
-**Service README** (see `services/trips-api/README.md`):
+**Service README** (see `services/trips_api/README.md`):
 ```markdown
 # Service Name
 
