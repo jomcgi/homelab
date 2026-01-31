@@ -1,19 +1,7 @@
 {
+  "cleanupPeriodDays": 60,
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
-  },
-  "hooks": {
-    "UserPromptSubmit": [
-      {
-        "matcher": "",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "echo '⚡ TOKEN CHECK: Reading 10+ files or generating code? Use /opencode (FREE local Qwen). See .claude/skills/opencode/SKILL.md'"
-          }
-        ]
-      }
-    ]
   },
   "permissions": {
     "allow": [
@@ -34,7 +22,15 @@
       "Bash(operator-sdk:*)",
       "WebFetch(domain:*)"
     ],
-    "additionalDirectories": ["/tmp/claude-worktrees"]
+    "additionalDirectories": [
+      "/tmp/claude-worktrees"
+    ]
   },
-  "cleanupPeriodDays": 60
+  "enabledPlugins": {
+    "frontend-design@claude-plugins-official": true,
+    "github@claude-plugins-official": true,
+    "typescript-lsp@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "coderabbit@claude-plugins-official": true
+  }
 }
