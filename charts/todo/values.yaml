@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jomcgi/homelab/charts/todo
+  repository: ghcr.io/jomcgi/homelab/charts/todo/cmd
   tag: main
   pullPolicy: IfNotPresent
 
