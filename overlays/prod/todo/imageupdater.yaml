@@ -15,7 +15,7 @@ spec:
             helm:
               name: image.repository
               tag: image.tag
-      namePattern: todo
+      namePattern: prod-todo
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token
