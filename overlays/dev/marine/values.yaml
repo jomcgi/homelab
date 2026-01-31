@@ -10,7 +10,8 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
-    tag: "latest@sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13"
+    tag: main
+    digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
@@ -19,7 +20,8 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
-    tag: "main@sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632"
+    tag: main
+    digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
     pullPolicy: Always
   # Overprovisioned for catchup - reduce after caught up
   resources:
@@ -28,13 +30,26 @@ api:
       memory: 1Gi
     limits:
       memory: 10Gi
+  # Increased tolerance for liveness probe during NATS message catchup
+  # The API may be unresponsive while processing large backlogs
+  livenessProbe:
+    initialDelaySeconds: 120
+    periodSeconds: 15
+    timeoutSeconds: 30
+    failureThreshold: 10
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 30
+    failureThreshold: 360
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
 frontend:
   image:
-    tag: latest@sha256:9934e2cda9cbc92c63eefa155454fc5eb9ac56e139c6fe9d3305c8d2b3d77756
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
+    tag: main
+    digest: sha256:9934e2cda9cbc92c63eefa155454fc5eb9ac56e139c6fe9d3305c8d2b3d77756
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
     policyId: ""
