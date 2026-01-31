@@ -1,6 +1,10 @@
 # Production values for todo app
 # Uses the homelab monorepo for data storage
 
+# Enable image pull secret for private GHCR registry
+imagePullSecret:
+  enabled: true
+
 git:
   # Uses the same 1Password item as argocd-image-updater (has repo write access)
   onePasswordItem: "vaults/k8s-homelab/items/argocd-image-updater"
