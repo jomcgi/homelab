@@ -14,6 +14,10 @@ spec:
       labels:
         {{- include "todo.selectorLabels" . | nindent 8 }}
     spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
       initContainers:
         - name: git-clone
           image: alpine/git:latest
