@@ -1,9 +1,16 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jomcgi/homelab/charts/todo
+  repository: ghcr.io/jomcgi/homelab/charts/todo/cmd
   tag: main
   pullPolicy: IfNotPresent
+
+# Image pull secret for private GHCR registry
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
 git:
   repo: https://github.com/jomcgi/homelab.git
