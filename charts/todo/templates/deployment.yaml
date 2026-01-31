@@ -21,6 +21,9 @@ spec:
             - sh
             - -c
             - |
+              # Configure git credential helper to use token
+              git config --global credential.helper 'store --file=/tmp/.git-credentials'
+              echo "https://git:${GIT_TOKEN}@github.com" > /tmp/.git-credentials
               if [ ! -d /repo/.git ]; then
                 git clone --branch {{ .Values.git.branch }} {{ .Values.git.repo }} /repo
               else
@@ -29,14 +32,14 @@ spec:
               # Ensure data directory exists
               mkdir -p /repo/{{ .Values.git.dataPath }}
           env:
-            - name: GIT_SSH_COMMAND
-              value: "ssh -i /ssh/id_rsa -o StrictHostKeyChecking=no"
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.git.tokenSecret.name }}
+                  key: {{ .Values.git.tokenSecret.key }}
           volumeMounts:
             - name: repo
               mountPath: /repo
-            - name: git-ssh
-              mountPath: /ssh
-              readOnly: true
       containers:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
@@ -53,14 +56,14 @@ spec:
               value: {{ .Values.git.repo }}
             - name: GIT_BRANCH
               value: {{ .Values.git.branch }}
-            - name: GIT_SSH_COMMAND
-              value: "ssh -i /ssh/id_rsa -o StrictHostKeyChecking=no"
+            - name: GIT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.git.tokenSecret.name }}
+                  key: {{ .Values.git.tokenSecret.key }}
           volumeMounts:
             - name: repo
               mountPath: /repo
-            - name: git-ssh
-              mountPath: /ssh
-              readOnly: true
           livenessProbe:
             httpGet:
               path: /healthz
@@ -84,7 +87,3 @@ spec:
         - name: repo
           persistentVolumeClaim:
             claimName: {{ include "todo.fullname" . }}
-        - name: git-ssh
-          secret:
-            secretName: {{ .Values.git.secretName }}
-            defaultMode: 0400
