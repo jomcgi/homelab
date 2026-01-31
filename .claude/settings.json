@@ -36,10 +36,5 @@
     ],
     "additionalDirectories": ["/tmp/claude-worktrees"]
   },
-  "cleanupPeriodDays": 60,
-  "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["playwright"],
-  "enabledPlugins": {
-    "semgrep-plugin@semgrep": true
-  }
+  "cleanupPeriodDays": 60
 }
