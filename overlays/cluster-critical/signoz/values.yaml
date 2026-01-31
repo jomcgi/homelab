@@ -65,7 +65,7 @@ k8s-infra:
         # Kubernetes-hosted services (via Cloudflare Tunnel)
         # These require Cloudflare Zero Trust authentication bypass via service token headers
         httpcheck/k8s-services:
-          collection_interval: 60s
+          collection_interval: 120s
           targets:
             # GitOps - ArgoCD
             - endpoint: https://argocd.jomcgi.dev
@@ -131,7 +131,7 @@ k8s-infra:
             # Trip management UI
             - endpoint: https://trips.jomcgi.dev
               method: GET
-          collection_interval: 60s
+          collection_interval: 120s
 
       service:
         pipelines:
