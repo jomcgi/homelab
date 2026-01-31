@@ -5,8 +5,8 @@ metadata:
   labels:
     {{- include "todo.labels" . | nindent 4 }}
   annotations:
-    cloudflare.com/tunnel: {{ .Values.cloudflare.tunnel }}
-    cloudflare.com/hostname: {{ .Values.cloudflare.publicHostname }}
+    cloudflare.ingress.hostname: {{ .Values.cloudflare.publicHostname }}
+    cloudflare.zero-trust.enabled: "false"
 spec:
   type: ClusterIP
   ports:
@@ -24,9 +24,8 @@ metadata:
   labels:
     {{- include "todo.labels" . | nindent 4 }}
   annotations:
-    cloudflare.com/tunnel: {{ .Values.cloudflare.tunnel }}
-    cloudflare.com/hostname: {{ .Values.cloudflare.adminHostname }}
-    cloudflare.com/access-policy: {{ .Values.cloudflare.accessPolicy }}
+    cloudflare.ingress.hostname: {{ .Values.cloudflare.adminHostname }}
+    cloudflare.zero-trust.enabled: "false"  # Policy created separately
 spec:
   type: ClusterIP
   ports:

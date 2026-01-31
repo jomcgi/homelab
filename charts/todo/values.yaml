@@ -18,10 +18,11 @@ service:
     port: 8080
 
 cloudflare:
-  tunnel: homelab
   publicHostname: todo.jomcgi.dev
   adminHostname: todo-admin.jomcgi.dev
-  accessPolicy: admin-only
+  # Allowed emails for admin access (Cloudflare Zero Trust)
+  allowedEmails:
+    - joe@jomcgi.dev
 
 persistence:
   enabled: true

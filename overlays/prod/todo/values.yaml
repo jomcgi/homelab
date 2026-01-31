@@ -6,10 +6,10 @@ git:
   secretName: todo-git-ssh  # SSH key with write access to homelab repo
 
 cloudflare:
-  tunnel: homelab
   publicHostname: todo.jomcgi.dev
   adminHostname: todo-admin.jomcgi.dev
-  accessPolicy: admin-only
+  allowedEmails:
+    - joe@jomcgi.dev
 
 persistence:
   storageClass: longhorn

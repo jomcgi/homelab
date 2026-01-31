@@ -439,7 +439,11 @@ func convertAccessPolicyRules(rules []AccessPolicyRule) []interface{} {
 		}
 
 		if len(rule.Emails) > 0 {
-			cfRule["email"] = map[string]interface{}{"email": rule.Emails}
+			for _, email := range rule.Emails {
+				cfRules = append(cfRules, map[string]interface{}{
+					"email": map[string]interface{}{"email": email},
+				})
+			}
 		}
 		if len(rule.EmailsEndingIn) > 0 {
 			for _, domain := range rule.EmailsEndingIn {
