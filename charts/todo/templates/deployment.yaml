@@ -28,10 +28,14 @@ spec:
               # Configure git credential helper to use token
               git config --global credential.helper 'store --file=/tmp/.git-credentials'
               echo "https://git:${GIT_TOKEN}@github.com" > /tmp/.git-credentials
-              if [ ! -d /repo/.git ]; then
-                git clone --branch {{ .Values.git.branch }} {{ .Values.git.repo }} /repo
-              else
+              if [ -d /repo/.git ]; then
+                # Valid git repo exists, update it
                 cd /repo && git fetch origin && git reset --hard origin/{{ .Values.git.branch }}
+              else
+                # Either /repo doesn't exist, or it exists but is not a valid git repo
+                # Clean up any existing contents and clone fresh
+                rm -rf /repo/* /repo/.[!.]* 2>/dev/null || true
+                git clone --branch {{ .Values.git.branch }} {{ .Values.git.repo }} /repo
               fi
               # Ensure data directory exists
               mkdir -p /repo/{{ .Values.git.dataPath }}
@@ -54,6 +58,8 @@ spec:
           env:
             - name: DATA_DIR
               value: /repo/{{ .Values.git.dataPath }}
+            - name: STATIC_DIR
+              value: /app/static/charts/todo/static
             - name: GIT_ROOT
               value: /repo
             - name: GIT_REPO
