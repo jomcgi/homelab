@@ -16,6 +16,20 @@ k8s-infra:
       limits:
         cpu: 500m
         memory: 400Mi
+    # Inject Cloudflare Access service token for Zero Trust bypass
+    # Create a service token in Cloudflare Zero Trust dashboard:
+    # Zero Trust > Access > Service Auth > Create Service Token
+    additionalEnvs:
+      CF_ACCESS_CLIENT_ID:
+        valueFrom:
+          secretKeyRef:
+            name: synthetic-tests
+            key: cloudflare-client-id
+      CF_ACCESS_CLIENT_SECRET:
+        valueFrom:
+          secretKeyRef:
+            name: synthetic-tests
+            key: cloudflare-client-secret
     config:
       receivers:
         # Prometheus scraper for NATS JetStream metrics
@@ -29,12 +43,78 @@ k8s-infra:
                       - "nats.nats.svc.cluster.local:7777"
                     labels:
                       service: nats
+
+        # =============================================================================
+        # Synthetic HTTP Health Checks
+        # Monitors all public domains for availability and response time
+        # Uses OpenTelemetry httpcheck receiver
+        # =============================================================================
+
+        # Kubernetes-hosted services (via Cloudflare Tunnel)
+        # These may require Cloudflare Zero Trust authentication bypass
+        httpcheck/k8s-services:
+          targets:
+            # GitOps - ArgoCD
+            - endpoint: https://argocd.jomcgi.dev
+              method: GET
+            # Storage management - Longhorn
+            - endpoint: https://longhorn.jomcgi.dev
+              method: GET
+            # Workflow automation - n8n
+            - endpoint: https://n8n.jomcgi.dev
+              method: GET
+            # RSS feed reader - FreshRSS
+            - endpoint: https://feeds.jomcgi.dev
+              method: GET
+            # Observability - SigNoz
+            - endpoint: https://signoz.jomcgi.dev
+              method: GET
+            # Claude Code interface
+            - endpoint: https://claude.jomcgi.dev
+              method: GET
+            # Image hosting
+            - endpoint: https://img.jomcgi.dev
+              method: GET
+            # API gateway
+            - endpoint: https://api.jomcgi.dev/status.json
+              method: GET
+            # Todo app (public)
+            - endpoint: https://todo.jomcgi.dev
+              method: GET
+            # Todo admin (requires auth)
+            - endpoint: https://todo-admin.jomcgi.dev
+              method: GET
+            # Ships/Marine frontend
+            - endpoint: https://ships.jomcgi.dev
+              method: GET
+          collection_interval: 60s
+          # Cloudflare Access service token headers for Zero Trust bypass
+          headers:
+            CF-Access-Client-Id: "${env:CF_ACCESS_CLIENT_ID}"
+            CF-Access-Client-Secret: "${env:CF_ACCESS_CLIENT_SECRET}"
+
+        # Cloudflare Pages (static sites) - no auth required
+        httpcheck/cloudflare-pages:
+          targets:
+            # Personal website
+            - endpoint: https://jomcgi.dev
+              method: GET
+            # Hiking routes
+            - endpoint: https://hikes.jomcgi.dev
+              method: GET
+            # Trip management UI
+            - endpoint: https://trips.jomcgi.dev
+              method: GET
+          collection_interval: 60s
+
       service:
         pipelines:
           # Add NATS metrics to the scraper pipeline
           metrics/scraper:
             receivers:
               - prometheus/nats
+              - httpcheck/k8s-services
+              - httpcheck/cloudflare-pages
             processors:
               - k8sattributes
               - resourcedetection

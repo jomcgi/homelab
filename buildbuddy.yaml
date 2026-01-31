@@ -1,4 +1,35 @@
 actions:
+  # Gazelle check - lightweight, no pip dependencies needed
+  # Runs in parallel with Test action
+  - name: "Gazelle lint"
+    container_image: "ubuntu-24.04"
+    resource_requests:
+      disk: "20GB"  # Smaller disk, gazelle doesn't need much
+    triggers:
+      push:
+        branches:
+          - "main"
+      pull_request:
+        branches:
+          - "*"
+    steps:
+      - run: |
+          # Skip if commit is from argocd-image-updater
+          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+            echo "Skipping argocd-image-updater commit"
+            exit 0
+          fi
+          # Verify BUILD files are up-to-date (catches missing test targets)
+          # Run without --config=ci to avoid triggering RBE analysis and pip fetches
+          bazel run //:gazelle
+          if ! git diff --exit-code; then
+            echo "ERROR: BUILD files out of sync. Run 'bazelisk run //:gazelle' locally."
+            echo "Changes detected:"
+            git diff
+            exit 1
+          fi
+
+  # Test and push - sequential steps ensure push only happens after test passes
   - name: "Test and push"
     container_image: "ubuntu-24.04"
     resource_requests:
@@ -17,14 +48,6 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # Verify BUILD files are up-to-date (catches missing test targets)
-          bazel run //:gazelle --config=ci
-          if ! git diff --exit-code; then
-            echo "ERROR: BUILD files out of sync. Run 'bazelisk run //:gazelle' locally."
-            echo "Changes detected:"
-            git diff
-            exit 1
-          fi
           bazel test //... --config=ci --deleted_packages=tools/python
 
       - run: |
@@ -32,8 +55,6 @@ actions:
             exit 0
           fi
           # Only push images on main branch (not PRs)
-          # BuildBuddy provides GIT_BRANCH or GITHUB_REF for branch detection
-          # workspace_status.sh will check multiple environment variables
           branch="${GIT_BRANCH:-${GITHUB_REF_NAME:-}}"
           if [ "${branch}" != "main" ] && [ "${branch}" != "refs/heads/main" ]; then
             echo "Skipping image push for non-main branch: ${branch:-unknown}"
@@ -41,5 +62,4 @@ actions:
           fi
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
-          # --config=ci enables branch tag (e.g., "main") in addition to timestamp tag
           bazel run //images:push_all --config=ci
