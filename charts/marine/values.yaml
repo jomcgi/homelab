@@ -72,6 +72,7 @@ ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
     tag: "main"
+    digest: ""  # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica - no need for HA for data ingestion
@@ -105,6 +106,7 @@ api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
     tag: "main"
+    digest: ""  # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica required for SQLite (single-writer lock)
@@ -136,6 +138,21 @@ api:
     limits:
       memory: 1Gi
 
+  # Liveness probe - checks if container should be restarted
+  # During catchup, the API may be unresponsive; increase tolerance
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 6
+
+  # Readiness probe - checks if container can receive traffic
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 360
+
   # Pod annotations
   podAnnotations: {}
 
@@ -149,6 +166,7 @@ frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
     tag: "main"
+    digest: ""  # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica
