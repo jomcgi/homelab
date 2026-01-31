@@ -14,7 +14,7 @@ Gap points:
 import asyncio
 import json
 import uuid
-import xml.etree.ElementTree as ET
+import defusedxml.ElementTree as ET
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Annotated

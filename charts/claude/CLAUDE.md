@@ -32,7 +32,7 @@ Single pod deployment with:
 
 ### WebSocket
 
-- `ws://host/ws?session=<id>` - Stream Claude Code I/O
+- `wss://host/ws?session=<id>` - Stream Claude Code I/O
 
 ## Persistence
 

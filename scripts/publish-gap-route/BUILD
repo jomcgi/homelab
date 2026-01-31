@@ -5,6 +5,7 @@ py_binary(
     srcs = ["main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//defusedxml",
         "@pip//nats_py",
         "@pip//typer",
     ],
@@ -15,6 +16,7 @@ py_library(
     srcs = ["main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
+        "@pip//defusedxml",
         "@pip//nats_py",
         "@pip//typer",
     ],
