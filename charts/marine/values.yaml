@@ -136,6 +136,21 @@ api:
     limits:
       memory: 1Gi
 
+  # Liveness probe - checks if container should be restarted
+  # During catchup, the API may be unresponsive; increase tolerance
+  livenessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 15
+    timeoutSeconds: 10
+    failureThreshold: 6
+
+  # Readiness probe - checks if container can receive traffic
+  readinessProbe:
+    initialDelaySeconds: 10
+    periodSeconds: 10
+    timeoutSeconds: 10
+    failureThreshold: 360
+
   # Pod annotations
   podAnnotations: {}
 
