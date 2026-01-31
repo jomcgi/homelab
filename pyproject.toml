@@ -63,6 +63,8 @@ dependencies = [
     # cdk8s for Kubernetes manifest generation
     "cdk8s~=2.68",
     "constructs~=10.0",
+    # XML parsing with XXE protection
+    "defusedxml~=0.7",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
