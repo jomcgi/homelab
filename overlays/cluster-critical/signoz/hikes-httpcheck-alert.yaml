@@ -1,32 +1,33 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-httpcheck-alert
-  namespace: argocd
+  name: hikes-httpcheck-alert
+  namespace: signoz
   labels:
     signoz.io/alert: "true"
   annotations:
-    signoz.io/alert-name: "ArgoCD Unreachable"
-    signoz.io/severity: "critical"
+    signoz.io/alert-name: "hikes.jomcgi.dev Unreachable"
+    signoz.io/severity: "warning"
     signoz.io/notification-channels: "pagerduty-homelab"
 data:
   alert.json: |
     {
-      "alert": "ArgoCD Unreachable",
+      "alert": "hikes.jomcgi.dev Unreachable",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
       "broadcastToAll": false,
       "disabled": false,
       "evalWindow": "10m0s",
       "frequency": "2m0s",
-      "severity": "critical",
+      "severity": "warning",
       "labels": {
-        "service": "argocd",
-        "environment": "production"
+        "service": "hikes",
+        "environment": "production",
+        "type": "cloudflare-pages"
       },
       "annotations": {
-        "summary": "ArgoCD at argocd.jomcgi.dev is unreachable",
-        "description": "HTTP health check has failed 5 consecutive times over 10 minutes"
+        "summary": "hikes.jomcgi.dev is unreachable",
+        "description": "HTTP health check has failed 5 consecutive times over 10 minutes."
       },
       "condition": {
         "compositeQuery": {
@@ -45,7 +46,7 @@ data:
                   {
                     "key": {"key": "http.url"},
                     "op": "=",
-                    "value": "https://argocd.jomcgi.dev"
+                    "value": "https://hikes.jomcgi.dev"
                   }
                 ]
               }
