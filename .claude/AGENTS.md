@@ -427,106 +427,136 @@ export default defineConfig({
 
 ## k8s-debug
 
-Kubernetes debugging and troubleshooting specialist.
+Kubernetes debugging specialist for troubleshooting specific known issues.
 
 ### When to Use
 
 - Pod stuck in CrashLoopBackOff, Pending, or Error
 - OOMKilled or resource exhaustion
 - Service connectivity failures
-- Investigating cluster events
-- Storage and PVC issues
-- ArgoCD sync failures
-
-### Pre-requisite Reading
-
-**Always read first:** `architecture/services.md`
+- Investigating specific pod/deployment issues
 
 ### Investigation Workflow
 
-```
-1. Identify the problem (symptoms)
-2. Gather information (kubectl get/describe/logs)
-3. Analyze (events, conditions, resource status)
-4. Hypothesize root cause
-5. Verify (check related resources)
-6. Fix via Git (never kubectl apply)
-```
+1. **Check pod status and events**
+   ```bash
+   kubectl get pods -n <namespace>
+   kubectl describe pod <pod-name> -n <namespace>
+   kubectl get events -n <namespace> --field-selector involvedObject.name=<pod-name>
+   ```
 
-### Common Issues and Commands
+2. **Examine logs (including previous crashes)**
+   ```bash
+   kubectl logs <pod-name> -n <namespace>
+   kubectl logs <pod-name> -n <namespace> --previous  # Critical for CrashLoopBackOff
+   ```
 
-**Pod not starting:**
-```bash
-# Check pod status and events
-kubectl describe pod <name> -n <namespace>
+3. **Check resource usage**
+   ```bash
+   kubectl top pods -n <namespace>
+   ```
 
-# Check previous container logs (critical for CrashLoopBackOff)
-kubectl logs <pod> -n <namespace> --previous
-
-# Check node resources
-kubectl top nodes
-kubectl describe node <node-name>
-```
-
-**Service connectivity:**
-```bash
-# Check service endpoints
-kubectl get endpoints <service> -n <namespace>
-
-# Check if pods match service selector
-kubectl get pods -n <namespace> -l <label-selector>
-
-# Test connectivity from debug pod
-kubectl run debug --rm -it --image=busybox -- wget -qO- http://<service>.<namespace>
-```
-
-**Storage issues:**
-```bash
-# Check PVC status
-kubectl get pvc -n <namespace>
-kubectl describe pvc <name> -n <namespace>
-
-# Check Longhorn volumes
-kubectl get volumes.longhorn.io -n longhorn-system
-```
-
-**ArgoCD sync problems:**
-```bash
-# Check application status
-kubectl get applications -n argocd
-kubectl describe application <name> -n argocd
-
-# Check sync status via CLI
-argocd app get <name> --show-operation
-```
-
-### Common Issues Reference
+### Common Issues
 
 | Symptom | Check | Common Cause |
 |---------|-------|--------------|
 | CrashLoopBackOff | `kubectl logs --previous` | App error, missing config |
 | OOMKilled (137) | `kubectl top pods` | Memory limit too low |
 | ImagePullBackOff | `kubectl describe pod` | Wrong image, missing creds |
-| Pending | `kubectl describe pod` | Insufficient resources, PVC binding |
-| ContainerCreating | `kubectl describe pod` | Image pull, secret access, volume mount |
-| Evicted | Node disk/memory pressure | Clean up resources, increase node capacity |
+| Pending | `kubectl describe pod` | Insufficient resources |
 
 ### Common Mistakes to Avoid
 
-1. **Modifying resources directly** - Always change via Git
-2. **Ignoring events** - Events often contain the root cause
-3. **Not checking all replicas** - Issue may be pod-specific
-4. **Missing namespace** - Always specify -n namespace
-5. **Skipping describe** - Contains more info than get
-6. **Restarting before investigating** - Find root cause first
+- **Restarting pods before investigating** - Find root cause first
+- **Only checking current logs** - Use `--previous` for crash debugging
+- **Editing resources directly** - In GitOps, modify Git instead
 
 ### Example Prompts
 
-- "Debug why trips-api pods are in CrashLoopBackOff"
-- "Investigate service mesh connectivity between services"
-- "Find why PVCs are stuck in Pending state"
-- "Troubleshoot ArgoCD sync failure for signoz application"
-- "Diagnose high memory usage in the claude namespace"
+- "Pod nginx-abc123 is in CrashLoopBackOff, help me debug"
+- "Service frontend can't connect to backend service"
+- "Pods keep getting OOMKilled, how do I investigate?"
+
+---
+
+## cluster-health
+
+Proactive cluster health assessment and discovery specialist.
+
+### When to Use
+
+- Routine cluster health checks
+- Finding unknown problems before they cause incidents
+- Pre-deployment validation
+- Capacity planning and resource auditing
+- Certificate and secret expiration checks
+
+### Health Check Commands
+
+```bash
+# Find all non-running pods across cluster
+kubectl get pods -A | grep -v Running | grep -v Completed
+
+# Recent warning events (last hour)
+kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' | head -50
+
+# ArgoCD sync status - find out-of-sync apps
+argocd app list -o wide | grep -v Synced
+
+# Node health and pressure conditions
+kubectl get nodes
+kubectl describe nodes | grep -A5 "Conditions:"
+kubectl top nodes
+
+# Resource usage hotspots
+kubectl top pods -A --sort-by=memory | head -20
+kubectl top pods -A --sort-by=cpu | head -20
+
+# PVC issues
+kubectl get pvc -A | grep -v Bound
+
+# Certificate expiration (cert-manager)
+kubectl get certificates -A
+kubectl get certificates -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}: {.status.notAfter}{"\n"}{end}'
+
+# Pods with high restart counts
+kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metadata.name}: {.status.containerStatuses[0].restartCount}{"\n"}{end}' | awk -F: '$2 > 5'
+```
+
+### Health Assessment Checklist
+
+- [ ] All pods Running/Completed (no CrashLoopBackOff, Pending, Error)
+- [ ] No Warning events in last hour
+- [ ] All ArgoCD applications Synced and Healthy
+- [ ] Node CPU/memory below 80% utilization
+- [ ] No PVCs stuck in Pending
+- [ ] Certificates not expiring within 30 days
+- [ ] No pods with excessive restarts (>5)
+
+### Common Patterns
+
+**Daily health check script:**
+```bash
+echo "=== Pod Issues ==="
+kubectl get pods -A | grep -v Running | grep -v Completed
+
+echo "=== Recent Warnings ==="
+kubectl get events -A --field-selector type=Warning --sort-by='.lastTimestamp' | tail -10
+
+echo "=== ArgoCD Status ==="
+argocd app list | grep -v Synced
+
+echo "=== Node Resources ==="
+kubectl top nodes
+```
+
+### Example Prompts
+
+- "Run a health check across all namespaces"
+- "Find all pods that have restarted more than 3 times"
+- "Check for certificates expiring in the next 14 days"
+- "Identify resource usage hotspots in the cluster"
+- "What ArgoCD applications are out of sync?"
 
 ---
 
@@ -536,196 +566,46 @@ Quality assurance and hermetic testing specialist.
 
 ### When to Use
 
-- Designing test strategies for new services
-- Investigating flaky or failing tests
+- Designing test strategies
+- Investigating flaky tests
 - Setting up hermetic test environments
-- Configuring Bazel test caching and reproducibility
-- Implementing parallel test execution in CI
-- Establishing test data management patterns
-- Debugging test isolation issues
+- Configuring Bazel test caching
+- Parallel test execution in CI
 
-### Test Size Classification (Google Standard)
-
-Follow Google's test size pyramid with default timeouts:
+### Test Size Classification
 
 | Size | Scope | Timeout | Constraints |
 |------|-------|---------|-------------|
-| Small | Single function/class | 1 min | Single thread, no I/O, no network |
-| Medium | Multiple classes | 5 min | Single machine, localhost network only |
-| Large | Cross-service | 15 min | Multi-machine, real network |
-| Enormous | Full system | 60 min | Production-like environment |
+| Small | Single function | 1 min | No I/O, no network |
+| Medium | Multiple classes | 5 min | Localhost only |
+| Large | Cross-service | 15 min | Real network |
 
 ### Hermetic Testing Principles
 
-**Core requirements:**
-- Tests must be deterministic - same inputs produce same outputs
-- No dependencies on external services, network, or shared state
-- All test data created within the test or via fixtures
-- Tests can run in any order without affecting each other
+- Tests must be deterministic
+- No dependencies on external services
+- All test data created within test or fixtures
+- Tests can run in any order
 
-**Isolation strategies:**
-```python
-# Mark tests with appropriate size/scope
-@pytest.mark.small   # Fast, hermetic, no I/O
-@pytest.mark.medium  # Can use localhost, filesystem
-@pytest.mark.large   # Full network access allowed
-```
-
-**Block external resources in unit tests:**
-- Use mocks, stubs, and fakes for external dependencies
-- Block network access at the test framework level
-- Use in-memory databases for data layer tests
-- Mock system time and random number generation
-
-### Bazel Test Commands
+### Flaky Test Detection
 
 ```bash
-# Run all tests with caching
-bazelisk test //...
-
-# Force re-run ignoring cache (for flaky test investigation)
-bazelisk test --cache_test_results=no //path:target
-
-# Run test multiple times to detect flakiness
-bazelisk test --runs_per_test=10 --cache_test_results=no //path:target
-
-# Run with disk cache for worktree sharing
-bazelisk test --disk_cache=/tmp/bazel-cache //...
-
-# Debug cache misses
-bazelisk aquery //path:target
+bazel test --runs_per_test=20 --cache_test_results=no //path:target
 ```
-
-**Bazel tags for non-hermetic tests:**
-```python
-# In BUILD file
-py_test(
-    name = "integration_test",
-    tags = ["no-cache", "no-remote"],  # Disable caching
-    size = "medium",
-)
-```
-
-### Parallel Test Execution
-
-**Strategies for CI:**
-1. **Test sharding** - Split tests across parallel runners
-2. **Matrix execution** - Run test groups concurrently
-3. **Load balancing** - Group by historical execution time
-
-**Key principles:**
-- Each test must be independent - no shared state
-- Use Docker/containers for environment isolation
-- Mock external services or use service virtualization
-- Reset test data between parallel executions
-
-```yaml
-# GitHub Actions matrix example
-jobs:
-  test:
-    strategy:
-      matrix:
-        shard: [1, 2, 3, 4]
-    steps:
-      - run: pytest --shard-id=${{ matrix.shard }} --num-shards=4
-```
-
-### Test Data Management
-
-**Fixture patterns:**
-```python
-# Use factory pattern for flexible test data
-@pytest.fixture
-def user_factory():
-    def _create_user(**kwargs):
-        return UserFactory(**kwargs)
-    return _create_user
-
-# Transaction isolation for database tests
-@pytest.fixture
-def db_session():
-    session = create_session()
-    yield session
-    session.rollback()  # Always rollback, never commit
-```
-
-**Best practices:**
-- Use factories over fixtures for flexible test data
-- Never share mutable state between tests
-- Use transaction rollback for database isolation
-- Generate synthetic data rather than copying production
-
-### Flaky Test Detection and Prevention
-
-**Detection commands:**
-```bash
-# Run test multiple times
-bazelisk test --runs_per_test=20 --cache_test_results=no //path:target
-
-# Use pytest-rerunfailures
-pytest --reruns 3 --reruns-delay 1
-```
-
-**Prevention strategies:**
-- Replace static waits with explicit waits/conditions
-- Mock external services and network calls
-- Use explicit synchronization for async operations
-- Sandbox parallel tests in isolated temp directories
-- Reset all state between test runs
-
-**Quarantine process:**
-1. Identify flaky test via CI analytics
-2. Add `@pytest.mark.flaky` or move to quarantine suite
-3. Investigate root cause (timing, state, external dependency)
-4. Fix and verify with 20+ consecutive passes
-5. Remove from quarantine
-
-### Integration vs Unit Test Boundaries
-
-**Unit tests (small):**
-- Test single class/function in isolation
-- Mock ALL external dependencies
-- No I/O, network, or filesystem access
-- Run in milliseconds
-
-**Integration tests (medium):**
-- Test interaction with real infrastructure
-- Use real databases, message queues (localhost)
-- Verify serialization, connection handling, transactions
-- Run in seconds
-
-**Contract tests:**
-- Verify API contracts between services
-- Use tools like Pact for consumer-driven contracts
-- Catch breaking changes before E2E tests
-
-**E2E tests (large):**
-- Test critical user journeys only
-- Minimize count - expensive and slow
-- Use for smoke tests and critical paths
 
 ### Common Mistakes to Avoid
 
-1. **Testing implementation, not behavior** - Verify outcomes, not internal details
-2. **Shared mutable state** - Each test must create its own data
-3. **Time-dependent tests** - Always mock system time
-4. **Order-dependent tests** - Tests must pass in any order
-5. **Flaky selectors in UI tests** - Use data-testid attributes
-6. **Over-mocking** - Integration tests should use real dependencies
-7. **Ignoring test pyramid** - Too many E2E tests, not enough unit tests
-8. **No cleanup** - Always reset state after tests
-9. **Caching non-hermetic tests** - Tag properly with no-cache
-10. **Static waits** - Use explicit conditions instead of sleep()
+- Testing implementation, not behavior
+- Shared mutable state between tests
+- Time-dependent tests without mocking
+- Order-dependent tests
+- Caching non-hermetic tests
 
 ### Example Prompts
 
 - "Set up hermetic testing for the new payment service"
 - "Investigate why test_order_processing is flaky in CI"
-- "Configure Bazel remote caching for our monorepo"
 - "Design test data factories for the user domain"
-- "Split our test suite for parallel execution across 4 runners"
-- "Add contract tests between order-service and inventory-service"
-- "Quarantine and fix the flaky tests blocking our CI pipeline"
 
 ---
 
@@ -784,16 +664,16 @@ What are the trade-offs?
 
 ---
 
-## ux-evaluator
+## dev-ux
 
-UX evaluation specialist for CLI and developer tools.
+Developer experience and CLI/API usability specialist.
 
 ### When to Use
 
 - Evaluating CLI interfaces
 - Reviewing error messages
 - Assessing help documentation
-- Auditing accessibility
+- Auditing terminal accessibility
 - Analyzing developer experience friction
 
 ### Evaluation Criteria (Nielsen's Heuristics for CLI)
@@ -839,222 +719,367 @@ Every error should explain:
 
 ---
 
+## frontend-ux
+
+User-facing web application UX and accessibility specialist.
+
+### When to Use
+
+- Reviewing UI components for accessibility compliance
+- Evaluating form designs and validation patterns
+- Auditing responsive design and mobile-first implementations
+- Checking color contrast, typography, and spacing
+- Reviewing user flows and navigation patterns
+- Assessing Core Web Vitals performance impact
+
+### Accessibility (WCAG 2.2)
+
+| Requirement | Standard |
+|-------------|----------|
+| Color contrast (text) | 4.5:1 minimum (AA) |
+| Color contrast (large text) | 3:1 minimum |
+| Touch targets | 44x44px minimum |
+| Focus indicators | Visible, sufficient contrast |
+
+### Form Design Best Practices
+
+- Single-column layout reduces cognitive load
+- Validate on blur, not while typing
+- Specific error messages ("Password must be 8+ characters" not "Invalid")
+- Never use placeholder-only labels
+- Preserve user input when one field has an error
+
+### Core Web Vitals
+
+| Metric | Target | Impact |
+|--------|--------|--------|
+| LCP | < 2.5s | Largest Contentful Paint |
+| INP | < 200ms | Interaction to Next Paint |
+| CLS | < 0.1 | Cumulative Layout Shift |
+
+### Common Mistakes to Avoid
+
+| Mistake | Fix |
+|---------|-----|
+| Low contrast text | Use contrast checker; 4.5:1 minimum |
+| Small touch targets | Minimum 44x44px |
+| Placeholder-only labels | Always use visible, persistent labels |
+| Validating while typing | Validate on blur or submit |
+| Color-only error states | Combine color with icons and text |
+| Layout shift on load | Reserve space for dynamic content |
+
+### Example Prompts
+
+- "Review this component for WCAG 2.2 AA compliance"
+- "Evaluate this form's validation UX"
+- "Check this page for Core Web Vitals issues"
+- "Audit responsive behavior at mobile breakpoints"
+
+---
+
 ## security
 
-Security review and hardening specialist.
+Kubernetes and cloud-native security specialist.
 
 ### When to Use
 
 - Reviewing code changes for security vulnerabilities
-- Analyzing container images and dependencies
-- Configuring Kyverno policies
-- Auditing RBAC and network policies
-- Investigating security incidents
-- Hardening service configurations
+- Auditing container images and dependencies for CVEs
+- Configuring Pod Security Standards and Kyverno policies
+- Designing RBAC and NetworkPolicy configurations
+- Implementing secret management
+- Supply chain security (SBOM, image signing)
 
 ### Pre-requisite Reading
 
 **Always read first:** `architecture/security.md`
 
-### Security Review Checklist
+### Key Commands
 
-**Container Security:**
-- [ ] Image runs as non-root user
-- [ ] No unnecessary capabilities
-- [ ] Read-only root filesystem where possible
-- [ ] Minimal base image (Wolfi/distroless)
-- [ ] No secrets in image layers
+```bash
+# Container image scanning
+trivy image <image:tag>
+trivy image --severity HIGH,CRITICAL <image:tag>
 
-**Network Security:**
-- [ ] Services not directly exposed to internet
-- [ ] Cloudflare Tunnel for external access
-- [ ] Network policies restrict pod-to-pod traffic
-- [ ] mTLS via Linkerd service mesh
+# Kubernetes manifest scanning
+trivy k8s --report summary cluster
+checkov -d charts/
 
-**Secret Management:**
-- [ ] Secrets in External Secrets Operator, not Git
-- [ ] No hardcoded credentials
-- [ ] Least-privilege service accounts
-- [ ] Secret rotation configured
+# Secret scanning
+gitleaks detect --source .
 
-**Input Validation:**
-- [ ] All user input sanitized
-- [ ] SQL injection prevention (parameterized queries)
-- [ ] XSS protection (output encoding, CSP)
-- [ ] CSRF tokens for state-changing operations
+# SBOM generation
+trivy image --format spdx-json -o sbom.json <image:tag>
 
-### Kyverno Policy Patterns
-
-```yaml
-# Block privileged containers
-apiVersion: kyverno.io/v1
-kind: ClusterPolicy
-metadata:
-  name: disallow-privileged
-spec:
-  validationFailureAction: Enforce
-  rules:
-    - name: deny-privileged
-      match:
-        resources:
-          kinds:
-            - Pod
-      validate:
-        message: "Privileged containers are not allowed"
-        pattern:
-          spec:
-            containers:
-              - securityContext:
-                  privileged: "!true"
+# Image signing
+cosign sign --key cosign.key <image:tag>
+cosign verify --key cosign.pub <image:tag>
 ```
 
-### Common Vulnerabilities to Check
+### Pod Security Standards
 
-| Vulnerability | Detection | Mitigation |
-|---------------|-----------|------------|
-| Command injection | User input in shell commands | Parameterized commands, input validation |
-| SQL injection | String concatenation in queries | Parameterized queries, ORMs |
-| XSS | Unescaped output | Content Security Policy, output encoding |
-| SSRF | User-controlled URLs | URL allowlists, network segmentation |
-| Insecure deserialization | Untrusted data parsing | Input validation, safe parsers |
+```yaml
+# Apply via namespace labels
+metadata:
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+```
+
+| Profile | Use Case |
+|---------|----------|
+| `privileged` | System components only |
+| `baseline` | Development/staging |
+| `restricted` | Production workloads |
+
+### Secure Pod SecurityContext
+
+```yaml
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 65534
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+```
+
+### NetworkPolicy Pattern (Default Deny)
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+```
 
 ### Common Mistakes to Avoid
 
-1. **Running containers as root** - Always specify non-root user
-2. **Storing secrets in Git** - Use External Secrets Operator
-3. **Overly permissive RBAC** - Follow principle of least privilege
-4. **Missing network policies** - Default deny, explicit allow
-5. **Trusting user input** - Validate and sanitize everything
+1. **Running containers as root** - Always use `runAsNonRoot: true`
+2. **Using `:latest` image tags** - Pin to digest or immutable tags
+3. **Storing secrets in Git** - Use External Secrets Operator
+4. **Wildcard RBAC permissions** - Specify exact resources and verbs
+5. **No NetworkPolicies** - Apply default-deny in every namespace
+6. **Missing resource limits** - Enables DoS via resource exhaustion
 
 ### Example Prompts
 
 - "Review this PR for security vulnerabilities"
-- "Audit RBAC permissions for the trips-api service"
-- "Create a Kyverno policy to enforce resource limits"
-- "Investigate suspicious network traffic in the cluster"
-- "Harden the container image for ships-api"
+- "Scan the trips-api container image for CVEs"
+- "Create a NetworkPolicy for the database namespace"
+- "Audit RBAC permissions for the monitoring service account"
+- "Set up image signing with Cosign in CI"
+
+---
+
+## pr-manager
+
+Pull request lifecycle manager. A task is not complete until CI passes and PR is ready to merge.
+
+### When to Use
+
+- Creating and managing pull requests
+- Monitoring CI status (BuildBuddy)
+- Debugging CI failures
+- Ensuring PRs meet merge criteria
+- Reproducing CI failures locally
+
+### PR Lifecycle
+
+```
+Code complete → Create PR → CI runs → Fix failures → CI green → Ready for review → Merge
+```
+
+**A task is ONLY complete when CI is green.**
+
+### Creating PRs
+
+```bash
+# Create PR with proper description
+gh pr create --title "feat: add X" --body "## Summary\n- Change 1\n- Change 2"
+
+# Check PR status
+gh pr status
+gh pr checks
+
+# View CI details
+gh pr checks --watch
+```
+
+### CI Pipeline
+
+```
+git push → GitHub Actions → BuildBuddy (build + test) → PR status check
+```
+
+### Monitoring CI
+
+```bash
+# Watch CI status
+gh pr checks --watch
+
+# Get BuildBuddy invocation URL from checks
+gh pr checks | grep buildbuddy
+
+# Open BuildBuddy UI for detailed logs
+# URL format: https://app.buildbuddy.io/invocation/<id>
+```
+
+### Reproducing CI Failures Locally
+
+```bash
+# Run with CI config
+bazelisk test //... --config=ci
+
+# Run specific failing target
+bazelisk test //path:failing_target --config=ci
+
+# Force no-cache to match fresh CI run
+bazelisk test //path:target --cache_test_results=no
+
+# Full clean rebuild
+bazelisk clean --expunge && bazelisk test //...
+```
+
+### Common CI Failures
+
+| Issue | Cause | Fix |
+|-------|-------|-----|
+| Passes locally, fails CI | Non-hermetic test | Remove hardcoded paths, timestamps, env vars |
+| Flaky test | Race condition | Add synchronization, use `--runs_per_test=10` to verify |
+| Missing dependency | Implicit dep | Add explicit dep to BUILD file |
+| Timeout | Slow test | Optimize or increase timeout |
+| Format check | Uncommitted format | Run `format` and commit |
+
+### Merge Criteria Checklist
+
+- [ ] All CI checks passing (green checkmark)
+- [ ] No merge conflicts
+- [ ] PR description complete
+- [ ] Changes match PR scope (no unrelated changes)
+
+### Common Mistakes to Avoid
+
+1. **Declaring done before CI passes** - Always wait for green
+2. **Ignoring flaky tests** - Fix them, don't re-run until green
+3. **Not checking BuildBuddy logs** - Contains detailed failure info
+4. **Pushing without local test** - Run `bazelisk test //...` first
+5. **Large PRs** - Smaller PRs are easier to review and debug
+
+### Example Prompts
+
+- "Create a PR for my changes"
+- "CI is failing, help me debug"
+- "Check if my PR is ready to merge"
+- "Reproduce the BuildBuddy failure locally"
+- "Why is this test flaky in CI?"
 
 ---
 
 ## observability
 
-Observability and monitoring specialist for metrics, traces, and logs.
+Observability specialist for metrics, traces, logs, and alerting.
 
 ### When to Use
 
-- Setting up metrics, traces, or logs for services
-- Creating dashboards and alerts
-- Debugging performance issues
-- Configuring SigNoz integrations
+- Instrumenting services with OpenTelemetry
+- Setting up structured logging
+- Creating dashboards (RED/USE methods)
+- Configuring alerts with runbooks
 - Implementing SLOs and error budgets
+- Debugging distributed tracing issues
 
 ### Pre-requisite Reading
 
 **Always read first:** `architecture/observability.md`
 
-### SigNoz Query Patterns
+### Dashboard Methods
 
-**Log queries:**
-```
-# Filter by service and level
-service.name = "trips-api" AND severity_text = "ERROR"
+- **RED** (services): Rate, Errors, Duration
+- **USE** (resources): Utilization, Saturation, Errors
 
-# Search log body
-body CONTAINS "timeout"
+### Structured Logging
 
-# Time range with attribute filter
-timestamp >= now() - 1h AND http.status_code >= 500
-```
-
-**Trace queries:**
-```
-# Slow requests
-duration > 1s AND service.name = "ships-api"
-
-# Error traces
-status.code = ERROR
-
-# Specific endpoint
-http.route = "/api/v1/ships"
+```json
+{
+  "timestamp": "2025-01-31T12:00:00Z",
+  "level": "ERROR",
+  "service": "trips-api",
+  "trace_id": "abc123",
+  "message": "Database connection timeout",
+  "duration_ms": 5000
+}
 ```
 
-### Instrumentation Patterns
+### OpenTelemetry Instrumentation (Go)
 
-**Python (OpenTelemetry):**
-```python
-from opentelemetry import trace
-from opentelemetry.instrumentation.flask import FlaskInstrumentor
-
-# Auto-instrument Flask
-FlaskInstrumentor().instrument_app(app)
-
-# Manual spans
-tracer = trace.get_tracer(__name__)
-with tracer.start_as_current_span("process_order") as span:
-    span.set_attribute("order.id", order_id)
-    # ... processing
-```
-
-**Go (OpenTelemetry):**
 ```go
-import "go.opentelemetry.io/otel"
-
 tracer := otel.Tracer("myservice")
 ctx, span := tracer.Start(ctx, "ProcessOrder")
 defer span.End()
 
-span.SetAttributes(attribute.String("order.id", orderID))
+span.SetAttributes(
+    attribute.String("order.id", orderID),
+)
 ```
 
-### Alert Configuration
+### SLO-Based Alerting
 
-**SLO-based alerts:**
 ```yaml
-# Error rate > 1% for 5 minutes
-alert: HighErrorRate
+# Burn rate alert - consuming error budget too fast
+alert: HighErrorBudgetBurn
 expr: |
-  sum(rate(http_requests_total{status=~"5.."}[5m]))
-  / sum(rate(http_requests_total[5m])) > 0.01
-for: 5m
+  sli:request_success_rate:ratio_rate1h < 0.99
+for: 2m
 labels:
   severity: critical
+annotations:
+  runbook: https://runbooks.example.com/high-error-rate
 ```
 
-**Latency alerts:**
-```yaml
-# P99 latency > 500ms
-alert: HighLatency
-expr: |
-  histogram_quantile(0.99,
-    sum(rate(http_request_duration_seconds_bucket[5m])) by (le)
-  ) > 0.5
-for: 5m
+### Runbook Template
+
+```markdown
+# Alert: HighErrorRate
+
+## Impact
+Users experiencing failed requests
+
+## Investigation
+1. Check traces: `status.code = ERROR AND service.name = "affected-service"`
+2. Check recent deployments: `argocd app history <app>`
+
+## Mitigation
+1. If recent deploy: Roll back via Git revert
+2. If dependency: Check upstream service health
 ```
 
-### Dashboard Best Practices
+### SigNoz Query Patterns
 
-**RED method for services:**
-- **R**ate - Requests per second
-- **E**rrors - Error rate percentage
-- **D**uration - Latency percentiles (p50, p95, p99)
+```sql
+-- Logs: Errors in last hour
+service.name = "trips-api" AND severity_text = "ERROR"
 
-**USE method for resources:**
-- **U**tilization - CPU, memory, disk usage
-- **S**aturation - Queue depth, thread pool usage
-- **E**rrors - Hardware errors, dropped packets
+-- Traces: Slow requests
+duration > 1s AND service.name = "ships-api"
+```
 
 ### Common Mistakes to Avoid
 
-1. **High cardinality labels** - Avoid user IDs, request IDs as metric labels
-2. **Missing service.name** - Always set for trace correlation
+1. **High cardinality labels** - Never use user IDs as metric labels
+2. **Missing service.name** - Required for trace correlation
 3. **No sampling strategy** - Sample high-volume traces
-4. **Alert fatigue** - Only alert on actionable conditions
-5. **Missing context propagation** - Ensure trace context flows between services
+4. **Alert on symptoms, not causes** - Alert on error rate, not CPU
+5. **Missing runbooks** - Alerts without runbooks increase MTTR
 
 ### Example Prompts
 
 - "Add OpenTelemetry tracing to the ships-api service"
-- "Create a dashboard for trips-api request latency"
-- "Set up alerts for error rate exceeding SLO"
-- "Debug slow database queries using traces"
-- "Configure log aggregation for the claude namespace"
+- "Create an SLO dashboard for trips-api"
+- "Set up burn-rate alerting for the payment service"
+- "Debug why traces are fragmented between services"
+- "Configure structured logging for the Python service"
