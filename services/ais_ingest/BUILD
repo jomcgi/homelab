@@ -2,8 +2,6 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py main //services/ais-ingest:ais-ingest
-
 py_binary(
     name = "main",
     srcs = ["main.py"],
@@ -35,8 +33,8 @@ py_library(
 
 py3_image(
     name = "image",
-    binary = "//services/ais-ingest:main",
-    repository = "ghcr.io/jomcgi/homelab/services/ais-ingest",
+    binary = "//services/ais_ingest:main",
+    repository = "ghcr.io/jomcgi/homelab/services/ais_ingest",
 )
 
 py_test(

@@ -1,7 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py main //services/ships-api:ships-api
+# gazelle:resolve py main //services/ships_api:ships-api
 
 py_library(
     name = "tests",
@@ -16,7 +16,7 @@ py_library(
     imports = [".."],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//services/ships-api",
+        "//services/ships_api:ships-api",
         "@pip//httpx",
         "@pip//pytest",
         "@pip//pytest_asyncio",
@@ -29,7 +29,7 @@ py_test(
     imports = [".."],
     deps = [
         ":conftest",
-        "//services/ships-api",
+        "//services/ships_api:ships-api",
         "@pip//httpx",
         "@pip//pytest",
     ],
@@ -41,7 +41,7 @@ py_test(
     imports = [".."],
     deps = [
         ":conftest",
-        "//services/ships-api",
+        "//services/ships_api:ships-api",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],

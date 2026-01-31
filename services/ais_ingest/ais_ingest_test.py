@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 
-from main import (
+from services.ais_ingest.main import (
     AISIngestService,
     app,
     format_eta,
@@ -316,7 +316,7 @@ class TestHealthEndpoint:
     """Tests for health check endpoint."""
 
     def test_health_ready(self):
-        import main
+        import services.ais_ingest.main as main
 
         with patch.object(main, "service") as mock_service:
             mock_service.ready = True
@@ -336,7 +336,7 @@ class TestHealthEndpoint:
             assert data["messages_published"] == 100
 
     def test_health_not_ready(self):
-        import main
+        import services.ais_ingest.main as main
 
         with patch.object(main, "service") as mock_service:
             mock_service.ready = False
@@ -356,7 +356,7 @@ class TestMetricsEndpoint:
     """Tests for metrics endpoint."""
 
     def test_metrics(self):
-        import main
+        import services.ais_ingest.main as main
 
         with patch.object(main, "service") as mock_service:
             mock_service.messages_published = 500

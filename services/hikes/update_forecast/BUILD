@@ -2,8 +2,6 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py update //services/hikes/update_forecast:update_forecast
-
 py_binary(
     name = "update",
     srcs = ["update.py"],
@@ -26,7 +24,10 @@ py3_image(
 
 py_library(
     name = "update_forecast",
-    srcs = ["update.py"],
+    srcs = [
+        "__init__.py",
+        "update.py",
+    ],
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//boto3",

@@ -51,9 +51,9 @@ Only `charts/coredns/README.md` exists - excellent model but singular. 22 other 
 | Component                 | README  | Notes                                     |
 | ------------------------- | ------- | ----------------------------------------- |
 | services/hikes            | Missing | Complex scraper with multiple components  |
-| services/ais-ingest       | Missing | Clean code, needs usage docs              |
-| services/ships-api        | Missing | WebSocket + NATS integration undocumented |
-| services/trips-api        | Missing | No API schema documentation               |
+| services/ais_ingest       | Missing | Clean code, needs usage docs              |
+| services/ships_api        | Missing | WebSocket + NATS integration undocumented |
+| services/trips_api        | Missing | No API schema documentation               |
 | websites/ships.jomcgi.dev | Missing | React app with no build instructions      |
 | services/stargazer        | Present | Excellent - use as template for others    |
 
@@ -149,9 +149,9 @@ Code quality is excellent (circuit breakers, rate limiting, state machines), but
 
 9. [ ] Add README to each service (use stargazer as template):
    - [ ] services/hikes
-   - [ ] services/ais-ingest
-   - [ ] services/ships-api
-   - [ ] services/trips-api
+   - [ ] services/ais_ingest
+   - [ ] services/ships_api
+   - [ ] services/trips_api
 10. [ ] Document API schemas for ships-api and trips-api
 11. [ ] Add .env.example files for local development
 

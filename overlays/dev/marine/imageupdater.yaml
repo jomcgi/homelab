@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/ais-ingest:main
+          imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
           manifestTargets:
             helm:
               name: ingest.image.repository
@@ -19,7 +19,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/ships-api:main
+          imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
           manifestTargets:
             helm:
               name: api.image.repository
@@ -28,7 +28,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/ships-frontend:main
+          imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
           manifestTargets:
             helm:
               name: frontend.image.repository

@@ -9,7 +9,7 @@ imagePullSecrets:
 # AIS Ingest component
 ingest:
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ais-ingest
+    repository: ghcr.io/jomcgi/homelab/services/ais_ingest
     tag: "latest@sha256:f1f4b610559997c7ae204f0ff7a66da4b7fe61c57c905ed36a19ba3db179342a"
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
@@ -18,7 +18,7 @@ ingest:
 # Ships API component
 api:
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ships-api
+    repository: ghcr.io/jomcgi/homelab/services/ships_api
     tag: "latest@sha256:3ca2d8a633e7592a8500e69f901c4a07cde368c66142fa5f64b532d4bf3b6dfe"
     pullPolicy: Always
   # Overprovisioned for catchup - reduce after caught up
@@ -34,7 +34,7 @@ api:
 frontend:
   image:
     tag: main@sha256:a23b2b2b46708c57e947c4078ea3c84608f1c426546708e5507b8bf0e7bba0c6
-    repository: ghcr.io/jomcgi/homelab/services/ships-frontend
+    repository: ghcr.io/jomcgi/homelab/services/ships_frontend
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
     policyId: ""

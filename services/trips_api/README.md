@@ -63,5 +63,5 @@ Environment variables:
 ## Running Locally
 
 ```bash
-bazel run //services/trips-api
+bazel run //services/trips_api
 ```

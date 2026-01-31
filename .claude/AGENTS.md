@@ -13,7 +13,7 @@ This file defines specialized agents for common tasks in this repository. Each a
 bazelisk test //...
 
 # Run specific test target
-bazelisk test //services/ships-api:ships_api_test
+bazelisk test //services/ships_api:ships_api_test
 
 # Run tests in CI mode (remote caching)
 bazelisk test //... --config=ci
@@ -973,7 +973,7 @@ flowchart LR
 | `key` | Description | `value` |
 ```
 
-**Service README** (see `services/trips-api/README.md`):
+**Service README** (see `services/trips_api/README.md`):
 ```markdown
 # Service Name
 

@@ -53,7 +53,7 @@ js_run_binary(
 filegroup(
     name = "dist",
     srcs = [":build"],
-    visibility = ["//services/ships-frontend:__pkg__"],
+    visibility = ["//services/ships_frontend:__pkg__"],
 )
 
 # Test files

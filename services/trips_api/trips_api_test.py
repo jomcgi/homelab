@@ -9,7 +9,7 @@ import pytest_asyncio
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
 
-from main import (
+from services.trips_api.main import (
     ConnectionManager,
     TripPoint,
     TripsState,
@@ -283,7 +283,7 @@ class TestAPIEndpoints:
     """Tests for FastAPI endpoints."""
 
     def test_health_endpoint(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             mock_state.ready = True
@@ -299,7 +299,7 @@ class TestAPIEndpoints:
             assert data["points"] == 1
 
     def test_health_endpoint_not_ready(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             mock_state.ready = False
@@ -314,7 +314,7 @@ class TestAPIEndpoints:
             assert data["status"] == "starting"
 
     def test_get_points_empty(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             mock_state.get_points.return_value = []
@@ -329,7 +329,7 @@ class TestAPIEndpoints:
             assert data["total"] == 0
 
     def test_get_points_with_data(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             point = TripPoint(
@@ -347,7 +347,7 @@ class TestAPIEndpoints:
             assert data["points"][0]["id"] == "test"
 
     def test_get_point_exists(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             point = TripPoint(
@@ -363,7 +363,7 @@ class TestAPIEndpoints:
             assert data["id"] == "test"
 
     def test_get_point_not_found(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             mock_state.get_point.return_value = None
@@ -374,7 +374,7 @@ class TestAPIEndpoints:
             assert response.status_code == 404
 
     def test_get_stats(self):
-        import main
+        import services.trips_api.main as main
 
         with patch.object(main, "state") as mock_state:
             mock_state.get_stats.return_value = {

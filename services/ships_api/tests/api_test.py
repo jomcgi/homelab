@@ -47,7 +47,7 @@ class TestHealthEndpoints:
     @pytest.mark.asyncio
     async def test_ready_returns_503_when_not_ready(self, test_client: AsyncClient):
         """Ready endpoint returns 503 when service is not ready."""
-        from main import service
+        from services.ships_api.main import service
 
         # Temporarily set service to not ready
         original_ready = service.ready
@@ -140,7 +140,7 @@ class TestTrackEndpoint:
     @pytest.mark.asyncio
     async def test_track_with_data(self, test_client: AsyncClient, track_data: list[dict]):
         """Track returns position history."""
-        from main import service
+        from services.ships_api.main import service
 
         # Insert track data
         mmsi = track_data[0]["mmsi"]
@@ -159,7 +159,7 @@ class TestTrackEndpoint:
     @pytest.mark.asyncio
     async def test_track_with_limit(self, test_client: AsyncClient, track_data: list[dict]):
         """Track respects limit parameter."""
-        from main import service
+        from services.ships_api.main import service
 
         mmsi = track_data[0]["mmsi"]
         positions = [(p, p["timestamp"]) for p in track_data]
@@ -175,7 +175,7 @@ class TestTrackEndpoint:
     @pytest.mark.asyncio
     async def test_track_with_since_hours(self, test_client: AsyncClient):
         """Track filters by since parameter (hours)."""
-        from main import service
+        from services.ships_api.main import service
 
         mmsi = "123456789"
         now = datetime.now(timezone.utc)
@@ -249,7 +249,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_websocket_manager_connect(self, mock_websocket):
         """WebSocket manager accepts connections."""
-        from main import WebSocketManager
+        from services.ships_api.main import WebSocketManager
 
         manager = WebSocketManager()
         await manager.connect(mock_websocket)
@@ -260,7 +260,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_websocket_manager_disconnect(self, mock_websocket):
         """WebSocket manager removes disconnected clients."""
-        from main import WebSocketManager
+        from services.ships_api.main import WebSocketManager
 
         manager = WebSocketManager()
         await manager.connect(mock_websocket)
@@ -271,7 +271,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_websocket_manager_broadcast(self, mock_websocket):
         """WebSocket manager broadcasts to all clients."""
-        from main import WebSocketManager
+        from services.ships_api.main import WebSocketManager
 
         manager = WebSocketManager()
         await manager.connect(mock_websocket)
@@ -284,7 +284,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_websocket_manager_broadcast_removes_failed(self, mock_websocket):
         """Broadcast removes clients that fail to receive."""
-        from main import WebSocketManager
+        from services.ships_api.main import WebSocketManager
 
         manager = WebSocketManager()
         await manager.connect(mock_websocket)
@@ -300,7 +300,7 @@ class TestWebSocketManager:
     @pytest.mark.asyncio
     async def test_websocket_manager_client_count(self, mock_websocket):
         """WebSocket manager tracks client count."""
-        from main import WebSocketManager
+        from services.ships_api.main import WebSocketManager
 
         manager = WebSocketManager()
         assert await manager.client_count() == 0
