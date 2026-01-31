@@ -1,5 +1,7 @@
 """Bazel rules for rendering Helm manifests with proper caching."""
 
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 def chart_files(name, visibility):
     """Exports chart files and creates a filegroup of all chart files.
 
@@ -112,3 +114,60 @@ helm_render = rule(
         )
     """,
 )
+
+def helm_lint_test(name, chart_path = None, **kwargs):
+    """Creates a test that runs helm lint on a chart.
+
+    The test runs helm lint with --strict mode to catch any issues.
+
+    Args:
+        name: Name of the test target
+        chart_path: Path to chart directory (default: current package)
+        **kwargs: Additional arguments passed to sh_test
+    """
+    if chart_path == None:
+        chart_path = native.package_name()
+
+    # Create an inline script that runs helm lint
+    # The script finds the chart in runfiles and lints it
+    native.genrule(
+        name = name + "_script",
+        outs = [name + ".sh"],
+        cmd = """cat > $@ << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Find helm binary
+HELM="$$1"
+
+# Chart.yaml path - get directory containing it
+CHART_YAML="$$2"
+CHART_DIR="$$(dirname "$$CHART_YAML")"
+
+if [[ ! -f "$$CHART_YAML" ]]; then
+    echo "ERROR: Chart.yaml not found at $$CHART_YAML"
+    exit 1
+fi
+
+echo "Linting chart: $$CHART_DIR"
+"$$HELM" lint "$$CHART_DIR" --strict
+echo "PASSED"
+EOF
+""",
+    )
+
+    sh_test(
+        name = name,
+        srcs = [name + "_script"],
+        args = [
+            "$(rootpath @multitool//tools/helm)",
+            "$(rootpath :Chart.yaml)",
+        ],
+        data = [
+            "@multitool//tools/helm",
+            ":Chart.yaml",
+            ":values.yaml",
+        ] + native.glob(["templates/**"]),
+        **kwargs
+    )
+

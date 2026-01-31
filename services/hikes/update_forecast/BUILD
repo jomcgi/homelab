@@ -1,5 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
+load("//tools/pytest:defs.bzl", "py_test")
 
 py_binary(
     name = "update",
@@ -23,7 +24,10 @@ py3_image(
 
 py_library(
     name = "update_forecast",
-    srcs = ["update.py"],
+    srcs = [
+        "__init__.py",
+        "update.py",
+    ],
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//boto3",
@@ -31,6 +35,17 @@ py_library(
         "@pip//brotli",
         "@pip//pydantic",
         "@pip//python_dateutil",
+        "@pip//requests",
+    ],
+)
+
+py_test(
+    name = "update_test",
+    srcs = ["update_test.py"],
+    imports = ["."],
+    deps = [
+        ":update_forecast",
+        "@pip//pytest",
         "@pip//requests",
     ],
 )
