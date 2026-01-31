@@ -1,0 +1,46 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/jomcgi/todo
+  tag: latest
+  pullPolicy: IfNotPresent
+
+git:
+  repo: ""  # Required: git@github.com:jomcgi/todo-data.git
+  branch: main
+  secretName: todo-git-ssh
+
+service:
+  public:
+    port: 80
+  admin:
+    port: 8080
+
+cloudflare:
+  tunnel: homelab
+  publicHostname: todo.jomcgi.dev
+  adminHostname: todo-admin.jomcgi.dev
+  accessPolicy: admin-only
+
+persistence:
+  enabled: true
+  storageClass: ""  # Use cluster default
+  size: 1Gi
+
+resources:
+  api:
+    requests:
+      memory: "32Mi"
+      cpu: "10m"
+    limits:
+      memory: "64Mi"
+      cpu: "100m"
+  static:
+    requests:
+      memory: "16Mi"
+      cpu: "5m"
+    limits:
+      memory: "32Mi"
+      cpu: "50m"
+
+adminUrl: https://todo-admin.jomcgi.dev

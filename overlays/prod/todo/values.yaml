@@ -1,0 +1,15 @@
+# Production values for todo app
+git:
+  repo: git@github.com:jomcgi/todo-data.git
+  branch: main
+  secretName: todo-git-ssh
+
+cloudflare:
+  tunnel: homelab
+  publicHostname: todo.jomcgi.dev
+  adminHostname: todo-admin.jomcgi.dev
+  accessPolicy: admin-only
+
+persistence:
+  storageClass: longhorn
+  size: 1Gi
