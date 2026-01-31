@@ -17,8 +17,13 @@
   },
   "permissions": {
     "allow": [
-      "Bash(git:*)",
-      "Bash(gh:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git worktree:*)",
+      "Bash(gh pr:*)",
+      "Bash(gh issue:*)",
       "Bash(ls:*)",
       "Bash(mkdir:*)",
       "Bash(find:*)",
@@ -27,16 +32,14 @@
       "Bash(go doc:*)",
       "Bash(go mod:*)",
       "Bash(operator-sdk:*)",
-      "WebFetch(domain:docs.anthropic.com)",
-      "WebFetch(domain:argo-cd.readthedocs.io)",
-      "WebFetch(domain:sdk.operatorframework.io)",
-      "WebFetch(domain:book.kubebuilder.io)",
-      "WebFetch(domain:developers.cloudflare.com)",
-      "WebFetch(domain:pkg.go.dev)"
+      "WebFetch(domain:*)"
     ],
     "additionalDirectories": ["/tmp/claude-worktrees"]
   },
   "cleanupPeriodDays": 60,
   "enableAllProjectMcpServers": true,
-  "enabledMcpjsonServers": ["playwright"]
+  "enabledMcpjsonServers": ["playwright"],
+  "enabledPlugins": {
+    "semgrep-plugin@semgrep": true
+  }
 }
