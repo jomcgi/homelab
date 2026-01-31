@@ -1,0 +1,48 @@
+replicaCount: 1
+
+image:
+  repository: ghcr.io/jomcgi/homelab/charts/todo
+  tag: main
+  pullPolicy: IfNotPresent
+
+git:
+  repo: git@github.com:jomcgi/homelab.git
+  branch: main
+  dataPath: data/todo  # Subdirectory in repo for todo data
+  secretName: homelab-git-ssh  # Reuse existing homelab deploy key
+
+service:
+  public:
+    port: 80
+  admin:
+    port: 8080
+
+cloudflare:
+  publicHostname: todo.jomcgi.dev
+  adminHostname: todo-admin.jomcgi.dev
+  # Allowed emails for admin access (Cloudflare Zero Trust)
+  allowedEmails:
+    - joe@jomcgi.dev
+
+persistence:
+  enabled: true
+  storageClass: ""  # Use cluster default
+  size: 1Gi
+
+resources:
+  api:
+    requests:
+      memory: "32Mi"
+      cpu: "10m"
+    limits:
+      memory: "64Mi"
+      cpu: "100m"
+  static:
+    requests:
+      memory: "16Mi"
+      cpu: "5m"
+    limits:
+      memory: "32Mi"
+      cpu: "50m"
+
+adminUrl: https://todo-admin.jomcgi.dev
