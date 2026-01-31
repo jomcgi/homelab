@@ -22,4 +22,4 @@ spec:
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:../../../../overlays/cluster-critical/signoz-dashboard-sidecar/values.yaml
+      writeBackTarget: helmvalues:../../overlays/cluster-critical/signoz-dashboard-sidecar/values.yaml
