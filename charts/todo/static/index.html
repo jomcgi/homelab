@@ -13,6 +13,7 @@
       --muted: #bcc0cc;
       --green: #40a02b;
       --red: #d20f39;
+      --blue: #1e66f5;
     }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -36,6 +37,13 @@
       font-size: 1.5rem;
       font-weight: normal;
       letter-spacing: 0.2em;
+    }
+    h1 a {
+      color: var(--text);
+      text-decoration: none;
+    }
+    h1 a:hover {
+      color: var(--blue);
     }
     .date {
       color: var(--subtext);
@@ -71,7 +79,7 @@
 </head>
 <body>
   <header>
-    <h1>TODO</h1>
+    <h1><a href="https://todo-admin.jomcgi.dev">TODO</a></h1>
     <span class="date" id="date-display"></span>
   </header>
 
