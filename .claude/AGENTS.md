@@ -97,7 +97,7 @@ ArgoCD GitOps specialist for debugging sync failures and managing deployments.
 - Debugging sync failures or OutOfSync state
 - Understanding application drift
 - Troubleshooting GitOps deployments
-- Configuring sync strategies
+- Configuring sync strategies and retry policies
 
 ### Key Commands
 
@@ -115,20 +115,62 @@ argocd app history <app-name>
 kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller
 ```
 
+### Application.yaml Pattern (This Repo)
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: <env>-<service>           # e.g., prod-trips
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"  # Order deployments
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    path: charts/<chart>
+    targetRevision: HEAD
+    helm:
+      releaseName: <service>
+      valueFiles:
+        - values.yaml                              # Chart defaults
+        - ../../overlays/<env>/<service>/values.yaml  # Env overrides
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: <namespace>
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true      # For CRDs and large resources
+    retry:                        # For flaky syncs
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+```
+
 ### Sync Strategies
 
 | Strategy | Use Case |
 |----------|----------|
-| `Automated: false` | Production (manual approval) |
-| `selfHeal: true` | Auto-revert kubectl changes |
-| `prune: true` | Auto-delete removed resources |
+| `automated.prune: true` | Auto-delete removed resources |
+| `automated.selfHeal: true` | Auto-revert kubectl changes |
+| `ServerSideApply: true` | Large resources, CRDs |
+| `sync-wave` annotation | Order deployments (lower = earlier) |
+| `retry` block | Handle transient failures |
 
 ### Common Mistakes to Avoid
 
 - **Using kubectl to modify production** - Always commit to Git
 - **Not storing Application CRDs in Git** - Version control everything
-- **Mixing source code and manifests** - Keep config repo separate
 - **Missing sync waves for dependencies** - CRDs must deploy before resources using them
+- **Forgetting ServerSideApply for CRDs** - Required for large or complex resources
+- **No retry policy** - Transient failures cause OutOfSync
 
 ### Debugging Sync Failures
 
@@ -136,12 +178,14 @@ kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller
 2. Review `kubectl get events -n argocd`
 3. Verify RBAC permissions
 4. Check repo access: `argocd repo test <url>`
+5. Look for webhook validation errors in controller logs
 
 ### Example Prompts
 
 - "Why is my application stuck in OutOfSync?"
 - "Set up sync waves for my CRD and operator"
 - "Debug why ArgoCD can't access my private repo"
+- "Add retry policy to handle transient sync failures"
 
 ---
 
@@ -160,8 +204,14 @@ Helm chart development and templating specialist.
 
 ```bash
 # Render templates (NEVER helm install directly in GitOps)
-helm template <release> charts/<chart>/ -f values.yaml
-helm template <release> charts/<chart>/ -s templates/deployment.yaml
+helm template <release> charts/<chart>/ \
+  -f charts/<chart>/values.yaml \
+  -f overlays/<env>/<service>/values.yaml
+
+# Render specific template
+helm template <release> charts/<chart>/ \
+  -s templates/deployment.yaml \
+  -f overlays/<env>/<service>/values.yaml
 
 # Validate
 helm lint charts/<chart>/
@@ -171,6 +221,28 @@ helm template <release> charts/<chart>/ --validate
 helm dependency update charts/<chart>/
 ```
 
+### Repository Structure (This Repo)
+
+```
+charts/<name>/
+├── Chart.yaml          # Chart metadata
+├── values.yaml         # Default values
+├── templates/          # Kubernetes manifests
+│   ├── deployment.yaml
+│   ├── service.yaml
+│   └── _helpers.tpl    # Template helpers
+├── CLAUDE.md           # Chart-specific guidance (optional)
+└── BUILD               # Bazel build file
+
+overlays/<env>/<service>/
+├── application.yaml    # ArgoCD Application
+├── kustomization.yaml  # Makes app discoverable (resources: [application.yaml])
+├── values.yaml         # Environment-specific overrides
+└── imageupdater.yaml   # ArgoCD Image Updater config (optional)
+```
+
+**Environments:** `cluster-critical`, `dev`, `prod`
+
 ### values.yaml Patterns
 
 ```yaml
@@ -179,7 +251,7 @@ helm dependency update charts/<chart>/
 replicaCount: 3
 
 image:
-  repository: nginx
+  repository: ghcr.io/jomcgi/myapp
   tag: "1.25"
   pullPolicy: IfNotPresent
 ```
@@ -191,12 +263,14 @@ image:
 - **Secrets in values.yaml** - Use External Secrets or Sealed Secrets
 - **Reusing image tags** - Use immutable tags, never `latest`
 - **Missing resource limits** - Always set requests/limits
+- **Wrong valueFiles path** - Use `../../overlays/<env>/<service>/values.yaml` in application.yaml
 
 ### Example Prompts
 
 - "Create a Helm chart for a stateless web service"
 - "Add health checks and PodDisruptionBudget to this chart"
 - "Why isn't my values.yaml override taking effect?"
+- "Set up a new service in overlays/prod"
 
 ---
 
@@ -209,6 +283,7 @@ CDK8s programmatic Kubernetes manifest generation specialist.
 - Generating manifests programmatically
 - Creating reusable infrastructure constructs
 - When YAML templating becomes unwieldy
+- Complex CRD generation with type safety
 
 ### Key Commands
 
@@ -218,6 +293,25 @@ cdk8s synth
 cdk8s import k8s
 ```
 
+### Repository Structure (This Repo)
+
+```
+cdk8s/
+├── <app>/
+│   ├── cdk8s.yaml       # CDK8s config (language, app command)
+│   ├── main.py          # Python app entry point
+│   └── dist/            # Generated manifests
+└── lib/                 # Shared constructs
+```
+
+**Example cdk8s.yaml:**
+```yaml
+language: python
+app: python main.py
+imports:
+  - k8s
+```
+
 ### When to Use CDK8s vs Helm
 
 | Use Case | Recommendation |
@@ -225,11 +319,20 @@ cdk8s import k8s
 | Simple services | Helm |
 | Complex logic/loops | CDK8s |
 | Need type safety | CDK8s |
+| CRD generation | CDK8s |
+| Operator testing | CDK8s (see `cdk8s/cloudflare-operator-test/`) |
+
+### Common Mistakes to Avoid
+
+- **Not running `cdk8s import`** - Must import CRDs before using
+- **Mixing CDK8s and Helm** - Choose one per service
+- **Not committing dist/** - Generated manifests should be in Git for GitOps
 
 ### Example Prompts
 
 - "Create a CDK8s construct for a microservice with health checks"
 - "Convert this complex Helm chart to CDK8s"
+- "Generate test CRs for the cloudflare operator"
 
 ---
 
@@ -427,55 +530,118 @@ export default defineConfig({
 
 ## k8s-debug
 
-Kubernetes debugging specialist for troubleshooting specific known issues.
+Kubernetes debugging and troubleshooting specialist.
 
 ### When to Use
 
 - Pod stuck in CrashLoopBackOff, Pending, or Error
 - OOMKilled or resource exhaustion
 - Service connectivity failures
-- Investigating specific pod/deployment issues
+- Investigating cluster events
+- Storage and PVC issues
+- ArgoCD sync failures
+
+### Pre-requisite Reading
+
+**Always read first:** `architecture/services.md`
 
 ### Investigation Workflow
 
-1. **Check pod status and events**
-   ```bash
-   kubectl get pods -n <namespace>
-   kubectl describe pod <pod-name> -n <namespace>
-   kubectl get events -n <namespace> --field-selector involvedObject.name=<pod-name>
-   ```
+```
+1. Identify the problem (symptoms)
+2. Gather information (kubectl get/describe/logs)
+3. Analyze (events, conditions, resource status)
+4. Hypothesize root cause
+5. Verify (check related resources)
+6. Fix via Git (never kubectl apply)
+```
 
-2. **Examine logs (including previous crashes)**
-   ```bash
-   kubectl logs <pod-name> -n <namespace>
-   kubectl logs <pod-name> -n <namespace> --previous  # Critical for CrashLoopBackOff
-   ```
+### Common Issues and Commands
 
-3. **Check resource usage**
-   ```bash
-   kubectl top pods -n <namespace>
-   ```
+**Pod not starting:**
+```bash
+# Check pod status and events
+kubectl describe pod <name> -n <namespace>
 
-### Common Issues
+# Check previous container logs (critical for CrashLoopBackOff)
+kubectl logs <pod> -n <namespace> --previous
+
+# Check node resources
+kubectl top nodes
+kubectl describe node <node-name>
+```
+
+**Service connectivity:**
+```bash
+# Check service endpoints
+kubectl get endpoints <service> -n <namespace>
+
+# Check if pods match service selector
+kubectl get pods -n <namespace> -l <label-selector>
+
+# Test connectivity from debug pod
+kubectl run debug --rm -it --image=busybox -- wget -qO- http://<service>.<namespace>
+```
+
+**Storage issues:**
+```bash
+# Check PVC status
+kubectl get pvc -n <namespace>
+kubectl describe pvc <name> -n <namespace>
+
+# Check Longhorn volumes
+kubectl get volumes.longhorn.io -n longhorn-system
+```
+
+**ArgoCD sync problems:**
+```bash
+# Check application status
+kubectl get applications -n argocd
+kubectl describe application <name> -n argocd
+
+# Check sync status via CLI
+argocd app get <name> --show-operation
+```
+
+### Common Issues Reference
 
 | Symptom | Check | Common Cause |
 |---------|-------|--------------|
 | CrashLoopBackOff | `kubectl logs --previous` | App error, missing config |
 | OOMKilled (137) | `kubectl top pods` | Memory limit too low |
 | ImagePullBackOff | `kubectl describe pod` | Wrong image, missing creds |
-| Pending | `kubectl describe pod` | Insufficient resources |
+| Pending | `kubectl describe pod` | Insufficient resources, PVC binding |
+| ContainerCreating | `kubectl describe pod` | Image pull, secret access, volume mount |
+| Evicted | Node disk/memory pressure | Clean up resources, increase node capacity |
+
+### Common Namespaces (This Repo)
+
+| Namespace | Purpose |
+|-----------|---------|
+| `argocd` | GitOps controller |
+| `claude` | Claude Code deployment |
+| `signoz` | Observability stack |
+| `linkerd` | Service mesh |
+| `longhorn-system` | Distributed storage |
+| `cert-manager` | Certificate management |
+| `kyverno` | Policy engine |
 
 ### Common Mistakes to Avoid
 
-- **Restarting pods before investigating** - Find root cause first
-- **Only checking current logs** - Use `--previous` for crash debugging
-- **Editing resources directly** - In GitOps, modify Git instead
+1. **Modifying resources directly** - Always change via Git
+2. **Ignoring events** - Events often contain the root cause
+3. **Not checking all replicas** - Issue may be pod-specific
+4. **Missing namespace** - Always specify -n namespace
+5. **Skipping describe** - Contains more info than get
+6. **Restarting before investigating** - Find root cause first
 
 ### Example Prompts
 
-- "Pod nginx-abc123 is in CrashLoopBackOff, help me debug"
-- "Service frontend can't connect to backend service"
-- "Pods keep getting OOMKilled, how do I investigate?"
+- "Debug why trips-api pods are in CrashLoopBackOff"
+- "Investigate service mesh connectivity between services"
+- "Find why PVCs are stuck in Pending state"
+- "Troubleshoot ArgoCD sync failure for signoz application"
+- "Diagnose high memory usage in the claude namespace"
 
 ---
 
