@@ -3,12 +3,12 @@ cloudflareCredentials:
   secretName: cloudflare-credentials
 # Explicitly set imagePullSecrets for private GHCR images
 imagePullSecrets:
-  - name: ghcr-pull-secret
+- name: ghcr-pull-secret
 # Container image
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/operators/cloudflare
-    tag: main@sha256:2c08bd7cea11676195cb382f571c155c22faf904cabd25717700460107592609
+    tag: main@sha256:9172429f5ae9874eff21263fada26b5a11f69d0e60d4712b4c73ff494bc035f7
     pullPolicy: Always
     # Enable OpenTelemetry tracing to SignoZ (OTEL upgraded to v1.38.0)
   # Note: OTEL_EXPORTER_OTLP_ENDPOINT is injected automatically by Kyverno cluster-wide
@@ -19,17 +19,17 @@ controllerManager:
     sampler: "parentbased_traceidratio"
     samplerArg: "1.0"
 extraResources:
-  - apiVersion: onepassword.com/v1
-    kind: OnePasswordItem
-    metadata:
-      name: cloudflare-credentials
-    spec:
-      itemPath: "vaults/k8s-homelab/items/cloudflare"
-  # GHCR pull secret for private container images
-  - apiVersion: onepassword.com/v1
-    kind: OnePasswordItem
-    metadata:
-      name: ghcr-pull-secret
-    spec:
-      itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
-    type: "kubernetes.io/dockerconfigjson"
+- apiVersion: onepassword.com/v1
+  kind: OnePasswordItem
+  metadata:
+    name: cloudflare-credentials
+  spec:
+    itemPath: "vaults/k8s-homelab/items/cloudflare"
+# GHCR pull secret for private container images
+- apiVersion: onepassword.com/v1
+  kind: OnePasswordItem
+  metadata:
+    name: ghcr-pull-secret
+  spec:
+    itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
+  type: "kubernetes.io/dockerconfigjson"
