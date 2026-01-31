@@ -65,5 +65,5 @@ bzl_library(
     name = "defs",
     srcs = ["defs.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_shell//shell:sh_test"],
+    deps = ["@rules_shell//shell:rules_bzl"],
 )
