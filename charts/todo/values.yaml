@@ -6,10 +6,15 @@ image:
   pullPolicy: IfNotPresent
 
 git:
-  repo: git@github.com:jomcgi/homelab.git
+  repo: https://github.com/jomcgi/homelab.git
   branch: main
   dataPath: data/todo  # Subdirectory in repo for todo data
-  secretName: homelab-git-ssh  # Reuse existing homelab deploy key
+  # Token secret for git authentication (created by OnePasswordItem)
+  tokenSecret:
+    name: git-token
+    key: github_token
+  # 1Password item path for the git token
+  onePasswordItem: "vaults/k8s-homelab/items/argocd-image-updater"
 
 service:
   public:
