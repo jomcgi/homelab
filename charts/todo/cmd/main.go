@@ -104,6 +104,11 @@ func startScheduler() {
 }
 
 func main() {
+	// Initialize public directory on startup
+	if err := rebuildSite(); err != nil {
+		log.Printf("Warning: failed to rebuild site on startup: %v", err)
+	}
+
 	// Start internal scheduler
 	startScheduler()
 
