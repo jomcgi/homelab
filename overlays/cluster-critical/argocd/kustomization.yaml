@@ -5,3 +5,4 @@ namespace: argocd
 
 resources:
   - application.yaml
+  - argocd-httpcheck-alert.yaml
