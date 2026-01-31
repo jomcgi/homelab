@@ -44,6 +44,13 @@ common:release --stamp --workspace_status_command=./tools/workspace_status.sh
 common:lint --aspects=//tools/lint:linters.bzl%shellcheck//tools/lint:linters.bzl%eslint//tools/lint:linters.bzl%ruff
 
 # =============================================================================
+# Test Configuration
+# =============================================================================
+# Disable network access by default for hermetic, cacheable tests
+# Tests requiring network must add: tags = ["requires-network"]
+test --sandbox_default_allow_network=false
+
+# =============================================================================
 # CI Configuration
 # =============================================================================
 # Run with --config=ci in GitHub Actions
