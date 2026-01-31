@@ -85,6 +85,7 @@ func applyStateToStatus(state CloudflareTunnelState, status *v1.CloudflareTunnel
 		status.TunnelID = s.TunnelIdentity.TunnelID
 		status.SecretName = s.SecretInfo.SecretName
 		status.Active = s.Active
+		status.Ready = true
 	case CloudflareTunnelFailed:
 		_ = s // Use s to avoid unused variable warning
 		status.RetryCount = s.RetryCount
@@ -142,6 +143,7 @@ func (s CloudflareTunnelReady) ApplyStatus() *v1.CloudflareTunnel {
 	r.Status.TunnelID = s.TunnelIdentity.TunnelID
 	r.Status.SecretName = s.SecretInfo.SecretName
 	r.Status.Active = s.Active
+	r.Status.Ready = true
 	return r
 }
 
