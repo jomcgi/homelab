@@ -46,12 +46,6 @@ go_library(
     ],
 )
 
-bzl_library(
-    name = "defs",
-    srcs = ["defs.bzl"],
-    visibility = ["//visibility:public"],
-)
-
 go_test(
     name = "argocd_test",
     srcs = [
@@ -65,4 +59,11 @@ go_test(
         "@gazelle//label",
         "@gazelle//rule",
     ],
+)
+
+bzl_library(
+    name = "defs",
+    srcs = ["defs.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@rules_shell//shell:sh_test"],
 )

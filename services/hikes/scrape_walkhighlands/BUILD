@@ -1,6 +1,9 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/pytest:defs.bzl", "py_test")
 
+# gazelle:resolve py error_handling //services/hikes/scrape_walkhighlands:scrape_walkhighlands
+# gazelle:resolve py scrape //services/hikes/scrape_walkhighlands:scrape_walkhighlands
+
 py_binary(
     name = "scrape",
     srcs = ["scrape.py"],
@@ -54,8 +57,6 @@ py_test(
     imports = ["."],
     deps = [
         ":scrape_walkhighlands",
-        "@pip//beautifulsoup4",
-        "@pip//pydantic",
         "@pip//pytest",
         "@pip//requests",
     ],

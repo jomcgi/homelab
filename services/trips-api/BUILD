@@ -2,6 +2,8 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
+# gazelle:resolve py main //services/trips-api:trips-api
+
 py_binary(
     name = "main",
     srcs = ["main.py"],
@@ -42,8 +44,6 @@ py_test(
         ":trips-api",
         "@pip//fastapi",
         "@pip//httpx",
-        "@pip//nats_py",
-        "@pip//pydantic",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],

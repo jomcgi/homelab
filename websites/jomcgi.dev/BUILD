@@ -14,16 +14,16 @@ js_library(
             "src/**/*",
             "public/**/*",
         ],
+        allow_empty = True,
         exclude = [
             "src/**/*.test.js",
             "src/**/*.test.jsx",
             "src/**/*.test.ts",
             "src/**/*.test.tsx",
         ],
-        allow_empty = True,
     ) + [
-        "package.json",
         "astro.config.mjs",
+        "package.json",
         "tailwind.config.mjs",
     ],
     deps = [
@@ -51,16 +51,16 @@ js_library(
         ],
         allow_empty = True,
     ) + [
-        "vitest.config.mjs",
         "src/test/setup.js",
+        "vitest.config.mjs",
     ],
     deps = [
-        ":src",
         ":node_modules/@testing-library/jest-dom",
         ":node_modules/@testing-library/react",
         ":node_modules/@testing-library/user-event",
         ":node_modules/happy-dom",
         ":node_modules/vitest",
+        ":src",
     ],
 )
 

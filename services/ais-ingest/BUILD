@@ -2,6 +2,8 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
+# gazelle:resolve py main //services/ais-ingest:ais-ingest
+
 py_binary(
     name = "main",
     srcs = ["main.py"],

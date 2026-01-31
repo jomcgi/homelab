@@ -18,18 +18,18 @@ js_library(
             "src/**/*",
             "public/**/*",
         ],
+        allow_empty = True,
         exclude = [
             "src/**/*.test.js",
             "src/**/*.test.jsx",
             "src/**/*.test.ts",
             "src/**/*.test.tsx",
         ],
-        allow_empty = True,
     ) + [
         "index.html",
         "package.json",
-        "vite.config.js",
         "postcss.config.js",
+        "vite.config.js",
     ],
     deps = [
         ":node_modules/@vitejs/plugin-react",
@@ -66,16 +66,16 @@ js_library(
         ],
         allow_empty = True,
     ) + [
-        "vitest.config.js",
         "src/test/setup.js",
+        "vitest.config.js",
     ],
     deps = [
-        ":src",
         ":node_modules/@testing-library/jest-dom",
         ":node_modules/@testing-library/react",
         ":node_modules/@testing-library/user-event",
         ":node_modules/happy-dom",
         ":node_modules/vitest",
+        ":src",
     ],
 )
 

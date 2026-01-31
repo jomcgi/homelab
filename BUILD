@@ -47,6 +47,7 @@ exports_files(
 )
 
 # gazelle:prefix github.com/jomcgi/homelab
+# gazelle:exclude cdk8s
 
 # Custom gazelle binary with ArgoCD extension
 gazelle_binary(

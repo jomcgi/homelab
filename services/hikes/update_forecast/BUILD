@@ -2,6 +2,8 @@ load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
+# gazelle:resolve py update //services/hikes/update_forecast:update_forecast
+
 py_binary(
     name = "update",
     srcs = ["update.py"],
@@ -42,9 +44,7 @@ py_test(
     imports = ["."],
     deps = [
         ":update_forecast",
-        "@pip//pydantic",
         "@pip//pytest",
-        "@pip//python_dateutil",
         "@pip//requests",
     ],
 )
