@@ -6,55 +6,96 @@ This file defines specialized agents for common tasks in this repository. Each a
 
 ## bazel
 
-Bazel build system specialist covering rules_python, rules_js, rules_oci, and bzlmod migration.
+Bazel build system specialist using bzlmod (MODULE.bazel). This repo uses Bazel 8 via bazelisk with aspect_rules_py, rules_js, rules_oci, and rules_apko.
+
+### Vendored Tools
+
+The following tools are vendored via `bazel_env` and available in PATH (after `direnv allow`):
+
+| Tool | Purpose |
+|------|---------|
+| `format` | Format code + update lock files |
+| `argocd` | ArgoCD CLI |
+| `helm` | Helm CLI |
+| `crane` | Container registry CLI |
+| `kind` | Local Kubernetes clusters |
+| `go` | Go toolchain |
+| `python` | Python toolchain |
+| `pnpm` | Package manager |
+| `node` | Node.js runtime |
+| `buildifier` | Starlark formatter |
+| `buildozer` | BUILD file editor |
+
+**Note:** Security tools (trivy, cosign, gitleaks, checkov) and kubectl are NOT vendored - install globally if needed.
 
 ### When to Use
 
-- Setting up new Bazel projects or migrating from WORKSPACE to bzlmod
+- Building and testing code
+- Container image building with rules_oci and rules_apko
 - Configuring Python dependencies with rules_python
 - Setting up JavaScript/TypeScript builds with rules_js
-- Building container images with rules_oci
-- Debugging cache misses, slow builds, or non-hermetic behavior
-- Configuring remote caching or remote execution
+- Formatting and linting via Aspect workflows
+- Debugging cache misses, slow builds, or remote execution issues
 
 ### Key Commands
 
 ```bash
+# ALWAYS use bazelisk, not bazel directly
+# Format code + update lock files (most common command)
+format
+
 # Build and test
-bazel build //...
-bazel test //...
-bazel run //:target
+bazelisk build //...
+bazelisk test //...
+bazelisk run //:target
+
+# Update BUILD files after adding Go imports
+bazelisk run gazelle
+
+# Update MODULE.bazel after go mod tidy
+bazel mod tidy
+
+# Push container images
+bazelisk run //charts/<service>/image:push
 
 # Query and analysis
-bazel query "deps(//:target)"
-bazel cquery "deps(//:target)"    # With config
-bazel aquery "deps(//:target)"    # Action query
+bazelisk query "deps(//:target)"
+bazelisk cquery "deps(//:target)"    # With config
+bazelisk aquery "deps(//:target)"    # Action query
+
+# Run with CI config (remote caching + BuildBuddy)
+bazelisk test //... --config=ci
 
 # Debugging
-bazel build --explain=log.txt
-bazel build --profile=profile.json
+bazelisk build --explain=log.txt
+bazelisk build --profile=profile.json
 ```
 
 ### bzlmod Patterns (MODULE.bazel)
 
+This repo uses bzlmod exclusively (WORKSPACE is an empty marker file).
+
 ```starlark
-module(name = "my_project", version = "1.0.0")
+module(name = "homelab", version = "0.0.0")
 
-bazel_dep(name = "rules_python", version = "1.0.0")
-bazel_dep(name = "rules_js", version = "2.0.0")
-bazel_dep(name = "rules_oci", version = "2.0.0")
+bazel_dep(name = "rules_python", version = "1.7.0")
+bazel_dep(name = "rules_oci", version = "2.2.6")
+bazel_dep(name = "rules_apko", version = "1.5.30")
+bazel_dep(name = "aspect_rules_js", version = "2.7.0")
+bazel_dep(name = "rules_go", version = "0.59.0")
+bazel_dep(name = "gazelle", version = "0.47.0")
 
-# Python pip dependencies
-pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+# Python pip dependencies (uses aspect_rules_py)
+pip = use_extension("@aspect_rules_py//py:extensions.bzl", "pip")
 pip.parse(
-    hub_name = "pypi",
-    python_version = "3.11",
-    requirements_lock = "//:requirements_lock.txt",
+    hub_name = "pip",
+    python_version = "3.13",
+    requirements_lock = "//:requirements.txt",
 )
-use_repo(pip, "pypi")
+use_repo(pip, "pip")
 
-# JavaScript npm dependencies
-npm = use_extension("@rules_js//npm:extensions.bzl", "npm")
+# JavaScript npm dependencies with pnpm
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
 npm.npm_translate_lock(
     name = "npm",
     pnpm_lock = "//:pnpm-lock.yaml",
@@ -62,29 +103,33 @@ npm.npm_translate_lock(
 use_repo(npm, "npm")
 ```
 
-### Recommended .bazelrc
+### Container Images with rules_apko
 
-```
-build --disk_cache=~/.cache/bazel
-build --repository_cache=~/.cache/bazel-repo
-build --incompatible_strict_action_env
-test --test_output=errors
+Images are defined in `apko.yaml` files, not Dockerfiles:
+
+```bash
+# Update apko lock after modifying apko.yaml
+bazelisk run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+
+# Or run format to update all locks
+format
 ```
 
 ### Common Mistakes to Avoid
 
-- **Running `bazel test //...` in CI** - Use bazel-diff to test only affected targets
+- **Using `bazel` instead of `bazelisk`** - bazelisk manages Bazel versions via .bazelversion
+- **Running tests in CI without --config=ci** - Misses remote caching and BuildBuddy
 - **Not pinning toolchains** - Use hermetic toolchains
 - **Using recursive globs** - `glob(["**/*.py"])` breaks caching
-- **Using WORKSPACE in new projects** - Start with MODULE.bazel (bzlmod)
 - **Non-hermetic genrules** - Avoid timestamps, uname, or PATH-dependent tools
+- **Forgetting to run gazelle** - After adding Go imports, run `bazelisk run gazelle`
 
 ### Example Prompts
 
-- "Migrate this project from WORKSPACE to MODULE.bazel"
 - "Debug why this target keeps rebuilding"
-- "Configure rules_oci to build a Python container image"
-- "Optimize CI build times with bazel-diff"
+- "Configure rules_apko to build a container image"
+- "Update BUILD files after adding new Go dependencies"
+- "Reproduce the BuildBuddy failure locally"
 
 ---
 
@@ -260,7 +305,7 @@ image:
 
 - **Over-templatization** - Excessive conditionals make charts unmaintainable
 - **Hardcoded values in templates** - All config belongs in values.yaml
-- **Secrets in values.yaml** - Use External Secrets or Sealed Secrets
+- **Secrets in values.yaml** - Use 1Password Operator (OnePasswordItem CRD)
 - **Reusing image tags** - Use immutable tags, never `latest`
 - **Missing resource limits** - Always set requests/limits
 - **Wrong valueFiles path** - Use `../../overlays/<env>/<service>/values.yaml` in application.yaml
@@ -277,6 +322,8 @@ image:
 ## cdk8s
 
 CDK8s programmatic Kubernetes manifest generation specialist.
+
+**Status:** Experimental/POC only in this repo. Used for operator testing, not production workloads.
 
 ### When to Use
 
@@ -340,6 +387,10 @@ imports:
 
 Go development specialist, especially for Kubernetes operators and controllers.
 
+### Pre-requisite Reading
+
+**Always read first:** `operators/best-practices.md`
+
 ### When to Use
 
 - Building or modifying Kubernetes operators
@@ -350,11 +401,18 @@ Go development specialist, especially for Kubernetes operators and controllers.
 ### Key Commands
 
 ```bash
-make test
-make generate
-make manifests
-golangci-lint run
-bazel run //:gazelle
+# Build and test via Bazel (no Makefile in this repo)
+bazelisk build //operators/...
+bazelisk test //operators/...
+
+# Update BUILD files after adding imports
+bazelisk run //:gazelle
+
+# Linting via nogo (built into Bazel, not golangci-lint)
+# Linting runs automatically during build
+
+# Run a specific operator
+bazelisk run //operators/<name>/cmd:cmd
 ```
 
 ### Reconcile Return Values
@@ -388,7 +446,7 @@ return ctrl.Result{}, err
 
 ## python
 
-Python development specialist with Bazel (rules_python) integration.
+Python development specialist with Bazel (aspect_rules_py) integration.
 
 ### When to Use
 
@@ -399,28 +457,40 @@ Python development specialist with Bazel (rules_python) integration.
 
 ### BUILD.bazel Patterns
 
+This repo uses **@aspect_rules_py** (NOT @rules_python) and references packages via **@pip//package**.
+
 ```starlark
-load("@rules_python//python:defs.bzl", "py_library", "py_test")
-load("@pypi//:requirements.bzl", "requirement")
+load("@aspect_rules_py//py:defs.bzl", "py_library", "py_test")
 
 py_library(
     name = "mylib",
     srcs = ["mylib.py"],
-    deps = [requirement("requests")],
+    deps = ["@pip//requests"],
 )
 
 py_test(
     name = "mylib_test",
     srcs = ["mylib_test.py"],
-    deps = [":mylib", requirement("pytest")],
+    deps = [
+        ":mylib",
+        "@pip//pytest",
+    ],
 )
 ```
 
+### Key Differences from rules_python
+
+| Pattern | This Repo (aspect_rules_py) | Standard rules_python |
+|---------|-----------------------------|-----------------------|
+| Load statement | `@aspect_rules_py//py:defs.bzl` | `@rules_python//python:defs.bzl` |
+| Dependency | `@pip//requests` | `requirement("requests")` |
+| Hub name | `pip` | Varies |
+
 ### Common Mistakes to Avoid
 
-- **Using deprecated built-in rules** - Load from `@rules_python//python:defs.bzl`
-- **Hardcoding wheel labels** - Use `requirement("package")` function
-- **Missing lock files** - Use `pip-compile` to generate
+- **Using @rules_python syntax** - This repo uses @aspect_rules_py
+- **Using requirement() function** - Use `@pip//package` directly
+- **Missing lock files** - Run `format` to update requirements lock
 - **Overusing conftest.py fixtures** - Keep scope narrow
 
 ### Example Prompts
@@ -451,7 +521,21 @@ TypeScript type safety and strict mode specialist.
     "strict": true,
     "noImplicitAny": true,
     "strictNullChecks": true,
-    "noUncheckedIndexedAccess": true
+    // noUncheckedIndexedAccess: consider enabling for stricter safety
+    // NodeNext for Node.js ESM projects (used in this repo)
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "esModuleInterop": true
+  }
+}
+
+// Path aliases for clean imports (used in this repo)
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    }
   }
 }
 
@@ -464,6 +548,24 @@ function processData(data: unknown): string {
 // Use as const for literal types
 const STATUSES = ['pending', 'active', 'complete'] as const;
 type Status = typeof STATUSES[number];
+
+// Leverage utility types
+type UserUpdate = Partial<User>;           // All fields optional
+type UserName = Pick<User, 'name' | 'id'>; // Select fields
+type UserData = Omit<User, 'password'>;    // Exclude fields
+```
+
+### Commands
+
+```bash
+# Type check without emitting
+npx tsc --noEmit
+
+# Check specific files
+npx tsc --noEmit src/module.ts
+
+# Generate declaration files only
+npx tsc --declaration --emitDeclarationOnly
 ```
 
 ### Common Mistakes to Avoid
@@ -472,12 +574,15 @@ type Status = typeof STATUSES[number];
 - Type assertions (`as Type`) instead of type guards
 - Not enabling strict mode from project start
 - Using non-null assertion (`!`) without proper checks
+- Over-typing when inference works - trust TypeScript's inference
+- Confusing `type` vs `interface` - use interface for objects/inheritance, type for unions
 
 ### Example Prompts
 
 - "Enable strict mode in this TypeScript project"
 - "Fix the type errors in this module"
 - "Create type-safe API response types"
+- "Set up path aliases for cleaner imports"
 
 ---
 
@@ -490,15 +595,17 @@ Vite build tool and bundling specialist.
 - Vite configuration
 - Build optimization
 - Code splitting
-- Dev server setup
+- Dev server setup with proxies
 
 ### Key Configuration
 
 ```typescript
 // vite.config.ts
 import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
 export default defineConfig({
+  plugins: [react()],
   build: {
     target: 'esnext',
     minify: 'esbuild',
@@ -510,14 +617,44 @@ export default defineConfig({
       },
     },
   },
+  // Pre-bundle heavy dependencies (used in this repo for maplibre-gl)
+  optimizeDeps: {
+    include: ['maplibre-gl', 'three'],
+  },
+  // Dev server proxy for API calls (used in this repo)
+  server: {
+    proxy: {
+      '/api': {
+        target: 'http://localhost:8000',
+        changeOrigin: true,
+      },
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+      },
+    },
+  },
 });
 ```
+
+### Stack Variations (This Repo)
+
+**Note:** Most websites in this repo use JavaScript, not TypeScript.
+
+| Project | Stack | Language |
+|---------|-------|----------|
+| trips.jomcgi.dev | Vite + React 19 + Tailwind | JS |
+| ships.jomcgi.dev | Vite + React 19 + Tailwind | JS |
+| jomcgi.dev | Astro + React (not plain Vite) | JS |
+| charts/claude/frontend | Vite + React | JS |
 
 ### Common Mistakes to Avoid
 
 - Not using dynamic `import()` for code splitting
 - Disabling browser cache during development
-- Not pre-bundling heavy dependencies
+- Not pre-bundling heavy dependencies with `optimizeDeps.include`
+- Missing `changeOrigin: true` for CORS with proxies
+- Missing WebSocket proxy configuration for real-time features
 - Importing entire libraries instead of specific functions
 
 ### Example Prompts
@@ -525,6 +662,7 @@ export default defineConfig({
 - "Optimize this Vite build for production"
 - "Configure code splitting for this React app"
 - "Debug slow Vite build times"
+- "Set up dev server proxy for backend API"
 
 ---
 
@@ -787,16 +925,78 @@ Developer documentation and technical writing specialist.
 - Building CONTRIBUTING.md guides
 - Auditing documentation for staleness
 
-### README Structure
+### README Templates by Type (This Repo)
 
-1. Project title and one-sentence description
-2. Quick Start - clone, install, run
-3. API examples or screenshots
-4. Repository structure
-5. Configuration options
-6. Links to deeper documentation
+**Chart README** (see `charts/signoz/README.md`):
+```markdown
+# Chart Name
+
+One-sentence description.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    A[Component] --> B[Component]
+```
+
+## Features
+- Feature 1
+- Feature 2
+
+## Configuration
+
+| Value | Description | Default |
+|-------|-------------|---------|
+| `key` | Description | `value` |
+```
+
+**Service README** (see `services/trips-api/README.md`):
+```markdown
+# Service Name
+
+Overview with purpose.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | /api/v1/items | List items |
+
+## Data Model
+```json
+{ "id": "string", "name": "string" }
+```
+
+## Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| `API_KEY` | API key | Yes |
+
+## Running Locally
+```bash
+bazelisk run //services/myservice:myservice
+```
+```
+
+### Mermaid Diagrams
+
+This repo uses mermaid diagrams extensively:
+
+```markdown
+```mermaid
+flowchart LR
+    subgraph Cluster
+        A[Service A] --> B[Service B]
+        B --> C[(Database)]
+    end
+```
+```
 
 ### ADR Format
+
+Note: This repo does not currently use ADRs, but this format is available if needed.
 
 ```markdown
 # ADR-NNN: Title
@@ -826,7 +1026,7 @@ What are the trade-offs?
 
 - "Create a README for the new alertmanager-discord service"
 - "Draft an ADR for switching from Redis to Valkey"
-- "Review the docs/ folder for stale documentation"
+- "Add a mermaid architecture diagram to this README"
 
 ---
 
@@ -960,10 +1160,12 @@ Kubernetes and cloud-native security specialist.
 
 **Always read first:** `architecture/security.md`
 
-### Key Commands
+### Key Commands (Require Global Install)
+
+**Note:** These tools are NOT vendored via Bazel - install globally if needed:
 
 ```bash
-# Container image scanning
+# Container image scanning (install: brew install trivy)
 trivy image <image:tag>
 trivy image --severity HIGH,CRITICAL <image:tag>
 
@@ -971,15 +1173,27 @@ trivy image --severity HIGH,CRITICAL <image:tag>
 trivy k8s --report summary cluster
 checkov -d charts/
 
-# Secret scanning
+# Secret scanning (install: brew install gitleaks)
 gitleaks detect --source .
 
 # SBOM generation
 trivy image --format spdx-json -o sbom.json <image:tag>
 
-# Image signing
+# Image signing (install: brew install cosign)
 cosign sign --key cosign.key <image:tag>
 cosign verify --key cosign.pub <image:tag>
+```
+
+### Inspecting Kyverno Policies (This Repo)
+
+```bash
+# List cluster policies
+kubectl get clusterpolicies
+
+# View existing policies (Linkerd and OTEL injection)
+kubectl describe clusterpolicy inject-linkerd-namespace-annotation
+helm template kyverno charts/kyverno/ -s templates/linkerd-injection-policy.yaml
+helm template kyverno charts/kyverno/ -s templates/otel-injection-policy.yaml
 ```
 
 ### Pod Security Standards
@@ -1023,11 +1237,24 @@ spec:
     - Egress
 ```
 
+### Secret Management (This Repo)
+
+This repo uses **1Password Operator** for secrets, not External Secrets:
+
+```yaml
+apiVersion: onepassword.com/v1
+kind: OnePasswordItem
+metadata:
+  name: my-secret
+spec:
+  itemPath: "vaults/homelab/items/my-secret"
+```
+
 ### Common Mistakes to Avoid
 
 1. **Running containers as root** - Always use `runAsNonRoot: true`
 2. **Using `:latest` image tags** - Pin to digest or immutable tags
-3. **Storing secrets in Git** - Use External Secrets Operator
+3. **Storing secrets in Git** - Use 1Password Operator (OnePasswordItem CRD)
 4. **Wildcard RBAC permissions** - Specify exact resources and verbs
 5. **No NetworkPolicies** - Apply default-deny in every namespace
 6. **Missing resource limits** - Enables DoS via resource exhaustion
@@ -1076,11 +1303,15 @@ gh pr checks
 gh pr checks --watch
 ```
 
-### CI Pipeline
+### CI Pipeline (BuildBuddy Workflows)
+
+This repo uses **BuildBuddy Workflows** directly (defined in `buildbuddy.yaml`), not GitHub Actions for builds:
 
 ```
-git push → GitHub Actions → BuildBuddy (build + test) → PR status check
+git push → BuildBuddy Workflows → bazel test //... --config=ci → PR status check
 ```
+
+**Key file:** `buildbuddy.yaml` defines the CI pipeline.
 
 ### Monitoring CI
 
@@ -1162,6 +1393,16 @@ Observability specialist for metrics, traces, logs, and alerting.
 ### Pre-requisite Reading
 
 **Always read first:** `architecture/observability.md`
+
+### Auto-Instrumentation (This Repo)
+
+Kyverno policies automatically inject OpenTelemetry instrumentation:
+- Pods in labeled namespaces get OTEL sidecars injected
+- Check policy: `kubectl describe clusterpolicy inject-otel-instrumentation`
+
+### SigNoz MCP Skill
+
+Use `/signoz` skill for querying logs, traces, and metrics via MCP integration.
 
 ### Dashboard Methods
 
