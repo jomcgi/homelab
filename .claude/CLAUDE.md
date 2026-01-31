@@ -22,14 +22,11 @@ See `.claude/skills/opencode/SKILL.md` for full guidance.
 
 **Why:** Direct main branch changes break GitOps workflows and bypass CI/CD checks.
 
-## Architecture Reference
+## Context Loading Rules
 
-Import these when relevant:
-
-- [architecture/security.md](../architecture/security.md) - Container security, network security, secrets
-- [architecture/observability.md](../architecture/observability.md) - Kyverno auto-injection, OTEL, Linkerd, SigNoz
-- [architecture/services.md](../architecture/services.md) - Service overview (cluster-critical, prod, dev)
-- [architecture/contributing.md](../architecture/contributing.md) - Adding services, common tasks
+- **Security changes**: Read architecture/security.md FIRST
+- **New services**: Read architecture/contributing.md + architecture/services.md  
+- **Observability work**: Read architecture/observability.md
 
 ## Kubernetes Operations (kubectl)
 
