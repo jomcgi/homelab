@@ -47,7 +47,7 @@ Environment variables:
 ## Running Locally
 
 ```bash
-bazel run //services/ships-api
+bazel run //services/ships_api
 ```
 
 ## Database Schema

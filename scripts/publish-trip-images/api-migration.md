@@ -70,7 +70,7 @@ The same image always produces the same S3 key via `uuid5(source:timestamp:filen
 
 ### Phase 1: Server-Side (trips-api)
 
-- [ ] Add dependencies to `services/trips-api/BUILD`: `pillow`, `boto3`
+- [ ] Add dependencies to `services/trips_api/BUILD`: `pillow`, `boto3`
 - [ ] Add EXIF extraction functions (port from local script)
 - [ ] Add S3 client and upload logic (port from local script)
 - [ ] Add `POST /api/images` endpoint with:

@@ -35,7 +35,7 @@ Environment variables:
 
 ```bash
 export AISSTREAM_API_KEY="your-key"
-bazel run //services/ais-ingest
+bazel run //services/ais_ingest
 ```
 
 ## NATS Stream
