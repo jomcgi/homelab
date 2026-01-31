@@ -2,8 +2,6 @@
 
 K3s cluster running in my office. GitOps via ArgoCD, automatic mTLS via Linkerd, observability via SigNoz.
 
-> Complexity is the silent killer of engineering velocity and reliability.
-
 ## Architecture
 
 ```mermaid
