@@ -35,7 +35,7 @@ spec:
           type: RuntimeDefault
       containers:
         - name: frontend
-          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
+          image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}{{ with .Values.frontend.image.digest }}@{{ . }}{{ end }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
           securityContext:
             readOnlyRootFilesystem: false
