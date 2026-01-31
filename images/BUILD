@@ -9,7 +9,6 @@ multirun(
     commands = [
         "//charts/claude/image:image.push",
         "//charts/signoz-dashboard-sidecar/cmd:image.push",
-        "//charts/todo/cmd:image.push",
         "//charts/todo/image:image.push",
         "//operators/cloudflare:image.push",
         "//services/ais-ingest:image.push",
