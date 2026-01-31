@@ -27,10 +27,18 @@ var (
 	dataDir           = getEnv("DATA_DIR", "/data")
 	staticDir         = getEnv("STATIC_DIR", "/app/static")
 	gitRepo           = getEnv("GIT_REPO", "")
+	gitRoot           = getEnv("GIT_ROOT", "") // Git repo root, defaults to DATA_DIR
 	gitBranch         = getEnv("GIT_BRANCH", "main")
 	listenAddr        = getEnv("LISTEN_ADDR", ":8080")
 	rollingWindowDays = 14
 )
+
+func init() {
+	// Default gitRoot to dataDir if not set
+	if gitRoot == "" {
+		gitRoot = dataDir
+	}
+}
 
 /*
 Data Contract:
@@ -446,9 +454,9 @@ func gitCommit(msg string) error {
 	}
 
 	cmds := [][]string{
-		{"git", "-C", dataDir, "add", "-A"},
-		{"git", "-C", dataDir, "commit", "-m", msg},
-		{"git", "-C", dataDir, "push", "origin", gitBranch},
+		{"git", "-C", gitRoot, "add", "-A"},
+		{"git", "-C", gitRoot, "commit", "-m", msg},
+		{"git", "-C", gitRoot, "push", "origin", gitBranch},
 	}
 
 	for _, args := range cmds {

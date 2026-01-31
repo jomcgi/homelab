@@ -1,14 +1,15 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jomcgi/todo
-  tag: latest
+  repository: ghcr.io/jomcgi/homelab/charts/todo
+  tag: main
   pullPolicy: IfNotPresent
 
 git:
-  repo: ""  # Required: git@github.com:jomcgi/todo-data.git
+  repo: git@github.com:jomcgi/homelab.git
   branch: main
-  secretName: todo-git-ssh
+  dataPath: data/todo  # Subdirectory in repo for todo data
+  secretName: homelab-git-ssh  # Reuse existing homelab deploy key
 
 service:
   public:

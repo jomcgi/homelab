@@ -21,17 +21,19 @@ spec:
             - sh
             - -c
             - |
-              if [ ! -d /data/.git ]; then
-                git clone --branch {{ .Values.git.branch }} {{ .Values.git.repo }} /data
+              if [ ! -d /repo/.git ]; then
+                git clone --branch {{ .Values.git.branch }} {{ .Values.git.repo }} /repo
               else
-                cd /data && git fetch origin && git reset --hard origin/{{ .Values.git.branch }}
+                cd /repo && git fetch origin && git reset --hard origin/{{ .Values.git.branch }}
               fi
+              # Ensure data directory exists
+              mkdir -p /repo/{{ .Values.git.dataPath }}
           env:
             - name: GIT_SSH_COMMAND
               value: "ssh -i /ssh/id_rsa -o StrictHostKeyChecking=no"
           volumeMounts:
-            - name: data
-              mountPath: /data
+            - name: repo
+              mountPath: /repo
             - name: git-ssh
               mountPath: /ssh
               readOnly: true
@@ -44,7 +46,9 @@ spec:
               containerPort: 8080
           env:
             - name: DATA_DIR
-              value: /data
+              value: /repo/{{ .Values.git.dataPath }}
+            - name: GIT_ROOT
+              value: /repo
             - name: GIT_REPO
               value: {{ .Values.git.repo }}
             - name: GIT_BRANCH
@@ -52,8 +56,8 @@ spec:
             - name: GIT_SSH_COMMAND
               value: "ssh -i /ssh/id_rsa -o StrictHostKeyChecking=no"
           volumeMounts:
-            - name: data
-              mountPath: /data
+            - name: repo
+              mountPath: /repo
             - name: git-ssh
               mountPath: /ssh
               readOnly: true
@@ -70,14 +74,14 @@ spec:
             - name: http
               containerPort: 80
           volumeMounts:
-            - name: data
+            - name: repo
               mountPath: /usr/share/nginx/html
-              subPath: public
+              subPath: {{ .Values.git.dataPath }}/public
               readOnly: true
           resources:
             {{- toYaml .Values.resources.static | nindent 12 }}
       volumes:
-        - name: data
+        - name: repo
           persistentVolumeClaim:
             claimName: {{ include "todo.fullname" . }}
         - name: git-ssh

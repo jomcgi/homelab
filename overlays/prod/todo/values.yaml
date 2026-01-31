@@ -1,8 +1,9 @@
 # Production values for todo app
+# Uses the homelab monorepo for data storage
+
 git:
-  repo: git@github.com:jomcgi/todo-data.git
-  branch: main
-  secretName: todo-git-ssh
+  # No override needed - uses homelab repo from chart defaults
+  secretName: todo-git-ssh  # SSH key with write access to homelab repo
 
 cloudflare:
   tunnel: homelab
@@ -12,4 +13,4 @@ cloudflare:
 
 persistence:
   storageClass: longhorn
-  size: 1Gi
+  size: 5Gi  # Larger since it contains the full repo
