@@ -37,8 +37,9 @@ spec:
                 rm -rf /repo/* /repo/.[!.]* 2>/dev/null || true
                 git clone --branch {{ .Values.git.branch }} {{ .Values.git.repo }} /repo
               fi
-              # Ensure data directory exists
+              # Ensure data directory exists and is writable by API (uid 65532)
               mkdir -p /repo/{{ .Values.git.dataPath }}
+              chown -R 65532:65532 /repo/{{ .Values.git.dataPath }}
           env:
             - name: GIT_TOKEN
               valueFrom:
