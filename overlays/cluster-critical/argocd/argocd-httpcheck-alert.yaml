@@ -43,7 +43,7 @@ data:
               "filters": {
                 "items": [
                   {
-                    "key": {"key": "http_url"},
+                    "key": {"key": "http.url"},
                     "op": "=",
                     "value": "https://argocd.jomcgi.dev"
                   }
