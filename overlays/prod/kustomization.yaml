@@ -10,5 +10,6 @@ resources:
   - ./gh-arc-runners
   - ./nats
   - ./seaweedfs
+  - ./todo
   - ./trips
   - ./vllm
