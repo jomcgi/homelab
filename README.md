@@ -4,8 +4,6 @@ K3s cluster running in my office. GitOps via ArgoCD, automatic mTLS via Linkerd,
 
 > Complexity is the silent killer of engineering velocity and reliability.
 
-- _A Philosophy of Software Design_, John Ousterhout
-
 ## Architecture
 
 ```mermaid
