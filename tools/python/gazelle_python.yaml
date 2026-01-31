@@ -41,6 +41,7 @@ manifest:
     bs4: beautifulsoup4
     cattr: cattrs
     cattrs: cattrs
+    cdk8s: cdk8s
     certifi: certifi
     charset_normalizer: charset_normalizer
     click: click
@@ -49,10 +50,12 @@ manifest:
     cligj: cligj
     colorama: colorama
     construct: construct
+    constructs: constructs
     copier: copier
     cv2: opencv_python
     dateutil: python_dateutil
     dbus_fast: dbus_fast
+    defusedxml: defusedxml
     dispatch: pyobjc_framework_libdispatch
     dotenv: python_dotenv
     dunamai: dunamai
@@ -139,10 +142,12 @@ manifest:
     idna: idna
     ifaddr: ifaddr
     importlib_metadata: importlib_metadata
+    importlib_resources: importlib_resources
     iniconfig: iniconfig
     jinja2: jinja2
     jinja2_ansible_filters: jinja2_ansible_filters
     jmespath: jmespath
+    jsii: jsii
     libdispatch: pyobjc_framework_libdispatch
     mako: mako
     markdown_it: markdown_it_py
@@ -211,6 +216,7 @@ manifest:
     prompt_toolkit: prompt_toolkit
     propcache: propcache
     ptyprocess: ptyprocess
+    publication: publication
     py: pytest
     pydantic: pydantic
     pydantic_core: pydantic_core
@@ -244,6 +250,7 @@ manifest:
     tabulate: tabulate
     timelength: timelength
     tinydb: tinydb
+    typeguard: typeguard
     typer: typer
     typing_extensions: typing_extensions
     typing_inspection: typing_inspection
