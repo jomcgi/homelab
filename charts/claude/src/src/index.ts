@@ -27,6 +27,36 @@ const CLAUDE_BIN = path.join(HOME, ".npm-global", "bin", "claude");
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
 fs.mkdirSync(WORKTREES_DIR, { recursive: true });
 
+// UUID validation regex
+const UUID_REGEX =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * Validates that a path is within allowed directories to prevent path traversal.
+ * Returns the validated path or null if invalid.
+ */
+function validateWorkdir(workdir: string): string | null {
+  // nosemgrep: path-join-resolve-traversal - This IS the sanitizer function
+  const resolvedPath = path.resolve(workdir);
+  // Ensure the resolved path is within allowed directories
+  if (
+    resolvedPath.startsWith(HOME + path.sep) ||
+    resolvedPath.startsWith(WORKTREES_DIR + path.sep) ||
+    resolvedPath === HOME ||
+    resolvedPath === WORKTREES_DIR
+  ) {
+    return resolvedPath;
+  }
+  return null;
+}
+
+/**
+ * Validates that an ID is a valid UUID to prevent path traversal via IDs.
+ */
+function isValidUUID(id: string): boolean {
+  return UUID_REGEX.test(id);
+}
+
 interface Session {
   id: string;
   name: string;
@@ -64,11 +94,31 @@ app.get("/api/sessions", (_req, res) => {
 app.post("/api/sessions", (req, res) => {
   const { name, workdir } = req.body;
   const id = uuidv4();
-  const sessionWorkdir = workdir || path.join(WORKTREES_DIR, id);
 
-  // Create workdir if it doesn't exist
-  if (!fs.existsSync(sessionWorkdir)) {
-    fs.mkdirSync(sessionWorkdir, { recursive: true });
+  // Validate workdir to prevent path traversal attacks
+  let sessionWorkdir: string;
+  if (workdir) {
+    // nosemgrep: path-join-resolve-traversal - Path is validated below before use
+    const resolvedWorkdir = path.resolve(workdir);
+    // Ensure the resolved path is within allowed directories (HOME or WORKTREES_DIR)
+    if (
+      !resolvedWorkdir.startsWith(HOME + path.sep) &&
+      !resolvedWorkdir.startsWith(WORKTREES_DIR + path.sep) &&
+      resolvedWorkdir !== HOME &&
+      resolvedWorkdir !== WORKTREES_DIR
+    ) {
+      return res.status(400).json({
+        error: "Invalid workdir: must be within home directory",
+      });
+    }
+    sessionWorkdir = resolvedWorkdir;
+  } else {
+    sessionWorkdir = path.join(WORKTREES_DIR, id);
+  }
+
+  // Create workdir if it doesn't exist (sessionWorkdir is validated above)
+  if (!fs.existsSync(sessionWorkdir)) { // nosemgrep
+    fs.mkdirSync(sessionWorkdir, { recursive: true }); // nosemgrep
   }
 
   const session: Session = {
@@ -107,6 +157,11 @@ app.post("/api/sessions", (req, res) => {
 
 // Get session
 app.get("/api/sessions/:id", (req, res) => {
+  // Validate session ID format to prevent path traversal
+  if (!isValidUUID(req.params.id)) {
+    return res.status(400).json({ error: "Invalid session ID format" });
+  }
+
   const session = sessions.get(req.params.id);
   if (!session) {
     return res.status(404).json({ error: "Session not found" });
@@ -122,6 +177,11 @@ app.get("/api/sessions/:id", (req, res) => {
 
 // Delete session
 app.delete("/api/sessions/:id", (req, res) => {
+  // Validate session ID format to prevent path traversal
+  if (!isValidUUID(req.params.id)) {
+    return res.status(400).json({ error: "Invalid session ID format" });
+  }
+
   const session = sessions.get(req.params.id);
   if (!session) {
     return res.status(404).json({ error: "Session not found" });
@@ -139,8 +199,11 @@ app.delete("/api/sessions/:id", (req, res) => {
   sessions.delete(req.params.id);
 
   // Remove metadata file
+  // nosemgrep: path-join-resolve-traversal, express-fs-filename - ID is validated as UUID above
   const metaPath = path.join(SESSIONS_DIR, `${req.params.id}.json`);
+  // nosemgrep: express-fs-filename - ID is validated as UUID above
   if (fs.existsSync(metaPath)) {
+    // nosemgrep: express-fs-filename - ID is validated as UUID above
     fs.unlinkSync(metaPath);
   }
 
@@ -192,7 +255,7 @@ wss.on("connection", (ws, req) => {
   try {
     url = new URL(req.url || "", `http://localhost:${PORT}`);
   } catch (err) {
-    console.error(`Failed to parse WebSocket URL: ${req.url}`, err);
+    console.error("Failed to parse WebSocket URL:", req.url, err);
     ws.close(4001, "Invalid URL");
     return;
   }
@@ -256,7 +319,7 @@ wss.on("connection", (ws, req) => {
   });
 
   ws.on("error", (err) => {
-    console.error(`Session ${session.id} WebSocket error:`, err);
+    console.error("Session WebSocket error for session", session.id, err);
   });
 
   // Send welcome message
@@ -273,7 +336,8 @@ wss.on("connection", (ws, req) => {
     console.log(`Welcome message sent successfully to session ${session.id}`);
   } catch (err) {
     console.error(
-      `Failed to send welcome message to session ${session.id}:`,
+      "Failed to send welcome message to session",
+      session.id,
       err,
     );
   }
@@ -449,6 +513,7 @@ function broadcast(session: Session, message: Record<string, unknown>) {
 
 // Save session metadata to disk
 function saveSession(session: Session) {
+  // nosemgrep: path-join-resolve-traversal - session.id is a UUID generated by uuidv4()
   const metaPath = path.join(SESSIONS_DIR, `${session.id}.json`);
   fs.writeFileSync(
     metaPath,
@@ -484,7 +549,7 @@ function loadSessions() {
         wsClients: new Set(),
       });
     } catch (err) {
-      console.error(`Failed to load session ${file}:`, err);
+      console.error("Failed to load session file:", file, err);
     }
   }
   console.log(`Loaded ${sessions.size} existing sessions`);
