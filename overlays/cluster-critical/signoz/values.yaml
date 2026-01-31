@@ -1,5 +1,14 @@
 # k8s-infra subchart configuration
 k8s-infra:
+  presets:
+    # Enable Prometheus annotation-based scraping for metrics from annotated pods/services
+    # This allows scraping metrics from services with prometheus.io/scrape: "true" annotations
+    # Used by ArgoCD metrics services and other standard Prometheus-compatible exporters
+    prometheus:
+      enabled: true
+      # Use standard prometheus.io annotation prefix (ArgoCD, kube-state-metrics, etc.)
+      annotationsPrefix: prometheus.io
+      scrapeInterval: 30s
   otelAgent:
     resources:
       requests:
