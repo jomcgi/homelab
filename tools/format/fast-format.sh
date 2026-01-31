@@ -100,4 +100,11 @@ fi
 # Wait for all parallel tasks
 for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
 
+# Gazelle (generates BUILD files for Go/Python)
+# Run after formatters complete since it needs formatted files
+if [[ "$MODE" == "all" ]] || staged_matches '\.(go|py)$'; then
+	log "Running gazelle..."
+	bazel run //:gazelle 2>&1 | grep -v "^INFO:" || true
+fi
+
 log "Done!"

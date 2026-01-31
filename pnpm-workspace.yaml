@@ -3,3 +3,5 @@ packages:
   - packages/*
   - tools
   - websites/ships.jomcgi.dev
+  - websites/trips.jomcgi.dev
+  - websites/jomcgi.dev

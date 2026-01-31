@@ -1,5 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
 load("//tools/oci:py3_image.bzl", "py3_image")
+load("//tools/pytest:defs.bzl", "py_test")
 
 py_binary(
     name = "main",
@@ -31,4 +32,19 @@ py3_image(
     name = "image",
     binary = "//services/trips-api:main",
     repository = "ghcr.io/jomcgi/homelab/services/trips-api",
+)
+
+py_test(
+    name = "trips_api_test",
+    srcs = ["trips_api_test.py"],
+    imports = ["."],
+    deps = [
+        ":trips-api",
+        "@pip//fastapi",
+        "@pip//httpx",
+        "@pip//nats_py",
+        "@pip//pydantic",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
 )

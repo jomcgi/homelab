@@ -17,6 +17,12 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
+          # Verify BUILD files are up-to-date (catches missing test targets)
+          bazel run //:gazelle
+          if ! git diff --exit-code; then
+            echo "ERROR: BUILD files out of sync. Run 'bazelisk run //:gazelle' locally."
+            exit 1
+          fi
           bazel test //... --config=ci --deleted_packages=tools/python
 
       - run: |

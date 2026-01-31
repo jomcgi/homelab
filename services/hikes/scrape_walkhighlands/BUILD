@@ -1,4 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("//tools/pytest:defs.bzl", "py_test")
 
 py_binary(
     name = "scrape",
@@ -34,5 +35,28 @@ py_library(
         "@pip//requests",
         "@pip//requests_cache",
         "@pip//timelength",
+    ],
+)
+
+py_test(
+    name = "error_handling_test",
+    srcs = ["error_handling_test.py"],
+    imports = ["."],
+    deps = [
+        ":scrape_walkhighlands",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "scrape_test",
+    srcs = ["scrape_test.py"],
+    imports = ["."],
+    deps = [
+        ":scrape_walkhighlands",
+        "@pip//beautifulsoup4",
+        "@pip//pydantic",
+        "@pip//pytest",
+        "@pip//requests",
     ],
 )
