@@ -1,0 +1,12 @@
+apiVersion: v2
+name: openclaw
+description: OpenClaw AI coding assistant with web interface
+type: application
+version: 1.0.0
+appVersion: "2026.1.30"
+keywords:
+  - ai
+  - coding-assistant
+  - web
+maintainers:
+  - name: homelab

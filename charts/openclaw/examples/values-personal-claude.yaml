@@ -1,0 +1,45 @@
+## OpenClaw Configuration - Personal Claude Instance
+## Uses Anthropic API with Claude subscription
+##
+## Deploy with: helm install openclaw-personal ./charts/openclaw -f values-personal-claude.yaml
+
+## Use a distinct name to avoid conflicts with other instances
+fullnameOverride: "openclaw-personal"
+
+## LLM provider configuration - Anthropic Claude
+llm:
+  provider: "anthropic"
+  model: "claude-sonnet-4-20250514"
+
+## OpenClaw settings
+config:
+  permissionMode: "default"
+
+## Authentication - use credentials file from local Claude CLI login
+## First create the secret:
+##   kubectl create secret generic openclaw-claude-creds \
+##     --from-file=credentials.json=$HOME/.claude/.credentials.json
+auth:
+  enabled: true
+  method: "credentials-file"
+  existingSecret: "openclaw-claude-creds"
+  credentialsSecretKey: "credentials.json"
+
+## Network policy - allow external HTTPS only (Anthropic API)
+networkPolicy:
+  enabled: true
+  allowClusterInternal: false
+
+## Persistence for conversation history
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 10Gi
+
+## Resource limits for Claude (higher memory for complex tasks)
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
