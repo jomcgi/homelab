@@ -65,13 +65,13 @@ persistence:
   storageClass: "longhorn"
   size: 5Gi
 
-## Resources (lower - inference is on vLLM)
+## Resources - Discord integration needs more memory
 resources:
   requests:
     cpu: 250m
-    memory: 512Mi
-  limits:
     memory: 1Gi
+  limits:
+    memory: 2Gi
 
 ## Network policy - allow external internet, restrict internal cluster
 networkPolicy:
