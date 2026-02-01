@@ -35,8 +35,8 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
         {{- if .Values.initContainers.initConfig.enabled }}
-        # init-config: Set up config directory with correct permissions
-        # Runs as root briefly to chown the directory to user 1000:1000
+        # init-config: Copy config and set up directory permissions
+        # OpenClaw expects config at $HOME/.openclaw/openclaw.json
         - name: init-config
           image: {{ .Values.initContainers.initConfig.image }}
           command:
@@ -44,6 +44,7 @@ spec:
             - -c
             - |
               mkdir -p /home/openclaw/.openclaw
+              cp /config/openclaw.json /home/openclaw/.openclaw/openclaw.json
               chown -R 1000:1000 /home/openclaw
           securityContext:
             runAsUser: 0
@@ -51,6 +52,9 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /home/openclaw
+            - name: config
+              mountPath: /config
+              readOnly: true
           resources:
             {{- toYaml .Values.initContainers.initConfig.resources | nindent 12 }}
         {{- end }}
@@ -96,8 +100,6 @@ spec:
             - dist/index.js
           args:
             - gateway
-            - --config
-            - /etc/openclaw/openclaw.json
             - --bind
             - lan
             - --port
@@ -109,8 +111,6 @@ spec:
           env:
             - name: HOME
               value: /home/openclaw
-            - name: OPENCLAW_CONFIG
-              value: /etc/openclaw/openclaw.json
             - name: OPENCLAW_PORT
               value: {{ .Values.server.port | quote }}
             {{- if .Values.chromium.enabled }}
