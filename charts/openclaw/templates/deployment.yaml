@@ -35,16 +35,22 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
         {{- if .Values.initContainers.initConfig.enabled }}
-        # init-config: Copy config and set up directory permissions
-        # OpenClaw expects config at $HOME/.openclaw/openclaw.json
+        # init-config: Set up directory and seed config if not exists
+        # Only creates config if missing - preserves manual changes across restarts
         - name: init-config
           image: {{ .Values.initContainers.initConfig.image }}
           command:
             - /bin/sh
             - -c
             - |
-              mkdir -p /home/openclaw/.openclaw
-              cp /config/openclaw.json /home/openclaw/.openclaw/openclaw.json
+              mkdir -p /home/openclaw/.openclaw/workspace
+              # Only copy seed config if no config exists (preserve manual changes)
+              if [ ! -f /home/openclaw/.openclaw/openclaw.json ]; then
+                echo "Creating initial config..."
+                cp /config/openclaw.json /home/openclaw/.openclaw/openclaw.json
+              else
+                echo "Config exists, preserving..."
+              fi
               chown -R 1000:1000 /home/openclaw
           securityContext:
             runAsUser: 0
@@ -100,6 +106,7 @@ spec:
             - dist/index.js
           args:
             - gateway
+            - --allow-unconfigured
             - --bind
             - lan
             - --port
@@ -111,6 +118,11 @@ spec:
           env:
             - name: HOME
               value: /home/openclaw
+            {{- if .Values.gateway.token }}
+            # Gateway WebSocket auth token (optional - Cloudflare Zero Trust handles external auth)
+            - name: OPENCLAW_GATEWAY_TOKEN
+              value: {{ .Values.gateway.token | quote }}
+            {{- end }}
             - name: OPENCLAW_PORT
               value: {{ .Values.server.port | quote }}
             {{- if .Values.chromium.enabled }}

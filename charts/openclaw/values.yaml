@@ -16,6 +16,12 @@ fullnameOverride: ""
 server:
   port: 18789
 
+## Gateway configuration
+gateway:
+  ## WebSocket auth token - clients need this to connect
+  ## Override with a secret value in your overlay
+  token: ""
+
 ## LLM provider configuration
 ## Supports multiple backends for different use cases
 llm:
