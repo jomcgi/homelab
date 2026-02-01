@@ -35,7 +35,7 @@ cloudflare:
     enabled: true
     sessionDuration: "24h"
     allowedEmails:
-      - "jomcgi@gmail.com"  # TODO: Update with your email
+      - "joe@jomcgi.dev"
 
 ## Persistence
 persistence:

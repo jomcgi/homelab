@@ -27,21 +27,15 @@ discord:
     onepassword:
       itemPath: "op://Homelab/openclaw/discord-bot-token"
   settings:
-    groupPolicy: "allowlist"
     historyLimit: 20
     replyToMode: "off"
     allowBots: false
     dm:
       enabled: false
+    ## Wildcard config: respond in any channel where bot is invited, but require @mention
     guilds:
-      # TODO: Replace with your Discord server ID
-      "YOUR_GUILD_ID":
-        slug: "friends"
+      "*":
         requireMention: true
-        channels:
-          "ai-chat":
-            allow: true
-            requireMention: true
 
 ## ClawHub skills
 clawhub:
@@ -56,8 +50,8 @@ cloudflare:
     enabled: true
     sessionDuration: "24h"
     allowedEmails:
-      - "jomcgi@gmail.com"  # TODO: Update with your email
-      # Add friends' emails here
+      - "joe@jomcgi.dev"
+      # Add friends' emails for dashboard access (Discord chat doesn't need this)
 
 ## Persistence
 persistence:
