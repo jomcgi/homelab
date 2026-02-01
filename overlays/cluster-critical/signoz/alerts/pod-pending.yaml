@@ -36,29 +36,23 @@ data:
               "dataSource": "metrics",
               "aggregateOperator": "max",
               "aggregateAttribute": {
-                "key": "kube_pod_status_phase",
+                "key": "k8s.pod.phase",
                 "dataType": "float64",
                 "type": "Gauge"
               },
               "filters": {
-                "items": [
-                  {
-                    "key": {"key": "phase"},
-                    "op": "=",
-                    "value": "Pending"
-                  }
-                ]
+                "items": []
               },
               "groupBy": [
-                {"key": "k8s_namespace_name"},
-                {"key": "k8s_pod_name"}
+                {"key": "k8s.namespace.name"},
+                {"key": "k8s.pod.name"}
               ]
             }
           },
           "queryType": "builder"
         },
-        "op": ">",
-        "target": 0,
+        "op": "=",
+        "target": 1,
         "matchType": "15"
       },
       "preferredChannels": ["pagerduty-homelab"]
