@@ -1,0 +1,99 @@
+## OpenClaw Configuration - Discord Friends Group Chat (Local Qwen)
+## Uses local vLLM service with Qwen model + Discord channel
+## Isolated instance for friends group chat, not using your Claude subscription
+##
+## Deploy with: helm install openclaw-friends ./charts/openclaw -f examples/values-discord-friends.yaml
+##
+## SETUP STEPS:
+## 1. Create Discord application at https://discord.com/developers/applications
+## 2. Go to "Bot" tab, create bot, copy token
+## 3. Enable "Message Content Intent" under "Privileged Gateway Intents"
+## 4. Invite bot to your server with proper permissions (read/send messages)
+## 5. Store bot token in 1Password item with field "discord-bot-token"
+## 6. Update discord.secret.onepassword.itemPath below
+## 7. Update YOUR_GUILD_ID and channel settings
+## 8. Deploy: helm install openclaw-friends ./charts/openclaw -f examples/values-discord-friends.yaml
+
+## Distinct name for this instance
+fullnameOverride: "openclaw-friends"
+
+## LLM provider - local Qwen via vLLM (no Claude subscription costs)
+llm:
+  provider: "openai-compatible"
+  model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  baseUrl: "http://vllm.vllm.svc.cluster.local:8000/v1"
+  ## vLLM NetworkPolicy configuration
+  vllm:
+    enabled: true
+    namespace: "vllm"
+    port: 8000
+    podSelector:
+      app.kubernetes.io/name: vllm
+
+## No Anthropic auth needed (using local model)
+auth:
+  enabled: false
+
+## Discord channel configuration
+discord:
+  enabled: true
+  secret:
+    type: "onepassword"
+    onepassword:
+      ## Update with your 1Password item path
+      itemPath: "op://Homelab/openclaw/discord-bot-token"
+  settings:
+    groupPolicy: "allowlist"
+    historyLimit: 20
+    replyToMode: "off"
+    allowBots: false
+    dm:
+      enabled: false
+    guilds:
+      ## Replace YOUR_GUILD_ID with your Discord server ID
+      ## (Enable Developer Mode in Discord, right-click server -> Copy ID)
+      "YOUR_GUILD_ID":
+        slug: "friends"
+        requireMention: true
+        channels:
+          ## Replace with your channel slug (channel name without #)
+          "ai-chat":
+            allow: true
+            requireMention: true
+
+## Install Discord skill for extended functionality (stickers, polls, etc.)
+clawhub:
+  skills:
+    - "steipete/discord"
+
+## Network policy: Allow vLLM + Discord API (external HTTPS on 443)
+networkPolicy:
+  enabled: true
+  allowClusterInternal: false
+
+## Persistence
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 5Gi
+
+## Lower resources (model inference is on vLLM)
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
+
+## Cloudflare Zero Trust - expose dashboard at claw-friends.jomcgi.dev
+cloudflare:
+  enabled: true
+  hostname: "claw-friends.jomcgi.dev"
+  zeroTrust:
+    enabled: true
+    sessionDuration: "24h"
+    ## Allow yourself and friends to access the dashboard
+    allowedEmails:
+      - "your@email.com"      # Replace with your email
+      - "friend1@email.com"   # Add friends who should have dashboard access
+      - "friend2@email.com"

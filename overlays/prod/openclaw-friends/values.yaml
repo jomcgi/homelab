@@ -1,0 +1,70 @@
+## OpenClaw Friends Instance - Production Values
+## Group chat AI assistant with local Qwen + Discord
+
+fullnameOverride: "openclaw-friends"
+
+## LLM: Local Qwen via vLLM
+llm:
+  provider: "openai-compatible"
+  model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  baseUrl: "http://vllm.vllm.svc.cluster.local:8000/v1"
+  vllm:
+    enabled: true
+    namespace: "vllm"
+    port: 8000
+    podSelector:
+      app.kubernetes.io/name: vllm
+
+## No Anthropic auth needed
+auth:
+  enabled: false
+
+## Discord channel
+discord:
+  enabled: true
+  secret:
+    type: "onepassword"
+    onepassword:
+      itemPath: "op://Homelab/openclaw/discord-bot-token"
+  settings:
+    historyLimit: 20
+    replyToMode: "off"
+    allowBots: false
+    dm:
+      enabled: false
+    ## Allowed Discord servers (guild IDs)
+    guilds:
+      "185442367703220224":
+        requireMention: true
+      "1290668195249917964":
+        requireMention: true
+
+## ClawHub skills
+clawhub:
+  skills:
+    - "steipete/discord"
+
+## Cloudflare Zero Trust
+cloudflare:
+  enabled: true
+  hostname: "claw-friends.jomcgi.dev"
+  zeroTrust:
+    enabled: true
+    sessionDuration: "24h"
+    allowedEmails:
+      - "joe@jomcgi.dev"
+      # Add friends' emails for dashboard access (Discord chat doesn't need this)
+
+## Persistence
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 5Gi
+
+## Resources (lower - inference is on vLLM)
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi

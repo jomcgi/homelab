@@ -1,0 +1,423 @@
+## OpenClaw AI Coding Assistant Configuration
+## Single replica deployment (no horizontal scaling supported)
+
+## Container image
+image:
+  repository: ghcr.io/openclaw/openclaw
+  pullPolicy: IfNotPresent
+  tag: "2026.1.30"
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+## OpenClaw server configuration
+server:
+  port: 18789
+
+## LLM provider configuration
+## Supports multiple backends for different use cases
+llm:
+  ## Provider type: "anthropic" or "openai-compatible"
+  ##
+  ## anthropic: Use Anthropic's Claude API directly
+  ##   - Requires authentication (auth.enabled must be true)
+  ##   - Connects to api.anthropic.com (external HTTPS)
+  ##
+  ## openai-compatible: Use any OpenAI-compatible API (vLLM, Ollama, etc.)
+  ##   - Does not require Anthropic auth
+  ##   - Typically connects to cluster-internal services
+  provider: "anthropic"
+
+  ## Model name to use
+  ## For anthropic: claude-sonnet-4-20250514, claude-opus-4, etc.
+  ## For openai-compatible: depends on backend (e.g., Qwen/Qwen2.5-Coder-32B-Instruct)
+  model: "claude-sonnet-4-20250514"
+
+  ## Base URL for openai-compatible provider
+  ## Only used when provider is "openai-compatible"
+  ## Example: http://vllm.vllm.svc.cluster.local:8000/v1
+  baseUrl: ""
+
+  ## Optional API key for openai-compatible provider
+  ## Leave empty if the backend doesn't require authentication
+  apiKey: ""
+
+  ## vLLM-specific settings for NetworkPolicy
+  ## When using openai-compatible with vLLM, configure this to allow egress
+  vllm:
+    ## Enable vLLM-specific NetworkPolicy egress rule
+    enabled: false
+    ## Namespace where vLLM is running
+    namespace: "vllm"
+    ## Port vLLM is listening on
+    port: 8000
+    ## Pod selector to match vLLM pods
+    podSelector:
+      app.kubernetes.io/name: vllm
+
+## OpenClaw configuration (openclaw.json)
+## See: https://openclaw.dev/docs/configuration
+config:
+  ## Permissions mode: default, acceptEdits, bypassPermissions, plan
+  permissionMode: "default"
+
+  ## Trusted proxies for X-Forwarded-* headers
+  ## WARNING: trustedProxies does NOT support CIDR notation
+  ## Use individual IP addresses only, e.g., ["10.0.0.1", "10.0.0.2"]
+  ## For Kubernetes, use pod/service IPs, not network ranges
+  trustedProxies: []
+
+  ## Additional configuration options passed to openclaw.json
+  ## These are merged into the config file
+  extra: {}
+
+## Discord channel configuration
+## See: https://docs.openclaw.ai/channels/discord
+discord:
+  enabled: false
+  ## Secret configuration for Discord bot token
+  secret:
+    ## Type: "onepassword" or "manual"
+    type: "onepassword"
+    onepassword:
+      ## 1Password item path (e.g., "op://vault/openclaw/discord-bot-token")
+      itemPath: ""
+    manual:
+      ## Bot token (only used if type is "manual")
+      token: ""
+  ## Discord channel settings (merged into config.extra.channels.discord)
+  settings:
+    groupPolicy: "allowlist"
+    historyLimit: 20
+    replyToMode: "off"
+    allowBots: false
+    dm:
+      enabled: false
+    guilds: {}
+    #  "YOUR_GUILD_ID":
+    #    slug: "friends"
+    #    requireMention: true
+    #    channels:
+    #      "ai-chat":
+    #        allow: true
+
+## WhatsApp channel configuration
+## See: https://docs.openclaw.ai/channels/whatsapp
+whatsapp:
+  enabled: false
+  ## Secret configuration for WhatsApp credentials
+  secret:
+    ## Type: "onepassword" or "manual"
+    type: "onepassword"
+    onepassword:
+      ## 1Password item path containing WhatsApp session data
+      itemPath: ""
+  ## WhatsApp channel settings (merged into config.extra.channels.whatsapp)
+  settings:
+    ## DM policy: "pairing" (default), "allowlist", or "open"
+    dmPolicy: "pairing"
+    ## Group settings
+    groups:
+      enabled: false
+
+## ClawHub skills configuration
+## See: https://docs.openclaw.ai/tools/clawhub
+clawhub:
+  ## Skills to install from ClawHub registry
+  ## Format: "owner/skill-name" (e.g., "steipete/discord")
+  skills: []
+  #  - "steipete/discord"
+  #  - "steipete/weather"
+
+## Init containers configuration
+initContainers:
+  ## init-config: Creates config directory with correct ownership
+  ## Runs as root briefly to set up permissions
+  initConfig:
+    enabled: true
+    image: busybox:1.36
+    resources:
+      requests:
+        cpu: 10m
+        memory: 16Mi
+      limits:
+        memory: 32Mi
+
+  ## init-skills: Installs ClawHub skills
+  ## Runs as node user (1000:1000)
+  ## Uses main OpenClaw image by default (has clawhub CLI)
+  initSkills:
+    enabled: false
+    ## Leave empty to use the main image.repository
+    image: ""
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        memory: 512Mi
+
+## Chromium sidecar for browser automation
+## Uses zenika/alpine-chrome for lightweight headless browser
+chromium:
+  enabled: false
+  image: zenika/alpine-chrome:124
+  port: 9222
+  ## Additional Chrome flags
+  extraFlags: []
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 18789
+
+## Persistence configuration for ~/.openclaw
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  annotations: {}
+
+## Resource limits
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi
+
+## Liveness probe
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+## Readiness probe
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}
+
+## Extra environment variables
+## Add additional environment variables to the main container
+extraEnv: []
+#  - name: MY_VAR
+#    value: "my-value"
+
+## Extra environment variable sources (secrets, configmaps)
+## Useful for loading Discord bot tokens, API keys, etc. from secrets
+extraEnvFrom: []
+#  - secretRef:
+#      name: discord-bot-token
+#  - configMapRef:
+#      name: extra-config
+
+## Service Account configuration
+serviceAccount:
+  # Create a service account for the OpenClaw pods
+  create: true
+  # Automatically mount the ServiceAccount token
+  automount: true
+  # Annotations to add to the service account (e.g., for IAM roles)
+  # Example for AWS IRSA:
+  #   eks.amazonaws.com/role-arn: arn:aws:iam::123456789012:role/my-role
+  # Example for GCP Workload Identity:
+  #   iam.gke.io/gcp-service-account: my-sa@my-project.iam.gserviceaccount.com
+  annotations: {}
+  # The name of the service account to use
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+## RBAC configuration
+rbac:
+  # Create Role and RoleBinding for namespace-scoped read-only access
+  create: true
+  # Custom rules to override the default read-only permissions
+  # If specified, these rules completely replace the defaults
+  # Default rules provide:
+  #   - pods: get, list, watch
+  #   - pods/log: get, list
+  #   - NO secrets access (secrets must be mounted via volumes)
+  # Example custom rules:
+  #   rules:
+  #     - apiGroups: [""]
+  #       resources: ["pods", "services"]
+  #       verbs: ["get", "list", "watch"]
+  #     - apiGroups: [""]
+  #       resources: ["pods/log"]
+  #       verbs: ["get"]
+  rules: []
+
+## Pod Security Context
+## Applied to the pod spec for all containers
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+## Hardened security settings with read-only root filesystem
+## Writable directories (/tmp, /home/node) are mounted as emptyDir volumes
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+
+## Network Policy configuration
+## Restricts network access based on the LLM provider
+networkPolicy:
+  ## Enable network policy (requires a CNI that supports NetworkPolicy)
+  enabled: true
+
+  ## Allow egress to cluster-internal services (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+  ## WARNING: Setting this to true allows access to ALL cluster services
+  ## Default is false for security (blocks access to other pods, services, etc.)
+  ## Note: When using openai-compatible provider, vLLM egress is allowed via
+  ## namespace/pod selector (more restrictive than opening all private CIDRs)
+  allowClusterInternal: false
+
+  ## vLLM service configuration for NetworkPolicy (openai-compatible provider)
+  ## Used to create precise egress rules to the vLLM service
+  vllm:
+    ## Namespace where vLLM is running
+    namespace: "vllm"
+    ## Port for vLLM service
+    port: 8000
+    ## Pod selector labels for vLLM pods
+    podSelector:
+      app.kubernetes.io/name: vllm
+
+  ## Additional egress rules
+  ## Use this for custom destinations not covered by the provider defaults
+  ##
+  ## Example additional rules:
+  ## egress:
+  ##   - ipBlock:
+  ##       cidr: 203.0.113.0/24
+  ##     ports:
+  ##       - protocol: TCP
+  ##         port: 8080
+  ##   - namespaceSelector:
+  ##       matchLabels:
+  ##         kubernetes.io/metadata.name: monitoring
+  ##     podSelector:
+  ##       matchLabels:
+  ##         app: prometheus
+  ##     ports:
+  ##       - protocol: TCP
+  ##         port: 9090
+  egress: []
+
+## Authentication configuration
+## Only required for Anthropic provider; openai-compatible backends typically don't need this
+auth:
+  ## Enable authentication
+  ## Set to false for openai-compatible backends that don't require Anthropic auth
+  ## Automatically disabled when llm.provider is "openai-compatible" unless explicitly enabled
+  enabled: true
+
+  # Authentication method: "credentials-file" | "api-key" | "manual"
+  #
+  # credentials-file: Mount existing ~/.claude/.credentials.json from a secret
+  #   - Best for users who have logged in via Claude Code CLI locally
+  #   - Requires creating a secret with the credentials JSON file
+  #
+  # api-key: Pass ANTHROPIC_API_KEY environment variable
+  #   - Best for programmatic access or CI/CD
+  #   - Can use existingSecret or set apiKey directly
+  #
+  # manual: Authenticate manually via kubectl exec
+  #   - Best for initial setup or when other methods aren't available
+  #   - Requires running: kubectl exec -it deployment/openclaw -- openclaw auth login
+  method: "manual"
+
+  # Name of pre-existing secret containing credentials
+  # For credentials-file: secret should contain the credentials JSON
+  # For api-key: secret should contain the API key
+  existingSecret: ""
+
+  # Key in the secret containing the credentials JSON file
+  # Only used when method is "credentials-file"
+  credentialsSecretKey: "credentials.json"
+
+  # Key in the secret containing the API key
+  # Only used when method is "api-key"
+  apiKeySecretKey: "ANTHROPIC_API_KEY"
+
+  # Direct API key value (not recommended for production)
+  # Only used when method is "api-key" and existingSecret is not set
+  # WARNING: This value will be stored in Helm release secrets
+  apiKey: ""
+
+## Cloudflare Zero Trust configuration
+## Exposes the OpenClaw dashboard via Cloudflare Tunnel with access policies
+cloudflare:
+  ## Enable Cloudflare ingress (adds annotation to Service)
+  enabled: false
+
+  ## Hostname for Cloudflare Tunnel routing
+  ## This will be added to the cloudflare-tunnel ingress routes
+  ## Example: claw.jomcgi.dev
+  hostname: ""
+
+  ## Zero Trust access policy configuration
+  zeroTrust:
+    ## Create a CloudflareAccessPolicy resource
+    enabled: false
+
+    ## Session duration (how long before re-authentication)
+    sessionDuration: "24h"
+
+    ## Allowed email addresses (Zero Trust email policy)
+    ## Example: ["you@example.com", "friend@example.com"]
+    allowedEmails: []
+
+    ## Allowed email domains (alternative to specific emails)
+    ## Example: ["example.com"]
+    # allowedDomains: []
+
+    ## Allowed identity provider groups
+    ## Example: ["engineering", "admins"]
+    # allowedGroups: []

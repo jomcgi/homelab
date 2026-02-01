@@ -1,0 +1,52 @@
+## OpenClaw Personal Instance - Production Values
+## Personal AI assistant with Claude + WhatsApp
+
+fullnameOverride: "openclaw-personal"
+
+## LLM: Anthropic Claude
+llm:
+  provider: "anthropic"
+  model: "claude-sonnet-4-20250514"
+
+## Claude auth via credentials file
+## Create secret: kubectl create secret generic openclaw-claude-creds \
+##   --from-file=credentials.json=$HOME/.claude/.credentials.json -n openclaw
+auth:
+  enabled: true
+  method: "credentials-file"
+  existingSecret: "openclaw-claude-creds"
+  credentialsSecretKey: "credentials.json"
+
+## WhatsApp channel (QR code auth - run `openclaw channels login` after deploy)
+whatsapp:
+  enabled: true
+  secret:
+    type: "manual"
+  settings:
+    dmPolicy: "pairing"
+    groups:
+      enabled: false
+
+## Cloudflare Zero Trust
+cloudflare:
+  enabled: true
+  hostname: "claw.jomcgi.dev"
+  zeroTrust:
+    enabled: true
+    sessionDuration: "24h"
+    allowedEmails:
+      - "joe@jomcgi.dev"
+
+## Persistence
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 10Gi
+
+## Resources
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2Gi

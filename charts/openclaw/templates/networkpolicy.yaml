@@ -1,0 +1,89 @@
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "openclaw.fullname" . }}
+  labels:
+    {{- include "openclaw.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "openclaw.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Egress
+    - Ingress
+
+  # Ingress: Allow traffic to the server port
+  ingress:
+    - from: []
+      ports:
+        - protocol: TCP
+          port: {{ .Values.server.port }}
+
+  egress:
+    # Allow DNS resolution (required for any external access)
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+
+    {{- if eq (default "anthropic" .Values.llm.provider) "anthropic" }}
+    # Anthropic provider: Allow external HTTPS (api.anthropic.com, clawhub.com)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              {{- if not .Values.networkPolicy.allowClusterInternal }}
+              # Block access to private IP ranges (cluster-internal services)
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+              {{- end }}
+      ports:
+        - protocol: TCP
+          port: 443
+    {{- end }}
+
+    {{- if eq .Values.llm.provider "openai-compatible" }}
+    # OpenAI-compatible provider: Allow access to local vLLM service
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.vllm.namespace }}
+          podSelector:
+            matchLabels:
+              {{- toYaml .Values.networkPolicy.vllm.podSelector | nindent 14 }}
+      ports:
+        - protocol: TCP
+          port: {{ .Values.networkPolicy.vllm.port }}
+    {{- end }}
+
+    {{- if .Values.networkPolicy.egress }}
+    # Additional custom egress rules
+    {{- range .Values.networkPolicy.egress }}
+    - to:
+        {{- if .ipBlock }}
+        - ipBlock:
+            cidr: {{ .ipBlock.cidr }}
+            {{- if .ipBlock.except }}
+            except:
+              {{- toYaml .ipBlock.except | nindent 14 }}
+            {{- end }}
+        {{- end }}
+        {{- if .namespaceSelector }}
+        - namespaceSelector:
+            {{- toYaml .namespaceSelector | nindent 12 }}
+        {{- end }}
+        {{- if .podSelector }}
+        - podSelector:
+            {{- toYaml .podSelector | nindent 12 }}
+        {{- end }}
+      {{- if .ports }}
+      ports:
+        {{- toYaml .ports | nindent 8 }}
+      {{- end }}
+    {{- end }}
+    {{- end }}
+{{- end }}
