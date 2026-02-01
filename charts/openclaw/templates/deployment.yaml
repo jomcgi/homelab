@@ -100,6 +100,8 @@ spec:
             - lan
             - --port
             - {{ .Values.server.port | quote }}
+            - --token
+            - {{ .Values.gateway.token | default "openclaw" | quote }}
           ports:
             - name: http
               containerPort: {{ .Values.server.port }}
