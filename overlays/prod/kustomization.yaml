@@ -11,6 +11,7 @@ resources:
   - ./nats
   - ./openclaw-friends
   - ./openclaw-personal
+  - ./perplexica
   - ./seaweedfs
   - ./todo
   - ./trips
