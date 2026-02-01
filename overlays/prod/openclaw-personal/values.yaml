@@ -8,14 +8,12 @@ llm:
   provider: "anthropic"
   model: "claude-sonnet-4-20250514"
 
-## Claude auth via credentials file
-## Create secret: kubectl create secret generic openclaw-claude-creds \
-##   --from-file=credentials.json=$HOME/.claude/.credentials.json -n openclaw
+## Claude auth via manual login
+## After pod starts: kubectl exec -it -n openclaw deployment/openclaw-personal -- openclaw auth login
+## Credentials persist to PVC
 auth:
   enabled: true
-  method: "credentials-file"
-  existingSecret: "openclaw-claude-creds"
-  credentialsSecretKey: "credentials.json"
+  method: "manual"
 
 ## WhatsApp channel (QR code auth - run `openclaw channels login` after deploy)
 whatsapp:
