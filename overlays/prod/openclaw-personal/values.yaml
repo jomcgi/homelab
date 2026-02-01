@@ -12,13 +12,6 @@ llm:
   provider: "anthropic"
   model: "claude-sonnet-4-20250514"
 
-## Gateway config - required for startup
-config:
-  extra:
-    gateway:
-      mode: "local"
-      port: 18789
-
 ## Claude auth via manual login
 ## After pod starts: kubectl exec -it -n openclaw deployment/openclaw-personal -- openclaw auth login
 ## Credentials persist to PVC
