@@ -25,15 +25,10 @@ whatsapp:
     groups:
       enabled: false
 
-## Cloudflare Zero Trust
+## Cloudflare ingress (simple tunnel routing, no Zero Trust CRD)
 cloudflare:
   enabled: true
   hostname: "claw.jomcgi.dev"
-  zeroTrust:
-    enabled: true
-    sessionDuration: "24h"
-    allowedEmails:
-      - "joe@jomcgi.dev"
 
 ## Persistence
 persistence:
