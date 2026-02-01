@@ -32,9 +32,11 @@ discord:
     allowBots: false
     dm:
       enabled: false
-    ## Wildcard config: respond in any channel where bot is invited, but require @mention
+    ## Allowed Discord servers (guild IDs)
     guilds:
-      "*":
+      "185442367703220224":
+        requireMention: true
+      "1290668195249917964":
         requireMention: true
 
 ## ClawHub skills
