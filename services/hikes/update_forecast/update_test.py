@@ -108,9 +108,7 @@ class TestParseWeatherData:
                                     "cloud_area_fraction": 25.0,
                                 }
                             },
-                            "next_1_hours": {
-                                "details": {"precipitation_amount": 0.5}
-                            },
+                            "next_1_hours": {"details": {"precipitation_amount": 0.5}},
                         },
                     }
                 ]
@@ -337,9 +335,7 @@ class TestLoadWalksFromDb:
     def test_load_walks_missing_db(self, tmp_path, monkeypatch):
         """Missing database causes system exit."""
         # Patch the db_path to point to non-existent file
-        with patch(
-            "services.hikes.update_forecast.update.Path"
-        ) as mock_path:
+        with patch("services.hikes.update_forecast.update.Path") as mock_path:
             mock_path.return_value.parent.__truediv__.return_value.__truediv__.return_value = (
                 tmp_path / "nonexistent.db"
             )

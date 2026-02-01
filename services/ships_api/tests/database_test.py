@@ -331,7 +331,9 @@ class TestVesselUpsert:
         assert row["imo"] == sample_vessel_data["imo"]
 
     @pytest.mark.asyncio
-    async def test_upsert_vessel_update(self, test_db: Database, sample_vessel_data: dict):
+    async def test_upsert_vessel_update(
+        self, test_db: Database, sample_vessel_data: dict
+    ):
         """Update existing vessel metadata."""
         await test_db.upsert_vessels_batch([sample_vessel_data])
         await test_db.commit()

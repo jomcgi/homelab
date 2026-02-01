@@ -138,7 +138,9 @@ class TestTrackEndpoint:
         assert data["track"] == []
 
     @pytest.mark.asyncio
-    async def test_track_with_data(self, test_client: AsyncClient, track_data: list[dict]):
+    async def test_track_with_data(
+        self, test_client: AsyncClient, track_data: list[dict]
+    ):
         """Track returns position history."""
         from services.ships_api.main import service
 
@@ -157,7 +159,9 @@ class TestTrackEndpoint:
         assert len(data["track"]) == len(track_data)
 
     @pytest.mark.asyncio
-    async def test_track_with_limit(self, test_client: AsyncClient, track_data: list[dict]):
+    async def test_track_with_limit(
+        self, test_client: AsyncClient, track_data: list[dict]
+    ):
         """Track respects limit parameter."""
         from services.ships_api.main import service
 

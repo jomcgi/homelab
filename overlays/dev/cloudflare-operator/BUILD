@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "operators/cloudflare/helm/cloudflare-operator",
+    chart_files = "//operators/cloudflare/helm/cloudflare-operator:all_files",
+    namespace = "cloudflare",
+    release_name = "cloudflare-operator",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//operators/cloudflare/helm/cloudflare-operator:values.yaml",
+        "values.yaml",
+    ],
 )

@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/gh-arc-controller",
+    chart_files = "//charts/gh-arc-controller:all_files",
+    namespace = "gh-arc-controller",
+    release_name = "gh-arc-controller",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//charts/gh-arc-controller:values.yaml",
+        "values.yaml",
+    ],
 )

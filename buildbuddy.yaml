@@ -1,10 +1,10 @@
 actions:
-  # Gazelle check - lightweight, no pip dependencies needed
+  # Format check - runs formatters and gazelle, verifies no changes needed
   # Runs in parallel with Test action
-  - name: "Gazelle lint"
+  - name: "Format check"
     container_image: "ubuntu-24.04"
     resource_requests:
-      disk: "20GB"  # Smaller disk, gazelle doesn't need much
+      disk: "30GB"  # Slightly larger for format tools
     triggers:
       push:
         branches:
@@ -19,11 +19,12 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # Verify BUILD files are up-to-date (catches missing test targets)
-          # Run without --config=ci to avoid triggering RBE analysis and pip fetches
-          bazel run //:gazelle
+          # Run full format (includes formatters + gazelle)
+          bazel run //tools/format:fast_format
           if ! git diff --exit-code; then
-            echo "ERROR: BUILD files out of sync. Run 'bazelisk run //:gazelle' locally."
+            echo "ERROR: Code not formatted or BUILD files out of sync."
+            echo "Run 'format' locally to fix."
+            echo ""
             echo "Changes detected:"
             git diff
             exit 1

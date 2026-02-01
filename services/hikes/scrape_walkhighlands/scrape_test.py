@@ -407,11 +407,14 @@ class TestScrapeWalkhighlands:
 
     def test_scrape_walkhighlands_empty_sub_areas(self):
         """Returns empty list when no sub-area links found."""
-        with patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
-        ) as mock_areas, patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
-        ) as mock_sub_areas:
+        with (
+            patch(
+                "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+            ) as mock_areas,
+            patch(
+                "services.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
+            ) as mock_sub_areas,
+        ):
             mock_areas.return_value = ["https://example.com/area1"]
             mock_sub_areas.return_value = []
 
@@ -433,15 +436,20 @@ class TestScrapeWalkhighlands:
             longitude=-5.0,
         )
 
-        with patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
-        ) as mock_areas, patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
-        ) as mock_sub_areas, patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_walks_from_sub_area"
-        ) as mock_walks, patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_walk_data_from_file"
-        ) as mock_walk_data:
+        with (
+            patch(
+                "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+            ) as mock_areas,
+            patch(
+                "services.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
+            ) as mock_sub_areas,
+            patch(
+                "services.hikes.scrape_walkhighlands.scrape.scrape_walks_from_sub_area"
+            ) as mock_walks,
+            patch(
+                "services.hikes.scrape_walkhighlands.scrape.scrape_walk_data_from_file"
+            ) as mock_walk_data,
+        ):
             mock_areas.return_value = ["https://example.com/area1"]
             mock_sub_areas.return_value = ["https://example.com/subarea1"]
             mock_walks.return_value = ["https://example.com/walk1"]

@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/longhorn",
+    chart_files = "//charts/longhorn:all_files",
+    namespace = "longhorn",
+    release_name = "longhorn",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//charts/longhorn:values.yaml",
+        "values.yaml",
+    ],
 )
