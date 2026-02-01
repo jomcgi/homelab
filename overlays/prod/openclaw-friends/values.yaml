@@ -3,6 +3,10 @@
 
 fullnameOverride: "openclaw-friends"
 
+## Disable linkerd injection (debugging PostStartHook timeouts)
+podAnnotations:
+  linkerd.io/inject: disabled
+
 ## LLM: Local Qwen via vLLM
 llm:
   provider: "openai-compatible"
