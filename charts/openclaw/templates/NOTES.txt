@@ -1,0 +1,135 @@
+OpenClaw has been deployed to namespace {{ .Release.Namespace }}.
+
+{{- $fullName := include "openclaw.fullname" . }}
+
+=============================================================================
+LLM PROVIDER
+=============================================================================
+
+Provider: {{ .Values.llm.provider }}
+Model: {{ .Values.llm.model }}
+{{- if eq .Values.llm.provider "openai-compatible" }}
+Base URL: {{ .Values.llm.baseUrl }}
+{{- end }}
+
+{{- if eq .Values.llm.provider "openai-compatible" }}
+Using OpenAI-compatible backend (e.g., vLLM, Ollama).
+{{- if not .Values.auth.enabled }}
+Authentication is disabled for this provider.
+{{- end }}
+{{- end }}
+
+=============================================================================
+AUTHENTICATION
+=============================================================================
+
+{{- if not .Values.auth.enabled }}
+Authentication is DISABLED.
+
+{{- if eq .Values.llm.provider "openai-compatible" }}
+This is expected for openai-compatible backends like vLLM that don't require
+Anthropic authentication.
+{{- else }}
+WARNING: Authentication is disabled but you're using the Anthropic provider.
+OpenClaw may not function correctly without authentication.
+
+To enable authentication, set:
+  auth:
+    enabled: true
+{{- end }}
+
+{{- else }}
+{{- /* Auth is enabled */}}
+
+{{- if eq .Values.auth.method "credentials-file" }}
+Authentication Method: Credentials File
+
+Your Claude credentials are mounted from an existing secret.
+{{- if .Values.auth.existingSecret }}
+Secret: {{ .Values.auth.existingSecret }}
+Key: {{ .Values.auth.credentialsSecretKey }}
+{{- else }}
+WARNING: No existingSecret specified. You must create a secret containing
+your ~/.claude/.credentials.json file:
+
+  kubectl create secret generic {{ $fullName }}-credentials \
+    --from-file={{ .Values.auth.credentialsSecretKey }}=$HOME/.claude/.credentials.json \
+    -n {{ .Release.Namespace }}
+
+Then update your values to set:
+  auth:
+    existingSecret: {{ $fullName }}-credentials
+{{- end }}
+
+{{- else if eq .Values.auth.method "api-key" }}
+Authentication Method: API Key
+
+{{- if .Values.auth.existingSecret }}
+API key loaded from existing secret: {{ .Values.auth.existingSecret }}
+{{- else if .Values.auth.apiKey }}
+API key stored in secret: {{ $fullName }}-auth
+NOTE: Storing API keys directly in values is not recommended for production.
+Consider using an existing secret instead.
+{{- else }}
+WARNING: No API key configured. You must either:
+
+1. Create a secret with your Anthropic API key:
+   kubectl create secret generic {{ $fullName }}-api-key \
+     --from-literal={{ .Values.auth.apiKeySecretKey }}=sk-ant-... \
+     -n {{ .Release.Namespace }}
+
+   Then set in values:
+     auth:
+       existingSecret: {{ $fullName }}-api-key
+
+2. Or set the API key directly (not recommended):
+     auth:
+       apiKey: sk-ant-...
+{{- end }}
+
+{{- else if eq .Values.auth.method "manual" }}
+Authentication Method: Manual
+
+You will need to authenticate manually after the pod starts.
+
+To authenticate, exec into the pod and run the login command:
+
+  kubectl exec -it -n {{ .Release.Namespace }} deployment/{{ $fullName }} -- openclaw auth login
+
+Follow the prompts to complete authentication. Your credentials will be
+stored in the pod's home directory.
+
+{{- if and .Values.persistence .Values.persistence.enabled }}
+NOTE: Persistence is enabled, so credentials will survive pod restarts.
+{{- else }}
+WARNING: Persistence is disabled or not configured. You will need to
+re-authenticate after each pod restart. Consider enabling persistence:
+  persistence:
+    enabled: true
+{{- end }}
+
+{{- else }}
+WARNING: Unknown auth method "{{ .Values.auth.method }}". Valid options are:
+  - credentials-file: Mount existing ~/.claude/.credentials.json
+  - api-key: Use ANTHROPIC_API_KEY environment variable
+  - manual: Authenticate manually via kubectl exec
+{{- end }}
+
+{{- end }}
+
+=============================================================================
+ACCESS
+=============================================================================
+
+{{- if and .Values.service .Values.service.port }}
+The service is available at:
+  {{ $fullName }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+
+To access locally via port-forward:
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ $fullName }} {{ .Values.service.port }}:{{ .Values.service.port }}
+{{- end }}
+
+To exec into the pod:
+  kubectl exec -it -n {{ .Release.Namespace }} deployment/{{ $fullName }} -- /bin/sh
+
+=============================================================================

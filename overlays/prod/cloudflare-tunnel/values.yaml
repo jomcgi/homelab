@@ -24,6 +24,16 @@ ingress:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+    # OpenClaw personal instance (Claude + WhatsApp)
+    - hostname: claw.jomcgi.dev
+      service: http://openclaw-personal.openclaw.svc.cluster.local:18789
+      originRequest:
+        keepAliveConnections: 100
+        keepAliveTimeout: 90s
+        tcpKeepAlive: 30s
+    # OpenClaw friends instance (Qwen + Discord)
+    - hostname: claw-friends.jomcgi.dev
+      service: http://openclaw-friends.openclaw.svc.cluster.local:18789
     # Shared image hosting (projects use /project-name/ prefix)
     - hostname: img.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80

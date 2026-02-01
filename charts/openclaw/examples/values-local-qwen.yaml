@@ -1,0 +1,48 @@
+## OpenClaw Configuration - Local Qwen Instance via vLLM
+## Uses local vLLM service with Qwen model (OpenAI-compatible API)
+## This is an isolated "dumb" instance for token-heavy tasks
+##
+## Deploy with: helm install openclaw-qwen ./charts/openclaw -f values-local-qwen.yaml
+
+## Use a distinct name to avoid conflicts with other instances
+fullnameOverride: "openclaw-qwen"
+
+## LLM provider configuration - OpenAI-compatible (vLLM)
+llm:
+  provider: "openai-compatible"
+  model: "Qwen/Qwen2.5-Coder-32B-Instruct"
+  baseUrl: "http://vllm.vllm.svc.cluster.local:8000/v1"
+  ## vLLM-specific NetworkPolicy configuration
+  vllm:
+    enabled: true
+    namespace: "vllm"
+    port: 8000
+    podSelector:
+      app.kubernetes.io/name: vllm
+
+## OpenClaw settings
+config:
+  permissionMode: "default"
+
+## No Anthropic authentication needed for local vLLM
+auth:
+  enabled: false
+
+## Network policy - use vLLM-specific egress (more secure than allowClusterInternal)
+networkPolicy:
+  enabled: true
+  allowClusterInternal: false
+
+## Persistence for conversation history
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 5Gi
+
+## Lower resource limits (model runs on vLLM, not in this pod)
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    memory: 1Gi
