@@ -1,3 +1,6 @@
+{{- if false }}
+# ConfigMap disabled - configure OpenClaw via UI after deployment
+# This file kept for reference of proper config structure
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -6,87 +9,5 @@ metadata:
     {{- include "openclaw.labels" . | nindent 4 }}
 data:
   openclaw.json: |
-    {
-      "gateway": {
-        "mode": "local",
-        "port": {{ .Values.server.port }},
-        "auth": {
-          "mode": "token",
-          "token": "openclaw-gateway-token"
-        }
-      },
-      "agents": {
-        "defaults": {
-          "workspace": "/home/openclaw/.openclaw/workspace",
-          "model": {
-            {{- if eq .Values.llm.provider "anthropic" }}
-            "primary": {{ printf "anthropic/%s" .Values.llm.model | quote }}
-            {{- else if eq .Values.llm.provider "openai-compatible" }}
-            "primary": {{ printf "custom/%s" .Values.llm.model | quote }}
-            {{- end }}
-          },
-          "timeoutSeconds": 600,
-          "maxConcurrent": 1
-        },
-        "list": [
-          {
-            "id": "main",
-            "default": true,
-            "identity": {
-              "name": "OpenClaw",
-              "emoji": "🦞"
-            }
-          }
-        ]
-      }
-      {{- if eq .Values.llm.provider "openai-compatible" }}
-      ,"models": {
-        "providers": {
-          "custom": {
-            "baseUrl": {{ .Values.llm.baseUrl | quote }},
-            "api": "openai-completions"
-            {{- if .Values.llm.apiKey }}
-            ,"apiKey": {{ .Values.llm.apiKey | quote }}
-            {{- end }}
-          }
-        }
-      }
-      {{- end }}
-      {{- if or .Values.discord.enabled .Values.whatsapp.enabled }}
-      ,"channels": {
-        {{- $channelList := list }}
-        {{- if .Values.discord.enabled }}
-        {{- $discordConfig := dict "enabled" true }}
-        {{- if .Values.discord.settings.guilds }}
-        {{- $discordConfig = merge $discordConfig (dict "guilds" .Values.discord.settings.guilds) }}
-        {{- end }}
-        {{- if .Values.discord.settings.historyLimit }}
-        {{- $discordConfig = merge $discordConfig (dict "historyLimit" .Values.discord.settings.historyLimit) }}
-        {{- end }}
-        {{- if .Values.discord.settings.dm }}
-        {{- $discordConfig = merge $discordConfig (dict "dm" .Values.discord.settings.dm) }}
-        {{- end }}
-        {{- $channelList = append $channelList (printf "\"discord\": %s" ($discordConfig | toJson)) }}
-        {{- end }}
-        {{- if .Values.whatsapp.enabled }}
-        {{- $whatsappConfig := dict "enabled" true }}
-        {{- if .Values.whatsapp.settings.dmPolicy }}
-        {{- $whatsappConfig = merge $whatsappConfig (dict "dmPolicy" .Values.whatsapp.settings.dmPolicy) }}
-        {{- end }}
-        {{- if .Values.whatsapp.settings.groups }}
-        {{- $whatsappConfig = merge $whatsappConfig (dict "groups" .Values.whatsapp.settings.groups) }}
-        {{- end }}
-        {{- $channelList = append $channelList (printf "\"whatsapp\": %s" ($whatsappConfig | toJson)) }}
-        {{- end }}
-        {{ join "," $channelList }}
-      }
-      {{- end }}
-      ,"tools": {
-        "profile": "full"
-      }
-      ,"logging": {
-        "level": "info",
-        "consoleLevel": "info",
-        "consoleStyle": "compact"
-      }
-    }
+    {}
+{{- end }}
