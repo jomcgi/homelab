@@ -51,11 +51,11 @@ const (
 	alertPath        = "api/v1/rules"
 
 	// Notification channel constants
-	channelLabel    = "signoz.io/channel"
-	channelNameKey  = "signoz.io/channel-name"
-	channelTypeKey  = "signoz.io/channel-type"
-	channelPath     = "api/v1/channels"
-	secretRefKey    = "signoz.io/secret-ref" // Format: "namespace/secretName" or just "secretName" (same namespace)
+	channelLabel   = "signoz.io/channel"
+	channelNameKey = "signoz.io/channel-name"
+	channelTypeKey = "signoz.io/channel-type"
+	channelPath    = "api/v1/channels"
+	secretRefKey   = "signoz.io/secret-ref" // Format: "namespace/secretName" or just "secretName" (same namespace)
 
 	// Default tag applied to all sidecar-managed dashboards
 	defaultManagedTag = "iac-managed"

@@ -33,6 +33,7 @@ filegroup(
         "//overlays/prod/gh-arc-runners:render_manifests",
         "//overlays/prod/nats:render_manifests",
         "//overlays/prod/seaweedfs:render_manifests",
+        "//overlays/prod/todo:render_manifests",
         "//overlays/prod/trips:render_manifests",
         "//overlays/prod/vllm:render_manifests",
     ],

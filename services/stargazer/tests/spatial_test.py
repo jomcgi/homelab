@@ -42,11 +42,13 @@ class TestExtractDarkRegions:
 
         # Mock rasterio operations
         mock_raster = MagicMock()
-        mock_raster.read.return_value = np.array([
-            [[50, 50], [100, 100]],  # R
-            [[50, 50], [100, 100]],  # G
-            [[50, 50], [100, 100]],  # B
-        ])
+        mock_raster.read.return_value = np.array(
+            [
+                [[50, 50], [100, 100]],  # R
+                [[50, 50], [100, 100]],  # G
+                [[50, 50], [100, 100]],  # B
+            ]
+        )
         mock_raster.transform = MagicMock()
         mock_raster.__enter__ = MagicMock(return_value=mock_raster)
         mock_raster.__exit__ = MagicMock(return_value=False)
@@ -54,7 +56,9 @@ class TestExtractDarkRegions:
         # Create a sample polygon geometry for the mock shapes
         sample_geom = {
             "type": "Polygon",
-            "coordinates": [[[-4.5, 55.0], [-4.4, 55.0], [-4.4, 55.1], [-4.5, 55.1], [-4.5, 55.0]]]
+            "coordinates": [
+                [[-4.5, 55.0], [-4.4, 55.0], [-4.4, 55.1], [-4.5, 55.1], [-4.5, 55.0]]
+            ],
         }
 
         with patch("rasterio.open", return_value=mock_raster):
@@ -154,13 +158,15 @@ class TestIntersectDarkAccessible:
     def test_creates_intersection(self, settings: Settings):
         """Test that intersection of dark and accessible areas is created."""
         # Create dark regions (a square)
-        dark_polygon = Polygon([
-            (-5.0, 54.5),
-            (-4.0, 54.5),
-            (-4.0, 55.5),
-            (-5.0, 55.5),
-            (-5.0, 54.5),
-        ])
+        dark_polygon = Polygon(
+            [
+                (-5.0, 54.5),
+                (-4.0, 54.5),
+                (-4.0, 55.5),
+                (-5.0, 55.5),
+                (-5.0, 54.5),
+            ]
+        )
         dark_gdf = gpd.GeoDataFrame(
             {"dark": [True]},
             geometry=[dark_polygon],
@@ -170,13 +176,15 @@ class TestIntersectDarkAccessible:
         dark_gdf.to_file(dark_path, driver="GeoJSON")
 
         # Create road buffer (overlapping square)
-        buffer_polygon = Polygon([
-            (-4.8, 54.8),
-            (-4.2, 54.8),
-            (-4.2, 55.2),
-            (-4.8, 55.2),
-            (-4.8, 54.8),
-        ])
+        buffer_polygon = Polygon(
+            [
+                (-4.8, 54.8),
+                (-4.2, 54.8),
+                (-4.2, 55.2),
+                (-4.8, 55.2),
+                (-4.8, 54.8),
+            ]
+        )
         buffer_gdf = gpd.GeoDataFrame(
             geometry=[buffer_polygon],
             crs=WGS84_CRS,
@@ -195,13 +203,15 @@ class TestIntersectDarkAccessible:
     def test_empty_intersection(self, settings: Settings):
         """Test handling of non-overlapping regions."""
         # Create non-overlapping regions
-        dark_polygon = Polygon([
-            (-8.0, 58.0),
-            (-7.0, 58.0),
-            (-7.0, 59.0),
-            (-8.0, 59.0),
-            (-8.0, 58.0),
-        ])
+        dark_polygon = Polygon(
+            [
+                (-8.0, 58.0),
+                (-7.0, 58.0),
+                (-7.0, 59.0),
+                (-8.0, 59.0),
+                (-8.0, 58.0),
+            ]
+        )
         dark_gdf = gpd.GeoDataFrame(
             {"dark": [True]},
             geometry=[dark_polygon],
@@ -212,13 +222,15 @@ class TestIntersectDarkAccessible:
             driver="GeoJSON",
         )
 
-        buffer_polygon = Polygon([
-            (-4.0, 54.0),
-            (-3.0, 54.0),
-            (-3.0, 55.0),
-            (-4.0, 55.0),
-            (-4.0, 54.0),
-        ])
+        buffer_polygon = Polygon(
+            [
+                (-4.0, 54.0),
+                (-3.0, 54.0),
+                (-3.0, 55.0),
+                (-4.0, 55.0),
+                (-4.0, 54.0),
+            ]
+        )
         buffer_gdf = gpd.GeoDataFrame(
             geometry=[buffer_polygon],
             crs=WGS84_CRS,
@@ -251,13 +263,15 @@ class TestGenerateSampleGrid:
     def test_generates_points_within_area(self, settings: Settings):
         """Test that sample points are generated within accessible area."""
         # Create a larger accessible area to ensure points are generated
-        accessible_polygon = Polygon([
-            (-6.0, 54.0),
-            (-3.0, 54.0),
-            (-3.0, 57.0),
-            (-6.0, 57.0),
-            (-6.0, 54.0),
-        ])
+        accessible_polygon = Polygon(
+            [
+                (-6.0, 54.0),
+                (-3.0, 54.0),
+                (-3.0, 57.0),
+                (-6.0, 57.0),
+                (-6.0, 54.0),
+            ]
+        )
         accessible_gdf = gpd.GeoDataFrame(
             geometry=[accessible_polygon],
             crs=WGS84_CRS,
@@ -284,13 +298,15 @@ class TestGenerateSampleGrid:
 
     def test_points_have_required_columns(self, settings: Settings):
         """Test that generated points have id, lat, lon columns."""
-        accessible_polygon = Polygon([
-            (-6.0, 54.0),
-            (-3.0, 54.0),
-            (-3.0, 57.0),
-            (-6.0, 57.0),
-            (-6.0, 54.0),
-        ])
+        accessible_polygon = Polygon(
+            [
+                (-6.0, 54.0),
+                (-3.0, 54.0),
+                (-3.0, 57.0),
+                (-6.0, 57.0),
+                (-6.0, 54.0),
+            ]
+        )
         accessible_gdf = gpd.GeoDataFrame(
             geometry=[accessible_polygon],
             crs=WGS84_CRS,
@@ -318,13 +334,15 @@ class TestGenerateSampleGrid:
         # Just test that the function can handle different spacing values
         # without errors - actual point count comparison is complex due to
         # projection and boundary effects
-        accessible_polygon = Polygon([
-            (-6.0, 54.0),
-            (-3.0, 54.0),
-            (-3.0, 57.0),
-            (-6.0, 57.0),
-            (-6.0, 54.0),
-        ])
+        accessible_polygon = Polygon(
+            [
+                (-6.0, 54.0),
+                (-3.0, 54.0),
+                (-3.0, 57.0),
+                (-6.0, 57.0),
+                (-6.0, 54.0),
+            ]
+        )
         accessible_gdf = gpd.GeoDataFrame(
             geometry=[accessible_polygon],
             crs=WGS84_CRS,

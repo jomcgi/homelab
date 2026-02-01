@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/stargazer",
+    chart_files = "//charts/stargazer:all_files",
+    namespace = "stargazer",
+    release_name = "stargazer",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//charts/stargazer:values.yaml",
+        "values.yaml",
+    ],
 )

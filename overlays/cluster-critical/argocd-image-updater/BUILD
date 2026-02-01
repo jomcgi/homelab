@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/argocd-image-updater",
+    chart_files = "//charts/argocd-image-updater:all_files",
+    namespace = "argocd",
+    release_name = "argocd-image-updater",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//charts/argocd-image-updater:values.yaml",
+        "values.yaml",
+    ],
 )
