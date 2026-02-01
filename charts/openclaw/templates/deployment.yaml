@@ -96,6 +96,8 @@ spec:
             - dist/index.js
           args:
             - gateway
+            - --config
+            - /etc/openclaw/openclaw.json
             - --bind
             - lan
             - --port
