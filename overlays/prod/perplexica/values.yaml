@@ -1,0 +1,84 @@
+## Perplexica Production Configuration
+## Self-hosted AI search engine with SearXNG metasearch
+
+fullnameOverride: "perplexica"
+
+## LLM: Use existing vLLM deployment with Qwen3-Coder
+llm:
+  baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
+  model: "qwen3-coder-30b"
+  ## No API key needed for vLLM
+
+## Embedding: Use vLLM for embeddings (if supported) or configure separately
+## For now, leave unconfigured - Perplexica can work without embeddings
+## or use its built-in local embedding support
+embedding:
+  provider: "openai"
+  baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
+  model: "qwen3-coder-30b"  # vLLM can generate embeddings with chat models
+
+## SearXNG configuration
+searxng:
+  enabled: true
+  settings:
+    instanceName: "Homelab Search"
+    ## Enable additional academic engines
+    engines:
+      google:
+        disabled: false
+      bing:
+        disabled: false
+      duckduckgo:
+        disabled: false
+      brave:
+        disabled: false
+      google_scholar:
+        disabled: false
+      arxiv:
+        disabled: false
+      semantic_scholar:
+        disabled: false
+      wikipedia:
+        disabled: false
+      github:
+        disabled: false
+      stackoverflow:
+        disabled: false
+      wolframalpha:
+        disabled: false
+
+## Expose SearXNG separately for direct browser access
+service:
+  searxng:
+    enabled: true
+    port: 8080
+
+## Persistence on Longhorn
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  size: 2Gi
+
+## Resources - moderate allocation for search workload
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2.5Gi
+
+## Network policy - allow external internet for SearXNG, vLLM for LLM
+networkPolicy:
+  enabled: true
+  allowExternalInternet: true
+  vllm:
+    enabled: true
+    namespace: "vllm"
+    port: 80
+    podSelector:
+      release: router
+
+## Cloudflare ingress for external access
+cloudflare:
+  enabled: true
+  hostname: "search.jomcgi.dev"

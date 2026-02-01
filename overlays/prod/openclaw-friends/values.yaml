@@ -91,3 +91,15 @@ networkPolicy:
           - 10.0.0.0/8
           - 172.16.0.0/12
           - 192.168.0.0/16
+    ## Perplexica search stack (cluster-internal)
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: search
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: perplexica
+      ports:
+        - protocol: TCP
+          port: 3000   # Perplexica API
+        - protocol: TCP
+          port: 8080   # SearXNG API

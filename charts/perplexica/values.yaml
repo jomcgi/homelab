@@ -1,0 +1,250 @@
+## Perplexica AI Search Engine Configuration
+## Includes SearXNG as a sidecar for metasearch
+
+## Perplexica container image
+image:
+  repository: itzcrazykns1337/perplexica
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+## Server configuration
+server:
+  port: 3000
+
+## LLM provider configuration
+## Perplexica supports OpenAI-compatible endpoints
+llm:
+  ## Base URL for the LLM API (OpenAI-compatible)
+  ## Example: http://vllm-router-service.vllm.svc.cluster.local:80/v1
+  baseUrl: ""
+
+  ## Model name to use for chat completions
+  ## Example: Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit
+  model: ""
+
+  ## Optional API key (leave empty if backend doesn't require auth)
+  apiKey: ""
+
+## Embedding model configuration
+## Used for similarity-based search result ranking
+embedding:
+  ## Provider: "openai" (OpenAI-compatible API) or "local" (Ollama sidecar)
+  provider: "openai"
+
+  ## For openai provider: base URL of embedding API
+  ## Can point to same vLLM instance if it supports embeddings
+  baseUrl: ""
+
+  ## Model name for embeddings
+  ## Example: nomic-embed-text, text-embedding-3-small
+  model: "nomic-embed-text"
+
+  ## API key for embedding provider (if required)
+  apiKey: ""
+
+  ## Ollama sidecar configuration (when provider is "local")
+  ollama:
+    enabled: false
+    image: ollama/ollama:latest
+    ## Models to pull on startup
+    models:
+      - nomic-embed-text
+    resources:
+      requests:
+        cpu: 500m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
+## SearXNG sidecar configuration
+searxng:
+  ## Enable SearXNG sidecar (required for Perplexica to function)
+  enabled: true
+
+  image:
+    repository: searxng/searxng
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+  ## Internal port (only accessible within the pod)
+  port: 8080
+
+  ## SearXNG settings
+  settings:
+    ## Instance name
+    instanceName: "SearXNG"
+
+    ## Enable JSON output format (required for Perplexica)
+    formats:
+      - html
+      - json
+
+    ## Search engines to enable
+    ## See: https://docs.searxng.org/admin/engines/
+    engines:
+      ## General web search
+      google:
+        disabled: false
+      bing:
+        disabled: false
+      duckduckgo:
+        disabled: false
+      brave:
+        disabled: false
+
+      ## Academic search
+      google_scholar:
+        disabled: false
+      arxiv:
+        disabled: false
+      semantic_scholar:
+        disabled: false
+
+      ## Other useful engines
+      wikipedia:
+        disabled: false
+      github:
+        disabled: false
+      stackoverflow:
+        disabled: false
+
+      ## Wolfram Alpha (recommended for Perplexica)
+      wolframalpha:
+        disabled: false
+
+    ## Rate limiting
+    limiter: false
+
+    ## Outgoing request settings
+    requestTimeout: 10
+
+  resources:
+    requests:
+      cpu: 250m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
+
+## Service configuration
+service:
+  type: ClusterIP
+  port: 3000
+
+  ## Expose SearXNG separately (for direct browser access)
+  searxng:
+    enabled: false
+    port: 8080
+
+## Persistence configuration for Perplexica data
+persistence:
+  enabled: true
+  storageClass: ""
+  accessMode: ReadWriteOnce
+  size: 1Gi
+  annotations: {}
+
+## Resource limits for Perplexica
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    memory: 2.5Gi
+
+## Liveness probe
+livenessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 30
+  timeoutSeconds: 10
+  failureThreshold: 3
+
+## Readiness probe
+readinessProbe:
+  enabled: true
+  httpGet:
+    path: /
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
+
+## Pod annotations
+podAnnotations: {}
+
+## Pod labels
+podLabels: {}
+
+## Extra environment variables for Perplexica
+extraEnv: []
+#  - name: MY_VAR
+#    value: "my-value"
+
+## Service Account configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+## Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false  # Perplexica writes to /home/perplexica
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+
+## Network Policy configuration
+networkPolicy:
+  enabled: true
+
+  ## Allow egress to external internet for SearXNG to reach search engines
+  allowExternalInternet: true
+
+  ## vLLM service configuration for NetworkPolicy
+  ## Configure to allow egress to vLLM
+  vllm:
+    enabled: false
+    namespace: "vllm"
+    port: 80
+    podSelector:
+      release: router
+
+  ## Additional egress rules
+  egress: []
+
+## Cloudflare ingress configuration
+cloudflare:
+  enabled: false
+  hostname: ""
