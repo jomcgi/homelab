@@ -66,3 +66,14 @@ resources:
     memory: 1Gi
   limits:
     memory: 2Gi
+
+## Cloudflare Zero Trust - expose dashboard at claw.jomcgi.dev
+cloudflare:
+  enabled: true
+  hostname: "claw.jomcgi.dev"
+  zeroTrust:
+    enabled: true
+    sessionDuration: "24h"
+    ## Only you can access your personal assistant
+    allowedEmails:
+      - "your@email.com"  # Replace with your email

@@ -390,3 +390,34 @@ auth:
   # Only used when method is "api-key" and existingSecret is not set
   # WARNING: This value will be stored in Helm release secrets
   apiKey: ""
+
+## Cloudflare Zero Trust configuration
+## Exposes the OpenClaw dashboard via Cloudflare Tunnel with access policies
+cloudflare:
+  ## Enable Cloudflare ingress (adds annotation to Service)
+  enabled: false
+
+  ## Hostname for Cloudflare Tunnel routing
+  ## This will be added to the cloudflare-tunnel ingress routes
+  ## Example: claw.jomcgi.dev
+  hostname: ""
+
+  ## Zero Trust access policy configuration
+  zeroTrust:
+    ## Create a CloudflareAccessPolicy resource
+    enabled: false
+
+    ## Session duration (how long before re-authentication)
+    sessionDuration: "24h"
+
+    ## Allowed email addresses (Zero Trust email policy)
+    ## Example: ["you@example.com", "friend@example.com"]
+    allowedEmails: []
+
+    ## Allowed email domains (alternative to specific emails)
+    ## Example: ["example.com"]
+    # allowedDomains: []
+
+    ## Allowed identity provider groups
+    ## Example: ["engineering", "admins"]
+    # allowedGroups: []

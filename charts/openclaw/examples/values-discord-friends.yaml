@@ -84,3 +84,16 @@ resources:
     memory: 512Mi
   limits:
     memory: 1Gi
+
+## Cloudflare Zero Trust - expose dashboard at claw-friends.jomcgi.dev
+cloudflare:
+  enabled: true
+  hostname: "claw-friends.jomcgi.dev"
+  zeroTrust:
+    enabled: true
+    sessionDuration: "24h"
+    ## Allow yourself and friends to access the dashboard
+    allowedEmails:
+      - "your@email.com"      # Replace with your email
+      - "friend1@email.com"   # Add friends who should have dashboard access
+      - "friend2@email.com"

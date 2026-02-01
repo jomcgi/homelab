@@ -4,6 +4,15 @@ metadata:
   name: {{ include "openclaw.fullname" . }}
   labels:
     {{- include "openclaw.labels" . | nindent 4 }}
+  {{- if .Values.cloudflare.enabled }}
+  annotations:
+    cloudflare.ingress.hostname: {{ .Values.cloudflare.hostname | quote }}
+    {{- if .Values.cloudflare.zeroTrust.enabled }}
+    cloudflare.zero-trust.enabled: "true"
+    {{- else }}
+    cloudflare.zero-trust.enabled: "false"
+    {{- end }}
+  {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
