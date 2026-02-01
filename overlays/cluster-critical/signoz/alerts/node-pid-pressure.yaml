@@ -1,0 +1,69 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-pid-pressure-alert
+  namespace: signoz
+  labels:
+    signoz.io/alert: "true"
+  annotations:
+    signoz.io/alert-name: "Node PID Pressure"
+    signoz.io/severity: "warning"
+    signoz.io/notification-channels: "pagerduty-homelab"
+data:
+  alert.json: |
+    {
+      "alert": "Node PID Pressure",
+      "alertType": "METRICS_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "broadcastToAll": false,
+      "disabled": false,
+      "evalWindow": "5m0s",
+      "frequency": "1m0s",
+      "severity": "warning",
+      "labels": {
+        "category": "node-health",
+        "environment": "production"
+      },
+      "annotations": {
+        "summary": "Node {{ $labels.node }} has PID pressure",
+        "description": "Kubernetes node {{ $labels.node }} is under PID pressure condition"
+      },
+      "condition": {
+        "compositeQuery": {
+          "builderQueries": {
+            "A": {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "aggregateOperator": "max",
+              "aggregateAttribute": {
+                "key": "kube_node_status_condition",
+                "dataType": "float64",
+                "type": "Gauge"
+              },
+              "filters": {
+                "items": [
+                  {
+                    "key": {"key": "condition"},
+                    "op": "=",
+                    "value": "PIDPressure"
+                  },
+                  {
+                    "key": {"key": "status"},
+                    "op": "=",
+                    "value": "true"
+                  }
+                ]
+              },
+              "groupBy": [
+                {"key": "node"}
+              ]
+            }
+          },
+          "queryType": "builder"
+        },
+        "op": ">",
+        "target": 0,
+        "matchType": "3"
+      },
+      "preferredChannels": ["pagerduty-homelab"]
+    }
