@@ -22,6 +22,13 @@ llm:
 auth:
   enabled: false
 
+## Gateway config - required for startup
+config:
+  extra:
+    gateway:
+      mode: "local"
+      port: 18789
+
 ## Discord channel
 discord:
   enabled: true
