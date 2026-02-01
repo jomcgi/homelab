@@ -51,21 +51,22 @@ spec:
           resources:
             {{- toYaml .Values.initContainers.initConfig.resources | nindent 12 }}
         {{- end }}
-        {{- if .Values.initContainers.initSkills.enabled }}
-        # init-skills: Install npm packages/skills
+        {{- if or .Values.initContainers.initSkills.enabled (gt (len .Values.clawhub.skills) 0) }}
+        # init-skills: Install ClawHub skills
         - name: init-skills
-          image: {{ .Values.initContainers.initSkills.image }}
+          image: "{{ .Values.initContainers.initSkills.image | default .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           command:
             - /bin/sh
             - -c
             - |
               set -e
               export HOME=/home/openclaw
-              export NPM_CONFIG_PREFIX=/home/openclaw/.npm-global
-              mkdir -p $NPM_CONFIG_PREFIX
-              {{- range .Values.initContainers.initSkills.packages }}
-              npm install -g {{ . }}
+              cd /home/openclaw
+              {{- range .Values.clawhub.skills }}
+              echo "Installing skill: {{ . }}"
+              clawhub install {{ . }}
               {{- end }}
+              echo "Skills installed successfully"
           securityContext:
             runAsUser: 1000
             runAsGroup: 1000
@@ -118,12 +119,28 @@ spec:
             - name: OPENAI_API_KEY
               value: {{ .Values.llm.apiKey | quote }}
             {{- end }}
+            {{- if .Values.discord.enabled }}
+            # Discord bot token
+            - name: DISCORD_BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "openclaw.fullname" . }}-discord
+                  key: discord-bot-token
+            {{- end }}
             {{- with .Values.extraEnv }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- with .Values.extraEnvFrom }}
+          {{- $hasWhatsappSecret := and .Values.whatsapp.enabled (eq .Values.whatsapp.secret.type "onepassword") }}
+          {{- if or .Values.extraEnvFrom $hasWhatsappSecret }}
           envFrom:
+            {{- with .Values.extraEnvFrom }}
             {{- toYaml . | nindent 12 }}
+            {{- end }}
+            {{- if $hasWhatsappSecret }}
+            # WhatsApp credentials from 1Password
+            - secretRef:
+                name: {{ include "openclaw.fullname" . }}-whatsapp
+            {{- end }}
           {{- end }}
           {{- if .Values.livenessProbe.enabled }}
           livenessProbe:

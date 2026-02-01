@@ -73,6 +73,64 @@ config:
   ## These are merged into the config file
   extra: {}
 
+## Discord channel configuration
+## See: https://docs.openclaw.ai/channels/discord
+discord:
+  enabled: false
+  ## Secret configuration for Discord bot token
+  secret:
+    ## Type: "onepassword" or "manual"
+    type: "onepassword"
+    onepassword:
+      ## 1Password item path (e.g., "op://vault/openclaw/discord-bot-token")
+      itemPath: ""
+    manual:
+      ## Bot token (only used if type is "manual")
+      token: ""
+  ## Discord channel settings (merged into config.extra.channels.discord)
+  settings:
+    groupPolicy: "allowlist"
+    historyLimit: 20
+    replyToMode: "off"
+    allowBots: false
+    dm:
+      enabled: false
+    guilds: {}
+    #  "YOUR_GUILD_ID":
+    #    slug: "friends"
+    #    requireMention: true
+    #    channels:
+    #      "ai-chat":
+    #        allow: true
+
+## WhatsApp channel configuration
+## See: https://docs.openclaw.ai/channels/whatsapp
+whatsapp:
+  enabled: false
+  ## Secret configuration for WhatsApp credentials
+  secret:
+    ## Type: "onepassword" or "manual"
+    type: "onepassword"
+    onepassword:
+      ## 1Password item path containing WhatsApp session data
+      itemPath: ""
+  ## WhatsApp channel settings (merged into config.extra.channels.whatsapp)
+  settings:
+    ## DM policy: "pairing" (default), "allowlist", or "open"
+    dmPolicy: "pairing"
+    ## Group settings
+    groups:
+      enabled: false
+
+## ClawHub skills configuration
+## See: https://docs.openclaw.ai/tools/clawhub
+clawhub:
+  ## Skills to install from ClawHub registry
+  ## Format: "owner/skill-name" (e.g., "steipete/discord")
+  skills: []
+  #  - "steipete/discord"
+  #  - "steipete/weather"
+
 ## Init containers configuration
 initContainers:
   ## init-config: Creates config directory with correct ownership
@@ -87,13 +145,13 @@ initContainers:
       limits:
         memory: 32Mi
 
-  ## init-skills: Installs skills/plugins via npm
+  ## init-skills: Installs ClawHub skills
   ## Runs as node user (1000:1000)
+  ## Uses main OpenClaw image by default (has clawhub CLI)
   initSkills:
     enabled: false
-    image: node:22-alpine
-    ## List of npm packages to install globally
-    packages: []
+    ## Leave empty to use the main image.repository
+    image: ""
     resources:
       requests:
         cpu: 100m

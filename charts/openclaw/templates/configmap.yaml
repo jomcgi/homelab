@@ -22,6 +22,20 @@ data:
       {{- if .Values.config.trustedProxies }}
       ,"trustedProxies": {{ .Values.config.trustedProxies | toJson }}
       {{- end }}
+      {{- if or .Values.discord.enabled .Values.whatsapp.enabled }}
+      ,"channels": {
+        {{- $channelList := list }}
+        {{- if .Values.discord.enabled }}
+        {{- $discordConfig := merge (dict "enabled" true) .Values.discord.settings }}
+        {{- $channelList = append $channelList (printf "\"discord\": %s" ($discordConfig | toJson)) }}
+        {{- end }}
+        {{- if .Values.whatsapp.enabled }}
+        {{- $whatsappConfig := merge (dict "enabled" true) .Values.whatsapp.settings }}
+        {{- $channelList = append $channelList (printf "\"whatsapp\": %s" ($whatsappConfig | toJson)) }}
+        {{- end }}
+        {{ join "," $channelList }}
+      }
+      {{- end }}
       {{- if .Values.config.extra }}
       {{- range $key, $value := .Values.config.extra }}
       ,{{ $key | quote }}: {{ $value | toJson }}
