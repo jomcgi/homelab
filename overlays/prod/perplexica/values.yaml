@@ -78,7 +78,6 @@ networkPolicy:
     podSelector:
       release: router
 
-## Cloudflare ingress for external access
+## No external ingress - OpenClaw accesses via cluster-internal MCP
 cloudflare:
-  enabled: true
-  hostname: "search.jomcgi.dev"
+  enabled: false
