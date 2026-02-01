@@ -25,8 +25,8 @@ data:
         "environment": "production"
       },
       "annotations": {
-        "summary": "Container {{ $labels.container }} was OOMKilled",
-        "description": "Container {{ $labels.container }} in pod {{ $labels.k8s_pod_name }} namespace {{ $labels.k8s_namespace_name }} was terminated due to OOM"
+        "summary": "Container {{ $labels.k8s_container_name }} was OOMKilled",
+        "description": "Container {{ $labels.k8s_container_name }} in pod {{ $labels.k8s_pod_name }} namespace {{ $labels.k8s_namespace_name }} was terminated due to OOM"
       },
       "condition": {
         "compositeQuery": {
@@ -36,23 +36,23 @@ data:
               "dataSource": "metrics",
               "aggregateOperator": "max",
               "aggregateAttribute": {
-                "key": "kube_pod_container_status_last_terminated_reason",
+                "key": "k8s.container.restarts",
                 "dataType": "float64",
                 "type": "Gauge"
               },
               "filters": {
                 "items": [
                   {
-                    "key": {"key": "reason"},
+                    "key": {"key": "k8s.container.status.last_terminated_reason"},
                     "op": "=",
                     "value": "OOMKilled"
                   }
                 ]
               },
               "groupBy": [
-                {"key": "k8s_namespace_name"},
-                {"key": "k8s_pod_name"},
-                {"key": "container"}
+                {"key": "k8s.namespace.name"},
+                {"key": "k8s.pod.name"},
+                {"key": "k8s.container.name"}
               ]
             }
           },

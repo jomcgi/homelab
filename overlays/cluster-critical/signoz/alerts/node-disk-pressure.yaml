@@ -25,8 +25,8 @@ data:
         "environment": "production"
       },
       "annotations": {
-        "summary": "Node {{ $labels.node }} has disk pressure",
-        "description": "Kubernetes node {{ $labels.node }} is under disk pressure condition"
+        "summary": "Node {{ $labels.k8s_node_name }} has disk pressure",
+        "description": "Kubernetes node {{ $labels.k8s_node_name }} is under disk pressure condition"
       },
       "condition": {
         "compositeQuery": {
@@ -36,26 +36,15 @@ data:
               "dataSource": "metrics",
               "aggregateOperator": "max",
               "aggregateAttribute": {
-                "key": "kube_node_status_condition",
+                "key": "k8s.node.condition_disk_pressure",
                 "dataType": "float64",
                 "type": "Gauge"
               },
               "filters": {
-                "items": [
-                  {
-                    "key": {"key": "condition"},
-                    "op": "=",
-                    "value": "DiskPressure"
-                  },
-                  {
-                    "key": {"key": "status"},
-                    "op": "=",
-                    "value": "true"
-                  }
-                ]
+                "items": []
               },
               "groupBy": [
-                {"key": "node"}
+                {"key": "k8s.node.name"}
               ]
             }
           },
