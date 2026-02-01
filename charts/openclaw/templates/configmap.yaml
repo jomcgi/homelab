@@ -7,38 +7,86 @@ metadata:
 data:
   openclaw.json: |
     {
-      {{- if eq .Values.llm.provider "anthropic" }}
-      "provider": "anthropic",
-      "model": {{ .Values.llm.model | quote }}
-      {{- else if eq .Values.llm.provider "openai-compatible" }}
-      "provider": "openai-compatible",
-      "model": {{ .Values.llm.model | quote }},
-      "baseUrl": {{ .Values.llm.baseUrl | quote }}
-      {{- if .Values.llm.apiKey }}
-      ,"apiKey": {{ .Values.llm.apiKey | quote }}
-      {{- end }}
-      {{- end }}
-      ,"permissionMode": {{ .Values.config.permissionMode | quote }}
-      {{- if .Values.config.trustedProxies }}
-      ,"trustedProxies": {{ .Values.config.trustedProxies | toJson }}
+      "gateway": {
+        "mode": "local",
+        "port": {{ .Values.server.port }},
+        "auth": {
+          "mode": "token",
+          "token": "openclaw-gateway-token"
+        }
+      },
+      "agents": {
+        "defaults": {
+          "workspace": "/home/openclaw/.openclaw/workspace",
+          "model": {
+            {{- if eq .Values.llm.provider "anthropic" }}
+            "primary": {{ printf "anthropic/%s" .Values.llm.model | quote }}
+            {{- else if eq .Values.llm.provider "openai-compatible" }}
+            "primary": {{ printf "custom/%s" .Values.llm.model | quote }}
+            {{- end }}
+          },
+          "timeoutSeconds": 600,
+          "maxConcurrent": 1
+        },
+        "list": [
+          {
+            "id": "main",
+            "default": true,
+            "identity": {
+              "name": "OpenClaw",
+              "emoji": "🦞"
+            }
+          }
+        ]
+      }
+      {{- if eq .Values.llm.provider "openai-compatible" }}
+      ,"models": {
+        "providers": {
+          "custom": {
+            "baseUrl": {{ .Values.llm.baseUrl | quote }},
+            "api": "openai-completions"
+            {{- if .Values.llm.apiKey }}
+            ,"apiKey": {{ .Values.llm.apiKey | quote }}
+            {{- end }}
+          }
+        }
+      }
       {{- end }}
       {{- if or .Values.discord.enabled .Values.whatsapp.enabled }}
       ,"channels": {
         {{- $channelList := list }}
         {{- if .Values.discord.enabled }}
-        {{- $discordConfig := merge (dict "enabled" true) .Values.discord.settings }}
+        {{- $discordConfig := dict "enabled" true }}
+        {{- if .Values.discord.settings.guilds }}
+        {{- $discordConfig = merge $discordConfig (dict "guilds" .Values.discord.settings.guilds) }}
+        {{- end }}
+        {{- if .Values.discord.settings.historyLimit }}
+        {{- $discordConfig = merge $discordConfig (dict "historyLimit" .Values.discord.settings.historyLimit) }}
+        {{- end }}
+        {{- if .Values.discord.settings.dm }}
+        {{- $discordConfig = merge $discordConfig (dict "dm" .Values.discord.settings.dm) }}
+        {{- end }}
         {{- $channelList = append $channelList (printf "\"discord\": %s" ($discordConfig | toJson)) }}
         {{- end }}
         {{- if .Values.whatsapp.enabled }}
-        {{- $whatsappConfig := merge (dict "enabled" true) .Values.whatsapp.settings }}
+        {{- $whatsappConfig := dict "enabled" true }}
+        {{- if .Values.whatsapp.settings.dmPolicy }}
+        {{- $whatsappConfig = merge $whatsappConfig (dict "dmPolicy" .Values.whatsapp.settings.dmPolicy) }}
+        {{- end }}
+        {{- if .Values.whatsapp.settings.groups }}
+        {{- $whatsappConfig = merge $whatsappConfig (dict "groups" .Values.whatsapp.settings.groups) }}
+        {{- end }}
         {{- $channelList = append $channelList (printf "\"whatsapp\": %s" ($whatsappConfig | toJson)) }}
         {{- end }}
         {{ join "," $channelList }}
       }
       {{- end }}
-      {{- if .Values.config.extra }}
-      {{- range $key, $value := .Values.config.extra }}
-      ,{{ $key | quote }}: {{ $value | toJson }}
-      {{- end }}
-      {{- end }}
+      ,"tools": {
+        "profile": "full"
+      }
+      ,"logging": {
+        "level": "info",
+        "consoleLevel": "info",
+        "consoleStyle": "compact"
+      }
     }
