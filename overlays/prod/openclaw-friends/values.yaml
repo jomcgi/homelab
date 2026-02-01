@@ -7,13 +7,16 @@ fullnameOverride: "openclaw-friends"
 llm:
   provider: "openai-compatible"
   model: "Qwen/Qwen2.5-Coder-32B-Instruct"
-  baseUrl: "http://vllm.vllm.svc.cluster.local:8000/v1"
+  ## Use the vLLM router service (port 80, not 8000)
+  baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
   vllm:
     enabled: true
     namespace: "vllm"
-    port: 8000
+    ## Router service is on port 80
+    port: 80
+    ## Match the router pod labels
     podSelector:
-      app.kubernetes.io/name: vllm
+      release: router
 
 ## No Anthropic auth needed
 auth:
@@ -25,7 +28,8 @@ discord:
   secret:
     type: "onepassword"
     onepassword:
-      itemPath: "op://Homelab/openclaw/discord-bot-token"
+      ## 1Password Operator requires vaults/{vault}/items/{item} format (not op:// CLI format)
+      itemPath: "vaults/k8s-homelab/items/openclaw-discord"
   settings:
     historyLimit: 20
     replyToMode: "off"
@@ -46,16 +50,10 @@ clawhub:
   skills: []
   # - "steipete/discord"
 
-## Cloudflare Zero Trust
+## Cloudflare ingress (simple tunnel routing, no Zero Trust CRD)
 cloudflare:
   enabled: true
   hostname: "claw-friends.jomcgi.dev"
-  zeroTrust:
-    enabled: true
-    sessionDuration: "24h"
-    allowedEmails:
-      - "joe@jomcgi.dev"
-      # Add friends' emails for dashboard access (Discord chat doesn't need this)
 
 ## Persistence
 persistence:
@@ -70,3 +68,22 @@ resources:
     memory: 512Mi
   limits:
     memory: 1Gi
+
+## Network policy - allow external internet, restrict internal cluster
+networkPolicy:
+  enabled: true
+  ## vLLM egress (internal service - explicit allow)
+  vllm:
+    namespace: "vllm"
+    port: 80
+    podSelector:
+      release: router
+  ## Allow all external internet (web search, APIs, etc.)
+  ## Block internal cluster traffic except explicit vLLM rule above
+  egress:
+    - ipBlock:
+        cidr: 0.0.0.0/0
+        except:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
