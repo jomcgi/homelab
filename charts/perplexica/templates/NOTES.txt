@@ -1,11 +1,8 @@
 Perplexica has been deployed!
 
-## Access URLs
+## Service URLs (cluster-internal only)
 
-{{- if .Values.cloudflare.enabled }}
-- Web UI: https://{{ .Values.cloudflare.hostname }}
-{{- end }}
-- Internal: http://{{ include "perplexica.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
+- Perplexica: http://{{ include "perplexica.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.port }}
 {{- if .Values.service.searxng.enabled }}
 - SearXNG: http://{{ include "perplexica.fullname" . }}-searxng.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.service.searxng.port }}
 {{- end }}

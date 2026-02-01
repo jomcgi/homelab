@@ -77,7 +77,3 @@ networkPolicy:
     port: 80
     podSelector:
       release: router
-
-## No external ingress - OpenClaw accesses via cluster-internal MCP
-cloudflare:
-  enabled: false

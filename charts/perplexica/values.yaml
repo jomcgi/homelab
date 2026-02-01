@@ -243,8 +243,3 @@ networkPolicy:
 
   ## Additional egress rules
   egress: []
-
-## Cloudflare ingress configuration
-cloudflare:
-  enabled: false
-  hostname: ""

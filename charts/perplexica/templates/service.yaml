@@ -4,11 +4,6 @@ metadata:
   name: {{ include "perplexica.fullname" . }}
   labels:
     {{- include "perplexica.labels" . | nindent 4 }}
-  {{- if .Values.cloudflare.enabled }}
-  annotations:
-    external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
-    external-dns.alpha.kubernetes.io/hostname: {{ .Values.cloudflare.hostname | quote }}
-  {{- end }}
 spec:
   type: {{ .Values.service.type }}
   ports:
