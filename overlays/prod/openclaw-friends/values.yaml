@@ -76,10 +76,9 @@ resources:
 ## Network policy - allow external internet, restrict internal cluster
 networkPolicy:
   enabled: true
-  ## vLLM egress - uses chart default podSelector (release: router)
-  ## Only override port since router uses port 80 (not default 8000)
-  vllm:
-    port: 80
+  ## vLLM egress - uses chart defaults (release: router, port 8000)
+  ## Note: NetworkPolicy uses pod port (8000), not service port (80)
+  vllm: {}
   ## Allow all external internet (web search, APIs, etc.)
   ## Block internal cluster traffic except explicit vLLM rule above
   egress:
