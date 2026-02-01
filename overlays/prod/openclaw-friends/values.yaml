@@ -29,7 +29,7 @@ discord:
     type: "onepassword"
     onepassword:
       ## 1Password Operator requires vaults/{vault}/items/{item} format (not op:// CLI format)
-      itemPath: "vaults/k8s-homelab/items/openclaw-discord"
+      itemPath: "vaults/k8s-homelab/items/openclaw"
   settings:
     historyLimit: 20
     replyToMode: "off"
