@@ -115,6 +115,38 @@ helm_render = rule(
     """,
 )
 
+def helm_template_test(name, chart, release_name, namespace, values_files, chart_files, **kwargs):
+    """Creates a cacheable test that validates Helm chart renders with given values.
+
+    This test runs helm template with the full values hierarchy from an ArgoCD
+    Application and fails if rendering produces errors. Results are cached by
+    Bazel based on input file hashes.
+
+    Args:
+        name: Name of the test target
+        chart: Path to chart directory (e.g., "charts/todo")
+        release_name: Helm release name
+        namespace: Kubernetes namespace for rendering
+        values_files: List of values file labels in order (e.g., ["//charts/todo:values.yaml", "values.yaml"])
+        chart_files: Label for chart's all_files filegroup (e.g., "//charts/todo:all_files")
+        **kwargs: Additional arguments passed to sh_test
+    """
+    sh_test(
+        name = name,
+        srcs = ["//tools/argocd:helm-template-test.sh"],
+        args = [
+            "$(rootpath @multitool//tools/helm)",
+            release_name,
+            chart,
+            namespace,
+        ] + ["$(rootpath {})".format(vf) for vf in values_files],
+        data = [
+            "@multitool//tools/helm",
+            chart_files,
+        ] + values_files,
+        **kwargs
+    )
+
 def helm_lint_test(name, chart_path = None, **kwargs):
     """Creates a test that runs helm lint on a chart.
 
@@ -170,4 +202,3 @@ EOF
         ] + native.glob(["templates/**"]),
         **kwargs
     )
-

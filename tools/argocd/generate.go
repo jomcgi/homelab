@@ -159,6 +159,13 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 			result.Gen = append(result.Gen, manifestRule)
 			result.Imports = append(result.Imports, nil)
 		}
+
+		// Also generate a cacheable template test
+		templateTestRule := generateTemplateTestRule(app, args.Rel, args.Dir)
+		if templateTestRule != nil {
+			result.Gen = append(result.Gen, templateTestRule)
+			result.Imports = append(result.Imports, nil)
+		}
 	}
 
 	return result
@@ -411,6 +418,85 @@ func generateManifestRule(app *ArgoCDApplication, currentPackage string, current
 
 	// Tag as manual so it doesn't run on bazel build //...
 	r.SetAttr("tags", []string{"manual"})
+
+	return r
+}
+
+// generateTemplateTestRule creates a helm_template_test that validates the chart renders
+// successfully with the full values hierarchy. This is a cacheable Bazel test.
+func generateTemplateTestRule(app *ArgoCDApplication, currentPackage string, currentDir string) *rule.Rule {
+	r := rule.NewRule("helm_template_test", "template_test")
+
+	chartPath := app.Spec.Source.Path
+	if chartPath == "" {
+		return nil
+	}
+
+	// Set chart path
+	r.SetAttr("chart", chartPath)
+
+	// Set chart_files label for dependencies
+	r.SetAttr("chart_files", "//"+filepath.ToSlash(chartPath)+":all_files")
+
+	// releaseName defaults to app name if not specified (ArgoCD behavior)
+	releaseName := app.Spec.Source.Helm.ReleaseName
+	if releaseName == "" {
+		releaseName = app.Metadata.Name
+	}
+	r.SetAttr("release_name", releaseName)
+
+	// Set namespace
+	r.SetAttr("namespace", app.Spec.Destination.Namespace)
+
+	// Build the values_files list (as Bazel labels)
+	var valuesFiles []string
+
+	// Add chart's default values.yaml first
+	valuesFiles = append(valuesFiles, "//"+filepath.ToSlash(chartPath)+":values.yaml")
+
+	// Add all valueFiles referenced in the Application spec
+	for _, vf := range app.Spec.Source.Helm.ValueFiles {
+		if strings.HasPrefix(vf, "../") {
+			// Relative path - resolve it relative to chart path
+			resolvedPath := filepath.Join(chartPath, vf)
+			cleanPath := filepath.Clean(resolvedPath)
+
+			// Skip paths that escape workspace root
+			if strings.HasPrefix(cleanPath, "..") {
+				continue
+			}
+
+			// Check if this file is in the current package
+			fileDir := filepath.Dir(cleanPath)
+			fileName := filepath.Base(cleanPath)
+
+			if filepath.ToSlash(fileDir) == currentPackage {
+				// File is in current package, use relative reference
+				valuesFiles = append(valuesFiles, fileName)
+			} else {
+				// File is in different package, use absolute label
+				valuesFiles = append(valuesFiles, "//"+filepath.ToSlash(fileDir)+":"+fileName)
+			}
+		} else if !strings.Contains(vf, "/") {
+			// Simple filename in chart directory
+			valuesFiles = append(valuesFiles, "//"+filepath.ToSlash(chartPath)+":"+vf)
+		}
+	}
+
+	// Deduplicate values files
+	seen := make(map[string]bool)
+	var uniqueValuesFiles []string
+	for _, vf := range valuesFiles {
+		if !seen[vf] {
+			seen[vf] = true
+			uniqueValuesFiles = append(uniqueValuesFiles, vf)
+		}
+	}
+
+	r.SetAttr("values_files", uniqueValuesFiles)
+
+	// Tag for filtering
+	r.SetAttr("tags", []string{"helm", "template"})
 
 	return r
 }

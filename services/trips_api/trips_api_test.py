@@ -181,7 +181,7 @@ class TestTripsState:
                 id=f"p{i}",
                 lat=45.0 + i,
                 lng=-122.0,
-                timestamp=f"2024-01-15T{10+i:02d}:00:00Z",
+                timestamp=f"2024-01-15T{10 + i:02d}:00:00Z",
             )
 
         points = state.get_points(limit=3)
@@ -193,7 +193,7 @@ class TestTripsState:
                 id=f"p{i}",
                 lat=45.0 + i,
                 lng=-122.0,
-                timestamp=f"2024-01-15T{10+i:02d}:00:00Z",
+                timestamp=f"2024-01-15T{10 + i:02d}:00:00Z",
             )
 
         points = state.get_points(offset=2)

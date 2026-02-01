@@ -239,7 +239,9 @@ class TestScoreLocations:
                                     "air_pressure_at_sea_level": 1020.0,
                                 }
                             },
-                            "next_1_hours": {"summary": {"symbol_code": "clearsky_day"}},
+                            "next_1_hours": {
+                                "summary": {"symbol_code": "clearsky_day"}
+                            },
                         },
                     }
                 ]
@@ -425,7 +427,7 @@ class TestOutputBestLocations:
                 "altitude_m": 100,
                 "lp_zone": "1a",
                 "scored_hours": [
-                    {"time": f"2024-01-15T{20+i}:00:00Z", "score": 90.0 - i}
+                    {"time": f"2024-01-15T{20 + i}:00:00Z", "score": 90.0 - i}
                     for i in range(10)
                 ],
             },

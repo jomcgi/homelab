@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/claude",
+    chart_files = "//charts/claude:all_files",
+    namespace = "claude",
+    release_name = "claude",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//charts/claude:values.yaml",
+        "values.yaml",
+    ],
 )

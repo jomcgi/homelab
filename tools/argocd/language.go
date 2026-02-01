@@ -91,6 +91,20 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 				"visibility": true,
 			},
 		},
+		"helm_template_test": {
+			MatchAny: false,
+			NonEmptyAttrs: map[string]bool{
+				"chart":        true,
+				"release_name": true,
+				"namespace":    true,
+				"values_files": true,
+				"chart_files":  true,
+			},
+			MergeableAttrs: map[string]bool{
+				"values_files": true,
+				"tags":         true,
+			},
+		},
 	}
 }
 
@@ -103,7 +117,7 @@ func (l *argoCDLang) Loads() []rule.LoadInfo {
 		},
 		{
 			Name:    "//tools/argocd:defs.bzl",
-			Symbols: []string{"chart_files"},
+			Symbols: []string{"chart_files", "helm_template_test"},
 		},
 	}
 }

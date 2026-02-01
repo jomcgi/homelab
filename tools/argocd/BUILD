@@ -3,7 +3,10 @@ load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
-exports_files(["render-manifests.sh"])
+exports_files([
+    "helm-template-test.sh",
+    "render-manifests.sh",
+])
 
 sh_binary(
     name = "validate_manifests",
