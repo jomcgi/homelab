@@ -10,18 +10,34 @@ argo-cd:
       otlp.address: "signoz-otel-collector.signoz.svc.cluster.local:4317"
   # Enable metrics endpoints for all ArgoCD components
   # These expose Prometheus metrics including argocd_app_info for health/sync status
+  # Pod annotations enable SigNoz autodiscovery (scraper uses role: pod)
   controller:
     metrics:
       enabled: true
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8082"
   server:
     metrics:
       enabled: true
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8083"
   repoServer:
     metrics:
       enabled: true
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8084"
   applicationSet:
     metrics:
       enabled: true
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "8080"
   notifications:
     metrics:
       enabled: true
+    podAnnotations:
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9001"
