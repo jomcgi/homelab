@@ -7,6 +7,9 @@ metadata:
 spec:
   # OpenClaw does not support horizontal scaling - single replica only
   replicas: 1
+  # Recreate strategy to avoid PVC multi-attach issues with single replica
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "openclaw.selectorLabels" . | nindent 6 }}
