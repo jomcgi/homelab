@@ -3,6 +3,10 @@
 
 fullnameOverride: "openclaw-personal"
 
+## Disable linkerd injection (debugging PostStartHook timeouts)
+podAnnotations:
+  linkerd.io/inject: disabled
+
 ## LLM: Anthropic Claude
 llm:
   provider: "anthropic"
