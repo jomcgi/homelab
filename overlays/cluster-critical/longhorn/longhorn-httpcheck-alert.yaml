@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: longhorn-httpcheck-alert
-  namespace: longhorn-system
+  namespace: signoz
   labels:
     signoz.io/alert: "true"
   annotations:
