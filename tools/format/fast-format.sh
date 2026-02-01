@@ -45,7 +45,14 @@ bazel build "${TARGETS[@]}" 2>&1 | grep -v "^INFO:" || true
 
 # Find binaries in bazel-bin (faster than cquery)
 # -L follows symlinks (bazel-bin itself is a symlink)
-find_bin() { find -L bazel-bin -name "$1" -type f -perm +111 2>/dev/null | head -1; }
+# Use -perm /111 for GNU find (Linux) or -perm +111 for BSD find (macOS)
+find_bin() {
+	if find --version 2>/dev/null | grep -q GNU; then
+		find -L bazel-bin -name "$1" -type f -perm /111 2>/dev/null | head -1
+	else
+		find -L bazel-bin -name "$1" -type f -perm +111 2>/dev/null | head -1
+	fi
+}
 
 RUFF=$(find_bin ruff)
 SHFMT=$(find_bin shfmt)

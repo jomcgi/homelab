@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -17,4 +19,20 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/signoz-dashboard-sidecar",
+    chart_files = "//charts/signoz-dashboard-sidecar:all_files",
+    namespace = "signoz",
+    release_name = "signoz-dashboard-sidecar",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "//charts/signoz-dashboard-sidecar:values.yaml",
+        "values.yaml",
+    ],
 )

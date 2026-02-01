@@ -17,7 +17,9 @@ from services.stargazer.app.acquisition import (
 from services.stargazer.app.config import Settings
 
 
-def create_mock_stream_response(content: bytes, raise_on_status: Exception | None = None):
+def create_mock_stream_response(
+    content: bytes, raise_on_status: Exception | None = None
+):
     """Create a properly mocked async stream response."""
     mock_response = MagicMock()
     if raise_on_status:

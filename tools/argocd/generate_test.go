@@ -133,7 +133,7 @@ spec:
 			// Create a temp file with the YAML content
 			tmpDir := t.TempDir()
 			tmpFile := filepath.Join(tmpDir, "application.yaml")
-			if err := os.WriteFile(tmpFile, []byte(tc.yamlContent), 0644); err != nil {
+			if err := os.WriteFile(tmpFile, []byte(tc.yamlContent), 0o644); err != nil {
 				t.Fatalf("Failed to write temp file: %v", err)
 			}
 
@@ -170,7 +170,7 @@ func TestDiscoverOverlaysUsingChart(t *testing.T) {
 
 	// Create overlays directory structure
 	overlaysDir := filepath.Join(tmpDir, "overlays", "prod", "myapp")
-	if err := os.MkdirAll(overlaysDir, 0755); err != nil {
+	if err := os.MkdirAll(overlaysDir, 0o755); err != nil {
 		t.Fatalf("Failed to create overlays dir: %v", err)
 	}
 
@@ -189,7 +189,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: myapp
 `
-	if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte(appYaml), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte(appYaml), 0o644); err != nil {
 		t.Fatalf("Failed to write application.yaml: %v", err)
 	}
 
@@ -213,7 +213,7 @@ func TestDiscoverOverlaysUsingChart_MultipleOverlays(t *testing.T) {
 	envs := []string{"dev", "staging", "prod"}
 	for _, env := range envs {
 		overlaysDir := filepath.Join(tmpDir, "overlays", env, "myapp")
-		if err := os.MkdirAll(overlaysDir, 0755); err != nil {
+		if err := os.MkdirAll(overlaysDir, 0o755); err != nil {
 			t.Fatalf("Failed to create overlays dir: %v", err)
 		}
 
@@ -227,7 +227,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
 `
-		if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte(appYaml), 0644); err != nil {
+		if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte(appYaml), 0o644); err != nil {
 			t.Fatalf("Failed to write application.yaml: %v", err)
 		}
 	}
@@ -244,7 +244,7 @@ func TestDiscoverOverlaysUsingChart_NoMatches(t *testing.T) {
 
 	// Create an overlay that references a different chart
 	overlaysDir := filepath.Join(tmpDir, "overlays", "prod", "other")
-	if err := os.MkdirAll(overlaysDir, 0755); err != nil {
+	if err := os.MkdirAll(overlaysDir, 0o755); err != nil {
 		t.Fatalf("Failed to create overlays dir: %v", err)
 	}
 
@@ -258,7 +258,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
 `
-	if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte(appYaml), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte(appYaml), 0o644); err != nil {
 		t.Fatalf("Failed to write application.yaml: %v", err)
 	}
 
@@ -283,12 +283,12 @@ func TestDiscoverOverlaysUsingChart_InvalidYaml(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	overlaysDir := filepath.Join(tmpDir, "overlays", "prod", "broken")
-	if err := os.MkdirAll(overlaysDir, 0755); err != nil {
+	if err := os.MkdirAll(overlaysDir, 0o755); err != nil {
 		t.Fatalf("Failed to create overlays dir: %v", err)
 	}
 
 	// Write invalid YAML
-	if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte("invalid: yaml: ["), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(overlaysDir, "application.yaml"), []byte("invalid: yaml: ["), 0o644); err != nil {
 		t.Fatalf("Failed to write application.yaml: %v", err)
 	}
 
@@ -333,7 +333,7 @@ func TestGenerateLiveDiffRule(t *testing.T) {
 	// Create temp dir with values.yaml
 	tmpDir := t.TempDir()
 	valuesFile := filepath.Join(tmpDir, "values.yaml")
-	if err := os.WriteFile(valuesFile, []byte("key: value"), 0644); err != nil {
+	if err := os.WriteFile(valuesFile, []byte("key: value"), 0o644); err != nil {
 		t.Fatalf("Failed to write values.yaml: %v", err)
 	}
 
@@ -497,6 +497,172 @@ func containsSubstringHelper(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+func TestGenerateTemplateTestRule(t *testing.T) {
+	app := &ArgoCDApplication{
+		Metadata: struct {
+			Name      string `yaml:"name"`
+			Namespace string `yaml:"namespace"`
+		}{
+			Name:      "test-app",
+			Namespace: "argocd",
+		},
+		Spec: struct {
+			Source struct {
+				RepoURL        string `yaml:"repoURL"`
+				Path           string `yaml:"path"`
+				Chart          string `yaml:"chart"`
+				TargetRevision string `yaml:"targetRevision"`
+				Helm           struct {
+					ReleaseName string   `yaml:"releaseName"`
+					ValueFiles  []string `yaml:"valueFiles"`
+				} `yaml:"helm"`
+			} `yaml:"source"`
+			Destination struct {
+				Server    string `yaml:"server"`
+				Namespace string `yaml:"namespace"`
+			} `yaml:"destination"`
+		}{},
+	}
+	app.Spec.Source.Path = "charts/test"
+	app.Spec.Source.Helm.ReleaseName = "test-release"
+	app.Spec.Source.Helm.ValueFiles = []string{"../overlays/prod/test/values.yaml"}
+	app.Spec.Destination.Namespace = "test-ns"
+
+	tmpDir := t.TempDir()
+
+	rule := generateTemplateTestRule(app, "overlays/prod/test", tmpDir)
+
+	if rule == nil {
+		t.Fatal("generateTemplateTestRule returned nil")
+	}
+
+	if rule.Kind() != "helm_template_test" {
+		t.Errorf("rule kind = %q, want %q", rule.Kind(), "helm_template_test")
+	}
+
+	if rule.Name() != "template_test" {
+		t.Errorf("rule name = %q, want %q", rule.Name(), "template_test")
+	}
+
+	// Check chart attribute
+	chart := rule.AttrString("chart")
+	if chart != "charts/test" {
+		t.Errorf("chart = %q, want %q", chart, "charts/test")
+	}
+
+	// Check release_name attribute
+	releaseName := rule.AttrString("release_name")
+	if releaseName != "test-release" {
+		t.Errorf("release_name = %q, want %q", releaseName, "test-release")
+	}
+
+	// Check namespace attribute
+	namespace := rule.AttrString("namespace")
+	if namespace != "test-ns" {
+		t.Errorf("namespace = %q, want %q", namespace, "test-ns")
+	}
+
+	// Check chart_files attribute
+	chartFiles := rule.AttrString("chart_files")
+	if chartFiles != "//charts/test:all_files" {
+		t.Errorf("chart_files = %q, want %q", chartFiles, "//charts/test:all_files")
+	}
+
+	// Check values_files attribute exists
+	valuesFiles := rule.Attr("values_files")
+	if valuesFiles == nil {
+		t.Error("values_files attribute is nil")
+	}
+
+	// Check tags attribute
+	tags := rule.Attr("tags")
+	if tags == nil {
+		t.Error("tags attribute is nil")
+	}
+}
+
+func TestGenerateTemplateTestRule_DefaultReleaseName(t *testing.T) {
+	app := &ArgoCDApplication{
+		Metadata: struct {
+			Name      string `yaml:"name"`
+			Namespace string `yaml:"namespace"`
+		}{
+			Name: "my-app-name",
+		},
+		Spec: struct {
+			Source struct {
+				RepoURL        string `yaml:"repoURL"`
+				Path           string `yaml:"path"`
+				Chart          string `yaml:"chart"`
+				TargetRevision string `yaml:"targetRevision"`
+				Helm           struct {
+					ReleaseName string   `yaml:"releaseName"`
+					ValueFiles  []string `yaml:"valueFiles"`
+				} `yaml:"helm"`
+			} `yaml:"source"`
+			Destination struct {
+				Server    string `yaml:"server"`
+				Namespace string `yaml:"namespace"`
+			} `yaml:"destination"`
+		}{},
+	}
+	app.Spec.Source.Path = "charts/test"
+	// ReleaseName is empty - should default to app name
+	app.Spec.Destination.Namespace = "test-ns"
+
+	tmpDir := t.TempDir()
+
+	rule := generateTemplateTestRule(app, "overlays/prod/test", tmpDir)
+
+	if rule == nil {
+		t.Fatal("generateTemplateTestRule returned nil")
+	}
+
+	// Check release_name defaults to app name
+	releaseName := rule.AttrString("release_name")
+	if releaseName != "my-app-name" {
+		t.Errorf("release_name = %q, want %q (defaulted from app name)", releaseName, "my-app-name")
+	}
+}
+
+func TestGenerateTemplateTestRule_NoChartPath(t *testing.T) {
+	app := &ArgoCDApplication{
+		Metadata: struct {
+			Name      string `yaml:"name"`
+			Namespace string `yaml:"namespace"`
+		}{
+			Name: "test-app",
+		},
+		Spec: struct {
+			Source struct {
+				RepoURL        string `yaml:"repoURL"`
+				Path           string `yaml:"path"`
+				Chart          string `yaml:"chart"`
+				TargetRevision string `yaml:"targetRevision"`
+				Helm           struct {
+					ReleaseName string   `yaml:"releaseName"`
+					ValueFiles  []string `yaml:"valueFiles"`
+				} `yaml:"helm"`
+			} `yaml:"source"`
+			Destination struct {
+				Server    string `yaml:"server"`
+				Namespace string `yaml:"namespace"`
+			} `yaml:"destination"`
+		}{},
+	}
+	// No chart path set
+	app.Spec.Destination.Namespace = "test-ns"
+
+	tmpDir := t.TempDir()
+
+	rule := generateTemplateTestRule(app, "overlays/prod/test", tmpDir)
+
+	// Should return nil when no chart path
+	if rule != nil {
+		t.Error("expected nil rule when chart path is empty")
+	}
 }
 
 func TestArgoCDApplication_Structure(t *testing.T) {

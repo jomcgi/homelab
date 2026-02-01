@@ -1,3 +1,5 @@
+load("//tools/argocd:defs.bzl", "helm_template_test")
+
 genrule(
     name = "render_manifests",
     srcs = [
@@ -16,4 +18,17 @@ genrule(
         "@multitool//tools/helm",
     ],
     visibility = ["//visibility:public"],
+)
+
+helm_template_test(
+    name = "template_test",
+    chart = "charts/nvidia-gpu-operator",
+    chart_files = "//charts/nvidia-gpu-operator:all_files",
+    namespace = "gpu-operator",
+    release_name = "nvidia-gpu-operator",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = ["//charts/nvidia-gpu-operator:values.yaml"],
 )

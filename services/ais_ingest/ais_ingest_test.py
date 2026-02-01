@@ -299,6 +299,7 @@ class TestAISIngestService:
         service.running = True
         service.ready = True
         service.nc = AsyncMock()
+
         # Create a proper task mock that can be cancelled and awaited
         async def dummy_task():
             await asyncio.sleep(10)

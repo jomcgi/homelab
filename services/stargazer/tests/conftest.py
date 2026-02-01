@@ -105,9 +105,7 @@ def sample_forecast_response() -> dict:
                                 "air_pressure_at_sea_level": 1018.0,
                             }
                         },
-                        "next_1_hours": {
-                            "summary": {"symbol_code": "clearsky_night"}
-                        },
+                        "next_1_hours": {"summary": {"symbol_code": "clearsky_night"}},
                     },
                 },
                 {
@@ -124,9 +122,7 @@ def sample_forecast_response() -> dict:
                                 "air_pressure_at_sea_level": 1010.0,
                             }
                         },
-                        "next_1_hours": {
-                            "summary": {"symbol_code": "cloudy"}
-                        },
+                        "next_1_hours": {"summary": {"symbol_code": "cloudy"}},
                     },
                 },
             ],
@@ -255,20 +251,22 @@ def mock_httpx_client():
 @pytest.fixture
 def sample_polygon() -> Polygon:
     """Sample polygon for spatial tests (area around Galloway)."""
-    return Polygon([
-        (-4.8, 54.9),
-        (-4.2, 54.9),
-        (-4.2, 55.2),
-        (-4.8, 55.2),
-        (-4.8, 54.9),
-    ])
+    return Polygon(
+        [
+            (-4.8, 54.9),
+            (-4.2, 54.9),
+            (-4.2, 55.2),
+            (-4.8, 55.2),
+            (-4.8, 54.9),
+        ]
+    )
 
 
 @pytest.fixture
 def sample_points() -> list[Point]:
     """Sample points for spatial tests."""
     return [
-        Point(-4.5, 55.0),   # Inside sample polygon
-        Point(-4.5, 55.1),   # Inside sample polygon
-        Point(-3.0, 55.0),   # Outside sample polygon
+        Point(-4.5, 55.0),  # Inside sample polygon
+        Point(-4.5, 55.1),  # Inside sample polygon
+        Point(-3.0, 55.0),  # Outside sample polygon
     ]

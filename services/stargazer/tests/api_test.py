@@ -407,7 +407,7 @@ class TestDataTransformation:
                 "id": "test1",
                 "coordinates": {"lat": 55.0, "lon": -4.5},
                 "best_hours": [
-                    {"time": f"2024-01-15T{20+i}:00:00Z", "score": 90 - i}
+                    {"time": f"2024-01-15T{20 + i}:00:00Z", "score": 90 - i}
                     for i in range(10)
                 ],
             }

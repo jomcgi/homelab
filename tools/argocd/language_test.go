@@ -198,7 +198,6 @@ func TestArgoCDLang_Loads(t *testing.T) {
 func TestArgoCDLang_CheckFlags(t *testing.T) {
 	lang := NewLanguage()
 	err := lang.CheckFlags(nil, nil)
-
 	if err != nil {
 		t.Errorf("CheckFlags() returned error: %v", err)
 	}
