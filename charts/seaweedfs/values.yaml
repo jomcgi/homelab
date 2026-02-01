@@ -13,8 +13,11 @@ seaweedfs:
     # Disable anti-affinity for single-node homelab
     affinity: ""
     # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    # Prometheus annotations enable SigNoz autodiscovery
     podAnnotations:
       otel.injected-by: kyverno/inject-otel-env-vars
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9327"
     data:
       type: "persistentVolumeClaim"
       size: "1Gi"
@@ -35,8 +38,11 @@ seaweedfs:
     # Disable anti-affinity for single-node homelab
     affinity: ""
     # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    # Prometheus annotations enable SigNoz autodiscovery
     podAnnotations:
       otel.injected-by: kyverno/inject-otel-env-vars
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9327"
     dataDirs:
       - name: data
         type: "persistentVolumeClaim"
@@ -61,8 +67,11 @@ seaweedfs:
     # Disable anti-affinity for single-node homelab
     affinity: ""
     # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    # Prometheus annotations enable SigNoz autodiscovery
     podAnnotations:
       otel.injected-by: kyverno/inject-otel-env-vars
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9327"
     data:
       type: "persistentVolumeClaim"
       size: "5Gi"
@@ -83,8 +92,11 @@ seaweedfs:
     port: 8333
     enableAuth: false
     # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+    # Prometheus annotations enable SigNoz autodiscovery
     podAnnotations:
       otel.injected-by: kyverno/inject-otel-env-vars
+      prometheus.io/scrape: "true"
+      prometheus.io/port: "9327"
     resources:
       requests:
         cpu: 50m
