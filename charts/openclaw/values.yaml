@@ -332,8 +332,10 @@ networkPolicy:
     ## Port for vLLM service
     port: 8000
     ## Pod selector labels for vLLM pods
+    ## Default matches common vLLM router deployments (release: router)
+    ## Override if your vLLM pods use different labels
     podSelector:
-      app.kubernetes.io/name: vllm
+      release: router
 
   ## Additional egress rules
   ## Use this for custom destinations not covered by the provider defaults
