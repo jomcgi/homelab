@@ -35,8 +35,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       initContainers:
         {{- if .Values.initContainers.initConfig.enabled }}
-        # init-config: Set up directory and seed config if not exists
-        # Only creates config if missing - preserves manual changes across restarts
+        # init-config: Set up directories with correct permissions
         - name: init-config
           image: {{ .Values.initContainers.initConfig.image }}
           command:
@@ -44,13 +43,6 @@ spec:
             - -c
             - |
               mkdir -p /home/openclaw/.openclaw/workspace
-              # Only copy seed config if no config exists (preserve manual changes)
-              if [ ! -f /home/openclaw/.openclaw/openclaw.json ]; then
-                echo "Creating initial config..."
-                cp /config/openclaw.json /home/openclaw/.openclaw/openclaw.json
-              else
-                echo "Config exists, preserving..."
-              fi
               chown -R 1000:1000 /home/openclaw
           securityContext:
             runAsUser: 0
@@ -58,9 +50,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /home/openclaw
-            - name: config
-              mountPath: /config
-              readOnly: true
           resources:
             {{- toYaml .Values.initContainers.initConfig.resources | nindent 12 }}
         {{- end }}
@@ -194,9 +183,6 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /home/openclaw
-            - name: config
-              mountPath: /etc/openclaw
-              readOnly: true
             # Writable directories for readOnlyRootFilesystem
             - name: tmp
               mountPath: /tmp
@@ -243,9 +229,6 @@ spec:
           {{- else }}
           emptyDir: {}
           {{- end }}
-        - name: config
-          configMap:
-            name: {{ include "openclaw.fullname" . }}-config
         # Writable directories for readOnlyRootFilesystem
         - name: tmp
           emptyDir: {}
