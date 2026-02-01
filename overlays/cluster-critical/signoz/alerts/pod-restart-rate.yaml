@@ -34,18 +34,18 @@ data:
             "A": {
               "queryName": "A",
               "dataSource": "metrics",
-              "aggregateOperator": "sum",
+              "aggregateOperator": "max",
               "aggregateAttribute": {
-                "key": "kube_pod_container_status_restarts_total",
+                "key": "k8s.container.restarts",
                 "dataType": "float64",
-                "type": "Sum"
+                "type": "Gauge"
               },
               "filters": {
                 "items": []
               },
               "groupBy": [
-                {"key": "k8s_namespace_name"},
-                {"key": "k8s_pod_name"}
+                {"key": "k8s.namespace.name"},
+                {"key": "k8s.pod.name"}
               ]
             }
           },
