@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: pod-pending-alert
+  namespace: signoz
+  labels:
+    signoz.io/alert: "true"
+  annotations:
+    signoz.io/alert-name: "Pod Stuck Pending"
+    signoz.io/severity: "warning"
+    signoz.io/notification-channels: "pagerduty-homelab"
+data:
+  alert.json: |
+    {
+      "alert": "Pod Stuck Pending",
+      "alertType": "METRICS_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "broadcastToAll": false,
+      "disabled": false,
+      "evalWindow": "15m0s",
+      "frequency": "1m0s",
+      "severity": "warning",
+      "labels": {
+        "category": "pod-health",
+        "environment": "production"
+      },
+      "annotations": {
+        "summary": "Pod {{ $labels.k8s_pod_name }} stuck in Pending state",
+        "description": "Pod {{ $labels.k8s_pod_name }} in namespace {{ $labels.k8s_namespace_name }} has been Pending for more than 15 minutes"
+      },
+      "condition": {
+        "compositeQuery": {
+          "builderQueries": {
+            "A": {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "aggregateOperator": "max",
+              "aggregateAttribute": {
+                "key": "kube_pod_status_phase",
+                "dataType": "float64",
+                "type": "Gauge"
+              },
+              "filters": {
+                "items": [
+                  {
+                    "key": {"key": "phase"},
+                    "op": "=",
+                    "value": "Pending"
+                  }
+                ]
+              },
+              "groupBy": [
+                {"key": "k8s_namespace_name"},
+                {"key": "k8s_pod_name"}
+              ]
+            }
+          },
+          "queryType": "builder"
+        },
+        "op": ">",
+        "target": 0,
+        "matchType": "15"
+      },
+      "preferredChannels": ["pagerduty-homelab"]
+    }
