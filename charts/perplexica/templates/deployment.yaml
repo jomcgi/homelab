@@ -123,9 +123,6 @@ spec:
             - name: INSTANCE_NAME
               value: {{ .Values.searxng.settings.instanceName | quote }}
           securityContext:
-            runAsUser: 1000
-            runAsGroup: 1000
-            runAsNonRoot: true
             allowPrivilegeEscalation: false
             capabilities:
               drop:
