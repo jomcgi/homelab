@@ -78,6 +78,7 @@ networkPolicy:
   vllm:
     enabled: true
     namespace: "vllm"
-    port: 80
+    ## Use pod port 8000, not service port 80 (NetworkPolicy operates on pod-to-pod traffic)
+    port: 8000
     podSelector:
       release: router
