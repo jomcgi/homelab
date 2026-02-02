@@ -10,7 +10,7 @@ podAnnotations:
 ## LLM: Local Qwen via vLLM
 llm:
   provider: "openai-compatible"
-  model: "Qwen/Qwen3-30B-A3B-Instruct-2507-AWQ"
+  model: "QuixiAI/Qwen3-30B-A3B-AWQ"
   ## Use the vLLM router service (port 80, not 8000)
   baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
   vllm:

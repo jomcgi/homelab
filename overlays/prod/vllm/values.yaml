@@ -39,7 +39,7 @@ vllm-stack:
         tag: "latest@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c"
         imagePullPolicy: IfNotPresent
         # Qwen3 30B Instruct with AWQ quantization (general-purpose, better for chat)
-        modelURL: "Qwen/Qwen3-30B-A3B-Instruct-2507-AWQ"
+        modelURL: "QuixiAI/Qwen3-30B-A3B-AWQ"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
