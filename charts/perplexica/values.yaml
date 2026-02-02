@@ -123,6 +123,10 @@ searxng:
     ## Outgoing request settings
     requestTimeout: 10
 
+    ## Secret key for SearXNG sessions
+    ## If empty, a random 32-character key is generated
+    secretKey: ""
+
   resources:
     requests:
       cpu: 250m
