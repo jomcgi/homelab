@@ -33,13 +33,13 @@ vllm-stack:
       failureThreshold: 3
 
     modelSpec:
-      - name: "qwen3-coder-30b"
+      - name: "qwen3-30b-instruct"
         # Standard vLLM image (no LMCache)
         repository: "vllm/vllm-openai"
         tag: "latest@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c"
         imagePullPolicy: IfNotPresent
-        # Qwen3-Coder 30B with AWQ 4-bit quantization
-        modelURL: "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit"
+        # Qwen3 30B Instruct with AWQ quantization (general-purpose, better for chat)
+        modelURL: "Qwen/Qwen3-30B-A3B-Instruct-2507-AWQ"
         replicaCount: 1
 
         # HuggingFace token from 1Password secret
@@ -91,7 +91,7 @@ vllm-stack:
             - "15"  # Increased from 10GB to offload more to CPU RAM (we have 32Gi available)
             - "--enable-auto-tool-choice"   # Enable function/tool calling
             - "--tool-call-parser"
-            - "qwen3_coder"  # Use qwen3_coder parser for Qwen3-Coder models (not hermes)
+            - "hermes"  # Use hermes parser for general Qwen3 instruct models
             # Note: quantization auto-detected from model config (compressed-tensors)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)
