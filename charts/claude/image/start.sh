@@ -6,10 +6,13 @@ export NPM_CONFIG_PREFIX="$HOME/.npm-global"
 export PATH="$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"
 
-# Install/update Claude Code to latest version
-# Always run npm install -g to ensure we have the latest version
-echo "Installing/updating Claude Code..."
-npm install -g @anthropic-ai/claude-code
+# Install/update Claude Code (sneakpeek fork with feature flags)
+# Uses @realmikekelly/claude-sneakpeek for access to experimental features:
+# - Swarm mode: Multi-agent orchestration with TeammateTool
+# - Delegate mode: Background agent spawning
+# - Team coordination: Teammate messaging and task ownership
+echo "Installing/updating Claude Code (sneakpeek)..."
+npm install -g @realmikekelly/claude-sneakpeek
 
 # Git configuration
 if [ -n "$GIT_USER_NAME" ]; then
@@ -21,9 +24,10 @@ fi
 git config --global init.defaultBranch main
 git config --global safe.directory '*'
 
-# Git credentials via URL rewrite if token is set
+# Configure GitHub CLI as git credential helper
+# This uses GITHUB_TOKEN env var automatically and handles auth properly
 if [ -n "$GITHUB_TOKEN" ]; then
-	git config --global url."https://oauth2:${GITHUB_TOKEN}@github.com/".insteadOf "https://github.com/"
+	gh auth setup-git
 fi
 # Build and start CUI server (new frontend with built-in API)
 cd /app/frontend/charts/claude/frontend
