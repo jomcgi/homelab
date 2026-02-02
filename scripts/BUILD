@@ -33,3 +33,9 @@ sh_binary(
     srcs = ["test-charts.sh"],
     visibility = ["//visibility:public"],
 )
+
+sh_binary(
+    name = "fix-longhorn-stale-mount",
+    srcs = ["fix-longhorn-stale-mount.sh"],
+    visibility = ["//visibility:public"],
+)
