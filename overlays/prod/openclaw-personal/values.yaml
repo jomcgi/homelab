@@ -12,12 +12,15 @@ llm:
   provider: "anthropic"
   model: "claude-sonnet-4-20250514"
 
-## Claude auth via manual login
-## After pod starts: kubectl exec -it -n openclaw deployment/openclaw-personal -- openclaw auth login
-## Credentials persist to PVC
+## Claude auth via 1Password-managed API key
 auth:
   enabled: true
-  method: "manual"
+  method: "api-key"
+  secret:
+    type: "onepassword"
+    onepassword:
+      ## 1Password item must have field named "ANTHROPIC_API_KEY"
+      itemPath: "vaults/k8s-homelab/items/anthropic"
 
 ## WhatsApp channel (QR code auth - run `openclaw channels login` after deploy)
 whatsapp:

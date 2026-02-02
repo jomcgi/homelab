@@ -399,6 +399,18 @@ auth:
   # WARNING: This value will be stored in Helm release secrets
   apiKey: ""
 
+  ## Secret configuration for API key (when method is "api-key")
+  ## Supports 1Password Kubernetes Operator for secure secret management
+  secret:
+    ## Type: "onepassword" or "manual"
+    ## onepassword: Create a OnePasswordItem that syncs to K8s secret
+    ## manual: Use existingSecret or apiKey above
+    type: "manual"
+    onepassword:
+      ## 1Password item path (e.g., "vaults/k8s-homelab/items/anthropic")
+      ## The item must have a field named "ANTHROPIC_API_KEY" (or match apiKeySecretKey)
+      itemPath: ""
+
 ## Cloudflare Zero Trust configuration
 ## Exposes the OpenClaw dashboard via Cloudflare Tunnel with access policies
 cloudflare:
