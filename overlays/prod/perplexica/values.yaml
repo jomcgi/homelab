@@ -3,6 +3,10 @@
 
 fullnameOverride: "perplexica"
 
+## Disable linkerd injection (causes PostStartHook timeouts)
+podAnnotations:
+  linkerd.io/inject: disabled
+
 ## LLM: Use existing vLLM deployment with Qwen3-Coder
 llm:
   baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
