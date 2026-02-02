@@ -50,7 +50,9 @@ seaweedfs:
         storageClass: "longhorn"
         maxVolumes: 0
     idx:
-      type: "emptyDir"
+      type: "persistentVolumeClaim"
+      size: "1Gi"
+      storageClass: "longhorn"
     logs:
       type: "emptyDir"
     resources:
