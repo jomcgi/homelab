@@ -66,8 +66,9 @@ def vite_build(
         visibility: Visibility for the dist filegroup.
     """
 
-    # Link npm packages for this workspace package
-    npm_link_all_packages(name = "node_modules")
+    # Link npm packages for this workspace package (skip if already defined)
+    if not native.existing_rule("node_modules"):
+        npm_link_all_packages(name = "node_modules")
 
     # Default build args
     args = build_args if build_args != None else ["build"]

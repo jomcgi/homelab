@@ -4,7 +4,6 @@ load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 
 exports_files(
     [
-        "esbuild_build.bzl",
         "node_modules_tar.bzl",
         "tailwind_build.bzl",
         "vite_build.bzl",
@@ -18,17 +17,6 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "@aspect_rules_js//js:defs",
-    ],
-)
-
-bzl_library(
-    name = "esbuild_build",
-    srcs = ["esbuild_build.bzl"],
-    visibility = ["//visibility:public"],
-    deps = [
-        "@aspect_rules_esbuild//esbuild:defs",
-        "@aspect_rules_js//js:defs",
-        "@aspect_rules_ts//ts:defs",
     ],
 )
 
