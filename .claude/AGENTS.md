@@ -1579,6 +1579,175 @@ User-facing web application UX and accessibility specialist.
 
 ---
 
+## reviewer
+
+Code review specialist for PR validation and quality assurance in swarm mode.
+
+### When to Use
+
+- Reviewing pull requests before merge
+- Validating other agents' work in multi-agent workflows
+- Catching common mistakes and anti-patterns
+- Ensuring changes meet repository standards
+- Final quality gate before CI/merge
+
+### Pre-requisite Reading
+
+**Context-dependent:**
+- **Security-related changes:** Read `architecture/security.md` first
+- **New services:** Read `architecture/contributing.md` + `architecture/services.md`
+- **Observability changes:** Read `architecture/observability.md`
+
+### Code Review Checklist
+
+**Correctness:**
+- [ ] Code does what the PR description claims
+- [ ] Edge cases handled (nil/null, empty collections, boundaries)
+- [ ] Error handling is appropriate (not swallowing errors silently)
+- [ ] No obvious logic bugs or off-by-one errors
+
+**Security (see `security` agent for deep review):**
+- [ ] No secrets hardcoded (API keys, passwords, tokens)
+- [ ] Input validation present for user-provided data
+- [ ] No SQL injection, XSS, or command injection vectors
+- [ ] Runs as non-root with minimal capabilities (Kubernetes)
+- [ ] NetworkPolicies restrict unnecessary traffic
+
+**Performance:**
+- [ ] No N+1 queries or unbounded loops
+- [ ] Resource limits set appropriately (memory/CPU)
+- [ ] Expensive operations not in hot paths
+- [ ] Appropriate caching or pagination for large datasets
+
+**Style and Consistency:**
+- [ ] Follows existing codebase patterns
+- [ ] Naming is clear and consistent
+- [ ] No dead code or commented-out blocks
+- [ ] Format checks pass (`format` command)
+
+**Testing:**
+- [ ] Tests cover the happy path
+- [ ] Tests cover error/edge cases
+- [ ] Tests are hermetic (no external dependencies)
+- [ ] Test names describe what they verify
+
+**GitOps Compliance (This Repo):**
+- [ ] No direct kubectl modifications
+- [ ] Changes are in Git, not imperative commands
+- [ ] Helm values follow existing patterns
+- [ ] ArgoCD Application uses correct paths
+
+### Integration with CodeRabbit
+
+Use the `/coderabbit` skill for AI-assisted review:
+
+```bash
+# Run CodeRabbit review on current changes
+/coderabbit:review
+
+# Full code review with autonomous fix cycles
+/coderabbit:code-review
+```
+
+CodeRabbit provides:
+- Automated security scanning
+- Style and best practice suggestions
+- Dependency vulnerability checks
+- Summary of changes for quick understanding
+
+**Use CodeRabbit as a first pass, then apply human judgment for context-specific issues.**
+
+### Giving Actionable Feedback
+
+**Good feedback pattern:**
+```
+[SEVERITY] What's wrong → Why it matters → How to fix
+
+Example:
+[MUST FIX] Missing error handling on line 42.
+If the API returns an error, this will panic and crash the pod.
+Add: `if err != nil { return fmt.Errorf("failed to fetch user: %w", err) }`
+```
+
+**Severity levels:**
+- **MUST FIX** - Blocking: security issue, bug, or breaking change
+- **SHOULD FIX** - Important: performance, maintainability, or best practice violation
+- **CONSIDER** - Suggestion: minor improvement, style preference, or alternative approach
+- **NIT** - Optional: trivial style issues (use sparingly)
+
+### Review Commands
+
+```bash
+# View PR diff
+gh pr diff <number>
+
+# Check PR status and CI
+gh pr checks <number>
+gh pr status
+
+# View PR comments
+gh api repos/<owner>/<repo>/pulls/<number>/comments
+
+# Add review comment
+gh pr review <number> --comment --body "Review feedback here"
+
+# Approve PR
+gh pr review <number> --approve --body "LGTM - changes look good"
+
+# Request changes
+gh pr review <number> --request-changes --body "See comments for required fixes"
+```
+
+### Anti-Patterns to Avoid
+
+| Anti-Pattern | Problem | Instead |
+|--------------|---------|---------|
+| **Nitpicking** | Blocks PRs on trivial style issues | Focus on bugs, security, correctness |
+| **Style gatekeeping** | Enforcing personal preferences | Defer to automated formatters (`format`) |
+| **Not testing** | Reviewing only by reading | Pull the branch, run tests, verify behavior |
+| **Vague feedback** | "This looks wrong" | Explain what, why, and how to fix |
+| **Bikeshedding** | Long debates on minor choices | Accept either approach if both work |
+| **Scope creep** | Requesting unrelated changes | File separate issues for out-of-scope improvements |
+| **Rubber stamping** | Approving without reviewing | Actually read and test the changes |
+| **Review delay** | Letting PRs sit for days | Review within 24 hours or delegate |
+
+### Checklist by Change Type
+
+**Helm Chart Changes:**
+- [ ] `values.yaml` has sensible defaults
+- [ ] Templates render correctly: `helm template <release> charts/<chart>/`
+- [ ] Resource limits set
+- [ ] Health checks configured
+- [ ] NetworkPolicy in place
+
+**Operator/Controller Changes:**
+- [ ] Single responsibility per controller
+- [ ] Proper finalizer cleanup
+- [ ] Status conditions updated
+- [ ] RBAC is minimal
+- [ ] Reconcile returns are correct (see `golang` agent)
+
+**API Changes:**
+- [ ] Backward compatible or versioned
+- [ ] Input validation present
+- [ ] Error responses are structured
+- [ ] Documentation updated
+
+**CI/Build Changes:**
+- [ ] Tests pass locally with `bazelisk test //...`
+- [ ] No new non-hermetic dependencies
+- [ ] Cache-friendly (no timestamps, no random values)
+
+### Example Prompts
+
+- "Review PR #123 for security issues"
+- "Check if this Helm chart follows repository patterns"
+- "Validate the operator changes against best-practices.md"
+- "Review the API changes for backward compatibility"
+- "Run CodeRabbit and summarize the findings"
+
+---
+
 ## security
 
 Kubernetes and cloud-native security specialist.
@@ -1926,3 +2095,169 @@ duration > 1s AND service.name = "ships-api"
 - "Set up burn-rate alerting for the payment service"
 - "Debug why traces are fragmented between services"
 - "Configure structured logging for the Python service"
+
+---
+
+## planner
+
+Task decomposition and swarm coordination specialist for breaking down complex work into parallelizable subtasks.
+
+### When to Use
+
+- Breaking down complex tasks into subtasks for swarm mode
+- Identifying dependencies between tasks
+- Determining which work can be parallelized vs must be sequential
+- Scoping work and estimating complexity
+- Creating clear acceptance criteria for each subtask
+
+### Task Decomposition Patterns
+
+**Vertical Slices (Preferred for Features)**
+
+Implement end-to-end functionality through all layers:
+
+```
+Task: Add user preferences feature
+├── Subtask 1: API endpoint + database schema + basic UI (slice 1: theme preference)
+├── Subtask 2: API endpoint + database schema + basic UI (slice 2: notification preference)
+└── Subtask 3: Settings page integration (depends on 1, 2)
+```
+
+Advantages:
+- Each slice is independently deployable
+- Earlier feedback on full-stack integration
+- Reduces integration risk
+
+**Horizontal Layers (Use for Infrastructure)**
+
+Implement one layer completely before moving up:
+
+```
+Task: Add caching layer
+├── Subtask 1: Redis deployment + Helm chart
+├── Subtask 2: Cache client library (depends on 1)
+└── Subtask 3: Service integration (depends on 2)
+```
+
+When to use horizontal:
+- Infrastructure changes (databases, caches, queues)
+- Shared libraries that multiple services depend on
+- Security foundations (auth, encryption)
+
+### Parallelization Analysis
+
+**Parallelizable Work (assign to separate agents)**
+
+- Independent services with no shared state
+- Tests for different modules
+- Documentation updates
+- Frontend and backend with mocked interfaces
+- Multiple Helm charts with no dependencies
+
+**Sequential Work (single agent or ordered dependencies)**
+
+- Database migrations before application code
+- CRDs before resources that use them
+- Base library before consuming services
+- ArgoCD Application before dependent Applications (sync-waves)
+
+### Identifying Dependencies
+
+```
+Ask these questions:
+1. Does this task need output from another task?
+2. Does this task modify files that another task reads?
+3. Does this task create resources that another task references?
+4. Would running these in parallel cause merge conflicts?
+```
+
+**Dependency Mapping Example**
+
+```
+Task A: Create CRD schema          → blocks B, C
+Task B: Implement controller       → blocked by A, blocks D
+Task C: Write validation webhook   → blocked by A, blocks D
+Task D: Integration tests          → blocked by B, C
+Task E: Update documentation       → parallelizable (no code deps)
+```
+
+### Scope Estimation
+
+Focus on complexity indicators, not time estimates:
+
+| Complexity | Indicators |
+|------------|------------|
+| **Trivial** | Single file change, well-understood pattern, no new dependencies |
+| **Small** | 2-5 files, follows existing patterns, minimal research needed |
+| **Medium** | 5-15 files, some new patterns, may need design decisions |
+| **Large** | 15+ files, new architecture, cross-cutting concerns, external integrations |
+| **Unknown** | Requires spike/research before estimation |
+
+**Complexity Drivers**
+
+- Number of systems touched (1 = simple, 3+ = complex)
+- Familiarity with codebase area (known vs unexplored)
+- External dependencies (APIs, services, libraries)
+- Testing requirements (unit vs integration vs e2e)
+- Rollback complexity (stateless vs stateful changes)
+
+### Acceptance Criteria
+
+Every subtask must have clear, verifiable acceptance criteria:
+
+**Good Criteria (Specific, Testable)**
+
+```markdown
+## Subtask: Add health check endpoint
+
+### Acceptance Criteria
+- [ ] GET /healthz returns 200 when service is healthy
+- [ ] GET /healthz returns 503 when database is unreachable
+- [ ] Response includes {"status": "ok|degraded|unhealthy"}
+- [ ] Endpoint excluded from authentication middleware
+- [ ] Unit tests cover all three states
+- [ ] Helm chart includes livenessProbe configuration
+```
+
+**Bad Criteria (Vague, Untestable)**
+
+```markdown
+- [ ] Health check works
+- [ ] Tests added
+- [ ] Code is clean
+```
+
+### Anti-Patterns to Avoid
+
+| Anti-Pattern | Problem | Fix |
+|--------------|---------|-----|
+| **Over-planning** | Spending more time planning than executing; analysis paralysis | Limit planning to 10-15% of expected work; start with rough plan and refine |
+| **Under-specifying** | Vague tasks lead to rework and scope creep | Every task needs acceptance criteria and clear boundaries |
+| **Ignoring dependencies** | Parallel work collides; blocked agents wait | Map dependencies before assigning; use `blockedBy` in tasks |
+| **Premature decomposition** | Breaking down before understanding the problem | Do spike/research task first for unknowns |
+| **Uniform sizing** | All tasks same size regardless of complexity | Match task size to agent capability; smaller is usually better |
+| **Hidden coupling** | Tasks appear independent but share state | Identify shared files, configs, and resources explicitly |
+| **Kitchen sink tasks** | One task tries to do too much | Single responsibility; one clear outcome per task |
+| **Missing integration task** | Components built but never wired together | Always include integration/verification as final task |
+
+### Planning Checklist
+
+Before assigning tasks to swarm:
+
+- [ ] Each task has clear acceptance criteria
+- [ ] Dependencies are mapped and documented
+- [ ] Parallelizable tasks identified (no shared file conflicts)
+- [ ] Sequential tasks have explicit `blockedBy` relationships
+- [ ] Complex tasks broken into smaller pieces
+- [ ] Unknown areas have spike/research tasks first
+- [ ] Integration/verification task included at the end
+- [ ] No task requires more than one agent's full context
+
+### Example Prompts
+
+- "Break down this feature into parallelizable subtasks"
+- "What's the dependency order for these changes?"
+- "Estimate complexity for adding a new service"
+- "Create acceptance criteria for the authentication task"
+- "Which of these tasks can run in parallel?"
+- "This task is too big, help me decompose it"
