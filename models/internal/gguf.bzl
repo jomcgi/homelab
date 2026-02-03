@@ -97,46 +97,48 @@ def gguf_image(
         visibility = visibility,
     )
 
-    # Create push target if repository is specified
-    if repository:
-        # Create stamped tags file for CI builds
-        expand_template(
-            name = name + "_stamped_tags_ci",
-            out = name + "_stamped_ci.tags.txt",
-            template = [
-                "{STABLE_BRANCH_TAG}",
-                "{STABLE_IMAGE_TAG}",
-            ],
-            stamp_substitutions = {
-                "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
-                "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
-            },
-            visibility = ["//visibility:private"],
-        )
+    # Auto-generate repository if not specified
+    if not repository:
+        repository = "ghcr.io/jomcgi/homelab/" + native.package_name() + "/" + name
 
-        # Create stamped tags file for local builds
-        expand_template(
-            name = name + "_stamped_tags_local",
-            out = name + "_stamped_local.tags.txt",
-            template = [
-                "{STABLE_IMAGE_TAG}",
-            ],
-            stamp_substitutions = {
-                "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
-            },
-            visibility = ["//visibility:private"],
-        )
+    # Create stamped tags file for CI builds
+    expand_template(
+        name = name + "_stamped_tags_ci",
+        out = name + "_stamped_ci.tags.txt",
+        template = [
+            "{STABLE_BRANCH_TAG}",
+            "{STABLE_IMAGE_TAG}",
+        ],
+        stamp_substitutions = {
+            "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+        visibility = ["//visibility:private"],
+    )
 
-        oci_push(
-            name = name + ".push",
-            image = name,
-            repository = repository,
-            remote_tags = select({
-                "//tools/oci:ci_build": name + "_stamped_tags_ci",
-                "//conditions:default": name + "_stamped_tags_local",
-            }),
-            visibility = visibility,
-        )
+    # Create stamped tags file for local builds
+    expand_template(
+        name = name + "_stamped_tags_local",
+        out = name + "_stamped_local.tags.txt",
+        template = [
+            "{STABLE_IMAGE_TAG}",
+        ],
+        stamp_substitutions = {
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+        visibility = ["//visibility:private"],
+    )
+
+    oci_push(
+        name = name + ".push",
+        image = name,
+        repository = repository,
+        remote_tags = select({
+            "//tools/oci:ci_build": name + "_stamped_tags_ci",
+            "//conditions:default": name + "_stamped_tags_local",
+        }),
+        visibility = visibility,
+    )
 
 def gguf_image_split(
         name,
@@ -226,41 +228,43 @@ def gguf_image_split(
         visibility = visibility,
     )
 
-    # Create push target if repository is specified
-    if repository:
-        expand_template(
-            name = name + "_stamped_tags_ci",
-            out = name + "_stamped_ci.tags.txt",
-            template = [
-                "{STABLE_BRANCH_TAG}",
-                "{STABLE_IMAGE_TAG}",
-            ],
-            stamp_substitutions = {
-                "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
-                "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
-            },
-            visibility = ["//visibility:private"],
-        )
+    # Auto-generate repository if not specified
+    if not repository:
+        repository = "ghcr.io/jomcgi/homelab/" + native.package_name() + "/" + name
 
-        expand_template(
-            name = name + "_stamped_tags_local",
-            out = name + "_stamped_local.tags.txt",
-            template = [
-                "{STABLE_IMAGE_TAG}",
-            ],
-            stamp_substitutions = {
-                "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
-            },
-            visibility = ["//visibility:private"],
-        )
+    expand_template(
+        name = name + "_stamped_tags_ci",
+        out = name + "_stamped_ci.tags.txt",
+        template = [
+            "{STABLE_BRANCH_TAG}",
+            "{STABLE_IMAGE_TAG}",
+        ],
+        stamp_substitutions = {
+            "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+        visibility = ["//visibility:private"],
+    )
 
-        oci_push(
-            name = name + ".push",
-            image = name,
-            repository = repository,
-            remote_tags = select({
-                "//tools/oci:ci_build": name + "_stamped_tags_ci",
-                "//conditions:default": name + "_stamped_tags_local",
-            }),
-            visibility = visibility,
-        )
+    expand_template(
+        name = name + "_stamped_tags_local",
+        out = name + "_stamped_local.tags.txt",
+        template = [
+            "{STABLE_IMAGE_TAG}",
+        ],
+        stamp_substitutions = {
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+        visibility = ["//visibility:private"],
+    )
+
+    oci_push(
+        name = name + ".push",
+        image = name,
+        repository = repository,
+        remote_tags = select({
+            "//tools/oci:ci_build": name + "_stamped_tags_ci",
+            "//conditions:default": name + "_stamped_tags_local",
+        }),
+        visibility = visibility,
+    )
