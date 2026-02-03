@@ -1,5 +1,5 @@
 # Currently bazel-lib is only load()ed when platforms is used.
-bazel_dep(name = "aspect_bazel_lib", version = "2.21.2")
+bazel_dep(name = "aspect_bazel_lib", version = "2.22.5")
 bazel_dep(name = "aspect_rules_lint", version = "1.10.2")
 
 # Register jq toolchain for JSON processing in OCI operations
@@ -16,9 +16,9 @@ bazel_dep(name = "bazelrc-preset.bzl", version = "1.5.0")
 
 # Bazel 9: Ensure transitives don't depend on rules_nodejs prior to
 # https://github.com/bazel-contrib/rules_nodejs/commit/1fc6b6b763c4f79994edc9edab10399f7446d8be
-bazel_dep(name = "rules_nodejs", version = "6.6.0")
+bazel_dep(name = "rules_nodejs", version = "6.7.3")
 bazel_dep(name = "aspect_rules_js", version = "3.0.0-rc4")
-bazel_dep(name = "aspect_rules_ts", version = "3.7.0")
+bazel_dep(name = "aspect_rules_ts", version = "3.8.3")
 bazel_dep(name = "aspect_rules_esbuild", version = "0.25.0")
 
 # We have to take a dependency on rules_python in order to set bootstrap=script
