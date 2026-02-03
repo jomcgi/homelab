@@ -805,6 +805,183 @@ argocd app get <name> --show-operation
 
 ---
 
+## migration
+
+Database schema and API migration specialist for safe, backwards-compatible changes.
+
+### When to Use
+
+- Database schema changes (adding/removing columns, tables, indexes)
+- API versioning and breaking changes
+- Data migrations between formats or systems
+- Feature flag rollouts for gradual migration
+- Deprecating and removing old APIs or schemas
+
+### Migration Strategies
+
+| Strategy | Use Case | Risk Level |
+|----------|----------|------------|
+| **Expand-Contract** | Schema changes, API evolution | Low |
+| **Blue-Green** | Full cutover with instant rollback | Medium |
+| **Rolling** | Gradual pod-by-pod updates | Low |
+| **Strangler Fig** | Incremental system replacement | Low |
+
+### Expand-Contract Pattern (Preferred)
+
+The safest approach for most migrations:
+
+```
+1. EXPAND:   Add new column/field (nullable or with default)
+2. MIGRATE:  Update code to write to both old and new
+3. BACKFILL: Populate new column with existing data
+4. SWITCH:   Update code to read from new, write to both
+5. CONTRACT: Remove old column/field after verification
+```
+
+**Never skip steps.** Each phase should be a separate deployment.
+
+### Database Migration Patterns
+
+**Additive changes first:**
+```sql
+-- Phase 1: Add new column (safe, backwards compatible)
+ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
+
+-- Phase 2: Backfill existing data
+UPDATE users SET email_verified = TRUE WHERE verified_at IS NOT NULL;
+
+-- Phase 3: (Later, after code migration) Remove old column
+ALTER TABLE users DROP COLUMN verified_at;
+```
+
+**Index changes:**
+```sql
+-- Create index concurrently to avoid locks
+CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
+
+-- Drop old index only after new index is verified
+DROP INDEX CONCURRENTLY idx_users_email_old;
+```
+
+### API Deprecation Workflow
+
+```
+1. ANNOUNCE:    Add deprecation headers, update docs, set sunset date
+2. DUAL-WRITE:  New endpoint available, old still works
+3. MIGRATE:     Move clients to new endpoint (monitor old usage)
+4. REMOVE:      Delete old endpoint after sunset date
+```
+
+**Deprecation headers:**
+```yaml
+# Add to responses from deprecated endpoints
+Deprecation: true
+Sunset: Sat, 31 Dec 2025 23:59:59 GMT
+Link: </api/v2/resource>; rel="successor-version"
+```
+
+### Backwards Compatibility Checklist
+
+- [ ] New code can read old data format
+- [ ] Old code can read new data format (or ignores new fields)
+- [ ] No required fields added without defaults
+- [ ] No fields removed that old code depends on
+- [ ] Database schema works with both old and new app versions
+
+### Rollback Strategies
+
+| Strategy | When to Use |
+|----------|-------------|
+| **Revert deployment** | Code-only changes, no schema changes |
+| **Feature flag off** | Gradual rollout with flags |
+| **Forward-fix** | Schema already migrated, fix bugs in new code |
+| **Dual-write rollback** | Stop writing to new, continue reading old |
+
+**Testing rollback:**
+```bash
+# Before deploying, verify rollback works
+1. Deploy new version
+2. Run smoke tests
+3. Roll back to previous version
+4. Verify old version still works with any data changes
+```
+
+### Feature Flags for Gradual Rollout
+
+```yaml
+# Example: Gradual migration with percentage rollout
+features:
+  new_payment_flow:
+    enabled: true
+    percentage: 10  # Start with 10% of traffic
+
+# Increase over time: 10% -> 25% -> 50% -> 100%
+```
+
+**Flag lifecycle:**
+```
+1. Add flag (default: off)
+2. Deploy code behind flag
+3. Enable for internal users
+4. Gradual percentage rollout
+5. Monitor metrics at each stage
+6. 100% rollout
+7. Remove flag and old code path
+```
+
+### Migration Testing Requirements
+
+- [ ] Test migration on production-like data volume
+- [ ] Test rollback procedure
+- [ ] Verify no downtime during migration
+- [ ] Check query performance after schema changes
+- [ ] Validate data integrity post-migration
+
+### Common Mistakes to Avoid
+
+1. **Breaking changes without migration path** - Always provide a transition period
+2. **Big bang migrations** - Migrate incrementally, not all at once
+3. **Not testing rollback** - Verify you can undo every change
+4. **Removing before migrating** - Always add new, migrate, then remove old
+5. **Missing backfill step** - New columns need existing data populated
+6. **Locking tables during migration** - Use online DDL or concurrent operations
+7. **No monitoring during rollout** - Watch error rates at each percentage increase
+8. **Hardcoded sunset dates** - Use feature flags for flexible timing
+9. **Forgetting API clients** - External consumers need deprecation notices
+10. **Skipping expand-contract phases** - Each phase should be separately deployable
+
+### Example Migration Sequence
+
+```
+# Renaming a database column safely
+
+Week 1: Add new column
+  - ALTER TABLE orders ADD COLUMN total_amount DECIMAL;
+  - Deploy code that writes to both old and new columns
+
+Week 2: Backfill data
+  - UPDATE orders SET total_amount = amount WHERE total_amount IS NULL;
+  - Verify data consistency
+
+Week 3: Switch reads
+  - Deploy code that reads from new column
+  - Continue dual-writing
+
+Week 4: Remove old column
+  - Deploy code that only writes to new column
+  - ALTER TABLE orders DROP COLUMN amount;
+```
+
+### Example Prompts
+
+- "Plan a migration to rename the users.email column to users.primary_email"
+- "Design an API deprecation strategy for /api/v1/orders"
+- "Create a feature flag rollout plan for the new checkout flow"
+- "Help me write a rollback procedure for this schema change"
+- "Review this migration for backwards compatibility issues"
+
+---
+
 ## cluster-health
 
 Proactive cluster health assessment and discovery specialist.
@@ -883,6 +1060,243 @@ kubectl top nodes
 - "Check for certificates expiring in the next 14 days"
 - "Identify resource usage hotspots in the cluster"
 - "What ArgoCD applications are out of sync?"
+
+---
+
+## container
+
+OCI container image building specialist using apko and rules_apko.
+
+### When to Use
+
+- Building container images with apko
+- Configuring apko.yaml for new services
+- Multi-arch builds (amd64/arm64)
+- Distroless/minimal image optimization
+- Debugging image build failures
+- Lock file management
+
+### Pre-requisite Reading
+
+**Always read first:** `tools/oci/apko_image.bzl` (understand the macro patterns)
+
+### apko.yaml Structure
+
+```yaml
+contents:
+  repositories:
+    - https://packages.wolfi.dev/os
+  keyring:
+    - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
+  packages:
+    - ca-certificates-bundle  # Always include for HTTPS
+    - tzdata                   # If timezone handling needed
+    # Add only what you need
+
+archs:
+  - x86_64    # Required: Intel/AMD
+  - aarch64   # Required: ARM (M-series Mac, ARM nodes)
+
+# Use entrypoint for Go binaries
+entrypoint:
+  command: /opt/app
+
+# Use cmd for shell-based startup
+cmd: /app/start.sh
+
+work-dir: /app
+
+# Non-root user (use 65532 for standard, 1000 if writable home needed)
+accounts:
+  groups:
+    - groupname: appuser
+      gid: 65532
+  users:
+    - username: appuser
+      uid: 65532
+      gid: 65532
+  run-as: 65532
+
+# Create directories owned by the app user
+paths:
+  - path: /app
+    type: directory
+    uid: 65532
+    gid: 65532
+    permissions: 0o755
+
+environment:
+  HOME: /home/appuser
+  # Add service-specific env vars
+```
+
+### Key Commands
+
+```bash
+# Update lock file after modifying apko.yaml
+bazelisk run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+
+# Or run format to update ALL apko locks
+format
+
+# Build the image
+bazelisk build //charts/<service>/image:image
+
+# Push image to registry
+bazelisk run //charts/<service>/image:image.push
+
+# Run image locally (for debugging)
+bazelisk run //charts/<service>/image:image.run
+
+# Scan image for vulnerabilities (requires global trivy install)
+trivy image ghcr.io/jomcgi/homelab/charts/<service>:latest
+```
+
+### BUILD.bazel Patterns
+
+This repo uses a custom `apko_image` macro from `//tools/oci:apko_image.bzl`:
+
+```starlark
+load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//tools/oci:apko_image.bzl", "apko_image")
+
+# Package static files
+pkg_tar(
+    name = "static_tar",
+    srcs = ["//charts/myservice:static_files"],
+    mode = "0644",
+    owner = "65532.65532",  # Match apko user
+    package_dir = "/app/static",
+)
+
+apko_image(
+    name = "image",
+    config = "apko.yaml",
+    contents = "@myservice_lock//:contents",  # From MODULE.bazel
+    repository = "ghcr.io/jomcgi/homelab/charts/myservice",
+    tars = [":static_tar"],  # Platform-independent files
+    # multiarch_tars = [":binary_tar"],  # Use for arch-specific binaries
+)
+```
+
+### Multi-arch Binary Pattern (Go)
+
+For Go services, build separate binaries per architecture:
+
+```starlark
+load("@aspect_bazel_lib//lib:tar.bzl", "tar")
+load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+
+# Package the Go binary for amd64
+platform_transition_filegroup(
+    name = "binary_amd64",
+    srcs = ["//charts/myservice/cmd"],
+    target_platform = "@rules_go//go/toolchain:linux_amd64",
+)
+
+tar(
+    name = "binary_tar_amd64",
+    srcs = [":binary_amd64"],
+    mtree = ["./opt/app type=file content=$(execpath :binary_amd64)"],
+)
+
+# Package the Go binary for arm64
+platform_transition_filegroup(
+    name = "binary_arm64",
+    srcs = ["//charts/myservice/cmd"],
+    target_platform = "@rules_go//go/toolchain:linux_arm64",
+)
+
+tar(
+    name = "binary_tar_arm64",
+    srcs = [":binary_arm64"],
+    mtree = ["./opt/app type=file content=$(execpath :binary_arm64)"],
+)
+
+apko_image(
+    name = "image",
+    config = "apko.yaml",
+    contents = "@myservice_lock//:contents",
+    multiarch_tars = [":binary_tar"],  # Macro uses _amd64/_arm64 suffixes
+    repository = "ghcr.io/jomcgi/homelab/charts/myservice",
+)
+```
+
+### MODULE.bazel Registration
+
+Register new apko locks in MODULE.bazel:
+
+```starlark
+apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
+apko.translate_lock(
+    name = "myservice_lock",
+    lock = "//charts/myservice/image:apko.lock.json",
+)
+use_repo(apko, "myservice_lock")
+```
+
+### Distroless Principles
+
+- Start from Wolfi packages (Alpine-compatible, better security)
+- Include only runtime dependencies
+- No package managers in final image
+- No shell unless explicitly needed
+- Always run as non-root (uid 65532 is conventional)
+- Use `ca-certificates-bundle` for HTTPS
+
+### Common Package Categories
+
+| Use Case | Packages |
+|----------|----------|
+| HTTPS/TLS | `ca-certificates-bundle` |
+| Timezone | `tzdata` |
+| Git operations | `git`, `openssh-client` |
+| Node.js runtime | `nodejs-22`, `npm` |
+| Bun runtime | `bun` |
+| Go binary | (no packages needed, just entrypoint) |
+| Python runtime | `python-3.12` |
+| Native builds | `build-base`, `python-3.12` (for node-gyp) |
+| Debugging | `busybox`, `curl` (remove for production) |
+
+### Common Mistakes to Avoid
+
+1. **Not updating lock file** - Always run `bazelisk run @rules_apko//apko -- lock <path>` after changing apko.yaml
+2. **Missing architectures** - Always include both `x86_64` and `aarch64`
+3. **Missing CA certificates** - HTTPS calls fail without `ca-certificates-bundle`
+4. **Running as root** - Always set `run-as` to non-root uid
+5. **Wrong owner on paths** - Paths must be owned by the run-as user
+6. **Forgetting MODULE.bazel** - New locks must be registered with `apko.translate_lock`
+7. **Using Docker instead of apko** - This repo uses apko exclusively, not Dockerfiles
+8. **Adding unnecessary packages** - Keep images minimal; debug packages bloat images
+9. **Hardcoding image tags** - Use the stamped tags from Bazel (handled by apko_image macro)
+
+### Debugging Image Issues
+
+```bash
+# Inspect image manifest
+crane manifest ghcr.io/jomcgi/homelab/charts/myservice:latest | jq
+
+# Check image layers
+crane config ghcr.io/jomcgi/homelab/charts/myservice:latest | jq '.rootfs.diff_ids'
+
+# Export and inspect filesystem
+crane export ghcr.io/jomcgi/homelab/charts/myservice:latest - | tar -tvf - | head -50
+
+# Check package versions in lock file
+jq '.contents.packages[] | {name, version}' charts/myservice/image/apko.lock.json
+
+# Scan for CVEs
+trivy image --severity HIGH,CRITICAL ghcr.io/jomcgi/homelab/charts/myservice:latest
+```
+
+### Example Prompts
+
+- "Create an apko.yaml for a new Go service"
+- "Add Node.js packages to the Claude image"
+- "Debug why the image build is missing CA certificates"
+- "Set up multi-arch builds for the new Python service"
+- "Why is the lock file out of sync with apko.yaml?"
+- "Scan the todo image for security vulnerabilities"
 
 ---
 

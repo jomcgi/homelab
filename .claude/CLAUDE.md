@@ -22,10 +22,35 @@ See `.claude/skills/opencode/SKILL.md` for full guidance.
 
 **Why:** Direct main branch changes break GitOps workflows and bypass CI/CD checks.
 
+## Parallel Development
+
+Running 3-5 git worktrees with separate Claude sessions is the biggest productivity unlock. Each worktree operates independently, allowing you to work on multiple features simultaneously.
+
+**Setup shell aliases for quick navigation:**
+
+```bash
+# Add to ~/.zshrc or ~/.bashrc
+alias za='cd /tmp/claude-worktrees/feature-a'
+alias zb='cd /tmp/claude-worktrees/feature-b'
+alias zc='cd /tmp/claude-worktrees/feature-c'
+```
+
+This allows instant switching between worktrees with `za`, `zb`, `zc` commands.
+
+## Learning the Codebase
+
+Run `/config` and enable "Explanatory" output style for Claude to explain its reasoning during changes. This is useful for:
+
+- Onboarding new contributors to the codebase
+- Understanding complex architectural decisions
+- Learning Kubernetes/GitOps patterns
+
+You can also ask Claude to generate ASCII diagrams or visual explanations of system architecture.
+
 ## Context Loading Rules
 
 - **Security changes**: Read architecture/security.md FIRST
-- **New services**: Read architecture/contributing.md + architecture/services.md  
+- **New services**: Read architecture/contributing.md + architecture/services.md
 - **Observability work**: Read architecture/observability.md
 
 ## Kubernetes Operations (kubectl)
