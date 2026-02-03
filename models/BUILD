@@ -62,16 +62,17 @@ bzl_library(
 # =============================================================================
 
 # GGUF variant - Qwen 2.5 0.5B Instruct quantized model
+# Repository auto-generated as ghcr.io/jomcgi/homelab/models/qwen2_5_0_5b_gguf
 model_oci_image(
     name = "qwen2_5_0_5b_gguf",
     srcs = ["@qwen2_5_0_5b_gguf//:model_files"],
     format = "gguf",
     model_dir = "/models/qwen2.5-0.5b",
-    repository = "ghcr.io/joemcginley/models/qwen2.5-0.5b-gguf",
     visibility = ["//visibility:public"],
 )
 
 # Safetensors variant - Qwen 2.5 0.5B Instruct full precision
+# Repository auto-generated as ghcr.io/jomcgi/homelab/models/qwen2_5_0_5b_st
 model_oci_image(
     name = "qwen2_5_0_5b_st",
     config_srcs = [
@@ -81,7 +82,6 @@ model_oci_image(
     ],
     format = "safetensors",
     model_dir = "/models/qwen2.5-0.5b",
-    repository = "ghcr.io/joemcginley/models/qwen2.5-0.5b-st",
     visibility = ["//visibility:public"],
     weight_srcs = ["@qwen2_5_0_5b_st//:model_safetensors"],
 )
