@@ -67,10 +67,17 @@ bazel_env(
         "crane": MULTITOOL_TOOLS["crane"],
         # Advent of Code CLI
         "advent": "//advent_of_code/cmd/aoc",
+        # HuggingFace model tools
+        "hf_lock": ":hf_lock",
     },
 )
 
 sh_binary(
     name = "workspace_status",
     srcs = ["workspace_status.sh"],
+)
+
+sh_binary(
+    name = "hf_lock",
+    srcs = ["hf_lock.sh"],
 )

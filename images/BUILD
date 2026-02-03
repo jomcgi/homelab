@@ -10,6 +10,8 @@ multirun(
         "//charts/claude/image:image.push",
         "//charts/signoz-dashboard-sidecar/cmd:image.push",
         "//charts/todo/image:image.push",
+        "//models:qwen2_5_0_5b_gguf.push",
+        "//models:qwen2_5_0_5b_st.push",
         "//operators/cloudflare:image.push",
         "//services/ais_ingest:image.push",
         "//services/hikes/update_forecast:update_image.push",
