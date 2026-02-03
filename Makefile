@@ -16,7 +16,7 @@ help:
 # Run all tests via Bazel
 test:
 	@echo "==> Running all tests via Bazel..."
-	bazelisk test //tools/argocd:argocd_test //charts/api-gateway:lint_test //charts/cloudflare-operator-test:lint_test //charts/stargazer:lint_test
+	bazelisk test //...
 
 # Run Go tests via Bazel
 test-go:

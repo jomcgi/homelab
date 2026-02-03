@@ -1,16 +1,38 @@
-# React + Vite
+# Trips Web App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Interactive trip viewer for exploring travel routes and photos.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **Photo Timeline** - Scroll through photos with playback controls
+- **Route Visualization** - See routes on an interactive map (MapLibre)
+- **Real-time Sync** - WebSocket updates as new photos are added
+- **Mobile-friendly** - Responsive design with touch navigation
 
-## React Compiler
+## Tech Stack
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- React 18 + TypeScript
+- Vite for bundling
+- MapLibre GL for maps
+- TailwindCSS for styling
 
-## Expanding the ESLint configuration
+## Development
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+# Install dependencies
+pnpm install
+
+# Start dev server
+pnpm dev
+```
+
+The app connects to the trips API (`trips.jomcgi.dev/api`) for photo and route data.
+
+## Deployment
+
+Deployed to Cloudflare Pages via GitHub Actions. See `.github/workflows/cf-pages-deploy-trips.yaml`.
+
+## Related
+
+- `services/trips_api/` - Backend API serving photo data
+- `scripts/publish-trip-images/` - CLI for uploading trip photos

@@ -7,7 +7,7 @@ description: Use when debugging failed CI/CD jobs, analyzing build logs, or inve
 
 ## Authentication
 
-The BuildBuddy API is authenticated via `BUILDBUDDY_API_KEY` environment variable, sourced from 1Password secret `claude.jomcgi.dev`.
+The BuildBuddy API is authenticated via `BUILDBUDDY_API_KEY` environment variable.
 
 ## API Endpoints
 
@@ -164,4 +164,4 @@ Ensure `BUILDBUDDY_API_KEY` is available:
 echo $BUILDBUDDY_API_KEY | head -c 10  # Check first 10 chars only
 ```
 
-If not set, the key is stored in 1Password vault `k8s-homelab` under item `claude.jomcgi.dev` as field `buildbuddy_api_key`.
+If not set, configure it in your secrets management system (e.g., 1Password, environment variables).
