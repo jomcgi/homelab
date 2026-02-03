@@ -8,7 +8,7 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/operators/cloudflare
-    tag: main@sha256:9172429f5ae9874eff21263fada26b5a11f69d0e60d4712b4c73ff494bc035f7
+    tag: main@sha256:5532e0a74728ae5c5d3f3e58169ac7f13f8881c194c098f9aaeb0f76b870d2b4
     pullPolicy: Always
     # Enable OpenTelemetry tracing to SignoZ (OTEL upgraded to v1.38.0)
   # Note: OTEL_EXPORTER_OTLP_ENDPOINT is injected automatically by Kyverno cluster-wide
