@@ -219,5 +219,6 @@ wrangler_pages(
     name = "trips_esbuild",
     dist = ":esbuild_dist",
     project_name = "trips-jomcgi-dev",
+    visibility = ["//websites:__pkg__"],
     wrangler = ":wrangler",
 )
