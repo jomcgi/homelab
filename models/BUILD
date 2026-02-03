@@ -85,3 +85,25 @@ model_oci_image(
     visibility = ["//visibility:public"],
     weight_srcs = ["@qwen2_5_0_5b_st//:model_safetensors"],
 )
+
+# Qwen3 30B A3B AWQ - Production vLLM model
+# Repository auto-generated as ghcr.io/jomcgi/homelab/models/qwen3_30b_a3b_awq
+model_oci_image(
+    name = "qwen3_30b_a3b_awq",
+    config_srcs = [
+        "@qwen3_30b_a3b_awq//:config_json",
+        "@qwen3_30b_a3b_awq//:generation_config_json",
+        "@qwen3_30b_a3b_awq//:model_safetensors_index_json",
+        "@qwen3_30b_a3b_awq//:tokenizer_json",
+        "@qwen3_30b_a3b_awq//:tokenizer_config_json",
+    ],
+    format = "safetensors",
+    model_dir = "/models/qwen3-30b-a3b-awq",
+    visibility = ["//visibility:public"],
+    weight_srcs = [
+        "@qwen3_30b_a3b_awq//:model_00001_of_00004_safetensors",
+        "@qwen3_30b_a3b_awq//:model_00002_of_00004_safetensors",
+        "@qwen3_30b_a3b_awq//:model_00003_of_00004_safetensors",
+        "@qwen3_30b_a3b_awq//:model_00004_of_00004_safetensors",
+    ],
+)
