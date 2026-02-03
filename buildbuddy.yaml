@@ -26,7 +26,7 @@ actions:
             echo "Run 'format' locally to fix."
             echo ""
             echo "Changes detected:"
-            git diff
+            git --no-pager diff
             exit 1
           fi
 
