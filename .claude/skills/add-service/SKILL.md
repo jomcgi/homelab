@@ -200,9 +200,30 @@ After creating the base service, you may want to add:
 
 Create `overlays/{env}/{service}/imageupdater.yaml`:
 ```yaml
-apiVersion: image.toolkit.fluxcd.io/v1beta1
-kind: ImageUpdateAutomation
-# ... configuration
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: {service}
+  namespace: argocd
+spec:
+  applicationRefs:
+    - images:
+        - alias: {service}
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/charts/{service}:main
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag
+      namePattern: {service}
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:../../overlays/{env}/{service}/values.yaml
 ```
 
 Then update `kustomization.yaml`:

@@ -97,7 +97,7 @@ Check the Application's `metadata.name` in `application.yaml`:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prod-todo  # <-- This is the namePattern
+  name: todo  # <-- This is the namePattern (no env prefix)
 ```
 
 ### Step 3: Determine the Image Path
@@ -258,7 +258,7 @@ spec:
             helm:
               name: image.repository
               tag: image.tag
-      namePattern: prod-myapp
+      namePattern: myapp
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token
