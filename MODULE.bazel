@@ -292,4 +292,23 @@ hf.model(
     repo_id = "Qwen/Qwen2.5-0.5B-Instruct",
     revision = "7ae557604adf67be50417f59c2c2f167def9a775",
 )
-use_repo(hf, "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st")
+
+# Qwen3 30B A3B AWQ - Quantized model for vLLM inference
+# Used in prod vLLM deployment (~16GB total)
+hf.model(
+    name = "qwen3_30b_a3b_awq",
+    files = {
+        "config.json": "311c3e8ee5a15c2492bd6b23ba602432706d0bb1d5a14ac34b8f77e8939df948",
+        "generation_config.json": "81051cd3f6e77013827148d0b8a6ead93f8ac390d5ab805f849199f0af6a08db",
+        "model-00001-of-00004.safetensors": "e6c2ef7327fb0489d94b28b3fa3c104187dc7d723d4909c8dc20b6d8d0f8c885",
+        "model-00002-of-00004.safetensors": "71027546a0cc4bf2e77574deaf4523bc3c8a0bc094ea50dd73d6d4f5e614d1e8",
+        "model-00003-of-00004.safetensors": "dd92d301d5c64df48f7bbc3f34c7ac78f840ff664e9494dc9360c032c2ac72db",
+        "model-00004-of-00004.safetensors": "d620e43ba1a0d0f44662d449e725b49502de9b735855c45706d71c66ca68a73d",
+        "model.safetensors.index.json": "f5b4f889fe28ee7965333f4d8a14a357b81b9a0b7b3331217061342a791844d2",
+        "tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
+        "tokenizer_config.json": "253153d0738ceb4c668d2eff957714dd2bea0b56de772a9fdccd96cbf517e6a0",
+    },
+    repo_id = "QuixiAI/Qwen3-30B-A3B-AWQ",
+    revision = "main",
+)
+use_repo(hf, "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st", "qwen3_30b_a3b_awq")
