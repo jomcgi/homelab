@@ -32,3 +32,16 @@ websites/hikes.jomcgi.dev/test-results/
 
 # Local logs
 logs/
+
+# Environment files (keep .env.example templates)
+.env
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+.idea/
+*.swp

@@ -78,8 +78,6 @@ vllm-stack:
 
           # AWQ quantization works with bfloat16
           dtype: "bfloat16"
-          # AWQ quantization works with bfloat16
-          dtype: "bfloat16"
 
           # Additional performance flags
           extraArgs:
