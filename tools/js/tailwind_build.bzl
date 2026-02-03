@@ -48,6 +48,7 @@ def tailwind_build(
         sourcemap: Whether to generate source maps (default: False).
         visibility: Visibility of the generated target.
     """
+
     # Use relative paths from the package directory since we chdir there
     args = [
         "--input",

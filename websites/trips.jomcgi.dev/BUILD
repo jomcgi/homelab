@@ -159,12 +159,12 @@ esbuild(
 tailwind_build(
     name = "esbuild_css",
     src = "src/index.css",
-    out = "styles.css",
     # Include all JSX files so Tailwind can scan for class usage
     srcs = glob([
         "src/**/*.js",
         "src/**/*.jsx",
     ]),
+    out = "styles.css",
     tool = ":tailwindcss",
     deps = [":node_modules/tailwindcss"],
 )

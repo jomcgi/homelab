@@ -13,12 +13,6 @@ exports_files(
 )
 
 bzl_library(
-    name = "node_modules_tar",
-    srcs = ["node_modules_tar.bzl"],
-    visibility = ["//visibility:public"],
-)
-
-bzl_library(
     name = "vite_build",
     srcs = ["vite_build.bzl"],
     visibility = ["//visibility:public"],
@@ -45,4 +39,10 @@ bzl_library(
     deps = [
         "@aspect_rules_js//js:defs",
     ],
+)
+
+bzl_library(
+    name = "node_modules_tar",
+    srcs = ["node_modules_tar.bzl"],
+    visibility = ["//visibility:public"],
 )

@@ -129,8 +129,8 @@ esbuild(
 filegroup(
     name = "esbuild_dist",
     srcs = [
-        ":esbuild",
         "public/favicon.svg",
         "src/index.css",
+        ":esbuild",
     ],
 )
