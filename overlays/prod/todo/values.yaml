@@ -16,5 +16,5 @@ persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
 image:
-  tag: main@sha256:3bb2b01035dee22661af0baca1493a27efdd3284e7067f1d010bb89336eeb635
+  tag: main@sha256:4ff295fdb98f35261567f58474efbd4d8a520d54084fe8c63b1d1673e219e2ee
   repository: ghcr.io/jomcgi/homelab/charts/todo
