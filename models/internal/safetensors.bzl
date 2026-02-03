@@ -22,7 +22,8 @@ def safetensors_image(
         model_dir = "/models",
         base = "@empty_base",
         repository = None,
-        visibility = None):
+        visibility = None,
+        tags = None):
     """Package Safetensors model files as an OCI image.
 
     Creates a multi-platform OCI image containing Safetensors model files with
@@ -46,6 +47,12 @@ def safetensors_image(
                     (e.g., "ghcr.io/org/models/my-model").
                     Required for push target.
         visibility: Visibility for the generated targets.
+        tags: Optional list of tags to apply to all generated targets.
+              NOTE: The "no-remote-cache" tag is for documentation only and does
+              NOT directly control caching. Actual remote cache exclusion is
+              enforced via .bazelrc (--modify_execution_info=Tar=+no-remote-cache)
+              which applies to ALL Tar actions in CI builds regardless of tags.
+              Use this tag to document models with large files (>1GB).
 
     Creates:
         :{name} - The multi-platform oci_image_index target
@@ -98,6 +105,9 @@ def safetensors_image(
     # Build tar layers in order: config layer first (bottom), then weight layers (top)
     tar_layers = []
 
+    # Propagate tags to all generated targets
+    tags = tags or []
+
     # Create config layer if config_srcs provided
     if config_srcs:
         pkg_tar(
@@ -105,6 +115,7 @@ def safetensors_image(
             srcs = config_srcs,
             package_dir = model_dir,
             mode = "0644",
+            tags = tags,  # Propagate tags to child targets
             visibility = ["//visibility:private"],
         )
         tar_layers.append(name + "_config_layer")
@@ -118,6 +129,7 @@ def safetensors_image(
             srcs = [src],
             package_dir = model_dir,
             mode = "0644",
+            tags = tags,  # Propagate tags to child targets
             visibility = ["//visibility:private"],
         )
         tar_layers.append(layer_name)
@@ -128,6 +140,7 @@ def safetensors_image(
         name = name + "_amd64",
         base = base + "_linux_amd64",
         tars = tar_layers,
+        tags = tags,
         visibility = ["//visibility:private"],
     )
 
@@ -135,6 +148,7 @@ def safetensors_image(
         name = name + "_arm64",
         base = base + "_linux_arm64_v8",
         tars = tar_layers,
+        tags = tags,
         visibility = ["//visibility:private"],
     )
 
@@ -145,6 +159,7 @@ def safetensors_image(
             name + "_amd64",
             name + "_arm64",
         ],
+        tags = tags,
         visibility = visibility,
     )
 
@@ -188,5 +203,6 @@ def safetensors_image(
             "//tools/oci:ci_build": name + "_stamped_tags_ci",
             "//conditions:default": name + "_stamped_tags_local",
         }),
+        tags = tags,
         visibility = visibility,
     )
