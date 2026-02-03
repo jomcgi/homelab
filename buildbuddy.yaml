@@ -64,3 +64,25 @@ actions:
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_all --config=ci
+
+
+  # Deploy CF Pages - runs in parallel with other actions, main branch only
+  # TODO: Enable after CF_API_TOKEN is configured in BuildBuddy secrets
+  # - name: "Deploy Pages"
+  #   container_image: "ubuntu-24.04"
+  #   resource_requests:
+  #     disk: "30GB"
+  #   triggers:
+  #     push:
+  #       branches:
+  #         - "main"
+  #   steps:
+  #     - run: |
+  #         # Skip if commit is from argocd-image-updater
+  #         if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+  #           echo "Skipping argocd-image-updater commit"
+  #           exit 0
+  #         fi
+  #         # CF_API_TOKEN set in BuildBuddy Settings → Secrets
+  #         export CLOUDFLARE_API_TOKEN="$CF_API_TOKEN"
+  #         bazel run //websites:push_all_pages --config=ci
