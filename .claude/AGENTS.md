@@ -1637,25 +1637,16 @@ Code review specialist for PR validation and quality assurance in swarm mode.
 - [ ] Helm values follow existing patterns
 - [ ] ArgoCD Application uses correct paths
 
-### Integration with CodeRabbit
+### AI-Assisted Review
 
-Use the `/coderabbit` skill for AI-assisted review:
+**Automatic Claude Reviews:** All PRs in this repo are automatically reviewed by Claude via GitHub Actions. Check the PR comments for Claude's analysis before doing manual review.
 
-```bash
-# Run CodeRabbit review on current changes
-/coderabbit:review
+**GitHub Copilot:** Available free on GitHub for additional code suggestions and explanations. Use the Copilot chat in PR view for quick questions about specific changes.
 
-# Full code review with autonomous fix cycles
-/coderabbit:code-review
-```
-
-CodeRabbit provides:
-- Automated security scanning
-- Style and best practice suggestions
-- Dependency vulnerability checks
-- Summary of changes for quick understanding
-
-**Use CodeRabbit as a first pass, then apply human judgment for context-specific issues.**
+**Review workflow:**
+1. Check Claude's automatic review comments first
+2. Use Copilot for clarification on unfamiliar code patterns
+3. Apply human judgment for context-specific issues and architectural decisions
 
 ### Giving Actionable Feedback
 
