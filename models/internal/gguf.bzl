@@ -14,7 +14,8 @@ def gguf_image(
         model_dir = "/models",
         base = "@empty_base",
         repository = None,
-        visibility = None):
+        visibility = None,
+        tags = None):
     """Package GGUF model files as an OCI image.
 
     Creates a multi-platform OCI image containing GGUF model files, suitable for
@@ -32,6 +33,12 @@ def gguf_image(
                     (e.g., "ghcr.io/org/models/my-model").
                     Required for push target.
         visibility: Visibility for the generated targets.
+        tags: Optional list of tags to apply to all generated targets.
+              NOTE: The "no-remote-cache" tag is for documentation only and does
+              NOT directly control caching. Actual remote cache exclusion is
+              enforced via .bazelrc (--modify_execution_info=Tar=+no-remote-cache)
+              which applies to ALL Tar actions in CI builds regardless of tags.
+              Use this tag to document models with large files (>1GB).
 
     Creates:
         :{name} - The multi-platform oci_image_index target
@@ -57,6 +64,9 @@ def gguf_image(
         model_dir = "/" + model_dir
     model_dir = model_dir.rstrip("/")
 
+    # Propagate tags to all generated targets
+    tags = tags or []
+
     # Create tar layers for model files
     # Using pkg_tar to place files at the correct mount path
     tar_layers = []
@@ -67,6 +77,7 @@ def gguf_image(
         srcs = srcs,
         package_dir = model_dir,
         mode = "0644",
+        tags = tags,  # Propagate tags to child targets
         visibility = ["//visibility:private"],
     )
     tar_layers.append(name + "_model_layer")
@@ -77,6 +88,7 @@ def gguf_image(
         name = name + "_amd64",
         base = base + "_linux_amd64",
         tars = tar_layers,
+        tags = tags,
         visibility = ["//visibility:private"],
     )
 
@@ -84,6 +96,7 @@ def gguf_image(
         name = name + "_arm64",
         base = base + "_linux_arm64_v8",
         tars = tar_layers,
+        tags = tags,
         visibility = ["//visibility:private"],
     )
 
@@ -94,6 +107,7 @@ def gguf_image(
             name + "_amd64",
             name + "_arm64",
         ],
+        tags = tags,
         visibility = visibility,
     )
 
@@ -137,6 +151,7 @@ def gguf_image(
             "//tools/oci:ci_build": name + "_stamped_tags_ci",
             "//conditions:default": name + "_stamped_tags_local",
         }),
+        tags = tags,
         visibility = visibility,
     )
 
@@ -146,7 +161,8 @@ def gguf_image_split(
         model_dir = "/models",
         base = "@empty_base",
         repository = None,
-        visibility = None):
+        visibility = None,
+        tags = None):
     """Package GGUF model files as an OCI image with one layer per file.
 
     Similar to gguf_image but creates a separate layer for each source file.
@@ -190,6 +206,9 @@ def gguf_image_split(
         model_dir = "/" + model_dir
     model_dir = model_dir.rstrip("/")
 
+    # Propagate tags to all generated targets
+    tags = tags or []
+
     # Create individual tar layers for each source file
     tar_layers = []
     for i, src in enumerate(srcs):
@@ -199,6 +218,7 @@ def gguf_image_split(
             srcs = [src],
             package_dir = model_dir,
             mode = "0644",
+            tags = tags,  # Propagate tags to child targets
             visibility = ["//visibility:private"],
         )
         tar_layers.append(layer_name)
@@ -208,6 +228,7 @@ def gguf_image_split(
         name = name + "_amd64",
         base = base + "_linux_amd64",
         tars = tar_layers,
+        tags = tags,
         visibility = ["//visibility:private"],
     )
 
@@ -215,6 +236,7 @@ def gguf_image_split(
         name = name + "_arm64",
         base = base + "_linux_arm64_v8",
         tars = tar_layers,
+        tags = tags,
         visibility = ["//visibility:private"],
     )
 
@@ -225,6 +247,7 @@ def gguf_image_split(
             name + "_amd64",
             name + "_arm64",
         ],
+        tags = tags,
         visibility = visibility,
     )
 
@@ -266,5 +289,6 @@ def gguf_image_split(
             "//tools/oci:ci_build": name + "_stamped_tags_ci",
             "//conditions:default": name + "_stamped_tags_local",
         }),
+        tags = tags,
         visibility = visibility,
     )

@@ -9,7 +9,15 @@ fi
 
 BUILD_FILE="images/BUILD"
 
+# Query all oci_push targets
 PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)
+
+# Exclude large models tagged "manual" (e.g., qwen3_30b_a3b_awq)
+# These can be pushed individually but won't be included in push_all to prevent
+# CI failures from BuildBuddy remote cache eviction of large model layers.
+# Note: Using grep instead of Bazel query's attr("tags", "manual", ...) because
+# tags don't propagate reliably through macro-generated targets in queries.
+PUSH_TARGETS=$(echo "$PUSH_TARGETS" | grep -v "qwen3_30b_a3b_awq")
 
 if [ -z "$PUSH_TARGETS" ]; then
 	echo "⚠️  No oci_push targets found"
