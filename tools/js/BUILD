@@ -24,7 +24,6 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "@aspect_rules_js//js:defs",
-        "@npm//:defs",
     ],
 )
 
