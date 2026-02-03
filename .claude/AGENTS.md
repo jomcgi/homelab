@@ -1733,7 +1733,7 @@ gh pr review <number> --request-changes --body "See comments for required fixes"
 
 - "Review PR #123 for security issues"
 - "Check if this Helm chart follows repository patterns"
-- "Validate the operator changes against best-practices.md"
+- "Validate the operator changes against operators/best-practices.md"
 - "Review the API changes for backward compatibility"
 - "Run CodeRabbit and summarize the findings"
 
