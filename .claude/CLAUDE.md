@@ -98,6 +98,21 @@ Services are organized in `overlays/<env>/<service>/`:
 
 ArgoCD syncs from `clusters/homelab/kustomization.yaml` which references environment overlays.
 
+## Continuous Integration
+
+CI is handled by **BuildBuddy** (not GitHub Actions). See `buildbuddy.yaml` in the repo root.
+
+BuildBuddy runs on every push/PR:
+- **Format check** - Runs formatters and gazelle, verifies no changes needed
+- **Test and push** - Runs `bazel test //...`, pushes images on main branch
+
+To debug failed CI, use the `/buildbuddy` skill to fetch logs via the BuildBuddy API.
+
+### GitHub Actions Workflows
+
+The `.github/workflows/cf-pages-*.yaml` workflows deploy static sites to Cloudflare Pages.
+These require **self-hosted runners** (`homelab-runners`) and won't work for external contributors.
+
 ## Anti-Patterns to Avoid
 
 - **Cargo-culting** Kubernetes best practices without understanding why

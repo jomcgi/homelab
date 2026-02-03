@@ -7,7 +7,7 @@ description: Use when creating pull requests, checking PR status, or managing PR
 
 ## Authentication
 
-The `gh` CLI is authenticated via `GITHUB_TOKEN` environment variable, sourced from 1Password secret `claude.jomcgi.dev`.
+The `gh` CLI is authenticated via `GITHUB_TOKEN` environment variable.
 
 ## Creating Pull Requests
 

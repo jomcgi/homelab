@@ -1,5 +1,8 @@
 # Public Release Readiness Plan
 
+> **ARCHIVED (February 2026)**: Most items in this plan have been completed. This document
+> is kept for historical reference. See the main README.md for current documentation.
+
 This document outlines changes needed before making the homelab repository public, focusing on **intuitive repo structure** and **reusability**. Sensitive data review is handled separately.
 
 ## Executive Summary

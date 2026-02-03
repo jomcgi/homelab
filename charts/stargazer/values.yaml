@@ -25,6 +25,7 @@ serviceAccount:
 
 podAnnotations: {}
 
+# TODO: Add runAsNonRoot and seccompProfile once image supports non-root
 podSecurityContext: {}
 
 securityContext:

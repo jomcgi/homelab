@@ -19,16 +19,19 @@ This document provides an overview of all services running in the cluster.
 
 ## Production Services (prod)
 
-| Service               | Purpose                                     |
-| --------------------- | ------------------------------------------- |
-| **Cloudflare Tunnel** | Zero Trust ingress (no open firewall ports) |
-| **gh-arc-controller** | GitHub Actions Runner Controller            |
-| **gh-arc-runners**    | Self-hosted runners with Docker-in-Docker   |
-| **API Gateway**       | External service routing with rate limiting |
-| **NATS**              | High-performance messaging with JetStream   |
-| **SeaweedFS**         | Distributed S3-compatible object storage    |
-| **Trips**             | Trip management service                     |
-| **vLLM**              | LLM inference server (Qwen3-Coder-30B-A3B)  |
+| Service               | Purpose                                      |
+| --------------------- | -------------------------------------------- |
+| **Cloudflare Tunnel** | Zero Trust ingress (no open firewall ports)  |
+| **gh-arc-controller** | GitHub Actions Runner Controller             |
+| **gh-arc-runners**    | Self-hosted runners with Docker-in-Docker    |
+| **API Gateway**       | External service routing with rate limiting  |
+| **NATS**              | High-performance messaging with JetStream    |
+| **OpenClaw**          | Discord bot for AI chat (personal/friends)   |
+| **Perplexica**        | Self-hosted AI search with SearXNG           |
+| **SeaweedFS**         | Distributed S3-compatible object storage     |
+| **Todo**              | Git-backed todo list with static UI          |
+| **Trips**             | Trip management service                      |
+| **vLLM**              | LLM inference server (Qwen3-30B-Instruct)    |
 
 ## Development Services (dev)
 

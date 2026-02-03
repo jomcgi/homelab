@@ -44,7 +44,7 @@ PVC mounted at `/home/user` containing:
 
 ## Secrets
 
-From 1Password item `claude.jomcgi.dev`:
+Required secrets (configured via 1Password Operator):
 
 - `github_token` - Git operations
 - `google_api_key` - Gemini API for voice transcription
