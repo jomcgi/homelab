@@ -134,7 +134,7 @@ js_library(
     ],
 )
 
-# esbuild bundle - produces bundled JS
+# esbuild bundle
 # CSS imports are marked external since Tailwind v4 requires PostCSS processing
 esbuild(
     name = "esbuild_js",

@@ -110,7 +110,7 @@ js_library(
     ],
 )
 
-# esbuild bundle - produces a single bundled JS file
+# esbuild bundle
 esbuild(
     name = "esbuild",
     srcs = [":esbuild_src"],
