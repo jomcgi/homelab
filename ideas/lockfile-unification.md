@@ -25,6 +25,24 @@ This means:
 | hikes.jomcgi.dev | ❌ | ✅ | None (static) |
 | ships.jomcgi.dev | ❌ | ❌ (container) | Vite |
 
+### Environment Variable Inconsistency
+
+The Cloudflare API token env var naming is inconsistent:
+
+| System | Secret/Var Name | What Tool Expects |
+|--------|-----------------|-------------------|
+| GitHub Actions | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_API_TOKEN` ✅ |
+| BuildBuddy (planned) | `CF_API_TOKEN` | `CLOUDFLARE_API_TOKEN` ❌ |
+| Wrangler CLI | - | `CLOUDFLARE_API_TOKEN` |
+| Cloudflare Operator | - | `CLOUDFLARE_API_TOKEN` |
+
+The buildbuddy.yaml currently plans to use `CF_API_TOKEN` and translate it:
+```yaml
+export CLOUDFLARE_API_TOKEN="$CF_API_TOKEN"
+```
+
+This indirection is unnecessary and error-prone.
+
 ## Proposed Solution
 
 Migrate all Cloudflare Pages deployments to Bazel + BuildBuddy, eliminating GitHub Actions workflows and consolidating on the shared `pnpm-lock.yaml`.
@@ -34,19 +52,21 @@ Migrate all Cloudflare Pages deployments to Bazel + BuildBuddy, eliminating GitH
 ### Phase 1: Enable BuildBuddy CF Pages Deployment
 
 **Prerequisites:**
-- [ ] Add `CF_API_TOKEN` secret to BuildBuddy organization settings
+- [ ] Add `CLOUDFLARE_API_TOKEN` secret to BuildBuddy organization settings
+  - Use the standard name directly (not `CF_API_TOKEN`) to match GitHub Actions and wrangler CLI expectations
 
 **Tasks:**
-1. [ ] Uncomment the disabled deployment step in `buildbuddy.yaml`:
+1. [ ] Update and uncomment the disabled deployment step in `buildbuddy.yaml`:
    ```yaml
    - name: "Deploy Pages"
      steps:
-       - run: |
-           export CLOUDFLARE_API_TOKEN="$CF_API_TOKEN"
-           bazel run //websites:push_all_pages --config=ci
+       - run: bazel run //websites:push_all_pages --config=ci
    ```
-2. [ ] Test deployment of trips.jomcgi.dev via BuildBuddy
-3. [ ] Verify the deployed site matches GitHub Actions deployment
+   Note: No `export` translation needed - BuildBuddy will inject `CLOUDFLARE_API_TOKEN` directly from secrets.
+
+2. [ ] Update the TODO comment in `buildbuddy.yaml` to reference `CLOUDFLARE_API_TOKEN` (not `CF_API_TOKEN`)
+3. [ ] Test deployment of trips.jomcgi.dev via BuildBuddy
+4. [ ] Verify the deployed site matches GitHub Actions deployment
 
 ### Phase 2: Add Bazel Wrangler Rules to Remaining Sites
 
@@ -83,6 +103,7 @@ After GitHub Actions workflows are removed:
 2. **Consistent builds** - Same dependencies in local dev and CI
 3. **Unified CI** - All deployments in BuildBuddy, not split between GHA and BB
 4. **Reduced complexity** - No need to sync multiple lock files
+5. **Consistent env vars** - `CLOUDFLARE_API_TOKEN` everywhere, no translation layers
 
 ## Risks & Mitigations
 
