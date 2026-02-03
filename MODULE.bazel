@@ -144,6 +144,19 @@ oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 # Note: Using custom name to avoid conflicts with rules_oci internal toolchains
 oci.toolchains(name = "custom_crane")
 
+# Empty/scratch base image for minimal OCI builds (e.g., ML models)
+# distroless/static:nonroot - smallest distroless image, ideal for data-only containers
+oci.pull(
+    name = "empty_base",
+    digest = "sha256:f9f84bd968430d7d35e8e6d55c40efb0b980829ec42920a49e60e65eac0d83fc",
+    image = "gcr.io/distroless/static",
+    platforms = [
+        "linux/amd64",
+        "linux/arm64/v8",
+    ],
+    tag = "nonroot",
+)
+
 # Base image for GO Containers.
 oci.pull(
     name = "distroless_base",
@@ -160,6 +173,9 @@ use_repo(
     "distroless_base",
     "distroless_base_linux_amd64",
     "distroless_base_linux_arm64_v8",
+    "empty_base",
+    "empty_base_linux_amd64",
+    "empty_base_linux_arm64_v8",
 )
 
 oci.pull(
@@ -246,3 +262,34 @@ multiarch_http_file(
 )
 
 bazel_dep(name = "rules_pkg", version = "1.1.0")
+
+#########################
+# HuggingFace Models
+# Use hf_lock.sh to generate sha256 pins: ./tools/hf_lock.sh <repo_id> -f "*.gguf"
+hf = use_extension("//models:extensions.bzl", "hf")
+
+# Qwen 2.5 0.5B Instruct - GGUF format (Q4_K_M quantization)
+# Compact model suitable for CPU inference with llama.cpp
+hf.model(
+    name = "qwen2_5_0_5b_gguf",
+    files = {
+        "qwen2.5-0.5b-instruct-q4_k_m.gguf": "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
+    },
+    repo_id = "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
+    revision = "9217f5db79a29953eb74d5343926648285ec7e67",
+)
+
+# Qwen 2.5 0.5B Instruct - SafeTensors format
+# Full precision model for vLLM or transformers inference
+hf.model(
+    name = "qwen2_5_0_5b_st",
+    files = {
+        "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
+        "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
+        "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
+        "tokenizer_config.json": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
+    },
+    repo_id = "Qwen/Qwen2.5-0.5B-Instruct",
+    revision = "7ae557604adf67be50417f59c2c2f167def9a775",
+)
+use_repo(hf, "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st")
