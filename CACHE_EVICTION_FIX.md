@@ -20,50 +20,39 @@ When packaged as an OCI image:
 
 ## Solution
 
-**Exclude large models from `//images:push_all` in CI.**
+**Disable remote caching for Tar operations in CI** to prevent BuildBuddy from evicting large model layers.
 
 ### Changes Made
 
-1. **Tagged qwen3 model as "manual"** (`models/BUILD`)
-   - Prevents accidental inclusion in bulk operations
-   - Model can still be pushed manually: `bazel run //models:qwen3_30b_a3b_awq.push`
-
-2. **Added tag support to model packaging rules** (`models/internal/*.bzl`)
-   - `safetensors_image()` and `gguf_image()` now accept `tags` parameter
-   - Tags propagate to all generated targets (oci_image, oci_push, pkg_tar, etc.)
-
-3. **Disabled remote cache for Tar actions in CI** (`.bazelrc`)
+1. **Disabled remote cache for Tar actions in CI** (`.bazelrc`)
    - Added `build:ci --modify_execution_info=Tar=+no-remote-cache`
-   - Prevents remote cache eviction for ALL Tar operations during CI builds
-   - Local builds still benefit from Tar caching
+   - Prevents BuildBuddy from caching large model tarballs remotely
+   - ALL Tar operations in CI use local-only caching
+   - Local builds still benefit from full remote + local Tar caching
 
-4. **Excluded large models from push_all** (`scripts/generate-push-all.sh`)
-   - Added grep filter to exclude qwen3_30b_a3b_awq.push
-   - Small models (<1GB) continue to push in CI without issues
+2. **Simplified model BUILD file** (`models/BUILD`)
+   - Removed "manual" tag from qwen3 model
+   - Model now builds and pushes automatically in CI via `//images:push_all`
+   - Updated comments to clarify .bazelrc is the mechanism, not tags
 
-5. **Regenerated images/BUILD**
-   - push_all now contains 12 targets instead of 13
-   - qwen3 model excluded
+3. **Regenerated images/BUILD**
+   - push_all now contains 13 targets including qwen3_30b_a3b_awq.push
+   - All models push automatically in CI ✅
 
 ### Trade-offs
 
-**Before:** All models pushed in CI, but large model failures blocked entire pipeline
+**Before:** All models pushed in CI, large model failures blocked entire pipeline
 
 **After:**
-- Small models (<1GB): Push in CI automatically ✅
-- Large models (>1GB): Push manually when needed ✅
-- CI unblocked from cache eviction issues ✅
+- ✅ All models (small and large) push automatically in CI
+- ✅ No cache eviction failures
+- ✅ Local builds still use full remote cache
+- ⚠️ CI Tar operations are local-only (no remote cache reuse)
 
-### Manual Push Workflow for Large Models
-
-When you need to push the qwen3 model:
-
-```bash
-# Build and push manually
-bazel run //models:qwen3_30b_a3b_awq.push
-
-# Or via local development (uses local Bazel cache, no remote cache issues)
-```
+The CI performance impact is minimal because:
+- Small model tarballs build quickly (seconds)
+- Large model tarballs would likely be evicted anyway
+- We avoid build failures completely
 
 ## Long-term Solutions (Future Work)
 
@@ -87,17 +76,17 @@ bazel run //models:qwen3_30b_a3b_awq.push
 Verify the fix:
 
 ```bash
-# Check that push_all excludes qwen3 by inspecting generated BUILD file
+# Check that push_all includes qwen3 by inspecting generated BUILD file
 grep qwen images/BUILD
 
-# Should see:
+# Should see ALL qwen models:
 #   "//models:qwen2_5_0_5b_gguf.push",
 #   "//models:qwen2_5_0_5b_st.push",
-# But NOT:
 #   "//models:qwen3_30b_a3b_awq.push",
 
-# Verify qwen3 can still be pushed manually
-bazel run //models:qwen3_30b_a3b_awq.push --config=ci
+# Verify .bazelrc configuration is active
+bazel build //models:qwen3_30b_a3b_awq --config=ci --announce_rc 2>&1 | grep modify_execution_info
+# Should show: --modify_execution_info=Tar=+no-remote-cache
 
 # Verify Tar operations skip remote cache in CI
 bazel build //models:qwen3_30b_a3b_awq --config=ci --explain=explain.log
