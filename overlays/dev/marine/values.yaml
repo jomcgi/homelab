@@ -11,7 +11,7 @@ ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
     tag: main
-    digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
+    digest: latest@sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
     pullPolicy: Always
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
@@ -21,7 +21,7 @@ api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
     tag: main
-    digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
+    digest: latest@sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
     pullPolicy: Always
   # Overprovisioned for catchup - reduce after caught up
   resources:
@@ -49,7 +49,7 @@ frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
     tag: main
-    digest: sha256:9934e2cda9cbc92c63eefa155454fc5eb9ac56e139c6fe9d3305c8d2b3d77756
+    digest: main@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
     policyId: ""
