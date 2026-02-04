@@ -90,10 +90,18 @@ actions:
           fi
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           export GITHUB_TOKEN="$GHCR_TOKEN"
+
           # Only run GHCR validation tests (tagged "ghcr")
           # These tests are non-hermetic but fast - just manifest checks
-          # Pass GITHUB_TOKEN and CI flag to test sandbox
-          bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI=true
+          #
+          # On main branch: Enable tag discovery (validates latest push before tagging)
+          # On PR branches: Validate "main" tag only (images not pushed on PRs)
+          branch="${GIT_BRANCH:-${GITHUB_REF_NAME:-}}"
+          if [ "${branch}" = "main" ] || [ "${branch}" = "refs/heads/main" ]; then
+            export CI=true  # Enable timestamp tag discovery
+          fi
+
+          bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI
 
       # Tag validated images with "main" tag (only on main branch)
       - run: |

@@ -71,11 +71,14 @@ else
     # If tag is "main" and we're in CI, try to discover the latest timestamp tag
     if [ "${{TAG}}" = "main" ] && [ -n "${{CI:-}}" ]; then
         echo "Discovering latest timestamp tag..."
-        DISCOVERED_TAG=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>/dev/null | grep -E '^[0-9]{{4}}\\.[0-9]{{2}}\\.[0-9]{{2}}\\.' | sort -r | head -1 || true)
+        DISCOVERED_TAG=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>&1 | grep -E '^[0-9]{{4}}\\.[0-9]{{2}}\\.[0-9]{{2}}\\.' | sort -r | head -1 || true)
 
         if [ -n "${{DISCOVERED_TAG}}" ]; then
             TAG="${{DISCOVERED_TAG}}"
             echo "Discovered timestamp tag: ${{TAG}}"
+        else
+            echo "WARNING: No timestamp tags found for ${{REPOSITORY}}"
+            echo "Falling back to 'main' tag"
         fi
     fi
 fi
