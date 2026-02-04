@@ -12,7 +12,6 @@ multirun(
         "//charts/todo/image:image.push",
         "//models:qwen2_5_0_5b_gguf.push",
         "//models:qwen2_5_0_5b_st.push",
-        "//models:qwen3_30b_a3b_awq.push",
         "//operators/cloudflare:image.push",
         "//services/ais_ingest:image.push",
         "//services/hikes/update_forecast:update_image.push",

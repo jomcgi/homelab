@@ -20,39 +20,51 @@ When packaged as an OCI image:
 
 ## Solution
 
-**Disable remote caching for Tar operations in CI** to prevent BuildBuddy from evicting large model layers.
+**Exclude large models from CI `//images:push_all`** to prevent cache eviction from blocking the pipeline.
+
+### Why .bazelrc Alone Isn't Sufficient
+
+Initially attempted `.bazelrc` with `--modify_execution_info=Tar=+no-remote-cache`, but this **does not prevent cache eviction** because:
+
+1. **Tar operations** create tarballs from source files → affected by `.bazelrc`
+2. **OCI image rules** (rules_oci) process tarballs into layer blobs → NOT affected by `.bazelrc`
+3. **OCI layer blobs** (5GB+ each) get cached remotely and evicted by BuildBuddy's LRU policy
+
+The `.bazelrc` only affects `Tar` mnemonic actions. OCI layer blob creation uses different mnemonics from rules_oci, so those outputs still get remotely cached and evicted.
+
+Broader .bazelrc exclusion (disabling remote cache for all OCI actions) would hurt CI performance for small images.
 
 ### Changes Made
 
-1. **Disabled remote cache for Tar actions in CI** (`.bazelrc`)
-   - Added `build:ci --modify_execution_info=Tar=+no-remote-cache`
-   - Prevents BuildBuddy from caching large model tarballs remotely
-   - ALL Tar operations in CI use local-only caching
-   - Local builds still benefit from full remote + local Tar caching
+1. **Exclude large models from push_all** (`scripts/generate-push-all.sh`)
+   - Added grep filter to exclude `qwen3_30b_a3b_awq.push`
+   - Prevents cache eviction from blocking CI pipeline
 
-2. **Simplified model BUILD file** (`models/BUILD`)
-   - Removed "manual" tag from qwen3 model
-   - Model now builds and pushes automatically in CI via `//images:push_all`
-   - Updated comments to clarify .bazelrc is the mechanism, not tags
+2. **Tagged qwen3 model as "manual"** (`models/BUILD`)
+   - Documents exclusion intent
+   - Explains why .bazelrc alone isn't sufficient
 
-3. **Regenerated images/BUILD**
-   - push_all now contains 13 targets including qwen3_30b_a3b_awq.push
-   - All models push automatically in CI ✅
+3. **Keep .bazelrc Tar exclusion** (`.bazelrc`)
+   - Reduces cache pressure (defense in depth)
+   - Not the primary solution, but helps
+
+4. **Regenerated images/BUILD**
+   - push_all contains 12 targets (qwen3 excluded)
 
 ### Trade-offs
 
-**Before:** All models pushed in CI, large model failures blocked entire pipeline
+**Before:** All models in CI, cache eviction blocked entire pipeline
 
 **After:**
-- ✅ All models (small and large) push automatically in CI
-- ✅ No cache eviction failures
-- ✅ Local builds still use full remote cache
-- ⚠️ CI Tar operations are local-only (no remote cache reuse)
+- ✅ Small models (<1GB): Auto-push in CI
+- ✅ Large models (>1GB): Manual push when needed
+- ✅ CI: Never blocked by cache eviction
 
-The CI performance impact is minimal because:
-- Small model tarballs build quickly (seconds)
-- Large model tarballs would likely be evicted anyway
-- We avoid build failures completely
+### Manual Push
+
+```bash
+bazel run //models:qwen3_30b_a3b_awq.push
+```
 
 ## Long-term Solutions (Future Work)
 
@@ -76,21 +88,20 @@ The CI performance impact is minimal because:
 Verify the fix:
 
 ```bash
-# Check that push_all includes qwen3 by inspecting generated BUILD file
+# Verify qwen3 is EXCLUDED from push_all
 grep qwen images/BUILD
 
-# Should see ALL qwen models:
+# Should see small models ONLY:
 #   "//models:qwen2_5_0_5b_gguf.push",
 #   "//models:qwen2_5_0_5b_st.push",
+# Should NOT see:
 #   "//models:qwen3_30b_a3b_awq.push",
 
-# Verify .bazelrc configuration is active
-bazel build //models:qwen3_30b_a3b_awq --config=ci --announce_rc 2>&1 | grep modify_execution_info
-# Should show: --modify_execution_info=Tar=+no-remote-cache
+# Verify qwen3 can still be pushed manually
+bazel run //models:qwen3_30b_a3b_awq.push
 
-# Verify Tar operations skip remote cache in CI
-bazel build //models:qwen3_30b_a3b_awq --config=ci --explain=explain.log
-grep "no-remote-cache" explain.log
+# Verify CI push_all succeeds without cache eviction
+bazel run //images:push_all --config=ci
 ```
 
 ## References

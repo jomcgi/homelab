@@ -89,11 +89,20 @@ model_oci_image(
 # Qwen3 30B A3B AWQ - Production vLLM model (~16GB total)
 # Repository auto-generated as ghcr.io/jomcgi/homelab/models/qwen3_30b_a3b_awq
 #
-# IMPORTANT: Large models (4 × ~5GB weight files) exceed BuildBuddy's cache limits.
-# Remote caching is disabled for ALL Tar operations in CI via .bazelrc setting:
-#   build:ci --modify_execution_info=Tar=+no-remote-cache
-# This prevents cache eviction failures for large model tarballs while still allowing
-# them to be built and pushed in CI. Local builds still use Tar caching.
+# IMPORTANT: This model is EXCLUDED from CI push_all due to cache eviction issues.
+#
+# Problem: Large models (4 × ~5GB weight files = ~16GB total) create OCI layer blobs
+# that exceed BuildBuddy's cache retention limits. The remote cache evicts these large
+# blobs, causing subsequent CI builds to fail with "Lost inputs no longer available".
+#
+# Why .bazelrc isn't sufficient: The .bazelrc setting disables remote cache for Tar
+# operations, but OCI layer blobs are created by rules_oci actions (different mnemonic).
+# We would need to disable remote cache for ALL rules_oci actions, which would hurt
+# performance for small images too.
+#
+# Solution: Exclude from //images:push_all (via grep filter in generate-push-all.sh)
+# to prevent blocking the entire CI pipeline. Push manually when needed:
+#   bazel run //models:qwen3_30b_a3b_awq.push
 model_oci_image(
     name = "qwen3_30b_a3b_awq",
     config_srcs = [
@@ -105,6 +114,7 @@ model_oci_image(
     ],
     format = "safetensors",
     model_dir = "/models/qwen3-30b-a3b-awq",
+    tags = ["manual"],  # Exclude from //images:push_all
     visibility = ["//visibility:public"],
     weight_srcs = [
         "@qwen3_30b_a3b_awq//:model_00001_of_00004_safetensors",
