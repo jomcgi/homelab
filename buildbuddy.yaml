@@ -96,9 +96,12 @@ actions:
           #
           # On main branch: Enable tag discovery (validates latest push before tagging)
           # On PR branches: Validate "main" tag only (images not pushed on PRs)
-          branch="${GIT_BRANCH:-${GITHUB_REF_NAME:-}}"
-          if [ "${branch}" = "main" ] || [ "${branch}" = "refs/heads/main" ]; then
+          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+          if [ "$current_branch" = "main" ]; then
             export CI=true  # Enable timestamp tag discovery
+            echo "Main branch detected - enabling timestamp tag discovery"
+          else
+            echo "PR branch detected ($current_branch) - validating existing 'main' tags"
           fi
 
           bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI
