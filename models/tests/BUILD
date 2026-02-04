@@ -7,7 +7,7 @@ py_test(
     srcs = ["validate_oci_layers.py"],
     args = [
         "$(location //models:qwen2_5_0_5b_gguf)",
-        "2",  # Expected: 1 model file + base layer = 2 layers
+        "13",  # 13 layers (base + model tar)
         "linux/amd64",
     ],
     data = ["//models:qwen2_5_0_5b_gguf"],
