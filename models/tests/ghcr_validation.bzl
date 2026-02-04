@@ -57,7 +57,14 @@ CRANE="$(rlocation {crane_path})"
 
 # Authenticate if GITHUB_TOKEN is set (do this BEFORE discovery)
 if [ -n "${{GITHUB_TOKEN:-}}" ]; then
-    echo "${{GITHUB_TOKEN}}" | $CRANE auth login ghcr.io -u token --password-stdin 2>/dev/null || true
+    echo "Authenticating to GHCR with token..."
+    if ! echo "${{GITHUB_TOKEN}}" | $CRANE auth login ghcr.io -u token --password-stdin 2>&1; then
+        echo "ERROR: Failed to authenticate to GHCR"
+        exit 1
+    fi
+    echo "✓ Authenticated successfully"
+else
+    echo "WARNING: GITHUB_TOKEN not set, attempting unauthenticated access"
 fi
 
 # Check for explicit tag via environment variable (CI passes this)
@@ -70,12 +77,25 @@ else
 
     # If tag is "main" and we're in CI, try to discover the latest timestamp tag
     if [ "${{TAG}}" = "main" ] && [ -n "${{CI:-}}" ]; then
-        echo "Discovering latest timestamp tag..."
-        DISCOVERED_TAG=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>&1 | grep -E '^[0-9]{{4}}\\.[0-9]{{2}}\\.[0-9]{{2}}\\.' | sort -r | head -1 || true)
+        echo "Discovering latest timestamp tag for ${{REPOSITORY}}..."
+
+        # List all tags for debugging
+        ALL_TAGS=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>&1)
+        if [ $? -ne 0 ]; then
+            echo "ERROR: Failed to list tags from GHCR"
+            echo "${{ALL_TAGS}}"
+            exit 1
+        fi
+
+        echo "All available tags:"
+        echo "${{ALL_TAGS}}" | head -10
+
+        # Filter for timestamp tags
+        DISCOVERED_TAG=$(echo "${{ALL_TAGS}}" | grep -E '^[0-9]{{4}}\\.[0-9]{{2}}\\.[0-9]{{2}}\\.' | sort -r | head -1 || true)
 
         if [ -n "${{DISCOVERED_TAG}}" ]; then
             TAG="${{DISCOVERED_TAG}}"
-            echo "Discovered timestamp tag: ${{TAG}}"
+            echo "✓ Discovered timestamp tag: ${{TAG}}"
         else
             echo "WARNING: No timestamp tags found for ${{REPOSITORY}}"
             echo "Falling back to 'main' tag"
