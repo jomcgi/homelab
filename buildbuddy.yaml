@@ -30,8 +30,10 @@ actions:
             exit 1
           fi
 
-  # Test and push - sequential steps ensure push only happens after test passes
-  - name: "Test and push"
+  # Test, Push, and Validate - sequential workflow
+  # PR branches: Run tests only
+  # Main branch: Run tests → Push images → Validate → Tag as "main"
+  - name: "Test, Push, and Validate"
     container_image: "ubuntu-24.04"
     resource_requests:
       disk: "75GB"
@@ -43,69 +45,57 @@ actions:
         branches:
           - "*"
     steps:
+      # Step 1: Run tests (both PR and main)
       - run: |
           # Skip if commit is from argocd-image-updater
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # Exclude external tests (GHCR validation) - run in separate job
+          # Exclude external tests (GHCR validation) - run in step 3
           bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
 
+      # Step 2: Push images (main branch only)
       - run: |
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
             exit 0
           fi
+
           # Only push images on main branch (not PRs)
-          branch="${GIT_BRANCH:-${GITHUB_REF_NAME:-}}"
-          if [ "${branch}" != "main" ] && [ "${branch}" != "refs/heads/main" ]; then
-            echo "Skipping image push for non-main branch: ${branch:-unknown}"
+          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+          if [ "$current_branch" != "main" ]; then
+            echo "PR branch detected - skipping image push"
             exit 0
           fi
+
+          echo "Main branch detected - pushing images"
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_all --config=ci
 
-
-  # GHCR Validation - validates pushed images without downloading blobs
-  # Runs in parallel with other actions, fast (just API calls)
-  # On main branch: applies "main" tag after successful validation
-  - name: "GHCR Validation"
-    container_image: "ubuntu-24.04"
-    resource_requests:
-      disk: "30GB"  # Bazel needs space for external/ dependencies even for analysis
-    triggers:
-      push:
-        branches:
-          - "main"
-      pull_request:
-        branches:
-          - "*"
-    steps:
+      # Step 3: Validate pushed images (main branch only)
       - run: |
-          # Skip if commit is from argocd-image-updater
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
-            echo "Skipping argocd-image-updater commit"
             exit 0
           fi
 
-          # Only run GHCR validation on main branch (after images are pushed)
-          # PR branches don't push images, so skip validation
+          # Only validate on main branch (after images are pushed)
           current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
           if [ "$current_branch" != "main" ]; then
-            echo "PR branch detected ($current_branch) - skipping GHCR validation (images not pushed on PRs)"
+            echo "PR branch detected - skipping GHCR validation"
             exit 0
           fi
 
+          echo "Main branch detected - validating pushed images"
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           export GITHUB_TOKEN="$GHCR_TOKEN"
           export CI=true  # Enable timestamp tag discovery
 
           # Run GHCR validation tests (tagged "ghcr")
-          # Validates timestamp-tagged images before tagging as "main"
+          # Discovers and validates timestamp-tagged images before tagging as "main"
           bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI
 
-      # Tag validated images with "main" tag (only on main branch)
+      # Step 4: Tag validated images as "main" (main branch only)
       - run: |
           # Skip if commit is from argocd-image-updater
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
@@ -113,9 +103,9 @@ actions:
           fi
 
           # Only tag on main branch
-          branch="${GIT_BRANCH:-${GITHUB_REF_NAME:-}}"
-          if [ "${branch}" != "main" ] && [ "${branch}" != "refs/heads/main" ]; then
-            echo "Skipping tag application for non-main branch: ${branch:-unknown}"
+          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
+          if [ "$current_branch" != "main" ]; then
+            echo "PR branch detected - skipping tag application"
             exit 0
           fi
 
