@@ -30,9 +30,9 @@ actions:
             exit 1
           fi
 
-  # Test and push - sequential steps ensure push only happens after test passes
-  # Pushes images with timestamp tags on ALL branches (not just main)
-  - name: "Test and push"
+  # Test - runs standard test suite (no image push)
+  # Image push is MANUAL only via: bazel run //models:<model>.push
+  - name: "Test"
     container_image: "ubuntu-24.04"
     resource_requests:
       disk: "75GB"
@@ -52,18 +52,6 @@ actions:
           fi
           # Exclude external tests (GHCR validation) - run in separate job
           bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
-
-      - run: |
-          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
-            exit 0
-          fi
-          # Push images on all branches with timestamp tags
-          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-          echo "Pushing images for branch: $current_branch"
-
-          # GHCR_TOKEN set in BuildBuddy Settings → Secrets
-          echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
-          bazel run //images:push_all --config=ci
 
 
   # GHCR Validation - validates pushed images without downloading blobs
