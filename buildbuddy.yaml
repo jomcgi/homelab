@@ -88,22 +88,21 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # GHCR_TOKEN set in BuildBuddy Settings → Secrets
-          export GITHUB_TOKEN="$GHCR_TOKEN"
 
-          # Only run GHCR validation tests (tagged "ghcr")
-          # These tests are non-hermetic but fast - just manifest checks
-          #
-          # On main branch: Enable tag discovery (validates latest push before tagging)
-          # On PR branches: Validate "main" tag only (images not pushed on PRs)
+          # Only run GHCR validation on main branch (after images are pushed)
+          # PR branches don't push images, so skip validation
           current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "")
-          if [ "$current_branch" = "main" ]; then
-            export CI=true  # Enable timestamp tag discovery
-            echo "Main branch detected - enabling timestamp tag discovery"
-          else
-            echo "PR branch detected ($current_branch) - validating existing 'main' tags"
+          if [ "$current_branch" != "main" ]; then
+            echo "PR branch detected ($current_branch) - skipping GHCR validation (images not pushed on PRs)"
+            exit 0
           fi
 
+          # GHCR_TOKEN set in BuildBuddy Settings → Secrets
+          export GITHUB_TOKEN="$GHCR_TOKEN"
+          export CI=true  # Enable timestamp tag discovery
+
+          # Run GHCR validation tests (tagged "ghcr")
+          # Validates timestamp-tagged images before tagging as "main"
           bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI
 
       # Tag validated images with "main" tag (only on main branch)
