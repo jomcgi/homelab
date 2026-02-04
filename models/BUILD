@@ -92,15 +92,8 @@ model_oci_image(
 # IMPORTANT: Large models (4 × ~5GB weight files) exceed BuildBuddy's cache limits.
 # Remote caching is disabled for ALL Tar operations in CI via .bazelrc setting:
 #   build:ci --modify_execution_info=Tar=+no-remote-cache
-# The no-remote-cache tag below is for documentation only; see .bazelrc for the
-# actual mechanism that prevents cache eviction. Local builds still use Tar caching.
-#
-# NOTE: Also tagged "manual" to exclude from //images:push_all (via grep filter
-# in scripts/generate-push-all.sh) to prevent BuildBuddy cache eviction failures
-# that would block the entire CI pipeline.
-#
-# The model can be built and pushed manually via:
-#   bazel run //models:qwen3_30b_a3b_awq.push
+# This prevents cache eviction failures for large model tarballs while still allowing
+# them to be built and pushed in CI. Local builds still use Tar caching.
 model_oci_image(
     name = "qwen3_30b_a3b_awq",
     config_srcs = [
@@ -112,10 +105,6 @@ model_oci_image(
     ],
     format = "safetensors",
     model_dir = "/models/qwen3-30b-a3b-awq",
-    tags = [
-        "manual",  # Exclude from //images:push_all (via grep filter) to prevent cache eviction
-        "no-remote-cache",  # Documentary: documents large files (actual caching control via .bazelrc)
-    ],
     visibility = ["//visibility:public"],
     weight_srcs = [
         "@qwen3_30b_a3b_awq//:model_00001_of_00004_safetensors",
