@@ -49,7 +49,8 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          bazel test //... --config=ci --deleted_packages=tools/python
+          # Exclude external tests (GHCR validation) - run in separate job
+          bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
 
       - run: |
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
@@ -64,6 +65,33 @@ actions:
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_all --config=ci
+
+
+  # GHCR Validation - validates pushed images without downloading blobs
+  # Runs in parallel with other actions, fast (just API calls)
+  - name: "GHCR Validation"
+    container_image: "ubuntu-24.04"
+    resource_requests:
+      disk: "10GB"  # Minimal - no model downloads
+    triggers:
+      push:
+        branches:
+          - "main"
+      pull_request:
+        branches:
+          - "*"
+    steps:
+      - run: |
+          # Skip if commit is from argocd-image-updater
+          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+            echo "Skipping argocd-image-updater commit"
+            exit 0
+          fi
+          # GHCR_TOKEN set in BuildBuddy Settings → Secrets
+          export GITHUB_TOKEN="$GHCR_TOKEN"
+          # Only run GHCR validation tests (tagged "ghcr")
+          # These tests are non-hermetic but fast - just manifest checks
+          bazel test //... --config=ci --test_tag_filters=ghcr
 
 
   # Deploy CF Pages - runs in parallel with other actions, main branch only
