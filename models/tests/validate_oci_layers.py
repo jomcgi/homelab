@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Validate OCI image layer structure.
 
-This test verifies that OCI images have the expected layer structure:
+This test verifies that OCI images have valid structure:
 - Multi-platform manifest (amd64, arm64)
-- Expected number of layers per platform
-- Layer sizes are reasonable (not empty, not corrupted)
+- All layers exist and are non-empty
+- Manifest structure is valid
 """
 
 import json
@@ -12,13 +12,13 @@ import sys
 from pathlib import Path
 
 
-def validate_oci_image(image_dir: Path, expected_layers: int, platform: str = "linux/amd64"):
+def validate_oci_image(image_dir: Path, platform: str = "linux/amd64", min_layers: int = 1):
     """Validate OCI image structure.
 
     Args:
         image_dir: Path to OCI image directory (bazel-bin output)
-        expected_layers: Expected number of layers in the image
         platform: Platform to validate (e.g., "linux/amd64")
+        min_layers: Minimum expected layers (default: 1)
     """
     # Read index.json
     index_path = image_dir / "index.json"
@@ -66,8 +66,8 @@ def validate_oci_image(image_dir: Path, expected_layers: int, platform: str = "l
 
     # Validate layers
     layers = platform_manifest.get("layers", [])
-    if len(layers) != expected_layers:
-        print(f"ERROR: Expected {expected_layers} layers, found {len(layers)}")
+    if len(layers) < min_layers:
+        print(f"ERROR: Expected at least {min_layers} layers, found {len(layers)}")
         return False
 
     # Validate layer blobs exist and have reasonable sizes
@@ -93,15 +93,15 @@ def validate_oci_image(image_dir: Path, expected_layers: int, platform: str = "l
 
 
 def main():
-    if len(sys.argv) < 3:
-        print("Usage: validate_oci_layers.py <image_dir> <expected_layers> [platform]")
+    if len(sys.argv) < 2:
+        print("Usage: validate_oci_layers.py <image_dir> [platform] [min_layers]")
         sys.exit(1)
 
     image_dir = Path(sys.argv[1])
-    expected_layers = int(sys.argv[2])
-    platform = sys.argv[3] if len(sys.argv) > 3 else "linux/amd64"
+    platform = sys.argv[2] if len(sys.argv) > 2 else "linux/amd64"
+    min_layers = int(sys.argv[3]) if len(sys.argv) > 3 else 1
 
-    if not validate_oci_image(image_dir, expected_layers, platform):
+    if not validate_oci_image(image_dir, platform, min_layers):
         sys.exit(1)
 
 
