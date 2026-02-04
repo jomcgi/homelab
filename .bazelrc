@@ -31,6 +31,9 @@ common --experimental_repository_cache_hardlinks
 # and disk usage. Each workspace still has its own output_base for tracking.
 build --disk_cache=~/.cache/bazel/disk_cache
 
+# CI: Disable disk cache (BuildBuddy has limited disk, uses remote cache instead)
+build:ci --disk_cache=
+
 # CI: Use default repository cache location (ephemeral per-runner)
 # Longhorn RWX volumes have I/O errors, BuildBuddy handles remote caching
 
