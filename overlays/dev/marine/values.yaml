@@ -21,7 +21,7 @@ api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
     tag: main
-    digest: main@sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
+    digest: main@latest@sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
     pullPolicy: Always
   # Overprovisioned for catchup - reduce after caught up
   resources:
@@ -49,7 +49,7 @@ frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
     tag: main
-    digest: main@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
+    digest: main@main@main@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
     policyId: ""
