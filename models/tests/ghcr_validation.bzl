@@ -167,10 +167,16 @@ echo "✓ Image validated: ${{REPOSITORY}}:${{TAG}}"
     runfiles = runfiles.merge(crane.default.default_runfiles)
     runfiles = runfiles.merge(ctx.attr._runfiles[DefaultInfo].default_runfiles)
 
-    return [DefaultInfo(
-        executable = script,
-        runfiles = runfiles,
-    )]
+    return [
+        DefaultInfo(
+            executable = script,
+            runfiles = runfiles,
+        ),
+        testing.ExecutionInfo({
+            "requires-network": "1",
+            "no-sandbox": "1",
+        }),
+    ]
 
 ghcr_validation_test = rule(
     implementation = _ghcr_validation_test_impl,
