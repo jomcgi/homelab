@@ -24,6 +24,13 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
 
+# =============================================================================
+# Disk Cache - Share build artifacts across all workspaces (local only)
+# =============================================================================
+# All worktrees and main repo share the same disk cache, reducing rebuild time
+# and disk usage. Each workspace still has its own output_base for tracking.
+build --disk_cache=~/.cache/bazel/disk_cache
+
 # CI: Use default repository cache location (ephemeral per-runner)
 # Longhorn RWX volumes have I/O errors, BuildBuddy handles remote caching
 
