@@ -80,8 +80,7 @@ else
         echo "Discovering latest timestamp tag for ${{REPOSITORY}}..."
 
         # List all tags for debugging
-        ALL_TAGS=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>&1)
-        if [ $? -ne 0 ]; then
+        if ! ALL_TAGS=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>&1); then
             echo "ERROR: Failed to list tags from GHCR"
             echo "${{ALL_TAGS}}"
             exit 1
