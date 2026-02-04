@@ -18,6 +18,12 @@ load(":ghcr_validation.bzl", "ghcr_validation_test")
 # Fast validation (< 1 second per test) catches GHCR issues immediately.
 # Allows validating the 16GB qwen3 model without downloading it!
 #
+# CI Workflow (main branch only):
+#   1. Manual push: bazel run //models:qwen3_30b_a3b_awq.push
+#   2. GHCR validation runs and passes
+#   3. CI tags validated image with "main" tag
+#   4. ArgoCD Image Updater detects digest change on "main" tag
+#
 # Manual usage:
 #   GITHUB_TOKEN=$(gh auth token) bazel run //models/tests:qwen3_30b_a3b_awq_ghcr_test
 # =============================================================================
