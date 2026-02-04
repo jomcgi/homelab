@@ -73,7 +73,7 @@ actions:
   - name: "GHCR Validation"
     container_image: "ubuntu-24.04"
     resource_requests:
-      disk: "10GB"  # Minimal - no model downloads
+      disk: "30GB"  # Bazel needs space for external/ dependencies even for analysis
     triggers:
       push:
         branches:
