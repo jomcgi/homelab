@@ -111,12 +111,6 @@ py_test(
     ],
 )
 
-bzl_library(
-    name = "ghcr_validation",
-    srcs = ["ghcr_validation.bzl"],
-    visibility = ["//visibility:public"],
-)
-
 py_binary(
     name = "validate_oci_layers",
     srcs = ["validate_oci_layers.py"],
@@ -127,4 +121,10 @@ py_library(
     name = "tests",
     srcs = ["validate_oci_layers.py"],
     visibility = ["//:__subpackages__"],
+)
+
+bzl_library(
+    name = "ghcr_validation",
+    srcs = ["ghcr_validation.bzl"],
+    visibility = ["//visibility:public"],
 )
