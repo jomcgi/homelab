@@ -7,35 +7,51 @@ description: Use when debugging failed CI/CD jobs, analyzing build logs, or inve
 
 ## Authentication
 
-The BuildBuddy API is authenticated via `BUILDBUDDY_API_KEY` environment variable.
+The BuildBuddy API requires the `BUILDBUDDY_API_KEY` environment variable.
+
+**API Header:** `x-buildbuddy-api-key: $BUILDBUDDY_API_KEY`
+
+Reference: [BuildBuddy Authentication Guide](https://www.buildbuddy.io/docs/guide-auth/)
 
 ## API Endpoints
 
 Base URL: `https://app.buildbuddy.io/api/v1`
 
+All requests use **POST** with JSON body containing a selector:
+```json
+{"selector": {"invocation_id": "<invocation_id>"}}
+```
+
+Available endpoints:
+- `/GetInvocation` - Retrieve invocation details
+- `/GetLog` - Fetch build logs
+- `/GetTarget` - Access target information
+- `/GetAction` - Get action details
+- `/GetFile` - Download files using URIs
+
+Reference: [BuildBuddy API Documentation](https://www.buildbuddy.io/docs/enterprise-api/)
+
 ## Debugging Failed GitHub Actions
 
-When a PR has failing checks, use BuildBuddy to get detailed build logs and artifacts:
+### Quick Start
 
 ```bash
-# Get invocation details from a GitHub Actions run
-# First, get the check run ID from GitHub
-gh pr checks --json name,link,conclusion
+# 1. Get invocation ID from PR checks
+INVOCATION_ID=$(gh pr checks --json link | jq -r '.[] | select(.link | contains("buildbuddy")) | .link' | grep -o '[^/]*$' | head -1)
 
-# Extract BuildBuddy invocation ID from the check run link
-# BuildBuddy links typically look like: https://app.buildbuddy.io/invocation/xxxxx
+# 2. Get invocation details
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
+  https://app.buildbuddy.io/api/v1/GetInvocation
 
-# Fetch invocation details using curl
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/invocation?invocation_id=<invocation_id>"
-
-# Get build logs
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/log?invocation_id=<invocation_id>&attempt=1"
-
-# Get execution details for specific targets
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/target?invocation_id=<invocation_id>"
+# 3. Get build logs
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
+  https://app.buildbuddy.io/api/v1/GetLog
 ```
 
 ## Common Use Cases
@@ -43,125 +59,157 @@ curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
 ### 1. Analyze Failed Bazel Builds
 
 ```bash
-# Get summary of failed targets
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/invocation?invocation_id=<id>" \
-  | jq '.invocation.failed_targets'
+# Get invocation summary (success status, duration, command, patterns)
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"selector":{"invocation_id":"<id>"}}' \
+  https://app.buildbuddy.io/api/v1/GetInvocation \
+  | jq '{success: .invocation.success, duration_ms: .invocation.duration_millis, command: .invocation.command}'
 
-# Get detailed error logs
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/log?invocation_id=<id>&attempt=1" \
-  | jq '.log_entries[] | select(.level == "ERROR")'
+# Get build logs (includes stdout/stderr)
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"selector":{"invocation_id":"<id>"}}' \
+  https://app.buildbuddy.io/api/v1/GetLog \
+  | jq -r '.log'
 ```
 
 ### 2. Check Build Performance
 
 ```bash
-# Get timing information
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/invocation?invocation_id=<id>" \
-  | jq '.invocation.timing'
-
-# Check cache hit rates
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/invocation?invocation_id=<id>" \
-  | jq '.invocation.cache_stats'
+# Get timing and action count
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"selector":{"invocation_id":"<id>"}}' \
+  https://app.buildbuddy.io/api/v1/GetInvocation \
+  | jq '{duration_ms: .invocation.duration_millis, action_count: .invocation.action_count}'
 ```
 
-### 3. Download Build Artifacts
+### 3. Get Repository Context
 
 ```bash
-# List available artifacts
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  "https://app.buildbuddy.io/api/v1/artifacts?invocation_id=<id>"
-
-# Download specific artifact
-curl -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-  -o artifact.tar.gz \
-  "https://app.buildbuddy.io/api/v1/artifact?uri=<artifact_uri>"
+# Get repo URL, commit, and branch info
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"selector":{"invocation_id":"<id>"}}' \
+  https://app.buildbuddy.io/api/v1/GetInvocation \
+  | jq '{repo: .invocation.repo_url, commit: .invocation.commit_sha, branch: .invocation.branch_name}'
 ```
 
-## Integration with GitHub Actions Debugging
+## Integration with GitHub PR Debugging
 
-When debugging failed PR checks:
+### Full Workflow
 
-1. **Get check details from GitHub:**
+```bash
+# 1. Check PR status
+gh pr checks --json name,conclusion,link
 
-   ```bash
-   # Get all checks for current PR
-   gh pr checks --json name,link,conclusion,startedAt,completedAt
+# 2. Extract BuildBuddy invocation IDs from failed checks
+gh pr checks --json link,conclusion | \
+  jq -r '.[] | select(.conclusion == "FAILURE") | .link' | \
+  grep buildbuddy | \
+  sed 's|.*/invocation/||'
 
-   # Filter for failed checks
-   gh pr checks --json name,link,conclusion | jq '.[] | select(.conclusion == "FAILURE")'
-   ```
+# 3. For each failed invocation, get details
+for INVOCATION_ID in $(gh pr checks --json link,conclusion | jq -r '.[] | select(.conclusion == "FAILURE") | .link' | grep buildbuddy | sed 's|.*/invocation/||'); do
+  echo "=== Invocation: $INVOCATION_ID ==="
 
-2. **Extract BuildBuddy invocation ID:**
-   - Look for BuildBuddy links in the check output
-   - Extract the invocation ID from the URL
+  # Get summary
+  curl -s -X POST \
+    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
+    https://app.buildbuddy.io/api/v1/GetInvocation \
+    | jq -r '{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis}'
 
-3. **Fetch detailed logs from BuildBuddy:**
+  # Get logs (first 50 lines)
+  curl -s -X POST \
+    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
+    https://app.buildbuddy.io/api/v1/GetLog \
+    | jq -r '.log' | head -50
 
-   ```bash
-   INVOCATION_ID="<extracted_id>"
+  echo ""
+done
+```
 
-   # Get full invocation details
-   curl -s -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-     "https://app.buildbuddy.io/api/v1/invocation?invocation_id=$INVOCATION_ID" \
-     | jq '.'
+### Quick Error Check
 
-   # Get error logs specifically
-   curl -s -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-     "https://app.buildbuddy.io/api/v1/log?invocation_id=$INVOCATION_ID&attempt=1" \
-     | jq '.log_entries[] | select(.level == "ERROR" or .level == "FATAL")'
-   ```
+```bash
+# Get logs and filter for ERROR/FAILURE patterns
+INVOCATION_ID="<id>"
 
-## Workflow for PR Debugging
+curl -s -X POST \
+  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
+  https://app.buildbuddy.io/api/v1/GetLog \
+  | jq -r '.log' \
+  | grep -i -E "(error|fail|fatal)" \
+  | head -20
+```
 
-1. **Check PR status:**
+## Helper Functions
 
-   ```bash
-   gh pr checks
-   ```
+Add to your shell profile for easier debugging:
 
-2. **If checks are failing, get BuildBuddy invocation:**
+```bash
+# Get BuildBuddy invocation summary
+bb_summary() {
+  local id="$1"
+  curl -s -X POST \
+    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"selector\":{\"invocation_id\":\"$id\"}}" \
+    https://app.buildbuddy.io/api/v1/GetInvocation \
+    | jq '{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis, action_count: .invocation.action_count}'
+}
 
-   ```bash
-   gh pr checks --json link | jq -r '.[] | .link' | grep buildbuddy
-   ```
+# Get BuildBuddy logs
+bb_logs() {
+  local id="$1"
+  curl -s -X POST \
+    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
+    -H "Content-Type: application/json" \
+    -d "{\"selector\":{\"invocation_id\":\"$id\"}}" \
+    https://app.buildbuddy.io/api/v1/GetLog \
+    | jq -r '.log'
+}
 
-3. **Fetch detailed error information:**
-
-   ```bash
-   # Parse invocation ID from URL and fetch details
-   INVOCATION_ID=$(echo $BUILDBUDDY_URL | sed 's/.*invocation\///')
-
-   curl -s -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-     "https://app.buildbuddy.io/api/v1/invocation?invocation_id=$INVOCATION_ID" \
-     | jq '.invocation | {status: .invocation_status, failed: .failed_targets, duration: .duration_millis}'
-   ```
-
-4. **Get specific error messages:**
-   ```bash
-   curl -s -H "Authorization: Bearer $BUILDBUDDY_API_KEY" \
-     "https://app.buildbuddy.io/api/v1/log?invocation_id=$INVOCATION_ID&attempt=1" \
-     | jq -r '.log_entries[] | select(.level == "ERROR") | .message'
-   ```
+# Get BuildBuddy errors
+bb_errors() {
+  local id="$1"
+  bb_logs "$id" | grep -i -E "(error|fail|fatal)" | head -30
+}
+```
 
 ## Tips
 
-- BuildBuddy provides detailed timing and caching metrics for Bazel builds
-- Use the API to fetch logs when GitHub Actions logs are truncated
-- Check cache hit rates to identify performance issues
-- Download artifacts directly for local debugging
-- The invocation ID is the key to accessing all build information
+- BuildBuddy logs are paginated - use page tokens for large logs
+- Invocation IDs are extracted from URLs: `https://app.buildbuddy.io/invocation/<id>`
+- Use jq to parse JSON responses and extract relevant fields
+- The log endpoint returns a single string (not structured log entries)
+- Check `.invocation.success` boolean to see if build passed
 
 ## Environment Setup
 
-Ensure `BUILDBUDDY_API_KEY` is available:
-
 ```bash
-# Should be automatically set from 1Password
-echo $BUILDBUDDY_API_KEY | head -c 10  # Check first 10 chars only
+# Verify API key is set
+if [ -z "$BUILDBUDDY_API_KEY" ]; then
+  echo "ERROR: BUILDBUDDY_API_KEY not set"
+  echo "Get your API key from: https://app.buildbuddy.io/settings/org/details"
+else
+  echo "API key configured ✓"
+fi
 ```
 
-If not set, configure it in your secrets management system (e.g., 1Password, environment variables).
+## References
+
+- [BuildBuddy API Documentation](https://www.buildbuddy.io/docs/enterprise-api/)
+- [BuildBuddy Authentication Guide](https://www.buildbuddy.io/docs/guide-auth/)
+- [BuildBuddy Quickstart](https://www.buildbuddy.io/docs/quickstart/)
