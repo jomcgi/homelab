@@ -18,3 +18,14 @@ persistence:
 image:
   tag: main@sha256:0139d48406f2f313386eb6b34fb5fa080cbc61e6b9d22e9fc6d7fe4faa692261
   repository: ghcr.io/jomcgi/homelab/charts/todo
+# Prefer to schedule on the same node to avoid volume reattachment delays
+affinity:
+  podAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: todo
+            app.kubernetes.io/instance: todo
+        topologyKey: kubernetes.io/hostname
