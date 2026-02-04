@@ -12,6 +12,9 @@ BUILD_FILE="images/BUILD"
 # Query all oci_push targets
 PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)
 
+# Exclude large models that cause BuildBuddy cache eviction (5GB+ layer blobs)
+PUSH_TARGETS=$(echo "$PUSH_TARGETS" | grep -v "qwen3_30b_a3b_awq")
+
 if [ -z "$PUSH_TARGETS" ]; then
 	echo "⚠️  No oci_push targets found"
 	exit 0
