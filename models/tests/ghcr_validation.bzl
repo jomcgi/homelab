@@ -51,18 +51,38 @@ else
 fi
 
 REPOSITORY="{repository}"
-TAG="{tag}"
-IMAGE="ghcr.io/${{REPOSITORY}}:${{TAG}}"
 
-echo "Validating ${{IMAGE}}..."
-
-# Use crane from Bazel toolchain
+# Use crane from Bazel toolchain (set up once, used for discovery and validation)
 CRANE="$(rlocation {crane_path})"
 
-# Authenticate if GITHUB_TOKEN is set
+# Authenticate if GITHUB_TOKEN is set (do this BEFORE discovery)
 if [ -n "${{GITHUB_TOKEN:-}}" ]; then
     echo "${{GITHUB_TOKEN}}" | $CRANE auth login ghcr.io -u token --password-stdin 2>/dev/null || true
 fi
+
+# Check for explicit tag via environment variable (CI passes this)
+if [ -n "${{GHCR_VALIDATION_TAG:-}}" ]; then
+    TAG="${{GHCR_VALIDATION_TAG}}"
+    echo "Using tag from GHCR_VALIDATION_TAG environment variable: ${{TAG}}"
+else
+    # Fallback to tag parameter or discover latest timestamp tag
+    TAG="{tag}"
+
+    # If tag is "main" and we're in CI, try to discover the latest timestamp tag
+    if [ "${{TAG}}" = "main" ] && [ -n "${{CI:-}}" ]; then
+        echo "Discovering latest timestamp tag..."
+        DISCOVERED_TAG=$($CRANE ls "ghcr.io/${{REPOSITORY}}" 2>/dev/null | grep -E '^[0-9]{{4}}\\.[0-9]{{2}}\\.[0-9]{{2}}\\.' | sort -r | head -1 || true)
+
+        if [ -n "${{DISCOVERED_TAG}}" ]; then
+            TAG="${{DISCOVERED_TAG}}"
+            echo "Discovered timestamp tag: ${{TAG}}"
+        fi
+    fi
+fi
+
+IMAGE="ghcr.io/${{REPOSITORY}}:${{TAG}}"
+
+echo "Validating ${{IMAGE}}..."
 
 # Fetch manifest (no blob download)
 MANIFEST=$($CRANE manifest "${{IMAGE}}" 2>&1)

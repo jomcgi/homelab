@@ -92,7 +92,8 @@ actions:
           export GITHUB_TOKEN="$GHCR_TOKEN"
           # Only run GHCR validation tests (tagged "ghcr")
           # These tests are non-hermetic but fast - just manifest checks
-          bazel test //... --config=ci --test_tag_filters=ghcr
+          # Pass GITHUB_TOKEN to test sandbox for GHCR authentication
+          bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN
 
       # Tag validated images with "main" tag (only on main branch)
       - run: |

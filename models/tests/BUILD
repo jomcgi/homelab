@@ -35,6 +35,7 @@ ghcr_validation_test(
     tags = [
         "external",  # Requires network, excluded from main test suite
         "ghcr",  # GHCR validation test - runs in separate CI job
+        "requires-network",  # Disable sandbox network restrictions
     ],
 )
 
@@ -45,6 +46,7 @@ ghcr_validation_test(
     tags = [
         "external",  # Requires network, excluded from main test suite
         "ghcr",  # GHCR validation test - runs in separate CI job
+        "requires-network",  # Disable sandbox network restrictions
     ],
 )
 
@@ -55,6 +57,7 @@ ghcr_validation_test(
     tags = [
         "external",  # Requires network, excluded from main test suite
         "ghcr",  # GHCR validation test - runs in separate CI job
+        "requires-network",  # Disable sandbox network restrictions
     ],
     # NOTE: This test validates the 16GB model on GHCR without downloading it!
     # Just checks manifest structure via API calls. No disk space needed.
