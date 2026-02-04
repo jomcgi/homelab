@@ -76,7 +76,6 @@ py_test(
         "1",  # Minimum layers: at least 1
     ],
     data = ["//models:qwen2_5_0_5b_gguf"],
-    main = "validate_oci_layers.py",
     tags = ["manual"],  # Only run on demand since it requires building the model
 )
 
@@ -89,7 +88,6 @@ py_test(
         "1",  # Minimum layers: at least 1
     ],
     data = ["//models:qwen2_5_0_5b_st"],
-    main = "validate_oci_layers.py",
     tags = ["manual"],  # Only run on demand since it requires building the model
 )
 
@@ -102,7 +100,6 @@ py_test(
         "1",  # Minimum layers: at least 1
     ],
     data = ["//models:qwen3_30b_a3b_awq"],
-    main = "validate_oci_layers.py",
     # NOTE: This test requires building the 16GB model. Only run after model is built.
     # The test validates manifest structure, but Bazel will build the model first.
     tags = [
