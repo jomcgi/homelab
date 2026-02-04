@@ -12,7 +12,9 @@ import sys
 from pathlib import Path
 
 
-def validate_oci_image(image_dir: Path, platform: str = "linux/amd64", min_layers: int = 1):
+def validate_oci_image(
+    image_dir: Path, platform: str = "linux/amd64", min_layers: int = 1
+):
     """Validate OCI image structure.
 
     Args:
@@ -82,7 +84,9 @@ def validate_oci_image(image_dir: Path, platform: str = "linux/amd64", min_layer
 
         actual_size = blob_path.stat().st_size
         if actual_size != size:
-            print(f"WARNING: Layer {i} size mismatch: manifest={size}, actual={actual_size}")
+            print(
+                f"WARNING: Layer {i} size mismatch: manifest={size}, actual={actual_size}"
+            )
 
         if actual_size == 0:
             print(f"ERROR: Layer {i} is empty")

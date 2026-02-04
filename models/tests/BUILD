@@ -1,6 +1,9 @@
+load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
+load("//tools/pytest:defs.bzl", "py_test")
+
 """Tests for OCI image layer validation."""
 
-load("@rules_python//python:defs.bzl", "py_test")
 load(":ghcr_validation.bzl", "ghcr_validation_test")
 
 # =============================================================================
@@ -24,8 +27,8 @@ ghcr_validation_test(
     repository = "jomcgi/homelab/models/qwen2_5_0_5b_gguf",
     tag = "main",
     tags = [
-        "ghcr",  # GHCR validation test - runs in separate CI job
         "external",  # Requires network, excluded from main test suite
+        "ghcr",  # GHCR validation test - runs in separate CI job
     ],
 )
 
@@ -34,8 +37,8 @@ ghcr_validation_test(
     repository = "jomcgi/homelab/models/qwen2_5_0_5b_st",
     tag = "main",
     tags = [
-        "ghcr",  # GHCR validation test - runs in separate CI job
         "external",  # Requires network, excluded from main test suite
+        "ghcr",  # GHCR validation test - runs in separate CI job
     ],
 )
 
@@ -44,8 +47,8 @@ ghcr_validation_test(
     repository = "jomcgi/homelab/models/qwen3_30b_a3b_awq",
     tag = "main",
     tags = [
-        "ghcr",  # GHCR validation test - runs in separate CI job
         "external",  # Requires network, excluded from main test suite
+        "ghcr",  # GHCR validation test - runs in separate CI job
     ],
     # NOTE: This test validates the 16GB model on GHCR without downloading it!
     # Just checks manifest structure via API calls. No disk space needed.
@@ -97,7 +100,25 @@ py_test(
     # NOTE: This test requires building the 16GB model. Only run after model is built.
     # The test validates manifest structure, but Bazel will build the model first.
     tags = [
-        "manual",  # Don't run in test //...
         "large",  # Requires significant disk space
+        "manual",  # Don't run in test //...
     ],
+)
+
+bzl_library(
+    name = "ghcr_validation",
+    srcs = ["ghcr_validation.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "validate_oci_layers",
+    srcs = ["validate_oci_layers.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+py_library(
+    name = "tests",
+    srcs = ["validate_oci_layers.py"],
+    visibility = ["//:__subpackages__"],
 )
