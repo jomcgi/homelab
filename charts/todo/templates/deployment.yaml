@@ -20,6 +20,10 @@ spec:
       imagePullSecrets:
         - name: ghcr-imagepull-secret
       {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       # TODO: Add pod security context (runAsNonRoot, seccompProfile)
       # Blocked by: init container needs root to chown git repo for API user
       initContainers:
