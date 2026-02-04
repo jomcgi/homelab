@@ -66,22 +66,22 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r6.apk",
-        "version": "15.2.0-r6",
+        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r7.apk",
+        "version": "15.2.0-r7",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8354",
-          "checksum": "sha1-dVOPl1H6wXJZ4h4mD3PNT7OcMTQ="
+          "range": "bytes=0-9098",
+          "checksum": "sha1-8b/25TwRI9WbGiUipfL9lbeHsXo="
         },
         "data": {
-          "range": "bytes=8355-102384",
-          "checksum": "sha256-2gvb11dhVWFmaOAz/GndvbjWoCD0N/XgHK6FK0WIxcE="
+          "range": "bytes=9099-103368",
+          "checksum": "sha256-Of8ooO8uSsaHSCEpXVi+h3IOXg5igIR4lUueoRrmQ2g="
         },
-        "checksum": "Q1dVOPl1H6wXJZ4h4mD3PNT7OcMTQ="
+        "checksum": "Q18b/25TwRI9WbGiUipfL9lbeHsXo="
       },
       {
         "name": "glibc-locale-posix",
@@ -142,22 +142,22 @@
       },
       {
         "name": "bun",
-        "url": "https://packages.wolfi.dev/os/x86_64/bun-1.3.8-r0.apk",
-        "version": "1.3.8-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/bun-1.3.8-r1.apk",
+        "version": "1.3.8-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5249",
-          "checksum": "sha1-oNwpWDJNUoqwMPrcZEjFb26bGVo="
+          "range": "bytes=0-5323",
+          "checksum": "sha1-QbGnN+UQ6KM1cabS5o2hNkJwsFc="
         },
         "data": {
-          "range": "bytes=5250-39521294",
-          "checksum": "sha256-NlaO3SqOBb/WZjzd+SFe9jMZq40wqxlZ2TWPGYLiN2A="
+          "range": "bytes=5324-39521377",
+          "checksum": "sha256-tLDI1mSFkOhRhLhrlQHtObAbeX19RcrTWdSU8ARsfdI="
         },
-        "checksum": "Q1oNwpWDJNUoqwMPrcZEjFb26bGVo="
+        "checksum": "Q1QbGnN+UQ6KM1cabS5o2hNkJwsFc="
       },
       {
         "name": "wolfi-baselayout",
@@ -199,22 +199,22 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r6.apk",
-        "version": "15.2.0-r6",
+        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r7.apk",
+        "version": "15.2.0-r7",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-8375",
-          "checksum": "sha1-fx/K0z9qbAt9zlBf0POVFA7hLCU="
+          "range": "bytes=0-9117",
+          "checksum": "sha1-Y6C9Q+YV8zmR3Cm+nYnHWUhB2Jw="
         },
         "data": {
-          "range": "bytes=8376-84590",
-          "checksum": "sha256-HTgq0y0gBaCxxCzv77uDU9RZIDHwHIHBF4UQ+gMOcJs="
+          "range": "bytes=9118-85589",
+          "checksum": "sha256-yq4SyZJ+8fnmZN/VeiVUsLprHOuMhQ8kUPJMRSxVFvY="
         },
-        "checksum": "Q1fx/K0z9qbAt9zlBf0POVFA7hLCU="
+        "checksum": "Q1Y6C9Q+YV8zmR3Cm+nYnHWUhB2Jw="
       },
       {
         "name": "glibc-locale-posix",
@@ -275,22 +275,22 @@
       },
       {
         "name": "bun",
-        "url": "https://packages.wolfi.dev/os/aarch64/bun-1.3.8-r0.apk",
-        "version": "1.3.8-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/bun-1.3.8-r1.apk",
+        "version": "1.3.8-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5279",
-          "checksum": "sha1-6FbSsiAqdnj+u8X6gkRBTgd545c="
+          "range": "bytes=0-5347",
+          "checksum": "sha1-7qTUdHPv1HAloCw/GO+2W6hrTgQ="
         },
         "data": {
-          "range": "bytes=5280-39083230",
-          "checksum": "sha256-RZKiFGWbQF8NwByenmrPioVptWoVoyBH517iuIduzP0="
+          "range": "bytes=5348-39083306",
+          "checksum": "sha256-VojHG05aEmoF6KOo03fIQu5OKnCEuhIzHxYpYGueagU="
         },
-        "checksum": "Q16FbSsiAqdnj+u8X6gkRBTgd545c="
+        "checksum": "Q17qTUdHPv1HAloCw/GO+2W6hrTgQ="
       }
     ]
   }
