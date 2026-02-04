@@ -12,10 +12,7 @@ BUILD_FILE="images/BUILD"
 # Query all oci_push targets
 PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)
 
-# Exclude large models that cause BuildBuddy remote cache eviction
-# Large model OCI layer blobs (5GB+) exceed cache retention limits and get evicted,
-# causing CI failures. The .bazelrc Tar exclusion isn't sufficient because OCI layer
-# blobs are created by rules_oci actions, not Tar actions.
+# Exclude large models that cause BuildBuddy cache eviction (5GB+ layer blobs)
 PUSH_TARGETS=$(echo "$PUSH_TARGETS" | grep -v "qwen3_30b_a3b_awq")
 
 if [ -z "$PUSH_TARGETS" ]; then
