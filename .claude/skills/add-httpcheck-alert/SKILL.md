@@ -9,6 +9,49 @@ description: Create SigNoz HTTP health check alerts for services. Use when addin
 
 This skill creates a SigNoz HTTP health check alert that monitors service availability via the `httpcheck.status` metric. The alert fires when a service's health check URL fails 5 consecutive times over 10 minutes.
 
+## Workflow
+
+```
+┌──────────────────────────────────────────────────────────┐
+│  Step 1: Create ConfigMap with Alert Definition          │
+│  - Service: todo                                          │
+│  - URL: https://todo.jomcgi.dev                          │
+│  - Label: signoz.io/alert="true"                         │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Step 2: Add to Kustomization                            │
+│  overlays/prod/todo/kustomization.yaml:                  │
+│    resources:                                             │
+│      - todo-httpcheck-alert.yaml                         │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Step 3: Commit and Push to Git                          │
+│  - ArgoCD detects change                                 │
+│  - Syncs ConfigMap to cluster (5-10 seconds)             │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Step 4: SigNoz Alert Operator Discovers ConfigMap       │
+│  - Watches for ConfigMaps with signoz.io/alert label     │
+│  - Reads alert.json from ConfigMap data                  │
+│  - Creates Alert Rule in SigNoz                          │
+└────────────────────────┬─────────────────────────────────┘
+                         │
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│  Step 5: HTTP Monitoring Active                          │
+│  - SigNoz scrapes httpcheck.status metric               │
+│  - If status < 1 for 5 consecutive checks (10 min)      │
+│    → Alert fires → PagerDuty notification               │
+│  - If status = 1 (healthy) → No alert                   │
+└──────────────────────────────────────────────────────────┘
+```
+
 ## Arguments
 
 | Argument    | Required | Description                                    | Example                          |

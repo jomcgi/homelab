@@ -11,6 +11,41 @@ This cluster is managed via **GitOps with ArgoCD**. All resource modifications M
 
 kubectl is available for **inspection and debugging only**.
 
+## GitOps Flow
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Step 1: Modify Git                                              │
+│  - Edit files in charts/ or overlays/                            │
+│  - Commit and push to main branch                                │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  Step 2: ArgoCD Detects Changes                                  │
+│  - Polls Git repository every few seconds                        │
+│  - Compares Git state vs. cluster state                          │
+│  - Renders Helm charts with kustomize overlays                   │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  Step 3: ArgoCD Syncs to Cluster                                 │
+│  - Applies manifests (kubectl apply under the hood)              │
+│  - Updates resources in-place                                    │
+│  - Marks Application as "Synced" or "OutOfSync"                  │
+└────────────────────────────┬─────────────────────────────────────┘
+                             │
+                             ▼
+┌──────────────────────────────────────────────────────────────────┐
+│  Step 4: Read-Only Verification (kubectl)                        │
+│  - View pod status: kubectl get pods -n <namespace>              │
+│  - Check logs: kubectl logs <pod> -n <namespace>                 │
+│  - Inspect resources: kubectl describe <resource>                │
+│  - NEVER: kubectl apply, edit, patch, delete (breaks GitOps)     │
+└──────────────────────────────────────────────────────────────────┘
+```
+
 ## Allowed Operations
 
 ### Viewing Resources

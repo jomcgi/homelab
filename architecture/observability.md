@@ -9,6 +9,64 @@ Every service gets automatic observability through two layers:
 1. **OTEL Environment Variables** - Application-level instrumentation
 2. **Linkerd Service Mesh** - Infrastructure-level tracing
 
+## Pod Creation Flow
+
+The following diagram shows how observability is automatically added to every pod:
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Pod Creation Request                         │
+│                     (kubectl apply / ArgoCD sync)                    │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                    Layer 1: Kyverno Policies                         │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌──────────────────────────┐  ┌───────────────────────────────┐   │
+│  │  OTEL Injection Policy   │  │  Linkerd Injection Policy     │   │
+│  ├──────────────────────────┤  ├───────────────────────────────┤   │
+│  │ Adds env vars:           │  │ Adds namespace annotation:    │   │
+│  │ - OTEL_EXPORTER_         │  │   linkerd.io/inject=enabled   │   │
+│  │   OTLP_ENDPOINT          │  │                               │   │
+│  │ - OTEL_EXPORTER_         │  │ (applies to namespace,        │   │
+│  │   OTLP_PROTOCOL=grpc     │  │  affects all pods in it)      │   │
+│  └──────────────────────────┘  └───────────────────────────────┘   │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Layer 2: Linkerd Proxy Injection                   │
+├─────────────────────────────────────────────────────────────────────┤
+│  Linkerd webhook sees namespace annotation and injects:             │
+│  - linkerd-proxy sidecar container                                  │
+│  - init container for iptables rules                                │
+│  - Additional annotations and labels                                │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Running Pod                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌────────────────────┐          ┌──────────────────────────────┐  │
+│  │  Application       │          │  linkerd-proxy sidecar       │  │
+│  │  Container         │◄────────►│  (intercepts all traffic)    │  │
+│  ├────────────────────┤          ├──────────────────────────────┤  │
+│  │ OTEL env vars set  │          │ Sends traces to SigNoz       │  │
+│  │ (app can use SDK)  │          │ via control plane            │  │
+│  └────────────────────┘          └──────────────────────────────┘  │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+                       ┌──────────────────┐
+                       │  SigNoz Platform │
+                       ├──────────────────┤
+                       │ - Traces         │
+                       │ - Metrics        │
+                       │ - Logs           │
+                       └──────────────────┘
+```
+
 ## Automatic Observability (Kyverno Policies)
 
 ### 1. OTEL Environment Variables (Application-Level)

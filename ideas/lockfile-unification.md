@@ -27,21 +27,22 @@ This means:
 
 ### Environment Variable Inconsistency
 
-The Cloudflare API token env var naming is inconsistent:
+**Resolution:** Use `CLOUDFLARE_API_TOKEN` consistently across all systems to match tooling expectations.
 
 | System | Secret/Var Name | What Tool Expects |
 |--------|-----------------|-------------------|
 | GitHub Actions | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_API_TOKEN` ✅ |
-| BuildBuddy (planned) | `CF_API_TOKEN` | `CLOUDFLARE_API_TOKEN` ❌ |
-| Wrangler CLI | - | `CLOUDFLARE_API_TOKEN` |
-| Cloudflare Operator | - | `CLOUDFLARE_API_TOKEN` |
+| BuildBuddy (planned) | `CLOUDFLARE_API_TOKEN` | `CLOUDFLARE_API_TOKEN` ✅ |
+| Wrangler CLI | - | `CLOUDFLARE_API_TOKEN` ✅ |
+| Cloudflare Operator | - | `CLOUDFLARE_API_TOKEN` ✅ |
 
-The buildbuddy.yaml currently plans to use `CF_API_TOKEN` and translate it:
+The buildbuddy.yaml previously planned to use `CF_API_TOKEN` with translation:
 ```yaml
+# ❌ OLD (remove this indirection)
 export CLOUDFLARE_API_TOKEN="$CF_API_TOKEN"
 ```
 
-This indirection is unnecessary and error-prone.
+This indirection is unnecessary and error-prone. BuildBuddy should inject `CLOUDFLARE_API_TOKEN` directly from organization secrets.
 
 ## Proposed Solution
 
@@ -53,7 +54,7 @@ Migrate all Cloudflare Pages deployments to Bazel + BuildBuddy, eliminating GitH
 
 **Prerequisites:**
 - [ ] Add `CLOUDFLARE_API_TOKEN` secret to BuildBuddy organization settings
-  - Use the standard name directly (not `CF_API_TOKEN`) to match GitHub Actions and wrangler CLI expectations
+  - ✅ Use standard name `CLOUDFLARE_API_TOKEN` (not `CF_API_TOKEN`) to match GitHub Actions and wrangler CLI expectations
 
 **Tasks:**
 1. [ ] Update and uncomment the disabled deployment step in `buildbuddy.yaml`:
@@ -62,9 +63,9 @@ Migrate all Cloudflare Pages deployments to Bazel + BuildBuddy, eliminating GitH
      steps:
        - run: bazel run //websites:push_all_pages --config=ci
    ```
-   Note: No `export` translation needed - BuildBuddy will inject `CLOUDFLARE_API_TOKEN` directly from secrets.
+   ✅ No `export` translation needed - BuildBuddy injects `CLOUDFLARE_API_TOKEN` directly from secrets.
 
-2. [ ] Update the TODO comment in `buildbuddy.yaml` to reference `CLOUDFLARE_API_TOKEN` (not `CF_API_TOKEN`)
+2. [ ] Remove any `CF_API_TOKEN` references in `buildbuddy.yaml` and use `CLOUDFLARE_API_TOKEN` consistently
 3. [ ] Test deployment of trips.jomcgi.dev via BuildBuddy
 4. [ ] Verify the deployed site matches GitHub Actions deployment
 

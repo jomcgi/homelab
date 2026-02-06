@@ -1,6 +1,27 @@
-### Reconciliation Patterns
+# Kubernetes Operator Development Best Practices
 
-The reconciliation loop must be **idempotent and level-based**, deriving desired state from current specifications rather than reacting to events. Implement generation-based tracking to detect configuration drift:
+## Reconciliation Patterns
+
+### State Machine
+
+```
+┌──────────────────────────────────────────────────────┐
+│ Reconciliation State Machine                          │
+│                                                       │
+│  ┌─────────┐     ┌──────────┐     ┌──────────┐     │
+│  │ Pending │────►│Provision │────►│  Ready   │     │
+│  └─────────┘     └──────────┘     └──────────┘     │
+│       │               │                 │           │
+│       └───────┬───────┴─────────────────┘           │
+│               ▼                                     │
+│         ┌──────────┐                                │
+│         │  Error   │                                │
+│         └────┬─────┘                                │
+│              └───► Retry (exponential backoff)     │
+└──────────────────────────────────────────────────────┘
+```
+
+Reconciliation must be **idempotent and level-based**:
 
 ```go
 func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -9,24 +30,49 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
         return ctrl.Result{}, client.IgnoreNotFound(err)
     }
 
-    // Compare metadata.generation with status.observedGeneration
+    // Generation-based drift detection
     if resource.Generation != resource.Status.ObservedGeneration {
         return r.reconcileResource(ctx, resource)
     }
 
-    // Periodic drift detection for external resources
+    // Periodic drift check
     return ctrl.Result{RequeueAfter: 5 * time.Minute}, nil
 }
 ```
 
-### Lifecycle Management
+## Lifecycle Management
 
-Implement **multi-phase provisioning** for complex external resources, with proper finalizer management for cleanup:
+### Finalizer Lifecycle
+
+```
+┌─────────────────────────────────────────────────────┐
+│  Create ─►│Resource│─ Add finalizer ─►│Resource │  │
+│           │(no fin)│                   │ (fin)   │  │
+│                                           │         │
+│  Delete ──────────────────────────────────┤         │
+│                                           ▼         │
+│                                   │DeletionTime│    │
+│                                           │         │
+│                           Cleanup external│         │
+│                                           ▼         │
+│                                   │Remove fin  │    │
+│                                           │         │
+│                                           ▼         │
+│                                      │Deleted│      │
+└─────────────────────────────────────────────────────┘
+```
+
+**Implementation**:
 
 ```go
 const MyResourceFinalizer = "myresource.example.com/finalizer"
 
 func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+    resource := &v1alpha1.MyResource{}
+    if err := r.Get(ctx, req.NamespacedName, resource); err != nil {
+        return ctrl.Result{}, client.IgnoreNotFound(err)
+    }
+
     if resource.DeletionTimestamp.IsZero() {
         if !controllerutil.ContainsFinalizer(resource, MyResourceFinalizer) {
             controllerutil.AddFinalizer(resource, MyResourceFinalizer)
@@ -45,33 +91,61 @@ func (r *ResourceReconciler) Reconcile(ctx context.Context, req ctrl.Request) (c
 }
 ```
 
-### Error Handling
+## Error Handling
 
-Classify errors as transient or permanent, implementing exponential backoff for transient failures and circuit breakers for external API protection. Controller-runtime provides automatic exponential backoff when returning errors.
+### Error Classification
 
-## 3. Security Guardrails and RBAC
+```
+┌─────────────────────────────────────────────────────┐
+│           Error Occurred                            │
+│                 │                                   │
+│          ┌──────┴──────┐                           │
+│          ▼             ▼                           │
+│     Transient     Permanent                        │
+│      (network)    (invalid)                        │
+│          │             │                           │
+│    ┌─────┴─────┐      └──────► Update status      │
+│    ▼           ▼                                   │
+│  Return    Circuit                                 │
+│  error     breaker                                 │
+└─────────────────────────────────────────────────────┘
+```
 
-### Principle of Least Privilege
+Controller-runtime provides automatic backoff. Classify errors and return appropriately:
 
-Grant operators only minimum required permissions, using namespace-scoped Roles over ClusterRoles when possible:
+```go
+func (r *ResourceReconciler) reconcileResource(ctx context.Context, resource *v1alpha1.MyResource) (ctrl.Result, error) {
+    if err := r.externalAPI.Provision(resource); err != nil {
+        if isTransient(err) {
+            return ctrl.Result{}, err // Automatic backoff
+        }
+        r.updateStatusError(ctx, resource, err)
+        return ctrl.Result{}, nil
+    }
+    return ctrl.Result{}, nil
+}
+
+// Rate limiting for external APIs
+type RateLimitedClient struct {
+    client  *http.Client
+    limiter *rate.Limiter
+}
+```
+
+## Security
+
+**RBAC - least privilege**:
 
 ```yaml
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
-metadata:
-  name: operator-role
 rules:
-  - apiGroups: [""]
-    resources: ["secrets", "configmaps"]
-    verbs: ["get", "list", "create", "update"]
   - apiGroups: ["myoperator.example.com"]
     resources: ["resources", "resources/status", "resources/finalizers"]
     verbs: ["get", "list", "watch", "create", "update", "patch"]
 ```
 
-### Container Security
-
-Run operators with comprehensive security contexts:
+**Container security**:
 
 ```yaml
 securityContext:
@@ -83,50 +157,11 @@ securityContext:
     drop: [ALL]
 ```
 
-### Secret Management
+**Secrets**: Mount as volumes, use encryption at rest, integrate Vault/ESO, implement rotation.
 
-- Use Kubernetes Secrets with encryption at rest
-- Mount secrets as volumes, not environment variables
-- Integrate with external secret managers (Vault, External Secrets Operator)
-- Implement secret rotation mechanisms
+## Observability
 
-### Complete Tracing Setup
-
-Initialize OpenTelemetry with comprehensive configuration:
-
-```go
-func InitializeOpenTelemetry(ctx context.Context, cfg Config) (*sdktrace.TracerProvider, error) {
-    exporter, err := otlptracegrpc.New(ctx,
-        otlptracegrpc.WithEndpoint(cfg.CollectorURL),
-        otlptracegrpc.WithInsecure(),
-    )
-
-    res, err := resource.Merge(
-        resource.Default(),
-        resource.NewWithAttributes(
-            semconv.SchemaURL,
-            semconv.ServiceName(cfg.ServiceName),
-            semconv.ServiceVersion(cfg.ServiceVersion),
-            attribute.String("k8s.operator.type", "custom-controller"),
-        ),
-    )
-
-    tp := sdktrace.NewTracerProvider(
-        sdktrace.WithBatcher(exporter),
-        sdktrace.WithResource(res),
-        sdktrace.WithSampler(sdktrace.ParentBased(
-            sdktrace.TraceIDRatioBased(cfg.SampleRate),
-        )),
-    )
-
-    otel.SetTracerProvider(tp)
-    return tp, nil
-}
-```
-
-### Trace Reconciliation Loops
-
-Add comprehensive tracing to reconciliation:
+**OpenTelemetry tracing**:
 
 ```go
 func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -138,115 +173,49 @@ func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
     )
     defer span.End()
 
-    // Reconciliation logic with span status updates
     if err != nil {
         span.RecordError(err)
-        span.SetStatus(codes.Error, "reconciliation failed")
+        span.SetStatus(codes.Error, "failed")
         return ctrl.Result{}, err
     }
-
-    span.SetStatus(codes.Ok, "reconciliation successful")
+    span.SetStatus(codes.Ok, "success")
     return ctrl.Result{}, nil
 }
 ```
 
-## 6. Well-Written Operator Examples
+## Well-Written Examples
 
-**CloudNativePG** demonstrates excellence in PostgreSQL operator design:
+- **CloudNativePG**: Direct K8s API, comprehensive backup/recovery
+- **Strimzi Kafka**: Custom pod management, production-scale
+- **AWS ACK**: Service-specific controllers, code generation
 
-- Direct Kubernetes API integration without StatefulSets
-- Comprehensive backup and recovery
-- Native streaming replication
-- 5,000+ GitHub stars
+## Testing
 
-**Strimzi Kafka Operator** showcases complex distributed system management:
-
-- Complete Kafka ecosystem coverage
-- Custom StrimziPodSet for pod management
-- External access configuration
-- Production-grade at scale
-
-**AWS Controllers for Kubernetes (ACK)** provides patterns for cloud resource management:
-
-- Service-specific controllers
-- Direct AWS API integration
-- IRSA authentication support
-- Code generation from AWS APIs
-
-### Testing
-
-**Unit Tests** (80-90% coverage):
-
+**Unit tests** (80-90% coverage):
 ```go
-func TestReconciler_Reconcile(t *testing.T) {
-    scheme := runtime.NewScheme()
-    client := fake.NewClientBuilder().
-        WithScheme(scheme).
-        WithObjects(existingObjects...).
-        Build()
-
+func TestReconciler(t *testing.T) {
+    client := fake.NewClientBuilder().WithObjects(objects...).Build()
     reconciler := &MyReconciler{Client: client}
-    _, err := reconciler.Reconcile(context.Background(), ctrl.Request{})
+    _, err := reconciler.Reconcile(ctx, req)
     assert.NoError(t, err)
 }
 ```
 
-**Integration Tests** with EnvTest:
+**Integration** (EnvTest), **E2E** (Kind/K3s).
 
-```go
-var _ = BeforeSuite(func() {
-    testEnv = &envtest.Environment{
-        CRDDirectoryPaths: []string{filepath.Join("..", "config", "crd", "bases")},
-    }
-    cfg, err = testEnv.Start()
-    Expect(err).NotTo(HaveOccurred())
-})
-```
+## Configuration
 
-**E2E Tests** with Kind/K3s for complete validation including external integrations and upgrade scenarios.
-
-### Implement Rate Limiting
-
-Use golang.org/x/time/rate for client-side rate limiting:
-
-```go
-type RateLimitedClient struct {
-    client  *http.Client
-    limiter *rate.Limiter
-}
-
-func NewRateLimitedClient(rps rate.Limit, burst int) *RateLimitedClient {
-    return &RateLimitedClient{
-        client:  &http.Client{Timeout: 30 * time.Second},
-        limiter: rate.NewLimiter(rps, burst),
-    }
-}
-
-func (c *RateLimitedClient) Do(ctx context.Context, req *http.Request) (*http.Response, error) {
-    if err := c.limiter.Wait(ctx); err != nil {
-        return nil, err
-    }
-    return c.client.Do(req)
-}
-```
-
-### Configure Controller Concurrency
-
+**Concurrency**:
 ```go
 func (r *ExampleReconciler) SetupWithManager(mgr ctrl.Manager) error {
     return ctrl.NewControllerManagedBy(mgr).
         For(&examplev1.Example{}).
-        WithOptions(controller.Options{
-            MaxConcurrentReconciles: 5, // Based on external API limits
-        }).
+        WithOptions(controller.Options{MaxConcurrentReconciles: 5}).
         Complete(r)
 }
 ```
 
-### Standard Condition Implementation
-
-Follow Kubernetes conventions for status conditions:
-
+**Status conditions**:
 ```go
 const (
     TypeReady       = "Ready"
@@ -256,15 +225,11 @@ const (
 
 func (r *ResourceReconciler) updateConditions(ctx context.Context, resource *v1alpha1.MyResource) error {
     if r.isProgressing(resource) {
-        r.setCondition(resource, TypeProgressing, "True", "Reconciling",
-            "Resource is being reconciled")
+        r.setCondition(resource, TypeProgressing, "True", "Reconciling", "Resource reconciling")
     }
-
-    if r.isHealthy(resource) && !r.isProgressing(resource) {
-        r.setCondition(resource, TypeReady, "True", "Ready",
-            "Resource is ready for use")
+    if r.isHealthy(resource) {
+        r.setCondition(resource, TypeReady, "True", "Ready", "Resource ready")
     }
-
     resource.Status.ObservedGeneration = resource.Generation
     return r.Status().Update(ctx, resource)
 }

@@ -31,6 +31,45 @@ Available endpoints:
 
 Reference: [BuildBuddy API Documentation](https://www.buildbuddy.io/docs/enterprise-api/)
 
+### API Workflow
+
+```
+┌──────────────────────────────────────────────┐
+│  GitHub Actions Job Fails                     │
+│  - CI build error in PR                       │
+│  - BuildBuddy URL in check logs              │
+└──────────────────┬───────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────────┐
+│  Extract Invocation ID                        │
+│  From URL: https://app.buildbuddy.io/        │
+│            invocation/<id>                    │
+└──────────────────┬───────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────────┐
+│  API: POST /GetInvocation                     │
+│  Headers: x-buildbuddy-api-key               │
+│  Body: {"selector": {"invocation_id": "..."}}│
+│  Returns: build metadata, status, duration   │
+└──────────────────┬───────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────────┐
+│  API: POST /GetLog                            │
+│  Returns: stdout/stderr, error messages      │
+└──────────────────┬───────────────────────────┘
+                   │
+                   ▼
+┌──────────────────────────────────────────────┐
+│  Parse Errors and Identify Root Cause        │
+│  - Compilation errors                        │
+│  - Test failures                             │
+│  - Linter issues                             │
+└──────────────────────────────────────────────┘
+```
+
 ## Debugging Failed GitHub Actions
 
 ### Quick Start

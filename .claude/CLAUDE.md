@@ -1,16 +1,5 @@
 # CLAUDE.md - Secure Kubernetes Homelab
 
-## Before Starting Work
-
-| Task                     | Action                            |
-| ------------------------ | --------------------------------- |
-| Reading 10+ files        | Use `/opencode` (FREE local Qwen) |
-| Generating boilerplate   | Use `/opencode`                   |
-| Research across codebase | Use `/opencode`                   |
-| Complex reasoning        | Use Claude (you)                  |
-
-See `.claude/skills/opencode/SKILL.md` for full guidance.
-
 ## Development Workflow Requirements
 
 **NEVER make changes directly on the main branch.** All modifications MUST:

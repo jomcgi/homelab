@@ -21,7 +21,6 @@ Create "one way to do anything" via Bazel - simple, consistent interfaces optimi
 | signoz     | MCP tools              | No (appropriate) |
 | buildbuddy | curl API               | No               |
 | worktree   | `git worktree`         | No (appropriate) |
-| opencode   | `opencode` CLI         | No (appropriate) |
 
 ### Key Redundancies Found
 
