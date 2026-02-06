@@ -616,15 +616,44 @@ overlays/dev/stargazer/
 
 <!-- Add dated entries as tasks are completed -->
 
-| Date       | Task(s)        | Status   | Notes                                                            |
-| ---------- | -------------- | -------- | ---------------------------------------------------------------- |
-| 2025-11-30 | Project setup  | Complete | Directory structure, BUILD files, config.py, main.py, scoring.py |
-| 2025-11-30 | Helm chart     | Complete | CronJob + PVC + ConfigMap templates                              |
-| 2025-11-30 | ArgoCD overlay | Complete | overlays/dev/stargazer/ with Application                         |
-| 2025-11-30 | Dependencies   | Complete | Added to pyproject.toml, ran bazel requirements update           |
-| 2025-11-30 | T1-T3          | Complete | acquisition.py - download functions implemented                  |
-| 2025-11-30 | T5-T7          | Complete | preprocessing.py - GDAL/Pillow operations                        |
-| 2025-11-30 | T9-T13         | Complete | spatial.py - geopandas/rasterio operations                       |
-| 2025-11-30 | T14-T16        | Complete | weather.py - MET Norway API + scoring                            |
-|            | T4, T8         | Pending  | DEM download/clip (placeholder - needs SRTM tile logic)          |
-|            | Validation     | Pending  | Run pipeline and verify outputs                                  |
+| Date       | Task(s)        | Status      | Notes                                                            |
+| ---------- | -------------- | ----------- | ---------------------------------------------------------------- |
+| 2025-11-30 | Project setup  | Complete    | Directory structure, BUILD files, config.py, main.py, scoring.py |
+| 2025-11-30 | Helm chart     | Complete    | CronJob + PVC + ConfigMap templates                              |
+| 2025-11-30 | ArgoCD overlay | Complete    | overlays/dev/stargazer/ with Application                         |
+| 2025-11-30 | Dependencies   | Complete    | Added to pyproject.toml, ran bazel requirements update           |
+| 2025-11-30 | T1-T3          | Complete    | acquisition.py - download functions implemented                  |
+| 2025-11-30 | T5-T7          | Complete    | preprocessing.py - GDAL/Pillow operations                        |
+| 2025-11-30 | T9-T13         | Complete    | spatial.py - geopandas/rasterio operations                       |
+| 2025-11-30 | T14-T16        | Complete    | weather.py - MET Norway API + scoring                            |
+| 2026-02-03 | T4, T8         | Deferred    | DEM download/clip - Shetland above 60°N requires Copernicus DEM |
+| 2026-02-03 | Initial deploy | In Progress | Testing CronJob execution, debugging PVC mount issues            |
+
+---
+
+## Validation Results
+
+### Expected Locations Coverage
+
+| Location           | Expected | Status      | Notes                                                 |
+| ------------------ | -------- | ----------- | ----------------------------------------------------- |
+| Galloway Forest    | ✅       | Not tested  | Awaiting pipeline run (~55.0°N, -4.5°W)              |
+| Cairngorms         | ✅       | Not tested  | Awaiting pipeline run (~57.0°N, -3.7°W)              |
+| Isle of Coll       | ✅       | Not tested  | Awaiting pipeline run (~56.6°N, -6.5°W)              |
+| Shetland           | ✅       | Not tested  | Elevation fallback needed (>60°N SRTM limit)          |
+| Glasgow (excluded) | ❌       | Not tested  | Should have no points within 10km                     |
+| Edinburgh (excl.)  | ❌       | Not tested  | Should have no points within 10km                     |
+
+### Zone Classification
+
+Zone classification accuracy pending manual spot-check against [lightpollutionmap.info](https://lightpollutionmap.info).
+
+### Weather Forecast Scoring
+
+Forecast scores pending comparison with [Clear Outside](https://clearoutside.com) for same timestamps and locations.
+
+**Next Steps:**
+1. Complete first successful CronJob run
+2. Verify output files exist in PVC (`data/output/best_locations.json`)
+3. Spot-check 5 sample points for zone classification accuracy
+4. Compare top location weather score with Clear Outside forecast

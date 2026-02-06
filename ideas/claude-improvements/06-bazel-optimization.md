@@ -2,41 +2,44 @@
 
 ## Overview
 
-Deploy BuildBuddy for remote caching and execution, significantly improving build performance and developer experience through shared build artifacts and distributed compilation.
+Deploy BuildBuddy for remote caching and execution to significantly improve build performance through shared artifacts and distributed compilation.
 
-## Current State Analysis
+## Current Pain Points
 
-### Pain Points
-
-- **Cold Builds**: Every developer/CI run rebuilds everything
-- **Duplicate Work**: Same targets built multiple times across team
-- **Resource Usage**: Local machines struggle with large builds
-- **CI Wait Times**: Long feedback loops on pull requests
-
-### Current Setup
-
-```yaml
-# buildbuddy.yaml
-actions:
-  - name: "Test and push"
-    container_image: "ubuntu-24.04"
-    resource_requests:
-      disk: "50GB"
-    steps:
-      - run: bazel test //...
-      - run: bazel run //images:push_all
-```
+- Cold builds rebuild everything per developer/CI run
+- Duplicate work across team members
+- Local machines struggle with large builds
+- Long CI feedback loops
 
 ## BuildBuddy Architecture
 
-### Deployment Components
+```
+┌─────────────────────────────────────────────────────────┐
+│ BuildBuddy Server (StatefulSet)                          │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
+│  │ HTTP Server  │  │ gRPC Server  │  │ Executor Pool│  │
+│  │   :8080      │  │   :1985      │  │   (5 pods)   │  │
+│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│         │                 │                   │         │
+│         ├─────────────────┴───────────────────┤         │
+│         │                                     │         │
+│  ┌──────▼─────────────────────────────────────▼──────┐  │
+│  │ Cache Storage (Longhorn 500GB-2TB)               │  │
+│  └──────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────┘
+         ▲                                     ▲
+         │                                     │
+    ┌────┴──────┐                         ┌───┴────┐
+    │ CI Runner │                         │  Dev   │
+    │  (bazel)  │                         │ (bazel)│
+    └───────────┘                         └────────┘
+
+Flow: Build request → Cache check → Hit: Return / Miss: Build + Cache
+```
+
+### Deployment Configuration
 
 ```yaml
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: buildbuddy
----
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -72,13 +75,12 @@ spec:
             storage: 500Gi
 ```
 
-### Remote Cache Configuration
+## Bazel Configuration
 
-#### Bazel RC Configuration
+### Remote Cache Setup
 
 ```bash
 # .bazelrc
-# BuildBuddy remote cache
 build --remote_cache=grpcs://buildbuddy.jomcgi.dev:443
 build --remote_cache_compression
 build --remote_download_minimal
@@ -92,7 +94,7 @@ build:remote --remote_default_exec_properties=Arch=amd64
 build:remote --jobs=200
 ```
 
-#### Authentication & API Keys
+### Authentication
 
 ```yaml
 apiVersion: v1
@@ -109,7 +111,7 @@ stringData:
 
 ## Cache Warming Strategy
 
-### Scheduled Cache Warmer
+### Scheduled Warmer
 
 ```yaml
 apiVersion: batch/v1
@@ -130,26 +132,18 @@ spec:
                 - /bin/bash
                 - -c
                 - |
-                  # Build common targets to warm cache
                   bazel build //...
                   bazel test //...
                   bazel build //images:all
 ```
 
-### Intelligent Cache Warming
+### Intelligent Warming
 
 ```python
 # cache_warmer.py
-import subprocess
-import json
-from datetime import datetime, timedelta
-
 class CacheWarmer:
-    def __init__(self, buildbuddy_api):
-        self.api = buildbuddy_api
-
     def get_frequently_used_targets(self):
-        """Analyze build history to find frequently built targets"""
+        """Analyze build history to find frequent targets"""
         query = """
         SELECT target, COUNT(*) as build_count
         FROM builds
@@ -168,26 +162,11 @@ class CacheWarmer:
                 "--remote_cache=grpcs://buildbuddy.jomcgi.dev:443",
                 target
             ])
-
-    def smart_warm(self):
-        """Warm cache based on usage patterns"""
-        # Get frequently used targets
-        targets = self.get_frequently_used_targets()
-
-        # Also include critical path targets
-        critical_targets = [
-            "//charts/claude/...",
-            "//operators/cloudflare/...",
-            "//images:all"
-        ]
-
-        all_targets = list(set(targets + critical_targets))
-        self.warm_targets(all_targets)
 ```
 
-## Remote Execution Setup
+## Remote Execution
 
-### Executor Pool Configuration
+### Executor Pool
 
 ```yaml
 apiVersion: apps/v1
@@ -196,7 +175,7 @@ metadata:
   name: buildbuddy-executor
   namespace: buildbuddy
 spec:
-  replicas: 5 # Scale based on workload
+  replicas: 5
   template:
     spec:
       containers:
@@ -216,7 +195,7 @@ spec:
               memory: "16Gi"
 ```
 
-### Docker-in-Docker for Container Builds
+### Container Build Support
 
 ```yaml
 apiVersion: v1
@@ -238,18 +217,16 @@ data:
 
 ## Developer Experience
 
-### Local Development Integration
+### Local Integration
 
 ```bash
 # Developer .bazelrc.local
-# Use shared remote cache
 build --remote_cache=grpcs://buildbuddy.jomcgi.dev:443
 build --remote_cache_compression
 build --remote_download_minimal
 
 # Optional: Use remote execution for heavy builds
 build:heavy --config=remote
-build:heavy --remote_executor=grpcs://buildbuddy.jomcgi.dev:443
 ```
 
 ### IDE Integration
@@ -257,44 +234,15 @@ build:heavy --remote_executor=grpcs://buildbuddy.jomcgi.dev:443
 ```json
 // .vscode/settings.json
 {
-  "bazel.buildifierExecutable": "buildifier",
-  "bazel.enableCodeLens": true,
-  "bazel.commandLine.queryExpression": "//...",
   "bazel.commandLine.buildArgs": [
     "--remote_cache=grpcs://buildbuddy.jomcgi.dev:443"
   ]
 }
 ```
 
-### Build Analytics Dashboard
-
-```typescript
-interface BuildMetrics {
-  cacheHitRate: number;
-  avgBuildTime: number;
-  savedComputeHours: number;
-  topCacheMisses: Target[];
-}
-
-// Dashboard components
-const BuildBuddyDashboard = () => {
-  return (
-    <div className="dashboard">
-      <MetricCard title="Cache Hit Rate" value="87%" />
-      <MetricCard title="Avg Build Time" value="2.3 min" />
-      <MetricCard title="Compute Saved" value="142 hrs/week" />
-
-      <TopMissesChart data={topCacheMisses} />
-      <BuildTimeGraph data={buildTimeHistory} />
-      <CacheGrowthChart data={cacheGrowth} />
-    </div>
-  );
-};
-```
-
 ## CI/CD Integration
 
-### GitHub Actions Workflow
+### GitHub Actions
 
 ```yaml
 name: Build and Test
@@ -329,7 +277,6 @@ interface ClaudeSession {
   cacheNamespace: string; // Isolate cache per session
 }
 
-// Bazel commands automatically use remote cache
 const runBazel = async (command: string, session: ClaudeSession) => {
   const env = {
     BUILDBUDDY_API_KEY: session.buildbuddyApiKey,
@@ -343,7 +290,7 @@ const runBazel = async (command: string, session: ClaudeSession) => {
 
 ## Monitoring & Optimization
 
-### Metrics Collection
+### Key Metrics
 
 ```yaml
 apiVersion: v1
@@ -360,20 +307,19 @@ spec:
       interval: 30s
 ```
 
-### Key Performance Indicators
+### Performance Targets
 
-- **Cache Hit Rate**: Target > 80%
-- **Build Time Reduction**: Target 50-70% improvement
+- **Cache Hit Rate**: > 80%
+- **Build Time Reduction**: 50-70% improvement
 - **Storage Efficiency**: Monitor cache size vs. value
-- **Network Bandwidth**: Track cache download/upload rates
+- **Network Bandwidth**: Track download/upload rates
 
-### Cache Optimization Rules
+### Cache Optimization
 
 ```python
 class CacheOptimizer:
     def analyze_cache_efficiency(self):
         """Identify inefficient cache entries"""
-        # Find large, rarely-used artifacts
         inefficient = self.api.query("""
             SELECT artifact_id, size_bytes, last_accessed
             FROM cache_entries
@@ -383,42 +329,20 @@ class CacheOptimizer:
         return inefficient
 
     def optimize_cache(self):
-        """Remove inefficient entries and optimize storage"""
+        """Remove inefficient entries"""
         inefficient = self.analyze_cache_efficiency()
         for entry in inefficient:
             self.api.evict(entry.artifact_id)
 ```
 
-## Cost Analysis
-
-### Resource Requirements
-
-- **Storage**: 500GB-2TB for cache (Longhorn)
-- **Compute**: 5-10 executor pods (4-8 CPU each)
-- **Network**: ~100GB/day bandwidth
-- **Memory**: 8-16GB per executor
-
-### ROI Calculation
-
-```
-Developer Time Saved:
-- 10 developers × 30 min/day saved = 5 hrs/day
-- 5 hrs/day × $100/hr = $500/day
-- Monthly savings: ~$10,000
-
-CI/CD Time Saved:
-- 100 builds/day × 10 min saved = 16.7 hrs/day
-- Faster feedback = higher productivity
-```
-
-## Security Considerations
+## Security
 
 ### Access Control
 
-- **API Key Management**: Unique keys per user/service
-- **Namespace Isolation**: Separate cache namespaces
-- **Audit Logging**: Track all cache operations
-- **Encryption**: TLS for all connections
+- API key management per user/service
+- Namespace isolation for cache separation
+- Audit logging for all operations
+- TLS encryption for connections
 
 ### Cache Poisoning Prevention
 
@@ -433,29 +357,17 @@ security:
 
 ## Migration Plan
 
-### Phase 1: Setup (Week 1)
+1. **Week 1**: Deploy BuildBuddy to Kubernetes, configure storage
+2. **Week 2**: Update .bazelrc, configure CI/CD, distribute API keys
+3. **Week 3**: Implement cache warming, set up monitoring
+4. **Week 4**: Deploy executor pool, enable remote execution
 
-- Deploy BuildBuddy to Kubernetes
-- Configure storage with Longhorn
-- Set up ingress with Cloudflare Tunnel
+## Resource Requirements
 
-### Phase 2: Integration (Week 2)
-
-- Update .bazelrc files
-- Configure CI/CD pipelines
-- Distribute API keys
-
-### Phase 3: Optimization (Week 3)
-
-- Implement cache warming
-- Set up monitoring
-- Tune cache policies
-
-### Phase 4: Remote Execution (Week 4)
-
-- Deploy executor pool
-- Enable for heavy builds
-- Monitor and optimize
+- **Storage**: 500GB-2TB for cache (Longhorn)
+- **Compute**: 5-10 executor pods (4-8 CPU each)
+- **Network**: ~100GB/day bandwidth
+- **Memory**: 8-16GB per executor
 
 ## Success Metrics
 
@@ -463,4 +375,3 @@ security:
 - Cache hit rate: > 80%
 - Developer satisfaction: > 90%
 - CI pipeline speed: 2x improvement
-- Cost per build: 70% reduction
