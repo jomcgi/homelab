@@ -47,4 +47,27 @@ cat >>"$BUILD_FILE" <<'FOOTER'
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
 )
+
 FOOTER
+
+# Generate push_services target (excludes models, used by CI)
+SERVICE_TARGETS=$(echo "$PUSH_TARGETS" | grep -v "//models:")
+
+if [ -n "$SERVICE_TARGETS" ]; then
+	cat >>"$BUILD_FILE" <<'SERVICES_HEADER'
+multirun(
+    name = "push_services",
+    commands = [
+SERVICES_HEADER
+
+	while IFS= read -r target; do
+		echo "        \"$target\"," >>"$BUILD_FILE"
+	done <<<"$SERVICE_TARGETS"
+
+	cat >>"$BUILD_FILE" <<'SERVICES_FOOTER'
+    ],
+    jobs = 0,  # 0 means unlimited parallelism
+    visibility = ["//visibility:public"],
+)
+SERVICES_FOOTER
+fi
