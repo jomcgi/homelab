@@ -2,6 +2,65 @@
 
 This document describes the security architecture of the homelab cluster.
 
+## Defense-in-Depth Architecture
+
+This cluster implements five layers of security:
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                    Layer 1: Network Perimeter                         │
+├──────────────────────────────────────────────────────────────────────┤
+│  Cloudflare Tunnel                                                   │
+│  - Zero Trust ingress (no open firewall ports)                       │
+│  - DDoS protection                                                   │
+│  - WAF (Web Application Firewall)                                    │
+│  - TLS termination                                                   │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    Layer 2: Service Mesh (Linkerd)                   │
+├──────────────────────────────────────────────────────────────────────┤
+│  - Automatic mTLS for all inter-service communication                │
+│  - Traffic encryption within the cluster                             │
+│  - Service-to-service authentication                                 │
+│  - Network observability and tracing                                 │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                  Layer 3: Policy Enforcement (Kyverno)               │
+├──────────────────────────────────────────────────────────────────────┤
+│  - Validates security contexts on all workloads                      │
+│  - Enforces pod security standards                                   │
+│  - Automatic injection of security best practices                    │
+│  - Mutation and validation admission control                         │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                   Layer 4: Runtime Security                          │
+├──────────────────────────────────────────────────────────────────────┤
+│  Container Security Context (enforced on every pod):                 │
+│  - readOnlyRootFilesystem: true                                      │
+│  - runAsNonRoot: true                                                │
+│  - allowPrivilegeEscalation: false                                   │
+│  - capabilities.drop: [ALL]                                          │
+│  - seccompProfile: RuntimeDefault                                    │
+└──────────────────────────┬───────────────────────────────────────────┘
+                           │
+                           ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                   Layer 5: Secret Management                         │
+├──────────────────────────────────────────────────────────────────────┤
+│  1Password Operator                                                  │
+│  - Secrets stored in 1Password vault (external to cluster)           │
+│  - OnePasswordItem CRDs sync secrets into Kubernetes                 │
+│  - No secrets in Git or container images                             │
+│  - Automatic secret rotation support                                 │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
 ## Network Security
 
 - **No direct internet exposure** - All traffic via Cloudflare Tunnel

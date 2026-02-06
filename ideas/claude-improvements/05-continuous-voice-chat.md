@@ -352,7 +352,6 @@ class WaveformVisualizer {
 
 ### Fallback Options
 
-- **Gemini API**: Backup transcription service
 - **Local VAD**: Client-side speech detection
 - **Manual Input**: Type if voice fails
 

@@ -1,66 +1,26 @@
-# Claude Web Interface
+# Claude Web Interface - Developer Guide
 
-Claude Code web interface with React frontend, WebSocket streaming, and voice support.
-
-## Architecture
-
-Single pod deployment with:
-
-- **Frontend** (React + Vite) - Served at `/`
-- **API Server** (Express) - Endpoints at `/api/*`
-- **WebSocket** - Claude Code streaming at `/ws`
-- **Claude Code** - Max subscription (authenticate via `claude /login`)
-- **Session Management** - File-based session persistence on PVC
-
-## Key Files
-
-- `frontend/` - React frontend (Vite + Tailwind)
-- `src/src/index.ts` - Express API server
-- `templates/deployment.yaml` - Single pod deployment
-- `templates/pvc.yaml` - 200GB Longhorn storage for sessions
-- `image/apko.yaml` - Container image definition
-
-## API Endpoints
-
-### REST
-
-- `GET /api/health` - Health check
-- `GET /api/sessions` - List all sessions
-- `POST /api/sessions` - Create new session
-- `GET /api/sessions/:id` - Get session details
-- `DELETE /api/sessions/:id` - Delete session
-
-### WebSocket
-
-- `wss://host/ws?session=<id>` - Stream Claude Code I/O
-
-## Persistence
-
-PVC mounted at `/home/user` containing:
-
-- `.claude/` - Claude Code OAuth tokens and state
-- `.claude-api/sessions/` - Session metadata
-- `.npm-global/` - Installed npm packages
+This file contains developer-specific information for working with the Claude chart. For deployment and configuration, see [README.md](./README.md).
 
 ## Secrets
 
 Required secrets (configured via 1Password Operator):
 
-- `github_token` - Git operations
-- `google_api_key` - Gemini API for voice transcription
+- `github_token` - Git operations and repository access
 
-## Common Tasks
+## Development
 
-### Initial Setup
+### Local Development
+
+The chart includes source code in `src/` following the homelab colocation principle. See [architecture/contributing.md](/architecture/contributing.md) for build and test instructions.
+
+### Common Operations
 
 ```bash
 # After first deployment, authenticate Claude Code
 kubectl exec -it deploy/claude -n claude -- claude /login
-```
 
-### Check Status
-
-```bash
+# Check service status
 kubectl logs -n claude deploy/claude -f
 kubectl exec -it deploy/claude -n claude -- claude /doctor
 ```

@@ -13,6 +13,45 @@ ArgoCD handles all deployments from Git.
 
 ## Allowed Operations
 
+### Value Override Flow
+
+```
+┌──────────────────────────────────────────────┐
+│  charts/<service>/values.yaml                │
+│  (chart defaults)                             │
+│  - replicas: 1                                │
+│  - image.tag: latest                          │
+│  - resources.requests.memory: 128Mi           │
+└─────────────────┬────────────────────────────┘
+                  │
+                  │ (merged with)
+                  ▼
+┌──────────────────────────────────────────────┐
+│  overlays/<env>/<service>/values.yaml        │
+│  (environment overrides)                      │
+│  - replicas: 3                                │
+│  - image.tag: v1.2.3@sha256:abc...           │
+│  - resources.requests.memory: 256Mi           │
+└─────────────────┬────────────────────────────┘
+                  │
+                  │ helm template
+                  ▼
+┌──────────────────────────────────────────────┐
+│  Rendered Kubernetes Manifests               │
+│  - Deployment with replicas: 3               │
+│  - Image: ghcr.io/.../v1.2.3@sha256:abc      │
+│  - Memory request: 256Mi                      │
+└─────────────────┬────────────────────────────┘
+                  │
+                  ▼ (ArgoCD applies)
+┌──────────────────────────────────────────────┐
+│  Kubernetes Cluster                           │
+│  - 3 running pods with updated config         │
+└──────────────────────────────────────────────┘
+
+Note: Override values take precedence over defaults
+```
+
 ### Render Templates
 
 ```bash

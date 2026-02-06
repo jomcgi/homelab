@@ -74,9 +74,9 @@ PARENT=$(echo "$PARENT_URL" | grep -oE '[0-9]+$')
 echo "Created parent issue #$PARENT"
 ```
 
-## Step 3: Create Child Issues as Sub-Issues
+## Step 3: Create Child Issues and Link via Task List
 
-**IMPORTANT:** The `gh` CLI does not have a `--parent` flag. You must use the REST API to link sub-issues.
+**IMPORTANT:** GitHub does NOT have a `repos/$REPO/issues/$PARENT/sub_issues` API endpoint. Instead, use GitHub's task list syntax in the parent issue body.
 
 For each discrete task identified:
 
@@ -110,13 +110,41 @@ EOF
 # 2. Extract child issue number
 CHILD_NUMBER=$(echo "$CHILD_URL" | grep -oE '[0-9]+$')
 
-# 3. Get the numeric ID (NOT the node_id) - this is required by the API
-CHILD_ID=$(gh api "repos/$REPO/issues/$CHILD_NUMBER" --jq '.id')
+# 3. Track child numbers to update parent body later
+CHILDREN+=("$CHILD_NUMBER")
 
-# 4. Link as sub-issue to parent
-gh api "repos/$REPO/issues/$PARENT/sub_issues" --method POST -F sub_issue_id="$CHILD_ID"
+echo "Created child issue #$CHILD_NUMBER"
+```
 
-echo "Created and linked child issue #$CHILD_NUMBER"
+After creating all children, update parent issue body with task list:
+
+```bash
+# Build task list markdown
+TASK_LIST=""
+for CHILD in "${CHILDREN[@]}"; do
+    CHILD_TITLE=$(gh issue view "$CHILD" --repo "$REPO" --json title --jq '.title')
+    TASK_LIST+="- [ ] #${CHILD} ${CHILD_TITLE}\n"
+done
+
+# Update parent issue body
+gh issue edit "$PARENT" --repo "$REPO" --body "$(cat <<EOF
+## Context
+
+Design doc: \`ideas/agent-controller.md\`
+
+## Goal
+
+<!-- Extract from design doc -->
+
+## Constraints
+
+<!-- Extract from design doc -->
+
+## Sub-tasks
+
+$TASK_LIST
+EOF
+)"
 ```
 
 Repeat for each task.
@@ -189,25 +217,24 @@ set -euo pipefail
 
 REPO="jomcgi/homelab"
 DESIGN_DOC="ideas/agent-controller.md"
+CHILDREN=()
 
-# Helper function to create a child issue and link it as sub-issue
+# Helper function to create a child issue and track it
 create_child() {
-    local parent=$1
-    local title=$2
-    local body=$3
+    local title=$1
+    local body=$2
 
     # Create the issue
     local child_url=$(gh issue create --repo "$REPO" --title "$title" --body "$body")
     local child_number=$(echo "$child_url" | grep -oE '[0-9]+$')
 
-    # Get numeric ID and link as sub-issue
-    local child_id=$(gh api "repos/$REPO/issues/$child_number" --jq '.id')
-    gh api "repos/$REPO/issues/$parent/sub_issues" --method POST -F sub_issue_id="$child_id" --silent
+    # Track for task list update
+    CHILDREN+=("$child_number")
 
     echo "  Created #$child_number: $title"
 }
 
-# Create parent issue
+# Create parent issue (initial body without task list)
 echo "Creating parent issue..."
 PARENT_URL=$(gh issue create \
     --repo "$REPO" \
@@ -223,24 +250,27 @@ Autonomous GitHub issue execution via polling controller.
 - Must handle lock TTL
 - Single controller instance
 
-## Progress
-Sub-issues track individual tasks. Work them in order based on phase dependencies.")
+## Sub-tasks
+Will be populated below...")
 
 PARENT=$(echo "$PARENT_URL" | grep -oE '[0-9]+$')
 echo "Created parent issue #$PARENT"
 
-# Create and link children
+# Create child issues
 echo "Creating child issues..."
 
-create_child "$PARENT" "Create controller.sh script" "Implement polling loop, lock checking, session spawning.
+create_child "Create controller.sh script" "Implement polling loop, lock checking, session spawning.
 
 ## Acceptance Criteria
 - [ ] Polls for agent-ready issues
 - [ ] Checks/cleans stale locks
 - [ ] Spawns tmux sessions
-- [ ] Respects MAX_CONCURRENT limit"
+- [ ] Respects MAX_CONCURRENT limit
 
-create_child "$PARENT" "Add controller Kubernetes deployment" "Create deployment manifest for controller.
+## Parent
+See #$PARENT for full context."
+
+create_child "Add controller Kubernetes deployment" "Create deployment manifest for controller.
 
 ## Dependencies
 Work AFTER controller.sh is complete.
@@ -248,17 +278,23 @@ Work AFTER controller.sh is complete.
 ## Acceptance Criteria
 - [ ] Deployment runs controller.sh
 - [ ] Mounts repo PVC
-- [ ] Has GitHub token secret"
+- [ ] Has GitHub token secret
 
-create_child "$PARENT" "Add controller values.yaml configuration" "Add configuration options to values.yaml.
+## Parent
+See #$PARENT for full context."
+
+create_child "Add controller values.yaml configuration" "Add configuration options to values.yaml.
 
 ## Acceptance Criteria
 - [ ] pollInterval configurable
 - [ ] lockTTL configurable
 - [ ] maxConcurrent configurable
-- [ ] enabled flag for opt-in"
+- [ ] enabled flag for opt-in
 
-create_child "$PARENT" "Test end-to-end flow" "Validate the complete workflow.
+## Parent
+See #$PARENT for full context."
+
+create_child "Test end-to-end flow" "Validate the complete workflow.
 
 ## Dependencies
 Work AFTER all other children complete.
@@ -266,7 +302,34 @@ Work AFTER all other children complete.
 ## Acceptance Criteria
 - [ ] Controller picks up test issue
 - [ ] Claude session executes successfully
-- [ ] Issue is closed on completion"
+- [ ] Issue is closed on completion
+
+## Parent
+See #$PARENT for full context."
+
+# Build task list from children
+echo "Updating parent with task list..."
+TASK_LIST=""
+for CHILD in "${CHILDREN[@]}"; do
+    CHILD_TITLE=$(gh issue view "$CHILD" --repo "$REPO" --json title --jq '.title')
+    TASK_LIST+="- [ ] #${CHILD} ${CHILD_TITLE}"$'\n'
+done
+
+# Update parent issue body with task list
+gh issue edit "$PARENT" --repo "$REPO" --body "## Context
+Design doc: \`$DESIGN_DOC\`
+
+## Goal
+Autonomous GitHub issue execution via polling controller.
+
+## Constraints
+- Simple shell script preferred
+- Must handle lock TTL
+- Single controller instance
+
+## Sub-tasks
+
+$TASK_LIST"
 
 # Mark parent as ready
 gh issue edit "$PARENT" --repo "$REPO" --add-label "agent-ready"

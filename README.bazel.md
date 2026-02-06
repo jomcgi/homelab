@@ -40,29 +40,37 @@ To make CLI tools available without manual installation:
 
 See [Run Tools Installed by Bazel](https://blog.aspect.build/run-tools-installed-by-bazel) for details.
 
-## Working with npm Packages
+## Dependency Management
 
-To install a `node_modules` tree locally for your editor or tooling outside of Bazel:
+| Language   | Add New Import | Add New Dependency | Update Lock Files | Update BUILD Files |
+|------------|----------------|--------------------|--------------------|-------------------|
+| **npm**    | Add to source  | `$(bazel info workspace)/tools/pnpm add <pkg>` | Automatic (pnpm) | `bazel run gazelle` |
+| **Python** | Add to source  | 1. Edit `pyproject.toml`<br>2. Run `./tools/repin` | `./tools/repin` | `bazel run gazelle` |
+| **Go**     | Add to source  | 1. `go mod tidy -v`<br>2. `bazel mod tidy` | `go mod tidy -v` | `bazel run gazelle` |
+| **Rust**   | Add to source  | `cargo add <crate>` | Automatic (cargo) | `bazel run gazelle` |
+
+### Workflow Examples
+
+<details>
+<summary>npm packages</summary>
 
 ```shell
+# Install node_modules for editor support
 pnpm install
-```
 
-To add or remove packages, use the workspace-local pnpm to ensure consistent lockfile format:
-
-```shell
-# From any subdirectory
+# Add a new package
 $(bazel info workspace)/tools/pnpm add <package-name>
+
+# Update BUILD files if needed
+bazel run gazelle
 ```
+</details>
 
-## Working with Python Packages
-
-After adding a new `import` statement in Python code, run `bazel run gazelle` to update the BUILD file.
-
-If the package is not already a dependency, add it to the project:
+<details>
+<summary>Python packages</summary>
 
 ```shell
-# 1. Add the dependency to pyproject.toml
+# 1. Add dependency to pyproject.toml
 vim pyproject.toml
 
 # 2. Update lock files to pin the dependency
@@ -84,12 +92,10 @@ EOF
 Then edit the new entry in `tools/BUILD` to replace `package_name_snake_case` with the package name and `scriptname` with the script name.
 
 See the [py_console_script_binary documentation](https://rules-python.readthedocs.io/en/stable/api/python/entry_points/py_console_script_binary.html) for details.
+</details>
 
-## Working with Go Modules
-
-After adding a new `import` statement in Go code, run `bazel run gazelle` to update the BUILD file.
-
-If the package is not already a dependency, add it to the project:
+<details>
+<summary>Go modules</summary>
 
 ```shell
 # 1. Update go.mod and go.sum (uses the same Go SDK as Bazel via direnv)
@@ -101,16 +107,19 @@ bazel mod tidy
 # 3. Update BUILD files
 bazel run gazelle
 ```
+</details>
 
-## Working with Cargo
-
-You can run `cargo` outside of Bazel using the tool installed on the PATH:
+<details>
+<summary>Rust crates</summary>
 
 ```shell
+# Add a crate
 cargo add <crate-name>
-```
 
-After adding dependencies, run `bazel run gazelle` if your project uses Gazelle for Rust.
+# Update BUILD files if your project uses Gazelle for Rust
+bazel run gazelle
+```
+</details>
 
 ## Stamping Release Builds
 
