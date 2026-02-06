@@ -6,13 +6,13 @@ This document covers common tasks and workflows for contributing to the homelab.
 
 This is a GitOps monorepo where related code and deployment configuration live together.
 
-| Directory | Purpose |
-|-----------|---------|
+| Directory           | Purpose                                                                           |
+| ------------------- | --------------------------------------------------------------------------------- |
 | `charts/<service>/` | Helm charts with templates, values, and source code for service-specific binaries |
-| `overlays/<env>/` | Environment-specific configuration (ArgoCD Applications, value overrides) |
-| `operators/` | Custom Kubernetes operators |
-| `services/` | Standalone services not deployed via Helm |
-| `images/` | Container image definitions (apko) |
+| `overlays/<env>/`   | Environment-specific configuration (ArgoCD Applications, value overrides)         |
+| `operators/`        | Custom Kubernetes operators                                                       |
+| `services/`         | Standalone services not deployed via Helm                                         |
+| `images/`           | Container image definitions (apko)                                                |
 
 **Colocation principle:** Service-specific code (binaries, images) lives inside its chart, not in a separate `cmd/` or `pkg/` directory. This makes it easy to understand what belongs together.
 

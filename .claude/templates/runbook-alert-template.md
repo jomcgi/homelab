@@ -149,11 +149,11 @@ kubectl top pods -n [namespace] -l app=[service-name]
 
 ## Escalation Path
 
-| Level | Contact | When to Escalate |
-|-------|---------|------------------|
-| L1 | [Primary on-call] | Initial alert |
-| L2 | [Secondary on-call] | After 30 min without resolution |
-| L3 | [Service owner] | Infrastructure or complex issues |
+| Level | Contact             | When to Escalate                 |
+| ----- | ------------------- | -------------------------------- |
+| L1    | [Primary on-call]   | Initial alert                    |
+| L2    | [Secondary on-call] | After 30 min without resolution  |
+| L3    | [Service owner]     | Infrastructure or complex issues |
 
 ## Related Resources
 

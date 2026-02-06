@@ -20,6 +20,7 @@ bazelisk test //... --config=ci
 ```
 
 **When adding new tests:**
+
 1. Create test files (e.g., `mylib_test.py`, `mylib_test.go`, `mylib.test.ts`)
 2. Add corresponding `BUILD.bazel` file with test targets
 3. Use the patterns shown in the language-specific sections below
@@ -34,19 +35,19 @@ Bazel build system specialist using bzlmod (MODULE.bazel). This repo uses Bazel 
 
 The following tools are vendored via `bazel_env` and available in PATH (after `direnv allow`):
 
-| Tool | Purpose |
-|------|---------|
-| `format` | Format code + update lock files |
-| `argocd` | ArgoCD CLI |
-| `helm` | Helm CLI |
-| `crane` | Container registry CLI |
-| `kind` | Local Kubernetes clusters |
-| `go` | Go toolchain |
-| `python` | Python toolchain |
-| `pnpm` | Package manager |
-| `node` | Node.js runtime |
-| `buildifier` | Starlark formatter |
-| `buildozer` | BUILD file editor |
+| Tool         | Purpose                         |
+| ------------ | ------------------------------- |
+| `format`     | Format code + update lock files |
+| `argocd`     | ArgoCD CLI                      |
+| `helm`       | Helm CLI                        |
+| `crane`      | Container registry CLI          |
+| `kind`       | Local Kubernetes clusters       |
+| `go`         | Go toolchain                    |
+| `python`     | Python toolchain                |
+| `pnpm`       | Package manager                 |
+| `node`       | Node.js runtime                 |
+| `buildifier` | Starlark formatter              |
+| `buildozer`  | BUILD file editor               |
 
 **Note:** Security tools (trivy, cosign, gitleaks, checkov) and kubectl are NOT vendored - install globally if needed.
 
@@ -188,10 +189,10 @@ kubectl logs -n argocd -l app.kubernetes.io/name=argocd-application-controller
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: <env>-<service>           # e.g., prod-trips
+  name: <env>-<service> # e.g., prod-trips
   namespace: argocd
   annotations:
-    argocd.argoproj.io/sync-wave: "2"  # Order deployments
+    argocd.argoproj.io/sync-wave: "2" # Order deployments
 spec:
   project: default
   source:
@@ -201,8 +202,8 @@ spec:
     helm:
       releaseName: <service>
       valueFiles:
-        - values.yaml                              # Chart defaults
-        - ../../overlays/<env>/<service>/values.yaml  # Env overrides
+        - values.yaml # Chart defaults
+        - ../../overlays/<env>/<service>/values.yaml # Env overrides
   destination:
     server: https://kubernetes.default.svc
     namespace: <namespace>
@@ -212,8 +213,8 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true      # For CRDs and large resources
-    retry:                        # For flaky syncs
+      - ServerSideApply=true # For CRDs and large resources
+    retry: # For flaky syncs
       limit: 5
       backoff:
         duration: 5s
@@ -223,13 +224,13 @@ spec:
 
 ### Sync Strategies
 
-| Strategy | Use Case |
-|----------|----------|
-| `automated.prune: true` | Auto-delete removed resources |
-| `automated.selfHeal: true` | Auto-revert kubectl changes |
-| `ServerSideApply: true` | Large resources, CRDs |
-| `sync-wave` annotation | Order deployments (lower = earlier) |
-| `retry` block | Handle transient failures |
+| Strategy                   | Use Case                            |
+| -------------------------- | ----------------------------------- |
+| `automated.prune: true`    | Auto-delete removed resources       |
+| `automated.selfHeal: true` | Auto-revert kubectl changes         |
+| `ServerSideApply: true`    | Large resources, CRDs               |
+| `sync-wave` annotation     | Order deployments (lower = earlier) |
+| `retry` block              | Handle transient failures           |
 
 ### Common Mistakes to Avoid
 
@@ -374,6 +375,7 @@ cdk8s/
 ```
 
 **Example cdk8s.yaml:**
+
 ```yaml
 language: python
 app: python main.py
@@ -383,13 +385,13 @@ imports:
 
 ### When to Use CDK8s vs Helm
 
-| Use Case | Recommendation |
-|----------|----------------|
-| Simple services | Helm |
-| Complex logic/loops | CDK8s |
-| Need type safety | CDK8s |
-| CRD generation | CDK8s |
-| Operator testing | CDK8s (see `cdk8s/cloudflare-operator-test/`) |
+| Use Case            | Recommendation                                |
+| ------------------- | --------------------------------------------- |
+| Simple services     | Helm                                          |
+| Complex logic/loops | CDK8s                                         |
+| Need type safety    | CDK8s                                         |
+| CRD generation      | CDK8s                                         |
+| Operator testing    | CDK8s (see `cdk8s/cloudflare-operator-test/`) |
 
 ### Common Mistakes to Avoid
 
@@ -502,11 +504,11 @@ py_test(
 
 ### Key Differences from rules_python
 
-| Pattern | This Repo (aspect_rules_py) | Standard rules_python |
-|---------|-----------------------------|-----------------------|
+| Pattern        | This Repo (aspect_rules_py)     | Standard rules_python            |
+| -------------- | ------------------------------- | -------------------------------- |
 | Load statement | `@aspect_rules_py//py:defs.bzl` | `@rules_python//python:defs.bzl` |
-| Dependency | `@pip//requests` | `requirement("requests")` |
-| Hub name | `pip` | Varies |
+| Dependency     | `@pip//requests`                | `requirement("requests")`        |
+| Hub name       | `pip`                           | Varies                           |
 
 ### Common Mistakes to Avoid
 
@@ -623,35 +625,35 @@ Vite build tool and bundling specialist.
 
 ```typescript
 // vite.config.ts
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   build: {
-    target: 'esnext',
-    minify: 'esbuild',
+    target: "esnext",
+    minify: "esbuild",
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
+          vendor: ["react", "react-dom"],
         },
       },
     },
   },
   // Pre-bundle heavy dependencies (used in this repo for maplibre-gl)
   optimizeDeps: {
-    include: ['maplibre-gl', 'three'],
+    include: ["maplibre-gl", "three"],
   },
   // Dev server proxy for API calls (used in this repo)
   server: {
     proxy: {
-      '/api': {
-        target: 'http://localhost:8000',
+      "/api": {
+        target: "http://localhost:8000",
         changeOrigin: true,
       },
-      '/ws': {
-        target: 'ws://localhost:8000',
+      "/ws": {
+        target: "ws://localhost:8000",
         ws: true,
       },
     },
@@ -663,12 +665,12 @@ export default defineConfig({
 
 **Note:** Most websites in this repo use JavaScript, not TypeScript.
 
-| Project | Stack | Language |
-|---------|-------|----------|
-| trips.jomcgi.dev | Vite + React 19 + Tailwind | JS |
-| ships.jomcgi.dev | Vite + React 19 + Tailwind | JS |
-| jomcgi.dev | Astro + React (not plain Vite) | JS |
-| charts/claude/frontend | Vite + React | JS |
+| Project                | Stack                          | Language |
+| ---------------------- | ------------------------------ | -------- |
+| trips.jomcgi.dev       | Vite + React 19 + Tailwind     | JS       |
+| ships.jomcgi.dev       | Vite + React 19 + Tailwind     | JS       |
+| jomcgi.dev             | Astro + React (not plain Vite) | JS       |
+| charts/claude/frontend | Vite + React                   | JS       |
 
 ### Common Mistakes to Avoid
 
@@ -719,6 +721,7 @@ Kubernetes debugging and troubleshooting specialist.
 ### Common Issues and Commands
 
 **Pod not starting:**
+
 ```bash
 # Check pod status and events
 kubectl describe pod <name> -n <namespace>
@@ -732,6 +735,7 @@ kubectl describe node <node-name>
 ```
 
 **Service connectivity:**
+
 ```bash
 # Check service endpoints
 kubectl get endpoints <service> -n <namespace>
@@ -744,6 +748,7 @@ kubectl run debug --rm -it --image=busybox -- wget -qO- http://<service>.<namesp
 ```
 
 **Storage issues:**
+
 ```bash
 # Check PVC status
 kubectl get pvc -n <namespace>
@@ -754,6 +759,7 @@ kubectl get volumes.longhorn.io -n longhorn-system
 ```
 
 **ArgoCD sync problems:**
+
 ```bash
 # Check application status
 kubectl get applications -n argocd
@@ -765,26 +771,26 @@ argocd app get <name> --show-operation
 
 ### Common Issues Reference
 
-| Symptom | Check | Common Cause |
-|---------|-------|--------------|
-| CrashLoopBackOff | `kubectl logs --previous` | App error, missing config |
-| OOMKilled (137) | `kubectl top pods` | Memory limit too low |
-| ImagePullBackOff | `kubectl describe pod` | Wrong image, missing creds |
-| Pending | `kubectl describe pod` | Insufficient resources, PVC binding |
-| ContainerCreating | `kubectl describe pod` | Image pull, secret access, volume mount |
-| Evicted | Node disk/memory pressure | Clean up resources, increase node capacity |
+| Symptom           | Check                     | Common Cause                               |
+| ----------------- | ------------------------- | ------------------------------------------ |
+| CrashLoopBackOff  | `kubectl logs --previous` | App error, missing config                  |
+| OOMKilled (137)   | `kubectl top pods`        | Memory limit too low                       |
+| ImagePullBackOff  | `kubectl describe pod`    | Wrong image, missing creds                 |
+| Pending           | `kubectl describe pod`    | Insufficient resources, PVC binding        |
+| ContainerCreating | `kubectl describe pod`    | Image pull, secret access, volume mount    |
+| Evicted           | Node disk/memory pressure | Clean up resources, increase node capacity |
 
 ### Common Namespaces (This Repo)
 
-| Namespace | Purpose |
-|-----------|---------|
-| `argocd` | GitOps controller |
-| `claude` | Claude Code deployment |
-| `signoz` | Observability stack |
-| `linkerd` | Service mesh |
-| `longhorn-system` | Distributed storage |
-| `cert-manager` | Certificate management |
-| `kyverno` | Policy engine |
+| Namespace         | Purpose                |
+| ----------------- | ---------------------- |
+| `argocd`          | GitOps controller      |
+| `claude`          | Claude Code deployment |
+| `signoz`          | Observability stack    |
+| `linkerd`         | Service mesh           |
+| `longhorn-system` | Distributed storage    |
+| `cert-manager`    | Certificate management |
+| `kyverno`         | Policy engine          |
 
 ### Common Mistakes to Avoid
 
@@ -819,12 +825,12 @@ Database schema and API migration specialist for safe, backwards-compatible chan
 
 ### Migration Strategies
 
-| Strategy | Use Case | Risk Level |
-|----------|----------|------------|
-| **Expand-Contract** | Schema changes, API evolution | Low |
-| **Blue-Green** | Full cutover with instant rollback | Medium |
-| **Rolling** | Gradual pod-by-pod updates | Low |
-| **Strangler Fig** | Incremental system replacement | Low |
+| Strategy            | Use Case                           | Risk Level |
+| ------------------- | ---------------------------------- | ---------- |
+| **Expand-Contract** | Schema changes, API evolution      | Low        |
+| **Blue-Green**      | Full cutover with instant rollback | Medium     |
+| **Rolling**         | Gradual pod-by-pod updates         | Low        |
+| **Strangler Fig**   | Incremental system replacement     | Low        |
 
 ### Expand-Contract Pattern (Preferred)
 
@@ -843,6 +849,7 @@ The safest approach for most migrations:
 ### Database Migration Patterns
 
 **Additive changes first:**
+
 ```sql
 -- Phase 1: Add new column (safe, backwards compatible)
 ALTER TABLE users ADD COLUMN email_verified BOOLEAN DEFAULT FALSE;
@@ -855,6 +862,7 @@ ALTER TABLE users DROP COLUMN verified_at;
 ```
 
 **Index changes:**
+
 ```sql
 -- Create index concurrently to avoid locks
 CREATE INDEX CONCURRENTLY idx_users_email ON users(email);
@@ -873,6 +881,7 @@ DROP INDEX CONCURRENTLY idx_users_email_old;
 ```
 
 **Deprecation headers:**
+
 ```yaml
 # Add to responses from deprecated endpoints
 Deprecation: true
@@ -890,14 +899,15 @@ Link: </api/v2/resource>; rel="successor-version"
 
 ### Rollback Strategies
 
-| Strategy | When to Use |
-|----------|-------------|
-| **Revert deployment** | Code-only changes, no schema changes |
-| **Feature flag off** | Gradual rollout with flags |
-| **Forward-fix** | Schema already migrated, fix bugs in new code |
-| **Dual-write rollback** | Stop writing to new, continue reading old |
+| Strategy                | When to Use                                   |
+| ----------------------- | --------------------------------------------- |
+| **Revert deployment**   | Code-only changes, no schema changes          |
+| **Feature flag off**    | Gradual rollout with flags                    |
+| **Forward-fix**         | Schema already migrated, fix bugs in new code |
+| **Dual-write rollback** | Stop writing to new, continue reading old     |
 
 **Testing rollback:**
+
 ```bash
 # Before deploying, verify rollback works
 1. Deploy new version
@@ -913,12 +923,14 @@ Link: </api/v2/resource>; rel="successor-version"
 features:
   new_payment_flow:
     enabled: true
-    percentage: 10  # Start with 10% of traffic
+    percentage: 10 # Start with 10% of traffic
+
 
 # Increase over time: 10% -> 25% -> 50% -> 100%
 ```
 
 **Flag lifecycle:**
+
 ```
 1. Add flag (default: off)
 2. Deploy code behind flag
@@ -1039,6 +1051,7 @@ kubectl get pods -A -o jsonpath='{range .items[*]}{.metadata.namespace}/{.metada
 ### Common Patterns
 
 **Daily health check script:**
+
 ```bash
 echo "=== Pod Issues ==="
 kubectl get pods -A | grep -v Running | grep -v Completed
@@ -1089,13 +1102,13 @@ contents:
   keyring:
     - https://packages.wolfi.dev/os/wolfi-signing.rsa.pub
   packages:
-    - ca-certificates-bundle  # Always include for HTTPS
-    - tzdata                   # If timezone handling needed
+    - ca-certificates-bundle # Always include for HTTPS
+    - tzdata # If timezone handling needed
     # Add only what you need
 
 archs:
-  - x86_64    # Required: Intel/AMD
-  - aarch64   # Required: ARM (M-series Mac, ARM nodes)
+  - x86_64 # Required: Intel/AMD
+  - aarch64 # Required: ARM (M-series Mac, ARM nodes)
 
 # Use entrypoint for Go binaries
 entrypoint:
@@ -1246,17 +1259,17 @@ use_repo(apko, "myservice_lock")
 
 ### Common Package Categories
 
-| Use Case | Packages |
-|----------|----------|
-| HTTPS/TLS | `ca-certificates-bundle` |
-| Timezone | `tzdata` |
-| Git operations | `git`, `openssh-client` |
-| Node.js runtime | `nodejs-22`, `npm` |
-| Bun runtime | `bun` |
-| Go binary | (no packages needed, just entrypoint) |
-| Python runtime | `python-3.12` |
-| Native builds | `build-base`, `python-3.12` (for node-gyp) |
-| Debugging | `busybox`, `curl` (remove for production) |
+| Use Case        | Packages                                   |
+| --------------- | ------------------------------------------ |
+| HTTPS/TLS       | `ca-certificates-bundle`                   |
+| Timezone        | `tzdata`                                   |
+| Git operations  | `git`, `openssh-client`                    |
+| Node.js runtime | `nodejs-22`, `npm`                         |
+| Bun runtime     | `bun`                                      |
+| Go binary       | (no packages needed, just entrypoint)      |
+| Python runtime  | `python-3.12`                              |
+| Native builds   | `build-base`, `python-3.12` (for node-gyp) |
+| Debugging       | `busybox`, `curl` (remove for production)  |
 
 ### Common Mistakes to Avoid
 
@@ -1314,11 +1327,11 @@ Quality assurance and hermetic testing specialist.
 
 ### Test Size Classification
 
-| Size | Scope | Timeout | Constraints |
-|------|-------|---------|-------------|
-| Small | Single function | 1 min | No I/O, no network |
-| Medium | Multiple classes | 5 min | Localhost only |
-| Large | Cross-service | 15 min | Real network |
+| Size   | Scope            | Timeout | Constraints        |
+| ------ | ---------------- | ------- | ------------------ |
+| Small  | Single function  | 1 min   | No I/O, no network |
+| Medium | Multiple classes | 5 min   | Localhost only     |
+| Large  | Cross-service    | 15 min  | Real network       |
 
 ### Hermetic Testing Principles
 
@@ -1364,7 +1377,8 @@ Developer documentation and technical writing specialist.
 ### README Templates by Type (This Repo)
 
 **Chart README** (see `charts/signoz/README.md`):
-```markdown
+
+````markdown
 # Chart Name
 
 One-sentence description.
@@ -1375,17 +1389,20 @@ One-sentence description.
 flowchart LR
     A[Component] --> B[Component]
 ```
+````
 
 ## Features
+
 - Feature 1
 - Feature 2
 
 ## Configuration
 
 | Value | Description | Default |
-|-------|-------------|---------|
+| ----- | ----------- | ------- |
 | `key` | Description | `value` |
-```
+
+````
 
 **Service README** (see `services/trips_api/README.md`):
 ```markdown
@@ -1402,19 +1419,21 @@ Overview with purpose.
 ## Data Model
 ```json
 { "id": "string", "name": "string" }
-```
+````
 
 ## Environment Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `API_KEY` | API key | Yes |
+| Variable  | Description | Required |
+| --------- | ----------- | -------- |
+| `API_KEY` | API key     | Yes      |
 
 ## Running Locally
+
 ```bash
 bazelisk run //services/myservice:myservice
 ```
-```
+
+````
 
 ### Mermaid Diagrams
 
@@ -1427,8 +1446,9 @@ flowchart LR
         A[Service A] --> B[Service B]
         B --> C[(Database)]
     end
-```
-```
+````
+
+````
 
 ### ADR Format
 
@@ -1448,7 +1468,7 @@ What is the change being proposed?
 
 ## Consequences
 What are the trade-offs?
-```
+````
 
 ### Common Mistakes to Avoid
 
@@ -1501,6 +1521,7 @@ Developer experience and CLI/API usability specialist.
 ### Error Message Pattern
 
 Every error should explain:
+
 1. **What** went wrong (plain language)
 2. **Why** it happened (context/cause)
 3. **How to fix** (actionable next steps)
@@ -1536,12 +1557,12 @@ User-facing web application UX and accessibility specialist.
 
 ### Accessibility (WCAG 2.2)
 
-| Requirement | Standard |
-|-------------|----------|
-| Color contrast (text) | 4.5:1 minimum (AA) |
-| Color contrast (large text) | 3:1 minimum |
-| Touch targets | 44x44px minimum |
-| Focus indicators | Visible, sufficient contrast |
+| Requirement                 | Standard                     |
+| --------------------------- | ---------------------------- |
+| Color contrast (text)       | 4.5:1 minimum (AA)           |
+| Color contrast (large text) | 3:1 minimum                  |
+| Touch targets               | 44x44px minimum              |
+| Focus indicators            | Visible, sufficient contrast |
 
 ### Form Design Best Practices
 
@@ -1553,22 +1574,22 @@ User-facing web application UX and accessibility specialist.
 
 ### Core Web Vitals
 
-| Metric | Target | Impact |
-|--------|--------|--------|
-| LCP | < 2.5s | Largest Contentful Paint |
-| INP | < 200ms | Interaction to Next Paint |
-| CLS | < 0.1 | Cumulative Layout Shift |
+| Metric | Target  | Impact                    |
+| ------ | ------- | ------------------------- |
+| LCP    | < 2.5s  | Largest Contentful Paint  |
+| INP    | < 200ms | Interaction to Next Paint |
+| CLS    | < 0.1   | Cumulative Layout Shift   |
 
 ### Common Mistakes to Avoid
 
-| Mistake | Fix |
-|---------|-----|
-| Low contrast text | Use contrast checker; 4.5:1 minimum |
-| Small touch targets | Minimum 44x44px |
+| Mistake                 | Fix                                   |
+| ----------------------- | ------------------------------------- |
+| Low contrast text       | Use contrast checker; 4.5:1 minimum   |
+| Small touch targets     | Minimum 44x44px                       |
 | Placeholder-only labels | Always use visible, persistent labels |
-| Validating while typing | Validate on blur or submit |
-| Color-only error states | Combine color with icons and text |
-| Layout shift on load | Reserve space for dynamic content |
+| Validating while typing | Validate on blur or submit            |
+| Color-only error states | Combine color with icons and text     |
+| Layout shift on load    | Reserve space for dynamic content     |
 
 ### Example Prompts
 
@@ -1594,6 +1615,7 @@ Code review specialist for PR validation and quality assurance in swarm mode.
 ### Pre-requisite Reading
 
 **Context-dependent:**
+
 - **Security-related changes:** Read `architecture/security.md` first
 - **New services:** Read `architecture/contributing.md` + `architecture/services.md`
 - **Observability changes:** Read `architecture/observability.md`
@@ -1601,12 +1623,14 @@ Code review specialist for PR validation and quality assurance in swarm mode.
 ### Code Review Checklist
 
 **Correctness:**
+
 - [ ] Code does what the PR description claims
 - [ ] Edge cases handled (nil/null, empty collections, boundaries)
 - [ ] Error handling is appropriate (not swallowing errors silently)
 - [ ] No obvious logic bugs or off-by-one errors
 
 **Security (see `security` agent for deep review):**
+
 - [ ] No secrets hardcoded (API keys, passwords, tokens)
 - [ ] Input validation present for user-provided data
 - [ ] No SQL injection, XSS, or command injection vectors
@@ -1614,24 +1638,28 @@ Code review specialist for PR validation and quality assurance in swarm mode.
 - [ ] NetworkPolicies restrict unnecessary traffic
 
 **Performance:**
+
 - [ ] No N+1 queries or unbounded loops
 - [ ] Resource limits set appropriately (memory/CPU)
 - [ ] Expensive operations not in hot paths
 - [ ] Appropriate caching or pagination for large datasets
 
 **Style and Consistency:**
+
 - [ ] Follows existing codebase patterns
 - [ ] Naming is clear and consistent
 - [ ] No dead code or commented-out blocks
 - [ ] Format checks pass (`format` command)
 
 **Testing:**
+
 - [ ] Tests cover the happy path
 - [ ] Tests cover error/edge cases
 - [ ] Tests are hermetic (no external dependencies)
 - [ ] Test names describe what they verify
 
 **GitOps Compliance (This Repo):**
+
 - [ ] No direct kubectl modifications
 - [ ] Changes are in Git, not imperative commands
 - [ ] Helm values follow existing patterns
@@ -1644,6 +1672,7 @@ Code review specialist for PR validation and quality assurance in swarm mode.
 **GitHub Copilot:** Available free on GitHub for additional code suggestions and explanations. Use the Copilot chat in PR view for quick questions about specific changes.
 
 **Review workflow:**
+
 1. Check Claude's automatic review comments first
 2. Use Copilot for clarification on unfamiliar code patterns
 3. Apply human judgment for context-specific issues and architectural decisions
@@ -1651,6 +1680,7 @@ Code review specialist for PR validation and quality assurance in swarm mode.
 ### Giving Actionable Feedback
 
 **Good feedback pattern:**
+
 ```
 [SEVERITY] What's wrong → Why it matters → How to fix
 
@@ -1661,6 +1691,7 @@ Add: `if err != nil { return fmt.Errorf("failed to fetch user: %w", err) }`
 ```
 
 **Severity levels:**
+
 - **MUST FIX** - Blocking: security issue, bug, or breaking change
 - **SHOULD FIX** - Important: performance, maintainability, or best practice violation
 - **CONSIDER** - Suggestion: minor improvement, style preference, or alternative approach
@@ -1691,20 +1722,21 @@ gh pr review <number> --request-changes --body "See comments for required fixes"
 
 ### Anti-Patterns to Avoid
 
-| Anti-Pattern | Problem | Instead |
-|--------------|---------|---------|
-| **Nitpicking** | Blocks PRs on trivial style issues | Focus on bugs, security, correctness |
-| **Style gatekeeping** | Enforcing personal preferences | Defer to automated formatters (`format`) |
-| **Not testing** | Reviewing only by reading | Pull the branch, run tests, verify behavior |
-| **Vague feedback** | "This looks wrong" | Explain what, why, and how to fix |
-| **Bikeshedding** | Long debates on minor choices | Accept either approach if both work |
-| **Scope creep** | Requesting unrelated changes | File separate issues for out-of-scope improvements |
-| **Rubber stamping** | Approving without reviewing | Actually read and test the changes |
-| **Review delay** | Letting PRs sit for days | Review within 24 hours or delegate |
+| Anti-Pattern          | Problem                            | Instead                                            |
+| --------------------- | ---------------------------------- | -------------------------------------------------- |
+| **Nitpicking**        | Blocks PRs on trivial style issues | Focus on bugs, security, correctness               |
+| **Style gatekeeping** | Enforcing personal preferences     | Defer to automated formatters (`format`)           |
+| **Not testing**       | Reviewing only by reading          | Pull the branch, run tests, verify behavior        |
+| **Vague feedback**    | "This looks wrong"                 | Explain what, why, and how to fix                  |
+| **Bikeshedding**      | Long debates on minor choices      | Accept either approach if both work                |
+| **Scope creep**       | Requesting unrelated changes       | File separate issues for out-of-scope improvements |
+| **Rubber stamping**   | Approving without reviewing        | Actually read and test the changes                 |
+| **Review delay**      | Letting PRs sit for days           | Review within 24 hours or delegate                 |
 
 ### Checklist by Change Type
 
 **Helm Chart Changes:**
+
 - [ ] `values.yaml` has sensible defaults
 - [ ] Templates render correctly: `helm template <release> charts/<chart>/`
 - [ ] Resource limits set
@@ -1712,6 +1744,7 @@ gh pr review <number> --request-changes --body "See comments for required fixes"
 - [ ] NetworkPolicy in place
 
 **Operator/Controller Changes:**
+
 - [ ] Single responsibility per controller
 - [ ] Proper finalizer cleanup
 - [ ] Status conditions updated
@@ -1719,12 +1752,14 @@ gh pr review <number> --request-changes --body "See comments for required fixes"
 - [ ] Reconcile returns are correct (see `golang` agent)
 
 **API Changes:**
+
 - [ ] Backward compatible or versioned
 - [ ] Input validation present
 - [ ] Error responses are structured
 - [ ] Documentation updated
 
 **CI/Build Changes:**
+
 - [ ] Tests pass locally with `bazelisk test //...`
 - [ ] No new non-hermetic dependencies
 - [ ] Cache-friendly (no timestamps, no random values)
@@ -1801,11 +1836,11 @@ metadata:
     pod-security.kubernetes.io/enforce: restricted
 ```
 
-| Profile | Use Case |
-|---------|----------|
+| Profile      | Use Case               |
+| ------------ | ---------------------- |
 | `privileged` | System components only |
-| `baseline` | Development/staging |
-| `restricted` | Production workloads |
+| `baseline`   | Development/staging    |
+| `restricted` | Production workloads   |
 
 ### Secure Pod SecurityContext
 
@@ -1940,13 +1975,13 @@ bazelisk clean --expunge && bazelisk test //...
 
 ### Common CI Failures
 
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Passes locally, fails CI | Non-hermetic test | Remove hardcoded paths, timestamps, env vars |
-| Flaky test | Race condition | Add synchronization, use `--runs_per_test=10` to verify |
-| Missing dependency | Implicit dep | Add explicit dep to BUILD file |
-| Timeout | Slow test | Optimize or increase timeout |
-| Format check | Uncommitted format | Run `format` and commit |
+| Issue                    | Cause              | Fix                                                     |
+| ------------------------ | ------------------ | ------------------------------------------------------- |
+| Passes locally, fails CI | Non-hermetic test  | Remove hardcoded paths, timestamps, env vars            |
+| Flaky test               | Race condition     | Add synchronization, use `--runs_per_test=10` to verify |
+| Missing dependency       | Implicit dep       | Add explicit dep to BUILD file                          |
+| Timeout                  | Slow test          | Optimize or increase timeout                            |
+| Format check             | Uncommitted format | Run `format` and commit                                 |
 
 ### Merge Criteria Checklist
 
@@ -1993,6 +2028,7 @@ Observability specialist for metrics, traces, logs, and alerting.
 ### Auto-Instrumentation (This Repo)
 
 Kyverno policies automatically inject OpenTelemetry instrumentation:
+
 - Pods in labeled namespaces get OTEL sidecars injected
 - Check policy: `kubectl describe clusterpolicy inject-otel-instrumentation`
 
@@ -2050,13 +2086,16 @@ annotations:
 # Alert: HighErrorRate
 
 ## Impact
+
 Users experiencing failed requests
 
 ## Investigation
+
 1. Check traces: `status.code = ERROR AND service.name = "affected-service"`
 2. Check recent deployments: `argocd app history <app>`
 
 ## Mitigation
+
 1. If recent deploy: Roll back via Git revert
 2. If dependency: Check upstream service health
 ```
@@ -2115,6 +2154,7 @@ Task: Add user preferences feature
 ```
 
 Advantages:
+
 - Each slice is independently deployable
 - Earlier feedback on full-stack integration
 - Reduces integration risk
@@ -2131,6 +2171,7 @@ Task: Add caching layer
 ```
 
 When to use horizontal:
+
 - Infrastructure changes (databases, caches, queues)
 - Shared libraries that multiple services depend on
 - Security foundations (auth, encryption)
@@ -2176,13 +2217,13 @@ Task E: Update documentation       → parallelizable (no code deps)
 
 Focus on complexity indicators, not time estimates:
 
-| Complexity | Indicators |
-|------------|------------|
-| **Trivial** | Single file change, well-understood pattern, no new dependencies |
-| **Small** | 2-5 files, follows existing patterns, minimal research needed |
-| **Medium** | 5-15 files, some new patterns, may need design decisions |
-| **Large** | 15+ files, new architecture, cross-cutting concerns, external integrations |
-| **Unknown** | Requires spike/research before estimation |
+| Complexity  | Indicators                                                                 |
+| ----------- | -------------------------------------------------------------------------- |
+| **Trivial** | Single file change, well-understood pattern, no new dependencies           |
+| **Small**   | 2-5 files, follows existing patterns, minimal research needed              |
+| **Medium**  | 5-15 files, some new patterns, may need design decisions                   |
+| **Large**   | 15+ files, new architecture, cross-cutting concerns, external integrations |
+| **Unknown** | Requires spike/research before estimation                                  |
 
 **Complexity Drivers**
 
@@ -2202,6 +2243,7 @@ Every subtask must have clear, verifiable acceptance criteria:
 ## Subtask: Add health check endpoint
 
 ### Acceptance Criteria
+
 - [ ] GET /healthz returns 200 when service is healthy
 - [ ] GET /healthz returns 503 when database is unreachable
 - [ ] Response includes {"status": "ok|degraded|unhealthy"}
@@ -2220,16 +2262,16 @@ Every subtask must have clear, verifiable acceptance criteria:
 
 ### Anti-Patterns to Avoid
 
-| Anti-Pattern | Problem | Fix |
-|--------------|---------|-----|
-| **Over-planning** | Spending more time planning than executing; analysis paralysis | Limit planning to 10-15% of expected work; start with rough plan and refine |
-| **Under-specifying** | Vague tasks lead to rework and scope creep | Every task needs acceptance criteria and clear boundaries |
-| **Ignoring dependencies** | Parallel work collides; blocked agents wait | Map dependencies before assigning; use `blockedBy` in tasks |
-| **Premature decomposition** | Breaking down before understanding the problem | Do spike/research task first for unknowns |
-| **Uniform sizing** | All tasks same size regardless of complexity | Match task size to agent capability; smaller is usually better |
-| **Hidden coupling** | Tasks appear independent but share state | Identify shared files, configs, and resources explicitly |
-| **Kitchen sink tasks** | One task tries to do too much | Single responsibility; one clear outcome per task |
-| **Missing integration task** | Components built but never wired together | Always include integration/verification as final task |
+| Anti-Pattern                 | Problem                                                        | Fix                                                                         |
+| ---------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| **Over-planning**            | Spending more time planning than executing; analysis paralysis | Limit planning to 10-15% of expected work; start with rough plan and refine |
+| **Under-specifying**         | Vague tasks lead to rework and scope creep                     | Every task needs acceptance criteria and clear boundaries                   |
+| **Ignoring dependencies**    | Parallel work collides; blocked agents wait                    | Map dependencies before assigning; use `blockedBy` in tasks                 |
+| **Premature decomposition**  | Breaking down before understanding the problem                 | Do spike/research task first for unknowns                                   |
+| **Uniform sizing**           | All tasks same size regardless of complexity                   | Match task size to agent capability; smaller is usually better              |
+| **Hidden coupling**          | Tasks appear independent but share state                       | Identify shared files, configs, and resources explicitly                    |
+| **Kitchen sink tasks**       | One task tries to do too much                                  | Single responsibility; one clear outcome per task                           |
+| **Missing integration task** | Components built but never wired together                      | Always include integration/verification as final task                       |
 
 ### Planning Checklist
 

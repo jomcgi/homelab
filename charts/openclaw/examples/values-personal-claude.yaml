@@ -40,12 +40,12 @@ whatsapp:
   enabled: true
   ## WhatsApp uses QR code auth, not 1Password - credentials saved to PVC
   secret:
-    type: "manual"  # WhatsApp credentials are created via QR scan, not pre-provisioned
+    type: "manual" # WhatsApp credentials are created via QR scan, not pre-provisioned
   settings:
     ## DM policy: "pairing" requires approval code, "allowlist" for known contacts only
     dmPolicy: "pairing"
     groups:
-      enabled: false  # Disable group chats for personal use
+      enabled: false # Disable group chats for personal use
 
 ## Network policy - allow external HTTPS (Anthropic API + WhatsApp servers)
 networkPolicy:
@@ -76,4 +76,4 @@ cloudflare:
     sessionDuration: "24h"
     ## Only you can access your personal assistant
     allowedEmails:
-      - "your@email.com"  # Replace with your email
+      - "your@email.com" # Replace with your email

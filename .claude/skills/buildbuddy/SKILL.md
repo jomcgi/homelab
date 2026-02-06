@@ -18,11 +18,13 @@ Reference: [BuildBuddy Authentication Guide](https://www.buildbuddy.io/docs/guid
 Base URL: `https://app.buildbuddy.io/api/v1`
 
 All requests use **POST** with JSON body containing a selector:
+
 ```json
-{"selector": {"invocation_id": "<invocation_id>"}}
+{ "selector": { "invocation_id": "<invocation_id>" } }
 ```
 
 Available endpoints:
+
 - `/GetInvocation` - Retrieve invocation details
 - `/GetLog` - Fetch build logs
 - `/GetTarget` - Access target information

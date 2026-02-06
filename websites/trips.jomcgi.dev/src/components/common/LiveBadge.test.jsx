@@ -56,7 +56,7 @@ describe("LiveBadge", () => {
 
     it("shows correct title attribute in compact mode", () => {
       const { rerender } = render(
-        <LiveBadge isLive={false} onToggle={() => {}} compact={true} />
+        <LiveBadge isLive={false} onToggle={() => {}} compact={true} />,
       );
 
       expect(screen.getByTitle("Go Live")).toBeInTheDocument();
@@ -70,7 +70,9 @@ describe("LiveBadge", () => {
       const user = userEvent.setup();
       const handleToggle = vi.fn();
 
-      render(<LiveBadge isLive={false} onToggle={handleToggle} compact={true} />);
+      render(
+        <LiveBadge isLive={false} onToggle={handleToggle} compact={true} />,
+      );
 
       await user.click(screen.getByRole("button"));
 

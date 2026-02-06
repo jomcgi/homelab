@@ -61,6 +61,7 @@ manifest:
     dunamai: dunamai
     edfc647aaf02b20aa651__mypyc: mypy
     fastapi: fastapi
+    feedparser: feedparser
     fiona: fiona
     frozenlist: frozenlist
     funcy: funcy
@@ -250,6 +251,7 @@ manifest:
     tabulate: tabulate
     timelength: timelength
     tinydb: tinydb
+    trafilatura: trafilatura
     typeguard: typeguard
     typer: typer
     typing_extensions: typing_extensions

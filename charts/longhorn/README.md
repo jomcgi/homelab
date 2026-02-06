@@ -40,6 +40,7 @@ flowchart TB
 ## Use Cases
 
 ### Database Persistence
+
 ```yaml
 # PostgreSQL with 3-replica storage
 apiVersion: v1
@@ -57,11 +58,13 @@ spec:
 ```
 
 **Configuration:**
+
 - 3 replicas for high availability
 - Automatic failover if node goes down
 - Snapshot before upgrades
 
 ### Shared Configuration Data
+
 ```yaml
 # Config files shared across multiple pods
 apiVersion: v1
@@ -69,7 +72,7 @@ kind: PersistentVolumeClaim
 metadata:
   name: shared-config
 spec:
-  accessModes: [ReadWriteMany]  # Multiple pods can read/write
+  accessModes: [ReadWriteMany] # Multiple pods can read/write
   storageClassName: longhorn-rwx
   resources:
     requests:
@@ -77,11 +80,13 @@ spec:
 ```
 
 **Use when:**
+
 - Multiple pods need to access the same files
 - Read-heavy workloads
 - Configuration management across services
 
 ### Stateful Application Data
+
 ```yaml
 # SigNoz ClickHouse storage
 apiVersion: v1
@@ -99,6 +104,7 @@ spec:
 ```
 
 **Configuration:**
+
 - Fast storage class with higher IOPS
 - 2 replicas for performance (less overhead than 3)
 - Daily backups to S3
@@ -106,6 +112,7 @@ spec:
 ## Replica Configuration
 
 ### Default Replica Count (3)
+
 ```yaml
 # Implicit in all PVCs using longhorn StorageClass
 kind: PersistentVolumeClaim
@@ -117,12 +124,14 @@ spec:
 **Tolerance:** Can lose 2 nodes before data loss
 
 **Trade-offs:**
+
 - ✅ Maximum availability
 - ✅ Survives multiple node failures
 - ❌ 3x storage overhead
 - ❌ Higher write latency (3-way sync)
 
 ### Reduced Replica Count (2)
+
 ```yaml
 # Custom StorageClass for performance
 apiVersion: storage.k8s.io/v1
@@ -138,11 +147,13 @@ parameters:
 **Tolerance:** Can lose 1 node
 
 **Use when:**
+
 - Data can be rebuilt from source (caches, logs)
 - Performance is critical
 - Storage space is limited
 
 ### Single Replica (1)
+
 ```yaml
 # Non-critical ephemeral data
 apiVersion: storage.k8s.io/v1
@@ -158,6 +169,7 @@ parameters:
 **Tolerance:** No redundancy - data lost if node fails
 
 **Use when:**
+
 - Temporary data only
 - Data is disposable or easily recreated
 - Maximum performance needed (no replication overhead)
@@ -176,6 +188,7 @@ defaultSettings:
 ```
 
 **Secret:**
+
 ```yaml
 apiVersion: v1
 kind: Secret
@@ -190,11 +203,13 @@ stringData:
 ### Manual Backup
 
 Via Longhorn UI:
+
 1. Navigate to **Volume** → Select volume
 2. Click **Create Backup**
 3. Backup uploaded to S3
 
 Via CLI:
+
 ```bash
 kubectl -n longhorn-system exec -it deploy/longhorn-manager -- \
   longhorn-manager backup create <volume-name>
@@ -212,26 +227,28 @@ metadata:
   namespace: longhorn-system
 spec:
   task: backup
-  cron: "0 2 * * *"  # 2 AM daily
-  retain: 7          # Keep 7 backups
+  cron: "0 2 * * *" # 2 AM daily
+  retain: 7 # Keep 7 backups
   concurrency: 2
   labels:
-    app: postgres    # Only volumes with this label
+    app: postgres # Only volumes with this label
 ```
 
 **Apply to volumes:**
+
 ```yaml
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: postgres-data
   labels:
-    app: postgres  # Matches RecurringJob selector
+    app: postgres # Matches RecurringJob selector
 ```
 
 ### Restore from Backup
 
 1. List available backups:
+
    ```bash
    kubectl -n longhorn-system get backupvolumes
    ```
@@ -290,12 +307,13 @@ allowVolumeExpansion: true
 parameters:
   numberOfReplicas: "3"
   dataLocality: "best-effort"
-  diskSelector: "ssd,fast"  # Only use nodes with these tags
+  diskSelector: "ssd,fast" # Only use nodes with these tags
   nodeSelector: "storage,high-performance"
   fsType: "ext4"
 ```
 
 **Tag nodes:**
+
 ```bash
 kubectl label nodes node1 storage=true
 kubectl label nodes node1 high-performance=true
@@ -306,6 +324,7 @@ kubectl label nodes node1 high-performance=true
 ### Expand Volume
 
 1. Edit PVC:
+
    ```bash
    kubectl patch pvc postgres-data -p '{"spec":{"resources":{"requests":{"storage":"50Gi"}}}}'
    ```
@@ -358,6 +377,7 @@ kubectl -n longhorn-system get volumes
 ```
 
 **Volume states:**
+
 - `attached` - Mounted to a pod
 - `detached` - Not in use
 - `degraded` - Missing replicas (rebuilding)
@@ -370,6 +390,7 @@ kubectl -n longhorn-system get replicas
 ```
 
 **Replica states:**
+
 - `running` - Healthy
 - `rebuilding` - Recovering from failure
 - `error` - Failed, needs attention
@@ -388,6 +409,7 @@ kubectl -n longhorn-system get backups
 **Symptom:** Pod pending, volume shows "Attaching" state
 
 **Solution:**
+
 ```bash
 # Check Longhorn manager logs
 kubectl -n longhorn-system logs deploy/longhorn-manager
@@ -402,6 +424,7 @@ kubectl -n longhorn-system annotate volume/<volume-name> \
 **Symptom:** Volume degraded for extended period
 
 **Solution:**
+
 ```bash
 # Check instance-manager logs
 kubectl -n longhorn-system logs deploy/instance-manager-<node>
@@ -415,7 +438,9 @@ kubectl -n longhorn-system delete replica <replica-name>
 **Symptom:** Cannot create new volumes, "insufficient storage" error
 
 **Solution:**
+
 1. Check node storage:
+
    ```bash
    kubectl -n longhorn-system get nodes -o wide
    ```
@@ -429,14 +454,14 @@ kubectl -n longhorn-system delete replica <replica-name>
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
-| `defaultSettings.backupTarget` | S3 bucket URL for backups | `""` |
-| `defaultSettings.defaultReplicaCount` | Default replica count | `3` |
-| `defaultSettings.storageMinimalAvailablePercentage` | Min free space % | `25` |
-| `defaultSettings.upgradeChecker` | Check for updates | `true` |
-| `persistence.defaultClass` | Set as default StorageClass | `true` |
-| `persistence.reclaimPolicy` | PV reclaim policy | `Delete` |
+| Value                                               | Description                 | Default  |
+| --------------------------------------------------- | --------------------------- | -------- |
+| `defaultSettings.backupTarget`                      | S3 bucket URL for backups   | `""`     |
+| `defaultSettings.defaultReplicaCount`               | Default replica count       | `3`      |
+| `defaultSettings.storageMinimalAvailablePercentage` | Min free space %            | `25`     |
+| `defaultSettings.upgradeChecker`                    | Check for updates           | `true`   |
+| `persistence.defaultClass`                          | Set as default StorageClass | `true`   |
+| `persistence.reclaimPolicy`                         | PV reclaim policy           | `Delete` |
 
 Full configuration: See [longhorn chart values](https://github.com/longhorn/charts/tree/master/charts/longhorn)
 
@@ -449,6 +474,7 @@ kubectl -n longhorn-system port-forward svc/longhorn-frontend 8080:80
 Navigate to http://localhost:8080
 
 **UI Features:**
+
 - Volume management
 - Backup/restore
 - Node/disk management

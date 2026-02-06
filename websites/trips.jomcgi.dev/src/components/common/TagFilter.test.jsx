@@ -12,7 +12,7 @@ describe("TagFilter", () => {
         availableTags={[]}
         selectedTags={[]}
         onTagsChange={() => {}}
-      />
+      />,
     );
 
     expect(container.firstChild).toBeNull();
@@ -24,7 +24,7 @@ describe("TagFilter", () => {
         availableTags={availableTags}
         selectedTags={[]}
         onTagsChange={() => {}}
-      />
+      />,
     );
 
     availableTags.forEach((tag) => {
@@ -38,7 +38,7 @@ describe("TagFilter", () => {
         availableTags={availableTags}
         selectedTags={["hiking"]}
         onTagsChange={() => {}}
-      />
+      />,
     );
 
     const hikingButton = screen.getByRole("button", { name: "hiking" });
@@ -54,7 +54,7 @@ describe("TagFilter", () => {
         availableTags={availableTags}
         selectedTags={[]}
         onTagsChange={handleTagsChange}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "hiking" }));
@@ -71,7 +71,7 @@ describe("TagFilter", () => {
         availableTags={availableTags}
         selectedTags={["hiking", "camping"]}
         onTagsChange={handleTagsChange}
-      />
+      />,
     );
 
     await user.click(screen.getByRole("button", { name: "hiking" }));
@@ -85,7 +85,7 @@ describe("TagFilter", () => {
         availableTags={availableTags}
         selectedTags={["hiking"]}
         onTagsChange={() => {}}
-      />
+      />,
     );
 
     expect(screen.getByTitle("Clear filters")).toBeInTheDocument();
@@ -100,7 +100,7 @@ describe("TagFilter", () => {
         availableTags={availableTags}
         selectedTags={["hiking", "camping"]}
         onTagsChange={handleTagsChange}
-      />
+      />,
     );
 
     await user.click(screen.getByTitle("Clear filters"));
@@ -116,7 +116,7 @@ describe("TagFilter", () => {
           selectedTags={[]}
           onTagsChange={() => {}}
           isMobile={true}
-        />
+        />,
       );
 
       expect(screen.getByTitle("Filter by tags")).toBeInTheDocument();
@@ -129,7 +129,7 @@ describe("TagFilter", () => {
           selectedTags={["hiking", "camping"]}
           onTagsChange={() => {}}
           isMobile={true}
-        />
+        />,
       );
 
       expect(screen.getByText("2")).toBeInTheDocument();
@@ -144,7 +144,7 @@ describe("TagFilter", () => {
           selectedTags={[]}
           onTagsChange={() => {}}
           isMobile={true}
-        />
+        />,
       );
 
       await user.click(screen.getByTitle("Filter by tags"));

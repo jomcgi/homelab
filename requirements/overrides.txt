@@ -1,0 +1,10 @@
+# Override lxml[html-clean] -> lxml to break circular dependency in Bazel.
+#
+# trafilatura depends on lxml[html-clean], which causes:
+#   lxml -> lxml-html-clean -> lxml (cycle)
+# Bazel's rules_python pip targets cannot handle dependency cycles.
+#
+# This override strips the [html-clean] extra. We add lxml-html-clean
+# as an explicit dep where needed (extractors BUILD) so it's still
+# available at runtime.
+lxml==6.0.2

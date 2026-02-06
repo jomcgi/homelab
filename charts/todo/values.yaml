@@ -15,7 +15,7 @@ imagePullSecret:
 git:
   repo: https://github.com/jomcgi/homelab.git
   branch: main
-  dataPath: data/todo  # Subdirectory in repo for todo data
+  dataPath: data/todo # Subdirectory in repo for todo data
   # Token secret for git authentication (created by OnePasswordItem)
   tokenSecret:
     name: git-token
@@ -38,7 +38,7 @@ cloudflare:
 
 persistence:
   enabled: true
-  storageClass: ""  # Use cluster default
+  storageClass: "" # Use cluster default
   size: 1Gi
 
 resources:

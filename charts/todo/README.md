@@ -36,16 +36,16 @@ State is persisted to a Git repository, enabling version-controlled task history
 
 ## Configuration
 
-| Value | Description | Default |
-|-------|-------------|---------|
-| `git.repository` | Git repository URL (SSH) | `""` (required) |
-| `git.branch` | Branch for commits | `main` |
-| `git.sshSecretName` | Secret containing SSH deploy key | `todo-git-ssh` |
-| `persistence.enabled` | Enable PVC for git data | `true` |
-| `persistence.size` | PVC size | `1Gi` |
-| `scheduler.timezone` | Timezone for daily/weekly resets | `America/Los_Angeles` |
-| `public.enabled` | Enable public read-only interface | `true` |
-| `admin.enabled` | Enable admin edit interface | `true` |
+| Value                 | Description                       | Default               |
+| --------------------- | --------------------------------- | --------------------- |
+| `git.repository`      | Git repository URL (SSH)          | `""` (required)       |
+| `git.branch`          | Branch for commits                | `main`                |
+| `git.sshSecretName`   | Secret containing SSH deploy key  | `todo-git-ssh`        |
+| `persistence.enabled` | Enable PVC for git data           | `true`                |
+| `persistence.size`    | PVC size                          | `1Gi`                 |
+| `scheduler.timezone`  | Timezone for daily/weekly resets  | `America/Los_Angeles` |
+| `public.enabled`      | Enable public read-only interface | `true`                |
+| `admin.enabled`       | Enable admin edit interface       | `true`                |
 
 ## Deployment
 
@@ -90,16 +90,16 @@ metadata:
   namespace: todo
 spec:
   rules:
-  - host: todo.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: todo
-            port:
-              name: public
+    - host: todo.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: todo
+                port:
+                  name: public
 ```
 
 For admin access (protected by Cloudflare Access):
@@ -115,16 +115,16 @@ metadata:
     external-dns.alpha.kubernetes.io/cloudflare-proxied: "true"
 spec:
   rules:
-  - host: todo-admin.example.com
-    http:
-      paths:
-      - path: /
-        pathType: Prefix
-        backend:
-          service:
-            name: todo
-            port:
-              name: admin
+    - host: todo-admin.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: todo
+                port:
+                  name: admin
 ```
 
 ## Usage
@@ -132,6 +132,7 @@ spec:
 ### Public Interface
 
 Navigate to `https://todo.example.com` to view:
+
 - Current weekly goal
 - Today's three tasks (strikethrough indicates completed)
 - Historical archive (use arrow keys to navigate previous 14 days)
@@ -139,6 +140,7 @@ Navigate to `https://todo.example.com` to view:
 ### Admin Interface
 
 Navigate to `https://todo-admin.example.com` to:
+
 - Edit weekly goal and daily tasks
 - Check/uncheck completion status
 - Manually trigger daily or weekly resets
@@ -148,6 +150,7 @@ Changes auto-save after 500ms of inactivity.
 ### Automatic Resets
 
 The internal scheduler automatically triggers:
+
 - **Daily reset** (midnight PST, Monday-Friday) - Archives current day, clears daily tasks
 - **Weekly reset** (Saturday midnight PST) - Archives current day, clears both weekly and daily tasks
 
@@ -157,14 +160,14 @@ See [IMPLEMENTATION.md](./IMPLEMENTATION.md) for complete API documentation and 
 
 ### Quick Reference
 
-| Endpoint | Method | Purpose |
-|----------|--------|---------|
-| `/api/weekly` | GET | Get current weekly goal |
-| `/api/daily` | GET | Get current daily tasks |
-| `/api/todo` | PUT | Update full state |
-| `/api/reset/daily` | POST | Trigger daily reset |
-| `/api/reset/weekly` | POST | Trigger weekly reset |
-| `/api/dates` | GET | Get available historical dates |
+| Endpoint            | Method | Purpose                        |
+| ------------------- | ------ | ------------------------------ |
+| `/api/weekly`       | GET    | Get current weekly goal        |
+| `/api/daily`        | GET    | Get current daily tasks        |
+| `/api/todo`         | PUT    | Update full state              |
+| `/api/reset/daily`  | POST   | Trigger daily reset            |
+| `/api/reset/weekly` | POST   | Trigger weekly reset           |
+| `/api/dates`        | GET    | Get available historical dates |
 
 ## Troubleshooting
 
@@ -201,6 +204,7 @@ git log --oneline
 ## Development
 
 See [IMPLEMENTATION.md](./IMPLEMENTATION.md) for:
+
 - Detailed architecture diagrams
 - Data contract specifications
 - Design system (Catppuccin Latte theme)

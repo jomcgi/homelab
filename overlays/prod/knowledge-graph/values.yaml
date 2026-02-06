@@ -1,0 +1,22 @@
+imagePullSecret:
+  enabled: true
+
+scraper:
+  image:
+    tag: main
+
+embedder:
+  image:
+    tag: main
+
+mcp:
+  image:
+    tag: main
+
+seaweedfs:
+  endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+
+sources:
+  - url: "https://example.com/feed.xml"
+    type: "rss"
+    name: "Example Blog"
