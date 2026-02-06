@@ -11,21 +11,21 @@ cloudflare:
   publicHostname: todo.jomcgi.dev
   adminHostname: todo-admin.jomcgi.dev
   allowedEmails:
-    - joe@jomcgi.dev
+  - joe@jomcgi.dev
 persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
 image:
-  tag: main@sha256:0139d48406f2f313386eb6b34fb5fa080cbc61e6b9d22e9fc6d7fe4faa692261
+  tag: main@sha256:bbd3d0dcc2b99838e9216603e3ba7b1d5cb20d782021345d2d644dccb6c89594
   repository: ghcr.io/jomcgi/homelab/charts/todo
 # Prefer to schedule on the same node to avoid volume reattachment delays
 affinity:
   podAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: todo
-              app.kubernetes.io/instance: todo
-          topologyKey: kubernetes.io/hostname
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: todo
+            app.kubernetes.io/instance: todo
+        topologyKey: kubernetes.io/hostname
