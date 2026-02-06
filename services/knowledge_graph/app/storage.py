@@ -7,6 +7,8 @@ import logging
 from datetime import datetime
 
 import boto3
+from botocore import UNSIGNED
+from botocore.config import Config
 from botocore.exceptions import ClientError
 
 from services.knowledge_graph.app.models import Document, content_hash
@@ -22,6 +24,8 @@ class S3Storage:
         if access_key:
             kwargs["aws_access_key_id"] = access_key
             kwargs["aws_secret_access_key"] = secret_key
+        else:
+            kwargs["config"] = Config(signature_version=UNSIGNED)
         self._client = boto3.client("s3", **kwargs)
         self._bucket = bucket
         self._ensure_bucket()
