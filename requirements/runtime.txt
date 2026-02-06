@@ -1063,6 +1063,7 @@ lxml==6.0.2 \
     --hash=sha256:fbc74f42c3525ac4ffa4b89cbdd00057b6196bcefe8bce794abd42d33a018092 \
     --hash=sha256:fe659f6b5d10fb5a17f00a50eb903eb277a71ee35df4615db573c069bcf967ac
     # via
+    #   --override requirements/overrides.txt
     #   htmldate
     #   justext
     #   lxml-html-clean
@@ -1070,7 +1071,7 @@ lxml==6.0.2 \
 lxml-html-clean==0.4.3 \
     --hash=sha256:63fd7b0b9c3a2e4176611c2ca5d61c4c07ffca2de76c14059a81a2825833731e \
     --hash=sha256:c9df91925b00f836c807beab127aac82575110eacff54d0a75187914f1bd9d8c
-    # via trafilatura
+    # via homelab (pyproject.toml)
 mako==1.3.10 \
     --hash=sha256:99579a6f39583fa7e5630a28c3c1f440e4e97a414b80372649c0ce338da2ea28 \
     --hash=sha256:baef24a52fc4fc514a0887ac600f9f1cff3d82c61d4d700a1fa84d597b88db59

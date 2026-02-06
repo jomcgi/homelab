@@ -68,6 +68,7 @@ dependencies = [
     # Knowledge Graph Scraper dependencies
     "trafilatura~=1.12",
     "feedparser~=6.0",
+    "lxml-html-clean",  # Required by trafilatura; added explicitly because lxml[html-clean] creates a Bazel cycle
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
