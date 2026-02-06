@@ -65,6 +65,9 @@ dependencies = [
     "constructs~=10.0",
     # XML parsing with XXE protection
     "defusedxml~=0.7",
+    # Knowledge Graph Scraper dependencies
+    "trafilatura~=1.12",
+    "feedparser~=6.0",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/

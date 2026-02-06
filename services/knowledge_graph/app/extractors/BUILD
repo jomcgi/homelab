@@ -1,0 +1,61 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+
+# gazelle:resolve py services.knowledge_graph.app.models //services/knowledge_graph/app:models
+# gazelle:resolve py services.knowledge_graph.app.extractors.base //services/knowledge_graph/app/extractors:base
+# gazelle:resolve py services.knowledge_graph.app.extractors.html_extractor //services/knowledge_graph/app/extractors:html_extractor
+# gazelle:resolve py services.knowledge_graph.app.extractors.feed_extractor //services/knowledge_graph/app/extractors:feed_extractor
+
+py_library(
+    name = "extractors",
+    srcs = [
+        "__init__.py",
+        "base.py",
+        "feed_extractor.py",
+        "html_extractor.py",
+    ],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":base",
+        ":feed_extractor",
+        ":html_extractor",
+        "//services/knowledge_graph/app:models",
+        "@pip//feedparser",
+        "@pip//httpx",
+        "@pip//trafilatura",
+    ],
+)
+
+py_library(
+    name = "base",
+    srcs = ["base.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        "//services/knowledge_graph/app:models",
+        "@pip//httpx",
+    ],
+)
+
+py_library(
+    name = "html_extractor",
+    srcs = ["html_extractor.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":base",
+        "//services/knowledge_graph/app:models",
+        "@pip//httpx",
+        "@pip//trafilatura",
+    ],
+)
+
+py_library(
+    name = "feed_extractor",
+    srcs = ["feed_extractor.py"],
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":base",
+        "//services/knowledge_graph/app:models",
+        "@pip//feedparser",
+        "@pip//httpx",
+        "@pip//trafilatura",
+    ],
+)

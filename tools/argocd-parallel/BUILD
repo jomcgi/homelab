@@ -31,6 +31,7 @@ filegroup(
         "//overlays/prod/cloudflare-tunnel:render_manifests",
         "//overlays/prod/gh-arc-controller:render_manifests",
         "//overlays/prod/gh-arc-runners:render_manifests",
+        "//overlays/prod/knowledge-graph:render_manifests",
         "//overlays/prod/nats:render_manifests",
         "//overlays/prod/openclaw-friends:render_manifests",
         "//overlays/prod/openclaw-personal:render_manifests",
