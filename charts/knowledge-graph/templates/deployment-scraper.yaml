@@ -25,9 +25,8 @@ spec:
         - name: ghcr-imagepull-secret
       {{- end }}
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 65534
-        runAsGroup: 65534
+        # Note: Running as root because aspect_rules_py venv needs to write
+        # to the installation directory. TODO: Fix image to run as non-root
         seccompProfile:
           type: RuntimeDefault
       containers:
