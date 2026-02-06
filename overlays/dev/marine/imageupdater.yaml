@@ -14,7 +14,7 @@ spec:
           manifestTargets:
             helm:
               name: ingest.image.repository
-              tag: ingest.image.digest
+              tag: ingest.image.tag
         - alias: api
           commonUpdateSettings:
             updateStrategy: digest
@@ -23,7 +23,7 @@ spec:
           manifestTargets:
             helm:
               name: api.image.repository
-              tag: api.image.digest
+              tag: api.image.tag
         - alias: frontend
           commonUpdateSettings:
             updateStrategy: digest
@@ -32,7 +32,7 @@ spec:
           manifestTargets:
             helm:
               name: frontend.image.repository
-              tag: frontend.image.digest
+              tag: frontend.image.tag
       namePattern: marine
   namespace: argocd
   writeBackConfig:
