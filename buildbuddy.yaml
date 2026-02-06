@@ -30,9 +30,9 @@ actions:
             exit 1
           fi
 
-  # Test - runs standard test suite (no image push)
-  # Image push is MANUAL only via: bazel run //models:<model>.push
-  - name: "Test"
+  # Test and push - runs test suite, pushes service images on main branch
+  # Model images are pushed manually via: bazel run //models:<model>.push
+  - name: "Test and push"
     container_image: "ubuntu-24.04"
     resource_requests:
       disk: "75GB"
@@ -52,6 +52,22 @@ actions:
           fi
           # Exclude external tests (GHCR validation) - run in separate job
           bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
+
+      # Push service images (excludes models) on main branch only
+      - run: |
+          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+            exit 0
+          fi
+
+          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+          if [ "$current_branch" != "main" ]; then
+            echo "Skipping image push on non-main branch: $current_branch"
+            exit 0
+          fi
+
+          # GHCR_TOKEN set in BuildBuddy Settings → Secrets
+          echo "$GHCR_TOKEN" | bazel run @crane//:crane -- auth login ghcr.io -u jomcgi --password-stdin
+          bazel run //images:push_services --config=ci --stamp
 
   # GHCR Validation - validates pushed images without downloading blobs
   # Runs on ALL branches, applies branch-specific tag after validation
