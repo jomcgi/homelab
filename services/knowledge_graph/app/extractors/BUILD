@@ -43,6 +43,7 @@ py_library(
         ":base",
         "//services/knowledge_graph/app:models",
         "@pip//httpx",
+        "@pip//lxml_html_clean",
         "@pip//trafilatura",
     ],
 )
@@ -56,6 +57,7 @@ py_library(
         "//services/knowledge_graph/app:models",
         "@pip//feedparser",
         "@pip//httpx",
+        "@pip//lxml_html_clean",
         "@pip//trafilatura",
     ],
 )
