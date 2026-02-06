@@ -87,7 +87,7 @@ actions:
           # Run GHCR validation tests (tagged "ghcr")
           # Validates latest timestamp-tagged images before applying branch tag
           # Enable network access for RBE runners (required for GHCR API calls)
-          bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI --remote_default_exec_properties=dockerNetwork=bridge
+          bazel test //... --config=ci --test_tag_filters=ghcr --test_env=GITHUB_TOKEN --test_env=CI --remote_header=x-buildbuddy-platform.dockerNetwork=bridge
 
       # Tag validated images with branch name (e.g., "main", "fix/some-feature")
       - run: |
