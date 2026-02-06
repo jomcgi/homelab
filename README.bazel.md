@@ -42,12 +42,12 @@ See [Run Tools Installed by Bazel](https://blog.aspect.build/run-tools-installed
 
 ## Dependency Management
 
-| Language   | Add New Import | Add New Dependency | Update Lock Files | Update BUILD Files |
-|------------|----------------|--------------------|--------------------|-------------------|
-| **npm**    | Add to source  | `$(bazel info workspace)/tools/pnpm add <pkg>` | Automatic (pnpm) | `bazel run gazelle` |
-| **Python** | Add to source  | 1. Edit `pyproject.toml`<br>2. Run `./tools/repin` | `./tools/repin` | `bazel run gazelle` |
-| **Go**     | Add to source  | 1. `go mod tidy -v`<br>2. `bazel mod tidy` | `go mod tidy -v` | `bazel run gazelle` |
-| **Rust**   | Add to source  | `cargo add <crate>` | Automatic (cargo) | `bazel run gazelle` |
+| Language   | Add New Import | Add New Dependency                                 | Update Lock Files | Update BUILD Files  |
+| ---------- | -------------- | -------------------------------------------------- | ----------------- | ------------------- |
+| **npm**    | Add to source  | `$(bazel info workspace)/tools/pnpm add <pkg>`     | Automatic (pnpm)  | `bazel run gazelle` |
+| **Python** | Add to source  | 1. Edit `pyproject.toml`<br>2. Run `./tools/repin` | `./tools/repin`   | `bazel run gazelle` |
+| **Go**     | Add to source  | 1. `go mod tidy -v`<br>2. `bazel mod tidy`         | `go mod tidy -v`  | `bazel run gazelle` |
+| **Rust**   | Add to source  | `cargo add <crate>`                                | Automatic (cargo) | `bazel run gazelle` |
 
 ### Workflow Examples
 
@@ -64,6 +64,7 @@ $(bazel info workspace)/tools/pnpm add <package-name>
 # Update BUILD files if needed
 bazel run gazelle
 ```
+
 </details>
 
 <details>
@@ -92,6 +93,7 @@ EOF
 Then edit the new entry in `tools/BUILD` to replace `package_name_snake_case` with the package name and `scriptname` with the script name.
 
 See the [py_console_script_binary documentation](https://rules-python.readthedocs.io/en/stable/api/python/entry_points/py_console_script_binary.html) for details.
+
 </details>
 
 <details>
@@ -107,6 +109,7 @@ bazel mod tidy
 # 3. Update BUILD files
 bazel run gazelle
 ```
+
 </details>
 
 <details>
@@ -119,6 +122,7 @@ cargo add <crate-name>
 # Update BUILD files if your project uses Gazelle for Rust
 bazel run gazelle
 ```
+
 </details>
 
 ## Stamping Release Builds

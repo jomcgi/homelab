@@ -219,13 +219,13 @@ kubectl get al -n monitoring
 
 ### Status Phases
 
-| Phase      | Description                                          |
-| ---------- | ---------------------------------------------------- |
-| `Pending`  | Resource created, waiting for initial sync           |
-| `Syncing`  | Actively syncing to SigNoz                           |
-| `Synced`   | Successfully synced, operational                     |
-| `Error`    | Sync failed, check `.status.errorMessage`            |
-| `Disabled` | Resource disabled via `spec.disabled: true`          |
+| Phase      | Description                                 |
+| ---------- | ------------------------------------------- |
+| `Pending`  | Resource created, waiting for initial sync  |
+| `Syncing`  | Actively syncing to SigNoz                  |
+| `Synced`   | Successfully synced, operational            |
+| `Error`    | Sync failed, check `.status.errorMessage`   |
+| `Disabled` | Resource disabled via `spec.disabled: true` |
 
 ## Common Patterns
 
@@ -269,7 +269,7 @@ metadata:
 spec:
   alertName: My Service Alert
   notificationChannels:
-    - team-platform-slack  # References cluster-scoped resource
+    - team-platform-slack # References cluster-scoped resource
   # ...
 ```
 

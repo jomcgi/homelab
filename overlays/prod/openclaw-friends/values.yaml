@@ -97,9 +97,9 @@ networkPolicy:
           app.kubernetes.io/name: perplexica
       ports:
         - protocol: TCP
-          port: 3000   # Perplexica API
+          port: 3000 # Perplexica API
         - protocol: TCP
-          port: 8080   # SearXNG API
+          port: 8080 # SearXNG API
     ## SigNoz OTEL collector (telemetry)
     - namespaceSelector:
         matchLabels:
@@ -109,6 +109,6 @@ networkPolicy:
           app.kubernetes.io/component: otel-collector
       ports:
         - protocol: TCP
-          port: 4317   # OTLP gRPC
+          port: 4317 # OTLP gRPC
         - protocol: TCP
-          port: 4318   # OTLP HTTP
+          port: 4318 # OTLP HTTP

@@ -22,14 +22,14 @@ flowchart LR
 
 ## Configuration
 
-| Value                            | Description                        | Default |
-| -------------------------------- | ---------------------------------- | ------- |
-| `replicaCount`                   | Number of nginx replicas           | `1`     |
-| `backends.<name>.host`           | Backend service hostname           | -       |
-| `backends.<name>.port`           | Backend service port               | -       |
-| `clusterInfo.enabled`            | Enable cluster status endpoint     | `true`  |
-| `clusterInfo.interval`           | Status update interval (seconds)   | `30`    |
-| `clusterInfo.cache.maxAge`       | CDN fresh cache duration           | `30`    |
+| Value                      | Description                      | Default |
+| -------------------------- | -------------------------------- | ------- |
+| `replicaCount`             | Number of nginx replicas         | `1`     |
+| `backends.<name>.host`     | Backend service hostname         | -       |
+| `backends.<name>.port`     | Backend service port             | -       |
+| `clusterInfo.enabled`      | Enable cluster status endpoint   | `true`  |
+| `clusterInfo.interval`     | Status update interval (seconds) | `30`    |
+| `clusterInfo.cache.maxAge` | CDN fresh cache duration         | `30`    |
 
 ## Adding a Backend
 

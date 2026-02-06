@@ -155,6 +155,7 @@ In BuildBuddy invocation:
 ### For Dependency Issues
 
 1. Regenerate lock files:
+
    ```bash
    # For Python (uv)
    uv lock
@@ -165,6 +166,7 @@ In BuildBuddy invocation:
    # For Go
    go mod tidy
    ```
+
 2. For Bazel deps, regenerate with gazelle:
    ```bash
    bazel run //:gazelle
@@ -189,11 +191,11 @@ In BuildBuddy invocation:
 
 ## Escalation
 
-| Issue Type | Contact | Notes |
-|------------|---------|-------|
-| Flaky tests | Test owner | Check git blame for test file |
-| Build infra | Platform team | BuildBuddy or GitHub Actions issues |
-| Dependency | Package maintainer | External package problems |
+| Issue Type  | Contact            | Notes                               |
+| ----------- | ------------------ | ----------------------------------- |
+| Flaky tests | Test owner         | Check git blame for test file       |
+| Build infra | Platform team      | BuildBuddy or GitHub Actions issues |
+| Dependency  | Package maintainer | External package problems           |
 
 ## Related Resources
 

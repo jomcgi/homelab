@@ -70,7 +70,7 @@ export default function HotInHereDemo() {
   // Calculate current phase
   const phase = PHASE_THRESHOLDS.reduce(
     (acc, threshold, idx) => (temperature >= threshold ? idx : acc),
-    0
+    0,
   );
 
   // Load audio
@@ -150,7 +150,7 @@ export default function HotInHereDemo() {
             setIsInverted(false);
             scheduleFlash();
           },
-          50 + Math.random() * 150
+          50 + Math.random() * 150,
         );
       }, delay);
     };
@@ -220,7 +220,7 @@ export default function HotInHereDemo() {
       const temp = temperatureRef.current;
       const currentPhase = PHASE_THRESHOLDS.reduce(
         (acc, threshold, idx) => (temp >= threshold ? idx : acc),
-        0
+        0,
       );
 
       // Add heat trails (phase 3+)
@@ -263,7 +263,7 @@ export default function HotInHereDemo() {
             opacity: trail.opacity * 0.92,
             scale: trail.scale * 1.02,
           }))
-          .filter((t) => t.opacity > 0.05)
+          .filter((t) => t.opacity > 0.05),
       );
 
       // Update sweat drops
@@ -274,7 +274,7 @@ export default function HotInHereDemo() {
             y: drop.y + drop.speed,
             opacity: drop.y > 80 ? drop.opacity * 0.9 : drop.opacity,
           }))
-          .filter((d) => d.y < 110 && d.opacity > 0.1)
+          .filter((d) => d.y < 110 && d.opacity > 0.1),
       );
 
       // Update fire particles
@@ -304,7 +304,7 @@ export default function HotInHereDemo() {
               opacity: fire.y < 20 ? fire.opacity * 0.95 : fire.opacity,
             };
           })
-          .filter((f) => f.y > -20 && f.opacity > 0.1)
+          .filter((f) => f.y > -20 && f.opacity > 0.1),
       );
 
       animationRef.current = requestAnimationFrame(updatePhysics);
@@ -325,7 +325,7 @@ export default function HotInHereDemo() {
       () => {
         if (phase >= 1) spawnSweat();
       },
-      Math.max(800 - phase * 100, 200)
+      Math.max(800 - phase * 100, 200),
     );
 
     // Fire spawner (phase 2+)
@@ -338,7 +338,7 @@ export default function HotInHereDemo() {
           }
         }
       },
-      Math.max(600 - phase * 80, 100)
+      Math.max(600 - phase * 80, 100),
     );
 
     return () => {
@@ -505,9 +505,7 @@ export default function HotInHereDemo() {
   // Background: white -> yellow -> orange -> red -> dark red
   const bgHue = 60 - temperature * 0.6;
   const bgSaturation = Math.min(50 + temperature * 0.8, 100);
-  const bgLightness = isCooledDown
-    ? 95
-    : Math.max(95 - temperature * 0.5, 45);
+  const bgLightness = isCooledDown ? 95 : Math.max(95 - temperature * 0.5, 45);
 
   // Text color shifts
   const textColor =
@@ -731,7 +729,8 @@ export default function HotInHereDemo() {
           className="flex justify-between items-center mb-8 pb-4"
           style={{
             borderBottom: `3px solid ${isCooledDown ? "#000" : textColor}`,
-            transform: meltAmount > 0 ? `skewY(${meltAmount * 0.5}deg)` : "none",
+            transform:
+              meltAmount > 0 ? `skewY(${meltAmount * 0.5}deg)` : "none",
             transition: "transform 0.3s ease-out",
           }}
         >
@@ -749,9 +748,7 @@ export default function HotInHereDemo() {
             className="text-xs uppercase tracking-widest font-bold"
             style={{
               background:
-                temperature > 50
-                  ? "rgba(255,255,255,0.2)"
-                  : "rgba(0,0,0,0.1)",
+                temperature > 50 ? "rgba(255,255,255,0.2)" : "rgba(0,0,0,0.1)",
               padding: "4px 12px",
             }}
           >
@@ -813,11 +810,7 @@ export default function HotInHereDemo() {
                 : temperature > 50
                   ? "rgba(0,0,0,0.8)"
                   : "#000",
-              color: isCooledDown
-                ? "#fff"
-                : temperature > 50
-                  ? "#fff"
-                  : "#fff",
+              color: isCooledDown ? "#fff" : temperature > 50 ? "#fff" : "#fff",
               transform:
                 meltAmount > 0
                   ? `skewY(${-meltAmount * 0.3}deg) translateY(${meltAmount * 0.5}px)`

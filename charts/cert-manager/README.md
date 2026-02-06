@@ -21,10 +21,10 @@ flowchart LR
 
 ## Configuration
 
-| Value                    | Description                 | Default                                                                            |
-| ------------------------ | --------------------------- | ---------------------------------------------------------------------------------- |
-| `cert-manager.*`         | Upstream chart values       | See [cert-manager chart](https://cert-manager.io/docs/installation/helm/)          |
-| `cert-manager.crds.keep` | Preserve CRDs on uninstall  | `true`                                                                             |
+| Value                    | Description                | Default                                                                   |
+| ------------------------ | -------------------------- | ------------------------------------------------------------------------- |
+| `cert-manager.*`         | Upstream chart values      | See [cert-manager chart](https://cert-manager.io/docs/installation/helm/) |
+| `cert-manager.crds.keep` | Preserve CRDs on uninstall | `true`                                                                    |
 
 ## Components
 

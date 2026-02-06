@@ -84,7 +84,9 @@ describe("Utility functions", () => {
       // Since formatSpeed is internal, we'd need to select a vessel
       // to see its output. For now we verify the component renders.
       render(<App />);
-      expect(screen.getByRole("heading", { name: /ships/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /ships/i }),
+      ).toBeInTheDocument();
     });
   });
 
@@ -95,7 +97,9 @@ describe("Utility functions", () => {
     // etc.
     it("renders without error", () => {
       render(<App />);
-      expect(screen.getByRole("heading", { name: /ships/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("heading", { name: /ships/i }),
+      ).toBeInTheDocument();
     });
   });
 });

@@ -72,7 +72,7 @@ ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
     tag: "main"
-    digest: ""  # Set by ImageUpdater (e.g., sha256:abc123...)
+    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica - no need for HA for data ingestion
@@ -106,7 +106,7 @@ api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
     tag: "main"
-    digest: ""  # Set by ImageUpdater (e.g., sha256:abc123...)
+    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica required for SQLite (single-writer lock)
@@ -166,7 +166,7 @@ frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
     tag: "main"
-    digest: ""  # Set by ImageUpdater (e.g., sha256:abc123...)
+    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica

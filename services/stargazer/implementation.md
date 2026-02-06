@@ -626,7 +626,7 @@ overlays/dev/stargazer/
 | 2025-11-30 | T5-T7          | Complete    | preprocessing.py - GDAL/Pillow operations                        |
 | 2025-11-30 | T9-T13         | Complete    | spatial.py - geopandas/rasterio operations                       |
 | 2025-11-30 | T14-T16        | Complete    | weather.py - MET Norway API + scoring                            |
-| 2026-02-03 | T4, T8         | Deferred    | DEM download/clip - Shetland above 60°N requires Copernicus DEM |
+| 2026-02-03 | T4, T8         | Deferred    | DEM download/clip - Shetland above 60°N requires Copernicus DEM  |
 | 2026-02-03 | Initial deploy | In Progress | Testing CronJob execution, debugging PVC mount issues            |
 
 ---
@@ -635,14 +635,14 @@ overlays/dev/stargazer/
 
 ### Expected Locations Coverage
 
-| Location           | Expected | Status      | Notes                                                 |
-| ------------------ | -------- | ----------- | ----------------------------------------------------- |
-| Galloway Forest    | ✅       | Not tested  | Awaiting pipeline run (~55.0°N, -4.5°W)              |
-| Cairngorms         | ✅       | Not tested  | Awaiting pipeline run (~57.0°N, -3.7°W)              |
-| Isle of Coll       | ✅       | Not tested  | Awaiting pipeline run (~56.6°N, -6.5°W)              |
-| Shetland           | ✅       | Not tested  | Elevation fallback needed (>60°N SRTM limit)          |
-| Glasgow (excluded) | ❌       | Not tested  | Should have no points within 10km                     |
-| Edinburgh (excl.)  | ❌       | Not tested  | Should have no points within 10km                     |
+| Location           | Expected | Status     | Notes                                        |
+| ------------------ | -------- | ---------- | -------------------------------------------- |
+| Galloway Forest    | ✅       | Not tested | Awaiting pipeline run (~55.0°N, -4.5°W)      |
+| Cairngorms         | ✅       | Not tested | Awaiting pipeline run (~57.0°N, -3.7°W)      |
+| Isle of Coll       | ✅       | Not tested | Awaiting pipeline run (~56.6°N, -6.5°W)      |
+| Shetland           | ✅       | Not tested | Elevation fallback needed (>60°N SRTM limit) |
+| Glasgow (excluded) | ❌       | Not tested | Should have no points within 10km            |
+| Edinburgh (excl.)  | ❌       | Not tested | Should have no points within 10km            |
 
 ### Zone Classification
 
@@ -653,6 +653,7 @@ Zone classification accuracy pending manual spot-check against [lightpollutionma
 Forecast scores pending comparison with [Clear Outside](https://clearoutside.com) for same timestamps and locations.
 
 **Next Steps:**
+
 1. Complete first successful CronJob run
 2. Verify output files exist in PVC (`data/output/best_locations.json`)
 3. Spot-check 5 sample points for zone classification accuracy

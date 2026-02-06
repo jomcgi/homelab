@@ -34,39 +34,45 @@ flowchart TB
 
 ## File Structure
 
-| File | Purpose | Modified By |
-|------|---------|-------------|
-| `pyproject.toml#dependencies` | Runtime dependencies (loose constraints) | Developers |
-| `runtime.txt` | Pinned runtime dependencies | `uv pip compile` |
-| `test.in` | Test-only dependencies (loose) | Developers |
-| `tools.in` | Dev tool dependencies (loose) | Developers |
-| `all.in` | Aggregator (references test.in + tools.in + runtime.txt) | Auto-generated |
-| `all.txt` | Pinned all dependencies | `uv pip compile` |
-| `tools.txt` | Pinned tool dependencies | `uv pip compile` |
+| File                          | Purpose                                                  | Modified By      |
+| ----------------------------- | -------------------------------------------------------- | ---------------- |
+| `pyproject.toml#dependencies` | Runtime dependencies (loose constraints)                 | Developers       |
+| `runtime.txt`                 | Pinned runtime dependencies                              | `uv pip compile` |
+| `test.in`                     | Test-only dependencies (loose)                           | Developers       |
+| `tools.in`                    | Dev tool dependencies (loose)                            | Developers       |
+| `all.in`                      | Aggregator (references test.in + tools.in + runtime.txt) | Auto-generated   |
+| `all.txt`                     | Pinned all dependencies                                  | `uv pip compile` |
+| `tools.txt`                   | Pinned tool dependencies                                 | `uv pip compile` |
 
 ## Dependency Groups
 
 ### Runtime Dependencies
+
 Defined in `pyproject.toml#dependencies`. Used by production services at runtime.
 
 **Examples:**
+
 - `fastapi~=0.109.0` - Web framework
 - `pydantic~=2.5` - Data validation
 - `opentelemetry-*` - Observability instrumentation
 - `nats-py~=2.9` - NATS JetStream client
 
 **Version Strategy:**
+
 - Use compatible release clauses (`~=`) to allow patch updates
 - Avoid exact pins (`==`) - let uv resolve compatible versions
 - Only constrain when specific version ranges are incompatible
 
 ### Test Dependencies
+
 Defined in `test.in`. Constrained against `runtime.txt` to prevent version conflicts.
 
 **Examples:**
+
 - `pytest` - Test framework
 
 **Format:**
+
 ```bash
 # test.in
 -c runtime.txt  # Constrain to runtime versions
@@ -74,12 +80,15 @@ pytest
 ```
 
 ### Tool Dependencies
+
 Defined in `tools.in`. Used for developer tasks and Bazel build tools, not tests or runtime.
 
 **Examples:**
+
 - `copier>=9.11.2` - Template management
 
 **Format:**
+
 ```bash
 # tools.in
 copier>=9.11.2
@@ -90,7 +99,9 @@ copier>=9.11.2
 ### Adding a New Dependency
 
 #### Runtime Dependency
+
 1. Add to `pyproject.toml#dependencies`:
+
    ```toml
    dependencies = [
        # ...
@@ -99,11 +110,13 @@ copier>=9.11.2
    ```
 
 2. Recompile lock files:
+
    ```bash
    bazel run //requirements:update
    ```
 
 3. Update Bazel repository:
+
    ```bash
    bazel run @pnpm//:pnpm install
    ```
@@ -119,7 +132,9 @@ copier>=9.11.2
    ```
 
 #### Test Dependency
+
 1. Add to `test.in`:
+
    ```bash
    -c runtime.txt
    pytest
@@ -129,7 +144,9 @@ copier>=9.11.2
 2. Recompile and update as above.
 
 #### Tool Dependency
+
 1. Add to `tools.in`:
+
    ```bash
    copier>=9.11.2
    new-tool>=1.5.0
@@ -140,6 +157,7 @@ copier>=9.11.2
 ### Updating Dependencies
 
 #### Update All Dependencies
+
 ```bash
 bazel run //requirements:update
 ```
@@ -147,10 +165,12 @@ bazel run //requirements:update
 This runs `uv pip compile` on all `.in` files and regenerates lock files.
 
 #### Update Single Dependency
+
 1. Modify version constraint in source file (pyproject.toml, test.in, or tools.in)
 2. Run `bazel run //requirements:update`
 
 #### Upgrade to Latest Versions
+
 ```bash
 # Remove lock files to force fresh resolution
 rm requirements/*.txt
@@ -164,17 +184,21 @@ bazel run //requirements:update
 #### Dependency Conflict Error
 
 **Symptom:**
+
 ```
 ERROR: Cannot install package-a and package-b because these package versions have conflicting dependencies.
 ```
 
 **Solution:**
+
 1. Check which package introduced the conflict:
+
    ```bash
    uv pip tree
    ```
 
 2. Adjust version constraints in pyproject.toml to find compatible range:
+
    ```toml
    # Before (conflict)
    dependencies = [
@@ -197,12 +221,15 @@ ERROR: Cannot install package-a and package-b because these package versions hav
 #### Bazel Can't Find Package
 
 **Symptom:**
+
 ```
 ERROR: no such package '@pip//missing_package'
 ```
 
 **Solution:**
+
 1. Verify package is in `all.txt`:
+
    ```bash
    grep missing-package requirements/all.txt
    ```
@@ -219,11 +246,13 @@ ERROR: no such package '@pip//missing_package'
 #### Lock File Out of Sync
 
 **Symptom:**
+
 ```
 ERROR: Failed to resolve dependencies. Try running 'bazel run //requirements:update'
 ```
 
 **Solution:**
+
 ```bash
 bazel run //requirements:update
 bazel clean --expunge  # If update doesn't fix it
@@ -233,12 +262,14 @@ bazel run //requirements:update
 #### uv Command Not Found
 
 **Symptom:**
+
 ```
 /bin/sh: uv: command not found
 ```
 
 **Solution:**
 Install uv globally (Bazel rules_uv handles this automatically, but for manual runs):
+
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
@@ -260,6 +291,7 @@ This repository uses the [pip-tools layered requirements workflow](https://pip-t
    - Not included in all.txt (used separately)
 
 **Why this pattern?**
+
 - Prevents test dependencies from polluting runtime
 - Ensures compatible versions across all layers
 - Supports reproducible builds
@@ -280,6 +312,7 @@ pip.parse(
 This creates the `@pip` repository with Bazel targets for each package.
 
 **Usage in BUILD files:**
+
 ```python
 py_library(
     name = "my_service",
@@ -294,12 +327,12 @@ py_library(
 
 ## Version Constraints Reference
 
-| Operator | Example | Meaning |
-|----------|---------|---------|
-| `~=` | `~=1.4.2` | `>=1.4.2, <1.5.0` (compatible release) |
-| `>=` | `>=1.0.0` | Minimum version |
-| `<` | `<2.0.0` | Upper bound (exclusive) |
-| `,` | `>=1.0,<2.0` | Range (AND) |
+| Operator | Example      | Meaning                                |
+| -------- | ------------ | -------------------------------------- |
+| `~=`     | `~=1.4.2`    | `>=1.4.2, <1.5.0` (compatible release) |
+| `>=`     | `>=1.0.0`    | Minimum version                        |
+| `<`      | `<2.0.0`     | Upper bound (exclusive)                |
+| `,`      | `>=1.0,<2.0` | Range (AND)                            |
 
 **Recommended:** Use `~=` for most dependencies to allow patch updates while preventing breaking changes.
 
@@ -313,6 +346,7 @@ py_library(
 ## Examples
 
 ### Adding FastAPI Dependency
+
 ```bash
 # 1. Add to pyproject.toml
 echo 'fastapi~=0.109.0' >> pyproject.toml
@@ -325,6 +359,7 @@ bazel run //requirements:update
 ```
 
 ### Adding Test Dependency
+
 ```bash
 # 1. Edit test.in
 cat >> requirements/test.in <<EOF
@@ -338,6 +373,7 @@ bazel run //requirements:update
 ```
 
 ### Checking Dependency Tree
+
 ```bash
 # See why a package is included
 bazel run @pip//:pip -- show <package-name>

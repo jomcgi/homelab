@@ -22,9 +22,7 @@
       "Bash(operator-sdk:*)",
       "WebFetch(domain:*)"
     ],
-    "additionalDirectories": [
-      "/tmp/claude-worktrees"
-    ]
+    "additionalDirectories": ["/tmp/claude-worktrees"]
   },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
