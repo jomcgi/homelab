@@ -7,6 +7,8 @@ description: Use when making changes to the homelab repository (charts/, overlay
 
 ## Repository Structure
 
+**WARNING: The main repo at `~/repos/homelab` has an auto-fetch loop running every 60 seconds (`git fetch origin`).** This can cause conflicts if you're working directly in that directory. Always use worktrees in `/tmp/claude-worktrees/` for active development to avoid these conflicts.
+
 The homelab repo at `~/repos/homelab` is a writable clone that auto-fetches from `origin/main` every 60 seconds. While you CAN write to this directory, you should use git worktrees for feature branches to enable multi-agent workflows.
 
 **NEVER commit directly to the `main` branch.**

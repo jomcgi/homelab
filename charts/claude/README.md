@@ -1,10 +1,10 @@
 # Claude
 
-Web interface for Claude Code with WebSocket streaming and voice transcription.
+Web interface for Claude Code with WebSocket streaming.
 
 ## Overview
 
-Self-hosted Claude Code environment with a web UI, persistent sessions, and optional voice input via Gemini transcription.
+Self-hosted Claude Code environment with a web UI and persistent sessions.
 
 ```mermaid
 flowchart LR
@@ -12,13 +12,11 @@ flowchart LR
     Frontend --> API[Claude API]
     API --> Claude[Claude Code]
     Claude --> Repo[Git Repository]
-    API --> Gemini[Gemini Voice]
 ```
 
 ## Key Features
 
 - **WebSocket streaming** - Real-time conversation updates
-- **Voice transcription** - Gemini-powered speech-to-text
 - **Persistent sessions** - Longhorn PVC for conversation history
 - **Git sync** - Automatic repository cloning and fetch
 - **Multi-replica HA** - Leader election for stateful operations
@@ -37,7 +35,6 @@ flowchart LR
 | --------------------------- | ---------------------------------- | -------------------- |
 | `replicas`                  | Number of pod replicas             | `2`                  |
 | `api.port`                  | API server port                    | `3000`               |
-| `gemini.model`              | Voice transcription model          | `gemini-2.0-flash`   |
 | `repoSync.enabled`          | Enable git repository sync         | `false`              |
 | `persistence.size`          | PVC size for sessions              | `200Gi`              |
 | `leaderElection.enabled`    | Enable leader election for HA      | `true`               |

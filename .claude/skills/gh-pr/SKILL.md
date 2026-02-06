@@ -37,6 +37,37 @@ Possible states:
 - `MERGED` - PR was merged (don't share as "open")
 - `CLOSED` - PR was closed without merging
 
+### PR State Transitions
+
+```
+┌──────────────────────────────────────────────────┐
+│  No PR → gh pr create → OPEN                     │
+└────────────────────┬─────────────────────────────┘
+                     │
+        ┌────────────┼────────────┐
+        │            │            │
+        ▼            ▼            ▼
+  ┌─────────┐  ┌─────────┐  ┌─────────┐
+  │ MERGED  │  │ CLOSED  │  │  OPEN   │
+  │(final)  │  │         │  │(active) │
+  └─────────┘  └────┬────┘  └────┬────┘
+                    │            │
+                    └────────────┘
+                         │
+                         ▼
+                    Can reopen
+                    (back to OPEN)
+
+⚠️  WARNING: Never push to MERGED PR branch
+    - Commits become orphaned
+    - Changes don't reach main
+    - Creates confusion
+
+✓  SAFE: Push to OPEN PR branch
+    - Updates PR with new commits
+    - CI re-runs automatically
+```
+
 ## Viewing PRs
 
 ```bash

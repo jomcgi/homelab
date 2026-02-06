@@ -4,43 +4,43 @@ This document provides an overview of all services running in the cluster.
 
 ## Core Infrastructure (cluster-critical)
 
-| Service                  | Purpose                                                 |
-| ------------------------ | ------------------------------------------------------- |
-| **ArgoCD**               | GitOps controller for declarative cluster management    |
-| **ArgoCD Image Updater** | Automatic image updates for ArgoCD-managed applications |
-| **cert-manager**         | X.509 certificate management (required by Linkerd)      |
-| **CoreDNS**              | Cluster DNS resolution for Kubernetes services          |
-| **Linkerd**              | Service mesh for automatic distributed tracing and mTLS |
-| **Kyverno**              | Policy engine with auto OTEL/Linkerd injection          |
-| **Longhorn**             | Distributed persistent storage with automated backups   |
-| **NVIDIA GPU Operator**  | GPU support for vLLM workloads                          |
-| **SigNoz**               | Self-hosted observability (metrics, logs, traces)       |
-| **1Password Operator**   | Secret management via OnePasswordItem CRDs              |
+| Service                  | Purpose                                                 | Chart |
+| ------------------------ | ------------------------------------------------------- | ----- |
+| **ArgoCD**               | GitOps controller for declarative cluster management    | [charts/argocd](../charts/argocd/) |
+| **ArgoCD Image Updater** | Automatic image updates for ArgoCD-managed applications | [charts/argocd-image-updater](../charts/argocd-image-updater/) |
+| **cert-manager**         | X.509 certificate management (required by Linkerd)      | [charts/cert-manager](../charts/cert-manager/) |
+| **CoreDNS**              | Cluster DNS resolution for Kubernetes services          | [charts/coredns](../charts/coredns/) |
+| **Linkerd**              | Service mesh for automatic distributed tracing and mTLS | [charts/linkerd](../charts/linkerd/) |
+| **Kyverno**              | Policy engine with auto OTEL/Linkerd injection          | [charts/kyverno](../charts/kyverno/) |
+| **Longhorn**             | Distributed persistent storage with automated backups   | [charts/longhorn](../charts/longhorn/) |
+| **NVIDIA GPU Operator**  | GPU support for vLLM workloads                          | [charts/nvidia-gpu-operator](../charts/nvidia-gpu-operator/) |
+| **SigNoz**               | Self-hosted observability (metrics, logs, traces)       | [charts/signoz](../charts/signoz/) |
+| **1Password Operator**   | Secret management via OnePasswordItem CRDs              | External chart |
 
 ## Production Services (prod)
 
-| Service               | Purpose                                      |
-| --------------------- | -------------------------------------------- |
-| **Cloudflare Tunnel** | Zero Trust ingress (no open firewall ports)  |
-| **gh-arc-controller** | GitHub Actions Runner Controller             |
-| **gh-arc-runners**    | Self-hosted runners with Docker-in-Docker    |
-| **API Gateway**       | External service routing with rate limiting  |
-| **NATS**              | High-performance messaging with JetStream    |
-| **OpenClaw**          | Discord bot for AI chat (personal/friends)   |
-| **Perplexica**        | Self-hosted AI search with SearXNG           |
-| **SeaweedFS**         | Distributed S3-compatible object storage     |
-| **Todo**              | Git-backed todo list with static UI          |
-| **Trips**             | Trip management service                      |
-| **vLLM**              | LLM inference server (Qwen3-30B-Instruct)    |
+| Service               | Purpose                                      | Chart |
+| --------------------- | -------------------------------------------- | ----- |
+| **API Gateway**       | External service routing with rate limiting  | [charts/api-gateway](../charts/api-gateway/) |
+| **Cloudflare Tunnel** | Zero Trust ingress (no open firewall ports)  | [charts/cloudflare-tunnel](../charts/cloudflare-tunnel/) |
+| **gh-arc-controller** | GitHub Actions Runner Controller             | [charts/gh-arc-controller](../charts/gh-arc-controller/) |
+| **gh-arc-runners**    | Self-hosted runners with Docker-in-Docker    | [charts/gh-arc-runners](../charts/gh-arc-runners/) |
+| **NATS**              | High-performance messaging with JetStream    | [charts/nats](../charts/nats/) |
+| **OpenClaw**          | Discord bot for AI chat (personal/friends)   | [charts/openclaw](../charts/openclaw/) |
+| **Perplexica**        | Self-hosted AI search with SearXNG           | [charts/perplexica](../charts/perplexica/) |
+| **SeaweedFS**         | Distributed S3-compatible object storage     | [charts/seaweedfs](../charts/seaweedfs/) |
+| **Todo**              | Git-backed todo list with static UI          | [charts/todo](../charts/todo/) |
+| **Trips**             | Trip management service                      | [charts/trips](../charts/trips/) |
+| **vLLM**              | LLM inference server (Qwen3-30B-Instruct)    | [charts/vllm](../charts/vllm/) |
 
 ## Development Services (dev)
 
-| Service                 | Purpose                                            |
-| ----------------------- | -------------------------------------------------- |
-| **Claude**              | Claude Code deployment for AI-assisted development |
-| **Cloudflare Operator** | Custom operator for Cloudflare resource management |
-| **Marine**              | Real-time AIS vessel tracking (ships.jomcgi.dev)   |
-| **Stargazer**           | Experimental service sandbox                       |
+| Service                 | Purpose                                            | Chart |
+| ----------------------- | -------------------------------------------------- | ----- |
+| **Claude**              | Claude Code deployment for AI-assisted development | [charts/claude](../charts/claude/) |
+| **Cloudflare Operator** | Custom operator for Cloudflare resource management | [charts/cloudflare-operator-test](../charts/cloudflare-operator-test/) |
+| **Marine**              | Real-time AIS vessel tracking (ships.jomcgi.dev)   | [charts/marine](../charts/marine/) |
+| **Stargazer**           | Experimental service sandbox                       | [charts/stargazer](../charts/stargazer/) |
 
 ## Static Websites
 

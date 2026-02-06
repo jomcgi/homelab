@@ -7,6 +7,53 @@ description: Add ArgoCD Image Updater configuration for automatic container imag
 
 This skill creates an ImageUpdater resource that enables automatic container image updates for an ArgoCD-managed service.
 
+## Automatic Update Loop
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 1: New Image Pushed to GHCR                               │
+│  - CI builds and pushes image to ghcr.io/jomcgi/homelab/...     │
+│  - Image has same tag (:main) but new digest (SHA256 hash)      │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 2: ArgoCD Image Updater Detects New Digest                │
+│  - Polls GHCR every 2 minutes (configurable)                    │
+│  - Compares current digest in values.yaml with registry         │
+│  - Detects new digest available                                 │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 3: Image Updater Modifies Git                             │
+│  - Clones homelab repo                                          │
+│  - Updates overlays/<env>/<service>/values.yaml:                │
+│      image:                                                      │
+│        repository: ghcr.io/jomcgi/homelab/charts/myapp          │
+│        tag: main@sha256:abc123...  ← new digest                 │
+│  - Commits and pushes to main branch                            │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 4: ArgoCD Detects Git Change                              │
+│  - Sees values.yaml updated in Git                              │
+│  - Re-renders Helm chart with new image digest                  │
+│  - Syncs deployment to cluster (rollout restart)                │
+└────────────────────────┬────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────┐
+│  Step 5: Kubernetes Pulls New Image                             │
+│  - Pulls image by digest from GHCR                              │
+│  - Starts new pods with updated image                           │
+│  - Terminates old pods (rolling update)                         │
+└─────────────────────────────────────────────────────────────────┘
+        │
+        └─────► Loop repeats on next image push
+```
+
 ## Usage
 
 ```

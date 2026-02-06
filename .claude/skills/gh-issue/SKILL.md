@@ -10,17 +10,82 @@ This skill enables autonomous task execution driven by GitHub Issues. A parent i
 ## Architecture
 
 ```
-Parent Issue (context + scope)
-├── Design doc link (ideas/*.md)
-├── Goal description
-├── Constraints
-└── Sub-issues (atomic tasks)
-    ├── Child 1 (open)
-    ├── Child 2 (open)
-    └── Child 3 (completed)
+Parent Issue (#42)
+├── Title: "Implement feature X"
+├── Body:
+│   ├── Design doc: ideas/feature-x.md
+│   ├── Goal: Enable users to do X
+│   └── Constraints: Must maintain Y compatibility
+└── Sub-issues (atomic tasks):
+    ├── #43 (open) - Add data model
+    ├── #44 (open) - Implement API endpoints
+    └── #45 (closed) - Add tests
 ```
 
 **One agent works one parent at a time.** Locking prevents conflicts.
+
+## Workflow Diagram
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│  1. Acquire Lock on Parent Issue                               │
+│  - Check for existing lock:<agent-id>:<timestamp> label        │
+│  - If stale (>30min), remove and re-lock                       │
+│  - Add lock:<my-agent-id>:<current-timestamp> label            │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────────────────┐
+│  2. Read Full Context                                          │
+│  - Fetch parent issue body                                     │
+│  - Extract design doc link (ideas/*.md)                        │
+│  - Read design doc for background                              │
+│  - List all sub-issues (open and closed)                       │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────────────────┐
+│  3. Pick Next Child Issue                                      │
+│  - Review open sub-issues                                      │
+│  - Check closed sub-issues for context                         │
+│  - Reason about dependencies and order                         │
+│  - Select most logical next task                               │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────────────────┐
+│  4. Execute Task in Worktree                                   │
+│  - Create worktree: git worktree add /tmp/.../issue-<N>        │
+│  - Make changes according to child issue description           │
+│  - Commit with "Closes #<child-issue>"                         │
+│  - Push branch                                                 │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────────────────┐
+│  5. Create PR and Wait for CI                                  │
+│  - Create PR with gh pr create                                 │
+│  - Reference child issue and parent in PR body                 │
+│  - Watch CI: gh pr checks --watch                              │
+│  - Refresh lock periodically if task takes >15 min             │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────────────────┐
+│  6. Merge PR                                                   │
+│  - If CI passes: gh pr merge --squash --delete-branch          │
+│  - "Closes #<child>" in commit auto-closes child issue         │
+│  - If CI fails: label child "needs-attention", skip to next    │
+└──────────────────────┬─────────────────────────────────────────┘
+                       │
+                       ▼
+┌────────────────────────────────────────────────────────────────┐
+│  7. Check Completion                                           │
+│  - Count remaining open children                               │
+│  - If 0: Close parent issue, release lock, done                │
+│  - If >0: Loop back to step 3 (pick next child)                │
+└────────────────────────────────────────────────────────────────┘
+```
 
 ## Workflow Overview
 

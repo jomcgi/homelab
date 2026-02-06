@@ -5,6 +5,27 @@ description: Use when debugging issues, investigating errors, checking service h
 
 # SigNoz Observability
 
+## CRITICAL: Time Format Requirements
+
+**Different functions require different time units. Using the wrong unit will return no results.**
+
+| Function Type   | Time Unit    | Example               |
+| --------------- | ------------ | --------------------- |
+| Logs            | milliseconds | `1704067200000`       |
+| Traces (search) | milliseconds | `1704067200000`       |
+| Services        | nanoseconds  | `1704067200000000000` |
+| Top operations  | nanoseconds  | `1704067200000000000` |
+
+**Getting current timestamps:**
+
+```javascript
+// Milliseconds (for logs, trace search)
+Date.now();
+
+// Nanoseconds (for services, top operations)
+Date.now() * 1000000;
+```
+
 ## Overview
 
 SigNoz is the cluster's observability platform providing unified metrics, logs, and traces. Access is available via MCP functions - no kubectl port-forward needed.
@@ -202,26 +223,6 @@ Get log view configuration.
 
 - `viewId` - Required
 
-## Time Formats
-
-**Important:** Different functions use different time units:
-
-| Function Type   | Time Unit    | Example               |
-| --------------- | ------------ | --------------------- |
-| Logs            | milliseconds | `1704067200000`       |
-| Traces (search) | milliseconds | `1704067200000`       |
-| Services        | nanoseconds  | `1704067200000000000` |
-| Top operations  | nanoseconds  | `1704067200000000000` |
-
-**Getting current timestamps:**
-
-```javascript
-// Milliseconds (for logs, trace search)
-Date.now();
-
-// Nanoseconds (for services, top operations)
-Date.now() * 1000000;
-```
 
 ## Common Debugging Scenarios
 

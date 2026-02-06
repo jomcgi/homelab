@@ -1,5 +1,7 @@
 # Migration: Local Script to API-Based Upload
 
+> **Status:** ⚠️ PLANNED - Not yet implemented. Architecture documented for future work.
+
 ## Current Architecture
 
 ```
@@ -65,6 +67,33 @@ The same image always produces the same S3 key via `uuid5(source:timestamp:filen
 - **Same key + same hash** → 200, skip upload
 - **Same key + different hash** → 201, overwrite (handles rotation/edits)
 - **New key** → 201, upload
+
+## Migration Timeline
+
+```mermaid
+gantt
+    title API Migration Phases
+    dateFormat YYYY-MM-DD
+    section Phase 1
+    Add EXIF extraction to trips-api        :p1, 2026-02-15, 3d
+    Add S3 upload logic                     :p2, after p1, 2d
+    Add POST /api/images endpoint           :p3, after p2, 2d
+    Test with curl                          :p4, after p3, 1d
+    section Phase 2
+    Setup Cloudflare Access                 :p5, after p4, 1d
+    Create service token                    :p6, after p5, 1d
+    Test auth flow                          :p7, after p6, 1d
+    section Phase 3
+    Simplify local script                   :p8, after p7, 3d
+    Test end-to-end upload                  :p9, after p8, 2d
+    section Phase 4
+    Remove GHA workflows                    :p10, after p9, 1d
+    Clean up dependencies                   :p11, after p10, 1d
+```
+
+**Estimated Duration:** 3-4 weeks (assumes 1-2 hour sessions per phase)
+
+---
 
 ## Migration Checklist
 

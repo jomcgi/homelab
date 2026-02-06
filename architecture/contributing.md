@@ -18,6 +18,85 @@ This is a GitOps monorepo where related code and deployment configuration live t
 
 ## Adding a New Service
 
+### ArgoCD Discovery Flow
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 1: Create Helm Chart                                          │
+│  charts/<service>/                                                   │
+│    ├── Chart.yaml                                                    │
+│    ├── values.yaml (defaults)                                        │
+│    └── templates/                                                    │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 2: Create Overlay Configuration                               │
+│  overlays/<env>/<service>/                                           │
+│    ├── application.yaml    (ArgoCD Application manifest)             │
+│    ├── kustomization.yaml  (makes app discoverable)                  │
+│    └── values.yaml         (environment-specific overrides)          │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 3: Add to Environment Kustomization                           │
+│  overlays/<env>/kustomization.yaml                                   │
+│  resources:                                                          │
+│    - <service>/  ← Add this line                                     │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 4: ArgoCD Auto-Discovery                                      │
+│  clusters/homelab/kustomization.yaml references:                     │
+│    - ../../overlays/cluster-critical                                 │
+│    - ../../overlays/prod                                             │
+│    - ../../overlays/dev                                              │
+│                                                                      │
+│  ArgoCD runs "kustomize build" on these paths and discovers          │
+│  all Application manifests                                           │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│  Step 5: ArgoCD Syncs Application                                   │
+│  - Renders Helm chart with value files                              │
+│  - Applies manifests to cluster                                     │
+│  - Monitors health and sync status                                  │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+### Service Directory Structure
+
+```
+overlays/
+├── cluster-critical/     # Core infrastructure
+│   ├── argocd/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   └── values.yaml
+│   ├── linkerd/
+│   ├── kyverno/
+│   └── kustomization.yaml  ← references all services
+│
+├── prod/                 # Production services
+│   ├── api-gateway/
+│   │   ├── application.yaml
+│   │   ├── kustomization.yaml
+│   │   └── values.yaml
+│   ├── nats/
+│   ├── todo/
+│   └── kustomization.yaml  ← references all services
+│
+└── dev/                  # Development services
+    ├── claude/
+    ├── marine/
+    └── kustomization.yaml  ← references all services
+```
+
+### Steps
+
 1. Create Helm chart in `charts/<name>/` with default values
 2. Choose the appropriate overlay environment:
    - `overlays/cluster-critical/` - Core infrastructure (argocd, longhorn, monitoring)
