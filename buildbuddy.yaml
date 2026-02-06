@@ -66,7 +66,7 @@ actions:
           fi
 
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
-          echo "$GHCR_TOKEN" | bazel run @crane//:crane -- auth login ghcr.io -u jomcgi --password-stdin
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_services --config=ci --stamp
 
   # GHCR Validation - validates pushed images without downloading blobs
