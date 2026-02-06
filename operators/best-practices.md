@@ -192,6 +192,7 @@ func (r *MyOperatorReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 ## Testing
 
 **Unit tests** (80-90% coverage):
+
 ```go
 func TestReconciler(t *testing.T) {
     client := fake.NewClientBuilder().WithObjects(objects...).Build()
@@ -206,6 +207,7 @@ func TestReconciler(t *testing.T) {
 ## Configuration
 
 **Concurrency**:
+
 ```go
 func (r *ExampleReconciler) SetupWithManager(mgr ctrl.Manager) error {
     return ctrl.NewControllerManagedBy(mgr).
@@ -216,6 +218,7 @@ func (r *ExampleReconciler) SetupWithManager(mgr ctrl.Manager) error {
 ```
 
 **Status conditions**:
+
 ```go
 const (
     TypeReady       = "Ready"

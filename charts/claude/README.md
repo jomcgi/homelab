@@ -23,22 +23,22 @@ flowchart LR
 
 ## Components
 
-| Component | Description |
-| --------- | ----------- |
-| **API** | Bun-based server managing Claude Code sessions |
-| **Frontend** | React UI with real-time updates (optional separate deployment) |
-| **Repo sync** | Sidecar keeping git repository refs fresh |
+| Component     | Description                                                    |
+| ------------- | -------------------------------------------------------------- |
+| **API**       | Bun-based server managing Claude Code sessions                 |
+| **Frontend**  | React UI with real-time updates (optional separate deployment) |
+| **Repo sync** | Sidecar keeping git repository refs fresh                      |
 
 ## Configuration
 
-| Value                       | Description                        | Default              |
-| --------------------------- | ---------------------------------- | -------------------- |
-| `replicas`                  | Number of pod replicas             | `2`                  |
-| `api.port`                  | API server port                    | `3000`               |
-| `repoSync.enabled`          | Enable git repository sync         | `false`              |
-| `persistence.size`          | PVC size for sessions              | `200Gi`              |
-| `leaderElection.enabled`    | Enable leader election for HA      | `true`               |
-| `defaultPermissionMode`     | Claude Code permission mode        | `""`                 |
+| Value                    | Description                   | Default |
+| ------------------------ | ----------------------------- | ------- |
+| `replicas`               | Number of pod replicas        | `2`     |
+| `api.port`               | API server port               | `3000`  |
+| `repoSync.enabled`       | Enable git repository sync    | `false` |
+| `persistence.size`       | PVC size for sessions         | `200Gi` |
+| `leaderElection.enabled` | Enable leader election for HA | `true`  |
+| `defaultPermissionMode`  | Claude Code permission mode   | `""`    |
 
 ## HA Deployment
 

@@ -7,7 +7,7 @@ image:
   tag: main@sha256:77abe450bcce981093bf27620610759166edee7bd8806ffccb5c82dde982857f
 # GHCR image pull authentication
 imagePullSecrets:
-- name: ghcr-imagepull-secret
+  - name: ghcr-imagepull-secret
 imagePullSecret:
   enabled: true
 # SigNoz configuration - use cluster-internal DNS

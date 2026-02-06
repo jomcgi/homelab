@@ -117,7 +117,8 @@ app.post("/api/sessions", (req, res) => {
   }
 
   // Create workdir if it doesn't exist (sessionWorkdir is validated above)
-  if (!fs.existsSync(sessionWorkdir)) { // nosemgrep
+  if (!fs.existsSync(sessionWorkdir)) {
+    // nosemgrep
     fs.mkdirSync(sessionWorkdir, { recursive: true }); // nosemgrep
   }
 
@@ -335,11 +336,7 @@ wss.on("connection", (ws, req) => {
     );
     console.log(`Welcome message sent successfully to session ${session.id}`);
   } catch (err) {
-    console.error(
-      "Failed to send welcome message to session",
-      session.id,
-      err,
-    );
+    console.error("Failed to send welcome message to session", session.id, err);
   }
 });
 

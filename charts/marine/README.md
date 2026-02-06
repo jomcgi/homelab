@@ -18,10 +18,10 @@ flowchart LR
 
 ## Components
 
-| Component | Description |
-| --------- | ----------- |
-| **Ingest** | WebSocket client streaming AIS messages to NATS |
-| **API** | REST + WebSocket API with SQLite persistence |
+| Component    | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| **Ingest**   | WebSocket client streaming AIS messages to NATS      |
+| **API**      | REST + WebSocket API with SQLite persistence         |
 | **Frontend** | MapLibre-based UI for real-time vessel visualization |
 
 ## Key Features
@@ -33,14 +33,14 @@ flowchart LR
 
 ## Configuration
 
-| Value                    | Description                       | Default                    |
-| ------------------------ | --------------------------------- | -------------------------- |
-| `ingest.enabled`         | Enable AIS ingestion              | `true`                     |
-| `api.enabled`            | Enable Ships API                  | `true`                     |
-| `frontend.enabled`       | Enable web frontend               | `true`                     |
-| `aisstream.boundingBox`  | Geographic coverage area          | Americas region            |
-| `api.persistence.size`   | SQLite storage size               | `20Gi`                     |
-| `frontend.hostname`      | Cloudflare ingress hostname       | `ships.jomcgi.dev`         |
+| Value                   | Description                 | Default            |
+| ----------------------- | --------------------------- | ------------------ |
+| `ingest.enabled`        | Enable AIS ingestion        | `true`             |
+| `api.enabled`           | Enable Ships API            | `true`             |
+| `frontend.enabled`      | Enable web frontend         | `true`             |
+| `aisstream.boundingBox` | Geographic coverage area    | Americas region    |
+| `api.persistence.size`  | SQLite storage size         | `20Gi`             |
+| `frontend.hostname`     | Cloudflare ingress hostname | `ships.jomcgi.dev` |
 
 ## Architecture Notes
 

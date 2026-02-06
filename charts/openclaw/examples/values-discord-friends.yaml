@@ -94,6 +94,6 @@ cloudflare:
     sessionDuration: "24h"
     ## Allow yourself and friends to access the dashboard
     allowedEmails:
-      - "your@email.com"      # Replace with your email
-      - "friend1@email.com"   # Add friends who should have dashboard access
+      - "your@email.com" # Replace with your email
+      - "friend1@email.com" # Add friends who should have dashboard access
       - "friend2@email.com"

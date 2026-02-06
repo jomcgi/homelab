@@ -22,7 +22,7 @@ vllm-stack:
         port: 8000
       initialDelaySeconds: 30
       periodSeconds: 10
-      failureThreshold: 357  # Allow 1 hour for large model (30B AWQ) initialization
+      failureThreshold: 357 # Allow 1 hour for large model (30B AWQ) initialization
 
     livenessProbe:
       httpGet:
@@ -74,22 +74,22 @@ vllm-stack:
         # vLLM engine configuration
         vllmConfig:
           # Reduced from 32k to fit within available KV cache memory (2.51 GiB)
-          maxModelLen: 24576  # 24k tokens (vLLM estimated max: 27440)
+          maxModelLen: 24576 # 24k tokens (vLLM estimated max: 27440)
 
           # AWQ quantization works with bfloat16
           dtype: "bfloat16"
 
           # Additional performance flags
           extraArgs:
-            - "--enable-chunked-prefill"    # Performance optimization
-            - "--enable-prefix-caching"     # Cache common prefixes
+            - "--enable-chunked-prefill" # Performance optimization
+            - "--enable-prefix-caching" # Cache common prefixes
             - "--gpu-memory-utilization"
-            - "0.85"  # Reduced from 0.95 to leave headroom for CUDA graph compilation
+            - "0.85" # Reduced from 0.95 to leave headroom for CUDA graph compilation
             - "--cpu-offload-gb"
-            - "15"  # Increased from 10GB to offload more to CPU RAM (we have 32Gi available)
-            - "--enable-auto-tool-choice"   # Enable function/tool calling
+            - "15" # Increased from 10GB to offload more to CPU RAM (we have 32Gi available)
+            - "--enable-auto-tool-choice" # Enable function/tool calling
             - "--tool-call-parser"
-            - "hermes"  # Use hermes parser for general Qwen3 instruct models
+            - "hermes" # Use hermes parser for general Qwen3 instruct models
             # Note: quantization auto-detected from model config (compressed-tensors)
 
         # Node affinity: schedule only on node-4 (GPU node with storage)

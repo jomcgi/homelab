@@ -6,10 +6,10 @@ Scraper for Scottish hiking data from WalkHighlands.co.uk.
 
 Two components for collecting and enriching hiking route data:
 
-| Component | Description |
-| --------- | ----------- |
+| Component                | Description                                         |
+| ------------------------ | --------------------------------------------------- |
 | **scrape_walkhighlands** | Scrapes route metadata, GPX files, and walk details |
-| **update_forecast** | Enriches routes with weather forecast data |
+| **update_forecast**      | Enriches routes with weather forecast data          |
 
 ## How It Works
 
@@ -43,9 +43,9 @@ bazel run //services/hikes/update_forecast
 
 Environment variables:
 
-| Variable | Description | Default |
-| -------- | ----------- | ------- |
-| `LOG_LEVEL` | Logging verbosity | `INFO` |
+| Variable    | Description       | Default |
+| ----------- | ----------------- | ------- |
+| `LOG_LEVEL` | Logging verbosity | `INFO`  |
 
 ## Architecture Notes
 

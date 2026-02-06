@@ -113,15 +113,15 @@ spec:
 
 ## Field Reference
 
-| Field | Description |
-|-------|-------------|
-| `metadata.name` | Must match the service name |
-| `spec.applicationRefs[].namePattern` | Must match the ArgoCD Application name |
-| `spec.applicationRefs[].images[].alias` | Identifier for this image (usually service name) |
-| `spec.applicationRefs[].images[].imageName` | Full image path with tag (`:main` for main branch) |
-| `spec.applicationRefs[].images[].manifestTargets.helm.name` | Helm value path for repository |
-| `spec.applicationRefs[].images[].manifestTargets.helm.tag` | Helm value path for tag |
-| `spec.writeBackConfig.writeBackTarget` | Relative path from repo root to values.yaml |
+| Field                                                       | Description                                        |
+| ----------------------------------------------------------- | -------------------------------------------------- |
+| `metadata.name`                                             | Must match the service name                        |
+| `spec.applicationRefs[].namePattern`                        | Must match the ArgoCD Application name             |
+| `spec.applicationRefs[].images[].alias`                     | Identifier for this image (usually service name)   |
+| `spec.applicationRefs[].images[].imageName`                 | Full image path with tag (`:main` for main branch) |
+| `spec.applicationRefs[].images[].manifestTargets.helm.name` | Helm value path for repository                     |
+| `spec.applicationRefs[].images[].manifestTargets.helm.tag`  | Helm value path for tag                            |
+| `spec.writeBackConfig.writeBackTarget`                      | Relative path from repo root to values.yaml        |
 
 ## Step-by-Step Guide
 
@@ -144,18 +144,18 @@ Check the Application's `metadata.name` in `application.yaml`:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: todo  # <-- This is the namePattern (no env prefix)
+  name: todo # <-- This is the namePattern (no env prefix)
 ```
 
 ### Step 3: Determine the Image Path
 
 Images follow these patterns:
 
-| Type | Pattern |
-|------|---------|
-| Chart-based service | `ghcr.io/jomcgi/homelab/charts/<name>:main` |
-| Operator | `ghcr.io/jomcgi/homelab/operators/<name>:main` |
-| Standalone image | `ghcr.io/jomcgi/homelab/<name>:main` |
+| Type                | Pattern                                        |
+| ------------------- | ---------------------------------------------- |
+| Chart-based service | `ghcr.io/jomcgi/homelab/charts/<name>:main`    |
+| Operator            | `ghcr.io/jomcgi/homelab/operators/<name>:main` |
+| Standalone image    | `ghcr.io/jomcgi/homelab/<name>:main`           |
 
 ### Step 4: Calculate the Relative Path
 
@@ -163,16 +163,16 @@ The `writeBackTarget` path is relative from where ArgoCD renders manifests (typi
 
 Common patterns:
 
-| Service Location | Relative Path |
-|-----------------|---------------|
-| `overlays/prod/<service>/` | `../../overlays/prod/<service>/values.yaml` |
-| `overlays/dev/<service>/` | `../../overlays/dev/<service>/values.yaml` |
+| Service Location                       | Relative Path                                           |
+| -------------------------------------- | ------------------------------------------------------- |
+| `overlays/prod/<service>/`             | `../../overlays/prod/<service>/values.yaml`             |
+| `overlays/dev/<service>/`              | `../../overlays/dev/<service>/values.yaml`              |
 | `overlays/cluster-critical/<service>/` | `../../overlays/cluster-critical/<service>/values.yaml` |
 
 For operators with nested charts:
 
-| Service Location | Relative Path |
-|-----------------|---------------|
+| Service Location           | Relative Path                                     |
+| -------------------------- | ------------------------------------------------- |
 | `overlays/dev/<operator>/` | `../../../../overlays/dev/<operator>/values.yaml` |
 
 ### Step 5: Create the ImageUpdater File
@@ -217,7 +217,7 @@ kind: Kustomization
 
 resources:
   - application.yaml
-  - imageupdater.yaml  # <-- Add this line
+  - imageupdater.yaml # <-- Add this line
 ```
 
 ## Custom Helm Value Paths
@@ -328,9 +328,9 @@ resources:
 
 ## Troubleshooting
 
-| Issue | Solution |
-|-------|----------|
-| Image not updating | Check `namePattern` matches ArgoCD Application name exactly |
-| Git write-back fails | Verify `argocd-image-updater-token` secret exists in argocd namespace |
-| Wrong values file updated | Check `writeBackTarget` relative path is correct |
-| Digest not changing | Ensure CI is pushing to the correct image tag (`:main`) |
+| Issue                     | Solution                                                              |
+| ------------------------- | --------------------------------------------------------------------- |
+| Image not updating        | Check `namePattern` matches ArgoCD Application name exactly           |
+| Git write-back fails      | Verify `argocd-image-updater-token` secret exists in argocd namespace |
+| Wrong values file updated | Check `writeBackTarget` relative path is correct                      |
+| Digest not changing       | Ensure CI is pushing to the correct image tag (`:main`)               |

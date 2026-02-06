@@ -23,6 +23,7 @@ spec:
         - name: ghcr-imagepull-secret
       {{- end }}
       securityContext:
+        runAsNonRoot: true
         seccompProfile:
           type: RuntimeDefault
       containers:

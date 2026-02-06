@@ -54,11 +54,11 @@ This skill creates a SigNoz HTTP health check alert that monitors service availa
 
 ## Arguments
 
-| Argument    | Required | Description                                    | Example                          |
-| ----------- | -------- | ---------------------------------------------- | -------------------------------- |
-| `service`   | Yes      | Service name (used in metadata and labels)     | `todo`, `api-gateway`, `claude`  |
-| `url`       | Yes      | Full HTTPS URL for the health check endpoint   | `https://todo.jomcgi.dev`        |
-| `namespace` | No       | Kubernetes namespace (defaults to service name)| `signoz`, `argocd`               |
+| Argument    | Required | Description                                     | Example                         |
+| ----------- | -------- | ----------------------------------------------- | ------------------------------- |
+| `service`   | Yes      | Service name (used in metadata and labels)      | `todo`, `api-gateway`, `claude` |
+| `url`       | Yes      | Full HTTPS URL for the health check endpoint    | `https://todo.jomcgi.dev`       |
+| `namespace` | No       | Kubernetes namespace (defaults to service name) | `signoz`, `argocd`              |
 
 ## File Structure
 
@@ -91,12 +91,12 @@ data:
 
 ### Required Labels and Annotations
 
-| Field                                   | Value                     | Purpose                              |
-| --------------------------------------- | ------------------------- | ------------------------------------ |
-| `labels.signoz.io/alert`                | `"true"`                  | SigNoz alert operator discovers this |
-| `annotations.signoz.io/alert-name`      | `"<Service> Unreachable"` | Human-readable alert name            |
-| `annotations.signoz.io/severity`        | `"critical"`              | Alert severity level                 |
-| `annotations.signoz.io/notification-channels` | `"pagerduty-homelab"` | Notification channel                 |
+| Field                                         | Value                     | Purpose                              |
+| --------------------------------------------- | ------------------------- | ------------------------------------ |
+| `labels.signoz.io/alert`                      | `"true"`                  | SigNoz alert operator discovers this |
+| `annotations.signoz.io/alert-name`            | `"<Service> Unreachable"` | Human-readable alert name            |
+| `annotations.signoz.io/severity`              | `"critical"`              | Alert severity level                 |
+| `annotations.signoz.io/notification-channels` | `"pagerduty-homelab"`     | Notification channel                 |
 
 ## SigNoz Alert JSON Format
 
@@ -133,7 +133,7 @@ data:
           "filters": {
             "items": [
               {
-                "key": {"key": "http.url"},
+                "key": { "key": "http.url" },
                 "op": "=",
                 "value": "<url>"
               }
@@ -153,13 +153,13 @@ data:
 
 ### Key Alert Parameters
 
-| Parameter       | Value    | Description                                      |
-| --------------- | -------- | ------------------------------------------------ |
-| `evalWindow`    | `10m0s`  | Time window to evaluate the condition            |
-| `frequency`     | `2m0s`   | How often to check the condition                 |
-| `matchType`     | `"5"`    | Alert when condition met 5 times in eval window  |
-| `op`            | `<`      | Alert when status is less than target            |
-| `target`        | `1`      | httpcheck.status = 1 means success, 0 = failure  |
+| Parameter    | Value   | Description                                     |
+| ------------ | ------- | ----------------------------------------------- |
+| `evalWindow` | `10m0s` | Time window to evaluate the condition           |
+| `frequency`  | `2m0s`  | How often to check the condition                |
+| `matchType`  | `"5"`   | Alert when condition met 5 times in eval window |
+| `op`         | `<`     | Alert when status is less than target           |
+| `target`     | `1`     | httpcheck.status = 1 means success, 0 = failure |
 
 ## Usage Examples
 

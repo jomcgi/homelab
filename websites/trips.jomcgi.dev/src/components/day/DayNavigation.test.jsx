@@ -71,7 +71,7 @@ describe("DayNavigation", () => {
 
     it("disables Next button on last day", () => {
       renderWithRouter(
-        <DayNavigation {...defaultProps} dayNumber={7} totalDays={7} />
+        <DayNavigation {...defaultProps} dayNumber={7} totalDays={7} />,
       );
 
       // When disabled, it's a span not a link
@@ -86,7 +86,9 @@ describe("DayNavigation", () => {
 
       // Component still renders all elements
       expect(screen.getByText("Tokyo Adventures")).toBeInTheDocument();
-      expect(screen.getByRole("link", { name: /summary/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /summary/i }),
+      ).toBeInTheDocument();
     });
   });
 });

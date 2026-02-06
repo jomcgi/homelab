@@ -3,7 +3,7 @@
 import pytest
 import yaml
 
-from services.knowledge_graph.app.scraper_main import _load_sources, app
+from services.knowledge_graph.app.scraper_main import _load_sources, _validate_url, app
 
 
 class TestLoadSources:
@@ -66,6 +66,30 @@ class TestLoadSources:
         p.write_text(yaml.dump({"other": "data"}))
         sources = _load_sources(str(p))
         assert sources == []
+
+
+class TestValidateUrl:
+    def test_valid_https(self):
+        _validate_url("https://example.com/page")
+
+    def test_valid_http(self):
+        _validate_url("http://example.com/page")
+
+    def test_rejects_ftp_scheme(self):
+        with pytest.raises(ValueError, match="scheme must be http"):
+            _validate_url("ftp://example.com/file")
+
+    def test_rejects_file_scheme(self):
+        with pytest.raises(ValueError, match="scheme must be http"):
+            _validate_url("file:///etc/passwd")
+
+    def test_rejects_cluster_local(self):
+        with pytest.raises(ValueError, match="cluster-internal"):
+            _validate_url("http://qdrant.qdrant.svc.cluster.local:6333/collections")
+
+    def test_rejects_empty_hostname(self):
+        with pytest.raises(ValueError, match="hostname"):
+            _validate_url("http://")
 
 
 class TestHealthEndpoint:

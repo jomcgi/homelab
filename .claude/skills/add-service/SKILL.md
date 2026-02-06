@@ -14,10 +14,12 @@ This skill scaffolds the GitOps boilerplate for deploying a new service via Argo
 ```
 
 Arguments:
+
 - `<service-name>`: Name of the service (e.g., `myapp`, `api-gateway`)
 - `<environment>`: Target environment - one of `prod`, `dev`, or `cluster-critical`
 
 Examples:
+
 ```
 /add-service myapp prod
 /add-service test-service dev
@@ -31,6 +33,7 @@ The skill generates three files in `overlays/{env}/{service}/`:
 ### 1. application.yaml
 
 ArgoCD Application manifest that:
+
 - Points to `charts/{service}` in the homelab repo
 - References both chart defaults and overlay values
 - Enables automated sync with prune and self-heal
@@ -39,6 +42,7 @@ ArgoCD Application manifest that:
 ### 2. kustomization.yaml
 
 Kustomize manifest that:
+
 - Makes the Application discoverable by ArgoCD
 - Lists `application.yaml` as a resource
 - Can be extended with additional resources (alerts, image updaters, etc.)
@@ -46,6 +50,7 @@ Kustomize manifest that:
 ### 3. values.yaml
 
 Helm values override file with:
+
 - Comment header indicating the environment
 - Placeholder sections for common configurations
 - Ready for customization
@@ -58,7 +63,7 @@ Helm values override file with:
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {service}
+  name: { service }
   namespace: argocd
 spec:
   project: default
@@ -67,13 +72,13 @@ spec:
     targetRevision: HEAD
     path: charts/{service}
     helm:
-      releaseName: {service}
+      releaseName: { service }
       valueFiles:
         - values.yaml
         - ../../overlays/{env}/{service}/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: {service}
+    namespace: { service }
   syncPolicy:
     automated:
       prune: true
@@ -122,6 +127,7 @@ resources:
 The user needs to:
 
 1. **Create the Helm chart** at `charts/{service}/`:
+
    ```
    charts/{service}/
    ├── Chart.yaml
@@ -147,16 +153,19 @@ The user needs to:
 ## Environment-Specific Notes
 
 ### prod
+
 - Services accessible to users
 - Typically exposed via Cloudflare tunnel
 - Should have production-grade resource limits
 
 ### dev
+
 - Testing and development services
 - May have relaxed security or resource limits
 - Good for iterating on new features
 
 ### cluster-critical
+
 - Infrastructure services (cert-manager, argocd, longhorn, etc.)
 - Often has finalizers to prevent accidental deletion
 - May need `ServerSideApply=true` for CRDs
@@ -169,11 +178,13 @@ The user needs to:
 ```
 
 Creates:
+
 - `overlays/prod/blog/application.yaml`
 - `overlays/prod/blog/kustomization.yaml`
 - `overlays/prod/blog/values.yaml`
 
 Then customize `values.yaml`:
+
 ```yaml
 # Production values for blog
 
@@ -199,16 +210,17 @@ After creating the base service, you may want to add:
 ### Image Updater (for auto-updating container images)
 
 Create `overlays/{env}/{service}/imageupdater.yaml`:
+
 ```yaml
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
-  name: {service}
+  name: { service }
   namespace: argocd
 spec:
   applicationRefs:
     - images:
-        - alias: {service}
+        - alias: { service }
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
@@ -217,7 +229,7 @@ spec:
             helm:
               name: image.repository
               tag: image.tag
-      namePattern: {service}
+      namePattern: { service }
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token
     gitConfig:
@@ -227,6 +239,7 @@ spec:
 ```
 
 Then update `kustomization.yaml`:
+
 ```yaml
 resources:
   - application.yaml

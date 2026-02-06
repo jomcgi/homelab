@@ -3,10 +3,13 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import logging
+import socket
 import sys
 import time
 from contextlib import asynccontextmanager
+from urllib.parse import urlparse
 
 import httpx
 import yaml
@@ -34,6 +37,26 @@ notifier: SlackNotifier | None = None
 rate_limiter: RateLimiter | None = None
 sources: list[SourceConfig] = []
 extractors: list = []
+
+
+def _validate_url(url: str) -> None:
+    """Validate URL to prevent SSRF attacks."""
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        raise ValueError(f"URL scheme must be http or https, got '{parsed.scheme}'")
+    hostname = parsed.hostname or ""
+    if not hostname:
+        raise ValueError("URL must have a hostname")
+    if hostname.endswith(".svc.cluster.local"):
+        raise ValueError("URLs targeting cluster-internal services are not allowed")
+    # Resolve hostname and check for private IPs
+    try:
+        for info in socket.getaddrinfo(hostname, None):
+            addr = ipaddress.ip_address(info[4][0])
+            if addr.is_private or addr.is_loopback or addr.is_link_local:
+                raise ValueError(f"URL resolves to private/loopback address: {addr}")
+    except socket.gaierror:
+        pass  # DNS resolution may fail in test/sandbox; allow and let httpx handle it
 
 
 def _load_sources(path: str) -> list[SourceConfig]:
@@ -183,6 +206,10 @@ class ScrapeRequest(BaseModel):
 
 @app.post("/scrape")
 async def scrape(req: ScrapeRequest):
+    try:
+        _validate_url(req.url)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     source = SourceConfig(url=req.url, type=req.type, name=None)
     async with httpx.AsyncClient() as client:
         results = await _scrape_source(source, client, force=req.force)

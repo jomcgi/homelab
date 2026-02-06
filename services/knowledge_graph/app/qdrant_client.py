@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 
 import httpx
 
@@ -40,10 +41,15 @@ class QdrantClient:
         chunks: list[ChunkPayload],
         vectors: list[list[float]],
     ) -> None:
-        """Upsert points. ID = {content_hash}_{chunk_index}."""
+        """Upsert points with deterministic UUID5 IDs."""
+        _namespace = uuid.UUID("00000000-0000-0000-0000-000000000000")
         points = []
         for chunk, vector in zip(chunks, vectors):
-            point_id = f"{chunk['content_hash']}_{chunk['chunk_index']}"
+            point_id = str(
+                uuid.uuid5(
+                    _namespace, f"{chunk['content_hash']}_{chunk['chunk_index']}"
+                )
+            )
             points.append(
                 {
                     "id": point_id,

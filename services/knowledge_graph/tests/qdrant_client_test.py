@@ -1,5 +1,6 @@
 """Tests for Qdrant client."""
 
+import uuid
 from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
@@ -86,7 +87,9 @@ class TestUpsertChunks:
 
             call_kwargs = mock_client.put.call_args
             payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
-            assert payload["points"][0]["id"] == "abc123_0"
+            _ns = uuid.UUID("00000000-0000-0000-0000-000000000000")
+            expected_id = str(uuid.uuid5(_ns, "abc123_0"))
+            assert payload["points"][0]["id"] == expected_id
 
 
 class TestSearch:

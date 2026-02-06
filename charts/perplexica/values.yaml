@@ -221,7 +221,7 @@ podSecurityContext:
 ## Container Security Context
 securityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false  # Perplexica writes to /home/perplexica
+  readOnlyRootFilesystem: false # Perplexica writes to /home/perplexica
   runAsNonRoot: true
   runAsUser: 1000
   runAsGroup: 1000
