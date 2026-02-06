@@ -107,8 +107,17 @@ actions:
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           export GITHUB_TOKEN="$GHCR_TOKEN"
 
-          # Get crane from Bazel (ensures consistent version)
-          CRANE=$(bazel run --run_under=echo @rules_oci//oci:crane)
+          # Get crane binary from Bazel's external cache
+          # Crane is downloaded by the toolchain but not exposed as a runnable target
+          # Find it in the Bazel output directory
+          CRANE=$(find $(bazel info output_base 2>/dev/null)/external -name crane -type f -executable 2>/dev/null | grep linux_amd64 | head -1)
+
+          if [ -z "$CRANE" ] || [ ! -x "$CRANE" ]; then
+            echo "ERROR: Could not find crane binary in Bazel cache"
+            exit 1
+          fi
+
+          echo "Using crane: $CRANE"
 
           # Authenticate to GHCR
           echo "$GHCR_TOKEN" | $CRANE auth login ghcr.io -u jomcgi --password-stdin
