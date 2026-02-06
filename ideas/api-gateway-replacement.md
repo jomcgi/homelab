@@ -3,6 +3,7 @@
 ## Executive Summary
 
 Replace the monolithic `api-gateway` (nginx + collector sidecar) with:
+
 1. **HTTPRoute resources** managed by the Cloudflare operator for routing
 2. **Standalone cluster-info service** for metrics aggregation
 3. **Cloudflare Transform Rules** for edge caching headers
@@ -53,14 +54,14 @@ Cloudflare Tunnel (managed by Gateway CRD)
 
 ### Key Changes
 
-| Component | Before | After |
-|-----------|--------|-------|
-| Routing | nginx proxy_pass | HTTPRoute CRDs |
-| DNS | Manual + Tunnel config | Automatic via HTTPRoute controller |
-| Cluster metrics | Collector sidecar | Standalone cluster-info service |
-| Caching headers | nginx add_header | Cloudflare Transform Rules |
-| Path stripping | nginx rewrite | Backend handles full path |
-| WebSocket | nginx upgrade headers | Cloudflare Tunnel native |
+| Component       | Before                 | After                              |
+| --------------- | ---------------------- | ---------------------------------- |
+| Routing         | nginx proxy_pass       | HTTPRoute CRDs                     |
+| DNS             | Manual + Tunnel config | Automatic via HTTPRoute controller |
+| Cluster metrics | Collector sidecar      | Standalone cluster-info service    |
+| Caching headers | nginx add_header       | Cloudflare Transform Rules         |
+| Path stripping  | nginx rewrite          | Backend handles full path          |
+| WebSocket       | nginx upgrade headers  | Cloudflare Tunnel native           |
 
 ---
 
@@ -99,20 +100,22 @@ cache:
 
 **Implementation options:**
 
-| Option | Pros | Cons |
-|--------|------|------|
-| **A: Go service** | Type-safe, efficient, good k8s client | Build complexity |
-| **B: Python FastAPI** | Quick to build, matches stargazer | Heavier runtime |
-| **C: Shell + nginx** | Reuse existing collector script | Fragile, hard to test |
+| Option                | Pros                                  | Cons                  |
+| --------------------- | ------------------------------------- | --------------------- |
+| **A: Go service**     | Type-safe, efficient, good k8s client | Build complexity      |
+| **B: Python FastAPI** | Quick to build, matches stargazer     | Heavier runtime       |
+| **C: Shell + nginx**  | Reuse existing collector script       | Fragile, hard to test |
 
 **Recommendation**: Option B (Python FastAPI) - consistent with stargazer-api, easy CORS/caching.
 
 **Endpoints:**
+
 - `GET /` - Full cluster info JSON
 - `GET /health` - Health check
 - `GET /status.json` - Legacy compatibility (redirect or alias)
 
 **Data collected:**
+
 - Node counts (control-plane, GPU)
 - CPU/memory from metrics-server
 - Pod status list
@@ -126,6 +129,7 @@ cache:
 Currently expects requests at `/best`, `/locations`, etc. Needs to handle `/stargazer/*` prefix.
 
 **Option A: FastAPI path prefix**
+
 ```python
 app = FastAPI()
 router = APIRouter(prefix="/stargazer")
@@ -133,6 +137,7 @@ router = APIRouter(prefix="/stargazer")
 ```
 
 **Option B: Strip prefix in HTTPRoute** (if operator supports it)
+
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -155,6 +160,7 @@ spec:
 #### Trips-nginx Changes
 
 Verify WebSocket requirements:
+
 - [ ] Check if trips-api actually uses WebSockets
 - [ ] If yes, verify Cloudflare Tunnel handles upgrade natively
 - [ ] If no, remove unnecessary nginx WebSocket config
@@ -164,6 +170,7 @@ Verify WebSocket requirements:
 Replace nginx routing with declarative HTTPRoute CRDs.
 
 **`overlays/prod/trips/httproute.yaml`:**
+
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -187,6 +194,7 @@ spec:
 ```
 
 **`overlays/prod/stargazer/httproute.yaml`:**
+
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -210,6 +218,7 @@ spec:
 ```
 
 **`overlays/prod/cluster-info/httproute.yaml`:**
+
 ```yaml
 apiVersion: gateway.networking.k8s.io/v1
 kind: HTTPRoute
@@ -241,8 +250,8 @@ Add caching headers at the edge instead of in nginx.
 
 **Cloudflare Dashboard → Rules → Transform Rules → Modify Response Headers:**
 
-| Rule Name | Match | Action |
-|-----------|-------|--------|
+| Rule Name         | Match                          | Action                                                       |
+| ----------------- | ------------------------------ | ------------------------------------------------------------ |
 | API Cache Headers | `hostname eq "api.jomcgi.dev"` | Add `Cache-Control: s-maxage=30, stale-while-revalidate=300` |
 
 Alternatively, manage via Terraform/Pulumi if infrastructure-as-code is preferred.
@@ -261,11 +270,11 @@ Alternatively, manage via Terraform/Pulumi if infrastructure-as-code is preferre
 
 The current operator may need these additions:
 
-| Feature | Status | Required For |
-|---------|--------|--------------|
-| HTTPRoute path rewriting | ❌ Missing | Stargazer (if not fixing backend) |
-| Cross-namespace backendRefs | ❓ Check | Routing to services in other namespaces |
-| Multiple hostnames per HTTPRoute | ❓ Check | api.jomcgi.dev with path-based routing |
+| Feature                          | Status     | Required For                            |
+| -------------------------------- | ---------- | --------------------------------------- |
+| HTTPRoute path rewriting         | ❌ Missing | Stargazer (if not fixing backend)       |
+| Cross-namespace backendRefs      | ❓ Check   | Routing to services in other namespaces |
+| Multiple hostnames per HTTPRoute | ❓ Check   | api.jomcgi.dev with path-based routing  |
 
 ### Path Rewriting Implementation (if needed)
 
@@ -287,6 +296,7 @@ func (r *HTTPRouteReconciler) buildIngressRule(rule gatewayv1.HTTPRouteRule) Ing
 ## Migration Checklist
 
 ### Pre-Migration
+
 - [ ] Create cluster-info chart
 - [ ] Build and push cluster-info image
 - [ ] Update stargazer-api to handle /stargazer prefix
@@ -294,6 +304,7 @@ func (r *HTTPRouteReconciler) buildIngressRule(rule gatewayv1.HTTPRouteRule) Ing
 - [ ] Test HTTPRoute resources in dev environment
 
 ### Migration
+
 - [ ] Deploy cluster-info service to prod
 - [ ] Deploy HTTPRoute resources
 - [ ] Add Cloudflare Transform Rule for caching
@@ -305,6 +316,7 @@ func (r *HTTPRouteReconciler) buildIngressRule(rule gatewayv1.HTTPRouteRule) Ing
   - [ ] `api.jomcgi.dev/status.json`
 
 ### Post-Migration
+
 - [ ] Monitor for errors in SigNoz
 - [ ] Remove api-gateway from ArgoCD
 - [ ] Delete `charts/api-gateway/`
@@ -316,6 +328,7 @@ func (r *HTTPRouteReconciler) buildIngressRule(rule gatewayv1.HTTPRouteRule) Ing
 ## Rollback Plan
 
 If issues arise:
+
 1. Re-add api-gateway route to tunnel config
 2. HTTPRoute resources can coexist (lower priority)
 3. No data loss - all changes are routing only
@@ -333,24 +346,24 @@ If issues arise:
 
 ## Risks
 
-| Risk | Mitigation |
-|------|------------|
-| HTTPRoute feature gaps | Test thoroughly in dev; keep api-gateway as fallback |
-| WebSocket breakage | Verify Cloudflare Tunnel handles upgrades before migration |
-| Collector data gaps | Test cluster-info service independently before cutover |
-| Path routing conflicts | Careful ordering of HTTPRoute rules by specificity |
+| Risk                   | Mitigation                                                 |
+| ---------------------- | ---------------------------------------------------------- |
+| HTTPRoute feature gaps | Test thoroughly in dev; keep api-gateway as fallback       |
+| WebSocket breakage     | Verify Cloudflare Tunnel handles upgrades before migration |
+| Collector data gaps    | Test cluster-info service independently before cutover     |
+| Path routing conflicts | Careful ordering of HTTPRoute rules by specificity         |
 
 ---
 
 ## Timeline Estimate
 
-| Phase | Scope |
-|-------|-------|
+| Phase   | Scope                                   |
+| ------- | --------------------------------------- |
 | Phase 1 | cluster-info service chart + deployment |
-| Phase 2 | Backend path handling updates |
-| Phase 3 | HTTPRoute resources + testing |
-| Phase 4 | Cloudflare Transform Rules |
-| Phase 5 | Cutover + cleanup |
+| Phase 2 | Backend path handling updates           |
+| Phase 3 | HTTPRoute resources + testing           |
+| Phase 4 | Cloudflare Transform Rules              |
+| Phase 5 | Cutover + cleanup                       |
 
 ---
 

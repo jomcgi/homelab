@@ -19,7 +19,7 @@ llm:
 embedding:
   provider: "openai"
   baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
-  model: "qwen3-coder-30b"  # vLLM can generate embeddings with chat models
+  model: "qwen3-coder-30b" # vLLM can generate embeddings with chat models
 
 ## SearXNG configuration
 searxng:

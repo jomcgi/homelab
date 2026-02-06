@@ -29,6 +29,7 @@ A minimalist, git-backed todo tracker with weekly focus and daily top 3.
 ## Data Contract
 
 ### Current State: `data.json`
+
 ```json
 {
   "weekly": { "task": "string", "done": false },
@@ -41,13 +42,16 @@ A minimalist, git-backed todo tracker with weekly focus and daily top 3.
 ```
 
 ### Historical: `/{YYYY}/{MM}/{D}.md`
+
 ```markdown
 # Thursday, January 30
 
 ## Weekly
+
 Ship Cloudflare operator v0.1
 
 ## Daily
+
 - [x] Fix ArgoCD sync timeout on staging
 - [x] Write CRD validation for tunnel annotations
 - [ ] Review PR for metrics aggregation
@@ -55,14 +59,14 @@ Ship Cloudflare operator v0.1
 
 ### API Endpoints
 
-| Endpoint | Method | Request | Response |
-|----------|--------|---------|----------|
-| `/api/weekly` | GET | - | `{ task: string, done: boolean }` |
-| `/api/daily` | GET | - | `[{ task: string, done: boolean }, ...]` |
-| `/api/todo` | PUT | Full state object | 200 OK |
-| `/api/reset/daily` | POST | - | Archives day, clears daily |
-| `/api/reset/weekly` | POST | - | Archives day, clears all |
-| `/api/dates` | GET | - | `string[]` ISO dates, max 14 days |
+| Endpoint            | Method | Request           | Response                                 |
+| ------------------- | ------ | ----------------- | ---------------------------------------- |
+| `/api/weekly`       | GET    | -                 | `{ task: string, done: boolean }`        |
+| `/api/daily`        | GET    | -                 | `[{ task: string, done: boolean }, ...]` |
+| `/api/todo`         | PUT    | Full state object | 200 OK                                   |
+| `/api/reset/daily`  | POST   | -                 | Archives day, clears daily               |
+| `/api/reset/weekly` | POST   | -                 | Archives day, clears all                 |
+| `/api/dates`        | GET    | -                 | `string[]` ISO dates, max 14 days        |
 
 ## Design System
 
@@ -70,28 +74,28 @@ Ship Cloudflare operator v0.1
 
 ```css
 :root {
-  --base: #eff1f5;      /* background */
-  --text: #4c4f69;      /* primary text, active tasks */
-  --subtext: #6c6f85;   /* section headers */
-  --surface: #ccd0da;   /* borders */
-  --muted: #bcc0cc;     /* empty placeholders */
-  --green: #40a02b;     /* done tasks */
-  --red: #d20f39;       /* action prompts */
+  --base: #eff1f5; /* background */
+  --text: #4c4f69; /* primary text, active tasks */
+  --subtext: #6c6f85; /* section headers */
+  --surface: #ccd0da; /* borders */
+  --muted: #bcc0cc; /* empty placeholders */
+  --green: #40a02b; /* done tasks */
+  --red: #d20f39; /* action prompts */
 }
 ```
 
 ### Color Usage
 
-| Element | Color | Notes |
-|---------|-------|-------|
-| Active tasks | `--text` | Primary focus |
-| Done tasks | `--green` | + strikethrough, 60% opacity |
-| Empty slots | `--muted` | Shows "..." |
-| Section headers | `--subtext` | WEEKLY, DAILY |
-| Action prompts | `--red` | "@jomcgi set your week" |
-| Prompt hover | `--text` | Red fades to neutral |
-| Borders | `--surface` | Subtle separators |
-| Background | `--base` | Light cream |
+| Element         | Color       | Notes                        |
+| --------------- | ----------- | ---------------------------- |
+| Active tasks    | `--text`    | Primary focus                |
+| Done tasks      | `--green`   | + strikethrough, 60% opacity |
+| Empty slots     | `--muted`   | Shows "..."                  |
+| Section headers | `--subtext` | WEEKLY, DAILY                |
+| Action prompts  | `--red`     | "@jomcgi set your week"      |
+| Prompt hover    | `--text`    | Red fades to neutral         |
+| Borders         | `--surface` | Subtle separators            |
+| Background      | `--base`    | Light cream                  |
 
 ### Typography
 
@@ -112,11 +116,13 @@ Ship Cloudflare operator v0.1
 ## Empty States
 
 When weekly is empty:
+
 ```
 @jomcgi set your week
 ```
 
 When all daily tasks are empty:
+
 ```
 @jomcgi set your day
 ...
@@ -153,6 +159,7 @@ overlays/prod/todo/
 ```
 
 ### Data Directory (at runtime)
+
 ```
 /data/
 ├── data.json                   # Current state
@@ -180,8 +187,13 @@ On reset (daily or weekly):
 ### Date Injection
 
 Template contains:
+
 ```javascript
-const DATES = /*DATES_PLACEHOLDER*/["2025-01-28", "2025-01-29", "2025-01-30"]/*END_PLACEHOLDER*/;
+const DATES = /*DATES_PLACEHOLDER*/ [
+  "2025-01-28",
+  "2025-01-29",
+  "2025-01-30",
+]; /*END_PLACEHOLDER*/
 ```
 
 Build replaces with actual dates array.
@@ -189,12 +201,14 @@ Build replaces with actual dates array.
 ## Kubernetes Resources
 
 ### Deployment
+
 - **Init container**: Clone/pull git repo
 - **API container**: Go server on :8080 (includes internal scheduler)
 - **Static container**: nginx on :80, serves `/public`
 - **Volume**: PVC for data, git SSH secret
 
 ### Services
+
 - `todo-public`: Port 80 → nginx, public Cloudflare tunnel
 - `todo-admin`: Port 8080 → API, Zero Trust protected
 
@@ -230,21 +244,25 @@ Called from `main()` after server setup.
 ## Frontend Behavior
 
 ### Today View
+
 1. Fetch `/api/weekly` and `/api/daily` in parallel
 2. Render tasks or empty state prompts
 3. No date shown in header
 
 ### Historical View
+
 1. Fetch `/{YYYY}/{MM}/{D}.md`
 2. Parse markdown for weekly and daily sections
 3. Show date in header (e.g., "Wednesday, January 29")
 
 ### Navigation
+
 - Left arrow: Previous day (if available)
 - Right arrow: Next day (if not at today)
 - No visible buttons
 
 ### Fallback
+
 - If API fails, try `data.json` static file
 - If historical fetch fails, show empty state
 
@@ -260,15 +278,18 @@ Called from `main()` after server setup.
 ## Git Integration
 
 ### Environment Variables
+
 - `GIT_REPO`: SSH URL (e.g., `git@github.com:jomcgi/todo.git`)
 - `GIT_BRANCH`: Branch name (default: `main`)
 - `DATA_DIR`: Data directory path (default: `/data`)
 
 ### Commit Messages
+
 - Daily reset: `reset: daily`
 - Weekly reset: `reset: weekly`
 
 ### SSH Key
+
 Mounted from secret at `/root/.ssh`, mode 0400.
 
 ## Rolling Window
@@ -281,6 +302,7 @@ Mounted from secret at `/root/.ssh`, mode 0400.
 ## Example States
 
 ### Fresh Week (Monday morning)
+
 ```
 WEEKLY
 @jomcgi set your week
@@ -292,6 +314,7 @@ DAILY
 ```
 
 ### Mid-Week Active
+
 ```
 WEEKLY
 Ship Cloudflare operator v0.1
@@ -303,6 +326,7 @@ Write CRD validation for tunnel annotations
 ```
 
 ### End of Day (all done)
+
 ```
 WEEKLY
 Ship Cloudflare operator v0.1
@@ -316,11 +340,13 @@ Review PR for metrics aggregation    [done]
 ## Implementation Checklist
 
 ### Chart Setup
+
 - [x] Create `charts/todo/Chart.yaml`
 - [x] Create `charts/todo/values.yaml` with defaults
 - [x] Create `charts/todo/templates/` (deployment, service, pvc)
 
 ### Source Code (in `charts/todo/src/`)
+
 - [x] Go API server with all endpoints
 - [x] Internal scheduler for daily/weekly resets
 - [x] Git clone/pull in init logic (deployment init container)
@@ -330,18 +356,22 @@ Review PR for metrics aggregation    [done]
 - [x] Markdown archive format
 
 ### Static Files (in `charts/todo/static/`)
+
 - [x] index.html with Catppuccin Latte theme
 - [x] edit.html for admin
 
 ### Overlay
+
 - [x] Create `overlays/prod/todo/application.yaml`
 - [x] Create `overlays/prod/todo/values.yaml` with git repo config
 - [x] Add to `overlays/prod/kustomization.yaml`
 
 ### Secrets
+
 - [ ] SSH deploy key secret for git push
 
 ### Verification
+
 - [x] `helm template todo charts/todo/ --namespace todo` renders correctly
 - [ ] Deploy via ArgoCD
 - [ ] Test public site loads

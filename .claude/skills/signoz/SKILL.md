@@ -223,7 +223,6 @@ Get log view configuration.
 
 - `viewId` - Required
 
-
 ## Common Debugging Scenarios
 
 ### "Service is returning errors"

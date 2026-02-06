@@ -22,14 +22,14 @@ flowchart LR
 
 ## Configuration
 
-| Value                     | Description                          | Default              |
-| ------------------------- | ------------------------------------ | -------------------- |
-| `replicaCount`            | Number of tunnel replicas            | `2`                  |
-| `tunnel.protocol`         | Connection protocol (auto/quic/http2)| `""`                 |
-| `secret.type`             | Credential source                    | `onepassword`        |
-| `ingress.routes`          | Route definitions (set in overlay)   | `[]`                 |
-| `envoy.enabled`           | Enable envoy sidecar for tracing     | `false`              |
-| `envoy.tracing.enabled`   | Enable OpenTelemetry tracing         | `true`               |
+| Value                   | Description                           | Default       |
+| ----------------------- | ------------------------------------- | ------------- |
+| `replicaCount`          | Number of tunnel replicas             | `2`           |
+| `tunnel.protocol`       | Connection protocol (auto/quic/http2) | `""`          |
+| `secret.type`           | Credential source                     | `onepassword` |
+| `ingress.routes`        | Route definitions (set in overlay)    | `[]`          |
+| `envoy.enabled`         | Enable envoy sidecar for tracing      | `false`       |
+| `envoy.tracing.enabled` | Enable OpenTelemetry tracing          | `true`        |
 
 ## Ingress Routes
 

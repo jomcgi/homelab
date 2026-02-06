@@ -7,6 +7,7 @@
 ArgoCD supports cdk8s via Config Management Plugins (CMP), enabling cdk8s definitions as source of truth. Combined with Bazel caching and Gazelle auto-generation, this creates a "fix once, fix everywhere" workflow.
 
 **Key value**: Not just about 23 charts today, but:
+
 - Type-safe infrastructure catching errors at compile time
 - Reusable constructs compounding in value
 - Bazel caching for incremental builds
@@ -14,15 +15,16 @@ ArgoCD supports cdk8s via Config Management Plugins (CMP), enabling cdk8s defini
 
 ## Current Pain Points
 
-| Issue | Evidence |
-|-------|----------|
-| Helper duplication | 8 charts with identical `_helpers.tpl` |
-| Deployment boilerplate | Security contexts/probes repeated 34+ times |
+| Issue                      | Evidence                                        |
+| -------------------------- | ----------------------------------------------- |
+| Helper duplication         | 8 charts with identical `_helpers.tpl`          |
+| Deployment boilerplate     | Security contexts/probes repeated 34+ times     |
 | Multi-component repetition | marine/trips/claude repeat config per component |
-| No shared templates | Helm lacks chart inheritance |
-| Values repetition | Each overlay defines everything independently |
+| No shared templates        | Helm lacks chart inheritance                    |
+| Values repetition          | Each overlay defines everything independently   |
 
 **What cdk8s solves:**
+
 - True code reuse via functions
 - Type safety with compile-time validation
 - IDE support (autocomplete, refactoring)
@@ -51,6 +53,7 @@ Flow: Git push → ArgoCD detects → CMP runs synth → Apply manifests
 ```
 
 **Available CMP images** (from [akuity/cdk8s-cmp](https://github.com/akuity/cdk8s-cmp)):
+
 - `ghcr.io/akuity/cdk8s-cmp-typescript`
 - `ghcr.io/akuity/cdk8s-cmp-python`
 - `ghcr.io/akuity/cdk8s-cmp-go`
@@ -79,21 +82,21 @@ argo-cd:
 
 ### Risks & Mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| Resource name changes trigger recreate | Use explicit `name` in construct props |
-| CMP maturity (18 stars, 8 commits) | Fork/maintain own or use custom images |
-| rules_cdk8s doesn't exist | Start simple (genrule), evolve incrementally |
-| Learning curve | TypeScript familiar, cdk8s mirrors K8s API |
+| Risk                                   | Mitigation                                   |
+| -------------------------------------- | -------------------------------------------- |
+| Resource name changes trigger recreate | Use explicit `name` in construct props       |
+| CMP maturity (18 stars, 8 commits)     | Fork/maintain own or use custom images       |
+| rules_cdk8s doesn't exist              | Start simple (genrule), evolve incrementally |
+| Learning curve                         | TypeScript familiar, cdk8s mirrors K8s API   |
 
 ### Compounding Benefits
 
-| Benefit | Year 1 | Year 3+ |
-|---------|--------|---------|
-| Type safety | Catches misconfigurations | Prevents entire bug classes |
-| Constructs | `SecureDeployment`, `ServiceWithProbes` | Battle-tested pattern library |
-| Bazel caching | Faster on unchanged charts | Near-instant for small changes |
-| Gazelle | Less BUILD maintenance | Zero-friction new services |
+| Benefit       | Year 1                                  | Year 3+                        |
+| ------------- | --------------------------------------- | ------------------------------ |
+| Type safety   | Catches misconfigurations               | Prevents entire bug classes    |
+| Constructs    | `SecureDeployment`, `ServiceWithProbes` | Battle-tested pattern library  |
+| Bazel caching | Faster on unchanged charts              | Near-instant for small changes |
+| Gazelle       | Less BUILD maintenance                  | Zero-friction new services     |
 
 ## Implementation: Custom Bazel-Built CMP
 
@@ -119,6 +122,7 @@ argo-cd:
 ### Phase 1: Custom CMP Image
 
 **1. Add dependencies** (`pyproject.toml`):
+
 ```toml
 dependencies = [
     "cdk8s~=2.68",
@@ -128,6 +132,7 @@ dependencies = [
 ```
 
 **2. CMP plugin config** (`tools/cdk8s-cmp/plugin.yaml`):
+
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: ConfigManagementPlugin
@@ -142,6 +147,7 @@ spec:
 ```
 
 **3. BUILD file** (`tools/cdk8s-cmp/BUILD`):
+
 ```python
 load("//tools/oci:py3_image.bzl", "py3_image")
 
@@ -155,6 +161,7 @@ py3_image(
 ### Phase 2: First cdk8s Service
 
 **Directory structure**:
+
 ```
 cdk8s/
 ├── lib/                      # Shared constructs (py_library)
@@ -167,6 +174,7 @@ cdk8s/
 ```
 
 **Shared construct** (`cdk8s/lib/secure_deployment.py`):
+
 ```python
 from constructs import Construct
 from imports.k8s import KubeDeployment
@@ -210,6 +218,7 @@ class SecureDeployment(Construct):
 ```
 
 **Service chart** (`cdk8s/stargazer/main.py`):
+
 ```python
 from cdk8s import App, Chart
 from lib.secure_deployment import SecureDeployment
@@ -232,6 +241,7 @@ app.synth()
 ### Phase 3: Bazel Integration
 
 **Custom rule** (`tools/cdk8s/defs.bzl`):
+
 ```python
 def py_cdk8s_chart(name, srcs, deps = []):
     """Macro for cdk8s charts with synth + validation."""
@@ -250,6 +260,7 @@ def py_cdk8s_chart(name, srcs, deps = []):
 ```
 
 **Usage**:
+
 ```python
 # cdk8s/stargazer/BUILD
 load("//tools/cdk8s:defs.bzl", "py_cdk8s_chart")
@@ -262,6 +273,7 @@ py_cdk8s_chart(
 ```
 
 **Benefits**:
+
 - `bazel build //cdk8s/stargazer` - local synth for review
 - `bazel test //cdk8s/...` - validate all charts compile
 - Gazelle can auto-generate targets (Phase 4)
@@ -300,6 +312,7 @@ cdk8s import k8s --output .
 ```
 
 **Bazel integration**:
+
 ```python
 # cdk8s/imports/BUILD
 py_library(
@@ -322,6 +335,7 @@ py_library(
 ### Solution: Custom Post-Processor
 
 **1. Value placeholders** (`cdk8s/lib/values.py`):
+
 ```python
 class HelmValue:
     """Marker for Helm template variables."""
@@ -339,6 +353,7 @@ annotations = {
 ```
 
 **2. Post-processor**:
+
 ```python
 # tools/cdk8s/helm_export.py
 def convert_to_helm_chart(yaml_content: str) -> tuple[str, dict]:
@@ -351,6 +366,7 @@ def convert_to_helm_chart(yaml_content: str) -> tuple[str, dict]:
 ```
 
 **3. Bazel rule**:
+
 ```python
 def py_cdk8s_helm_chart(name, srcs, deps = []):
     py_cdk8s_synth(name = name + "_raw", ...)
@@ -387,14 +403,14 @@ kubectl logs -n argocd <repo-server-pod> -c cdk8s-cmp
 
 ## Critical Files
 
-| File | Action |
-|------|--------|
-| `pyproject.toml` | Add cdk8s deps |
-| `tools/cdk8s-cmp/` | New CMP image |
-| `tools/cdk8s/defs.bzl` | Bazel rules |
-| `clusters/homelab/argocd/values.yaml` | Add CMP sidecar |
-| `cdk8s/lib/` | Shared constructs |
-| `cdk8s/stargazer/` | First service |
+| File                                  | Action            |
+| ------------------------------------- | ----------------- |
+| `pyproject.toml`                      | Add cdk8s deps    |
+| `tools/cdk8s-cmp/`                    | New CMP image     |
+| `tools/cdk8s/defs.bzl`                | Bazel rules       |
+| `clusters/homelab/argocd/values.yaml` | Add CMP sidecar   |
+| `cdk8s/lib/`                          | Shared constructs |
+| `cdk8s/stargazer/`                    | First service     |
 
 ## References
 

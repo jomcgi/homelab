@@ -11,7 +11,7 @@ cloudflare:
   publicHostname: todo.jomcgi.dev
   adminHostname: todo-admin.jomcgi.dev
   allowedEmails:
-  - joe@jomcgi.dev
+    - joe@jomcgi.dev
 persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
@@ -22,10 +22,10 @@ image:
 affinity:
   podAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      podAffinityTerm:
-        labelSelector:
-          matchLabels:
-            app.kubernetes.io/name: todo
-            app.kubernetes.io/instance: todo
-        topologyKey: kubernetes.io/hostname
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: todo
+              app.kubernetes.io/instance: todo
+          topologyKey: kubernetes.io/hostname

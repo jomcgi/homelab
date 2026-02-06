@@ -883,8 +883,8 @@ export default function SexyBackDemo() {
               Cultural Impact
             </div>
             <p>
-              The track that redefined pop music. Timbaland's production
-              created something the world wasn't ready for.
+              The track that redefined pop music. Timbaland's production created
+              something the world wasn't ready for.
             </p>
           </div>
 
@@ -938,8 +938,8 @@ export default function SexyBackDemo() {
               Foundation
             </div>
             <p>
-              Before the solo career, there was the boy band that
-              sold 70 million records worldwide.
+              Before the solo career, there was the boy band that sold 70
+              million records worldwide.
             </p>
           </div>
 

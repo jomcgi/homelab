@@ -49,6 +49,7 @@ sequenceDiagram
 ```
 
 **Why SQLite instead of in-memory?**
+
 - Position history retained (7 days)
 - Faster startup on restarts (only replay new messages)
 - Supports complex queries (bounding box, time range)
@@ -82,23 +83,25 @@ flowchart TD
 
 **Deduplication rules:**
 
-| Condition | Distance Threshold | Action |
-|-----------|-------------------|--------|
-| Speed < 0.5 knots | < 100m | **Skip** - Moored at dock |
-| Speed < 0.5 knots | ≥ 100m | **Save** - Moved to new mooring |
-| Speed ≥ 0.5 knots | < 1000m | **Skip** - Normal drift/movement |
-| Speed ≥ 0.5 knots | ≥ 1000m | **Save** - Significant movement |
+| Condition         | Distance Threshold | Action                           |
+| ----------------- | ------------------ | -------------------------------- |
+| Speed < 0.5 knots | < 100m             | **Skip** - Moored at dock        |
+| Speed < 0.5 knots | ≥ 100m             | **Save** - Moved to new mooring  |
+| Speed ≥ 0.5 knots | < 1000m            | **Skip** - Normal drift/movement |
+| Speed ≥ 0.5 knots | ≥ 1000m            | **Save** - Significant movement  |
 
 **Why these thresholds?**
+
 - 100m: Typical dock/mooring area size
 - 1000m: Minimum distance for meaningful position updates
 - 0.5 knots: AIS speed below this is often GPS noise
 
 **Configuration:**
+
 ```yaml
 # Environment variables
-DEDUP_DISTANCE_METERS: 100  # Moored threshold
-DEDUP_SPEED_THRESHOLD: 0.5  # Knots
+DEDUP_DISTANCE_METERS: 100 # Moored threshold
+DEDUP_SPEED_THRESHOLD: 0.5 # Knots
 ```
 
 ## API Endpoints
@@ -108,6 +111,7 @@ DEDUP_SPEED_THRESHOLD: 0.5  # Knots
 List all known vessels.
 
 **Response:**
+
 ```json
 {
   "vessels": [
@@ -137,10 +141,12 @@ List all known vessels.
 ```
 
 **Query parameters:**
+
 - `limit` (optional) - Max vessels to return (default: 100)
 - `active_since` (optional) - ISO timestamp, only vessels seen since this time
 
 **Examples:**
+
 ```bash
 # Get all vessels
 curl https://ships-api.jomcgi.dev/vessels
@@ -157,6 +163,7 @@ curl https://ships-api.jomcgi.dev/vessels?limit=50
 Get vessel details and current position.
 
 **Response:**
+
 ```json
 {
   "mmsi": 316001234,
@@ -189,11 +196,13 @@ Get vessel details and current position.
 ```
 
 **Example:**
+
 ```bash
 curl https://ships-api.jomcgi.dev/vessels/316001234
 ```
 
 **Error responses:**
+
 - `404 Not Found` - MMSI not in database
 
 ### GET /positions/{mmsi}
@@ -201,6 +210,7 @@ curl https://ships-api.jomcgi.dev/vessels/316001234
 Get position history for a vessel.
 
 **Response:**
+
 ```json
 {
   "mmsi": 316001234,
@@ -221,11 +231,13 @@ Get position history for a vessel.
 ```
 
 **Query parameters:**
+
 - `limit` (optional) - Max positions to return (default: 1000)
 - `since` (optional) - ISO timestamp, only positions after this time
 - `until` (optional) - ISO timestamp, only positions before this time
 
 **Examples:**
+
 ```bash
 # Get all positions (last 7 days)
 curl https://ships-api.jomcgi.dev/positions/316001234
@@ -245,12 +257,14 @@ curl https://ships-api.jomcgi.dev/positions/316001234?limit=100
 Get vessels within a bounding box.
 
 **Query parameters:**
+
 - `north` (required) - Northern latitude
 - `south` (required) - Southern latitude
 - `east` (required) - Eastern longitude
 - `west` (required) - Western longitude
 
 **Response:**
+
 ```json
 {
   "vessels": [
@@ -275,6 +289,7 @@ Get vessels within a bounding box.
 ```
 
 **Example:**
+
 ```bash
 # Get vessels in Vancouver area
 curl "https://ships-api.jomcgi.dev/vessels/bbox?north=49.5&south=49.0&east=-123.0&west=-123.5"
@@ -285,6 +300,7 @@ curl "https://ships-api.jomcgi.dev/vessels/bbox?north=49.5&south=49.0&east=-123.
 WebSocket endpoint for real-time position updates.
 
 **Message format:**
+
 ```json
 {
   "type": "position_update",
@@ -302,12 +318,13 @@ WebSocket endpoint for real-time position updates.
 ```
 
 **Example client:**
+
 ```javascript
-const ws = new WebSocket('wss://ships-api.jomcgi.dev/ws');
+const ws = new WebSocket("wss://ships-api.jomcgi.dev/ws");
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  if (msg.type === 'position_update') {
+  if (msg.type === "position_update") {
     console.log(`${msg.data.name} at ${msg.data.lat}, ${msg.data.lng}`);
     updateMapMarker(msg.data);
   }
@@ -319,6 +336,7 @@ ws.onmessage = (event) => {
 Health check endpoint.
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -336,37 +354,38 @@ Health check endpoint.
 
 Vessel metadata from AIS Type 5 messages.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `mmsi` | INTEGER | Primary key, MMSI identifier |
-| `name` | TEXT | Vessel name |
-| `callsign` | TEXT | Radio callsign |
-| `imo` | INTEGER | IMO number |
-| `ship_type` | INTEGER | AIS ship type code |
-| `to_bow` | INTEGER | Meters to bow |
-| `to_stern` | INTEGER | Meters to stern |
-| `to_port` | INTEGER | Meters to port |
-| `to_starboard` | INTEGER | Meters to starboard |
-| `first_seen` | TIMESTAMP | First AIS message received |
-| `last_seen` | TIMESTAMP | Most recent AIS message |
+| Column         | Type      | Description                  |
+| -------------- | --------- | ---------------------------- |
+| `mmsi`         | INTEGER   | Primary key, MMSI identifier |
+| `name`         | TEXT      | Vessel name                  |
+| `callsign`     | TEXT      | Radio callsign               |
+| `imo`          | INTEGER   | IMO number                   |
+| `ship_type`    | INTEGER   | AIS ship type code           |
+| `to_bow`       | INTEGER   | Meters to bow                |
+| `to_stern`     | INTEGER   | Meters to stern              |
+| `to_port`      | INTEGER   | Meters to port               |
+| `to_starboard` | INTEGER   | Meters to starboard          |
+| `first_seen`   | TIMESTAMP | First AIS message received   |
+| `last_seen`    | TIMESTAMP | Most recent AIS message      |
 
 ### positions
 
 Position history from AIS Type 1/2/3 messages.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | INTEGER | Primary key, auto-increment |
-| `mmsi` | INTEGER | Foreign key to vessels |
-| `lat` | REAL | Latitude |
-| `lng` | REAL | Longitude |
-| `speed` | REAL | Speed over ground (knots) |
-| `course` | REAL | Course over ground (degrees) |
-| `heading` | INTEGER | True heading (degrees) |
-| `nav_status` | INTEGER | Navigational status code |
-| `timestamp` | TIMESTAMP | Position timestamp |
+| Column       | Type      | Description                  |
+| ------------ | --------- | ---------------------------- |
+| `id`         | INTEGER   | Primary key, auto-increment  |
+| `mmsi`       | INTEGER   | Foreign key to vessels       |
+| `lat`        | REAL      | Latitude                     |
+| `lng`        | REAL      | Longitude                    |
+| `speed`      | REAL      | Speed over ground (knots)    |
+| `course`     | REAL      | Course over ground (degrees) |
+| `heading`    | INTEGER   | True heading (degrees)       |
+| `nav_status` | INTEGER   | Navigational status code     |
+| `timestamp`  | TIMESTAMP | Position timestamp           |
 
 **Indexes:**
+
 - `idx_positions_mmsi` - Fast lookups by vessel
 - `idx_positions_timestamp` - Time range queries
 - `idx_positions_mmsi_timestamp` - Composite for history queries
@@ -375,16 +394,16 @@ Position history from AIS Type 1/2/3 messages.
 
 Materialized view of current vessel positions.
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `mmsi` | INTEGER | Primary key |
-| `lat` | REAL | Current latitude |
-| `lng` | REAL | Current longitude |
-| `speed` | REAL | Current speed |
-| `course` | REAL | Current course |
-| `heading` | INTEGER | Current heading |
-| `nav_status` | INTEGER | Current status |
-| `timestamp` | TIMESTAMP | Last update time |
+| Column       | Type      | Description       |
+| ------------ | --------- | ----------------- |
+| `mmsi`       | INTEGER   | Primary key       |
+| `lat`        | REAL      | Current latitude  |
+| `lng`        | REAL      | Current longitude |
+| `speed`      | REAL      | Current speed     |
+| `course`     | REAL      | Current course    |
+| `heading`    | INTEGER   | Current heading   |
+| `nav_status` | INTEGER   | Current status    |
+| `timestamp`  | TIMESTAMP | Last update time  |
 
 **Updated via trigger on positions table.**
 
@@ -393,16 +412,19 @@ Materialized view of current vessel positions.
 Position history is automatically cleaned up to prevent unbounded growth.
 
 **Retention policy:**
+
 - Keep positions for 7 days
 - Run cleanup every 24 hours
 - Delete in batches of 10,000
 
 **Configuration:**
+
 ```yaml
 POSITION_RETENTION_DAYS: 7
 ```
 
 **Manual cleanup:**
+
 ```bash
 # Via API (requires admin auth)
 curl -X POST https://ships-api.jomcgi.dev/admin/cleanup
@@ -415,16 +437,16 @@ sqlite3 ships.db "DELETE FROM positions WHERE timestamp < datetime('now', '-7 da
 
 Environment variables:
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `NATS_URL` | NATS server URL | `nats://localhost:4222` | Yes |
-| `NATS_STREAM` | JetStream stream name | `ships` | No |
-| `NATS_SUBJECT` | Subject for AIS messages | `ships.ais` | No |
-| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:3000` | No |
-| `DB_PATH` | SQLite database path | `/tmp/ships.db` | No |
-| `POSITION_RETENTION_DAYS` | Days to keep positions | `7` | No |
-| `DEDUP_DISTANCE_METERS` | Deduplication threshold | `100` | No |
-| `DEDUP_SPEED_THRESHOLD` | Speed below which to dedupe (knots) | `0.5` | No |
+| Variable                  | Description                         | Default                 | Required |
+| ------------------------- | ----------------------------------- | ----------------------- | -------- |
+| `NATS_URL`                | NATS server URL                     | `nats://localhost:4222` | Yes      |
+| `NATS_STREAM`             | JetStream stream name               | `ships`                 | No       |
+| `NATS_SUBJECT`            | Subject for AIS messages            | `ships.ais`             | No       |
+| `CORS_ORIGINS`            | Allowed CORS origins                | `http://localhost:3000` | No       |
+| `DB_PATH`                 | SQLite database path                | `/tmp/ships.db`         | No       |
+| `POSITION_RETENTION_DAYS` | Days to keep positions              | `7`                     | No       |
+| `DEDUP_DISTANCE_METERS`   | Deduplication threshold             | `100`                   | No       |
+| `DEDUP_SPEED_THRESHOLD`   | Speed below which to dedupe (knots) | `0.5`                   | No       |
 
 ## Running Locally
 
@@ -447,11 +469,13 @@ curl http://localhost:8000/vessels
 Deployed via ArgoCD to Kubernetes cluster.
 
 **Resources:**
+
 - Helm chart: `/charts/ships-api/`
 - Overlay: `/overlays/prod/ships-api/`
 - Service URL: https://ships-api.jomcgi.dev
 
 **Persistent storage:**
+
 - Longhorn PVC mounted at `/data`
 - Database path: `/data/ships.db`
 
@@ -499,33 +523,33 @@ Structured JSON logs via `logging.structlog`:
 
 Common AIS ship type codes:
 
-| Code | Description |
-|------|-------------|
-| 30 | Fishing |
-| 31-32 | Towing |
-| 36 | Sailing |
-| 37 | Pleasure Craft |
-| 40-49 | High Speed Craft |
-| 50 | Pilot Vessel |
-| 51 | Search and Rescue |
-| 52 | Tug |
-| 60-69 | Passenger |
-| 70-79 | Cargo |
-| 80-89 | Tanker |
+| Code  | Description       |
+| ----- | ----------------- |
+| 30    | Fishing           |
+| 31-32 | Towing            |
+| 36    | Sailing           |
+| 37    | Pleasure Craft    |
+| 40-49 | High Speed Craft  |
+| 50    | Pilot Vessel      |
+| 51    | Search and Rescue |
+| 52    | Tug               |
+| 60-69 | Passenger         |
+| 70-79 | Cargo             |
+| 80-89 | Tanker            |
 
 Full list: [AIS Ship Type Codes](https://api.vtexplorer.com/docs/ref-aistypes.html)
 
 ## Navigational Status Codes
 
-| Code | Description |
-|------|-------------|
-| 0 | Under way using engine |
-| 1 | At anchor |
-| 2 | Not under command |
-| 3 | Restricted manoeuvrability |
-| 5 | Moored |
-| 8 | Under way sailing |
-| 15 | Not defined |
+| Code | Description                |
+| ---- | -------------------------- |
+| 0    | Under way using engine     |
+| 1    | At anchor                  |
+| 2    | Not under command          |
+| 3    | Restricted manoeuvrability |
+| 5    | Moored                     |
+| 8    | Under way sailing          |
+| 15   | Not defined                |
 
 ## Related Services
 

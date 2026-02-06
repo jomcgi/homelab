@@ -24,12 +24,12 @@ flowchart LR
 
 Environment variables:
 
-| Variable | Description | Default |
-| -------- | ----------- | ------- |
-| `NATS_URL` | NATS server URL | `nats://localhost:4222` |
-| `AISSTREAM_API_KEY` | AISStream.io API key | (required) |
-| `AISSTREAM_URL` | WebSocket endpoint | `wss://stream.aisstream.io/v0/stream` |
-| `BOUNDING_BOX` | Geographic filter (JSON) | Pacific Northwest |
+| Variable            | Description              | Default                               |
+| ------------------- | ------------------------ | ------------------------------------- |
+| `NATS_URL`          | NATS server URL          | `nats://localhost:4222`               |
+| `AISSTREAM_API_KEY` | AISStream.io API key     | (required)                            |
+| `AISSTREAM_URL`     | WebSocket endpoint       | `wss://stream.aisstream.io/v0/stream` |
+| `BOUNDING_BOX`      | Geographic filter (JSON) | Pacific Northwest                     |
 
 ## Running Locally
 

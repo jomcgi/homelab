@@ -47,19 +47,22 @@ sequenceDiagram
 ```
 
 **Why stream replay?**
+
 - No database needed - NATS JetStream is the source of truth
 - Fast startup - rebuilds entire dataset in seconds
 - Crash recovery - always starts with consistent state
 - Simplified architecture - no dual-write to DB + NATS
 
 **JetStream configuration:**
+
 ```yaml
 # Stream retention: 1 year
 Retention: LimitsPolicy
-MaxAge: 8760h  # 365 days
+MaxAge: 8760h # 365 days
 ```
 
 **Startup sequence:**
+
 1. Connect to NATS
 2. Subscribe to `trips.points` stream from sequence 0
 3. Process all existing messages (add to cache)
@@ -71,7 +74,7 @@ MaxAge: 8760h  # 365 days
 ### Connection
 
 ```javascript
-const ws = new WebSocket('wss://trips-api.jomcgi.dev/ws');
+const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws");
 ```
 
 **Authentication:** None (public read-only endpoint)
@@ -136,47 +139,47 @@ Response to client ping.
 ### Example Client
 
 ```javascript
-const ws = new WebSocket('wss://trips-api.jomcgi.dev/ws');
+const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws");
 
 ws.onopen = () => {
-  console.log('Connected to trip updates');
+  console.log("Connected to trip updates");
 };
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
 
   switch (msg.type) {
-    case 'point_added':
-      console.log('New location:', msg.data.lat, msg.data.lng);
+    case "point_added":
+      console.log("New location:", msg.data.lat, msg.data.lng);
       // Update map marker
       addMarker(msg.data.lat, msg.data.lng);
       break;
 
-    case 'viewer_count':
-      console.log('Active viewers:', msg.count);
+    case "viewer_count":
+      console.log("Active viewers:", msg.count);
       // Update UI badge
       updateViewerCount(msg.count);
       break;
 
-    case 'pong':
-      console.log('Server alive');
+    case "pong":
+      console.log("Server alive");
       break;
   }
 };
 
 ws.onerror = (error) => {
-  console.error('WebSocket error:', error);
+  console.error("WebSocket error:", error);
 };
 
 ws.onclose = () => {
-  console.log('Connection closed, reconnecting...');
+  console.log("Connection closed, reconnecting...");
   // Implement exponential backoff reconnect
 };
 
 // Optional: Send heartbeat every 30s
 setInterval(() => {
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: 'ping' }));
+    ws.send(JSON.stringify({ type: "ping" }));
   }
 }, 30000);
 ```
@@ -188,6 +191,7 @@ setInterval(() => {
 Get all trip points.
 
 **Response:**
+
 ```json
 {
   "points": [
@@ -211,11 +215,13 @@ Get all trip points.
 ```
 
 **Query parameters:**
+
 - `limit` (optional) - Max points to return (default: all)
 - `since` (optional) - ISO timestamp, only points after this time
 - `source` (optional) - Filter by source (`gopro`, `camera`, `phone`)
 
 **Examples:**
+
 ```bash
 # Get all points
 curl https://trips-api.jomcgi.dev/points
@@ -235,12 +241,14 @@ curl https://trips-api.jomcgi.dev/points?source=gopro
 Upload geotagged photo.
 
 **Headers:**
+
 - `Authorization: Bearer <API_KEY>` (required)
 - `X-Image-Source: <source>` (optional, default: `gopro`)
 
 **Body:** `multipart/form-data` with image file
 
 **Response:**
+
 ```json
 {
   "id": "abc123def456",
@@ -254,6 +262,7 @@ Upload geotagged photo.
 ```
 
 **Example:**
+
 ```bash
 curl -X POST https://trips-api.jomcgi.dev/upload \
   -H "Authorization: Bearer $TRIP_API_KEY" \
@@ -262,6 +271,7 @@ curl -X POST https://trips-api.jomcgi.dev/upload \
 ```
 
 **Error responses:**
+
 - `401 Unauthorized` - Missing or invalid API key
 - `400 Bad Request` - Not an image or missing GPS data
 - `413 Payload Too Large` - Image exceeds 10MB
@@ -271,6 +281,7 @@ curl -X POST https://trips-api.jomcgi.dev/upload \
 Health check endpoint.
 
 **Response:**
+
 ```json
 {
   "status": "healthy",
@@ -288,22 +299,23 @@ WebSocket endpoint for real-time updates (see WebSocket Protocol section above).
 
 ### Trip Point
 
-| Field | Type | Description | Required | Example |
-|-------|------|-------------|----------|---------|
-| `id` | string | Unique identifier (UUID v5) | Yes | `abc123def456` |
-| `lat` | float | Latitude | Yes | `49.2827` |
-| `lng` | float | Longitude | Yes | `-123.1207` |
-| `timestamp` | string | ISO 8601 timestamp | Yes | `2024-01-15T12:00:00Z` |
-| `image` | string | Image filename | Yes | `photo.jpg` |
-| `source` | string | Image source | Yes | `gopro`, `camera`, `phone` |
-| `tags` | array | Classification tags | No | `["car", "highway"]` |
-| `elevation` | float | Elevation (meters) | No | `125.5` |
-| `light_value` | float | Exposure value | No | `8.6` |
-| `iso` | int | ISO sensitivity | No | `393` |
-| `shutter_speed` | string | Shutter speed | No | `1/240` |
-| `aperture` | float | F-stop | No | `2.5` |
+| Field           | Type   | Description                 | Required | Example                    |
+| --------------- | ------ | --------------------------- | -------- | -------------------------- |
+| `id`            | string | Unique identifier (UUID v5) | Yes      | `abc123def456`             |
+| `lat`           | float  | Latitude                    | Yes      | `49.2827`                  |
+| `lng`           | float  | Longitude                   | Yes      | `-123.1207`                |
+| `timestamp`     | string | ISO 8601 timestamp          | Yes      | `2024-01-15T12:00:00Z`     |
+| `image`         | string | Image filename              | Yes      | `photo.jpg`                |
+| `source`        | string | Image source                | Yes      | `gopro`, `camera`, `phone` |
+| `tags`          | array  | Classification tags         | No       | `["car", "highway"]`       |
+| `elevation`     | float  | Elevation (meters)          | No       | `125.5`                    |
+| `light_value`   | float  | Exposure value              | No       | `8.6`                      |
+| `iso`           | int    | ISO sensitivity             | No       | `393`                      |
+| `shutter_speed` | string | Shutter speed               | No       | `1/240`                    |
+| `aperture`      | float  | F-stop                      | No       | `2.5`                      |
 
 **ID generation:**
+
 ```python
 import uuid
 
@@ -359,15 +371,15 @@ async def get_elevation(lat: float, lng: float) -> float:
 
 Environment variables:
 
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `NATS_URL` | NATS server URL | `nats://localhost:4222` | Yes |
-| `NATS_STREAM` | JetStream stream name | `trips` | No |
-| `NATS_SUBJECT` | Subject for trip points | `trips.points` | No |
-| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:5173` | No |
-| `TRIP_API_KEY` | API key for uploads | (none) | Yes (for uploads) |
-| `ELEVATION_API_URL` | NRCan CDEM API URL | (see above) | No |
-| `MAX_IMAGE_SIZE_MB` | Max upload size | `10` | No |
+| Variable            | Description             | Default                 | Required          |
+| ------------------- | ----------------------- | ----------------------- | ----------------- |
+| `NATS_URL`          | NATS server URL         | `nats://localhost:4222` | Yes               |
+| `NATS_STREAM`       | JetStream stream name   | `trips`                 | No                |
+| `NATS_SUBJECT`      | Subject for trip points | `trips.points`          | No                |
+| `CORS_ORIGINS`      | Allowed CORS origins    | `http://localhost:5173` | No                |
+| `TRIP_API_KEY`      | API key for uploads     | (none)                  | Yes (for uploads) |
+| `ELEVATION_API_URL` | NRCan CDEM API URL      | (see above)             | No                |
+| `MAX_IMAGE_SIZE_MB` | Max upload size         | `10`                    | No                |
 
 ## Running Locally
 
@@ -390,11 +402,13 @@ curl http://localhost:8000/points
 Deployed via ArgoCD to Kubernetes cluster.
 
 **Resources:**
+
 - Helm chart: `/charts/trips-api/`
 - Overlay: `/overlays/prod/trips-api/`
 - Service URL: https://trips-api.jomcgi.dev
 
 **Dependencies:**
+
 - NATS JetStream (deployed via ArgoCD)
 - Cloudflare Access (authentication for production)
 

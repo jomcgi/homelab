@@ -3,10 +3,12 @@
 ## Problem
 
 The `cdk8s/` directory contains Python code that uses:
+
 - `imports/k8s` - Generated Kubernetes type bindings from `cdk8s import`
 - `lib/` - Shared constructs
 
 These are not pip packages, so Gazelle fails to resolve them:
+
 ```
 gazelle: ERROR: failed to validate dependencies for target "//cdk8s/cloudflare-operator-test":
 "imports.k8s" is an invalid dependency
@@ -38,6 +40,7 @@ py_library(
 ```
 
 Then add gazelle resolve directives:
+
 ```starlark
 # gazelle:resolve py imports.k8s //cdk8s/cloudflare-operator-test/imports/k8s
 # gazelle:resolve py lib //cdk8s/lib

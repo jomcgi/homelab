@@ -8,6 +8,7 @@ resources:
   - ./cloudflare-tunnel
   - ./gh-arc-controller
   - ./gh-arc-runners
+  - ./knowledge-graph
   - ./nats
   - ./openclaw-friends
   - ./openclaw-personal

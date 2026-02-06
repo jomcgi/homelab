@@ -63,7 +63,7 @@ describe("SexyBackDemo", () => {
 
       await waitFor(() => {
         expect(
-          screen.getByRole("button", { name: /invert/i })
+          screen.getByRole("button", { name: /invert/i }),
         ).toBeInTheDocument();
       });
     });

@@ -92,6 +92,7 @@ ArgoCD syncs from `clusters/homelab/kustomization.yaml` which references environ
 CI is handled by **BuildBuddy** (not GitHub Actions). See `buildbuddy.yaml` in the repo root.
 
 BuildBuddy runs on every push/PR:
+
 - **Format check** - Runs formatters and gazelle, verifies no changes needed
 - **Test and push** - Runs `bazel test //...`, pushes images on main branch
 
