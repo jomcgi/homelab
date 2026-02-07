@@ -48,7 +48,7 @@ api:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
-    tag: main@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
+    tag: main@main@main@main@main@main@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
     digest: main@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
