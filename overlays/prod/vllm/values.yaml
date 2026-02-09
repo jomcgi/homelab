@@ -5,6 +5,10 @@ secret:
   onepassword:
     itemPath: "vaults/k8s-homelab/items/vllm"
 
+# GHCR image pull secret (for private image volumes)
+imagePullSecret:
+  enabled: true
+
 # Enable fast model downloads via init container
 initContainer:
   enabled: true
@@ -38,6 +42,8 @@ vllm-stack:
         repository: "vllm/vllm-openai"
         tag: "latest@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c"
         imagePullPolicy: IfNotPresent
+        # GHCR pull secret for private image volume
+        imagePullSecret: ghcr-imagepull-secret
         # Local path - model loaded from image volume (not HuggingFace)
         # Image mounts at /model-image, files inside at /models/hermes-4.3-36b-awq/
         modelURL: "/model-image/models/hermes-4.3-36b-awq"

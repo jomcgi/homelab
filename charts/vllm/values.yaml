@@ -14,6 +14,12 @@ secret:
     # Manually provided HuggingFace token (only used if type is "manual")
     hfToken: ""
 
+# Image pull secret for private GHCR registry (used by image volumes)
+imagePullSecret:
+  enabled: false
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
 # Init container for fast model downloads using hf_transfer
 initContainer:
   enabled: false
