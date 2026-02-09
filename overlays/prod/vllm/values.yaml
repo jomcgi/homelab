@@ -39,14 +39,15 @@ vllm-stack:
         tag: "latest@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c"
         imagePullPolicy: IfNotPresent
         # Local path - model loaded from image volume (not HuggingFace)
-        modelURL: "/models/hermes-4.3-36b-awq"
+        # Image mounts at /model-image, files inside at /models/hermes-4.3-36b-awq/
+        modelURL: "/model-image/models/hermes-4.3-36b-awq"
         replicaCount: 1
 
         # Image volume: mounts OCI model image directly (K8s 1.31+)
         # No PVC or init container needed - node caches the image layers
         imageVolume:
           reference: "ghcr.io/jomcgi/homelab/models/hermes_4_3_36b_awq:main"
-          mountPath: "/models/hermes-4.3-36b-awq"
+          mountPath: "/model-image"
 
         # Shared memory for GPU tensor operations
         shmSize: "16Gi"
