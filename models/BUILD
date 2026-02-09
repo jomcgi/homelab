@@ -86,6 +86,37 @@ model_oci_image(
     weight_srcs = ["@qwen2_5_0_5b_st//:model_safetensors"],
 )
 
+# Hermes 4.3 36B AWQ 8-bit - NousResearch reasoning model (~40GB total)
+# Repository auto-generated as ghcr.io/jomcgi/homelab/models/hermes_4_3_36b_awq
+#
+# NOTE: Excluded from CI push_all (tagged "manual") due to large OCI layer blobs.
+# Push manually: bazel run //models:hermes_4_3_36b_awq.push
+model_oci_image(
+    name = "hermes_4_3_36b_awq",
+    config_srcs = [
+        "@hermes_4_3_36b_awq//:config_json",
+        "@hermes_4_3_36b_awq//:generation_config_json",
+        "@hermes_4_3_36b_awq//:model_safetensors_index_json",
+        "@hermes_4_3_36b_awq//:tokenizer_json",
+        "@hermes_4_3_36b_awq//:tokenizer_config_json",
+    ],
+    format = "safetensors",
+    model_dir = "/models/hermes-4.3-36b-awq",
+    tags = ["manual"],  # Exclude from //images:push_all
+    visibility = ["//visibility:public"],
+    weight_srcs = [
+        "@hermes_4_3_36b_awq//:model_00001_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00002_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00003_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00004_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00005_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00006_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00007_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00008_of_00009_safetensors",
+        "@hermes_4_3_36b_awq//:model_00009_of_00009_safetensors",
+    ],
+)
+
 # Qwen3 30B A3B AWQ - Production vLLM model (~16GB total)
 # Repository auto-generated as ghcr.io/jomcgi/homelab/models/qwen3_30b_a3b_awq
 #
