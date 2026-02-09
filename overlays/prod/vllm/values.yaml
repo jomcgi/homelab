@@ -127,6 +127,70 @@ vllm-stack:
         pvcAnnotations:
           helm.sh/resource-policy: keep
 
+      - name: "hermes-4-3-36b"
+        # Standard vLLM image (same as Qwen3)
+        repository: "vllm/vllm-openai"
+        tag: "latest@sha256:014a95f21c9edf6abe0aea6b07353f96baa4ec291c427bb1176dc7c93a85845c"
+        imagePullPolicy: IfNotPresent
+        # Local path - model loaded from image volume (not HuggingFace)
+        modelURL: "/models/hermes-4.3-36b-awq"
+        replicaCount: 1
+
+        # Image volume: mounts OCI model image directly (K8s 1.31+)
+        # No PVC or init container needed - node caches the image layers
+        imageVolume:
+          reference: "ghcr.io/jomcgi/homelab/models/hermes_4_3_36b_awq:main"
+          mountPath: "/models/hermes-4.3-36b-awq"
+
+        # Shared memory for GPU tensor operations
+        shmSize: "16Gi"
+
+        env:
+          - name: VLLM_LOGGING_LEVEL
+            value: "INFO"
+
+        # Resource allocation (40GB model with 30GB CPU offload)
+        requestCPU: 4
+        requestMemory: "48Gi"
+        requestGPU: 1
+
+        # vLLM engine configuration
+        vllmConfig:
+          maxModelLen: 32768 # 32k tokens - more KV cache headroom with 30GB offload
+
+          # AWQ quantization works with bfloat16
+          dtype: "bfloat16"
+
+          # Additional performance flags
+          extraArgs:
+            - "--enable-chunked-prefill"
+            - "--enable-prefix-caching"
+            - "--gpu-memory-utilization"
+            - "0.90"
+            - "--cpu-offload-gb"
+            - "30" # Offload 30GB to CPU RAM, maximize VRAM for KV cache
+            - "--enable-auto-tool-choice"
+            - "--tool-call-parser"
+            - "hermes" # Hermes tool calling format (NousResearch Hermes models)
+
+        # Node affinity: schedule only on node-4 (GPU node)
+        nodeSelectorTerms:
+          - matchExpressions:
+              - key: kubernetes.io/hostname
+                operator: In
+                values:
+                  - node-4
+
+        # Resource limits (high memory for CPU offloading)
+        resources:
+          requests:
+            cpu: 4
+            memory: "48Gi"
+            nvidia.com/gpu: 1
+          limits:
+            memory: "56Gi"
+            nvidia.com/gpu: 1
+
   # Router configuration (for request routing)
   routerSpec:
     enableRouter: true

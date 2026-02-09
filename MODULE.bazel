@@ -311,4 +311,28 @@ hf.model(
     repo_id = "QuixiAI/Qwen3-30B-A3B-AWQ",
     revision = "main",
 )
-use_repo(hf, "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st", "qwen3_30b_a3b_awq")
+
+# Hermes 4.3 36B AWQ 8-bit - Quantized model for vLLM inference
+# NousResearch reasoning model based on ByteDance Seed 36B (~40GB total)
+hf.model(
+    name = "hermes_4_3_36b_awq",
+    files = {
+        "config.json": "a6c38471417115e05a8033506c1f8feada09bad84d50b8c7123a157db55ddcd1",
+        "generation_config.json": "5a7a36f298e85a6defa6dbee3e00e19681bf70827a9a80710bcc7edbbd0091f0",
+        "model-00001-of-00009.safetensors": "1c87100d8c2550a4526632720990506ce247a8194bd6ffc21c7e0fa1f5ae1bcd",
+        "model-00002-of-00009.safetensors": "8b7b25b2d769f51c1ed4919b98b1cdba5f7911fc35ad010da4eb68dafec6a542",
+        "model-00003-of-00009.safetensors": "e44052c6732a8e31a1857a64454d5af462470d91a4f40fffd4cf5a595061c54f",
+        "model-00004-of-00009.safetensors": "4865c18fcf93586760a46b487baeef197dbceac182042b0bd35ebb8ce01ded37",
+        "model-00005-of-00009.safetensors": "05c7a653e15c9f970cc6353cc5eb726c7c1bf5940a78987314cb3ce84a6cd5b2",
+        "model-00006-of-00009.safetensors": "fffcf875eaecdbd248c95e579eaad5e149a305e8545fcf821685f060ad756459",
+        "model-00007-of-00009.safetensors": "49486f644ba0c7ea92d79a4522b4ea52b4986892d0f55ee5fea4d0798e83dfbd",
+        "model-00008-of-00009.safetensors": "4572628dc9a144f71202a3e5f7b6babf97a0b03b12807727d4dbdcda5894cf48",
+        "model-00009-of-00009.safetensors": "1d3a55380723b1451f25e81f03c44131ff15b4d8d368024b87829b3f6f959e59",
+        "model.safetensors.index.json": "34444d6a2be048f1920708a46ec527c847bcfd1fc6392223708b055419a50106",
+        "tokenizer.json": "2c72155b82ca0ffeb89a6edb66bcc10c27d1d1491d0ff1b469a092632aba79fb",
+        "tokenizer_config.json": "707335ac85992566ffda5be6b227b0b1d519b81f02126a84d58d88740bed8d99",
+    },
+    repo_id = "cyankiwi/Hermes-4.3-36B-AWQ-8bit",
+    revision = "aeb5700b379800d4589b902acdc66a961c8c953e",
+)
+use_repo(hf, "hermes_4_3_36b_awq", "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st", "qwen3_30b_a3b_awq")
