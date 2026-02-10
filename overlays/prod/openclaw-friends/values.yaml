@@ -7,20 +7,17 @@ fullnameOverride: "openclaw-friends"
 podAnnotations:
   linkerd.io/inject: disabled
 
-## LLM: Local Qwen via vLLM
+## LLM: Local Hermes via llama.cpp
 llm:
   provider: "openai-compatible"
-  model: "QuixiAI/Qwen3-30B-A3B-AWQ"
-  ## Use the vLLM router service (port 80, not 8000)
-  baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
+  model: "hermes-4.3-36b"
+  baseUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
   vllm:
     enabled: true
-    namespace: "vllm"
-    ## Router service is on port 80
-    port: 80
-    ## Match the router pod labels
+    namespace: "llama-cpp"
+    port: 8080
     podSelector:
-      release: router
+      app.kubernetes.io/name: llama-cpp
 
 ## No Anthropic auth needed
 auth:
@@ -76,9 +73,12 @@ resources:
 ## Network policy - allow external internet, restrict internal cluster
 networkPolicy:
   enabled: true
-  ## vLLM egress - uses chart defaults (release: router, port 8000)
-  ## Note: NetworkPolicy uses pod port (8000), not service port (80)
-  vllm: {}
+  ## llama-cpp egress
+  vllm:
+    namespace: "llama-cpp"
+    port: 8080
+    podSelector:
+      app.kubernetes.io/name: llama-cpp
   ## Allow all external internet (web search, APIs, etc.)
   ## Block internal cluster traffic except explicit vLLM rule above
   egress:

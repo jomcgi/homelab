@@ -1,0 +1,107 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "llama-cpp.fullname" . }}
+  labels:
+    {{- include "llama-cpp.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  {{- with .Values.strategy }}
+  strategy:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "llama-cpp.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "llama-cpp.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- with .Values.runtimeClassName }}
+      runtimeClassName: {{ . }}
+      {{- end }}
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: llama-server
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          args:
+            - "--model"
+            - {{ .Values.server.modelPath | quote }}
+            - "--n-gpu-layers"
+            - {{ .Values.server.nGpuLayers | quote }}
+            {{- if .Values.server.noKvOffload }}
+            - "--no-kv-offload"
+            {{- end }}
+            - "--ctx-size"
+            - {{ .Values.server.ctxSize | quote }}
+            {{- if .Values.server.flashAttn }}
+            - "--flash-attn"
+            {{- end }}
+            - "--cache-type-k"
+            - {{ .Values.server.cacheTypeK | quote }}
+            - "--cache-type-v"
+            - {{ .Values.server.cacheTypeV | quote }}
+            - "--threads"
+            - {{ .Values.server.threads | quote }}
+            {{- if .Values.server.jinja }}
+            - "--jinja"
+            {{- end }}
+            - "--host"
+            - {{ .Values.server.host | quote }}
+            - "--port"
+            - {{ .Values.server.port | quote }}
+            {{- range .Values.server.extraArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.server.port }}
+              protocol: TCP
+          {{- with .Values.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.livenessProbe }}
+          livenessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.readinessProbe }}
+          readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            {{- if .Values.modelVolume.enabled }}
+            - name: model
+              mountPath: {{ .Values.modelVolume.mountPath }}
+              readOnly: true
+            {{- end }}
+            - name: dshm
+              mountPath: /dev/shm
+      volumes:
+        {{- if .Values.modelVolume.enabled }}
+        - name: model
+          image:
+            reference: {{ .Values.modelVolume.reference }}
+            pullPolicy: IfNotPresent
+        {{- end }}
+        - name: dshm
+          emptyDir:
+            medium: Memory
+            sizeLimit: "1Gi"
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

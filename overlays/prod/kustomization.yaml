@@ -16,4 +16,4 @@ resources:
   - ./seaweedfs
   - ./todo
   - ./trips
-  - ./vllm
+  - ./llama-cpp

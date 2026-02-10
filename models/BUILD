@@ -117,6 +117,20 @@ model_oci_image(
     ],
 )
 
+# Hermes 4.3 36B IQ4_XS - GGUF quantized model for llama.cpp (~19GB)
+# Repository auto-generated as ghcr.io/jomcgi/homelab/models/hermes_4_3_36b_iq4xs
+#
+# NOTE: Excluded from CI push_all (tagged "manual") due to large OCI layer blobs.
+# Push manually: bazel run //models:hermes_4_3_36b_iq4xs.push
+model_oci_image(
+    name = "hermes_4_3_36b_iq4xs",
+    srcs = ["@hermes_4_3_36b_iq4xs//:model_files"],
+    format = "gguf",
+    model_dir = "/models/hermes-4.3-36b-iq4xs",
+    tags = ["manual"],  # Exclude from //images:push_all
+    visibility = ["//visibility:public"],
+)
+
 # Qwen3 30B A3B AWQ - Production vLLM model (~16GB total)
 # Repository auto-generated as ghcr.io/jomcgi/homelab/models/qwen3_30b_a3b_awq
 #

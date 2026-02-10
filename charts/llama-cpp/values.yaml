@@ -1,0 +1,102 @@
+## llama.cpp (llama-server) Helm Chart Configuration
+
+## Container image
+image:
+  repository: ghcr.io/ggml-org/llama.cpp
+  tag: server-cuda
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+## GHCR image pull secret (1Password Operator)
+imagePullSecret:
+  enabled: false
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/vllm"
+
+## llama-server configuration
+server:
+  ## Path to the GGUF model file
+  modelPath: ""
+  ## Number of layers to offload to GPU (-1 = all)
+  nGpuLayers: 99
+  ## Keep KV cache in system RAM instead of VRAM
+  noKvOffload: true
+  ## Context window size (tokens)
+  ctxSize: 32768
+  ## Enable flash attention
+  flashAttn: true
+  ## KV cache quantization types
+  cacheTypeK: "q8_0"
+  cacheTypeV: "q4_0"
+  ## Number of CPU threads
+  threads: 8
+  ## Enable Jinja template engine for chat templates
+  jinja: true
+  ## Host and port
+  host: "0.0.0.0"
+  port: 8080
+  ## Additional CLI arguments
+  extraArgs: []
+
+## OCI image volume for model files (K8s 1.31+)
+modelVolume:
+  enabled: false
+  reference: ""
+  mountPath: "/model-image"
+
+## Resource allocation
+resources:
+  requests:
+    cpu: 4
+    memory: "32Gi"
+    nvidia.com/gpu: 1
+  limits:
+    memory: "48Gi"
+    nvidia.com/gpu: 1
+
+## Node scheduling
+nodeSelector: {}
+runtimeClassName: nvidia
+
+## Deployment strategy
+strategy:
+  type: Recreate
+
+## Pod annotations
+podAnnotations: {}
+
+## Health checks
+startupProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  failureThreshold: 180  # Allow 30 min for model loading
+
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 15
+  periodSeconds: 10
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  failureThreshold: 3
+
+## Pod security context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
