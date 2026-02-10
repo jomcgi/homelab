@@ -2,5 +2,5 @@ load("//tools/argocd:defs.bzl", "chart_files")
 
 chart_files(
     name = "all_files",
-    visibility = ["//overlays/prod/vllm:__pkg__"],
+    visibility = ["//overlays:__subpackages__"],
 )
