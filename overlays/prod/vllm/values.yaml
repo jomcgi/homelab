@@ -62,29 +62,25 @@ vllm-stack:
           - name: VLLM_LOGGING_LEVEL
             value: "INFO"
 
-        # Resource allocation - reduced memory request for 64GB node
+        # Resource allocation - no CPU offload, model fits in 24GB VRAM
         requestCPU: 4
-        requestMemory: "40Gi"
+        requestMemory: "16Gi"
         requestGPU: 1
 
         # vLLM engine configuration
         vllmConfig:
-          maxModelLen: 16384 # 16k tokens - reduced from 32k for memory constraints
+          maxModelLen: 8192 # 8k tokens - minimal context to fit in 24GB VRAM
 
           # AWQ quantization works with bfloat16
           dtype: "bfloat16"
 
           # Additional performance flags
           extraArgs:
-            - "--enforce-eager" # Disable CUDA graphs - workaround for AWQ Marlin + cpu_offload OOM bug
+            - "--enforce-eager" # Disable CUDA graphs for memory stability
             - "--enable-chunked-prefill"
-            - "--enable-prefix-caching"
             - "--gpu-memory-utilization"
-            - "0.85"
-            - "--cpu-offload-gb"
-            - "17" # Offload 17GB to CPU - model uses 22.7GB VRAM, need headroom for KV cache
-            - "--kv-cache-dtype"
-            - "fp8_e4m3" # FP8 KV cache halves memory usage (RTX 4090 supports this)
+            - "0.90"
+            # NOTE: cpu_offload_gb removed - causes OOM during AWQ Marlin weight repacking (vLLM #21864)
             - "--enable-auto-tool-choice"
             - "--tool-call-parser"
             - "hermes" # Hermes tool calling format (NousResearch Hermes models)
@@ -97,14 +93,14 @@ vllm-stack:
                 values:
                   - node-4
 
-        # Resource limits - tuned for 64GB node with reduced CPU offload
+        # Resource limits - no CPU offload needed
         resources:
           requests:
             cpu: 4
-            memory: "40Gi"
+            memory: "16Gi"
             nvidia.com/gpu: 1
           limits:
-            memory: "48Gi"
+            memory: "24Gi"
             nvidia.com/gpu: 1
 
   # Router configuration (for request routing)
