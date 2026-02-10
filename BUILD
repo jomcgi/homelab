@@ -108,6 +108,7 @@ go_test(
     srcs = ["deps_test.go"],
     deps = [
         "@com_github_gin_gonic_gin//:gin",
+        "@com_github_google_go_containerregistry//pkg/registry",
         "@com_github_google_uuid//:uuid",
         "@com_github_gorilla_websocket//:websocket",
         "@com_github_stretchr_testify//assert",

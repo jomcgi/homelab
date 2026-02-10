@@ -1,0 +1,139 @@
+package hf
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+)
+
+const defaultBaseURL = "https://huggingface.co"
+
+// Client is a HuggingFace API client.
+type Client struct {
+	baseURL    string
+	token      string
+	httpClient *http.Client
+}
+
+// Option configures a Client.
+type Option func(*Client)
+
+// WithToken sets the HuggingFace API token.
+func WithToken(token string) Option {
+	return func(c *Client) { c.token = token }
+}
+
+// WithBaseURL overrides the base URL (useful for tests).
+func WithBaseURL(u string) Option {
+	return func(c *Client) { c.baseURL = u }
+}
+
+// WithHTTPClient sets a custom HTTP client.
+func WithHTTPClient(hc *http.Client) Option {
+	return func(c *Client) { c.httpClient = hc }
+}
+
+// NewClient creates a new HuggingFace API client.
+func NewClient(opts ...Option) *Client {
+	c := &Client{
+		baseURL: defaultBaseURL,
+	}
+	for _, o := range opts {
+		o(c)
+	}
+	if c.httpClient == nil {
+		// Use a client that strips auth on cross-domain redirects (CDN).
+		c.httpClient = &http.Client{
+			CheckRedirect: c.checkRedirect,
+		}
+	}
+	return c
+}
+
+// checkRedirect strips the Authorization header when redirected to a different host.
+// HuggingFace redirects file downloads to a CDN, and sending the HF token to the
+// CDN is unnecessary and could leak credentials.
+func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
+	if len(via) == 0 {
+		return nil
+	}
+	if req.URL.Host != via[0].URL.Host {
+		req.Header.Del("Authorization")
+	}
+	return nil
+}
+
+// Tree lists all files in a HuggingFace model repository.
+func (c *Client) Tree(ctx context.Context, repo, revision string) ([]TreeEntry, error) {
+	u := fmt.Sprintf("%s/api/models/%s/tree/%s", c.baseURL, repo, url.PathEscape(revision))
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	c.setAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching tree: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if err := checkResponse(resp); err != nil {
+		return nil, err
+	}
+
+	var entries []TreeEntry
+	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
+		return nil, fmt.Errorf("decoding tree response: %w", err)
+	}
+	return entries, nil
+}
+
+// Download fetches a file from a HuggingFace model repository.
+// The caller must close the returned ReadCloser.
+func (c *Client) Download(ctx context.Context, repo, revision, path string) (io.ReadCloser, int64, error) {
+	u := fmt.Sprintf("%s/%s/resolve/%s/%s", c.baseURL, repo, url.PathEscape(revision), path)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, 0, fmt.Errorf("creating request: %w", err)
+	}
+	c.setAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, fmt.Errorf("downloading %s: %w", path, err)
+	}
+
+	if err := checkResponse(resp); err != nil {
+		resp.Body.Close()
+		return nil, 0, err
+	}
+
+	return resp.Body, resp.ContentLength, nil
+}
+
+func (c *Client) setAuth(req *http.Request) {
+	if c.token != "" {
+		req.Header.Set("Authorization", "Bearer "+c.token)
+	}
+}
+
+func checkResponse(resp *http.Response) error {
+	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
+		return nil
+	}
+	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+	switch resp.StatusCode {
+	case http.StatusUnauthorized:
+		return fmt.Errorf("unauthorized (HTTP 401): set HF_TOKEN for private repos. %s", body)
+	case http.StatusNotFound:
+		return fmt.Errorf("not found (HTTP 404): %s", body)
+	default:
+		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)
+	}
+}
