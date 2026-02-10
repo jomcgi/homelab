@@ -66,79 +66,79 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r7.apk",
-        "version": "15.2.0-r7",
+        "url": "https://packages.wolfi.dev/os/x86_64/libgcc-15.2.0-r8.apk",
+        "version": "15.2.0-r8",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-9098",
-          "checksum": "sha1-8b/25TwRI9WbGiUipfL9lbeHsXo="
+          "range": "bytes=0-9097",
+          "checksum": "sha1-wzTZXvbdmwcNRGHUyZf9w4ONITE="
         },
         "data": {
-          "range": "bytes=9099-103368",
-          "checksum": "sha256-Of8ooO8uSsaHSCEpXVi+h3IOXg5igIR4lUueoRrmQ2g="
+          "range": "bytes=9098-103371",
+          "checksum": "sha256-D72+ZyjS93cgHoMYttSrO8a1LPF0GV7DBD055JzI8qc="
         },
-        "checksum": "Q18b/25TwRI9WbGiUipfL9lbeHsXo="
+        "checksum": "Q1wzTZXvbdmwcNRGHUyZf9w4ONITE="
       },
       {
         "name": "glibc-locale-posix",
-        "url": "https://packages.wolfi.dev/os/x86_64/glibc-locale-posix-2.42-r8.apk",
-        "version": "2.42-r8",
+        "url": "https://packages.wolfi.dev/os/x86_64/glibc-locale-posix-2.43-r1.apk",
+        "version": "2.43-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-12460",
-          "checksum": "sha1-rK5hc5dCela/Q25D7R0zrSq+3nc="
+          "range": "bytes=0-10880",
+          "checksum": "sha1-cccFZv73Ol8DMjQYwpmIqnkyIBY="
         },
         "data": {
-          "range": "bytes=12461-88834",
-          "checksum": "sha256-tl0l1bFbwRPm5Qtn8biHuJ8rrbFrocJkKKCdYXbacJE="
+          "range": "bytes=10881-87531",
+          "checksum": "sha256-DTkBDWmVx7OsMuKnlyd0Uqj3ji1jp3IgBUkc4Jozb2E="
         },
-        "checksum": "Q1rK5hc5dCela/Q25D7R0zrSq+3nc="
+        "checksum": "Q1cccFZv73Ol8DMjQYwpmIqnkyIBY="
       },
       {
         "name": "glibc",
-        "url": "https://packages.wolfi.dev/os/x86_64/glibc-2.42-r8.apk",
-        "version": "2.42-r8",
+        "url": "https://packages.wolfi.dev/os/x86_64/glibc-2.43-r1.apk",
+        "version": "2.43-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-12697",
-          "checksum": "sha1-f9RUIr3xoFHpu+y1Wq3tEqdANSI="
+          "range": "bytes=0-11108",
+          "checksum": "sha1-RdeFGNZIBWFgymfZztDZrnNXGMM="
         },
         "data": {
-          "range": "bytes=12698-2918192",
-          "checksum": "sha256-GQ9JSwJaUu33BOZFBAUC/FrJx8+nyu7us+dE6bXR+2I="
+          "range": "bytes=11109-3014062",
+          "checksum": "sha256-pMJ9YXRqIyLO1fcBk+79JyBnM81b+XMIWL9BWOZw+Xo="
         },
-        "checksum": "Q1f9RUIr3xoFHpu+y1Wq3tEqdANSI="
+        "checksum": "Q1RdeFGNZIBWFgymfZztDZrnNXGMM="
       },
       {
         "name": "ld-linux",
-        "url": "https://packages.wolfi.dev/os/x86_64/ld-linux-2.42-r8.apk",
-        "version": "2.42-r8",
+        "url": "https://packages.wolfi.dev/os/x86_64/ld-linux-2.43-r1.apk",
+        "version": "2.43-r1",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-12499",
-          "checksum": "sha1-tkk3hGzxGJ9y2Vf6IKiy6L7aMds="
+          "range": "bytes=0-10915",
+          "checksum": "sha1-Nnc6yjL93ClXoLRsQ2hB5JUJ3Sk="
         },
         "data": {
-          "range": "bytes=12500-144124",
-          "checksum": "sha256-0un5kKi5hwOUCIQ8LOmR2t3Zl9BdhnAV1AghR05zz4M="
+          "range": "bytes=10916-142882",
+          "checksum": "sha256-kvv8ZlFDEJQXLv8fNxNIaBVxJRcRDn+y99GCtlYdzc0="
         },
-        "checksum": "Q1tkk3hGzxGJ9y2Vf6IKiy6L7aMds="
+        "checksum": "Q1Nnc6yjL93ClXoLRsQ2hB5JUJ3Sk="
       },
       {
         "name": "bun",
@@ -199,79 +199,79 @@
       },
       {
         "name": "libgcc",
-        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r7.apk",
-        "version": "15.2.0-r7",
+        "url": "https://packages.wolfi.dev/os/aarch64/libgcc-15.2.0-r8.apk",
+        "version": "15.2.0-r8",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-9117",
-          "checksum": "sha1-Y6C9Q+YV8zmR3Cm+nYnHWUhB2Jw="
+          "range": "bytes=0-9126",
+          "checksum": "sha1-ScMWAMV31kjjrCU0fZWSlmkwkhI="
         },
         "data": {
-          "range": "bytes=9118-85589",
-          "checksum": "sha256-yq4SyZJ+8fnmZN/VeiVUsLprHOuMhQ8kUPJMRSxVFvY="
+          "range": "bytes=9127-85604",
+          "checksum": "sha256-BjBTDhN+AL75B6P+QSx4PIwcuZdiGJnWFjaQJVlIgm8="
         },
-        "checksum": "Q1Y6C9Q+YV8zmR3Cm+nYnHWUhB2Jw="
+        "checksum": "Q1ScMWAMV31kjjrCU0fZWSlmkwkhI="
       },
       {
         "name": "glibc-locale-posix",
-        "url": "https://packages.wolfi.dev/os/aarch64/glibc-locale-posix-2.42-r8.apk",
-        "version": "2.42-r8",
+        "url": "https://packages.wolfi.dev/os/aarch64/glibc-locale-posix-2.43-r1.apk",
+        "version": "2.43-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-12504",
-          "checksum": "sha1-FBone504fZsRi/PTFNALHDZ5GKk="
+          "range": "bytes=0-10917",
+          "checksum": "sha1-7rTurUdJR/OdHsJuGRuSxDZ4h8I="
         },
         "data": {
-          "range": "bytes=12505-88878",
-          "checksum": "sha256-H9jQ5TUlSzLsjiWNilWps7hJ2VF/CYIxZHm8JiJ+/pc="
+          "range": "bytes=10918-87567",
+          "checksum": "sha256-9s64anbFKJHIy/WHnSFMTcriFXoYwBUCro/tgZ4WPnQ="
         },
-        "checksum": "Q1FBone504fZsRi/PTFNALHDZ5GKk="
+        "checksum": "Q17rTurUdJR/OdHsJuGRuSxDZ4h8I="
       },
       {
         "name": "glibc",
-        "url": "https://packages.wolfi.dev/os/aarch64/glibc-2.42-r8.apk",
-        "version": "2.42-r8",
+        "url": "https://packages.wolfi.dev/os/aarch64/glibc-2.43-r1.apk",
+        "version": "2.43-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-12729",
-          "checksum": "sha1-1Ertr58mSeGUEIqEXr7qEqGM7VI="
+          "range": "bytes=0-11138",
+          "checksum": "sha1-AKmvUFWkFAuo7mXQuu5RTQGQmPo="
         },
         "data": {
-          "range": "bytes=12730-2142645",
-          "checksum": "sha256-aCV9ZHZvPXzYD+F9wStZdzpy4CzcbcHcqkzwPdD1Oq4="
+          "range": "bytes=11139-2262773",
+          "checksum": "sha256-Njbtydglesx0JgzrJa3ZOtCOXmF+odS+3wu6Quc9flQ="
         },
-        "checksum": "Q11Ertr58mSeGUEIqEXr7qEqGM7VI="
+        "checksum": "Q1AKmvUFWkFAuo7mXQuu5RTQGQmPo="
       },
       {
         "name": "ld-linux",
-        "url": "https://packages.wolfi.dev/os/aarch64/ld-linux-2.42-r8.apk",
-        "version": "2.42-r8",
+        "url": "https://packages.wolfi.dev/os/aarch64/ld-linux-2.43-r1.apk",
+        "version": "2.43-r1",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-12531",
-          "checksum": "sha1-lY24xz/1wrXf0pGgIi9P9fRLlBw="
+          "range": "bytes=0-10948",
+          "checksum": "sha1-mC0hV5FMgz7L1UMXlW9q81fyhXg="
         },
         "data": {
-          "range": "bytes=12532-123254",
-          "checksum": "sha256-PUp9SZOn9iZqkCGWrkluahXeLypFD8Rao6e+Utee89g="
+          "range": "bytes=10949-122325",
+          "checksum": "sha256-sRk/e/ySy1MHKFoc+ImT5EQgwqOHnGKc7crom2g5Ez4="
         },
-        "checksum": "Q1lY24xz/1wrXf0pGgIi9P9fRLlBw="
+        "checksum": "Q1mC0hV5FMgz7L1UMXlW9q81fyhXg="
       },
       {
         "name": "bun",

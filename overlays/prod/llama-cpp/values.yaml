@@ -1,0 +1,39 @@
+fullnameOverride: "llama-cpp"
+
+imagePullSecret:
+  enabled: true
+
+modelVolume:
+  enabled: true
+  reference: "ghcr.io/jomcgi/homelab/models/hermes_4_3_36b_iq4xs:main"
+  mountPath: "/model-image"
+
+server:
+  modelPath: "/model-image/models/hermes-4.3-36b-iq4xs/NousResearch_Hermes-4.3-36B-IQ4_XS.gguf"
+  nGpuLayers: 99
+  noKvOffload: true
+  ctxSize: 32768
+  flashAttn: true
+  cacheTypeK: "q8_0"
+  cacheTypeV: "q4_0"
+  threads: 8
+  jinja: true
+  extraArgs:
+    - "--metrics"
+    - "--alias"
+    - "hermes-4.3-36b"
+
+nodeSelector:
+  kubernetes.io/hostname: node-4
+
+podAnnotations:
+  linkerd.io/inject: disabled
+
+resources:
+  requests:
+    cpu: 4
+    memory: "32Gi"
+    nvidia.com/gpu: 1
+  limits:
+    memory: "48Gi"
+    nvidia.com/gpu: 1

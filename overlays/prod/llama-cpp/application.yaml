@@ -1,22 +1,22 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prod-vllm
+  name: prod-llama-cpp
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: charts/vllm
+    path: charts/llama-cpp
     targetRevision: HEAD
     helm:
-      releaseName: vllm
+      releaseName: llama-cpp
       valueFiles:
         - values.yaml
-        - ../../overlays/prod/vllm/values.yaml
+        - ../../overlays/prod/llama-cpp/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: vllm
+    namespace: llama-cpp
   syncPolicy:
     automated:
       prune: true
