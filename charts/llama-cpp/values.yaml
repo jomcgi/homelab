@@ -13,7 +13,7 @@ fullnameOverride: ""
 imagePullSecret:
   enabled: false
   onepassword:
-    itemPath: "vaults/k8s-homelab/items/vllm"
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
 ## llama-server configuration
 server:
