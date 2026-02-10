@@ -71,10 +71,10 @@ seaweedfs:
                   collection=$(echo "$base" | sed 's/_[0-9]*$//')
                   volid=$(echo "$base" | grep -o '[0-9]*$')
                   echo "Regenerating idx: collection=$collection volumeId=$volid"
-                  /usr/bin/weed fix -dir=/data -collection="$collection" -volumeId="$volid"
+                  /usr/bin/weed fix -collection="$collection" -volumeId="$volid" /data
                 else
                   echo "Regenerating idx: volumeId=$base"
-                  /usr/bin/weed fix -dir=/data -volumeId="$base"
+                  /usr/bin/weed fix -volumeId="$base" /data
                 fi
                 if [ -f "/data/${base}.idx" ]; then
                   mv "/data/${base}.idx" /idx/
