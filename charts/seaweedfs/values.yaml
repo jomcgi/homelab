@@ -51,6 +51,43 @@ seaweedfs:
         maxVolumes: 0
     idx:
       type: "emptyDir"
+    # Regenerate missing .idx files from .dat files on startup.
+    # The built-in move-idx init container moves .idx from /data to /idx (emptyDir),
+    # but if the pod is rescheduled the emptyDir is lost and the .idx files are gone.
+    # This init container runs weed fix to rebuild them.
+    initContainers: |
+      - name: seaweedfs-vol-fix-idx
+        image: '{{ include "volume.image" . }}'
+        imagePullPolicy: IfNotPresent
+        command: ['/bin/sh', '-c']
+        args:
+          - |
+            echo "Checking for missing idx files..."
+            for dat in /data/*.dat; do
+              [ -f "$dat" ] || continue
+              base=$(basename "$dat" .dat)
+              if [ ! -f "/idx/${base}.idx" ]; then
+                if echo "$base" | grep -q '_'; then
+                  collection=$(echo "$base" | sed 's/_[0-9]*$//')
+                  volid=$(echo "$base" | grep -o '[0-9]*$')
+                  echo "Regenerating idx: collection=$collection volumeId=$volid"
+                  /usr/bin/weed fix -dir=/data -collection="$collection" -volumeId="$volid"
+                else
+                  echo "Regenerating idx: volumeId=$base"
+                  /usr/bin/weed fix -dir=/data -volumeId="$base"
+                fi
+                if [ -f "/data/${base}.idx" ]; then
+                  mv "/data/${base}.idx" /idx/
+                  echo "Moved ${base}.idx to /idx/"
+                fi
+              fi
+            done
+            echo "idx check complete"
+        volumeMounts:
+          - name: data
+            mountPath: /data
+          - name: idx
+            mountPath: /idx
     logs:
       type: "emptyDir"
     resources:
