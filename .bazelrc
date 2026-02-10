@@ -30,6 +30,9 @@ common --experimental_repository_cache_hardlinks
 # All worktrees and main repo share the same disk cache, reducing rebuild time
 # and disk usage. Each workspace still has its own output_base for tracking.
 build --disk_cache=~/.cache/bazel/disk_cache
+# Garbage-collect disk cache entries older than 30 days or when total exceeds 10 GB
+build --experimental_disk_cache_gc_max_size=10G
+build --experimental_disk_cache_gc_max_age=30d
 
 # CI: Disable disk cache (BuildBuddy has limited disk, uses remote cache instead)
 build:ci --disk_cache=
