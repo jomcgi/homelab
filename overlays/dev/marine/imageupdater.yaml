@@ -15,6 +15,7 @@ spec:
             helm:
               name: ingest.image.repository
               tag: ingest.image.tag
+              digest: ingest.image.digest
         - alias: api
           commonUpdateSettings:
             updateStrategy: digest
@@ -24,6 +25,7 @@ spec:
             helm:
               name: api.image.repository
               tag: api.image.tag
+              digest: api.image.digest
         - alias: frontend
           commonUpdateSettings:
             updateStrategy: digest
@@ -33,6 +35,7 @@ spec:
             helm:
               name: frontend.image.repository
               tag: frontend.image.tag
+              digest: frontend.image.digest
       namePattern: marine
   namespace: argocd
   writeBackConfig:
