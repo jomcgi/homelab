@@ -5,6 +5,7 @@ package homelab
 
 import (
 	_ "github.com/gin-gonic/gin"
+	_ "github.com/google/go-containerregistry/pkg/registry"
 	_ "github.com/google/uuid"
 	_ "github.com/gorilla/websocket"
 	_ "github.com/stretchr/testify/assert"
