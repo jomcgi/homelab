@@ -7,19 +7,16 @@ fullnameOverride: "perplexica"
 podAnnotations:
   linkerd.io/inject: disabled
 
-## LLM: Use existing vLLM deployment with Qwen3-Coder
+## LLM: Use llama.cpp deployment with Hermes 4.3
 llm:
-  baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
-  model: "qwen3-coder-30b"
-  ## No API key needed for vLLM
+  baseUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
+  model: "hermes-4.3-36b"
 
-## Embedding: Use vLLM for embeddings (if supported) or configure separately
-## For now, leave unconfigured - Perplexica can work without embeddings
+## Embedding: llama-server doesn't support embeddings well for chat models
+## Disable external embedding provider - Perplexica can work without embeddings
 ## or use its built-in local embedding support
 embedding:
-  provider: "openai"
-  baseUrl: "http://vllm-router-service.vllm.svc.cluster.local:80/v1"
-  model: "qwen3-coder-30b" # vLLM can generate embeddings with chat models
+  provider: "local"
 
 ## SearXNG configuration
 searxng:
@@ -71,14 +68,13 @@ resources:
   limits:
     memory: 2.5Gi
 
-## Network policy - allow external internet for SearXNG, vLLM for LLM
+## Network policy - allow external internet for SearXNG, llama-cpp for LLM
 networkPolicy:
   enabled: true
   allowExternalInternet: true
   vllm:
     enabled: true
-    namespace: "vllm"
-    ## Use pod port 8000, not service port 80 (NetworkPolicy operates on pod-to-pod traffic)
-    port: 8000
+    namespace: "llama-cpp"
+    port: 8080
     podSelector:
-      release: router
+      app.kubernetes.io/name: llama-cpp

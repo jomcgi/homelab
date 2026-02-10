@@ -335,4 +335,15 @@ hf.model(
     repo_id = "cyankiwi/Hermes-4.3-36B-AWQ-8bit",
     revision = "aeb5700b379800d4589b902acdc66a961c8c953e",
 )
-use_repo(hf, "hermes_4_3_36b_awq", "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st", "qwen3_30b_a3b_awq")
+
+# Hermes 4.3 36B IQ4_XS - GGUF quantized model for llama.cpp inference
+# Compact 4-bit quantization (~19GB) for GPU + KV offload to system RAM
+hf.model(
+    name = "hermes_4_3_36b_iq4xs",
+    files = {
+        "NousResearch_Hermes-4.3-36B-IQ4_XS.gguf": "c605ca44197629a5817bba5cd5c142c50ef12bbb3f19e37b8c2ba3e6691fa656",
+    },
+    repo_id = "bartowski/NousResearch_Hermes-4.3-36B-GGUF",
+    revision = "56b57c47136327060928c009c5164be185e4d4e9",
+)
+use_repo(hf, "hermes_4_3_36b_awq", "hermes_4_3_36b_iq4xs", "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st", "qwen3_30b_a3b_awq")

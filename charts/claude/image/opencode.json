@@ -5,7 +5,7 @@
   "model": "google/gemini-3-flash-preview",
 
   // Smaller model for lightweight tasks (title generation, summaries)
-  "small_model": "vllm/cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
+  "small_model": "llama-cpp/hermes-4.3-36b",
 
   // Username shown in conversation (optional)
   "username": "jomcgi",
@@ -25,17 +25,17 @@
         "apiKey": "{env:GOOGLE_API_KEY}"
       }
     },
-    "vllm": {
+    "llama-cpp": {
       "npm": "@ai-sdk/openai-compatible",
-      "name": "vLLM Local",
+      "name": "llama.cpp Local",
       "options": {
-        "baseURL": "http://vllm-router-service.vllm.svc.cluster.local/v1"
+        "baseURL": "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
       },
       "models": {
-        "cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit": {
-          "name": "Qwen3 Coder 30B",
+        "hermes-4.3-36b": {
+          "name": "Hermes 4.3 36B",
           "limit": {
-            "context": 24576,
+            "context": 32768,
             "output": 4096
           }
         }
@@ -47,7 +47,7 @@
   "agent": {
     // Fast local agent - for quick tasks without deep reasoning
     "cheap-local-tokens": {
-      "model": "vllm/cpatonn/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
+      "model": "llama-cpp/hermes-4.3-36b",
       "temperature": 0.3,
       "mode": "primary"
     },
