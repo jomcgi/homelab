@@ -79,9 +79,9 @@ vllm-stack:
             - "--enable-chunked-prefill"
             - "--enable-prefix-caching"
             - "--gpu-memory-utilization"
-            - "0.95" # Increased from 0.90 - use more VRAM since we reduced CPU offload
+            - "0.95"
             - "--cpu-offload-gb"
-            - "15" # Reduced from 30GB - keep more on 24GB VRAM, free CPU RAM for loading
+            - "17" # Offload 17GB to CPU - model uses 22.7GB VRAM, need headroom for KV cache
             - "--kv-cache-dtype"
             - "fp8_e4m3" # FP8 KV cache halves memory usage (RTX 4090 supports this)
             - "--enable-auto-tool-choice"
