@@ -76,6 +76,7 @@ vllm-stack:
 
           # Additional performance flags
           extraArgs:
+            - "--enforce-eager" # Disable CUDA graphs - workaround for AWQ Marlin + cpu_offload OOM bug
             - "--enable-chunked-prefill"
             - "--enable-prefix-caching"
             - "--gpu-memory-utilization"
