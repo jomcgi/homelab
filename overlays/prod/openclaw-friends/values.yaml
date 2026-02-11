@@ -1,5 +1,5 @@
 ## OpenClaw Friends Instance - Production Values
-## Group chat AI assistant with local Qwen + Discord
+## Group chat AI assistant with local Hermes via llama.cpp + Discord
 
 fullnameOverride: "openclaw-friends"
 
@@ -12,12 +12,6 @@ llm:
   provider: "openai-compatible"
   model: "hermes-4.3-36b"
   baseUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
-  vllm:
-    enabled: true
-    namespace: "llama-cpp"
-    port: 8080
-    podSelector:
-      app.kubernetes.io/name: llama-cpp
 
 ## No Anthropic auth needed
 auth:
@@ -73,14 +67,16 @@ resources:
 ## Network policy - allow external internet, restrict internal cluster
 networkPolicy:
   enabled: true
-  ## llama-cpp egress
+  ## llama-cpp egress (uses chart's "vllm" key for openai-compatible provider)
+  ## "release: null" removes the chart default (release: router) via Helm deep-merge
   vllm:
     namespace: "llama-cpp"
     port: 8080
     podSelector:
       app.kubernetes.io/name: llama-cpp
+      release: null
   ## Allow all external internet (web search, APIs, etc.)
-  ## Block internal cluster traffic except explicit vLLM rule above
+  ## Block internal cluster traffic except explicit llama-cpp rule above
   egress:
     - ipBlock:
         cidr: 0.0.0.0/0
