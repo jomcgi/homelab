@@ -47,6 +47,7 @@ spec:
             - {{ .Values.server.ctxSize | quote }}
             {{- if .Values.server.flashAttn }}
             - "--flash-attn"
+            - {{ .Values.server.flashAttn | quote }}
             {{- end }}
             - "--cache-type-k"
             - {{ .Values.server.cacheTypeK | quote }}

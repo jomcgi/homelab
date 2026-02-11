@@ -25,8 +25,9 @@ server:
   noKvOffload: true
   ## Context window size (tokens)
   ctxSize: 32768
-  ## Enable flash attention
-  flashAttn: true
+  ## Flash attention: "on", "off", or "auto" (empty string to disable)
+  ## See: https://github.com/ggml-org/llama.cpp/blob/master/tools/server/README.md
+  flashAttn: "on"
   ## KV cache quantization types
   cacheTypeK: "q8_0"
   cacheTypeV: "q4_0"
