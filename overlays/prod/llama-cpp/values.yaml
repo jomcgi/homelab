@@ -13,7 +13,7 @@ server:
   nGpuLayers: 99
   noKvOffload: true
   ctxSize: 32768
-  flashAttn: true
+  flashAttn: "on"
   cacheTypeK: "q8_0"
   cacheTypeV: "q4_0"
   threads: 8
