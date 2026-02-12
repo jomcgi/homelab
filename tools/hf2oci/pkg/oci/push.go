@@ -2,21 +2,28 @@ package oci
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 )
 
 // CheckExists checks if a tag already exists in the registry.
 // Returns the digest and true if found, empty string and false if not.
+// Only 404 is treated as "not found"; auth errors and 5xx are propagated.
 func CheckExists(_ context.Context, ref name.Reference, opts ...remote.Option) (string, bool, error) {
 	desc, err := remote.Head(ref, opts...)
 	if err != nil {
-		// Treat all errors as "not found" - could be 404, auth issue on HEAD, etc.
-		// The push will surface real auth errors.
-		return "", false, nil
+		var te *transport.Error
+		if errors.As(err, &te) && te.StatusCode == http.StatusNotFound {
+			return "", false, nil
+		}
+		// Propagate auth errors, 5xx, network errors so callers can react.
+		return "", false, fmt.Errorf("checking %s: %w", ref, err)
 	}
 	return desc.Digest.String(), true, nil
 }

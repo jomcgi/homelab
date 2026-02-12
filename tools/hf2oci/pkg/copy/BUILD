@@ -5,6 +5,8 @@ go_library(
     srcs = [
         "classify.go",
         "copy.go",
+        "errors.go",
+        "resolve.go",
     ],
     importpath = "github.com/jomcgi/homelab/tools/hf2oci/pkg/copy",
     visibility = ["//visibility:public"],
@@ -23,6 +25,7 @@ go_test(
     srcs = [
         "classify_test.go",
         "copy_test.go",
+        "resolve_test.go",
     ],
     embed = [":copy"],
     deps = [

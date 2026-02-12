@@ -29,7 +29,9 @@ Example:
 // Execute runs the root command.
 func Execute() error {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
+		if OutputFormat != "json" {
+			fmt.Fprintln(os.Stderr, "Error:", err)
+		}
 		return err
 	}
 	return nil

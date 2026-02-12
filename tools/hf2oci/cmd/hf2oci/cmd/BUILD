@@ -4,6 +4,8 @@ go_library(
     name = "cmd",
     srcs = [
         "copy.go",
+        "output.go",
+        "resolve.go",
         "root.go",
     ],
     importpath = "github.com/jomcgi/homelab/tools/hf2oci/cmd/hf2oci/cmd",
