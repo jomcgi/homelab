@@ -119,7 +119,8 @@ func StreamingWeightLayer(body io.ReadCloser, size int64, modelDir, filename str
 			pw.CloseWithError(fmt.Errorf("writing tar header: %w", err))
 			return
 		}
-		if _, err := io.Copy(tw, body); err != nil {
+		buf := make([]byte, 4<<20) // 4MB buffer to reduce context-switching on fast links
+		if _, err := io.CopyBuffer(tw, body, buf); err != nil {
 			pw.CloseWithError(fmt.Errorf("copying file data: %w", err))
 			return
 		}

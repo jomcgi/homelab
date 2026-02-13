@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
@@ -141,17 +143,29 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 		}
 	}
 
-	// 6. Build streaming weight layers.
+	// 6. Build streaming weight layers (parallel connection establishment).
 	weightLayers := make([]v1.Layer, len(rm.weights))
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(5) // max 5 concurrent HuggingFace connections
+	var progressMu sync.Mutex
 	for i, w := range rm.weights {
-		if opts.OnUploadWeight != nil {
-			opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
-		}
-		body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
-		if err != nil {
-			return nil, fmt.Errorf("downloading weight %s: %w", w.Path, err)
-		}
-		weightLayers[i] = oci.StreamingWeightLayer(body, size, modelDir, w.Path)
+		i, w := i, w // capture for closure
+		g.Go(func() error {
+			if opts.OnUploadWeight != nil {
+				progressMu.Lock()
+				opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
+				progressMu.Unlock()
+			}
+			body, size, err := client.Download(gctx, opts.Repo, opts.Revision, w.Path)
+			if err != nil {
+				return fmt.Errorf("downloading weight %s: %w", w.Path, err)
+			}
+			weightLayers[i] = oci.StreamingWeightLayer(body, size, modelDir, w.Path)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return nil, err
 	}
 
 	// 7. Build index.
