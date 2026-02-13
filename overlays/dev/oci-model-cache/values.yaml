@@ -18,6 +18,19 @@ hfToken:
   type: "onepassword"
   onepassword:
     itemPath: "vaults/k8s-homelab/items/oci-model-cache"
+imageUpdater:
+  enabled: true
+  images:
+    - alias: operator
+      imageName: ghcr.io/jomcgi/homelab/operators/oci-model-cache:main
+      helm:
+        name: controllerManager.image.repository
+        tag: controllerManager.image.tag
+  writeBack:
+    method: git:secret:argocd/argocd-image-updater-token
+    repository: https://github.com/jomcgi/homelab.git
+    branch: main
+    target: helmvalues:../../../../overlays/dev/oci-model-cache/values.yaml
 extraResources:
   - apiVersion: onepassword.com/v1
     kind: OnePasswordItem
