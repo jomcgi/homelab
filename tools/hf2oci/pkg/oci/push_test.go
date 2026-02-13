@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
@@ -14,6 +15,49 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func TestCheckExistsReturnsErrorOn500(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	ref, err := name.ParseReference(srv.Listener.Addr().String() + "/test/model:v1")
+	require.NoError(t, err)
+
+	_, exists, err := CheckExists(context.Background(), ref)
+	require.Error(t, err, "500 should be propagated, not swallowed")
+	assert.False(t, exists)
+	assert.Contains(t, err.Error(), "checking")
+}
+
+func TestCheckExistsReturnsErrorOn401(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer srv.Close()
+
+	ref, err := name.ParseReference(srv.Listener.Addr().String() + "/test/model:v1")
+	require.NoError(t, err)
+
+	_, exists, err := CheckExists(context.Background(), ref)
+	require.Error(t, err, "401 should be propagated, not swallowed")
+	assert.False(t, exists)
+}
+
+func TestCheckExists404IsNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer srv.Close()
+
+	ref, err := name.ParseReference(srv.Listener.Addr().String() + "/test/model:v1")
+	require.NoError(t, err)
+
+	_, exists, err := CheckExists(context.Background(), ref)
+	require.NoError(t, err, "404 should be treated as not-found, not an error")
+	assert.False(t, exists)
+}
 
 func TestPushAndCheckExists(t *testing.T) {
 	// Start in-memory registry.
