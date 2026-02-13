@@ -175,5 +175,5 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # CLOUDFLARE_API_TOKEN set in BuildBuddy Settings → Secrets
+          # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
           bazel run //websites:push_all_pages --config=ci
