@@ -13,6 +13,11 @@ controllerManager:
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
     copyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:main"
+hfToken:
+  create: true
+  type: "onepassword"
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/oci-model-cache"
 extraResources:
   - apiVersion: onepassword.com/v1
     kind: OnePasswordItem
