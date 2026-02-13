@@ -82,6 +82,21 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 		job.Spec.Template.Spec.ServiceAccountName = cfg.SyncServiceAccount
 	}
 
+	if cfg.HFTokenSecret != "" {
+		job.Spec.Template.Spec.Containers[0].Env = append(
+			job.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{
+				Name: "HF_TOKEN",
+				ValueFrom: &corev1.EnvVarSource{
+					SecretKeyRef: &corev1.SecretKeySelector{
+						LocalObjectReference: corev1.LocalObjectReference{Name: cfg.HFTokenSecret},
+						Key:                  cfg.HFTokenSecretKey,
+					},
+				},
+			},
+		)
+	}
+
 	return job
 }
 
