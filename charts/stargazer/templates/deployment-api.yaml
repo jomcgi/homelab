@@ -37,7 +37,6 @@ spec:
           {{- toYaml .Values.api.securityContext | nindent 10 }}
         image: "{{ .Values.api.nginx.image.repository }}:{{ .Values.api.nginx.image.tag }}"
         imagePullPolicy: {{ .Values.api.nginx.image.pullPolicy }}
-        env: []
         ports:
         - name: http
           containerPort: 8080
