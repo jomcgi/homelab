@@ -35,8 +35,8 @@ initContainer:
 # kubectl image used by patcher jobs (init-container, image-volume)
 patcher:
   image:
-    repository: bitnami/kubectl
-    tag: "1.35"
+    repository: alpine/kubectl
+    tag: "1.35.0"
 
 vllm-stack:
   # Minimal defaults - see overlay values for production configuration

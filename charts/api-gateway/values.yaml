@@ -16,8 +16,8 @@ nginx:
 clusterInfo:
   enabled: true
   image:
-    repository: bitnami/kubectl
-    tag: "1.35"
+    repository: alpine/kubectl
+    tag: "1.35.0"
     pullPolicy: IfNotPresent
   # How often to update status.json (seconds)
   interval: 30
