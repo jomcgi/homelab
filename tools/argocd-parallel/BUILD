@@ -26,6 +26,7 @@ filegroup(
         "//overlays/dev/cloudflare-operator:render_manifests",
         "//overlays/dev/cloudflare-operator-test:render_manifests",
         "//overlays/dev/marine:render_manifests",
+        "//overlays/dev/oci-model-cache:render_manifests",
         "//overlays/dev/stargazer:render_manifests",
         "//overlays/prod/api-gateway:render_manifests",
         "//overlays/prod/cloudflare-tunnel:render_manifests",
