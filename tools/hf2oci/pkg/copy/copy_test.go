@@ -3,8 +3,10 @@ package copy
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/google/go-containerregistry/pkg/name"
@@ -247,6 +249,88 @@ func TestCopy404IsPermanent(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, IsPermanent(err), "404 should be a permanent error")
 	assert.Contains(t, err.Error(), "not found (HTTP 404)")
+}
+
+func TestCopyMultipleWeightShards(t *testing.T) {
+	const shardCount = 8
+	const shardSize = 512
+
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Org/ShardedModel/tree/main":
+			entries := []hf.TreeEntry{
+				{Type: "file", Path: "config.json", Size: 64},
+			}
+			for i := 1; i <= shardCount; i++ {
+				entries = append(entries, hf.TreeEntry{
+					Type: "file",
+					Path: fmt.Sprintf("model-%05d-of-%05d.safetensors", i, shardCount),
+					Size: shardSize,
+				})
+			}
+			json.NewEncoder(w).Encode(entries)
+		case r.URL.Path == "/Org/ShardedModel/resolve/main/config.json":
+			w.Write([]byte(`{"model_type":"test"}`))
+		default:
+			// Serve all weight shard requests.
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", shardSize))
+			w.Write(make([]byte, shardSize))
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	regHost := regSrv.Listener.Addr().String()
+
+	// Track progress callbacks to verify all shards are reported.
+	var mu sync.Mutex
+	var reportedWeights []string
+
+	result, err := Copy(context.Background(), Options{
+		Repo:       "Org/ShardedModel",
+		Registry:   regHost + "/models",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+		OnUploadWeight: func(index, total int, filename string) {
+			mu.Lock()
+			reportedWeights = append(reportedWeights, filename)
+			mu.Unlock()
+		},
+	})
+	require.NoError(t, err)
+
+	assert.Contains(t, result.Digest, "sha256:")
+	assert.False(t, result.Cached)
+	assert.Equal(t, shardCount+1, result.FileCount) // 1 config + 8 weights
+
+	// All shards should be reported (order may vary due to parallelism).
+	assert.Len(t, reportedWeights, shardCount)
+	for i := 1; i <= shardCount; i++ {
+		expected := fmt.Sprintf("model-%05d-of-%05d.safetensors", i, shardCount)
+		assert.Contains(t, reportedWeights, expected)
+	}
+
+	// Verify pushed index has both platforms with correct layer count.
+	ref, err := name.ParseReference(result.Ref)
+	require.NoError(t, err)
+	idx, err := remote.Index(ref)
+	require.NoError(t, err)
+	mf, err := idx.IndexManifest()
+	require.NoError(t, err)
+	assert.Len(t, mf.Manifests, 2)
+
+	for _, d := range mf.Manifests {
+		img, err := idx.Image(d.Digest)
+		require.NoError(t, err)
+		layers, err := img.Layers()
+		require.NoError(t, err)
+		assert.Len(t, layers, shardCount+1, "expected %d layers (1 config + %d weights)", shardCount+1, shardCount)
+	}
 }
 
 func TestDeriveRepoName(t *testing.T) {
