@@ -57,6 +57,10 @@ func init() {
 }
 
 func runCopy(cmd *cobra.Command, args []string) error {
+	if err := validateOutputFormat(); err != nil {
+		return err
+	}
+
 	repo := args[0]
 
 	var clientOpts []hf.Option
@@ -65,7 +69,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	}
 	client := hf.NewClient(clientOpts...)
 
-	result, err := copy.Copy(cmd.Context(), copy.Options{
+	opts := copy.Options{
 		Repo:     repo,
 		Registry: copyRegistry,
 		Revision: copyRevision,
@@ -73,30 +77,42 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		ModelDir: copyModelDir,
 		DryRun:   copyDryRun,
 		HFClient: client,
+	}
 
-		OnResolve: func(repo, revision string) {
+	// Suppress progress callbacks in JSON mode for clean machine output.
+	if outputFormat != "json" {
+		opts.OnResolve = func(repo, revision string) {
 			fmt.Fprintf(os.Stderr, "Resolving %s@%s...\n", repo, revision)
-		},
-		OnClassified: func(configs, weights int, format copy.ModelFormat) {
+		}
+		opts.OnClassified = func(configs, weights int, format copy.ModelFormat) {
 			fmt.Fprintf(os.Stderr, "Found %d files (%d weights, %d configs) [%s]\n",
 				configs+weights, weights, configs, format)
-		},
-		OnTarget: func(ref string) {
+		}
+		opts.OnTarget = func(ref string) {
 			fmt.Fprintf(os.Stderr, "Target: %s\n", ref)
-		},
-		OnCacheHit: func(digest string) {
+		}
+		opts.OnCacheHit = func(digest string) {
 			fmt.Fprintf(os.Stderr, "Checking registry... found (cached)\n")
-		},
-		OnUploadConfig: func(count int) {
+		}
+		opts.OnUploadConfig = func(count int) {
 			fmt.Fprintf(os.Stderr, "Checking registry... not found\n")
 			fmt.Fprintf(os.Stderr, "Uploading config layer (%d files)\n", count)
-		},
-		OnUploadWeight: func(index, total int, filename string) {
+		}
+		opts.OnUploadWeight = func(index, total int, filename string) {
 			fmt.Fprintf(os.Stderr, "Streaming weight %d/%d: %s\n", index, total, filename)
-		},
-	})
+		}
+	}
+
+	result, err := copy.Copy(cmd.Context(), opts)
 	if err != nil {
+		if outputFormat == "json" {
+			printJSONError(err)
+		}
 		return err
+	}
+
+	if outputFormat == "json" {
+		return printJSON(result)
 	}
 
 	if result.Cached {

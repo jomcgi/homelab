@@ -123,17 +123,35 @@ func (c *Client) setAuth(req *http.Request) {
 	}
 }
 
+// APIError is returned when the HuggingFace API responds with a non-2xx status.
+type APIError struct {
+	StatusCode int
+	Body       string
+}
+
+func (e *APIError) Error() string {
+	switch e.StatusCode {
+	case http.StatusUnauthorized:
+		return fmt.Sprintf("unauthorized (HTTP 401): set HF_TOKEN for private repos. %s", e.Body)
+	case http.StatusNotFound:
+		return fmt.Sprintf("not found (HTTP 404): %s", e.Body)
+	default:
+		return fmt.Sprintf("unexpected status %d: %s", e.StatusCode, e.Body)
+	}
+}
+
+// IsNotFound reports whether the error is a 404.
+func (e *APIError) IsNotFound() bool { return e.StatusCode == 404 }
+
+// IsClientError reports whether the status code is in the 4xx range.
+func (e *APIError) IsClientError() bool {
+	return e.StatusCode >= 400 && e.StatusCode < 500
+}
+
 func checkResponse(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
 	}
 	body, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
-	switch resp.StatusCode {
-	case http.StatusUnauthorized:
-		return fmt.Errorf("unauthorized (HTTP 401): set HF_TOKEN for private repos. %s", body)
-	case http.StatusNotFound:
-		return fmt.Errorf("not found (HTTP 404): %s", body)
-	default:
-		return fmt.Errorf("unexpected status %d: %s", resp.StatusCode, body)
-	}
+	return &APIError{StatusCode: resp.StatusCode, Body: string(body)}
 }

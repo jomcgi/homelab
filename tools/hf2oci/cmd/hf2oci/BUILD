@@ -5,7 +5,10 @@ go_library(
     srcs = ["main.go"],
     importpath = "github.com/jomcgi/homelab/tools/hf2oci/cmd/hf2oci",
     visibility = ["//visibility:private"],
-    deps = ["//tools/hf2oci/cmd/hf2oci/cmd"],
+    deps = [
+        "//tools/hf2oci/cmd/hf2oci/cmd",
+        "//tools/hf2oci/pkg/copy",
+    ],
 )
 
 go_binary(
