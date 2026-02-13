@@ -17,7 +17,7 @@ spec:
         - securityContext:
             allowPrivilegeEscalation: false
           name: configure-disks
-          image: bitnami/kubectl:latest
+          image: bitnami/kubectl:1.35
           command:
             - /bin/bash
             - -c

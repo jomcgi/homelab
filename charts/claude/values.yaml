@@ -193,7 +193,7 @@ leaderElection:
   # kubectl image used for leader election sidecar
   image:
     repository: bitnami/kubectl
-    tag: "1.31"
+    tag: "1.35"
     pullPolicy: IfNotPresent
 
 ## Nginx reverse proxy sidecar for WebSocket support

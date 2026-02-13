@@ -63,7 +63,7 @@ spec:
       restartPolicy: OnFailure
       containers:
       - name: patcher
-        image: bitnami/kubectl:latest
+        image: "{{ .Values.patcher.image.repository }}:{{ .Values.patcher.image.tag }}"
         command:
         - /bin/bash
         - -c
