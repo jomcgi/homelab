@@ -16,6 +16,7 @@ spec:
       containers:
         - securityContext:
             allowPrivilegeEscalation: false
+            runAsUser: 65534
           name: configure-disks
           image: alpine/kubectl:1.35.0
           command:
