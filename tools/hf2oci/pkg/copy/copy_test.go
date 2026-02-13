@@ -61,6 +61,11 @@ func TestCopySafetensors(t *testing.T) {
 	assert.Equal(t, regHost+"/models/testorg-testmodel:rev-abc123def456", result.Ref)
 	assert.Contains(t, result.Digest, "sha256:")
 	assert.False(t, result.Cached)
+	assert.Equal(t, "TestOrg/TestModel", result.Repo)
+	assert.Equal(t, "abc123def456", result.Revision)
+	assert.Equal(t, FormatSafetensors, result.Format)
+	assert.Equal(t, 3, result.FileCount) // 2 configs + 1 weight
+	assert.Equal(t, int64(1324), result.TotalSize)
 
 	// Verify it was actually pushed.
 	ref, err := name.ParseReference(result.Ref)
@@ -173,6 +178,75 @@ func TestCopyDryRun(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "ghcr.io/test/org-model:rev-abc123", result.Ref)
 	assert.Empty(t, result.Digest)
+}
+
+func TestCopyRegistryAuthIsPermanent(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode([]hf.TreeEntry{
+			{Type: "file", Path: "model.safetensors", Size: 256},
+		})
+	}))
+	defer hfSrv.Close()
+
+	// Registry that rejects all requests with 401.
+	regSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusUnauthorized)
+	}))
+	defer regSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	regHost := regSrv.Listener.Addr().String()
+
+	_, err := Copy(context.Background(), Options{
+		Repo:       "Org/Model",
+		Registry:   regHost + "/models",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+	})
+	require.Error(t, err)
+	assert.True(t, IsPermanent(err), "registry 401 should be a permanent error")
+	assert.Contains(t, err.Error(), "checking registry")
+}
+
+func TestCopyHF500IsTransient(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+		w.Write([]byte("internal error"))
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	_, err := Copy(context.Background(), Options{
+		Repo:       "Org/Model",
+		Registry:   "ghcr.io/test",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+	})
+	require.Error(t, err)
+	assert.False(t, IsPermanent(err), "HF 500 should be transient (retryable)")
+	assert.Contains(t, err.Error(), "listing repo")
+}
+
+func TestCopy404IsPermanent(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"Repository not found"}`))
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	_, err := Copy(context.Background(), Options{
+		Repo:       "nonexistent/repo",
+		Registry:   "ghcr.io/test",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+	})
+	require.Error(t, err)
+	assert.True(t, IsPermanent(err), "404 should be a permanent error")
+	assert.Contains(t, err.Error(), "not found (HTTP 404)")
 }
 
 func TestDeriveRepoName(t *testing.T) {
