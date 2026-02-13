@@ -31,7 +31,7 @@ func TestCheckExistsReturnsErrorOn500(t *testing.T) {
 	assert.Contains(t, err.Error(), "checking")
 }
 
-func TestCheckExistsReturnsErrorOn401(t *testing.T) {
+func TestCheckExists401IsNotFound(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
@@ -41,7 +41,21 @@ func TestCheckExistsReturnsErrorOn401(t *testing.T) {
 	require.NoError(t, err)
 
 	_, exists, err := CheckExists(context.Background(), ref)
-	require.Error(t, err, "401 should be propagated, not swallowed")
+	require.NoError(t, err, "401 should be treated as not-found (GHCR returns DENIED for nonexistent packages)")
+	assert.False(t, exists)
+}
+
+func TestCheckExists403IsNotFound(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer srv.Close()
+
+	ref, err := name.ParseReference(srv.Listener.Addr().String() + "/test/model:v1")
+	require.NoError(t, err)
+
+	_, exists, err := CheckExists(context.Background(), ref)
+	require.NoError(t, err, "403 should be treated as not-found (GHCR returns DENIED for nonexistent packages)")
 	assert.False(t, exists)
 }
 
