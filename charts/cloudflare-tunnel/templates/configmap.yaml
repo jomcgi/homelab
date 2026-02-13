@@ -12,7 +12,7 @@ data:
     {{- if .Values.metrics.enabled }}
     metrics: {{ .Values.metrics.address }}
     {{- end }}
-    no-autoupdate: true
+    no-autoupdate: {{ .Values.tunnel.noAutoupdate }}
     ingress:
     {{- range .Values.ingress.routes }}
     - hostname: {{ .hostname }}

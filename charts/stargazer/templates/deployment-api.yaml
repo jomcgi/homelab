@@ -35,8 +35,8 @@ spec:
       - name: api
         securityContext:
           {{- toYaml .Values.api.securityContext | nindent 10 }}
-        image: "nginxinc/nginx-unprivileged:alpine"
-        imagePullPolicy: IfNotPresent
+        image: "{{ .Values.api.nginx.image.repository }}:{{ .Values.api.nginx.image.tag }}"
+        imagePullPolicy: {{ .Values.api.nginx.image.pullPolicy }}
         ports:
         - name: http
           containerPort: 8080

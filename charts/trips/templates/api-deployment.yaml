@@ -78,7 +78,7 @@ spec:
                   optional: true
             # CORS origins
             - name: CORS_ORIGINS
-              value: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
+              value: {{ .Values.api.corsOrigins | quote }}
           livenessProbe:
             httpGet:
               path: /health
