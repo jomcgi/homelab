@@ -81,3 +81,8 @@ sh_binary(
     name = "hf_lock",
     srcs = ["hf_lock.sh"],
 )
+
+sh_binary(
+    name = "help",
+    srcs = ["help.sh"],
+)
