@@ -1,0 +1,26 @@
+apiVersion: v2
+name: oci-model-cache-operator
+description: A Helm chart for the OCI Model Cache Operator - caches HuggingFace models as OCI artifacts
+type: application
+version: 0.1.0
+appVersion: "latest"
+keywords:
+  - oci
+  - model-cache
+  - kubernetes
+  - operator
+  - huggingface
+  - machine-learning
+maintainers:
+  - name: jomcgi
+    url: https://github.com/jomcgi/homelab
+sources:
+  - https://github.com/jomcgi/homelab/tree/main/operators/oci-model-cache
+annotations:
+  "artifacthub.io/prerelease": "true"
+  "artifacthub.io/crds": |
+    - kind: ModelCache
+      version: v1alpha1
+      name: modelcaches.oci-model-cache.jomcgi.dev
+      displayName: Model Cache
+      description: Caches HuggingFace models as OCI artifacts in a container registry

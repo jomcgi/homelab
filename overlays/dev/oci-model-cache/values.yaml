@@ -1,0 +1,23 @@
+imagePullSecrets:
+  - name: ghcr-pull-secret
+controllerManager:
+  image:
+    repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
+    tag: latest
+    pullPolicy: Always
+  tracing:
+    serviceName: "oci-model-cache-operator"
+    serviceVersion: "dev"
+    sampler: "parentbased_traceidratio"
+    samplerArg: "1.0"
+  env:
+    ociRegistry: "ghcr.io/jomcgi/models"
+    copyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:latest"
+extraResources:
+  - apiVersion: onepassword.com/v1
+    kind: OnePasswordItem
+    metadata:
+      name: ghcr-pull-secret
+    spec:
+      itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
+    type: "kubernetes.io/dockerconfigjson"

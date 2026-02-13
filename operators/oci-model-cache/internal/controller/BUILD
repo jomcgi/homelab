@@ -1,0 +1,31 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "controller",
+    srcs = [
+        "cleanup.go",
+        "job_builder.go",
+        "job_result.go",
+        "modelcache_controller.go",
+        "pod_ungater.go",
+        "resolver.go",
+    ],
+    importpath = "github.com/jomcgi/homelab/operators/oci-model-cache/internal/controller",
+    visibility = ["//operators/oci-model-cache:__subpackages__"],
+    deps = [
+        "//operators/oci-model-cache/api/v1alpha1:api",
+        "//operators/oci-model-cache/internal/config",
+        "//operators/oci-model-cache/internal/statemachine",
+        "@io_k8s_api//batch/v1:batch",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_sigs_controller_runtime//:controller-runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/controller",
+        "@io_k8s_sigs_controller_runtime//pkg/handler",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@io_k8s_utils//ptr",
+    ],
+)
