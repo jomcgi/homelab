@@ -5,6 +5,8 @@ metadata:
   name: {{ include "oci-model-cache-operator.fullname" . }}-mutating
   labels:
     {{- include "oci-model-cache-operator.labels" . | nindent 4 }}
+  annotations:
+    cert-manager.io/inject-ca-from: {{ .Release.Namespace }}/{{ include "oci-model-cache-operator.fullname" . }}-webhook-cert
 webhooks:
 - admissionReviewVersions:
   - v1
