@@ -4,38 +4,37 @@
 imageUpdater:
   enabled: true
   images:
-    - alias: ingest
-      imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
-      helm:
-        name: ingest.image.repository
-        tag: ingest.image.tag
-    - alias: api
-      imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
-      helm:
-        name: api.image.repository
-        tag: api.image.tag
-    - alias: frontend
-      imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
-      helm:
-        name: frontend.image.repository
-        tag: frontend.image.tag
+  - alias: ingest
+    imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
+    helm:
+      name: ingest.image.repository
+      tag: ingest.image.tag
+  - alias: api
+    imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
+    helm:
+      name: api.image.repository
+      tag: api.image.tag
+  - alias: frontend
+    imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
+    helm:
+      name: frontend.image.repository
+      tag: frontend.image.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
     branch: main
     target: helmvalues:../../overlays/dev/marine/values.yaml
-
 # Enable image pull secret for GHCR
 imagePullSecret:
   enabled: true
 # Configure pods to use the image pull secret
 imagePullSecrets:
-  - name: ghcr-imagepull-secret
+- name: ghcr-imagepull-secret
 # AIS Ingest component
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
-    tag: main
+    tag: main@sha256:62010d91b50a36446aa5209ae4a3db5c3c3425a920d147b1f43c75a088124fcc
     pullPolicy: Always
     digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
@@ -45,7 +44,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
-    tag: main
+    tag: main@sha256:c9d5d8abfd09791c4ccd6be326c7baa246b2ca959bbd7f7157ba6cbe5f6816f3
     pullPolicy: Always
     digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
   # Overprovisioned for catchup - reduce after caught up
@@ -73,7 +72,7 @@ api:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
-    tag: main
+    tag: main@sha256:73f3952b857740bde3dd8f2d4978a617cbf12043ce411af01f5da61654ff7e6e
     digest: sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   resources:
     requests:
