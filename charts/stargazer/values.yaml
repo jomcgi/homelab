@@ -133,6 +133,16 @@ api:
 testData:
   enabled: false
 
+# ArgoCD Image Updater (automatic digest-based image updates)
+imageUpdater:
+  enabled: false
+  images: []
+  writeBack:
+    method: ""
+    repository: ""
+    branch: main
+    target: ""
+
 # Image pull secret configuration
 imagePullSecret:
   enabled: false
