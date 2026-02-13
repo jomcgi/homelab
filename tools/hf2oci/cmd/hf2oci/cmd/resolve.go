@@ -65,13 +65,13 @@ func runResolve(cmd *cobra.Command, args []string) error {
 		HFClient: client,
 	})
 	if err != nil {
-		if OutputFormat == "json" {
+		if outputFormat == "json" {
 			printJSONError(err)
 		}
 		return err
 	}
 
-	if OutputFormat == "json" {
+	if outputFormat == "json" {
 		return printJSON(result)
 	}
 

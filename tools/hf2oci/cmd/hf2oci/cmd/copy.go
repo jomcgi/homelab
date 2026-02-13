@@ -80,7 +80,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	// Suppress progress callbacks in JSON mode for clean machine output.
-	if OutputFormat != "json" {
+	if outputFormat != "json" {
 		opts.OnResolve = func(repo, revision string) {
 			fmt.Fprintf(os.Stderr, "Resolving %s@%s...\n", repo, revision)
 		}
@@ -105,13 +105,13 @@ func runCopy(cmd *cobra.Command, args []string) error {
 
 	result, err := copy.Copy(cmd.Context(), opts)
 	if err != nil {
-		if OutputFormat == "json" {
+		if outputFormat == "json" {
 			printJSONError(err)
 		}
 		return err
 	}
 
-	if OutputFormat == "json" {
+	if outputFormat == "json" {
 		return printJSON(result)
 	}
 

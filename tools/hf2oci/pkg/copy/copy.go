@@ -2,13 +2,10 @@ package copy
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
 
-	"github.com/google/go-containerregistry/pkg/authn"
-	"github.com/google/go-containerregistry/pkg/name"
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 
@@ -39,6 +36,8 @@ type Options struct {
 }
 
 // Result contains the output of a successful copy or resolve operation.
+// TotalSize reflects HuggingFace source file sizes, not OCI layer sizes
+// after tar wrapping.
 type Result struct {
 	Ref       string      `json:"ref"`
 	Digest    string      `json:"digest,omitempty"`
@@ -65,101 +64,66 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 		opts.OnResolve(opts.Repo, opts.Revision)
 	}
 
-	// 1. List files.
-	entries, err := client.Tree(ctx, opts.Repo, opts.Revision)
+	// 1-3. List, classify, derive ref.
+	rm, err := resolveModel(ctx, client, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.RemoteOpts)
 	if err != nil {
-		wrapped := fmt.Errorf("listing repo: %w", err)
-		var apiErr *hf.APIError
-		if errors.As(err, &apiErr) && apiErr.IsClientError() {
-			return nil, Permanent(wrapped)
-		}
-		return nil, wrapped
-	}
-
-	// 2. Classify files.
-	configs, weights, format, err := Classify(entries)
-	if err != nil {
-		return nil, Permanent(fmt.Errorf("classifying files: %w", err))
+		return nil, err
 	}
 
 	if opts.OnClassified != nil {
-		opts.OnClassified(len(configs), len(weights), format)
-	}
-
-	// 3. Derive tag and ref.
-	tag := DeriveTag(opts.Tag, opts.Revision)
-	repoName := deriveRepoName(opts.Repo)
-	refStr := fmt.Sprintf("%s/%s:%s", opts.Registry, repoName, tag)
-
-	// Compute totals for the enriched result.
-	fileCount := len(configs) + len(weights)
-	var totalSize int64
-	for _, e := range configs {
-		totalSize += e.Size
-	}
-	for _, e := range weights {
-		totalSize += e.Size
+		opts.OnClassified(len(rm.configs), len(rm.weights), rm.format)
 	}
 
 	if opts.OnTarget != nil {
-		opts.OnTarget(refStr)
+		opts.OnTarget(rm.refStr)
 	}
 
 	if opts.DryRun {
 		return &Result{
-			Ref:       refStr,
+			Ref:       rm.refStr,
 			Repo:      opts.Repo,
 			Revision:  opts.Revision,
-			Format:    format,
-			FileCount: fileCount,
-			TotalSize: totalSize,
+			Format:    rm.format,
+			FileCount: rm.fileCount,
+			TotalSize: rm.totalSize,
 		}, nil
 	}
 
-	ref, err := name.ParseReference(refStr)
-	if err != nil {
-		return nil, Permanent(fmt.Errorf("parsing reference %q: %w", refStr, err))
-	}
-
-	remoteOpts := opts.RemoteOpts
-	if remoteOpts == nil {
-		remoteOpts = []remote.Option{remote.WithAuthFromKeychain(authn.DefaultKeychain)}
-	}
-
 	// 4. Check cache.
-	digest, exists, err := oci.CheckExists(ctx, ref, remoteOpts...)
+	digest, exists, err := oci.CheckExists(ctx, rm.ref, rm.remoteOpts...)
 	if err != nil {
-		return nil, fmt.Errorf("checking registry: %w", err)
+		return nil, wrapRegistryError(err)
 	}
 	if exists {
 		if opts.OnCacheHit != nil {
 			opts.OnCacheHit(digest)
 		}
 		return &Result{
-			Ref:       refStr,
+			Ref:       rm.refStr,
 			Digest:    digest,
 			Cached:    true,
 			Repo:      opts.Repo,
 			Revision:  opts.Revision,
-			Format:    format,
-			FileCount: fileCount,
-			TotalSize: totalSize,
+			Format:    rm.format,
+			FileCount: rm.fileCount,
+			TotalSize: rm.totalSize,
 		}, nil
 	}
 
 	// 5. Build config layer.
+	repoName := deriveRepoName(opts.Repo)
 	modelDir := opts.ModelDir
 	if modelDir == "" {
 		modelDir = "/models/" + repoName
 	}
 
 	var cfgLayer v1.Layer
-	if len(configs) > 0 {
+	if len(rm.configs) > 0 {
 		if opts.OnUploadConfig != nil {
-			opts.OnUploadConfig(len(configs))
+			opts.OnUploadConfig(len(rm.configs))
 		}
 		cfgFiles := make(map[string][]byte)
-		for _, c := range configs {
+		for _, c := range rm.configs {
 			body, _, err := client.Download(ctx, opts.Repo, opts.Revision, c.Path)
 			if err != nil {
 				return nil, fmt.Errorf("downloading config %s: %w", c.Path, err)
@@ -178,10 +142,10 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// 6. Build streaming weight layers.
-	weightLayers := make([]v1.Layer, len(weights))
-	for i, w := range weights {
+	weightLayers := make([]v1.Layer, len(rm.weights))
+	for i, w := range rm.weights {
 		if opts.OnUploadWeight != nil {
-			opts.OnUploadWeight(i+1, len(weights), w.Path)
+			opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
 		}
 		body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
 		if err != nil {
@@ -201,19 +165,19 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// 8. Push.
-	digest, err = oci.PushIndex(ctx, ref, idx, remoteOpts...)
+	digest, err = oci.PushIndex(ctx, rm.ref, idx, rm.remoteOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("pushing: %w", err)
 	}
 
 	return &Result{
-		Ref:       refStr,
+		Ref:       rm.refStr,
 		Digest:    digest,
 		Repo:      opts.Repo,
 		Revision:  opts.Revision,
-		Format:    format,
-		FileCount: fileCount,
-		TotalSize: totalSize,
+		Format:    rm.format,
+		FileCount: rm.fileCount,
+		TotalSize: rm.totalSize,
 	}, nil
 }
 

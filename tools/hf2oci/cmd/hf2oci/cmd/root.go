@@ -29,9 +29,10 @@ Example:
 // Execute runs the root command.
 func Execute() error {
 	if err := rootCmd.Execute(); err != nil {
-		if OutputFormat != "json" {
-			fmt.Fprintln(os.Stderr, "Error:", err)
-		}
+		// Always print to stderr: in JSON mode, operational errors go via
+		// printJSONError in the subcommand; but validation/CLI errors
+		// (bad flags, missing args) must still be visible somewhere.
+		fmt.Fprintln(os.Stderr, "Error:", err)
 		return err
 	}
 	return nil
