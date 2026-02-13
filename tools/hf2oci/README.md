@@ -32,13 +32,13 @@ hf2oci copy ... -o json -O /dev/termination-log
 
 ```mermaid
 flowchart TD
-    HF["HuggingFace API"] --> List["1. List files\nGET /api/models/{repo}/tree/{rev}"]
-    List --> Classify["2. Classify\nconfig vs weight files"]
+    HF["HuggingFace API"] --> List["1. List files"]
+    List --> Classify["2. Classify config vs weight files"]
     Classify --> Derive["3. Derive OCI ref & tag"]
-    Derive --> Cache{"4. HEAD check\ncached?"}
+    Derive --> Cache{"4. HEAD check — cached?"}
     Cache -- "yes" --> Hit["Return cached digest"]
-    Cache -- "no" --> Config["5. Download config files\n(in memory)"]
-    Config --> Stream["6. Stream weight layers\n(io.Pipe, zero disk I/O)"]
+    Cache -- "no" --> Config["5. Download config files (in memory)"]
+    Config --> Stream["6. Stream weight layers (zero disk I/O)"]
     Stream --> Build["7. Build multi-platform index"]
     Build --> Push["8. Push to registry"]
     Push --> Reg["OCI Registry"]
