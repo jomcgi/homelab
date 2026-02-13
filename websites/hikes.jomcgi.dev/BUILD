@@ -1,6 +1,7 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
+
 # hikes.jomcgi.dev - Static site, no build step needed
 load("@npm//websites/hikes.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
-load("@npm//:defs.bzl", "npm_link_all_packages")
 load("//tools/wrangler:wrangler_pages.bzl", "wrangler_pages")
 
 # Link npm packages for this workspace package

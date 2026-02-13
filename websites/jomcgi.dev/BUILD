@@ -35,8 +35,6 @@ vite_build(
     tool = ":astro",
     visibility = ["//visibility:public"],
     deps = [
-        "@astrojs/react",
-        "@astrojs/tailwind",
         "astro",
         "astro-remote",
         "mermaid",
@@ -44,6 +42,8 @@ vite_build(
         "react-dom",
         "reveal.js",
         "tailwindcss",
+        "@astrojs/react",
+        "@astrojs/tailwind",
     ],
 )
 
