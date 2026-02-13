@@ -78,6 +78,32 @@ bazelisk query "deps(//charts/claude/image:image)"
 | `//charts/claude/image:image` | Claude container image        |
 | `//charts/claude/image:push`  | Push Claude image to registry |
 | `//tools/format:format`       | Format + render all           |
+| `//tools:help`                | List all available targets    |
+| `//tools/cluster:pods`        | List pods in key namespaces   |
+| `//tools/cluster:events`      | Recent cluster events         |
+| `//tools/cluster:status`      | Cluster health summary        |
+| `//tools/cluster:argocd`      | ArgoCD application sync status|
+
+### Cluster Inspection (Read-Only)
+
+Use these targets instead of raw kubectl for common inspection tasks:
+
+```bash
+# List pods across key namespaces
+bazel run //tools/cluster:pods
+
+# View recent cluster events
+bazel run //tools/cluster:events
+
+# Cluster health overview (nodes, resource counts)
+bazel run //tools/cluster:status
+
+# ArgoCD sync status for all applications
+bazel run //tools/cluster:argocd
+
+# Discover all available targets
+bazel run //tools:help
+```
 
 ## Container Images with apko
 
