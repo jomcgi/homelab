@@ -11,4 +11,4 @@ fi
 
 echo "=== Recent Cluster Events ==="
 echo ""
-kubectl get events -A --sort-by='.lastTimestamp' 2>/dev/null | tail -50
+kubectl get events -A --sort-by='.metadata.creationTimestamp' 2>/dev/null | tail -50

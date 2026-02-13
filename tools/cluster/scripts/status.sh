@@ -35,7 +35,7 @@ echo "  Services:    $services"
 echo ""
 
 echo "--- Storage (Longhorn) ---"
-kubectl get volumes.longhorn.io -n longhorn-system --no-headers 2>/dev/null | while IFS= read -r line; do
+(kubectl get volumes.longhorn.io -n longhorn-system --no-headers 2>/dev/null || true) | while IFS= read -r line; do
 	echo "  $line"
 done || echo "  (Longhorn volumes not available)"
 echo ""
