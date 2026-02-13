@@ -94,6 +94,17 @@ spec:
         - name: OTEL_SDK_DISABLED
           value: "true"
         {{- end }}
+        {{- if or .Values.hfToken.create .Values.hfToken.existingSecret }}
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "oci-model-cache-operator.hfTokenSecretName" . }}
+              key: {{ .Values.hfToken.secretKey }}
+        - name: HF_TOKEN_SECRET
+          value: {{ include "oci-model-cache-operator.hfTokenSecretName" . | quote }}
+        - name: HF_TOKEN_SECRET_KEY
+          value: {{ .Values.hfToken.secretKey | quote }}
+        {{- end }}
         lifecycle:
           preStop:
             exec:

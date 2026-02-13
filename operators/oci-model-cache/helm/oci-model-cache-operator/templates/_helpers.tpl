@@ -41,6 +41,14 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 {{- end }}
 
+{{- define "oci-model-cache-operator.hfTokenSecretName" -}}
+{{- if .Values.hfToken.existingSecret }}
+{{- .Values.hfToken.existingSecret }}
+{{- else }}
+{{- printf "%s-hf-token" (include "oci-model-cache-operator.fullname" .) }}
+{{- end }}
+{{- end }}
+
 {{- define "oci-model-cache-operator.syncServiceAccountName" -}}
 {{- if .Values.syncServiceAccount.create }}
 {{- default (printf "%s-sync" (include "oci-model-cache-operator.fullname" .)) .Values.syncServiceAccount.name }}

@@ -81,6 +81,20 @@ createNamespace: false
 
 imagePullSecrets: []
 
+hfToken:
+  # -- Create a Secret (OnePasswordItem or manual). If false, use existingSecret.
+  create: false
+  # -- Name of a pre-existing Secret containing the HF token
+  existingSecret: ""
+  # -- Key within the Secret
+  secretKey: "hf_token"
+  # -- Secret type when create=true: "onepassword" or "manual"
+  type: "onepassword"
+  onepassword:
+    itemPath: ""
+  manual:
+    token: ""
+
 webhook:
   enabled: true
 

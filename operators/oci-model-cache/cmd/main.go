@@ -237,7 +237,12 @@ func main() {
 	}
 
 	// Initialize HuggingFace client
-	hfClient := hf.NewClient(nil)
+	var hfOpts []hf.Option
+	if token := os.Getenv("HF_TOKEN"); token != "" {
+		hfOpts = append(hfOpts, hf.WithToken(token))
+		setupLog.Info("HuggingFace token configured")
+	}
+	hfClient := hf.NewClient(hfOpts...)
 
 	// Initialize state machine calculator and observer
 	calculator := sm.NewModelCacheCalculator(ctrl.Log.WithName("calculator"))
