@@ -23,6 +23,7 @@ multirun(
         "//services/ships_frontend:image.push",
         "//services/stargazer:image.push",
         "//services/trips_api:image.push",
+        "//tools/hf2oci:image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
@@ -45,6 +46,7 @@ multirun(
         "//services/ships_frontend:image.push",
         "//services/stargazer:image.push",
         "//services/trips_api:image.push",
+        "//tools/hf2oci:image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],

@@ -30,7 +30,7 @@ func (c *Config) BindFlags(fs *flag.FlagSet) {
 		"Target OCI registry for cached models")
 	fs.DurationVar(&c.DefaultTTL, "default-ttl", 0,
 		"Default TTL for ModelCache resources (0 = no expiry)")
-	fs.StringVar(&c.CopyImage, "copy-image", envOrDefault("COPY_IMAGE", "ghcr.io/jomcgi/homelab/tools/hf2oci:latest"),
+	fs.StringVar(&c.CopyImage, "copy-image", envOrDefault("COPY_IMAGE", "ghcr.io/jomcgi/homelab/tools/hf2oci:main"),
 		"Container image for sync Jobs")
 	fs.StringVar(&c.SyncServiceAccount, "sync-service-account", envOrDefault("SYNC_SERVICE_ACCOUNT", ""),
 		"Service account for sync Jobs")
