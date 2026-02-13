@@ -5,6 +5,19 @@ description: Use when inspecting Kubernetes cluster state, viewing pod logs, deb
 
 # Kubernetes Cluster Access (kubectl)
 
+## Prefer Bazel Targets
+
+For common inspection tasks, use the Bazel cluster targets first:
+
+```bash
+bazel run //tools/cluster:pods      # List pods in key namespaces
+bazel run //tools/cluster:events    # Recent cluster events
+bazel run //tools/cluster:status    # Cluster health summary
+bazel run //tools/cluster:argocd    # ArgoCD sync status
+```
+
+Fall back to raw kubectl only when Bazel targets are insufficient (e.g., specific namespace queries, log tailing, describe commands).
+
 ## CRITICAL: Read-Only Access
 
 This cluster is managed via **GitOps with ArgoCD**. All resource modifications MUST go through Git.
