@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "webhook",
+    srcs = ["pod_mutator.go"],
+    importpath = "github.com/jomcgi/homelab/operators/oci-model-cache/internal/webhook",
+    visibility = ["//operators/oci-model-cache:__subpackages__"],
+    deps = [
+        "//operators/oci-model-cache/api/v1alpha1:api",
+        "//operators/oci-model-cache/internal/controller",
+        "//operators/oci-model-cache/internal/hfref",
+        "//operators/oci-model-cache/internal/naming",
+        "//operators/oci-model-cache/internal/statemachine",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/errors",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@io_k8s_sigs_controller_runtime//pkg/webhook/admission",
+    ],
+)
