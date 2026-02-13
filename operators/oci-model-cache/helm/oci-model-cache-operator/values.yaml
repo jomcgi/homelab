@@ -97,6 +97,12 @@ hfToken:
 
 webhook:
   enabled: true
+  # -- Create a namespace-scoped self-signed Issuer for the webhook cert
+  createSelfSignedIssuer: true
+  # -- Override the cert-manager Issuer name (defaults to fullname-selfsigned)
+  certIssuer: ""
+  # -- Issuer kind: "Issuer" (namespace) or "ClusterIssuer"
+  certIssuerKind: ""
 
 imageUpdater:
   enabled: false
