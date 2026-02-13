@@ -24,7 +24,7 @@ spec:
       kind: Deployment
       jqPathExpressions:
         - .spec.template.metadata.annotations."otel.injected-by"
-        - .spec.template.spec.containers[].env[] | select(.name | startswith("OTEL_"))
+        - .spec.template.spec.containers[].env
   syncPolicy:
     automated:
       prune: true
