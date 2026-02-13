@@ -46,9 +46,10 @@ argocd-image-updater:
       enabled: false
 
   # Resource limits
+  # 512Mi caused fork() exhaustion with 6+ ImageUpdaters at 10s interval
   resources:
     limits:
-      memory: 512Mi
+      memory: 1Gi
     requests:
       cpu: 500m
-      memory: 512Mi
+      memory: 1Gi
