@@ -182,15 +182,23 @@ func TestCopyDryRun(t *testing.T) {
 	assert.Empty(t, result.Digest)
 }
 
-func TestCopyRegistryAuthIsPermanent(t *testing.T) {
+func TestCopyRegistryDeniedPassesCheckAndFailsOnPush(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]hf.TreeEntry{
-			{Type: "file", Path: "model.safetensors", Size: 256},
-		})
+		switch {
+		case r.URL.Path == "/api/models/Org/Model/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "model.safetensors", Size: 256},
+			})
+		case r.URL.Path == "/Org/Model/resolve/main/model.safetensors":
+			w.Header().Set("Content-Length", "256")
+			w.Write(make([]byte, 256))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer hfSrv.Close()
 
-	// Registry that rejects all requests with 401.
+	// Registry that rejects all requests with 401 (GHCR behavior for nonexistent packages).
 	regSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
@@ -207,8 +215,8 @@ func TestCopyRegistryAuthIsPermanent(t *testing.T) {
 		RemoteOpts: []remote.Option{},
 	})
 	require.Error(t, err)
-	assert.True(t, IsPermanent(err), "registry 401 should be a permanent error")
-	assert.Contains(t, err.Error(), "checking registry")
+	assert.False(t, IsPermanent(err), "push failure to 401 registry should be transient")
+	assert.Contains(t, err.Error(), "pushing", "should fail at push, not at registry check")
 }
 
 func TestCopyHF500IsTransient(t *testing.T) {

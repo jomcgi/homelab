@@ -97,7 +97,7 @@ func TestResolveCacheHit(t *testing.T) {
 	assert.Contains(t, result.Digest, "sha256:")
 }
 
-func TestResolveRegistryAuthIsPermanent(t *testing.T) {
+func TestResolveRegistryAuthTreatedAsNotFound(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode([]hf.TreeEntry{
 			{Type: "file", Path: "model.safetensors", Size: 256},
@@ -105,7 +105,7 @@ func TestResolveRegistryAuthIsPermanent(t *testing.T) {
 	}))
 	defer hfSrv.Close()
 
-	// Registry that rejects all requests with 401.
+	// Registry that rejects all requests with 401 (GHCR behavior for nonexistent packages).
 	regSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusUnauthorized)
 	}))
@@ -114,16 +114,16 @@ func TestResolveRegistryAuthIsPermanent(t *testing.T) {
 	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
 	regHost := regSrv.Listener.Addr().String()
 
-	_, err := Resolve(context.Background(), ResolveOptions{
+	result, err := Resolve(context.Background(), ResolveOptions{
 		Repo:       "Org/Model",
 		Registry:   regHost + "/models",
 		Revision:   "main",
 		HFClient:   client,
 		RemoteOpts: []remote.Option{},
 	})
-	require.Error(t, err)
-	assert.True(t, IsPermanent(err), "registry 401 should be a permanent error")
-	assert.Contains(t, err.Error(), "checking registry")
+	require.NoError(t, err, "401 from registry should be treated as not-found, not an error")
+	assert.False(t, result.Cached)
+	assert.Empty(t, result.Digest)
 }
 
 func TestResolve404IsPermanent(t *testing.T) {

@@ -14,15 +14,19 @@ import (
 
 // CheckExists checks if a tag already exists in the registry.
 // Returns the digest and true if found, empty string and false if not.
-// Only 404 is treated as "not found"; auth errors and 5xx are propagated.
+// 404, 401, and 403 are treated as "not found" because registries like GHCR
+// return DENIED/UNAUTHORIZED for packages that have never been pushed.
 func CheckExists(_ context.Context, ref name.Reference, opts ...remote.Option) (string, bool, error) {
 	desc, err := remote.Head(ref, opts...)
 	if err != nil {
 		var te *transport.Error
-		if errors.As(err, &te) && te.StatusCode == http.StatusNotFound {
-			return "", false, nil
+		if errors.As(err, &te) {
+			switch te.StatusCode {
+			case http.StatusNotFound, http.StatusUnauthorized, http.StatusForbidden:
+				return "", false, nil
+			}
 		}
-		// Propagate auth errors, 5xx, network errors so callers can react.
+		// Propagate 5xx, network errors so callers can react.
 		return "", false, fmt.Errorf("checking %s: %w", ref, err)
 	}
 	return desc.Digest.String(), true, nil
