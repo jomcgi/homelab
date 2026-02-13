@@ -17,9 +17,9 @@ spec:
         - securityContext:
             allowPrivilegeEscalation: false
           name: configure-disks
-          image: bitnami/kubectl:1.35
+          image: alpine/kubectl:1.35.0
           command:
-            - /bin/bash
+            - /bin/sh
             - -c
             - |
               set -e
@@ -59,4 +59,4 @@ spec:
               ]'
 
               echo "Disk configuration complete!"
-              kubectl get nodes.longhorn.io -n longhorn node-4 -o jsonpath='{.spec.disks}' | jq '.'
+              kubectl get nodes.longhorn.io -n longhorn node-4 -o jsonpath='{.spec.disks}'
