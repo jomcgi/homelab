@@ -40,8 +40,8 @@ spec:
       containers:
         # Nginx reverse proxy for WebSocket support
         - name: nginx
-          image: nginx:1.27-alpine
-          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag }}"
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 8080

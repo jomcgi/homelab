@@ -36,8 +36,8 @@ spec:
         {{- if .Values.leaderElection.enabled }}
         # Leader election sidecar using kubectl
         - name: leader-elector
-          image: bitnami/kubectl:latest
-          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.leaderElection.image.repository }}:{{ .Values.leaderElection.image.tag }}"
+          imagePullPolicy: {{ .Values.leaderElection.image.pullPolicy }}
           command: ["/bin/sh"]
           args: ["/scripts/leader-election.sh"]
           env:
@@ -71,8 +71,8 @@ spec:
         {{- end }}
         # Nginx reverse proxy for WebSocket support with long timeouts
         - name: nginx
-          image: nginx:1.27-alpine
-          imagePullPolicy: IfNotPresent
+          image: "{{ .Values.nginx.image.repository }}:{{ .Values.nginx.image.tag }}"
+          imagePullPolicy: {{ .Values.nginx.image.pullPolicy }}
           ports:
             - name: http
               containerPort: 8080

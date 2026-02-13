@@ -32,6 +32,12 @@ initContainer:
       cpu: 4
       memory: 8Gi
 
+# kubectl image used by patcher jobs (init-container, image-volume)
+patcher:
+  image:
+    repository: bitnami/kubectl
+    tag: "1.35"
+
 vllm-stack:
   # Minimal defaults - see overlay values for production configuration
   servingEngineSpec:
