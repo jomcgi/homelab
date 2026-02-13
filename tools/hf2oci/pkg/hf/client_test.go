@@ -49,6 +49,13 @@ func TestTreeNotFound(t *testing.T) {
 	_, err := c.Tree(context.Background(), "nonexistent/repo", "main")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "not found (HTTP 404)")
+
+	// checkResponse returns *APIError.
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 404, apiErr.StatusCode)
+	assert.True(t, apiErr.IsNotFound())
+	assert.True(t, apiErr.IsClientError())
 }
 
 func TestTreeUnauthorized(t *testing.T) {
@@ -62,6 +69,12 @@ func TestTreeUnauthorized(t *testing.T) {
 	_, err := c.Tree(context.Background(), "private/repo", "main")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "HF_TOKEN")
+
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 401, apiErr.StatusCode)
+	assert.False(t, apiErr.IsNotFound())
+	assert.True(t, apiErr.IsClientError())
 }
 
 func TestDownload(t *testing.T) {
