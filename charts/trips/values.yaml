@@ -18,6 +18,7 @@ nats:
 # imgproxy configuration
 imgproxy:
   enabled: true
+  replicas: 2
   image:
     repository: darthsim/imgproxy
     tag: "v3.25.0"
@@ -39,6 +40,7 @@ imgproxy:
 # nginx routing configuration
 nginx:
   enabled: true
+  replicas: 1
   image:
     repository: nginx
     tag: "1.27-alpine"
@@ -57,6 +59,8 @@ api:
   enabled: true
   # Number of replicas (2+ enables anti-affinity and PDB)
   replicas: 1
+  # CORS allowed origins (comma-separated)
+  corsOrigins: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
   image:
     repository: ghcr.io/jomcgi/trips-api
     tag: "latest"

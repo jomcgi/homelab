@@ -181,6 +181,9 @@ frontend:
     # Cloudflare Access Group UUID (find in Zero Trust dashboard)
     policyId: ""
 
+  # Directory containing built frontend assets
+  publicDir: /app/public/websites/ships.jomcgi.dev/dist
+
   # Service configuration
   service:
     type: ClusterIP
