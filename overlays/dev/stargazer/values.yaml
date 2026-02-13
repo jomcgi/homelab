@@ -1,5 +1,20 @@
 # Development overrides for stargazer
 
+# ArgoCD Image Updater
+imageUpdater:
+  enabled: true
+  images:
+    - alias: stargazer
+      imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
+      helm:
+        name: image.repository
+        tag: image.tag
+  writeBack:
+    method: git:secret:argocd/argocd-image-updater-token
+    repository: https://github.com/jomcgi/homelab.git
+    branch: main
+    target: helmvalues:../../overlays/dev/stargazer/values.yaml
+
 # Run every 30 minutes
 schedule: "0,30 * * * *"
 # Stargazer service image
