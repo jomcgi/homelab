@@ -22,6 +22,12 @@ type Config struct {
 
 	// Namespace is the operator's namespace (from POD_NAMESPACE).
 	Namespace string
+
+	// HFTokenSecret is the name of the Kubernetes Secret containing the HF token for copy Jobs.
+	HFTokenSecret string
+
+	// HFTokenSecretKey is the key within the Secret that holds the HF token.
+	HFTokenSecretKey string
 }
 
 // BindFlags registers config flags on the given FlagSet.
@@ -35,6 +41,8 @@ func (c *Config) BindFlags(fs *flag.FlagSet) {
 	fs.StringVar(&c.SyncServiceAccount, "sync-service-account", envOrDefault("SYNC_SERVICE_ACCOUNT", ""),
 		"Service account for sync Jobs")
 	c.Namespace = envOrDefault("POD_NAMESPACE", "oci-model-cache")
+	c.HFTokenSecret = envOrDefault("HF_TOKEN_SECRET", "")
+	c.HFTokenSecretKey = envOrDefault("HF_TOKEN_SECRET_KEY", "")
 }
 
 func envOrDefault(key, fallback string) string {
