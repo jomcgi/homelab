@@ -1,0 +1,87 @@
+nameOverride: ""
+fullnameOverride: ""
+
+controllerManager:
+  image:
+    repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
+    tag: latest
+    pullPolicy: Always
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 256Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  replicas: 1
+
+  podAnnotations: {}
+  podLabels: {}
+
+  securityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - "ALL"
+
+  podSecurityContext:
+    runAsNonRoot: true
+    seccompProfile:
+      type: RuntimeDefault
+
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+  env:
+    ociRegistry: "ghcr.io/jomcgi/models"
+    copyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:latest"
+    syncServiceAccount: ""
+
+  healthProbeBindAddress: ":8081"
+  livenessProbe:
+    initialDelaySeconds: 15
+    periodSeconds: 20
+  readinessProbe:
+    initialDelaySeconds: 5
+    periodSeconds: 10
+
+  metrics:
+    bindAddress: ":8443"
+
+  tracing:
+    endpoint: ""
+    serviceName: "oci-model-cache-operator"
+    serviceVersion: ""
+    sampler: "parentbased_traceidratio"
+    samplerArg: "1.0"
+    disabled: false
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+syncServiceAccount:
+  create: true
+  name: ""
+
+rbac:
+  create: true
+
+crds:
+  install: true
+
+createNamespace: false
+
+imagePullSecrets: []
+
+webhook:
+  enabled: true
+
+extraResources: []

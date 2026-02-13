@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: oci-model-cache-operator
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    targetRevision: main
+    path: operators/oci-model-cache/helm/oci-model-cache-operator
+    helm:
+      valueFiles:
+        - ../../../../overlays/dev/oci-model-cache/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: oci-model-cache
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

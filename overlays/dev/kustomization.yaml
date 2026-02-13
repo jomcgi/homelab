@@ -6,4 +6,5 @@ resources:
   - ./claude
   - ./cloudflare-operator
   - ./cloudflare-operator-test
+  - ./oci-model-cache
   - ./stargazer
