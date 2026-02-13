@@ -5,6 +5,11 @@ description: Use when testing Helm chart changes, validating templates, or inspe
 
 # Helm Chart Operations
 
+> **Deprecation Notice:** For cluster inspection, prefer Bazel targets instead:
+> `bazel run //tools/cluster:pods`, `bazel run //tools/cluster:status`, etc.
+> For rendering manifests, prefer `bazel run //overlays/<env>/<svc>:render_manifests` or `format`.
+> Run `bazel run //tools:help` to see all available targets.
+
 ## CRITICAL: Rendering Only
 
 Helm is available for **testing and validation**. Never deploy directly to the cluster.
