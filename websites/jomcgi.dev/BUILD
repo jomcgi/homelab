@@ -1,14 +1,20 @@
 # jomcgi.dev website - Astro-based site with React components
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//websites/jomcgi.dev:astro/package_json.bzl", astro_bin = "bin")
 load("@npm//websites/jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
+load("@npm//websites/jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("//tools/js:vite_build.bzl", "vite_build")
+load("//tools/wrangler:wrangler_pages.bzl", "wrangler_pages")
 
-# Link npm packages for this workspace package
-npm_link_all_packages(name = "node_modules")
+# Astro binary for building (Astro uses Vite internally)
+astro_bin.astro_binary(name = "astro")
 
-# Source files
-js_library(
-    name = "src",
+# Wrangler binary for Cloudflare Pages deployment
+wrangler_bin.wrangler_binary(name = "wrangler")
+
+# Build frontend using unified Vite macro (Astro mode)
+vite_build(
+    name = "build",
     srcs = glob(
         [
             "src/**/*",
@@ -22,21 +28,32 @@ js_library(
             "src/**/*.test.tsx",
         ],
     ) + [
-        "astro.config.mjs",
         "package.json",
         "tailwind.config.mjs",
     ],
+    config = "astro.config.mjs",
+    tool = ":astro",
+    visibility = ["//visibility:public"],
     deps = [
-        ":node_modules/@astrojs/react",
-        ":node_modules/@astrojs/tailwind",
-        ":node_modules/astro",
-        ":node_modules/astro-remote",
-        ":node_modules/mermaid",
-        ":node_modules/react",
-        ":node_modules/react-dom",
-        ":node_modules/reveal.js",
-        ":node_modules/tailwindcss",
+        "astro",
+        "astro-remote",
+        "mermaid",
+        "react",
+        "react-dom",
+        "reveal.js",
+        "tailwindcss",
+        "@astrojs/react",
+        "@astrojs/tailwind",
     ],
+)
+
+# Cloudflare Pages deployment
+wrangler_pages(
+    name = "jomcgi",
+    dist = ":build_dist",
+    project_name = "jomcgi-dev",
+    visibility = ["//websites:__pkg__"],
+    wrangler = ":wrangler",
 )
 
 # Test library
