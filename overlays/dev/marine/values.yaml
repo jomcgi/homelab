@@ -1,5 +1,30 @@
 # Development overrides for marine services
 
+# ArgoCD Image Updater
+imageUpdater:
+  enabled: true
+  images:
+    - alias: ingest
+      imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
+      helm:
+        name: ingest.image.repository
+        tag: ingest.image.tag
+    - alias: api
+      imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
+      helm:
+        name: api.image.repository
+        tag: api.image.tag
+    - alias: frontend
+      imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
+      helm:
+        name: frontend.image.repository
+        tag: frontend.image.tag
+  writeBack:
+    method: git:secret:argocd/argocd-image-updater-token
+    repository: https://github.com/jomcgi/homelab.git
+    branch: main
+    target: helmvalues:../../overlays/dev/marine/values.yaml
+
 # Enable image pull secret for GHCR
 imagePullSecret:
   enabled: true
