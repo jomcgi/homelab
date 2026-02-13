@@ -190,3 +190,15 @@ statefulset:
 leaderElection:
   # Enable leader election for HA deployments
   enabled: true
+  # kubectl image used for leader election sidecar
+  image:
+    repository: bitnami/kubectl
+    tag: "latest"
+    pullPolicy: IfNotPresent
+
+## Nginx reverse proxy sidecar for WebSocket support
+nginx:
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent

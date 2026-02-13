@@ -90,6 +90,20 @@ config:
 api:
   enabled: false
   replicas: 1
+  # Nginx image used for serving static API data
+  nginx:
+    image:
+      repository: nginxinc/nginx-unprivileged
+      tag: "alpine"
+      pullPolicy: IfNotPresent
+  # CORS configuration
+  cors:
+    # Access-Control-Allow-Origin header value
+    allowOrigin: "*"
+  # Paths to output data files (relative to dataDir)
+  dataPaths:
+    best: /data/output/best_locations.json
+    locations: /data/output/forecasts_scored.json
   service:
     type: ClusterIP
     port: 80

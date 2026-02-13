@@ -17,7 +17,7 @@ clusterInfo:
   enabled: true
   image:
     repository: bitnami/kubectl
-    tag: "latest"
+    tag: "1.31"
     pullPolicy: IfNotPresent
   # How often to update status.json (seconds)
   interval: 30

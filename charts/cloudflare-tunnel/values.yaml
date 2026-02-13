@@ -20,6 +20,8 @@ tunnel:
   # Protocol: auto (default), quic, or http2.
   # Note: http2 doesn't work with envoy transparent proxy enabled.
   protocol: ""
+  # Disable cloudflared auto-update (recommended for container deployments)
+  noAutoupdate: true
 
 secret:
   # Options: onepassword, manual, external
