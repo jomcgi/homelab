@@ -1,4 +1,4 @@
-name: CF Pages - Deploy hikes.jomcgi.dev
+name: Hikes - Update Forecast Data
 
 on:
   schedule:
@@ -7,13 +7,12 @@ on:
     branches:
       - main
     paths:
-      - "websites/hikes.jomcgi.dev/**"
       - "services/hikes/**"
       - ".github/workflows/cf-pages-deploy-hikes.yaml"
   workflow_dispatch:
 
 concurrency:
-  group: cf-pages-deploy-hikes-${{ github.ref }}
+  group: hikes-update-data-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -41,26 +40,3 @@ jobs:
             -e CLOUDFLARE_S3_ENDPOINT="${{ secrets.CLOUDFLARE_S3_ENDPOINT }}" \
             -e R2_BUCKET_NAME="jomcgi-hikes" \
             ghcr.io/jomcgi/homelab/services/hikes/update_forecast:main
-
-  deploy:
-    runs-on: homelab-runners
-    name: Deploy hikes.jomcgi.dev
-    timeout-minutes: 5
-    permissions:
-      contents: read
-      deployments: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - name: Deploy hikes.jomcgi.dev to Cloudflare Pages
-        uses: cloudflare/wrangler-action@v3
-        with:
-          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy public --project-name=jomcgi-hikes
-          workingDirectory: websites/hikes.jomcgi.dev
-          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
