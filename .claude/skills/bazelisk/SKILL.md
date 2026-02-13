@@ -73,16 +73,16 @@ bazelisk query "deps(//charts/claude/image:image)"
 
 ## Key Targets
 
-| Target                        | Description                   |
-| ----------------------------- | ----------------------------- |
-| `//charts/claude/image:image` | Claude container image        |
-| `//charts/claude/image:push`  | Push Claude image to registry |
-| `//tools/format:format`       | Format + render all           |
-| `//tools:help`                | List all available targets    |
-| `//tools/cluster:pods`        | List pods in key namespaces   |
-| `//tools/cluster:events`      | Recent cluster events         |
-| `//tools/cluster:status`      | Cluster health summary        |
-| `//tools/cluster:argocd`      | ArgoCD application sync status|
+| Target                        | Description                    |
+| ----------------------------- | ------------------------------ |
+| `//charts/claude/image:image` | Claude container image         |
+| `//charts/claude/image:push`  | Push Claude image to registry  |
+| `//tools/format:format`       | Format + render all            |
+| `//tools:help`                | List all available targets     |
+| `//tools/cluster:pods`        | List pods in key namespaces    |
+| `//tools/cluster:events`      | Recent cluster events          |
+| `//tools/cluster:status`      | Cluster health summary         |
+| `//tools/cluster:argocd`      | ArgoCD application sync status |
 
 ### Cluster Inspection (Read-Only)
 
