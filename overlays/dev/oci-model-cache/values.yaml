@@ -3,7 +3,7 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
-    tag: latest
+    tag: main
     pullPolicy: Always
   tracing:
     serviceName: "oci-model-cache-operator"
@@ -12,7 +12,7 @@ controllerManager:
     samplerArg: "1.0"
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
-    copyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:latest"
+    copyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:main"
 extraResources:
   - apiVersion: onepassword.com/v1
     kind: OnePasswordItem

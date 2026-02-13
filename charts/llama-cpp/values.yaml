@@ -75,7 +75,7 @@ startupProbe:
     port: 8080
   initialDelaySeconds: 30
   periodSeconds: 10
-  failureThreshold: 180  # Allow 30 min for model loading
+  failureThreshold: 180 # Allow 30 min for model loading
 
 livenessProbe:
   httpGet:

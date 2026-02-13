@@ -86,10 +86,10 @@ pull` works on amd64 and arm64 without the caller needing to know.
 
 ## Supported formats
 
-| Format       | Extensions      | Config files bundled            |
-| ------------ | --------------- | ------------------------------- |
-| Safetensors  | `.safetensors`  | config.json, tokenizer.json, ... |
-| GGUF         | `.gguf`         | config.json, tokenizer.json, ... |
+| Format      | Extensions     | Config files bundled             |
+| ----------- | -------------- | -------------------------------- |
+| Safetensors | `.safetensors` | config.json, tokenizer.json, ... |
+| GGUF        | `.gguf`        | config.json, tokenizer.json, ... |
 
 Repos with mixed formats (both `.safetensors` and `.gguf`) are rejected.
 
@@ -115,9 +115,9 @@ hf2oci copy Qwen/Qwen2.5-0.5B-Instruct-GGUF -r ghcr.io/jomcgi/models --tag lates
 
 ## Environment
 
-| Variable    | Purpose                                       |
-| ----------- | --------------------------------------------- |
-| `HF_TOKEN`  | HuggingFace API token for private/gated repos |
+| Variable   | Purpose                                       |
+| ---------- | --------------------------------------------- |
+| `HF_TOKEN` | HuggingFace API token for private/gated repos |
 
 Docker registry credentials are read from `~/.docker/config.json` via the
 default keychain.
