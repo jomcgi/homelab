@@ -136,7 +136,7 @@ const claudeCodeDiagram = `flowchart LR
 
     subgraph Cluster
         Web[Claude Code Web]
-        vLLM[vLLM Server]
+        LLM[llama-cpp]
         SigNoz[(SigNoz MCP)]
         K8s[(Kubernetes API)]
     end
@@ -147,13 +147,13 @@ const claudeCodeDiagram = `flowchart LR
 
     UI --> Web
     Web -->|Complex tasks| Claude
-    Web -->|Code tasks| vLLM
+    Web -->|Code tasks| LLM
     Web -->|Logs & Traces| SigNoz
     Web -->|Pod status| K8s
 
     style UI fill:#ff6b6b,stroke:#ff6b6b,color:#fff
     style Web fill:#ffa502,stroke:#ffa502,color:#fff
-    style vLLM fill:#ffd93d,stroke:#ffd93d,color:#000
+    style LLM fill:#ffd93d,stroke:#ffd93d,color:#000
     style SigNoz fill:#6bcb77,stroke:#6bcb77,color:#fff
     style K8s fill:#4d96ff,stroke:#4d96ff,color:#fff
     style Claude fill:#9b59b6,stroke:#9b59b6,color:#fff`;
@@ -237,6 +237,82 @@ const shipsDiagram = `flowchart LR
     style WS fill:#4d96ff,stroke:#4d96ff,color:#fff
     style UI fill:#9b59b6,stroke:#9b59b6,color:#fff
     style Map fill:#e056fd,stroke:#e056fd,color:#fff`;
+
+const aiStackDiagram = `flowchart LR
+    subgraph External
+        Anthropic[Anthropic API]
+        Discord[Discord API]
+        Search[Search Engines]
+    end
+
+    subgraph Cluster
+        OC1[OpenClaw Personal]
+        OC2[OpenClaw Friends]
+        Perplexica[Perplexica]
+        KG[Knowledge Graph]
+        LLM[llama-cpp]
+        SearX[SearXNG]
+        S3[(SeaweedFS)]
+        Qdrant[(Qdrant)]
+    end
+
+    OC1 -->|Claude| Anthropic
+    OC2 -->|Hermes| LLM
+    OC2 --> Discord
+    Perplexica --> SearX
+    Perplexica --> LLM
+    SearX --> Search
+    KG --> S3
+    KG --> Qdrant
+    KG --> LLM
+
+    style Anthropic fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Discord fill:#ffa502,stroke:#ffa502,color:#fff
+    style Search fill:#ffd93d,stroke:#ffd93d,color:#000
+    style OC1 fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style OC2 fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Perplexica fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style KG fill:#e056fd,stroke:#e056fd,color:#fff
+    style LLM fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style SearX fill:#ffa502,stroke:#ffa502,color:#fff
+    style S3 fill:#ffd93d,stroke:#ffd93d,color:#000
+    style Qdrant fill:#6bcb77,stroke:#6bcb77,color:#fff`;
+
+const ociCacheDiagram = `flowchart LR
+    subgraph Webhook
+        Pod[Pod Create]
+        Mutator[PodMutator]
+        Gate[Scheduling Gate]
+    end
+
+    subgraph Operator
+        CR[ModelCache CR]
+        Resolve[Resolve]
+        Sync[Sync Job]
+    end
+
+    subgraph External
+        HF[HuggingFace]
+        OCI[(OCI Registry)]
+    end
+
+    Pod --> Mutator
+    Mutator --> Gate
+    Mutator --> CR
+    CR --> Resolve
+    Resolve -->|hf2oci| Sync
+    Sync -->|Stream| HF
+    Sync -->|Push| OCI
+    Sync -->|Ready| Gate
+
+    style Pod fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Mutator fill:#ffa502,stroke:#ffa502,color:#fff
+    style Gate fill:#ffd93d,stroke:#ffd93d,color:#000
+    style CR fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Resolve fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Sync fill:#9b59b6,stroke:#9b59b6,color:#fff
+    style HF fill:#e056fd,stroke:#e056fd,color:#fff
+    style OCI fill:#ff6b6b,stroke:#ff6b6b,color:#fff`;
 ---
 
 <!DOCTYPE html>
@@ -612,7 +688,7 @@ const shipsDiagram = `flowchart LR
                 <div class="motivation-text">
                     I wanted a coding assistant that could see what's actually happening in my cluster—read logs,
                     check pod status, query traces—without me having to copy-paste context. Running Claude Code
-                    in-cluster with MCP servers gives it direct access. A local vLLM instance handles simpler
+                    in-cluster with MCP servers gives it direct access. A local llama-cpp instance handles simpler
                     tasks without external API calls.
                 </div>
             </div>
@@ -625,12 +701,12 @@ const shipsDiagram = `flowchart LR
                 <div class="execution-label">Execution</div>
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">vLLM In-Cluster</div>
-                        <div class="execution-value">Qwen3-Coder-30B on a 4090. AWQ 4-bit quantization fits in 24GB VRAM. 24k context window. Fast inference for code completion and simple tasks.</div>
+                        <div class="execution-key">Local LLM</div>
+                        <div class="execution-value">Hermes 4.3-36B IQ4_XS on a 4090. GGUF quantization fits in 24GB VRAM. 32k context window. Flash attention and quantized KV cache for fast inference.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Model Routing</div>
-                        <div class="execution-value">Claude for complex reasoning and architecture decisions. Local vLLM for code generation, refactoring, and directed tasks.</div>
+                        <div class="execution-value">Claude for complex reasoning and architecture decisions. Local llama-cpp for code generation, refactoring, and directed tasks.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">SigNoz MCP</div>
@@ -793,7 +869,7 @@ const shipsDiagram = `flowchart LR
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Ships API</div>
-                        <div class="execution-value">Go service with REST endpoints and WebSocket streaming. Clients subscribe to real-time position updates. 3 replicas for availability.</div>
+                        <div class="execution-value">Python service with REST endpoints and WebSocket streaming. SQLite for position history. Position deduplication reduces noise from stationary vessels.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">MapLibre UI</div>
@@ -1029,13 +1105,116 @@ transitions:
 
         </section>
 
+        <!-- Deep Dive 8: Self-Hosted AI Stack -->
+        <section class="deep-dive" id="ai-stack">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">08</span>
+                <h2>Self-Hosted AI Stack</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    I wanted AI tools my friends could use without worrying about costs or data leaving my infrastructure.
+                    Two OpenClaw instances, self-hosted search, and a knowledge graph—all isolated by NetworkPolicies so
+                    each service only talks to what it needs.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={aiStackDiagram} id="ai-stack" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">OpenClaw</div>
+                        <div class="execution-value">Two instances: personal (Claude via Anthropic API, WhatsApp) and friends (Hermes via llama-cpp, Discord). Same Helm chart, different values. 1Password for secrets injection.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Perplexica</div>
+                        <div class="execution-value">Self-hosted AI search. SearXNG sidecar queries 11 search engines. Results fed to llama-cpp for summarization. Private Perplexity replacement.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Knowledge Graph</div>
+                        <div class="execution-value">RSS feeds stored in SeaweedFS. Ollama generates embeddings into Qdrant vectors. MCP server exposes semantic search to Claude Code.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">llama-cpp</div>
+                        <div class="execution-value">Hermes 4.3-36B IQ4_XS on a 4090. OpenAI-compatible API. 32k context, flash attention, quantized KV cache. Shared backend for all local AI services.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Network Isolation</div>
+                        <div class="execution-value">Provider-based NetworkPolicies. Anthropic instance: external HTTPS only, cluster blocked. Friends: Discord + explicit llama-cpp + Perplexica egress. Knowledge graph: internal only, no internet.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Hardening</div>
+                        <div class="execution-value">Non-root UID 1000, read-only filesystem, dropped capabilities, seccomp profiles. Kyverno auto-injects OTEL sidecars for observability.</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Deep Dive 9: OCI Model Cache Operator -->
+        <section class="deep-dive" id="oci-model-cache">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">09</span>
+                <h2>OCI Model Cache Operator</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    HuggingFace models are huge and slow to download. I wanted to reference a model in a pod spec the
+                    same way you reference a container image—and have it just work. The operator caches models in an OCI
+                    registry and streams them to pods without touching disk.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={ociCacheDiagram} id="oci-model-cache" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">Execution</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">PodMutator</div>
+                        <div class="execution-value">Webhook intercepts pods with hf.co/ volume references. Creates a ModelCache CR for the model, adds a scheduling gate to block the pod until the model is ready.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">State Machine</div>
+                        <div class="execution-value">Built with Sextant. Pending → Resolving → Syncing → Ready, with Failed state. Guards distinguish permanent errors from transient failures for automatic retry.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">hf2oci</div>
+                        <div class="execution-value">Streams HuggingFace models to OCI layers. HTTP response → tar → io.Pipe → registry push. Zero disk I/O. Supports Safetensors and GGUF formats.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Smart Naming</div>
+                        <div class="execution-value">HuggingFace baseModels API resolves derivative models to their base. Derivatives share the base repo path for OCI layer deduplication. TTL cache for API responses.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Pod Ungating</div>
+                        <div class="execution-value">Ready state triggers scheduling gate removal and volume rewrite to the resolved OCI digest. Pod schedules normally with the cached model available.</div>
+                    </div>
+                </div>
+            </div>
+
+            <pre><code>volumes:
+  - name: model
+    image:
+      reference: hf.co/NousResearch/Hermes-3-Llama-3.1-8B-GGUF</code></pre>
+        </section>
+
         <footer>
             <div class="footer-links">
                 <a href="https://github.com/jomcgi/homelab" target="_blank">GitHub</a>
                 <a href="/">Home</a>
                 <a href="mailto:joe@jomcgi.dev">Contact</a>
             </div>
-            <span style="font-size: 11px; opacity: 0.5;">Last updated: January 2025</span>
+            <span style="font-size: 11px; opacity: 0.5;">Last updated: February 2026</span>
         </footer>
     </div>
 
