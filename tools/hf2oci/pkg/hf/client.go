@@ -148,6 +148,11 @@ func (e *APIError) IsClientError() bool {
 	return e.StatusCode >= 400 && e.StatusCode < 500
 }
 
+// IsRetryable reports whether the error is a retryable status (429, 408).
+func (e *APIError) IsRetryable() bool {
+	return e.StatusCode == http.StatusTooManyRequests || e.StatusCode == http.StatusRequestTimeout
+}
+
 func checkResponse(resp *http.Response) error {
 	if resp.StatusCode >= 200 && resp.StatusCode < 300 {
 		return nil
