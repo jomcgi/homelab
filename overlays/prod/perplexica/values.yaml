@@ -3,6 +3,10 @@
 
 fullnameOverride: "perplexica"
 
+## Pin images to specific versions to prevent rollout churn from :latest
+image:
+  tag: "v1.12.0"
+
 ## Disable linkerd injection (causes PostStartHook timeouts)
 podAnnotations:
   linkerd.io/inject: disabled
@@ -21,8 +25,12 @@ embedding:
 ## SearXNG configuration
 searxng:
   enabled: true
+  image:
+    tag: "2026.2.13-a2db6f650"
   settings:
     instanceName: "Homelab Search"
+    ## Static secret key to prevent ConfigMap churn (randAlphaNum changes every sync)
+    secretKey: "475795e9c97144931a97e7f8ab7f2ecb"
     ## Enable additional academic engines
     engines:
       google:
