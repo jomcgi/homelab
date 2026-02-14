@@ -236,8 +236,9 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize HuggingFace client
-	var hfOpts []hf.Option
+	// Initialize HuggingFace client with 1-hour response cache — Tree and ModelInfo
+	// responses are effectively immutable for a given repo+revision.
+	hfOpts := []hf.Option{hf.WithCacheTTL(1 * time.Hour)}
 	if token := os.Getenv("HF_TOKEN"); token != "" {
 		hfOpts = append(hfOpts, hf.WithToken(token))
 		setupLog.Info("HuggingFace token configured")

@@ -7,6 +7,8 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"sync"
+	"time"
 )
 
 const defaultBaseURL = "https://huggingface.co"
@@ -16,6 +18,13 @@ type Client struct {
 	baseURL    string
 	token      string
 	httpClient *http.Client
+	cacheTTL   time.Duration
+	cache      sync.Map // key → cacheEntry
+}
+
+type cacheEntry struct {
+	data      any
+	expiresAt time.Time
 }
 
 // Option configures a Client.
@@ -34,6 +43,12 @@ func WithBaseURL(u string) Option {
 // WithHTTPClient sets a custom HTTP client.
 func WithHTTPClient(hc *http.Client) Option {
 	return func(c *Client) { c.httpClient = hc }
+}
+
+// WithCacheTTL enables in-memory caching of Tree and ModelInfo responses.
+// Cached entries expire after the given duration. Zero disables caching.
+func WithCacheTTL(ttl time.Duration) Option {
+	return func(c *Client) { c.cacheTTL = ttl }
 }
 
 // NewClient creates a new HuggingFace API client.
@@ -68,6 +83,11 @@ func (c *Client) checkRedirect(req *http.Request, via []*http.Request) error {
 
 // Tree lists all files in a HuggingFace model repository.
 func (c *Client) Tree(ctx context.Context, repo, revision string) ([]TreeEntry, error) {
+	cacheKey := "tree\x00" + repo + "\x00" + revision
+	if cached, ok := c.loadCache(cacheKey); ok {
+		return cached.([]TreeEntry), nil
+	}
+
 	u := fmt.Sprintf("%s/api/models/%s/tree/%s", c.baseURL, repo, url.PathEscape(revision))
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
@@ -90,12 +110,19 @@ func (c *Client) Tree(ctx context.Context, repo, revision string) ([]TreeEntry, 
 	if err := json.NewDecoder(resp.Body).Decode(&entries); err != nil {
 		return nil, fmt.Errorf("decoding tree response: %w", err)
 	}
+
+	c.storeCache(cacheKey, entries)
 	return entries, nil
 }
 
 // ModelInfo fetches model metadata including base model relationships.
 // Use expand[]=baseModels to get lineage information for smart OCI naming.
 func (c *Client) ModelInfo(ctx context.Context, repo string) (*ModelInfo, error) {
+	cacheKey := "info\x00" + repo
+	if cached, ok := c.loadCache(cacheKey); ok {
+		return cached.(*ModelInfo), nil
+	}
+
 	u := fmt.Sprintf("%s/api/models/%s?expand[]=baseModels", c.baseURL, repo)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
@@ -118,6 +145,8 @@ func (c *Client) ModelInfo(ctx context.Context, repo string) (*ModelInfo, error)
 	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
 		return nil, fmt.Errorf("decoding model info: %w", err)
 	}
+
+	c.storeCache(cacheKey, &info)
 	return &info, nil
 }
 
@@ -143,6 +172,29 @@ func (c *Client) Download(ctx context.Context, repo, revision, path string) (io.
 	}
 
 	return resp.Body, resp.ContentLength, nil
+}
+
+func (c *Client) loadCache(key string) (any, bool) {
+	if c.cacheTTL <= 0 {
+		return nil, false
+	}
+	v, ok := c.cache.Load(key)
+	if !ok {
+		return nil, false
+	}
+	e := v.(cacheEntry)
+	if time.Now().After(e.expiresAt) {
+		c.cache.Delete(key)
+		return nil, false
+	}
+	return e.data, true
+}
+
+func (c *Client) storeCache(key string, data any) {
+	if c.cacheTTL <= 0 {
+		return
+	}
+	c.cache.Store(key, cacheEntry{data: data, expiresAt: time.Now().Add(c.cacheTTL)})
 }
 
 func (c *Client) setAuth(req *http.Request) {
