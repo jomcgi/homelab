@@ -97,6 +97,30 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 		)
 	}
 
+	if cfg.RegistryPushSecret != "" {
+		job.Spec.Template.Spec.Volumes = append(job.Spec.Template.Spec.Volumes,
+			corev1.Volume{
+				Name: "registry-push-creds",
+				VolumeSource: corev1.VolumeSource{
+					Secret: &corev1.SecretVolumeSource{
+						SecretName: cfg.RegistryPushSecret,
+						Items: []corev1.KeyToPath{
+							{Key: ".dockerconfigjson", Path: "config.json"},
+						},
+					},
+				},
+			},
+		)
+		job.Spec.Template.Spec.Containers[0].VolumeMounts = append(
+			job.Spec.Template.Spec.Containers[0].VolumeMounts,
+			corev1.VolumeMount{Name: "registry-push-creds", MountPath: "/docker", ReadOnly: true},
+		)
+		job.Spec.Template.Spec.Containers[0].Env = append(
+			job.Spec.Template.Spec.Containers[0].Env,
+			corev1.EnvVar{Name: "DOCKER_CONFIG", Value: "/docker"},
+		)
+	}
+
 	return job
 }
 

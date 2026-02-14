@@ -28,6 +28,9 @@ type Config struct {
 
 	// HFTokenSecretKey is the key within the Secret that holds the HF token.
 	HFTokenSecretKey string
+
+	// RegistryPushSecret is the name of a Secret containing .dockerconfigjson for pushing to the OCI registry.
+	RegistryPushSecret string
 }
 
 // BindFlags registers config flags on the given FlagSet.
@@ -43,6 +46,7 @@ func (c *Config) BindFlags(fs *flag.FlagSet) {
 	c.Namespace = envOrDefault("POD_NAMESPACE", "oci-model-cache")
 	c.HFTokenSecret = envOrDefault("HF_TOKEN_SECRET", "")
 	c.HFTokenSecretKey = envOrDefault("HF_TOKEN_SECRET_KEY", "")
+	c.RegistryPushSecret = envOrDefault("REGISTRY_PUSH_SECRET", "")
 }
 
 func envOrDefault(key, fallback string) string {
