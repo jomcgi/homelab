@@ -15,6 +15,7 @@ controllerManager:
     tag: main
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
+registryPushSecret: "oci-model-cache-operator-hf-token"
 hfToken:
   create: true
   type: "onepassword"
