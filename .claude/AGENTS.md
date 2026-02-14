@@ -885,7 +885,7 @@ DROP INDEX CONCURRENTLY idx_users_email_old;
 ```yaml
 # Add to responses from deprecated endpoints
 Deprecation: true
-Sunset: Sat, 31 Dec 2025 23:59:59 GMT
+Sunset: Wed, 31 Dec 2026 23:59:59 GMT
 Link: </api/v2/resource>; rel="successor-version"
 ```
 
