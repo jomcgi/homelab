@@ -144,8 +144,12 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// 6. Build streaming weight layers (parallel connection establishment).
+	// NOTE: We use the parent ctx (not the errgroup's derived context) for
+	// downloads because the response bodies are consumed lazily during push.
+	// The errgroup context is canceled when Wait() returns, which would kill
+	// the in-flight reads from the response bodies.
 	weightLayers := make([]v1.Layer, len(rm.weights))
-	g, gctx := errgroup.WithContext(ctx)
+	g, _ := errgroup.WithContext(ctx)
 	g.SetLimit(5) // max 5 concurrent HuggingFace connections
 	var progressMu sync.Mutex
 	for i, w := range rm.weights {
@@ -156,7 +160,7 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 				opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
 				progressMu.Unlock()
 			}
-			body, size, err := client.Download(gctx, opts.Repo, opts.Revision, w.Path)
+			body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
 			if err != nil {
 				return fmt.Errorf("downloading weight %s: %w", w.Path, err)
 			}
