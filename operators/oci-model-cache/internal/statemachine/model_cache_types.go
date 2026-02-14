@@ -57,12 +57,11 @@ type ResolveResult struct {
 }
 
 // Validate checks that all required fields in ResolveResult are present.
+// Digest is NOT validated here — it's only known after push and is checked
+// separately by states that require it (Ready).
 func (g ResolveResult) Validate() error {
 	if g.ResolvedRef == "" {
 		return fmt.Errorf("resolvedRef is required")
-	}
-	if g.Digest == "" {
-		return fmt.Errorf("digest is required")
 	}
 	if g.ResolvedRevision == "" {
 		return fmt.Errorf("resolvedRevision is required")
@@ -229,6 +228,9 @@ func (s ModelCacheReady) Resource() *v1alpha1.ModelCache {
 func (s ModelCacheReady) Validate() error {
 	if err := s.ResolveResult.Validate(); err != nil {
 		return err
+	}
+	if s.Digest == "" {
+		return fmt.Errorf("digest is required for Ready state")
 	}
 	return nil
 }
