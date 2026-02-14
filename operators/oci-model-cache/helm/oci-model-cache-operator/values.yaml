@@ -84,6 +84,8 @@ createNamespace: false
 
 imagePullSecrets: []
 
+registryPushSecret: ""
+
 hfToken:
   # -- Create a Secret (OnePasswordItem or manual). If false, use existingSecret.
   create: false

@@ -94,6 +94,10 @@ spec:
         - name: OTEL_SDK_DISABLED
           value: "true"
         {{- end }}
+        {{- if .Values.registryPushSecret }}
+        - name: REGISTRY_PUSH_SECRET
+          value: {{ .Values.registryPushSecret | quote }}
+        {{- end }}
         {{- if or .Values.hfToken.create .Values.hfToken.existingSecret }}
         - name: HF_TOKEN
           valueFrom:
