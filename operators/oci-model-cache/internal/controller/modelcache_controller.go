@@ -256,7 +256,7 @@ func (v *modelCacheVisitor) updateStatus(newState sm.ModelCacheState) VisitResul
 	}
 
 	resource := newState.Resource()
-	if err := v.reconciler.Status().Patch(v.ctx, resource, patch, client.FieldOwner(sm.FieldManager)); err != nil {
+	if err := v.reconciler.Status().Patch(v.ctx, resource, patch, client.FieldOwner(sm.FieldManager), client.ForceOwnership); err != nil {
 		return VisitResult{Error: err}
 	}
 
