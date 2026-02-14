@@ -44,8 +44,11 @@ func SSAPatch(state ModelCacheState) (client.Patch, error) {
 	// Create a minimal object with just the status fields we want to set
 	obj := state.Resource().DeepCopy()
 
-	// Clear everything except metadata identifiers and status
+	// Clear everything except metadata identifiers and status.
+	// managedFields must be nil — the API server owns those and rejects
+	// SSA patches that include them.
 	obj.Spec = v1alpha1.ModelCacheSpec{}
+	obj.ManagedFields = nil
 
 	// Apply the state to status
 	applyStateToStatus(state, &obj.Status)
