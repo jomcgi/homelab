@@ -1,10 +1,13 @@
 package controller
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 
 	batchv1 "k8s.io/api/batch/v1"
+	corev1 "k8s.io/api/core/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // terminationResult is the JSON structure written by hf2oci as a termination message.
@@ -19,19 +22,25 @@ type terminationResult struct {
 }
 
 // parseTerminationMessage reads the JSON termination message from a completed Job's pod.
-// hf2oci writes its result to the container's termination message when --termination-message is set.
-func parseTerminationMessage(job *batchv1.Job) (*ResolveResult, error) {
-	// The termination message is in the Job status's pod template status,
-	// but we need to check the pods. For simplicity, we look at the Job's
-	// completionTime and the first container's termination state.
-	// In practice, the controller should read the pod's termination message.
+// hf2oci writes its result to /dev/termination-log, which Kubernetes exposes on the
+// pod's container status as state.terminated.message.
+func parseTerminationMessage(ctx context.Context, c client.Client, job *batchv1.Job) (*ResolveResult, error) {
+	// List pods belonging to this Job.
+	var pods corev1.PodList
+	if err := c.List(ctx, &pods,
+		client.InNamespace(job.Namespace),
+		client.MatchingLabels{"job-name": job.Name},
+	); err != nil {
+		return nil, fmt.Errorf("listing pods for job %s: %w", job.Name, err)
+	}
 
-	// Check if the job has the message annotation (set by the Job controller)
-	// For now, fall back to using Job annotations if the pod isn't directly accessible.
-
-	// Try to get termination message from job annotations (workaround)
-	if msg, ok := job.Annotations["oci-model-cache.jomcgi.dev/result"]; ok {
-		return parseResultJSON(msg)
+	// Find a terminated container with a termination message.
+	for i := range pods.Items {
+		for _, cs := range pods.Items[i].Status.ContainerStatuses {
+			if cs.State.Terminated != nil && cs.State.Terminated.Message != "" {
+				return parseResultJSON(cs.State.Terminated.Message)
+			}
+		}
 	}
 
 	return nil, fmt.Errorf("no termination message found on job %s", job.Name)
