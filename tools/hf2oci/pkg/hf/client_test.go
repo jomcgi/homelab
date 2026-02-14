@@ -95,6 +95,47 @@ func TestTree429IsRetryable(t *testing.T) {
 	assert.True(t, apiErr.IsRetryable(), "429 should be retryable")
 }
 
+func TestModelInfo(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/api/models/Emilio407/nllb-200-distilled-1.3B-4bit", r.URL.Path)
+		assert.Equal(t, "baseModels", r.URL.Query().Get("expand[]"))
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{
+			"id": "Emilio407/nllb-200-distilled-1.3B-4bit",
+			"baseModels": {
+				"relation": "quantized",
+				"models": [{"id": "facebook/nllb-200-distilled-1.3B"}]
+			}
+		}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL), WithToken("test-token"))
+	info, err := c.ModelInfo(context.Background(), "Emilio407/nllb-200-distilled-1.3B-4bit")
+	require.NoError(t, err)
+
+	assert.Equal(t, "Emilio407/nllb-200-distilled-1.3B-4bit", info.ID)
+	require.NotNil(t, info.BaseModels)
+	assert.Equal(t, "quantized", info.BaseModels.Relation)
+	require.Len(t, info.BaseModels.Models, 1)
+	assert.Equal(t, "facebook/nllb-200-distilled-1.3B", info.BaseModels.Models[0].ID)
+}
+
+func TestModelInfoNoBaseModel(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"id": "facebook/nllb-200-distilled-1.3B"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	info, err := c.ModelInfo(context.Background(), "facebook/nllb-200-distilled-1.3B")
+	require.NoError(t, err)
+
+	assert.Equal(t, "facebook/nllb-200-distilled-1.3B", info.ID)
+	assert.Nil(t, info.BaseModels)
+}
+
 func TestDownload(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/MyOrg/MyModel/resolve/main/config.json", r.URL.Path)
