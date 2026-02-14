@@ -60,10 +60,19 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 		return nil, Permanent(fmt.Errorf("classifying files: %w", err))
 	}
 
-	// 3. Derive tag and ref.
-	t := DeriveTag(tag, revision)
-	repoName := deriveRepoName(repo)
-	refStr := fmt.Sprintf("%s/%s:%s", registry, repoName, t)
+	// 3. Fetch model info for smart naming (non-fatal on failure).
+	var repoPath, ociTag string
+	info, infoErr := client.ModelInfo(ctx, repo)
+	if infoErr == nil && info.BaseModels != nil && len(info.BaseModels.Models) > 0 {
+		// Derivative model: group under base model's repo path for layer dedup.
+		repoPath = deriveRepoName(info.BaseModels.Models[0].ID)
+		ociTag = deriveVariantTag(repo)
+	} else {
+		// Base model or ModelInfo unavailable: use repo directly.
+		repoPath = deriveRepoName(repo)
+		ociTag = DeriveTag(tag, revision)
+	}
+	refStr := fmt.Sprintf("%s/%s:%s", registry, repoPath, ociTag)
 
 	ref, err := name.ParseReference(refStr)
 	if err != nil {
