@@ -77,6 +77,24 @@ func TestTreeUnauthorized(t *testing.T) {
 	assert.True(t, apiErr.IsClientError())
 }
 
+func TestTree429IsRetryable(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`{"error":"Rate limit exceeded"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, err := c.Tree(context.Background(), "some/repo", "main")
+	require.Error(t, err)
+
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 429, apiErr.StatusCode)
+	assert.True(t, apiErr.IsClientError(), "429 is in the 4xx range")
+	assert.True(t, apiErr.IsRetryable(), "429 should be retryable")
+}
+
 func TestDownload(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/MyOrg/MyModel/resolve/main/config.json", r.URL.Path)
