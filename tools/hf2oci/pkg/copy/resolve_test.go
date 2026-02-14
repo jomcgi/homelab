@@ -17,10 +17,17 @@ import (
 
 func TestResolveSuccess(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]hf.TreeEntry{
-			{Type: "file", Path: "config.json", Size: 100},
-			{Type: "file", Path: "model.safetensors", Size: 4096},
-		})
+		switch {
+		case r.URL.Path == "/api/models/Org/Model/tree/abc123":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "config.json", Size: 100},
+				{Type: "file", Path: "model.safetensors", Size: 4096},
+			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer hfSrv.Close()
 
@@ -39,7 +46,7 @@ func TestResolveSuccess(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, regHost+"/models/org-model:rev-abc123", result.Ref)
+	assert.Equal(t, regHost+"/models/org/model:rev-abc123", result.Ref)
 	assert.False(t, result.Cached)
 	assert.Empty(t, result.Digest)
 	assert.Equal(t, "Org/Model", result.Repo)
@@ -56,6 +63,8 @@ func TestResolveCacheHit(t *testing.T) {
 			json.NewEncoder(w).Encode([]hf.TreeEntry{
 				{Type: "file", Path: "model.safetensors", Size: 256},
 			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
 		case r.URL.Path == "/Org/Model/resolve/rev1/model.safetensors":
 			w.Header().Set("Content-Length", "256")
 			w.Write(make([]byte, 256))
@@ -99,9 +108,16 @@ func TestResolveCacheHit(t *testing.T) {
 
 func TestResolveRegistryAuthTreatedAsNotFound(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]hf.TreeEntry{
-			{Type: "file", Path: "model.safetensors", Size: 256},
-		})
+		switch {
+		case r.URL.Path == "/api/models/Org/Model/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "model.safetensors", Size: 256},
+			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer hfSrv.Close()
 
@@ -166,4 +182,45 @@ func TestResolveNoWeightsIsPermanent(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, IsPermanent(err), "no weights should be a permanent error")
 	assert.Contains(t, err.Error(), "no weight files found")
+}
+
+func TestResolveWithBaseModel(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Variant/Quantized-Model/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "model.safetensors", Size: 512},
+			})
+		case r.URL.Path == "/api/models/Variant/Quantized-Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{
+				ID: "Variant/Quantized-Model",
+				BaseModels: &hf.BaseModels{
+					Relation: "quantized",
+					Models:   []hf.BaseModel{{ID: "Base/Original-Model"}},
+				},
+			})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+	regHost := regSrv.Listener.Addr().String()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	result, err := Resolve(context.Background(), ResolveOptions{
+		Repo:       "Variant/Quantized-Model",
+		Registry:   regHost + "/models",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+	})
+	require.NoError(t, err)
+
+	// Derivative: repo path from base model, tag from variant name.
+	assert.Equal(t, regHost+"/models/base/original-model:variant-quantized-model", result.Ref)
+	assert.False(t, result.Cached)
 }

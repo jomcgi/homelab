@@ -93,6 +93,34 @@ func (c *Client) Tree(ctx context.Context, repo, revision string) ([]TreeEntry, 
 	return entries, nil
 }
 
+// ModelInfo fetches model metadata including base model relationships.
+// Use expand[]=baseModels to get lineage information for smart OCI naming.
+func (c *Client) ModelInfo(ctx context.Context, repo string) (*ModelInfo, error) {
+	u := fmt.Sprintf("%s/api/models/%s?expand[]=baseModels", c.baseURL, repo)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, fmt.Errorf("creating request: %w", err)
+	}
+	c.setAuth(req)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, fmt.Errorf("fetching model info: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if err := checkResponse(resp); err != nil {
+		return nil, err
+	}
+
+	var info ModelInfo
+	if err := json.NewDecoder(resp.Body).Decode(&info); err != nil {
+		return nil, fmt.Errorf("decoding model info: %w", err)
+	}
+	return &info, nil
+}
+
 // Download fetches a file from a HuggingFace model repository.
 // The caller must close the returned ReadCloser.
 func (c *Client) Download(ctx context.Context, repo, revision, path string) (io.ReadCloser, int64, error) {
