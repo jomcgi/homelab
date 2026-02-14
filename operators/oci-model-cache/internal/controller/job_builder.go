@@ -23,11 +23,11 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 
 	args := []string{
 		"copy",
-		"--repo", mc.Spec.Repo,
+		mc.Spec.Repo,
 		"--registry", mc.Spec.Registry,
 		"--revision", revision(mc),
-		"--output", "json",
-		"--termination-message",
+		"-o", "json",
+		"-O", "/dev/termination-log",
 	}
 	if mc.Spec.Tag != "" {
 		args = append(args, "--tag", mc.Spec.Tag)

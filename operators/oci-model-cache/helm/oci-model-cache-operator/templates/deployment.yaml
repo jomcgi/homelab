@@ -63,7 +63,7 @@ spec:
         - name: OCI_REGISTRY
           value: {{ .Values.controllerManager.env.ociRegistry | quote }}
         - name: COPY_IMAGE
-          value: {{ .Values.controllerManager.env.copyImage | quote }}
+          value: "{{ .Values.controllerManager.env.copyImage.repository }}:{{ .Values.controllerManager.env.copyImage.tag }}"
         - name: SYNC_SERVICE_ACCOUNT
           value: {{ include "oci-model-cache-operator.syncServiceAccountName" . | quote }}
         - name: POD_NAMESPACE

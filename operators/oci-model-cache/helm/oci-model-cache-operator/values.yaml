@@ -40,7 +40,9 @@ controllerManager:
 
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
-    copyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:main"
+    copyImage:
+      repository: ghcr.io/jomcgi/homelab/tools/hf2oci
+      tag: main
     syncServiceAccount: ""
 
   healthProbeBindAddress: ":8081"
