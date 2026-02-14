@@ -28,11 +28,6 @@ imageUpdater:
     helm:
       name: controllerManager.image.repository
       tag: controllerManager.image.tag
-  - alias: hf2oci
-    imageName: ghcr.io/jomcgi/homelab/tools/hf2oci:main
-    helm:
-      name: controllerManager.copyImage.repository
-      tag: controllerManager.copyImage.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
