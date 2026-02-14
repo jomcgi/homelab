@@ -212,8 +212,16 @@ func DeriveTag(tag, revision string) string {
 	return "rev-" + rev
 }
 
-// deriveRepoName converts a HuggingFace repo name to a valid OCI repo path component.
-// e.g. "NousResearch/Hermes-4.3-Llama-3-36B-AWQ" → "nousresearch-hermes-4.3-llama-3-36b-awq"
+// deriveRepoName converts a HuggingFace repo name to an OCI repo path,
+// preserving the org/model structure for cleaner registry organization.
+// e.g. "NousResearch/Hermes-4.3-Llama-3-36B-AWQ" → "nousresearch/hermes-4.3-llama-3-36b-awq"
 func deriveRepoName(repo string) string {
+	return strings.ToLower(repo)
+}
+
+// deriveVariantTag flattens a HuggingFace repo name into a valid OCI tag.
+// Used for derivative models to encode the variant identity in the tag.
+// e.g. "Emilio407/nllb-200-distilled-1.3B-4bit" → "emilio407-nllb-200-distilled-1.3b-4bit"
+func deriveVariantTag(repo string) string {
 	return strings.ToLower(strings.ReplaceAll(repo, "/", "-"))
 }

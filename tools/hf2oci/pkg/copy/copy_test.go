@@ -29,6 +29,8 @@ func TestCopySafetensors(t *testing.T) {
 				{Type: "file", Path: "model.safetensors", Size: 1024},
 				{Type: "file", Path: "README.md", Size: 50},
 			})
+		case r.URL.Path == "/api/models/TestOrg/TestModel":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "TestOrg/TestModel"})
 		case r.URL.Path == "/TestOrg/TestModel/resolve/abc123def456/config.json":
 			w.Write([]byte(`{"model_type":"test"}`))
 		case r.URL.Path == "/TestOrg/TestModel/resolve/abc123def456/tokenizer.json":
@@ -60,7 +62,7 @@ func TestCopySafetensors(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, regHost+"/models/testorg-testmodel:rev-abc123def456", result.Ref)
+	assert.Equal(t, regHost+"/models/testorg/testmodel:rev-abc123def456", result.Ref)
 	assert.Contains(t, result.Digest, "sha256:")
 	assert.False(t, result.Cached)
 	assert.Equal(t, "TestOrg/TestModel", result.Repo)
@@ -88,6 +90,8 @@ func TestCopyGGUF(t *testing.T) {
 				{Type: "file", Path: "model-q4.gguf", Size: 512},
 				{Type: "file", Path: "README.md", Size: 50},
 			})
+		case r.URL.Path == "/api/models/Qwen/Qwen2.5-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Qwen/Qwen2.5-GGUF"})
 		case r.URL.Path == "/Qwen/Qwen2.5-GGUF/resolve/main/model-q4.gguf":
 			w.Header().Set("Content-Length", "512")
 			w.Write(make([]byte, 512))
@@ -113,7 +117,7 @@ func TestCopyGGUF(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, regHost+"/models/qwen-qwen2.5-gguf:rev-main", result.Ref)
+	assert.Equal(t, regHost+"/models/qwen/qwen2.5-gguf:rev-main", result.Ref)
 	assert.False(t, result.Cached)
 }
 
@@ -124,6 +128,8 @@ func TestCopyCacheHit(t *testing.T) {
 			json.NewEncoder(w).Encode([]hf.TreeEntry{
 				{Type: "file", Path: "model.safetensors", Size: 256},
 			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
 		case r.URL.Path == "/Org/Model/resolve/rev1/model.safetensors":
 			w.Header().Set("Content-Length", "256")
 			w.Write(make([]byte, 256))
@@ -162,9 +168,16 @@ func TestCopyCacheHit(t *testing.T) {
 
 func TestCopyDryRun(t *testing.T) {
 	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]hf.TreeEntry{
-			{Type: "file", Path: "model.safetensors", Size: 1024},
-		})
+		switch {
+		case r.URL.Path == "/api/models/Org/Model/tree/abc123":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "model.safetensors", Size: 1024},
+			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
 	}))
 	defer hfSrv.Close()
 
@@ -178,7 +191,7 @@ func TestCopyDryRun(t *testing.T) {
 		HFClient: client,
 	})
 	require.NoError(t, err)
-	assert.Equal(t, "ghcr.io/test/org-model:rev-abc123", result.Ref)
+	assert.Equal(t, "ghcr.io/test/org/model:rev-abc123", result.Ref)
 	assert.Empty(t, result.Digest)
 }
 
@@ -189,6 +202,8 @@ func TestCopyRegistryDeniedPassesCheckAndFailsOnPush(t *testing.T) {
 			json.NewEncoder(w).Encode([]hf.TreeEntry{
 				{Type: "file", Path: "model.safetensors", Size: 256},
 			})
+		case r.URL.Path == "/api/models/Org/Model":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
 		case r.URL.Path == "/Org/Model/resolve/main/model.safetensors":
 			w.Header().Set("Content-Length", "256")
 			w.Write(make([]byte, 256))
@@ -297,6 +312,8 @@ func TestCopyMultipleWeightShards(t *testing.T) {
 				})
 			}
 			json.NewEncoder(w).Encode(entries)
+		case r.URL.Path == "/api/models/Org/ShardedModel":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/ShardedModel"})
 		case r.URL.Path == "/Org/ShardedModel/resolve/main/config.json":
 			w.Write([]byte(`{"model_type":"test"}`))
 		default:
@@ -361,16 +378,78 @@ func TestCopyMultipleWeightShards(t *testing.T) {
 	}
 }
 
+func TestCopyWithBaseModel(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Emilio407/nllb-200-distilled-1.3B-4bit/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "config.json", Size: 100},
+				{Type: "file", Path: "model.safetensors", Size: 512},
+			})
+		case r.URL.Path == "/api/models/Emilio407/nllb-200-distilled-1.3B-4bit":
+			json.NewEncoder(w).Encode(hf.ModelInfo{
+				ID: "Emilio407/nllb-200-distilled-1.3B-4bit",
+				BaseModels: &hf.BaseModels{
+					Relation: "quantized",
+					Models:   []hf.BaseModel{{ID: "facebook/nllb-200-distilled-1.3B"}},
+				},
+			})
+		case r.URL.Path == "/Emilio407/nllb-200-distilled-1.3B-4bit/resolve/main/config.json":
+			w.Write([]byte(`{"model_type":"test"}`))
+		case r.URL.Path == "/Emilio407/nllb-200-distilled-1.3B-4bit/resolve/main/model.safetensors":
+			w.Header().Set("Content-Length", "512")
+			w.Write(make([]byte, 512))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	regHost := regSrv.Listener.Addr().String()
+
+	result, err := Copy(context.Background(), Options{
+		Repo:       "Emilio407/nllb-200-distilled-1.3B-4bit",
+		Registry:   regHost + "/models",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+	})
+	require.NoError(t, err)
+
+	// Derivative model: repo path uses base model, tag uses variant name.
+	assert.Equal(t, regHost+"/models/facebook/nllb-200-distilled-1.3b:emilio407-nllb-200-distilled-1.3b-4bit", result.Ref)
+	assert.Contains(t, result.Digest, "sha256:")
+	assert.False(t, result.Cached)
+}
+
 func TestDeriveRepoName(t *testing.T) {
 	tests := []struct {
 		input string
 		want  string
 	}{
-		{"NousResearch/Hermes-4.3-Llama-3-36B-AWQ", "nousresearch-hermes-4.3-llama-3-36b-awq"},
-		{"Qwen/Qwen2.5-0.5B-Instruct-GGUF", "qwen-qwen2.5-0.5b-instruct-gguf"},
-		{"org/model", "org-model"},
+		{"NousResearch/Hermes-4.3-Llama-3-36B-AWQ", "nousresearch/hermes-4.3-llama-3-36b-awq"},
+		{"Qwen/Qwen2.5-0.5B-Instruct-GGUF", "qwen/qwen2.5-0.5b-instruct-gguf"},
+		{"org/model", "org/model"},
 	}
 	for _, tt := range tests {
 		assert.Equal(t, tt.want, deriveRepoName(tt.input))
+	}
+}
+
+func TestDeriveVariantTag(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"Emilio407/nllb-200-distilled-1.3B-4bit", "emilio407-nllb-200-distilled-1.3b-4bit"},
+		{"Org/Model", "org-model"},
+	}
+	for _, tt := range tests {
+		assert.Equal(t, tt.want, deriveVariantTag(tt.input))
 	}
 }
