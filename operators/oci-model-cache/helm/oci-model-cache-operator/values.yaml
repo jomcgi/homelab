@@ -38,11 +38,12 @@ controllerManager:
   tolerations: []
   affinity: {}
 
+  copyImage:
+    repository: ghcr.io/jomcgi/homelab/tools/hf2oci
+    tag: main
+
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
-    copyImage:
-      repository: ghcr.io/jomcgi/homelab/tools/hf2oci
-      tag: main
     syncServiceAccount: ""
 
   healthProbeBindAddress: ":8081"

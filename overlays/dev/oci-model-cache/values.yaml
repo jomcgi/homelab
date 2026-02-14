@@ -10,11 +10,11 @@ controllerManager:
     serviceVersion: "dev"
     sampler: "parentbased_traceidratio"
     samplerArg: "1.0"
+  copyImage:
+    repository: ghcr.io/jomcgi/homelab/tools/hf2oci
+    tag: main
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
-    copyImage:
-      repository: ghcr.io/jomcgi/homelab/tools/hf2oci
-      tag: main
 hfToken:
   create: true
   type: "onepassword"
@@ -31,8 +31,8 @@ imageUpdater:
   - alias: hf2oci
     imageName: ghcr.io/jomcgi/homelab/tools/hf2oci:main
     helm:
-      name: controllerManager.env.copyImage.repository
-      tag: controllerManager.env.copyImage.tag
+      name: controllerManager.copyImage.repository
+      tag: controllerManager.copyImage.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
