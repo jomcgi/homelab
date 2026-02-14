@@ -157,7 +157,7 @@ func (v *modelCacheVisitor) VisitSyncing(s sm.ModelCacheSyncing) VisitResult {
 	// Check Job status
 	if isJobComplete(&job) {
 		log.Info("Sync Job completed successfully", "job", s.SyncJobName)
-		result, err := parseTerminationMessage(&job)
+		result, err := parseTerminationMessage(v.ctx, v.reconciler.Client, &job)
 		if err != nil {
 			log.Error(err, "Failed to parse Job termination message, using status fields")
 			// Fall back to existing status fields
