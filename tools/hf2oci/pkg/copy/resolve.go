@@ -48,7 +48,7 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 	if err != nil {
 		wrapped := fmt.Errorf("listing repo: %w", err)
 		var apiErr *hf.APIError
-		if errors.As(err, &apiErr) && apiErr.IsClientError() {
+		if errors.As(err, &apiErr) && apiErr.IsClientError() && !apiErr.IsRetryable() {
 			return nil, Permanent(wrapped)
 		}
 		return nil, wrapped
@@ -136,7 +136,9 @@ func Resolve(ctx context.Context, opts ResolveOptions) (*Result, error) {
 func wrapRegistryError(err error) error {
 	wrapped := fmt.Errorf("checking registry: %w", err)
 	var te *transport.Error
-	if errors.As(err, &te) && te.StatusCode >= http.StatusBadRequest && te.StatusCode < http.StatusInternalServerError {
+	if errors.As(err, &te) && te.StatusCode >= http.StatusBadRequest &&
+		te.StatusCode < http.StatusInternalServerError &&
+		te.StatusCode != http.StatusTooManyRequests {
 		return Permanent(wrapped)
 	}
 	return wrapped

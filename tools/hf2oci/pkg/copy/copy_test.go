@@ -259,6 +259,26 @@ func TestCopy404IsPermanent(t *testing.T) {
 	assert.Contains(t, err.Error(), "not found (HTTP 404)")
 }
 
+func TestCopyHF429IsTransient(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusTooManyRequests)
+		w.Write([]byte(`{"error":"Rate limit exceeded"}`))
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	_, err := Copy(context.Background(), Options{
+		Repo:       "Org/Model",
+		Registry:   "ghcr.io/test",
+		Revision:   "main",
+		HFClient:   client,
+		RemoteOpts: []remote.Option{},
+	})
+	require.Error(t, err)
+	assert.False(t, IsPermanent(err), "HF 429 should be transient (retryable)")
+	assert.Contains(t, err.Error(), "listing repo")
+}
+
 func TestCopyMultipleWeightShards(t *testing.T) {
 	const shardCount = 8
 	const shardSize = 512
