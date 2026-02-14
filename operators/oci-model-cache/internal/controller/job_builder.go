@@ -62,10 +62,9 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 					RestartPolicy: corev1.RestartPolicyNever,
 					Containers: []corev1.Container{
 						{
-							Name:            "hf2oci",
-							Image:           cfg.CopyImage,
-							ImagePullPolicy: corev1.PullAlways,
-							Args:            args,
+							Name:  "hf2oci",
+							Image: cfg.CopyImage,
+							Args:  args,
 							SecurityContext: &corev1.SecurityContext{
 								RunAsNonRoot:             ptr.To(true),
 								AllowPrivilegeEscalation: ptr.To(false),
