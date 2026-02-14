@@ -250,6 +250,10 @@ func (v *modelCacheVisitor) VisitUnknown(s sm.ModelCacheUnknown) VisitResult {
 
 // updateStatus updates the resource status with the new state using Server-Side Apply.
 func (v *modelCacheVisitor) updateStatus(newState sm.ModelCacheState) VisitResult {
+	// Mark the current generation as observed so HasSpecChanged() returns false
+	// until the user modifies the spec again.
+	newState.Resource().Status.ObservedGeneration = newState.Resource().Generation
+
 	patch, err := sm.SSAPatch(newState)
 	if err != nil {
 		return VisitResult{Error: fmt.Errorf("failed to create SSA patch: %w", err)}
