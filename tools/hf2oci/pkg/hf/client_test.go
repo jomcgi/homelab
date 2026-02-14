@@ -5,7 +5,9 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -178,4 +180,55 @@ func TestDownloadAuthStrippedOnRedirect(t *testing.T) {
 	data, err := io.ReadAll(body)
 	require.NoError(t, err)
 	assert.Equal(t, "file-content", string(data))
+}
+
+func TestTreeCacheTTL(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Write([]byte(`[{"type":"file","path":"model.safetensors","size":1024}]`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL), WithCacheTTL(1*time.Hour))
+
+	// First call hits the server.
+	entries1, err := c.Tree(context.Background(), "org/model", "main")
+	require.NoError(t, err)
+	assert.Len(t, entries1, 1)
+	assert.Equal(t, int32(1), calls.Load())
+
+	// Second call should be served from cache.
+	entries2, err := c.Tree(context.Background(), "org/model", "main")
+	require.NoError(t, err)
+	assert.Equal(t, entries1, entries2)
+	assert.Equal(t, int32(1), calls.Load(), "second call should not hit the server")
+
+	// Different revision should miss cache.
+	_, err = c.Tree(context.Background(), "org/model", "v2")
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), calls.Load(), "different revision should hit the server")
+}
+
+func TestModelInfoCacheTTL(t *testing.T) {
+	var calls atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		w.Write([]byte(`{"id":"org/model"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL), WithCacheTTL(1*time.Hour))
+
+	// First call hits the server.
+	info1, err := c.ModelInfo(context.Background(), "org/model")
+	require.NoError(t, err)
+	assert.Equal(t, "org/model", info1.ID)
+	assert.Equal(t, int32(1), calls.Load())
+
+	// Second call should be served from cache.
+	info2, err := c.ModelInfo(context.Background(), "org/model")
+	require.NoError(t, err)
+	assert.Equal(t, info1, info2)
+	assert.Equal(t, int32(1), calls.Load(), "second call should not hit the server")
 }
