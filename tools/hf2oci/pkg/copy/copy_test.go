@@ -516,7 +516,7 @@ func TestCopyGGUFWithFileSelector(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.FileCount)
 	assert.Equal(t, int64(1024), result.TotalSize)
-	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:model-q4-k-m", result.Ref)
+	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:model-q4_k_m", result.Ref)
 }
 
 func TestCopyGGUFFileSelectorNoMatch(t *testing.T) {
