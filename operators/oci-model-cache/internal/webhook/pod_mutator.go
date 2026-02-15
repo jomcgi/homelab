@@ -18,16 +18,20 @@ import (
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/hfref"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/naming"
 	sm "github.com/jomcgi/homelab/operators/oci-model-cache/internal/statemachine"
+	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
 )
 
 // PodMutator handles mutating admission requests for Pods.
 // It scans pod volumes for hf.co/ image volume references, creates
-// ModelCache CRs if needed, and either rewrites the volume source
-// (if Ready) or adds a scheduling gate (if not Ready).
+// ModelCache CRs if needed, and always rewrites the volume ref to a
+// valid OCI reference. If the model is not yet Ready, a scheduling gate
+// is added to block scheduling until the cache is populated.
 type PodMutator struct {
 	Client   client.Client
 	Decoder  admission.Decoder
 	Registry string // Default OCI registry
+	HFClient *hf.Client
 }
 
 // Handle implements admission.Handler.
@@ -65,16 +69,23 @@ func (m *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 			continue
 		}
 
-		if mc.Status.Phase == sm.PhaseReady && mc.Status.ResolvedRef != "" {
-			// Model is ready — rewrite the volume source
-			log.Info("Model ready, rewriting volume", "volume", vol.Name, "ref", mc.Status.ResolvedRef)
+		// Always rewrite the volume ref — pod spec is immutable after admission.
+		if mc.Status.ResolvedRef != "" {
+			// Use the ref already computed by the controller (any phase).
+			log.Info("Rewriting volume from status", "volume", vol.Name, "ref", mc.Status.ResolvedRef)
 			pod.Spec.Volumes[i].Image.Reference = mc.Status.ResolvedRef
-			mutated = true
 		} else {
-			// Model not ready — gate the pod
+			// ModelCache is brand new (no resolvedRef yet) — compute via HF API.
+			resolved := ociref.ResolveRef(ctx, m.HFClient, repo, m.Registry, revision)
+			log.Info("Rewriting volume via HF API", "volume", vol.Name, "ref", resolved)
+			pod.Spec.Volumes[i].Image.Reference = resolved
+		}
+		mutated = true
+
+		// Gate if model is not yet Ready.
+		if mc.Status.Phase != sm.PhaseReady {
 			log.Info("Model not ready, gating pod", "volume", vol.Name, "modelCache", mcName, "phase", mc.Status.Phase)
 			waitingFor = append(waitingFor, mcName)
-			mutated = true
 		}
 	}
 

@@ -105,6 +105,19 @@ hf2oci copy Qwen/Qwen2.5-0.5B-Instruct-GGUF -r ghcr.io/jomcgi/models
 hf2oci copy Qwen/Qwen2.5-0.5B-Instruct-GGUF -r ghcr.io/jomcgi/models --tag latest
 ```
 
+## Smart naming (derivative models)
+
+When a model has a `baseModels` relationship on HuggingFace (quantization, finetune,
+adapter, merge), hf2oci groups it under the base model's OCI repository:
+
+| Model | Base model | OCI ref |
+|-------|-----------|---------|
+| `facebook/nllb-200-distilled-1.3B` | (none) | `registry/facebook/nllb-200-distilled-1.3b:rev-main` |
+| `Emilio407/nllb-200-distilled-1.3B-4bit` | `facebook/nllb-200-distilled-1.3B` | `registry/facebook/nllb-200-distilled-1.3b:emilio407-nllb-200-distilled-1.3b-4bit` |
+
+This enables OCI blob deduplication — config files and tokenizers shared between
+base and derivative models are stored once.
+
 ## Exit codes
 
 | Code | Meaning                                                              |
@@ -130,6 +143,7 @@ tools/hf2oci/
 │   └── cmd/             Cobra commands (copy, resolve, output formatting)
 └── pkg/
     ├── copy/            Orchestration: list → classify → build → push
-    ├── hf/              HuggingFace API client (Tree, Download)
-    └── oci/             OCI image building and registry push
+    ├── hf/              HuggingFace API client (Tree, Download, ModelInfo)
+    ├── oci/             OCI image building and registry push
+    └── ociref/          Shared OCI ref naming (DeriveTag, ResolveRef)
 ```
