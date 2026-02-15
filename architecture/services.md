@@ -44,7 +44,7 @@ This document provides an overview of all services running in the cluster.
 | **Cloudflare Operator** | Custom operator for Cloudflare resource management | [charts/cloudflare-operator-test](../charts/cloudflare-operator-test/) |
 | **Marine**              | Real-time AIS vessel tracking (ships.jomcgi.dev)   | [charts/marine](../charts/marine/)                                     |
 | **OCI Model Cache**     | HuggingFace model caching operator                 | [operators/oci-model-cache](../operators/oci-model-cache/)             |
-| **Stargazer**           | Experimental service sandbox                       | [charts/stargazer](../charts/stargazer/)                               |
+| **Stargazer**           | Dark sky location finder with weather scoring      | [charts/stargazer](../charts/stargazer/)                               |
 
 ## Static Websites
 
