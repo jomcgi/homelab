@@ -1,4 +1,5 @@
 ---
+import '../styling/global.css';
 import MermaidDiagram from '../components/homelab/MermaidDiagram.astro';
 
 const sextantDiagram = `flowchart LR
@@ -323,41 +324,16 @@ const ociCacheDiagram = `flowchart LR
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>Engineering | jomcgi</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 14px;
-            line-height: 1.6;
-            background: var(--bg);
-            color: var(--fg);
-            --bg: #fff;
-            --fg: #000;
-        }
-
-        body.dark {
-            --bg: #000;
-            --fg: #fff;
-        }
-
-        a {
-            color: var(--fg);
-        }
-
         .container {
             max-width: 900px;
             margin: 0 auto;
-            padding: 40px 20px;
+            padding: var(--space-xl) 20px;
         }
 
         header {
-            margin-bottom: 60px;
+            margin-bottom: var(--space-2xl);
             padding-bottom: 30px;
-            border-bottom: 2px solid var(--fg);
+            border-bottom: var(--border-heavy);
         }
 
         .header-top {
@@ -368,9 +344,9 @@ const ociCacheDiagram = `flowchart LR
         }
 
         .back-link {
-            font-size: 12px;
+            font-size: var(--text-sm);
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             text-decoration: none;
             opacity: 0.7;
         }
@@ -379,29 +355,26 @@ const ociCacheDiagram = `flowchart LR
             opacity: 1;
         }
 
+        /* Override shared toggle-btn for engineering page variant */
         .toggle-btn {
             background: transparent;
-            color: var(--fg);
-            border: 2px solid var(--fg);
-            padding: 6px 12px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
+            border: var(--border-heavy);
+            padding: 6px var(--space-sm);
+            letter-spacing: 0.5px;
         }
 
         .toggle-btn:hover {
             background: var(--fg);
             color: var(--bg);
+            opacity: 1;
         }
 
         h1 {
-            font-size: 28px;
+            font-size: var(--text-2xl);
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 4px;
-            margin-bottom: 15px;
+            letter-spacing: 2px;
+            margin-bottom: var(--space-md);
         }
 
         .subtitle {
@@ -412,40 +385,40 @@ const ociCacheDiagram = `flowchart LR
 
         .deep-dive {
             margin-bottom: 80px;
-            scroll-margin-top: 40px;
+            scroll-margin-top: var(--space-xl);
         }
 
         .deep-dive-header {
             display: flex;
             align-items: baseline;
-            gap: 15px;
+            gap: var(--space-md);
             margin-bottom: 25px;
             padding-bottom: 10px;
-            border-bottom: 2px solid var(--fg);
+            border-bottom: var(--border-heavy);
         }
 
         .deep-dive-number {
             font-size: 11px;
             opacity: 0.5;
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
         }
 
         h2 {
-            font-size: 18px;
+            font-size: var(--text-lg);
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 3px;
+            letter-spacing: 1.5px;
         }
 
         h3 {
             font-size: 14px;
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin: 30px 0 15px 0;
-            padding-bottom: 8px;
-            border-bottom: 1px solid var(--fg);
+            letter-spacing: 1px;
+            margin: 30px 0 var(--space-md) 0;
+            padding-bottom: var(--space-xs);
+            border-bottom: var(--border-thin);
         }
 
         .motivation {
@@ -456,11 +429,11 @@ const ociCacheDiagram = `flowchart LR
         }
 
         .motivation-label {
-            font-size: 10px;
+            font-size: var(--text-xs);
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             opacity: 0.7;
-            margin-bottom: 8px;
+            margin-bottom: var(--space-xs);
         }
 
         .motivation-text {
@@ -471,7 +444,7 @@ const ociCacheDiagram = `flowchart LR
         .diagram-container {
             margin: 25px 0;
             padding: 30px;
-            border: 2px solid var(--fg);
+            border: var(--border-heavy);
             background: var(--bg);
             overflow-x: auto;
         }
@@ -505,18 +478,18 @@ const ociCacheDiagram = `flowchart LR
         }
 
         .execution-label {
-            font-size: 10px;
+            font-size: var(--text-xs);
             text-transform: uppercase;
-            letter-spacing: 2px;
+            letter-spacing: 1px;
             opacity: 0.5;
-            margin-bottom: 15px;
+            margin-bottom: var(--space-md);
         }
 
         .execution-grid {
             display: grid;
-            grid-template-columns: 140px 1fr;
+            grid-template-columns: 170px 1fr;
             gap: 0;
-            border: 2px solid var(--fg);
+            border: var(--border-heavy);
         }
 
         .execution-row {
@@ -524,18 +497,18 @@ const ociCacheDiagram = `flowchart LR
         }
 
         .execution-key {
-            padding: 12px 15px;
+            padding: var(--space-sm) var(--space-md);
             font-weight: 700;
-            font-size: 12px;
-            border-bottom: 1px solid var(--fg);
-            border-right: 2px solid var(--fg);
+            font-size: var(--text-sm);
+            border-bottom: var(--border-thin);
+            border-right: var(--border-heavy);
             background: var(--bg);
         }
 
         .execution-value {
-            padding: 12px 15px;
+            padding: var(--space-sm) var(--space-md);
             font-size: 13px;
-            border-bottom: 1px solid var(--fg);
+            border-bottom: var(--border-thin);
         }
 
         .execution-row:last-child .execution-key,
@@ -544,29 +517,29 @@ const ociCacheDiagram = `flowchart LR
         }
 
         pre {
-            border: 2px solid var(--fg);
-            padding: 15px;
-            font-size: 12px;
+            border: var(--border-heavy);
+            padding: var(--space-md);
+            font-size: var(--text-sm);
             overflow-x: auto;
             margin: 20px 0;
             background: var(--bg);
         }
 
         code {
-            font-family: 'Courier New', Courier, monospace;
+            font-family: var(--font-mono);
         }
 
         .subsection {
-            margin: 40px 0;
-            scroll-margin-top: 40px;
+            margin: var(--space-xl) 0;
+            scroll-margin-top: var(--space-xl);
         }
 
         .subsection-header {
-            font-size: 12px;
+            font-size: var(--text-sm);
             font-weight: 700;
             text-transform: uppercase;
-            letter-spacing: 2px;
-            margin-bottom: 15px;
+            letter-spacing: 1px;
+            margin-bottom: var(--space-md);
             opacity: 0.7;
         }
 
@@ -574,22 +547,23 @@ const ociCacheDiagram = `flowchart LR
             display: inline-block;
             margin-top: 20px;
             padding: 10px 20px;
-            border: 2px solid var(--fg);
+            border: var(--border-heavy);
             text-decoration: none;
-            font-size: 12px;
+            font-size: var(--text-sm);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
         }
 
         .live-link:hover {
             background: var(--fg);
             color: var(--bg);
+            text-decoration: none;
         }
 
         footer {
-            margin-top: 60px;
+            margin-top: var(--space-2xl);
             padding-top: 30px;
-            border-top: 2px solid var(--fg);
+            border-top: var(--border-heavy);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -601,9 +575,9 @@ const ociCacheDiagram = `flowchart LR
         }
 
         .footer-links a {
-            font-size: 12px;
+            font-size: var(--text-sm);
             text-transform: uppercase;
-            letter-spacing: 1px;
+            letter-spacing: 0.5px;
             text-decoration: none;
             opacity: 0.7;
         }
@@ -612,30 +586,30 @@ const ociCacheDiagram = `flowchart LR
             opacity: 1;
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 768px) {
             .execution-grid {
                 grid-template-columns: 1fr;
             }
 
             .execution-key {
                 border-right: none;
-                border-bottom: 1px solid var(--fg);
+                border-bottom: var(--border-thin);
                 background: var(--fg);
                 color: var(--bg);
             }
 
             .execution-row:last-child .execution-key {
-                border-bottom: 1px solid var(--fg);
+                border-bottom: var(--border-thin);
             }
 
             .header-top {
                 flex-direction: column;
                 align-items: flex-start;
-                gap: 15px;
+                gap: var(--space-md);
             }
 
             .subsection {
-                padding-left: 15px;
+                padding-left: var(--space-md);
             }
         }
     </style>

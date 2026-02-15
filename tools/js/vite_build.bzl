@@ -34,6 +34,7 @@ def vite_build(
         tool,
         config = "vite.config.js",
         deps = [],
+        bazel_deps = [],
         out_dir = "dist",
         build_args = None,
         visibility = None):
@@ -61,6 +62,9 @@ def vite_build(
         deps: List of npm package names to include as dependencies.
             These are linked from the workspace's node_modules.
             Example: ["react", "react-dom", "@vitejs/plugin-react"]
+        bazel_deps: List of Bazel target labels to include as dependencies.
+            Use for cross-package deps like shared CSS.
+            Example: ["//websites/shared:css"]
         out_dir: Output directory name (default: "dist").
         build_args: Custom build arguments (default: ["build"]).
         visibility: Visibility for the dist filegroup.
@@ -83,7 +87,7 @@ def vite_build(
     js_library(
         name = "src",
         srcs = srcs + config_files,
-        deps = node_modules_deps,
+        deps = node_modules_deps + bazel_deps,
     )
 
     # Run vite/astro build to produce the dist directory
