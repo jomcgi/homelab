@@ -276,6 +276,7 @@ func main() {
 				Client:   mgr.GetClient(),
 				Decoder:  admission.NewDecoder(mgr.GetScheme()),
 				Registry: cfg.Registry,
+				HFClient: hfClient,
 			},
 		})
 	}

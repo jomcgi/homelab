@@ -13,6 +13,7 @@ import (
 
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
+	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
 )
 
 // ResolveOptions configures the resolve operation.
@@ -65,12 +66,12 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 	info, infoErr := client.ModelInfo(ctx, repo)
 	if infoErr == nil && info.BaseModels != nil && len(info.BaseModels.Models) > 0 {
 		// Derivative model: group under base model's repo path for layer dedup.
-		repoPath = deriveRepoName(info.BaseModels.Models[0].ID)
-		ociTag = deriveVariantTag(repo)
+		repoPath = ociref.DeriveRepoName(info.BaseModels.Models[0].ID)
+		ociTag = ociref.DeriveVariantTag(repo)
 	} else {
 		// Base model or ModelInfo unavailable: use repo directly.
-		repoPath = deriveRepoName(repo)
-		ociTag = DeriveTag(tag, revision)
+		repoPath = ociref.DeriveRepoName(repo)
+		ociTag = ociref.DeriveTag(tag, revision)
 	}
 	refStr := fmt.Sprintf("%s/%s:%s", registry, repoPath, ociTag)
 

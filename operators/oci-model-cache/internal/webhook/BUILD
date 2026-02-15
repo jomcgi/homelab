@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "webhook",
@@ -11,11 +11,33 @@ go_library(
         "//operators/oci-model-cache/internal/hfref",
         "//operators/oci-model-cache/internal/naming",
         "//operators/oci-model-cache/internal/statemachine",
+        "//tools/hf2oci/pkg/hf",
+        "//tools/hf2oci/pkg/ociref",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_k8s_sigs_controller_runtime//pkg/log",
+        "@io_k8s_sigs_controller_runtime//pkg/webhook/admission",
+    ],
+)
+
+go_test(
+    name = "webhook_test",
+    srcs = ["pod_mutator_test.go"],
+    embed = [":webhook"],
+    deps = [
+        "//operators/oci-model-cache/api/v1alpha1:api",
+        "//operators/oci-model-cache/internal/statemachine",
+        "//tools/hf2oci/pkg/hf",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
+        "@io_k8s_api//admission/v1:admission",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
+        "@io_k8s_sigs_controller_runtime//pkg/client/fake",
         "@io_k8s_sigs_controller_runtime//pkg/webhook/admission",
     ],
 )

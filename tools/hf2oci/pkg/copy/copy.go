@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"io"
-	"strings"
 	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
+	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
 )
 
 // Options configures the copy operation.
@@ -202,26 +202,19 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 // DeriveTag returns the OCI tag to use. If tag is non-empty it is returned as-is;
 // otherwise it is derived from revision as "rev-{revision[:12]}".
 func DeriveTag(tag, revision string) string {
-	if tag != "" {
-		return tag
-	}
-	rev := revision
-	if len(rev) > 12 {
-		rev = rev[:12]
-	}
-	return "rev-" + rev
+	return ociref.DeriveTag(tag, revision)
 }
 
 // deriveRepoName converts a HuggingFace repo name to an OCI repo path,
 // preserving the org/model structure for cleaner registry organization.
 // e.g. "NousResearch/Hermes-4.3-Llama-3-36B-AWQ" → "nousresearch/hermes-4.3-llama-3-36b-awq"
 func deriveRepoName(repo string) string {
-	return strings.ToLower(repo)
+	return ociref.DeriveRepoName(repo)
 }
 
 // deriveVariantTag flattens a HuggingFace repo name into a valid OCI tag.
 // Used for derivative models to encode the variant identity in the tag.
 // e.g. "Emilio407/nllb-200-distilled-1.3B-4bit" → "emilio407-nllb-200-distilled-1.3b-4bit"
 func deriveVariantTag(repo string) string {
-	return strings.ToLower(strings.ReplaceAll(repo, "/", "-"))
+	return ociref.DeriveVariantTag(repo)
 }
