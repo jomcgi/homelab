@@ -51,18 +51,18 @@ func (m *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 			continue
 		}
 
-		repo, revision, ok := hfref.Parse(vol.Image.Reference)
+		repo, file, ok := hfref.Parse(vol.Image.Reference)
 		if !ok {
 			continue
 		}
 
-		log.Info("Found hf.co volume", "volume", vol.Name, "repo", repo, "revision", revision)
+		log.Info("Found hf.co volume", "volume", vol.Name, "repo", repo, "file", file)
 
 		// Derive the ModelCache CR name
-		mcName := naming.ModelCacheName(repo, revision)
+		mcName := naming.ModelCacheName(repo, file)
 
 		// Look up or create the ModelCache CR
-		mc, err := m.ensureModelCache(ctx, mcName, repo, revision)
+		mc, err := m.ensureModelCache(ctx, mcName, repo, file)
 		if err != nil {
 			log.Error(err, "Failed to ensure ModelCache", "name", mcName)
 			// Don't block pod creation — just log the error
@@ -76,7 +76,7 @@ func (m *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 			pod.Spec.Volumes[i].Image.Reference = mc.Status.ResolvedRef
 		} else {
 			// ModelCache is brand new (no resolvedRef yet) — compute via HF API.
-			resolved := ociref.ResolveRef(ctx, m.HFClient, repo, m.Registry, revision)
+			resolved := ociref.ResolveRef(ctx, m.HFClient, repo, m.Registry, file)
 			log.Info("Rewriting volume via HF API", "volume", vol.Name, "ref", resolved)
 			pod.Spec.Volumes[i].Image.Reference = resolved
 		}
@@ -115,7 +115,7 @@ func (m *PodMutator) Handle(ctx context.Context, req admission.Request) admissio
 }
 
 // ensureModelCache looks up an existing ModelCache or creates a new one.
-func (m *PodMutator) ensureModelCache(ctx context.Context, name, repo, revision string) (*v1alpha1.ModelCache, error) {
+func (m *PodMutator) ensureModelCache(ctx context.Context, name, repo, file string) (*v1alpha1.ModelCache, error) {
 	mc := &v1alpha1.ModelCache{}
 	err := m.Client.Get(ctx, client.ObjectKey{Name: name}, mc)
 	if err == nil {
@@ -136,7 +136,7 @@ func (m *PodMutator) ensureModelCache(ctx context.Context, name, repo, revision 
 		Spec: v1alpha1.ModelCacheSpec{
 			Repo:     repo,
 			Registry: m.Registry,
-			Revision: revision,
+			File:     file,
 		},
 	}
 

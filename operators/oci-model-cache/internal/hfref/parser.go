@@ -4,20 +4,21 @@ import "strings"
 
 const prefix = "hf.co/"
 
-// Parse extracts the HuggingFace repo and revision from an image volume name.
-// Volume names follow the pattern "hf.co/{org}/{model}" or "hf.co/{org}/{model}@{revision}".
+// Parse extracts the HuggingFace repo and optional file selector from an image volume name.
+// Volume names follow the pattern "hf.co/{org}/{model}" or "hf.co/{org}/{model}:{file}".
+// The file selector is used for GGUF repos with multiple quantization variants.
 //
 // Examples:
 //
 //	Parse("hf.co/bartowski/Llama-3.2-1B-Instruct-GGUF")
-//	→ ("bartowski/Llama-3.2-1B-Instruct-GGUF", "main", true)
+//	-> ("bartowski/Llama-3.2-1B-Instruct-GGUF", "", true)
 //
-//	Parse("hf.co/NousResearch/Hermes-3-8B@abc123")
-//	→ ("NousResearch/Hermes-3-8B", "abc123", true)
+//	Parse("hf.co/bartowski/NousResearch_Hermes-4-14B-GGUF:NousResearch_Hermes-4-14B-IQ4_XS")
+//	-> ("bartowski/NousResearch_Hermes-4-14B-GGUF", "NousResearch_Hermes-4-14B-IQ4_XS", true)
 //
 //	Parse("ghcr.io/some/image:tag")
-//	→ ("", "", false)
-func Parse(volumeName string) (repo string, revision string, ok bool) {
+//	-> ("", "", false)
+func Parse(volumeName string) (repo string, file string, ok bool) {
 	if !strings.HasPrefix(volumeName, prefix) {
 		return "", "", false
 	}
@@ -27,13 +28,13 @@ func Parse(volumeName string) (repo string, revision string, ok bool) {
 		return "", "", false
 	}
 
-	// Split on @ for revision
-	if idx := strings.Index(rest, "@"); idx >= 0 {
+	// Split on : for file selector
+	if idx := strings.Index(rest, ":"); idx >= 0 {
 		repo = rest[:idx]
-		revision = rest[idx+1:]
+		file = rest[idx+1:]
 	} else {
 		repo = rest
-		revision = "main"
+		file = ""
 	}
 
 	// Validate: repo must contain org/model (at least one /)
@@ -41,7 +42,7 @@ func Parse(volumeName string) (repo string, revision string, ok bool) {
 		return "", "", false
 	}
 
-	return repo, revision, true
+	return repo, file, true
 }
 
 // IsHFRef returns true if the volume name is an hf.co reference.
