@@ -101,11 +101,10 @@ func podWithNoHFVolumes() *corev1.Pod {
 func TestHandle_ModelReady_RewritesFromStatus(t *testing.T) {
 	s := newScheme()
 	mc := &v1alpha1.ModelCache{
-		ObjectMeta: metav1.ObjectMeta{Name: "nousresearch-hermes-3-8b-rev-main"},
+		ObjectMeta: metav1.ObjectMeta{Name: "nousresearch-hermes-3-8b"},
 		Spec: v1alpha1.ModelCacheSpec{
 			Repo:     "NousResearch/Hermes-3-8B",
 			Registry: "ghcr.io/jomcgi/models",
-			Revision: "main",
 		},
 		Status: v1alpha1.ModelCacheStatus{
 			Phase:       sm.PhaseReady,
@@ -142,11 +141,10 @@ func TestHandle_ModelReady_RewritesFromStatus(t *testing.T) {
 func TestHandle_ModelNotReady_RewritesAndGates(t *testing.T) {
 	s := newScheme()
 	mc := &v1alpha1.ModelCache{
-		ObjectMeta: metav1.ObjectMeta{Name: "nousresearch-hermes-3-8b-rev-main"},
+		ObjectMeta: metav1.ObjectMeta{Name: "nousresearch-hermes-3-8b"},
 		Spec: v1alpha1.ModelCacheSpec{
 			Repo:     "NousResearch/Hermes-3-8B",
 			Registry: "ghcr.io/jomcgi/models",
-			Revision: "main",
 		},
 		Status: v1alpha1.ModelCacheStatus{
 			Phase: sm.PhasePending,
@@ -184,11 +182,10 @@ func TestHandle_ModelNotReady_RewritesAndGates(t *testing.T) {
 func TestHandle_ModelNotReady_HasResolvedRef(t *testing.T) {
 	s := newScheme()
 	mc := &v1alpha1.ModelCache{
-		ObjectMeta: metav1.ObjectMeta{Name: "nousresearch-hermes-3-8b-rev-main"},
+		ObjectMeta: metav1.ObjectMeta{Name: "nousresearch-hermes-3-8b"},
 		Spec: v1alpha1.ModelCacheSpec{
 			Repo:     "NousResearch/Hermes-3-8B",
 			Registry: "ghcr.io/jomcgi/models",
-			Revision: "main",
 		},
 		Status: v1alpha1.ModelCacheStatus{
 			Phase:       "Syncing",
@@ -222,11 +219,10 @@ func TestHandle_ModelNotReady_HasResolvedRef(t *testing.T) {
 func TestHandle_DerivativeModel_SmartNaming(t *testing.T) {
 	s := newScheme()
 	mc := &v1alpha1.ModelCache{
-		ObjectMeta: metav1.ObjectMeta{Name: "emilio407-nllb-200-distilled-1.3b-4bit-rev-main"},
+		ObjectMeta: metav1.ObjectMeta{Name: "emilio407-nllb-200-distilled-1.3b-4bit"},
 		Spec: v1alpha1.ModelCacheSpec{
 			Repo:     "Emilio407/nllb-200-distilled-1.3B-4bit",
 			Registry: "ghcr.io/jomcgi/models",
-			Revision: "main",
 		},
 		Status: v1alpha1.ModelCacheStatus{
 			Phase: sm.PhasePending,
@@ -269,11 +265,10 @@ func TestHandle_DerivativeModel_SmartNaming(t *testing.T) {
 func TestHandle_HFUnavailable_FallbackNaming(t *testing.T) {
 	s := newScheme()
 	mc := &v1alpha1.ModelCache{
-		ObjectMeta: metav1.ObjectMeta{Name: "org-model-rev-main"},
+		ObjectMeta: metav1.ObjectMeta{Name: "org-model"},
 		Spec: v1alpha1.ModelCacheSpec{
 			Repo:     "Org/Model",
 			Registry: "ghcr.io/test",
-			Revision: "main",
 		},
 		Status: v1alpha1.ModelCacheStatus{
 			Phase: sm.PhasePending,
@@ -354,7 +349,7 @@ func TestHandle_NewModelCache_CreatedAndGated(t *testing.T) {
 
 	// Verify the ModelCache CR was created
 	mc := &v1alpha1.ModelCache{}
-	err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "org-newmodel-rev-main"}, mc)
+	err := k8sClient.Get(context.Background(), client.ObjectKey{Name: "org-newmodel"}, mc)
 	require.NoError(t, err, "ModelCache CR should have been created")
 	assert.Equal(t, "Org/NewModel", mc.Spec.Repo)
 	assert.Equal(t, "ghcr.io/test", mc.Spec.Registry)

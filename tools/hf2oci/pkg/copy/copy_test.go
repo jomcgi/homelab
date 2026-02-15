@@ -453,3 +453,97 @@ func TestDeriveVariantTag(t *testing.T) {
 		assert.Equal(t, tt.want, deriveVariantTag(tt.input))
 	}
 }
+
+func TestCopyGGUFMultiFileRequiresSelector(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "Model-Q4_K_M.gguf", Size: 1024},
+				{Type: "file", Path: "Model-Q8_0.gguf", Size: 2048},
+				{Type: "file", Path: "README.md", Size: 50},
+			})
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "bartowski/Model-GGUF"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+
+	// Without file selector, should error about multiple variants.
+	_, err := Copy(context.Background(), Options{
+		Repo:     "bartowski/Model-GGUF",
+		Registry: "ghcr.io/test",
+		DryRun:   true,
+		HFClient: client,
+	})
+	require.Error(t, err)
+	assert.True(t, IsPermanent(err))
+	assert.Contains(t, err.Error(), "2 quantization variants")
+	assert.Contains(t, err.Error(), ":filename")
+}
+
+func TestCopyGGUFWithFileSelector(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "Model-Q4_K_M.gguf", Size: 1024},
+				{Type: "file", Path: "Model-Q8_0.gguf", Size: 2048},
+				{Type: "file", Path: "README.md", Size: 50},
+			})
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "bartowski/Model-GGUF"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+
+	// With file selector, should resolve to just one file.
+	result, err := Copy(context.Background(), Options{
+		Repo:     "bartowski/Model-GGUF",
+		Registry: "ghcr.io/test",
+		File:     "Model-Q4_K_M",
+		DryRun:   true,
+		HFClient: client,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, result.FileCount)
+	assert.Equal(t, int64(1024), result.TotalSize)
+	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:model-q4-k-m", result.Ref)
+}
+
+func TestCopyGGUFFileSelectorNoMatch(t *testing.T) {
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "Model-Q4_K_M.gguf", Size: 1024},
+			})
+		case r.URL.Path == "/api/models/bartowski/Model-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "bartowski/Model-GGUF"})
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+
+	_, err := Copy(context.Background(), Options{
+		Repo:     "bartowski/Model-GGUF",
+		Registry: "ghcr.io/test",
+		File:     "NonExistent",
+		DryRun:   true,
+		HFClient: client,
+	})
+	require.Error(t, err)
+	assert.True(t, IsPermanent(err))
+	assert.Contains(t, err.Error(), "matched no files")
+}

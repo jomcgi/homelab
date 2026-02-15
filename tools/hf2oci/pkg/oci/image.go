@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"path"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/empty"
@@ -83,7 +84,7 @@ func ConfigLayer(files map[string][]byte, modelDir string) (v1.Layer, error) {
 
 	for filename, data := range files {
 		hdr := &tar.Header{
-			Name: modelDir + "/" + filename,
+			Name: path.Join(modelDir, filename),
 			Mode: 0o644,
 			Size: int64(len(data)),
 		}
@@ -111,7 +112,7 @@ func StreamingWeightLayer(body io.ReadCloser, size int64, modelDir, filename str
 	go func() {
 		tw := tar.NewWriter(pw)
 		hdr := &tar.Header{
-			Name: modelDir + "/" + filename,
+			Name: path.Join(modelDir, filename),
 			Mode: 0o644,
 			Size: size,
 		}
