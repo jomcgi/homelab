@@ -282,6 +282,7 @@ const ociCacheDiagram = `flowchart LR
     subgraph Webhook
         Pod[Pod Create]
         Mutator[PodMutator]
+        Rewrite[Rewrite Ref]
         Gate[Scheduling Gate]
     end
 
@@ -297,7 +298,8 @@ const ociCacheDiagram = `flowchart LR
     end
 
     Pod --> Mutator
-    Mutator --> Gate
+    Mutator -->|HF API| Rewrite
+    Rewrite --> Gate
     Mutator --> CR
     CR --> Resolve
     Resolve -->|hf2oci| Sync
@@ -307,6 +309,7 @@ const ociCacheDiagram = `flowchart LR
 
     style Pod fill:#ff6b6b,stroke:#ff6b6b,color:#fff
     style Mutator fill:#ffa502,stroke:#ffa502,color:#fff
+    style Rewrite fill:#ffa502,stroke:#ffa502,color:#fff
     style Gate fill:#ffd93d,stroke:#ffd93d,color:#000
     style CR fill:#6bcb77,stroke:#6bcb77,color:#fff
     style Resolve fill:#4d96ff,stroke:#4d96ff,color:#fff
@@ -1181,7 +1184,7 @@ transitions:
                 <div class="execution-grid">
                     <div class="execution-row">
                         <div class="execution-key">PodMutator</div>
-                        <div class="execution-value">Webhook intercepts pods with hf.co/ volume references. Creates a ModelCache CR for the model, adds a scheduling gate to block the pod until the model is ready.</div>
+                        <div class="execution-value">Webhook intercepts pods with hf.co/ volume references. Calls cached HF API to resolve the OCI ref at admission time (pod spec is immutable after this point). Creates ModelCache CR and adds scheduling gate if model not yet synced.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">State Machine</div>
@@ -1196,8 +1199,12 @@ transitions:
                         <div class="execution-value">HuggingFace baseModels API resolves derivative models to their base. Derivatives share the base repo path for OCI layer deduplication. TTL cache for API responses.</div>
                     </div>
                     <div class="execution-row">
+                        <div class="execution-key">Admission-Time Resolution</div>
+                        <div class="execution-value">Pod spec is immutable after admission. Webhook calls the cached HF API to compute the GHCR ref synchronously, ensuring the correct OCI path is baked into the pod before it's created.</div>
+                    </div>
+                    <div class="execution-row">
                         <div class="execution-key">Pod Ungating</div>
-                        <div class="execution-value">Ready state triggers scheduling gate removal and volume rewrite to the resolved OCI digest. Pod schedules normally with the cached model available.</div>
+                        <div class="execution-value">Ready state triggers scheduling gate removal. Volume ref was already rewritten at admission time — pod schedules normally with the cached model available.</div>
                     </div>
                 </div>
             </div>
