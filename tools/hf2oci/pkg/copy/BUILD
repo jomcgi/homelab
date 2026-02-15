@@ -13,6 +13,7 @@ go_library(
     deps = [
         "//tools/hf2oci/pkg/hf",
         "//tools/hf2oci/pkg/oci",
+        "//tools/hf2oci/pkg/ociref",
         "@com_github_google_go_containerregistry//pkg/authn",
         "@com_github_google_go_containerregistry//pkg/name",
         "@com_github_google_go_containerregistry//pkg/v1:pkg",
