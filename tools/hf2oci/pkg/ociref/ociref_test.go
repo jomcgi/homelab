@@ -77,7 +77,7 @@ func TestResolveRef_BaseModel(t *testing.T) {
 	defer srv.Close()
 
 	client := hf.NewClient(hf.WithBaseURL(srv.URL))
-	ref := ResolveRef(context.Background(), client, "NousResearch/Hermes-3-8B", "ghcr.io/jomcgi/models", "main")
+	ref := ResolveRef(context.Background(), client, "NousResearch/Hermes-3-8B", "ghcr.io/jomcgi/models", "")
 	assert.Equal(t, "ghcr.io/jomcgi/models/nousresearch/hermes-3-8b:rev-main", ref)
 }
 
@@ -98,7 +98,7 @@ func TestResolveRef_DerivativeModel(t *testing.T) {
 	defer srv.Close()
 
 	client := hf.NewClient(hf.WithBaseURL(srv.URL))
-	ref := ResolveRef(context.Background(), client, "Emilio407/nllb-200-distilled-1.3B-4bit", "ghcr.io/jomcgi/models", "main")
+	ref := ResolveRef(context.Background(), client, "Emilio407/nllb-200-distilled-1.3B-4bit", "ghcr.io/jomcgi/models", "")
 	assert.Equal(t, "ghcr.io/jomcgi/models/facebook/nllb-200-distilled-1.3b:emilio407-nllb-200-distilled-1.3b-4bit", ref)
 }
 
@@ -109,12 +109,12 @@ func TestResolveRef_HFFailure(t *testing.T) {
 	defer srv.Close()
 
 	client := hf.NewClient(hf.WithBaseURL(srv.URL))
-	ref := ResolveRef(context.Background(), client, "Org/Model", "ghcr.io/test", "abc123def456")
-	// Falls back to simple naming
-	assert.Equal(t, "ghcr.io/test/org/model:rev-abc123def456", ref)
+	ref := ResolveRef(context.Background(), client, "Org/Model", "ghcr.io/test", "")
+	// Falls back to simple naming (no file selector = rev-main)
+	assert.Equal(t, "ghcr.io/test/org/model:rev-main", ref)
 }
 
-func TestResolveRef_EmptyRevision(t *testing.T) {
+func TestResolveRef_NoFile(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/Model"})
 	}))
@@ -122,6 +122,16 @@ func TestResolveRef_EmptyRevision(t *testing.T) {
 
 	client := hf.NewClient(hf.WithBaseURL(srv.URL))
 	ref := ResolveRef(context.Background(), client, "Org/Model", "ghcr.io/test", "")
-	// Empty revision defaults to "main"
 	assert.Equal(t, "ghcr.io/test/org/model:rev-main", ref)
+}
+
+func TestResolveRef_WithFileSelector(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(hf.ModelInfo{ID: "bartowski/Model-GGUF"})
+	}))
+	defer srv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(srv.URL))
+	ref := ResolveRef(context.Background(), client, "bartowski/Model-GGUF", "ghcr.io/test", "model-q4-k-m")
+	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:model-q4-k-m", ref)
 }

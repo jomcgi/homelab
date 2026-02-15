@@ -7,31 +7,29 @@ import (
 )
 
 // ModelCacheName derives a deterministic, DNS-safe Kubernetes resource name
-// from a HuggingFace repo and revision. The name is unique per (repo, revision)
-// pair and safe for use as a Kubernetes object name.
+// from a HuggingFace repo and optional file selector. The name is unique per
+// (repo, file) pair and safe for use as a Kubernetes object name.
 //
-// Examples:
+// When file is empty, the name is just the repo slug:
 //
-//	ModelCacheName("bartowski/Llama-3.2-1B-Instruct-GGUF", "main")
-//	→ "bartowski-llama-3.2-1b-instruct-gguf-rev-main"
+//	ModelCacheName("bartowski/Llama-3.2-1B-Instruct-GGUF", "")
+//	-> "bartowski-llama-3.2-1b-instruct-gguf"
 //
-//	ModelCacheName("NousResearch/Very-Long-Model-Name-That-Exceeds-Limits", "abc123")
-//	→ "nousresearch-very-long-model-name-that-excee-rev-abc12-a1b2c3d4"  (truncated + hash)
-func ModelCacheName(repo, revision string) string {
-	if revision == "" {
-		revision = "main"
-	}
-
+// When file is set (GGUF selector), the file slug is appended:
+//
+//	ModelCacheName("bartowski/NousResearch_Hermes-4-14B-GGUF", "NousResearch_Hermes-4-14B-IQ4_XS")
+//	-> "bartowski-nousresearch-hermes-4-14b-gguf-nousresearch-hermes-4-14b-iq4-xs"  (truncated + hash if >63)
+func ModelCacheName(repo, file string) string {
 	// Normalize: lowercase, replace / with -
 	name := strings.ToLower(strings.ReplaceAll(repo, "/", "-"))
 
-	// Truncate revision for readability
-	rev := revision
-	if len(rev) > 12 {
-		rev = rev[:12]
+	var full string
+	if file != "" {
+		filePart := strings.ToLower(strings.ReplaceAll(file, "_", "-"))
+		full = fmt.Sprintf("%s-%s", name, filePart)
+	} else {
+		full = name
 	}
-
-	full := fmt.Sprintf("%s-rev-%s", name, rev)
 
 	// Kubernetes names must be <= 63 chars and DNS-safe
 	if len(full) <= 63 {
@@ -39,7 +37,7 @@ func ModelCacheName(repo, revision string) string {
 	}
 
 	// Truncate and add a hash suffix for uniqueness
-	hash := sha256.Sum256([]byte(fmt.Sprintf("%s@%s", repo, revision)))
+	hash := sha256.Sum256([]byte(fmt.Sprintf("%s:%s", repo, file)))
 	suffix := fmt.Sprintf("%x", hash[:4]) // 8 hex chars
 	maxPrefix := 63 - len(suffix) - 1     // -1 for the separator
 	return sanitizeDNS(full[:maxPrefix]) + "-" + suffix

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/google/go-containerregistry/pkg/authn"
 	"github.com/google/go-containerregistry/pkg/name"
@@ -22,6 +23,7 @@ type ResolveOptions struct {
 	Registry string // Target OCI registry
 	Revision string // HF revision (default "main")
 	Tag      string // OCI tag override
+	File     string // GGUF filename prefix selector
 
 	HFClient   *hf.Client
 	RemoteOpts []remote.Option
@@ -41,9 +43,9 @@ type resolvedModel struct {
 	remoteOpts []remote.Option
 }
 
-// resolveModel runs the shared list → classify → derive-tag → parse-ref
+// resolveModel runs the shared list → classify → filter → derive-tag → parse-ref
 // pipeline used by both Copy and Resolve.
-func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revision, tag string, remoteOpts []remote.Option) (*resolvedModel, error) {
+func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revision, tag, file string, remoteOpts []remote.Option) (*resolvedModel, error) {
 	// 1. List files.
 	entries, err := client.Tree(ctx, repo, revision)
 	if err != nil {
@@ -61,17 +63,45 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 		return nil, Permanent(fmt.Errorf("classifying files: %w", err))
 	}
 
-	// 3. Fetch model info for smart naming (non-fatal on failure).
+	// 3. Filter GGUF weights by file selector.
+	if format == FormatGGUF {
+		if file != "" {
+			// Exact prefix match: file + ".gguf"
+			target := file + ".gguf"
+			var filtered []hf.TreeEntry
+			for _, w := range weights {
+				if strings.EqualFold(w.Path, target) {
+					filtered = append(filtered, w)
+				}
+			}
+			if len(filtered) == 0 {
+				return nil, Permanent(fmt.Errorf("GGUF file selector %q matched no files in repo (have: %s)", file, ggufFileList(weights)))
+			}
+			weights = filtered
+		} else if len(weights) > 1 {
+			return nil, Permanent(fmt.Errorf("GGUF repo has %d quantization variants; specify one with :filename (e.g., :ModelName-Q4_K_M). Available: %s", len(weights), ggufFileList(weights)))
+		}
+	}
+
+	// 4. Fetch model info for smart naming (non-fatal on failure).
 	var repoPath, ociTag string
 	info, infoErr := client.ModelInfo(ctx, repo)
 	if infoErr == nil && info.BaseModels != nil && len(info.BaseModels.Models) > 0 {
 		// Derivative model: group under base model's repo path for layer dedup.
 		repoPath = ociref.DeriveRepoName(info.BaseModels.Models[0].ID)
-		ociTag = ociref.DeriveVariantTag(repo)
+		if file != "" {
+			ociTag = ociref.DeriveVariantTag(file)
+		} else {
+			ociTag = ociref.DeriveVariantTag(repo)
+		}
 	} else {
 		// Base model or ModelInfo unavailable: use repo directly.
 		repoPath = ociref.DeriveRepoName(repo)
-		ociTag = ociref.DeriveTag(tag, revision)
+		if file != "" {
+			ociTag = ociref.DeriveVariantTag(file)
+		} else {
+			ociTag = ociref.DeriveTag(tag, revision)
+		}
 	}
 	refStr := fmt.Sprintf("%s/%s:%s", registry, repoPath, ociTag)
 
@@ -80,7 +110,7 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 		return nil, Permanent(fmt.Errorf("parsing reference %q: %w", refStr, err))
 	}
 
-	// 4. Compute totals.
+	// 5. Compute totals.
 	fileCount := len(configs) + len(weights)
 	var totalSize int64
 	for _, e := range configs {
@@ -106,6 +136,16 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 	}, nil
 }
 
+// ggufFileList returns a comma-separated list of GGUF filenames (without extension)
+// for use in error messages.
+func ggufFileList(weights []hf.TreeEntry) string {
+	names := make([]string, len(weights))
+	for i, w := range weights {
+		names[i] = strings.TrimSuffix(w.Path, ".gguf")
+	}
+	return strings.Join(names, ", ")
+}
+
 // Resolve checks whether a HuggingFace model already exists in the target
 // registry without downloading or pushing anything.
 // It lists the repo, classifies files, derives the OCI reference, and performs
@@ -118,7 +158,7 @@ func Resolve(ctx context.Context, opts ResolveOptions) (*Result, error) {
 		return nil, fmt.Errorf("HFClient is required")
 	}
 
-	rm, err := resolveModel(ctx, opts.HFClient, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.RemoteOpts)
+	rm, err := resolveModel(ctx, opts.HFClient, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.File, opts.RemoteOpts)
 	if err != nil {
 		return nil, err
 	}

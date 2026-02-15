@@ -60,6 +60,9 @@ spec:
                   type: string
                   description: HuggingFace revision (default "main")
                   default: "main"
+                file:
+                  type: string
+                  description: GGUF filename prefix selector for multi-quantization repos
                 tag:
                   type: string
                   description: OCI tag override

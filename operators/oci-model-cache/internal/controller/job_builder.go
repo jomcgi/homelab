@@ -25,9 +25,14 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 		"copy",
 		mc.Spec.Repo,
 		"--registry", mc.Spec.Registry,
-		"--revision", revision(mc),
 		"-o", "json",
 		"-O", "/dev/termination-log",
+	}
+	if mc.Spec.Revision != "" {
+		args = append(args, "--revision", mc.Spec.Revision)
+	}
+	if mc.Spec.File != "" {
+		args = append(args, "--file", mc.Spec.File)
 	}
 	if mc.Spec.Tag != "" {
 		args = append(args, "--tag", mc.Spec.Tag)
@@ -128,13 +133,6 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 	}
 
 	return job
-}
-
-func revision(mc *v1alpha1.ModelCache) string {
-	if mc.Spec.Revision != "" {
-		return mc.Spec.Revision
-	}
-	return "main"
 }
 
 // isJobComplete returns true if the Job has completed successfully.

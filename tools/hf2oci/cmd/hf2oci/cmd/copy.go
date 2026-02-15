@@ -15,6 +15,7 @@ var (
 	copyRevision string
 	copyTag      string
 	copyModelDir string
+	copyFile     string
 	copyDryRun   bool
 )
 
@@ -50,7 +51,8 @@ func init() {
 	copyCmd.Flags().StringVarP(&copyRegistry, "registry", "r", "", "Target OCI registry (required)")
 	copyCmd.Flags().StringVar(&copyRevision, "revision", "main", "HuggingFace revision")
 	copyCmd.Flags().StringVarP(&copyTag, "tag", "t", "", "Override OCI tag (default: rev-{revision[:12]})")
-	copyCmd.Flags().StringVar(&copyModelDir, "model-dir", "", "In-image model path (default: /models/{repo-name})")
+	copyCmd.Flags().StringVar(&copyModelDir, "model-dir", "", "In-image model path (default: /)")
+	copyCmd.Flags().StringVar(&copyFile, "file", "", "GGUF filename prefix selector (e.g. ModelName-Q4_K_M)")
 	copyCmd.Flags().BoolVar(&copyDryRun, "dry-run", false, "List files without downloading or pushing")
 
 	copyCmd.MarkFlagRequired("registry")
@@ -75,6 +77,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		Revision: copyRevision,
 		Tag:      copyTag,
 		ModelDir: copyModelDir,
+		File:     copyFile,
 		DryRun:   copyDryRun,
 		HFClient: client,
 	}

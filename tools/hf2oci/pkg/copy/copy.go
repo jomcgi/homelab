@@ -21,7 +21,8 @@ type Options struct {
 	Registry string // Target registry (e.g. "ghcr.io/jomcgi/models")
 	Revision string // HF revision (default "main")
 	Tag      string // OCI tag override (default "rev-{revision[:12]}")
-	ModelDir string // In-image model path (default "/models/{repo-name}")
+	ModelDir string // In-image model path (default "/")
+	File     string // GGUF filename prefix selector (e.g. "ModelName-Q4_K_M")
 	DryRun   bool
 
 	// Callbacks for progress reporting.
@@ -66,8 +67,8 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 		opts.OnResolve(opts.Repo, opts.Revision)
 	}
 
-	// 1-3. List, classify, derive ref.
-	rm, err := resolveModel(ctx, client, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.RemoteOpts)
+	// 1-3. List, classify, filter, derive ref.
+	rm, err := resolveModel(ctx, client, opts.Repo, opts.Registry, opts.Revision, opts.Tag, opts.File, opts.RemoteOpts)
 	if err != nil {
 		return nil, err
 	}
@@ -113,10 +114,9 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	}
 
 	// 5. Build config layer.
-	repoName := deriveRepoName(opts.Repo)
 	modelDir := opts.ModelDir
 	if modelDir == "" {
-		modelDir = "/models/" + repoName
+		modelDir = "/"
 	}
 
 	var cfgLayer v1.Layer
