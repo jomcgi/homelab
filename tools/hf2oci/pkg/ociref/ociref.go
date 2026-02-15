@@ -40,22 +40,27 @@ func DeriveVariantTag(repo string) string {
 
 // ResolveRef computes the full OCI reference for a HuggingFace model by calling
 // ModelInfo to determine base model relationships. On failure, falls back to
-// simple naming (repo path + rev tag).
-func ResolveRef(ctx context.Context, client *hf.Client, repo, registry, revision string) string {
-	if revision == "" {
-		revision = "main"
-	}
-
+// simple naming (repo path + rev tag). When file is non-empty (GGUF selector),
+// the tag is derived from the file selector instead of the revision.
+func ResolveRef(ctx context.Context, client *hf.Client, repo, registry, file string) string {
 	var repoPath, ociTag string
 	info, err := client.ModelInfo(ctx, repo)
 	if err == nil && info.BaseModels != nil && len(info.BaseModels.Models) > 0 {
 		// Derivative model: group under base model's repo path for layer dedup.
 		repoPath = DeriveRepoName(info.BaseModels.Models[0].ID)
-		ociTag = DeriveVariantTag(repo)
+		if file != "" {
+			ociTag = DeriveVariantTag(file)
+		} else {
+			ociTag = DeriveVariantTag(repo)
+		}
 	} else {
 		// Base model or ModelInfo unavailable: use repo directly.
 		repoPath = DeriveRepoName(repo)
-		ociTag = DeriveTag("", revision)
+		if file != "" {
+			ociTag = DeriveVariantTag(file)
+		} else {
+			ociTag = DeriveTag("", "main")
+		}
 	}
 
 	return fmt.Sprintf("%s/%s:%s", registry, repoPath, ociTag)

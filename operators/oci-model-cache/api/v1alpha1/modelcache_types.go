@@ -35,6 +35,12 @@ type ModelCacheSpec struct {
 	// +kubebuilder:default="main"
 	Revision string `json:"revision,omitempty"`
 
+	// File is the GGUF filename prefix selector for multi-quantization repos.
+	// Required when a GGUF repo has multiple .gguf files; optional when there is exactly one.
+	// Not applicable for safetensors repos.
+	// +kubebuilder:validation:Optional
+	File string `json:"file,omitempty"`
+
 	// Tag overrides the OCI tag (default: derived from revision)
 	// +kubebuilder:validation:Optional
 	Tag string `json:"tag,omitempty"`
