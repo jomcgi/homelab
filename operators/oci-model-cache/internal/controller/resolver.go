@@ -6,7 +6,7 @@ import "context"
 // The controller depends on this interface, not hf2oci directly.
 // The concrete adapter lives in cmd/main.go — the only file that imports hf2oci.
 type Resolver interface {
-	Resolve(ctx context.Context, repo, registry, revision string) (*ResolveResult, error)
+	Resolve(ctx context.Context, repo, registry, revision, file string) (*ResolveResult, error)
 }
 
 // ResolveResult contains the outcome of a resolve operation.
