@@ -100,6 +100,8 @@ func DeriveFileTag(info *hf.ModelInfo, format, file string) string {
 
 // base36Hash returns a deterministic, DNS-safe base36 encoding of the SHA-256
 // hash of s. The result is ~50 chars, always valid as an OCI tag or DNS label.
+// NOTE: duplicated in operators/oci-model-cache/internal/naming/naming.go —
+// kept separate to avoid a cross-module dependency between tool and operator.
 func base36Hash(s string) string {
 	h := sha256.Sum256([]byte(s))
 	n := new(big.Int).SetBytes(h[:])
@@ -117,6 +119,9 @@ func ResolveRef(ctx context.Context, client *hf.Client, repo, registry, file str
 		// Derivative model: group under base model's repo path for layer dedup.
 		repoPath = DeriveRepoName(info.BaseModels.Models[0].ID)
 		if file != "" {
+			// File selectors are currently GGUF-only. The full resolver in
+			// copy/resolve.go uses string(format) from Classify(); this lightweight
+			// resolver hardcodes "gguf" since it skips Tree/Classify.
 			ociTag = DeriveFileTag(info, "gguf", file)
 		} else {
 			ociTag = DeriveVariantTag(repo)
@@ -125,7 +130,7 @@ func ResolveRef(ctx context.Context, client *hf.Client, repo, registry, file str
 		// Base model or ModelInfo unavailable: use repo directly.
 		repoPath = DeriveRepoName(repo)
 		if file != "" {
-			ociTag = DeriveFileTag(info, "gguf", file)
+			ociTag = DeriveFileTag(info, "gguf", file) // see comment above re: hardcoded "gguf"
 		} else {
 			ociTag = DeriveTag("", "main")
 		}

@@ -130,7 +130,7 @@ func TestDeriveCompactVariantTag_Overflow(t *testing.T) {
 	longFile := strings.Repeat("a", 200) + ".gguf"
 	got := DeriveCompactVariantTag("author", "gguf", longFile, "")
 	assert.LessOrEqual(t, len(got), 128, "overflow tag should be <= 128 chars")
-	assert.NotContains(t, got, "-", "base36 hash should not contain hyphens (only [0-9a-z])")
+	assert.Regexp(t, `^[0-9a-z]+$`, got, "base36 hash should only contain [0-9a-z]")
 }
 
 func TestDeriveFileTag(t *testing.T) {
