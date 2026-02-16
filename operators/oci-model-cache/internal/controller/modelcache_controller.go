@@ -92,7 +92,7 @@ func (v *modelCacheVisitor) VisitPending(s sm.ModelCachePending) VisitResult {
 
 	log.Info("Resolving model", "repo", mc.Spec.Repo, "revision", mc.Spec.Revision)
 
-	result, err := v.reconciler.Resolver.Resolve(v.ctx, mc.Spec.Repo, mc.Spec.Registry, mc.Spec.Revision)
+	result, err := v.reconciler.Resolver.Resolve(v.ctx, mc.Spec.Repo, mc.Spec.Registry, mc.Spec.Revision, mc.Spec.File)
 	if err != nil {
 		return v.handleError(s, err, "Pending")
 	}

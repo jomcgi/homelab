@@ -64,11 +64,12 @@ type hf2ociResolver struct {
 	client *hf.Client
 }
 
-func (r *hf2ociResolver) Resolve(ctx context.Context, repo, registry, revision string) (*controller.ResolveResult, error) {
+func (r *hf2ociResolver) Resolve(ctx context.Context, repo, registry, revision, file string) (*controller.ResolveResult, error) {
 	result, err := copy.Resolve(ctx, copy.ResolveOptions{
 		Repo:     repo,
 		Registry: registry,
 		Revision: revision,
+		File:     file,
 		HFClient: r.client,
 	})
 	if err != nil {
