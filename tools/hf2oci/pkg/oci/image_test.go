@@ -48,6 +48,25 @@ func TestStreamingWeightLayer(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestStreamingSplitGGUFLayer(t *testing.T) {
+	header := []byte("GGUF-HEADER-BYTES")
+	tensorData := bytes.Repeat([]byte("t"), 2048)
+	body := io.NopCloser(bytes.NewReader(tensorData))
+
+	layer := StreamingSplitGGUFLayer(header, body, int64(len(tensorData)), "/models/test", "model-00001-of-00003.gguf")
+
+	// Read the layer to materialize it.
+	rc, err := layer.Compressed()
+	require.NoError(t, err)
+	_, err = io.ReadAll(rc)
+	require.NoError(t, err)
+	rc.Close()
+
+	// Verify digest is available after streaming.
+	_, err = layer.Digest()
+	require.NoError(t, err)
+}
+
 func TestBuildIndex(t *testing.T) {
 	// Start in-memory registry to verify index via push+pull (streaming layers
 	// can't be inspected until consumed by remote.WriteIndex).

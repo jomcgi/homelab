@@ -47,3 +47,26 @@ Selector labels
 app.kubernetes.io/name: {{ include "llama-cpp.name" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+llama-server CLI arguments (shared between direct args and auto-discovery shell modes).
+*/}}
+{{- define "llama-cpp.serverArgs" -}}
+--n-gpu-layers {{ .Values.server.nGpuLayers | quote }} \
+{{- if .Values.server.noKvOffload }}
+--no-kv-offload \
+{{- end }}
+--ctx-size {{ .Values.server.ctxSize | quote }} \
+{{- if .Values.server.flashAttn }}
+--flash-attn {{ .Values.server.flashAttn | quote }} \
+{{- end }}
+--cache-type-k {{ .Values.server.cacheTypeK | quote }} \
+--cache-type-v {{ .Values.server.cacheTypeV | quote }} \
+--threads {{ .Values.server.threads | quote }} \
+{{- if .Values.server.jinja }}
+--jinja \
+{{- end }}
+--host {{ .Values.server.host | quote }} \
+--port {{ .Values.server.port | quote }}{{ range .Values.server.extraArgs }} \
+{{ . | quote }}{{ end }}
+{{- end }}

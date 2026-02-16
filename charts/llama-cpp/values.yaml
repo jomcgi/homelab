@@ -17,7 +17,9 @@ imagePullSecret:
 
 ## llama-server configuration
 server:
-  ## Path to the GGUF model file
+  ## Path to the GGUF model file.
+  ## If empty and modelVolume is enabled, auto-discovers the first .gguf file
+  ## under the model volume mount path. Works with both single and split GGUF files.
   modelPath: ""
   ## Number of layers to offload to GPU (-1 = all)
   nGpuLayers: 99

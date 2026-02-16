@@ -11,6 +11,7 @@ go_library(
     importpath = "github.com/jomcgi/homelab/tools/hf2oci/pkg/copy",
     visibility = ["//visibility:public"],
     deps = [
+        "//tools/hf2oci/pkg/gguf",
         "//tools/hf2oci/pkg/hf",
         "//tools/hf2oci/pkg/oci",
         "//tools/hf2oci/pkg/ociref",
@@ -32,6 +33,7 @@ go_test(
     ],
     embed = [":copy"],
     deps = [
+        "//tools/hf2oci/pkg/gguf",
         "//tools/hf2oci/pkg/hf",
         "@com_github_google_go_containerregistry//pkg/name",
         "@com_github_google_go_containerregistry//pkg/registry",
