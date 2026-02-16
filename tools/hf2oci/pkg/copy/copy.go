@@ -260,35 +260,31 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 		return nil, fmt.Errorf("reading GGUF probe: %w", err)
 	}
 
-	// 2. Parse GGUF header.
+	// 2. Parse GGUF header, retrying with larger probes if needed.
+	const maxProbe = int64(50 << 20) // 50MB cap
 	gf, err := gguf.Parse(bytes.NewReader(probeData))
-	if err != nil {
-		// Header may be larger than the initial probe. Retry with 2x, cap at 50MB.
-		if probeSize < 50<<20 {
-			retrySize := probeSize * 2
-			if retrySize > 50<<20 {
-				retrySize = 50 << 20
-			}
-			retryBody, _, retryFallback, retryErr := client.DownloadRange(ctx, opts.Repo, opts.Revision, w.Path, 0, retrySize-1)
-			if retryErr != nil {
-				return nil, fmt.Errorf("retrying GGUF header probe: %w", retryErr)
-			}
-			if retryFallback {
-				retryBody.Close()
-				return buildSingleWeightLayer(ctx, client, opts, w, modelDir)
-			}
-			retryData, readErr := io.ReadAll(retryBody)
-			retryBody.Close()
-			if readErr != nil {
-				return nil, fmt.Errorf("reading GGUF retry probe: %w", readErr)
-			}
-			gf, err = gguf.Parse(bytes.NewReader(retryData))
-			if err != nil {
-				return nil, fmt.Errorf("parsing GGUF header: %w", err)
-			}
-		} else {
-			return nil, fmt.Errorf("parsing GGUF header: %w", err)
+	for err != nil && probeSize < maxProbe {
+		probeSize *= 2
+		if probeSize > maxProbe {
+			probeSize = maxProbe
 		}
+		retryBody, _, retryFallback, retryErr := client.DownloadRange(ctx, opts.Repo, opts.Revision, w.Path, 0, probeSize-1)
+		if retryErr != nil {
+			return nil, fmt.Errorf("retrying GGUF header probe (%dMB): %w", probeSize>>20, retryErr)
+		}
+		if retryFallback {
+			retryBody.Close()
+			return buildSingleWeightLayer(ctx, client, opts, w, modelDir)
+		}
+		probeData, err = io.ReadAll(retryBody)
+		retryBody.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading GGUF retry probe: %w", err)
+		}
+		gf, err = gguf.Parse(bytes.NewReader(probeData))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("parsing GGUF header: %w", err)
 	}
 
 	// 3. Plan splits.
@@ -338,6 +334,9 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 				bodySize = dlSize
 			}
 
+			// StreamingSplitGGUFLayer takes ownership of body and closes it.
+			// No early returns possible between DownloadRange and here, but
+			// guard defensively in case future code changes add logic.
 			layers[i] = oci.StreamingSplitGGUFLayer(headerBuf.Bytes(), body, bodySize, modelDir, shardFilename)
 			return nil
 		})

@@ -147,15 +147,24 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-// parseByteSize parses a human-readable byte size like "4G", "500M", "0".
+// parseByteSize parses a human-readable byte size like "4G", "500M", "4GB", "4GiB", "0".
 func parseByteSize(s string) (int64, error) {
 	s = strings.TrimSpace(s)
 	if s == "0" {
 		return 0, nil
 	}
 
-	var multiplier int64 = 1
+	// Normalize: strip trailing "iB" or "B" so "4GB"/"4GiB" become "4G".
 	upper := strings.ToUpper(s)
+	switch {
+	case strings.HasSuffix(upper, "IB"):
+		s = s[:len(s)-2]
+	case strings.HasSuffix(upper, "B") && len(s) > 1:
+		s = s[:len(s)-1]
+	}
+
+	var multiplier int64 = 1
+	upper = strings.ToUpper(s)
 	switch {
 	case strings.HasSuffix(upper, "G"):
 		multiplier = 1 << 30

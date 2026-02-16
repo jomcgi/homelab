@@ -19,7 +19,9 @@ func WriteShardHeader(w io.Writer, source *File, shard ShardPlan, shardCount int
 		{Key: "split.count", ValueType: MetadataValueTypeUINT16, Value: uint16(shardCount)},
 		{Key: "split.tensors.count", ValueType: MetadataValueTypeINT32, Value: int32(source.Header.TensorCount)},
 	}
-	allMeta := append(source.Metadata, splitMeta...)
+	allMeta := make([]MetadataKV, len(source.Metadata), len(source.Metadata)+len(splitMeta))
+	copy(allMeta, source.Metadata)
+	allMeta = append(allMeta, splitMeta...)
 
 	// Write header.
 	if err := binary.Write(cw, le, Magic); err != nil {

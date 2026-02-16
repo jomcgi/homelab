@@ -111,6 +111,7 @@ func StreamingSplitGGUFLayer(headerBytes []byte, body io.ReadCloser, bodySize in
 	pr, pw := io.Pipe()
 
 	go func() {
+		defer body.Close()
 		tw := tar.NewWriter(pw)
 		hdr := &tar.Header{
 			Name: path.Join(modelDir, filename),

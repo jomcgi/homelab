@@ -36,40 +36,19 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           {{- if .Values.server.modelPath }}
+          command: ["/bin/sh", "-c"]
           args:
-            - "--model"
-            - {{ .Values.server.modelPath | quote }}
-            - "--n-gpu-layers"
-            - {{ .Values.server.nGpuLayers | quote }}
-            {{- if .Values.server.noKvOffload }}
-            - "--no-kv-offload"
-            {{- end }}
-            - "--ctx-size"
-            - {{ .Values.server.ctxSize | quote }}
-            {{- if .Values.server.flashAttn }}
-            - "--flash-attn"
-            - {{ .Values.server.flashAttn | quote }}
-            {{- end }}
-            - "--cache-type-k"
-            - {{ .Values.server.cacheTypeK | quote }}
-            - "--cache-type-v"
-            - {{ .Values.server.cacheTypeV | quote }}
-            - "--threads"
-            - {{ .Values.server.threads | quote }}
-            {{- if .Values.server.jinja }}
-            - "--jinja"
-            {{- end }}
-            - "--host"
-            - {{ .Values.server.host | quote }}
-            - "--port"
-            - {{ .Values.server.port | quote }}
-            {{- range .Values.server.extraArgs }}
-            - {{ . | quote }}
-            {{- end }}
+            - |
+              exec llama-server \
+                --model {{ .Values.server.modelPath | quote }} \
+                {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
           {{- else }}
           command: ["/bin/sh", "-c"]
           args:
             - |
+              # Auto-discover the GGUF file. Assumes single model per volume.
+              # For split GGUF, the first shard (-00001-of-) sorts first and
+              # llama.cpp auto-discovers siblings.
               MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name '*.gguf' -type f | sort | head -1)
               if [ -z "$MODEL" ]; then
                 echo "ERROR: no .gguf file found under {{ .Values.modelVolume.mountPath }}" >&2
@@ -78,23 +57,7 @@ spec:
               echo "Auto-discovered model: $MODEL"
               exec llama-server \
                 --model "$MODEL" \
-                --n-gpu-layers {{ .Values.server.nGpuLayers | quote }} \
-                {{- if .Values.server.noKvOffload }}
-                --no-kv-offload \
-                {{- end }}
-                --ctx-size {{ .Values.server.ctxSize | quote }} \
-                {{- if .Values.server.flashAttn }}
-                --flash-attn {{ .Values.server.flashAttn | quote }} \
-                {{- end }}
-                --cache-type-k {{ .Values.server.cacheTypeK | quote }} \
-                --cache-type-v {{ .Values.server.cacheTypeV | quote }} \
-                --threads {{ .Values.server.threads | quote }} \
-                {{- if .Values.server.jinja }}
-                --jinja \
-                {{- end }}
-                --host {{ .Values.server.host | quote }} \
-                --port {{ .Values.server.port | quote }}{{ range .Values.server.extraArgs }} \
-                {{ . | quote }}{{ end }}
+                {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
           {{- end }}
           ports:
             - name: http
