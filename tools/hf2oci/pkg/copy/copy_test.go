@@ -393,7 +393,8 @@ func TestCopyWithBaseModel(t *testing.T) {
 			})
 		case r.URL.Path == "/api/models/Emilio407/nllb-200-distilled-1.3B-4bit":
 			json.NewEncoder(w).Encode(hf.ModelInfo{
-				ID: "Emilio407/nllb-200-distilled-1.3B-4bit",
+				ID:     "Emilio407/nllb-200-distilled-1.3B-4bit",
+				Author: "Emilio407",
 				BaseModels: &hf.BaseModels{
 					Relation: "quantized",
 					Models:   []hf.BaseModel{{ID: "facebook/nllb-200-distilled-1.3B"}},
@@ -521,7 +522,7 @@ func TestCopyGGUFWithFileSelector(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 1, result.FileCount)
 	assert.Equal(t, int64(1024), result.TotalSize)
-	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:model-q4_k_m", result.Ref)
+	assert.Equal(t, "ghcr.io/test/bartowski/model-gguf:bartowski-gguf-model-q4-k-m", result.Ref)
 }
 
 func TestCopyGGUFFileSelectorNoMatch(t *testing.T) {

@@ -1,8 +1,6 @@
 package controller
 
 import (
-	"fmt"
-
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -10,16 +8,14 @@ import (
 
 	v1alpha1 "github.com/jomcgi/homelab/operators/oci-model-cache/api/v1alpha1"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/config"
+	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/naming"
 )
 
 // buildCopyJob creates a Kubernetes Job that runs hf2oci to copy a HuggingFace
 // model to the OCI registry. The Job writes its result as a JSON termination
 // message so the controller can parse it.
 func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
-	jobName := fmt.Sprintf("mc-sync-%s", mc.Name)
-	if len(jobName) > 63 {
-		jobName = jobName[:63]
-	}
+	jobName := naming.JobName(mc.Status.ResolvedRef)
 
 	args := []string{
 		"copy",

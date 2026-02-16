@@ -15,6 +15,7 @@ go_library(
     deps = [
         "//operators/oci-model-cache/api/v1alpha1:api",
         "//operators/oci-model-cache/internal/config",
+        "//operators/oci-model-cache/internal/naming",
         "//operators/oci-model-cache/internal/statemachine",
         "@io_k8s_api//batch/v1:batch",
         "@io_k8s_api//core/v1:core",
