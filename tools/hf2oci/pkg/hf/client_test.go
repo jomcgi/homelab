@@ -182,6 +182,74 @@ func TestDownloadAuthStrippedOnRedirect(t *testing.T) {
 	assert.Equal(t, "file-content", string(data))
 }
 
+func TestDownloadRange(t *testing.T) {
+	fullContent := "0123456789ABCDEF"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "/MyOrg/MyModel/resolve/main/model.gguf", r.URL.Path)
+		assert.Equal(t, "Bearer tok", r.Header.Get("Authorization"))
+
+		rangeHdr := r.Header.Get("Range")
+		assert.Equal(t, "bytes=4-9", rangeHdr)
+
+		partial := fullContent[4:10] // "4567890" — bytes 4 through 9 inclusive
+		w.Header().Set("Content-Range", "bytes 4-9/16")
+		w.Header().Set("Content-Length", "6")
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write([]byte(partial))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL), WithToken("tok"))
+	body, size, fallback, err := c.DownloadRange(context.Background(), "MyOrg/MyModel", "main", "model.gguf", 4, 9)
+	require.NoError(t, err)
+	defer body.Close()
+
+	assert.False(t, fallback, "server supports ranges, fallback should be false")
+	assert.Equal(t, int64(6), size)
+	data, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.Equal(t, "456789", string(data))
+}
+
+func TestDownloadRangeFallback(t *testing.T) {
+	fullContent := "0123456789ABCDEF"
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Server ignores Range header and returns full content with 200.
+		assert.NotEmpty(t, r.Header.Get("Range"), "Range header should be sent")
+		w.Header().Set("Content-Length", "16")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(fullContent))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL), WithToken("tok"))
+	body, size, fallback, err := c.DownloadRange(context.Background(), "MyOrg/MyModel", "main", "model.gguf", 4, 9)
+	require.NoError(t, err)
+	defer body.Close()
+
+	assert.True(t, fallback, "server returned 200 — fallback should be true")
+	assert.Equal(t, int64(16), size, "size should be the full content length")
+	data, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.Equal(t, fullContent, string(data), "full body should be returned on fallback")
+}
+
+func TestDownloadRangeError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		w.Write([]byte(`{"error":"Not found"}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient(WithBaseURL(srv.URL))
+	_, _, _, err := c.DownloadRange(context.Background(), "missing/repo", "main", "model.gguf", 0, 100)
+	require.Error(t, err)
+
+	var apiErr *APIError
+	require.ErrorAs(t, err, &apiErr)
+	assert.Equal(t, 404, apiErr.StatusCode)
+}
+
 func TestTreeCacheTTL(t *testing.T) {
 	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
