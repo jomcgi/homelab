@@ -10,31 +10,6 @@ multirun(
         "//charts/claude/image:image.push",
         "//charts/signoz-dashboard-sidecar/cmd:image.push",
         "//charts/todo/image:image.push",
-        "//models:qwen2_5_0_5b_gguf.push",
-        "//models:qwen2_5_0_5b_st.push",
-        "//operators/cloudflare:image.push",
-        "//operators/oci-model-cache:image.push",
-        "//services/ais_ingest:image.push",
-        "//services/hikes/update_forecast:update_image.push",
-        "//services/knowledge_graph:embedder-image.push",
-        "//services/knowledge_graph:mcp-image.push",
-        "//services/knowledge_graph:scraper-image.push",
-        "//services/ships_api:image.push",
-        "//services/ships_frontend:image.push",
-        "//services/stargazer:image.push",
-        "//services/trips_api:image.push",
-        "//tools/hf2oci:image.push",
-    ],
-    jobs = 0,  # 0 means unlimited parallelism
-    visibility = ["//visibility:public"],
-)
-
-multirun(
-    name = "push_services",
-    commands = [
-        "//charts/claude/image:image.push",
-        "//charts/signoz-dashboard-sidecar/cmd:image.push",
-        "//charts/todo/image:image.push",
         "//operators/cloudflare:image.push",
         "//operators/oci-model-cache:image.push",
         "//services/ais_ingest:image.push",
