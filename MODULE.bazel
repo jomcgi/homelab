@@ -144,19 +144,6 @@ oci = use_extension("@rules_oci//oci:extensions.bzl", "oci")
 # Note: Using custom name to avoid conflicts with rules_oci internal toolchains
 oci.toolchains(name = "custom_crane")
 
-# Empty/scratch base image for minimal OCI builds (e.g., ML models)
-# distroless/static:nonroot - smallest distroless image, ideal for data-only containers
-oci.pull(
-    name = "empty_base",
-    digest = "sha256:f9f84bd968430d7d35e8e6d55c40efb0b980829ec42920a49e60e65eac0d83fc",
-    image = "gcr.io/distroless/static",
-    platforms = [
-        "linux/amd64",
-        "linux/arm64/v8",
-    ],
-    tag = "nonroot",
-)
-
 # Base image for GO Containers.
 oci.pull(
     name = "distroless_base",
@@ -173,9 +160,6 @@ use_repo(
     "distroless_base",
     "distroless_base_linux_amd64",
     "distroless_base_linux_arm64_v8",
-    "empty_base",
-    "empty_base_linux_amd64",
-    "empty_base_linux_arm64_v8",
 )
 
 oci.pull(
@@ -262,88 +246,3 @@ multiarch_http_file(
 )
 
 bazel_dep(name = "rules_pkg", version = "1.1.0")
-
-#########################
-# HuggingFace Models
-# Use hf_lock.sh to generate sha256 pins: ./tools/hf_lock.sh <repo_id> -f "*.gguf"
-hf = use_extension("//models:extensions.bzl", "hf")
-
-# Qwen 2.5 0.5B Instruct - GGUF format (Q4_K_M quantization)
-# Compact model suitable for CPU inference with llama.cpp
-hf.model(
-    name = "qwen2_5_0_5b_gguf",
-    files = {
-        "qwen2.5-0.5b-instruct-q4_k_m.gguf": "74a4da8c9fdbcd15bd1f6d01d621410d31c6fc00986f5eb687824e7b93d7a9db",
-    },
-    repo_id = "Qwen/Qwen2.5-0.5B-Instruct-GGUF",
-    revision = "9217f5db79a29953eb74d5343926648285ec7e67",
-)
-
-# Qwen 2.5 0.5B Instruct - SafeTensors format
-# Full precision model for vLLM or transformers inference
-hf.model(
-    name = "qwen2_5_0_5b_st",
-    files = {
-        "config.json": "18e18afcaccafade98daf13a54092927904649e1dd4eba8299ab717d5d94ff45",
-        "model.safetensors": "fdf756fa7fcbe7404d5c60e26bff1a0c8b8aa1f72ced49e7dd0210fe288fb7fe",
-        "tokenizer.json": "c0382117ea329cdf097041132f6d735924b697924d6f6fc3945713e96ce87539",
-        "tokenizer_config.json": "5b5d4f65d0acd3b2d56a35b56d374a36cbc1c8fa5cf3b3febbbfabf22f359583",
-    },
-    repo_id = "Qwen/Qwen2.5-0.5B-Instruct",
-    revision = "7ae557604adf67be50417f59c2c2f167def9a775",
-)
-
-# Qwen3 30B A3B AWQ - Quantized model for vLLM inference
-# Used in prod vLLM deployment (~16GB total)
-hf.model(
-    name = "qwen3_30b_a3b_awq",
-    files = {
-        "config.json": "311c3e8ee5a15c2492bd6b23ba602432706d0bb1d5a14ac34b8f77e8939df948",
-        "generation_config.json": "81051cd3f6e77013827148d0b8a6ead93f8ac390d5ab805f849199f0af6a08db",
-        "model-00001-of-00004.safetensors": "e6c2ef7327fb0489d94b28b3fa3c104187dc7d723d4909c8dc20b6d8d0f8c885",
-        "model-00002-of-00004.safetensors": "71027546a0cc4bf2e77574deaf4523bc3c8a0bc094ea50dd73d6d4f5e614d1e8",
-        "model-00003-of-00004.safetensors": "dd92d301d5c64df48f7bbc3f34c7ac78f840ff664e9494dc9360c032c2ac72db",
-        "model-00004-of-00004.safetensors": "d620e43ba1a0d0f44662d449e725b49502de9b735855c45706d71c66ca68a73d",
-        "model.safetensors.index.json": "f5b4f889fe28ee7965333f4d8a14a357b81b9a0b7b3331217061342a791844d2",
-        "tokenizer.json": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4",
-        "tokenizer_config.json": "253153d0738ceb4c668d2eff957714dd2bea0b56de772a9fdccd96cbf517e6a0",
-    },
-    repo_id = "QuixiAI/Qwen3-30B-A3B-AWQ",
-    revision = "main",
-)
-
-# Hermes 4.3 36B AWQ 8-bit - Quantized model for vLLM inference
-# NousResearch reasoning model based on ByteDance Seed 36B (~40GB total)
-hf.model(
-    name = "hermes_4_3_36b_awq",
-    files = {
-        "config.json": "a6c38471417115e05a8033506c1f8feada09bad84d50b8c7123a157db55ddcd1",
-        "generation_config.json": "5a7a36f298e85a6defa6dbee3e00e19681bf70827a9a80710bcc7edbbd0091f0",
-        "model-00001-of-00009.safetensors": "1c87100d8c2550a4526632720990506ce247a8194bd6ffc21c7e0fa1f5ae1bcd",
-        "model-00002-of-00009.safetensors": "8b7b25b2d769f51c1ed4919b98b1cdba5f7911fc35ad010da4eb68dafec6a542",
-        "model-00003-of-00009.safetensors": "e44052c6732a8e31a1857a64454d5af462470d91a4f40fffd4cf5a595061c54f",
-        "model-00004-of-00009.safetensors": "4865c18fcf93586760a46b487baeef197dbceac182042b0bd35ebb8ce01ded37",
-        "model-00005-of-00009.safetensors": "05c7a653e15c9f970cc6353cc5eb726c7c1bf5940a78987314cb3ce84a6cd5b2",
-        "model-00006-of-00009.safetensors": "fffcf875eaecdbd248c95e579eaad5e149a305e8545fcf821685f060ad756459",
-        "model-00007-of-00009.safetensors": "49486f644ba0c7ea92d79a4522b4ea52b4986892d0f55ee5fea4d0798e83dfbd",
-        "model-00008-of-00009.safetensors": "4572628dc9a144f71202a3e5f7b6babf97a0b03b12807727d4dbdcda5894cf48",
-        "model-00009-of-00009.safetensors": "1d3a55380723b1451f25e81f03c44131ff15b4d8d368024b87829b3f6f959e59",
-        "model.safetensors.index.json": "34444d6a2be048f1920708a46ec527c847bcfd1fc6392223708b055419a50106",
-        "tokenizer.json": "2c72155b82ca0ffeb89a6edb66bcc10c27d1d1491d0ff1b469a092632aba79fb",
-        "tokenizer_config.json": "707335ac85992566ffda5be6b227b0b1d519b81f02126a84d58d88740bed8d99",
-    },
-    repo_id = "cyankiwi/Hermes-4.3-36B-AWQ-8bit",
-    revision = "aeb5700b379800d4589b902acdc66a961c8c953e",
-)
-
-# Hermes 4.3 36B IQ4_XS - GGUF quantized model for llama.cpp inference
-# Compact 4-bit quantization (~19GB) for GPU + KV offload to system RAM
-hf.model(
-    name = "hermes_4_3_36b_iq4xs",
-    files = {
-        "NousResearch_Hermes-4.3-36B-IQ4_XS.gguf": "c605ca44197629a5817bba5cd5c142c50ef12bbb3f19e37b8c2ba3e6691fa656",
-    },
-    repo_id = "bartowski/NousResearch_Hermes-4.3-36B-GGUF",
-    revision = "56b57c47136327060928c009c5164be185e4d4e9",
-)
-use_repo(hf, "hermes_4_3_36b_awq", "hermes_4_3_36b_iq4xs", "qwen2_5_0_5b_gguf", "qwen2_5_0_5b_st", "qwen3_30b_a3b_awq")

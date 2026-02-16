@@ -12,10 +12,6 @@ BUILD_FILE="images/BUILD"
 # Query all oci_push targets
 PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)
 
-# Exclude large models that cause BuildBuddy cache eviction (5GB+ layer blobs)
-# These are pushed manually: bazel run //models:<name>.push
-PUSH_TARGETS=$(echo "$PUSH_TARGETS" | grep -vE "qwen3_30b_a3b_awq|hermes_4_3_36b_awq|hermes_4_3_36b_iq4xs")
-
 if [ -z "$PUSH_TARGETS" ]; then
 	echo "⚠️  No oci_push targets found"
 	exit 0
@@ -50,25 +46,3 @@ cat >>"$BUILD_FILE" <<'FOOTER'
 )
 
 FOOTER
-
-# Generate push_services target (excludes models, used by CI)
-SERVICE_TARGETS=$(echo "$PUSH_TARGETS" | grep -v "//models:")
-
-if [ -n "$SERVICE_TARGETS" ]; then
-	cat >>"$BUILD_FILE" <<'SERVICES_HEADER'
-multirun(
-    name = "push_services",
-    commands = [
-SERVICES_HEADER
-
-	while IFS= read -r target; do
-		echo "        \"$target\"," >>"$BUILD_FILE"
-	done <<<"$SERVICE_TARGETS"
-
-	cat >>"$BUILD_FILE" <<'SERVICES_FOOTER'
-    ],
-    jobs = 0,  # 0 means unlimited parallelism
-    visibility = ["//visibility:public"],
-)
-SERVICES_FOOTER
-fi
