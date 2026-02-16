@@ -35,6 +35,7 @@ spec:
         - name: llama-server
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          {{- if .Values.server.modelPath }}
           args:
             - "--model"
             - {{ .Values.server.modelPath | quote }}
@@ -65,6 +66,36 @@ spec:
             {{- range .Values.server.extraArgs }}
             - {{ . | quote }}
             {{- end }}
+          {{- else }}
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              MODEL=$(find {{ .Values.modelVolume.mountPath }} -maxdepth 2 -name '*.gguf' -type f | sort | head -1)
+              if [ -z "$MODEL" ]; then
+                echo "ERROR: no .gguf file found under {{ .Values.modelVolume.mountPath }}" >&2
+                exit 1
+              fi
+              echo "Auto-discovered model: $MODEL"
+              exec llama-server \
+                --model "$MODEL" \
+                --n-gpu-layers {{ .Values.server.nGpuLayers | quote }} \
+                {{- if .Values.server.noKvOffload }}
+                --no-kv-offload \
+                {{- end }}
+                --ctx-size {{ .Values.server.ctxSize | quote }} \
+                {{- if .Values.server.flashAttn }}
+                --flash-attn {{ .Values.server.flashAttn | quote }} \
+                {{- end }}
+                --cache-type-k {{ .Values.server.cacheTypeK | quote }} \
+                --cache-type-v {{ .Values.server.cacheTypeV | quote }} \
+                --threads {{ .Values.server.threads | quote }} \
+                {{- if .Values.server.jinja }}
+                --jinja \
+                {{- end }}
+                --host {{ .Values.server.host | quote }} \
+                --port {{ .Values.server.port | quote }}{{ range .Values.server.extraArgs }} \
+                {{ . | quote }}{{ end }}
+          {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.server.port }}

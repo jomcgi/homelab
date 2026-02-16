@@ -3,6 +3,8 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"strconv"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -11,12 +13,13 @@ import (
 )
 
 var (
-	copyRegistry string
-	copyRevision string
-	copyTag      string
-	copyModelDir string
-	copyFile     string
-	copyDryRun   bool
+	copyRegistry     string
+	copyRevision     string
+	copyTag          string
+	copyModelDir     string
+	copyFile         string
+	copyMaxShardSize string
+	copyDryRun       bool
 )
 
 var copyCmd = &cobra.Command{
@@ -40,7 +43,10 @@ Examples:
   hf2oci copy Qwen/Qwen2.5-0.5B-Instruct-GGUF -r ghcr.io/jomcgi/models --revision 9217f5db79a2
 
   # Dry run to see what would be uploaded
-  hf2oci copy NousResearch/Hermes-4.3-Llama-3-36B-AWQ -r ghcr.io/jomcgi/models --dry-run`,
+  hf2oci copy NousResearch/Hermes-4.3-Llama-3-36B-AWQ -r ghcr.io/jomcgi/models --dry-run
+
+  # Split a large GGUF into 4GB shard layers
+  hf2oci copy bartowski/Hermes-4.3-36B-GGUF:Hermes-4.3-36B-IQ4_XS -r ghcr.io/jomcgi/models --max-shard-size 4G`,
 	Args: cobra.ExactArgs(1),
 	RunE: runCopy,
 }
@@ -53,6 +59,7 @@ func init() {
 	copyCmd.Flags().StringVarP(&copyTag, "tag", "t", "", "Override OCI tag (default: rev-{revision[:12]})")
 	copyCmd.Flags().StringVar(&copyModelDir, "model-dir", "", "In-image model path (default: /)")
 	copyCmd.Flags().StringVar(&copyFile, "file", "", "GGUF filename prefix selector (e.g. ModelName-Q4_K_M)")
+	copyCmd.Flags().StringVar(&copyMaxShardSize, "max-shard-size", "4G", "Max size per GGUF shard layer (e.g. 4G, 500M). 0 disables splitting.")
 	copyCmd.Flags().BoolVar(&copyDryRun, "dry-run", false, "List files without downloading or pushing")
 
 	copyCmd.MarkFlagRequired("registry")
@@ -61,6 +68,11 @@ func init() {
 func runCopy(cmd *cobra.Command, args []string) error {
 	if err := validateOutputFormat(); err != nil {
 		return err
+	}
+
+	maxShard, err := parseByteSize(copyMaxShardSize)
+	if err != nil {
+		return fmt.Errorf("invalid --max-shard-size: %w", err)
 	}
 
 	repo := args[0]
@@ -72,14 +84,15 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	client := hf.NewClient(clientOpts...)
 
 	opts := copy.Options{
-		Repo:     repo,
-		Registry: copyRegistry,
-		Revision: copyRevision,
-		Tag:      copyTag,
-		ModelDir: copyModelDir,
-		File:     copyFile,
-		DryRun:   copyDryRun,
-		HFClient: client,
+		Repo:         repo,
+		Registry:     copyRegistry,
+		Revision:     copyRevision,
+		Tag:          copyTag,
+		ModelDir:     copyModelDir,
+		File:         copyFile,
+		MaxShardSize: maxShard,
+		DryRun:       copyDryRun,
+		HFClient:     client,
 	}
 
 	// Suppress progress callbacks in JSON mode for clean machine output.
@@ -103,6 +116,9 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		}
 		opts.OnUploadWeight = func(index, total int, filename string) {
 			fmt.Fprintf(os.Stderr, "Streaming weight %d/%d: %s\n", index, total, filename)
+		}
+		opts.OnGGUFSplit = func(shards int, file string) {
+			fmt.Fprintf(os.Stderr, "Splitting %s into %d shards\n", file, shards)
 		}
 	}
 
@@ -129,4 +145,35 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	}
 
 	return nil
+}
+
+// parseByteSize parses a human-readable byte size like "4G", "500M", "0".
+func parseByteSize(s string) (int64, error) {
+	s = strings.TrimSpace(s)
+	if s == "0" {
+		return 0, nil
+	}
+
+	var multiplier int64 = 1
+	upper := strings.ToUpper(s)
+	switch {
+	case strings.HasSuffix(upper, "G"):
+		multiplier = 1 << 30
+		s = s[:len(s)-1]
+	case strings.HasSuffix(upper, "M"):
+		multiplier = 1 << 20
+		s = s[:len(s)-1]
+	case strings.HasSuffix(upper, "K"):
+		multiplier = 1 << 10
+		s = s[:len(s)-1]
+	}
+
+	n, err := strconv.ParseInt(s, 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("parsing %q: %w", s, err)
+	}
+	if n < 0 {
+		return 0, fmt.Errorf("size must be non-negative: %s", s)
+	}
+	return n * multiplier, nil
 }
