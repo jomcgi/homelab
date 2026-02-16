@@ -174,6 +174,41 @@ func (c *Client) Download(ctx context.Context, repo, revision, path string) (io.
 	return resp.Body, resp.ContentLength, nil
 }
 
+// DownloadRange fetches a byte range of a file from a HuggingFace model repository.
+// Start and end are inclusive byte offsets. The caller must close the returned ReadCloser.
+// If the server does not support range requests (returns 200 instead of 206), the
+// fallback bool is true and the full body is returned — the caller should handle this case.
+func (c *Client) DownloadRange(ctx context.Context, repo, revision, path string, start, end int64) (body io.ReadCloser, size int64, fallback bool, err error) {
+	u := fmt.Sprintf("%s/%s/resolve/%s/%s", c.baseURL, repo, url.PathEscape(revision), path)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("creating request: %w", err)
+	}
+	c.setAuth(req)
+	req.Header.Set("Range", fmt.Sprintf("bytes=%d-%d", start, end))
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, 0, false, fmt.Errorf("downloading range %s: %w", path, err)
+	}
+
+	switch resp.StatusCode {
+	case http.StatusPartialContent:
+		return resp.Body, resp.ContentLength, false, nil
+	case http.StatusOK:
+		// Server ignored the Range header; return full body and signal fallback.
+		return resp.Body, resp.ContentLength, true, nil
+	default:
+		if err := checkResponse(resp); err != nil {
+			resp.Body.Close()
+			return nil, 0, false, err
+		}
+		// Shouldn't reach here, but be safe.
+		return resp.Body, resp.ContentLength, false, nil
+	}
+}
+
 func (c *Client) loadCache(key string) (any, bool) {
 	if c.cacheTTL <= 0 {
 		return nil, false

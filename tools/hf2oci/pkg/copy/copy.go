@@ -1,15 +1,18 @@
 package copy
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"strings"
 	"sync"
 
 	v1 "github.com/google/go-containerregistry/pkg/v1"
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/jomcgi/homelab/tools/hf2oci/pkg/gguf"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
@@ -17,13 +20,14 @@ import (
 
 // Options configures the copy operation.
 type Options struct {
-	Repo     string // HuggingFace repo (e.g. "NousResearch/Hermes-3-8B")
-	Registry string // Target registry (e.g. "ghcr.io/jomcgi/models")
-	Revision string // HF revision (default "main")
-	Tag      string // OCI tag override (default "rev-{revision[:12]}")
-	ModelDir string // In-image model path (default "/")
-	File     string // GGUF filename prefix selector (e.g. "ModelName-Q4_K_M")
-	DryRun   bool
+	Repo         string // HuggingFace repo (e.g. "NousResearch/Hermes-3-8B")
+	Registry     string // Target registry (e.g. "ghcr.io/jomcgi/models")
+	Revision     string // HF revision (default "main")
+	Tag          string // OCI tag override (default "rev-{revision[:12]}")
+	ModelDir     string // In-image model path (default "/")
+	File         string // GGUF filename prefix selector (e.g. "ModelName-Q4_K_M")
+	MaxShardSize int64  // Max bytes per GGUF shard layer (0 = no splitting)
+	DryRun       bool
 
 	// Callbacks for progress reporting.
 	OnResolve      func(repo, revision string)
@@ -32,6 +36,7 @@ type Options struct {
 	OnCacheHit     func(digest string)
 	OnUploadConfig func(count int)
 	OnUploadWeight func(index, total int, filename string)
+	OnGGUFSplit    func(shards int, originalFile string)
 
 	// Injected dependencies (for testing).
 	HFClient   *hf.Client
@@ -148,28 +153,39 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	// downloads because the response bodies are consumed lazily during push.
 	// The errgroup context is canceled when Wait() returns, which would kill
 	// the in-flight reads from the response bodies.
-	weightLayers := make([]v1.Layer, len(rm.weights))
-	g, _ := errgroup.WithContext(ctx)
-	g.SetLimit(5) // max 5 concurrent HuggingFace connections
-	var progressMu sync.Mutex
-	for i, w := range rm.weights {
-		i, w := i, w // capture for closure
-		g.Go(func() error {
-			if opts.OnUploadWeight != nil {
-				progressMu.Lock()
-				opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
-				progressMu.Unlock()
-			}
-			body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
-			if err != nil {
-				return fmt.Errorf("downloading weight %s: %w", w.Path, err)
-			}
-			weightLayers[i] = oci.StreamingWeightLayer(body, size, modelDir, w.Path)
-			return nil
-		})
-	}
-	if err := g.Wait(); err != nil {
-		return nil, err
+	var weightLayers []v1.Layer
+
+	if rm.format == FormatGGUF && len(rm.weights) == 1 && opts.MaxShardSize > 0 && rm.weights[0].Size > opts.MaxShardSize {
+		// GGUF split path: single large file → multiple shard layers.
+		weightLayers, err = buildSplitGGUFLayers(ctx, client, opts, rm, modelDir)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		// Existing path: 1 layer per weight file.
+		weightLayers = make([]v1.Layer, len(rm.weights))
+		g, _ := errgroup.WithContext(ctx)
+		g.SetLimit(5) // max 5 concurrent HuggingFace connections
+		var progressMu sync.Mutex
+		for i, w := range rm.weights {
+			i, w := i, w // capture for closure
+			g.Go(func() error {
+				if opts.OnUploadWeight != nil {
+					progressMu.Lock()
+					opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
+					progressMu.Unlock()
+				}
+				body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
+				if err != nil {
+					return fmt.Errorf("downloading weight %s: %w", w.Path, err)
+				}
+				weightLayers[i] = oci.StreamingWeightLayer(body, size, modelDir, w.Path)
+				return nil
+			})
+		}
+		if err := g.Wait(); err != nil {
+			return nil, err
+		}
 	}
 
 	// 7. Build index.
@@ -217,4 +233,130 @@ func deriveRepoName(repo string) string {
 // e.g. "Emilio407/nllb-200-distilled-1.3B-4bit" → "emilio407-nllb-200-distilled-1.3b-4bit"
 func deriveVariantTag(repo string) string {
 	return ociref.DeriveVariantTag(repo)
+}
+
+// buildSplitGGUFLayers handles the GGUF split path: probes the file header
+// via a range request, plans tensor-boundary splits, and creates one streaming
+// OCI layer per shard.
+func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, rm *resolvedModel, modelDir string) ([]v1.Layer, error) {
+	w := rm.weights[0]
+
+	// 1. Probe: range-request first 10MB to parse GGUF header.
+	probeSize := int64(10 << 20) // 10MB
+	probeBody, _, fallback, err := client.DownloadRange(ctx, opts.Repo, opts.Revision, w.Path, 0, probeSize-1)
+	if err != nil {
+		return nil, fmt.Errorf("probing GGUF header: %w", err)
+	}
+
+	if fallback {
+		// Server doesn't support range requests — fall back to single layer.
+		probeBody.Close()
+		return buildSingleWeightLayer(ctx, client, opts, w, modelDir)
+	}
+
+	probeData, err := io.ReadAll(probeBody)
+	probeBody.Close()
+	if err != nil {
+		return nil, fmt.Errorf("reading GGUF probe: %w", err)
+	}
+
+	// 2. Parse GGUF header, retrying with larger probes if needed.
+	const maxProbe = int64(50 << 20) // 50MB cap
+	gf, err := gguf.Parse(bytes.NewReader(probeData))
+	for err != nil && probeSize < maxProbe {
+		probeSize *= 2
+		if probeSize > maxProbe {
+			probeSize = maxProbe
+		}
+		retryBody, _, retryFallback, retryErr := client.DownloadRange(ctx, opts.Repo, opts.Revision, w.Path, 0, probeSize-1)
+		if retryErr != nil {
+			return nil, fmt.Errorf("retrying GGUF header probe (%dMB): %w", probeSize>>20, retryErr)
+		}
+		if retryFallback {
+			retryBody.Close()
+			return buildSingleWeightLayer(ctx, client, opts, w, modelDir)
+		}
+		probeData, err = io.ReadAll(retryBody)
+		retryBody.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading GGUF retry probe: %w", err)
+		}
+		gf, err = gguf.Parse(bytes.NewReader(probeData))
+	}
+	if err != nil {
+		return nil, fmt.Errorf("parsing GGUF header: %w", err)
+	}
+
+	// 3. Plan splits.
+	shards := gguf.PlanSplit(gf, uint64(opts.MaxShardSize))
+
+	if len(shards) <= 1 {
+		// Fits in one shard, no splitting needed.
+		return buildSingleWeightLayer(ctx, client, opts, w, modelDir)
+	}
+
+	if opts.OnGGUFSplit != nil {
+		opts.OnGGUFSplit(len(shards), w.Path)
+	}
+
+	// 4. Build shard layers in parallel.
+	basename := strings.TrimSuffix(w.Path, ".gguf")
+	layers := make([]v1.Layer, len(shards))
+	g, _ := errgroup.WithContext(ctx)
+	g.SetLimit(5)
+	var progressMu sync.Mutex
+
+	for i, shard := range shards {
+		i, shard := i, shard
+		g.Go(func() error {
+			shardFilename := fmt.Sprintf("%s-%05d-of-%05d.gguf", basename, i+1, len(shards))
+
+			if opts.OnUploadWeight != nil {
+				progressMu.Lock()
+				opts.OnUploadWeight(i+1, len(shards), shardFilename)
+				progressMu.Unlock()
+			}
+
+			// Build shard header in memory.
+			var headerBuf bytes.Buffer
+			if err := gguf.WriteShardHeader(&headerBuf, gf, shard, len(shards)); err != nil {
+				return fmt.Errorf("building shard %d header: %w", i+1, err)
+			}
+
+			// Range-request this shard's tensor data.
+			bodySize := int64(shard.DataEnd - shard.DataStart + 1)
+			body, dlSize, _, err := client.DownloadRange(ctx, opts.Repo, opts.Revision, w.Path, int64(shard.DataStart), int64(shard.DataEnd))
+			if err != nil {
+				return fmt.Errorf("downloading shard %d data: %w", i+1, err)
+			}
+			// Prefer server-reported size, fall back to computed size.
+			if dlSize > 0 {
+				bodySize = dlSize
+			}
+
+			// StreamingSplitGGUFLayer takes ownership of body and closes it.
+			// No early returns possible between DownloadRange and here, but
+			// guard defensively in case future code changes add logic.
+			layers[i] = oci.StreamingSplitGGUFLayer(headerBuf.Bytes(), body, bodySize, modelDir, shardFilename)
+			return nil
+		})
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+
+	return layers, nil
+}
+
+// buildSingleWeightLayer is a fallback that downloads the full file as one layer.
+func buildSingleWeightLayer(ctx context.Context, client *hf.Client, opts Options, w hf.TreeEntry, modelDir string) ([]v1.Layer, error) {
+	body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
+	if err != nil {
+		return nil, fmt.Errorf("downloading weight %s: %w", w.Path, err)
+	}
+	if opts.OnUploadWeight != nil {
+		opts.OnUploadWeight(1, 1, w.Path)
+	}
+	return []v1.Layer{oci.StreamingWeightLayer(body, size, modelDir, w.Path)}, nil
 }

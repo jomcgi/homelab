@@ -1,11 +1,15 @@
 package copy
 
 import (
+	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 
@@ -15,6 +19,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/jomcgi/homelab/tools/hf2oci/pkg/gguf"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
 )
 
@@ -546,4 +551,206 @@ func TestCopyGGUFFileSelectorNoMatch(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, IsPermanent(err))
 	assert.Contains(t, err.Error(), "matched no files")
+}
+
+// buildTestGGUF constructs a minimal valid GGUF v3 binary with the given tensors.
+// Each tensor is F32 with shape [tensorElements]. Returns the full file bytes.
+func buildTestGGUF(t *testing.T, tensorNames []string, tensorElements uint64) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	le := binary.LittleEndian
+
+	// Header.
+	binary.Write(&buf, le, gguf.Magic)
+	binary.Write(&buf, le, uint32(3))                // version
+	binary.Write(&buf, le, uint64(len(tensorNames))) // tensor count
+	binary.Write(&buf, le, uint64(1))                // metadata KV count
+
+	// One metadata KV: general.architecture = "test"
+	writeTestString(&buf, le, "general.architecture")
+	binary.Write(&buf, le, gguf.MetadataValueTypeSTRING)
+	writeTestString(&buf, le, "test")
+
+	// Tensor infos.
+	var offset uint64
+	for _, name := range tensorNames {
+		writeTestString(&buf, le, name)
+		binary.Write(&buf, le, uint32(1))                // nDimensions
+		binary.Write(&buf, le, tensorElements)           // dimension[0]
+		binary.Write(&buf, le, uint32(gguf.GGMLTypeF32)) // type
+		binary.Write(&buf, le, offset)                   // offset
+		offset += tensorElements * 4                     // F32 = 4 bytes per element
+	}
+
+	// Pad to 32-byte alignment.
+	for buf.Len()%32 != 0 {
+		buf.WriteByte(0)
+	}
+
+	// Tensor data (just zeros).
+	totalDataSize := uint64(len(tensorNames)) * tensorElements * 4
+	buf.Write(make([]byte, totalDataSize))
+
+	return buf.Bytes()
+}
+
+func writeTestString(buf *bytes.Buffer, le binary.ByteOrder, s string) {
+	binary.Write(buf, le, uint64(len(s)))
+	buf.WriteString(s)
+}
+
+func TestCopyGGUFSplit(t *testing.T) {
+	// Build a GGUF with 4 tensors of 2048 F32 elements each (8KB per tensor, 32KB total).
+	ggufData := buildTestGGUF(t, []string{"t0", "t1", "t2", "t3"}, 2048)
+	ggufSize := len(ggufData)
+
+	// Mock HF server with Range support.
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Org/BigModel-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "BigModel.gguf", Size: int64(ggufSize)},
+			})
+		case r.URL.Path == "/api/models/Org/BigModel-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/BigModel-GGUF"})
+		case r.URL.Path == "/Org/BigModel-GGUF/resolve/main/BigModel.gguf":
+			rangeHdr := r.Header.Get("Range")
+			if rangeHdr != "" {
+				// Parse "bytes=start-end".
+				parts := strings.SplitN(strings.TrimPrefix(rangeHdr, "bytes="), "-", 2)
+				start, _ := strconv.ParseInt(parts[0], 10, 64)
+				end, _ := strconv.ParseInt(parts[1], 10, 64)
+				if end >= int64(ggufSize) {
+					end = int64(ggufSize) - 1
+				}
+				data := ggufData[start : end+1]
+				w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+				w.WriteHeader(http.StatusPartialContent)
+				w.Write(data)
+			} else {
+				w.Header().Set("Content-Length", strconv.Itoa(ggufSize))
+				w.Write(ggufData)
+			}
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	regHost := regSrv.Listener.Addr().String()
+
+	var splitCalled bool
+	var splitShardCount int
+	var reportedWeights []string
+	var mu sync.Mutex
+
+	result, err := Copy(context.Background(), Options{
+		Repo:         "Org/BigModel-GGUF",
+		Registry:     regHost + "/models",
+		Revision:     "main",
+		MaxShardSize: 16 * 1024, // 16KB — should split 32KB of tensor data into 2 shards
+		HFClient:     client,
+		RemoteOpts:   []remote.Option{},
+		OnGGUFSplit: func(shards int, file string) {
+			splitCalled = true
+			splitShardCount = shards
+		},
+		OnUploadWeight: func(index, total int, filename string) {
+			mu.Lock()
+			reportedWeights = append(reportedWeights, filename)
+			mu.Unlock()
+		},
+	})
+	require.NoError(t, err)
+
+	assert.True(t, splitCalled, "OnGGUFSplit should have been called")
+	assert.Equal(t, 2, splitShardCount, "should split into 2 shards")
+	assert.Contains(t, result.Digest, "sha256:")
+	assert.False(t, result.Cached)
+
+	// Verify shard filenames follow the naming convention.
+	assert.Len(t, reportedWeights, 2)
+	assert.Contains(t, reportedWeights, "BigModel-00001-of-00002.gguf")
+	assert.Contains(t, reportedWeights, "BigModel-00002-of-00002.gguf")
+
+	// Verify the pushed index has both platforms with correct layer count.
+	ref, err := name.ParseReference(result.Ref)
+	require.NoError(t, err)
+	idx, err := remote.Index(ref)
+	require.NoError(t, err)
+	mf, err := idx.IndexManifest()
+	require.NoError(t, err)
+	assert.Len(t, mf.Manifests, 2, "should have 2 platforms")
+
+	for _, d := range mf.Manifests {
+		img, err := idx.Image(d.Digest)
+		require.NoError(t, err)
+		layers, err := img.Layers()
+		require.NoError(t, err)
+		assert.Len(t, layers, 2, "expected 2 layers (2 shard layers, no config)")
+	}
+}
+
+func TestCopyGGUFNoSplitWhenSmall(t *testing.T) {
+	// GGUF smaller than MaxShardSize should not split.
+	hfSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.URL.Path == "/api/models/Org/SmallModel-GGUF/tree/main":
+			json.NewEncoder(w).Encode([]hf.TreeEntry{
+				{Type: "file", Path: "SmallModel.gguf", Size: 512},
+			})
+		case r.URL.Path == "/api/models/Org/SmallModel-GGUF":
+			json.NewEncoder(w).Encode(hf.ModelInfo{ID: "Org/SmallModel-GGUF"})
+		case r.URL.Path == "/Org/SmallModel-GGUF/resolve/main/SmallModel.gguf":
+			w.Header().Set("Content-Length", "512")
+			w.Write(make([]byte, 512))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer hfSrv.Close()
+
+	reg := registry.New()
+	regSrv := httptest.NewServer(reg)
+	defer regSrv.Close()
+
+	client := hf.NewClient(hf.WithBaseURL(hfSrv.URL))
+	regHost := regSrv.Listener.Addr().String()
+
+	var splitCalled bool
+	result, err := Copy(context.Background(), Options{
+		Repo:         "Org/SmallModel-GGUF",
+		Registry:     regHost + "/models",
+		Revision:     "main",
+		MaxShardSize: 4 << 30, // 4GB — much larger than the model
+		HFClient:     client,
+		RemoteOpts:   []remote.Option{},
+		OnGGUFSplit: func(shards int, file string) {
+			splitCalled = true
+		},
+	})
+	require.NoError(t, err)
+
+	assert.False(t, splitCalled, "OnGGUFSplit should NOT be called for small model")
+	assert.Contains(t, result.Digest, "sha256:")
+
+	// Should have 1 layer (single weight, no config).
+	ref, err := name.ParseReference(result.Ref)
+	require.NoError(t, err)
+	idx, err := remote.Index(ref)
+	require.NoError(t, err)
+	mf, err := idx.IndexManifest()
+	require.NoError(t, err)
+	for _, d := range mf.Manifests {
+		img, err := idx.Image(d.Digest)
+		require.NoError(t, err)
+		layers, err := img.Layers()
+		require.NoError(t, err)
+		assert.Len(t, layers, 1, "expected 1 layer for small model")
+	}
 }
