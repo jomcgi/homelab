@@ -115,31 +115,30 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		}
 	}
 
-	// Suppress verbose callbacks in JSON mode for clean machine output.
-	if outputFormat != "json" {
-		opts.OnResolve = func(repo, revision string) {
-			fmt.Fprintf(os.Stderr, "Resolving %s@%s...\n", repo, revision)
-		}
-		opts.OnClassified = func(configs, weights int, format copy.ModelFormat) {
-			fmt.Fprintf(os.Stderr, "Found %d files (%d weights, %d configs) [%s]\n",
-				configs+weights, weights, configs, format)
-		}
-		opts.OnTarget = func(ref string) {
-			fmt.Fprintf(os.Stderr, "Target: %s\n", ref)
-		}
-		opts.OnCacheHit = func(digest string) {
-			fmt.Fprintf(os.Stderr, "Checking registry... found (cached)\n")
-		}
-		opts.OnUploadConfig = func(count int) {
-			fmt.Fprintf(os.Stderr, "Checking registry... not found\n")
-			fmt.Fprintf(os.Stderr, "Uploading config layer (%d files)\n", count)
-		}
-		opts.OnUploadWeight = func(index, total int, filename string) {
-			fmt.Fprintf(os.Stderr, "Streaming weight %d/%d: %s\n", index, total, filename)
-		}
-		opts.OnGGUFSplit = func(shards int, file string) {
-			fmt.Fprintf(os.Stderr, "Splitting %s into %d shards\n", file, shards)
-		}
+	// Info callbacks always log to stderr (visible in container logs even
+	// when -o json directs structured output to the termination log).
+	opts.OnResolve = func(repo, revision string) {
+		fmt.Fprintf(os.Stderr, "Resolving %s@%s...\n", repo, revision)
+	}
+	opts.OnClassified = func(configs, weights int, format copy.ModelFormat) {
+		fmt.Fprintf(os.Stderr, "Found %d files (%d weights, %d configs) [%s]\n",
+			configs+weights, weights, configs, format)
+	}
+	opts.OnTarget = func(ref string) {
+		fmt.Fprintf(os.Stderr, "Target: %s\n", ref)
+	}
+	opts.OnCacheHit = func(digest string) {
+		fmt.Fprintf(os.Stderr, "Checking registry... found (cached)\n")
+	}
+	opts.OnUploadConfig = func(count int) {
+		fmt.Fprintf(os.Stderr, "Checking registry... not found\n")
+		fmt.Fprintf(os.Stderr, "Uploading config layer (%d files)\n", count)
+	}
+	opts.OnUploadWeight = func(index, total int, filename string) {
+		fmt.Fprintf(os.Stderr, "Streaming weight %d/%d: %s\n", index, total, filename)
+	}
+	opts.OnGGUFSplit = func(shards int, file string) {
+		fmt.Fprintf(os.Stderr, "Splitting %s into %d shards\n", file, shards)
 	}
 
 	result, err := copy.Copy(cmd.Context(), opts)
