@@ -17,6 +17,7 @@ type LFSInfo struct {
 // ModelInfo holds metadata from the /api/models/{repo} endpoint.
 type ModelInfo struct {
 	ID         string      `json:"id"`
+	Author     string      `json:"author"`
 	BaseModels *BaseModels `json:"baseModels,omitempty"`
 }
 

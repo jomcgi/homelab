@@ -5,7 +5,10 @@ package ociref
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
+	"math/big"
+	"path"
 	"strings"
 
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
@@ -38,6 +41,73 @@ func DeriveVariantTag(repo string) string {
 	return strings.ToLower(strings.ReplaceAll(repo, "/", "-"))
 }
 
+// DeriveCompactVariantTag creates a compact OCI tag from structured model info.
+// It strips the base model name prefix from the file to avoid redundancy with the
+// repo path, producing tags like "bartowski-gguf-q4-k-m" instead of
+// "llama-3.2-1b-instruct-q4-k-m".
+func DeriveCompactVariantTag(author, format, file, baseModelName string) string {
+	// Case-insensitive prefix strip: remove baseModelName from file.
+	remainder := file
+	lower := strings.ToLower(file)
+	prefix := strings.ToLower(baseModelName)
+	if strings.HasPrefix(lower, prefix) {
+		remainder = file[len(prefix):]
+		// Trim leading separators after stripping prefix.
+		remainder = strings.TrimLeft(remainder, "-_")
+	}
+
+	// Strip file extension (.gguf, etc.).
+	if idx := strings.LastIndex(remainder, "."); idx >= 0 {
+		remainder = remainder[:idx]
+	}
+
+	// Build tag: author-format-remainder, normalize.
+	tag := strings.ToLower(author + "-" + format + "-" + remainder)
+	tag = strings.ReplaceAll(tag, "_", "-")
+
+	// OCI tag limit is 128 chars.
+	if len(tag) > 128 {
+		return base36Hash(author + ":" + file)
+	}
+	return tag
+}
+
+// DeriveFileTag creates a compact OCI tag for a file using ModelInfo metadata.
+// Falls back gracefully when author or base model info is unavailable.
+func DeriveFileTag(info *hf.ModelInfo, format, file string) string {
+	// Extract author: prefer info.Author, fallback to splitting info.ID.
+	author := ""
+	if info != nil {
+		author = info.Author
+		if author == "" && strings.Contains(info.ID, "/") {
+			parts := strings.SplitN(info.ID, "/", 2)
+			author = parts[0]
+		}
+	}
+
+	if author == "" {
+		return DeriveVariantTag(file)
+	}
+
+	// Extract base model name (part after /).
+	baseModelName := ""
+	if info.BaseModels != nil && len(info.BaseModels.Models) > 0 {
+		baseModelName = path.Base(info.BaseModels.Models[0].ID)
+	}
+
+	return DeriveCompactVariantTag(author, format, file, baseModelName)
+}
+
+// base36Hash returns a deterministic, DNS-safe base36 encoding of the SHA-256
+// hash of s. The result is ~50 chars, always valid as an OCI tag or DNS label.
+// NOTE: duplicated in operators/oci-model-cache/internal/naming/naming.go —
+// kept separate to avoid a cross-module dependency between tool and operator.
+func base36Hash(s string) string {
+	h := sha256.Sum256([]byte(s))
+	n := new(big.Int).SetBytes(h[:])
+	return strings.ToLower(n.Text(36))
+}
+
 // ResolveRef computes the full OCI reference for a HuggingFace model by calling
 // ModelInfo to determine base model relationships. On failure, falls back to
 // simple naming (repo path + rev tag). When file is non-empty (GGUF selector),
@@ -49,7 +119,10 @@ func ResolveRef(ctx context.Context, client *hf.Client, repo, registry, file str
 		// Derivative model: group under base model's repo path for layer dedup.
 		repoPath = DeriveRepoName(info.BaseModels.Models[0].ID)
 		if file != "" {
-			ociTag = DeriveVariantTag(file)
+			// File selectors are currently GGUF-only. The full resolver in
+			// copy/resolve.go uses string(format) from Classify(); this lightweight
+			// resolver hardcodes "gguf" since it skips Tree/Classify.
+			ociTag = DeriveFileTag(info, "gguf", file)
 		} else {
 			ociTag = DeriveVariantTag(repo)
 		}
@@ -57,7 +130,7 @@ func ResolveRef(ctx context.Context, client *hf.Client, repo, registry, file str
 		// Base model or ModelInfo unavailable: use repo directly.
 		repoPath = DeriveRepoName(repo)
 		if file != "" {
-			ociTag = DeriveVariantTag(file)
+			ociTag = DeriveFileTag(info, "gguf", file) // see comment above re: hardcoded "gguf"
 		} else {
 			ociTag = DeriveTag("", "main")
 		}
