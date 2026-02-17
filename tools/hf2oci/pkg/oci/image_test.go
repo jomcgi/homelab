@@ -105,27 +105,21 @@ func TestBuildIndex(t *testing.T) {
 	mf, err := pulledIdx.IndexManifest()
 	require.NoError(t, err)
 
-	// Verify dual-platform index.
-	assert.Len(t, mf.Manifests, 2)
-	platforms := make([]string, len(mf.Manifests))
-	for i, d := range mf.Manifests {
-		platforms[i] = d.Platform.OS + "/" + d.Platform.Architecture
-	}
-	assert.Contains(t, platforms, "linux/amd64")
-	assert.Contains(t, platforms, "linux/arm64")
+	// Single-manifest index (model weights are architecture-independent).
+	require.Len(t, mf.Manifests, 1)
+	assert.Equal(t, "linux", mf.Manifests[0].Platform.OS)
+	assert.Equal(t, "amd64", mf.Manifests[0].Platform.Architecture)
 
 	// Verify annotations.
 	assert.Equal(t, "TestOrg/TestModel", mf.Annotations["org.huggingface.repo"])
 	assert.Equal(t, "abc123", mf.Annotations["org.huggingface.revision"])
 
-	// Verify each platform image has 2 layers (config + weight).
-	for _, d := range mf.Manifests {
-		img, err := pulledIdx.Image(d.Digest)
-		require.NoError(t, err)
-		layers, err := img.Layers()
-		require.NoError(t, err)
-		assert.Len(t, layers, 2, "expected 2 layers for %s", d.Platform)
-	}
+	// Verify image has 2 layers (config + weight).
+	img, err := pulledIdx.Image(mf.Manifests[0].Digest)
+	require.NoError(t, err)
+	layers, err := img.Layers()
+	require.NoError(t, err)
+	assert.Len(t, layers, 2)
 }
 
 func TestBuildIndexNoConfig(t *testing.T) {
@@ -151,14 +145,13 @@ func TestBuildIndexNoConfig(t *testing.T) {
 	mf, err := pulledIdx.IndexManifest()
 	require.NoError(t, err)
 
-	// Each platform image should have 1 layer (weight only).
-	for _, d := range mf.Manifests {
-		img, err := pulledIdx.Image(d.Digest)
-		require.NoError(t, err)
-		layers, err := img.Layers()
-		require.NoError(t, err)
-		assert.Len(t, layers, 1)
-	}
+	// Single image should have 1 layer (weight only).
+	require.Len(t, mf.Manifests, 1)
+	img, err := pulledIdx.Image(mf.Manifests[0].Digest)
+	require.NoError(t, err)
+	layers, err := img.Layers()
+	require.NoError(t, err)
+	assert.Len(t, layers, 1)
 }
 
 // extractTar reads a layer and returns a map of path -> content.

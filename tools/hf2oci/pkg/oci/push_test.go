@@ -119,5 +119,5 @@ func TestPushAndCheckExists(t *testing.T) {
 	require.NoError(t, err)
 	mf, err := pulledIdx.IndexManifest()
 	require.NoError(t, err)
-	assert.Len(t, mf.Manifests, 2, "should have 2 platform manifests")
+	assert.Len(t, mf.Manifests, 1, "single-manifest index for arch-independent model weights")
 }
