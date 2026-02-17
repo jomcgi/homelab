@@ -116,6 +116,22 @@ func TestDeriveCompactVariantTag(t *testing.T) {
 			baseModelName: "Hermes-3-8B",
 			want:          "thebloke-gguf-q5-k-s",
 		},
+		{
+			name:          "file selector without extension containing version dots",
+			author:        "bartowski",
+			format:        "gguf",
+			file:          "NousResearch_Hermes-4.3-36B-IQ4_XS",
+			baseModelName: "Hermes-4.3-36B",
+			want:          "bartowski-gguf-nousresearch-hermes-4.3-36b-iq4-xs",
+		},
+		{
+			name:          "file selector without extension no dots",
+			author:        "bartowski",
+			format:        "gguf",
+			file:          "Llama-3-8B-Q4_K_M",
+			baseModelName: "Llama-3-8B",
+			want:          "bartowski-gguf-q4-k-m",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
