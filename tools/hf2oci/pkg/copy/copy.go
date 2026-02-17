@@ -27,6 +27,7 @@ type Options struct {
 	ModelDir     string // In-image model path (default "/")
 	File         string // GGUF filename prefix selector (e.g. "ModelName-Q4_K_M")
 	MaxShardSize int64  // Max bytes per GGUF shard layer (0 = no splitting)
+	MaxParallel  int    // Max concurrent layer uploads/downloads (0 = default 100)
 	DryRun       bool
 
 	// Callbacks for progress reporting.
@@ -37,7 +38,11 @@ type Options struct {
 	OnUploadConfig func(count int)
 	OnUploadWeight func(index, total int, filename string)
 	OnGGUFSplit    func(shards int, originalFile string)
-	OnProgress     func(bytesRead, totalSize int64) // periodic transfer progress
+	OnProgress     func(bytesRead, totalSize int64) // periodic per-layer transfer progress (deprecated, use OnShardProgress)
+
+	// OnShardProgress reports per-shard transfer progress with shard context.
+	// index is 1-based, total is the number of shards.
+	OnShardProgress func(index, total int, bytesRead, shardSize, overallRead, overallSize int64)
 
 	// Injected dependencies (for testing).
 	HFClient   *hf.Client
@@ -156,9 +161,14 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 	// the in-flight reads from the response bodies.
 	var weightLayers []v1.Layer
 
+	parallel := opts.MaxParallel
+	if parallel <= 0 {
+		parallel = 100
+	}
+
 	if rm.format == FormatGGUF && len(rm.weights) == 1 && opts.MaxShardSize > 0 && rm.weights[0].Size > opts.MaxShardSize {
 		// GGUF split path: single large file → multiple shard layers.
-		weightLayers, err = buildSplitGGUFLayers(ctx, client, opts, rm, modelDir)
+		weightLayers, err = buildSplitGGUFLayers(ctx, client, opts, rm, modelDir, parallel)
 		if err != nil {
 			return nil, err
 		}
@@ -166,7 +176,7 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 		// Existing path: 1 layer per weight file.
 		weightLayers = make([]v1.Layer, len(rm.weights))
 		g, _ := errgroup.WithContext(ctx)
-		g.SetLimit(5) // max 5 concurrent HuggingFace connections
+		g.SetLimit(parallel)
 		var progressMu sync.Mutex
 		for i, w := range rm.weights {
 			i, w := i, w // capture for closure
@@ -239,7 +249,7 @@ func deriveVariantTag(repo string) string {
 // buildSplitGGUFLayers handles the GGUF split path: probes the file header
 // via a range request, plans tensor-boundary splits, and creates one streaming
 // OCI layer per shard.
-func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, rm *resolvedModel, modelDir string) ([]v1.Layer, error) {
+func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, rm *resolvedModel, modelDir string, parallel int) ([]v1.Layer, error) {
 	w := rm.weights[0]
 
 	// 1. Probe: range-request first 10MB to parse GGUF header.
@@ -304,8 +314,14 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 	basename := strings.TrimSuffix(w.Path, ".gguf")
 	layers := make([]v1.Layer, len(shards))
 	g, _ := errgroup.WithContext(ctx)
-	g.SetLimit(5)
+	g.SetLimit(parallel)
 	var progressMu sync.Mutex
+
+	agg := &aggregateProgress{
+		totalSize:  w.Size,
+		shardCount: len(shards),
+		onProgress: opts.OnShardProgress,
+	}
 
 	for i, shard := range shards {
 		i, shard := i, shard
@@ -335,10 +351,16 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 				bodySize = dlSize
 			}
 
-			// StreamingSplitGGUFLayer takes ownership of body and closes it.
-			// No early returns possible between DownloadRange and here, but
-			// guard defensively in case future code changes add logic.
-			layers[i] = oci.StreamingSplitGGUFLayer(headerBuf.Bytes(), wrapProgress(body, bodySize, opts.OnProgress), bodySize, modelDir, shardFilename)
+			// Wrap with shard-aware progress (aggregate + per-shard),
+			// falling back to the legacy per-layer callback.
+			var wrappedBody io.ReadCloser
+			if opts.OnShardProgress != nil {
+				wrappedBody = agg.wrapShardProgress(body, int64(i+1), bodySize)
+			} else {
+				wrappedBody = wrapProgress(body, bodySize, opts.OnProgress)
+			}
+
+			layers[i] = oci.StreamingSplitGGUFLayer(headerBuf.Bytes(), wrappedBody, bodySize, modelDir, shardFilename)
 			return nil
 		})
 	}
@@ -398,5 +420,61 @@ func (r *progressReader) Read(p []byte) (int, error) {
 }
 
 func (r *progressReader) Close() error {
+	return r.inner.Close()
+}
+
+// aggregateProgress tracks overall transfer progress across all concurrent shards.
+type aggregateProgress struct {
+	mu         sync.Mutex
+	totalSize  int64
+	totalRead  int64
+	shardCount int
+	onProgress func(index, total int, bytesRead, shardSize, overallRead, overallSize int64)
+}
+
+// wrapShardProgress wraps a body with per-shard + aggregate progress reporting.
+func (a *aggregateProgress) wrapShardProgress(body io.ReadCloser, shardIndex, shardSize int64) io.ReadCloser {
+	if a.onProgress == nil {
+		return body
+	}
+	return &shardProgressReader{
+		inner:      body,
+		shardIndex: int(shardIndex),
+		shardSize:  shardSize,
+		shardCount: a.shardCount,
+		agg:        a,
+		interval:   100 << 20, // 100MB
+	}
+}
+
+type shardProgressReader struct {
+	inner      io.ReadCloser
+	shardIndex int
+	shardSize  int64
+	shardCount int
+	shardRead  int64
+	lastReport int64
+	agg        *aggregateProgress
+	interval   int64
+}
+
+func (r *shardProgressReader) Read(p []byte) (int, error) {
+	n, err := r.inner.Read(p)
+	r.shardRead += int64(n)
+
+	r.agg.mu.Lock()
+	r.agg.totalRead += int64(n)
+	overallRead := r.agg.totalRead
+	overallSize := r.agg.totalSize
+	r.agg.mu.Unlock()
+
+	if r.shardRead-r.lastReport >= r.interval || err == io.EOF {
+		r.agg.onProgress(r.shardIndex, r.shardCount, r.shardRead, r.shardSize, overallRead, overallSize)
+		r.lastReport = r.shardRead
+	}
+	return n, err
+}
+
+func (r *shardProgressReader) Close() error {
 	return r.inner.Close()
 }

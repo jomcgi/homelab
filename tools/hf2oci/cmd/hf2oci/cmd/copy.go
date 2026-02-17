@@ -19,6 +19,7 @@ var (
 	copyModelDir     string
 	copyFile         string
 	copyMaxShardSize string
+	copyMaxParallel  int
 	copyDryRun       bool
 )
 
@@ -45,8 +46,8 @@ Examples:
   # Dry run to see what would be uploaded
   hf2oci copy NousResearch/Hermes-4.3-Llama-3-36B-AWQ -r ghcr.io/jomcgi/models --dry-run
 
-  # Split a large GGUF into 4GB shard layers
-  hf2oci copy bartowski/Hermes-4.3-36B-GGUF:Hermes-4.3-36B-IQ4_XS -r ghcr.io/jomcgi/models --max-shard-size 4G`,
+  # Split a large GGUF into 500MB shard layers (default)
+  hf2oci copy bartowski/Hermes-4.3-36B-GGUF:Hermes-4.3-36B-IQ4_XS -r ghcr.io/jomcgi/models`,
 	Args: cobra.ExactArgs(1),
 	RunE: runCopy,
 }
@@ -59,7 +60,8 @@ func init() {
 	copyCmd.Flags().StringVarP(&copyTag, "tag", "t", "", "Override OCI tag (default: rev-{revision[:12]})")
 	copyCmd.Flags().StringVar(&copyModelDir, "model-dir", "", "In-image model path (default: /)")
 	copyCmd.Flags().StringVar(&copyFile, "file", "", "GGUF filename prefix selector (e.g. ModelName-Q4_K_M)")
-	copyCmd.Flags().StringVar(&copyMaxShardSize, "max-shard-size", "4G", "Max size per GGUF shard layer (e.g. 4G, 500M). 0 disables splitting.")
+	copyCmd.Flags().StringVar(&copyMaxShardSize, "max-shard-size", "500M", "Max size per GGUF shard layer (e.g. 4G, 500M). 0 disables splitting.")
+	copyCmd.Flags().IntVar(&copyMaxParallel, "max-parallel", 100, "Max concurrent layer uploads/downloads")
 	copyCmd.Flags().BoolVar(&copyDryRun, "dry-run", false, "List files without downloading or pushing")
 
 	copyCmd.MarkFlagRequired("registry")
@@ -91,12 +93,19 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		ModelDir:     copyModelDir,
 		File:         copyFile,
 		MaxShardSize: maxShard,
+		MaxParallel:  copyMaxParallel,
 		DryRun:       copyDryRun,
 		HFClient:     client,
 	}
 
 	// Transfer progress is always logged to stderr (visible in container logs
 	// even when -o json directs structured output to the termination log).
+	opts.OnShardProgress = func(index, total int, bytesRead, shardSize, overallRead, overallSize int64) {
+		fmt.Fprintf(os.Stderr, "Shard %d/%d: %d/%d MB | Overall: %d/%d MB (%.0f%%)\n",
+			index, total, bytesRead>>20, shardSize>>20,
+			overallRead>>20, overallSize>>20, float64(overallRead)/float64(overallSize)*100)
+	}
+	// Legacy per-layer progress for non-split paths.
 	opts.OnProgress = func(bytesRead, totalSize int64) {
 		if totalSize > 0 {
 			fmt.Fprintf(os.Stderr, "Transfer: %d/%d MB (%.0f%%)\n",
