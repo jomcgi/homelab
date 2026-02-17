@@ -4,6 +4,7 @@ go_library(
     name = "hf",
     srcs = [
         "client.go",
+        "parallel.go",
         "types.go",
     ],
     importpath = "github.com/jomcgi/homelab/tools/hf2oci/pkg/hf",
@@ -12,7 +13,10 @@ go_library(
 
 go_test(
     name = "hf_test",
-    srcs = ["client_test.go"],
+    srcs = [
+        "client_test.go",
+        "parallel_test.go",
+    ],
     embed = [":hf"],
     deps = [
         "@com_github_stretchr_testify//assert",
