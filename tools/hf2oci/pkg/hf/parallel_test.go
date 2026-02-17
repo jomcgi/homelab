@@ -235,3 +235,106 @@ func TestParallelDownload_UnevenLastChunk(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, bytes.Equal(data, got), "should handle uneven last chunk")
 }
+
+func TestParallelDownloadRange_ReassemblesSubRange(t *testing.T) {
+	// 200KB file, request range [50KB, 150KB).
+	data := make([]byte, 200*1024)
+	rand.Read(data)
+
+	srv := rangeServer(t, data)
+	defer srv.Close()
+
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithParallelConfig(10*1024, 0, 4), // 10KB chunks, no min threshold
+	)
+
+	rangeStart := int64(50 * 1024)
+	rangeEnd := int64(150*1024 - 1) // inclusive
+	want := data[rangeStart : rangeEnd+1]
+
+	body, size, err := c.ParallelDownloadRange(context.Background(), "test/repo", "main", "model.bin", rangeStart, rangeEnd)
+	require.NoError(t, err)
+	defer body.Close()
+
+	assert.Equal(t, int64(len(want)), size)
+	got, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal(want, got), "sub-range data should match original byte-for-byte")
+}
+
+func TestParallelDownloadRange_SmallRangeFallback(t *testing.T) {
+	// Range smaller than minFileSize should fall back to single DownloadRange.
+	data := make([]byte, 100*1024)
+	rand.Read(data)
+
+	var rangeRequests atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/resolve/") {
+			http.NotFound(w, r)
+			return
+		}
+		rangeHdr := r.Header.Get("Range")
+		if rangeHdr != "" {
+			rangeRequests.Add(1)
+		}
+		var start, end int64
+		fmt.Sscanf(rangeHdr, "bytes=%d-%d", &start, &end)
+		if end >= int64(len(data)) {
+			end = int64(len(data)) - 1
+		}
+		partial := data[start : end+1]
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(data)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(partial)))
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write(partial)
+	}))
+	defer srv.Close()
+
+	// minFileSize=20KB, request a 10KB range → single DownloadRange call.
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithParallelConfig(5*1024, 20*1024, 4),
+	)
+
+	rangeStart := int64(10 * 1024)
+	rangeEnd := int64(20*1024 - 1)
+	want := data[rangeStart : rangeEnd+1]
+
+	body, size, err := c.ParallelDownloadRange(context.Background(), "test/repo", "main", "model.bin", rangeStart, rangeEnd)
+	require.NoError(t, err)
+	defer body.Close()
+
+	assert.Equal(t, int64(len(want)), size)
+	got, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal(want, got))
+	assert.Equal(t, int32(1), rangeRequests.Load(), "small range should use single DownloadRange")
+}
+
+func TestParallelDownloadRange_UnevenLastChunk(t *testing.T) {
+	// 100KB file, range [5KB, 30KB] with 10KB chunks → 10KB, 10KB, 6KB+1.
+	data := make([]byte, 100*1024)
+	rand.Read(data)
+
+	srv := rangeServer(t, data)
+	defer srv.Close()
+
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithParallelConfig(10*1024, 0, 4),
+	)
+
+	rangeStart := int64(5 * 1024)
+	rangeEnd := int64(30*1024 + 500) // not aligned to chunk boundary
+	want := data[rangeStart : rangeEnd+1]
+
+	body, size, err := c.ParallelDownloadRange(context.Background(), "test/repo", "main", "model.bin", rangeStart, rangeEnd)
+	require.NoError(t, err)
+	defer body.Close()
+
+	assert.Equal(t, int64(len(want)), size)
+	got, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal(want, got), "uneven last chunk in sub-range should be handled correctly")
+}
