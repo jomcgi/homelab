@@ -83,6 +83,11 @@ spec:
               mountPath: {{ .Values.modelVolume.mountPath }}
               readOnly: true
             {{- end }}
+            {{- if .Values.server.chatTemplate }}
+            - name: chat-template
+              mountPath: /etc/llama-cpp
+              readOnly: true
+            {{- end }}
             - name: dshm
               mountPath: /dev/shm
       volumes:
@@ -91,6 +96,11 @@ spec:
           image:
             reference: {{ .Values.modelVolume.reference }}
             pullPolicy: IfNotPresent
+        {{- end }}
+        {{- if .Values.server.chatTemplate }}
+        - name: chat-template
+          configMap:
+            name: {{ include "llama-cpp.fullname" . }}-chat-template
         {{- end }}
         - name: dshm
           emptyDir:
