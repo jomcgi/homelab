@@ -56,9 +56,14 @@ func DeriveCompactVariantTag(author, format, file, baseModelName string) string 
 		remainder = strings.TrimLeft(remainder, "-_")
 	}
 
-	// Strip file extension (.gguf, etc.).
-	if idx := strings.LastIndex(remainder, "."); idx >= 0 {
-		remainder = remainder[:idx]
+	// Strip known model file extensions. Only strip recognized extensions
+	// to avoid eating version numbers that contain dots (e.g. "4.3" in
+	// "NousResearch_Hermes-4.3-36B-IQ4_XS").
+	for _, ext := range []string{".gguf", ".safetensors", ".bin", ".pt"} {
+		if strings.HasSuffix(strings.ToLower(remainder), ext) {
+			remainder = remainder[:len(remainder)-len(ext)]
+			break
+		}
 	}
 
 	// Build tag: author-format-remainder, normalize.
