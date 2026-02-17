@@ -90,7 +90,7 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 		// Derivative model: group under base model's repo path for layer dedup.
 		repoPath = ociref.DeriveRepoName(info.BaseModels.Models[0].ID)
 		if file != "" {
-			ociTag = ociref.DeriveVariantTag(file)
+			ociTag = ociref.DeriveFileTag(info, string(format), file)
 		} else {
 			ociTag = ociref.DeriveVariantTag(repo)
 		}
@@ -98,7 +98,7 @@ func resolveModel(ctx context.Context, client *hf.Client, repo, registry, revisi
 		// Base model or ModelInfo unavailable: use repo directly.
 		repoPath = ociref.DeriveRepoName(repo)
 		if file != "" {
-			ociTag = ociref.DeriveVariantTag(file)
+			ociTag = ociref.DeriveFileTag(info, string(format), file)
 		} else {
 			ociTag = ociref.DeriveTag(tag, revision)
 		}

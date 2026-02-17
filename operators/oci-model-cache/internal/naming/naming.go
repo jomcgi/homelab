@@ -3,6 +3,7 @@ package naming
 import (
 	"crypto/sha256"
 	"fmt"
+	"math/big"
 	"strings"
 )
 
@@ -41,6 +42,36 @@ func ModelCacheName(repo, file string) string {
 	suffix := fmt.Sprintf("%x", hash[:4]) // 8 hex chars
 	maxPrefix := 63 - len(suffix) - 1     // -1 for the separator
 	return sanitizeDNS(full[:maxPrefix]) + "-" + suffix
+}
+
+// JobName derives a DNS-safe Kubernetes Job name from a resolved OCI reference.
+// It extracts the tag (after the last ':') and sanitizes it. If the result
+// exceeds 63 chars or is empty, it falls back to a deterministic base36 hash
+// of the full ref (no truncation, always DNS-safe).
+//
+// Precondition: resolvedRef must be non-empty. The state machine validates
+// ResolvedRef != "" before reaching the Resolving state that calls buildCopyJob.
+func JobName(resolvedRef string) string {
+	tag := ""
+	if idx := strings.LastIndex(resolvedRef, ":"); idx >= 0 {
+		tag = resolvedRef[idx+1:]
+	}
+
+	name := sanitizeDNS(strings.ToLower(tag))
+	if name == "" || len(name) > 63 {
+		return base36Hash(resolvedRef)
+	}
+	return name
+}
+
+// base36Hash returns a deterministic, DNS-safe base36 encoding of the SHA-256
+// hash. The result is ~50 chars, always valid as a DNS label.
+// NOTE: duplicated in tools/hf2oci/pkg/ociref/ociref.go — kept separate to
+// avoid a cross-module dependency between operator and tool.
+func base36Hash(s string) string {
+	h := sha256.Sum256([]byte(s))
+	n := new(big.Int).SetBytes(h[:])
+	return strings.ToLower(n.Text(36))
 }
 
 // sanitizeDNS ensures a string is a valid DNS subdomain label:
