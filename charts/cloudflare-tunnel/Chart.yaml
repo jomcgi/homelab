@@ -13,3 +13,7 @@ keywords:
 home: https://github.com/cloudflare/cloudflared
 sources:
   - https://github.com/cloudflare/cloudflared
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

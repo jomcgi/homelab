@@ -21,21 +21,6 @@ sources:
 # No Helm dependency needed - the operator expects Gateway API to be pre-installed
 
 annotations:
-  # Prerequisites
-  "artifacthub.io/prerelease": "true"
-  "artifacthub.io/links": |
-    - name: Gateway API Documentation
-      url: https://gateway-api.sigs.k8s.io/
-  "artifacthub.io/recommendations": |
-    - url: https://gateway-api.sigs.k8s.io/guides/getting-started/
-  "artifacthub.io/crds": |
-    - kind: CloudflareTunnel
-      version: v1
-      name: cloudflaretunnels.tunnels.cloudflare.io
-      displayName: Cloudflare Tunnel
-      description: Manages Cloudflare tunnels (deprecated - use Gateway API)
-    - kind: CloudflareAccessPolicy
-      version: v1
-      name: cloudflareaccesspolicies.tunnels.cloudflare.io
-      displayName: Cloudflare Access Policy
-      description: Manages Zero Trust access policies for Gateway API resources
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

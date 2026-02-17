@@ -9,3 +9,7 @@ dependencies:
   - name: nats
     version: "2.12.3"
     repository: https://nats-io.github.io/k8s/helm/charts/
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"
