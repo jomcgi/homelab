@@ -23,8 +23,6 @@ server:
   modelPath: ""
   ## Number of layers to offload to GPU (-1 = all)
   nGpuLayers: 99
-  ## Keep KV cache in system RAM instead of VRAM
-  noKvOffload: true
   ## Context window size (tokens)
   ctxSize: 32768
   ## Flash attention: "on", "off", or "auto" (empty string to disable)

@@ -12,9 +12,8 @@ modelVolume:
   mountPath: "/model-image"
 
 server:
-  nGpuLayers: 99
-  noKvOffload: true
-  ctxSize: 32768
+  nGpuLayers: 999
+  ctxSize: 40960
   flashAttn: "on"
   cacheTypeK: "q8_0"
   cacheTypeV: "q4_0"
