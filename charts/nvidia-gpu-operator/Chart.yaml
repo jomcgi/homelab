@@ -9,3 +9,7 @@ dependencies:
   - name: gpu-operator
     version: v25.3.0
     repository: https://helm.ngc.nvidia.com/nvidia
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

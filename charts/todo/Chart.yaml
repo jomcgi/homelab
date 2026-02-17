@@ -4,3 +4,7 @@ description: Minimalist git-backed todo tracker with weekly focus and daily top 
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/argocd/render-all-manifests.sh
+# rules_helm/render-all-manifests.sh
 # Render manifests for all applications with render_manifests target
 
 set -euo pipefail

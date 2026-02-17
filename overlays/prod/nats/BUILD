@@ -1,30 +1,9 @@
-load("//tools/argocd:defs.bzl", "helm_template_test")
+load("//rules_helm:defs.bzl", "argocd_app")
 
-genrule(
-    name = "render_manifests",
-    srcs = [
-        "application.yaml",
-        "values.yaml",
-        "//charts/nats:Chart.yaml",
-        "//charts/nats:values.yaml",
-        "//charts/nats:all_files",
-    ],
-    outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template nats charts/nats --namespace nats --values charts/nats/values.yaml --values overlays/prod/nats/values.yaml > $@",
-    local = True,
-    message = "Rendering Helm manifests for prod-nats",
-    tags = ["manual"],
-    tools = [
-        "//tools/argocd:render-manifests.sh",
-        "@multitool//tools/helm",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-helm_template_test(
-    name = "template_test",
+argocd_app(
+    name = "prod-nats",
     chart = "charts/nats",
-    chart_files = "//charts/nats:all_files",
+    chart_files = "//charts/nats:chart",
     namespace = "nats",
     release_name = "nats",
     tags = [

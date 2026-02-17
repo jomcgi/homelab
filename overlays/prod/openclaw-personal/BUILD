@@ -1,30 +1,9 @@
-load("//tools/argocd:defs.bzl", "helm_template_test")
+load("//rules_helm:defs.bzl", "argocd_app")
 
-genrule(
-    name = "render_manifests",
-    srcs = [
-        "application.yaml",
-        "values.yaml",
-        "//charts/openclaw:Chart.yaml",
-        "//charts/openclaw:all_files",
-        "//charts/openclaw:values.yaml",
-    ],
-    outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template openclaw-personal charts/openclaw --namespace openclaw --values charts/openclaw/values.yaml --values overlays/prod/openclaw-personal/values.yaml > $@",
-    local = True,
-    message = "Rendering Helm manifests for prod-openclaw-personal",
-    tags = ["manual"],
-    tools = [
-        "//tools/argocd:render-manifests.sh",
-        "@multitool//tools/helm",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-helm_template_test(
-    name = "template_test",
+argocd_app(
+    name = "prod-openclaw-personal",
     chart = "charts/openclaw",
-    chart_files = "//charts/openclaw:all_files",
+    chart_files = "//charts/openclaw:chart",
     namespace = "openclaw",
     release_name = "openclaw-personal",
     tags = [

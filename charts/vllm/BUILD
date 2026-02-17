@@ -1,6 +1,7 @@
-load("//tools/argocd:defs.bzl", "chart_files")
+load("//rules_helm:defs.bzl", "helm_chart")
 
-chart_files(
-    name = "all_files",
+helm_chart(
+    name = "chart",
+    lint = False,
     visibility = ["//overlays:__subpackages__"],
 )

@@ -1,4 +1,4 @@
-package argocd
+package gazelle
 
 import (
 	"os"
@@ -161,6 +161,64 @@ func TestParseApplication_FileNotFound(t *testing.T) {
 	_, err := parseApplication("/nonexistent/path/application.yaml")
 	if err == nil {
 		t.Error("expected error for nonexistent file, got nil")
+	}
+}
+
+func TestChartHasDependencies(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+		want    bool
+	}{
+		{
+			name: "chart with dependencies",
+			content: `apiVersion: v2
+name: my-chart
+dependencies:
+  - name: subchart
+    version: 1.0.0
+    repository: https://example.com
+`,
+			want: true,
+		},
+		{
+			name: "chart without dependencies",
+			content: `apiVersion: v2
+name: simple-chart
+version: 0.1.0
+`,
+			want: false,
+		},
+		{
+			name: "chart with empty dependencies",
+			content: `apiVersion: v2
+name: empty-deps
+dependencies: []
+`,
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			chartFile := filepath.Join(tmpDir, "Chart.yaml")
+			if err := os.WriteFile(chartFile, []byte(tc.content), 0o644); err != nil {
+				t.Fatalf("Failed to write Chart.yaml: %v", err)
+			}
+
+			got := chartHasDependencies(chartFile)
+			if got != tc.want {
+				t.Errorf("chartHasDependencies() = %v, want %v", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestChartHasDependencies_FileNotFound(t *testing.T) {
+	got := chartHasDependencies("/nonexistent/Chart.yaml")
+	if got != false {
+		t.Error("expected false for nonexistent file")
 	}
 }
 
@@ -361,307 +419,6 @@ func TestGenerateLiveDiffRule(t *testing.T) {
 	data := rule.Attr("data")
 	if data == nil {
 		t.Error("data attribute is nil")
-	}
-}
-
-func TestGenerateManifestRule(t *testing.T) {
-	app := &ArgoCDApplication{
-		Metadata: struct {
-			Name      string `yaml:"name"`
-			Namespace string `yaml:"namespace"`
-		}{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
-		Spec: struct {
-			Source struct {
-				RepoURL        string `yaml:"repoURL"`
-				Path           string `yaml:"path"`
-				Chart          string `yaml:"chart"`
-				TargetRevision string `yaml:"targetRevision"`
-				Helm           struct {
-					ReleaseName string   `yaml:"releaseName"`
-					ValueFiles  []string `yaml:"valueFiles"`
-				} `yaml:"helm"`
-			} `yaml:"source"`
-			Destination struct {
-				Server    string `yaml:"server"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"destination"`
-		}{},
-	}
-	app.Spec.Source.Path = "charts/test"
-	app.Spec.Source.Helm.ReleaseName = "test-release"
-	app.Spec.Source.Helm.ValueFiles = []string{"../overlays/prod/test/values.yaml"}
-	app.Spec.Destination.Namespace = "test-ns"
-
-	tmpDir := t.TempDir()
-
-	rule := generateManifestRule(app, "overlays/prod/test", tmpDir)
-
-	if rule == nil {
-		t.Fatal("generateManifestRule returned nil")
-	}
-
-	if rule.Kind() != "genrule" {
-		t.Errorf("rule kind = %q, want %q", rule.Kind(), "genrule")
-	}
-
-	if rule.Name() != "render_manifests" {
-		t.Errorf("rule name = %q, want %q", rule.Name(), "render_manifests")
-	}
-
-	// Check outs attribute
-	outs := rule.Attr("outs")
-	if outs == nil {
-		t.Error("outs attribute is nil")
-	}
-
-	// Check visibility is public
-	vis := rule.Attr("visibility")
-	if vis == nil {
-		t.Error("visibility attribute is nil")
-	}
-
-	// Check local is true
-	local := rule.Attr("local")
-	if local == nil {
-		t.Error("local attribute is nil")
-	}
-
-	// Check tags contains manual
-	tags := rule.Attr("tags")
-	if tags == nil {
-		t.Error("tags attribute is nil")
-	}
-}
-
-func TestGenerateManifestRule_DefaultReleaseName(t *testing.T) {
-	app := &ArgoCDApplication{
-		Metadata: struct {
-			Name      string `yaml:"name"`
-			Namespace string `yaml:"namespace"`
-		}{
-			Name: "my-app-name",
-		},
-		Spec: struct {
-			Source struct {
-				RepoURL        string `yaml:"repoURL"`
-				Path           string `yaml:"path"`
-				Chart          string `yaml:"chart"`
-				TargetRevision string `yaml:"targetRevision"`
-				Helm           struct {
-					ReleaseName string   `yaml:"releaseName"`
-					ValueFiles  []string `yaml:"valueFiles"`
-				} `yaml:"helm"`
-			} `yaml:"source"`
-			Destination struct {
-				Server    string `yaml:"server"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"destination"`
-		}{},
-	}
-	app.Spec.Source.Path = "charts/test"
-	// ReleaseName is empty - should default to app name
-	app.Spec.Source.Helm.ValueFiles = []string{"values.yaml"}
-	app.Spec.Destination.Namespace = "test-ns"
-
-	tmpDir := t.TempDir()
-
-	rule := generateManifestRule(app, "overlays/prod/test", tmpDir)
-
-	if rule == nil {
-		t.Fatal("generateManifestRule returned nil")
-	}
-
-	// Check cmd contains the app name as release name
-	cmd := rule.AttrString("cmd")
-	if cmd == "" {
-		t.Error("cmd attribute is empty")
-	}
-
-	// The command should include "template my-app-name" since releaseName is empty
-	if !containsSubstring(cmd, "template my-app-name") {
-		t.Errorf("cmd should contain 'template my-app-name' (defaulted from app name), got: %s", cmd)
-	}
-}
-
-func containsSubstring(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsSubstringHelper(s, substr))
-}
-
-func containsSubstringHelper(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
-}
-
-func TestGenerateTemplateTestRule(t *testing.T) {
-	app := &ArgoCDApplication{
-		Metadata: struct {
-			Name      string `yaml:"name"`
-			Namespace string `yaml:"namespace"`
-		}{
-			Name:      "test-app",
-			Namespace: "argocd",
-		},
-		Spec: struct {
-			Source struct {
-				RepoURL        string `yaml:"repoURL"`
-				Path           string `yaml:"path"`
-				Chart          string `yaml:"chart"`
-				TargetRevision string `yaml:"targetRevision"`
-				Helm           struct {
-					ReleaseName string   `yaml:"releaseName"`
-					ValueFiles  []string `yaml:"valueFiles"`
-				} `yaml:"helm"`
-			} `yaml:"source"`
-			Destination struct {
-				Server    string `yaml:"server"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"destination"`
-		}{},
-	}
-	app.Spec.Source.Path = "charts/test"
-	app.Spec.Source.Helm.ReleaseName = "test-release"
-	app.Spec.Source.Helm.ValueFiles = []string{"../overlays/prod/test/values.yaml"}
-	app.Spec.Destination.Namespace = "test-ns"
-
-	tmpDir := t.TempDir()
-
-	rule := generateTemplateTestRule(app, "overlays/prod/test", tmpDir)
-
-	if rule == nil {
-		t.Fatal("generateTemplateTestRule returned nil")
-	}
-
-	if rule.Kind() != "helm_template_test" {
-		t.Errorf("rule kind = %q, want %q", rule.Kind(), "helm_template_test")
-	}
-
-	if rule.Name() != "template_test" {
-		t.Errorf("rule name = %q, want %q", rule.Name(), "template_test")
-	}
-
-	// Check chart attribute
-	chart := rule.AttrString("chart")
-	if chart != "charts/test" {
-		t.Errorf("chart = %q, want %q", chart, "charts/test")
-	}
-
-	// Check release_name attribute
-	releaseName := rule.AttrString("release_name")
-	if releaseName != "test-release" {
-		t.Errorf("release_name = %q, want %q", releaseName, "test-release")
-	}
-
-	// Check namespace attribute
-	namespace := rule.AttrString("namespace")
-	if namespace != "test-ns" {
-		t.Errorf("namespace = %q, want %q", namespace, "test-ns")
-	}
-
-	// Check chart_files attribute
-	chartFiles := rule.AttrString("chart_files")
-	if chartFiles != "//charts/test:all_files" {
-		t.Errorf("chart_files = %q, want %q", chartFiles, "//charts/test:all_files")
-	}
-
-	// Check values_files attribute exists
-	valuesFiles := rule.Attr("values_files")
-	if valuesFiles == nil {
-		t.Error("values_files attribute is nil")
-	}
-
-	// Check tags attribute
-	tags := rule.Attr("tags")
-	if tags == nil {
-		t.Error("tags attribute is nil")
-	}
-}
-
-func TestGenerateTemplateTestRule_DefaultReleaseName(t *testing.T) {
-	app := &ArgoCDApplication{
-		Metadata: struct {
-			Name      string `yaml:"name"`
-			Namespace string `yaml:"namespace"`
-		}{
-			Name: "my-app-name",
-		},
-		Spec: struct {
-			Source struct {
-				RepoURL        string `yaml:"repoURL"`
-				Path           string `yaml:"path"`
-				Chart          string `yaml:"chart"`
-				TargetRevision string `yaml:"targetRevision"`
-				Helm           struct {
-					ReleaseName string   `yaml:"releaseName"`
-					ValueFiles  []string `yaml:"valueFiles"`
-				} `yaml:"helm"`
-			} `yaml:"source"`
-			Destination struct {
-				Server    string `yaml:"server"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"destination"`
-		}{},
-	}
-	app.Spec.Source.Path = "charts/test"
-	// ReleaseName is empty - should default to app name
-	app.Spec.Destination.Namespace = "test-ns"
-
-	tmpDir := t.TempDir()
-
-	rule := generateTemplateTestRule(app, "overlays/prod/test", tmpDir)
-
-	if rule == nil {
-		t.Fatal("generateTemplateTestRule returned nil")
-	}
-
-	// Check release_name defaults to app name
-	releaseName := rule.AttrString("release_name")
-	if releaseName != "my-app-name" {
-		t.Errorf("release_name = %q, want %q (defaulted from app name)", releaseName, "my-app-name")
-	}
-}
-
-func TestGenerateTemplateTestRule_NoChartPath(t *testing.T) {
-	app := &ArgoCDApplication{
-		Metadata: struct {
-			Name      string `yaml:"name"`
-			Namespace string `yaml:"namespace"`
-		}{
-			Name: "test-app",
-		},
-		Spec: struct {
-			Source struct {
-				RepoURL        string `yaml:"repoURL"`
-				Path           string `yaml:"path"`
-				Chart          string `yaml:"chart"`
-				TargetRevision string `yaml:"targetRevision"`
-				Helm           struct {
-					ReleaseName string   `yaml:"releaseName"`
-					ValueFiles  []string `yaml:"valueFiles"`
-				} `yaml:"helm"`
-			} `yaml:"source"`
-			Destination struct {
-				Server    string `yaml:"server"`
-				Namespace string `yaml:"namespace"`
-			} `yaml:"destination"`
-		}{},
-	}
-	// No chart path set
-	app.Spec.Destination.Namespace = "test-ns"
-
-	tmpDir := t.TempDir()
-
-	rule := generateTemplateTestRule(app, "overlays/prod/test", tmpDir)
-
-	// Should return nil when no chart path
-	if rule != nil {
-		t.Error("expected nil rule when chart path is empty")
 	}
 }
 
