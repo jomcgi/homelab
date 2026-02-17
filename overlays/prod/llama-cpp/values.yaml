@@ -1,5 +1,8 @@
 fullnameOverride: "llama-cpp"
 
+image:
+  tag: "server-cuda@sha256:a8ad9d1fd95640cec092d2ac27cb16d71183114c776f2a342e65a1196195c873"
+
 imagePullSecret:
   enabled: true
 
