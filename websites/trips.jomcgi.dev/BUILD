@@ -9,7 +9,7 @@ load("@npm//websites/trips.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin =
 # Trips frontend website - Vite-based React app with Cloudflare Pages deployment
 load("//tools/js:tailwind_build.bzl", "tailwind_build")
 load("//tools/js:vite_build.bzl", "vite_build")
-load("//tools/wrangler:wrangler_pages.bzl", "wrangler_pages")
+load("//rules_wrangler:defs.bzl", "wrangler_pages")
 
 # Vite binary for building (required by vite_build macro)
 vite_bin.vite_binary(name = "vite")

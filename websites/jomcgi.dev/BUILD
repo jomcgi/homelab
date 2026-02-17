@@ -4,7 +4,7 @@ load("@npm//websites/jomcgi.dev:astro/package_json.bzl", astro_bin = "bin")
 load("@npm//websites/jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
 load("@npm//websites/jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//tools/js:vite_build.bzl", "vite_build")
-load("//tools/wrangler:wrangler_pages.bzl", "wrangler_pages")
+load("//rules_wrangler:defs.bzl", "wrangler_pages")
 
 # Astro binary for building (Astro uses Vite internally)
 astro_bin.astro_binary(name = "astro")
