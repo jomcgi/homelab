@@ -33,6 +33,13 @@ def _helm_package_impl(ctx):
         tools = [ctx.executable._helm],
         command = """\
 set -euo pipefail
+# Exclude Bazel build files from the chart package
+cat > "{chart_dir}/.helmignore" << 'HELMIGNORE'
+BUILD
+BUILD.bazel
+*.bzl
+.git/
+HELMIGNORE
 "{helm}" package "{chart_dir}" --destination "{out_dir}"
 # helm package outputs <name>-<version>.tgz, find and move it
 TGZ=$(ls "{out_dir}"/*.tgz)
