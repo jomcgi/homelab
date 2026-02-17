@@ -18,6 +18,9 @@ spec:
     server: https://kubernetes.default.svc
     namespace: llama-cpp
   syncPolicy:
+    managedNamespaceMetadata:
+      labels:
+        oci-model-cache.jomcgi.dev/enabled: "true"
     automated:
       prune: true
       selfHeal: true
