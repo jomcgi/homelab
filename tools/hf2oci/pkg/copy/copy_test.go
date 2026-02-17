@@ -83,7 +83,7 @@ func TestCopySafetensors(t *testing.T) {
 	require.NoError(t, err)
 	mf, err := idx.IndexManifest()
 	require.NoError(t, err)
-	assert.Len(t, mf.Manifests, 2, "should have 2 platforms")
+	assert.Len(t, mf.Manifests, 1, "single-manifest index for arch-independent model weights")
 	assert.Equal(t, "TestOrg/TestModel", mf.Annotations["org.huggingface.repo"])
 }
 
@@ -365,22 +365,20 @@ func TestCopyMultipleWeightShards(t *testing.T) {
 		assert.Contains(t, reportedWeights, expected)
 	}
 
-	// Verify pushed index has both platforms with correct layer count.
+	// Verify pushed index has correct layer count.
 	ref, err := name.ParseReference(result.Ref)
 	require.NoError(t, err)
 	idx, err := remote.Index(ref)
 	require.NoError(t, err)
 	mf, err := idx.IndexManifest()
 	require.NoError(t, err)
-	assert.Len(t, mf.Manifests, 2)
+	require.Len(t, mf.Manifests, 1)
 
-	for _, d := range mf.Manifests {
-		img, err := idx.Image(d.Digest)
-		require.NoError(t, err)
-		layers, err := img.Layers()
-		require.NoError(t, err)
-		assert.Len(t, layers, shardCount+1, "expected %d layers (1 config + %d weights)", shardCount+1, shardCount)
-	}
+	img, err := idx.Image(mf.Manifests[0].Digest)
+	require.NoError(t, err)
+	layers, err := img.Layers()
+	require.NoError(t, err)
+	assert.Len(t, layers, shardCount+1, "expected %d layers (1 config + %d weights)", shardCount+1, shardCount)
 }
 
 func TestCopyWithBaseModel(t *testing.T) {
@@ -679,22 +677,20 @@ func TestCopyGGUFSplit(t *testing.T) {
 	assert.Contains(t, reportedWeights, "BigModel-00001-of-00002.gguf")
 	assert.Contains(t, reportedWeights, "BigModel-00002-of-00002.gguf")
 
-	// Verify the pushed index has both platforms with correct layer count.
+	// Verify the pushed index has correct layer count.
 	ref, err := name.ParseReference(result.Ref)
 	require.NoError(t, err)
 	idx, err := remote.Index(ref)
 	require.NoError(t, err)
 	mf, err := idx.IndexManifest()
 	require.NoError(t, err)
-	assert.Len(t, mf.Manifests, 2, "should have 2 platforms")
+	require.Len(t, mf.Manifests, 1)
 
-	for _, d := range mf.Manifests {
-		img, err := idx.Image(d.Digest)
-		require.NoError(t, err)
-		layers, err := img.Layers()
-		require.NoError(t, err)
-		assert.Len(t, layers, 2, "expected 2 layers (2 shard layers, no config)")
-	}
+	img, err := idx.Image(mf.Manifests[0].Digest)
+	require.NoError(t, err)
+	layers, err := img.Layers()
+	require.NoError(t, err)
+	assert.Len(t, layers, 2, "expected 2 layers (2 shard layers, no config)")
 }
 
 func TestCopyGGUFNoSplitWhenSmall(t *testing.T) {
@@ -747,11 +743,10 @@ func TestCopyGGUFNoSplitWhenSmall(t *testing.T) {
 	require.NoError(t, err)
 	mf, err := idx.IndexManifest()
 	require.NoError(t, err)
-	for _, d := range mf.Manifests {
-		img, err := idx.Image(d.Digest)
-		require.NoError(t, err)
-		layers, err := img.Layers()
-		require.NoError(t, err)
-		assert.Len(t, layers, 1, "expected 1 layer for small model")
-	}
+	require.Len(t, mf.Manifests, 1)
+	img, err := idx.Image(mf.Manifests[0].Digest)
+	require.NoError(t, err)
+	layers, err := img.Layers()
+	require.NoError(t, err)
+	assert.Len(t, layers, 1, "expected 1 layer for small model")
 }

@@ -446,7 +446,7 @@ func (a *aggregateProgress) wrapShardProgress(body io.ReadCloser, shardIndex, sh
 		shardSize:  shardSize,
 		shardCount: a.shardCount,
 		agg:        a,
-		interval:   100 << 20, // 100MB
+		interval:   25 << 20, // 25MB — frequent enough for many concurrent shards sharing upload bandwidth
 	}
 }
 
