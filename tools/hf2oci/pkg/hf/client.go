@@ -20,6 +20,12 @@ type Client struct {
 	httpClient *http.Client
 	cacheTTL   time.Duration
 	cache      sync.Map // key → cacheEntry
+
+	// Parallel download tuning.
+	parallelConfigured  bool
+	parallelChunkSize   int64
+	parallelWorkers     int
+	parallelMinFileSize int64
 }
 
 type cacheEntry struct {
