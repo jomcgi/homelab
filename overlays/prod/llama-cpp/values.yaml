@@ -21,6 +21,8 @@ server:
   threads: 8
   jinja: true
   extraArgs:
+    - "--parallel"
+    - "1"
     - "--metrics"
     - "--alias"
     - "hermes-4-14b"
