@@ -18,3 +18,7 @@ dependencies:
   - name: vllm-stack
     version: "0.1.0"
     repository: "https://vllm-project.github.io/production-stack"
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

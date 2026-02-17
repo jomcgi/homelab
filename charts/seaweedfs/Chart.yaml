@@ -9,3 +9,7 @@ dependencies:
   - name: seaweedfs
     version: "4.0.0"
     repository: https://seaweedfs.github.io/seaweedfs/helm
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

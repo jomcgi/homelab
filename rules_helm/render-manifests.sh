@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/argocd/render-manifests.sh
+# rules_helm/render-manifests.sh
 # Render Helm manifests from ArgoCD Application spec
 
 set -euo pipefail

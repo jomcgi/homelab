@@ -21,3 +21,7 @@ sources:
   - https://github.com/linkerd/linkerd2/
 type: application
 version: 2025.11.1
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

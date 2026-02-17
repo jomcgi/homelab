@@ -9,3 +9,7 @@ dependencies:
   - name: longhorn
     version: 1.8.1
     repository: https://charts.longhorn.io
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

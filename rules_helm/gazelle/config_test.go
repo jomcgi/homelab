@@ -1,4 +1,4 @@
-package argocd
+package gazelle
 
 import (
 	"testing"

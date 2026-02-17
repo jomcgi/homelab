@@ -53,7 +53,7 @@ exports_files(
 gazelle_binary(
     name = "gazelle_binary",
     languages = [
-        "//tools/argocd",
+        "//rules_helm/gazelle",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle//language/go",
         "@gazelle//language/proto",
