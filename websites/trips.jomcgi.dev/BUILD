@@ -215,7 +215,7 @@ filegroup(
 )
 
 # Cloudflare Pages deployment for esbuild variant
-wrangler_pages(
+wrangler_pages(  # keep
     name = "trips_esbuild",
     dist = ":esbuild_dist",
     project_name = "trips-jomcgi-dev",
