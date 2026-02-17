@@ -27,28 +27,45 @@ def _helm_package_impl(ctx):
             chart_dir = src.dirname
             break
 
+    # Build URL annotation patch command if url is specified.
+    # This replaces org.opencontainers.image.url in Chart.yaml so GHCR
+    # links to the chart's directory rather than the monorepo root.
+    url_patch = ""
+    if ctx.attr.url:
+        url_patch = (
+            "sed 's|org.opencontainers.image.url:.*|org.opencontainers.image.url: \"{url}\"|' " +
+            "\"$WORK_DIR/Chart.yaml\" > \"$WORK_DIR/Chart.yaml.tmp\"\n" +
+            "mv \"$WORK_DIR/Chart.yaml.tmp\" \"$WORK_DIR/Chart.yaml\""
+        ).format(url = ctx.attr.url)
+
     ctx.actions.run_shell(
         outputs = [output],
         inputs = ctx.files.srcs,
         tools = [ctx.executable._helm],
         command = """\
 set -euo pipefail
+# Copy chart to writable directory for patching (sandbox inputs are read-only)
+WORK_DIR=$(mktemp -d)
+cp -rL "{chart_dir}/." "$WORK_DIR/"
 # Exclude Bazel build files from the chart package
-cat > "{chart_dir}/.helmignore" << 'HELMIGNORE'
+cat > "$WORK_DIR/.helmignore" << 'HELMIGNORE'
 BUILD
 BUILD.bazel
 *.bzl
 .git/
 HELMIGNORE
-"{helm}" package "{chart_dir}" --destination "{out_dir}"
+{url_patch}
+"{helm}" package "$WORK_DIR" --destination "{out_dir}"
 # helm package outputs <name>-<version>.tgz, find and move it
 TGZ=$(ls "{out_dir}"/*.tgz)
 mv "$TGZ" "{output}"
+rm -rf "$WORK_DIR"
 """.format(
             helm = ctx.executable._helm.path,
             chart_dir = chart_dir,
             out_dir = output.dirname,
             output = output.path,
+            url_patch = url_patch,
         ),
         mnemonic = "HelmPackage",
         progress_message = "Packaging Helm chart %s" % ctx.label.name,
@@ -63,6 +80,10 @@ helm_package = rule(
             mandatory = True,
             allow_files = True,
             doc = "Chart source files (typically from glob([\"**/*\"]))",
+        ),
+        "url": attr.string(
+            doc = "URL to inject into Chart.yaml org.opencontainers.image.url annotation. " +
+                  "Used by GHCR to deep-link to the chart's source directory.",
         ),
         "_helm": attr.label(
             default = "@multitool//tools/helm",
