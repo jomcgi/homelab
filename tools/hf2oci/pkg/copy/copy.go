@@ -209,8 +209,11 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 		return nil, fmt.Errorf("building OCI index: %w", err)
 	}
 
-	// 8. Push.
-	digest, err = oci.PushIndex(ctx, rm.ref, idx, rm.remoteOpts...)
+	// 8. Push with explicit concurrency matching the download parallelism.
+	// Without WithJobs, go-containerregistry defaults to runtime.NumCPU()
+	// which limits concurrent blob uploads to ~2-4 in a typical pod.
+	pushOpts := append(rm.remoteOpts, remote.WithJobs(parallel))
+	digest, err = oci.PushIndex(ctx, rm.ref, idx, pushOpts...)
 	if err != nil {
 		return nil, fmt.Errorf("pushing: %w", err)
 	}
