@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/argocd/ci-validate-manifests.sh
+# rules_helm/ci-validate-manifests.sh
 # CI validation script to ensure pre-rendered manifests are up to date
 
 set -euo pipefail

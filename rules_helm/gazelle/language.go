@@ -1,6 +1,6 @@
-// Package argocd provides a Gazelle extension for auto-generating BUILD files
+// Package gazelle provides a Gazelle extension for auto-generating BUILD files
 // from ArgoCD Application manifests.
-package argocd
+package gazelle
 
 import (
 	"flag"
@@ -66,23 +66,7 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 				"env":  true,
 			},
 		},
-		"genrule": {
-			MatchAny: false,
-			NonEmptyAttrs: map[string]bool{
-				"outs": true,
-				"cmd":  true,
-			},
-			MergeableAttrs: map[string]bool{
-				"cmd":   true, // Allow cmd to be regenerated when inputs change
-				"srcs":  true,
-				"tools": true,
-			},
-			ResolveAttrs: map[string]bool{
-				"srcs":  true,
-				"tools": true,
-			},
-		},
-		"chart_files": {
+		"helm_chart": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{
 				"visibility": true,
@@ -91,14 +75,14 @@ func (l *argoCDLang) Kinds() map[string]rule.KindInfo {
 				"visibility": true,
 			},
 		},
-		"helm_template_test": {
+		"argocd_app": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{
 				"chart":        true,
+				"chart_files":  true,
 				"release_name": true,
 				"namespace":    true,
 				"values_files": true,
-				"chart_files":  true,
 			},
 			MergeableAttrs: map[string]bool{
 				"values_files": true,
@@ -116,8 +100,8 @@ func (l *argoCDLang) Loads() []rule.LoadInfo {
 			Symbols: []string{"sh_binary"},
 		},
 		{
-			Name:    "//tools/argocd:defs.bzl",
-			Symbols: []string{"chart_files", "helm_template_test"},
+			Name:    "//rules_helm:defs.bzl",
+			Symbols: []string{"helm_chart", "argocd_app"},
 		},
 	}
 }

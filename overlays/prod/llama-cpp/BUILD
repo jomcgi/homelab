@@ -1,30 +1,9 @@
-load("//tools/argocd:defs.bzl", "helm_template_test")
+load("//rules_helm:defs.bzl", "argocd_app")
 
-genrule(
-    name = "render_manifests",
-    srcs = [
-        "application.yaml",
-        "values.yaml",
-        "//charts/llama-cpp:Chart.yaml",
-        "//charts/llama-cpp:all_files",
-        "//charts/llama-cpp:values.yaml",
-    ],
-    outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template llama-cpp charts/llama-cpp --namespace llama-cpp --values charts/llama-cpp/values.yaml --values overlays/prod/llama-cpp/values.yaml > $@",
-    local = True,
-    message = "Rendering Helm manifests for prod-llama-cpp",
-    tags = ["manual"],
-    tools = [
-        "//tools/argocd:render-manifests.sh",
-        "@multitool//tools/helm",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-helm_template_test(
-    name = "template_test",
+argocd_app(
+    name = "prod-llama-cpp",
     chart = "charts/llama-cpp",
-    chart_files = "//charts/llama-cpp:all_files",
+    chart_files = "//charts/llama-cpp:chart",
     namespace = "llama-cpp",
     release_name = "llama-cpp",
     tags = [
