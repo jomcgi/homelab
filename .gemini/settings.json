@@ -3,6 +3,6 @@
     "autoAccept": true
   },
   "context": {
-    "fileName": ["CLAUDE.md"]
+    "fileName": [".claude/CLAUDE.md"]
   }
 }
