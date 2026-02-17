@@ -5,7 +5,7 @@ imagePullSecret:
 
 modelVolume:
   enabled: true
-  reference: "ghcr.io/jomcgi/homelab/models/hermes_4_3_36b_iq4xs:main"
+  reference: "hf.co/bartowski/NousResearch_Hermes-4.3-36B-GGUF:NousResearch_Hermes-4.3-36B-IQ4_XS"
   mountPath: "/model-image"
 
 server:
