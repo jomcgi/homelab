@@ -95,7 +95,18 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		HFClient:     client,
 	}
 
-	// Suppress progress callbacks in JSON mode for clean machine output.
+	// Transfer progress is always logged to stderr (visible in container logs
+	// even when -o json directs structured output to the termination log).
+	opts.OnProgress = func(bytesRead, totalSize int64) {
+		if totalSize > 0 {
+			fmt.Fprintf(os.Stderr, "Transfer: %d/%d MB (%.0f%%)\n",
+				bytesRead>>20, totalSize>>20, float64(bytesRead)/float64(totalSize)*100)
+		} else {
+			fmt.Fprintf(os.Stderr, "Transfer: %d MB\n", bytesRead>>20)
+		}
+	}
+
+	// Suppress verbose callbacks in JSON mode for clean machine output.
 	if outputFormat != "json" {
 		opts.OnResolve = func(repo, revision string) {
 			fmt.Fprintf(os.Stderr, "Resolving %s@%s...\n", repo, revision)
