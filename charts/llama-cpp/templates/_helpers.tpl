@@ -53,9 +53,6 @@ llama-server CLI arguments (shared between direct args and auto-discovery shell 
 */}}
 {{- define "llama-cpp.serverArgs" -}}
 --n-gpu-layers {{ .Values.server.nGpuLayers | quote }} \
-{{- if .Values.server.noKvOffload }}
---no-kv-offload \
-{{- end }}
 --ctx-size {{ .Values.server.ctxSize | quote }} \
 {{- if .Values.server.flashAttn }}
 --flash-attn {{ .Values.server.flashAttn | quote }} \
