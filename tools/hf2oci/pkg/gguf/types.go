@@ -2,8 +2,8 @@
 // used by llama.cpp and compatible inference engines.
 package gguf
 
-// Magic is the GGUF magic number: "GGUF" in little-endian.
-const Magic uint32 = 0x46475547
+// Magic is the GGUF magic number: ASCII "GGUF" (0x47,0x47,0x55,0x46) as little-endian uint32.
+const Magic uint32 = 0x46554747
 
 // GGMLType identifies a tensor element quantization type.
 type GGMLType uint32
