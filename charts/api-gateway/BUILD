@@ -1,11 +1,6 @@
-load("//tools/argocd:defs.bzl", "chart_files", "helm_lint_test")
+load("//rules_helm:defs.bzl", "helm_chart")
 
-chart_files(
-    name = "all_files",
+helm_chart(
+    name = "chart",
     visibility = ["//overlays/prod/api-gateway:__pkg__"],
-)
-
-helm_lint_test(
-    name = "lint_test",
-    tags = ["chart"],
 )

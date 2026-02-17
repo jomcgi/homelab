@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# tools/argocd/pre-commit-render-manifests.sh
+# rules_helm/pre-commit-render-manifests.sh
 # Pre-commit hook to auto-render Helm manifests for ArgoCD applications
 
 set -euo pipefail

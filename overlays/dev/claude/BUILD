@@ -1,30 +1,9 @@
-load("//tools/argocd:defs.bzl", "helm_template_test")
+load("//rules_helm:defs.bzl", "argocd_app")
 
-genrule(
-    name = "render_manifests",
-    srcs = [
-        "application.yaml",
-        "values.yaml",
-        "//charts/claude:Chart.yaml",
-        "//charts/claude:all_files",
-        "//charts/claude:values.yaml",
-    ],
-    outs = ["manifests/all.yaml"],
-    cmd = "$(location @multitool//tools/helm) template claude charts/claude --namespace claude --values charts/claude/values.yaml --values overlays/dev/claude/values.yaml > $@",
-    local = True,
-    message = "Rendering Helm manifests for claude",
-    tags = ["manual"],
-    tools = [
-        "//tools/argocd:render-manifests.sh",
-        "@multitool//tools/helm",
-    ],
-    visibility = ["//visibility:public"],
-)
-
-helm_template_test(
-    name = "template_test",
+argocd_app(
+    name = "claude",
     chart = "charts/claude",
-    chart_files = "//charts/claude:all_files",
+    chart_files = "//charts/claude:chart",
     namespace = "claude",
     release_name = "claude",
     tags = [

@@ -1,4 +1,4 @@
-package argocd
+package gazelle
 
 import (
 	"github.com/bazelbuild/bazel-gazelle/config"

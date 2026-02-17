@@ -9,11 +9,13 @@ fi
 
 BUILD_FILE="images/BUILD"
 
-# Query all oci_push targets
-PUSH_TARGETS=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null | sort)
+# Query all push targets (OCI images + Helm charts)
+OCI_PUSH=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null || true)
+HELM_PUSH=$(bazel query 'kind("helm_push", //...)' --output label 2>/dev/null || true)
+PUSH_TARGETS=$(echo -e "${OCI_PUSH}\n${HELM_PUSH}" | grep -v '^$' | sort)
 
 if [ -z "$PUSH_TARGETS" ]; then
-	echo "⚠️  No oci_push targets found"
+	echo "⚠️  No push targets found"
 	exit 0
 fi
 

@@ -1,4 +1,4 @@
-package argocd
+package gazelle
 
 import (
 	"testing"
@@ -62,7 +62,7 @@ func TestArgoCDLang_Kinds(t *testing.T) {
 	lang := NewLanguage()
 	kinds := lang.Kinds()
 
-	expectedKinds := []string{"sh_binary", "genrule", "chart_files"}
+	expectedKinds := []string{"sh_binary", "helm_chart", "argocd_app"}
 
 	for _, k := range expectedKinds {
 		if _, ok := kinds[k]; !ok {
@@ -93,59 +93,47 @@ func TestArgoCDLang_Kinds_ShBinary(t *testing.T) {
 	}
 }
 
-func TestArgoCDLang_Kinds_Genrule(t *testing.T) {
+func TestArgoCDLang_Kinds_HelmChart(t *testing.T) {
 	lang := NewLanguage()
 	kinds := lang.Kinds()
 
-	genrule, ok := kinds["genrule"]
+	helmChart, ok := kinds["helm_chart"]
 	if !ok {
-		t.Fatal("Kinds() missing genrule")
+		t.Fatal("Kinds() missing helm_chart")
 	}
 
-	if !genrule.NonEmptyAttrs["outs"] {
-		t.Error("genrule should have outs as non-empty attr")
+	if !helmChart.NonEmptyAttrs["visibility"] {
+		t.Error("helm_chart should have visibility as non-empty attr")
 	}
 
-	if !genrule.NonEmptyAttrs["cmd"] {
-		t.Error("genrule should have cmd as non-empty attr")
-	}
-
-	if !genrule.MergeableAttrs["cmd"] {
-		t.Error("genrule should have cmd as mergeable attr")
-	}
-
-	if !genrule.MergeableAttrs["srcs"] {
-		t.Error("genrule should have srcs as mergeable attr")
-	}
-
-	if !genrule.MergeableAttrs["tools"] {
-		t.Error("genrule should have tools as mergeable attr")
-	}
-
-	if !genrule.ResolveAttrs["srcs"] {
-		t.Error("genrule should have srcs as resolvable attr")
-	}
-
-	if !genrule.ResolveAttrs["tools"] {
-		t.Error("genrule should have tools as resolvable attr")
+	if !helmChart.MergeableAttrs["visibility"] {
+		t.Error("helm_chart should have visibility as mergeable attr")
 	}
 }
 
-func TestArgoCDLang_Kinds_ChartFiles(t *testing.T) {
+func TestArgoCDLang_Kinds_ArgocdApp(t *testing.T) {
 	lang := NewLanguage()
 	kinds := lang.Kinds()
 
-	chartFiles, ok := kinds["chart_files"]
+	argocdApp, ok := kinds["argocd_app"]
 	if !ok {
-		t.Fatal("Kinds() missing chart_files")
+		t.Fatal("Kinds() missing argocd_app")
 	}
 
-	if !chartFiles.NonEmptyAttrs["visibility"] {
-		t.Error("chart_files should have visibility as non-empty attr")
+	// Check NonEmptyAttrs
+	nonEmptyExpected := []string{"chart", "chart_files", "release_name", "namespace", "values_files"}
+	for _, attr := range nonEmptyExpected {
+		if !argocdApp.NonEmptyAttrs[attr] {
+			t.Errorf("argocd_app should have %s as non-empty attr", attr)
+		}
 	}
 
-	if !chartFiles.MergeableAttrs["visibility"] {
-		t.Error("chart_files should have visibility as mergeable attr")
+	// Check MergeableAttrs
+	mergeableExpected := []string{"values_files", "tags"}
+	for _, attr := range mergeableExpected {
+		if !argocdApp.MergeableAttrs[attr] {
+			t.Errorf("argocd_app should have %s as mergeable attr", attr)
+		}
 	}
 }
 
@@ -178,19 +166,25 @@ func TestArgoCDLang_Loads(t *testing.T) {
 		}
 	}
 
-	// Check chart_files load
-	if symbols, ok := loadMap["//tools/argocd:defs.bzl"]; !ok {
+	// Check defs.bzl load
+	if symbols, ok := loadMap["//rules_helm:defs.bzl"]; !ok {
 		t.Error("Loads() missing defs.bzl")
 	} else {
-		found := false
+		foundHelmChart := false
+		foundArgocdApp := false
 		for _, s := range symbols {
-			if s == "chart_files" {
-				found = true
-				break
+			if s == "helm_chart" {
+				foundHelmChart = true
+			}
+			if s == "argocd_app" {
+				foundArgocdApp = true
 			}
 		}
-		if !found {
-			t.Error("defs.bzl should export chart_files symbol")
+		if !foundHelmChart {
+			t.Error("defs.bzl should export helm_chart symbol")
+		}
+		if !foundArgocdApp {
+			t.Error("defs.bzl should export argocd_app symbol")
 		}
 	}
 }

@@ -1,0 +1,91 @@
+"""Bazel test rules for validating Helm charts."""
+
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+def helm_template_test(name, chart, release_name, namespace, values_files, chart_files, **kwargs):
+    """Creates a cacheable test that validates Helm chart renders with given values.
+
+    This test runs helm template with the full values hierarchy from an ArgoCD
+    Application and fails if rendering produces errors. Results are cached by
+    Bazel based on input file hashes.
+
+    Args:
+        name: Name of the test target
+        chart: Path to chart directory (e.g., "charts/todo")
+        release_name: Helm release name
+        namespace: Kubernetes namespace for rendering
+        values_files: List of values file labels in order (e.g., ["//charts/todo:values.yaml", "values.yaml"])
+        chart_files: Label for chart's all_files filegroup (e.g., "//charts/todo:all_files")
+        **kwargs: Additional arguments passed to sh_test
+    """
+    sh_test(
+        name = name,
+        srcs = ["//rules_helm:helm-template-test.sh"],
+        args = [
+            "$(rootpath @multitool//tools/helm)",
+            release_name,
+            chart,
+            namespace,
+        ] + ["$(rootpath {})".format(vf) for vf in values_files],
+        data = [
+            "@multitool//tools/helm",
+            chart_files,
+        ] + values_files,
+        **kwargs
+    )
+
+def helm_lint_test(name, chart_path = None, **kwargs):
+    """Creates a test that runs helm lint on a chart.
+
+    The test runs helm lint with --strict mode to catch any issues.
+
+    Args:
+        name: Name of the test target
+        chart_path: Path to chart directory (default: current package)
+        **kwargs: Additional arguments passed to sh_test
+    """
+    if chart_path == None:
+        chart_path = native.package_name()
+
+    # Create an inline script that runs helm lint
+    # The script finds the chart in runfiles and lints it
+    native.genrule(
+        name = name + "_script",
+        outs = [name + ".sh"],
+        cmd = """cat > $@ << 'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Find helm binary
+HELM="$$1"
+
+# Chart.yaml path - get directory containing it
+CHART_YAML="$$2"
+CHART_DIR="$$(dirname "$$CHART_YAML")"
+
+if [[ ! -f "$$CHART_YAML" ]]; then
+    echo "ERROR: Chart.yaml not found at $$CHART_YAML"
+    exit 1
+fi
+
+echo "Linting chart: $$CHART_DIR"
+"$$HELM" lint "$$CHART_DIR" --strict
+echo "PASSED"
+EOF
+""",
+    )
+
+    sh_test(
+        name = name,
+        srcs = [name + "_script"],
+        args = [
+            "$(rootpath @multitool//tools/helm)",
+            "$(rootpath :Chart.yaml)",
+        ],
+        data = [
+            "@multitool//tools/helm",
+            ":Chart.yaml",
+            ":values.yaml",
+        ] + native.glob(["templates/**"], allow_empty = True),
+        **kwargs
+    )

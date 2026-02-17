@@ -1,4 +1,4 @@
-package argocd
+package gazelle
 
 import (
 	"os"
@@ -61,6 +61,30 @@ func discoverOverlaysUsingChart(workspaceRoot, chartPath string) []string {
 	return overlayPaths
 }
 
+// HelmChart represents the minimal structure of a Chart.yaml needed for Gazelle.
+type HelmChart struct {
+	Dependencies []struct {
+		Name string `yaml:"name"`
+	} `yaml:"dependencies"`
+}
+
+// chartHasDependencies checks if a Chart.yaml declares sub-chart dependencies.
+// Charts with unresolved dependencies fail helm lint --strict, so we disable
+// lint for them automatically.
+func chartHasDependencies(chartYamlPath string) bool {
+	data, err := os.ReadFile(chartYamlPath)
+	if err != nil {
+		return false
+	}
+
+	var chart HelmChart
+	if err := yaml.Unmarshal(data, &chart); err != nil {
+		return false
+	}
+
+	return len(chart.Dependencies) > 0
+}
+
 // ArgoCDApplication represents the structure of an ArgoCD Application manifest.
 type ArgoCDApplication struct {
 	APIVersion string `yaml:"apiVersion"`
@@ -101,22 +125,26 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	// Check if this is a chart directory (has Chart.yaml)
 	chartFile := filepath.Join(args.Dir, "Chart.yaml")
 	if _, err := os.Stat(chartFile); err == nil {
-		// This is a Helm chart directory - create a chart_files() macro call
-		// The macro encapsulates glob() so Gazelle doesn't need to parse it
-
-		chartFilesRule := rule.NewRule("chart_files", "all_files")
+		// This is a Helm chart directory - create a helm_chart() macro call
+		helmChartRule := rule.NewRule("helm_chart", "chart")
 
 		// Dynamically discover which overlays use this chart and set precise visibility
 		chartPath := args.Rel
 		overlays := discoverOverlaysUsingChart(args.Config.RepoRoot, chartPath)
 		if len(overlays) > 0 {
-			chartFilesRule.SetAttr("visibility", overlays)
+			helmChartRule.SetAttr("visibility", overlays)
 		} else {
 			// Fallback to overlays if no specific overlays found (shouldn't happen normally)
-			chartFilesRule.SetAttr("visibility", []string{"//overlays:__subpackages__"})
+			helmChartRule.SetAttr("visibility", []string{"//overlays:__subpackages__"})
 		}
 
-		result.Gen = append(result.Gen, chartFilesRule)
+		// Disable lint for charts with unresolved dependencies (helm lint --strict
+		// fails when declared dependencies aren't downloaded)
+		if chartHasDependencies(chartFile) {
+			helmChartRule.SetAttr("lint", false)
+		}
+
+		result.Gen = append(result.Gen, helmChartRule)
 		result.Imports = append(result.Imports, nil)
 
 		return result
@@ -150,20 +178,12 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 		}
 	}
 
-	// Generate manifest rendering rule if enabled
-	// Generate if the application has a Helm source (helm.valueFiles present)
+	// Generate argocd_app rule if the application has a Helm source (helm.valueFiles present)
 	// Note: releaseName is optional in ArgoCD (defaults to app name if not specified)
-	if cfg.generateManifests && len(app.Spec.Source.Helm.ValueFiles) > 0 {
-		manifestRule := generateManifestRule(app, args.Rel, args.Dir)
-		if manifestRule != nil {
-			result.Gen = append(result.Gen, manifestRule)
-			result.Imports = append(result.Imports, nil)
-		}
-
-		// Also generate a cacheable template test
-		templateTestRule := generateTemplateTestRule(app, args.Rel, args.Dir)
-		if templateTestRule != nil {
-			result.Gen = append(result.Gen, templateTestRule)
+	if len(app.Spec.Source.Helm.ValueFiles) > 0 {
+		appRule := generateArgoCDAppRule(app, args.Rel, args.Dir, cfg)
+		if appRule != nil {
+			result.Gen = append(result.Gen, appRule)
 			result.Imports = append(result.Imports, nil)
 		}
 	}
@@ -191,7 +211,7 @@ func generateLiveDiffRule(app *ArgoCDApplication, currentPackage string, current
 	r := rule.NewRule("sh_binary", "diff")
 
 	// Reference the live diff script
-	r.SetAttr("srcs", []string{"//tools/argocd:argocd-live-diff.sh"})
+	r.SetAttr("srcs", []string{"//rules_helm:argocd-live-diff.sh"})
 
 	// Collect all file dependencies for deterministic caching
 	var dataFiles []string
@@ -277,166 +297,20 @@ func generateLiveDiffRule(app *ArgoCDApplication, currentPackage string, current
 	return r
 }
 
-// generateManifestRule creates a genrule that pre-renders Helm manifests to manifests/all.yaml.
-// Using genrule instead of sh_binary enables proper Bazel caching based on input file hashes.
-// Bazel will only re-render when chart files, values files, or helm binary change.
-func generateManifestRule(app *ArgoCDApplication, currentPackage string, currentDir string) *rule.Rule {
-	r := rule.NewRule("genrule", "render_manifests")
-
-	// The render script is used as a tool (not a source)
-	tools := []string{"//tools/argocd:render-manifests.sh", "@multitool//tools/helm"}
-
-	// Collect all file dependencies (genrule uses 'srcs' instead of 'data')
-	var srcFiles []string
-
-	// 1. Add the application.yaml itself
-	srcFiles = append(srcFiles, "application.yaml")
-
-	// 2. Add chart files (entire chart directory)
-	chartPath := app.Spec.Source.Path
-	if chartPath != "" {
-		// Add Chart.yaml from the chart
-		srcFiles = append(srcFiles, "//"+filepath.ToSlash(chartPath)+":Chart.yaml")
-
-		// Add chart's default values.yaml
-		srcFiles = append(srcFiles, "//"+filepath.ToSlash(chartPath)+":values.yaml")
-
-		// Add all chart files for proper cache invalidation
-		// This ensures manifest rebuilds when templates, helpers, CRDs, etc. change
-		srcFiles = append(srcFiles, "//"+filepath.ToSlash(chartPath)+":all_files")
-	}
-
-	// 3. Build the VALUES_FILES environment variable (space-separated paths)
-	var valuesFilePaths []string
-
-	// Add chart's default values.yaml first
-	if chartPath != "" {
-		valuesFilePaths = append(valuesFilePaths, filepath.ToSlash(chartPath)+"/values.yaml")
-	}
-
-	// 4. Add all valueFiles referenced in the Application spec
-	for _, vf := range app.Spec.Source.Helm.ValueFiles {
-		if strings.HasPrefix(vf, "../") {
-			// Relative path - resolve it relative to chart path
-			resolvedPath := filepath.Join(chartPath, vf)
-			cleanPath := filepath.Clean(resolvedPath)
-
-			// Skip paths that escape workspace root
-			if strings.HasPrefix(cleanPath, "..") {
-				continue
-			}
-
-			// Check if this file is in the current package
-			fileDir := filepath.Dir(cleanPath)
-			fileName := filepath.Base(cleanPath)
-
-			if filepath.ToSlash(fileDir) == currentPackage {
-				// File is in current package, use relative reference
-				srcFiles = append(srcFiles, fileName)
-			} else {
-				// File is in different package, use absolute label
-				srcFiles = append(srcFiles, "//"+filepath.ToSlash(fileDir)+":"+fileName)
-			}
-
-			// Add to values file paths list
-			valuesFilePaths = append(valuesFilePaths, filepath.ToSlash(cleanPath))
-		} else if !strings.Contains(vf, "/") {
-			// Simple filename in chart directory
-			srcFiles = append(srcFiles, "//"+filepath.ToSlash(chartPath)+":"+vf)
-			valuesFilePaths = append(valuesFilePaths, filepath.ToSlash(chartPath)+"/"+vf)
-		}
-	}
-
-	// 5. Add local values.yaml if it exists
-	localValuesPath := filepath.Join(currentDir, "values.yaml")
-	if _, err := os.Stat(localValuesPath); err == nil {
-		srcFiles = append(srcFiles, "values.yaml")
-	}
-
-	// Deduplicate values file paths
-	seenValues := make(map[string]bool)
-	var uniqueValuesFilePaths []string
-	for _, vf := range valuesFilePaths {
-		if !seenValues[vf] {
-			seenValues[vf] = true
-			uniqueValuesFilePaths = append(uniqueValuesFilePaths, vf)
-		}
-	}
-
-	// Deduplicate source files
-	seen := make(map[string]bool)
-	var uniqueSrcFiles []string
-	for _, f := range srcFiles {
-		if !seen[f] {
-			seen[f] = true
-			uniqueSrcFiles = append(uniqueSrcFiles, f)
-		}
-	}
-
-	// Set source dependencies and tools
-	r.SetAttr("srcs", uniqueSrcFiles)
-	r.SetAttr("tools", tools)
-
-	// releaseName defaults to app name if not specified (ArgoCD behavior)
-	releaseName := app.Spec.Source.Helm.ReleaseName
-	if releaseName == "" {
-		releaseName = app.Metadata.Name
-	}
-
-	// Set the output file declaration (critical for caching!)
-	r.SetAttr("outs", []string{"manifests/all.yaml"})
-
-	// Build the command to run helm template directly
-	// Note: genrule with local=True runs in the workspace root, allowing direct path access
-	helmCmd := []string{
-		"$(location @multitool//tools/helm)",
-		"template",
-		releaseName,
-		app.Spec.Source.Path,
-		"--namespace", app.Spec.Destination.Namespace,
-	}
-
-	// Add values files (deduplicated)
-	for _, vf := range uniqueValuesFilePaths {
-		helmCmd = append(helmCmd, "--values", vf)
-	}
-
-	// Redirect output to declared file
-	helmCmd = append(helmCmd, ">", "$@")
-
-	r.SetAttr("cmd", strings.Join(helmCmd, " "))
-
-	// Make the target publicly visible so it can be referenced by parallel rendering
-	r.SetAttr("visibility", []string{"//visibility:public"})
-
-	// Set message for better progress reporting
-	r.SetAttr("message", "Rendering Helm manifests for "+app.Metadata.Name)
-
-	// Use local execution to avoid sandbox restrictions and access full chart directory
-	// This enables caching while allowing helm to read template files not explicitly declared
-	r.SetAttr("local", true)
-
-	// Tag as manual so it doesn't run on bazel build //...
-	r.SetAttr("tags", []string{"manual"})
-
-	return r
-}
-
-// generateTemplateTestRule creates a helm_template_test that validates the chart renders
-// successfully with the full values hierarchy. This is a cacheable Bazel test.
-func generateTemplateTestRule(app *ArgoCDApplication, currentPackage string, currentDir string) *rule.Rule {
-	r := rule.NewRule("helm_template_test", "template_test")
-
+// generateArgoCDAppRule creates an argocd_app rule that encapsulates chart rendering and testing.
+func generateArgoCDAppRule(app *ArgoCDApplication, currentPackage string, currentDir string, cfg *argoCDConfig) *rule.Rule {
 	chartPath := app.Spec.Source.Path
 	if chartPath == "" {
 		return nil
 	}
 
+	r := rule.NewRule("argocd_app", app.Metadata.Name)
+
 	// Set chart path
 	r.SetAttr("chart", chartPath)
 
 	// Set chart_files label for dependencies
-	r.SetAttr("chart_files", "//"+filepath.ToSlash(chartPath)+":all_files")
+	r.SetAttr("chart_files", "//"+filepath.ToSlash(chartPath)+":chart")
 
 	// releaseName defaults to app name if not specified (ArgoCD behavior)
 	releaseName := app.Spec.Source.Helm.ReleaseName
@@ -497,6 +371,11 @@ func generateTemplateTestRule(app *ArgoCDApplication, currentPackage string, cur
 
 	// Tag for filtering
 	r.SetAttr("tags", []string{"helm", "template"})
+
+	// generate_manifests defaults to true in the macro, so only set if false
+	if !cfg.generateManifests {
+		r.SetAttr("generate_manifests", false)
+	}
 
 	return r
 }

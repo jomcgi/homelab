@@ -15,3 +15,7 @@ dependencies:
   - name: linkerd-control-plane
     repository: "@linkerd-edge"
     version: 2025.11.1
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"
