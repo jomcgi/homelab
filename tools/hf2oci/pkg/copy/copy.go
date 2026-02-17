@@ -37,6 +37,7 @@ type Options struct {
 	OnUploadConfig func(count int)
 	OnUploadWeight func(index, total int, filename string)
 	OnGGUFSplit    func(shards int, originalFile string)
+	OnProgress     func(bytesRead, totalSize int64) // periodic transfer progress
 
 	// Injected dependencies (for testing).
 	HFClient   *hf.Client
@@ -179,7 +180,7 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 				if err != nil {
 					return fmt.Errorf("downloading weight %s: %w", w.Path, err)
 				}
-				weightLayers[i] = oci.StreamingWeightLayer(body, size, modelDir, w.Path)
+				weightLayers[i] = oci.StreamingWeightLayer(wrapProgress(body, size, opts.OnProgress), size, modelDir, w.Path)
 				return nil
 			})
 		}
@@ -337,7 +338,7 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 			// StreamingSplitGGUFLayer takes ownership of body and closes it.
 			// No early returns possible between DownloadRange and here, but
 			// guard defensively in case future code changes add logic.
-			layers[i] = oci.StreamingSplitGGUFLayer(headerBuf.Bytes(), body, bodySize, modelDir, shardFilename)
+			layers[i] = oci.StreamingSplitGGUFLayer(headerBuf.Bytes(), wrapProgress(body, bodySize, opts.OnProgress), bodySize, modelDir, shardFilename)
 			return nil
 		})
 	}
@@ -358,5 +359,44 @@ func buildSingleWeightLayer(ctx context.Context, client *hf.Client, opts Options
 	if opts.OnUploadWeight != nil {
 		opts.OnUploadWeight(1, 1, w.Path)
 	}
+	body = wrapProgress(body, size, opts.OnProgress)
 	return []v1.Layer{oci.StreamingWeightLayer(body, size, modelDir, w.Path)}, nil
+}
+
+// wrapProgress wraps an io.ReadCloser with periodic progress reporting.
+// Reports every 100MB of data read. Returns the original body if onProgress is nil.
+func wrapProgress(body io.ReadCloser, total int64, onProgress func(int64, int64)) io.ReadCloser {
+	if onProgress == nil {
+		return body
+	}
+	return &progressReader{
+		inner:      body,
+		total:      total,
+		onProgress: onProgress,
+		interval:   100 << 20, // 100MB
+	}
+}
+
+// progressReader wraps an io.ReadCloser and reports bytes transferred periodically.
+type progressReader struct {
+	inner      io.ReadCloser
+	total      int64
+	read       int64
+	onProgress func(bytesRead, totalSize int64)
+	interval   int64
+	lastReport int64
+}
+
+func (r *progressReader) Read(p []byte) (int, error) {
+	n, err := r.inner.Read(p)
+	r.read += int64(n)
+	if r.read-r.lastReport >= r.interval || err == io.EOF {
+		r.onProgress(r.read, r.total)
+		r.lastReport = r.read
+	}
+	return n, err
+}
+
+func (r *progressReader) Close() error {
+	return r.inner.Close()
 }
