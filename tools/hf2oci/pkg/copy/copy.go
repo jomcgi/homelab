@@ -176,7 +176,7 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 					opts.OnUploadWeight(i+1, len(rm.weights), w.Path)
 					progressMu.Unlock()
 				}
-				body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
+				body, size, err := client.ParallelDownload(ctx, opts.Repo, opts.Revision, w.Path, w.Size)
 				if err != nil {
 					return fmt.Errorf("downloading weight %s: %w", w.Path, err)
 				}
@@ -352,7 +352,7 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 
 // buildSingleWeightLayer is a fallback that downloads the full file as one layer.
 func buildSingleWeightLayer(ctx context.Context, client *hf.Client, opts Options, w hf.TreeEntry, modelDir string) ([]v1.Layer, error) {
-	body, size, err := client.Download(ctx, opts.Repo, opts.Revision, w.Path)
+	body, size, err := client.ParallelDownload(ctx, opts.Repo, opts.Revision, w.Path, w.Size)
 	if err != nil {
 		return nil, fmt.Errorf("downloading weight %s: %w", w.Path, err)
 	}
