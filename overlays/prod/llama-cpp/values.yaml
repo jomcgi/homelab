@@ -8,7 +8,7 @@ imagePullSecret:
 
 modelVolume:
   enabled: true
-  reference: "hf.co/bartowski/cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-GGUF:cognitivecomputations_Dolphin-Mistral-24B-Venice-Edition-Q4_0"
+  reference: "hf.co/bartowski/Qwen_Qwen3-VL-8B-Instruct-GGUF:Qwen_Qwen3-VL-8B-Instruct-Q8_0"
   mountPath: "/model-image"
 
 server:
@@ -28,7 +28,7 @@ server:
     - "256"
     - "--metrics"
     - "--alias"
-    - "dolphin-mistral-24b"
+    - "qwen3-vl-8b"
 
 nodeSelector:
   kubernetes.io/hostname: node-4
