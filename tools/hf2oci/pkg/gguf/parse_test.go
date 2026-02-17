@@ -156,12 +156,38 @@ func TestParse_EmptyFile(t *testing.T) {
 	}
 }
 
+func TestMagic_MatchesGGUFSpec(t *testing.T) {
+	// GGUF spec: first 4 bytes are ASCII 'G','G','U','F'.
+	// Validate the constant matches, not just round-trip consistency.
+	specBytes := []byte{'G', 'G', 'U', 'F'}
+	specMagic := binary.LittleEndian.Uint32(specBytes)
+	if Magic != specMagic {
+		t.Errorf("Magic constant 0x%08X doesn't match GGUF spec bytes %q (expected 0x%08X)", Magic, specBytes, specMagic)
+	}
+}
+
 func TestParse_InvalidMagic(t *testing.T) {
 	var buf bytes.Buffer
 	binary.Write(&buf, binary.LittleEndian, uint32(0xDEADBEEF))
 	_, err := Parse(&buf)
 	if err == nil {
 		t.Fatal("expected error for invalid magic, got nil")
+	}
+}
+
+func TestParse_RealGGUFMagicBytes(t *testing.T) {
+	// Verify the parser accepts the raw GGUF spec magic bytes (not our constant).
+	var buf bytes.Buffer
+	buf.Write([]byte{'G', 'G', 'U', 'F'}) // raw spec bytes
+	binary.Write(&buf, binary.LittleEndian, uint32(3))
+	binary.Write(&buf, binary.LittleEndian, uint64(0))
+	binary.Write(&buf, binary.LittleEndian, uint64(0))
+	f, err := Parse(bytes.NewReader(buf.Bytes()))
+	if err != nil {
+		t.Fatalf("Parse rejected valid GGUF magic bytes: %v", err)
+	}
+	if f.Header.Magic != Magic {
+		t.Errorf("parsed magic 0x%08X != Magic constant 0x%08X", f.Header.Magic, Magic)
 	}
 }
 
