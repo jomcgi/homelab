@@ -343,15 +343,10 @@ func buildSplitGGUFLayers(ctx context.Context, client *hf.Client, opts Options, 
 				return fmt.Errorf("building shard %d header: %w", i+1, err)
 			}
 
-			// Range-request this shard's tensor data.
-			bodySize := int64(shard.DataEnd - shard.DataStart + 1)
-			body, dlSize, _, err := client.DownloadRange(ctx, opts.Repo, opts.Revision, w.Path, int64(shard.DataStart), int64(shard.DataEnd))
+			// Range-request this shard's tensor data using parallel connections.
+			body, bodySize, err := client.ParallelDownloadRange(ctx, opts.Repo, opts.Revision, w.Path, int64(shard.DataStart), int64(shard.DataEnd))
 			if err != nil {
 				return fmt.Errorf("downloading shard %d data: %w", i+1, err)
-			}
-			// Prefer server-reported size, fall back to computed size.
-			if dlSize > 0 {
-				bodySize = dlSize
 			}
 
 			// Wrap with shard-aware progress (aggregate + per-shard),

@@ -61,13 +61,39 @@ func (c *Client) ParallelDownload(ctx context.Context, repo, revision, path stri
 	numChunks := int((totalSize + chunkSize - 1) / chunkSize)
 
 	pr, pw := io.Pipe()
-	go c.downloadChunks(ctx, pw, repo, revision, path, totalSize, numChunks, chunkSize, workers)
+	go c.downloadChunks(ctx, pw, repo, revision, path, 0, totalSize, numChunks, chunkSize, workers)
 	return pr, totalSize, nil
 }
 
+// ParallelDownloadRange fetches a byte range [start, end] of a file using
+// multiple parallel HTTP Range requests, the same strategy as ParallelDownload
+// but scoped to a sub-range. Falls back to single-connection DownloadRange for
+// ranges below the minimum threshold. The caller must close the returned
+// ReadCloser.
+func (c *Client) ParallelDownloadRange(ctx context.Context, repo, revision, path string, start, end int64) (io.ReadCloser, int64, error) {
+	rangeSize := end - start + 1
+	if rangeSize <= c.getParallelMinFileSize() {
+		body, size, _, err := c.DownloadRange(ctx, repo, revision, path, start, end)
+		if err != nil {
+			return nil, 0, err
+		}
+		return body, size, nil
+	}
+
+	chunkSize := c.getParallelChunkSize()
+	workers := c.getParallelWorkers()
+	numChunks := int((rangeSize + chunkSize - 1) / chunkSize)
+
+	pr, pw := io.Pipe()
+	go c.downloadChunks(ctx, pw, repo, revision, path, start, rangeSize, numChunks, chunkSize, workers)
+	return pr, rangeSize, nil
+}
+
 // downloadChunks dispatches parallel range-request downloads and reassembles
-// the results in order, writing to the pipe.
-func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, revision, path string, totalSize int64, numChunks int, chunkSize int64, workers int) {
+// the results in order, writing to the pipe. rangeStart is the absolute byte
+// offset within the remote file (0 for full-file downloads); rangeSize is the
+// number of bytes to download from that offset.
+func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, revision, path string, rangeStart, rangeSize int64, numChunks int, chunkSize int64, workers int) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -100,10 +126,10 @@ func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, re
 				defer wg.Done()
 				defer func() { <-sem }()
 
-				start := int64(idx) * chunkSize
+				start := rangeStart + int64(idx)*chunkSize
 				end := start + chunkSize - 1
-				if end >= totalSize {
-					end = totalSize - 1
+				if end >= rangeStart+rangeSize {
+					end = rangeStart + rangeSize - 1
 				}
 
 				body, _, fallback, err := c.DownloadRange(ctx, repo, revision, path, start, end)
