@@ -23,6 +23,11 @@ common --@aspect_rules_ts//ts:default_to_tsc_transpiler
 # Repository cache location
 common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
+# Garbage-collect repo contents cache entries older than 14 days (Bazel 9+)
+# This covers the extracted repository rule outputs (repository_cache/contents/)
+# but NOT the raw download blobs (content_addressable/). Use tools/bazel-cache-gc.sh
+# to prune stale download blobs periodically.
+common --repo_contents_cache_gc_max_age=14d
 
 # =============================================================================
 # Disk Cache - Share build artifacts across all workspaces (local only)
