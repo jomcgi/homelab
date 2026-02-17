@@ -39,7 +39,7 @@ spec:
           command: ["/bin/sh", "-c"]
           args:
             - |
-              exec llama-server \
+              exec /app/llama-server \
                 --model {{ .Values.server.modelPath | quote }} \
                 {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
           {{- else }}
@@ -55,7 +55,7 @@ spec:
                 exit 1
               fi
               echo "Auto-discovered model: $MODEL"
-              exec llama-server \
+              exec /app/llama-server \
                 --model "$MODEL" \
                 {{ include "llama-cpp.serverArgs" . | indent 16 | trim }}
           {{- end }}
