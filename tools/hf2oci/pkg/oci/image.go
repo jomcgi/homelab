@@ -19,27 +19,22 @@ import (
 // The config layer should contain small metadata files, weight layers contain
 // model weight shards. Annotations are added to the image index manifest.
 func BuildIndex(configLayer v1.Layer, weightLayers []v1.Layer, annotations map[string]string) (v1.ImageIndex, error) {
-	platforms := []v1.Platform{
-		{OS: "linux", Architecture: "amd64"},
-		{OS: "linux", Architecture: "arm64"},
+	img, err := buildImage(configLayer, weightLayers)
+	if err != nil {
+		return nil, fmt.Errorf("building image: %w", err)
 	}
 
-	var adds []mutate.IndexAddendum
-	for _, p := range platforms {
-		img, err := buildImage(configLayer, weightLayers)
-		if err != nil {
-			return nil, fmt.Errorf("building image for %s/%s: %w", p.OS, p.Architecture, err)
-		}
-		plat := p // copy for pointer
-		adds = append(adds, mutate.IndexAddendum{
-			Add: img,
-			Descriptor: v1.Descriptor{
-				Platform: &plat,
-			},
-		})
-	}
-
-	idx := mutate.AppendManifests(empty.Index, adds...)
+	// Single manifest in the index: model weights are architecture-independent
+	// data files, so we don't need per-platform child images. Using a single
+	// child also avoids a go-containerregistry bug where streaming layers
+	// (stream.NewLayer) shared across multiple child images cause
+	// "stream was already consumed" errors during push.
+	idx := mutate.AppendManifests(empty.Index, mutate.IndexAddendum{
+		Add: img,
+		Descriptor: v1.Descriptor{
+			Platform: &v1.Platform{OS: "linux", Architecture: "amd64"},
+		},
+	})
 	idx = mutate.IndexMediaType(idx, types.OCIImageIndex)
 
 	if len(annotations) > 0 {
