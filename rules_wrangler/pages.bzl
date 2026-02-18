@@ -5,7 +5,7 @@ using wrangler CLI. The rules handle Bazel runfiles resolution and support
 authentication via CLOUDFLARE_API_TOKEN environment variable.
 
 Example usage:
-    load("//tools/wrangler:wrangler_pages.bzl", "wrangler_pages")
+    load("//rules_wrangler:defs.bzl", "wrangler_pages")
     load("@npm//:wrangler/package_json.bzl", wrangler_bin = "bin")
 
     # Create wrangler binary target (required before using macro)
@@ -96,7 +96,7 @@ wrangler_pages_push = rule(
         ),
         "_template": attr.label(
             doc = "Shell script template for the push command.",
-            default = "//tools/wrangler:wrangler_push.sh.tpl",
+            default = "//rules_wrangler:pages_push.sh.tpl",
             allow_single_file = True,
         ),
         "_runfiles": attr.label(
