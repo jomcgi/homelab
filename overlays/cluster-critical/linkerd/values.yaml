@@ -2,6 +2,11 @@
 # This file contains environment-specific values for the homelab cluster
 
 linkerd-control-plane:
+  # Ensure Linkerd control plane survives resource pressure
+  priorityClassName: system-cluster-critical
+  # Spread control plane pods across nodes for HA
+  enablePodAntiAffinity: true
+
   proxy:
     # Reduce log noise from connection-closed INFO messages
     # Default is "warn,linkerd=info,hickory=error" which logs benign
