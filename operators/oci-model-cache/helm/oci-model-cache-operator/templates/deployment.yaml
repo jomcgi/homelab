@@ -70,6 +70,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        {{- with .Values.controllerManager.syncNodeSelector }}
+        - name: SYNC_NODE_SELECTOR
+          value: {{ . | toJson | quote }}
+        {{- end }}
         {{- if .Values.controllerManager.tracing.endpoint }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ .Values.controllerManager.tracing.endpoint | quote }}

@@ -42,6 +42,10 @@ controllerManager:
     repository: ghcr.io/jomcgi/homelab/tools/hf2oci
     tag: main
 
+  # -- nodeSelector applied to sync Job pods (model download/push).
+  # Use this to pin heavy sync workloads to worker nodes and keep control plane healthy.
+  syncNodeSelector: {}
+
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
     syncServiceAccount: ""
