@@ -4,7 +4,7 @@
 # Container image - managed by ArgoCD Image Updater
 # Uses digest strategy: only updates when image content actually changes
 image:
-  tag: "main@sha256:904c271b88da08d9ca4e289676d593c94052ae16327d0b2ab82af0340363e558"
+  tag: "main@sha256:b0d1046edb16b83add9dadad490be7cd91c15e9358ad191f49564df46185eabd"
   repository: ghcr.io/jomcgi/homelab/charts/claude
 # Custom repo sync (replaces git-sync sidecar)
 # Clones repo on startup and runs periodic git fetch
