@@ -3,6 +3,8 @@ argo-cd:
     # Enable Prometheus scrape annotations on all ArgoCD metrics services
     # This allows the SigNoz OTel collector to discover and scrape ArgoCD metrics
     addPrometheusAnnotations: true
+    # Ensure ArgoCD pods survive resource pressure from workload evictions
+    priorityClassName: system-cluster-critical
   configs:
     params:
       # Run server in insecure mode (behind Cloudflare Tunnel HTTPS termination)
@@ -12,32 +14,99 @@ argo-cd:
   # These expose Prometheus metrics including argocd_app_info for health/sync status
   # Pod annotations enable SigNoz autodiscovery (scraper uses role: pod)
   controller:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 250m
+        memory: 512Mi
     metrics:
       enabled: true
     podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "8082"
   server:
+    replicas: 2
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 125m
+        memory: 256Mi
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: server
     metrics:
       enabled: true
     podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "8083"
   repoServer:
+    replicas: 2
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        cpu: 125m
+        memory: 512Mi
+    topologySpreadConstraints:
+      - maxSkew: 1
+        topologyKey: kubernetes.io/hostname
+        whenUnsatisfiable: ScheduleAnyway
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/component: repo-server
     metrics:
       enabled: true
     podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "8084"
+  redis:
+    resources:
+      requests:
+        cpu: 15m
+        memory: 32Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
   applicationSet:
+    resources:
+      requests:
+        cpu: 15m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 256Mi
     metrics:
       enabled: true
     podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "8080"
   notifications:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 128Mi
     metrics:
       enabled: true
     podAnnotations:
       prometheus.io/scrape: "true"
       prometheus.io/port: "9001"
+  dex:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 32Mi
+      limits:
+        cpu: 50m
+        memory: 128Mi
