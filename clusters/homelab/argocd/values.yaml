@@ -16,11 +16,10 @@ argo-cd:
   controller:
     resources:
       requests:
-        cpu: 50m
-        memory: 256Mi
+        cpu: 500m
+        memory: 1Gi
       limits:
-        cpu: 250m
-        memory: 512Mi
+        memory: 1Gi
     metrics:
       enabled: true
     podAnnotations:
