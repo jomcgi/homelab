@@ -46,6 +46,12 @@ controllerManager:
   # Use this to pin heavy sync workloads to worker nodes and keep control plane healthy.
   syncNodeSelector: {}
 
+  # -- Memory request/limit for sync Job containers.
+  # When syncMemoryLimit is set, GOMEMLIMIT is automatically configured to 80% of the
+  # limit so the Go GC applies back-pressure before the kubelet OOMKills.
+  syncMemoryRequest: ""
+  syncMemoryLimit: ""
+
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
     syncServiceAccount: ""
