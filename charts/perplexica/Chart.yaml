@@ -2,7 +2,7 @@ apiVersion: v2
 name: perplexica
 description: AI-powered search engine with SearXNG metasearch backend
 type: application
-version: 1.0.0
+version: 1.1.0
 appVersion: "latest"
 keywords:
   - ai

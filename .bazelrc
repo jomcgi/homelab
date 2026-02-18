@@ -13,9 +13,8 @@ common --downloader_config=tools/downloader.cfg
 common --http_timeout_scaling=2.0
 # for speed, passes an argument `--skipLibCheck` to *every* spawn of tsc
 common --@aspect_rules_ts//ts:skipLibCheck=always
-# use `tsc` for transpiling, even though it's slow.
-# TODO(alex): change to SWC by default
-common --@aspect_rules_ts//ts:default_to_tsc_transpiler
+# Transpiler is set per-target (transpiler = "tsc") instead of globally.
+# To switch to SWC, add rules_swc to MODULE.bazel and set transpiler = "swc".
 
 # =============================================================================
 # Repository Cache - Cache external dependencies

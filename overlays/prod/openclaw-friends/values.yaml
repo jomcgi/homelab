@@ -39,11 +39,9 @@ discord:
         requireMention: true
 
 ## ClawHub skills
-## TODO: Re-enable after debugging init-skills permission issue
-## Skills can be installed manually: kubectl exec -it <pod> -n openclaw -- clawhub install steipete/discord
 clawhub:
-  skills: []
-  # - "steipete/discord"
+  skills:
+    - "steipete/discord"
 
 ## Cloudflare ingress (simple tunnel routing, no Zero Trust CRD)
 cloudflare:

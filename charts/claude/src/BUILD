@@ -6,6 +6,7 @@ ts_project(
     declaration = True,
     out_dir = "dist",
     root_dir = "src",
+    transpiler = "tsc",
     tsconfig = "tsconfig.json",
     visibility = ["//charts/claude/image:__pkg__"],
     deps = [
