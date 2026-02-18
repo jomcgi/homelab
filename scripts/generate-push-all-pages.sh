@@ -10,7 +10,7 @@ fi
 BUILD_FILE="websites/BUILD"
 
 # Query all wrangler_pages_push targets
-PUSH_TARGETS=$(bazel query 'kind("wrangler_pages_push", //...)' --output label 2>/dev/null | sort || true)
+PUSH_TARGETS=$(bazel query 'kind("wrangler_pages_push", //...)' --output label 2>/dev/null | LC_ALL=C sort || true)
 
 if [ -z "$PUSH_TARGETS" ]; then
 	echo "⚠️  No wrangler_pages_push targets found"
