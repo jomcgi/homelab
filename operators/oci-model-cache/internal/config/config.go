@@ -35,6 +35,12 @@ type Config struct {
 
 	// SyncNodeSelector is applied to sync Job pods to control which nodes run model downloads.
 	SyncNodeSelector map[string]string
+
+	// SyncMemoryRequest is the Kubernetes memory request for sync Job containers (e.g. "1Gi").
+	SyncMemoryRequest string
+
+	// SyncMemoryLimit is the Kubernetes memory limit for sync Job containers (e.g. "2Gi").
+	SyncMemoryLimit string
 }
 
 // BindFlags registers config flags on the given FlagSet.
@@ -54,6 +60,8 @@ func (c *Config) BindFlags(fs *flag.FlagSet) {
 	if v := os.Getenv("SYNC_NODE_SELECTOR"); v != "" {
 		_ = json.Unmarshal([]byte(v), &c.SyncNodeSelector)
 	}
+	c.SyncMemoryRequest = envOrDefault("SYNC_MEMORY_REQUEST", "")
+	c.SyncMemoryLimit = envOrDefault("SYNC_MEMORY_LIMIT", "")
 }
 
 func envOrDefault(key, fallback string) string {
