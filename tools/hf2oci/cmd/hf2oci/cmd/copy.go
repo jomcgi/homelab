@@ -61,7 +61,7 @@ func init() {
 	copyCmd.Flags().StringVar(&copyModelDir, "model-dir", "", "In-image model path (default: /)")
 	copyCmd.Flags().StringVar(&copyFile, "file", "", "GGUF filename prefix selector (e.g. ModelName-Q4_K_M)")
 	copyCmd.Flags().StringVar(&copyMaxShardSize, "max-shard-size", "500M", "Max size per GGUF shard layer (e.g. 4G, 500M). 0 disables splitting.")
-	copyCmd.Flags().IntVar(&copyMaxParallel, "max-parallel", 100, "Max concurrent layer uploads/downloads")
+	copyCmd.Flags().IntVar(&copyMaxParallel, "max-parallel", 0, "Max concurrent layer uploads/downloads (0 = auto from GOMEMLIMIT, fallback 100)")
 	copyCmd.Flags().BoolVar(&copyDryRun, "dry-run", false, "List files without downloading or pushing")
 
 	copyCmd.MarkFlagRequired("registry")
@@ -85,6 +85,16 @@ func runCopy(cmd *cobra.Command, args []string) error {
 	}
 	client := hf.NewClient(clientOpts...)
 
+	parallel := copyMaxParallel
+	if parallel <= 0 {
+		if n := copy.AutoParallel(); n > 0 {
+			parallel = n
+			fmt.Fprintf(os.Stderr, "Auto-tuned parallelism: %d (from GOMEMLIMIT)\n", parallel)
+		} else {
+			parallel = 100
+		}
+	}
+
 	opts := copy.Options{
 		Repo:         repo,
 		Registry:     copyRegistry,
@@ -93,7 +103,7 @@ func runCopy(cmd *cobra.Command, args []string) error {
 		ModelDir:     copyModelDir,
 		File:         copyFile,
 		MaxShardSize: maxShard,
-		MaxParallel:  copyMaxParallel,
+		MaxParallel:  parallel,
 		DryRun:       copyDryRun,
 		HFClient:     client,
 	}
