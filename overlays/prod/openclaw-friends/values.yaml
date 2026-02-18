@@ -1,5 +1,5 @@
 ## OpenClaw Friends Instance - Production Values
-## Group chat AI assistant with local Hermes via llama.cpp + Discord
+## Group chat AI assistant with local Dolphin Mistral via llama.cpp + Discord
 
 fullnameOverride: "openclaw-friends"
 
@@ -7,10 +7,10 @@ fullnameOverride: "openclaw-friends"
 podAnnotations:
   linkerd.io/inject: disabled
 
-## LLM: Local Hermes via llama.cpp
+## LLM: Local Dolphin Mistral via llama.cpp
 llm:
   provider: "openai-compatible"
-  model: "hermes-4.3-36b"
+  model: "dolphin-mistral-24b"
   baseUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1"
 
 ## No Anthropic auth needed
