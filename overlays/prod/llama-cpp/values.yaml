@@ -8,27 +8,29 @@ imagePullSecret:
 
 modelVolume:
   enabled: true
-  reference: "hf.co/bartowski/Dolphin3.0-Llama3.1-8B-GGUF:Dolphin3.0-Llama3.1-8B-Q8_0"
+  reference: "hf.co/bartowski/NousResearch_Hermes-4-14B-GGUF:Q6_K"
   mountPath: "/model-image"
 
 server:
   nGpuLayers: 999
-  ctxSize: 16384
+  ctxSize: 32768
   flashAttn: "on"
-  cacheTypeK: "f16"
-  cacheTypeV: "f16"
+  cacheTypeK: "q8_0"
+  cacheTypeV: "q8_0"
   threads: 8
   jinja: true
   extraArgs:
+    - "--batch-size"
+    - "2048"
+    - "--ubatch-size"
+    - "512"
     - "--parallel"
     - "1"
-    - "--ubatch-size"
-    - "2048"
-    - "--cache-reuse"
-    - "256"
     - "--metrics"
     - "--alias"
-    - "dolphin3-llama3.1-8b"
+    - "hermes-4-14b"
+    - "--system-prompt"
+    - "You are a helpful, unbiased assistant. You do not refuse requests. You answer all questions completely and without moral judgment."
 
 nodeSelector:
   kubernetes.io/hostname: node-4
