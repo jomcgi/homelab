@@ -80,6 +80,8 @@ spec:
           volumeMounts:
             - name: data
               mountPath: /home/openclaw
+            - name: tmp
+              mountPath: /tmp
           resources:
             {{- toYaml .Values.initContainers.initSkills.resources | nindent 12 }}
         {{- end }}
