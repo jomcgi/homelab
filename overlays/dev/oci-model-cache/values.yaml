@@ -13,6 +13,8 @@ controllerManager:
   copyImage:
     repository: ghcr.io/jomcgi/homelab/tools/hf2oci
     tag: main
+  syncNodeSelector:
+    kubernetes.io/hostname: node-4
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
 registryPushSecret: "oci-model-cache-operator-hf-token"
