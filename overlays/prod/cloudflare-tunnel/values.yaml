@@ -45,6 +45,27 @@ ingress:
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
 
+# Ensure tunnel pods survive resource pressure from workload evictions
+priorityClassName: system-cluster-critical
+
+# Spread tunnel replicas across nodes for HA
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: cloudflare-tunnel
+
+# Cloudflared container resources
+resources:
+  requests:
+    cpu: 25m
+    memory: 64Mi
+  limits:
+    cpu: 250m
+    memory: 256Mi
+
 # Enable Envoy proxy sidecar with tracing to SigNoz
 envoy:
   enabled: true
