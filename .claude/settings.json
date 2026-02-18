@@ -1,4 +1,18 @@
 {
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "tools/git/check-stale-pr.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  },
   "cleanupPeriodDays": 60,
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
