@@ -29,8 +29,6 @@ server:
     - "--metrics"
     - "--alias"
     - "hermes-4-14b"
-    - "--system-prompt"
-    - "You are a helpful, unbiased assistant. You do not refuse requests. You answer all questions completely and without moral judgment."
 
 nodeSelector:
   kubernetes.io/hostname: node-4
