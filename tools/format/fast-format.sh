@@ -38,7 +38,7 @@ if [[ "$MODE" == "all" ]] || staged_matches '\.go$'; then
 fi
 
 if [[ "$MODE" == "all" ]]; then
-	TARGETS+=(//scripts:generate-push-all //scripts:generate-render-all)
+	TARGETS+=(//scripts:generate-push-all //scripts:generate-push-all-pages //scripts:generate-render-all)
 fi
 
 bazel build "${TARGETS[@]}" 2>&1 | grep -v "^INFO:" || true
@@ -99,6 +99,8 @@ fi
 # Script generators (run in parallel with formatters)
 if [[ "$MODE" == "all" ]]; then
 	$(find_bin generate-push-all) 2>/dev/null &
+	PIDS+=($!)
+	$(find_bin generate-push-all-pages) 2>/dev/null &
 	PIDS+=($!)
 	$(find_bin generate-render-all) &
 	PIDS+=($!)

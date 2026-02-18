@@ -67,21 +67,17 @@ actions:
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_all --config=ci --stamp
 
-  # Deploy CF Pages - runs in parallel with other actions, main branch only
-  - name: "Deploy Pages"
-    container_image: "ubuntu-24.04"
-    resource_requests:
-      disk: "30GB"
-    triggers:
-      push:
-        branches:
-          - "main"
-    steps:
+      # Deploy CF Pages on main branch only
+      # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
       - run: |
-          # Skip if commit is from argocd-image-updater
           if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
-            echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
+
+          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+          if [ "$current_branch" != "main" ]; then
+            echo "Skipping pages deploy on non-main branch: $current_branch"
+            exit 0
+          fi
+
           bazel run //websites:push_all_pages --config=ci

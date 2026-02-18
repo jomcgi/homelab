@@ -15,6 +15,12 @@ sh_binary(
 )
 
 sh_binary(
+    name = "generate-push-all-pages",
+    srcs = ["generate-push-all-pages.sh"],
+    visibility = ["//:__subpackages__"],
+)
+
+sh_binary(
     name = "generate-render-all",
     srcs = ["generate-render-all.sh"],
     visibility = ["//:__subpackages__"],

@@ -43,6 +43,7 @@ multirun(
     name = "format",
     commands = [
         "//scripts:generate-push-all",
+        "//scripts:generate-push-all-pages",
         "//scripts:generate-render-all",
         ":update_apko_locks",
         ":update_python_requirements",
