@@ -49,11 +49,12 @@ exports_files(
 # gazelle:prefix github.com/jomcgi/homelab
 # gazelle:exclude cdk8s
 
-# Custom gazelle binary with ArgoCD extension
+# Custom gazelle binary with ArgoCD and wrangler extensions
 gazelle_binary(
     name = "gazelle_binary",
     languages = [
         "//rules_helm/gazelle",
+        "//rules_wrangler/gazelle",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle//language/go",
         "@gazelle//language/proto",
@@ -66,6 +67,7 @@ gazelle(
     env = {
         "ENABLE_LANGUAGES": ",".join([
             "argocd",
+            "wrangler",
             "bzl",
             "proto",
             "go",
