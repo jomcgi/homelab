@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"sync"
+	"sync/atomic"
 )
 
 const (
@@ -93,6 +94,11 @@ func (c *Client) ParallelDownloadRange(ctx context.Context, repo, revision, path
 // the results in order, writing to the pipe. rangeStart is the absolute byte
 // offset within the remote file (0 for full-file downloads); rangeSize is the
 // number of bytes to download from that offset.
+//
+// A sliding window prevents the dispatcher from getting too far ahead of the
+// ordered writer. Without this, downloaded chunks accumulate in the pending map
+// without bound when uploads are slower than downloads, causing OOM kills in
+// memory-limited containers.
 func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, revision, path string, rangeStart, rangeSize int64, numChunks int, chunkSize int64, workers int) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -106,6 +112,20 @@ func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, re
 	results := make(chan chunk, workers)
 	sem := make(chan struct{}, workers)
 
+	// nextWritten tracks how far the ordered writer has progressed.
+	// The dispatcher uses this to enforce the sliding window.
+	var nextWritten atomic.Int64
+	nextWritten.Store(-1) // nothing written yet
+
+	// writeProgress is signaled each time the writer advances, allowing
+	// the dispatcher to unblock if it was waiting on the sliding window.
+	writeProgress := make(chan struct{}, 1)
+
+	// maxAhead bounds how far the dispatcher can get ahead of the writer.
+	// This caps the pending map at ~maxAhead entries, bounding per-download
+	// memory to approximately maxAhead × chunkSize.
+	maxAhead := int64(workers)
+
 	// Dispatcher: launches chunk downloads with bounded concurrency.
 	// IMPORTANT: wg.Wait() must complete before close(results) to prevent
 	// sending to a closed channel. Defers run LIFO, so close is deferred
@@ -116,6 +136,17 @@ func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, re
 		defer wg.Wait()
 
 		for i := 0; i < numChunks; i++ {
+			// Sliding window: block until this chunk is within range of
+			// the writer. This prevents the pending map from growing
+			// without bound when uploads are slower than downloads.
+			for int64(i)-nextWritten.Load() > maxAhead {
+				select {
+				case <-writeProgress:
+				case <-ctx.Done():
+					return
+				}
+			}
+
 			select {
 			case sem <- struct{}{}:
 			case <-ctx.Done():
@@ -180,6 +211,12 @@ func (c *Client) downloadChunks(ctx context.Context, pw *io.PipeWriter, repo, re
 				break
 			}
 			delete(pending, nextIdx)
+			nextWritten.Store(int64(nextIdx))
+			// Signal dispatcher that write progress was made.
+			select {
+			case writeProgress <- struct{}{}:
+			default:
+			}
 			nextIdx++
 		}
 	}

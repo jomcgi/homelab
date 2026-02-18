@@ -22,8 +22,11 @@ import (
 
 const (
 	// estimatedMemPerStream is a conservative estimate of peak memory per
-	// concurrent shard stream: parallel download workers (8 × 10 MB chunks
-	// buffered in the pending map) + 4 MB tar I/O buffer + GGUF shard header.
+	// concurrent shard stream. The parallel downloader's sliding window
+	// bounds the pending map to maxAhead (= workers = 8) entries of 10 MB
+	// each, plus a 4 MB tar I/O buffer and GGUF shard header:
+	//   8 × 10 MB (bounded pending + channel + workers) + ~10 MB overhead ≈ 90 MB
+	// Rounded up to 100 MB for safety.
 	estimatedMemPerStream = 100 << 20 // 100 MB
 )
 
