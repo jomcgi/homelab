@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/json"
 	"flag"
 	"os"
 	"time"
@@ -31,6 +32,9 @@ type Config struct {
 
 	// RegistryPushSecret is the name of a Secret containing .dockerconfigjson for pushing to the OCI registry.
 	RegistryPushSecret string
+
+	// SyncNodeSelector is applied to sync Job pods to control which nodes run model downloads.
+	SyncNodeSelector map[string]string
 }
 
 // BindFlags registers config flags on the given FlagSet.
@@ -47,6 +51,9 @@ func (c *Config) BindFlags(fs *flag.FlagSet) {
 	c.HFTokenSecret = envOrDefault("HF_TOKEN_SECRET", "")
 	c.HFTokenSecretKey = envOrDefault("HF_TOKEN_SECRET_KEY", "")
 	c.RegistryPushSecret = envOrDefault("REGISTRY_PUSH_SECRET", "")
+	if v := os.Getenv("SYNC_NODE_SELECTOR"); v != "" {
+		_ = json.Unmarshal([]byte(v), &c.SyncNodeSelector)
+	}
 }
 
 func envOrDefault(key, fallback string) string {
