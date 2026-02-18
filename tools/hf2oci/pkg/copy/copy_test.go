@@ -6,8 +6,10 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/httptest"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -749,4 +751,45 @@ func TestCopyGGUFNoSplitWhenSmall(t *testing.T) {
 	layers, err := img.Layers()
 	require.NoError(t, err)
 	assert.Len(t, layers, 1, "expected 1 layer for small model")
+}
+
+func TestAutoParallel(t *testing.T) {
+	// Save and restore the original GOMEMLIMIT.
+	original := debug.SetMemoryLimit(-1)
+	t.Cleanup(func() { debug.SetMemoryLimit(original) })
+
+	tests := []struct {
+		name  string
+		limit int64
+		want  int
+	}{
+		{
+			name:  "no limit returns 0",
+			limit: math.MaxInt64,
+			want:  0,
+		},
+		{
+			name:  "4Gi memory limit",
+			limit: 4 * (1 << 30) * 4 / 5, // GOMEMLIMIT = 80% of 4Gi ≈ 3.4Gi
+			want:  26,                    // 3.4Gi * 80% / 100MB ≈ 26
+		},
+		{
+			name:  "2Gi memory limit",
+			limit: 2 * (1 << 30) * 4 / 5, // GOMEMLIMIT = 80% of 2Gi ≈ 1.7Gi
+			want:  13,                    // 1.7Gi * 80% / 100MB ≈ 13
+		},
+		{
+			name:  "very small limit clamps to 1",
+			limit: 10 << 20, // 10MB
+			want:  1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			debug.SetMemoryLimit(tt.limit)
+			got := AutoParallel()
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

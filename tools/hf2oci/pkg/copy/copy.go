@@ -5,6 +5,8 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math"
+	"runtime/debug"
 	"strings"
 	"sync"
 
@@ -17,6 +19,33 @@ import (
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
 	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
 )
+
+const (
+	// estimatedMemPerStream is a conservative estimate of peak memory per
+	// concurrent shard stream: parallel download workers (8 × 10 MB chunks
+	// buffered in the pending map) + 4 MB tar I/O buffer + GGUF shard header.
+	estimatedMemPerStream = 100 << 20 // 100 MB
+)
+
+// AutoParallel calculates a safe concurrency limit from the process's
+// GOMEMLIMIT. Returns 0 when no memory limit is configured, signalling
+// the caller to fall back to a static default.
+func AutoParallel() int {
+	// SetMemoryLimit(-1) returns the current soft limit without changing it.
+	// When GOMEMLIMIT is unset the runtime returns math.MaxInt64.
+	limit := debug.SetMemoryLimit(-1)
+	if limit == math.MaxInt64 || limit <= 0 {
+		return 0
+	}
+	// Reserve 20% of the budget for GC overhead, runtime stacks, and
+	// non-streaming allocations (config downloads, OCI manifest building, …).
+	budget := limit * 4 / 5
+	n := int(budget / estimatedMemPerStream)
+	if n < 1 {
+		return 1
+	}
+	return n
+}
 
 // Options configures the copy operation.
 type Options struct {
@@ -163,7 +192,11 @@ func Copy(ctx context.Context, opts Options) (*Result, error) {
 
 	parallel := opts.MaxParallel
 	if parallel <= 0 {
-		parallel = 100
+		if n := AutoParallel(); n > 0 {
+			parallel = n
+		} else {
+			parallel = 100
+		}
 	}
 
 	if rm.format == FormatGGUF && len(rm.weights) == 1 && opts.MaxShardSize > 0 && rm.weights[0].Size > opts.MaxShardSize {
