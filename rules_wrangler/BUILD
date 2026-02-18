@@ -14,3 +14,10 @@ bzl_library(
         "@bazel_skylib//lib:paths",  # keep
     ],
 )
+
+bzl_library(
+    name = "pages",
+    srcs = ["pages.bzl"],
+    visibility = ["//visibility:public"],
+    deps = ["@bazel_skylib//lib:paths"],
+)
