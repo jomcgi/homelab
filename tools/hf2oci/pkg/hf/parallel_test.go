@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -337,4 +338,121 @@ func TestParallelDownloadRange_UnevenLastChunk(t *testing.T) {
 	got, err := io.ReadAll(body)
 	require.NoError(t, err)
 	assert.True(t, bytes.Equal(want, got), "uneven last chunk in sub-range should be handled correctly")
+}
+
+func TestParallelDownload_BackpressureBoundsMemory(t *testing.T) {
+	// 200KB of data → 20 chunks of 10KB, with 4 workers (maxAhead = 4).
+	// Without the sliding window, all 20 chunks would be requested upfront.
+	// With backpressure, only ~maxAhead chunks can be dispatched before the
+	// dispatcher blocks waiting for the writer to make progress.
+	const (
+		fileSize  = 200 * 1024
+		chunkSize = 10 * 1024
+		workers   = 4
+		numChunks = fileSize / chunkSize // 20
+	)
+
+	data := make([]byte, fileSize)
+	rand.Read(data)
+
+	var requestsMade atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.Path, "/resolve/") {
+			http.NotFound(w, r)
+			return
+		}
+		requestsMade.Add(1)
+		rangeHdr := r.Header.Get("Range")
+		if rangeHdr == "" {
+			w.Header().Set("Content-Length", strconv.Itoa(len(data)))
+			w.Write(data)
+			return
+		}
+		var start, end int64
+		fmt.Sscanf(rangeHdr, "bytes=%d-%d", &start, &end)
+		if end >= int64(len(data)) {
+			end = int64(len(data)) - 1
+		}
+		partial := data[start : end+1]
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, end, len(data)))
+		w.Header().Set("Content-Length", strconv.Itoa(len(partial)))
+		w.WriteHeader(http.StatusPartialContent)
+		w.Write(partial)
+	}))
+	defer srv.Close()
+
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithParallelConfig(chunkSize, 0, workers),
+	)
+
+	body, size, err := c.ParallelDownload(
+		context.Background(), "test/repo", "main", "model.bin", fileSize)
+	require.NoError(t, err)
+	defer body.Close()
+	assert.Equal(t, int64(fileSize), size)
+
+	// Wait for downloads to settle without reading from the pipe.
+	// The pipe blocks pw.Write because nobody is reading, so the writer
+	// stalls after writing chunk 0, and the sliding window prevents the
+	// dispatcher from getting more than maxAhead chunks ahead.
+	time.Sleep(50 * time.Millisecond)
+
+	beforeRead := requestsMade.Load()
+	// With sliding window (maxAhead = workers = 4), at most 4 chunks can
+	// be dispatched before the dispatcher blocks. Without backpressure all
+	// 20 would fire immediately on localhost.
+	assert.LessOrEqual(t, beforeRead, int32(workers+2),
+		"sliding window should limit chunk requests when consumer is stalled")
+	assert.Less(t, beforeRead, int32(numChunks),
+		"NOT all chunks should be requested before consumer starts reading")
+
+	// Now drain everything and verify correctness.
+	got, err := io.ReadAll(body)
+	require.NoError(t, err)
+	assert.True(t, bytes.Equal(data, got), "all data should match after backpressure")
+	assert.Equal(t, int32(numChunks), requestsMade.Load(),
+		"all chunks should eventually be fetched")
+}
+
+func TestParallelDownload_BackpressureWithSlowConsumer(t *testing.T) {
+	// Verify that a slow consumer doesn't cause deadlocks and all data
+	// arrives correctly even when the reader is much slower than downloads.
+	const (
+		fileSize  = 100 * 1024
+		chunkSize = 10 * 1024
+		workers   = 4
+	)
+
+	data := make([]byte, fileSize)
+	rand.Read(data)
+
+	srv := rangeServer(t, data)
+	defer srv.Close()
+
+	c := NewClient(
+		WithBaseURL(srv.URL),
+		WithParallelConfig(chunkSize, 0, workers),
+	)
+
+	body, _, err := c.ParallelDownload(
+		context.Background(), "test/repo", "main", "model.bin", int64(fileSize))
+	require.NoError(t, err)
+	defer body.Close()
+
+	// Read very slowly: 512 bytes at a time with a small delay.
+	var result bytes.Buffer
+	buf := make([]byte, 512)
+	for {
+		time.Sleep(100 * time.Microsecond)
+		n, err := body.Read(buf)
+		result.Write(buf[:n])
+		if err == io.EOF {
+			break
+		}
+		require.NoError(t, err)
+	}
+
+	assert.True(t, bytes.Equal(data, result.Bytes()),
+		"slow consumer should receive all data correctly")
 }
