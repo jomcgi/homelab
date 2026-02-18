@@ -4,14 +4,13 @@
 
 load("@rules_multirun//:defs.bzl", "multirun")
 
-# Centralized Cloudflare Pages deployment target
-# Run `bazel run //websites:push_all_pages` to deploy all CF Pages sites
 multirun(
     name = "push_all_pages",
     commands = [
         "//websites/hikes.jomcgi.dev:hikes.push",
         "//websites/jomcgi.dev:jomcgi.push",
         "//websites/trips.jomcgi.dev:trips_esbuild.push",
+        "//websites/trips.jomcgi.dev:trips.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
