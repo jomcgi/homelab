@@ -85,6 +85,10 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 		},
 	}
 
+	if len(cfg.SyncNodeSelector) > 0 {
+		job.Spec.Template.Spec.NodeSelector = cfg.SyncNodeSelector
+	}
+
 	if cfg.SyncServiceAccount != "" {
 		job.Spec.Template.Spec.ServiceAccountName = cfg.SyncServiceAccount
 	}
