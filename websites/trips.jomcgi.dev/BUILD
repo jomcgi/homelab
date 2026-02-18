@@ -61,6 +61,7 @@ wrangler_pages(
     name = "trips",
     dist = ":build_dist",
     project_name = "trips-jomcgi-dev",
+    visibility = ["//websites:__pkg__"],
     wrangler = ":wrangler",
 )
 
@@ -215,7 +216,8 @@ filegroup(
 )
 
 # Cloudflare Pages deployment for esbuild variant
-wrangler_pages(  # keep
+wrangler_pages(
+    # keep
     name = "trips_esbuild",
     dist = ":esbuild_dist",
     project_name = "trips-jomcgi-dev",

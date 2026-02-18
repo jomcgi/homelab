@@ -57,9 +57,9 @@ func (l *wranglerLang) Kinds() map[string]rule.KindInfo {
 		"wrangler_pages": {
 			MatchAny: false,
 			NonEmptyAttrs: map[string]bool{
-				"dist":          true,
-				"project_name":  true,
-				"wrangler":      true,
+				"dist":         true,
+				"project_name": true,
+				"wrangler":     true,
 			},
 			MergeableAttrs: map[string]bool{
 				"visibility": true,
