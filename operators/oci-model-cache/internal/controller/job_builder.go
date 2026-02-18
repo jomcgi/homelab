@@ -1,8 +1,11 @@
 package controller
 
 import (
+	"fmt"
+
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/utils/ptr"
 
@@ -87,6 +90,29 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 
 	if len(cfg.SyncNodeSelector) > 0 {
 		job.Spec.Template.Spec.NodeSelector = cfg.SyncNodeSelector
+	}
+
+	if cfg.SyncMemoryRequest != "" || cfg.SyncMemoryLimit != "" {
+		resources := corev1.ResourceRequirements{}
+		if cfg.SyncMemoryRequest != "" {
+			resources.Requests = corev1.ResourceList{
+				corev1.ResourceMemory: resource.MustParse(cfg.SyncMemoryRequest),
+			}
+		}
+		if cfg.SyncMemoryLimit != "" {
+			memLimit := resource.MustParse(cfg.SyncMemoryLimit)
+			resources.Limits = corev1.ResourceList{
+				corev1.ResourceMemory: memLimit,
+			}
+			// Set GOMEMLIMIT to 80% of the memory limit so the Go GC applies
+			// back-pressure before the kubelet OOMKills the container.
+			goMemLimit := memLimit.Value() * 4 / 5
+			job.Spec.Template.Spec.Containers[0].Env = append(
+				job.Spec.Template.Spec.Containers[0].Env,
+				corev1.EnvVar{Name: "GOMEMLIMIT", Value: fmt.Sprintf("%dB", goMemLimit)},
+			)
+		}
+		job.Spec.Template.Spec.Containers[0].Resources = resources
 	}
 
 	if cfg.SyncServiceAccount != "" {

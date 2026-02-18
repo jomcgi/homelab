@@ -74,6 +74,14 @@ spec:
         - name: SYNC_NODE_SELECTOR
           value: {{ . | toJson | quote }}
         {{- end }}
+        {{- with .Values.controllerManager.syncMemoryRequest }}
+        - name: SYNC_MEMORY_REQUEST
+          value: {{ . | quote }}
+        {{- end }}
+        {{- with .Values.controllerManager.syncMemoryLimit }}
+        - name: SYNC_MEMORY_LIMIT
+          value: {{ . | quote }}
+        {{- end }}
         {{- if .Values.controllerManager.tracing.endpoint }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ .Values.controllerManager.tracing.endpoint | quote }}
