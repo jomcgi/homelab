@@ -10,7 +10,6 @@ multirun(
         "//websites/hikes.jomcgi.dev:hikes.push",
         "//websites/jomcgi.dev:jomcgi.push",
         "//websites/trips.jomcgi.dev:trips.push",
-        "//websites/trips.jomcgi.dev:trips_esbuild.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
