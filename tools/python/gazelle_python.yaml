@@ -33,6 +33,7 @@ manifest:
     asyncstdlib: asyncstdlib
     attr: attrs
     attrs: attrs
+    babel: babel
     bleak: bleak
     bng_latlon: bng_latlon
     boto3: boto3
@@ -43,7 +44,9 @@ manifest:
     cattrs: cattrs
     cdk8s: cdk8s
     certifi: certifi
+    cffi: cffi
     charset_normalizer: charset_normalizer
+    claude_agent_sdk: claude_agent_sdk
     click: click
     click_default_group: click_default_group
     click_plugins: click_plugins
@@ -52,11 +55,18 @@ manifest:
     construct: construct
     constructs: constructs
     copier: copier
+    courlan: courlan
+    cryptography: cryptography
     cv2: opencv_python
+    dateparser: dateparser
+    dateparser_cli: dateparser
+    dateparser_data: dateparser
+    dateparser_scripts: dateparser
     dateutil: python_dateutil
     dbus_fast: dbus_fast
     defusedxml: defusedxml
     dispatch: pyobjc_framework_libdispatch
+    distro: distro
     dotenv: python_dotenv
     dunamai: dunamai
     edfc647aaf02b20aa651__mypyc: mypy
@@ -99,9 +109,11 @@ manifest:
     google.api.system_parameter_pb2: googleapis_common_protos
     google.api.usage_pb2: googleapis_common_protos
     google.api.visibility_pb2: googleapis_common_protos
+    google.auth: google_auth
     google.cloud.extended_operations_pb2: googleapis_common_protos
     google.cloud.location.locations_pb2: googleapis_common_protos
     google.gapic.metadata.gapic_metadata_pb2: googleapis_common_protos
+    google.genai: google_genai
     google.logging.type.http_request_pb2: googleapis_common_protos
     google.logging.type.log_severity_pb2: googleapis_common_protos
     google.longrunning.operations_grpc: googleapis_common_protos
@@ -110,6 +122,7 @@ manifest:
     google.longrunning.operations_pb2_grpc: googleapis_common_protos
     google.longrunning.operations_proto: googleapis_common_protos
     google.longrunning.operations_proto_pb2: googleapis_common_protos
+    google.oauth2: google_auth
     google.protobuf: protobuf
     google.rpc.code_pb2: googleapis_common_protos
     google.rpc.context.attribute_context_pb2: googleapis_common_protos
@@ -137,9 +150,11 @@ manifest:
     grpc: grpcio
     h11: h11
     haversine: haversine
+    htmldate: htmldate
     httpcore: httpcore
     httptools: httptools
     httpx: httpx
+    httpx_sse: httpx_sse
     idna: idna
     ifaddr: ifaddr
     importlib_metadata: importlib_metadata
@@ -149,10 +164,16 @@ manifest:
     jinja2_ansible_filters: jinja2_ansible_filters
     jmespath: jmespath
     jsii: jsii
+    jsonschema: jsonschema
+    jsonschema_specifications: jsonschema_specifications
+    justext: justext
     libdispatch: pyobjc_framework_libdispatch
+    lxml: lxml
+    lxml_html_clean: lxml_html_clean
     mako: mako
     markdown_it: markdown_it_py
     markupsafe: markupsafe
+    mcp: mcp
     mdurl: mdurl
     multidict: multidict
     multipart: python_multipart
@@ -219,6 +240,9 @@ manifest:
     ptyprocess: ptyprocess
     publication: publication
     py: pytest
+    pyasn1: pyasn1
+    pyasn1_modules: pyasn1_modules
+    pycparser: pycparser
     pydantic: pydantic
     pydantic_core: pydantic_core
     pydantic_extra_types: pydantic_extra_types
@@ -234,11 +258,16 @@ manifest:
     pytz: pytz
     questionary: questionary
     rasterio: rasterio
+    referencing: referencing
+    regex: regex
     requests: requests
     requests_cache: requests_cache
     returns: returns
     rich: rich
+    rpds: rpds_py
+    rsa: rsa
     s3transfer: s3transfer
+    sgmllib: sgmllib3k
     shapely: shapely
     shellingham: shellingham
     six: six
@@ -246,11 +275,14 @@ manifest:
     soupsieve: soupsieve
     sqlite_fts4: sqlite_fts4
     sqlite_utils: sqlite_utils
+    sse_starlette: sse_starlette
     starlette: starlette
     sunrisesunset: sunrisesunset
     tabulate: tabulate
+    tenacity: tenacity
     timelength: timelength
     tinydb: tinydb
+    tld: tld
     trafilatura: trafilatura
     typeguard: typeguard
     typer: typer

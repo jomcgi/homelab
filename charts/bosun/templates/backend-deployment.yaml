@@ -1,0 +1,155 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "bosun.fullname" . }}-backend
+  labels:
+    {{- include "bosun.labels" . | nindent 4 }}
+    component: backend
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "bosun.selectorLabels" . | nindent 6 }}
+      component: backend
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: backend
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "bosun.selectorLabels" . | nindent 8 }}
+        component: backend
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "bosun.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: backend
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+          imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.backend.port }}
+              protocol: TCP
+            - name: ttyd
+              containerPort: {{ .Values.backend.ttydPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 5
+            failureThreshold: 3
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 0
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 60
+          env:
+            - name: HOME
+              value: /home/user
+            - name: PORT
+              value: {{ .Values.backend.port | quote }}
+            - name: PYTHONUSERBASE
+              value: /home/user/.local
+            - name: GIT_USER_NAME
+              value: {{ .Values.git.name | quote }}
+            - name: GIT_USER_EMAIL
+              value: {{ .Values.git.email | quote }}
+            - name: GEMINI_MODEL
+              value: {{ .Values.gemini.model | quote }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bosun.fullname" . }}-secret
+                  key: github_token
+            - name: GOOGLE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bosun.fullname" . }}-secret
+                  key: google_api_key
+                  optional: true
+            - name: BUILDBUDDY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "bosun.fullname" . }}-secret
+                  key: buildbuddy_api_key
+                  optional: true
+            {{- if .Values.backend.enableSwarm }}
+            - name: CLAUDE_CODE_ENABLE_SWARM
+              value: "true"
+            {{- end }}
+            {{- if .Values.claudeBin }}
+            - name: CLAUDE_BIN
+              value: {{ .Values.claudeBin | quote }}
+            {{- end }}
+            {{- if .Values.defaultWorkingDir }}
+            - name: DEFAULT_WORKING_DIR
+              value: {{ .Values.defaultWorkingDir | quote }}
+            {{- end }}
+            {{- if .Values.gitSync.enabled }}
+            - name: REPO_SYNC_URL
+              value: {{ .Values.gitSync.repo | quote }}
+            - name: REPO_SYNC_BRANCH
+              value: {{ .Values.gitSync.branch | quote }}
+            - name: REPO_SYNC_INTERVAL
+              value: {{ .Values.gitSync.intervalSeconds | quote }}
+            - name: BOSUN_GOLDEN_PATH
+              value: {{ .Values.gitSync.goldenPath | quote }}
+            - name: BOSUN_SESSIONS_PATH
+              value: {{ .Values.gitSync.sessionsPath | quote }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.backend.resources | nindent 12 }}
+          volumeMounts:
+            - name: home
+              mountPath: /home/user
+            - name: home
+              mountPath: /repos
+              subPath: repos
+      volumes:
+        - name: home
+          {{- if .Values.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "bosun.fullname" . }}-home
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

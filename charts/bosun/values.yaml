@@ -1,0 +1,132 @@
+## Bosun - Claude Code Web Interface (Two-Pod Architecture)
+## Backend: FastAPI + Claude CLI + ttyd + git-sync
+## Frontend: nginx serving React SPA + proxying to backend
+
+nameOverride: ""
+fullnameOverride: ""
+
+## Backend pod configuration
+backend:
+  image:
+    repository: ghcr.io/jomcgi/homelab/charts/bosun/backend
+    pullPolicy: IfNotPresent
+    tag: "main"
+  port: 8000
+  ttydPort: 7681
+  enableSwarm: true
+  resources:
+    requests:
+      cpu: "1"
+      memory: "12Gi"
+    limits:
+      memory: "12Gi"
+
+## Frontend pod configuration
+frontend:
+  image:
+    repository: ghcr.io/jomcgi/homelab/charts/bosun/frontend
+    pullPolicy: IfNotPresent
+    tag: "main"
+  port: 8080
+  replicas: 1
+  resources:
+    requests:
+      cpu: "10m"
+      memory: "32Mi"
+    limits:
+      memory: "64Mi"
+
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+## Git configuration
+git:
+  name: "Joe McGinley"
+  email: "joe@jomcgi.dev"
+
+## Gemini configuration for TTS and voice transcription
+gemini:
+  model: "gemini-2.5-flash"
+
+## Golden clone git sync
+gitSync:
+  enabled: false
+  repo: ""
+  branch: main
+  intervalSeconds: 60
+  goldenPath: /repos/golden
+  sessionsPath: /repos/sessions
+
+## Persistence configuration using Longhorn storage
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 200Gi
+  annotations:
+    helm.sh/resource-policy: keep
+
+## CLAUDE_BIN env var - set for in-cluster, override locally
+## In-cluster: /home/user/.npm-global/bin/claude
+## Local macOS: /opt/homebrew/bin/claude
+claudeBin: ""
+
+## Default working directory for new sessions
+defaultWorkingDir: ""
+
+## Pod Security Context (applied to both pods)
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context (backend)
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+## Secret management via 1Password
+secret:
+  type: onepassword
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/bosun.jomcgi.dev"
+
+## Service Account configuration
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+## RBAC configuration
+rbac:
+  create: true
+
+## Nginx image for frontend pod
+nginx:
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+
+## Pod annotations
+podAnnotations:
+  linkerd.io/inject: disabled
+
+## Pod labels
+podLabels: {}
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}

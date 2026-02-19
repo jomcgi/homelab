@@ -1,8 +1,8 @@
 {
   "version": "v1",
   "config": {
-    "name": "./charts/claude/image/apko.yaml",
-    "checksum": "sha256-H8dz3Nwr4xhjROJXT1Jus7xPLjH6QTOlN8trHAzZrLA="
+    "name": "./charts/bosun/image/backend/apko.yaml",
+    "checksum": "sha256-V6CaPKEx/z7lJQDwvmTIz0sHVfpLRiNIz+NiKbAk7g0="
   },
   "contents": {
     "keyring": [
@@ -1390,6 +1390,44 @@
         "checksum": "Q1BNi6r3dz/ozlB5f7CvpYnPXamSk="
       },
       {
+        "name": "oniguruma",
+        "url": "https://packages.wolfi.dev/os/x86_64/oniguruma-6.9.10-r2.apk",
+        "version": "6.9.10-r2",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-5976",
+          "checksum": "sha1-/A0V7Xw+rJERqtu0+KidPGW+rSM="
+        },
+        "data": {
+          "range": "bytes=5977-254993",
+          "checksum": "sha256-7t20HzJWQeolKD0S4vtj/jxDDG29UGJ+zeCBwiQieSw="
+        },
+        "checksum": "Q1/A0V7Xw+rJERqtu0+KidPGW+rSM="
+      },
+      {
+        "name": "jq",
+        "url": "https://packages.wolfi.dev/os/x86_64/jq-1.8.1-r3.apk",
+        "version": "1.8.1-r3",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6988",
+          "checksum": "sha1-vep53bo8C0lYYspdsJWtQ6VxQtA="
+        },
+        "data": {
+          "range": "bytes=6989-234282",
+          "checksum": "sha256-ikqeUkhAAybJPVT6zbhhIsJDOWYB0E+K/dPPk43bXL8="
+        },
+        "checksum": "Q1vep53bo8C0lYYspdsJWtQ6VxQtA="
+      },
+      {
         "name": "kubectl-1.35",
         "url": "https://packages.wolfi.dev/os/x86_64/kubectl-1.35-1.35.1-r0.apk",
         "version": "1.35.1-r0",
@@ -1692,6 +1730,63 @@
           "checksum": "sha256-vhR0NjmTHQIWYxpP9Dxd3L58daa9uXd02ivqhWclLdQ="
         },
         "checksum": "Q117t7lSV3+xX4BamtCIhh57SA2CI="
+      },
+      {
+        "name": "py3.12-setuptools",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.12-setuptools-82.0.0-r0.apk",
+        "version": "82.0.0-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7859",
+          "checksum": "sha1-xlNXVw87bsrR0F3N5nc8IiAihS0="
+        },
+        "data": {
+          "range": "bytes=7860-2451755",
+          "checksum": "sha256-5fzb1POLYzhqUjeKyFK7EBriwQ9m03IcJVbXWnklMw0="
+        },
+        "checksum": "Q1xlNXVw87bsrR0F3N5nc8IiAihS0="
+      },
+      {
+        "name": "py3.12-pip-base",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.12-pip-base-26.0.1-r0.apk",
+        "version": "26.0.1-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-9900",
+          "checksum": "sha1-dzgjGw3PUDrgivgiwmBLHlLXc/I="
+        },
+        "data": {
+          "range": "bytes=9901-3859301",
+          "checksum": "sha256-lcuzbpjPW0FDuJdqbx99cl3KdRx0ToxUiWLO/+yBYPY="
+        },
+        "checksum": "Q1dzgjGw3PUDrgivgiwmBLHlLXc/I="
+      },
+      {
+        "name": "py3.12-pip",
+        "url": "https://packages.wolfi.dev/os/x86_64/py3.12-pip-26.0.1-r0.apk",
+        "version": "26.0.1-r0",
+        "architecture": "x86_64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-9921",
+          "checksum": "sha1-wnTzLxh/Mst6sMzEY8McBr3dHvI="
+        },
+        "data": {
+          "range": "bytes=9922-11762",
+          "checksum": "sha256-xZItKtWHtEXJ/k/KrrUWNsRyV4En78qV90lI6V+HJ+0="
+        },
+        "checksum": "Q1wnTzLxh/Mst6sMzEY8McBr3dHvI="
       },
       {
         "name": "python-3.12",
@@ -3081,6 +3176,44 @@
         "checksum": "Q1NkViXRwEj+XBXPoUzIn0tpqSQss="
       },
       {
+        "name": "oniguruma",
+        "url": "https://packages.wolfi.dev/os/aarch64/oniguruma-6.9.10-r2.apk",
+        "version": "6.9.10-r2",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-6019",
+          "checksum": "sha1-Nu67ljE7kvOdaINiyb5TDagPnaE="
+        },
+        "data": {
+          "range": "bytes=6020-252635",
+          "checksum": "sha256-1jBWSp2H8CiXz1CG9AEhyIt4ACYq7B6WWBVR+b/d2Ks="
+        },
+        "checksum": "Q1Nu67ljE7kvOdaINiyb5TDagPnaE="
+      },
+      {
+        "name": "jq",
+        "url": "https://packages.wolfi.dev/os/aarch64/jq-1.8.1-r3.apk",
+        "version": "1.8.1-r3",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7022",
+          "checksum": "sha1-2vwtTSsJTOj6zXNwsr1GygKkn3Q="
+        },
+        "data": {
+          "range": "bytes=7023-224741",
+          "checksum": "sha256-UAHyZBamITmEQjtyNXRrIv90DOKSrgBsKs4rGBsbaYc="
+        },
+        "checksum": "Q12vwtTSsJTOj6zXNwsr1GygKkn3Q="
+      },
+      {
         "name": "kubectl-1.35",
         "url": "https://packages.wolfi.dev/os/aarch64/kubectl-1.35-1.35.1-r0.apk",
         "version": "1.35.1-r0",
@@ -3383,6 +3516,63 @@
           "checksum": "sha256-FDXQ+JtEvPRgZu6cCQ6UGilSIV7UT2b/mUFzjfzo7h0="
         },
         "checksum": "Q13hHglaWfuLvOJF1EYtJrR5GU3OA="
+      },
+      {
+        "name": "py3.12-setuptools",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.12-setuptools-82.0.0-r0.apk",
+        "version": "82.0.0-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-7892",
+          "checksum": "sha1-OxXqgSmz7HDr0CiwSKWC558ZGdc="
+        },
+        "data": {
+          "range": "bytes=7893-2451787",
+          "checksum": "sha256-tZxZRuIfOjKVj/M6k+HLq1iflAnPVs8WmPDAXkU0SLs="
+        },
+        "checksum": "Q1OxXqgSmz7HDr0CiwSKWC558ZGdc="
+      },
+      {
+        "name": "py3.12-pip-base",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.12-pip-base-26.0.1-r0.apk",
+        "version": "26.0.1-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-9929",
+          "checksum": "sha1-UsWhFulfQdBHCmtLtCm7/RwfDks="
+        },
+        "data": {
+          "range": "bytes=9930-3859326",
+          "checksum": "sha256-hT7qoSWlpGEJ1llxvKN19EqbjUJYUZDtOhjqxS9xGOo="
+        },
+        "checksum": "Q1UsWhFulfQdBHCmtLtCm7/RwfDks="
+      },
+      {
+        "name": "py3.12-pip",
+        "url": "https://packages.wolfi.dev/os/aarch64/py3.12-pip-26.0.1-r0.apk",
+        "version": "26.0.1-r0",
+        "architecture": "aarch64",
+        "signature": {
+          "range": "",
+          "checksum": ""
+        },
+        "control": {
+          "range": "bytes=0-9951",
+          "checksum": "sha1-xjF/rd+imgpdzL8mgp1tWjfN76k="
+        },
+        "data": {
+          "range": "bytes=9952-11791",
+          "checksum": "sha256-TDk6EB03NXC9pMYPOhhQIEP7tsU6OKbgXvdlfkG41BE="
+        },
+        "checksum": "Q1xjF/rd+imgpdzL8mgp1tWjfN76k="
       },
       {
         "name": "python-3.12",

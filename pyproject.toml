@@ -17,7 +17,7 @@ dependencies = [
     "pydantic-settings~=2.1",
     "pydantic-extra-types~=2.0",
     "pydantic-sqlite~=0.3.0",
-    "httpx~=0.26.0",
+    "httpx~=0.28.1",
     "requests~=2.31",
     "requests-cache~=1.1",
     "beautifulsoup4~=4.12",
@@ -48,7 +48,7 @@ dependencies = [
     # Trips API dependencies
     "nats-py~=2.9",
     # AIS ingest dependencies
-    "websockets~=12.0",
+    "websockets~=15.0",
     "certifi",  # CA certificates for SSL in minimal containers
     # Ships API dependencies
     "aiosqlite~=0.20",
@@ -69,6 +69,9 @@ dependencies = [
     "trafilatura~=1.12",
     "feedparser~=6.0",
     "lxml-html-clean",  # Required by trafilatura; added explicitly because lxml[html-clean] creates a Bazel cycle
+    # Bosun (Claude Code web interface) dependencies
+    "google-genai~=1.56",
+    "claude-agent-sdk~=0.1",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/

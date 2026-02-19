@@ -1,0 +1,37 @@
+// ── Design tokens ──────────────────────────────────────────────────────────
+export const C = {
+  bg: "#FFFFFF",
+  bgSub: "#FAFAFA",
+  surface: "#F4F4F5",
+  surfaceHover: "#EBEBED",
+  border: "#E4E4E7",
+  borderLight: "#F0F0F2",
+  text: "#18181B",
+  textSec: "#52525B",
+  textTer: "#A1A1AA",
+  textFaint: "#D4D4D8",
+  you: "#047857",
+  youBg: "#ECFDF5",
+  youBorder: "#A7F3D0",
+  voice: "#7C3AED",
+  voiceBg: "#F5F3FF",
+  voiceBorder: "#DDD6FE",
+  approval: "#B45309",
+  approvalBg: "#FFFBEB",
+  approvalBorder: "#FDE68A",
+  success: "#059669",
+  danger: "#DC2626",
+  micOn: "#DC2626",
+  addGreen: "#16A34A",
+  addBg: "#F0FDF4",
+  delRed: "#DC2626",
+  delBg: "#FEF2F2",
+  accentBlue: "#2563EB",
+  borderStrong: "#A1A1AA",
+  stepBg: "#F9FAFB",
+  stepBorder: "#E5E7EB",
+  stepText: "#6B7280",
+};
+
+export const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+export const mono = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
