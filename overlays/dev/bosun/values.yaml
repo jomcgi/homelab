@@ -12,3 +12,23 @@ gitSync:
   branch: main
   intervalSeconds: 60
 claudeBin: "/home/user/.npm-global/bin/claude"
+
+# ArgoCD Image Updater
+imageUpdater:
+  enabled: true
+  images:
+  - alias: backend
+    imageName: ghcr.io/jomcgi/homelab/charts/bosun/backend:main
+    helm:
+      name: backend.image.repository
+      tag: backend.image.tag
+  - alias: frontend
+    imageName: ghcr.io/jomcgi/homelab/charts/bosun/frontend:main
+    helm:
+      name: frontend.image.repository
+      tag: frontend.image.tag
+  writeBack:
+    method: git:secret:argocd/argocd-image-updater-token
+    repository: https://github.com/jomcgi/homelab.git
+    branch: main
+    target: helmvalues:../../overlays/dev/bosun/values.yaml
