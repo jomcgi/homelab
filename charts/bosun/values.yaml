@@ -23,7 +23,7 @@ backend:
     tag: "main"
   port: 8000
   ttydPort: 7681
-  enableSwarm: true
+  enableAgentTeams: true
   resources:
     requests:
       cpu: "1"

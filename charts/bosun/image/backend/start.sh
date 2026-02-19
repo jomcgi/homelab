@@ -7,8 +7,8 @@ export PATH="$HOME/.local/bin:$NPM_CONFIG_PREFIX/bin:$PATH"
 mkdir -p "$NPM_CONFIG_PREFIX"
 
 # Install Claude Code CLI (cached on PVC)
-echo "Installing/updating Claude Code (sneakpeek)..."
-npm install -g @realmikekelly/claude-sneakpeek
+echo "Installing/updating Claude Code..."
+npm install -g @anthropic-ai/claude-code
 
 # Git configuration
 [ -n "$GIT_USER_NAME" ] && git config --global user.name "$GIT_USER_NAME"
@@ -19,7 +19,7 @@ git config --global safe.directory '*'
 # Configure GitHub CLI as git credential helper
 [ -n "$GITHUB_TOKEN" ] && gh auth setup-git
 
-# Start ttyd for terminal access
+# Start ttyd for terminal access (inherits PATH with claude in it)
 ttyd -p 7681 -W /bin/bash &
 
 # Start git-sync if repo URL is configured
