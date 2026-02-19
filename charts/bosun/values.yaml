@@ -95,7 +95,7 @@ securityContext:
 secret:
   type: onepassword
   onepassword:
-    itemPath: "vaults/k8s-homelab/items/bosun.jomcgi.dev"
+    itemPath: "vaults/k8s-homelab/items/bosun"
 
 ## Service Account configuration
 serviceAccount:
