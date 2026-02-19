@@ -53,6 +53,10 @@ oci_image(
     name = "image_base_amd64",
     base = ":base_amd64_transitioned",
     entrypoint = ["/app/start.sh"],
+    env = {
+        "BAZEL_WORKSPACE": "_main",
+        "RUNFILES_DIR": "/charts/bosun/backend/server.runfiles",
+    },
     tars = py_image_layer(
         name = "py_layers_amd64",
         binary = "//charts/bosun/backend:server",
@@ -74,6 +78,10 @@ oci_image(
     name = "image_base_arm64",
     base = ":base_arm64_transitioned",
     entrypoint = ["/app/start.sh"],
+    env = {
+        "BAZEL_WORKSPACE": "_main",
+        "RUNFILES_DIR": "/charts/bosun/backend/server.runfiles",
+    },
     tars = py_image_layer(
         name = "py_layers_arm64",
         binary = "//charts/bosun/backend:server",
