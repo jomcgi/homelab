@@ -97,6 +97,9 @@ data:
             }
 
             # Terminal (ttyd) -> backend
+            location = /terminal {
+                return 301 /terminal/;
+            }
             location /terminal/ {
                 proxy_pass http://bosun_ttyd/;
                 proxy_http_version 1.1;
