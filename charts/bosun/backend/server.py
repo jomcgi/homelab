@@ -244,7 +244,7 @@ class ClaudeSession:
         options = ClaudeAgentOptions(
             cwd=self.workdir,
             allowed_tools=AUTO_APPROVED_TOOLS,
-            permission_mode="bypassPermissions",
+            permission_mode="acceptEdits",
             include_partial_messages=True,
             setting_sources=["project"],
             cli_path=CLAUDE_CLI_PATH or None,
