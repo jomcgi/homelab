@@ -5,6 +5,16 @@
 nameOverride: ""
 fullnameOverride: ""
 
+## ArgoCD Image Updater (automatic digest-based image updates)
+imageUpdater:
+  enabled: false
+  images: []
+  writeBack:
+    method: ""
+    repository: ""
+    branch: main
+    target: ""
+
 ## Backend pod configuration
 backend:
   image:
