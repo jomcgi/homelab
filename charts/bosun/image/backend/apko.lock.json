@@ -403,22 +403,22 @@
       },
       {
         "name": "linux-headers",
-        "url": "https://packages.wolfi.dev/os/x86_64/linux-headers-6.19.1-r0.apk",
-        "version": "6.19.1-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/linux-headers-6.19.3-r0.apk",
+        "version": "6.19.3-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4580",
-          "checksum": "sha1-Vf9sPZrTCq6MggzVfwNyNXCYhIQ="
+          "range": "bytes=0-4577",
+          "checksum": "sha1-HLOVlycSO96F+Yd/ruxayztPBXo="
         },
         "data": {
-          "range": "bytes=4581-2086514",
-          "checksum": "sha256-NN7cjD4//Y8ksXcBkxCLXSw2uwzFX9/OpFxja2QlCNk="
+          "range": "bytes=4578-2086393",
+          "checksum": "sha256-LQFycgZO2eoXtVJ5Siwv8WWHAcVy7gaBY87uvNVvzF8="
         },
-        "checksum": "Q1Vf9sPZrTCq6MggzVfwNyNXCYhIQ="
+        "checksum": "Q1HLOVlycSO96F+Yd/ruxayztPBXo="
       },
       {
         "name": "glibc-dev",
@@ -1581,22 +1581,22 @@
       },
       {
         "name": "npm",
-        "url": "https://packages.wolfi.dev/os/x86_64/npm-11.10.0-r0.apk",
-        "version": "11.10.0-r0",
+        "url": "https://packages.wolfi.dev/os/x86_64/npm-11.10.1-r0.apk",
+        "version": "11.10.1-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-3951",
-          "checksum": "sha1-H5yNX/PL6I4WZrMbz8fBxGmsK2Q="
+          "range": "bytes=0-3957",
+          "checksum": "sha1-zQ0iGlIKLY2Ia5YJYVJvW2cGzZY="
         },
         "data": {
-          "range": "bytes=3952-2401953",
-          "checksum": "sha256-0fTSamgre80Cx56ftRpC2IatYcC1JJTkVLl+UQTmKa8="
+          "range": "bytes=3958-2452007",
+          "checksum": "sha256-CggYRTyoxImvVlQLobtyGqXa2SKfQvV9XwI8EF+en04="
         },
-        "checksum": "Q1H5yNX/PL6I4WZrMbz8fBxGmsK2Q="
+        "checksum": "Q1zQ0iGlIKLY2Ia5YJYVJvW2cGzZY="
       },
       {
         "name": "mpdecimal",
@@ -2189,22 +2189,22 @@
       },
       {
         "name": "linux-headers",
-        "url": "https://packages.wolfi.dev/os/aarch64/linux-headers-6.19.1-r0.apk",
-        "version": "6.19.1-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/linux-headers-6.19.3-r0.apk",
+        "version": "6.19.3-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-4609",
-          "checksum": "sha1-jDT/8DwbYBRmtkxDNWIAW44GV00="
+          "range": "bytes=0-4605",
+          "checksum": "sha1-AhrPCRfzfjaqrFQ9Q8m4X7K3E90="
         },
         "data": {
-          "range": "bytes=4610-2048777",
-          "checksum": "sha256-tRHnkqZJcB7v1zqIXMtBD73EieO+JE0ZbhLh1DB2Pk8="
+          "range": "bytes=4606-2048672",
+          "checksum": "sha256-htIKg1Uw+FrNdI0CyWytRFpwB+IXCoEOv8eiv/XwY+k="
         },
-        "checksum": "Q1jDT/8DwbYBRmtkxDNWIAW44GV00="
+        "checksum": "Q1AhrPCRfzfjaqrFQ9Q8m4X7K3E90="
       },
       {
         "name": "glibc-dev",
@@ -3367,22 +3367,22 @@
       },
       {
         "name": "npm",
-        "url": "https://packages.wolfi.dev/os/aarch64/npm-11.10.0-r0.apk",
-        "version": "11.10.0-r0",
+        "url": "https://packages.wolfi.dev/os/aarch64/npm-11.10.1-r0.apk",
+        "version": "11.10.1-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-3982",
-          "checksum": "sha1-Aw5h2mlz0MiK+eSu/WVPjZ7wddE="
+          "range": "bytes=0-3990",
+          "checksum": "sha1-/PtiCQ5bVru4L95pmSd5mXmYaIY="
         },
         "data": {
-          "range": "bytes=3983-2401979",
-          "checksum": "sha256-XoNS4KOOPDYQT+vOFeBjZZMc2cn7ot8U6yH/I+UBU7c="
+          "range": "bytes=3991-2452044",
+          "checksum": "sha256-YdtUVC1dHHp5ZS7lyCak8KOCYoXGsjoFtQcQBT0ATzs="
         },
-        "checksum": "Q1Aw5h2mlz0MiK+eSu/WVPjZ7wddE="
+        "checksum": "Q1/PtiCQ5bVru4L95pmSd5mXmYaIY="
       },
       {
         "name": "mpdecimal",
