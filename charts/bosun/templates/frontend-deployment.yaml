@@ -86,6 +86,8 @@ spec:
               mountPath: /var/cache/nginx
             - name: nginx-log
               mountPath: /var/log/nginx
+            - name: nginx-lib-log
+              mountPath: /var/lib/nginx/logs
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
       volumes:
@@ -99,4 +101,6 @@ spec:
           emptyDir:
             medium: Memory
         - name: nginx-log
+          emptyDir: {}
+        - name: nginx-lib-log
           emptyDir: {}

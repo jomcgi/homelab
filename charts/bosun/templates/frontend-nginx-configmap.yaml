@@ -64,7 +64,7 @@ data:
 
             # Static React frontend
             location / {
-                root /usr/share/nginx/html;
+                root /usr/share/nginx/html/charts/bosun/frontend/dist;
                 try_files $uri $uri/ /index.html;
                 expires 1h;
                 add_header Cache-Control "public";
