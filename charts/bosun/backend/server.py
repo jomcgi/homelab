@@ -1005,12 +1005,16 @@ async def _precache_tts():
 
     missing = [p for p in _CACHED_PHRASES if p not in _TTS_CACHE]
     if not missing:
-        log.info("TTS cache: all %d phrases already cached on disk", len(_CACHED_PHRASES))
+        log.info(
+            "TTS cache: all %d phrases already cached on disk", len(_CACHED_PHRASES)
+        )
         return
 
     client = _get_gemini()
     if not client:
-        log.info("TTS cache: Gemini not available, skipping %d missing phrases", len(missing))
+        log.info(
+            "TTS cache: Gemini not available, skipping %d missing phrases", len(missing)
+        )
         return
 
     log.info("TTS cache: generating %d missing phrases...", len(missing))
