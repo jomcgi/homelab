@@ -56,7 +56,7 @@ git:
 
 ## Gemini configuration for TTS and voice transcription
 gemini:
-  model: "gemini-3-flash"
+  model: "gemini-3-flash-preview"
 
 ## Golden clone git sync
 gitSync:
