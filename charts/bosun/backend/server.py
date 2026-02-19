@@ -128,6 +128,7 @@ DB_PATH = Path.home() / ".claude" / "bosun.db"
 
 
 def _init_db():
+    DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     db = sqlite3.connect(str(DB_PATH))
     db.execute("PRAGMA journal_mode=WAL")
     db.execute("""
