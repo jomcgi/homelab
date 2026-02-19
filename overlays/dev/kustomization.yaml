@@ -3,6 +3,7 @@ kind: Kustomization
 
 resources:
   - ./marine
+  - ./bosun
   - ./claude
   - ./cloudflare-operator
   - ./cloudflare-operator-test
