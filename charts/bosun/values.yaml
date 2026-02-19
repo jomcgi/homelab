@@ -85,11 +85,14 @@ claudeBin: ""
 defaultWorkingDir: ""
 
 ## Pod Security Context (applied to both pods)
+## Backend runs as root: py_image_layer dirs are root-owned and the
+## aspect_rules_py launcher needs to create a venv next to the binary.
+## Frontend (nginx) keeps its own non-root context.
 podSecurityContext:
-  runAsNonRoot: true
-  runAsUser: 1000
-  runAsGroup: 1000
-  fsGroup: 1000
+  runAsNonRoot: false
+  runAsUser: 0
+  runAsGroup: 0
+  fsGroup: 0
   seccompProfile:
     type: RuntimeDefault
 
