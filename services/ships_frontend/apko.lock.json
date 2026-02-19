@@ -28,22 +28,22 @@
     "packages": [
       {
         "name": "wolfi-baselayout",
-        "url": "https://packages.wolfi.dev/os/x86_64/wolfi-baselayout-20230201-r26.apk",
-        "version": "20230201-r26",
+        "url": "https://packages.wolfi.dev/os/x86_64/wolfi-baselayout-20230201-r27.apk",
+        "version": "20230201-r27",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-1777",
-          "checksum": "sha1-Sm82qCrv6rOExi6VfeHtMlvyi3g="
+          "range": "bytes=0-1839",
+          "checksum": "sha1-hrrKFlizqypi4OjYBnzOUQdkypU="
         },
         "data": {
-          "range": "bytes=1778-13697",
-          "checksum": "sha256-UbwpGOhjwbR+UTkm6fELQkOimQ9VXEm3m3wqlIF53JE="
+          "range": "bytes=1840-13778",
+          "checksum": "sha256-aWkh30lVScwqX5Rh8Spmgm0KK93IvsbnhJJ2RdVXoBo="
         },
-        "checksum": "Q1Sm82qCrv6rOExi6VfeHtMlvyi3g="
+        "checksum": "Q1hrrKFlizqypi4OjYBnzOUQdkypU="
       },
       {
         "name": "ca-certificates-bundle",
@@ -142,41 +142,41 @@
       },
       {
         "name": "bun",
-        "url": "https://packages.wolfi.dev/os/x86_64/bun-1.3.8-r1.apk",
-        "version": "1.3.8-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/bun-1.3.9-r0.apk",
+        "version": "1.3.9-r0",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5323",
-          "checksum": "sha1-QbGnN+UQ6KM1cabS5o2hNkJwsFc="
+          "range": "bytes=0-5315",
+          "checksum": "sha1-1Q4RAN3VhFLlelTnajRfzx0FCsI="
         },
         "data": {
-          "range": "bytes=5324-39521377",
-          "checksum": "sha256-tLDI1mSFkOhRhLhrlQHtObAbeX19RcrTWdSU8ARsfdI="
+          "range": "bytes=5316-39726933",
+          "checksum": "sha256-VZvt1pqM9M+o48pyAJ8lxvGrYasO3Doqd041uqxzxw4="
         },
-        "checksum": "Q1QbGnN+UQ6KM1cabS5o2hNkJwsFc="
+        "checksum": "Q11Q4RAN3VhFLlelTnajRfzx0FCsI="
       },
       {
         "name": "wolfi-baselayout",
-        "url": "https://packages.wolfi.dev/os/aarch64/wolfi-baselayout-20230201-r26.apk",
-        "version": "20230201-r26",
+        "url": "https://packages.wolfi.dev/os/aarch64/wolfi-baselayout-20230201-r27.apk",
+        "version": "20230201-r27",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-1804",
-          "checksum": "sha1-xNyQrJjyWOxWPpnAbGuLKsMxCEk="
+          "range": "bytes=0-1869",
+          "checksum": "sha1-3w5XjKTj0CLWVw9gRdvp1wLH14E="
         },
         "data": {
-          "range": "bytes=1805-13722",
-          "checksum": "sha256-akijXSfO45pA7Kgx3z5nUSU3aLZg1pCzNKMa9WM9F4Y="
+          "range": "bytes=1870-13801",
+          "checksum": "sha256-rhLBY0CcLBiWzz1lshYokRvKKiThcAGVOgChZzFgw6o="
         },
-        "checksum": "Q1xNyQrJjyWOxWPpnAbGuLKsMxCEk="
+        "checksum": "Q13w5XjKTj0CLWVw9gRdvp1wLH14E="
       },
       {
         "name": "ca-certificates-bundle",
@@ -275,22 +275,22 @@
       },
       {
         "name": "bun",
-        "url": "https://packages.wolfi.dev/os/aarch64/bun-1.3.8-r1.apk",
-        "version": "1.3.8-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/bun-1.3.9-r0.apk",
+        "version": "1.3.9-r0",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5347",
-          "checksum": "sha1-7qTUdHPv1HAloCw/GO+2W6hrTgQ="
+          "range": "bytes=0-5343",
+          "checksum": "sha1-sMYKF4XWDviHhP50135UOjo5j9w="
         },
         "data": {
-          "range": "bytes=5348-39083306",
-          "checksum": "sha256-VojHG05aEmoF6KOo03fIQu5OKnCEuhIzHxYpYGueagU="
+          "range": "bytes=5344-39532220",
+          "checksum": "sha256-RQvDI1ZX9VSC3bMFpQCktUOBTeK3Hfl2astZLqvXnL4="
         },
-        "checksum": "Q17qTUdHPv1HAloCw/GO+2W6hrTgQ="
+        "checksum": "Q1sMYKF4XWDviHhP50135UOjo5j9w="
       }
     ]
   }

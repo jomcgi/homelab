@@ -1,0 +1,12 @@
+backend:
+  image:
+    tag: "main"
+frontend:
+  image:
+    tag: "main"
+gitSync:
+  enabled: true
+  repo: https://github.com/jomcgi/homelab
+  branch: main
+  intervalSeconds: 60
+claudeBin: "/home/user/.npm-global/bin/claude"
