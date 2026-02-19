@@ -1,11 +1,11 @@
 backend:
   image:
     repository: ghcr.io/jomcgi/homelab/charts/bosun/backend
-    tag: latest@sha256:befbefd2dd46f059183be40bfcddce90bbfbe77f592b324439b69ef31d074573
+    tag: main@sha256:fc6366a5b03c01225417a89e5e9e7ffccc73446b16bd628f2d36f3ee07553b69
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/charts/bosun/frontend
-    tag: main@sha256:05abdaf580193a2cb1e7174d58cca9085f5a33b1797b7a4261b1d83d4c9d3c8d
+    tag: latest@sha256:05abdaf580193a2cb1e7174d58cca9085f5a33b1797b7a4261b1d83d4c9d3c8d
 gitSync:
   enabled: true
   repo: https://github.com/jomcgi/homelab
