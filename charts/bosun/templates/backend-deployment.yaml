@@ -101,9 +101,9 @@ spec:
                   name: {{ include "bosun.fullname" . }}-secret
                   key: buildbuddy_api_key
                   optional: true
-            {{- if .Values.backend.enableSwarm }}
-            - name: CLAUDE_CODE_ENABLE_SWARM
-              value: "true"
+            {{- if .Values.backend.enableAgentTeams }}
+            - name: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
+              value: "1"
             {{- end }}
             {{- if .Values.claudeBin }}
             - name: CLAUDE_BIN
