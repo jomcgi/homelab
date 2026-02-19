@@ -27,11 +27,11 @@ ttyd -p 7681 -W /bin/bash &
 
 # Wait for golden clone to be ready
 if [ -n "$REPO_SYNC_URL" ]; then
-  echo "Waiting for golden clone..."
-  for i in $(seq 1 120); do
-    [ -d "${BOSUN_GOLDEN_PATH:-/repos/golden}/.git" ] && break
-    sleep 1
-  done
+	echo "Waiting for golden clone..."
+	for i in $(seq 1 120); do
+		[ -d "${BOSUN_GOLDEN_PATH:-/repos/golden}/.git" ] && break
+		sleep 1
+	done
 fi
 
 # Start Bosun backend server (Python deps baked into image via py_image_layer)
