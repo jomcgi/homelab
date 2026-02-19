@@ -937,6 +937,7 @@ def _pcm_to_wav(
 # ── TTS helpers and caching ────────────────────────────────────────────────
 
 _TTS_CACHE: dict[str, str] = {}  # phrase -> base64 WAV audio
+_TTS_CACHE_PATH = Path.home() / ".claude" / "tts_cache.json"
 
 _CACHED_PHRASES = [
     "Compacting session context",
@@ -988,14 +989,32 @@ def _split_sentences(text: str) -> list[str]:
 
 
 async def _precache_tts():
-    """Pre-generate TTS audio for static confirmation phrases."""
-    client = _get_gemini()
-    if not client:
-        log.info("TTS cache: Gemini not available, skipping")
+    """Pre-generate TTS audio for static confirmation phrases.
+
+    Loads previously cached audio from disk (PVC-backed) and only generates
+    missing phrases, so pod restarts don't re-hit the TTS API.
+    """
+    # Load existing cache from PVC
+    if _TTS_CACHE_PATH.exists():
+        try:
+            saved = json.loads(_TTS_CACHE_PATH.read_text())
+            _TTS_CACHE.update(saved)
+            log.info("TTS cache: loaded %d phrases from disk", len(saved))
+        except Exception as e:
+            log.warning("TTS cache: failed to load from disk: %s", e)
+
+    missing = [p for p in _CACHED_PHRASES if p not in _TTS_CACHE]
+    if not missing:
+        log.info("TTS cache: all %d phrases already cached on disk", len(_CACHED_PHRASES))
         return
 
-    log.info("TTS cache: generating %d phrases...", len(_CACHED_PHRASES))
-    for phrase in _CACHED_PHRASES:
+    client = _get_gemini()
+    if not client:
+        log.info("TTS cache: Gemini not available, skipping %d missing phrases", len(missing))
+        return
+
+    log.info("TTS cache: generating %d missing phrases...", len(missing))
+    for i, phrase in enumerate(missing):
         try:
             pcm = await asyncio.to_thread(_generate_tts_raw, client, phrase)
             if pcm:
@@ -1003,6 +1022,18 @@ async def _precache_tts():
                 _TTS_CACHE[phrase] = base64.b64encode(wav).decode("utf-8")
         except Exception as e:
             log.warning("TTS cache: failed '%s': %s", phrase, e)
+        # Throttle to stay under 10 req/min TTS rate limit
+        if i < len(missing) - 1:
+            await asyncio.sleep(7)
+
+    # Persist to PVC so next restart skips generation
+    try:
+        _TTS_CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        _TTS_CACHE_PATH.write_text(json.dumps(_TTS_CACHE))
+        log.info("TTS cache: saved %d phrases to disk", len(_TTS_CACHE))
+    except Exception as e:
+        log.warning("TTS cache: failed to save to disk: %s", e)
+
     log.info("TTS cache: cached %d/%d phrases", len(_TTS_CACHE), len(_CACHED_PHRASES))
 
 
@@ -1057,7 +1088,7 @@ async def classify_intent(body: dict):
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model="gemini-3-flash",
+            model="gemini-3-flash-preview",
             contents=prompt,
         )
         raw = response.text.strip().lower()
@@ -1109,7 +1140,7 @@ async def search_sessions(body: dict):
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model="gemini-3-flash",
+            model="gemini-3-flash-preview",
             contents=prompt,
         )
         idx = int(response.text.strip())
@@ -1177,7 +1208,7 @@ async def _summarize(client, text: str, suggest_actions: bool):
             )
             sa_resp = await asyncio.to_thread(
                 client.models.generate_content,
-                model="gemini-3-flash",
+                model="gemini-3-flash-preview",
                 contents=sa_prompt,
             )
             raw = sa_resp.text.strip()
@@ -1193,7 +1224,7 @@ async def _summarize(client, text: str, suggest_actions: bool):
         else:
             resp = await asyncio.to_thread(
                 client.models.generate_content,
-                model="gemini-3-flash",
+                model="gemini-3-flash-preview",
                 contents=_SUMMARY_PROMPT + f"Agent output:\n{text}",
             )
             summary = resp.text.strip().strip('"').strip("'")
@@ -1352,7 +1383,7 @@ async def generate_title(body: dict):
     try:
         response = await asyncio.to_thread(
             client.models.generate_content,
-            model="gemini-3-flash",
+            model="gemini-3-flash-preview",
             contents=f"Generate a short title (3-6 words, no quotes) summarizing this coding session:\n\n{transcript}",
         )
         title = response.text.strip().strip('"').strip("'")
