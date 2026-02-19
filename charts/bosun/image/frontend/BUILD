@@ -9,7 +9,7 @@ load("//tools/oci:apko_image.bzl", "apko_image")
 pkg_tar(
     name = "dist_tar",
     srcs = ["//charts/bosun/frontend:dist"],
-    mode = "0644",
+    mode = "0755",
     owner = "101.101",
     package_dir = "usr/share/nginx/html",
     strip_prefix = "charts/bosun/frontend/dist",
