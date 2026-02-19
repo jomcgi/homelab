@@ -18,6 +18,12 @@ ingress:
       service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
       service: http://signoz.signoz.svc.cluster.local:8080
+    - hostname: bosun.jomcgi.dev
+      service: http://bosun-frontend.bosun.svc.cluster.local:8080
+      originRequest:
+        keepAliveConnections: 100
+        keepAliveTimeout: 90s
+        tcpKeepAlive: 30s
     - hostname: claude.jomcgi.dev
       service: http://claude.claude.svc.cluster.local:3000
       originRequest:
