@@ -15,10 +15,7 @@ py_binary(
 
 py_library(
     name = "backend",
-    srcs = [
-        "__init__.py",
-        "server.py",
-    ],
+    srcs = ["server.py"],
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//claude_agent_sdk",
@@ -29,8 +26,9 @@ py_library(
 )
 
 py_test(
-    name = "test_tts_on_result",
-    srcs = ["test_tts_on_result.py"],
+    name = "tts_on_result_test",
+    srcs = ["tts_on_result_test.py"],
+    imports = ["."],
     deps = [
         ":backend",
         "@pip//claude_agent_sdk",

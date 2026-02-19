@@ -133,7 +133,7 @@ async def test_tts_fires_only_on_result():
     types, TTS would fire prematurely (e.g., on each streaming chunk).
     """
     with patch("server.query", side_effect=_mock_query):
-        import services.bosun.backend.server as server
+        import server
 
         from starlette.testclient import TestClient
 
