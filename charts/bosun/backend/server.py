@@ -122,6 +122,12 @@ AUTO_APPROVED_TOOLS = [
 
 app = FastAPI()
 
+
+@app.get("/health")
+async def health():
+    return {"status": "ok"}
+
+
 # ── SQLite persistence ─────────────────────────────────────────────────────
 
 DB_PATH = Path.home() / ".claude" / "bosun.db"
