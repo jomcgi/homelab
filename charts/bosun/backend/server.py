@@ -727,7 +727,7 @@ class ClaudeSession:
                     break
                 except Exception as iter_err:
                     if "Unknown message type" in str(iter_err):
-                        log.warning("SDK: skipping unknown message type: %s", iter_err)
+                        log.info("SDK: skipping %s: %s", type(iter_err).__name__, iter_err)
                         continue
                     raise
 
@@ -749,6 +749,8 @@ class ClaudeSession:
                                 "session_id": self.session_id,
                             }
                         )
+                    else:
+                        log.info("SDK SystemMessage subtype=%s data=%s", msg.subtype, msg.data)
                     continue
 
                 # ── Streaming deltas (partial text from API) ──────
@@ -772,6 +774,18 @@ class ClaudeSession:
                                     "parent_tool_use_id": msg.parent_tool_use_id,
                                 }
                             )
+                            # Emit early subagent_start for Task tools during streaming
+                            if cb.get("name") == "Task":
+                                await ws.send_json(
+                                    {
+                                        "type": "subagent_start",
+                                        "tool_use_id": cb.get("id", ""),
+                                        "name": "",
+                                        "description": "",
+                                        "subagent_type": "",
+                                        "parent_tool_use_id": msg.parent_tool_use_id,
+                                    }
+                                )
 
                     elif ev_type == "content_block_delta":
                         delta = ev.get("delta", {})
@@ -782,6 +796,17 @@ class ClaudeSession:
                                 {
                                     "type": "assistant_text",
                                     "content": chunk,
+                                }
+                            )
+
+                    elif ev_type == "message_delta":
+                        usage = ev.get("usage", {})
+                        if usage:
+                            await ws.send_json(
+                                {
+                                    "type": "usage_update",
+                                    "input_tokens": usage.get("input_tokens", 0),
+                                    "output_tokens": usage.get("output_tokens", 0),
                                 }
                             )
 
@@ -854,6 +879,26 @@ class ClaudeSession:
                                     "parent_tool_use_id": msg.parent_tool_use_id,
                                 }
                             )
+                            # Emit structured events for specific tool types
+                            if block.name == "TodoWrite":
+                                await ws.send_json(
+                                    {
+                                        "type": "todo_update",
+                                        "todos": block.input.get("todos", []),
+                                        "parent_tool_use_id": msg.parent_tool_use_id,
+                                    }
+                                )
+                            elif block.name == "Task":
+                                await ws.send_json(
+                                    {
+                                        "type": "subagent_start",
+                                        "tool_use_id": block.id,
+                                        "name": block.input.get("name", block.input.get("description", "")),
+                                        "description": block.input.get("description", ""),
+                                        "subagent_type": block.input.get("subagent_type", ""),
+                                        "parent_tool_use_id": msg.parent_tool_use_id,
+                                    }
+                                )
                         elif isinstance(block, TextBlock) and block.text:
                             full_run_text += block.text + "\n"
                         elif isinstance(block, ToolResultBlock):

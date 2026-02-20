@@ -29,6 +29,7 @@ import { TranscriptView } from "./components/TranscriptView.jsx";
 import { ActionChips } from "./components/ActionChips.jsx";
 import { ExportButton } from "./components/ExportButton.jsx";
 import { PRBar } from "./components/PRBar.jsx";
+import { StatusLine } from "./components/StatusLine.jsx";
 
 // ── Shared styles (used by both mobile and desktop layouts) ────────────────
 const sharedCSS = `
@@ -108,6 +109,10 @@ export default function App() {
     streaming,
     pendingApproval,
     prs,
+    todos,
+    subagents,
+    turnStart,
+    usage,
     send,
     approve,
     reject,
@@ -451,6 +456,8 @@ export default function App() {
               voiceCommands.clearActions();
               send(prompt);
             }}
+            todos={todos}
+            subagents={subagents}
           />
           {voiceCommands.actions.length > 0 &&
             !messages.some((m) => m.role === "gemini") && (
@@ -464,38 +471,7 @@ export default function App() {
                 />
               </div>
             )}
-          {streaming && (
-            <div
-              role="status"
-              aria-live="polite"
-              style={{
-                padding: "12px 0",
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              {[0, 1, 2].map((i) => (
-                <span
-                  key={i}
-                  className="vcc-animated"
-                  style={{
-                    width: 4,
-                    height: 4,
-                    borderRadius: "50%",
-                    backgroundColor: C.textTer,
-                    animation: `vcc-bounce 0.6s ease-in-out ${i * 0.15}s infinite`,
-                    animationFillMode: "both",
-                  }}
-                />
-              ))}
-              <span
-                style={{ fontSize: 13, color: C.textTer, fontFamily: mono }}
-              >
-                working
-              </span>
-            </div>
-          )}
+          <StatusLine streaming={streaming} turnStart={turnStart} usage={usage} todos={todos} />
           {(voice.pending || voice.interim) && (
             <div
               style={{
@@ -1116,6 +1092,8 @@ export default function App() {
                     voiceCommands.clearActions();
                     send(prompt);
                   }}
+                  todos={todos}
+                  subagents={subagents}
                 />
                 {/* Fallback: render action chips outside transcript if no summary group picked them up */}
                 {voiceCommands.actions.length > 0 &&
@@ -1130,43 +1108,7 @@ export default function App() {
                       />
                     </div>
                   )}
-                {streaming && (
-                  <div
-                    role="status"
-                    aria-live="polite"
-                    style={{
-                      padding: "16px 0",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                    }}
-                  >
-                    {[0, 1, 2].map((i) => (
-                      <span
-                        key={i}
-                        className="vcc-animated"
-                        style={{
-                          width: 5,
-                          height: 5,
-                          borderRadius: "50%",
-                          backgroundColor: C.textTer,
-                          animation: `vcc-bounce 0.6s ease-in-out ${i * 0.15}s infinite`,
-                          animationFillMode: "both",
-                        }}
-                      />
-                    ))}
-                    <span
-                      style={{
-                        fontSize: 14,
-                        color: C.textTer,
-                        fontFamily: mono,
-                        marginLeft: 2,
-                      }}
-                    >
-                      working
-                    </span>
-                  </div>
-                )}
+                <StatusLine streaming={streaming} turnStart={turnStart} usage={usage} todos={todos} />
                 {(voice.pending || voice.interim) && (
                   <div
                     style={{

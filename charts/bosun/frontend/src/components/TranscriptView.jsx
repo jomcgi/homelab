@@ -17,6 +17,8 @@ import { ArtifactCard } from "./ArtifactCard.jsx";
 import { ActionChips } from "./ActionChips.jsx";
 import { CopyButton } from "./CopyButton.jsx";
 import { InlinePRPill } from "./PRBar.jsx";
+import { TodoChecklist } from "./TodoChecklist.jsx";
+import { SubagentProgress } from "./SubagentProgress.jsx";
 
 // ── Message grouping ───────────────────────────────────────────────────────
 function useGroups(messages) {
@@ -82,6 +84,8 @@ export function TranscriptView({
   onReject,
   actions,
   onAction,
+  todos,
+  subagents,
 }) {
   const groups = useGroups(messages);
   const [expandedSteps, setExpandedSteps] = useState({});
@@ -151,6 +155,14 @@ export function TranscriptView({
                 {g.voice.text}
               </div>
             </div>
+          )}
+
+          {/* Live progress indicators — only in the last (active) group */}
+          {gi === groups.length - 1 && todos?.length > 0 && (
+            <TodoChecklist todos={todos} />
+          )}
+          {gi === groups.length - 1 && subagents && Object.keys(subagents).length > 0 && (
+            <SubagentProgress subagents={subagents} />
           )}
 
           {/* Intermediate steps */}
