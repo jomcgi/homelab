@@ -30,7 +30,7 @@ py_test(
     srcs = ["tts_on_result_test.py"],
     imports = ["."],
     deps = [
-        ":backend",
+        "//charts/bosun",
         "@pip//claude_agent_sdk",
         "@pip//pytest",
         "@pip//starlette",
