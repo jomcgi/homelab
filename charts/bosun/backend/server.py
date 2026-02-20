@@ -90,6 +90,14 @@ if CLAUDE_CLI_PATH:
     log.info("Using system Claude CLI: %s", CLAUDE_CLI_PATH)
 else:
     log.warning("System claude not found — SDK will use bundled CLI (may lack auth)")
+GOLDEN_PATH = os.environ.get("BOSUN_GOLDEN_PATH", "")
+SESSIONS_PATH = os.environ.get("BOSUN_SESSIONS_PATH", "")
+if GOLDEN_PATH and os.path.isdir(os.path.join(GOLDEN_PATH, ".git")):
+    log.info("Golden clone: %s, sessions: %s", GOLDEN_PATH, SESSIONS_PATH)
+else:
+    GOLDEN_PATH = ""  # Disable worktree isolation
+    log.info("No golden clone — sessions share the default workdir")
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 if not GOOGLE_API_KEY:
     # Try fish shell universal variables as fallback
@@ -226,6 +234,139 @@ def _save_summary(session_id: str, msg_id: str, text: str):
 if not HAS_SDK:
     log.warning("claude-agent-sdk not installed — run: pip install claude-agent-sdk")
 
+# ── Per-session worktree isolation ─────────────────────────────────────────
+
+
+def _create_session_workdir(base_workdir: str) -> str:
+    """Create an isolated working directory for a new session.
+
+    If a golden clone is configured, creates a git worktree so the session
+    has its own branch and working copy. Falls back to base_workdir if
+    golden clone is not available.
+    """
+    if not GOLDEN_PATH or not SESSIONS_PATH:
+        return base_workdir
+
+    session_dir = os.path.join(SESSIONS_PATH, f"s-{int(time.time() * 1000)}")
+    try:
+        os.makedirs(SESSIONS_PATH, exist_ok=True)
+        branch = f"bosun/session-{int(time.time() * 1000)}"
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                GOLDEN_PATH,
+                "worktree",
+                "add",
+                "-b",
+                branch,
+                session_dir,
+                "HEAD",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        log.info("Created session worktree: %s (branch: %s)", session_dir, branch)
+        return session_dir
+    except Exception as e:
+        log.warning("Failed to create session worktree: %s — using default", e)
+        return base_workdir
+
+
+SESSION_TTL_DAYS = int(os.environ.get("BOSUN_SESSION_TTL_DAYS", "7"))
+
+
+def _touch_session_workdir(workdir: str):
+    """Update the mtime of a session worktree to track last activity."""
+    if not SESSIONS_PATH or not workdir.startswith(SESSIONS_PATH):
+        return
+    try:
+        os.utime(workdir, None)  # Sets mtime to now
+    except OSError:
+        pass
+
+
+def _cleanup_session_workdir(workdir: str):
+    """Remove a single session worktree and its branch."""
+    try:
+        subprocess.run(
+            ["git", "-C", GOLDEN_PATH, "worktree", "remove", "--force", workdir],
+            capture_output=True,
+            text=True,
+        )
+        dirname = os.path.basename(workdir)
+        ts = dirname.removeprefix("s-")
+        branch = f"bosun/session-{ts}"
+        subprocess.run(
+            ["git", "-C", GOLDEN_PATH, "branch", "-D", branch],
+            capture_output=True,
+            text=True,
+        )
+        log.info("Cleaned up session worktree: %s", workdir)
+    except Exception as e:
+        log.warning("Failed to clean up worktree %s: %s", workdir, e)
+
+
+def _prune_stale_worktrees():
+    """Remove session worktrees with no activity in SESSION_TTL_DAYS.
+
+    Called on startup and periodically. Uses directory mtime to determine
+    last activity — each SDK query touches the worktree dir.
+    """
+    if not GOLDEN_PATH or not SESSIONS_PATH:
+        return
+
+    # Let git clean up its internal worktree bookkeeping first
+    subprocess.run(
+        ["git", "-C", GOLDEN_PATH, "worktree", "prune"],
+        capture_output=True,
+        text=True,
+    )
+
+    if not os.path.isdir(SESSIONS_PATH):
+        return
+
+    cutoff = time.time() - (SESSION_TTL_DAYS * 86400)
+    pruned = 0
+    for entry in os.listdir(SESSIONS_PATH):
+        path = os.path.join(SESSIONS_PATH, entry)
+        if not os.path.isdir(path):
+            continue
+        try:
+            mtime = os.path.getmtime(path)
+        except OSError:
+            mtime = 0
+        if mtime < cutoff:
+            _cleanup_session_workdir(path)
+            pruned += 1
+
+    # Clean up dangling branches whose worktrees were already removed
+    result = subprocess.run(
+        ["git", "-C", GOLDEN_PATH, "branch", "--list", "bosun/session-*"],
+        capture_output=True,
+        text=True,
+    )
+    for branch in result.stdout.strip().splitlines():
+        branch = branch.strip()
+        if not branch:
+            continue
+        # Check if a matching session dir still exists
+        ts = branch.removeprefix("bosun/session-")
+        session_dir = os.path.join(SESSIONS_PATH, f"s-{ts}")
+        if not os.path.isdir(session_dir):
+            subprocess.run(
+                ["git", "-C", GOLDEN_PATH, "branch", "-D", branch],
+                capture_output=True,
+                text=True,
+            )
+
+    if pruned:
+        log.info("Pruned %d stale session worktrees (TTL: %dd)", pruned, SESSION_TTL_DAYS)
+    else:
+        log.info("Session worktree prune: nothing to clean up")
+
+
 # ── Claude Agent SDK session manager ────────────────────────────────────────
 
 
@@ -233,12 +374,51 @@ class ClaudeSession:
     """Manages a Claude Agent SDK session and streams results to a WebSocket."""
 
     def __init__(self, workdir: str):
-        self.workdir = workdir
+        self.workdir = _create_session_workdir(workdir)
         self.session_id: str | None = None
         self._cancel_event = asyncio.Event()
 
     async def run(self, prompt: str, ws: WebSocket):
-        """Run a query via the Agent SDK and stream events to the WebSocket."""
+        """Run a query via the Agent SDK and stream events to the WebSocket.
+
+        Retries up to MAX_RETRIES times if the SDK produces no output
+        (e.g. rate limited, connection dropped).
+        """
+        MAX_RETRIES = 3
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            got_result, had_output = await self._run_once(
+                prompt, ws, attempt
+            )
+            if got_result or had_output:
+                return  # Success or partial output — don't retry
+            if attempt < MAX_RETRIES:
+                delay = 2**attempt  # 2s, 4s
+                log.warning(
+                    "SDK produced no output (attempt %d/%d) — retrying in %ds",
+                    attempt,
+                    MAX_RETRIES,
+                    delay,
+                )
+                await ws.send_json(
+                    {
+                        "type": "status",
+                        "message": f"No response received, retrying ({attempt}/{MAX_RETRIES})...",
+                    }
+                )
+                await asyncio.sleep(delay)
+
+        # All retries exhausted
+        log.warning("SDK produced no output after %d attempts", MAX_RETRIES)
+        await ws.send_json(
+            {
+                "type": "error",
+                "message": "Claude produced no response after multiple attempts. This may be due to rate limiting — try again shortly.",
+            }
+        )
+
+    async def _run_once(self, prompt: str, ws: WebSocket, attempt: int = 1):
+        """Execute a single SDK query attempt. Returns (got_result, had_output)."""
         self._cancel_event.clear()
 
         options = ClaudeAgentOptions(
@@ -253,12 +433,19 @@ class ClaudeSession:
         if self.session_id:
             options.resume = self.session_id
 
-        log.info("SDK query: %s... (session=%s)", prompt[:60], self.session_id or "new")
+        log.info(
+            "SDK query (attempt %d): %s... (session=%s)",
+            attempt,
+            prompt[:60],
+            self.session_id or "new",
+        )
+        _touch_session_workdir(self.workdir)
 
         text_buf = ""
         full_run_text = ""
         streaming_text = False
         artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
+        tool_summaries = []  # Human-readable tool call summaries for TTS context
 
         got_result = False
 
@@ -371,13 +558,15 @@ class ClaudeSession:
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):
+                            summary = _tool_summary_sdk(block)
+                            tool_summaries.append(summary)
                             await ws.send_json(
                                 {
                                     "type": "tool_use",
                                     "name": block.name,
                                     "tool_use_id": block.id,
                                     "input": block.input,
-                                    "summary": _tool_summary_sdk(block),
+                                    "summary": summary,
                                     "parent_tool_use_id": msg.parent_tool_use_id,
                                 }
                             )
@@ -500,16 +689,17 @@ class ClaudeSession:
                         len(final_text),
                     )
                     got_result = True
-                    await ws.send_json(
-                        {
-                            "type": "result",
-                            "session_id": msg.session_id,
-                            "cost_usd": msg.total_cost_usd,
-                            "duration_ms": msg.duration_ms,
-                            "num_turns": msg.num_turns,
-                            "full_text": final_text,
-                        }
-                    )
+                    result_payload = {
+                        "type": "result",
+                        "session_id": msg.session_id,
+                        "cost_usd": msg.total_cost_usd,
+                        "duration_ms": msg.duration_ms,
+                        "num_turns": msg.num_turns,
+                        "full_text": final_text,
+                    }
+                    if tool_summaries:
+                        result_payload["tool_summaries"] = tool_summaries
+                    await ws.send_json(result_payload)
                     continue
 
         except asyncio.CancelledError:
@@ -521,10 +711,12 @@ class ClaudeSession:
                 await ws.send_json({"type": "error", "message": str(e)})
             except Exception:
                 pass
+            return True, True  # Don't retry on exceptions
 
         # Fallback: if SDK iteration ended without a ResultMessage, send
         # accumulated text so the frontend can still trigger TTS/summary.
-        if not got_result and full_run_text.strip():
+        had_output = bool(full_run_text.strip() or tool_summaries)
+        if not got_result and had_output:
             log.warning(
                 "SDK ended without ResultMessage — sending fallback result (text_len=%d)",
                 len(full_run_text.strip()),
@@ -532,13 +724,16 @@ class ClaudeSession:
             if streaming_text:
                 full_run_text += text_buf + "\n"
                 await ws.send_json({"type": "assistant_done", "full_text": text_buf})
-            await ws.send_json(
-                {
-                    "type": "result",
-                    "session_id": self.session_id,
-                    "full_text": full_run_text.strip(),
-                }
-            )
+            fallback_payload = {
+                "type": "result",
+                "session_id": self.session_id,
+                "full_text": full_run_text.strip(),
+            }
+            if tool_summaries:
+                fallback_payload["tool_summaries"] = tool_summaries
+            await ws.send_json(fallback_payload)
+
+        return got_result, had_output
 
     def cancel(self):
         """Signal the running query to stop."""
@@ -1084,6 +1279,7 @@ async def _precache_tts():
 
 @app.on_event("startup")
 async def _startup():
+    _prune_stale_worktrees()
     asyncio.create_task(_precache_tts())
 
 
@@ -1224,16 +1420,15 @@ def _truncate_for_tts(text: str) -> str:
 
 
 _SUMMARY_PROMPT = (
-    "You are briefing a developer who is listening, not reading. Summarize this\n"
-    "coding agent's output as a spoken paragraph (100-150 words, 3-5 sentences).\n\n"
-    "Structure:\n"
-    "1. What was found or done (1-2 sentences)\n"
-    "2. The recommendation or proposed next step (1-2 sentences)\n"
-    "3. Any question the agent is asking the user (if applicable)\n\n"
+    "You are briefing a developer who is listening, not reading.\n"
+    "Summarize the coding agent's output for spoken delivery.\n\n"
     "Rules:\n"
-    '- Lead with the conclusion/finding, not "The agent investigated..."\n'
-    "- Include specific details (file names, function names, values) so the\n"
-    "  listener can respond with instructions without seeing the screen\n"
+    "- Be concise. Use as few words as possible to convey the key point.\n"
+    "- For short or simple outputs, just relay the answer directly.\n"
+    "- For longer outputs, summarize what was done and any next step. Max 150 words.\n"
+    '- Lead with the conclusion, not "The agent investigated..."\n'
+    "- Include specific details (file names, values) only when the listener\n"
+    "  needs them to respond without seeing the screen\n"
     "- If the agent asks the user a question, end with that question\n"
     "- Be natural and conversational — this will be spoken aloud\n"
     "- Do NOT use markdown, bullet points, or formatting\n\n"
@@ -1360,7 +1555,7 @@ async def text_to_speech(body: dict):
 
     client = _get_gemini()  # needed for summarization only
 
-    text = body.get("text", "")
+    text = body.get("text", "").strip()
     if not text:
         return {"error": "No text provided"}
 
@@ -1557,6 +1752,14 @@ async def websocket_endpoint(ws: WebSocket):
                 text = data.get("text", "").strip()
                 if not text:
                     continue
+
+                # Inject TTS summary context so Claude knows what the user heard
+                summary_ctx = data.get("summary_context", "").strip()
+                if summary_ctx:
+                    text = (
+                        f"[The user heard this spoken summary of your last response: "
+                        f'"{summary_ctx}"]\n\n{text}'
+                    )
 
                 if current_task and not current_task.done():
                     # Agent is busy — queue the message for delivery after current turn
