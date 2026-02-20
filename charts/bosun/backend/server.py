@@ -727,7 +727,9 @@ class ClaudeSession:
                     break
                 except Exception as iter_err:
                     if "Unknown message type" in str(iter_err):
-                        log.info("SDK: skipping %s: %s", type(iter_err).__name__, iter_err)
+                        log.info(
+                            "SDK: skipping %s: %s", type(iter_err).__name__, iter_err
+                        )
                         continue
                     raise
 
@@ -750,7 +752,11 @@ class ClaudeSession:
                             }
                         )
                     else:
-                        log.info("SDK SystemMessage subtype=%s data=%s", msg.subtype, msg.data)
+                        log.info(
+                            "SDK SystemMessage subtype=%s data=%s",
+                            msg.subtype,
+                            msg.data,
+                        )
                     continue
 
                 # ── Streaming deltas (partial text from API) ──────
@@ -893,9 +899,15 @@ class ClaudeSession:
                                     {
                                         "type": "subagent_start",
                                         "tool_use_id": block.id,
-                                        "name": block.input.get("name", block.input.get("description", "")),
-                                        "description": block.input.get("description", ""),
-                                        "subagent_type": block.input.get("subagent_type", ""),
+                                        "name": block.input.get(
+                                            "name", block.input.get("description", "")
+                                        ),
+                                        "description": block.input.get(
+                                            "description", ""
+                                        ),
+                                        "subagent_type": block.input.get(
+                                            "subagent_type", ""
+                                        ),
                                         "parent_tool_use_id": msg.parent_tool_use_id,
                                     }
                                 )
