@@ -245,12 +245,12 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           break;
 
         case "result":
-          // The agent is done — fire the onResult callback with full turn text
-          console.log("[bosun] result received:", { hasText: !!msg.full_text, len: msg.full_text?.length, hasCallback: !!onResultRef.current });
-          if (msg.full_text && onResultRef.current) {
-            onResultRef.current(msg.full_text);
-          } else if (!msg.full_text) {
-            console.warn("[bosun] result message had no full_text:", msg);
+          // The agent is done — fire the onResult callback with full turn text + tool context
+          console.log("[bosun] result received:", { hasText: !!msg.full_text, len: msg.full_text?.length, tools: msg.tool_summaries?.length || 0, hasCallback: !!onResultRef.current });
+          if (onResultRef.current && (msg.full_text || msg.tool_summaries?.length)) {
+            onResultRef.current(msg.full_text || "", msg.tool_summaries);
+          } else if (!msg.full_text && !msg.tool_summaries?.length) {
+            console.warn("[bosun] result message had no content:", msg);
           }
           break;
 

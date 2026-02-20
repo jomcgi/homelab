@@ -259,6 +259,7 @@ class ClaudeSession:
         full_run_text = ""
         streaming_text = False
         artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
+        tool_summaries = []  # Human-readable tool call summaries for TTS context
 
         got_result = False
 
@@ -371,13 +372,15 @@ class ClaudeSession:
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):
+                            summary = _tool_summary_sdk(block)
+                            tool_summaries.append(summary)
                             await ws.send_json(
                                 {
                                     "type": "tool_use",
                                     "name": block.name,
                                     "tool_use_id": block.id,
                                     "input": block.input,
-                                    "summary": _tool_summary_sdk(block),
+                                    "summary": summary,
                                     "parent_tool_use_id": msg.parent_tool_use_id,
                                 }
                             )
@@ -500,16 +503,17 @@ class ClaudeSession:
                         len(final_text),
                     )
                     got_result = True
-                    await ws.send_json(
-                        {
-                            "type": "result",
-                            "session_id": msg.session_id,
-                            "cost_usd": msg.total_cost_usd,
-                            "duration_ms": msg.duration_ms,
-                            "num_turns": msg.num_turns,
-                            "full_text": final_text,
-                        }
-                    )
+                    result_payload = {
+                        "type": "result",
+                        "session_id": msg.session_id,
+                        "cost_usd": msg.total_cost_usd,
+                        "duration_ms": msg.duration_ms,
+                        "num_turns": msg.num_turns,
+                        "full_text": final_text,
+                    }
+                    if tool_summaries:
+                        result_payload["tool_summaries"] = tool_summaries
+                    await ws.send_json(result_payload)
                     continue
 
         except asyncio.CancelledError:
@@ -524,7 +528,7 @@ class ClaudeSession:
 
         # Fallback: if SDK iteration ended without a ResultMessage, send
         # accumulated text so the frontend can still trigger TTS/summary.
-        if not got_result and full_run_text.strip():
+        if not got_result and (full_run_text.strip() or tool_summaries):
             log.warning(
                 "SDK ended without ResultMessage — sending fallback result (text_len=%d)",
                 len(full_run_text.strip()),
@@ -532,13 +536,14 @@ class ClaudeSession:
             if streaming_text:
                 full_run_text += text_buf + "\n"
                 await ws.send_json({"type": "assistant_done", "full_text": text_buf})
-            await ws.send_json(
-                {
-                    "type": "result",
-                    "session_id": self.session_id,
-                    "full_text": full_run_text.strip(),
-                }
-            )
+            fallback_payload = {
+                "type": "result",
+                "session_id": self.session_id,
+                "full_text": full_run_text.strip(),
+            }
+            if tool_summaries:
+                fallback_payload["tool_summaries"] = tool_summaries
+            await ws.send_json(fallback_payload)
 
     def cancel(self):
         """Signal the running query to stop."""
@@ -1362,9 +1367,6 @@ async def text_to_speech(body: dict):
     text = body.get("text", "").strip()
     if not text:
         return {"error": "No text provided"}
-    if len(text) < 10:
-        log.info("TTS skipped: text too short (%d chars)", len(text))
-        return {"skipped": True, "reason": "text too short"}
 
     # Check pre-cache for exact matches (static confirmations)
     if text in _TTS_CACHE:

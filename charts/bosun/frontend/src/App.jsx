@@ -89,10 +89,13 @@ export default function App() {
   const bp = useBreakpoint();
   const tts = useTTS();
   const { connected, sessionId, messages, streaming, pendingApproval, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
-    onResult: (text) => {
-      console.log("[bosun] onResult fired, text length:", text?.length);
-      // Skip TTS for empty or trivially short results (e.g. tool-only runs with no prose)
-      if (!text || text.trim().length < 10) { console.log("[bosun] onResult too short — skipping TTS"); voice.unsuppress(); return; }
+    onResult: (text, toolSummaries) => {
+      console.log("[bosun] onResult fired, text length:", text?.length, "tools:", toolSummaries?.length || 0);
+      // Build context string: tool calls + text output
+      const toolContext = toolSummaries?.length ? `Tool calls: ${toolSummaries.join(", ")}\n\n` : "";
+      const ttsInput = toolContext + (text || "");
+      // Skip TTS only if we have absolutely nothing
+      if (!ttsInput.trim()) { console.log("[bosun] onResult empty — skipping TTS"); voice.unsuppress(); return; }
       // Dedup: skip if this is the same result text as last time (echo/replay)
       if (text === lastTtsRef.current) { console.log("[bosun] onResult dedup — skipping"); return; }
       lastTtsRef.current = text;
@@ -106,7 +109,7 @@ export default function App() {
           const res = await fetch("/api/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text, summarize: true, suggest_actions: true, stream: true }),
+            body: JSON.stringify({ text: ttsInput, summarize: true, suggest_actions: true, stream: true }),
           });
 
           const reader = res.body.getReader();
