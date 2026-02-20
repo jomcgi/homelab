@@ -72,6 +72,10 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
   const [streaming, setStreaming] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(null);
   const [prs, setPrs] = useState([]);
+  const [todos, setTodos] = useState([]);
+  const [subagents, setSubagents] = useState({}); // tool_use_id → {name, desc, type, toolCount, steps[]}
+  const [turnStart, setTurnStart] = useState(null);
+  const [usage, setUsage] = useState(null);
   const streamBufRef = useRef("");
   const msgIdRef = useRef(0);
   const onResultRef = useRef(onResultCb);
@@ -131,6 +135,8 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
         case "assistant_start":
           streamBufRef.current = "";
           setStreaming(true);
+          setTurnStart((prev) => prev || Date.now()); // Only set on first start, not sub-turns
+          setUsage(null);
           setMessages((prev) => [
             ...prev,
             { id: nextId(), role: "claude", time: now(), status: "thinking", text: "Working...", _streaming: true },
@@ -138,7 +144,8 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           break;
 
         case "assistant_done":
-          setStreaming(false);
+          // Don't setStreaming(false) here — with subagents, assistant_done fires
+          // per sub-turn. Only the final "result" event should end streaming.
           setMessages((prev) => {
             const last = prev[prev.length - 1];
             if (last && last._streaming) {
@@ -151,6 +158,17 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
         case "tool_use":
           if (msg.tool_use_id) {
             toolInfoRef.current.set(msg.tool_use_id, { name: msg.name, input: msg.input });
+          }
+          // Track tool calls within subagents
+          if (msg.parent_tool_use_id) {
+            setSubagents((prev) => {
+              const agent = prev[msg.parent_tool_use_id];
+              if (agent) {
+                const steps = [...agent.steps, `${msg.name}: ${msg.summary || ""}`].slice(-3);
+                return { ...prev, [msg.parent_tool_use_id]: { ...agent, toolCount: agent.toolCount + 1, steps } };
+              }
+              return prev;
+            });
           }
           setMessages((prev) => [
             ...prev,
@@ -246,6 +264,10 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           break;
 
         case "result": {
+          setStreaming(false);
+          setTurnStart(null);
+          setSubagents({});
+          // Don't clear todos — they persist for TTS context
           // The agent turn is complete — ensure the messages array has a "done"
           // message with the full result text so exports/grouping work correctly.
           const fullText = (msg.full_text || "").trim();
@@ -357,6 +379,30 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           });
           break;
 
+        case "todo_update":
+          setTodos(msg.todos || []);
+          break;
+
+        case "subagent_start":
+          setSubagents((prev) => ({
+            ...prev,
+            [msg.tool_use_id]: {
+              name: msg.name || "",
+              desc: msg.description || "",
+              type: msg.subagent_type || "",
+              toolCount: prev[msg.tool_use_id]?.toolCount || 0,
+              steps: prev[msg.tool_use_id]?.steps || [],
+            },
+          }));
+          break;
+
+        case "usage_update":
+          setUsage({ input_tokens: msg.input_tokens, output_tokens: msg.output_tokens });
+          break;
+
+        case "heartbeat":
+          break;
+
         case "prs_update":
           setPrs(msg.prs);
           break;
@@ -430,6 +476,10 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
     setStreaming(false);
     setPendingApproval(null);
     setPrs([]);
+    setTodos([]);
+    setSubagents({});
+    setTurnStart(null);
+    setUsage(null);
     // Clear URL param
     const url = new URL(window.location);
     url.searchParams.delete("session");
@@ -550,5 +600,5 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
     ]);
   }, []);
 
-  return { connected, sessionId, messages, streaming, pendingApproval, prs, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage };
+  return { connected, sessionId, messages, streaming, pendingApproval, prs, todos, subagents, turnStart, usage, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage };
 }
