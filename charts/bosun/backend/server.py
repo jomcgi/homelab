@@ -260,18 +260,23 @@ class ClaudeSession:
         streaming_text = False
         artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
 
+        got_result = False
+
         try:
             msg_iter = query(prompt=prompt, options=options).__aiter__()
             while True:
                 try:
                     msg = await msg_iter.__anext__()
                 except StopAsyncIteration:
+                    log.info("SDK iteration ended (StopAsyncIteration)")
                     break
                 except Exception as iter_err:
                     if "Unknown message type" in str(iter_err):
-                        log.debug("SDK: skipping unknown message type: %s", iter_err)
+                        log.warning("SDK: skipping unknown message type: %s", iter_err)
                         continue
                     raise
+
+                log.debug("SDK msg: %s", type(msg).__name__)
 
                 # Check for cancellation
                 if self._cancel_event.is_set():
@@ -494,6 +499,7 @@ class ClaudeSession:
                         msg.num_turns,
                         len(final_text),
                     )
+                    got_result = True
                     await ws.send_json(
                         {
                             "type": "result",
@@ -515,6 +521,24 @@ class ClaudeSession:
                 await ws.send_json({"type": "error", "message": str(e)})
             except Exception:
                 pass
+
+        # Fallback: if SDK iteration ended without a ResultMessage, send
+        # accumulated text so the frontend can still trigger TTS/summary.
+        if not got_result and full_run_text.strip():
+            log.warning(
+                "SDK ended without ResultMessage — sending fallback result (text_len=%d)",
+                len(full_run_text.strip()),
+            )
+            if streaming_text:
+                full_run_text += text_buf + "\n"
+                await ws.send_json({"type": "assistant_done", "full_text": text_buf})
+            await ws.send_json(
+                {
+                    "type": "result",
+                    "session_id": self.session_id,
+                    "full_text": full_run_text.strip(),
+                }
+            )
 
     def cancel(self):
         """Signal the running query to stop."""

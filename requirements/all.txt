@@ -618,12 +618,12 @@ charset-normalizer==3.4.4 \
     #   htmldate
     #   requests
     #   trafilatura
-claude-agent-sdk==0.1.38 \
-    --hash=sha256:1a3493f856de84ea86802457bfe1deaf14da2768627f7b1602618f866390d5e8 \
-    --hash=sha256:46aeb89490813a27c8bc4e7b0d58d7dc16a5718890b20ef1e3b8a1adb511d9cc \
-    --hash=sha256:51f51972270b5c3be86037fdaa333942d45f0a11cfd437e834a2242b0612a96b \
-    --hash=sha256:74d3d1c10069fdaceb8ddf75c57c90d05881a2a88136dff87b023def42d09837 \
-    --hash=sha256:77a4ba1a78bb16c67152c35692e7d070e7e09d311f95abdc02e913f762109910
+claude-agent-sdk==0.1.39 \
+    --hash=sha256:0c03b5a3772eaec42e29ea39240c7d24b760358082f2e36336db9e71dde3dda4 \
+    --hash=sha256:6ed6a79781f545b761b9fe467bc5ae213a103c9d3f0fe7a9dad3c01790ed58fa \
+    --hash=sha256:d03324daf7076be79d2dd05944559aabf4cc11c98d3a574b992a442a7c7a26d6 \
+    --hash=sha256:d2665c9e87b6ffece590bcdd6eb9def47cde4809b0d2f66e0a61a719189be7c9 \
+    --hash=sha256:dcf0ebd5a638c9a7d9f3af7640932a9212b2705b7056e4f08bd3968a865b4268
     # via
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
