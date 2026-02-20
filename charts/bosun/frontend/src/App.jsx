@@ -1,7 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Mic, MicOff, Volume2, VolumeX, Terminal, Plus, X, PanelRightOpen, PanelRightClose,
-  Wifi, WifiOff, Send, Grid,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX,
+  Terminal,
+  Plus,
+  X,
+  PanelRightOpen,
+  PanelRightClose,
+  Wifi,
+  WifiOff,
+  Send,
+  Grid,
 } from "lucide-react";
 import { C, sans, mono } from "./tokens.js";
 import { useBreakpoint } from "./hooks/useBreakpoint.js";
@@ -90,18 +101,48 @@ function relativeTime(epochSecs) {
 export default function App() {
   const bp = useBreakpoint();
   const tts = useTTS();
-  const { connected, sessionId, messages, streaming, pendingApproval, prs, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
+  const {
+    connected,
+    sessionId,
+    messages,
+    streaming,
+    pendingApproval,
+    prs,
+    send,
+    approve,
+    reject,
+    newSession,
+    resumeSession,
+    wsRef,
+    addGeminiMessage,
+  } = useClaudeSocket({
     onResult: (text, toolSummaries, speculativeSummary) => {
-      console.log("[bosun] onResult fired, text length:", text?.length, "tools:", toolSummaries?.length || 0, "speculative:", !!speculativeSummary);
+      console.log(
+        "[bosun] onResult fired, text length:",
+        text?.length,
+        "tools:",
+        toolSummaries?.length || 0,
+        "speculative:",
+        !!speculativeSummary,
+      );
       // Build context string: tool calls + text output
-      const toolContext = toolSummaries?.length ? `Tool calls: ${toolSummaries.join(", ")}\n\n` : "";
+      const toolContext = toolSummaries?.length
+        ? `Tool calls: ${toolSummaries.join(", ")}\n\n`
+        : "";
       const ttsInput = toolContext + (text || "");
       // Skip TTS only if we have absolutely nothing
-      if (!ttsInput.trim()) { console.log("[bosun] onResult empty — skipping TTS"); voice.unsuppress(); return; }
+      if (!ttsInput.trim()) {
+        console.log("[bosun] onResult empty — skipping TTS");
+        voice.unsuppress();
+        return;
+      }
       // Dedup: skip if this is the same non-empty result text as last time (echo/replay).
       // Only dedup on non-empty text — empty strings match the initial ref value and
       // would incorrectly skip tool-only turns where toolSummaries carry the content.
-      if (text && text === lastTtsRef.current) { console.log("[bosun] onResult dedup — skipping"); return; }
+      if (text && text === lastTtsRef.current) {
+        console.log("[bosun] onResult dedup — skipping");
+        return;
+      }
       lastTtsRef.current = text;
 
       // Voice already suppressed via streaming effect, but ensure it's off
@@ -111,7 +152,12 @@ export default function App() {
       // If a speculative summary is available, pass it to skip the Gemini call
       (async () => {
         try {
-          const ttsBody = { text: ttsInput, summarize: true, suggest_actions: true, stream: true };
+          const ttsBody = {
+            text: ttsInput,
+            summarize: true,
+            suggest_actions: true,
+            stream: true,
+          };
           if (speculativeSummary) ttsBody.pre_summary = speculativeSummary;
           const res = await fetch("/api/tts", {
             method: "POST",
@@ -122,16 +168,26 @@ export default function App() {
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let buffer = "";
-          const audioChunks = [];  // collected for replay blob
-          const audioQueue = [];   // pending Audio objects to play sequentially
+          const audioChunks = []; // collected for replay blob
+          const audioQueue = []; // pending Audio objects to play sequentially
           let playing = false;
 
           const playNext = () => {
-            if (audioQueue.length === 0) { playing = false; voice.unsuppress(); return; }
+            if (audioQueue.length === 0) {
+              playing = false;
+              voice.unsuppress();
+              return;
+            }
             playing = true;
             const a = audioQueue.shift();
-            a.onended = () => { URL.revokeObjectURL(a.src); playNext(); };
-            a.play().catch(() => { URL.revokeObjectURL(a.src); playNext(); });
+            a.onended = () => {
+              URL.revokeObjectURL(a.src);
+              playNext();
+            };
+            a.play().catch(() => {
+              URL.revokeObjectURL(a.src);
+              playNext();
+            });
           };
 
           const enqueueAudio = (b64, mimeType) => {
@@ -166,18 +222,25 @@ export default function App() {
                     fetch("/api/summaries", {
                       method: "POST",
                       headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ session_id: sessionId, msg_id: `tts-${Date.now()}`, text: chunk.summary }),
+                      body: JSON.stringify({
+                        session_id: sessionId,
+                        msg_id: `tts-${Date.now()}`,
+                        text: chunk.summary,
+                      }),
                     }).catch(() => {});
                   }
                 }
-                if (chunk.actions?.length) voiceCommands.setActions(chunk.actions);
+                if (chunk.actions?.length)
+                  voiceCommands.setActions(chunk.actions);
               }
             }
           }
 
           // Save combined audio for replay
           if (audioChunks.length > 0) {
-            voiceCommands.saveLastAudio(new Blob(audioChunks, { type: "audio/wav" }));
+            voiceCommands.saveLastAudio(
+              new Blob(audioChunks, { type: "audio/wav" }),
+            );
           }
 
           // If no audio was queued (TTS disabled or failed), unsuppress now
@@ -191,10 +254,21 @@ export default function App() {
   });
   const voice = useVoiceInput();
   const voiceCommands = useVoiceCommands({
-    send, newSession, wsRef, tts, streaming, pendingApproval, approve, reject,
+    send,
+    newSession,
+    wsRef,
+    tts,
+    streaming,
+    pendingApproval,
+    approve,
+    reject,
   });
   const history = useSessionHistory();
-  const panelResize = useResizable({ initialWidth: 420, minWidth: 280, maxWidth: 900 });
+  const panelResize = useResizable({
+    initialWidth: 420,
+    minWidth: 280,
+    maxWidth: 900,
+  });
   const allArtifacts = useSessionArtifacts(messages);
   const [inp, setInp] = useState("");
   const [detailArtifact, setDetailArtifact] = useState(null);
@@ -203,7 +277,7 @@ export default function App() {
   const [showRail, setShowRail] = useState(true);
   const scrollRef = useRef(null);
   const scrollAnchorRef = useRef(null);
-  const lastTtsRef = useRef("");  // Dedup guard for repeated results
+  const lastTtsRef = useRef(""); // Dedup guard for repeated results
 
   // Suppress voice recognition while Claude is working to prevent echo getting queued
   useEffect(() => {
@@ -242,7 +316,10 @@ export default function App() {
   // Auto-scroll on new messages
   useEffect(() => {
     if (scrollAnchorRef.current) {
-      scrollAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+      scrollAnchorRef.current.scrollIntoView({
+        behavior: "smooth",
+        block: "end",
+      });
     }
   }, [messages, streaming]);
 
@@ -261,36 +338,52 @@ export default function App() {
     } else {
       tts.stop(); // Stop any TTS when user starts talking
       voiceCommands.clearActions(); // Clear stale action chips
-      voice.start(
-        // onResult — route through voice command classifier instead of direct send
-        async (text) => {
-          const result = await voiceCommands.classify(text);
-          voice.clearPending(); // Clear pending text now that classification is done
-          // Handle switch_session command result
-          if (result?.switchTo) {
-            resumeSession(result.switchTo);
-          }
-        },
-        // Wake word callbacks
-        {
-          onWakeWord: (text) => voiceCommands.classify(text),
-          onCompact: (directive) => {
-            if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-              wsRef.current.send(JSON.stringify({ type: "compact", message: directive }));
+      voice
+        .start(
+          // onResult — route through voice command classifier instead of direct send
+          async (text) => {
+            const result = await voiceCommands.classify(text);
+            voice.clearPending(); // Clear pending text now that classification is done
+            // Handle switch_session command result
+            if (result?.switchTo) {
+              resumeSession(result.switchTo);
             }
-            confirmTTS("Compacting session context");
           },
-        },
-      ).catch((err) => {
-        console.warn("Voice start failed:", err);
-      });
+          // Wake word callbacks
+          {
+            onWakeWord: (text) => voiceCommands.classify(text),
+            onCompact: (directive) => {
+              if (
+                wsRef.current &&
+                wsRef.current.readyState === WebSocket.OPEN
+              ) {
+                wsRef.current.send(
+                  JSON.stringify({ type: "compact", message: directive }),
+                );
+              }
+              confirmTTS("Compacting session context");
+            },
+          },
+        )
+        .catch((err) => {
+          console.warn("Voice start failed:", err);
+        });
     }
   };
 
-  const handleSelectArtifact = useCallback((artifact, id) => {
-    if (detailId === id) { setDetailArtifact(null); setDetailId(null); }
-    else { setDetailArtifact(artifact); setDetailId(id); setShowDetail(true); }
-  }, [detailId]);
+  const handleSelectArtifact = useCallback(
+    (artifact, id) => {
+      if (detailId === id) {
+        setDetailArtifact(null);
+        setDetailId(null);
+      } else {
+        setDetailArtifact(artifact);
+        setDetailId(id);
+        setShowDetail(true);
+      }
+    },
+    [detailId],
+  );
 
   const openGallery = useCallback(() => {
     setDetailArtifact(null);
@@ -301,58 +394,188 @@ export default function App() {
   // ── Mobile layout ──────────────────────────────────────────────
   if (bp === "mobile") {
     return (
-      <div style={{ width: "100vw", height: "100dvh", backgroundColor: C.bg, fontFamily: sans, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-        <div style={{ display: "flex", alignItems: "center", padding: "0 12px", height: 52, borderBottom: `1px solid ${C.border}`, flexShrink: 0, gap: 8, backgroundColor: C.surface }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>Bosun</span>
-            {connected ? <Wifi size={12} color={C.success} /> : <WifiOff size={12} color={C.danger} />}
+      <div
+        style={{
+          width: "100vw",
+          height: "100dvh",
+          backgroundColor: C.bg,
+          fontFamily: sans,
+          display: "flex",
+          flexDirection: "column",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "0 12px",
+            height: 52,
+            borderBottom: `1px solid ${C.border}`,
+            flexShrink: 0,
+            gap: 8,
+            backgroundColor: C.surface,
+          }}
+        >
+          <div
+            style={{ display: "flex", alignItems: "center", gap: 6, flex: 1 }}
+          >
+            <span style={{ fontSize: 13, fontWeight: 700, color: C.text }}>
+              Bosun
+            </span>
+            {connected ? (
+              <Wifi size={12} color={C.success} />
+            ) : (
+              <WifiOff size={12} color={C.danger} />
+            )}
           </div>
           <VoiceDot state={voiceState} size={8} />
-          {voice.listening && <span style={{ fontSize: 12, color: C.textSec }}>Listening</span>}
+          {voice.listening && (
+            <span style={{ fontSize: 12, color: C.textSec }}>Listening</span>
+          )}
         </div>
 
-        <div ref={scrollRef} style={{ flex: 1, overflowY: "auto", padding: "16px 12px 120px" }}>
-          <TranscriptView messages={messages} onSelectArtifact={() => {}} selectedArtifactId={null} isMobile onApprove={approve} onReject={reject} actions={voiceCommands.actions} onAction={(prompt) => { voiceCommands.clearActions(); send(prompt); }} />
-          {voiceCommands.actions.length > 0 && !messages.some((m) => m.role === "gemini") && (
-            <div style={{ marginBottom: 12, padding: "0 4px" }}>
-              <ActionChips actions={voiceCommands.actions} onAction={(prompt) => { voiceCommands.clearActions(); send(prompt); }} />
-            </div>
-          )}
+        <div
+          ref={scrollRef}
+          style={{ flex: 1, overflowY: "auto", padding: "16px 12px 120px" }}
+        >
+          <TranscriptView
+            messages={messages}
+            onSelectArtifact={() => {}}
+            selectedArtifactId={null}
+            isMobile
+            onApprove={approve}
+            onReject={reject}
+            actions={voiceCommands.actions}
+            onAction={(prompt) => {
+              voiceCommands.clearActions();
+              send(prompt);
+            }}
+          />
+          {voiceCommands.actions.length > 0 &&
+            !messages.some((m) => m.role === "gemini") && (
+              <div style={{ marginBottom: 12, padding: "0 4px" }}>
+                <ActionChips
+                  actions={voiceCommands.actions}
+                  onAction={(prompt) => {
+                    voiceCommands.clearActions();
+                    send(prompt);
+                  }}
+                />
+              </div>
+            )}
           {streaming && (
-            <div role="status" aria-live="polite" style={{ padding: "12px 0", display: "flex", alignItems: "center", gap: 6 }}>
+            <div
+              role="status"
+              aria-live="polite"
+              style={{
+                padding: "12px 0",
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
               {[0, 1, 2].map((i) => (
-                <span key={i} className="vcc-animated" style={{
-                  width: 4, height: 4, borderRadius: "50%", backgroundColor: C.textTer,
-                  animation: `vcc-bounce 0.6s ease-in-out ${i * 0.15}s infinite`,
-                  animationFillMode: "both",
-                }} />
+                <span
+                  key={i}
+                  className="vcc-animated"
+                  style={{
+                    width: 4,
+                    height: 4,
+                    borderRadius: "50%",
+                    backgroundColor: C.textTer,
+                    animation: `vcc-bounce 0.6s ease-in-out ${i * 0.15}s infinite`,
+                    animationFillMode: "both",
+                  }}
+                />
               ))}
-              <span style={{ fontSize: 13, color: C.textTer, fontFamily: mono }}>working</span>
+              <span
+                style={{ fontSize: 13, color: C.textTer, fontFamily: mono }}
+              >
+                working
+              </span>
             </div>
           )}
           {(voice.pending || voice.interim) && (
-            <div style={{ padding: "8px 12px", color: C.textTer, fontStyle: "italic", fontSize: 14 }}>
-              {voice.pending && <span style={{ color: C.textSec }}>{voice.pending} </span>}
+            <div
+              style={{
+                padding: "8px 12px",
+                color: C.textTer,
+                fontStyle: "italic",
+                fontSize: 14,
+              }}
+            >
+              {voice.pending && (
+                <span style={{ color: C.textSec }}>{voice.pending} </span>
+              )}
               {voice.interim}
             </div>
           )}
         </div>
 
-        <div style={{ borderTop: `1px solid ${C.border}`, padding: "8px 12px", backgroundColor: C.bg, flexShrink: 0, display: "flex", gap: 8, alignItems: "center" }}>
-          <div style={{ flex: 1, display: "flex", alignItems: "center", border: `1px solid ${C.border}`, borderRadius: 10, padding: "0 12px", height: 40, backgroundColor: C.surface }}>
+        <div
+          style={{
+            borderTop: `1px solid ${C.border}`,
+            padding: "8px 12px",
+            backgroundColor: C.bg,
+            flexShrink: 0,
+            display: "flex",
+            gap: 8,
+            alignItems: "center",
+          }}
+        >
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              border: `1px solid ${C.border}`,
+              borderRadius: 10,
+              padding: "0 12px",
+              height: 40,
+              backgroundColor: C.surface,
+            }}
+          >
             <input
-              value={inp} onChange={(e) => setInp(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
+              value={inp}
+              onChange={(e) => setInp(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSubmit();
+              }}
               placeholder="Type a message..."
-              style={{ flex: 1, backgroundColor: "transparent", border: "none", outline: "none", color: C.text, fontSize: 14, fontFamily: sans }}
+              style={{
+                flex: 1,
+                backgroundColor: "transparent",
+                border: "none",
+                outline: "none",
+                color: C.text,
+                fontSize: 14,
+                fontFamily: sans,
+              }}
             />
           </div>
-          <button onClick={toggleVoice} style={{
-            width: 44, height: 44, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0,
-            border: voice.listening ? `2px solid ${C.micOn}` : `2px solid ${C.textFaint}`,
-            backgroundColor: voice.listening ? "#FEF2F2" : C.bg,
-          }}>
-            {voice.listening ? <Mic size={18} color={C.micOn} /> : <MicOff size={18} color={C.textTer} />}
+          <button
+            onClick={toggleVoice}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              flexShrink: 0,
+              border: voice.listening
+                ? `2px solid ${C.micOn}`
+                : `2px solid ${C.textFaint}`,
+              backgroundColor: voice.listening ? "#FEF2F2" : C.bg,
+            }}
+          >
+            {voice.listening ? (
+              <Mic size={18} color={C.micOn} />
+            ) : (
+              <MicOff size={18} color={C.textTer} />
+            )}
           </button>
         </div>
 
@@ -365,33 +588,95 @@ export default function App() {
   const hasDetail = showDetail && (detailArtifact || allArtifacts.length > 0);
 
   return (
-    <div style={{ width: "100vw", height: "100dvh", backgroundColor: C.bg, fontFamily: sans, display: "flex", overflow: "hidden" }}>
-
+    <div
+      style={{
+        width: "100vw",
+        height: "100dvh",
+        backgroundColor: C.bg,
+        fontFamily: sans,
+        display: "flex",
+        overflow: "hidden",
+      }}
+    >
       {/* Sessions rail */}
       {showRail && (
-        <div style={{
-          width: 220, flexShrink: 0, borderRight: `1px solid ${C.border}`,
-          display: "flex", flexDirection: "column", backgroundColor: C.bgSub,
-        }}>
-          <div style={{ padding: "14px 12px 10px", borderBottom: `1px solid ${C.border}` }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
+        <div
+          style={{
+            width: 220,
+            flexShrink: 0,
+            borderRight: `1px solid ${C.border}`,
+            display: "flex",
+            flexDirection: "column",
+            backgroundColor: C.bgSub,
+          }}
+        >
+          <div
+            style={{
+              padding: "14px 12px 10px",
+              borderBottom: `1px solid ${C.border}`,
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
               <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: 0.5 }}>Bosun</div>
-                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}>Claude Code</div>
+                <div
+                  style={{
+                    fontSize: 13,
+                    fontWeight: 700,
+                    color: C.text,
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Bosun
+                </div>
+                <div style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}>
+                  Claude Code
+                </div>
               </div>
-              <button onClick={() => setShowRail(false)} style={{
-                background: "none", border: "none", cursor: "pointer", color: C.textTer,
-                padding: 4, display: "flex", borderRadius: 6,
-              }} title="Collapse sidebar">
-                <PanelRightClose size={16} style={{ transform: "scaleX(-1)" }} />
+              <button
+                onClick={() => setShowRail(false)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: C.textTer,
+                  padding: 4,
+                  display: "flex",
+                  borderRadius: 6,
+                }}
+                title="Collapse sidebar"
+              >
+                <PanelRightClose
+                  size={16}
+                  style={{ transform: "scaleX(-1)" }}
+                />
               </button>
             </div>
-            <button onClick={newSession} style={{
-              width: "100%", padding: "8px 0", borderRadius: 8,
-              border: "none", backgroundColor: C.text, color: C.bg,
-              cursor: "pointer", fontSize: 12, fontFamily: sans, fontWeight: 500,
-              display: "flex", alignItems: "center", justifyContent: "center", gap: 5,
-            }}>
+            <button
+              onClick={newSession}
+              style={{
+                width: "100%",
+                padding: "8px 0",
+                borderRadius: 8,
+                border: "none",
+                backgroundColor: C.text,
+                color: C.bg,
+                cursor: "pointer",
+                fontSize: 12,
+                fontFamily: sans,
+                fontWeight: 500,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 5,
+              }}
+            >
               <Plus size={13} /> New session
             </button>
           </div>
@@ -399,29 +684,63 @@ export default function App() {
           <div style={{ flex: 1, overflowY: "auto", padding: "8px 8px" }}>
             {/* Current session */}
             {sessionId && (
-              <div style={{
-                width: "100%", textAlign: "left", padding: "10px 10px", borderRadius: 8,
-                display: "flex", alignItems: "center", gap: 10,
-                backgroundColor: C.bg, boxShadow: "0 1px 3px rgba(0,0,0,0.06)", marginBottom: 8,
-              }}>
-                <span style={{
-                  width: 8, height: 8, borderRadius: "50%", flexShrink: 0,
-                  backgroundColor: connected ? C.success : C.textFaint,
-                  boxShadow: connected ? `0 0 6px ${C.success}` : "none",
-                  transition: "box-shadow 300ms",
-                }} />
+              <div
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 10px",
+                  borderRadius: 8,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  backgroundColor: C.bg,
+                  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
+                  marginBottom: 8,
+                }}
+              >
+                <span
+                  style={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: "50%",
+                    flexShrink: 0,
+                    backgroundColor: connected ? C.success : C.textFaint,
+                    boxShadow: connected ? `0 0 6px ${C.success}` : "none",
+                    transition: "box-shadow 300ms",
+                  }}
+                />
                 <div style={{ minWidth: 0, flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: C.text, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: C.text,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     Current
                   </div>
-                  <div style={{ fontSize: 11, color: C.textTer }}>{messages.length} messages</div>
+                  <div style={{ fontSize: 11, color: C.textTer }}>
+                    {messages.length} messages
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Session history */}
             {history.sessions.length > 0 && (
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.textTer, padding: "6px 10px 4px", textTransform: "uppercase", letterSpacing: 0.5 }}>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 600,
+                  color: C.textTer,
+                  padding: "6px 10px 4px",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+              >
                 History
               </div>
             )}
@@ -431,35 +750,71 @@ export default function App() {
                 <button
                   key={s.id}
                   onClick={() => resumeSession(s.id)}
-                  onMouseEnter={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = C.surfaceHover; }}
-                  onMouseLeave={(e) => { if (!isActive) e.currentTarget.style.backgroundColor = "transparent"; }}
+                  onMouseEnter={(e) => {
+                    if (!isActive)
+                      e.currentTarget.style.backgroundColor = C.surfaceHover;
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive)
+                      e.currentTarget.style.backgroundColor = "transparent";
+                  }}
                   style={{
-                    width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8,
-                    display: "flex", alignItems: "flex-start", gap: 10,
-                    border: "none", cursor: "pointer", fontFamily: sans,
+                    width: "100%",
+                    textAlign: "left",
+                    padding: "8px 10px",
+                    borderRadius: 8,
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: sans,
                     backgroundColor: isActive ? C.bg : "transparent",
                     boxShadow: isActive ? "0 1px 3px rgba(0,0,0,0.06)" : "none",
-                    marginBottom: 1, transition: "background-color 150ms",
+                    marginBottom: 1,
+                    transition: "background-color 150ms",
                   }}
                 >
-                  <span style={{
-                    width: 6, height: 6, borderRadius: "50%", flexShrink: 0, marginTop: 5,
-                    backgroundColor: isActive ? C.success : C.textFaint,
-                  }} />
+                  <span
+                    style={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                      marginTop: 5,
+                      backgroundColor: isActive ? C.success : C.textFaint,
+                    }}
+                  />
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{
-                      fontSize: 12, color: C.text, overflow: "hidden",
-                      textOverflow: "ellipsis", whiteSpace: "nowrap",
-                      fontWeight: isActive ? 600 : 400,
-                    }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: C.text,
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        fontWeight: isActive ? 600 : 400,
+                      }}
+                    >
                       {s.preview}
                     </div>
-                    <div style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}>
+                    <div
+                      style={{ fontSize: 11, color: C.textTer, marginTop: 1 }}
+                    >
                       {relativeTime(s.mtime)}
                       {" \u00b7 "}
                       {s.msg_count} msgs
                       {s.project && (
-                        <span style={{ display: "block", fontSize: 10, color: C.textFaint, marginTop: 1, fontFamily: mono, opacity: 0.7 }}>
+                        <span
+                          style={{
+                            display: "block",
+                            fontSize: 10,
+                            color: C.textFaint,
+                            marginTop: 1,
+                            fontFamily: mono,
+                            opacity: 0.7,
+                          }}
+                        >
                           {s.project.split("/").slice(-2).join("/")}
                         </span>
                       )}
@@ -471,25 +826,68 @@ export default function App() {
           </div>
 
           {/* Connection status */}
-          <div style={{ padding: "8px 12px", borderTop: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 6 }}>
-            {connected ? <Wifi size={12} color={C.success} /> : <WifiOff size={12} color={C.danger} />}
-            <span style={{ fontSize: 11, fontFamily: mono, color: connected ? C.textTer : C.danger }}>{connected ? "connected" : "reconnecting\u2026"}</span>
+          <div
+            style={{
+              padding: "8px 12px",
+              borderTop: `1px solid ${C.border}`,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+            }}
+          >
+            {connected ? (
+              <Wifi size={12} color={C.success} />
+            ) : (
+              <WifiOff size={12} color={C.danger} />
+            )}
+            <span
+              style={{
+                fontSize: 11,
+                fontFamily: mono,
+                color: connected ? C.textTer : C.danger,
+              }}
+            >
+              {connected ? "connected" : "reconnecting\u2026"}
+            </span>
           </div>
         </div>
       )}
 
       {/* Main column */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+          minWidth: 0,
+        }}
+      >
         {/* Top bar */}
-        <div style={{
-          display: "flex", alignItems: "center", padding: "0 20px",
-          height: 52, borderBottom: `1px solid ${C.border}`, flexShrink: 0, gap: 12,
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            padding: "0 20px",
+            height: 52,
+            borderBottom: `1px solid ${C.border}`,
+            flexShrink: 0,
+            gap: 12,
+          }}
+        >
           {!showRail && (
-            <button onClick={() => setShowRail(true)} style={{
-              background: "none", border: "none", cursor: "pointer",
-              color: C.textTer, padding: 4, display: "flex", borderRadius: 6,
-            }} title="Show sessions">
+            <button
+              onClick={() => setShowRail(true)}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: C.textTer,
+                padding: 4,
+                display: "flex",
+                borderRadius: 6,
+              }}
+              title="Show sessions"
+            >
               <PanelRightOpen size={18} style={{ transform: "scaleX(-1)" }} />
             </button>
           )}
@@ -501,66 +899,145 @@ export default function App() {
           <div style={{ flex: 1 }} />
 
           <VoiceDot state={voiceState} size={9} />
-          <span style={{ fontSize: 13, color: voiceState === "off" ? C.textTer : C.textSec, minWidth: 70 }}>
+          <span
+            style={{
+              fontSize: 13,
+              color: voiceState === "off" ? C.textTer : C.textSec,
+              minWidth: 70,
+            }}
+          >
             {voiceState === "off" ? "Mic off" : "Listening"}
           </span>
 
-          <button onClick={toggleVoice} style={{
-            width: 44, height: 44, borderRadius: "50%",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", position: "relative", transition: "all 200ms",
-            border: voice.wakeWordFlash
-              ? `2px solid ${C.voice}`
-              : voice.listening ? `2px solid ${C.micOn}` : `2px solid ${C.textFaint}`,
-            backgroundColor: voice.wakeWordFlash
-              ? C.voiceBg
-              : voice.listening ? "#FEF2F2" : C.bg,
-          }}>
-            {voice.listening ? <Mic size={18} color={voice.wakeWordFlash ? C.voice : C.micOn} /> : <MicOff size={18} color={C.textTer} />}
+          <button
+            onClick={toggleVoice}
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: "50%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              cursor: "pointer",
+              position: "relative",
+              transition: "all 200ms",
+              border: voice.wakeWordFlash
+                ? `2px solid ${C.voice}`
+                : voice.listening
+                  ? `2px solid ${C.micOn}`
+                  : `2px solid ${C.textFaint}`,
+              backgroundColor: voice.wakeWordFlash
+                ? C.voiceBg
+                : voice.listening
+                  ? "#FEF2F2"
+                  : C.bg,
+            }}
+          >
+            {voice.listening ? (
+              <Mic size={18} color={voice.wakeWordFlash ? C.voice : C.micOn} />
+            ) : (
+              <MicOff size={18} color={C.textTer} />
+            )}
             {voice.listening && (
-              <div style={{
-                position: "absolute", inset: -4, borderRadius: "50%",
-                border: `2px solid ${voice.wakeWordFlash ? C.voice : C.micOn}`,
-                opacity: voice.wakeWordFlash ? 0.6 : 0.25,
-                animation: voice.wakeWordFlash ? "vcc-wake 0.6s ease-out" : "vcc-ring 2s ease-out infinite",
-              }} />
+              <div
+                style={{
+                  position: "absolute",
+                  inset: -4,
+                  borderRadius: "50%",
+                  border: `2px solid ${voice.wakeWordFlash ? C.voice : C.micOn}`,
+                  opacity: voice.wakeWordFlash ? 0.6 : 0.25,
+                  animation: voice.wakeWordFlash
+                    ? "vcc-wake 0.6s ease-out"
+                    : "vcc-ring 2s ease-out infinite",
+                }}
+              />
             )}
           </button>
 
-          <button onClick={tts.toggle} style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: tts.enabled ? C.voice : C.textTer, padding: 6, display: "flex",
-            borderRadius: 6,
-          }} title={tts.enabled ? "Mute responses" : "Speak responses"}>
+          <button
+            onClick={tts.toggle}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: tts.enabled ? C.voice : C.textTer,
+              padding: 6,
+              display: "flex",
+              borderRadius: 6,
+            }}
+            title={tts.enabled ? "Mute responses" : "Speak responses"}
+          >
             {tts.enabled ? <Volume2 size={18} /> : <VolumeX size={18} />}
           </button>
 
-          <div style={{ width: 1, height: 24, backgroundColor: C.border, margin: "0 4px" }} />
+          <div
+            style={{
+              width: 1,
+              height: 24,
+              backgroundColor: C.border,
+              margin: "0 4px",
+            }}
+          />
 
-          <button onClick={openGallery} style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: allArtifacts.length > 0 ? C.textSec : C.textFaint, padding: 6, display: "flex",
-            borderRadius: 6, position: "relative",
-          }} title="Artifact gallery">
+          <button
+            onClick={openGallery}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: allArtifacts.length > 0 ? C.textSec : C.textFaint,
+              padding: 6,
+              display: "flex",
+              borderRadius: 6,
+              position: "relative",
+            }}
+            title="Artifact gallery"
+          >
             <Grid size={18} />
             {allArtifacts.length > 0 && (
-              <span style={{
-                position: "absolute", top: 2, right: 2, width: 14, height: 14,
-                borderRadius: "50%", backgroundColor: C.accentBlue, color: "#fff",
-                fontSize: 9, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center",
-                fontFamily: sans,
-              }}>{allArtifacts.length}</span>
+              <span
+                style={{
+                  position: "absolute",
+                  top: 2,
+                  right: 2,
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  backgroundColor: C.accentBlue,
+                  color: "#fff",
+                  fontSize: 9,
+                  fontWeight: 700,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: sans,
+                }}
+              >
+                {allArtifacts.length}
+              </span>
             )}
           </button>
 
           <ExportButton messages={messages} sessionId={sessionId} />
 
-          <button onClick={() => setShowDetail(!showDetail)} style={{
-            background: "none", border: "none", cursor: "pointer",
-            color: showDetail ? C.accentBlue : C.textTer, padding: 6, display: "flex",
-            borderRadius: 6,
-          }} title={showDetail ? "Hide detail panel" : "Show detail panel"}>
-            {showDetail ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
+          <button
+            onClick={() => setShowDetail(!showDetail)}
+            style={{
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: showDetail ? C.accentBlue : C.textTer,
+              padding: 6,
+              display: "flex",
+              borderRadius: 6,
+            }}
+            title={showDetail ? "Hide detail panel" : "Show detail panel"}
+          >
+            {showDetail ? (
+              <PanelRightClose size={18} />
+            ) : (
+              <PanelRightOpen size={18} />
+            )}
           </button>
         </div>
 
@@ -568,22 +1045,62 @@ export default function App() {
 
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
           {/* Transcript */}
-          <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0 }}>
-            <div ref={scrollRef} style={{
-              flex: 1, overflowY: "auto", padding: "24px 32px 100px",
-              display: "flex", justifyContent: "center",
-            }}>
+          <div
+            style={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              minWidth: 0,
+            }}
+          >
+            <div
+              ref={scrollRef}
+              style={{
+                flex: 1,
+                overflowY: "auto",
+                padding: "24px 32px 100px",
+                display: "flex",
+                justifyContent: "center",
+              }}
+            >
               <div style={{ width: "100%", maxWidth: 720 }}>
                 {messages.length === 0 && (
-                  <div style={{
-                    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-                    height: "60vh", color: C.textTer, gap: 12, textAlign: "center",
-                  }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      height: "60vh",
+                      color: C.textTer,
+                      gap: 12,
+                      textAlign: "center",
+                    }}
+                  >
                     <Terminal size={40} strokeWidth={1.2} />
-                    <div style={{ fontSize: 16, fontWeight: 500, color: C.textSec }}>Bosun</div>
+                    <div
+                      style={{
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: C.textSec,
+                      }}
+                    >
+                      Bosun
+                    </div>
                     <div style={{ fontSize: 13, maxWidth: 400 }}>
-                      Type a message below or click the mic button to start voice input.
-                      {!voice.supported && <span style={{ display: "block", marginTop: 4, color: C.approval }}>Voice input not supported in this browser.</span>}
+                      Type a message below or click the mic button to start
+                      voice input.
+                      {!voice.supported && (
+                        <span
+                          style={{
+                            display: "block",
+                            marginTop: 4,
+                            color: C.approval,
+                          }}
+                        >
+                          Voice input not supported in this browser.
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -595,32 +1112,87 @@ export default function App() {
                   onApprove={approve}
                   onReject={reject}
                   actions={voiceCommands.actions}
-                  onAction={(prompt) => { voiceCommands.clearActions(); send(prompt); }}
+                  onAction={(prompt) => {
+                    voiceCommands.clearActions();
+                    send(prompt);
+                  }}
                 />
                 {/* Fallback: render action chips outside transcript if no summary group picked them up */}
-                {voiceCommands.actions.length > 0 && !messages.some((m) => m.role === "gemini") && (
-                  <div style={{ marginBottom: 16 }}>
-                    <ActionChips actions={voiceCommands.actions} onAction={(prompt) => { voiceCommands.clearActions(); send(prompt); }} />
-                  </div>
-                )}
+                {voiceCommands.actions.length > 0 &&
+                  !messages.some((m) => m.role === "gemini") && (
+                    <div style={{ marginBottom: 16 }}>
+                      <ActionChips
+                        actions={voiceCommands.actions}
+                        onAction={(prompt) => {
+                          voiceCommands.clearActions();
+                          send(prompt);
+                        }}
+                      />
+                    </div>
+                  )}
                 {streaming && (
-                  <div role="status" aria-live="polite" style={{ padding: "16px 0", display: "flex", alignItems: "center", gap: 6 }}>
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    style={{
+                      padding: "16px 0",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
                     {[0, 1, 2].map((i) => (
-                      <span key={i} className="vcc-animated" style={{
-                        width: 5, height: 5, borderRadius: "50%", backgroundColor: C.textTer,
-                        animation: `vcc-bounce 0.6s ease-in-out ${i * 0.15}s infinite`,
-                        animationFillMode: "both",
-                      }} />
+                      <span
+                        key={i}
+                        className="vcc-animated"
+                        style={{
+                          width: 5,
+                          height: 5,
+                          borderRadius: "50%",
+                          backgroundColor: C.textTer,
+                          animation: `vcc-bounce 0.6s ease-in-out ${i * 0.15}s infinite`,
+                          animationFillMode: "both",
+                        }}
+                      />
                     ))}
-                    <span style={{ fontSize: 14, color: C.textTer, fontFamily: mono, marginLeft: 2 }}>working</span>
+                    <span
+                      style={{
+                        fontSize: 14,
+                        color: C.textTer,
+                        fontFamily: mono,
+                        marginLeft: 2,
+                      }}
+                    >
+                      working
+                    </span>
                   </div>
                 )}
                 {(voice.pending || voice.interim) && (
-                  <div style={{ padding: "12px 16px", color: C.textTer, fontStyle: "italic", fontSize: 14, backgroundColor: C.youBg, borderRadius: 8, borderLeft: `3px solid ${C.youBorder}` }}>
-                    {voice.pending && <span style={{ color: C.textSec }}>{voice.pending} </span>}
+                  <div
+                    style={{
+                      padding: "12px 16px",
+                      color: C.textTer,
+                      fontStyle: "italic",
+                      fontSize: 14,
+                      backgroundColor: C.youBg,
+                      borderRadius: 8,
+                      borderLeft: `3px solid ${C.youBorder}`,
+                    }}
+                  >
+                    {voice.pending && (
+                      <span style={{ color: C.textSec }}>{voice.pending} </span>
+                    )}
                     {voice.interim}
                     {voice.pending && !voice.interim && (
-                      <span style={{ fontSize: 11, color: C.textTer, marginLeft: 8 }}>sending...</span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: C.textTer,
+                          marginLeft: 8,
+                        }}
+                      >
+                        sending...
+                      </span>
                     )}
                   </div>
                 )}
@@ -630,29 +1202,79 @@ export default function App() {
             </div>
 
             {/* Input */}
-            <div style={{
-              borderTop: `1px solid ${C.border}`, padding: "10px 32px",
-              display: "flex", justifyContent: "center", backgroundColor: C.bg, flexShrink: 0,
-            }}>
-              <div style={{
-                width: "100%", maxWidth: 720, display: "flex", alignItems: "center",
-                border: `1px solid ${C.border}`, borderRadius: 12,
-                padding: "0 6px 0 16px", height: 44, backgroundColor: C.surface,
-              }}>
-                <span style={{ color: C.textTer, fontSize: 14, marginRight: 10, fontFamily: mono }}>{"\u276F"}</span>
+            <div
+              style={{
+                borderTop: `1px solid ${C.border}`,
+                padding: "10px 32px",
+                display: "flex",
+                justifyContent: "center",
+                backgroundColor: C.bg,
+                flexShrink: 0,
+              }}
+            >
+              <div
+                style={{
+                  width: "100%",
+                  maxWidth: 720,
+                  display: "flex",
+                  alignItems: "center",
+                  border: `1px solid ${C.border}`,
+                  borderRadius: 12,
+                  padding: "0 6px 0 16px",
+                  height: 44,
+                  backgroundColor: C.surface,
+                }}
+              >
+                <span
+                  style={{
+                    color: C.textTer,
+                    fontSize: 14,
+                    marginRight: 10,
+                    fontFamily: mono,
+                  }}
+                >
+                  {"\u276F"}
+                </span>
                 <input
-                  value={inp} onChange={(e) => setInp(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleSubmit(); }}
-                  placeholder={voice.listening ? "Voice active \u2014 or type here" : "Type a message..."}
+                  data-testid="message-input"
+                  value={inp}
+                  onChange={(e) => setInp(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleSubmit();
+                  }}
+                  placeholder={
+                    voice.listening
+                      ? "Voice active \u2014 or type here"
+                      : "Type a message..."
+                  }
                   disabled={!connected}
-                  style={{ flex: 1, backgroundColor: "transparent", border: "none", outline: "none", color: C.text, fontSize: 14, fontFamily: sans }}
+                  style={{
+                    flex: 1,
+                    backgroundColor: "transparent",
+                    border: "none",
+                    outline: "none",
+                    color: C.text,
+                    fontSize: 14,
+                    fontFamily: sans,
+                  }}
                 />
                 <button
-                  onMouseDown={(e) => { e.preventDefault(); handleSubmit(); }}
+                  data-testid="send-button"
+                  onMouseDown={(e) => {
+                    e.preventDefault();
+                    handleSubmit();
+                  }}
                   tabIndex={-1}
                   style={{
-                    width: 32, height: 32, borderRadius: 8, border: "none", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    border: "none",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    flexShrink: 0,
                     backgroundColor: inp.trim() ? C.text : "transparent",
                     color: inp.trim() ? C.bg : "transparent",
                     opacity: inp.trim() ? 1 : 0,
@@ -668,23 +1290,43 @@ export default function App() {
 
           {/* Detail panel */}
           {hasDetail && (
-            <div style={{
-              width: panelResize.width, flexShrink: 0, borderLeft: `1px solid ${C.border}`,
-              backgroundColor: C.bg, display: "flex", flexDirection: "column", position: "relative",
-            }}>
+            <div
+              style={{
+                width: panelResize.width,
+                flexShrink: 0,
+                borderLeft: `1px solid ${C.border}`,
+                backgroundColor: C.bg,
+                display: "flex",
+                flexDirection: "column",
+                position: "relative",
+              }}
+            >
               {/* Drag handle */}
               <div
                 onMouseDown={panelResize.onMouseDown}
                 style={{
-                  position: "absolute", left: 0, top: 0, bottom: 0, width: 6,
-                  cursor: "col-resize", zIndex: 10,
+                  position: "absolute",
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: 6,
+                  cursor: "col-resize",
+                  zIndex: 10,
                 }}
-                onMouseEnter={(e) => { e.currentTarget.style.backgroundColor = C.border; }}
-                onMouseLeave={(e) => { e.currentTarget.style.backgroundColor = "transparent"; }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.backgroundColor = C.border;
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.backgroundColor = "transparent";
+                }}
               />
               <DetailPanel
                 artifact={detailArtifact}
-                onClose={() => { setDetailArtifact(null); setDetailId(null); setShowDetail(false); }}
+                onClose={() => {
+                  setDetailArtifact(null);
+                  setDetailId(null);
+                  setShowDetail(false);
+                }}
                 allArtifacts={allArtifacts}
                 onSelectArtifact={handleSelectArtifact}
               />
@@ -693,12 +1335,15 @@ export default function App() {
         </div>
       </div>
 
-      <style>{sharedCSS + `
+      <style>
+        {sharedCSS +
+          `
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: ${C.border}; border-radius: 3px; }
         ::-webkit-scrollbar-thumb:hover { background: ${C.borderStrong}; }
-      `}</style>
+      `}
+      </style>
     </div>
   );
 }

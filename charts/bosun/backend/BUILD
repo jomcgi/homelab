@@ -14,7 +14,7 @@ py_binary(
 )
 
 py_library(
-    name = "backend",
+    name = "server_lib",
     srcs = ["server.py"],
     visibility = ["//:__subpackages__"],
     deps = [
