@@ -98,6 +98,8 @@ else:
     GOLDEN_PATH = ""  # Disable worktree isolation
     log.info("No golden clone — sessions share the default workdir")
 
+RECORD_FIXTURES_DIR = os.environ.get("BOSUN_RECORD_FIXTURES", "")
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 if not GOOGLE_API_KEY:
     # Try fish shell universal variables as fallback
@@ -531,6 +533,103 @@ def _prune_stale_worktrees():
         log.info("Session worktree prune: nothing to clean up")
 
 
+# ── Fixture recording (for integration tests) ──────────────────────────────
+
+
+def _sdk_event_to_dict(msg) -> dict:
+    """Convert an SDK message object to a JSON-serialisable dict for fixture recording."""
+    if isinstance(msg, SystemMessage):
+        return {"kind": "system_init", "data": msg.data}
+
+    if isinstance(msg, StreamEvent):
+        return {
+            "kind": "stream_event",
+            "uuid": msg.uuid,
+            "session_id": msg.session_id,
+            "event": msg.event,
+            "parent_tool_use_id": msg.parent_tool_use_id,
+        }
+
+    if isinstance(msg, AssistantMessage):
+        blocks = []
+        for block in msg.content:
+            if isinstance(block, TextBlock):
+                blocks.append({"type": "text", "text": block.text})
+            elif isinstance(block, ToolUseBlock):
+                blocks.append(
+                    {
+                        "type": "tool_use",
+                        "id": block.id,
+                        "name": block.name,
+                        "input": block.input,
+                    }
+                )
+            elif isinstance(block, ToolResultBlock):
+                blocks.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.tool_use_id,
+                        "content": block.content,
+                        "is_error": getattr(block, "is_error", False),
+                    }
+                )
+            else:
+                blocks.append({"type": type(block).__name__})
+        return {
+            "kind": "assistant",
+            "content": blocks,
+            "model": getattr(msg, "model", None),
+            "parent_tool_use_id": msg.parent_tool_use_id,
+        }
+
+    if isinstance(msg, ResultMessage):
+        return {
+            "kind": "result",
+            "subtype": msg.subtype,
+            "session_id": msg.session_id,
+            "duration_ms": msg.duration_ms,
+            "total_cost_usd": msg.total_cost_usd,
+            "num_turns": msg.num_turns,
+            "result": msg.result,
+            "is_error": msg.is_error,
+        }
+
+    if isinstance(msg, UserMessage):
+        return {"kind": "user", "tool_use_result": msg.tool_use_result}
+
+    return {"kind": "unknown", "type": type(msg).__name__}
+
+
+def _record_event(msg, session_name: str) -> None:
+    """Append an SDK event to the fixture file for the given session.
+
+    Only active when RECORD_FIXTURES_DIR is set (checked once at module load).
+    Uses a simple read-modify-write on a JSON array file per session.
+    """
+    if not RECORD_FIXTURES_DIR:
+        return
+
+    try:
+        fixtures_dir = Path(RECORD_FIXTURES_DIR)
+        fixtures_dir.mkdir(parents=True, exist_ok=True)
+        filepath = fixtures_dir / f"{session_name}.json"
+
+        events: list = []
+        if filepath.exists():
+            try:
+                events = json.loads(filepath.read_text())
+            except (json.JSONDecodeError, OSError):
+                events = []
+
+        events.append(_sdk_event_to_dict(msg))
+        filepath.write_text(json.dumps(events, indent=2, default=str))
+        log.debug(
+            "Recorded fixture event #%d for session %s", len(events), session_name
+        )
+    except Exception as e:
+        log.debug("Fixture recording failed: %s", e)
+
+
 # ── Claude Agent SDK session manager ────────────────────────────────────────
 
 
@@ -632,6 +731,7 @@ class ClaudeSession:
                         continue
                     raise
 
+                _record_event(msg, self._session_name)
                 log.debug("SDK msg: %s", type(msg).__name__)
 
                 # Check for cancellation
