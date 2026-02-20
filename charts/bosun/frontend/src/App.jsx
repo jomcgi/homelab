@@ -222,6 +222,20 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Refresh sidebar when session changes (new session created or session resumed)
+  useEffect(() => {
+    if (sessionId) history.refresh();
+  }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Refresh sidebar when a turn completes (session preview/timestamp changed on disk)
+  const prevStreamingRef = useRef(false);
+  useEffect(() => {
+    if (prevStreamingRef.current && !streaming) {
+      history.refresh();
+    }
+    prevStreamingRef.current = streaming;
+  }, [streaming]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Auto-scroll on new messages
   useEffect(() => {
     if (scrollAnchorRef.current) {
