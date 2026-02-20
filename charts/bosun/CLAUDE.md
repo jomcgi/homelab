@@ -36,11 +36,11 @@ Claude Code requires interactive `claude /login` for initial authentication. Thi
 
 ## Golden Clone Pattern
 
-Instead of git worktrees on a shared clone (which causes lock contention):
+Each session gets an independent local clone (avoids lock contention with git-sync):
 
 1. **Golden clone** (`/repos/golden`): `git fetch && git reset --hard` every 60s
-2. **Session creation**: `cp -a` golden → `/repos/sessions/<uuid>` (independent `.git/`)
-3. **Session branches**: `git checkout -b session/<uuid>` in the copy
+2. **Session creation**: `git clone --local` golden → `/repos/sessions/<uuid>` (hardlinked objects, independent `.git/`)
+3. **Session branches**: `git checkout -b session/<uuid>` in the clone
 
 ## Common Operations
 
