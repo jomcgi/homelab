@@ -2,10 +2,11 @@ import { useState, useRef, useCallback } from "react";
 
 // ── Web Speech API hook (with adaptive debounce) ──────────────────────────
 // Accumulates speech fragments and only fires onResult after a silence window.
-// Default 2s debounce drops to 800ms after wake word or during approval state,
-// since the user is actively commanding and shorter response feels better.
-const DEBOUNCE_DEFAULT = 2000;
-const DEBOUNCE_FAST = 800;
+// Default 800ms debounce — messages queue when the agent is busy, so short
+// silence windows are fine. Drops to 400ms during approval state for snappy
+// "yes"/"go ahead" responses.
+const DEBOUNCE_DEFAULT = 800;
+const DEBOUNCE_FAST = 400;
 
 export function useVoiceInput() {
   const [listening, setListening] = useState(false);

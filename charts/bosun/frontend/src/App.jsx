@@ -90,8 +90,8 @@ export default function App() {
   const bp = useBreakpoint();
   const tts = useTTS();
   const { connected, sessionId, messages, streaming, pendingApproval, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
-    onResult: (text, toolSummaries) => {
-      console.log("[bosun] onResult fired, text length:", text?.length, "tools:", toolSummaries?.length || 0);
+    onResult: (text, toolSummaries, speculativeSummary) => {
+      console.log("[bosun] onResult fired, text length:", text?.length, "tools:", toolSummaries?.length || 0, "speculative:", !!speculativeSummary);
       // Build context string: tool calls + text output
       const toolContext = toolSummaries?.length ? `Tool calls: ${toolSummaries.join(", ")}\n\n` : "";
       const ttsInput = toolContext + (text || "");
@@ -105,12 +105,15 @@ export default function App() {
       voice.suppress();
 
       // Stream TTS: first sentence audio arrives while rest is still generating
+      // If a speculative summary is available, pass it to skip the Gemini call
       (async () => {
         try {
+          const ttsBody = { text: ttsInput, summarize: true, suggest_actions: true, stream: true };
+          if (speculativeSummary) ttsBody.pre_summary = speculativeSummary;
           const res = await fetch("/api/tts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: ttsInput, summarize: true, suggest_actions: true, stream: true }),
+            body: JSON.stringify(ttsBody),
           });
 
           const reader = res.body.getReader();
