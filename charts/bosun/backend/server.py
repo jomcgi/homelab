@@ -274,6 +274,77 @@ def _create_session_workdir(base_workdir: str) -> str:
         return base_workdir
 
 
+def _cleanup_session_workdir(workdir: str):
+    """Remove a session worktree and its branch.
+
+    Called when a WebSocket disconnects. Uncommitted work is discarded —
+    any work worth keeping should have been committed+pushed (GitOps).
+    """
+    if not GOLDEN_PATH or not SESSIONS_PATH:
+        return
+    if not workdir.startswith(SESSIONS_PATH):
+        return  # Not a session worktree, don't touch it
+
+    try:
+        # Remove the worktree (--force handles dirty working trees)
+        subprocess.run(
+            ["git", "-C", GOLDEN_PATH, "worktree", "remove", "--force", workdir],
+            capture_output=True,
+            text=True,
+        )
+        # Delete the ephemeral branch
+        dirname = os.path.basename(workdir)
+        # Branch name mirrors the dir: s-<ts> → bosun/session-<ts>
+        ts = dirname.removeprefix("s-")
+        branch = f"bosun/session-{ts}"
+        subprocess.run(
+            ["git", "-C", GOLDEN_PATH, "branch", "-D", branch],
+            capture_output=True,
+            text=True,
+        )
+        log.info("Cleaned up session worktree: %s", workdir)
+    except Exception as e:
+        log.warning("Failed to clean up worktree %s: %s", workdir, e)
+
+
+def _prune_orphaned_worktrees():
+    """Clean up worktrees orphaned by pod crashes or ungraceful shutdowns."""
+    if not GOLDEN_PATH or not SESSIONS_PATH:
+        return
+    try:
+        subprocess.run(
+            ["git", "-C", GOLDEN_PATH, "worktree", "prune"],
+            capture_output=True,
+            text=True,
+        )
+        # Remove any leftover session directories
+        if os.path.isdir(SESSIONS_PATH):
+            for entry in os.listdir(SESSIONS_PATH):
+                path = os.path.join(SESSIONS_PATH, entry)
+                if os.path.isdir(path):
+                    import shutil
+
+                    shutil.rmtree(path, ignore_errors=True)
+                    log.info("Pruned orphaned session dir: %s", path)
+        # Clean up dangling bosun/session-* branches
+        result = subprocess.run(
+            ["git", "-C", GOLDEN_PATH, "branch", "--list", "bosun/session-*"],
+            capture_output=True,
+            text=True,
+        )
+        for branch in result.stdout.strip().splitlines():
+            branch = branch.strip()
+            if branch:
+                subprocess.run(
+                    ["git", "-C", GOLDEN_PATH, "branch", "-D", branch],
+                    capture_output=True,
+                    text=True,
+                )
+        log.info("Pruned orphaned worktrees and branches")
+    except Exception as e:
+        log.warning("Worktree pruning failed: %s", e)
+
+
 # ── Claude Agent SDK session manager ────────────────────────────────────────
 
 
@@ -1185,6 +1256,7 @@ async def _precache_tts():
 
 @app.on_event("startup")
 async def _startup():
+    _prune_orphaned_worktrees()
     asyncio.create_task(_precache_tts())
 
 
@@ -1792,6 +1864,7 @@ async def websocket_endpoint(ws: WebSocket):
         if current_task and not current_task.done():
             session.cancel()
             current_task.cancel()
+        _cleanup_session_workdir(session.workdir)
 
 
 # ── Static file serving (production mode) ───────────────────────────────────
