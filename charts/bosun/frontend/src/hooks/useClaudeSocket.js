@@ -245,12 +245,12 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           break;
 
         case "result":
-          // The agent is done — fire the onResult callback with full turn text
-          console.log("[bosun] result received:", { hasText: !!msg.full_text, len: msg.full_text?.length, hasCallback: !!onResultRef.current });
-          if (msg.full_text && onResultRef.current) {
-            onResultRef.current(msg.full_text);
-          } else if (!msg.full_text) {
-            console.warn("[bosun] result message had no full_text:", msg);
+          // The agent is done — fire the onResult callback with full turn text + tool context
+          console.log("[bosun] result received:", { hasText: !!msg.full_text, len: msg.full_text?.length, tools: msg.tool_summaries?.length || 0, hasCallback: !!onResultRef.current });
+          if (onResultRef.current && (msg.full_text || msg.tool_summaries?.length)) {
+            onResultRef.current(msg.full_text || "", msg.tool_summaries);
+          } else if (!msg.full_text && !msg.tool_summaries?.length) {
+            console.warn("[bosun] result message had no content:", msg);
           }
           break;
 
@@ -292,6 +292,13 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           ]);
           break;
 
+        case "status":
+          setMessages((prev) => [
+            ...prev,
+            { id: nextId(), role: "claude", time: now(), status: "done", text: msg.message },
+          ]);
+          break;
+
         case "error":
           setMessages((prev) => [
             ...prev,
@@ -327,13 +334,20 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
     };
   }, [connect]);
 
+  const lastSummaryRef = useRef("");
+
   const send = useCallback((text) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     setMessages((prev) => [
       ...prev,
       { id: nextId(), role: "voice", time: now(), text },
     ]);
-    wsRef.current.send(JSON.stringify({ type: "message", text }));
+    const msg = { type: "message", text };
+    if (lastSummaryRef.current) {
+      msg.summary_context = lastSummaryRef.current;
+      lastSummaryRef.current = "";
+    }
+    wsRef.current.send(JSON.stringify(msg));
   }, []);
 
   const approve = useCallback((toolUseId) => {
@@ -468,6 +482,7 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
   }, [sessionId]);
 
   const addGeminiMessage = useCallback((text) => {
+    lastSummaryRef.current = text;
     setMessages((prev) => [
       ...prev,
       { id: nextId(), role: "gemini", time: now(), text },
