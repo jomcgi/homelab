@@ -29,9 +29,13 @@ export function useVoiceInput() {
       onResultRef.current(text);
     }
     bufRef.current = "";
-    setPending("");
+    // Keep pending text visible during async classification — consumer calls clearPending()
     // Reset to default debounce after each send
     debounceMsRef.current = DEBOUNCE_DEFAULT;
+  }, []);
+
+  const clearPending = useCallback(() => {
+    setPending("");
   }, []);
 
   const micStreamRef = useRef(null);
@@ -212,5 +216,5 @@ export function useVoiceInput() {
     debounceMsRef.current = fast ? DEBOUNCE_FAST : DEBOUNCE_DEFAULT;
   }, []);
 
-  return { listening, interim, pending, supported, start, stop, wakeWordFlash, suppress, unsuppress, setFastDebounce };
+  return { listening, interim, pending, supported, start, stop, wakeWordFlash, suppress, unsuppress, setFastDebounce, clearPending };
 }
