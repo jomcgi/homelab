@@ -261,7 +261,18 @@ class ClaudeSession:
         artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
 
         try:
-            async for msg in query(prompt=prompt, options=options):
+            msg_iter = query(prompt=prompt, options=options).__aiter__()
+            while True:
+                try:
+                    msg = await msg_iter.__anext__()
+                except StopAsyncIteration:
+                    break
+                except Exception as iter_err:
+                    if "Unknown message type" in str(iter_err):
+                        log.debug("SDK: skipping unknown message type: %s", iter_err)
+                        continue
+                    raise
+
                 # Check for cancellation
                 if self._cancel_event.is_set():
                     log.info("Query cancelled by user")
