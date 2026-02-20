@@ -237,20 +237,26 @@ if not HAS_SDK:
 # ── Per-session worktree isolation ─────────────────────────────────────────
 
 
-def _create_session_workdir(base_workdir: str) -> str:
+def _create_session_workdir(base_workdir: str, session_name: str | None = None) -> str:
     """Create an isolated working directory for a new session.
 
     If a golden clone is configured, creates a git worktree so the session
     has its own branch and working copy. Falls back to base_workdir if
     golden clone is not available.
+
+    Args:
+        base_workdir: The default working directory to fall back to.
+        session_name: Optional stable name for the session directory.
+            If not provided, uses a timestamp-based name.
     """
     if not GOLDEN_PATH or not SESSIONS_PATH:
         return base_workdir
 
-    session_dir = os.path.join(SESSIONS_PATH, f"s-{int(time.time() * 1000)}")
+    name = session_name or f"s-{int(time.time() * 1000)}"
+    session_dir = os.path.join(SESSIONS_PATH, name)
     try:
         os.makedirs(SESSIONS_PATH, exist_ok=True)
-        branch = f"bosun/session-{int(time.time() * 1000)}"
+        branch = f"bosun/session-{name}"
         subprocess.run(
             [
                 "git",
@@ -376,7 +382,10 @@ class ClaudeSession:
     """Manages a Claude Agent SDK session and streams results to a WebSocket."""
 
     def __init__(self, workdir: str):
-        self.workdir = _create_session_workdir(workdir)
+        import uuid
+
+        self._session_name = str(uuid.uuid4())[:8]
+        self.workdir = _create_session_workdir(workdir, session_name=self._session_name)
         self.session_id: str | None = None
         self._cancel_event = asyncio.Event()
 
@@ -1126,6 +1135,203 @@ async def get_session_summaries(session_id: str):
         db.close()
 
 
+@app.get("/api/sessions/{session_id}/export")
+async def export_session(session_id: str):
+    """Export a full session as formatted Markdown for debugging.
+
+    Combines JSONL messages (no limit) with artifacts and summaries from the DB.
+    """
+    import re as _re
+
+    filepath = _find_session_file(session_id)
+    if not filepath:
+        return {"error": "Session not found", "session_id": session_id}
+
+    # Parse all messages from JSONL (no limit)
+    messages = []
+    try:
+        with open(filepath) as f:
+            for line in f:
+                try:
+                    obj = json.loads(line)
+                except json.JSONDecodeError:
+                    continue
+
+                otype = obj.get("type", "")
+
+                if otype == "user":
+                    content = obj.get("message", {}).get("content", "")
+                    text = ""
+                    if isinstance(content, str):
+                        text = content
+                    elif isinstance(content, list):
+                        for c in content:
+                            if isinstance(c, dict) and c.get("type") == "text":
+                                text = c["text"]
+                                break
+                    if "<" in text:
+                        text = _re.sub(
+                            r"<[^>]+>.*?</[^>]+>", "", text, flags=_re.DOTALL
+                        ).strip()
+                    if text:
+                        messages.append({"role": "voice", "text": text})
+
+                elif otype == "assistant":
+                    msg = obj.get("message", {})
+                    for block in msg.get("content", []):
+                        if (
+                            block.get("type") == "text"
+                            and block.get("text", "").strip()
+                        ):
+                            messages.append(
+                                {
+                                    "role": "claude",
+                                    "status": "done",
+                                    "text": block["text"],
+                                }
+                            )
+                        elif block.get("type") == "tool_use":
+                            messages.append(
+                                {
+                                    "role": "claude",
+                                    "status": "tool",
+                                    "text": _tool_summary(block),
+                                }
+                            )
+
+    except Exception as e:
+        log.error("Failed to load session for export %s: %s", session_id, e)
+        return {"error": str(e), "session_id": session_id}
+
+    # Load summaries from DB and append as gemini messages
+    db = _get_db()
+    try:
+        rows = db.execute(
+            "SELECT text FROM summaries WHERE session_id = ? ORDER BY created_at",
+            (session_id,),
+        ).fetchall()
+        # Interleave summaries after claude done messages
+        summary_texts = [r["text"] for r in rows]
+    finally:
+        db.close()
+
+    # Insert gemini summaries after each group's final claude message
+    if summary_texts:
+        enriched = []
+        summary_idx = 0
+        i = 0
+        while i < len(messages):
+            enriched.append(messages[i])
+            # After a "done" claude message, check if the next message starts a new voice turn
+            if (
+                messages[i].get("role") == "claude"
+                and messages[i].get("status") == "done"
+                and summary_idx < len(summary_texts)
+            ):
+                # Peek ahead: is the next message a new voice turn or end of messages?
+                next_is_new_turn = (
+                    i + 1 >= len(messages) or messages[i + 1].get("role") == "voice"
+                )
+                if next_is_new_turn:
+                    enriched.append(
+                        {"role": "gemini", "text": summary_texts[summary_idx]}
+                    )
+                    summary_idx += 1
+            i += 1
+        messages = enriched
+
+    # Format as markdown (server-side version of the client utility)
+    groups = []
+    cur = None
+    for m in messages:
+        if m.get("role") == "voice":
+            if cur:
+                groups.append(cur)
+            cur = {"voice": m, "steps": [], "result": None, "summary": None}
+        elif m.get("role") == "claude":
+            if not cur:
+                cur = {"voice": None, "steps": [], "result": None, "summary": None}
+            if m.get("status") in ("thinking", "tool"):
+                cur["steps"].append(m)
+            elif m.get("status") == "done":
+                cur["result"] = m
+        elif m.get("role") == "gemini":
+            if cur:
+                cur["summary"] = m
+                groups.append(cur)
+                cur = None
+    if cur:
+        groups.append(cur)
+
+    lines = [f"# Bosun Conversation Export", f"**Session:** `{session_id}`", ""]
+    turns_no_response = []
+    tool_errors = 0
+    missing_summaries = 0
+
+    for i, g in enumerate(groups):
+        turn_num = i + 1
+        lines.append("---")
+        lines.append("")
+        lines.append(f"## Turn {turn_num}")
+        lines.append("")
+
+        if g["voice"]:
+            lines.append("### Voice Input")
+            lines.append(f"> {g['voice']['text']}")
+            lines.append("")
+
+        normal_steps = [s for s in g["steps"] if not s.get("_error")]
+        error_steps = [s for s in g["steps"] if s.get("_error")]
+        tool_errors += len(error_steps)
+
+        if normal_steps:
+            lines.append(
+                f"### Tool Use ({len(normal_steps)} step{'s' if len(normal_steps) > 1 else ''})"
+            )
+            for si, s in enumerate(normal_steps):
+                lines.append(f"{si + 1}. {s.get('text', '(unknown)')}")
+            lines.append("")
+
+        if error_steps:
+            lines.append("### Errors")
+            for s in error_steps:
+                lines.append(f"- **Error:** {s.get('text', '')}")
+            lines.append("")
+
+        if g["result"]:
+            lines.append("### Claude Response")
+            lines.append(g["result"].get("text", "*Empty response*"))
+            lines.append("")
+        elif g["steps"]:
+            lines.append("### Claude Response")
+            lines.append("**No response generated**")
+            lines.append("")
+            turns_no_response.append(turn_num)
+
+        if g["summary"]:
+            lines.append("### Spoken Summary")
+            lines.append(f"_{g['summary']['text']}_")
+            lines.append("")
+        elif g["result"]:
+            missing_summaries += 1
+
+    lines.append("---")
+    lines.append("")
+    lines.append("## Debug Summary")
+    if turns_no_response:
+        lines.append(
+            f"- Turns with no Claude response: {', '.join(map(str, turns_no_response))}"
+        )
+    else:
+        lines.append("- All turns produced a Claude response")
+    lines.append(f"- Tool errors: {tool_errors}")
+    lines.append(
+        f"- Missing Gemini summaries: {missing_summaries} / {len(groups)} turns"
+    )
+
+    return {"markdown": "\n".join(lines), "session_id": session_id}
+
+
 # ── Gemini TTS + title generation ────────────────────────────────────────────
 
 _gemini_client = None
@@ -1808,6 +2014,17 @@ async def websocket_endpoint(ws: WebSocket):
                 sid = data.get("session_id")
                 if sid:
                     session.session_id = sid
+                    # Restore workdir if a matching session worktree exists
+                    if SESSIONS_PATH:
+                        for candidate_name in [sid, f"s-{sid}", session._session_name]:
+                            candidate = os.path.join(SESSIONS_PATH, candidate_name)
+                            if os.path.isdir(candidate):
+                                session.workdir = candidate
+                                log.info(
+                                    "Restored workdir for resumed session: %s",
+                                    candidate,
+                                )
+                                break
                     _update_status()
                     log.info("Resuming session: %s", sid)
 
@@ -1913,7 +2130,7 @@ def main():
     parser.add_argument(
         "--workdir",
         type=str,
-        default=os.getcwd(),
+        default=os.environ.get("DEFAULT_WORKING_DIR", "") or os.getcwd(),
         help="Working directory for Claude Code",
     )
     parser.add_argument(

@@ -16,6 +16,7 @@ import { VoiceDot } from "./components/VoiceDot.jsx";
 import { DetailPanel } from "./components/DetailPanel.jsx";
 import { TranscriptView } from "./components/TranscriptView.jsx";
 import { ActionChips } from "./components/ActionChips.jsx";
+import { ExportButton } from "./components/ExportButton.jsx";
 
 // ── Shared styles (used by both mobile and desktop layouts) ────────────────
 const sharedCSS = `
@@ -531,6 +532,8 @@ export default function App() {
               }}>{allArtifacts.length}</span>
             )}
           </button>
+
+          <ExportButton messages={messages} sessionId={sessionId} />
 
           <button onClick={() => setShowDetail(!showDetail)} style={{
             background: "none", border: "none", cursor: "pointer",
