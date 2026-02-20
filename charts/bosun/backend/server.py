@@ -249,7 +249,14 @@ def _save_summary(session_id: str, msg_id: str, text: str):
 _PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/pull/(\d+)")
 
 
-def _upsert_pr(session_id: str, pr_number: int, repo: str, title: str, url: str, state: str = "open") -> dict:
+def _upsert_pr(
+    session_id: str,
+    pr_number: int,
+    repo: str,
+    title: str,
+    url: str,
+    state: str = "open",
+) -> dict:
     """Upsert a PR row and return the PR dict."""
     db = _get_db()
     try:
@@ -287,8 +294,19 @@ async def _detect_prs_in_output(text: str, session_id: str | None, ws: WebSocket
         try:
             result = await asyncio.to_thread(
                 subprocess.run,
-                ["gh", "pr", "view", pr_num_str, "--repo", repo, "--json", "title,state,url"],
-                capture_output=True, text=True, timeout=10,
+                [
+                    "gh",
+                    "pr",
+                    "view",
+                    pr_num_str,
+                    "--repo",
+                    repo,
+                    "--json",
+                    "title,state,url",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 data = json.loads(result.stdout)
@@ -321,9 +339,19 @@ async def _poll_prs(ws: WebSocket, session_id: str):
                 try:
                     result = await asyncio.to_thread(
                         subprocess.run,
-                        ["gh", "pr", "view", str(pr["pr_number"]),
-                         "--repo", pr["repo"], "--json", "state,title"],
-                        capture_output=True, text=True, timeout=10,
+                        [
+                            "gh",
+                            "pr",
+                            "view",
+                            str(pr["pr_number"]),
+                            "--repo",
+                            pr["repo"],
+                            "--json",
+                            "state,title",
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=10,
                     )
                     if result.returncode == 0:
                         data = json.loads(result.stdout)
@@ -344,10 +372,12 @@ async def _poll_prs(ws: WebSocket, session_id: str):
                 (session_id,),
             ).fetchall()
             if all_prs:
-                await ws.send_json({
-                    "type": "prs_update",
-                    "prs": [dict(r) for r in all_prs],
-                })
+                await ws.send_json(
+                    {
+                        "type": "prs_update",
+                        "prs": [dict(r) for r in all_prs],
+                    }
+                )
         except asyncio.CancelledError:
             break
         except Exception as e:
