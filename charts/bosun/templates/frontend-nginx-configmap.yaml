@@ -62,12 +62,18 @@ data:
                 return 200 'ok\n';
             }
 
-            # Static React frontend
+            # Hashed assets — cache forever (content hash guarantees freshness)
+            location /assets/ {
+                root /usr/share/nginx/html/charts/bosun/frontend/dist;
+                expires 1y;
+                add_header Cache-Control "public, immutable";
+            }
+
+            # SPA fallback — always revalidate so deploys are picked up immediately
             location / {
                 root /usr/share/nginx/html/charts/bosun/frontend/dist;
                 try_files $uri $uri/ /index.html;
-                expires 1h;
-                add_header Cache-Control "public";
+                add_header Cache-Control "no-cache";
             }
 
             # WebSocket -> backend
