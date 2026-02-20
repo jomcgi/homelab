@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Mic, MicOff, Volume2, VolumeX, Terminal, Plus, X, PanelRightOpen, PanelRightClose,
+  Mic, MicOff, Volume2, VolumeX, Terminal, Plus, PanelRightOpen, PanelRightClose,
   Wifi, WifiOff, Send, Grid,
 } from "lucide-react";
 import { C, sans, mono } from "./tokens.js";

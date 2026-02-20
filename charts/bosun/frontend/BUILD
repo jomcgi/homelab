@@ -3,6 +3,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//charts/bosun/frontend:vite/package_json.bzl", vite_bin = "bin")
+load("//tools/lint:linters.bzl", "eslint_test")
 
 # Link npm packages for this workspace package
 npm_link_all_packages(name = "node_modules")
@@ -61,4 +62,10 @@ filegroup(
     name = "dist",
     srcs = [":build"],
     visibility = ["//charts/bosun/image/frontend:__pkg__"],
+)
+
+# Lint React sources for Rules of Hooks violations
+eslint_test(
+    name = "eslint",
+    srcs = [":src"],
 )

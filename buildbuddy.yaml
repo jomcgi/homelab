@@ -49,7 +49,7 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
+          bazel test //... --config=ci --config=lint --deleted_packages=tools/python --test_tag_filters=-external
 
       # Push images on main branch only
       - run: |

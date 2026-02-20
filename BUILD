@@ -19,6 +19,8 @@ js_library(
     visibility = ["//:__subpackages__"],
     deps = [
         ":node_modules/@eslint/js",
+        ":node_modules/eslint-plugin-react-hooks",
+        ":node_modules/globals",
         ":node_modules/typescript-eslint",
     ],
 )
