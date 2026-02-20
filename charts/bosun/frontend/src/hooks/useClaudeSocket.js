@@ -246,9 +246,9 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
 
         case "result":
           // The agent is done — fire the onResult callback with full turn text + tool context
-          console.log("[bosun] result received:", { hasText: !!msg.full_text, len: msg.full_text?.length, tools: msg.tool_summaries?.length || 0, hasCallback: !!onResultRef.current });
+          console.log("[bosun] result received:", { hasText: !!msg.full_text, len: msg.full_text?.length, tools: msg.tool_summaries?.length || 0, speculative: !!msg.speculative_summary, hasCallback: !!onResultRef.current });
           if (onResultRef.current && (msg.full_text || msg.tool_summaries?.length)) {
-            onResultRef.current(msg.full_text || "", msg.tool_summaries);
+            onResultRef.current(msg.full_text || "", msg.tool_summaries, msg.speculative_summary || null);
           } else if (!msg.full_text && !msg.tool_summaries?.length) {
             console.warn("[bosun] result message had no content:", msg);
           }
