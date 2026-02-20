@@ -90,8 +90,9 @@ export default function App() {
   const tts = useTTS();
   const { connected, sessionId, messages, streaming, pendingApproval, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
     onResult: (text) => {
+      console.log("[bosun] onResult fired, text length:", text?.length);
       // Dedup: skip if this is the same result text as last time (echo/replay)
-      if (text === lastTtsRef.current) return;
+      if (text === lastTtsRef.current) { console.log("[bosun] onResult dedup — skipping"); return; }
       lastTtsRef.current = text;
 
       // Voice already suppressed via streaming effect, but ensure it's off
@@ -238,6 +239,7 @@ export default function App() {
         // onResult — route through voice command classifier instead of direct send
         async (text) => {
           const result = await voiceCommands.classify(text);
+          voice.clearPending(); // Clear pending text now that classification is done
           // Handle switch_session command result
           if (result?.switchTo) {
             resumeSession(result.switchTo);
@@ -588,7 +590,7 @@ export default function App() {
                     {voice.pending && <span style={{ color: C.textSec }}>{voice.pending} </span>}
                     {voice.interim}
                     {voice.pending && !voice.interim && (
-                      <span style={{ fontSize: 11, color: C.textTer, marginLeft: 8 }}>sending in 2s...</span>
+                      <span style={{ fontSize: 11, color: C.textTer, marginLeft: 8 }}>sending...</span>
                     )}
                   </div>
                 )}

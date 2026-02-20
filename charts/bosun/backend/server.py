@@ -488,6 +488,12 @@ class ClaudeSession:
                         streaming_text = False
 
                     final_text = full_run_text.strip() or (msg.result or "")
+                    log.info(
+                        "SDK result: session=%s, turns=%s, text_len=%d",
+                        msg.session_id,
+                        msg.num_turns,
+                        len(final_text),
+                    )
                     await ws.send_json(
                         {
                             "type": "result",
