@@ -599,6 +599,10 @@ class ClaudeSession:
         # Preserved across retry attempts for fallback result
         self._last_run_text: str = ""
         self._last_tool_summaries: list[str] = []
+        # Cross-reconnect dedup: prevent replaying events the frontend
+        # already has when include_partial_messages=True replays history.
+        self._emitted_tool_ids: set[str] = set()
+        self._emitted_text: set[str] = set()
 
     async def run(self, prompt: str, ws: WebSocket):
         """Run a query via the Agent SDK and stream events to the WebSocket.
@@ -788,24 +792,22 @@ class ClaudeSession:
                             streaming_text = True
                             text_buf = ""
                         elif cb.get("type") == "tool_use":
-                            await ws.send_json(
-                                {
-                                    "type": "tool_use",
-                                    "name": cb.get("name", ""),
-                                    "tool_use_id": cb.get("id", ""),
-                                    "summary": f"Using {cb.get('name', '')}",
-                                    "parent_tool_use_id": msg.parent_tool_use_id,
-                                }
-                            )
-                            # Emit early subagent_start for Task tools during streaming
-                            if cb.get("name") == "Task":
+                            tool_id = cb.get("id", "")
+                            # Skip Task tools — AssistantMessage handler
+                            # sends them with full input/description.
+                            # Also skip already-emitted IDs (reconnect replay).
+                            if (
+                                cb.get("name") != "Task"
+                                and tool_id
+                                and tool_id not in self._emitted_tool_ids
+                            ):
+                                self._emitted_tool_ids.add(tool_id)
                                 await ws.send_json(
                                     {
-                                        "type": "subagent_start",
-                                        "tool_use_id": cb.get("id", ""),
-                                        "name": "",
-                                        "description": "",
-                                        "subagent_type": "",
+                                        "type": "tool_use",
+                                        "name": cb.get("name", ""),
+                                        "tool_use_id": tool_id,
+                                        "summary": f"Using {cb.get('name', '')}",
                                         "parent_tool_use_id": msg.parent_tool_use_id,
                                     }
                                 )
@@ -835,40 +837,47 @@ class ClaudeSession:
 
                     elif ev_type == "message_stop":
                         if streaming_text:
-                            full_run_text += text_buf + "\n"
-                            streaming_captured.add(text_buf)
-                            await ws.send_json(
-                                {
-                                    "type": "assistant_done",
-                                    "full_text": text_buf,
-                                }
-                            )
-                            # Scan for mermaid blocks in the completed text
-                            for mi, mblock in enumerate(
-                                _extract_mermaid_blocks(text_buf)
-                            ):
+                            # Deduplicate text across reconnects — the SDK
+                            # replays in-flight messages on resume.
+                            if text_buf in self._emitted_text:
+                                streaming_text = False
+                                text_buf = ""
+                            else:
+                                self._emitted_text.add(text_buf)
+                                full_run_text += text_buf + "\n"
+                                streaming_captured.add(text_buf)
                                 await ws.send_json(
                                     {
-                                        "type": "mermaid_artifact",
-                                        "code": mblock["code"],
-                                        "label": mblock["label"],
+                                        "type": "assistant_done",
+                                        "full_text": text_buf,
                                     }
                                 )
-                                # Auto-save mermaid artifact
-                                if self.session_id:
-                                    artifact_counter += 1
-                                    _save_artifact(
-                                        self.session_id,
-                                        f"mermaid-{artifact_counter}",
-                                        str(mi + 1),
+                                # Scan for mermaid blocks in the completed text
+                                for mi, mblock in enumerate(
+                                    _extract_mermaid_blocks(text_buf)
+                                ):
+                                    await ws.send_json(
                                         {
-                                            "type": "mermaid",
+                                            "type": "mermaid_artifact",
+                                            "code": mblock["code"],
                                             "label": mblock["label"],
-                                            "data": mblock["code"],
-                                        },
+                                        }
                                     )
-                            streaming_text = False
-                            text_buf = ""
+                                    # Auto-save mermaid artifact
+                                    if self.session_id:
+                                        artifact_counter += 1
+                                        _save_artifact(
+                                            self.session_id,
+                                            f"mermaid-{artifact_counter}",
+                                            str(mi + 1),
+                                            {
+                                                "type": "mermaid",
+                                                "label": mblock["label"],
+                                                "data": mblock["code"],
+                                            },
+                                        )
+                                streaming_text = False
+                                text_buf = ""
 
                             # Speculative summarization: kick off Gemini summary
                             # in the background while Claude may still be doing
@@ -891,6 +900,10 @@ class ClaudeSession:
                 if isinstance(msg, AssistantMessage):
                     for block in msg.content:
                         if isinstance(block, ToolUseBlock):
+                            # Deduplicate across reconnects and streaming/complete
+                            if block.id in self._emitted_tool_ids:
+                                continue
+                            self._emitted_tool_ids.add(block.id)
                             summary = _tool_summary_sdk(block)
                             tool_summaries.append(summary)
                             await ws.send_json(
