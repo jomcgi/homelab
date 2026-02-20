@@ -621,21 +621,35 @@ class ClaudeSession:
         keeps running, so we reconnect via ``resume`` until we receive a
         proper ``ResultMessage``.
 
-        We track *consecutive empty reconnects* (reconnects that yield no
-        events at all) to detect a truly dead session.  As long as each
-        reconnect produces output, the loop continues indefinitely — a
-        30-minute swarm task with periodic rate_limit_event disconnects
-        will reconnect hundreds of times and that's fine.
+        We track two streak counters to detect session completion:
+
+        - **silent_streak**: consecutive reconnects with zero messages
+          (subprocess has exited or is unreachable).
+        - **stale_streak**: consecutive reconnects that yield messages but
+          no *new* content after dedup filtering.  This catches the case
+          where the session finished but ``resume`` replays the full
+          history every time — ``msg_count`` stays high, but all events
+          are duplicates the frontend already has.
+
+        As long as each reconnect produces *new* content, both counters
+        stay at zero.  A 30-minute swarm task with periodic
+        rate_limit_event disconnects will reconnect hundreds of times
+        and that's fine.
         """
         MAX_SILENT_RECONNECTS = 5  # give up after N reconnects with zero events
+        MAX_STALE_RECONNECTS = 3  # give up after N reconnects with only replayed events
         RECONNECT_DELAY = 2  # seconds between reconnects
         start = time.monotonic()
         attempt = 0
         silent_streak = 0  # consecutive reconnects that yielded nothing
+        stale_streak = 0  # consecutive reconnects with msgs but no new content
 
-        while silent_streak < MAX_SILENT_RECONNECTS:
+        while (
+            silent_streak < MAX_SILENT_RECONNECTS
+            and stale_streak < MAX_STALE_RECONNECTS
+        ):
             attempt += 1
-            got_result, had_output, msg_count = await self._run_once(
+            got_result, had_output, msg_count, had_new_content = await self._run_once(
                 prompt, ws, attempt
             )
             if got_result:
@@ -643,37 +657,43 @@ class ClaudeSession:
             if self._cancel_event.is_set():
                 return  # User cancelled — don't reconnect
 
-            # Track consecutive silent reconnects.  Use msg_count (not
-            # had_output) because the subprocess may be alive but idle
-            # (thinking, running a long tool, waiting on subagents) —
-            # it still emits at least a SystemMessage init on connect.
+            # Track consecutive silent and stale reconnects.
             if msg_count > 0:
                 silent_streak = 0
+                if had_new_content:
+                    stale_streak = 0
+                else:
+                    stale_streak += 1
             else:
                 silent_streak += 1
 
-            if silent_streak >= MAX_SILENT_RECONNECTS:
+            if (
+                silent_streak >= MAX_SILENT_RECONNECTS
+                or stale_streak >= MAX_STALE_RECONNECTS
+            ):
                 break
 
             log.info(
                 "Reconnecting to session (attempt %d, elapsed %.0fs, "
-                "msgs=%d, silent_streak=%d)",
+                "msgs=%d, silent=%d, stale=%d)",
                 attempt,
                 time.monotonic() - start,
                 msg_count,
                 silent_streak,
+                stale_streak,
             )
             await asyncio.sleep(RECONNECT_DELAY)
 
-        # Session appears dead — send fallback from accumulated state
+        # Session appears dead or stale — send fallback from accumulated state
         elapsed = time.monotonic() - start
         if self._last_run_text.strip() or self._last_tool_summaries:
             log.warning(
-                "Session ended after %.0fs (%d reconnects, %d silent)"
+                "Session ended after %.0fs (%d reconnects, silent=%d, stale=%d)"
                 " — sending fallback (text_len=%d)",
                 elapsed,
                 attempt,
                 silent_streak,
+                stale_streak,
                 len(self._last_run_text.strip()),
             )
             fallback_payload = {
@@ -701,10 +721,11 @@ class ClaudeSession:
     async def _run_once(self, prompt: str, ws: WebSocket, attempt: int = 1):
         """Execute a single SDK query attempt.
 
-        Returns (got_result, had_output, msg_count):
+        Returns (got_result, had_output, msg_count, had_new_content):
         - got_result: True if a ResultMessage was received (session done)
         - had_output: True if text or tool summaries were accumulated
         - msg_count: total messages yielded by the iterator (liveness signal)
+        - had_new_content: True if any content passed the dedup filters
         """
         self._cancel_event.clear()
 
@@ -743,6 +764,7 @@ class ClaudeSession:
 
         got_result = False
         msg_count = 0  # total messages from iterator (liveness signal)
+        new_content = False  # True if any content passed dedup filters
 
         try:
             msg_iter = query(prompt=prompt, options=options).__aiter__()
@@ -811,6 +833,7 @@ class ClaudeSession:
                                 and tool_id not in self._emitted_tool_ids
                             ):
                                 self._emitted_tool_ids.add(tool_id)
+                                new_content = True
                                 await ws.send_json(
                                     {
                                         "type": "tool_use",
@@ -853,6 +876,7 @@ class ClaudeSession:
                                 text_buf = ""
                             else:
                                 self._emitted_text.add(text_buf)
+                                new_content = True
                                 full_run_text += text_buf + "\n"
                                 streaming_captured.add(text_buf)
                                 await ws.send_json(
@@ -913,6 +937,7 @@ class ClaudeSession:
                             if block.id in self._emitted_tool_ids:
                                 continue
                             self._emitted_tool_ids.add(block.id)
+                            new_content = True
                             summary = _tool_summary_sdk(block)
                             tool_summaries.append(summary)
                             await ws.send_json(
@@ -1132,7 +1157,7 @@ class ClaudeSession:
                 await ws.send_json({"type": "error", "message": str(e)})
             except Exception:
                 pass
-            return True, True, msg_count  # Don't retry on exceptions
+            return True, True, msg_count, new_content  # Don't retry on exceptions
 
         # Preserve accumulated state for run() to use after retries exhaust.
         had_output = bool(full_run_text.strip() or tool_summaries)
@@ -1149,7 +1174,7 @@ class ClaudeSession:
             self._last_run_text = full_run_text.strip()
             self._last_tool_summaries = tool_summaries
 
-        return got_result, had_output, msg_count
+        return got_result, had_output, msg_count, new_content
 
     def cancel(self):
         """Signal the running query to stop."""
