@@ -8,7 +8,7 @@ mkdir -p "$NPM_CONFIG_PREFIX"
 
 # Install Claude Code CLI (cached on PVC)
 echo "Installing/updating Claude Code..."
-npm install -g @anthropic-ai/claude-code
+npm install -g @anthropic-ai/claude-code@2.1.49
 
 # Git configuration
 [ -n "$GIT_USER_NAME" ] && git config --global user.name "$GIT_USER_NAME"
