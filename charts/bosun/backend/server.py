@@ -20,6 +20,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import sqlite3
 import subprocess
 import struct
@@ -392,15 +393,15 @@ async def _poll_prs(ws: WebSocket, session_id: str):
 if not HAS_SDK:
     log.warning("claude-agent-sdk not installed — run: pip install claude-agent-sdk")
 
-# ── Per-session worktree isolation ─────────────────────────────────────────
+# ── Per-session copy isolation ─────────────────────────────────────────────
 
 
 def _create_session_workdir(base_workdir: str, session_name: str | None = None) -> str:
     """Create an isolated working directory for a new session.
 
-    If a golden clone is configured, creates a git worktree so the session
-    has its own branch and working copy. Falls back to base_workdir if
-    golden clone is not available.
+    Copies the golden clone so each session gets an independent .git/ dir.
+    This avoids lock contention with the git-sync background loop that
+    runs fetch+reset on the golden clone every 60s.
 
     Args:
         base_workdir: The default working directory to fall back to.
@@ -414,27 +415,23 @@ def _create_session_workdir(base_workdir: str, session_name: str | None = None) 
     session_dir = os.path.join(SESSIONS_PATH, name)
     try:
         os.makedirs(SESSIONS_PATH, exist_ok=True)
-        branch = f"bosun/session-{name}"
         subprocess.run(
-            [
-                "git",
-                "-C",
-                GOLDEN_PATH,
-                "worktree",
-                "add",
-                "-b",
-                branch,
-                session_dir,
-                "HEAD",
-            ],
+            ["cp", "-a", GOLDEN_PATH, session_dir],
             check=True,
             capture_output=True,
             text=True,
         )
-        log.info("Created session worktree: %s (branch: %s)", session_dir, branch)
+        branch = f"session/{name}"
+        subprocess.run(
+            ["git", "-C", session_dir, "checkout", "-b", branch],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        log.info("Created session copy: %s (branch: %s)", session_dir, branch)
         return session_dir
     except Exception as e:
-        log.warning("Failed to create session worktree: %s — using default", e)
+        log.warning("Failed to create session copy: %s — using default", e)
         return base_workdir
 
 
@@ -452,43 +449,21 @@ def _touch_session_workdir(workdir: str):
 
 
 def _cleanup_session_workdir(workdir: str):
-    """Remove a single session worktree and its branch."""
+    """Remove a session copy directory."""
     try:
-        subprocess.run(
-            ["git", "-C", GOLDEN_PATH, "worktree", "remove", "--force", workdir],
-            capture_output=True,
-            text=True,
-        )
-        dirname = os.path.basename(workdir)
-        ts = dirname.removeprefix("s-")
-        branch = f"bosun/session-{ts}"
-        subprocess.run(
-            ["git", "-C", GOLDEN_PATH, "branch", "-D", branch],
-            capture_output=True,
-            text=True,
-        )
-        log.info("Cleaned up session worktree: %s", workdir)
+        shutil.rmtree(workdir, ignore_errors=True)
+        log.info("Cleaned up session copy: %s", workdir)
     except Exception as e:
-        log.warning("Failed to clean up worktree %s: %s", workdir, e)
+        log.warning("Failed to clean up session copy %s: %s", workdir, e)
 
 
-def _prune_stale_worktrees():
-    """Remove session worktrees with no activity in SESSION_TTL_DAYS.
+def _prune_stale_sessions():
+    """Remove session copies with no activity in SESSION_TTL_DAYS.
 
     Called on startup and periodically. Uses directory mtime to determine
-    last activity — each SDK query touches the worktree dir.
+    last activity — each SDK query touches the session dir.
     """
-    if not GOLDEN_PATH or not SESSIONS_PATH:
-        return
-
-    # Let git clean up its internal worktree bookkeeping first
-    subprocess.run(
-        ["git", "-C", GOLDEN_PATH, "worktree", "prune"],
-        capture_output=True,
-        text=True,
-    )
-
-    if not os.path.isdir(SESSIONS_PATH):
+    if not SESSIONS_PATH or not os.path.isdir(SESSIONS_PATH):
         return
 
     cutoff = time.time() - (SESSION_TTL_DAYS * 86400)
@@ -505,32 +480,10 @@ def _prune_stale_worktrees():
             _cleanup_session_workdir(path)
             pruned += 1
 
-    # Clean up dangling branches whose worktrees were already removed
-    result = subprocess.run(
-        ["git", "-C", GOLDEN_PATH, "branch", "--list", "bosun/session-*"],
-        capture_output=True,
-        text=True,
-    )
-    for branch in result.stdout.strip().splitlines():
-        branch = branch.strip()
-        if not branch:
-            continue
-        # Check if a matching session dir still exists
-        ts = branch.removeprefix("bosun/session-")
-        session_dir = os.path.join(SESSIONS_PATH, f"s-{ts}")
-        if not os.path.isdir(session_dir):
-            subprocess.run(
-                ["git", "-C", GOLDEN_PATH, "branch", "-D", branch],
-                capture_output=True,
-                text=True,
-            )
-
     if pruned:
-        log.info(
-            "Pruned %d stale session worktrees (TTL: %dd)", pruned, SESSION_TTL_DAYS
-        )
+        log.info("Pruned %d stale session copies (TTL: %dd)", pruned, SESSION_TTL_DAYS)
     else:
-        log.info("Session worktree prune: nothing to clean up")
+        log.info("Session prune: nothing to clean up")
 
 
 # ── Fixture recording (for integration tests) ──────────────────────────────
@@ -1868,7 +1821,7 @@ async def _precache_tts():
 
 @app.on_event("startup")
 async def _startup():
-    _prune_stale_worktrees()
+    _prune_stale_sessions()
     asyncio.create_task(_precache_tts())
 
 
