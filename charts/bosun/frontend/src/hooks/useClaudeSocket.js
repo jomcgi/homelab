@@ -248,9 +248,12 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           // The agent turn is complete — ensure the messages array has a "done"
           // message with the full result text so exports/grouping work correctly.
           const fullText = (msg.full_text || "").trim();
-          console.log("[bosun] result received:", { hasText: !!fullText, len: fullText.length, tools: msg.tool_summaries?.length || 0, speculative: !!msg.speculative_summary, hasCallback: !!onResultRef.current });
+          console.log("[bosun] result received:", { hasText: !!fullText, len: fullText.length, tools: msg.tool_summaries?.length || 0, turns: msg.num_turns, isError: msg.is_error, speculative: !!msg.speculative_summary, hasCallback: !!onResultRef.current });
+          if (!fullText && msg.tool_summaries?.length) {
+            console.warn("[bosun] tools ran but no text response — Claude may have terminated early (turns:", msg.num_turns, "is_error:", msg.is_error, ")");
+          }
 
-          if (fullText) {
+          if (fullText || msg.tool_summaries?.length) {
             setMessages((prev) => {
               // Find the last voice message to scope our search to the current turn
               const lastVoiceIdx = prev.findLastIndex((m) => m.role === "voice");
@@ -264,7 +267,7 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
                 updated[existingIdx] = { ...updated[existingIdx], text: fullText };
                 return updated;
               }
-              // No done message yet (tool-only turn) — create one
+              // No done message yet (e.g. tool-only turn with no text) — create one
               return [
                 ...prev,
                 { id: nextId(), role: "claude", time: now(), status: "done", text: fullText },
