@@ -71,6 +71,7 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
   const [messages, setMessages] = useState([]);
   const [streaming, setStreaming] = useState(false);
   const [pendingApproval, setPendingApproval] = useState(null);
+  const [prs, setPrs] = useState([]);
   const streamBufRef = useRef("");
   const msgIdRef = useRef(0);
   const onResultRef = useRef(onResultCb);
@@ -336,6 +337,29 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           ]);
           setStreaming(false);
           break;
+
+        case "pr_detected":
+          setPrs((prev) => {
+            const exists = prev.some((p) => p.pr_number === msg.pr.pr_number && p.repo === msg.pr.repo);
+            return exists ? prev : [...prev, msg.pr];
+          });
+          // Attach PR ref to most recent claude message for inline rendering
+          setMessages((prev) => {
+            for (let i = prev.length - 1; i >= 0; i--) {
+              if (prev[i].role === "claude") {
+                const updated = [...prev];
+                const existing = updated[i]._prs || [];
+                updated[i] = { ...updated[i], _prs: [...existing, msg.pr] };
+                return updated;
+              }
+            }
+            return prev;
+          });
+          break;
+
+        case "prs_update":
+          setPrs(msg.prs);
+          break;
       }
     };
 
@@ -405,6 +429,7 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
     setMessages([]);
     setStreaming(false);
     setPendingApproval(null);
+    setPrs([]);
     // Clear URL param
     const url = new URL(window.location);
     url.searchParams.delete("session");
@@ -432,16 +457,22 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
       wsRef.current.send(JSON.stringify({ type: "resume", session_id: sid }));
     }
 
-    // Load conversation history, artifacts, and summaries from API
+    // Load conversation history, artifacts, summaries, and PRs from API
     try {
-      const [msgRes, artRes, sumRes] = await Promise.all([
+      const [msgRes, artRes, sumRes, prRes] = await Promise.all([
         fetch(`/api/sessions/${sid}/messages`),
         fetch(`/api/sessions/${sid}/artifacts`),
         fetch(`/api/sessions/${sid}/summaries`),
+        fetch(`/api/sessions/${sid}/prs`),
       ]);
       const msgData = await msgRes.json();
       const artData = await artRes.json();
       const sumData = await sumRes.json();
+      const prData = await prRes.json();
+
+      // Restore PRs for this session
+      if (prData.prs?.length) setPrs(prData.prs);
+      else setPrs([]);
 
       let loaded = [];
       if (msgData.messages) {
@@ -519,5 +550,5 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
     ]);
   }, []);
 
-  return { connected, sessionId, messages, streaming, pendingApproval, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage };
+  return { connected, sessionId, messages, streaming, pendingApproval, prs, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage };
 }

@@ -31,6 +31,12 @@ export const C = {
   stepBg: "#F9FAFB",
   stepBorder: "#E5E7EB",
   stepText: "#6B7280",
+  prOpen: "#10B981",
+  prOpenBg: "#ECFDF5",
+  prMerged: "#8B5CF6",
+  prMergedBg: "#F5F3FF",
+  prClosed: "#6B7280",
+  prClosedBg: "#F9FAFB",
 };
 
 export const sans = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
