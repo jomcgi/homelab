@@ -393,15 +393,17 @@ async def _poll_prs(ws: WebSocket, session_id: str):
 if not HAS_SDK:
     log.warning("claude-agent-sdk not installed — run: pip install claude-agent-sdk")
 
-# ── Per-session copy isolation ─────────────────────────────────────────────
+# ── Per-session clone isolation ─────────────────────────────────────────────
 
 
 def _create_session_workdir(base_workdir: str, session_name: str | None = None) -> str:
     """Create an isolated working directory for a new session.
 
-    Copies the golden clone so each session gets an independent .git/ dir.
-    This avoids lock contention with the git-sync background loop that
-    runs fetch+reset on the golden clone every 60s.
+    Uses ``git clone --local`` from the golden clone so each session gets an
+    independent ``.git/`` directory.  Object files are hardlinked (fast,
+    space-efficient) and git's content-addressed store is safe to read
+    concurrently — unlike ``cp -a`` or ``git worktree add``, this does not
+    race with the git-sync loop that runs fetch+reset every 60 s.
 
     Args:
         base_workdir: The default working directory to fall back to.
@@ -416,7 +418,7 @@ def _create_session_workdir(base_workdir: str, session_name: str | None = None) 
     try:
         os.makedirs(SESSIONS_PATH, exist_ok=True)
         subprocess.run(
-            ["cp", "-a", GOLDEN_PATH, session_dir],
+            ["git", "clone", "--local", GOLDEN_PATH, session_dir],
             check=True,
             capture_output=True,
             text=True,
@@ -428,10 +430,17 @@ def _create_session_workdir(base_workdir: str, session_name: str | None = None) 
             capture_output=True,
             text=True,
         )
-        log.info("Created session copy: %s (branch: %s)", session_dir, branch)
+        log.info("Created session clone: %s (branch: %s)", session_dir, branch)
         return session_dir
+    except subprocess.CalledProcessError as e:
+        log.warning(
+            "Failed to create session clone: %s — stderr: %s — using default",
+            e,
+            e.stderr,
+        )
+        return base_workdir
     except Exception as e:
-        log.warning("Failed to create session copy: %s — using default", e)
+        log.warning("Failed to create session clone: %s — using default", e)
         return base_workdir
 
 
@@ -449,16 +458,16 @@ def _touch_session_workdir(workdir: str):
 
 
 def _cleanup_session_workdir(workdir: str):
-    """Remove a session copy directory."""
+    """Remove a session clone directory."""
     try:
         shutil.rmtree(workdir, ignore_errors=True)
-        log.info("Cleaned up session copy: %s", workdir)
+        log.info("Cleaned up session clone: %s", workdir)
     except Exception as e:
-        log.warning("Failed to clean up session copy %s: %s", workdir, e)
+        log.warning("Failed to clean up session clone %s: %s", workdir, e)
 
 
 def _prune_stale_sessions():
-    """Remove session copies with no activity in SESSION_TTL_DAYS.
+    """Remove session clones with no activity in SESSION_TTL_DAYS.
 
     Called on startup and periodically. Uses directory mtime to determine
     last activity — each SDK query touches the session dir.
@@ -481,7 +490,7 @@ def _prune_stale_sessions():
             pruned += 1
 
     if pruned:
-        log.info("Pruned %d stale session copies (TTL: %dd)", pruned, SESSION_TTL_DAYS)
+        log.info("Pruned %d stale session clones (TTL: %dd)", pruned, SESSION_TTL_DAYS)
     else:
         log.info("Session prune: nothing to clean up")
 
