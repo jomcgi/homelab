@@ -1,4 +1,4 @@
-import { FileCode, FileText, Terminal, GitBranch, Image, Search, FolderOpen, Globe, PenLine } from "lucide-react";
+import { FileCode, FileText, Terminal, GitBranch, GitPullRequest, Image, Search, FolderOpen, Globe, PenLine } from "lucide-react";
 
 // Maps artifact type + toolName to the best icon component.
 // Used by ArtifactCard, InlineArtifact, ArtifactGalleryItem, DetailPanel.
@@ -18,6 +18,7 @@ const typeIcons = {
   output: Terminal,
   mermaid: GitBranch,
   image: Image,
+  pr: GitPullRequest,
 };
 
 export function artifactIcon(artifact) {
