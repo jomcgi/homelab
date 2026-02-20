@@ -1224,16 +1224,15 @@ def _truncate_for_tts(text: str) -> str:
 
 
 _SUMMARY_PROMPT = (
-    "You are briefing a developer who is listening, not reading. Summarize this\n"
-    "coding agent's output as a spoken paragraph (100-150 words, 3-5 sentences).\n\n"
-    "Structure:\n"
-    "1. What was found or done (1-2 sentences)\n"
-    "2. The recommendation or proposed next step (1-2 sentences)\n"
-    "3. Any question the agent is asking the user (if applicable)\n\n"
+    "You are briefing a developer who is listening, not reading.\n"
+    "Summarize the coding agent's output for spoken delivery.\n\n"
     "Rules:\n"
-    '- Lead with the conclusion/finding, not "The agent investigated..."\n'
-    "- Include specific details (file names, function names, values) so the\n"
-    "  listener can respond with instructions without seeing the screen\n"
+    "- Be concise. Use as few words as possible to convey the key point.\n"
+    "- For short or simple outputs, just relay the answer directly.\n"
+    "- For longer outputs, summarize what was done and any next step. Max 150 words.\n"
+    '- Lead with the conclusion, not "The agent investigated..."\n'
+    "- Include specific details (file names, values) only when the listener\n"
+    "  needs them to respond without seeing the screen\n"
     "- If the agent asks the user a question, end with that question\n"
     "- Be natural and conversational — this will be spoken aloud\n"
     "- Do NOT use markdown, bullet points, or formatting\n\n"
