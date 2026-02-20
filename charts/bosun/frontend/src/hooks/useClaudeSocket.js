@@ -327,13 +327,20 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
     };
   }, [connect]);
 
+  const lastSummaryRef = useRef("");
+
   const send = useCallback((text) => {
     if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
     setMessages((prev) => [
       ...prev,
       { id: nextId(), role: "voice", time: now(), text },
     ]);
-    wsRef.current.send(JSON.stringify({ type: "message", text }));
+    const msg = { type: "message", text };
+    if (lastSummaryRef.current) {
+      msg.summary_context = lastSummaryRef.current;
+      lastSummaryRef.current = "";
+    }
+    wsRef.current.send(JSON.stringify(msg));
   }, []);
 
   const approve = useCallback((toolUseId) => {
@@ -468,6 +475,7 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
   }, [sessionId]);
 
   const addGeminiMessage = useCallback((text) => {
+    lastSummaryRef.current = text;
     setMessages((prev) => [
       ...prev,
       { id: nextId(), role: "gemini", time: now(), text },

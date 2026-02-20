@@ -1557,6 +1557,14 @@ async def websocket_endpoint(ws: WebSocket):
                 if not text:
                     continue
 
+                # Inject TTS summary context so Claude knows what the user heard
+                summary_ctx = data.get("summary_context", "").strip()
+                if summary_ctx:
+                    text = (
+                        f"[The user heard this spoken summary of your last response: "
+                        f'"{summary_ctx}"]\n\n{text}'
+                    )
+
                 if current_task and not current_task.done():
                     # Agent is busy — queue the message for delivery after current turn
                     message_queue.append(text)
