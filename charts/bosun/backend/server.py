@@ -432,6 +432,9 @@ class ClaudeSession:
 
         options = ClaudeAgentOptions(
             cwd=self.workdir,
+            # Use the built-in Claude Code system prompt (preset avoids the SDK
+            # passing --system-prompt "" which clears it).
+            system_prompt={"type": "preset", "preset": "claude_code"},
             allowed_tools=AUTO_APPROVED_TOOLS,
             permission_mode="acceptEdits",
             include_partial_messages=True,
@@ -708,11 +711,20 @@ class ClaudeSession:
 
                     final_text = full_run_text.strip() or (msg.result or "")
                     log.info(
-                        "SDK result: session=%s, turns=%s, text_len=%d",
+                        "SDK result: session=%s, turns=%d, text_len=%d, is_error=%s, tools=%d",
                         msg.session_id,
                         msg.num_turns,
                         len(final_text),
+                        msg.is_error,
+                        len(tool_summaries),
                     )
+                    if not final_text and tool_summaries:
+                        log.warning(
+                            "SDK returned tools but no text (turns=%d, is_error=%s) — "
+                            "Claude may have terminated early",
+                            msg.num_turns,
+                            msg.is_error,
+                        )
                     got_result = True
                     result_payload = {
                         "type": "result",
@@ -720,6 +732,7 @@ class ClaudeSession:
                         "cost_usd": msg.total_cost_usd,
                         "duration_ms": msg.duration_ms,
                         "num_turns": msg.num_turns,
+                        "is_error": msg.is_error,
                         "full_text": final_text,
                     }
                     if tool_summaries:

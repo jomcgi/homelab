@@ -97,8 +97,10 @@ export default function App() {
       const ttsInput = toolContext + (text || "");
       // Skip TTS only if we have absolutely nothing
       if (!ttsInput.trim()) { console.log("[bosun] onResult empty — skipping TTS"); voice.unsuppress(); return; }
-      // Dedup: skip if this is the same result text as last time (echo/replay)
-      if (text === lastTtsRef.current) { console.log("[bosun] onResult dedup — skipping"); return; }
+      // Dedup: skip if this is the same non-empty result text as last time (echo/replay).
+      // Only dedup on non-empty text — empty strings match the initial ref value and
+      // would incorrectly skip tool-only turns where toolSummaries carry the content.
+      if (text && text === lastTtsRef.current) { console.log("[bosun] onResult dedup — skipping"); return; }
       lastTtsRef.current = text;
 
       // Voice already suppressed via streaming effect, but ensure it's off
