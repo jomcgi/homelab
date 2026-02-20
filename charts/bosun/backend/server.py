@@ -603,50 +603,64 @@ class ClaudeSession:
     async def run(self, prompt: str, ws: WebSocket):
         """Run a query via the Agent SDK and stream events to the WebSocket.
 
-        Retries up to MAX_RETRIES times if the SDK produces no output
-        (e.g. rate limited, connection dropped).
+        The SDK's async iterator can terminate mid-run when it encounters
+        unknown message types (e.g. rate_limit_event).  The subprocess
+        keeps running, so we reconnect via ``resume`` until we receive a
+        proper ``ResultMessage``.
+
+        We track *consecutive empty reconnects* (reconnects that yield no
+        events at all) to detect a truly dead session.  As long as each
+        reconnect produces output, the loop continues indefinitely — a
+        30-minute swarm task with periodic rate_limit_event disconnects
+        will reconnect hundreds of times and that's fine.
         """
-        MAX_RETRIES = 3
+        MAX_SILENT_RECONNECTS = 5  # give up after N reconnects with zero events
+        RECONNECT_DELAY = 2  # seconds between reconnects
+        start = time.monotonic()
+        attempt = 0
+        silent_streak = 0  # consecutive reconnects that yielded nothing
 
-        for attempt in range(1, MAX_RETRIES + 1):
-            got_result, had_output = await self._run_once(prompt, ws, attempt)
+        while silent_streak < MAX_SILENT_RECONNECTS:
+            attempt += 1
+            got_result, had_output, msg_count = await self._run_once(
+                prompt, ws, attempt
+            )
             if got_result:
-                return  # Got a proper ResultMessage — done
-            if attempt < MAX_RETRIES:
-                delay = 2**attempt  # 2s, 4s
-                if had_output:
-                    log.warning(
-                        "SDK produced partial output without ResultMessage (attempt %d/%d) — resuming in %ds",
-                        attempt,
-                        MAX_RETRIES,
-                        delay,
-                    )
-                    await ws.send_json(
-                        {
-                            "type": "status",
-                            "message": f"Response interrupted, resuming ({attempt}/{MAX_RETRIES})...",
-                        }
-                    )
-                else:
-                    log.warning(
-                        "SDK produced no output (attempt %d/%d) — retrying in %ds",
-                        attempt,
-                        MAX_RETRIES,
-                        delay,
-                    )
-                    await ws.send_json(
-                        {
-                            "type": "status",
-                            "message": f"No response received, retrying ({attempt}/{MAX_RETRIES})...",
-                        }
-                    )
-                await asyncio.sleep(delay)
+                return  # Got a proper ResultMessage — truly done
+            if self._cancel_event.is_set():
+                return  # User cancelled — don't reconnect
 
-        # All retries exhausted — send fallback from accumulated state
+            # Track consecutive silent reconnects.  Use msg_count (not
+            # had_output) because the subprocess may be alive but idle
+            # (thinking, running a long tool, waiting on subagents) —
+            # it still emits at least a SystemMessage init on connect.
+            if msg_count > 0:
+                silent_streak = 0
+            else:
+                silent_streak += 1
+
+            if silent_streak >= MAX_SILENT_RECONNECTS:
+                break
+
+            log.info(
+                "Reconnecting to session (attempt %d, elapsed %.0fs, "
+                "msgs=%d, silent_streak=%d)",
+                attempt,
+                time.monotonic() - start,
+                msg_count,
+                silent_streak,
+            )
+            await asyncio.sleep(RECONNECT_DELAY)
+
+        # Session appears dead — send fallback from accumulated state
+        elapsed = time.monotonic() - start
         if self._last_run_text.strip() or self._last_tool_summaries:
             log.warning(
-                "SDK produced no ResultMessage after %d attempts — sending fallback (text_len=%d)",
-                MAX_RETRIES,
+                "Session ended after %.0fs (%d reconnects, %d silent)"
+                " — sending fallback (text_len=%d)",
+                elapsed,
+                attempt,
+                silent_streak,
                 len(self._last_run_text.strip()),
             )
             fallback_payload = {
@@ -658,16 +672,27 @@ class ClaudeSession:
                 fallback_payload["tool_summaries"] = self._last_tool_summaries
             await ws.send_json(fallback_payload)
         else:
-            log.warning("SDK produced no output after %d attempts", MAX_RETRIES)
+            log.warning(
+                "Session produced no output after %.0fs (%d attempts)",
+                elapsed,
+                attempt,
+            )
             await ws.send_json(
                 {
                     "type": "error",
-                    "message": "Claude produced no response after multiple attempts. This may be due to rate limiting — try again shortly.",
+                    "message": "Claude produced no response."
+                    " This may be due to rate limiting — try again shortly.",
                 }
             )
 
     async def _run_once(self, prompt: str, ws: WebSocket, attempt: int = 1):
-        """Execute a single SDK query attempt. Returns (got_result, had_output)."""
+        """Execute a single SDK query attempt.
+
+        Returns (got_result, had_output, msg_count):
+        - got_result: True if a ResultMessage was received (session done)
+        - had_output: True if text or tool summaries were accumulated
+        - msg_count: total messages yielded by the iterator (liveness signal)
+        """
         self._cancel_event.clear()
 
         options = ClaudeAgentOptions(
@@ -704,6 +729,7 @@ class ClaudeSession:
         speculative_summary_task: asyncio.Task | None = None  # Background summarization
 
         got_result = False
+        msg_count = 0  # total messages from iterator (liveness signal)
 
         try:
             msg_iter = query(prompt=prompt, options=options).__aiter__()
@@ -711,7 +737,9 @@ class ClaudeSession:
                 try:
                     msg = await msg_iter.__anext__()
                 except StopAsyncIteration:
-                    log.info("SDK iteration ended (StopAsyncIteration)")
+                    log.info(
+                        "SDK iteration ended (StopAsyncIteration, msgs=%d)", msg_count
+                    )
                     break
                 except Exception as iter_err:
                     if "Unknown message type" in str(iter_err):
@@ -721,6 +749,7 @@ class ClaudeSession:
                         continue
                     raise
 
+                msg_count += 1
                 _record_event(msg, self._session_name)
                 log.debug("SDK msg: %s", type(msg).__name__)
 
@@ -1081,15 +1110,16 @@ class ClaudeSession:
                 await ws.send_json({"type": "error", "message": str(e)})
             except Exception:
                 pass
-            return True, True  # Don't retry on exceptions
+            return True, True, msg_count  # Don't retry on exceptions
 
         # Preserve accumulated state for run() to use after retries exhaust.
         had_output = bool(full_run_text.strip() or tool_summaries)
         if not got_result and had_output:
             log.warning(
-                "SDK ended without ResultMessage (text_len=%d, tools=%d)",
+                "SDK ended without ResultMessage (text_len=%d, tools=%d, msgs=%d)",
                 len(full_run_text.strip()),
                 len(tool_summaries),
+                msg_count,
             )
             if streaming_text:
                 full_run_text += text_buf + "\n"
@@ -1097,7 +1127,7 @@ class ClaudeSession:
             self._last_run_text = full_run_text.strip()
             self._last_tool_summaries = tool_summaries
 
-        return got_result, had_output
+        return got_result, had_output, msg_count
 
     def cancel(self):
         """Signal the running query to stop."""
