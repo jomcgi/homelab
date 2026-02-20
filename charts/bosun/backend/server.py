@@ -362,7 +362,9 @@ def _prune_stale_worktrees():
             )
 
     if pruned:
-        log.info("Pruned %d stale session worktrees (TTL: %dd)", pruned, SESSION_TTL_DAYS)
+        log.info(
+            "Pruned %d stale session worktrees (TTL: %dd)", pruned, SESSION_TTL_DAYS
+        )
     else:
         log.info("Session worktree prune: nothing to clean up")
 
@@ -387,9 +389,7 @@ class ClaudeSession:
         MAX_RETRIES = 3
 
         for attempt in range(1, MAX_RETRIES + 1):
-            got_result, had_output = await self._run_once(
-                prompt, ws, attempt
-            )
+            got_result, had_output = await self._run_once(prompt, ws, attempt)
             if got_result or had_output:
                 return  # Success or partial output — don't retry
             if attempt < MAX_RETRIES:
