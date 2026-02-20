@@ -91,6 +91,8 @@ export default function App() {
   const { connected, sessionId, messages, streaming, pendingApproval, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
     onResult: (text) => {
       console.log("[bosun] onResult fired, text length:", text?.length);
+      // Skip TTS for empty or trivially short results (e.g. tool-only runs with no prose)
+      if (!text || text.trim().length < 10) { console.log("[bosun] onResult too short — skipping TTS"); voice.unsuppress(); return; }
       // Dedup: skip if this is the same result text as last time (echo/replay)
       if (text === lastTtsRef.current) { console.log("[bosun] onResult dedup — skipping"); return; }
       lastTtsRef.current = text;

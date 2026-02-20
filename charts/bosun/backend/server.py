@@ -1359,9 +1359,12 @@ async def text_to_speech(body: dict):
 
     client = _get_gemini()  # needed for summarization only
 
-    text = body.get("text", "")
+    text = body.get("text", "").strip()
     if not text:
         return {"error": "No text provided"}
+    if len(text) < 10:
+        log.info("TTS skipped: text too short (%d chars)", len(text))
+        return {"skipped": True, "reason": "text too short"}
 
     # Check pre-cache for exact matches (static confirmations)
     if text in _TTS_CACHE:
