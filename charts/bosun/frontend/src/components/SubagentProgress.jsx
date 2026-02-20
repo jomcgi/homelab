@@ -27,10 +27,10 @@ export function SubagentProgress({ subagents }) {
             }}
           >
             <span style={{ color: C.accentBlue }}>&#x23FA; </span>
-            {agent.type || "agent"}
-            {agent.desc && (
+            {agent.name || agent.type || "agent"}
+            {!agent.name && agent.desc && (
               <span style={{ fontWeight: 400, color: C.textTer }}>
-                ({agent.desc.length > 40 ? agent.desc.slice(0, 37) + "..." : agent.desc})
+                {" "}({agent.desc.length > 40 ? agent.desc.slice(0, 37) + "..." : agent.desc})
               </span>
             )}
           </div>
