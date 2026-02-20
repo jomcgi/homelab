@@ -1,7 +1,7 @@
 backend:
   image:
     repository: ghcr.io/jomcgi/homelab/charts/bosun/backend
-    tag: main@sha256:e7ea47b776f6ebb97f87264c5bad66cf911e34aaf72dbd2f4f27cfaa3579c947
+    tag: latest@sha256:e7ea47b776f6ebb97f87264c5bad66cf911e34aaf72dbd2f4f27cfaa3579c947
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/charts/bosun/frontend
