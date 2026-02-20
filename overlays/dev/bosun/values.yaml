@@ -12,6 +12,7 @@ gitSync:
   branch: main
   intervalSeconds: 60
 claudeBin: "/home/user/.npm-global/bin/claude"
+defaultWorkingDir: "/repos/golden"
 # ArgoCD Image Updater
 imageUpdater:
   enabled: true
