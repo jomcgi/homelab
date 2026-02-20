@@ -264,6 +264,12 @@ export default function App() {
     else { setDetailArtifact(artifact); setDetailId(id); setShowDetail(true); }
   }, [detailId]);
 
+  const openGallery = useCallback(() => {
+    setDetailArtifact(null);
+    setDetailId(null);
+    setShowDetail(true);
+  }, []);
+
   // ── Mobile layout ──────────────────────────────────────────────
   if (bp === "mobile") {
     return (
@@ -326,12 +332,6 @@ export default function App() {
       </div>
     );
   }
-
-  const openGallery = useCallback(() => {
-    setDetailArtifact(null);
-    setDetailId(null);
-    setShowDetail(true);
-  }, []);
 
   // ── Desktop layout ─────────────────────────────────────────────
   const hasDetail = showDetail && (detailArtifact || allArtifacts.length > 0);

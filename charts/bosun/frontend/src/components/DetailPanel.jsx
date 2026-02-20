@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { X, ClipboardCopy, Download, Code, ZoomIn, ZoomOut, Grid, Maximize, Expand, FileCode } from "lucide-react";
+import { X, ClipboardCopy, Download, Code, ZoomIn, ZoomOut, Grid, Maximize, Expand, FileCode, Terminal, GitBranch, Image } from "lucide-react";
 import { C, sans, mono } from "../tokens.js";
 import { MarkdownContent } from "./MarkdownContent.jsx";
 import { MermaidDiagram } from "./MermaidDiagram.jsx";
