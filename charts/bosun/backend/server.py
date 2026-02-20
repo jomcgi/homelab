@@ -544,6 +544,15 @@ class ClaudeSession:
             if tool_summaries:
                 fallback_payload["tool_summaries"] = tool_summaries
             await ws.send_json(fallback_payload)
+        elif not got_result:
+            # SDK ended with zero output (e.g. rate limited, connection dropped)
+            log.warning("SDK ended with no output and no ResultMessage")
+            await ws.send_json(
+                {
+                    "type": "error",
+                    "message": "Claude produced no response. This may be due to rate limiting — try again in a moment.",
+                }
+            )
 
     def cancel(self):
         """Signal the running query to stop."""
