@@ -163,7 +163,7 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           if (msg.tool_use_id) {
             toolInfoRef.current.set(msg.tool_use_id, { name: msg.name, input: msg.input });
           }
-          // Track tool calls within subagents
+          // Child tool calls within subagents — track in SubagentProgress only
           if (msg.parent_tool_use_id) {
             setSubagents((prev) => {
               const agent = prev[msg.parent_tool_use_id];
@@ -173,7 +173,10 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
               }
               return prev;
             });
+            break; // Don't add to transcript — SubagentProgress handles it
           }
+          // Task tool calls — SubagentProgress handles the display
+          if (msg.name === "Task") break;
           setMessages((prev) => [
             ...prev,
             { id: nextId(), role: "claude", time: now(), status: "tool", text: `${msg.name}: ${msg.summary || ""}` },
@@ -201,6 +204,14 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           const isErr = looksLikeError(msg.output, msg.is_error);
           // Clean up the tracking map
           if (msg.tool_use_id) toolInfoRef.current.delete(msg.tool_use_id);
+          // Clean up completed subagents from the live progress panel
+          setSubagents((prev) => {
+            if (prev[msg.tool_use_id]) {
+              const { [msg.tool_use_id]: _, ...rest } = prev;
+              return rest;
+            }
+            return prev;
+          });
           let toolArtifact = null;
           if (isErr) {
             // Error results: no artifact, store error detail for inline display
