@@ -455,6 +455,7 @@ class ClaudeSession:
         streaming_text = False
         artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
         tool_summaries = []  # Human-readable tool call summaries for TTS context
+        speculative_summary_task: asyncio.Task | None = None  # Background summarization
 
         got_result = False
 
@@ -560,6 +561,21 @@ class ClaudeSession:
                                     )
                             streaming_text = False
                             text_buf = ""
+
+                            # Speculative summarization: kick off Gemini summary
+                            # in the background while Claude may still be doing
+                            # tool calls. By the time ResultMessage arrives the
+                            # summary is often already ready, saving ~300ms.
+                            if (
+                                len(full_run_text) >= 200
+                                and speculative_summary_task is None
+                            ):
+                                client = _get_gemini()
+                                if client:
+                                    truncated = _truncate_for_tts(full_run_text.strip())
+                                    speculative_summary_task = asyncio.create_task(
+                                        _summarize(client, truncated, True)
+                                    )
 
                     continue
 
@@ -708,6 +724,25 @@ class ClaudeSession:
                     }
                     if tool_summaries:
                         result_payload["tool_summaries"] = tool_summaries
+
+                    # Attach speculative summary if ready (or wait briefly)
+                    if speculative_summary_task is not None:
+                        try:
+                            spoken, summary, actions = await asyncio.wait_for(
+                                speculative_summary_task, timeout=2.0
+                            )
+                            if summary:
+                                result_payload["speculative_summary"] = {
+                                    "summary": summary,
+                                    "actions": actions or [],
+                                }
+                                log.info(
+                                    "Speculative summary attached (%d chars)",
+                                    len(summary),
+                                )
+                        except (asyncio.TimeoutError, Exception) as e:
+                            log.info("Speculative summary not ready: %s", e)
+
                     await ws.send_json(result_payload)
                     continue
 
@@ -1680,12 +1715,23 @@ async def _summarize(client, text: str, suggest_actions: bool):
         return text, None, []
 
 
-async def _stream_tts(client, text: str, summarize: bool, suggest_actions: bool):
+async def _stream_tts(
+    client,
+    text: str,
+    summarize: bool,
+    suggest_actions: bool,
+    pre_summary: dict | None = None,
+):
     """Stream TTS as NDJSON: first sentence audio arrives ASAP, then the rest."""
     text = _truncate_for_tts(text)
 
-    # Step 1: Summarize
-    if summarize or suggest_actions:
+    # Step 1: Summarize (skip if pre-computed summary supplied)
+    if pre_summary and pre_summary.get("summary"):
+        spoken_text = pre_summary["summary"]
+        summary_text = spoken_text
+        actions = pre_summary.get("actions", [])
+        log.info("Stream TTS using pre-computed summary: %s", spoken_text[:120])
+    elif summarize or suggest_actions:
         spoken_text, summary_text, actions = await _summarize(
             client, text, suggest_actions
         )
@@ -1771,11 +1817,12 @@ async def text_to_speech(body: dict):
 
     summarize = body.get("summarize", False)
     suggest_actions = body.get("suggest_actions", False)
+    pre_summary = body.get("pre_summary")  # From speculative summarization
 
     # Streaming mode: NDJSON with pipelined audio chunks
     if body.get("stream"):
         return StreamingResponse(
-            _stream_tts(client, text, summarize, suggest_actions),
+            _stream_tts(client, text, summarize, suggest_actions, pre_summary),
             media_type="application/x-ndjson",
         )
 
