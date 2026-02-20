@@ -531,9 +531,7 @@ class ClaudeSession:
             )
             if streaming_text:
                 full_run_text += text_buf + "\n"
-                await ws.send_json(
-                    {"type": "assistant_done", "full_text": text_buf}
-                )
+                await ws.send_json({"type": "assistant_done", "full_text": text_buf})
             await ws.send_json(
                 {
                     "type": "result",
