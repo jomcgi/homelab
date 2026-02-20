@@ -959,24 +959,27 @@ _CACHED_PHRASES = [
 ]
 
 
-def _generate_tts_raw(client, text: str) -> bytes | None:
-    """Generate raw PCM audio from Gemini TTS (synchronous, for thread pool)."""
+def _generate_tts_raw(text: str) -> bytes | None:
+    """Generate raw PCM audio from Google Cloud TTS Chirp3-HD (synchronous, for thread pool)."""
+    import urllib.request
+
+    if not GOOGLE_API_KEY:
+        return None
+    url = f"https://texttospeech.googleapis.com/v1/text:synthesize?key={GOOGLE_API_KEY}"
+    payload = json.dumps(
+        {
+            "input": {"text": text},
+            "voice": {"languageCode": "en-US", "name": "en-US-Chirp3-HD-Kore"},
+            "audioConfig": {"audioEncoding": "LINEAR16", "sampleRateHertz": 24000},
+        }
+    ).encode()
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash-preview-tts",
-            contents=text,
-            config=types.GenerateContentConfig(
-                response_modalities=["AUDIO"],
-                speech_config=types.SpeechConfig(
-                    voice_config=types.VoiceConfig(
-                        prebuilt_voice_config=types.PrebuiltVoiceConfig(
-                            voice_name="Kore"
-                        )
-                    )
-                ),
-            ),
+        req = urllib.request.Request(
+            url, data=payload, headers={"Content-Type": "application/json"}
         )
-        return response.candidates[0].content.parts[0].inline_data.data
+        with urllib.request.urlopen(req) as resp:
+            data = json.loads(resp.read())
+        return base64.b64decode(data["audioContent"])
     except Exception as e:
         log.warning("TTS generation failed: %s", e)
         return None
@@ -1010,25 +1013,22 @@ async def _precache_tts():
         )
         return
 
-    client = _get_gemini()
-    if not client:
+    if not GOOGLE_API_KEY:
         log.info(
-            "TTS cache: Gemini not available, skipping %d missing phrases", len(missing)
+            "TTS cache: GOOGLE_API_KEY not set, skipping %d missing phrases",
+            len(missing),
         )
         return
 
     log.info("TTS cache: generating %d missing phrases...", len(missing))
-    for i, phrase in enumerate(missing):
+    for phrase in missing:
         try:
-            pcm = await asyncio.to_thread(_generate_tts_raw, client, phrase)
+            pcm = await asyncio.to_thread(_generate_tts_raw, phrase)
             if pcm:
                 wav = _pcm_to_wav(pcm, sample_rate=24000)
                 _TTS_CACHE[phrase] = base64.b64encode(wav).decode("utf-8")
         except Exception as e:
             log.warning("TTS cache: failed '%s': %s", phrase, e)
-        # Throttle to stay under 10 req/min TTS rate limit
-        if i < len(missing) - 1:
-            await asyncio.sleep(7)
 
     # Persist to PVC so next restart skips generation
     try:
@@ -1256,7 +1256,7 @@ async def _stream_tts(client, text: str, summarize: bool, suggest_actions: bool)
 
     if len(sentences) <= 1:
         # Short — single TTS call
-        pcm = await asyncio.to_thread(_generate_tts_raw, client, spoken_text)
+        pcm = await asyncio.to_thread(_generate_tts_raw, spoken_text)
         if pcm:
             wav = _pcm_to_wav(pcm, sample_rate=24000)
             yield (
@@ -1271,11 +1271,9 @@ async def _stream_tts(client, text: str, summarize: bool, suggest_actions: bool)
         rest = " ".join(sentences[1:])
 
         first_task = asyncio.create_task(
-            asyncio.to_thread(_generate_tts_raw, client, first_sentence)
+            asyncio.to_thread(_generate_tts_raw, first_sentence)
         )
-        rest_task = asyncio.create_task(
-            asyncio.to_thread(_generate_tts_raw, client, rest)
-        )
+        rest_task = asyncio.create_task(asyncio.to_thread(_generate_tts_raw, rest))
 
         # Yield first sentence audio ASAP
         first_pcm = await first_task
@@ -1310,14 +1308,16 @@ async def _stream_tts(client, text: str, summarize: bool, suggest_actions: bool)
 
 @app.post("/api/tts")
 async def text_to_speech(body: dict):
-    """Generate speech audio from text using Gemini.
+    """Generate speech audio from text using Google Cloud TTS (Chirp3-HD).
 
     Supports streaming (stream=true) for pipelined TTS: first sentence audio
     arrives while remaining sentences are still being generated.
+    Summarization (if requested) uses Gemini Flash.
     """
-    client = _get_gemini()
-    if not client:
-        return {"error": "Gemini not configured (set GOOGLE_API_KEY)"}
+    if not GOOGLE_API_KEY:
+        return {"error": "GOOGLE_API_KEY not configured"}
+
+    client = _get_gemini()  # needed for summarization only
 
     text = body.get("text", "")
     if not text:
@@ -1349,7 +1349,7 @@ async def text_to_speech(body: dict):
         spoken_text, summary_text, actions = text, None, []
 
     try:
-        pcm = await asyncio.to_thread(_generate_tts_raw, client, spoken_text)
+        pcm = await asyncio.to_thread(_generate_tts_raw, spoken_text)
         if not pcm:
             return {"error": "TTS generation failed"}
         wav_audio = _pcm_to_wav(pcm, sample_rate=24000)
@@ -1362,7 +1362,7 @@ async def text_to_speech(body: dict):
         return result
 
     except Exception as e:
-        log.error("Gemini TTS error: %s", e)
+        log.error("Cloud TTS error: %s", e)
         return {"error": str(e)}
 
 
