@@ -90,6 +90,14 @@ if CLAUDE_CLI_PATH:
     log.info("Using system Claude CLI: %s", CLAUDE_CLI_PATH)
 else:
     log.warning("System claude not found — SDK will use bundled CLI (may lack auth)")
+GOLDEN_PATH = os.environ.get("BOSUN_GOLDEN_PATH", "")
+SESSIONS_PATH = os.environ.get("BOSUN_SESSIONS_PATH", "")
+if GOLDEN_PATH and os.path.isdir(os.path.join(GOLDEN_PATH, ".git")):
+    log.info("Golden clone: %s, sessions: %s", GOLDEN_PATH, SESSIONS_PATH)
+else:
+    GOLDEN_PATH = ""  # Disable worktree isolation
+    log.info("No golden clone — sessions share the default workdir")
+
 GOOGLE_API_KEY = os.environ.get("GOOGLE_API_KEY", "")
 if not GOOGLE_API_KEY:
     # Try fish shell universal variables as fallback
@@ -226,6 +234,46 @@ def _save_summary(session_id: str, msg_id: str, text: str):
 if not HAS_SDK:
     log.warning("claude-agent-sdk not installed — run: pip install claude-agent-sdk")
 
+# ── Per-session worktree isolation ─────────────────────────────────────────
+
+
+def _create_session_workdir(base_workdir: str) -> str:
+    """Create an isolated working directory for a new session.
+
+    If a golden clone is configured, creates a git worktree so the session
+    has its own branch and working copy. Falls back to base_workdir if
+    golden clone is not available.
+    """
+    if not GOLDEN_PATH or not SESSIONS_PATH:
+        return base_workdir
+
+    session_dir = os.path.join(SESSIONS_PATH, f"s-{int(time.time() * 1000)}")
+    try:
+        os.makedirs(SESSIONS_PATH, exist_ok=True)
+        branch = f"bosun/session-{int(time.time() * 1000)}"
+        subprocess.run(
+            [
+                "git",
+                "-C",
+                GOLDEN_PATH,
+                "worktree",
+                "add",
+                "-b",
+                branch,
+                session_dir,
+                "HEAD",
+            ],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        log.info("Created session worktree: %s (branch: %s)", session_dir, branch)
+        return session_dir
+    except Exception as e:
+        log.warning("Failed to create session worktree: %s — using default", e)
+        return base_workdir
+
+
 # ── Claude Agent SDK session manager ────────────────────────────────────────
 
 
@@ -233,12 +281,51 @@ class ClaudeSession:
     """Manages a Claude Agent SDK session and streams results to a WebSocket."""
 
     def __init__(self, workdir: str):
-        self.workdir = workdir
+        self.workdir = _create_session_workdir(workdir)
         self.session_id: str | None = None
         self._cancel_event = asyncio.Event()
 
     async def run(self, prompt: str, ws: WebSocket):
-        """Run a query via the Agent SDK and stream events to the WebSocket."""
+        """Run a query via the Agent SDK and stream events to the WebSocket.
+
+        Retries up to MAX_RETRIES times if the SDK produces no output
+        (e.g. rate limited, connection dropped).
+        """
+        MAX_RETRIES = 3
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            got_result, had_output = await self._run_once(
+                prompt, ws, attempt
+            )
+            if got_result or had_output:
+                return  # Success or partial output — don't retry
+            if attempt < MAX_RETRIES:
+                delay = 2**attempt  # 2s, 4s
+                log.warning(
+                    "SDK produced no output (attempt %d/%d) — retrying in %ds",
+                    attempt,
+                    MAX_RETRIES,
+                    delay,
+                )
+                await ws.send_json(
+                    {
+                        "type": "status",
+                        "message": f"No response received, retrying ({attempt}/{MAX_RETRIES})...",
+                    }
+                )
+                await asyncio.sleep(delay)
+
+        # All retries exhausted
+        log.warning("SDK produced no output after %d attempts", MAX_RETRIES)
+        await ws.send_json(
+            {
+                "type": "error",
+                "message": "Claude produced no response after multiple attempts. This may be due to rate limiting — try again shortly.",
+            }
+        )
+
+    async def _run_once(self, prompt: str, ws: WebSocket, attempt: int = 1):
+        """Execute a single SDK query attempt. Returns (got_result, had_output)."""
         self._cancel_event.clear()
 
         options = ClaudeAgentOptions(
@@ -253,7 +340,12 @@ class ClaudeSession:
         if self.session_id:
             options.resume = self.session_id
 
-        log.info("SDK query: %s... (session=%s)", prompt[:60], self.session_id or "new")
+        log.info(
+            "SDK query (attempt %d): %s... (session=%s)",
+            attempt,
+            prompt[:60],
+            self.session_id or "new",
+        )
 
         text_buf = ""
         full_run_text = ""
@@ -525,10 +617,12 @@ class ClaudeSession:
                 await ws.send_json({"type": "error", "message": str(e)})
             except Exception:
                 pass
+            return True, True  # Don't retry on exceptions
 
         # Fallback: if SDK iteration ended without a ResultMessage, send
         # accumulated text so the frontend can still trigger TTS/summary.
-        if not got_result and (full_run_text.strip() or tool_summaries):
+        had_output = bool(full_run_text.strip() or tool_summaries)
+        if not got_result and had_output:
             log.warning(
                 "SDK ended without ResultMessage — sending fallback result (text_len=%d)",
                 len(full_run_text.strip()),
@@ -544,15 +638,8 @@ class ClaudeSession:
             if tool_summaries:
                 fallback_payload["tool_summaries"] = tool_summaries
             await ws.send_json(fallback_payload)
-        elif not got_result:
-            # SDK ended with zero output (e.g. rate limited, connection dropped)
-            log.warning("SDK ended with no output and no ResultMessage")
-            await ws.send_json(
-                {
-                    "type": "error",
-                    "message": "Claude produced no response. This may be due to rate limiting — try again in a moment.",
-                }
-            )
+
+        return got_result, had_output
 
     def cancel(self):
         """Signal the running query to stop."""

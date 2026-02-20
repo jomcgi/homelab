@@ -292,6 +292,13 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           ]);
           break;
 
+        case "status":
+          setMessages((prev) => [
+            ...prev,
+            { id: nextId(), role: "claude", time: now(), status: "done", text: msg.message },
+          ]);
+          break;
+
         case "error":
           setMessages((prev) => [
             ...prev,
