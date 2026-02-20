@@ -596,6 +596,9 @@ class ClaudeSession:
         self.workdir = _create_session_workdir(workdir, session_name=self._session_name)
         self.session_id: str | None = None
         self._cancel_event = asyncio.Event()
+        # Preserved across retry attempts for fallback result
+        self._last_run_text: str = ""
+        self._last_tool_summaries: list[str] = []
 
     async def run(self, prompt: str, ws: WebSocket):
         """Run a query via the Agent SDK and stream events to the WebSocket.
@@ -607,32 +610,61 @@ class ClaudeSession:
 
         for attempt in range(1, MAX_RETRIES + 1):
             got_result, had_output = await self._run_once(prompt, ws, attempt)
-            if got_result or had_output:
-                return  # Success or partial output — don't retry
+            if got_result:
+                return  # Got a proper ResultMessage — done
             if attempt < MAX_RETRIES:
                 delay = 2**attempt  # 2s, 4s
-                log.warning(
-                    "SDK produced no output (attempt %d/%d) — retrying in %ds",
-                    attempt,
-                    MAX_RETRIES,
-                    delay,
-                )
-                await ws.send_json(
-                    {
-                        "type": "status",
-                        "message": f"No response received, retrying ({attempt}/{MAX_RETRIES})...",
-                    }
-                )
+                if had_output:
+                    log.warning(
+                        "SDK produced partial output without ResultMessage (attempt %d/%d) — resuming in %ds",
+                        attempt,
+                        MAX_RETRIES,
+                        delay,
+                    )
+                    await ws.send_json(
+                        {
+                            "type": "status",
+                            "message": f"Response interrupted, resuming ({attempt}/{MAX_RETRIES})...",
+                        }
+                    )
+                else:
+                    log.warning(
+                        "SDK produced no output (attempt %d/%d) — retrying in %ds",
+                        attempt,
+                        MAX_RETRIES,
+                        delay,
+                    )
+                    await ws.send_json(
+                        {
+                            "type": "status",
+                            "message": f"No response received, retrying ({attempt}/{MAX_RETRIES})...",
+                        }
+                    )
                 await asyncio.sleep(delay)
 
-        # All retries exhausted
-        log.warning("SDK produced no output after %d attempts", MAX_RETRIES)
-        await ws.send_json(
-            {
-                "type": "error",
-                "message": "Claude produced no response after multiple attempts. This may be due to rate limiting — try again shortly.",
+        # All retries exhausted — send fallback from accumulated state
+        if self._last_run_text.strip() or self._last_tool_summaries:
+            log.warning(
+                "SDK produced no ResultMessage after %d attempts — sending fallback (text_len=%d)",
+                MAX_RETRIES,
+                len(self._last_run_text.strip()),
+            )
+            fallback_payload = {
+                "type": "result",
+                "session_id": self.session_id,
+                "full_text": self._last_run_text.strip(),
             }
-        )
+            if self._last_tool_summaries:
+                fallback_payload["tool_summaries"] = self._last_tool_summaries
+            await ws.send_json(fallback_payload)
+        else:
+            log.warning("SDK produced no output after %d attempts", MAX_RETRIES)
+            await ws.send_json(
+                {
+                    "type": "error",
+                    "message": "Claude produced no response after multiple attempts. This may be due to rate limiting — try again shortly.",
+                }
+            )
 
     async def _run_once(self, prompt: str, ws: WebSocket, attempt: int = 1):
         """Execute a single SDK query attempt. Returns (got_result, had_output)."""
@@ -664,6 +696,9 @@ class ClaudeSession:
         text_buf = ""
         full_run_text = ""
         streaming_text = False
+        streaming_captured: set[str] = (
+            set()
+        )  # Text already captured from streaming path
         artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
         tool_summaries = []  # Human-readable tool call summaries for TTS context
         speculative_summary_task: asyncio.Task | None = None  # Background summarization
@@ -772,6 +807,7 @@ class ClaudeSession:
                     elif ev_type == "message_stop":
                         if streaming_text:
                             full_run_text += text_buf + "\n"
+                            streaming_captured.add(text_buf)
                             await ws.send_json(
                                 {
                                     "type": "assistant_done",
@@ -865,7 +901,10 @@ class ClaudeSession:
                                     }
                                 )
                         elif isinstance(block, TextBlock) and block.text:
-                            full_run_text += block.text + "\n"
+                            # Skip if already captured via streaming path
+                            # (include_partial_messages=True causes both to fire)
+                            if block.text not in streaming_captured:
+                                full_run_text += block.text + "\n"
                         elif isinstance(block, ToolResultBlock):
                             content = block.content
                             images = (
@@ -1044,25 +1083,19 @@ class ClaudeSession:
                 pass
             return True, True  # Don't retry on exceptions
 
-        # Fallback: if SDK iteration ended without a ResultMessage, send
-        # accumulated text so the frontend can still trigger TTS/summary.
+        # Preserve accumulated state for run() to use after retries exhaust.
         had_output = bool(full_run_text.strip() or tool_summaries)
         if not got_result and had_output:
             log.warning(
-                "SDK ended without ResultMessage — sending fallback result (text_len=%d)",
+                "SDK ended without ResultMessage (text_len=%d, tools=%d)",
                 len(full_run_text.strip()),
+                len(tool_summaries),
             )
             if streaming_text:
                 full_run_text += text_buf + "\n"
                 await ws.send_json({"type": "assistant_done", "full_text": text_buf})
-            fallback_payload = {
-                "type": "result",
-                "session_id": self.session_id,
-                "full_text": full_run_text.strip(),
-            }
-            if tool_summaries:
-                fallback_payload["tool_summaries"] = tool_summaries
-            await ws.send_json(fallback_payload)
+            self._last_run_text = full_run_text.strip()
+            self._last_tool_summaries = tool_summaries
 
         return got_result, had_output
 

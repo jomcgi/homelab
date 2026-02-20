@@ -147,9 +147,13 @@ export function useClaudeSocket({ onResult: onResultCb } = {}) {
           // Don't setStreaming(false) here — with subagents, assistant_done fires
           // per sub-turn. Only the final "result" event should end streaming.
           setMessages((prev) => {
-            const last = prev[prev.length - 1];
-            if (last && last._streaming) {
-              return [...prev.slice(0, -1), { ...last, status: "done", _streaming: false }];
+            // Scan backward — tool_use events may have been appended after
+            // the streaming text message, so it's not necessarily the last one.
+            const idx = prev.findLastIndex((m) => m._streaming);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = { ...updated[idx], status: "done", _streaming: false };
+              return updated;
             }
             return prev;
           });
