@@ -9,6 +9,7 @@ import { InlineArtifact } from "./InlineArtifact.jsx";
 import { ArtifactCard } from "./ArtifactCard.jsx";
 import { ActionChips } from "./ActionChips.jsx";
 import { CopyButton } from "./CopyButton.jsx";
+import { InlinePRPill } from "./PRBar.jsx";
 
 // ── Message grouping ───────────────────────────────────────────────────────
 function useGroups(messages) {
@@ -238,6 +239,14 @@ export function TranscriptView({ messages, onSelectArtifact, selectedArtifactId,
                       />
                     )
                   )}
+                </div>
+              )}
+
+              {g.result._prs?.length > 0 && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginTop: 8 }}>
+                  {g.result._prs.map((pr) => (
+                    <InlinePRPill key={`${pr.repo}-${pr.pr_number}`} pr={pr} />
+                  ))}
                 </div>
               )}
             </div>

@@ -17,6 +17,7 @@ import { DetailPanel } from "./components/DetailPanel.jsx";
 import { TranscriptView } from "./components/TranscriptView.jsx";
 import { ActionChips } from "./components/ActionChips.jsx";
 import { ExportButton } from "./components/ExportButton.jsx";
+import { PRBar } from "./components/PRBar.jsx";
 
 // ── Shared styles (used by both mobile and desktop layouts) ────────────────
 const sharedCSS = `
@@ -89,7 +90,7 @@ function relativeTime(epochSecs) {
 export default function App() {
   const bp = useBreakpoint();
   const tts = useTTS();
-  const { connected, sessionId, messages, streaming, pendingApproval, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
+  const { connected, sessionId, messages, streaming, pendingApproval, prs, send, approve, reject, newSession, resumeSession, wsRef, addGeminiMessage } = useClaudeSocket({
     onResult: (text, toolSummaries, speculativeSummary) => {
       console.log("[bosun] onResult fired, text length:", text?.length, "tools:", toolSummaries?.length || 0, "speculative:", !!speculativeSummary);
       // Build context string: tool calls + text output
@@ -562,6 +563,8 @@ export default function App() {
             {showDetail ? <PanelRightClose size={18} /> : <PanelRightOpen size={18} />}
           </button>
         </div>
+
+        <PRBar prs={prs} />
 
         <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
           {/* Transcript */}

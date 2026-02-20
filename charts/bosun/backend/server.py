@@ -170,8 +170,23 @@ def _init_db():
             UNIQUE(session_id, msg_id)
         )
     """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS prs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id TEXT NOT NULL,
+            pr_number INTEGER NOT NULL,
+            repo TEXT NOT NULL,
+            title TEXT,
+            url TEXT NOT NULL,
+            state TEXT NOT NULL DEFAULT 'open',
+            created_at REAL DEFAULT (unixepoch('subsec')),
+            updated_at REAL DEFAULT (unixepoch('subsec')),
+            UNIQUE(session_id, pr_number, repo)
+        )
+    """)
     db.execute("CREATE INDEX IF NOT EXISTS idx_art_session ON artifacts(session_id)")
     db.execute("CREATE INDEX IF NOT EXISTS idx_sum_session ON summaries(session_id)")
+    db.execute("CREATE INDEX IF NOT EXISTS idx_prs_session ON prs(session_id)")
     db.commit()
     db.close()
 
@@ -229,6 +244,117 @@ def _save_summary(session_id: str, msg_id: str, text: str):
         log.warning("Failed to save summary: %s", e)
     finally:
         db.close()
+
+
+_PR_URL_RE = re.compile(r"https://github\.com/([\w.-]+/[\w.-]+)/pull/(\d+)")
+
+
+def _upsert_pr(session_id: str, pr_number: int, repo: str, title: str, url: str, state: str = "open") -> dict:
+    """Upsert a PR row and return the PR dict."""
+    db = _get_db()
+    try:
+        db.execute(
+            """INSERT INTO prs (session_id, pr_number, repo, title, url, state)
+               VALUES (?, ?, ?, ?, ?, ?)
+               ON CONFLICT(session_id, pr_number, repo) DO UPDATE SET
+                 title=excluded.title, url=excluded.url, state=excluded.state,
+                 updated_at=unixepoch('subsec')""",
+            (session_id, pr_number, repo, title, url, state),
+        )
+        db.commit()
+        row = db.execute(
+            "SELECT * FROM prs WHERE session_id = ? AND pr_number = ? AND repo = ?",
+            (session_id, pr_number, repo),
+        ).fetchone()
+        return dict(row) if row else {}
+    except Exception as e:
+        log.warning("Failed to upsert PR: %s", e)
+        return {}
+    finally:
+        db.close()
+
+
+async def _detect_prs_in_output(text: str, session_id: str | None, ws: WebSocket):
+    """Scan tool output for GitHub PR URLs and track them."""
+    if not session_id or not text:
+        return
+    for match in _PR_URL_RE.finditer(text):
+        repo, pr_num_str = match.group(1), match.group(2)
+        pr_number = int(pr_num_str)
+        url = match.group(0)
+        # Fetch PR metadata via gh CLI
+        title, state = "", "open"
+        try:
+            result = await asyncio.to_thread(
+                subprocess.run,
+                ["gh", "pr", "view", pr_num_str, "--repo", repo, "--json", "title,state,url"],
+                capture_output=True, text=True, timeout=10,
+            )
+            if result.returncode == 0:
+                data = json.loads(result.stdout)
+                title = data.get("title", "")
+                state = data.get("state", "OPEN").lower()
+                url = data.get("url", url)
+        except Exception as e:
+            log.warning("Failed to fetch PR metadata: %s", e)
+
+        pr_dict = _upsert_pr(session_id, pr_number, repo, title, url, state)
+        if pr_dict:
+            try:
+                await ws.send_json({"type": "pr_detected", "pr": pr_dict})
+            except Exception:
+                pass
+
+
+async def _poll_prs(ws: WebSocket, session_id: str):
+    """Poll open PRs for state changes every 30s."""
+    while True:
+        await asyncio.sleep(30)
+        db = _get_db()
+        try:
+            open_prs = db.execute(
+                "SELECT * FROM prs WHERE session_id = ? AND state = 'open'",
+                (session_id,),
+            ).fetchall()
+            changed = False
+            for pr in open_prs:
+                try:
+                    result = await asyncio.to_thread(
+                        subprocess.run,
+                        ["gh", "pr", "view", str(pr["pr_number"]),
+                         "--repo", pr["repo"], "--json", "state,title"],
+                        capture_output=True, text=True, timeout=10,
+                    )
+                    if result.returncode == 0:
+                        data = json.loads(result.stdout)
+                        new_state = data["state"].lower()
+                        if new_state != pr["state"]:
+                            db.execute(
+                                "UPDATE prs SET state = ?, title = ?, updated_at = unixepoch('subsec') WHERE id = ?",
+                                (new_state, data.get("title", pr["title"]), pr["id"]),
+                            )
+                            db.commit()
+                            changed = True
+                except Exception as e:
+                    log.warning("PR poll error for #%s: %s", pr["pr_number"], e)
+
+            # Send full PR list to frontend on any change or periodically
+            all_prs = db.execute(
+                "SELECT * FROM prs WHERE session_id = ? ORDER BY created_at",
+                (session_id,),
+            ).fetchall()
+            if all_prs:
+                await ws.send_json({
+                    "type": "prs_update",
+                    "prs": [dict(r) for r in all_prs],
+                })
+        except asyncio.CancelledError:
+            break
+        except Exception as e:
+            log.warning("PR poll error: %s", e)
+            await asyncio.sleep(30)
+        finally:
+            db.close()
 
 
 if not HAS_SDK:
@@ -640,6 +766,10 @@ class ClaudeSession:
                                         },
                                     )
                             await ws.send_json(result_msg)
+                            # Detect PR URLs in tool output
+                            await _detect_prs_in_output(
+                                str(content or ""), self.session_id, ws
+                            )
                     continue
 
                 # ── User messages (tool results flowing back) ─────
@@ -692,6 +822,10 @@ class ClaudeSession:
                                     },
                                 )
                         await ws.send_json(result_msg)
+                        # Detect PR URLs in tool output
+                        await _detect_prs_in_output(
+                            str(content or ""), self.session_id, ws
+                        )
                     continue
 
                 # ── Final result ──────────────────────────────────
@@ -1179,6 +1313,20 @@ async def get_session_summaries(session_id: str):
                 }
             )
         return {"summaries": summaries}
+    finally:
+        db.close()
+
+
+@app.get("/api/sessions/{session_id}/prs")
+async def get_session_prs(session_id: str):
+    """Return all PRs for a session, ordered by created_at."""
+    db = _get_db()
+    try:
+        rows = db.execute(
+            "SELECT * FROM prs WHERE session_id = ? ORDER BY created_at",
+            (session_id,),
+        ).fetchall()
+        return {"prs": [dict(r) for r in rows]}
     finally:
         db.close()
 
@@ -1971,6 +2119,7 @@ async def websocket_endpoint(ws: WebSocket):
     session = ClaudeSession(workdir)
     current_task: asyncio.Task | None = None
     message_queue: list[str] = []  # Queued messages for when agent is busy
+    pr_poll_task: asyncio.Task | None = None  # PR state polling
 
     # Expose status for the /api/status endpoint
     def _update_status():
@@ -2004,9 +2153,13 @@ async def websocket_endpoint(ws: WebSocket):
 
     async def run_and_drain(text: str):
         """Run a prompt then drain any queued follow-ups."""
+        nonlocal pr_poll_task
         _update_status()
         await session.run(text, ws)
         _update_status()
+        # Start PR polling once we have a session_id
+        if session.session_id and (pr_poll_task is None or pr_poll_task.done()):
+            pr_poll_task = asyncio.create_task(_poll_prs(ws, session.session_id))
         await drain_queue()
 
     try:
@@ -2085,12 +2238,19 @@ async def websocket_endpoint(ws: WebSocket):
                                     candidate,
                                 )
                                 break
+                    # (Re)start PR polling for this session
+                    if pr_poll_task and not pr_poll_task.done():
+                        pr_poll_task.cancel()
+                    pr_poll_task = asyncio.create_task(_poll_prs(ws, sid))
                     _update_status()
                     log.info("Resuming session: %s", sid)
 
             elif msg_type == "new_session":
                 # Cancel any running task and clear queue
                 message_queue.clear()
+                if pr_poll_task and not pr_poll_task.done():
+                    pr_poll_task.cancel()
+                    pr_poll_task = None
                 if current_task and not current_task.done():
                     session.cancel()
                     current_task.cancel()
@@ -2161,6 +2321,8 @@ async def websocket_endpoint(ws: WebSocket):
     finally:
         message_queue.clear()
         app.state._ws_status = {"connected": False}
+        if pr_poll_task and not pr_poll_task.done():
+            pr_poll_task.cancel()
         if current_task and not current_task.done():
             session.cancel()
             current_task.cancel()
