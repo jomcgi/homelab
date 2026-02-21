@@ -9,7 +9,10 @@ config_setting(
 
 # Export push template for apko_push rule
 exports_files(
-    ["apko_push.sh.tpl"],
+    [
+        "apko_push.sh.tpl",
+        "verify-apko-lock.sh",
+    ],
     visibility = ["//visibility:public"],
 )
 
@@ -46,6 +49,7 @@ bzl_library(
         "@aspect_bazel_lib//lib:transitions",
         "@rules_apko//apko:defs",
         "@rules_oci//oci:defs",
+        "@rules_shell//shell:rules_bzl",
     ],
 )
 
