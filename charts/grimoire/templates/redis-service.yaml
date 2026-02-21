@@ -5,8 +5,7 @@ metadata:
   labels:
     {{- include "grimoire.labels" . | nindent 4 }}
     app.kubernetes.io/component: redis
-  annotations:
-    config.linkerd.io/opaque-ports: "{{ .Values.redis.service.port }}"
+  annotations: {}
 spec:
   type: {{ .Values.redis.service.type }}
   ports:

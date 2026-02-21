@@ -2,10 +2,13 @@
 # These are sensible defaults that can be overridden per environment
 
 argocd-image-updater:
-  # Polling interval (default: 2m)
+  # Polling interval — 2m is the upstream default. 10s caused recurring
+  # fork() exhaustion (cannot fork() for remote-https) with 7+ ImageUpdaters.
   extraArgs:
     - --interval
-    - 10s
+    - 2m
+    - --max-concurrency
+    - "2"
 
   # Image updater configuration
   config:
@@ -45,8 +48,7 @@ argocd-image-updater:
     serviceMonitor:
       enabled: false
 
-  # Resource limits
-  # 512Mi caused fork() exhaustion with 6+ ImageUpdaters at 10s interval
+  # Resource limits — 1Gi provides headroom for git write-back operations
   resources:
     limits:
       memory: 1Gi

@@ -1,49 +1,5 @@
-# ArgoCD Image Updater configuration
-# Watches container registries and updates ArgoCD Applications with new image tags
-
-config:
-  # Configure supported registries
-  registries:
-    - name: ghcr
-      prefix: ghcr.io
-      api_url: https://ghcr.io
-      credentials: pullsecret:argocd/ghcr-docker-config
-      default: true
-
-# Git write-back configuration
-# Image Updater will commit updated image tags to Git
-authScripts:
-  enabled: true
-  scripts:
-    git-creds.sh: |
-      #!/bin/sh
-      # Use GitHub token from 1Password (read:packages + repo write)
-      echo "username=argocd-image-updater"
-      echo "password=$ARGOCD_IMAGE_UPDATER_TOKEN"
-
-# Environment variables for Git credentials
-env:
-  - name: ARGOCD_IMAGE_UPDATER_TOKEN
-    valueFrom:
-      secretKeyRef:
-        name: argocd-image-updater-token
-        key: github_token
-
-# Service account with write access to ArgoCD Applications
-serviceAccount:
-  create: true
-
-# Metrics for observability
-metrics:
-  enabled: true
-  serviceMonitor:
-    enabled: false
-
-# Resource limits
-resources:
-  limits:
-    cpu: 100m
-    memory: 128Mi
-  requests:
-    cpu: 10m
-    memory: 64Mi
+# ArgoCD Image Updater — cluster-critical overlay
+#
+# All subchart values live in charts/argocd-image-updater/values.yaml under the
+# `argocd-image-updater:` key. Top-level keys here do NOT reach the subchart
+# (Helm scoping), so this file only contains parent-chart overrides if needed.
