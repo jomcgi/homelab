@@ -1,7 +1,7 @@
 load("//rules_helm:defs.bzl", "argocd_app")
 
 argocd_app(
-    name = "prod-seaweedfs",
+    name = "seaweedfs",
     chart = "charts/seaweedfs",
     chart_files = "//charts/seaweedfs:chart",
     namespace = "seaweedfs",

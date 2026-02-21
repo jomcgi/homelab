@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prod-llama-cpp
+  name: llama-cpp
   namespace: argocd
 spec:
   project: default
