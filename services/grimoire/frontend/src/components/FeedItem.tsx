@@ -10,17 +10,18 @@ interface FeedItemProps {
   onReclassify?: (eventId: string, newClass: Classification) => void;
 }
 
-export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: FeedItemProps) {
+export function FeedItem({
+  item,
+  showCls = true,
+  isDM = false,
+  onReclassify,
+}: FeedItemProps) {
   const players = useStore((s) => s.players);
   const p = players.find((pl) => pl.name === item.who);
   const nc =
-    item.who === "DM" || item.who?.startsWith("DM")
-      ? C.warn
-      : p?.color || C.fg;
+    item.who === "DM" || item.who?.startsWith("DM") ? C.warn : p?.color || C.fg;
   const c =
-    item.cls && item.cls !== "private"
-      ? CLS[item.cls as Classification]
-      : null;
+    item.cls && item.cls !== "private" ? CLS[item.cls as Classification] : null;
 
   // Roll item
   if (item.source === "roll" && item.roll) {
@@ -42,9 +43,7 @@ export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: F
             alignItems: "baseline",
           }}
         >
-          <span
-            style={{ fontFamily: C.mono, fontSize: 11, color: C.fgDim }}
-          >
+          <span style={{ fontFamily: C.mono, fontSize: 11, color: C.fgDim }}>
             {item.time}
           </span>
           <span
@@ -57,14 +56,10 @@ export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: F
           >
             {item.who}
           </span>
-          <span
-            style={{ fontFamily: C.sans, fontSize: 13, color: C.fgMuted }}
-          >
+          <span style={{ fontFamily: C.sans, fontSize: 13, color: C.fgMuted }}>
             {item.roll.type}
           </span>
-          <span
-            style={{ fontFamily: C.mono, fontSize: 12, color: C.fgDim }}
-          >
+          <span style={{ fontFamily: C.mono, fontSize: 12, color: C.fgDim }}>
             {item.roll.formula}
           </span>
         </div>
@@ -115,9 +110,7 @@ export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: F
           >
             {item.who}
           </span>
-          <span
-            style={{ fontFamily: C.mono, fontSize: 11, color: C.fgDim }}
-          >
+          <span style={{ fontFamily: C.mono, fontSize: 11, color: C.fgDim }}>
             {item.time}
           </span>
         </div>
@@ -142,9 +135,7 @@ export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: F
         padding: "10px 20px",
         borderBottom: `1px solid ${C.border}`,
         background: item.rag ? C.rulesBg : "transparent",
-        borderLeft: item.rag
-          ? `3px solid ${C.rules}`
-          : "3px solid transparent",
+        borderLeft: item.rag ? `3px solid ${C.rules}` : "3px solid transparent",
       }}
     >
       <div
@@ -215,9 +206,7 @@ export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: F
               (typeof CLS)[Classification],
             ][]
           )
-            .filter(
-              ([k]) => k !== item.cls && k !== "table_talk",
-            )
+            .filter(([k]) => k !== item.cls && k !== "table_talk")
             .map(([key, cl]) => (
               <button
                 key={key}

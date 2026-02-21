@@ -32,9 +32,7 @@ export function TabBar({ tabs, active, onSelect }: TabBarProps) {
             background: "none",
             border: "none",
             borderBottom:
-              active === t.key
-                ? `2px solid ${C.fg}`
-                : "2px solid transparent",
+              active === t.key ? `2px solid ${C.fg}` : "2px solid transparent",
             color: active === t.key ? C.fg : C.fgMuted,
             cursor: "pointer",
           }}

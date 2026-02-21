@@ -104,9 +104,7 @@ export function DMLive() {
               borderBottom: `1px solid ${C.border}`,
               background: turn === i ? C.accentLight : "transparent",
               borderLeft:
-                turn === i
-                  ? `3px solid ${C.accent}`
-                  : "3px solid transparent",
+                turn === i ? `3px solid ${C.accent}` : "3px solid transparent",
               cursor: "pointer",
             }}
           >
@@ -134,8 +132,7 @@ export function DMLive() {
                     fontFamily: C.sans,
                     fontSize: 14,
                     fontWeight: 600,
-                    color:
-                      c.type === "monster" ? C.monster : C.fg,
+                    color: c.type === "monster" ? C.monster : C.fg,
                   }}
                 >
                   {c.name}
@@ -147,31 +144,19 @@ export function DMLive() {
                     color: C.fgDim,
                   }}
                 >
-                  {c.type === "player"
-                    ? `${c.class} ${c.level}`
-                    : `CR ${c.cr}`}
+                  {c.type === "player" ? `${c.class} ${c.level}` : `CR ${c.cr}`}
                 </span>
                 {c.conditions?.map((d) => (
                   <Pill
                     key={d}
-                    color={
-                      d === "Poisoned" ? C.err : C.warn
-                    }
-                    bg={
-                      d === "Poisoned"
-                        ? C.errBg
-                        : C.warnBg
-                    }
+                    color={d === "Poisoned" ? C.err : C.warn}
+                    bg={d === "Poisoned" ? C.errBg : C.warnBg}
                   >
                     {d}
                   </Pill>
                 ))}
               </div>
-              <HpBar
-                current={c.hp}
-                max={c.maxHp}
-                size="small"
-              />
+              <HpBar current={c.hp} max={c.maxHp} size="small" />
             </div>
             <span
               style={{

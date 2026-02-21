@@ -21,7 +21,9 @@ export function VoiceBar() {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: connected ? C.ok : C.warn, fontSize: 8 }}>{"\u25CF"}</span>
+          <span style={{ color: connected ? C.ok : C.warn, fontSize: 8 }}>
+            {"\u25CF"}
+          </span>
           <span
             style={{
               fontFamily: C.sans,
@@ -53,9 +55,7 @@ export function VoiceBar() {
                     borderRadius: "50%",
                     background: isSpeaking ? p.color : C.bgMuted,
                     border: `1.5px solid ${p.color}`,
-                    boxShadow: isSpeaking
-                      ? `0 0 6px ${p.color}50`
-                      : "none",
+                    boxShadow: isSpeaking ? `0 0 6px ${p.color}50` : "none",
                   }}
                 />
                 <span
@@ -81,9 +81,7 @@ export function VoiceBar() {
                 border: `1.5px solid ${C.warn}`,
               }}
             />
-            <span
-              style={{ fontFamily: C.sans, fontSize: 12, color: C.fgDim }}
-            >
+            <span style={{ fontFamily: C.sans, fontSize: 12, color: C.fgDim }}>
               DM
             </span>
           </div>

@@ -22,7 +22,10 @@ export function connectWS(): void {
   socket = ws;
 
   ws.onopen = () => {
-    if (myId !== connectionId) { ws.close(); return; }
+    if (myId !== connectionId) {
+      ws.close();
+      return;
+    }
     useStore.getState().setConnected(true);
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);

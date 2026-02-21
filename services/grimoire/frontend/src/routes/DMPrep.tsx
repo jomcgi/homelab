@@ -274,8 +274,8 @@ export function DMPrep() {
                 marginTop: 8,
               }}
             >
-              Searches Firestore vectors across all ingested sourcebooks.
-              Gemini Flash generates answers with page citations.
+              Searches Firestore vectors across all ingested sourcebooks. Gemini
+              Flash generates answers with page citations.
             </div>
           </div>
         </Card>

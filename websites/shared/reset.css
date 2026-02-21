@@ -1,4 +1,10 @@
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
 
 body {
   font-family: var(--font-mono);
@@ -8,5 +14,10 @@ body {
   color: var(--fg);
 }
 
-a { color: var(--fg); text-decoration: none; }
-a:hover { text-decoration: underline; }
+a {
+  color: var(--fg);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}

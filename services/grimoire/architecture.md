@@ -123,14 +123,14 @@ flowchart TB
 
 ### Data Flow Summary
 
-| Flow | Path | Latency Target |
-|---|---|---|
-| Voice → transcript | Browser (VAD) → WS Gateway → Gemini Live → WS Gateway → all clients | < 800ms |
-| Dice roll | Browser → WS Gateway → Cloud Run API → Firestore → all clients | < 200ms |
-| Rule lookup | Voice/UI → Cloud Run API → embed → Firestore vector search → Gemini Flash → DM context panel | < 2s |
-| Chat message | Browser → WS Gateway → Cloud Run API → Firestore → all clients (real-time listener) | < 300ms |
-| HP update | DM UI → Cloud Run API → Firestore → all clients | < 200ms |
-| Lore propagation | Classification → Cloud Run API → Firestore lore collection → player real-time listener | < 1s |
+| Flow               | Path                                                                                         | Latency Target |
+| ------------------ | -------------------------------------------------------------------------------------------- | -------------- |
+| Voice → transcript | Browser (VAD) → WS Gateway → Gemini Live → WS Gateway → all clients                          | < 800ms        |
+| Dice roll          | Browser → WS Gateway → Cloud Run API → Firestore → all clients                               | < 200ms        |
+| Rule lookup        | Voice/UI → Cloud Run API → embed → Firestore vector search → Gemini Flash → DM context panel | < 2s           |
+| Chat message       | Browser → WS Gateway → Cloud Run API → Firestore → all clients (real-time listener)          | < 300ms        |
+| HP update          | DM UI → Cloud Run API → Firestore → all clients                                              | < 200ms        |
+| Lore propagation   | Classification → Cloud Run API → Firestore lore collection → player real-time listener       | < 1s           |
 
 ---
 
@@ -236,11 +236,11 @@ No diarization needed. Each player has their own Gemini Live session on the gate
 
 Gemini Live API concurrent session limits by tier:
 
-| Tier | Concurrent Sessions | Requirement |
-|---|---|---|
-| Free | 3 | None |
-| **Tier 1** | **~50** | **Enable billing (instant)** |
-| Tier 2 | ~1,000 | $250+ cumulative spend |
+| Tier       | Concurrent Sessions | Requirement                  |
+| ---------- | ------------------- | ---------------------------- |
+| Free       | 3                   | None                         |
+| **Tier 1** | **~50**             | **Enable billing (instant)** |
+| Tier 2     | ~1,000              | $250+ cumulative spend       |
 
 **Grimoire requires Tier 1** (6 concurrent sessions for 5 players + DM). Upgrading is instant — just enable billing on the GCP project. New accounts receive $300 in free credits.
 
@@ -404,16 +404,17 @@ stateDiagram-v2
     completed --> [*]
 ```
 
-| Transition | Trigger | Side Effects |
-|---|---|---|
-| `→ planning` | DM creates session | Session number auto-incremented, encounter slots available |
-| `planning → active` | DM starts session | `started_at` set, Gemini Live sessions opened, feed begins |
-| `active → paused` | DM pauses (break, end of night) | Gemini Live sessions closed, voice bar shows "Paused" |
-| `paused → active` | DM resumes | Gemini Live sessions re-opened, feed resumes |
-| `active → completed` | DM ends session | `ended_at` set, summary generation triggered, world state updated |
-| `paused → completed` | DM ends from paused state | Same as above |
+| Transition           | Trigger                         | Side Effects                                                      |
+| -------------------- | ------------------------------- | ----------------------------------------------------------------- |
+| `→ planning`         | DM creates session              | Session number auto-incremented, encounter slots available        |
+| `planning → active`  | DM starts session               | `started_at` set, Gemini Live sessions opened, feed begins        |
+| `active → paused`    | DM pauses (break, end of night) | Gemini Live sessions closed, voice bar shows "Paused"             |
+| `paused → active`    | DM resumes                      | Gemini Live sessions re-opened, feed resumes                      |
+| `active → completed` | DM ends session                 | `ended_at` set, summary generation triggered, world state updated |
+| `paused → completed` | DM ends from paused state       | Same as above                                                     |
 
 **Invariants:**
+
 - A campaign can have at most one `active` or `paused` session at a time
 - `completed` is terminal — sessions cannot be re-opened (start a new session instead)
 - `planning` sessions can be deleted (draft encounters not yet played)
@@ -429,13 +430,14 @@ stateDiagram-v2
     completed --> [*]
 ```
 
-| Transition | Side Effects |
-|---|---|
-| `→ planned` | Monsters added, initiative not yet rolled |
-| `planned → active` | Initiative rolled/entered, round set to 1, turn tracking begins |
-| `active → completed` | Final round recorded, XP/loot available for summary |
+| Transition           | Side Effects                                                    |
+| -------------------- | --------------------------------------------------------------- |
+| `→ planned`          | Monsters added, initiative not yet rolled                       |
+| `planned → active`   | Initiative rolled/entered, round set to 1, turn tracking begins |
+| `active → completed` | Final round recorded, XP/loot available for summary             |
 
 **Invariants:**
+
 - A session can have at most one `active` encounter at a time
 - Multiple `planned` encounters can exist (DM prep queue)
 - `completed` is terminal
@@ -538,6 +540,7 @@ flowchart LR
 ```
 
 **Runtime requirements:**
+
 - Go 1.22+
 - Dependencies: `cloud.google.com/go/firestore`, `github.com/google/generative-ai-go/genai`, `cloud.google.com/go/storage`
 - Environment variables: `GCP_PROJECT_ID`, `FIRESTORE_DATABASE`, `CF_ACCESS_TEAM`
@@ -622,6 +625,7 @@ flowchart LR
 ```
 
 **Runtime requirements:**
+
 - Python 3.12+
 - Dependencies: `pymupdf4llm`, `google-cloud-firestore`, `google-cloud-storage`, `google-generativeai`
 - Memory: 1GB (PDF processing)
@@ -631,19 +635,20 @@ flowchart LR
 
 **Chunking strategy by content type:**
 
-| Content Type | Chunking Strategy | Example |
-|---|---|---|
-| Monster | One chunk per monster stat block | Owlbear: full stat block as single chunk |
-| Spell | One chunk per spell | Fireball: description + at higher levels |
-| Item | One chunk per magic item | Bag of Holding: properties + description |
-| Class/Race | One chunk per feature | Extra Attack, Sneak Attack, Darkvision |
-| Rule | 512-token overlapping windows | Combat rules, spellcasting rules |
+| Content Type | Chunking Strategy                | Example                                  |
+| ------------ | -------------------------------- | ---------------------------------------- |
+| Monster      | One chunk per monster stat block | Owlbear: full stat block as single chunk |
+| Spell        | One chunk per spell              | Fireball: description + at higher levels |
+| Item         | One chunk per magic item         | Bag of Holding: properties + description |
+| Class/Race   | One chunk per feature            | Extra Attack, Sneak Attack, Darkvision   |
+| Rule         | 512-token overlapping windows    | Combat rules, spellcasting rules         |
 
 ### WebSocket Gateway (Homelab)
 
 Central real-time hub running in the homelab cluster. Serves two roles: (1) game state relay for all clients, and (2) server-side Gemini Live proxy for voice transcription. The Gemini API key lives here — never in the browser.
 
 **Responsibilities:**
+
 - Maintain one Gemini Live WebSocket session per connected player
 - Receive VAD-filtered PCM audio from browsers, proxy to Gemini Live
 - Relay Gemini transcription/classification results back to all clients
@@ -652,6 +657,7 @@ Central real-time hub running in the homelab cluster. Serves two roles: (1) game
 - Track voice/presence status
 
 **Runtime requirements:**
+
 - Go (`nhooyr.io/websocket` for client connections, Gemini Live client for upstream)
 - Redis for pub/sub across replicas
 - Memory: 256MB (increased for Gemini session buffers)
@@ -663,14 +669,14 @@ Central real-time hub running in the homelab cluster. Serves two roles: (1) game
 
 ```typescript
 type WSEvent =
-  | { type: "audio_chunk"; data: ArrayBuffer }           // browser → gateway (VAD-filtered PCM)
+  | { type: "audio_chunk"; data: ArrayBuffer } // browser → gateway (VAD-filtered PCM)
   | { type: "voice_status"; speaker_id: string; speaking: boolean }
-  | { type: "transcript"; event: TranscriptEvent }       // gateway → browsers (from Gemini)
+  | { type: "transcript"; event: TranscriptEvent } // gateway → browsers (from Gemini)
   | { type: "feed_event"; event: FeedEvent }
   | { type: "roll_result"; roll: RollResult }
   | { type: "encounter_update"; encounter: Encounter }
   | { type: "dm_correction"; event_id: string; new_classification: string }
-  | { type: "presence"; player_id: string; status: "online" | "offline" }
+  | { type: "presence"; player_id: string; status: "online" | "offline" };
 ```
 
 ### Frontend (React + TypeScript)
@@ -678,6 +684,7 @@ type WSEvent =
 Static build served via Nginx pod behind Cloudflare Tunnel.
 
 **Stack:**
+
 - React 18+ with TypeScript
 - TanStack Router (file-based routing)
 - TanStack Query (server state, Firestore real-time integration)
@@ -686,6 +693,7 @@ Static build served via Nginx pod behind Cloudflare Tunnel.
 - `@ricky0123/vad-web` (Silero VAD for browser-side voice activity detection)
 
 **Build:**
+
 - Bazel `rules_js` / `rules_ts` for monorepo integration
 - Output: static HTML/JS/CSS bundle
 - Deployed as ConfigMap or baked into Nginx container image
@@ -696,17 +704,17 @@ Static build served via Nginx pod behind Cloudflare Tunnel.
 
 Summary of all GCP services used, their purpose, and pricing. **Requires Tier 1 (pay-as-you-go) for Gemini Live concurrent session limits.**
 
-| Service | Purpose | Pricing Model | Estimated Monthly Cost |
-|---|---|---|---|
-| **Firestore** | All game state, vectors, real-time sync | $0.06/100K reads, $0.18/100K writes, free tier: 50K reads + 20K writes/day | ~$0.05 |
-| **Cloud Run (API)** | Go API, scales to zero | Free tier: 2M requests/month, 360K vCPU-seconds | ~$0.00 |
-| **Cloud Run (Ingest)** | PDF processing jobs | Per-job, ~$0.02 per sourcebook | ~$0.03/book |
-| **Cloud Storage** | PDFs, extracted art | $0.020/GB/month, $0.004/10K operations | ~$0.02 |
-| **Gemini 2.0 Flash Live** | Voice transcription + classification + tools | $0.70/1M input tokens (audio ~25 tok/s), $0.40/1M output | ~$1.68 |
-| **Gemini 2.0 Flash** | RAG answers, summaries, encounter gen | $0.10/1M input, $0.40/1M output | ~$0.25 |
-| **text-embedding-005** | Vector embeddings (768-dim) | $0.15/1M tokens | ~$0.01 |
-| **Firebase Hosting** *(optional)* | Static frontend alternative to homelab Nginx | Free tier: 10GB transfer/month | $0.00 |
-| | | **Total** | **~$2.01/month** |
+| Service                           | Purpose                                      | Pricing Model                                                              | Estimated Monthly Cost |
+| --------------------------------- | -------------------------------------------- | -------------------------------------------------------------------------- | ---------------------- |
+| **Firestore**                     | All game state, vectors, real-time sync      | $0.06/100K reads, $0.18/100K writes, free tier: 50K reads + 20K writes/day | ~$0.05                 |
+| **Cloud Run (API)**               | Go API, scales to zero                       | Free tier: 2M requests/month, 360K vCPU-seconds                            | ~$0.00                 |
+| **Cloud Run (Ingest)**            | PDF processing jobs                          | Per-job, ~$0.02 per sourcebook                                             | ~$0.03/book            |
+| **Cloud Storage**                 | PDFs, extracted art                          | $0.020/GB/month, $0.004/10K operations                                     | ~$0.02                 |
+| **Gemini 2.0 Flash Live**         | Voice transcription + classification + tools | $0.70/1M input tokens (audio ~25 tok/s), $0.40/1M output                   | ~$1.68                 |
+| **Gemini 2.0 Flash**              | RAG answers, summaries, encounter gen        | $0.10/1M input, $0.40/1M output                                            | ~$0.25                 |
+| **text-embedding-005**            | Vector embeddings (768-dim)                  | $0.15/1M tokens                                                            | ~$0.01                 |
+| **Firebase Hosting** _(optional)_ | Static frontend alternative to homelab Nginx | Free tier: 10GB transfer/month                                             | $0.00                  |
+|                                   |                                              | **Total**                                                                  | **~$2.01/month**       |
 
 Assumes: 4 sessions/month, 4 hours each, 5 participants, ~30% talk time (VAD-filtered), ~50 RAG queries/session. New GCP accounts receive $300 in free credits, covering ~150 months of Grimoire usage.
 
@@ -731,14 +739,14 @@ flowchart TB
 
 Firestore vector queries support metadata filters to scope results:
 
-| Filter | Use Case | Example |
-|---|---|---|
-| `content_type` | Monster lookup vs rule lookup | `content_type == "monster"` |
-| `source_book` | Restrict to allowed sourcebooks | `source_book in ["PHB", "MM", "DMG"]` |
-| `page` | Narrow to specific section | `page >= 189 AND page <= 211` |
-| `metadata.cr` | Monster challenge rating | `metadata.cr == "3"` |
-| `metadata.level` | Spell/feature level | `metadata.level <= 3` |
-| `metadata.school` | Spell school | `metadata.school == "evocation"` |
+| Filter            | Use Case                        | Example                               |
+| ----------------- | ------------------------------- | ------------------------------------- |
+| `content_type`    | Monster lookup vs rule lookup   | `content_type == "monster"`           |
+| `source_book`     | Restrict to allowed sourcebooks | `source_book in ["PHB", "MM", "DMG"]` |
+| `page`            | Narrow to specific section      | `page >= 189 AND page <= 211`         |
+| `metadata.cr`     | Monster challenge rating        | `metadata.cr == "3"`                  |
+| `metadata.level`  | Spell/feature level             | `metadata.level <= 3`                 |
+| `metadata.school` | Spell school                    | `metadata.school == "evocation"`      |
 
 ### Context Panel (DM-only)
 
@@ -803,14 +811,14 @@ flowchart LR
 
 ### Classification → Effect Matrix
 
-| Classification | Icon | Color | DM View | Player View | Auto-Triggers |
-|---|---|---|---|---|---|
-| `ic_action` | ⚔ | Blue `#2563eb` | Shown with pill | Shown, no pill | Encounter state hints |
-| `ic_dialogue` | 💬 | Purple `#7c3aed` | Shown with pill | Shown, no pill | Narrative log |
-| `rules_question` | 📖 | Amber `#d97706` | Shown + left border | Shown, no pill | RAG lookup, context panel |
-| `dm_narration` | 🎭 | Green `#059669` | Shown with pill | Shown, no pill | Lore propagation |
-| `dm_ruling` | ⚖ | Teal `#0891b2` | Shown with pill | Shown, no pill | Ruling log |
-| `table_talk` | ☕ | Grey `#9ca3af` | Shown (filterable) | **Hidden** | None |
+| Classification   | Icon | Color            | DM View             | Player View    | Auto-Triggers             |
+| ---------------- | ---- | ---------------- | ------------------- | -------------- | ------------------------- |
+| `ic_action`      | ⚔    | Blue `#2563eb`   | Shown with pill     | Shown, no pill | Encounter state hints     |
+| `ic_dialogue`    | 💬   | Purple `#7c3aed` | Shown with pill     | Shown, no pill | Narrative log             |
+| `rules_question` | 📖   | Amber `#d97706`  | Shown + left border | Shown, no pill | RAG lookup, context panel |
+| `dm_narration`   | 🎭   | Green `#059669`  | Shown with pill     | Shown, no pill | Lore propagation          |
+| `dm_ruling`      | ⚖    | Teal `#0891b2`   | Shown with pill     | Shown, no pill | Ruling log                |
+| `table_talk`     | ☕   | Grey `#9ca3af`   | Shown (filterable)  | **Hidden**     | None                      |
 
 ### Confidence & Reclassification
 
@@ -837,26 +845,26 @@ When `dm_narration` or `dm_ruling` reveals new information:
 
 ### Design Language
 
-| Token | Value |
-|---|---|
-| Background | `#fafaf8` (off-white) |
-| Card background | `#fff` |
-| Muted background | `#f0efed` |
-| Foreground | `#1a1a1a` |
-| Muted text | `#666` |
-| Dim text | `#999` |
-| Border | `#e5e4e2` |
-| Accent | `#2563eb` (blue) |
-| OK | `#16a34a` (green) |
-| Warning | `#d97706` (amber) |
-| Error | `#dc2626` (red) |
-| Private | `#9333ea` (purple) |
-| Prose font | `Inter`, system-ui, sans-serif |
-| Data font | ui-monospace, SF Mono, Cascadia Mono |
-| Base font size | 14px |
-| Line height | 1.55 |
-| Card border radius | 4px |
-| Section headers | 11px, uppercase, 1.2px letter-spacing |
+| Token              | Value                                 |
+| ------------------ | ------------------------------------- |
+| Background         | `#fafaf8` (off-white)                 |
+| Card background    | `#fff`                                |
+| Muted background   | `#f0efed`                             |
+| Foreground         | `#1a1a1a`                             |
+| Muted text         | `#666`                                |
+| Dim text           | `#999`                                |
+| Border             | `#e5e4e2`                             |
+| Accent             | `#2563eb` (blue)                      |
+| OK                 | `#16a34a` (green)                     |
+| Warning            | `#d97706` (amber)                     |
+| Error              | `#dc2626` (red)                       |
+| Private            | `#9333ea` (purple)                    |
+| Prose font         | `Inter`, system-ui, sans-serif        |
+| Data font          | ui-monospace, SF Mono, Cascadia Mono  |
+| Base font size     | 14px                                  |
+| Line height        | 1.55                                  |
+| Card border radius | 4px                                   |
+| Section headers    | 11px, uppercase, 1.2px letter-spacing |
 
 **Typography rules**: Inter for all prose and UI chrome. Monospace only for: dice formulas, HP/AC values, timestamps, token counts, source citations, roll results.
 
@@ -1011,6 +1019,7 @@ services/grimoire/gcp/
 ```
 
 **Conventions followed:**
+
 - Images: `ghcr.io/jomcgi/homelab/services/grimoire-frontend`, `ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway`
 - ArgoCD Application points to `charts/grimoire` with value layering: chart defaults + `overlays/dev/grimoire/values.yaml`
 - Bazel `py3_image` / `go_image` for container builds, `helm_chart` for chart packaging
@@ -1018,18 +1027,19 @@ services/grimoire/gcp/
 
 ### Resource Requirements
 
-| Workload | CPU Request | Memory Request | Replicas | Node Affinity |
-|---|---|---|---|---|
-| Frontend (Nginx) | 50m | 64Mi | 1 | Any |
-| WS Gateway | 200m | 256Mi | 1 | Any |
-| Redis | 100m | 128Mi | 1 | Any |
-| **Total homelab** | **350m** | **448Mi** | | |
+| Workload          | CPU Request | Memory Request | Replicas | Node Affinity |
+| ----------------- | ----------- | -------------- | -------- | ------------- |
+| Frontend (Nginx)  | 50m         | 64Mi           | 1        | Any           |
+| WS Gateway        | 200m        | 256Mi          | 1        | Any           |
+| Redis             | 100m        | 128Mi          | 1        | Any           |
+| **Total homelab** | **350m**    | **448Mi**      |          |               |
 
 ### Ingress & Authentication
 
 All browser traffic routes through **Cloudflare Access** (SSO) before reaching the cluster. No anonymous access to any Grimoire endpoint.
 
 **Cloudflare Access policy:**
+
 - Application: `grimoire.yourdomain.com`
 - Policy: Allow — email list (your D&D group) or identity provider (Google, GitHub, etc.)
 - Session duration: 24 hours (covers a full session without re-auth)
@@ -1276,14 +1286,14 @@ flowchart TB
 
 ### Credential Inventory
 
-| Credential | Stored Where | Access |
-|---|---|---|
-| Google account (yours) | Your laptop | `gcloud auth` — provisions infrastructure, deploys Cloud Run |
-| Cloud Run service account | GCP-managed | Auto-created, accesses Firestore/GCS. Never leaves GCP. |
-| Gemini API key (Cloud Run) | GCP Secret Manager → Cloud Run env var | Used by Cloud Run API for Gemini Flash (RAG) + embeddings. Never leaves GCP. |
-| Gemini API key (cluster) | 1Password → ExternalSecret → WS Gateway env var | Used by WS Gateway for Gemini Live sessions. **Never exposed to browsers.** |
-| Cloudflare Tunnel token | Cluster secret (existing infra) | Routes traffic to grimoire.yourdomain.com |
-| Cloudflare Access JWT | Player's browser (cookie) | Signed by Cloudflare, validated by WS Gateway. Identifies player. |
+| Credential                 | Stored Where                                    | Access                                                                       |
+| -------------------------- | ----------------------------------------------- | ---------------------------------------------------------------------------- |
+| Google account (yours)     | Your laptop                                     | `gcloud auth` — provisions infrastructure, deploys Cloud Run                 |
+| Cloud Run service account  | GCP-managed                                     | Auto-created, accesses Firestore/GCS. Never leaves GCP.                      |
+| Gemini API key (Cloud Run) | GCP Secret Manager → Cloud Run env var          | Used by Cloud Run API for Gemini Flash (RAG) + embeddings. Never leaves GCP. |
+| Gemini API key (cluster)   | 1Password → ExternalSecret → WS Gateway env var | Used by WS Gateway for Gemini Live sessions. **Never exposed to browsers.**  |
+| Cloudflare Tunnel token    | Cluster secret (existing infra)                 | Routes traffic to grimoire.yourdomain.com                                    |
+| Cloudflare Access JWT      | Player's browser (cookie)                       | Signed by Cloudflare, validated by WS Gateway. Identifies player.            |
 
 ### What the browsers do NOT have
 
@@ -1307,46 +1317,46 @@ flowchart TB
 
 ### Per-Session Breakdown (4 hours, 5 players + DM, VAD-filtered)
 
-| Cost Item | Calculation | Cost |
-|---|---|---|
-| Voice input (audio) | 6 participants × 30% talk time × 4 hrs × 3600 s/hr × 25 tok/s × $0.70/1M | ~$0.45 |
-| Voice output (transcripts) | ~120K response tokens × $0.40/1M | ~$0.05 |
-| RAG queries (50/session) | 50 × embed + vector search + Flash answer | ~$0.05 |
-| Feed writes | ~2,000 events × $0.18/100K | ~$0.004 |
-| Feed reads | ~10,000 reads × $0.06/100K | ~$0.006 |
-| **Per-session total** | | **~$0.50** |
+| Cost Item                  | Calculation                                                              | Cost       |
+| -------------------------- | ------------------------------------------------------------------------ | ---------- |
+| Voice input (audio)        | 6 participants × 30% talk time × 4 hrs × 3600 s/hr × 25 tok/s × $0.70/1M | ~$0.45     |
+| Voice output (transcripts) | ~120K response tokens × $0.40/1M                                         | ~$0.05     |
+| RAG queries (50/session)   | 50 × embed + vector search + Flash answer                                | ~$0.05     |
+| Feed writes                | ~2,000 events × $0.18/100K                                               | ~$0.004    |
+| Feed reads                 | ~10,000 reads × $0.06/100K                                               | ~$0.006    |
+| **Per-session total**      |                                                                          | **~$0.50** |
 
 ### Monthly (4 sessions)
 
-| Category | Cost |
-|---|---|
-| Voice (Gemini 2.0 Flash Live) | ~$2.00 |
-| Inference (Gemini Flash) | ~$0.25 |
-| Persistence (Firestore) | ~$0.05 |
-| Storage (Cloud Storage) | ~$0.02 |
-| Embedding | ~$0.01 |
-| Cloud Run compute | ~$0.00 (free tier) |
-| Cloudflare Access | ~$0.00 (free for up to 50 users) |
-| **Monthly total** | **~$2.33** |
+| Category                      | Cost                             |
+| ----------------------------- | -------------------------------- |
+| Voice (Gemini 2.0 Flash Live) | ~$2.00                           |
+| Inference (Gemini Flash)      | ~$0.25                           |
+| Persistence (Firestore)       | ~$0.05                           |
+| Storage (Cloud Storage)       | ~$0.02                           |
+| Embedding                     | ~$0.01                           |
+| Cloud Run compute             | ~$0.00 (free tier)               |
+| Cloudflare Access             | ~$0.00 (free for up to 50 users) |
+| **Monthly total**             | **~$2.33**                       |
 
 ### VAD Impact on Cost
 
 Browser-side Voice Activity Detection is critical for cost control:
 
-| Scenario | Audio tokens/session | Voice cost/month |
-|---|---|---|
-| **Always-on streaming** (no VAD) | 6 × 4hr × 25 tok/s = 2.16M | ~$6.05 |
-| **VAD-filtered** (~30% talk time) | 6 × 1.2hr × 25 tok/s = 648K | ~$2.00 |
-| **Push-to-talk** (~15% active) | 6 × 0.6hr × 25 tok/s = 324K | ~$1.00 |
+| Scenario                          | Audio tokens/session        | Voice cost/month |
+| --------------------------------- | --------------------------- | ---------------- |
+| **Always-on streaming** (no VAD)  | 6 × 4hr × 25 tok/s = 2.16M  | ~$6.05           |
+| **VAD-filtered** (~30% talk time) | 6 × 1.2hr × 25 tok/s = 648K | ~$2.00           |
+| **Push-to-talk** (~15% active)    | 6 × 0.6hr × 25 tok/s = 324K | ~$1.00           |
 
 VAD saves ~$4/month vs. always-on. Push-to-talk saves another ~$1 but adds friction.
 
 ### One-Time Costs
 
-| Item | Cost |
-|---|---|
+| Item                                | Cost   |
+| ----------------------------------- | ------ |
 | Sourcebook PDF ingestion (per book) | ~$0.03 |
-| Firestore vector index creation | Free |
+| Firestore vector index creation     | Free   |
 
 ### Free Credits
 
@@ -1361,12 +1371,14 @@ New GCP accounts receive **$300 in free credits**. At ~$2.33/month, this covers 
 Get a working session running: characters, dice, chat, basic encounter management.
 
 **GCP:**
+
 - [ ] `make setup` (Firestore, Cloud Storage, Cloud Run)
 - [ ] Deploy grimoire-api with Campaign, Character, Dice, Feed, and Encounter services
 - [ ] Store Gemini API key in 1Password (ESO syncs to cluster)
 - [ ] Configure Cloudflare Access application + email allowlist
 
 **Homelab — scaffolded in this PR:**
+
 - [x] Helm chart (`charts/grimoire/`) — frontend, ws-gateway, redis, ExternalSecret, Tunnel
 - [x] ArgoCD overlay (`overlays/dev/grimoire/`) — application.yaml, kustomization.yaml, values.yaml
 - [x] Go Cloud Run API (`services/grimoire/api/`) — all CRUD routes, session/encounter state machines, Firestore handlers, CF Access JWT middleware
@@ -1375,6 +1387,7 @@ Get a working session running: characters, dice, chat, basic encounter managemen
 - [x] GCP bootstrap Makefile (`services/grimoire/gcp/`)
 
 **Remaining for Phase 1 (future PRs):**
+
 - [ ] Wire frontend API calls to live Cloud Run endpoint (currently uses mock data)
 - [ ] End-to-end WebSocket integration (frontend ↔ gateway ↔ Firestore)
 - [ ] Dice rolling with Firestore persistence and real-time broadcast

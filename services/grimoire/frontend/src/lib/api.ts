@@ -35,8 +35,7 @@ export function useFeed(sessionId: string) {
 export function useCharacters(campaignId: string) {
   return useQuery({
     queryKey: ["characters", campaignId],
-    queryFn: () =>
-      fetchJSON<Player[]>(`/campaigns/${campaignId}/characters`),
+    queryFn: () => fetchJSON<Player[]>(`/campaigns/${campaignId}/characters`),
     enabled: !!campaignId,
   });
 }

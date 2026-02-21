@@ -108,9 +108,7 @@ export function PlayerLive() {
           </div>
           <HpBar current={player.hp} max={player.maxHp} />
           {player.conditions.length > 0 && (
-            <div
-              style={{ marginTop: 6, display: "flex", gap: 4 }}
-            >
+            <div style={{ marginTop: 6, display: "flex", gap: 4 }}>
               {player.conditions.map((c) => (
                 <Pill key={c} color={C.warn} bg={C.warnBg}>
                   {c}
