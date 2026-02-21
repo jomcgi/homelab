@@ -34,6 +34,7 @@ spec:
         - name: nginx
           image: "{{ .Values.frontend.image.repository }}:{{ .Values.frontend.image.tag }}"
           imagePullPolicy: {{ .Values.frontend.image.pullPolicy }}
+          env: []
           ports:
             - name: http
               containerPort: 8080
@@ -58,6 +59,8 @@ spec:
               mountPath: /var/run
             - name: nginx-tmp
               mountPath: /tmp
+            - name: nginx-lib
+              mountPath: /var/lib/nginx
           livenessProbe:
             httpGet:
               path: /
@@ -88,4 +91,6 @@ spec:
         - name: nginx-run
           emptyDir: {}
         - name: nginx-tmp
+          emptyDir: {}
+        - name: nginx-lib
           emptyDir: {}
