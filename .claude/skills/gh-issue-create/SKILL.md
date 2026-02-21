@@ -99,7 +99,7 @@ Implement the controller shell script that polls GitHub issues and spawns Claude
 
 ## Files Likely Involved
 
-- charts/claude/src/controller.sh (new)
+- scripts/controller.sh (new)
 
 ## Reference
 
