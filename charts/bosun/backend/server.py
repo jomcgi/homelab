@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """
-Bosun — FastAPI backend bridging the web UI to Claude Code via Agent SDK.
+Bosun — FastAPI backend bridging the web UI to Claude Code CLI.
 
-Uses the Claude Agent SDK (`claude-agent-sdk`) for typed async streaming,
-session management, and tool handling. Forwards events to the browser over WebSocket.
+Runs Claude Code as a subprocess with ``--output-format stream-json``,
+parses the JSONL output, and forwards events to the browser over WebSocket.
 
 Usage:
-    pip install fastapi "uvicorn[standard]" claude-agent-sdk
+    pip install fastapi "uvicorn[standard]"
     python server.py [--port 8420] [--workdir /path/to/project]
 
 Or with Vite dev server (for hot reload):
@@ -36,23 +36,7 @@ try:
 except ImportError:
     sys.exit("Install dependencies: pip install fastapi 'uvicorn[standard]'")
 
-try:
-    from claude_agent_sdk import (
-        query,
-        ClaudeAgentOptions,
-        SystemMessage,
-        AssistantMessage,
-        UserMessage,
-        ResultMessage,
-        TextBlock,
-        ToolUseBlock,
-        ToolResultBlock,
-    )
-    from claude_agent_sdk.types import StreamEvent
-
-    HAS_SDK = True
-except ImportError:
-    HAS_SDK = False
+import uuid
 
 # Optional Gemini TTS
 try:
@@ -68,13 +52,13 @@ log = logging.getLogger("bosun")
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
-# Unset CLAUDECODE to allow nested Claude sessions via the SDK.
+# Unset CLAUDECODE to allow nested Claude sessions.
 # When this server runs inside a Claude Code session, the CLI sets CLAUDECODE
 # which prevents launching child sessions. Clearing it here is safe because
 # the server is an independent process that intentionally spawns Claude sessions.
 os.environ.pop("CLAUDECODE", None)
 
-# Resolve the system Claude CLI path (not the SDK's bundled version, which lacks auth).
+# Resolve the Claude CLI path.
 # Check common locations since npm/sh may not have the full PATH from fish/zsh.
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "")
 if not CLAUDE_BIN:
@@ -83,14 +67,14 @@ if not CLAUDE_BIN:
             CLAUDE_BIN = candidate
             break
 if not CLAUDE_BIN:
-    import shutil
-
     CLAUDE_BIN = shutil.which("claude") or ""
 CLAUDE_CLI_PATH = CLAUDE_BIN or None
 if CLAUDE_CLI_PATH:
-    log.info("Using system Claude CLI: %s", CLAUDE_CLI_PATH)
+    log.info("Using Claude CLI: %s", CLAUDE_CLI_PATH)
 else:
-    log.warning("System claude not found — SDK will use bundled CLI (may lack auth)")
+    log.warning(
+        "Claude CLI not found — install via: npm install -g @anthropic-ai/claude-code"
+    )
 GOLDEN_PATH = os.environ.get("BOSUN_GOLDEN_PATH", "")
 SESSIONS_PATH = os.environ.get("BOSUN_SESSIONS_PATH", "")
 if GOLDEN_PATH and os.path.isdir(os.path.join(GOLDEN_PATH, ".git")):
@@ -390,9 +374,6 @@ async def _poll_prs(ws: WebSocket, session_id: str):
             db.close()
 
 
-if not HAS_SDK:
-    log.warning("claude-agent-sdk not installed — run: pip install claude-agent-sdk")
-
 # ── Per-session clone isolation ─────────────────────────────────────────────
 
 
@@ -470,7 +451,7 @@ def _prune_stale_sessions():
     """Remove session clones with no activity in SESSION_TTL_DAYS.
 
     Called on startup and periodically. Uses directory mtime to determine
-    last activity — each SDK query touches the session dir.
+    last activity — each query touches the session dir.
     """
     if not SESSIONS_PATH or not os.path.isdir(SESSIONS_PATH):
         return
@@ -498,72 +479,77 @@ def _prune_stale_sessions():
 # ── Fixture recording (for integration tests) ──────────────────────────────
 
 
-def _sdk_event_to_dict(msg) -> dict:
-    """Convert an SDK message object to a JSON-serialisable dict for fixture recording."""
-    if isinstance(msg, SystemMessage):
-        return {"kind": "system_init", "data": msg.data}
+def _jsonl_event_to_dict(event: dict) -> dict:
+    """Convert a JSONL event dict to a fixture-compatible dict for recording.
 
-    if isinstance(msg, StreamEvent):
+    Maps CLI stream-json output types to the fixture ``kind`` format used
+    by the test harness.
+    """
+    etype = event.get("type", "")
+
+    if etype == "system":
+        return {"kind": "system_init", "data": event}
+
+    if etype == "stream_event":
         return {
             "kind": "stream_event",
-            "uuid": msg.uuid,
-            "session_id": msg.session_id,
-            "event": msg.event,
-            "parent_tool_use_id": msg.parent_tool_use_id,
+            "uuid": event.get("uuid", ""),
+            "session_id": event.get("session_id", ""),
+            "event": event.get("event", {}),
+            "parent_tool_use_id": event.get("parent_tool_use_id"),
         }
 
-    if isinstance(msg, AssistantMessage):
+    if etype == "assistant":
+        msg = event.get("message", {})
         blocks = []
-        for block in msg.content:
-            if isinstance(block, TextBlock):
-                blocks.append({"type": "text", "text": block.text})
-            elif isinstance(block, ToolUseBlock):
+        for block in msg.get("content", []):
+            btype = block.get("type", "")
+            if btype == "text":
+                blocks.append({"type": "text", "text": block.get("text", "")})
+            elif btype == "tool_use":
                 blocks.append(
                     {
                         "type": "tool_use",
-                        "id": block.id,
-                        "name": block.name,
-                        "input": block.input,
+                        "id": block.get("id", ""),
+                        "name": block.get("name", ""),
+                        "input": block.get("input", {}),
                     }
                 )
-            elif isinstance(block, ToolResultBlock):
+            elif btype == "tool_result":
                 blocks.append(
                     {
                         "type": "tool_result",
-                        "tool_use_id": block.tool_use_id,
-                        "content": block.content,
-                        "is_error": getattr(block, "is_error", False),
+                        "tool_use_id": block.get("tool_use_id", ""),
+                        "content": block.get("content", ""),
+                        "is_error": block.get("is_error", False),
                     }
                 )
             else:
-                blocks.append({"type": type(block).__name__})
+                blocks.append({"type": btype})
         return {
             "kind": "assistant",
             "content": blocks,
-            "model": getattr(msg, "model", None),
-            "parent_tool_use_id": msg.parent_tool_use_id,
+            "model": msg.get("model"),
+            "parent_tool_use_id": event.get("parent_tool_use_id"),
         }
 
-    if isinstance(msg, ResultMessage):
+    if etype == "result":
         return {
             "kind": "result",
-            "subtype": msg.subtype,
-            "session_id": msg.session_id,
-            "duration_ms": msg.duration_ms,
-            "total_cost_usd": msg.total_cost_usd,
-            "num_turns": msg.num_turns,
-            "result": msg.result,
-            "is_error": msg.is_error,
+            "subtype": event.get("subtype", "success"),
+            "session_id": event.get("session_id", ""),
+            "duration_ms": event.get("duration_ms", 0),
+            "total_cost_usd": event.get("total_cost_usd", 0.0),
+            "num_turns": event.get("num_turns", 0),
+            "result": event.get("result", ""),
+            "is_error": event.get("is_error", False),
         }
 
-    if isinstance(msg, UserMessage):
-        return {"kind": "user", "tool_use_result": msg.tool_use_result}
-
-    return {"kind": "unknown", "type": type(msg).__name__}
+    return {"kind": "unknown", "type": etype}
 
 
-def _record_event(msg, session_name: str) -> None:
-    """Append an SDK event to the fixture file for the given session.
+def _record_event(event: dict, session_name: str) -> None:
+    """Append a JSONL event dict to the fixture file for the given session.
 
     Only active when RECORD_FIXTURES_DIR is set (checked once at module load).
     Uses a simple read-modify-write on a JSON array file per session.
@@ -583,7 +569,7 @@ def _record_event(msg, session_name: str) -> None:
             except (json.JSONDecodeError, OSError):
                 events = []
 
-        events.append(_sdk_event_to_dict(msg))
+        events.append(_jsonl_event_to_dict(event))
         filepath.write_text(json.dumps(events, indent=2, default=str))
         log.debug(
             "Recorded fixture event #%d for session %s", len(events), session_name
@@ -592,456 +578,263 @@ def _record_event(msg, session_name: str) -> None:
         log.debug("Fixture recording failed: %s", e)
 
 
-# ── Claude Agent SDK session manager ────────────────────────────────────────
+# ── Claude CLI subprocess session manager ──────────────────────────────────
 
 
 class ClaudeSession:
-    """Manages a Claude Agent SDK session and streams results to a WebSocket."""
+    """Manages a Claude CLI subprocess and streams JSONL results to a WebSocket."""
 
     def __init__(self, workdir: str):
-        import uuid
-
         self._session_name = str(uuid.uuid4())[:8]
         self.workdir = _create_session_workdir(workdir, session_name=self._session_name)
         self.session_id: str | None = None
-        self._cancel_event = asyncio.Event()
-        # Preserved across retry attempts for fallback result
+        self._proc: asyncio.subprocess.Process | None = None
         self._last_run_text: str = ""
         self._last_tool_summaries: list[str] = []
-        # Cross-reconnect dedup: prevent replaying events the frontend
-        # already has when include_partial_messages=True replays history.
-        self._emitted_tool_ids: set[str] = set()
-        self._emitted_text: set[str] = set()
 
     async def run(self, prompt: str, ws: WebSocket):
-        """Run a query via the Agent SDK and stream events to the WebSocket.
-
-        The SDK's async iterator can terminate mid-run when it encounters
-        unknown message types (e.g. rate_limit_event).  The subprocess
-        keeps running, so we reconnect via ``resume`` until we receive a
-        proper ``ResultMessage``.
-
-        We track two streak counters to detect session completion:
-
-        - **silent_streak**: consecutive reconnects with zero messages
-          (subprocess has exited or is unreachable).
-        - **stale_streak**: consecutive reconnects that yield messages but
-          no *new* content after dedup filtering.  This catches the case
-          where the session finished but ``resume`` replays the full
-          history every time — ``msg_count`` stays high, but all events
-          are duplicates the frontend already has.
-
-        As long as each reconnect produces *new* content, both counters
-        stay at zero.  A 30-minute swarm task with periodic
-        rate_limit_event disconnects will reconnect hundreds of times
-        and that's fine.
-        """
-        MAX_SILENT_RECONNECTS = 5  # give up after N reconnects with zero events
-        MAX_STALE_RECONNECTS = 3  # give up after N reconnects with only replayed events
-        RECONNECT_DELAY = 2  # seconds between reconnects
-        start = time.monotonic()
-        attempt = 0
-        silent_streak = 0  # consecutive reconnects that yielded nothing
-        stale_streak = 0  # consecutive reconnects with msgs but no new content
-
-        while (
-            silent_streak < MAX_SILENT_RECONNECTS
-            and stale_streak < MAX_STALE_RECONNECTS
-        ):
-            attempt += 1
-            got_result, had_output, msg_count, had_new_content = await self._run_once(
-                prompt, ws, attempt
-            )
-            if got_result:
-                return  # Got a proper ResultMessage — truly done
-            if self._cancel_event.is_set():
-                return  # User cancelled — don't reconnect
-
-            # Track consecutive silent and stale reconnects.
-            if msg_count > 0:
-                silent_streak = 0
-                if had_new_content:
-                    stale_streak = 0
-                else:
-                    stale_streak += 1
-            else:
-                silent_streak += 1
-
-            if (
-                silent_streak >= MAX_SILENT_RECONNECTS
-                or stale_streak >= MAX_STALE_RECONNECTS
-            ):
-                break
-
-            log.info(
-                "Reconnecting to session (attempt %d, elapsed %.0fs, "
-                "msgs=%d, silent=%d, stale=%d)",
-                attempt,
-                time.monotonic() - start,
-                msg_count,
-                silent_streak,
-                stale_streak,
-            )
-            await asyncio.sleep(RECONNECT_DELAY)
-
-        # Session appears dead or stale — send fallback from accumulated state
-        elapsed = time.monotonic() - start
-        if self._last_run_text.strip() or self._last_tool_summaries:
-            log.warning(
-                "Session ended after %.0fs (%d reconnects, silent=%d, stale=%d)"
-                " — sending fallback (text_len=%d)",
-                elapsed,
-                attempt,
-                silent_streak,
-                stale_streak,
-                len(self._last_run_text.strip()),
-            )
-            fallback_payload = {
-                "type": "result",
-                "session_id": self.session_id,
-                "full_text": self._last_run_text.strip(),
-            }
-            if self._last_tool_summaries:
-                fallback_payload["tool_summaries"] = self._last_tool_summaries
-            await ws.send_json(fallback_payload)
-        else:
-            log.warning(
-                "Session produced no output after %.0fs (%d attempts)",
-                elapsed,
-                attempt,
-            )
-            await ws.send_json(
-                {
-                    "type": "error",
-                    "message": "Claude produced no response."
-                    " This may be due to rate limiting — try again shortly.",
-                }
-            )
-
-    async def _run_once(self, prompt: str, ws: WebSocket, attempt: int = 1):
-        """Execute a single SDK query attempt.
-
-        Returns (got_result, had_output, msg_count, had_new_content):
-        - got_result: True if a ResultMessage was received (session done)
-        - had_output: True if text or tool summaries were accumulated
-        - msg_count: total messages yielded by the iterator (liveness signal)
-        - had_new_content: True if any content passed the dedup filters
-        """
-        self._cancel_event.clear()
-
-        options = ClaudeAgentOptions(
-            cwd=self.workdir,
-            # Use the built-in Claude Code system prompt (preset avoids the SDK
-            # passing --system-prompt "" which clears it).
-            system_prompt={"type": "preset", "preset": "claude_code"},
-            allowed_tools=AUTO_APPROVED_TOOLS,
-            permission_mode="acceptEdits",
-            include_partial_messages=True,
-            setting_sources=["project"],
-            cli_path=CLAUDE_CLI_PATH or None,
-            stderr=lambda line: log.info("claude stderr: %s", line.rstrip()),
-        )
+        """Run a query via Claude CLI subprocess, streaming JSONL to WebSocket."""
+        _touch_session_workdir(self.workdir)
+        cmd = [
+            CLAUDE_CLI_PATH or "claude",
+            "--print",
+            "--output-format",
+            "stream-json",
+            "--verbose",
+            "--include-partial-messages",
+            "--permission-mode",
+            "acceptEdits",
+            "--allowedTools",
+            ",".join(AUTO_APPROVED_TOOLS),
+            "--setting-sources",
+            "project",
+        ]
         if self.session_id:
-            options.resume = self.session_id
+            cmd.extend(["--resume", self.session_id])
+        cmd.append(prompt)  # positional arg at end
 
         log.info(
-            "SDK query (attempt %d): %s... (session=%s)",
-            attempt,
+            "Subprocess start: %s... (session=%s)",
             prompt[:60],
             self.session_id or "new",
         )
-        _touch_session_workdir(self.workdir)
 
+        try:
+            self._proc = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=self.workdir,
+            )
+        except Exception as e:
+            log.error("Failed to start claude: %s", e)
+            await ws.send_json(
+                {"type": "error", "message": f"Failed to start Claude: {e}"}
+            )
+            return
+
+        stderr_task = asyncio.create_task(self._drain_stderr())
+        await self._process_stdout(ws)
+
+        try:
+            await asyncio.wait_for(self._proc.wait(), timeout=5.0)
+        except asyncio.TimeoutError:
+            log.warning("Process did not exit, terminating")
+            self._proc.terminate()
+
+        stderr_task.cancel()
+        try:
+            await stderr_task
+        except asyncio.CancelledError:
+            pass
+
+        rc = self._proc.returncode
+        if rc and rc != 0:
+            log.warning("Claude exited with code %d", rc)
+        self._proc = None
+
+    async def _drain_stderr(self):
+        """Log stderr from claude subprocess."""
+        try:
+            while True:
+                line = await self._proc.stderr.readline()
+                if not line:
+                    break
+                log.info(
+                    "claude stderr: %s", line.decode("utf-8", errors="replace").rstrip()
+                )
+        except (asyncio.CancelledError, Exception):
+            pass
+
+    async def _process_stdout(self, ws: WebSocket):
+        """Parse JSONL stdout from Claude CLI and emit WebSocket events."""
         text_buf = ""
         full_run_text = ""
         streaming_text = False
-        streaming_captured: set[str] = (
-            set()
-        )  # Text already captured from streaming path
-        artifact_counter = 0  # Counter for generating unique msg_ids for artifacts
-        tool_summaries = []  # Human-readable tool call summaries for TTS context
-        speculative_summary_task: asyncio.Task | None = None  # Background summarization
-
+        artifact_counter = 0
+        tool_summaries: list[str] = []
+        speculative_summary_task: asyncio.Task | None = None
         got_result = False
-        msg_count = 0  # total messages from iterator (liveness signal)
-        new_content = False  # True if any content passed dedup filters
 
-        try:
-            msg_iter = query(prompt=prompt, options=options).__aiter__()
-            while True:
-                try:
-                    msg = await msg_iter.__anext__()
-                except StopAsyncIteration:
-                    log.info(
-                        "SDK iteration ended (StopAsyncIteration, msgs=%d)", msg_count
+        while True:
+            line = await self._proc.stdout.readline()
+            if not line:
+                break  # EOF — process exited
+
+            line_str = line.decode("utf-8", errors="replace").rstrip()
+            if not line_str:
+                continue
+
+            try:
+                event = json.loads(line_str)
+            except json.JSONDecodeError:
+                log.debug("Non-JSON line from claude: %s", line_str[:200])
+                continue
+
+            _record_event(event, self._session_name)
+            etype = event.get("type", "")
+
+            # ── System messages (session init) ────────────────
+            if etype == "system":
+                if event.get("subtype") == "init":
+                    self.session_id = event.get("session_id")
+                    log.info("Session initialized: %s", self.session_id)
+                    await ws.send_json(
+                        {
+                            "type": "session_init",
+                            "session_id": self.session_id,
+                        }
                     )
-                    break
-                except Exception as iter_err:
-                    if "Unknown message type" in str(iter_err):
-                        log.info(
-                            "SDK: skipping %s: %s", type(iter_err).__name__, iter_err
-                        )
-                        continue
-                    raise
+                continue
 
-                msg_count += 1
-                _record_event(msg, self._session_name)
-                log.debug("SDK msg: %s", type(msg).__name__)
+            # ── Streaming deltas ──────────────────────────────
+            if etype == "stream_event":
+                ev = event.get("event", {})
+                ev_type = ev.get("type", "")
 
-                # Check for cancellation
-                if self._cancel_event.is_set():
-                    log.info("Query cancelled by user")
-                    break
+                if ev_type == "content_block_start":
+                    cb = ev.get("content_block", {})
+                    if cb.get("type") == "text" and not streaming_text:
+                        await ws.send_json({"type": "assistant_start"})
+                        streaming_text = True
+                        text_buf = ""
 
-                # ── System messages (session init, etc.) ──────────
-                if isinstance(msg, SystemMessage):
-                    if msg.subtype == "init":
-                        self.session_id = msg.data.get("session_id")
+                elif ev_type == "content_block_delta":
+                    delta = ev.get("delta", {})
+                    if delta.get("type") == "text_delta":
+                        chunk = delta.get("text", "")
+                        text_buf += chunk
                         await ws.send_json(
                             {
-                                "type": "session_init",
-                                "session_id": self.session_id,
+                                "type": "assistant_text",
+                                "content": chunk,
                             }
                         )
-                    else:
-                        log.info(
-                            "SDK SystemMessage subtype=%s data=%s",
-                            msg.subtype,
-                            msg.data,
-                        )
-                    continue
 
-                # ── Streaming deltas (partial text from API) ──────
-                if isinstance(msg, StreamEvent):
-                    ev = msg.event
-                    ev_type = ev.get("type", "")
-
-                    if ev_type == "content_block_start":
-                        cb = ev.get("content_block", {})
-                        if cb.get("type") == "text" and not streaming_text:
-                            await ws.send_json({"type": "assistant_start"})
-                            streaming_text = True
-                            text_buf = ""
-                        elif cb.get("type") == "tool_use":
-                            tool_id = cb.get("id", "")
-                            # Skip Task tools — AssistantMessage handler
-                            # sends them with full input/description.
-                            # Also skip already-emitted IDs (reconnect replay).
-                            if (
-                                cb.get("name") != "Task"
-                                and tool_id
-                                and tool_id not in self._emitted_tool_ids
-                            ):
-                                self._emitted_tool_ids.add(tool_id)
-                                new_content = True
-                                await ws.send_json(
-                                    {
-                                        "type": "tool_use",
-                                        "name": cb.get("name", ""),
-                                        "tool_use_id": tool_id,
-                                        "summary": f"Using {cb.get('name', '')}",
-                                        "parent_tool_use_id": msg.parent_tool_use_id,
-                                    }
-                                )
-
-                    elif ev_type == "content_block_delta":
-                        delta = ev.get("delta", {})
-                        if delta.get("type") == "text_delta":
-                            chunk = delta.get("text", "")
-                            text_buf += chunk
-                            await ws.send_json(
-                                {
-                                    "type": "assistant_text",
-                                    "content": chunk,
-                                }
-                            )
-
-                    elif ev_type == "message_delta":
-                        usage = ev.get("usage", {})
-                        if usage:
-                            await ws.send_json(
-                                {
-                                    "type": "usage_update",
-                                    "input_tokens": usage.get("input_tokens", 0),
-                                    "output_tokens": usage.get("output_tokens", 0),
-                                }
-                            )
-
-                    elif ev_type == "message_stop":
-                        if streaming_text:
-                            # Deduplicate text across reconnects — the SDK
-                            # replays in-flight messages on resume.
-                            if text_buf in self._emitted_text:
-                                streaming_text = False
-                                text_buf = ""
-                            else:
-                                self._emitted_text.add(text_buf)
-                                new_content = True
-                                full_run_text += text_buf + "\n"
-                                streaming_captured.add(text_buf)
-                                await ws.send_json(
-                                    {
-                                        "type": "assistant_done",
-                                        "full_text": text_buf,
-                                    }
-                                )
-                                # Scan for mermaid blocks in the completed text
-                                for mi, mblock in enumerate(
-                                    _extract_mermaid_blocks(text_buf)
-                                ):
-                                    await ws.send_json(
-                                        {
-                                            "type": "mermaid_artifact",
-                                            "code": mblock["code"],
-                                            "label": mblock["label"],
-                                        }
-                                    )
-                                    # Auto-save mermaid artifact
-                                    if self.session_id:
-                                        artifact_counter += 1
-                                        _save_artifact(
-                                            self.session_id,
-                                            f"mermaid-{artifact_counter}",
-                                            str(mi + 1),
-                                            {
-                                                "type": "mermaid",
-                                                "label": mblock["label"],
-                                                "data": mblock["code"],
-                                            },
-                                        )
-                                streaming_text = False
-                                text_buf = ""
-
-                            # Speculative summarization: kick off Gemini summary
-                            # in the background while Claude may still be doing
-                            # tool calls. By the time ResultMessage arrives the
-                            # summary is often already ready, saving ~300ms.
-                            if (
-                                len(full_run_text) >= 200
-                                and speculative_summary_task is None
-                            ):
-                                client = _get_gemini()
-                                if client:
-                                    truncated = _truncate_for_tts(full_run_text.strip())
-                                    speculative_summary_task = asyncio.create_task(
-                                        _summarize(client, truncated, True)
-                                    )
-
-                    continue
-
-                # ── Complete assistant messages ────────────────────
-                if isinstance(msg, AssistantMessage):
-                    for block in msg.content:
-                        if isinstance(block, ToolUseBlock):
-                            # Deduplicate across reconnects and streaming/complete
-                            if block.id in self._emitted_tool_ids:
-                                continue
-                            self._emitted_tool_ids.add(block.id)
-                            new_content = True
-                            summary = _tool_summary_sdk(block)
-                            tool_summaries.append(summary)
-                            await ws.send_json(
-                                {
-                                    "type": "tool_use",
-                                    "name": block.name,
-                                    "tool_use_id": block.id,
-                                    "input": block.input,
-                                    "summary": summary,
-                                    "parent_tool_use_id": msg.parent_tool_use_id,
-                                }
-                            )
-                            # Emit structured events for specific tool types
-                            if block.name == "TodoWrite":
-                                await ws.send_json(
-                                    {
-                                        "type": "todo_update",
-                                        "todos": block.input.get("todos", []),
-                                        "parent_tool_use_id": msg.parent_tool_use_id,
-                                    }
-                                )
-                            elif block.name == "Task":
-                                await ws.send_json(
-                                    {
-                                        "type": "subagent_start",
-                                        "tool_use_id": block.id,
-                                        "name": block.input.get(
-                                            "name", block.input.get("description", "")
-                                        ),
-                                        "description": block.input.get(
-                                            "description", ""
-                                        ),
-                                        "subagent_type": block.input.get(
-                                            "subagent_type", ""
-                                        ),
-                                        "parent_tool_use_id": msg.parent_tool_use_id,
-                                    }
-                                )
-                        elif isinstance(block, TextBlock) and block.text:
-                            # Skip if already captured via streaming path
-                            # (include_partial_messages=True causes both to fire)
-                            if block.text not in streaming_captured:
-                                full_run_text += block.text + "\n"
-                        elif isinstance(block, ToolResultBlock):
-                            content = block.content
-                            images = (
-                                _extract_images(content)
-                                if isinstance(content, list)
-                                else []
-                            )
-                            if isinstance(content, list):
-                                content = "\n".join(
-                                    b.get("text", "")
-                                    for b in content
-                                    if isinstance(b, dict) and b.get("type") == "text"
-                                )
-                            result_msg = {
-                                "type": "tool_result",
-                                "tool_use_id": block.tool_use_id,
-                                "name": getattr(block, "name", None) or "",
-                                "output": str(content or "")[:5000],
+                elif ev_type == "message_delta":
+                    usage = ev.get("usage", {})
+                    if usage:
+                        await ws.send_json(
+                            {
+                                "type": "usage_update",
+                                "input_tokens": usage.get("input_tokens", 0),
+                                "output_tokens": usage.get("output_tokens", 0),
                             }
-                            if getattr(block, "is_error", False):
-                                result_msg["is_error"] = True
-                            if images:
-                                result_msg["image"] = images[0]
-                                # Auto-save image artifact
-                                if self.session_id:
-                                    artifact_counter += 1
-                                    _save_artifact(
-                                        self.session_id,
-                                        f"tool-{artifact_counter}",
-                                        "1",
-                                        {
-                                            "type": "image",
-                                            "label": block.name or "screenshot",
-                                            "data": images[0].get("data", ""),
-                                            "mimeType": images[0].get(
-                                                "mimeType", "image/png"
-                                            ),
-                                        },
-                                    )
-                            await ws.send_json(result_msg)
-                            # Detect PR URLs in tool output
-                            await _detect_prs_in_output(
-                                str(content or ""), self.session_id, ws
-                            )
-                    continue
+                        )
 
-                # ── User messages (tool results flowing back) ─────
-                if isinstance(msg, UserMessage):
-                    if msg.tool_use_result:
-                        tur = msg.tool_use_result
-                        # MCP tool results may be a list of content blocks
-                        # instead of a dict with "content" key
-                        if isinstance(tur, list):
-                            content = tur
-                            tool_use_id = ""
-                        elif isinstance(tur, dict):
-                            content = tur.get("content", "")
-                            tool_use_id = tur.get("tool_use_id", "")
-                        else:
-                            content = str(tur)
-                            tool_use_id = ""
+                elif ev_type == "message_stop":
+                    if streaming_text:
+                        full_run_text += text_buf + "\n"
+                        await ws.send_json(
+                            {
+                                "type": "assistant_done",
+                                "full_text": text_buf,
+                            }
+                        )
+                        # Scan for mermaid blocks in the completed text
+                        for mi, mblock in enumerate(_extract_mermaid_blocks(text_buf)):
+                            await ws.send_json(
+                                {
+                                    "type": "mermaid_artifact",
+                                    "code": mblock["code"],
+                                    "label": mblock["label"],
+                                }
+                            )
+                            if self.session_id:
+                                artifact_counter += 1
+                                _save_artifact(
+                                    self.session_id,
+                                    f"mermaid-{artifact_counter}",
+                                    str(mi + 1),
+                                    {
+                                        "type": "mermaid",
+                                        "label": mblock["label"],
+                                        "data": mblock["code"],
+                                    },
+                                )
+                        streaming_text = False
+                        text_buf = ""
+
+                    # Speculative summarization
+                    if len(full_run_text) >= 200 and speculative_summary_task is None:
+                        client = _get_gemini()
+                        if client:
+                            truncated = _truncate_for_tts(full_run_text.strip())
+                            speculative_summary_task = asyncio.create_task(
+                                _summarize(client, truncated, True)
+                            )
+
+                continue
+
+            # ── Complete assistant messages (tool_use / tool_result) ──
+            if etype == "assistant":
+                msg = event.get("message", {})
+                parent_tool_use_id = event.get("parent_tool_use_id")
+                for block in msg.get("content", []):
+                    btype = block.get("type", "")
+
+                    if btype == "tool_use":
+                        summary = _tool_summary(block)
+                        tool_summaries.append(summary)
+                        await ws.send_json(
+                            {
+                                "type": "tool_use",
+                                "name": block.get("name", ""),
+                                "tool_use_id": block.get("id", ""),
+                                "input": block.get("input", {}),
+                                "summary": summary,
+                                "parent_tool_use_id": parent_tool_use_id,
+                            }
+                        )
+                        # Emit structured events for specific tool types
+                        tool_name = block.get("name", "")
+                        tool_input = block.get("input", {})
+                        if tool_name == "TodoWrite":
+                            await ws.send_json(
+                                {
+                                    "type": "todo_update",
+                                    "todos": tool_input.get("todos", []),
+                                    "parent_tool_use_id": parent_tool_use_id,
+                                }
+                            )
+                        elif tool_name == "Task":
+                            await ws.send_json(
+                                {
+                                    "type": "subagent_start",
+                                    "tool_use_id": block.get("id", ""),
+                                    "name": tool_input.get(
+                                        "name", tool_input.get("description", "")
+                                    ),
+                                    "description": tool_input.get("description", ""),
+                                    "subagent_type": tool_input.get(
+                                        "subagent_type", ""
+                                    ),
+                                    "parent_tool_use_id": parent_tool_use_id,
+                                }
+                            )
+
+                    elif btype == "tool_result":
+                        content = block.get("content", "")
                         images = (
                             _extract_images(content)
                             if isinstance(content, list)
@@ -1055,21 +848,23 @@ class ClaudeSession:
                             )
                         result_msg = {
                             "type": "tool_result",
-                            "tool_use_id": tool_use_id,
+                            "tool_use_id": block.get("tool_use_id", ""),
+                            "name": block.get("name", ""),
                             "output": str(content or "")[:5000],
                         }
+                        if block.get("is_error"):
+                            result_msg["is_error"] = True
                         if images:
                             result_msg["image"] = images[0]
-                            # Auto-save image artifact
                             if self.session_id:
                                 artifact_counter += 1
                                 _save_artifact(
                                     self.session_id,
-                                    f"user-tool-{artifact_counter}",
+                                    f"tool-{artifact_counter}",
                                     "1",
                                     {
                                         "type": "image",
-                                        "label": "screenshot",
+                                        "label": block.get("name", "screenshot"),
                                         "data": images[0].get("data", ""),
                                         "mimeType": images[0].get(
                                             "mimeType", "image/png"
@@ -1081,110 +876,113 @@ class ClaudeSession:
                         await _detect_prs_in_output(
                             str(content or ""), self.session_id, ws
                         )
-                    continue
 
-                # ── Final result ──────────────────────────────────
-                if isinstance(msg, ResultMessage):
-                    self.session_id = msg.session_id
+                continue
 
-                    # Send any remaining streaming text
-                    if streaming_text:
-                        full_run_text += text_buf + "\n"
-                        await ws.send_json(
-                            {
-                                "type": "assistant_done",
-                                "full_text": text_buf,
-                            }
-                        )
-                        streaming_text = False
+            # ── Final result ──────────────────────────────────
+            if etype == "result":
+                self.session_id = event.get("session_id", self.session_id)
 
-                    final_text = full_run_text.strip() or (msg.result or "")
-                    log.info(
-                        "SDK result: session=%s, turns=%d, text_len=%d, is_error=%s, tools=%d",
-                        msg.session_id,
-                        msg.num_turns,
-                        len(final_text),
-                        msg.is_error,
-                        len(tool_summaries),
+                # Send any remaining streaming text
+                if streaming_text:
+                    full_run_text += text_buf + "\n"
+                    await ws.send_json(
+                        {
+                            "type": "assistant_done",
+                            "full_text": text_buf,
+                        }
                     )
-                    if not final_text and tool_summaries:
-                        log.warning(
-                            "SDK returned tools but no text (turns=%d, is_error=%s) — "
-                            "Claude may have terminated early",
-                            msg.num_turns,
-                            msg.is_error,
+                    streaming_text = False
+
+                final_text = full_run_text.strip() or event.get("result", "")
+                num_turns = event.get("num_turns", 0)
+                is_error = event.get("is_error", False)
+                log.info(
+                    "Result: session=%s, turns=%d, text_len=%d, is_error=%s, tools=%d",
+                    self.session_id,
+                    num_turns,
+                    len(final_text),
+                    is_error,
+                    len(tool_summaries),
+                )
+                got_result = True
+                result_payload = {
+                    "type": "result",
+                    "session_id": self.session_id,
+                    "cost_usd": event.get("total_cost_usd", 0.0),
+                    "duration_ms": event.get("duration_ms", 0),
+                    "num_turns": num_turns,
+                    "is_error": is_error,
+                    "full_text": final_text,
+                }
+                if tool_summaries:
+                    result_payload["tool_summaries"] = tool_summaries
+
+                # Attach speculative summary if ready (or wait briefly)
+                if speculative_summary_task is not None:
+                    try:
+                        spoken, summary, actions = await asyncio.wait_for(
+                            speculative_summary_task, timeout=2.0
                         )
-                    got_result = True
-                    result_payload = {
-                        "type": "result",
-                        "session_id": msg.session_id,
-                        "cost_usd": msg.total_cost_usd,
-                        "duration_ms": msg.duration_ms,
-                        "num_turns": msg.num_turns,
-                        "is_error": msg.is_error,
-                        "full_text": final_text,
-                    }
-                    if tool_summaries:
-                        result_payload["tool_summaries"] = tool_summaries
-
-                    # Attach speculative summary if ready (or wait briefly)
-                    if speculative_summary_task is not None:
-                        try:
-                            spoken, summary, actions = await asyncio.wait_for(
-                                speculative_summary_task, timeout=2.0
+                        if summary:
+                            result_payload["speculative_summary"] = {
+                                "summary": summary,
+                                "actions": actions or [],
+                            }
+                            log.info(
+                                "Speculative summary attached (%d chars)",
+                                len(summary),
                             )
-                            if summary:
-                                result_payload["speculative_summary"] = {
-                                    "summary": summary,
-                                    "actions": actions or [],
-                                }
-                                log.info(
-                                    "Speculative summary attached (%d chars)",
-                                    len(summary),
-                                )
-                        except (asyncio.TimeoutError, Exception) as e:
-                            log.info("Speculative summary not ready: %s", e)
+                    except (asyncio.TimeoutError, Exception) as e:
+                        log.info("Speculative summary not ready: %s", e)
 
-                    await ws.send_json(result_payload)
-                    continue
+                await ws.send_json(result_payload)
+                continue
 
-        except asyncio.CancelledError:
-            log.info("SDK query task cancelled")
-            raise
-        except Exception as e:
-            log.error("SDK query error: %s", e)
-            try:
-                await ws.send_json({"type": "error", "message": str(e)})
-            except Exception:
-                pass
-            return True, True, msg_count, new_content  # Don't retry on exceptions
-
-        # Preserve accumulated state for run() to use after retries exhaust.
-        had_output = bool(full_run_text.strip() or tool_summaries)
-        if not got_result and had_output:
-            log.warning(
-                "SDK ended without ResultMessage (text_len=%d, tools=%d, msgs=%d)",
-                len(full_run_text.strip()),
-                len(tool_summaries),
-                msg_count,
-            )
+        # Process exited without a result event — send fallback
+        if not got_result:
             if streaming_text:
                 full_run_text += text_buf + "\n"
                 await ws.send_json({"type": "assistant_done", "full_text": text_buf})
-            self._last_run_text = full_run_text.strip()
-            self._last_tool_summaries = tool_summaries
 
-        return got_result, had_output, msg_count, new_content
+            if full_run_text.strip() or tool_summaries:
+                log.warning(
+                    "Process exited without result event (text_len=%d, tools=%d)",
+                    len(full_run_text.strip()),
+                    len(tool_summaries),
+                )
+                fallback = {
+                    "type": "result",
+                    "session_id": self.session_id,
+                    "full_text": full_run_text.strip(),
+                }
+                if tool_summaries:
+                    fallback["tool_summaries"] = tool_summaries
+                await ws.send_json(fallback)
+            else:
+                log.warning("Process exited with no output")
+                await ws.send_json(
+                    {
+                        "type": "error",
+                        "message": "Claude produced no response."
+                        " This may be due to rate limiting — try again shortly.",
+                    }
+                )
+
+        self._last_run_text = full_run_text.strip()
+        self._last_tool_summaries = tool_summaries
 
     def cancel(self):
-        """Signal the running query to stop."""
-        self._cancel_event.set()
+        """Kill the running subprocess."""
+        if self._proc and self._proc.returncode is None:
+            log.info("Cancelling claude subprocess (pid=%d)", self._proc.pid)
+            self._proc.terminate()
 
 
-def _tool_summary_sdk(block: ToolUseBlock) -> str:
-    """Generate a human-readable summary for a SDK ToolUseBlock."""
-    name = block.name
-    inp = block.input
+def _tool_summary(block: dict) -> str:
+    """Generate a human-readable summary for a tool use dict."""
+    name = block.get("name", "")
+    inp = block.get("input", {})
 
     if name == "Edit":
         return f"Edit: {inp.get('file_path', 'file')}"
@@ -1211,29 +1009,6 @@ def _tool_summary_sdk(block: ToolUseBlock) -> str:
     return name
 
 
-# Keep old helper for session history parsing (uses dicts, not SDK types)
-def _tool_summary(block: dict) -> str:
-    """Generate a human-readable summary for a tool use dict (JSONL parsing)."""
-    name = block.get("name", "")
-    inp = block.get("input", {})
-
-    if name == "Edit":
-        return f"Edit: {inp.get('file_path', 'file')}"
-    if name == "Write":
-        return f"Write: {inp.get('file_path', 'file')}"
-    if name == "Read":
-        return f"Read: {inp.get('file_path', 'file')}"
-    if name == "Bash":
-        cmd = inp.get("command", "")
-        return f"Run: {cmd[:80]}"
-    if name == "Glob":
-        return f"Search: {inp.get('pattern', '')}"
-    if name == "Grep":
-        return f"Grep: {inp.get('pattern', '')}"
-
-    return name
-
-
 _MERMAID_RE = re.compile(r"```mermaid\s*\n(.*?)\n```", re.DOTALL)
 
 
@@ -1248,7 +1023,7 @@ def _extract_mermaid_blocks(text: str) -> list[dict]:
 
 
 def _extract_images(content) -> list[dict]:
-    """Extract image data from SDK content blocks."""
+    """Extract image data from content blocks."""
     images = []
     if isinstance(content, list):
         for block in content:

@@ -12,18 +12,17 @@ import pytest
 from starlette.testclient import TestClient
 
 from charts.bosun.backend.tests.conftest import (
-    build_sdk_events,
-    make_mock_query,
+    make_mock_subprocess,
     collect_ws_messages,
 )
 
 
 def test_simple_text_streaming(patched_server):
     """Simple text response produces correct message sequence."""
-    events = build_sdk_events("simple_text.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("simple_text.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Say hello"})
@@ -45,10 +44,10 @@ def test_simple_text_streaming(patched_server):
 
 def test_assistant_text_has_content_not_full_text(patched_server):
     """assistant_text carries streaming 'content' but never 'full_text'."""
-    events = build_sdk_events("simple_text.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("simple_text.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Say hello"})
@@ -67,10 +66,10 @@ def test_assistant_text_has_content_not_full_text(patched_server):
 
 def test_result_has_full_text(patched_server):
     """The result message carries full_text for TTS."""
-    events = build_sdk_events("simple_text.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("simple_text.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Say hello"})
@@ -88,10 +87,10 @@ def test_result_has_full_text(patched_server):
 
 def test_tool_then_text_streaming(patched_server):
     """Text + tool + text sequence produces all expected message types in order."""
-    events = build_sdk_events("tool_use_flow.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("tool_use_flow.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Check the file"})
@@ -117,10 +116,10 @@ def test_result_has_full_text_after_tool_turn(patched_server):
     When a turn includes tool calls, the result message must contain the accumulated
     full_text from all streaming blocks, not just the tool results.
     """
-    events = build_sdk_events("tool_use_flow.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("tool_use_flow.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Check the file"})

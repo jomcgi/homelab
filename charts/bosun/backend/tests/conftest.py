@@ -1,119 +1,146 @@
 """
 Shared fixtures and helpers for Bosun integration tests.
 
-Converts fixture JSON files into SDK types, mocks `server.query`,
-and provides WebSocket message collection utilities.
+Converts fixture JSON files into JSONL lines, mocks
+``asyncio.create_subprocess_exec`` with a ``MockProcess``, and provides
+WebSocket message collection utilities.
 
 This is a pytest conftest — fixtures are auto-discovered by tests
 in this directory without explicit imports.
 """
 
+import asyncio
 import json
 import sqlite3
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import patch, AsyncMock
 
 import pytest
 
 import charts.bosun.backend.server as server
-from claude_agent_sdk import (
-    SystemMessage,
-    AssistantMessage,
-    UserMessage,
-    ResultMessage,
-    TextBlock,
-    ToolUseBlock,
-    ToolResultBlock,
-)
-from claude_agent_sdk.types import StreamEvent
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
-# ── SDK event builders ──────────────────────────────────────────────────────
+# ── Fixture → JSONL conversion ────────────────────────────────────────────
 
 
-def _build_sdk_event(desc: dict):
-    """Convert a fixture JSON dict into the corresponding SDK type."""
+def _fixture_to_jsonl(desc: dict) -> str:
+    """Convert a fixture JSON dict (with ``kind``) into a CLI JSONL line."""
     kind = desc["kind"]
 
     if kind == "system_init":
-        return SystemMessage(subtype="init", data=desc["data"])
+        return json.dumps(
+            {
+                "type": "system",
+                "subtype": "init",
+                "session_id": desc["data"].get("session_id", ""),
+            }
+        )
 
     if kind == "stream_event":
-        return StreamEvent(
-            uuid=desc["uuid"],
-            session_id=desc["session_id"],
-            event=desc["event"],
-            parent_tool_use_id=desc.get("parent_tool_use_id"),
+        return json.dumps(
+            {
+                "type": "stream_event",
+                "event": desc["event"],
+                "parent_tool_use_id": desc.get("parent_tool_use_id"),
+            }
         )
 
     if kind == "assistant":
-        blocks = []
-        for block_desc in desc["content"]:
-            btype = block_desc["type"]
-            if btype == "text":
-                blocks.append(TextBlock(text=block_desc["text"]))
-            elif btype == "tool_use":
-                blocks.append(
-                    ToolUseBlock(
-                        id=block_desc["id"],
-                        name=block_desc["name"],
-                        input=block_desc.get("input", {}),
-                    )
-                )
-            elif btype == "tool_result":
-                blocks.append(
-                    ToolResultBlock(
-                        tool_use_id=block_desc["tool_use_id"],
-                        content=block_desc.get("content", ""),
-                        is_error=block_desc.get("is_error", False),
-                    )
-                )
-        return AssistantMessage(
-            content=blocks,
-            model=desc.get("model", "claude-sonnet-4-5-20250929"),
-            parent_tool_use_id=desc.get("parent_tool_use_id"),
+        return json.dumps(
+            {
+                "type": "assistant",
+                "message": {
+                    "content": desc["content"],
+                    "model": desc.get("model", "claude-sonnet-4-5-20250929"),
+                },
+                "parent_tool_use_id": desc.get("parent_tool_use_id"),
+            }
         )
 
     if kind == "result":
-        return ResultMessage(
-            subtype=desc.get("subtype", "success"),
-            session_id=desc["session_id"],
-            duration_ms=desc.get("duration_ms", 0),
-            duration_api_ms=desc.get("duration_api_ms", 0),
-            total_cost_usd=desc.get("total_cost_usd", 0.0),
-            num_turns=desc.get("num_turns", 0),
-            result=desc.get("result", ""),
-            is_error=desc.get("is_error", False),
-            usage=desc.get("usage", {}),
-            structured_output=None,
+        return json.dumps(
+            {
+                "type": "result",
+                "subtype": desc.get("subtype", "success"),
+                "session_id": desc.get("session_id", ""),
+                "duration_ms": desc.get("duration_ms", 0),
+                "total_cost_usd": desc.get("total_cost_usd", 0.0),
+                "num_turns": desc.get("num_turns", 0),
+                "result": desc.get("result", ""),
+                "is_error": desc.get("is_error", False),
+            }
         )
 
     if kind == "user":
-        return UserMessage(
-            tool_use_result=desc.get("tool_use_result"),
+        return json.dumps(
+            {
+                "type": "user",
+                "tool_use_result": desc.get("tool_use_result"),
+            }
         )
 
     raise ValueError(f"Unknown fixture kind: {kind}")
 
 
-def build_sdk_events(fixture_name: str) -> list:
-    """Load a fixture JSON file and return a list of SDK event objects."""
+def build_jsonl_lines(fixture_name: str) -> list[bytes]:
+    """Load a fixture JSON file and return JSONL lines as bytes (with newline)."""
     fixture_path = FIXTURES_DIR / fixture_name
     with open(fixture_path) as f:
         descs = json.load(f)
-    return [_build_sdk_event(d) for d in descs]
+    return [(_fixture_to_jsonl(d) + "\n").encode() for d in descs]
 
 
-def make_mock_query(events: list):
-    """Return an async generator function that yields the given SDK events."""
+# ── Mock subprocess ───────────────────────────────────────────────────────
 
-    async def _mock_query(**kwargs):
-        for event in events:
-            yield event
 
-    return _mock_query
+class MockStdout:
+    """Async readline()-compatible stdout that yields pre-built JSONL lines."""
+
+    def __init__(self, lines: list[bytes]):
+        self._lines = list(lines)
+        self._index = 0
+
+    async def readline(self) -> bytes:
+        if self._index < len(self._lines):
+            line = self._lines[self._index]
+            self._index += 1
+            return line
+        return b""  # EOF
+
+
+class MockStderr:
+    """Async readline()-compatible stderr that is always empty."""
+
+    async def readline(self) -> bytes:
+        return b""
+
+
+class MockProcess:
+    """Mock of asyncio.subprocess.Process for testing."""
+
+    def __init__(self, stdout_lines: list[bytes]):
+        self.stdout = MockStdout(stdout_lines)
+        self.stderr = MockStderr()
+        self.returncode = 0
+        self.pid = 99999
+
+    async def wait(self):
+        return 0
+
+    def terminate(self):
+        pass
+
+
+def make_mock_subprocess(fixture_name: str):
+    """Return an async function that creates a MockProcess from a fixture file."""
+    lines = build_jsonl_lines(fixture_name)
+
+    async def _mock_create_subprocess_exec(*args, **kwargs):
+        return MockProcess(lines)
+
+    return _mock_create_subprocess_exec
 
 
 # ── WebSocket helpers ───────────────────────────────────────────────────────
@@ -143,7 +170,7 @@ def patched_server(tmp_path):
     Yields the server module with:
     - DB_PATH pointing to tmp_path/bosun.db
     - app.state.workdir set to tmp_path
-    - Caller patches server.query via: patch.object(server, "query", ...)
+    - Caller patches asyncio.create_subprocess_exec for the mock subprocess
     """
     db_path = tmp_path / "bosun.db"
 

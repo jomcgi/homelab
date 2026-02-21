@@ -11,18 +11,17 @@ import pytest
 from starlette.testclient import TestClient
 
 from charts.bosun.backend.tests.conftest import (
-    build_sdk_events,
-    make_mock_query,
+    make_mock_subprocess,
     collect_ws_messages,
 )
 
 
 def test_mermaid_block_extracted(patched_server):
     """Mermaid code blocks in text produce mermaid_artifact WS messages."""
-    events = build_sdk_events("mermaid_response.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("mermaid_response.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Show me a diagram"})
@@ -41,10 +40,10 @@ def test_mermaid_block_extracted(patched_server):
 
 def test_no_mermaid_when_absent(patched_server):
     """No mermaid_artifact messages when text has no mermaid blocks."""
-    events = build_sdk_events("simple_text.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("simple_text.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Hello"})

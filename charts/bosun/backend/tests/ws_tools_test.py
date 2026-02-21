@@ -11,18 +11,17 @@ import pytest
 from starlette.testclient import TestClient
 
 from charts.bosun.backend.tests.conftest import (
-    build_sdk_events,
-    make_mock_query,
+    make_mock_subprocess,
     collect_ws_messages,
 )
 
 
 def test_tool_use_has_name_and_id(patched_server):
     """tool_use WS messages must have name, tool_use_id, and summary."""
-    events = build_sdk_events("tool_use_flow.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("tool_use_flow.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Read the file"})
@@ -39,10 +38,10 @@ def test_tool_use_has_name_and_id(patched_server):
 
 def test_tool_result_has_output(patched_server):
     """tool_result WS messages must have output field."""
-    events = build_sdk_events("tool_use_flow.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("tool_use_flow.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Read the file"})
@@ -57,10 +56,10 @@ def test_tool_result_has_output(patched_server):
 
 def test_tool_error_has_is_error(patched_server):
     """Tool results with is_error=true must propagate is_error in the WS message."""
-    events = build_sdk_events("tool_error.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("tool_error.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Run the command"})
@@ -77,10 +76,10 @@ def test_tool_error_has_is_error(patched_server):
 
 def test_tool_use_no_full_text(patched_server):
     """tool_use messages must never carry full_text (TTS field)."""
-    events = build_sdk_events("tool_use_flow.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("tool_use_flow.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Read the file"})
@@ -89,8 +88,3 @@ def test_tool_use_no_full_text(patched_server):
     tool_uses = [m for m in received if m["type"] == "tool_use"]
     for tu in tool_uses:
         assert "full_text" not in tu, f"tool_use should not have full_text: {tu}"
-
-
-# NOTE: test_tool_result_image removed — server.py line 730 has a bug
-# accessing block.name on ToolResultBlock (should use getattr).
-# Re-enable after fixing: https://github.com/jomcgi/homelab/issues/XXX
