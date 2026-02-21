@@ -16,6 +16,8 @@ data:
     }
 
     http {
+        access_log /dev/stdout combined;
+
         include /etc/nginx/mime.types;
         default_type application/octet-stream;
 
