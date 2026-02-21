@@ -46,13 +46,11 @@ spec:
                   key: google_api_key
             - name: REDIS_ADDR
               value: "{{ include "grimoire.fullname" . }}-redis:{{ .Values.redis.service.port }}"
-            {{- if .Values.redis.auth.enabled }}
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.redis.auth.existingSecret }}
-                  key: {{ .Values.redis.auth.secretKey }}
-            {{- end }}
+                  name: {{ .Values.grimoireSecret.name }}
+                  key: redis_password
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:

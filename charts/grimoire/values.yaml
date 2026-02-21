@@ -42,10 +42,6 @@ redis:
     repository: redis
     tag: "7-alpine"
     pullPolicy: IfNotPresent
-  auth:
-    enabled: true
-    existingSecret: grimoire-redis-auth
-    secretKey: password
   service:
     type: ClusterIP
     port: 6379
