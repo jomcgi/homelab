@@ -1,7 +1,7 @@
 load("//rules_helm:defs.bzl", "argocd_app")
 
 argocd_app(
-    name = "prod-trips",
+    name = "trips",
     chart = "charts/trips",
     chart_files = "//charts/trips:chart",
     namespace = "trips",

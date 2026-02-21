@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: prod-trips
+  name: trips
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: yukon-tracker

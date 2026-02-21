@@ -1,7 +1,7 @@
 load("//rules_helm:defs.bzl", "argocd_app")
 
 argocd_app(
-    name = "prod-nats",
+    name = "nats",
     chart = "charts/nats",
     chart_files = "//charts/nats:chart",
     namespace = "nats",
