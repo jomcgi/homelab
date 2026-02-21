@@ -14,8 +14,8 @@ go_library(
     importpath = "github.com/jomcgi/homelab/services/grimoire/ws-gateway",
     visibility = ["//visibility:private"],
     deps = [
-        "@com_github_redis_go_redis_v9//:go_default_library",
-        "@io_nhooyr_websocket//:go_default_library",
+        "@com_github_redis_go_redis_v9//:go-redis",
+        "@io_nhooyr_websocket//:websocket",
     ],
 )
 
