@@ -22,6 +22,7 @@ bazel build \
 	//scripts:generate-push-all \
 	//scripts:generate-push-all-pages \
 	//scripts:generate-render-all \
+	//scripts:generate-dev-deploy-registry \
 	2>&1 | grep -v "^INFO:" || true
 
 # Find binaries in bazel-bin (faster than cquery)
@@ -73,6 +74,8 @@ PIDS+=($!)
 $(find_bin generate-push-all-pages) 2>/dev/null &
 PIDS+=($!)
 $(find_bin generate-render-all) &
+PIDS+=($!)
+$(find_bin generate-dev-deploy-registry) &
 PIDS+=($!)
 
 # Wait for all parallel tasks
