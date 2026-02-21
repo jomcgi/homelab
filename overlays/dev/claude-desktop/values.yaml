@@ -4,8 +4,7 @@
 # Container image - managed by ArgoCD Image Updater
 # Uses digest strategy: only updates when image content actually changes
 image:
-  tag: "main"
+  tag: "main@sha256:8644b663b7ea29eecefd62061514e101f3a680d7a816b53c2eafd1015e2111cd"
   repository: ghcr.io/jomcgi/homelab/charts/claude-desktop
-
 persistence:
   size: 10Gi
