@@ -7,9 +7,6 @@ load("@rules_multirun//:defs.bzl", "multirun")
 multirun(
     name = "push_all",
     commands = [
-        "//charts/bosun/image/backend:image.push",
-        "//charts/bosun/image/frontend:image.push",
-        "//charts/claude/image:image.push",
         "//charts/signoz-dashboard-sidecar/cmd:image.push",
         "//charts/todo/image:image.push",
         "//operators/cloudflare:image.push",

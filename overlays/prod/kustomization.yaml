@@ -10,9 +10,6 @@ resources:
   - ./gh-arc-runners
   - ./knowledge-graph
   - ./nats
-  - ./openclaw-friends
-  - ./openclaw-personal
-  - ./perplexica
   - ./seaweedfs
   - ./todo
   - ./trips

@@ -50,9 +50,9 @@ charts/               # Helm charts
 overlays/
   cluster-critical/   # argocd, linkerd, signoz, kyverno, longhorn
   prod/               # cloudflare-tunnel, gh-arc, nats, trips, vllm
-  dev/                # cloudflare-operator, marine, stargazer
+  dev/                # marine, stargazer, oci-model-cache
 clusters/             # ArgoCD entry points
-operators/            # Custom operators (cloudflare)
+operators/            # Custom operators (cloudflare, oci-model-cache)
 services/             # Backend code
 websites/             # Frontend apps
 ```
