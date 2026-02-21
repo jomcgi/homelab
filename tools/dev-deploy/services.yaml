@@ -26,7 +26,6 @@ services:
         helm_tag_key: wsGateway.image.tag
         helm_pull_policy_key: wsGateway.image.pullPolicy
     value_overrides:
-      - "imagePullSecret.enabled=false"
       - "imagePullSecret.create=false"
       - "geminiSecret.enabled=false"
       - "tunnel.enabled=false"
@@ -53,7 +52,6 @@ services:
         helm_tag_key: mcp.image.tag
         helm_pull_policy_key: mcp.image.pullPolicy
     value_overrides:
-      - "imagePullSecret.enabled=false"
       - "imagePullSecret.create=false"
 
   marine:
@@ -76,7 +74,6 @@ services:
         helm_tag_key: frontend.image.tag
         helm_pull_policy_key: frontend.image.pullPolicy
     value_overrides:
-      - "imagePullSecret.enabled=false"
       - "imagePullSecret.create=false"
       - "imageUpdater.enabled=false"
       - "secret.type=manual"
@@ -95,7 +92,6 @@ services:
         helm_tag_key: image.tag
         helm_pull_policy_key: image.pullPolicy
     value_overrides:
-      - "imagePullSecret.enabled=false"
       - "imagePullSecret.create=false"
       - "imageUpdater.enabled=false"
 
@@ -109,7 +105,6 @@ services:
         helm_tag_key: image.tag
         helm_pull_policy_key: image.pullPolicy
     value_overrides:
-      - "imagePullSecret.enabled=false"
       - "imagePullSecret.create=false"
       - "persistence.enabled=false"
       - "git.tokenSecret.name="

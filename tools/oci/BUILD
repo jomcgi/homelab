@@ -54,6 +54,13 @@ bzl_library(
 )
 
 bzl_library(
+    name = "apko_nginx_frontend",
+    srcs = ["apko_nginx_frontend.bzl"],
+    visibility = ["//visibility:public"],
+    deps = [":apko_image"],
+)
+
+bzl_library(
     name = "apko_push",
     srcs = ["apko_push.bzl"],
     visibility = ["//visibility:public"],
