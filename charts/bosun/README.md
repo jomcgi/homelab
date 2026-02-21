@@ -22,7 +22,7 @@ npm install
 # Backend
 python -m venv .venv
 source .venv/bin/activate
-pip install fastapi "uvicorn[standard]" claude-agent-sdk google-genai
+pip install fastapi "uvicorn[standard]" google-genai
 ```
 
 ### Run

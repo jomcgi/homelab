@@ -46,7 +46,6 @@ manifest:
     certifi: certifi
     cffi: cffi
     charset_normalizer: charset_normalizer
-    claude_agent_sdk: claude_agent_sdk
     click: click
     click_default_group: click_default_group
     click_plugins: click_plugins

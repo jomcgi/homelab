@@ -11,7 +11,6 @@ py_library(
     visibility = ["//:__subpackages__"],
     deps = [
         "//charts/bosun/backend:server_lib",
-        "@pip//claude_agent_sdk",
         "@pip//pytest",
     ],
 )
@@ -41,7 +40,6 @@ py_test(
     srcs = ["ws_lifecycle_test.py"],
     deps = [
         ":conftest",
-        "@pip//claude_agent_sdk",
         "@pip//pytest",
         "@pip//starlette",
     ],
