@@ -18,12 +18,6 @@ ingress:
       service: http://freshrss.freshrss.svc.cluster.local:80
     - hostname: signoz.jomcgi.dev
       service: http://signoz.signoz.svc.cluster.local:8080
-    - hostname: claude.jomcgi.dev
-      service: http://claude-desktop.claude-desktop.svc.cluster.local:14500
-      originRequest:
-        keepAliveConnections: 100
-        keepAliveTimeout: 90s
-        tcpKeepAlive: 30s
     # Shared image hosting (projects use /project-name/ prefix)
     - hostname: img.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80

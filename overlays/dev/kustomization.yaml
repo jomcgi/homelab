@@ -3,6 +3,5 @@ kind: Kustomization
 
 resources:
   - ./marine
-  - ./claude-desktop
   - ./oci-model-cache
   - ./stargazer
