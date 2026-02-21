@@ -13,6 +13,8 @@ spec:
       app.kubernetes.io/component: ws-gateway
   template:
     metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "{{ .Values.redis.service.port }}"
       labels:
         {{- include "grimoire.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: ws-gateway
