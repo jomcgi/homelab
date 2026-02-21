@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
     paths: ['charts/claude-desktop/image/**']
+  pull_request:
+    paths: ['charts/claude-desktop/image/**']
   workflow_dispatch:
 concurrency:
   group: claude-desktop-image-${{ github.ref }}
@@ -21,11 +23,18 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
       - uses: docker/setup-buildx-action@v3
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ghcr.io/jomcgi/homelab/charts/claude-desktop
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=sha
       - uses: docker/build-push-action@v6
         with:
           context: charts/claude-desktop/image
           platforms: linux/amd64,linux/arm64
-          push: true
-          tags: |
-            ghcr.io/jomcgi/homelab/charts/claude-desktop:main
-            ghcr.io/jomcgi/homelab/charts/claude-desktop:${{ github.sha }}
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
