@@ -2,109 +2,22 @@
 """
 Mock server for Playwright e2e tests.
 
-Patches server.query with a mock that yields a deterministic fixture sequence,
-then serves the Bosun frontend on port 8420.
+Patches asyncio.create_subprocess_exec with a mock that yields a deterministic
+JSONL fixture sequence, then serves the Bosun frontend on port 8420.
 """
 
 import asyncio
+import json
 import sys
 import types
 from pathlib import Path
-from unittest.mock import AsyncMock
+from unittest.mock import patch
 
 # Add backend to path so we can import the server module
 backend_dir = Path(__file__).resolve().parent.parent.parent / "backend"
 sys.path.insert(0, str(backend_dir))
 
-# -- Mock the claude_agent_sdk before importing server -----------------------
-
-mock_sdk = types.ModuleType("claude_agent_sdk")
-mock_sdk_types = types.ModuleType("claude_agent_sdk.types")
-
-
-class SystemMessage:
-    def __init__(self, **kwargs):
-        self.type = "system"
-        self.__dict__.update(kwargs)
-
-
-class ResultMessage:
-    def __init__(self, **kwargs):
-        self.type = "result"
-        self.__dict__.update(kwargs)
-
-
-class StreamEvent:
-    def __init__(self, **kwargs):
-        self.type = "stream_event"
-        self.__dict__.update(kwargs)
-
-    class ContentBlockStart:
-        def __init__(self, content_block=None):
-            self.type = "content_block_start"
-            self.content_block = content_block
-
-    class ContentBlockDelta:
-        def __init__(self, delta=None):
-            self.type = "content_block_delta"
-            self.delta = delta
-
-    class MessageStop:
-        def __init__(self):
-            self.type = "message_stop"
-
-
-class TextBlock:
-    def __init__(self, text=""):
-        self.type = "text"
-        self.text = text
-
-
-class ToolUseBlock:
-    def __init__(self, **kwargs):
-        self.type = "tool_use"
-        self.__dict__.update(kwargs)
-
-
-class ToolResultBlock:
-    def __init__(self, **kwargs):
-        self.type = "tool_result"
-        self.__dict__.update(kwargs)
-
-
-class AssistantMessage:
-    def __init__(self, **kwargs):
-        self.type = "assistant"
-        self.__dict__.update(kwargs)
-
-
-class UserMessage:
-    def __init__(self, **kwargs):
-        self.type = "user"
-        self.__dict__.update(kwargs)
-
-
-class ClaudeAgentOptions:
-    def __init__(self, **kwargs):
-        self.__dict__.update(kwargs)
-
-
-# Install mock SDK types
-mock_sdk.query = None  # will be patched below
-mock_sdk.ClaudeAgentOptions = ClaudeAgentOptions
-mock_sdk.SystemMessage = SystemMessage
-mock_sdk.AssistantMessage = AssistantMessage
-mock_sdk.UserMessage = UserMessage
-mock_sdk.ResultMessage = ResultMessage
-mock_sdk.TextBlock = TextBlock
-mock_sdk.ToolUseBlock = ToolUseBlock
-mock_sdk.ToolResultBlock = ToolResultBlock
-mock_sdk_types.StreamEvent = StreamEvent
-
-sys.modules["claude_agent_sdk"] = mock_sdk
-sys.modules["claude_agent_sdk.types"] = mock_sdk_types
-
-# Also mock google genai so server doesn't need it
+# Mock google genai so server doesn't need it
 mock_google = types.ModuleType("google")
 mock_genai = types.ModuleType("google.genai")
 mock_genai_types = types.ModuleType("google.genai.types")
@@ -115,44 +28,94 @@ sys.modules["google.genai"] = mock_genai
 sys.modules["google.genai.types"] = mock_genai_types
 
 
-# -- Mock query function ----------------------------------------------------
+# -- Mock subprocess --------------------------------------------------------
 
 
-async def mock_query(**kwargs):
-    """Yield a deterministic fixture: init -> text stream -> message_stop -> result."""
+class MockStdout:
+    def __init__(self):
+        self._lines = [
+            json.dumps(
+                {"type": "system", "subtype": "init", "session_id": "mock-session-id"}
+            )
+            + "\n",
+            json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_start",
+                        "content_block": {"type": "text"},
+                    },
+                }
+            )
+            + "\n",
+            json.dumps(
+                {
+                    "type": "stream_event",
+                    "event": {
+                        "type": "content_block_delta",
+                        "delta": {"type": "text_delta", "text": "Hello from mock"},
+                    },
+                }
+            )
+            + "\n",
+            json.dumps({"type": "stream_event", "event": {"type": "message_stop"}})
+            + "\n",
+            json.dumps(
+                {
+                    "type": "result",
+                    "subtype": "success",
+                    "session_id": "mock-session-id",
+                    "duration_ms": 100,
+                    "total_cost_usd": 0.001,
+                    "num_turns": 1,
+                    "result": "Hello from mock",
+                    "is_error": False,
+                }
+            )
+            + "\n",
+        ]
+        self._index = 0
 
-    # 1. SystemMessage (init)
-    yield SystemMessage(message="session_init")
-
-    # 2. StreamEvent: text content "Hello from mock"
-    yield StreamEvent(
-        event=StreamEvent.ContentBlockStart(content_block=TextBlock(text=""))
-    )
-    yield StreamEvent(
-        event=StreamEvent.ContentBlockDelta(
-            delta=types.SimpleNamespace(type="text_delta", text="Hello from mock")
-        )
-    )
-    yield StreamEvent(event=StreamEvent.MessageStop())
-
-    # 3. ResultMessage
-    yield ResultMessage(
-        text="Hello from mock",
-        session_id=kwargs.get("options", ClaudeAgentOptions()).session_id
-        if hasattr(kwargs.get("options", ClaudeAgentOptions()), "session_id")
-        else "mock-session-id",
-    )
+    async def readline(self):
+        if self._index < len(self._lines):
+            line = self._lines[self._index].encode()
+            self._index += 1
+            return line
+        return b""
 
 
-mock_sdk.query = mock_query
+class MockStderr:
+    async def readline(self):
+        return b""
+
+
+class MockProcess:
+    def __init__(self):
+        self.stdout = MockStdout()
+        self.stderr = MockStderr()
+        self.returncode = 0
+        self.pid = 99999
+
+    async def wait(self):
+        return 0
+
+    def terminate(self):
+        pass
+
+
+async def mock_create_subprocess(*args, **kwargs):
+    return MockProcess()
+
 
 # -- Import and configure the server ----------------------------------------
 
+# Patch create_subprocess_exec before importing server so the first call works
+_orig_create = asyncio.create_subprocess_exec
+asyncio.create_subprocess_exec = mock_create_subprocess
+
 import server  # noqa: E402
 
-server.HAS_SDK = True
 server.HAS_GEMINI = False
-server.query = mock_query
 server.app.state.workdir = "/tmp"
 
 # Serve static files from dist/ if it exists

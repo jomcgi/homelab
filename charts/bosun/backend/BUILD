@@ -6,7 +6,6 @@ py_binary(
     srcs = ["server.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        "@pip//claude_agent_sdk",
         "@pip//fastapi",
         "@pip//google_genai",
         "@pip//uvicorn",
@@ -18,7 +17,6 @@ py_library(
     srcs = ["server.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        "@pip//claude_agent_sdk",
         "@pip//fastapi",
         "@pip//google_genai",
         "@pip//uvicorn",
@@ -31,7 +29,7 @@ py_test(
     imports = ["."],
     deps = [
         "//charts/bosun",
-        "@pip//claude_agent_sdk",
+        "//charts/bosun/backend/tests:conftest",
         "@pip//pytest",
         "@pip//starlette",
     ],

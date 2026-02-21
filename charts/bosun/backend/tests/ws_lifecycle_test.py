@@ -5,26 +5,26 @@ Validates session_init, cancel, and new_session behavior.
 """
 
 import asyncio
+import json
 from unittest.mock import patch
 
 import pytest
 from starlette.testclient import TestClient
 
-from claude_agent_sdk import SystemMessage, ResultMessage
-
 from charts.bosun.backend.tests.conftest import (
-    build_sdk_events,
-    make_mock_query,
+    build_jsonl_lines,
+    make_mock_subprocess,
+    MockProcess,
     collect_ws_messages,
 )
 
 
 def test_session_init_on_first_message(patched_server):
     """session_init must be the first WS message received after sending a prompt."""
-    events = build_sdk_events("simple_text.json")
-    mock_query = make_mock_query(events)
-
-    with patch.object(patched_server, "query", side_effect=mock_query):
+    with patch(
+        "asyncio.create_subprocess_exec",
+        side_effect=make_mock_subprocess("simple_text.json"),
+    ):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Hello"})
@@ -38,23 +38,54 @@ def test_session_init_on_first_message(patched_server):
 def test_cancel_sends_cancelled(patched_server):
     """Sending 'cancel' type produces a 'cancelled' WS message."""
 
-    async def _slow_query(**kwargs):
-        yield SystemMessage(subtype="init", data={"session_id": "test-cancel-001"})
-        await asyncio.sleep(5)
-        yield ResultMessage(
-            subtype="success",
-            session_id="test-cancel-001",
-            duration_ms=100,
-            duration_api_ms=0,
-            total_cost_usd=0.0,
-            num_turns=0,
-            result="",
-            is_error=False,
-            usage={},
-            structured_output=None,
-        )
+    class SlowMockStdout:
+        """Stdout that yields init then blocks until cancelled."""
 
-    with patch.object(patched_server, "query", side_effect=_slow_query):
+        def __init__(self):
+            self._init_sent = False
+            self._event = asyncio.Event()
+
+        async def readline(self) -> bytes:
+            if not self._init_sent:
+                self._init_sent = True
+                return (
+                    json.dumps(
+                        {
+                            "type": "system",
+                            "subtype": "init",
+                            "session_id": "test-cancel-001",
+                        }
+                    )
+                    + "\n"
+                ).encode()
+            # Block until the process is terminated
+            try:
+                await asyncio.wait_for(self._event.wait(), timeout=10)
+            except asyncio.TimeoutError:
+                pass
+            return b""
+
+    class SlowMockProcess:
+        def __init__(self):
+            self.stdout = SlowMockStdout()
+            from charts.bosun.backend.tests.conftest import MockStderr
+
+            self.stderr = MockStderr()
+            self.returncode = None
+            self.pid = 99998
+
+        async def wait(self):
+            self.returncode = -15  # SIGTERM
+            return self.returncode
+
+        def terminate(self):
+            self.returncode = -15
+            self.stdout._event.set()
+
+    async def _slow_subprocess(*args, **kwargs):
+        return SlowMockProcess()
+
+    with patch("asyncio.create_subprocess_exec", side_effect=_slow_subprocess):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             ws.send_json({"type": "message", "text": "Do something slow"})
@@ -82,18 +113,15 @@ def test_cancel_sends_cancelled(patched_server):
 
 def test_new_session_resets(patched_server):
     """Sending 'new_session' allows a fresh session on next message."""
-    events1 = build_sdk_events("simple_text.json")
-    events2 = build_sdk_events("simple_text.json")
     call_count = 0
 
-    async def _multi_query(**kwargs):
+    async def _multi_subprocess(*args, **kwargs):
         nonlocal call_count
         call_count += 1
-        src = events1 if call_count == 1 else events2
-        for event in src:
-            yield event
+        lines = build_jsonl_lines("simple_text.json")
+        return MockProcess(lines)
 
-    with patch.object(patched_server, "query", side_effect=_multi_query):
+    with patch("asyncio.create_subprocess_exec", side_effect=_multi_subprocess):
         client = TestClient(patched_server.app)
         with client.websocket_connect("/ws") as ws:
             # First message

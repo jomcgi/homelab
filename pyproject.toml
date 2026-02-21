@@ -71,7 +71,6 @@ dependencies = [
     "lxml-html-clean",  # Required by trafilatura; added explicitly because lxml[html-clean] creates a Bazel cycle
     # Bosun (Claude Code web interface) dependencies
     "google-genai~=1.56",
-    "claude-agent-sdk~=0.1.39",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
