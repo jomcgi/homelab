@@ -663,7 +663,7 @@ Central real-time hub running in the homelab cluster. Serves two roles: (1) game
 - Memory: 256MB (increased for Gemini session buffers)
 - CPU: 200m
 - Replicas: 1 (sufficient for 5-6 concurrent connections)
-- Environment: `GEMINI_API_KEY` from ExternalSecret (1Password)
+- Environment: `GOOGLE_API_KEY` from OnePasswordItem (1Password `grimoire` item)
 
 **Event types (browser ↔ gateway):**
 
@@ -1174,14 +1174,14 @@ deploy-api: build-api
 		--platform=managed \
 		--allow-unauthenticated \
 		--set-env-vars="GCP_PROJECT_ID=$(PROJECT_ID),FIRESTORE_DATABASE=$(FIRESTORE_DB),CF_ACCESS_TEAM=your-team.cloudflareaccess.com" \
-		--set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
+		--set-secrets="GOOGLE_API_KEY=google-api-key:latest" \
 		--min-instances=0 \
 		--max-instances=2 \
 		--memory=256Mi \
 		--cpu=1 \
 		--concurrency=80
 	@echo "🚀 API deployed to Cloud Run"
-	@echo "   Note: Cloud Run uses GEMINI_API_KEY for Gemini Flash (RAG) + embeddings"
+	@echo "   Note: Cloud Run uses GOOGLE_API_KEY for Gemini Flash (RAG) + embeddings"
 	@echo "   The homelab WS Gateway uses a separate secret synced from 1Password"
 
 # ──────────────────────────────────────────────
