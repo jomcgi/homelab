@@ -13,6 +13,7 @@ import {
   WifiOff,
   Send,
   Grid,
+  CircleHelp,
 } from "lucide-react";
 import { C, sans, mono } from "./tokens.js";
 import { useBreakpoint } from "./hooks/useBreakpoint.js";
@@ -30,6 +31,7 @@ import { ActionChips } from "./components/ActionChips.jsx";
 import { ExportButton } from "./components/ExportButton.jsx";
 import { PRBar } from "./components/PRBar.jsx";
 import { StatusLine } from "./components/StatusLine.jsx";
+import { HelpOverlay } from "./components/HelpOverlay.jsx";
 
 // ── Shared styles (used by both mobile and desktop layouts) ────────────────
 const sharedCSS = `
@@ -283,6 +285,19 @@ export default function App() {
   const scrollRef = useRef(null);
   const scrollAnchorRef = useRef(null);
   const lastTtsRef = useRef(""); // Dedup guard for repeated results
+  const [showHelp, setShowHelp] = useState(false);
+
+  // Cmd+? (Cmd+Shift+/) toggles help overlay
+  useEffect(() => {
+    const handleHelpKey = (e) => {
+      if (e.metaKey && e.shiftKey && e.key === "?") {
+        e.preventDefault();
+        setShowHelp((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", handleHelpKey);
+    return () => window.removeEventListener("keydown", handleHelpKey);
+  }, []);
 
   // Suppress voice recognition while Claude is working to prevent echo getting queued
   useEffect(() => {
@@ -554,6 +569,32 @@ export default function App() {
             )}
           </button>
         </div>
+
+        {/* Help FAB + overlay */}
+        <button
+          onClick={() => setShowHelp((v) => !v)}
+          style={{
+            position: "fixed",
+            bottom: 76,
+            right: 16,
+            width: 36,
+            height: 36,
+            borderRadius: "50%",
+            border: `1px solid ${C.border}`,
+            backgroundColor: C.bg,
+            boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: C.textTer,
+            zIndex: 100,
+          }}
+          title="Voice commands help"
+        >
+          <CircleHelp size={18} />
+        </button>
+        <HelpOverlay open={showHelp} onClose={() => setShowHelp(false)} />
 
         <style>{sharedCSS}</style>
       </div>
@@ -1276,6 +1317,33 @@ export default function App() {
           )}
         </div>
       </div>
+
+      {/* Help FAB + overlay */}
+      <button
+        onClick={() => setShowHelp((v) => !v)}
+        style={{
+          position: "fixed",
+          bottom: 24,
+          right: 24,
+          width: 40,
+          height: 40,
+          borderRadius: "50%",
+          border: `1px solid ${C.border}`,
+          backgroundColor: C.bg,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          cursor: "pointer",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: showHelp ? C.voice : C.textTer,
+          zIndex: 100,
+          transition: "color 150ms",
+        }}
+        title="Voice commands help (⌘?)"
+      >
+        <CircleHelp size={20} />
+      </button>
+      <HelpOverlay open={showHelp} onClose={() => setShowHelp(false)} />
 
       <style>
         {sharedCSS +
