@@ -101,9 +101,9 @@ for chart_yaml in $(find charts -maxdepth 2 -name Chart.yaml | LC_ALL=C sort); d
 		# Determine component name from YAML indentation
 		line_content=$(sed -n "${lineno}p" "$values_file")
 		stripped=$(echo "$line_content" | sed 's/^ *//')
-		indent=$(( ${#line_content} - ${#stripped} ))
+		indent=$((${#line_content} - ${#stripped}))
 
-		if (( indent >= 4 )); then
+		if ((indent >= 4)); then
 			# Under a component — find the top-level key by looking backwards
 			component=$(head -n "$lineno" "$values_file" | tac | grep -m1 '^[a-zA-Z]' | cut -d: -f1)
 			tag_key="${component}.image.tag"
