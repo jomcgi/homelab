@@ -26,6 +26,12 @@ sh_binary(
     visibility = ["//:__subpackages__"],
 )
 
+sh_binary(
+    name = "generate-dev-deploy-registry",
+    srcs = ["generate-dev-deploy-registry.sh"],
+    visibility = ["//:__subpackages__"],
+)
+
 py_library(
     name = "scripts",
     srcs = ["__init__.py"],
