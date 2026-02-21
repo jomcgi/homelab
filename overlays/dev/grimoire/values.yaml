@@ -4,16 +4,16 @@
 imageUpdater:
   enabled: true
   images:
-    - alias: frontend
-      imageName: ghcr.io/jomcgi/homelab/services/grimoire-frontend:main
-      helm:
-        name: frontend.image.repository
-        tag: frontend.image.tag
-    - alias: ws-gateway
-      imageName: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway:main
-      helm:
-        name: wsGateway.image.repository
-        tag: wsGateway.image.tag
+  - alias: frontend
+    imageName: ghcr.io/jomcgi/homelab/services/grimoire-frontend:main
+    helm:
+      name: frontend.image.repository
+      tag: frontend.image.tag
+  - alias: ws-gateway
+    imageName: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway:main
+    helm:
+      name: wsGateway.image.repository
+      tag: wsGateway.image.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
@@ -26,12 +26,12 @@ imagePullSecret:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-frontend
-    tag: main
+    tag: main@sha256:a76763778e3f0bc3ec3de7d050361ef36cb122d63a544c306a5da220d5ed234d
     pullPolicy: Always
 # WebSocket Gateway
 wsGateway:
   cfAccessTeam: jomcgi.cloudflareaccess.com
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
-    tag: main
+    tag: main@sha256:97807a194e6e619e6215cdd092e793724dc598dfc8d3079eb475600c2162bd23
     pullPolicy: Always
