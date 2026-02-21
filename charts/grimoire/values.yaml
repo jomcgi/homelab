@@ -67,12 +67,12 @@ serviceAccount:
 networkPolicy:
   enabled: true
 
-# Gemini API key secret (synced from 1Password via OnePasswordItem)
-geminiSecret:
+# Grimoire secrets (synced from 1Password via OnePasswordItem)
+grimoireSecret:
   enabled: true
-  name: gemini-api-key
+  name: grimoire
   onepassword:
-    itemPath: "vaults/Homelab/items/grimoire-gemini-api-key"
+    itemPath: "vaults/Homelab/items/grimoire"
 
 # Cloudflare Tunnel (disabled — routing handled by shared cloudflare-tunnel chart)
 tunnel:
