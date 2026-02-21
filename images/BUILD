@@ -14,6 +14,7 @@ multirun(
         "//operators/oci-model-cache:image.push",
         "//services/ais_ingest:image.push",
         "//services/grimoire/api:image.push",
+        "//services/grimoire/frontend:image.push",
         "//services/grimoire/ws-gateway:image.push",
         "//services/hikes/update_forecast:update_image.push",
         "//services/knowledge_graph:embedder-image.push",
@@ -28,3 +29,4 @@ multirun(
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
 )
+
