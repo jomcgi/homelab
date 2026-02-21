@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       > /etc/apt/sources.list.d/xpra.list && \
     apt-get update && apt-get install -y --no-install-recommends \
       xpra xpra-x11 xpra-html5 xvfb dbus-x11 \
+      xauth python3-dbus \
       libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 \
       libatspi2.0-0 libdrm2 libgbm1 libasound2 \
       fonts-liberation fonts-noto-color-emoji && \
