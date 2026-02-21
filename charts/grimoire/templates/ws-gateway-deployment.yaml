@@ -24,8 +24,8 @@ spec:
       serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: true
-        runAsUser: 1000
-        runAsGroup: 1000
+        runAsUser: 65532
+        runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -41,7 +41,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.grimoireSecret.name }}
-                  key: GOOGLE_API_KEY
+                  key: google_api_key
             - name: REDIS_ADDR
               value: "{{ include "grimoire.fullname" . }}-redis:{{ .Values.redis.service.port }}"
             {{- if .Values.redis.auth.enabled }}
