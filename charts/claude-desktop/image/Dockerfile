@@ -12,7 +12,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     echo "deb [signed-by=/usr/share/keyrings/xpra.asc] https://xpra.org/ bookworm main" \
       > /etc/apt/sources.list.d/xpra.list && \
     apt-get update && apt-get install -y --no-install-recommends \
-      xpra xpra-html5 xvfb dbus-x11 \
+      xpra xpra-x11 xpra-html5 xvfb dbus-x11 \
       libgtk-3-0 libnotify4 libnss3 libxss1 libxtst6 \
       libatspi2.0-0 libdrm2 libgbm1 libasound2 \
       fonts-liberation fonts-noto-color-emoji && \
@@ -28,8 +28,10 @@ RUN DEB_ARCH=$([ "$TARGETARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
 
 RUN groupadd -g 1000 user && \
     useradd -m -u 1000 -g user -s /bin/bash user && \
-    mkdir -p /home/user/.config/Claude /home/user/.claude && \
-    chown -R user:user /home/user
+    mkdir -p /home/user/.config/Claude /home/user/.claude /run/user/1000 && \
+    chown -R user:user /home/user /run/user/1000
+
+ENV XDG_RUNTIME_DIR=/run/user/1000
 
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
