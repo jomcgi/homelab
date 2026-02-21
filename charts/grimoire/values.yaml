@@ -74,9 +74,9 @@ geminiSecret:
   onepassword:
     itemPath: "vaults/Homelab/items/grimoire-gemini-api-key"
 
-# Cloudflare Tunnel
+# Cloudflare Tunnel (disabled — routing handled by shared cloudflare-tunnel chart)
 tunnel:
-  enabled: true
+  enabled: false
   hostname: grimoire.jomcgi.dev
 
 # Image pull secret for private GHCR registry
