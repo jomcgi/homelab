@@ -75,14 +75,14 @@ deploy-api: build-api
 		--platform=managed \
 		--allow-unauthenticated \
 		--set-env-vars="GCP_PROJECT_ID=$(PROJECT_ID),FIRESTORE_DATABASE=$(FIRESTORE_DB),CF_ACCESS_TEAM=your-team.cloudflareaccess.com" \
-		--set-secrets="GEMINI_API_KEY=gemini-api-key:latest" \
+		--set-secrets="GOOGLE_API_KEY=google-api-key:latest" \
 		--min-instances=0 \
 		--max-instances=2 \
 		--memory=256Mi \
 		--cpu=1 \
 		--concurrency=80
 	@echo "API deployed to Cloud Run"
-	@echo "   Note: Cloud Run uses GEMINI_API_KEY for Gemini Flash (RAG) + embeddings"
+	@echo "   Note: Cloud Run uses GOOGLE_API_KEY for Gemini Flash (RAG) + embeddings"
 	@echo "   The homelab WS Gateway uses a separate secret synced from 1Password"
 
 # ──────────────────────────────────────────────
