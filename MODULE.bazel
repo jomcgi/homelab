@@ -210,10 +210,14 @@ apko.translate_lock(
     lock = "//services/ships_frontend:apko.lock.json",
 )
 apko.translate_lock(
+    name = "grimoire_frontend_lock",
+    lock = "//services/grimoire/frontend:apko.lock.json",
+)
+apko.translate_lock(
     name = "todo_lock",
     lock = "//charts/todo/image:apko.lock.json",
 )
-use_repo(apko, "ships_frontend_lock", "todo_lock")
+use_repo(apko, "grimoire_frontend_lock", "ships_frontend_lock", "todo_lock")
 
 # Download multiarch archives (binaries from zip files)
 multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
