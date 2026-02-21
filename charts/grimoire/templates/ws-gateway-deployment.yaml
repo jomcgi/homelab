@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grimoire.fullname" . }}-ws-gateway
+  labels:
+    {{- include "grimoire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ws-gateway
+spec:
+  replicas: {{ .Values.wsGateway.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "grimoire.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: ws-gateway
+  template:
+    metadata:
+      labels:
+        {{- include "grimoire.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ws-gateway
+    spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ws-gateway
+          image: "{{ .Values.wsGateway.image.repository }}:{{ .Values.wsGateway.image.tag }}"
+          imagePullPolicy: {{ .Values.wsGateway.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.geminiSecret.name }}
+                  key: key
+            - name: REDIS_ADDR
+              value: "{{ include "grimoire.fullname" . }}-redis:{{ .Values.redis.service.port }}"
+            {{- if .Values.redis.auth.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.auth.existingSecret }}
+                  key: {{ .Values.redis.auth.secretKey }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.wsGateway.resources | nindent 12 }}

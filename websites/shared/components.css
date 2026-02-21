@@ -50,10 +50,18 @@
   opacity: 0.7;
 }
 
-.st-ok { color: var(--st-ok); }
-.st-warn { color: var(--st-warn); }
-.st-err { color: var(--st-err); }
-.st-dim { opacity: 0.3; }
+.st-ok {
+  color: var(--st-ok);
+}
+.st-warn {
+  color: var(--st-warn);
+}
+.st-err {
+  color: var(--st-err);
+}
+.st-dim {
+  opacity: 0.3;
+}
 
 .status-dot {
   display: inline-block;

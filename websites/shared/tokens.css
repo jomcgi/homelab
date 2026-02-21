@@ -9,7 +9,8 @@
   --st-warn: #ff9900;
   --st-err: #cc0000;
 
-  --font-mono: ui-monospace, 'SF Mono', 'Cascadia Mono', 'Courier New', monospace;
+  --font-mono:
+    ui-monospace, "SF Mono", "Cascadia Mono", "Courier New", monospace;
   --line-height: 1.6;
 
   --text-xs: 10px;
