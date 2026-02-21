@@ -1,0 +1,11 @@
+# Dev environment overrides for claude-desktop
+# Inherits defaults from charts/claude-desktop/values.yaml
+
+# Container image - managed by ArgoCD Image Updater
+# Uses digest strategy: only updates when image content actually changes
+image:
+  tag: "main"
+  repository: ghcr.io/jomcgi/homelab/charts/claude-desktop
+
+persistence:
+  size: 10Gi

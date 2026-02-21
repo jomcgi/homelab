@@ -1,0 +1,18 @@
+apiVersion: v2
+name: claude-desktop
+description: Claude Desktop via xpra - browser-accessible Claude Desktop app streamed over HTML5 WebSocket
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - claude
+  - desktop
+  - xpra
+  - electron
+maintainers:
+  - name: Joe McGinley
+    email: joe@jomcgi.dev
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"
