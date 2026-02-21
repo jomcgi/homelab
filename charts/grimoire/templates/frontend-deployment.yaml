@@ -13,6 +13,8 @@ spec:
       app.kubernetes.io/component: frontend
   template:
     metadata:
+      annotations:
+        checksum/nginx-config: {{ include (print $.Template.BasePath "/nginx-configmap.yaml") . | sha256sum }}
       labels:
         {{- include "grimoire.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: frontend
@@ -43,6 +45,9 @@ spec:
                 - ALL
             readOnlyRootFilesystem: true
           volumeMounts:
+            - name: nginx-config
+              mountPath: /etc/nginx/conf.d
+              readOnly: true
             - name: nginx-cache
               mountPath: /var/cache/nginx
             - name: nginx-run
@@ -62,6 +67,9 @@ spec:
           resources:
             {{- toYaml .Values.frontend.resources | nindent 12 }}
       volumes:
+        - name: nginx-config
+          configMap:
+            name: {{ include "grimoire.fullname" . }}-nginx
         - name: nginx-cache
           emptyDir: {}
         - name: nginx-run
