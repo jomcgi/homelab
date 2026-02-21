@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build-push:
-    runs-on: homelab-runners
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
