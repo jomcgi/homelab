@@ -29,9 +29,6 @@ This document provides an overview of all services running in the cluster.
 | **Knowledge Graph**   | RSS scraping, embedding, and MCP search     | [charts/knowledge-graph](../charts/knowledge-graph/)     |
 | **llama-cpp**         | Local LLM inference (Hermes 4.3-36B)        | [charts/llama-cpp](../charts/llama-cpp/)                 |
 | **NATS**              | High-performance messaging with JetStream   | [charts/nats](../charts/nats/)                           |
-| **OpenClaw (Personal)** | AI assistant with Claude API (WhatsApp)   | [charts/openclaw](../charts/openclaw/)                   |
-| **OpenClaw (Friends)** | AI chat bot with Hermes via llama-cpp (Discord) | [charts/openclaw](../charts/openclaw/)              |
-| **Perplexica**        | Self-hosted AI search with SearXNG          | [charts/perplexica](../charts/perplexica/)               |
 | **SeaweedFS**         | Distributed S3-compatible object storage    | [charts/seaweedfs](../charts/seaweedfs/)                 |
 | **Todo**              | Git-backed todo list with static UI         | [charts/todo](../charts/todo/)                           |
 | **Trips**             | Trip management service                     | [charts/trips](../charts/trips/)                         |
@@ -40,8 +37,6 @@ This document provides an overview of all services running in the cluster.
 
 | Service                 | Purpose                                            | Chart                                                                  |
 | ----------------------- | -------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Claude**              | Claude Code deployment for AI-assisted development | [charts/claude](../charts/claude/)                                     |
-| **Cloudflare Operator** | Custom operator for Cloudflare resource management | [charts/cloudflare-operator-test](../charts/cloudflare-operator-test/) |
 | **Marine**              | Real-time AIS vessel tracking (ships.jomcgi.dev)   | [charts/marine](../charts/marine/)                                     |
 | **OCI Model Cache**     | HuggingFace model caching operator                 | [operators/oci-model-cache](../operators/oci-model-cache/)             |
 | **Stargazer**           | Dark sky location finder with weather scoring      | [charts/stargazer](../charts/stargazer/)                               |

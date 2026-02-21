@@ -32,17 +32,17 @@ This runs multiple tasks in parallel:
 bazelisk build //...
 
 # Build specific image
-bazelisk build //charts/claude/image:image
+bazelisk build //charts/todo/image:image
 
 # Build with verbose output
-bazelisk build //charts/claude/image:image --verbose_failures
+bazelisk build //charts/todo/image:image --verbose_failures
 ```
 
 ### Pushing Images
 
 ```bash
-# Push Claude image to registry
-bazelisk run //charts/claude/image:push
+# Push Todo image to registry
+bazelisk run //charts/todo/image:push
 ```
 
 ### Running Tests
@@ -62,21 +62,21 @@ bazelisk test //... --test_output=all
 
 ```bash
 # List all targets in a package
-bazelisk query //charts/claude/...
+bazelisk query //charts/todo/...
 
 # Find what depends on a target
-bazelisk query "rdeps(//..., //charts/claude/image:image)"
+bazelisk query "rdeps(//..., //charts/todo/image:image)"
 
 # Show target dependencies
-bazelisk query "deps(//charts/claude/image:image)"
+bazelisk query "deps(//charts/todo/image:image)"
 ```
 
 ## Key Targets
 
 | Target                        | Description                    |
 | ----------------------------- | ------------------------------ |
-| `//charts/claude/image:image` | Claude container image         |
-| `//charts/claude/image:push`  | Push Claude image to registry  |
+| `//charts/todo/image:image` | Todo container image           |
+| `//charts/todo/image:push`  | Push Todo image to registry    |
 | `//tools/format:format`       | Format + render all            |
 | `//tools:help`                | List all available targets     |
 | `//tools/cluster:pods`        | List pods in key namespaces    |
@@ -193,7 +193,7 @@ If `apko lock` fails with "nothing provides X":
 
 | Service | apko.yaml Location              |
 | ------- | ------------------------------- |
-| Claude  | `charts/claude/image/apko.yaml` |
+| Todo    | `charts/todo/image/apko.yaml` |
 
 ## Caching
 

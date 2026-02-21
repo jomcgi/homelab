@@ -520,7 +520,6 @@ export default defineConfig({
 | trips.jomcgi.dev       | Vite + React 19 + Tailwind     | JS       |
 | ships.jomcgi.dev       | Vite + React 19 + Tailwind     | JS       |
 | jomcgi.dev             | Astro + React (not plain Vite) | JS       |
-| charts/claude/frontend | Vite + React                   | JS       |
 
 ### Common Mistakes to Avoid
 
@@ -635,7 +634,6 @@ argocd app get <name> --show-operation
 | Namespace         | Purpose                |
 | ----------------- | ---------------------- |
 | `argocd`          | GitOps controller      |
-| `claude`          | Claude Code deployment |
 | `signoz`          | Observability stack    |
 | `linkerd`         | Service mesh           |
 | `longhorn-system` | Distributed storage    |

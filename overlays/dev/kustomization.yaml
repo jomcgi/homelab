@@ -3,10 +3,6 @@ kind: Kustomization
 
 resources:
   - ./marine
-  - ./bosun
-  - ./claude
   - ./claude-desktop
-  - ./cloudflare-operator
-  - ./cloudflare-operator-test
   - ./oci-model-cache
   - ./stargazer
