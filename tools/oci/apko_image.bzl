@@ -4,6 +4,7 @@ load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_apko//apko:defs.bzl", _apko_image = "apko_image")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools/oci:apko_push.bzl", "apko_push")
 load("//tools/oci:oci_run.bzl", "oci_run")
 
@@ -39,6 +40,7 @@ def apko_image(
         :{name} - The apko image target (or oci_image_index if tars are provided)
         :{name}.push - Target to push image to registry
         :{name}.run - Target to run image locally (without pushing)
+        :{name}_lock_test - Test that verifies lock file is in sync with config
 
     Examples:
         # Using new API
@@ -215,4 +217,17 @@ def apko_image(
     oci_run(
         name = name + ".run",
         image = ":" + name,
+    )
+
+    # Verify lock file checksum matches config
+    # Catches stale lock files in CI via `bazel test //...`
+    lock = config.replace(".yaml", ".lock.json")
+    sh_test(
+        name = name + "_lock_test",
+        srcs = ["//tools/oci:verify-apko-lock.sh"],
+        args = [
+            "$(location " + config + ")",
+            "$(location " + lock + ")",
+        ],
+        data = [config, lock],
     )
