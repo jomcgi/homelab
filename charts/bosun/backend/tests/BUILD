@@ -64,3 +64,13 @@ py_test(
         "@pip//starlette",
     ],
 )
+
+py_test(
+    name = "ws_diff_test",
+    srcs = ["ws_diff_test.py"],
+    deps = [
+        ":conftest",
+        "@pip//pytest",
+        "@pip//starlette",
+    ],
+)
