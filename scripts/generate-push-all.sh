@@ -46,5 +46,4 @@ cat >>"$BUILD_FILE" <<'FOOTER'
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
 )
-
 FOOTER
