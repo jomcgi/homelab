@@ -21,6 +21,9 @@ ingress:
     # Shared image hosting (projects use /project-name/ prefix)
     - hostname: img.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80
+    # D&D campaign manager (nginx proxies /ws to ws-gateway internally)
+    - hostname: grimoire.jomcgi.dev
+      service: http://grimoire-frontend.grimoire.svc.cluster.local:8080
     # Shared API hosting (route-based: /trips, /cluster-info, etc.)
     - hostname: api.jomcgi.dev
       service: http://api-gateway.api-gateway.svc.cluster.local:80
