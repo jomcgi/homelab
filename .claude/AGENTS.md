@@ -10,13 +10,13 @@ This file defines specialized agents for common tasks in this repository. Each a
 
 ```bash
 # Run all tests
-bazelisk test //...
+bazel test //...
 
 # Run specific test target
-bazelisk test //services/ships_api:ships_api_test
+bazel test //services/ships_api:ships_api_test
 
 # Run tests in CI mode (remote caching)
-bazelisk test //... --config=ci
+bazel test //... --config=ci
 ```
 
 **When adding new tests:**
@@ -29,7 +29,7 @@ bazelisk test //... --config=ci
 
 ## bazel
 
-Bazel build system specialist using bzlmod (MODULE.bazel). This repo uses Bazel 8 via bazelisk with aspect_rules_py, rules_js, rules_oci, and rules_apko.
+Bazel build system specialist using bzlmod (MODULE.bazel). This repo uses Bazel 9 via BuildBuddy CLI (`bb`) with aspect_rules_py, rules_js, rules_oci, and rules_apko. Shell aliases route `bazel` and `bazelisk` to `bb`.
 
 ### Vendored Tools
 
@@ -63,35 +63,35 @@ The following tools are vendored via `bazel_env` and available in PATH (after `d
 ### Key Commands
 
 ```bash
-# ALWAYS use bazelisk, not bazel directly
+# bazel, bazelisk, and bb are all equivalent (shell aliases route to bb)
 # Format code + update lock files (most common command)
 format
 
 # Build and test
-bazelisk build //...
-bazelisk test //...
-bazelisk run //:target
+bazel build //...
+bazel test //...
+bazel run //:target
 
 # Update BUILD files after adding Go imports
-bazelisk run gazelle
+bazel run gazelle
 
 # Update MODULE.bazel after go mod tidy
 bazel mod tidy
 
 # Push container images
-bazelisk run //charts/<service>/image:push
+bazel run //charts/<service>/image:push
 
 # Query and analysis
-bazelisk query "deps(//:target)"
-bazelisk cquery "deps(//:target)"    # With config
-bazelisk aquery "deps(//:target)"    # Action query
+bazel query "deps(//:target)"
+bazel cquery "deps(//:target)"    # With config
+bazel aquery "deps(//:target)"    # Action query
 
 # Run with CI config (remote caching + BuildBuddy)
-bazelisk test //... --config=ci
+bazel test //... --config=ci
 
 # Debugging
-bazelisk build --explain=log.txt
-bazelisk build --profile=profile.json
+bazel build --explain=log.txt
+bazel build --profile=profile.json
 ```
 
 ### bzlmod Patterns (MODULE.bazel)
@@ -132,7 +132,7 @@ Images are defined in `apko.yaml` files, not Dockerfiles:
 
 ```bash
 # Update apko lock after modifying apko.yaml
-bazelisk run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+bazel run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
 
 # Or run format to update all locks
 format
@@ -140,12 +140,11 @@ format
 
 ### Common Mistakes to Avoid
 
-- **Using `bazel` instead of `bazelisk`** - bazelisk manages Bazel versions via .bazelversion
 - **Running tests in CI without --config=ci** - Misses remote caching and BuildBuddy
 - **Not pinning toolchains** - Use hermetic toolchains
 - **Using recursive globs** - `glob(["**/*.py"])` breaks caching
 - **Non-hermetic genrules** - Avoid timestamps, uname, or PATH-dependent tools
-- **Forgetting to run gazelle** - After adding Go imports, run `bazelisk run gazelle`
+- **Forgetting to run gazelle** - After adding Go imports, run `bazel run gazelle`
 
 ### Example Prompts
 
@@ -361,17 +360,17 @@ Go development specialist, especially for Kubernetes operators and controllers.
 
 ```bash
 # Build and test via Bazel (no Makefile in this repo)
-bazelisk build //operators/...
-bazelisk test //operators/...
+bazel build //operators/...
+bazel test //operators/...
 
 # Update BUILD files after adding imports
-bazelisk run //:gazelle
+bazel run //:gazelle
 
 # Linting via nogo (built into Bazel, not golangci-lint)
 # Linting runs automatically during build
 
 # Run a specific operator
-bazelisk run //operators/<name>/cmd:cmd
+bazel run //operators/<name>/cmd:cmd
 ```
 
 ### Reconcile Return Values
@@ -812,19 +811,19 @@ environment:
 
 ```bash
 # Update lock file after modifying apko.yaml
-bazelisk run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+bazel run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
 
 # Or run format to update ALL apko locks
 format
 
 # Build the image
-bazelisk build //charts/<service>/image:image
+bazel build //charts/<service>/image:image
 
 # Push image to registry
-bazelisk run //charts/<service>/image:image.push
+bazel run //charts/<service>/image:image.push
 
 # Run image locally (for debugging)
-bazelisk run //charts/<service>/image:image.run
+bazel run //charts/<service>/image:image.run
 
 # Scan image for vulnerabilities (requires global trivy install)
 trivy image ghcr.io/jomcgi/homelab/charts/<service>:latest
@@ -938,7 +937,7 @@ use_repo(apko, "myservice_lock")
 
 ### Common Mistakes to Avoid
 
-1. **Not updating lock file** - Always run `bazelisk run @rules_apko//apko -- lock <path>` after changing apko.yaml
+1. **Not updating lock file** - Always run `bazel run @rules_apko//apko -- lock <path>` after changing apko.yaml
 2. **Missing architectures** - Always include both `x86_64` and `aarch64`
 3. **Missing CA certificates** - HTTPS calls fail without `ca-certificates-bundle`
 4. **Running as root** - Always set `run-as` to non-root uid
@@ -1095,7 +1094,7 @@ Overview with purpose.
 ## Running Locally
 
 ```bash
-bazelisk run //services/myservice:myservice
+bazel run //services/myservice:myservice
 ```
 
 ````
@@ -1311,7 +1310,7 @@ gh pr review <number> --request-changes --body "See comments for required fixes"
 
 **CI/Build Changes:**
 
-- [ ] Tests pass locally with `bazelisk test //...`
+- [ ] Tests pass locally with `bazel test //...`
 - [ ] No new non-hermetic dependencies
 - [ ] Cache-friendly (no timestamps, no random values)
 
@@ -1512,16 +1511,16 @@ gh pr checks | grep buildbuddy
 
 ```bash
 # Run with CI config
-bazelisk test //... --config=ci
+bazel test //... --config=ci
 
 # Run specific failing target
-bazelisk test //path:failing_target --config=ci
+bazel test //path:failing_target --config=ci
 
 # Force no-cache to match fresh CI run
-bazelisk test //path:target --cache_test_results=no
+bazel test //path:target --cache_test_results=no
 
 # Full clean rebuild
-bazelisk clean --expunge && bazelisk test //...
+bazel clean --expunge && bazel test //...
 ```
 
 ### Common CI Failures
@@ -1546,7 +1545,7 @@ bazelisk clean --expunge && bazelisk test //...
 1. **Declaring done before CI passes** - Always wait for green
 2. **Ignoring flaky tests** - Fix them, don't re-run until green
 3. **Not checking BuildBuddy logs** - Contains detailed failure info
-4. **Pushing without local test** - Run `bazelisk test //...` first
+4. **Pushing without local test** - Run `bazel test //...` first
 5. **Large PRs** - Smaller PRs are easier to review and debug
 
 ### Example Prompts
