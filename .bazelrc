@@ -9,8 +9,6 @@ common --noexperimental_merged_skyframe_analysis_execution
 
 # also see: https://blog.aspect.build/configuring-bazels-downloader
 common --downloader_config=tools/downloader.cfg
-# Scale HTTP timeouts for better reliability with slow connections
-common --http_timeout_scaling=2.0
 # for speed, passes an argument `--skipLibCheck` to *every* spawn of tsc
 common --@aspect_rules_ts//ts:skipLibCheck=always
 # Transpiler is set per-target (transpiler = "tsc") instead of globally.
@@ -104,7 +102,8 @@ build:ci --bes_backend=grpcs://remote.buildbuddy.io
 # =============================================================================
 # Import remote execution config when using --config=remote
 # This allows easy toggling of RBE without modifying this file
-# Note: API key is set in user.bazelrc via --remote_header flag
+# Note: Authenticate locally with `bb login`. CI uses BuildBuddy runner auth.
+# For manual auth, set API key via --remote_header in user.bazelrc
 try-import %workspace%/.bazelrc.remote
 
 # Load any settings & overrides specific to the current user from `.aspect/bazelrc/user.bazelrc`.
