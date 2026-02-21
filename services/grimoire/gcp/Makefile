@@ -1,7 +1,7 @@
-PROJECT_ID    := grimoire-prod
+PROJECT_ID    := h0melab
 REGION        := us-west1
 FIRESTORE_DB  := grimoire
-GCS_BUCKET    := grimoire-sourcebooks
+GCS_BUCKET    := h0melab-grimoire-sourcebooks
 API_IMAGE     := gcr.io/$(PROJECT_ID)/grimoire-api
 INGEST_IMAGE  := gcr.io/$(PROJECT_ID)/grimoire-ingest
 
@@ -20,10 +20,7 @@ setup: setup-project setup-apis setup-firestore setup-storage setup-artifact-reg
 	@echo "  4. Ingest a sourcebook: make ingest PDF=gs://$(GCS_BUCKET)/phb.pdf"
 
 setup-project:
-	gcloud projects create $(PROJECT_ID) --name="Grimoire" 2>/dev/null || true
 	gcloud config set project $(PROJECT_ID)
-	@echo "Link a billing account if not already done:"
-	@echo "   https://console.cloud.google.com/billing/linkedaccount?project=$(PROJECT_ID)"
 
 setup-apis:
 	gcloud services enable \
