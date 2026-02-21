@@ -6,3 +6,4 @@ packages:
   - websites/trips.jomcgi.dev
   - websites/jomcgi.dev
   - websites/hikes.jomcgi.dev
+  - services/grimoire/frontend

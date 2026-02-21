@@ -22,6 +22,7 @@ filegroup(
         "//overlays/cluster-critical/nvidia-gpu-operator:render_manifests",
         "//overlays/cluster-critical/signoz:render_manifests",
         "//overlays/cluster-critical/signoz-dashboard-sidecar:render_manifests",
+        "//overlays/dev/grimoire:render_manifests",
         "//overlays/dev/marine:render_manifests",
         "//overlays/dev/oci-model-cache:render_manifests",
         "//overlays/dev/stargazer:render_manifests",

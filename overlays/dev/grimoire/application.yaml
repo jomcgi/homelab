@@ -1,0 +1,33 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: grimoire
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    path: charts/grimoire
+    targetRevision: HEAD
+    helm:
+      releaseName: grimoire
+      valueFiles:
+        - values.yaml
+        - ../../overlays/dev/grimoire/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: grimoire
+  # Ignore fields injected by Kyverno policies (OTEL env vars)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.metadata.annotations."otel.injected-by"
+        - .spec.template.spec.containers[].env[] | select(.name | startswith("OTEL_"))
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - RespectIgnoreDifferences=true
