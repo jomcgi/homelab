@@ -13,6 +13,8 @@ spec:
       app.kubernetes.io/component: redis
   template:
     metadata:
+      annotations:
+        linkerd.io/inject: disabled
       labels:
         {{- include "grimoire.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
