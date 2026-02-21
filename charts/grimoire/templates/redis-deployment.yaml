@@ -28,7 +28,6 @@ spec:
         - name: redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
-          {{- if .Values.redis.auth.enabled }}
           args:
             - --requirepass
             - $(REDIS_PASSWORD)
@@ -36,9 +35,8 @@ spec:
             - name: REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.redis.auth.existingSecret }}
-                  key: {{ .Values.redis.auth.secretKey }}
-          {{- end }}
+                  name: {{ .Values.grimoireSecret.name }}
+                  key: redis_password
           ports:
             - name: redis
               containerPort: 6379
@@ -58,20 +56,16 @@ spec:
             exec:
               command:
                 - redis-cli
-                {{- if .Values.redis.auth.enabled }}
                 - -a
                 - $(REDIS_PASSWORD)
-                {{- end }}
                 - ping
             initialDelaySeconds: 5
           readinessProbe:
             exec:
               command:
                 - redis-cli
-                {{- if .Values.redis.auth.enabled }}
                 - -a
                 - $(REDIS_PASSWORD)
-                {{- end }}
                 - ping
             initialDelaySeconds: 5
           resources:
