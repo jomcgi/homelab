@@ -28,8 +28,9 @@ frontend:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-frontend
     tag: main
     pullPolicy: Always
-# WebSocket Gateway image
+# WebSocket Gateway
 wsGateway:
+  cfAccessTeam: jomcgi.cloudflareaccess.com
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
     tag: main

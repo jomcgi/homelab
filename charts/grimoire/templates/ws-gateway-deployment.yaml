@@ -37,6 +37,8 @@ spec:
               containerPort: 8080
               protocol: TCP
           env:
+            - name: CF_ACCESS_TEAM
+              value: {{ .Values.wsGateway.cfAccessTeam | quote }}
             - name: GOOGLE_API_KEY
               valueFrom:
                 secretKeyRef:
