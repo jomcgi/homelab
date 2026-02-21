@@ -17,15 +17,28 @@ spec:
         {{- include "grimoire.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: redis
     spec:
+      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: true
         runAsUser: 999
+        runAsGroup: 999
         seccompProfile:
           type: RuntimeDefault
       containers:
         - name: redis
           image: "{{ .Values.redis.image.repository }}:{{ .Values.redis.image.tag }}"
           imagePullPolicy: {{ .Values.redis.image.pullPolicy }}
+          {{- if .Values.redis.auth.enabled }}
+          args:
+            - --requirepass
+            - $(REDIS_PASSWORD)
+          env:
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.auth.existingSecret }}
+                  key: {{ .Values.redis.auth.secretKey }}
+          {{- end }}
           ports:
             - name: redis
               containerPort: 6379
@@ -36,17 +49,35 @@ spec:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: redis-data
+              mountPath: /data
+            - name: redis-tmp
+              mountPath: /tmp
           livenessProbe:
             exec:
               command:
                 - redis-cli
+                {{- if .Values.redis.auth.enabled }}
+                - -a
+                - $(REDIS_PASSWORD)
+                {{- end }}
                 - ping
             initialDelaySeconds: 5
           readinessProbe:
             exec:
               command:
                 - redis-cli
+                {{- if .Values.redis.auth.enabled }}
+                - -a
+                - $(REDIS_PASSWORD)
+                {{- end }}
                 - ping
             initialDelaySeconds: 5
           resources:
             {{- toYaml .Values.redis.resources | nindent 12 }}
+      volumes:
+        - name: redis-data
+          emptyDir: {}
+        - name: redis-tmp
+          emptyDir: {}

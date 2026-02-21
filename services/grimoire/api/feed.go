@@ -15,10 +15,12 @@ func registerFeedRoutes(mux *http.ServeMux, fs *firestore.Client) {
 func listFeed(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := r.PathValue("sid")
+		limit, _ := paginationParams(r)
 
 		query := fs.CollectionGroup("feed").
 			Where("session_id", "==", sessionID).
-			OrderBy("created_at", firestore.Asc)
+			OrderBy("created_at", firestore.Asc).
+			Limit(limit)
 
 		// Optional filters from query params.
 		if classification := r.URL.Query().Get("classification"); classification != "" {
@@ -31,7 +33,7 @@ func listFeed(fs *firestore.Client) http.HandlerFunc {
 		iter := query.Documents(r.Context())
 		docs, err := collectDocs(iter)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 
@@ -102,7 +104,7 @@ func createFeedEvent(fs *firestore.Client) http.HandlerFunc {
 			"created_at":     nowTimestamp(),
 		}
 		if _, err := doc.Set(r.Context(), data); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		data["id"] = doc.ID
@@ -144,12 +146,12 @@ func reclassifyFeedEvent(fs *firestore.Client) http.HandlerFunc {
 					{Path: "classification", Value: body.NewClassification},
 					{Path: "confidence", Value: 1.0},
 				}); err != nil {
-					httpError(w, http.StatusInternalServerError, err.Error())
+					internalError(w, err)
 					return
 				}
 				updated, err := doc.Ref.Get(r.Context())
 				if err != nil {
-					httpError(w, http.StatusInternalServerError, err.Error())
+					internalError(w, err)
 					return
 				}
 				writeJSON(w, http.StatusOK, docToMap(updated))

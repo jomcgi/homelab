@@ -136,13 +136,39 @@ func (c *Client) handleMessage(raw []byte) {
 		}
 		// Tag with the authenticated sender to prevent spoofing.
 		vs.SpeakerID = c.email
-		data, _ := json.Marshal(vs)
+		data, err := json.Marshal(vs)
+		if err != nil {
+			slog.Error("marshal voice status", "email", c.email, "error", err)
+			return
+		}
 		envelope := WSEvent{Type: EventVoiceStatus, Data: data}
-		msg, _ := json.Marshal(envelope)
+		msg, err := json.Marshal(envelope)
+		if err != nil {
+			slog.Error("marshal voice envelope", "email", c.email, "error", err)
+			return
+		}
 		c.hub.Broadcast(msg)
 
-	case EventFeedEvent, EventRollResult, EventEncounterUpdate, EventDMCorrection:
-		// Relay game state events to all clients via hub broadcast.
+	case EventDMCorrection, EventEncounterUpdate:
+		// DM-only events — tag with authenticated sender for audit trail.
+		var tagged map[string]any
+		if err := json.Unmarshal(raw, &tagged); err == nil {
+			tagged["sender"] = c.email
+			if out, err := json.Marshal(tagged); err == nil {
+				raw = out
+			}
+		}
+		c.hub.Broadcast(raw)
+
+	case EventFeedEvent, EventRollResult:
+		// Tag game events with authenticated sender.
+		var tagged map[string]any
+		if err := json.Unmarshal(raw, &tagged); err == nil {
+			tagged["sender"] = c.email
+			if out, err := json.Marshal(tagged); err == nil {
+				raw = out
+			}
+		}
 		c.hub.Broadcast(raw)
 
 	default:

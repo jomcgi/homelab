@@ -3,6 +3,7 @@ import { useStore } from "./store";
 
 let socket: WebSocket | null = null;
 let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+let connectionId = 0;
 
 function getWSUrl(): string {
   const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
@@ -10,11 +11,18 @@ function getWSUrl(): string {
 }
 
 export function connectWS(): void {
-  if (socket?.readyState === WebSocket.OPEN) return;
+  if (
+    socket?.readyState === WebSocket.OPEN ||
+    socket?.readyState === WebSocket.CONNECTING
+  )
+    return;
 
-  socket = new WebSocket(getWSUrl());
+  const myId = ++connectionId;
+  const ws = new WebSocket(getWSUrl());
+  socket = ws;
 
-  socket.onopen = () => {
+  ws.onopen = () => {
+    if (myId !== connectionId) { ws.close(); return; }
     useStore.getState().setConnected(true);
     if (reconnectTimer) {
       clearTimeout(reconnectTimer);
@@ -22,7 +30,8 @@ export function connectWS(): void {
     }
   };
 
-  socket.onmessage = (ev) => {
+  ws.onmessage = (ev) => {
+    if (myId !== connectionId) return;
     try {
       const msg: WSEvent = JSON.parse(ev.data);
       handleWSMessage(msg);
@@ -31,14 +40,16 @@ export function connectWS(): void {
     }
   };
 
-  socket.onclose = () => {
+  ws.onclose = () => {
+    if (myId !== connectionId) return;
     useStore.getState().setConnected(false);
     socket = null;
     scheduleReconnect();
   };
 
-  socket.onerror = () => {
-    socket?.close();
+  ws.onerror = () => {
+    if (myId !== connectionId) return;
+    ws.close();
   };
 }
 
@@ -61,7 +72,7 @@ function handleWSMessage(msg: WSEvent): void {
     case "roll_result":
       store.addFeedEvent({
         id: crypto.randomUUID(),
-        who: "",
+        who: msg.player ?? msg.character ?? "Unknown",
         time: new Date().toLocaleTimeString([], {
           hour: "2-digit",
           minute: "2-digit",

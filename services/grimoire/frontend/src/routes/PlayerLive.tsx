@@ -15,7 +15,7 @@ import {
 export function PlayerLive() {
   const players = useStore((s) => s.players);
   const currentPlayerId = useStore((s) => s.currentPlayerId);
-  const player = players.find((p) => p.id === currentPlayerId) ?? players[3];
+  const player = players.find((p) => p.id === currentPlayerId) ?? players[0];
 
   // Player feed: no table_talk, only private messages for this player
   const feed = MOCK_FEED.filter(
@@ -226,9 +226,9 @@ export function PlayerLive() {
 
         {/* Known lore */}
         <SBar>Known Lore</SBar>
-        {MOCK_LORE.map((x, i) => (
+        {MOCK_LORE.map((x) => (
           <div
-            key={i}
+            key={x.fact}
             style={{
               padding: "8px 16px",
               borderBottom: `1px solid ${C.border}`,

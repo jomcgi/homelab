@@ -21,13 +21,15 @@ func registerSessionRoutes(mux *http.ServeMux, fs *firestore.Client) {
 func listSessions(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		campaignID := r.PathValue("id")
+		limit, _ := paginationParams(r)
 		iter := fs.Collection("campaigns").Doc(campaignID).
 			Collection("sessions").
 			OrderBy("session_number", firestore.Desc).
+			Limit(limit).
 			Documents(r.Context())
 		docs, err := collectDocs(iter)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docs)
@@ -38,9 +40,14 @@ func createSession(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		campaignID := r.PathValue("id")
 
+		if err := verifyCampaignOwner(r.Context(), fs, campaignID, userEmail(r)); err != nil {
+			httpError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+
 		num, err := nextSessionNumber(r, fs, campaignID)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, "counting sessions: "+err.Error())
+			internalError(w, err)
 			return
 		}
 
@@ -53,7 +60,7 @@ func createSession(fs *firestore.Client) http.HandlerFunc {
 			"ended_at":       nil,
 		}
 		if _, err := doc.Set(r.Context(), data); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		data["id"] = doc.ID
@@ -65,6 +72,11 @@ func updateSession(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cid := r.PathValue("cid")
 		sid := r.PathValue("sid")
+
+		if err := verifyCampaignOwner(r.Context(), fs, cid, userEmail(r)); err != nil {
+			httpError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 
 		var body map[string]any
 		if err := readJSON(r, &body); err != nil {
@@ -89,13 +101,13 @@ func updateSession(fs *firestore.Client) http.HandlerFunc {
 				httpError(w, http.StatusNotFound, "session not found")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 
 		doc, err := ref.Get(r.Context())
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(doc))
@@ -120,6 +132,11 @@ func transitionSession(fs *firestore.Client, target string) http.HandlerFunc {
 		cid := r.PathValue("cid")
 		sid := r.PathValue("sid")
 		ctx := r.Context()
+
+		if err := verifyCampaignOwner(ctx, fs, cid, userEmail(r)); err != nil {
+			httpError(w, http.StatusForbidden, "forbidden")
+			return
+		}
 
 		sessionsCol := fs.Collection("campaigns").Doc(cid).Collection("sessions")
 		ref := sessionsCol.Doc(sid)
@@ -167,7 +184,6 @@ func transitionSession(fs *firestore.Client, target string) http.HandlerFunc {
 
 			return tx.Update(ref, updates)
 		})
-
 		if err != nil {
 			code := http.StatusConflict
 			if err.Error() == "session not found" {
@@ -179,7 +195,7 @@ func transitionSession(fs *firestore.Client, target string) http.HandlerFunc {
 
 		doc, err := ref.Get(ctx)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(doc))

@@ -150,7 +150,7 @@ export type WSEvent =
   | { type: "voice_status"; speaker_id: string; speaking: boolean }
   | { type: "transcript"; event: FeedEvent }
   | { type: "feed_event"; event: FeedEvent }
-  | { type: "roll_result"; roll: RollData }
+  | { type: "roll_result"; roll: RollData; player?: string; character?: string }
   | { type: "encounter_update"; encounter: unknown }
   | { type: "dm_correction"; event_id: string; new_classification: string }
   | { type: "presence"; player_id: string; status: "online" | "offline" };

@@ -13,7 +13,7 @@ import {
 export function PlayerChar() {
   const players = useStore((s) => s.players);
   const currentPlayerId = useStore((s) => s.currentPlayerId);
-  const player = players.find((p) => p.id === currentPlayerId) ?? players[3];
+  const player = players.find((p) => p.id === currentPlayerId) ?? players[0];
 
   return (
     <div
@@ -122,9 +122,9 @@ export function PlayerChar() {
         </Card>
         <Card>
           <SBar>Inventory</SBar>
-          {MOCK_INVENTORY.map((x, i) => (
+          {MOCK_INVENTORY.map((x) => (
             <div
-              key={i}
+              key={x.name}
               style={{
                 padding: "10px 20px",
                 borderBottom: `1px solid ${C.border}`,
@@ -179,9 +179,9 @@ export function PlayerChar() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Card>
           <SBar>Journal</SBar>
-          {MOCK_JOURNAL.map((s, i) => (
+          {MOCK_JOURNAL.map((s) => (
             <div
-              key={i}
+              key={s.n}
               style={{
                 padding: "14px 20px",
                 borderBottom: `1px solid ${C.border}`,
@@ -229,9 +229,9 @@ export function PlayerChar() {
         </Card>
         <Card>
           <SBar>Known Lore</SBar>
-          {MOCK_FULL_LORE.map((x, i) => (
+          {MOCK_FULL_LORE.map((x) => (
             <div
-              key={i}
+              key={x.fact}
               style={{
                 padding: "10px 20px",
                 borderBottom: `1px solid ${C.border}`,

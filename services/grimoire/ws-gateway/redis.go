@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -19,9 +21,10 @@ type RedisRelay struct {
 }
 
 // NewRedisRelay connects to Redis and returns a relay.
-func NewRedisRelay(addr string) (*RedisRelay, error) {
+func NewRedisRelay(addr, password string) (*RedisRelay, error) {
 	client := redis.NewClient(&redis.Options{
-		Addr: addr,
+		Addr:     addr,
+		Password: password,
 	})
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -47,8 +50,27 @@ func (r *RedisRelay) Publish(msg []byte) error {
 }
 
 // Subscribe starts listening on the broadcast channel and calls handler
-// for each received message. It blocks until the context is cancelled.
+// for each received message. It reconnects on failure with backoff.
+// It blocks until the context is cancelled.
 func (r *RedisRelay) Subscribe(handler func([]byte)) {
+	backoff := time.Second
+	for {
+		if r.ctx.Err() != nil {
+			return
+		}
+		err := r.subscribe(handler)
+		if err == nil || r.ctx.Err() != nil {
+			return
+		}
+		slog.Error("redis subscription lost, reconnecting", "error", err, "backoff", backoff)
+		time.Sleep(backoff)
+		if backoff < 30*time.Second {
+			backoff *= 2
+		}
+	}
+}
+
+func (r *RedisRelay) subscribe(handler func([]byte)) error {
 	sub := r.client.Subscribe(r.ctx, redisChannel)
 	defer sub.Close()
 
@@ -57,13 +79,18 @@ func (r *RedisRelay) Subscribe(handler func([]byte)) {
 		select {
 		case msg, ok := <-ch:
 			if !ok {
-				return
+				return fmt.Errorf("subscription channel closed")
 			}
 			handler([]byte(msg.Payload))
 		case <-r.ctx.Done():
-			return
+			return nil
 		}
 	}
+}
+
+// Ping checks Redis connectivity.
+func (r *RedisRelay) Ping() error {
+	return r.client.Ping(r.ctx).Err()
 }
 
 // Close shuts down the Redis connection.

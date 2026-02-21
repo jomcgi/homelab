@@ -6,6 +6,7 @@ import type { Player } from "@/types";
 export function VoiceBar() {
   const players = useStore((s) => s.players);
   const speakingIds = useStore((s) => s.speakingIds);
+  const connected = useStore((s) => s.connected);
 
   return (
     <div
@@ -20,7 +21,7 @@ export function VoiceBar() {
     >
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ color: C.ok, fontSize: 8 }}>{"\u25CF"}</span>
+          <span style={{ color: connected ? C.ok : C.warn, fontSize: 8 }}>{"\u25CF"}</span>
           <span
             style={{
               fontFamily: C.sans,
@@ -29,7 +30,7 @@ export function VoiceBar() {
               color: C.fgMuted,
             }}
           >
-            Voice Connected
+            {connected ? "Voice Connected" : "Reconnecting..."}
           </span>
         </div>
         <span style={{ color: C.border }}>|</span>

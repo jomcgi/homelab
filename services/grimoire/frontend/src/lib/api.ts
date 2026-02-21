@@ -1,11 +1,11 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { FeedEvent, Player, RollData } from "@/types";
+import type { Classification, FeedEvent, Player, RollData } from "@/types";
 
 const API_BASE = "/api";
 
 async function fetchJSON<T>(path: string): Promise<T> {
   const res = await fetch(`${API_BASE}${path}`);
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return res.json();
 }
 
@@ -15,7 +15,7 @@ async function postJSON<T>(path: string, body: unknown): Promise<T> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
   return res.json();
 }
 
@@ -87,17 +87,21 @@ export function useRAGQuery() {
 export function useReclassify() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (params: {
+    mutationFn: async (params: {
       eventId: string;
-      new_classification: string;
-    }) =>
-      fetch(`${API_BASE}/feed/${params.eventId}/reclassify`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          new_classification: params.new_classification,
-        }),
-      }),
+      newClass: Classification;
+    }) => {
+      const res = await fetch(
+        `${API_BASE}/feed/${encodeURIComponent(params.eventId)}/reclassify`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ new_classification: params.newClass }),
+        },
+      );
+      if (!res.ok) throw new Error(`Request failed (${res.status})`);
+      return res.json();
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["feed"] });
     },

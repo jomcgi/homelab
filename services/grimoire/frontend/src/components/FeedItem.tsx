@@ -7,9 +7,10 @@ interface FeedItemProps {
   item: FeedEvent;
   showCls?: boolean;
   isDM?: boolean;
+  onReclassify?: (eventId: string, newClass: Classification) => void;
 }
 
-export function FeedItem({ item, showCls = true, isDM = false }: FeedItemProps) {
+export function FeedItem({ item, showCls = true, isDM = false, onReclassify }: FeedItemProps) {
   const players = useStore((s) => s.players);
   const p = players.find((pl) => pl.name === item.who);
   const nc =
@@ -220,6 +221,7 @@ export function FeedItem({ item, showCls = true, isDM = false }: FeedItemProps) 
             .map(([key, cl]) => (
               <button
                 key={key}
+                onClick={() => onReclassify?.(item.id, key)}
                 style={{
                   fontFamily: C.sans,
                   fontSize: 10,

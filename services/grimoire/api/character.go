@@ -18,12 +18,14 @@ func registerCharacterRoutes(mux *http.ServeMux, fs *firestore.Client) {
 func listCharacters(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		campaignID := r.PathValue("id")
+		limit, _ := paginationParams(r)
 		iter := fs.Collection("campaigns").Doc(campaignID).
 			Collection("characters").
+			Limit(limit).
 			Documents(r.Context())
 		docs, err := collectDocs(iter)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docs)
@@ -82,7 +84,7 @@ func createCharacter(fs *firestore.Client) http.HandlerFunc {
 			"color":       body.Color,
 		}
 		if _, err := doc.Set(r.Context(), data); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		data["id"] = doc.ID
@@ -159,12 +161,12 @@ func updateCharacter(fs *firestore.Client) http.HandlerFunc {
 			}
 			if doc.Ref.ID == id {
 				if _, err := doc.Ref.Update(r.Context(), updates); err != nil {
-					httpError(w, http.StatusInternalServerError, err.Error())
+					internalError(w, err)
 					return
 				}
 				updated, err := doc.Ref.Get(r.Context())
 				if err != nil {
-					httpError(w, http.StatusInternalServerError, err.Error())
+					internalError(w, err)
 					return
 				}
 				writeJSON(w, http.StatusOK, docToMap(updated))
@@ -193,7 +195,7 @@ func listLore(fs *firestore.Client) http.HandlerFunc {
 					Documents(r.Context())
 				lore, err := collectDocs(iter)
 				if err != nil {
-					httpError(w, http.StatusInternalServerError, err.Error())
+					internalError(w, err)
 					return
 				}
 				writeJSON(w, http.StatusOK, lore)
@@ -242,7 +244,7 @@ func createLore(fs *firestore.Client) http.HandlerFunc {
 					"revealed_at":  nowTimestamp(),
 				}
 				if _, err := loreDoc.Set(r.Context(), data); err != nil {
-					httpError(w, http.StatusInternalServerError, err.Error())
+					internalError(w, err)
 					return
 				}
 				data["id"] = loreDoc.ID

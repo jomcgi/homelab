@@ -25,9 +25,9 @@ export function DMPrep() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Card>
           <SBar right="Session 4">Planned Encounters</SBar>
-          {MOCK_ENCOUNTERS.map((e, i) => (
+          {MOCK_ENCOUNTERS.map((e) => (
             <div
-              key={i}
+              key={e.name}
               style={{
                 padding: "14px 20px",
                 borderBottom: `1px solid ${C.border}`,
@@ -112,9 +112,9 @@ export function DMPrep() {
         </Card>
         <Card>
           <SBar>Party</SBar>
-          {players.map((p, i) => (
+          {players.map((p) => (
             <div
-              key={i}
+              key={p.id}
               style={{
                 padding: "10px 20px",
                 borderBottom: `1px solid ${C.border}`,
@@ -163,9 +163,9 @@ export function DMPrep() {
       <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
         <Card>
           <SBar>Session History</SBar>
-          {MOCK_SESSIONS.map((s, i) => (
+          {MOCK_SESSIONS.map((s) => (
             <div
-              key={i}
+              key={s.n}
               style={{
                 padding: "14px 20px",
                 borderBottom: `1px solid ${C.border}`,
@@ -213,9 +213,9 @@ export function DMPrep() {
         </Card>
         <Card>
           <SBar>World State</SBar>
-          {MOCK_WORLD_STATE.map((x, i) => (
+          {MOCK_WORLD_STATE.map((x) => (
             <div
-              key={i}
+              key={x.key}
               style={{
                 padding: "10px 20px",
                 borderBottom: `1px solid ${C.border}`,

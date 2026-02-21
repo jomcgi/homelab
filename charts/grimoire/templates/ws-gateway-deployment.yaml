@@ -21,8 +21,11 @@ spec:
       imagePullSecrets:
         - name: ghcr-imagepull-secret
       {{- end }}
+      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
       securityContext:
         runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -41,6 +44,13 @@ spec:
                   key: key
             - name: REDIS_ADDR
               value: "{{ include "grimoire.fullname" . }}-redis:{{ .Values.redis.service.port }}"
+            {{- if .Values.redis.auth.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.auth.existingSecret }}
+                  key: {{ .Values.redis.auth.secretKey }}
+            {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
             capabilities:
@@ -54,7 +64,7 @@ spec:
             initialDelaySeconds: 5
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             initialDelaySeconds: 5
           resources:

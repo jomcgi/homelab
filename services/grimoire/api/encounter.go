@@ -74,6 +74,11 @@ func createEncounter(fs *firestore.Client) http.HandlerFunc {
 			Collection("sessions").Doc(sessionID).
 			Collection("encounters")
 
+		if err := verifyCampaignOwner(r.Context(), fs, body.CampaignID, userEmail(r)); err != nil {
+			httpError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+
 		doc := encountersCol.NewDoc()
 		data := map[string]any{
 			"session_id":       sessionID,
@@ -84,12 +89,10 @@ func createEncounter(fs *firestore.Client) http.HandlerFunc {
 			"initiative_order": body.InitiativeOrder,
 			"terrain":          body.Terrain,
 		}
-		if _, err := doc.Set(r.Context(), data); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
-			return
-		}
 
-		// Create monster sub-documents.
+		// Create encounter + monsters atomically using a batch write.
+		batch := fs.Batch()
+		batch.Set(doc, data)
 		for _, m := range body.Monsters {
 			conditions := m.Conditions
 			if conditions == nil {
@@ -107,10 +110,11 @@ func createEncounter(fs *firestore.Client) http.HandlerFunc {
 				"conditions":   conditions,
 				"source_ref":   m.SourceRef,
 			}
-			if _, err := monsterDoc.Set(r.Context(), mData); err != nil {
-				httpError(w, http.StatusInternalServerError, err.Error())
-				return
-			}
+			batch.Set(monsterDoc, mData)
+		}
+		if _, err := batch.Commit(r.Context()); err != nil {
+			internalError(w, err)
+			return
 		}
 
 		data["id"] = doc.ID
@@ -150,33 +154,37 @@ func updateEncounter(fs *firestore.Client) http.HandlerFunc {
 			return
 		}
 
-		// If transitioning status, enforce the encounter state machine.
+		// If transitioning status, use a transaction to enforce the state machine.
 		if newStatus, ok := body["status"].(string); ok {
-			doc, err := ref.Get(ctx)
+			err := fs.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+				doc, err := tx.Get(ref)
+				if err != nil {
+					return err
+				}
+				current, _ := doc.DataAt("status")
+				currentStr, _ := current.(string)
+				if !validEncounterTransition(currentStr, newStatus) {
+					return fmt.Errorf("cannot transition encounter from %q to %q", currentStr, newStatus)
+				}
+				if newStatus == "active" {
+					updates = append(updates, firestore.Update{Path: "round", Value: 1})
+				}
+				return tx.Update(ref, updates)
+			})
 			if err != nil {
-				httpError(w, http.StatusInternalServerError, err.Error())
+				httpError(w, http.StatusConflict, err.Error())
 				return
 			}
-			current, _ := doc.DataAt("status")
-			currentStr, _ := current.(string)
-			if !validEncounterTransition(currentStr, newStatus) {
-				httpError(w, http.StatusConflict, fmt.Sprintf("cannot transition encounter from %q to %q", currentStr, newStatus))
+		} else {
+			if _, err := ref.Update(ctx, updates); err != nil {
+				internalError(w, err)
 				return
 			}
-			if newStatus == "active" {
-				// Set round to 1 when starting.
-				updates = append(updates, firestore.Update{Path: "round", Value: 1})
-			}
-		}
-
-		if _, err := ref.Update(ctx, updates); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
-			return
 		}
 
 		doc, err := ref.Get(ctx)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(doc))
@@ -199,55 +207,59 @@ func nextTurn(fs *firestore.Client) http.HandlerFunc {
 		id := r.PathValue("id")
 		ctx := r.Context()
 
-		ref, doc, err := encounterRef(ctx, fs, id)
+		ref, _, err := encounterRef(ctx, fs, id)
 		if err != nil {
 			httpError(w, http.StatusNotFound, err.Error())
 			return
 		}
 
-		status, _ := doc.DataAt("status")
-		if status != "active" {
-			httpError(w, http.StatusConflict, "encounter is not active")
-			return
-		}
+		err = fs.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+			doc, err := tx.Get(ref)
+			if err != nil {
+				return err
+			}
 
-		order, _ := doc.DataAt("initiative_order")
-		orderSlice, ok := order.([]any)
-		if !ok || len(orderSlice) == 0 {
-			httpError(w, http.StatusBadRequest, "initiative_order is empty")
-			return
-		}
+			st, _ := doc.DataAt("status")
+			if st != "active" {
+				return fmt.Errorf("encounter is not active")
+			}
 
-		currentTurn, _ := doc.DataAt("current_turn_id")
-		currentTurnStr, _ := currentTurn.(string)
+			order, _ := doc.DataAt("initiative_order")
+			orderSlice, ok := order.([]any)
+			if !ok || len(orderSlice) == 0 {
+				return fmt.Errorf("initiative_order is empty")
+			}
 
-		// Find current index and advance.
-		nextIdx := 0
-		for i, entry := range orderSlice {
-			if m, ok := entry.(map[string]any); ok {
-				if entryID, _ := m["id"].(string); entryID == currentTurnStr {
-					nextIdx = (i + 1) % len(orderSlice)
-					break
+			currentTurn, _ := doc.DataAt("current_turn_id")
+			currentTurnStr, _ := currentTurn.(string)
+
+			nextIdx := 0
+			for i, entry := range orderSlice {
+				if m, ok := entry.(map[string]any); ok {
+					if entryID, _ := m["id"].(string); entryID == currentTurnStr {
+						nextIdx = (i + 1) % len(orderSlice)
+						break
+					}
 				}
 			}
-		}
 
-		// Get the next combatant's ID.
-		var nextID string
-		if m, ok := orderSlice[nextIdx].(map[string]any); ok {
-			nextID, _ = m["id"].(string)
-		}
+			var nextID string
+			if m, ok := orderSlice[nextIdx].(map[string]any); ok {
+				nextID, _ = m["id"].(string)
+			}
 
-		if _, err := ref.Update(ctx, []firestore.Update{
-			{Path: "current_turn_id", Value: nextID},
-		}); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			return tx.Update(ref, []firestore.Update{
+				{Path: "current_turn_id", Value: nextID},
+			})
+		})
+		if err != nil {
+			httpError(w, http.StatusConflict, err.Error())
 			return
 		}
 
 		updated, err := ref.Get(ctx)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(updated))
@@ -260,41 +272,48 @@ func endRound(fs *firestore.Client) http.HandlerFunc {
 		id := r.PathValue("id")
 		ctx := r.Context()
 
-		ref, doc, err := encounterRef(ctx, fs, id)
+		ref, _, err := encounterRef(ctx, fs, id)
 		if err != nil {
 			httpError(w, http.StatusNotFound, err.Error())
 			return
 		}
 
-		status, _ := doc.DataAt("status")
-		if status != "active" {
-			httpError(w, http.StatusConflict, "encounter is not active")
-			return
-		}
-
-		round, _ := doc.DataAt("round")
-		roundNum, _ := round.(int64)
-
-		order, _ := doc.DataAt("initiative_order")
-		orderSlice, _ := order.([]any)
-		var firstID string
-		if len(orderSlice) > 0 {
-			if m, ok := orderSlice[0].(map[string]any); ok {
-				firstID, _ = m["id"].(string)
+		err = fs.RunTransaction(ctx, func(ctx context.Context, tx *firestore.Transaction) error {
+			doc, err := tx.Get(ref)
+			if err != nil {
+				return err
 			}
-		}
 
-		if _, err := ref.Update(ctx, []firestore.Update{
-			{Path: "round", Value: roundNum + 1},
-			{Path: "current_turn_id", Value: firstID},
-		}); err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			st, _ := doc.DataAt("status")
+			if st != "active" {
+				return fmt.Errorf("encounter is not active")
+			}
+
+			round, _ := doc.DataAt("round")
+			roundNum, _ := round.(int64)
+
+			order, _ := doc.DataAt("initiative_order")
+			orderSlice, _ := order.([]any)
+			var firstID string
+			if len(orderSlice) > 0 {
+				if m, ok := orderSlice[0].(map[string]any); ok {
+					firstID, _ = m["id"].(string)
+				}
+			}
+
+			return tx.Update(ref, []firestore.Update{
+				{Path: "round", Value: roundNum + 1},
+				{Path: "current_turn_id", Value: firstID},
+			})
+		})
+		if err != nil {
+			httpError(w, http.StatusConflict, err.Error())
 			return
 		}
 
 		updated, err := ref.Get(ctx)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(updated))
@@ -340,13 +359,13 @@ func updateMonster(fs *firestore.Client) http.HandlerFunc {
 				httpError(w, http.StatusNotFound, "monster not found")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 
 		doc, err := monsterRef.Get(ctx)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(doc))

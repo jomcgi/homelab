@@ -3,11 +3,19 @@ import { C } from "@/lib/tokens";
 
 interface ChatInputProps {
   isDM?: boolean;
+  onSubmit?: (message: string, channel: string) => void;
 }
 
-export function ChatInput({ isDM = false }: ChatInputProps) {
+export function ChatInput({ isDM = false, onSubmit }: ChatInputProps) {
   const [input, setInput] = useState("");
   const [channel, setChannel] = useState("public");
+
+  const handleSubmit = () => {
+    const trimmed = input.trim();
+    if (!trimmed) return;
+    onSubmit?.(trimmed, channel);
+    setInput("");
+  };
 
   return (
     <div style={{ borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
@@ -65,6 +73,12 @@ export function ChatInput({ isDM = false }: ChatInputProps) {
         <input
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              handleSubmit();
+            }
+          }}
           placeholder={
             channel === "private"
               ? "Private message..."

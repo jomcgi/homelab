@@ -113,7 +113,10 @@ export const useStore = create<GrimoireState>((set) => ({
 
   feed: [],
   addFeedEvent: (event) =>
-    set((s) => ({ feed: [...s.feed, event] })),
+    set((s) => {
+      const feed = [...s.feed, event];
+      return { feed: feed.length > 500 ? feed.slice(-500) : feed };
+    }),
   setFeed: (events) => set({ feed: events }),
 
   players: MOCK_PLAYERS,

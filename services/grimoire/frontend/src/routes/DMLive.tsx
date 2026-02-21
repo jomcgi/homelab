@@ -7,6 +7,7 @@ import { ChatInput } from "@/components/ChatInput";
 import { SBar } from "@/components/SBar";
 import { Pill } from "@/components/Pill";
 import { HpBar } from "@/components/HpBar";
+import { useReclassify } from "@/lib/api";
 import { MOCK_FEED, MOCK_MONSTERS, MOCK_RAG } from "@/lib/mock-data";
 import type { Classification, InitiativeEntry } from "@/types";
 
@@ -15,6 +16,7 @@ export function DMLive() {
   const activeFilters = useStore((s) => s.activeFilters);
   const toggleFilter = useStore((s) => s.toggleFilter);
   const [turn, setTurn] = useState(3);
+  const reclassify = useReclassify();
 
   const feed = MOCK_FEED;
 
@@ -67,7 +69,14 @@ export function DMLive() {
         />
         <div style={{ flex: 1, overflow: "auto" }}>
           {filtered.map((i) => (
-            <FeedItem key={i.id} item={i} isDM />
+            <FeedItem
+              key={i.id}
+              item={i}
+              isDM
+              onReclassify={(eventId, newClass) =>
+                reclassify.mutate({ eventId, newClass })
+              }
+            />
           ))}
         </div>
         <ChatInput isDM />
@@ -85,7 +94,7 @@ export function DMLive() {
         <SBar right="Round 2">Initiative</SBar>
         {all.map((c, i) => (
           <div
-            key={c.name}
+            key={`${c.type}-${c.name}`}
             onClick={() => setTurn(i)}
             style={{
               display: "flex",
@@ -146,11 +155,11 @@ export function DMLive() {
                   <Pill
                     key={d}
                     color={
-                      d === "Poisoned" ? C.ok : C.warn
+                      d === "Poisoned" ? C.err : C.warn
                     }
                     bg={
                       d === "Poisoned"
-                        ? C.okBg
+                        ? C.errBg
                         : C.warnBg
                     }
                   >
@@ -218,9 +227,9 @@ export function DMLive() {
 
         {/* LLM Context Panel */}
         <SBar right="4,102 / 8,192">LLM Context {"\u00B7"} Gemini Flash</SBar>
-        {MOCK_RAG.map((c, i) => (
+        {MOCK_RAG.map((c) => (
           <div
-            key={i}
+            key={`${c.source}-${c.title}`}
             style={{
               padding: "8px 16px",
               borderBottom: `1px solid ${C.border}`,

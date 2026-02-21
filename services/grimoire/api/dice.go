@@ -79,7 +79,7 @@ func rollDice(fs *firestore.Client) http.HandlerFunc {
 				"created_at":     nowTimestamp(),
 			}
 			if _, err := feedDoc.Set(r.Context(), feedData); err != nil {
-				httpError(w, http.StatusInternalServerError, err.Error())
+				internalError(w, err)
 				return
 			}
 			resp["feed_event_id"] = feedDoc.ID
@@ -92,20 +92,32 @@ func rollDice(fs *firestore.Client) http.HandlerFunc {
 func listRolls(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := r.PathValue("sid")
+		limit, _ := paginationParams(r)
 
-		// Rolls are stored as feed events with source="roll".
-		// We need to search across all campaigns' sessions for this session ID.
 		iter := fs.CollectionGroup("feed").
 			Where("session_id", "==", sessionID).
 			Where("source", "==", "roll").
 			OrderBy("created_at", firestore.Desc).
+			Limit(limit).
 			Documents(r.Context())
 		docs, err := collectDocs(iter)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, docs)
+
+		// Filter out private rolls not addressed to the requesting user.
+		email := userEmail(r)
+		filtered := make([]map[string]any, 0, len(docs))
+		for _, doc := range docs {
+			privateTo, _ := doc["private_to"].(string)
+			speakerID, _ := doc["speaker_id"].(string)
+			if privateTo == "" || privateTo == email || speakerID == email {
+				filtered = append(filtered, doc)
+			}
+		}
+
+		writeJSON(w, http.StatusOK, filtered)
 	}
 }
 
@@ -205,7 +217,7 @@ func signStr(n int) string {
 	if n >= 0 {
 		return "+"
 	}
-	return ""
+	return "-"
 }
 
 func abs(n int) int {

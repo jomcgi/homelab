@@ -7,7 +7,7 @@ interface HpBarProps {
 }
 
 export function HpBar({ current, max, size = "normal" }: HpBarProps) {
-  const pct = Math.max(0, (current / max) * 100);
+  const pct = max > 0 ? Math.max(0, Math.min(100, (current / max) * 100)) : 0;
   const color = pct > 50 ? C.ok : pct > 25 ? C.warn : C.err;
   const h = size === "small" ? 4 : 6;
 

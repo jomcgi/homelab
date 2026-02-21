@@ -8,6 +8,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"strings"
@@ -99,7 +100,7 @@ func fetchJWKS(url string) (map[string]*rsa.PublicKey, error) {
 	defer resp.Body.Close()
 
 	var jwks jwksResponse
-	if err := json.NewDecoder(resp.Body).Decode(&jwks); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&jwks); err != nil {
 		return nil, fmt.Errorf("decoding JWKS: %w", err)
 	}
 
@@ -157,6 +158,17 @@ func validateCFAccessJWT(tokenStr string, cache *jwksCache, teamDomain string) (
 		return "", fmt.Errorf("unsupported algorithm: %s", header.Alg)
 	}
 
+	// Verify signature BEFORE trusting claims.
+	key, err := cache.getKey(header.Kid)
+	if err != nil {
+		return "", err
+	}
+
+	if err := verifyRS256(parts[0]+"."+parts[1], parts[2], key); err != nil {
+		return "", fmt.Errorf("signature verification failed: %w", err)
+	}
+
+	// Now that signature is verified, parse and validate claims.
 	payloadJSON, err := base64.RawURLEncoding.DecodeString(parts[1])
 	if err != nil {
 		return "", fmt.Errorf("decoding payload: %w", err)
@@ -178,15 +190,6 @@ func validateCFAccessJWT(tokenStr string, cache *jwksCache, teamDomain string) (
 	expectedIss := fmt.Sprintf("https://%s", teamDomain)
 	if claims.Iss != expectedIss {
 		return "", fmt.Errorf("issuer mismatch: got %s, want %s", claims.Iss, expectedIss)
-	}
-
-	key, err := cache.getKey(header.Kid)
-	if err != nil {
-		return "", err
-	}
-
-	if err := verifyRS256(parts[0]+"."+parts[1], parts[2], key); err != nil {
-		return "", fmt.Errorf("signature verification failed: %w", err)
 	}
 
 	if claims.Email == "" {

@@ -18,9 +18,14 @@ func main() {
 		Level: slog.LevelInfo,
 	})))
 
+	// Graceful shutdown context — created early so it can be passed to hub.Run.
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	// Configuration from environment.
 	addr := envOr("LISTEN_ADDR", ":8080")
 	redisAddr := envOr("REDIS_ADDR", "redis:6379")
+	redisPassword := envOr("REDIS_PASSWORD", "")
 	cfTeam := envOr("CF_ACCESS_TEAM", "")
 
 	if cfTeam == "" {
@@ -32,7 +37,7 @@ func main() {
 	auth := NewCFAccessAuth(cfTeam)
 
 	// Initialize Redis relay.
-	redis, err := NewRedisRelay(redisAddr)
+	redis, err := NewRedisRelay(redisAddr, redisPassword)
 	if err != nil {
 		slog.Error("failed to connect to Redis", "addr", redisAddr, "error", err)
 		os.Exit(1)
@@ -41,7 +46,7 @@ func main() {
 
 	// Initialize the connection hub.
 	hub := NewHub(redis)
-	go hub.Run()
+	go hub.Run(ctx)
 
 	// Start Redis subscription in background — routes incoming messages
 	// from other replicas to local clients.
@@ -60,6 +65,11 @@ func main() {
 	})
 
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
+		if err := redis.Ping(); err != nil {
+			w.WriteHeader(http.StatusServiceUnavailable)
+			w.Write([]byte("redis unhealthy"))
+			return
+		}
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
@@ -68,13 +78,9 @@ func main() {
 		Addr:         addr,
 		Handler:      mux,
 		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		WriteTimeout: 0, // WebSocket connections are long-lived
 		IdleTimeout:  120 * time.Second,
 	}
-
-	// Graceful shutdown.
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
 
 	go func() {
 		slog.Info("ws-gateway listening", "addr", addr)
@@ -120,9 +126,12 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request, hub *Hub, auth *CFA
 	client := NewClient(hub, conn, email)
 	hub.register <- client
 
-	ctx := r.Context()
-	go client.writePump(ctx)
-	client.readPump(ctx)
+	// Use a dedicated context for the client pumps instead of the HTTP
+	// request context, which may be cancelled after the upgrade.
+	clientCtx, clientCancel := context.WithCancel(context.Background())
+	defer clientCancel()
+	go client.writePump(clientCtx)
+	client.readPump(clientCtx)
 }
 
 // envOr returns the value of the named environment variable, or the fallback.

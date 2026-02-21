@@ -1,17 +1,23 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"log/slog"
 	"sync"
+
+	"nhooyr.io/websocket"
 )
 
 // Hub manages all active WebSocket client connections and coordinates
 // broadcasting messages. It is designed to work with Redis pub/sub so that
 // multiple gateway replicas can relay events to all connected clients.
+const maxConnsPerUser = 5
+
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[*Client]bool
+	mu        sync.RWMutex
+	clients   map[*Client]bool
+	connCount map[string]int // email -> active connection count
 
 	register   chan *Client
 	unregister chan *Client
@@ -25,6 +31,7 @@ type Hub struct {
 func NewHub(redis *RedisRelay) *Hub {
 	return &Hub{
 		clients:    make(map[*Client]bool),
+		connCount:  make(map[string]int),
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
 		broadcast:  make(chan []byte, 256),
@@ -34,12 +41,29 @@ func NewHub(redis *RedisRelay) *Hub {
 
 // Run processes register, unregister, and broadcast events.
 // It should be started as a goroutine.
-func (h *Hub) Run() {
+func (h *Hub) Run(ctx context.Context) {
 	for {
 		select {
+		case <-ctx.Done():
+			h.mu.Lock()
+			for c := range h.clients {
+				c.conn.Close(websocket.StatusGoingAway, "server shutting down")
+				close(c.send)
+				delete(h.clients, c)
+			}
+			h.mu.Unlock()
+			return
+
 		case client := <-h.register:
 			h.mu.Lock()
+			if h.connCount[client.email] >= maxConnsPerUser {
+				h.mu.Unlock()
+				slog.Warn("connection limit exceeded", "email", client.email)
+				client.conn.Close(websocket.StatusTryAgainLater, "too many connections")
+				continue
+			}
 			h.clients[client] = true
+			h.connCount[client.email]++
 			h.mu.Unlock()
 
 			slog.Info("client connected", "email", client.email, "clients", h.clientCount())
@@ -50,6 +74,10 @@ func (h *Hub) Run() {
 			if _, ok := h.clients[client]; ok {
 				delete(h.clients, client)
 				close(client.send)
+				h.connCount[client.email]--
+				if h.connCount[client.email] <= 0 {
+					delete(h.connCount, client.email)
+				}
 			}
 			h.mu.Unlock()
 
@@ -81,17 +109,34 @@ func (h *Hub) HandleRedisMessage(msg []byte) {
 	h.distributeLocal(msg)
 }
 
-// distributeLocal sends a message to all locally connected clients.
+// distributeLocal sends a message to all locally connected clients,
+// enforcing PrivateTo filtering for private messages.
 func (h *Hub) distributeLocal(message []byte) {
+	// Check if this is a private message.
+	var envelope WSEvent
+	var privateTo, senderID string
+	if json.Unmarshal(message, &envelope) == nil && envelope.Type == EventFeedEvent {
+		var feed struct {
+			PrivateTo string `json:"private_to"`
+			SpeakerID string `json:"speaker_id"`
+		}
+		if json.Unmarshal(envelope.Data, &feed) == nil {
+			privateTo = feed.PrivateTo
+			senderID = feed.SpeakerID
+		}
+	}
+
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 
 	for client := range h.clients {
+		// Enforce PrivateTo: only deliver to the recipient and sender.
+		if privateTo != "" && client.email != privateTo && client.email != senderID {
+			continue
+		}
 		select {
 		case client.send <- message:
 		default:
-			// Client send buffer full -- drop the message for this client.
-			// The write pump will eventually close the connection if it stalls.
 			slog.Warn("dropping message for slow client", "email", client.email)
 		}
 	}

@@ -8,8 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 )
@@ -129,6 +131,21 @@ func (a *CFAccessAuth) validateToken(token string) (string, error) {
 		return "", errors.New("JWT missing email claim")
 	}
 
+	// Validate audience if CF_ACCESS_AUD is configured.
+	expectedAud := os.Getenv("CF_ACCESS_AUD")
+	if expectedAud != "" {
+		found := false
+		for _, a := range claims.Aud {
+			if s, ok := a.(string); ok && s == expectedAud {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return "", errors.New("JWT audience mismatch")
+		}
+	}
+
 	return claims.Email, nil
 }
 
@@ -161,7 +178,8 @@ func (a *CFAccessAuth) getKey(kid string) (*rsa.PublicKey, error) {
 // fetchKeys retrieves the Cloudflare Access JWKS endpoint and caches the keys.
 func (a *CFAccessAuth) fetchKeys() error {
 	url := fmt.Sprintf("https://%s/cdn-cgi/access/certs", a.teamDomain)
-	resp, err := http.Get(url) //nolint:noctx // one-off key fetch
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Get(url) //nolint:noctx // one-off key fetch
 	if err != nil {
 		return err
 	}
@@ -172,7 +190,7 @@ func (a *CFAccessAuth) fetchKeys() error {
 	}
 
 	var ks jwks
-	if err := json.NewDecoder(resp.Body).Decode(&ks); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 1<<20)).Decode(&ks); err != nil {
 		return err
 	}
 

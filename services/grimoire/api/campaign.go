@@ -16,10 +16,16 @@ func registerCampaignRoutes(mux *http.ServeMux, fs *firestore.Client) {
 
 func listCampaigns(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		iter := fs.Collection("campaigns").OrderBy("created_at", firestore.Desc).Documents(r.Context())
+		limit, _ := paginationParams(r)
+		email := userEmail(r)
+		iter := fs.Collection("campaigns").
+			Where("dm_user_id", "==", email).
+			OrderBy("created_at", firestore.Desc).
+			Limit(limit).
+			Documents(r.Context())
 		docs, err := collectDocs(iter)
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, "listing campaigns: "+err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docs)
@@ -57,7 +63,7 @@ func createCampaign(fs *firestore.Client) http.HandlerFunc {
 			"created_at":  nowTimestamp(),
 		}
 		if _, err := doc.Set(r.Context(), data); err != nil {
-			httpError(w, http.StatusInternalServerError, "creating campaign: "+err.Error())
+			internalError(w, err)
 			return
 		}
 		data["id"] = doc.ID
@@ -74,7 +80,7 @@ func getCampaign(fs *firestore.Client) http.HandlerFunc {
 				httpError(w, http.StatusNotFound, "campaign not found")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(doc))
@@ -84,6 +90,12 @@ func getCampaign(fs *firestore.Client) http.HandlerFunc {
 func updateCampaign(fs *firestore.Client) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id := r.PathValue("id")
+
+		if err := verifyCampaignOwner(r.Context(), fs, id, userEmail(r)); err != nil {
+			httpError(w, http.StatusForbidden, "forbidden")
+			return
+		}
+
 		var body map[string]any
 		if err := readJSON(r, &body); err != nil {
 			httpError(w, http.StatusBadRequest, err.Error())
@@ -108,13 +120,13 @@ func updateCampaign(fs *firestore.Client) http.HandlerFunc {
 				httpError(w, http.StatusNotFound, "campaign not found")
 				return
 			}
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 
 		doc, err := ref.Get(r.Context())
 		if err != nil {
-			httpError(w, http.StatusInternalServerError, err.Error())
+			internalError(w, err)
 			return
 		}
 		writeJSON(w, http.StatusOK, docToMap(doc))

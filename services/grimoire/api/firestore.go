@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"strconv"
 	"time"
 
 	"cloud.google.com/go/firestore"
@@ -21,9 +23,45 @@ func newFirestoreClient(ctx context.Context, projectID, database string) (*fires
 // --- JSON helpers ---
 
 func writeJSON(w http.ResponseWriter, code int, v any) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		slog.Error("json marshal error", "error", err)
+		http.Error(w, "internal server error", http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
-	json.NewEncoder(w).Encode(v)
+	w.Write(data)
+}
+
+func internalError(w http.ResponseWriter, err error) {
+	slog.Error("internal error", "error", err)
+	httpError(w, http.StatusInternalServerError, "internal server error")
+}
+
+// verifyCampaignOwner checks that the authenticated user is the DM of the campaign.
+func verifyCampaignOwner(ctx context.Context, fs *firestore.Client, campaignID, email string) error {
+	doc, err := fs.Collection("campaigns").Doc(campaignID).Get(ctx)
+	if err != nil {
+		return fmt.Errorf("campaign not found")
+	}
+	dm, _ := doc.DataAt("dm_user_id")
+	if dm != email {
+		return fmt.Errorf("forbidden")
+	}
+	return nil
+}
+
+// paginationParams extracts limit and cursor from query parameters.
+func paginationParams(r *http.Request) (int, string) {
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		if n, err := strconv.Atoi(l); err == nil && n > 0 && n <= 200 {
+			limit = n
+		}
+	}
+	cursor := r.URL.Query().Get("cursor")
+	return limit, cursor
 }
 
 func readJSON(r *http.Request, v any) error {
