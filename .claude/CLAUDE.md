@@ -1,5 +1,16 @@
 # CLAUDE.md - Secure Kubernetes Homelab
 
+## Repository
+
+This repo is hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated and available — use it for issues, PRs, and code review:
+
+```bash
+gh issue list
+gh issue view <number>
+gh pr create --title "..." --body "..."
+gh pr view <number>
+```
+
 ## Development Workflow Requirements
 
 **NEVER make changes directly on the main branch.** All modifications MUST:
