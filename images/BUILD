@@ -29,4 +29,3 @@ multirun(
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
 )
-
