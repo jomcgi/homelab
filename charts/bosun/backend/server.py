@@ -115,6 +115,50 @@ AUTO_APPROVED_TOOLS = [
     "Teammate",  # Enable swarm/team tools
 ]
 
+# System prompt appended to every CLI subprocess invocation.
+# Constrains Claude to the session workdir and instructs it about rendering
+# so that rich content appears correctly in the Bosun voice UI.
+_BOSUN_SYSTEM_PROMPT = """\
+You are running inside Bosun, a voice-controlled coding assistant UI.
+Your responses are rendered in a chat panel and often read aloud via TTS.
+
+## Working directory
+Your working directory is your project root. Always use RELATIVE paths for \
+file operations (Read, Write, Edit, Glob, Grep, Bash). Never use absolute \
+paths to other directories — all files you need are in your cwd.
+
+## Response formatting
+The UI renders GitHub Flavored Markdown. Use it freely:
+- **Headings, bold, italic, links, blockquotes, horizontal rules** all work.
+- **Markdown tables** render with borders and striped headers — prefer them \
+for structured data.
+- **Fenced code blocks** render in monospace with a copy button. Include the \
+language identifier (e.g. ```python) for readability, but note there is no \
+syntax highlighting.
+- **Ordered and unordered lists** render with proper indentation.
+- Do NOT use raw HTML — it will be escaped, not rendered.
+- Do NOT use LaTeX math notation — it renders as plain text. Describe math \
+in words or use code blocks instead.
+
+## Diagrams
+The UI renders Mermaid diagrams inline with zoom, pan, and download controls. \
+To display a diagram, include it directly in your response text as a fenced \
+mermaid code block:
+
+```mermaid
+graph TD
+    A --> B
+```
+
+Do NOT write mermaid to a separate .mmd file — always include diagrams inline \
+in your response text so the UI can detect and render them.
+
+## Voice / TTS awareness
+When the user is using voice input, keep responses concise and conversational. \
+Avoid excessive markdown formatting in short answers — plain text reads better \
+aloud. Save rich formatting for longer explanations or when explicitly asked.\
+"""
+
 app = FastAPI()
 
 
@@ -608,6 +652,8 @@ class ClaudeSession:
             ",".join(AUTO_APPROVED_TOOLS),
             "--setting-sources",
             "project",
+            "--append-system-prompt",
+            _BOSUN_SYSTEM_PROMPT,
         ]
         if self.session_id:
             cmd.extend(["--resume", self.session_id])
@@ -833,6 +879,86 @@ class ClaudeSession:
                                 }
                             )
 
+                        # Emit diff artifact for Edit tool
+                        if tool_name == "Edit":
+                            old_str = tool_input.get("old_string", "")
+                            new_str = tool_input.get("new_string", "")
+                            fpath = tool_input.get("file_path", "")
+                            if old_str and new_str and fpath:
+                                diff_text = _make_edit_diff(fpath, old_str, new_str)
+                                if diff_text:
+                                    fname = os.path.basename(fpath)
+                                    await ws.send_json(
+                                        {
+                                            "type": "diff",
+                                            "content": diff_text,
+                                            "file": fname,
+                                        }
+                                    )
+                                    if self.session_id:
+                                        artifact_counter += 1
+                                        _save_artifact(
+                                            self.session_id,
+                                            f"diff-{artifact_counter}",
+                                            "1",
+                                            {
+                                                "type": "diff",
+                                                "label": fname,
+                                                "data": diff_text,
+                                            },
+                                        )
+
+                        # Detect mermaid content written to files
+                        if tool_name == "Write":
+                            file_path = tool_input.get("file_path", "")
+                            file_content = tool_input.get("content", "")
+                            if file_path.endswith(".mmd") and file_content:
+                                # Treat entire file as a mermaid diagram
+                                label = os.path.basename(file_path)
+                                await ws.send_json(
+                                    {
+                                        "type": "mermaid_artifact",
+                                        "code": file_content.strip(),
+                                        "label": label,
+                                    }
+                                )
+                                if self.session_id:
+                                    artifact_counter += 1
+                                    _save_artifact(
+                                        self.session_id,
+                                        f"mermaid-{artifact_counter}",
+                                        "1",
+                                        {
+                                            "type": "mermaid",
+                                            "label": label,
+                                            "data": file_content.strip(),
+                                        },
+                                    )
+                            elif file_content:
+                                # Also scan for inline mermaid blocks in any written file
+                                for mi, mblock in enumerate(
+                                    _extract_mermaid_blocks(file_content)
+                                ):
+                                    await ws.send_json(
+                                        {
+                                            "type": "mermaid_artifact",
+                                            "code": mblock["code"],
+                                            "label": mblock["label"],
+                                        }
+                                    )
+                                    if self.session_id:
+                                        artifact_counter += 1
+                                        _save_artifact(
+                                            self.session_id,
+                                            f"mermaid-{artifact_counter}",
+                                            str(mi + 1),
+                                            {
+                                                "type": "mermaid",
+                                                "label": mblock["label"],
+                                                "data": mblock["code"],
+                                            },
+                                        )
+
                     elif btype == "tool_result":
                         content = block.get("content", "")
                         images = (
@@ -872,10 +998,32 @@ class ClaudeSession:
                                     },
                                 )
                         await ws.send_json(result_msg)
+
+                        # Detect unified diff in tool output (e.g. git diff)
+                        content_str = str(content or "")
+                        if _DIFF_RE.search(content_str):
+                            await ws.send_json(
+                                {
+                                    "type": "diff",
+                                    "content": content_str[:10000],
+                                    "file": "changes",
+                                }
+                            )
+                            if self.session_id:
+                                artifact_counter += 1
+                                _save_artifact(
+                                    self.session_id,
+                                    f"diff-{artifact_counter}",
+                                    "1",
+                                    {
+                                        "type": "diff",
+                                        "label": "changes",
+                                        "data": content_str[:10000],
+                                    },
+                                )
+
                         # Detect PR URLs in tool output
-                        await _detect_prs_in_output(
-                            str(content or ""), self.session_id, ws
-                        )
+                        await _detect_prs_in_output(content_str, self.session_id, ws)
 
                 continue
 
@@ -1007,6 +1155,29 @@ def _tool_summary(block: dict) -> str:
         return f"Message → {inp.get('recipient', inp.get('type', ''))}"
 
     return name
+
+
+def _make_edit_diff(file_path: str, old_string: str, new_string: str) -> str:
+    """Build a unified diff string from Edit tool input fields."""
+    import difflib
+
+    old_lines = old_string.splitlines(keepends=True)
+    new_lines = new_string.splitlines(keepends=True)
+    diff = difflib.unified_diff(
+        old_lines,
+        new_lines,
+        fromfile=f"a/{file_path}",
+        tofile=f"b/{file_path}",
+        lineterm="",
+    )
+    return "\n".join(diff)
+
+
+# Matches unified diff output (git diff, diff -u, etc.)
+_DIFF_RE = re.compile(
+    r"^---\s+\S.*\n\+\+\+\s+\S.*\n@@\s",
+    re.MULTILINE,
+)
 
 
 _MERMAID_RE = re.compile(r"```mermaid\s*\n(.*?)\n```", re.DOTALL)
@@ -1847,18 +2018,20 @@ def _truncate_for_tts(text: str) -> str:
 
 
 _SUMMARY_PROMPT = (
-    "You are briefing a developer who is listening, not reading.\n"
-    "Summarize the coding agent's output for spoken delivery.\n\n"
+    "You are briefing a developer who is listening via voice, not reading a screen.\n"
+    "Your job is to move progress forward — surface what matters so they can respond.\n\n"
     "Rules:\n"
-    "- Be concise. Use as few words as possible to convey the key point.\n"
-    "- For short or simple outputs, just relay the answer directly.\n"
-    "- For longer outputs, summarize what was done and any next step. Max 150 words.\n"
-    '- Lead with the conclusion, not "The agent investigated..."\n'
-    "- Include specific details (file names, values) only when the listener\n"
-    "  needs them to respond without seeing the screen\n"
-    "- If the agent asks the user a question, end with that question\n"
-    "- Be natural and conversational — this will be spoken aloud\n"
-    "- Do NOT use markdown, bullet points, or formatting\n\n"
+    "- Lead with the outcome or decision needed. Never start with 'The agent...'\n"
+    "- If the agent is BLOCKED or asking a question, end with that question clearly.\n"
+    "  The user needs to speak back to unblock it.\n"
+    "- If the agent completed work, state what's done in one sentence.\n"
+    '  "PR is ready" beats a paragraph about what the PR contains.\n'
+    "- Only include file names, values, or details the user needs to make a decision\n"
+    "  or take action. Skip implementation details they can see on screen.\n"
+    "- Keep it under 2-3 sentences for simple completions.\n"
+    "  Use more words only when there's a real decision or ambiguity to resolve.\n"
+    "- Be conversational — this is spoken aloud, not a status report.\n"
+    "- Do NOT use markdown, bullet points, or formatting.\n\n"
 )
 
 
@@ -1868,7 +2041,10 @@ async def _summarize(client, text: str, suggest_actions: bool):
         if suggest_actions:
             sa_prompt = (
                 _SUMMARY_PROMPT
-                + "Then suggest 1-3 follow-up actions the user might want.\n\n"
+                + "Then suggest 1-3 concrete next actions the user can say aloud to continue.\n"
+                "Actions should be specific to what just happened, not generic.\n"
+                'Good: "Merge the PR", "Run the failing test again"\n'
+                'Bad: "Review the changes", "Continue working"\n\n'
                 "Output format (JSON only, no markdown):\n"
                 '{"summary": "...", "actions": [{"label": "Run tests", "prompt": "run the test suite"}]}\n\n'
                 f"Agent output:\n{text}"
