@@ -26,11 +26,11 @@ imagePullSecret:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-frontend
-    tag: latest
-    pullPolicy: IfNotPresent
+    tag: main
+    pullPolicy: Always
 # WebSocket Gateway image
 wsGateway:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
-    tag: latest
-    pullPolicy: IfNotPresent
+    tag: main
+    pullPolicy: Always
