@@ -5,7 +5,7 @@ backend:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/charts/bosun/frontend
-    tag: main@sha256:ed8ce4534e0f644794497116196066b4eb8e4db6f667fe9fc7dd60cae7d9766e
+    tag: main@sha256:c0e5c63ae40e18b483d26a51c89bd04760f0324fcee87fb96faeecbeca1575df
 gitSync:
   enabled: true
   repo: https://github.com/jomcgi/homelab
