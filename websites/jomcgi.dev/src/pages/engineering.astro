@@ -130,35 +130,6 @@ const stargazerDiagram = `flowchart TB
     style Wind fill:#ffd93d,stroke:#ffd93d,color:#000
     style Final fill:#6bcb77,stroke:#6bcb77,color:#fff`;
 
-const claudeCodeDiagram = `flowchart LR
-    subgraph Browser
-        UI[claude.jomcgi.dev]
-    end
-
-    subgraph Cluster
-        Web[Claude Code Web]
-        LLM[llama-cpp]
-        SigNoz[(SigNoz MCP)]
-        K8s[(Kubernetes API)]
-    end
-
-    subgraph External
-        Claude[Claude API]
-    end
-
-    UI --> Web
-    Web -->|Complex tasks| Claude
-    Web -->|Code tasks| LLM
-    Web -->|Logs & Traces| SigNoz
-    Web -->|Pod status| K8s
-
-    style UI fill:#ff6b6b,stroke:#ff6b6b,color:#fff
-    style Web fill:#ffa502,stroke:#ffa502,color:#fff
-    style LLM fill:#ffd93d,stroke:#ffd93d,color:#000
-    style SigNoz fill:#6bcb77,stroke:#6bcb77,color:#fff
-    style K8s fill:#4d96ff,stroke:#4d96ff,color:#fff
-    style Claude fill:#9b59b6,stroke:#9b59b6,color:#fff`;
-
 const bazelDiagram = `flowchart LR
     subgraph Anywhere
         Laptop[Laptop]
@@ -240,44 +211,40 @@ const shipsDiagram = `flowchart LR
     style Map fill:#e056fd,stroke:#e056fd,color:#fff`;
 
 const aiStackDiagram = `flowchart LR
-    subgraph External
-        Anthropic[Anthropic API]
-        Discord[Discord API]
-        Search[Search Engines]
+    subgraph Inference
+        LLM[llama-cpp]
+        GPU[4090 GPU]
     end
 
-    subgraph Cluster
-        OC1[OpenClaw Personal]
-        OC2[OpenClaw Friends]
-        Perplexica[Perplexica]
+    subgraph Knowledge
         KG[Knowledge Graph]
-        LLM[llama-cpp]
-        SearX[SearXNG]
+        RSS[RSS Feeds]
         S3[(SeaweedFS)]
         Qdrant[(Qdrant)]
     end
 
-    OC1 -->|Claude| Anthropic
-    OC2 -->|Hermes| LLM
-    OC2 --> Discord
-    Perplexica --> SearX
-    Perplexica --> LLM
-    SearX --> Search
+    subgraph Consumers
+        Claude[Claude Code]
+        MCP[MCP Server]
+    end
+
+    GPU --> LLM
+    RSS --> KG
     KG --> S3
     KG --> Qdrant
     KG --> LLM
+    MCP --> KG
+    Claude --> MCP
+    Claude --> LLM
 
-    style Anthropic fill:#ff6b6b,stroke:#ff6b6b,color:#fff
-    style Discord fill:#ffa502,stroke:#ffa502,color:#fff
-    style Search fill:#ffd93d,stroke:#ffd93d,color:#000
-    style OC1 fill:#6bcb77,stroke:#6bcb77,color:#fff
-    style OC2 fill:#4d96ff,stroke:#4d96ff,color:#fff
-    style Perplexica fill:#9b59b6,stroke:#9b59b6,color:#fff
-    style KG fill:#e056fd,stroke:#e056fd,color:#fff
     style LLM fill:#ff6b6b,stroke:#ff6b6b,color:#fff
-    style SearX fill:#ffa502,stroke:#ffa502,color:#fff
+    style GPU fill:#ffa502,stroke:#ffa502,color:#fff
+    style KG fill:#e056fd,stroke:#e056fd,color:#fff
+    style RSS fill:#ffd93d,stroke:#ffd93d,color:#000
     style S3 fill:#ffd93d,stroke:#ffd93d,color:#000
-    style Qdrant fill:#6bcb77,stroke:#6bcb77,color:#fff`;
+    style Qdrant fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Claude fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style MCP fill:#9b59b6,stroke:#9b59b6,color:#fff`;
 
 const ociCacheDiagram = `flowchart LR
     subgraph Webhook
@@ -653,54 +620,10 @@ const ociCacheDiagram = `flowchart LR
             <p class="subtitle">Deep dives into interesting problems I've solved. Each section covers the motivation and execution.</p>
         </header>
 
-        <!-- Deep Dive 1: Claude Code Web -->
-        <section class="deep-dive" id="claude-code">
-            <div class="deep-dive-header">
-                <span class="deep-dive-number">01</span>
-                <h2>Claude Code Web: In-Cluster AI Assistant</h2>
-            </div>
-
-            <div class="motivation">
-                <div class="motivation-label">Motivation</div>
-                <div class="motivation-text">
-                    I wanted a coding assistant that could see what's actually happening in my cluster—read logs,
-                    check pod status, query traces—without me having to copy-paste context. Running Claude Code
-                    in-cluster with MCP servers gives it direct access. A local llama-cpp instance handles simpler
-                    tasks without external API calls.
-                </div>
-            </div>
-
-            <div class="diagram-container">
-                <MermaidDiagram diagram={claudeCodeDiagram} id="claude-code" />
-            </div>
-
-            <div class="execution">
-                <div class="execution-label">Execution</div>
-                <div class="execution-grid">
-                    <div class="execution-row">
-                        <div class="execution-key">Local LLM</div>
-                        <div class="execution-value">Hermes 4.3-36B IQ4_XS on a 4090. GGUF quantization fits in 24GB VRAM. 32k context window. Flash attention and quantized KV cache for fast inference.</div>
-                    </div>
-                    <div class="execution-row">
-                        <div class="execution-key">Model Routing</div>
-                        <div class="execution-value">Claude for complex reasoning and architecture decisions. Local llama-cpp for code generation, refactoring, and directed tasks.</div>
-                    </div>
-                    <div class="execution-row">
-                        <div class="execution-key">SigNoz MCP</div>
-                        <div class="execution-value">Direct access to logs, traces, and metrics. "Why is this pod crashlooping?" becomes answerable without leaving the conversation.</div>
-                    </div>
-                    <div class="execution-row">
-                        <div class="execution-key">Cluster Context</div>
-                        <div class="execution-value">Read-only Kubernetes API access. Check deployment status, resource usage, recent events. The assistant knows what's running and what's broken.</div>
-                    </div>
-                </div>
-            </div>
-        </section>
-
-        <!-- Deep Dive 2: Trips - Camera to Browser -->
+        <!-- Deep Dive 1: Trips - Camera to Browser -->
         <section class="deep-dive" id="trips">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">02</span>
+                <span class="deep-dive-number">01</span>
                 <h2>Trips: Camera to Browser</h2>
             </div>
 
@@ -814,7 +737,7 @@ const ociCacheDiagram = `flowchart LR
         <!-- Deep Dive 3: Ships - Real-Time Vessel Tracking -->
         <section class="deep-dive" id="ships">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">03</span>
+                <span class="deep-dive-number">02</span>
                 <h2>Ships: Real-Time AIS Vessel Tracking</h2>
             </div>
 
@@ -859,7 +782,7 @@ const ociCacheDiagram = `flowchart LR
         <!-- Deep Dive 4: Sextant -->
         <section class="deep-dive" id="sextant">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">04</span>
+                <span class="deep-dive-number">03</span>
                 <h2>Sextant: Type-Safe Operator State Machines</h2>
             </div>
 
@@ -918,7 +841,7 @@ transitions:
         <!-- Deep Dive 5: Cloudflare Operator -->
         <section class="deep-dive" id="cloudflare-operator">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">05</span>
+                <span class="deep-dive-number">04</span>
                 <h2>Cloudflare Operator</h2>
             </div>
 
@@ -966,7 +889,7 @@ transitions:
         <!-- Deep Dive 6: Stargazer -->
         <section class="deep-dive" id="stargazer">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">06</span>
+                <span class="deep-dive-number">05</span>
                 <h2>Stargazer: Dark Sky Location Finder</h2>
             </div>
 
@@ -1009,7 +932,7 @@ transitions:
         <!-- Deep Dive 7: Bazel Build System -->
         <section class="deep-dive" id="bazel">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">07</span>
+                <span class="deep-dive-number">06</span>
                 <h2>Bazel: One Way to Build Everything</h2>
             </div>
 
@@ -1082,19 +1005,19 @@ transitions:
 
         </section>
 
-        <!-- Deep Dive 8: Self-Hosted AI Stack -->
+        <!-- Deep Dive 7: Self-Hosted AI Stack -->
         <section class="deep-dive" id="ai-stack">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">08</span>
+                <span class="deep-dive-number">07</span>
                 <h2>Self-Hosted AI Stack</h2>
             </div>
 
             <div class="motivation">
                 <div class="motivation-label">Motivation</div>
                 <div class="motivation-text">
-                    I wanted AI tools my friends could use without worrying about costs or data leaving my infrastructure.
-                    Two OpenClaw instances, self-hosted search, and a knowledge graph—all isolated by NetworkPolicies so
-                    each service only talks to what it needs.
+                    Running local inference means zero API costs for routine tasks and no data leaving the cluster.
+                    A 4090 runs Hermes 4.3-36B comfortably, and a knowledge graph turns RSS feeds into
+                    semantic search that Claude Code can query via MCP.
                 </div>
             </div>
 
@@ -1106,24 +1029,16 @@ transitions:
                 <div class="execution-label">Execution</div>
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">OpenClaw</div>
-                        <div class="execution-value">Two instances: personal (Claude via Anthropic API, WhatsApp) and friends (Hermes via llama-cpp, Discord). Same Helm chart, different values. 1Password for secrets injection.</div>
-                    </div>
-                    <div class="execution-row">
-                        <div class="execution-key">Perplexica</div>
-                        <div class="execution-value">Self-hosted AI search. SearXNG sidecar queries 11 search engines. Results fed to llama-cpp for summarization. Private Perplexity replacement.</div>
+                        <div class="execution-key">llama-cpp</div>
+                        <div class="execution-value">Hermes 4.3-36B IQ4_XS on a 4090. OpenAI-compatible API. 32k context, flash attention, quantized KV cache. Shared inference backend for all local AI services.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Knowledge Graph</div>
-                        <div class="execution-value">RSS feeds stored in SeaweedFS. Ollama generates embeddings into Qdrant vectors. MCP server exposes semantic search to Claude Code.</div>
-                    </div>
-                    <div class="execution-row">
-                        <div class="execution-key">llama-cpp</div>
-                        <div class="execution-value">Hermes 4.3-36B IQ4_XS on a 4090. OpenAI-compatible API. 32k context, flash attention, quantized KV cache. Shared backend for all local AI services.</div>
+                        <div class="execution-value">RSS feeds stored in SeaweedFS. Embeddings generated into Qdrant vectors. MCP server exposes semantic search to Claude Code.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Network Isolation</div>
-                        <div class="execution-value">Provider-based NetworkPolicies. Anthropic instance: external HTTPS only, cluster blocked. Friends: Discord + explicit llama-cpp + Perplexica egress. Knowledge graph: internal only, no internet.</div>
+                        <div class="execution-value">Provider-based NetworkPolicies. Knowledge graph: internal only, no internet. llama-cpp: cluster-only, no external egress.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Hardening</div>
@@ -1133,10 +1048,10 @@ transitions:
             </div>
         </section>
 
-        <!-- Deep Dive 9: OCI Model Cache Operator -->
+        <!-- Deep Dive 8: OCI Model Cache Operator -->
         <section class="deep-dive" id="oci-model-cache">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">09</span>
+                <span class="deep-dive-number">08</span>
                 <h2>OCI Model Cache Operator</h2>
             </div>
 
