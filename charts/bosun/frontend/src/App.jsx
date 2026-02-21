@@ -319,8 +319,9 @@ export default function App() {
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Refresh sidebar when session changes (new session created or session resumed)
+  // Refresh sidebar and clear stale UI when session changes
   useEffect(() => {
+    voiceCommands.clearActions();
     if (sessionId) history.refresh();
   }, [sessionId]); // eslint-disable-line react-hooks/exhaustive-deps
 
