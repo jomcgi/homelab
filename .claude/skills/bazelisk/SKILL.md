@@ -1,13 +1,18 @@
 ---
 name: bazelisk
-description: Use when building code, formatting files, rendering manifests, pushing container images, or running tests. Handles all Bazel operations with automatic version management via .bazelversion.
+description: Use when building code, formatting files, rendering manifests, pushing container images, or running tests. Handles all Bazel operations via BuildBuddy CLI (bb) with automatic version management via .bazelversion.
 ---
 
-# Bazel Build System (bazelisk)
+# Bazel Build System (BuildBuddy CLI)
 
 ## Overview
 
-Use `bazelisk` for all Bazel commands. It automatically uses the version specified in `.bazelversion` (currently `rolling` = Bazel 9).
+This repo uses the **BuildBuddy CLI (`bb`)** as its Bazel launcher. Shell aliases route `bazel` and `bazelisk` to `bb`, so all three commands are interchangeable. The `.bazelversion` file pins BuildBuddy CLI 5.0.321 + Bazel 9.0.0.
+
+The `bb` CLI wraps Bazelisk and adds:
+- **Local gRPC proxy** for remote cache/BES — handles retries and buffering transparently
+- **`bb login`** for easy BuildBuddy authentication (no manual `--remote_header` needed)
+- **Plugin support** for extending the build system
 
 ## Common Commands
 
@@ -29,46 +34,46 @@ This runs multiple tasks in parallel:
 
 ```bash
 # Build everything
-bazelisk build //...
+bazel build //...
 
 # Build specific image
-bazelisk build //charts/todo/image:image
+bazel build //charts/todo/image:image
 
 # Build with verbose output
-bazelisk build //charts/todo/image:image --verbose_failures
+bazel build //charts/todo/image:image --verbose_failures
 ```
 
 ### Pushing Images
 
 ```bash
 # Push Todo image to registry
-bazelisk run //charts/todo/image:push
+bazel run //charts/todo/image:push
 ```
 
 ### Running Tests
 
 ```bash
 # Run all tests
-bazelisk test //...
+bazel test //...
 
 # Run specific test
-bazelisk test //pkg/mypackage:mypackage_test
+bazel test //pkg/mypackage:mypackage_test
 
 # Run with verbose output
-bazelisk test //... --test_output=all
+bazel test //... --test_output=all
 ```
 
 ### Querying Build Graph
 
 ```bash
 # List all targets in a package
-bazelisk query //charts/todo/...
+bazel query //charts/todo/...
 
 # Find what depends on a target
-bazelisk query "rdeps(//..., //charts/todo/image:image)"
+bazel query "rdeps(//..., //charts/todo/image:image)"
 
 # Show target dependencies
-bazelisk query "deps(//charts/todo/image:image)"
+bazel query "deps(//charts/todo/image:image)"
 ```
 
 ## Key Targets
@@ -148,7 +153,7 @@ paths:
 When you modify `apko.yaml`, update the lock:
 
 ```bash
-bazelisk run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+bazel run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
 ```
 
 Or run `format` which updates all locks automatically.
@@ -205,20 +210,20 @@ Bazel caches build artifacts aggressively:
 To force rebuild:
 
 ```bash
-bazelisk build //target --noremote_cache
+bazel build //target --noremote_cache
 ```
 
 ## Troubleshooting
 
 ```bash
 # Clean build artifacts
-bazelisk clean
+bazel clean
 
 # Clean everything including external deps
-bazelisk clean --expunge
+bazel clean --expunge
 
 # Show why a target was rebuilt
-bazelisk build //target --explain=explain.log --verbose_explanations
+bazel build //target --explain=explain.log --verbose_explanations
 ```
 
 ## Workflow Integration
