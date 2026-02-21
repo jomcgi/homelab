@@ -72,7 +72,7 @@ grimoireSecret:
   enabled: true
   name: grimoire
   onepassword:
-    itemPath: "vaults/Homelab/items/grimoire"
+    itemPath: "vaults/k8s-homelab/items/grimoire"
 
 # Cloudflare Tunnel (disabled — routing handled by shared cloudflare-tunnel chart)
 tunnel:
