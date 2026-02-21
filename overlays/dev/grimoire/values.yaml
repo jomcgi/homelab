@@ -26,7 +26,7 @@ imagePullSecret:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-frontend
-    tag: main@sha256:a76763778e3f0bc3ec3de7d050361ef36cb122d63a544c306a5da220d5ed234d
+    tag: latest@sha256:a76763778e3f0bc3ec3de7d050361ef36cb122d63a544c306a5da220d5ed234d
     pullPolicy: Always
 # WebSocket Gateway
 wsGateway:
