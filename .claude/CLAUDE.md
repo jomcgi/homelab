@@ -2,7 +2,7 @@
 
 ## Repository
 
-This repo is hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated and available — use it for issues, PRs, and code review:
+Hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated:
 
 ```bash
 gh issue list
@@ -11,112 +11,115 @@ gh pr create --title "..." --body "..."
 gh pr view <number>
 ```
 
-## Development Workflow Requirements
+## Repository Structure
 
-**NEVER make changes directly on the main branch.** All modifications MUST:
-
-1. Create a new worktree: `git worktree add /tmp/claude-worktrees/<feature-name> -b <feature-branch>`
-2. Make changes in the worktree
-3. Create a PR before any commits are pushed
-4. Only merge after review/approval
-
-**Why:** Direct main branch changes break GitOps workflows and bypass CI/CD checks.
-
-## Parallel Development
-
-Running 3-5 git worktrees with separate Claude sessions is the biggest productivity unlock. Each worktree operates independently, allowing you to work on multiple features simultaneously.
-
-**Setup shell aliases for quick navigation:**
-
-```bash
-# Add to ~/.zshrc or ~/.bashrc
-alias za='cd /tmp/claude-worktrees/feature-a'
-alias zb='cd /tmp/claude-worktrees/feature-b'
-alias zc='cd /tmp/claude-worktrees/feature-c'
+```
+homelab/
+├── charts/              # Helm charts (27 charts: argocd, signoz, trips, grimoire, ...)
+├── overlays/            # Environment-specific overrides
+│   ├── cluster-critical/  # Core infra (argocd, cert-manager, linkerd, longhorn, signoz)
+│   ├── dev/               # Development services (grimoire, marine, stargazer)
+│   └── prod/              # Production services (trips, knowledge-graph, nats, ...)
+├── operators/           # Custom Kubernetes operators (Go, controller-runtime)
+│   ├── cloudflare/        # Cloudflare DNS/tunnel operator
+│   └── oci-model-cache/   # ML model caching operator
+├── services/            # Application source code (Go, Python)
+├── websites/            # Frontend apps (Vite + React, Astro) — JS, not TypeScript
+├── tools/               # Build tooling (Bazel macros, OCI helpers, scripts)
+├── architecture/        # Design docs (security, observability, services, contributing)
+├── clusters/            # Kustomization entry point for ArgoCD
+├── MODULE.bazel         # Bazel dependency management (bzlmod, not WORKSPACE)
+└── buildbuddy.yaml      # CI pipeline definition
 ```
 
-This allows instant switching between worktrees with `za`, `zb`, `zc` commands.
+**Languages:** Go, Python, JavaScript, Starlark (BUILD files)
 
-## Learning the Codebase
+## Essential Commands
 
-Run `/config` and enable "Explanatory" output style for Claude to explain its reasoning during changes. This is useful for:
+```bash
+# ALWAYS use bazelisk, not bazel directly (.bazelversion manages version)
+bazelisk build //...          # Build everything
+bazelisk test //...           # Test everything
+format                        # Format code + update all lock files (apko, pip, gazelle)
+bazelisk run gazelle          # Regenerate BUILD files after adding Go imports
 
-- Onboarding new contributors to the codebase
-- Understanding complex architectural decisions
-- Learning Kubernetes/GitOps patterns
+# Render Helm templates (NEVER helm install — GitOps only)
+helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml
 
-You can also ask Claude to generate ASCII diagrams or visual explanations of system architecture.
+# Push container images
+bazelisk run //charts/<service>/image:push
+```
+
+**Vendored tools** (available via `direnv allow`): `format`, `argocd`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`
+
+## Development Workflow
+
+**NEVER commit directly to main.** All changes MUST go through a worktree + PR:
+
+1. `git -C ~/repos/homelab worktree add -b feat/my-feature /tmp/claude-worktrees/my-feature origin/main`
+2. Make changes in `/tmp/claude-worktrees/my-feature`
+3. Commit, push, create PR
+4. Merge after CI passes
 
 ## Context Loading Rules
 
-- **Security changes**: Read architecture/security.md FIRST
-- **New services**: Read architecture/contributing.md + architecture/services.md
-- **Observability work**: Read architecture/observability.md
+- **Security changes**: Read `architecture/security.md` FIRST
+- **New services**: Read `architecture/contributing.md` + `architecture/services.md`
+- **Observability work**: Read `architecture/observability.md`
+- **Operator changes**: Read `operators/best-practices.md`
+
+## Key Patterns
+
+| Pattern | Implementation |
+|---------|---------------|
+| **Secrets** | 1Password Operator (`OnePasswordItem` CRD) — never hardcode |
+| **Container images** | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64) |
+| **Auto image updates** | ArgoCD Image Updater (`imageupdater.yaml` in overlay) |
+| **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`) |
+| **Package deps (JS)** | pnpm + rules_js |
+| **Non-root containers** | uid 65532 convention, `runAsNonRoot: true` |
 
 ## Kubernetes Operations (kubectl)
 
 **CRITICAL: This cluster is managed via GitOps. kubectl is READ-ONLY.**
 
-**Read-only operations** (always safe):
+Safe operations: `get`, `describe`, `logs`, `top`, `explain`, `api-resources`
 
-```bash
-kubectl get pods -n <namespace>
-kubectl describe pod <pod-name> -n <namespace>
-kubectl logs <pod-name> -n <namespace>
-kubectl top pods -n <namespace>
-```
+**FORBIDDEN** — modify Git instead: `apply`, `patch`, `edit`, `scale`, `delete`
 
-**FORBIDDEN operations** - modify Git instead:
-
-```bash
-kubectl patch deployment ...    # NO
-kubectl edit configmap ...       # NO
-kubectl scale deployment ...     # NO
-kubectl delete deployment ...    # NO
-```
-
-**How to make changes:**
-
-1. Modify files in Git (`overlays/<env>/<service>/values.yaml`)
-2. Commit and push
-3. ArgoCD auto-syncs (5-10 seconds)
-
-## Quick Reference
-
-| Command            | Purpose                                       |
-| ------------------ | --------------------------------------------- |
-| `format`           | Format code, update lock files (apko, Python) |
-| `lstr -L 2 <path>` | Directory tree viewer                         |
+To make changes: edit `overlays/<env>/<service>/values.yaml` → commit → push → ArgoCD auto-syncs (~5-10s).
 
 ## GitOps Application Structure
 
-Services are organized in `overlays/<env>/<service>/`:
+Services live in `overlays/<env>/<service>/`:
 
-- `application.yaml` - ArgoCD Application pointing to Helm chart
-- `kustomization.yaml` - Makes app discoverable by ArgoCD
-- `values.yaml` - Environment-specific Helm value overrides
+- `application.yaml` — ArgoCD Application pointing to `charts/<chart>` with Helm values
+- `kustomization.yaml` — Makes app discoverable (`resources: [application.yaml]`)
+- `values.yaml` — Environment-specific Helm value overrides
+- `imageupdater.yaml` — (optional) ArgoCD Image Updater config
 
-ArgoCD syncs from `clusters/homelab/kustomization.yaml` which references environment overlays.
+ArgoCD syncs from `clusters/homelab/kustomization.yaml` → environment overlays.
+
+**Environments:** `cluster-critical` (infra), `dev` (development), `prod` (production)
 
 ## Continuous Integration
 
-CI is handled by **BuildBuddy** (not GitHub Actions). See `buildbuddy.yaml` in the repo root.
+CI uses **BuildBuddy Workflows** (not GitHub Actions). Defined in `buildbuddy.yaml`.
 
-BuildBuddy runs on every push/PR:
+Runs on every push/PR:
+- **Format check** — formatters + gazelle, verifies no uncommitted changes
+- **Test and push** — `bazel test //...`, pushes images on main branch
 
-- **Format check** - Runs formatters and gazelle, verifies no changes needed
-- **Test and push** - Runs `bazel test //...`, pushes images on main branch
+Debug CI failures: use `/buildbuddy` skill or reproduce locally with `bazelisk test //... --config=ci`
 
-To debug failed CI, use the `/buildbuddy` skill to fetch logs via the BuildBuddy API.
+Static sites deploy via `.github/workflows/cf-pages-*.yaml` (requires self-hosted runners).
 
-### GitHub Actions Workflows
+## Anti-Patterns
 
-The `.github/workflows/cf-pages-*.yaml` workflows deploy static sites to Cloudflare Pages.
-These require **self-hosted runners** (`homelab-runners`) and won't work for external contributors.
-
-## Anti-Patterns to Avoid
-
-- **Cargo-culting** Kubernetes best practices without understanding why
+- **Using `bazel` instead of `bazelisk`** — bazelisk manages versions via .bazelversion
+- **Using Dockerfiles** — this repo uses apko exclusively for container images
+- **Running as root** — always use non-root (uid 65532)
+- **Direct internet exposure** — all traffic goes through Cloudflare
+- **Running tests outside Bazel** — no `pytest`, `go test`, `npm test` directly
+- **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Over-engineering** simple services
-- **Running as root** unnecessarily
-- **Direct internet exposure** bypassing Cloudflare
