@@ -15,7 +15,7 @@ Reference: [BuildBuddy Authentication Guide](https://www.buildbuddy.io/docs/guid
 
 ## API Endpoints
 
-Base URL: `https://app.buildbuddy.io/api/v1`
+Base URL: `https://jomcgi.buildbuddy.io/api/v1`
 
 All requests use **POST** with JSON body containing a selector:
 
@@ -45,7 +45,7 @@ Reference: [BuildBuddy API Documentation](https://www.buildbuddy.io/docs/enterpr
                    ▼
 ┌──────────────────────────────────────────────┐
 │  Extract Invocation ID                        │
-│  From URL: https://app.buildbuddy.io/        │
+│  From URL: https://jomcgi.buildbuddy.io/        │
 │            invocation/<id>                    │
 └──────────────────┬───────────────────────────┘
                    │
@@ -85,14 +85,14 @@ curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-  https://app.buildbuddy.io/api/v1/GetInvocation
+  https://jomcgi.buildbuddy.io/api/v1/GetInvocation
 
 # 3. Get build logs
 curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-  https://app.buildbuddy.io/api/v1/GetLog
+  https://jomcgi.buildbuddy.io/api/v1/GetLog
 ```
 
 ## Common Use Cases
@@ -105,7 +105,7 @@ curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://app.buildbuddy.io/api/v1/GetInvocation \
+  https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
   | jq '{success: .invocation.success, duration_ms: .invocation.duration_millis, command: .invocation.command}'
 
 # Get build logs (includes stdout/stderr)
@@ -113,7 +113,7 @@ curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://app.buildbuddy.io/api/v1/GetLog \
+  https://jomcgi.buildbuddy.io/api/v1/GetLog \
   | jq -r '.log'
 ```
 
@@ -125,7 +125,7 @@ curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://app.buildbuddy.io/api/v1/GetInvocation \
+  https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
   | jq '{duration_ms: .invocation.duration_millis, action_count: .invocation.action_count}'
 ```
 
@@ -137,7 +137,7 @@ curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://app.buildbuddy.io/api/v1/GetInvocation \
+  https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
   | jq '{repo: .invocation.repo_url, commit: .invocation.commit_sha, branch: .invocation.branch_name}'
 ```
 
@@ -147,16 +147,16 @@ curl -s -X POST \
 
 ```bash
 # 1. Check PR status
-gh pr checks --json name,conclusion,link
+gh pr checks --json name,state,link
 
 # 2. Extract BuildBuddy invocation IDs from failed checks
-gh pr checks --json link,conclusion | \
-  jq -r '.[] | select(.conclusion == "FAILURE") | .link' | \
+gh pr checks --json link,state | \
+  jq -r '.[] | select(.state == "FAILURE") | .link' | \
   grep buildbuddy | \
   sed 's|.*/invocation/||'
 
 # 3. For each failed invocation, get details
-for INVOCATION_ID in $(gh pr checks --json link,conclusion | jq -r '.[] | select(.conclusion == "FAILURE") | .link' | grep buildbuddy | sed 's|.*/invocation/||'); do
+for INVOCATION_ID in $(gh pr checks --json link,state | jq -r '.[] | select(.state == "FAILURE") | .link' | grep buildbuddy | sed 's|.*/invocation/||'); do
   echo "=== Invocation: $INVOCATION_ID ==="
 
   # Get summary
@@ -164,7 +164,7 @@ for INVOCATION_ID in $(gh pr checks --json link,conclusion | jq -r '.[] | select
     -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
     -H "Content-Type: application/json" \
     -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-    https://app.buildbuddy.io/api/v1/GetInvocation \
+    https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
     | jq -r '{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis}'
 
   # Get logs (first 50 lines)
@@ -172,7 +172,7 @@ for INVOCATION_ID in $(gh pr checks --json link,conclusion | jq -r '.[] | select
     -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
     -H "Content-Type: application/json" \
     -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-    https://app.buildbuddy.io/api/v1/GetLog \
+    https://jomcgi.buildbuddy.io/api/v1/GetLog \
     | jq -r '.log' | head -50
 
   echo ""
@@ -189,7 +189,7 @@ curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
   -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-  https://app.buildbuddy.io/api/v1/GetLog \
+  https://jomcgi.buildbuddy.io/api/v1/GetLog \
   | jq -r '.log' \
   | grep -i -E "(error|fail|fatal)" \
   | head -20
@@ -207,7 +207,7 @@ bb_summary() {
     -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
     -H "Content-Type: application/json" \
     -d "{\"selector\":{\"invocation_id\":\"$id\"}}" \
-    https://app.buildbuddy.io/api/v1/GetInvocation \
+    https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
     | jq '{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis, action_count: .invocation.action_count}'
 }
 
@@ -218,7 +218,7 @@ bb_logs() {
     -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
     -H "Content-Type: application/json" \
     -d "{\"selector\":{\"invocation_id\":\"$id\"}}" \
-    https://app.buildbuddy.io/api/v1/GetLog \
+    https://jomcgi.buildbuddy.io/api/v1/GetLog \
     | jq -r '.log'
 }
 
@@ -232,7 +232,7 @@ bb_errors() {
 ## Tips
 
 - BuildBuddy logs are paginated - use page tokens for large logs
-- Invocation IDs are extracted from URLs: `https://app.buildbuddy.io/invocation/<id>`
+- Invocation IDs are extracted from URLs: `https://jomcgi.buildbuddy.io/invocation/<id>`
 - Use jq to parse JSON responses and extract relevant fields
 - The log endpoint returns a single string (not structured log entries)
 - Check `.invocation.success` boolean to see if build passed
@@ -243,7 +243,7 @@ bb_errors() {
 # Verify API key is set
 if [ -z "$BUILDBUDDY_API_KEY" ]; then
   echo "ERROR: BUILDBUDDY_API_KEY not set"
-  echo "Get your API key from: https://app.buildbuddy.io/settings/org/details"
+  echo "Get your API key from: https://jomcgi.buildbuddy.io/settings/org/details"
 else
   echo "API key configured ✓"
 fi

@@ -113,4 +113,3 @@ services:
       - "imagePullSecret.create=false"
       - "persistence.enabled=false"
       - "git.tokenSecret.name="
-

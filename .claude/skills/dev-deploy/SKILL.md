@@ -115,6 +115,7 @@ helm upgrade <service> <chart-path> \
 ```
 
 **Important --set construction:**
+
 - For each image: `--set <helm_tag_key>=<tag> --set <helm_pull_policy_key>=Always`
 - For each value_override: `--set <override>`
 - Always add: `--set imagePullSecrets[0].name=ghcr-imagepull-secret`
@@ -181,27 +182,32 @@ kubectl get pods -n <namespace>
 ## Service-Specific Notes
 
 ### grimoire
+
 - Redis deploys alongside (embedded in chart) — no external dependency
 - Frontend Nginx proxies `/ws` to the ws-gateway service
 - Gemini secret is disabled via value_overrides — AI features won't work but UI loads
 
 ### marine
+
 - Requires NATS at `nats://nats.nats.svc.cluster.local:4222` (cross-namespace, must exist)
 - AISStream secret disabled — ingest won't connect but API/frontend work
 - API needs persistence for SQLite — disabled in test by default, add `--set api.persistence.enabled=true` if needed
 - Digest fields must be cleared (done in value_overrides) to avoid tag+digest conflict
 
 ### stargazer
+
 - CronJob-based — won't run automatically in test unless you trigger it manually
 - To trigger: `kubectl create job --from=cronjob/stargazer test-run -n <namespace>`
 - API server disabled by default; use base_values from dev overlay to enable it
 
 ### knowledge-graph
+
 - Depends on SeaweedFS, Qdrant, and Ollama (cross-namespace FQDNs)
 - These must be running in the cluster for the service to function
 - No dev overlay exists — uses prod overlay as base_values
 
 ### todo
+
 - Simplest service — single image, single deployment
 - Persistence disabled in test (no git clone needed for UI testing)
 - Good for smoke-testing the dev-deploy flow itself

@@ -144,3 +144,6 @@ for chart_yaml in $(find charts -maxdepth 2 -name Chart.yaml | LC_ALL=C sort); d
 
 	echo "" >>"$OUTPUT"
 done
+
+# Strip trailing blank lines (prettier expects no trailing blank line)
+printf '%s\n' "$(cat "$OUTPUT")" >"$OUTPUT"
