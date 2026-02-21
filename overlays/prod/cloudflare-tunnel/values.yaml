@@ -72,12 +72,9 @@ resources:
     cpu: 250m
     memory: 256Mi
 
-# Enable Envoy proxy sidecar with tracing to SigNoz
+# Envoy proxy sidecar disabled - QUIC tunnel connections were cycling every
+# ~60s with "timeout: no recent network activity", causing intermittent 503s.
+# The iptables rules from the transparent proxy init container likely interfere
+# with UDP conntrack for QUIC flows. Re-enable after investigating root cause.
 envoy:
-  enabled: true
-  # Enable transparent proxy to intercept all outbound traffic
-  transparentProxy:
-    enabled: true
-  tracing:
-    enabled: true
-    serviceName: "cloudflare-tunnel-ingress"
+  enabled: false
