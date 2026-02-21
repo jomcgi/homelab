@@ -18,6 +18,7 @@ MODULE.bazel.lock
 
 
 node_modules/
+dist/
 
 
 *.venv/
