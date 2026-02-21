@@ -6,6 +6,30 @@ metadata:
     {{- include "grimoire.labels" . | nindent 4 }}
     app.kubernetes.io/component: frontend
 data:
+  nginx.conf: |
+    worker_processes auto;
+    error_log stderr warn;
+    pid /var/run/nginx.pid;
+
+    events {
+        worker_connections 1024;
+    }
+
+    http {
+        include /etc/nginx/mime.types;
+        default_type application/octet-stream;
+
+        client_body_temp_path /tmp/client_body;
+        proxy_temp_path /tmp/proxy;
+        fastcgi_temp_path /tmp/fastcgi;
+        uwsgi_temp_path /tmp/uwsgi;
+        scgi_temp_path /tmp/scgi;
+
+        sendfile on;
+        keepalive_timeout 65;
+
+        include /etc/nginx/conf.d/*.conf;
+    }
   default.conf: |
     upstream ws_gateway {
         server {{ include "grimoire.fullname" . }}-ws-gateway:{{ .Values.wsGateway.service.port }};
