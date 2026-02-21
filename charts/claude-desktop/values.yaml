@@ -1,0 +1,74 @@
+## Claude Desktop via xpra
+## Runs Claude Desktop (Electron) in a container, streamed to browsers via xpra HTML5
+
+nameOverride: ""
+fullnameOverride: ""
+
+image:
+  repository: ghcr.io/jomcgi/homelab/charts/claude-desktop
+  pullPolicy: IfNotPresent
+  tag: "main"
+
+imagePullSecrets:
+  - name: ghcr-pull-secret
+
+## xpra HTML5 WebSocket port
+xpra:
+  port: 14500
+
+## Resource allocation
+resources:
+  requests:
+    cpu: "500m"
+    memory: "2Gi"
+  limits:
+    memory: "4Gi"
+
+## Persistence for Claude Desktop auth and config
+persistence:
+  enabled: true
+  storageClass: "longhorn"
+  accessMode: ReadWriteOnce
+  size: 10Gi
+  annotations:
+    helm.sh/resource-policy: keep
+
+## Pod Security Context
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+## Container Security Context
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop:
+      - ALL
+
+## Service Account configuration
+serviceAccount:
+  create: true
+  automount: false
+  annotations: {}
+  name: ""
+
+## Pod annotations
+podAnnotations:
+  linkerd.io/inject: disabled
+
+## Pod labels
+podLabels: {}
+
+## Node selector
+nodeSelector: {}
+
+## Tolerations
+tolerations: []
+
+## Affinity rules
+affinity: {}
