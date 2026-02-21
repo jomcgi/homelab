@@ -19,6 +19,7 @@ frontend:
 # WebSocket Gateway — Go binary proxying Gemini Live + game relay
 wsGateway:
   replicaCount: 1
+  cfAccessTeam: ""
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
     tag: main
