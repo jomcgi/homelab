@@ -41,11 +41,6 @@ spec:
           env:
             - name: CF_ACCESS_TEAM
               value: {{ .Values.wsGateway.cfAccessTeam | quote }}
-            - name: GOOGLE_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.grimoireSecret.name }}
-                  key: google_api_key
             - name: REDIS_ADDR
               value: "{{ include "grimoire.fullname" . }}-redis:{{ .Values.redis.service.port }}"
             - name: REDIS_PASSWORD
