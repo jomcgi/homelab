@@ -1,2 +1,5 @@
 # Helm templates contain Go template syntax that Prettier doesn't understand
 charts/*/templates/
+
+# Git worktrees have their own formatting
+.claude/worktrees/

@@ -51,16 +51,18 @@ PIDS=()
 PIDS+=($!)
 
 # Shell
-(find . -name '*.sh' -not -path './bazel-*' -not -path './.git/*' -print0 |
+(find . -name '*.sh' -not -path './bazel-*' -not -path './.git/*' -not -path './.claude/worktrees/*' -print0 |
 	xargs -0 "$SHFMT" -w 2>/dev/null || true) &
 PIDS+=($!)
 
-# Starlark
-"$BUILDIFIER" -r . 2>/dev/null &
+# Starlark (exclude worktrees — they have their own formatting)
+(find . \( -name BUILD -o -name BUILD.bazel -o -name '*.bzl' -o -name WORKSPACE -o -name WORKSPACE.bazel \) \
+	-not -path './bazel-*' -not -path './.claude/worktrees/*' -print0 |
+	xargs -0 "$BUILDIFIER" 2>/dev/null || true) &
 PIDS+=($!)
 
 # Go
-(find . -name '*.go' -not -path './bazel-*' -not -path './.git/*' -print0 |
+(find . -name '*.go' -not -path './bazel-*' -not -path './.git/*' -not -path './.claude/worktrees/*' -print0 |
 	xargs -0 "$GOFUMPT" -w 2>/dev/null || true) &
 PIDS+=($!)
 
