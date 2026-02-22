@@ -33,7 +33,7 @@ while IFS= read -r build_file; do
 			echo "${repo}|//${pkg}:${name}.push" >>"$REPO_MAP"
 		fi
 	done < <(grep -o 'ghcr.io/jomcgi/homelab/[^"]*' "$build_file" | sort -u)
-done < <(grep -rl 'repository.*=.*"ghcr.io/jomcgi/homelab/' --include='BUILD' . 2>/dev/null | grep -v './bazel-' | LC_ALL=C sort)
+done < <(grep -rl 'repository.*=.*"ghcr.io/jomcgi/homelab/' --include='BUILD' . 2>/dev/null | grep -v './bazel-' | grep -v './\.claude/' | LC_ALL=C sort)
 
 # --- Step 2: Find dev-deploy enabled charts and generate registry ---
 mkdir -p "$(dirname "$OUTPUT")"
