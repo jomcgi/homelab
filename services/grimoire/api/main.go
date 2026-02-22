@@ -24,6 +24,13 @@ func main() {
 	}
 	defer fs.Close()
 
+	apiKey := os.Getenv("GOOGLE_API_KEY") // empty = ADC
+	gemini, err := NewGeminiClient(ctx, apiKey)
+	if err != nil {
+		log.Fatalf("gemini: %v", err)
+	}
+	defer gemini.Close()
+
 	mux := http.NewServeMux()
 
 	// Health check (unauthenticated — Cloud Run needs this).
@@ -40,6 +47,7 @@ func main() {
 	registerEncounterRoutes(api, fs)
 	registerDiceRoutes(api, fs)
 	registerFeedRoutes(api, fs)
+	registerRAGRoutes(api, fs, gemini)
 
 	mux.Handle("/api/", cfAccessMiddleware(cfAccessTeam, api))
 
