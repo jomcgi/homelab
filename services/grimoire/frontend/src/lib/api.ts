@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import type { Classification, FeedEvent, Player, RollData } from "@/types";
+import type { Classification, FeedEvent, Player, RAGResponse, RollData } from "@/types";
 
 const API_BASE = "/api";
 
@@ -77,7 +77,8 @@ export function useRAGQuery() {
       query: string;
       content_type?: string;
       books?: string[];
-    }) => postJSON("/rag/query", params),
+      campaign_id?: string;
+    }) => postJSON<RAGResponse>("/rag/query", params),
   });
 }
 

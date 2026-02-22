@@ -104,6 +104,28 @@ export interface RAGChunk {
   pinned?: boolean;
 }
 
+export interface RAGResponse {
+  query: string;
+  answer: string;
+  citations: RAGCitation[];
+  campaign_context?: CampaignContextItem[];
+}
+
+export interface RAGCitation {
+  source_book: string;
+  page: number;
+  section: string;
+  content_type: string;
+  relevance: number;
+  text: string;
+}
+
+export interface CampaignContextItem {
+  type: string;
+  name: string;
+  summary: string;
+}
+
 // --- Lore ---
 
 export interface LoreEntry {
