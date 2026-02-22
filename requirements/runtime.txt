@@ -884,10 +884,28 @@ geopandas==0.14.4 \
     --hash=sha256:3bb6473cb59d51e1a7fe2dbc24a1a063fb0ebdeddf3ce08ddbf8c7ddc99689aa \
     --hash=sha256:56765be9d58e2c743078085db3bd07dc6be7719f0dbe1dfdc1d705cb80be7c25
     # via homelab (pyproject.toml)
+google-api-core[grpc]==2.30.0 \
+    --hash=sha256:02edfa9fab31e17fc0befb5f161b3bf93c9096d99aed584625f38065c511ad9b \
+    --hash=sha256:80be49ee937ff9aba0fd79a6eddfde35fe658b9953ab9b79c57dd7061afa8df5
+    # via
+    #   google-cloud-core
+    #   google-cloud-firestore
 google-auth[requests]==2.48.0 \
     --hash=sha256:2e2a537873d449434252a9632c28bfc268b0adb1e53f9fb62afc5333a975903f \
     --hash=sha256:4f7e706b0cd3208a3d940a19a822c37a476ddba5450156c3e6624a71f7c841ce
-    # via google-genai
+    # via
+    #   google-api-core
+    #   google-cloud-core
+    #   google-cloud-firestore
+    #   google-genai
+google-cloud-core==2.5.0 \
+    --hash=sha256:67d977b41ae6c7211ee830c7912e41003ea8194bff15ae7d72fd6f51e57acabc \
+    --hash=sha256:7c1b7ef5c92311717bd05301aa1a91ffbc565673d3b0b4163a52d8413a186963
+    # via google-cloud-firestore
+google-cloud-firestore==2.23.0 \
+    --hash=sha256:19f2326cb466b0d52aed9fabbd89758be431f6ce18c422966cfdb8326b424314 \
+    --hash=sha256:a9cffba7cdc6101111d6d54cde22d521c98f9e7d415e67486b137fa16f06aa03
+    # via homelab (pyproject.toml)
 google-genai==1.64.0 \
     --hash=sha256:78a4d2deeb33b15ad78eaa419f6f431755e7f0e03771254f8000d70f717e940b \
     --hash=sha256:8db94ab031f745d08c45c69674d1892f7447c74ed21542abe599f7888e28b924
@@ -896,6 +914,8 @@ googleapis-common-protos==1.71.0 \
     --hash=sha256:1aec01e574e29da63c80ba9f7bbf1ccfaacf1da877f23609fe236ca7c72a2e2e \
     --hash=sha256:59034a1d849dc4d18971997a72ac56246570afdd17f9369a0ff68218d50ab78c
     # via
+    #   google-api-core
+    #   grpcio-status
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
 grpcio==1.76.0 \
@@ -960,7 +980,14 @@ grpcio==1.76.0 \
     --hash=sha256:f9f7bd5faab55f47231ad8dba7787866b69f5e93bc306e3915606779bbfb4ba8 \
     --hash=sha256:fd5ef5932f6475c436c4a55e4336ebbe47bd3272be04964a03d316bbf4afbcbc \
     --hash=sha256:ff8a59ea85a1f2191a0ffcc61298c571bc566332f82e5f5be1b83c9d8e668a62
-    # via opentelemetry-exporter-otlp-proto-grpc
+    # via
+    #   google-api-core
+    #   grpcio-status
+    #   opentelemetry-exporter-otlp-proto-grpc
+grpcio-status==1.76.0 \
+    --hash=sha256:25fcbfec74c15d1a1cb5da3fab8ee9672852dc16a5a9eeb5baf7d7a9952943cd \
+    --hash=sha256:380568794055a8efbbd8871162df92012e0228a5f6dffaf57f2a00c534103b18
+    # via google-api-core
 h11==0.16.0 \
     --hash=sha256:4e35b956cf45792e4caa5885e69fba00bdbc6ffafbfa020300e549b208ee5ff1 \
     --hash=sha256:63cf8bbe7522de3bf65932fda1d9c2772064ffb3dae62d55932da54b31cb6c86
@@ -2073,6 +2100,12 @@ propcache==0.4.1 \
     # via
     #   aiohttp
     #   yarl
+proto-plus==1.27.1 \
+    --hash=sha256:912a7460446625b792f6448bade9e55cd4e41e6ac10e27009ef71a7f317fa147 \
+    --hash=sha256:e4643061f3a4d0de092d62aa4ad09fa4756b2cbb89d4627f3985018216f9fefc
+    # via
+    #   google-api-core
+    #   google-cloud-firestore
 protobuf==6.33.0 \
     --hash=sha256:140303d5c8d2037730c548f8c7b93b20bb1dc301be280c378b82b8894589c954 \
     --hash=sha256:25c9e1963c6734448ea2d308cfa610e692b801304ba0908d7bfa564ac5132995 \
@@ -2085,9 +2118,13 @@ protobuf==6.33.0 \
     --hash=sha256:e0697ece353e6239b90ee43a9231318302ad8353c70e6e45499fa52396debf90 \
     --hash=sha256:e0a1715e4f27355afd9570f3ea369735afc853a6c3951a6afe1f80d8569ad298
     # via
+    #   google-api-core
+    #   google-cloud-firestore
     #   googleapis-common-protos
+    #   grpcio-status
     #   open-gopro
     #   opentelemetry-proto
+    #   proto-plus
 ptyprocess==0.7.0 \
     --hash=sha256:4b41f3967fce3af57cc7e94b888626c18bf37a083e3651ca8feeb66d492fef35 \
     --hash=sha256:5c5d0a3b48ceee0b48485e0c26037c0acd7d29765ca3fbb5cb3831d347423220
@@ -2259,6 +2296,22 @@ pygments==2.19.2 \
     --hash=sha256:636cb2477cec7f8952536970bc533bc43743542f70392ae026374600add5b887 \
     --hash=sha256:86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b
     # via rich
+pymupdf==1.27.1 \
+    --hash=sha256:2c9d9353b840040cbc724341f4095fb7e2cc1a12a9147d0ec1a0a79f5d773147 \
+    --hash=sha256:3de95a0889395b0966fafd11b94980b7543a816e89dd1c218597a08543ac3415 \
+    --hash=sha256:4afbde0769c336717a149ab0de3330dcb75378f795c1a8c5af55c1a628b17d55 \
+    --hash=sha256:4b6268dff3a9d713034eba5c2ffce0da37c62443578941ac5df433adcde57b2f \
+    --hash=sha256:4f1837554134fb45d390a44de8844b2ca9b6c901c82ccc90b340e3b7f3b126ca \
+    --hash=sha256:aeaed76e72cbc061149a825ab0811c5f4752970c56591c2938c5042ec06b26e1 \
+    --hash=sha256:bee9f95512f9556dbf2cacfd1413c61b29a55baa07fa7f8fc83d221d8419888a \
+    --hash=sha256:fa33b512d82c6c4852edadf57f22d5f27d16243bb33dac0fbe4eb0f281c5b17e
+    # via
+    #   homelab (pyproject.toml)
+    #   pymupdf4llm
+pymupdf4llm==0.3.4 \
+    --hash=sha256:0517492f82af978541162ade20fc54649cdca52acd478e33b97cb6171d69956f \
+    --hash=sha256:48d396a5fb3c14351493c7f1dd25b2a843efdbdc4526e489ee100643a2cebec1
+    # via homelab (pyproject.toml)
 pyobjc-core==10.3.2 ; sys_platform == 'darwin' \
     --hash=sha256:16644a92fb9661de841ba6115e5354db06a1d193a5e239046e840013c7b3874d \
     --hash=sha256:48e9ac3af42b2340dae709a8b894f5ef7e5132d8546adcd1797cffcc449dabdc \
@@ -2649,6 +2702,7 @@ requests==2.32.5 \
     --hash=sha256:dbba0bac56e100853db0ea71b82b4dfd5fe2bf6d3754a8893c3af500cec7d7cf
     # via
     #   homelab (pyproject.toml)
+    #   google-api-core
     #   google-auth
     #   google-genai
     #   open-gopro
@@ -2780,7 +2834,9 @@ sunrisesunset==1.0.2 \
 tabulate==0.9.0 \
     --hash=sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c \
     --hash=sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f
-    # via sqlite-utils
+    # via
+    #   pymupdf4llm
+    #   sqlite-utils
 tenacity==9.1.4 \
     --hash=sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55 \
     --hash=sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a

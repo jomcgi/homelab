@@ -71,6 +71,10 @@ dependencies = [
     "lxml-html-clean",  # Required by trafilatura; added explicitly because lxml[html-clean] creates a Bazel cycle
     # Bosun (Claude Code web interface) dependencies
     "google-genai~=1.56",
+    # Grimoire RAG pipeline dependencies
+    "google-cloud-firestore",
+    "pymupdf",
+    "pymupdf4llm",
 ]
 
 # See https://docs.astral.sh/ruff/configuration/
