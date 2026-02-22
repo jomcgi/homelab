@@ -53,6 +53,71 @@ redis:
       cpu: 200m
       memory: 128Mi
 
+# API Service — REST CRUD + RAG query handler
+api:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/grimoire-api
+    tag: main
+    pullPolicy: Always
+  service:
+    type: ClusterIP
+    port: 8080
+  env:
+    gcpProjectID: "grimoire-prod"
+    firestoreDatabase: "grimoire"
+    cfAccessTeam: ""
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 256Mi
+
+# Chunk Writer — NATS consumer, upserts to Firestore
+chunkWriter:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/grimoire-chunk-writer
+    tag: main
+    pullPolicy: Always
+  env:
+    natsURL: "nats://nats.nats.svc.cluster.local:4222"
+    gcpProjectID: "grimoire-prod"
+    firestoreDatabase: "grimoire"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 128Mi
+
+# Ingest Job — PDF processing, on-demand
+ingest:
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/grimoire-ingest
+    tag: main
+    pullPolicy: Always
+  env:
+    natsURL: "nats://nats.nats.svc.cluster.local:4222"
+    seaweedfsEndpoint: "http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333"
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 1Gi
+
+# GCP service account for Firestore + Gemini API access
+gcpServiceAccount:
+  enabled: true
+  secretName: grimoire
+  secretKey: gcp_service_account
+  mountPath: /var/run/secrets/gcp/sa.json
+
 # ServiceAccount
 serviceAccount:
   create: true

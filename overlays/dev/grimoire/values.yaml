@@ -14,6 +14,16 @@ imageUpdater:
     helm:
       name: wsGateway.image.repository
       tag: wsGateway.image.tag
+  - alias: api
+    imageName: ghcr.io/jomcgi/homelab/services/grimoire-api:main
+    helm:
+      name: api.image.repository
+      tag: api.image.tag
+  - alias: chunk-writer
+    imageName: ghcr.io/jomcgi/homelab/services/grimoire-chunk-writer:main
+    helm:
+      name: chunkWriter.image.repository
+      tag: chunkWriter.image.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
@@ -34,4 +44,12 @@ wsGateway:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
     tag: main@sha256:97807a194e6e619e6215cdd092e793724dc598dfc8d3079eb475600c2162bd23
+    pullPolicy: Always
+# API Service
+api:
+  env:
+    cfAccessTeam: jomcgi.cloudflareaccess.com
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/grimoire-api
+    tag: main
     pullPolicy: Always

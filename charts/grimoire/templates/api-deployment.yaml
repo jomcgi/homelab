@@ -1,0 +1,82 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grimoire.fullname" . }}-api
+  labels:
+    {{- include "grimoire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "grimoire.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "grimoire.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: GCP_PROJECT_ID
+              value: {{ .Values.api.env.gcpProjectID | quote }}
+            - name: FIRESTORE_DATABASE
+              value: {{ .Values.api.env.firestoreDatabase | quote }}
+            - name: CF_ACCESS_TEAM
+              value: {{ .Values.api.env.cfAccessTeam | quote }}
+            {{- if .Values.gcpServiceAccount.enabled }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: {{ .Values.gcpServiceAccount.mountPath | quote }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          {{- if .Values.gcpServiceAccount.enabled }}
+          volumeMounts:
+            - name: gcp-sa
+              mountPath: {{ dir .Values.gcpServiceAccount.mountPath }}
+              readOnly: true
+          {{- end }}
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 5
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: http
+            initialDelaySeconds: 5
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+      {{- if .Values.gcpServiceAccount.enabled }}
+      volumes:
+        - name: gcp-sa
+          secret:
+            secretName: {{ .Values.gcpServiceAccount.secretName }}
+            items:
+              - key: {{ .Values.gcpServiceAccount.secretKey }}
+                path: sa.json
+      {{- end }}

@@ -1,0 +1,70 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "grimoire.fullname" . }}-ingest
+  labels:
+    {{- include "grimoire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: ingest
+  annotations:
+    argocd.argoproj.io/hook: Skip
+spec:
+  backoffLimit: 1
+  template:
+    metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "4222,8333"
+      labels:
+        {{- include "grimoire.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: ingest
+    spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: ingest
+          image: "{{ .Values.ingest.image.repository }}:{{ .Values.ingest.image.tag }}"
+          imagePullPolicy: {{ .Values.ingest.image.pullPolicy }}
+          env:
+            - name: NATS_URL
+              value: {{ .Values.ingest.env.natsURL | quote }}
+            - name: SEAWEEDFS_ENDPOINT
+              value: {{ .Values.ingest.env.seaweedfsEndpoint | quote }}
+            - name: PDF_PATH
+              value: ""
+            - name: SOURCE_BOOK
+              value: ""
+            {{- if .Values.gcpServiceAccount.enabled }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: {{ .Values.gcpServiceAccount.mountPath | quote }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          {{- if .Values.gcpServiceAccount.enabled }}
+          volumeMounts:
+            - name: gcp-sa
+              mountPath: {{ dir .Values.gcpServiceAccount.mountPath }}
+              readOnly: true
+          {{- end }}
+          resources:
+            {{- toYaml .Values.ingest.resources | nindent 12 }}
+      {{- if .Values.gcpServiceAccount.enabled }}
+      volumes:
+        - name: gcp-sa
+          secret:
+            secretName: {{ .Values.gcpServiceAccount.secretName }}
+            items:
+              - key: {{ .Values.gcpServiceAccount.secretKey }}
+                path: sa.json
+      {{- end }}

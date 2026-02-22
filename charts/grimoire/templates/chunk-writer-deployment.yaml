@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "grimoire.fullname" . }}-chunk-writer
+  labels:
+    {{- include "grimoire.labels" . | nindent 4 }}
+    app.kubernetes.io/component: chunk-writer
+spec:
+  replicas: {{ .Values.chunkWriter.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "grimoire.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: chunk-writer
+  template:
+    metadata:
+      annotations:
+        config.linkerd.io/skip-outbound-ports: "4222"
+      labels:
+        {{- include "grimoire.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: chunk-writer
+    spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        runAsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: chunk-writer
+          image: "{{ .Values.chunkWriter.image.repository }}:{{ .Values.chunkWriter.image.tag }}"
+          imagePullPolicy: {{ .Values.chunkWriter.image.pullPolicy }}
+          env:
+            - name: NATS_URL
+              value: {{ .Values.chunkWriter.env.natsURL | quote }}
+            - name: GCP_PROJECT_ID
+              value: {{ .Values.chunkWriter.env.gcpProjectID | quote }}
+            - name: FIRESTORE_DATABASE
+              value: {{ .Values.chunkWriter.env.firestoreDatabase | quote }}
+            {{- if .Values.gcpServiceAccount.enabled }}
+            - name: GOOGLE_APPLICATION_CREDENTIALS
+              value: {{ .Values.gcpServiceAccount.mountPath | quote }}
+            {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+            readOnlyRootFilesystem: true
+          {{- if .Values.gcpServiceAccount.enabled }}
+          volumeMounts:
+            - name: gcp-sa
+              mountPath: {{ dir .Values.gcpServiceAccount.mountPath }}
+              readOnly: true
+          {{- end }}
+          resources:
+            {{- toYaml .Values.chunkWriter.resources | nindent 12 }}
+      {{- if .Values.gcpServiceAccount.enabled }}
+      volumes:
+        - name: gcp-sa
+          secret:
+            secretName: {{ .Values.gcpServiceAccount.secretName }}
+            items:
+              - key: {{ .Values.gcpServiceAccount.secretKey }}
+                path: sa.json
+      {{- end }}
