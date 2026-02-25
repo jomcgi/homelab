@@ -20,6 +20,7 @@ app:
   image:
     repository: docker.all-hands.dev/all-hands-ai/openhands
     tag: "0.48"
+    pullPolicy: IfNotPresent
   replicas: 1
   resources:
     requests:
@@ -42,6 +43,7 @@ litellm:
   image:
     repository: ghcr.io/cabinlab/litellm-claude-code
     tag: "latest"
+    pullPolicy: Always
   resources:
     requests:
       cpu: 100m
@@ -123,3 +125,8 @@ securityContext:
       - ALL
   seccompProfile:
     type: RuntimeDefault
+
+# Scheduling constraints (shared)
+nodeSelector: {}
+tolerations: []
+affinity: {}
