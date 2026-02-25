@@ -286,7 +286,7 @@ OpenHands app → LiteLLM proxy (ClusterIP:4000) → Claude Agent SDK provider �
 |---|---|---|
 | Primary agent | `claude-opus-4-6` | Most capable model — no cost penalty on Max subscription, best reasoning for autonomous coding |
 | Fast tasks | `claude-sonnet-4-6` | Available for simpler tasks where speed matters more than depth — selectable per-task in the UI |
-| Condensation | `claude-haiku-4-5-20251001` | Fast model for summarizing conversation history when context window fills |
+| Condensation | `claude-sonnet-4-6` | Better summarization quality than Haiku — no cost penalty on Max subscription, and condensation quality directly affects agent context retention |
 
 Users can switch between Opus and Sonnet per-task via the OpenHands web UI without any infrastructure changes — the proxy handles all models through the same `LLM_BASE_URL`.
 
