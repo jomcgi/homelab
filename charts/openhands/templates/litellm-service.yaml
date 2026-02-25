@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "openhands.fullname" . }}-litellm
+  labels:
+    {{- include "openhands.litellm.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: 4000
+      targetPort: 4000
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "openhands.litellm.selectorLabels" . | nindent 4 }}
