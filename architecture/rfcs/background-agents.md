@@ -108,15 +108,18 @@ Cloudflare Zero Trust (auth at edge)
 +------------------------------------------------------------------+
 ```
 
-### RBAC (the only non-trivial K8s config)
+### RBAC
 
-The app pod's ServiceAccount needs a Role in the sandboxes namespace:
+The app pod's ServiceAccount needs a Role in the sandboxes namespace. The KubernetesRuntime creates pods, services, PVCs, and ingresses per session — all permissions are required:
 
 - `pods`: create, get, list, watch, delete
 - `pods/log`: get
 - `pods/exec`: create
+- `services`: create, get, delete (runtime + VSCode services per sandbox)
+- `persistentvolumeclaims`: create, get, list, delete (workspace PVC per sandbox)
+- `ingresses` (networking.k8s.io): create, get, delete (VSCode ingress per sandbox)
 
-This is what the proprietary chart sets up. It's ~20 lines of YAML.
+This is what the proprietary chart sets up. We replicate it with a Role + RoleBinding (~30 lines of YAML).
 
 ### Sandbox Tooling Strategy
 
@@ -205,6 +208,33 @@ llm = LLM.subscription_login(vendor="openai", model="gpt-5.2-codex")
 ```
 
 This makes autonomous agent loops effectively **zero marginal cost** at the LLM layer. Can also bring Anthropic API keys or point at local Ollama for flexibility.
+
+---
+
+## Security Deviations
+
+This deployment intentionally violates several principles from [`architecture/security.md`](../security.md). Each deviation is required by the OpenHands runtime and is scoped to the `openhands` and `openhands-sandboxes` namespaces only.
+
+### Sandbox pods run as root
+
+The KubernetesRuntime hardcodes `override_user_id=0, override_username='root'` when launching sandbox pods. The `runtime_init.py` script uses `useradd`, writes to `/etc/sudoers`, and modifies `/etc/pam.d/su` — all of which require root. This violates:
+
+- `runAsNonRoot: true`
+- `allowPrivilegeEscalation: false`
+- `readOnlyRootFilesystem: true`
+- `capabilities.drop: [ALL]`
+
+**Mitigation**: Sandbox pods are ephemeral (destroyed after each task), run in an isolated namespace with a ResourceQuota, and have no access to cluster secrets or other namespaces. The app pod's ServiceAccount is scoped to `openhands-sandboxes` only.
+
+### Linkerd disabled on sandbox namespace
+
+The existing Kyverno `ClusterPolicy` (`inject-linkerd-namespace-annotation`) auto-annotates new namespaces with `linkerd.io/inject: enabled`. Sandbox pods would receive Linkerd sidecars, which adds latency to pod startup, consumes resources on ephemeral pods, and may interfere with the OpenHands agent-server protocol.
+
+The `openhands-sandboxes` namespace will be created with `linkerd.io/inject: disabled` to opt out. Sandboxes don't communicate with other cluster services — they talk only to the app pod in the `openhands` namespace (which IS meshed). This can be revisited if sandbox-to-service communication is needed in later phases.
+
+### Broader ServiceAccount permissions
+
+The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, and ingresses in the sandboxes namespace. This is wider than typical homelab services which only need to serve traffic, not manage K8s resources. The permissions are scoped to a single namespace via a Role (not ClusterRole).
 
 ---
 
