@@ -12,7 +12,7 @@ Stripe ships 1,000+ AI-authored PRs per week using internal "Minion" agents — 
 
 OpenHands is an MIT-licensed platform that implements this exact workflow. It has a native Kubernetes runtime that spawns ephemeral sandbox pods per task, a model-agnostic agent engine, and a web UI for submitting and reviewing work. The proprietary layer they sell on top is multi-tenant infrastructure (user RBAC, SSO, PostgreSQL) — none of which matters for a single-user homelab deployment where auth is handled by Cloudflare Zero Trust before traffic ever hits the cluster.
 
-The proposal: deploy OpenHands on the existing 5-node K8s cluster using only MIT-licensed components. Agents get isolated pods, LLM inference runs through a Codex subscription (flat-rate, no per-token cost), and the whole thing is managed as an ArgoCD Application.
+The proposal: deploy OpenHands on the existing 5-node K8s cluster using only MIT-licensed components. Agents get isolated pods, LLM inference routes through an in-cluster LiteLLM proxy backed by a Claude Max subscription (flat-rate, no per-token cost), and the whole thing is managed as an ArgoCD Application.
 
 ---
 
@@ -79,43 +79,54 @@ agents.jomcgi.dev (Cloudflare Zero Trust)
 +----------------------------------------------------------------+
          |
          v
-+- Namespace: openhands --------------------------------+
-|                                                        |
-|  OnePasswordItem: openhands-secrets                    |
-|  +- LLM_API_KEY (Codex sub / Anthropic key)            |
-|  +- SANDBOX_ENV_GITHUB_TOKEN (forwarded to sandboxes)  |
-|  +- SANDBOX_ENV_BUILDBUDDY_API_KEY (forwarded)         |
-|                                                        |
-|  Deployment: openhands-app (1 replica)                 |
-|  +- OpenHands app image                                |
-|  +- RUNTIME=kubernetes                                 |
-|  +- Secret env vars from OnePasswordItem               |
-|  +- ServiceAccount: openhands-agent -------------------+-- K8s API
-|                                                        |   (pod CRUD)
-|  Service: openhands (ClusterIP:3000)                   |       |
-|  PVC: openhands-data (conversation history)            |       |
-+--------------------------------------------------------+       |
-                                                                 v
-+- Namespace: openhands-sandboxes --------------------------------+
-|  Labels: linkerd.io/inject=disabled                              |
-|                                                                  |
-|  LimitRange: default per-pod resource bounds                     |
-|  ResourceQuota: bound max concurrent sandboxes                   |
-|                                                                  |
-|  Kyverno injects tools volume into every sandbox pod             |
-|                                                                  |
-|  [ephemeral pods created/destroyed per task]                      |
-|  +-------------------------------------------------------------+ |
-|  | sandbox-a (runtime)                                          | |
-|  | +- OpenHands runtime image (upstream, unmodified)            | |
-|  | +- /usr/local/tools (image volume, read-only)                | |
-|  |    +- ghcr.io/jomcgi/homelab/openhands-tools:latest          | |
-|  |    +- bb (aliased as bazel/bazelisk), go, pnpm, node         | |
-|  | +- Env vars injected at runtime by app:                      | |
-|  |    +- GITHUB_TOKEN (from SANDBOX_ENV_GITHUB_TOKEN)           | |
-|  |    +- BUILDBUDDY_API_KEY (from SANDBOX_ENV_BUILDBUDDY_...)   | |
-|  +-------------------------------------------------------------+ |
-+------------------------------------------------------------------+
++- Namespace: openhands ----------------------------------------+
+|                                                                |
+|  OnePasswordItem: openhands-secrets                            |
+|  +- LITELLM_MASTER_KEY (proxy auth)                            |
+|  +- SANDBOX_ENV_GITHUB_TOKEN (forwarded to sandboxes)          |
+|  +- SANDBOX_ENV_BUILDBUDDY_API_KEY (forwarded)                 |
+|                                                                |
+|  OnePasswordItem: claude-sdk-token                             |
+|  +- CLAUDE_AUTH_TOKEN (sk-ant-oat01-* from claude setup-token) |
+|                                                                |
+|  Deployment: litellm-claude-sdk (1 replica)                    |
+|  +- ghcr.io/cabinlab/litellm-claude-code                       |
+|  +- CLAUDE_AUTH_TOKEN from claude-sdk-token Secret              |
+|  +- LITELLM_MASTER_KEY from openhands-secrets Secret            |
+|  Service: litellm-claude-sdk (ClusterIP:4000)                  |
+|                                                                |
+|  Deployment: openhands-app (1 replica)                         |
+|  +- OpenHands app image                                        |
+|  +- RUNTIME=kubernetes                                         |
+|  +- LLM_BASE_URL=http://litellm-claude-sdk:4000/v1             |
+|  +- LLM_API_KEY=$LITELLM_MASTER_KEY                            |
+|  +- Secret env vars from OnePasswordItem                       |
+|  +- ServiceAccount: openhands-agent --------------------------+-- K8s API
+|                                                                |   (pod CRUD)
+|  Service: openhands (ClusterIP:3000)                           |       |
+|  PVC: openhands-data (conversation history)                    |       |
++----------------------------------------------------------------+       |
+                                                                         v
++- Namespace: openhands-sandboxes ------------------------------------+
+|  Labels: linkerd.io/inject=disabled                                  |
+|                                                                      |
+|  LimitRange: default per-pod resource bounds                         |
+|  ResourceQuota: bound max concurrent sandboxes                       |
+|                                                                      |
+|  Kyverno injects tools volume into every sandbox pod                 |
+|                                                                      |
+|  [ephemeral pods created/destroyed per task]                          |
+|  +-----------------------------------------------------------------+ |
+|  | sandbox-a (runtime)                                              | |
+|  | +- OpenHands runtime image (upstream, unmodified)                | |
+|  | +- /usr/local/tools (image volume, read-only)                    | |
+|  |    +- ghcr.io/jomcgi/homelab/openhands-tools:latest              | |
+|  |    +- bb (aliased as bazel/bazelisk), go, pnpm, node             | |
+|  | +- Env vars injected at runtime by app:                          | |
+|  |    +- GITHUB_TOKEN (from SANDBOX_ENV_GITHUB_TOKEN)               | |
+|  |    +- BUILDBUDDY_API_KEY (from SANDBOX_ENV_BUILDBUDDY_...)       | |
+|  +-----------------------------------------------------------------+ |
++----------------------------------------------------------------------+
 ```
 
 ### Ingress
@@ -228,8 +239,15 @@ OpenHands does not use Kubernetes Secrets on sandbox pods. The app pod is the tr
 
 | Secret | Purpose |
 |---|---|
-| LLM API key | Model inference (Codex subscription or Anthropic API) |
+| `LITELLM_MASTER_KEY` | Auth key for OpenHands -> LiteLLM proxy requests |
 | JWT secret | Web UI session authentication |
+
+**LiteLLM proxy secrets** (separate Deployment, never reach sandboxes):
+
+| Secret | Purpose |
+|---|---|
+| `CLAUDE_AUTH_TOKEN` | Long-lived Claude Max subscription token (`sk-ant-oat01-*` from `claude setup-token`) |
+| `LITELLM_MASTER_KEY` | Validates incoming requests from OpenHands |
 
 **Sandbox-forwarded secrets** via `SANDBOX_ENV_*` prefix — any env var on the app pod prefixed with `SANDBOX_ENV_` is automatically forwarded to every sandbox with the prefix stripped:
 
@@ -242,14 +260,37 @@ All secrets are sourced from 1Password via `OnePasswordItem` CRDs, consistent wi
 
 ### LLM Provider
 
-OpenHands supports a `subscription_login()` flow that authenticates against an existing ChatGPT Plus/Pro subscription to use Codex models without API credits:
+LLM inference routes through an in-cluster LiteLLM proxy with a Claude Agent SDK custom provider ([`litellm-claude-code`](https://github.com/cabinlab/litellm-claude-code)). This uses the official Claude Agent SDK — the same SDK that powers Claude Code — authenticated against an existing Claude Max subscription via a long-lived token generated by `claude setup-token`. The proxy exposes an OpenAI-compatible `/v1` endpoint as a ClusterIP Service. OpenHands connects to it as a standard LiteLLM provider.
 
-```python
-from openhands.sdk import LLM
-llm = LLM.subscription_login(vendor="openai", model="gpt-5.2-codex")
+The flow:
+
+```
+OpenHands app → LiteLLM proxy (ClusterIP:4000) → Claude Agent SDK provider → Claude API (Max subscription auth)
 ```
 
-This makes autonomous agent loops effectively **zero marginal cost** at the LLM layer. Can also bring Anthropic API keys or point at local Ollama for flexibility.
+**Why a proxy instead of direct API keys**: A Claude Max subscription provides flat-rate access to Claude models with no per-token cost — critical for autonomous agent loops that can burn through millions of tokens per task. The Claude Agent SDK is the officially supported way to use subscription auth programmatically. Since OpenHands uses LiteLLM internally for provider abstraction, `litellm-claude-code` bridges the gap by making the Claude Agent SDK available through LiteLLM's standard OpenAI-compatible interface.
+
+**Headless authentication**: The `claude setup-token` command performs a one-time browser-based OAuth flow and outputs a long-lived token (`sk-ant-oat01-*`). This token is stored in a `OnePasswordItem` and injected into the LiteLLM proxy pod as `CLAUDE_AUTH_TOKEN`. No ongoing browser sessions or interactive auth required.
+
+**OpenHands LLM config**:
+
+| Setting | Value |
+|---|---|
+| `LLM_BASE_URL` | `http://litellm-claude-sdk:4000/v1` |
+| `LLM_API_KEY` | `$LITELLM_MASTER_KEY` (proxy auth, not a Claude key) |
+| `LLM_MODEL` | `claude-sonnet-4-20250514` (default for most tasks) |
+
+**Multi-model support**: The LiteLLM proxy serves all Claude models through the same endpoint — the model is selected per-request, not per-deployment. OpenHands supports configuring multiple models: a primary model for the agent loop and an optional cheaper/faster model for condensation (context compaction). The recommended configuration:
+
+| Role | Model | Rationale |
+|---|---|---|
+| Primary agent | `claude-sonnet-4-20250514` | Best balance of capability vs speed for autonomous coding |
+| Complex tasks | `claude-opus-4-20250115` | Available for tasks requiring deeper reasoning — selectable per-task in the UI |
+| Condensation | `claude-haiku-4-5-20251001` | Cheap/fast model for summarizing conversation history when context window fills |
+
+Users can switch between Opus and Sonnet per-task via the OpenHands web UI without any infrastructure changes — the proxy handles all models through the same `LLM_BASE_URL`.
+
+**Fallback**: Direct Anthropic API keys can be configured as an alternative provider if the proxy or subscription auth has issues. OpenHands' LiteLLM integration supports multiple providers natively.
 
 ---
 
@@ -284,10 +325,12 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 
 ### Phase 1 — Working Agent Loop
 - Deploy app + KubernetesRuntime with upstream runtime image
-- `OnePasswordItem` for LLM key + `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
+- `OnePasswordItem` for `LITELLM_MASTER_KEY` + `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
+- `OnePasswordItem` for `CLAUDE_AUTH_TOKEN` (`sk-ant-oat01-*` from `claude setup-token`)
+- Deploy `litellm-claude-code` proxy: Deployment + ClusterIP Service on port 4000
+- Configure OpenHands LLM settings: `LLM_BASE_URL=http://litellm-claude-sdk:4000/v1`
 - `openhands-sandboxes` namespace with `linkerd.io/inject: disabled`, LimitRange, and ResourceQuota
 - Cloudflare Tunnel route: `agents.jomcgi.dev` -> `openhands.openhands.svc.cluster.local:3000`
-- Codex subscription as provider
 - **Validate PATH injection**: spin up a sandbox pod, inspect `runtime_init.py` behaviour, confirm tools path survives before building tools image
 - Build and push apko-based tools image (`openhands-tools`)
 - Kyverno policy to inject tools volume into sandbox pods
@@ -308,7 +351,7 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 
 ## Open Questions for Implementation
 
-1. **Codex subscription_login() durability** — relatively new feature. Need to verify token refresh and rate limit behaviour during long-running autonomous tasks.
+1. **Claude Max token refresh** — the `sk-ant-oat01-*` token from `claude setup-token` is long-lived but not permanent. Need to verify expiration behaviour and whether the LiteLLM proxy handles token refresh gracefully, or whether periodic re-auth via `claude setup-token` is required. If tokens expire during a task, the proxy should return a clear error rather than silently failing.
 
 2. **KubernetesRuntime config specifics** — the README at `openhands/runtime/impl/kubernetes/README.md` documents requirements. Will need to read this carefully during implementation to get namespace, SA, and image pull config right.
 
@@ -335,7 +378,7 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 | [`runtime/impl/kubernetes/README.md`](https://github.com/All-Hands-AI/OpenHands/blob/main/openhands/runtime/impl/kubernetes/README.md) | **Read this first** — config requirements for the K8s runtime |
 | [`runtime/base.py`](https://github.com/All-Hands-AI/OpenHands/blob/main/openhands/runtime/base.py) | Runtime base class, shows all 4 built-in implementations |
 | [Release 0.45.0 changelog](https://github.com/All-Hands-AI/OpenHands/releases/tag/0.45.0) | When KubernetesRuntime shipped (PR #8814) |
-| [SDK getting started](https://docs.openhands.dev/sdk/getting-started) | Includes `subscription_login()` for Codex, provider config |
+| [SDK getting started](https://docs.openhands.dev/sdk/getting-started) | Provider config, agent SDK usage |
 | [Sandbox overview (V1)](https://docs.openhands.dev/openhands/usage/sandboxes/overview) | Sandbox providers, `RUNTIME` env var |
 | [Configuration options (V1)](https://docs.openhands.dev/openhands/usage/advanced/configuration-options) | Env vars: `RUNTIME`, `OH_PERSISTENCE_DIR`, `SANDBOX_VOLUMES` |
 | [Runtime architecture](https://docs.openhands.dev/openhands/usage/architecture/runtime) | Client-server model, image building, action execution |
@@ -348,6 +391,13 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 | [OpenHands-Cloud Helm chart](https://github.com/All-Hands-AI/OpenHands-Cloud) | What the paid chart does — useful to understand the full resource set |
 | [Self-hosted blog post](https://openhands.dev/blog/openhands-cloud-self-hosted-secure-convenient-deployment-of-ai-software-development-agents) | Licensing rationale, Polyform Free Trial terms |
 | [DeepWiki: Product Variants](https://deepwiki.com/OpenHands/OpenHands/1.3-product-variants) | Enterprise K8s architecture, required resources table |
+
+### LiteLLM Claude Code Proxy
+
+| Resource | What You'll Find |
+|---|---|
+| [`litellm-claude-code`](https://github.com/cabinlab/litellm-claude-code) | Custom LiteLLM provider bridging Claude Agent SDK to OpenAI-compatible API |
+| [`claude setup-token`](https://docs.anthropic.com/en/docs/claude-code/cli-usage) | CLI command to generate long-lived auth tokens for headless use |
 
 ### Community Context
 
