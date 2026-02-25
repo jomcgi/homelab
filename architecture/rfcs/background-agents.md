@@ -68,7 +68,15 @@ The [OpenHands Cloud Helm chart](https://github.com/All-Hands-AI/OpenHands-Cloud
 ## Architecture
 
 ```
-Cloudflare Zero Trust (auth at edge)
+agents.jomcgi.dev (Cloudflare Zero Trust)
+         |
+         v
++- Namespace: ingress ------------------------------------------+
+|  Cloudflare Tunnel ConfigMap                                   |
+|  (shared across all services, route added via values overlay)  |
+|  - hostname: agents.jomcgi.dev                                 |
+|    service: http://openhands.openhands.svc.cluster.local:3000  |
++----------------------------------------------------------------+
          |
          v
 +- Namespace: openhands --------------------------------+
@@ -89,6 +97,10 @@ Cloudflare Zero Trust (auth at edge)
 +--------------------------------------------------------+       |
                                                                  v
 +- Namespace: openhands-sandboxes --------------------------------+
+|  Labels: linkerd.io/inject=disabled                              |
+|                                                                  |
+|  LimitRange: default per-pod resource bounds                     |
+|  ResourceQuota: bound max concurrent sandboxes                   |
 |                                                                  |
 |  Kyverno injects tools volume into every sandbox pod             |
 |                                                                  |
@@ -103,10 +115,19 @@ Cloudflare Zero Trust (auth at edge)
 |  |    +- GITHUB_TOKEN (from SANDBOX_ENV_GITHUB_TOKEN)           | |
 |  |    +- BUILDBUDDY_API_KEY (from SANDBOX_ENV_BUILDBUDDY_...)   | |
 |  +-------------------------------------------------------------+ |
-|                                                                  |
-|  ResourceQuota: bound max concurrent sandboxes                   |
 +------------------------------------------------------------------+
 ```
+
+### Ingress
+
+The OpenHands web UI is exposed at `agents.jomcgi.dev` via the existing shared Cloudflare Tunnel. No per-service annotations or ingress resources — just a route in the tunnel's ConfigMap, added via the `overlays/prod/cloudflare-tunnel/values.yaml` overlay:
+
+```yaml
+- hostname: agents.jomcgi.dev
+  service: http://openhands.openhands.svc.cluster.local:3000
+```
+
+Cloudflare Zero Trust handles authentication at the edge before traffic reaches the cluster.
 
 ### RBAC
 
@@ -120,6 +141,27 @@ The app pod's ServiceAccount needs a Role in the sandboxes namespace. The Kubern
 - `ingresses` (networking.k8s.io): create, get, delete (VSCode ingress per sandbox)
 
 This is what the proprietary chart sets up. We replicate it with a Role + RoleBinding (~30 lines of YAML).
+
+### Resource Limits
+
+The `openhands-sandboxes` namespace gets both a `LimitRange` (per-pod defaults) and a `ResourceQuota` (namespace-wide cap) from day one. A runaway `bazel build` inside a sandbox must not starve other homelab workloads on the 5-node cluster.
+
+**LimitRange** (applied to every sandbox pod that doesn't specify its own limits):
+
+| Resource | Request | Limit |
+|---|---|---|
+| CPU | 1 | 4 |
+| Memory | 2Gi | 8Gi |
+
+**ResourceQuota** (namespace-wide aggregate):
+
+| Resource | Max |
+|---|---|
+| pods | 5 |
+| requests.cpu | 8 |
+| requests.memory | 16Gi |
+
+These are starting values — generous enough for compilation workloads but bounded enough to protect the cluster. The OpenHands K8s runtime config also has `resource_cpu_request`, `resource_memory_request`, and `resource_memory_limit` which are set on sandbox pods at creation time. These should be configured to match or fall within the LimitRange.
 
 ### Sandbox Tooling Strategy
 
@@ -243,10 +285,12 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 ### Phase 1 — Working Agent Loop
 - Deploy app + KubernetesRuntime with upstream runtime image
 - `OnePasswordItem` for LLM key + `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
+- `openhands-sandboxes` namespace with `linkerd.io/inject: disabled`, LimitRange, and ResourceQuota
+- Cloudflare Tunnel route: `agents.jomcgi.dev` -> `openhands.openhands.svc.cluster.local:3000`
+- Codex subscription as provider
+- **Validate PATH injection**: spin up a sandbox pod, inspect `runtime_init.py` behaviour, confirm tools path survives before building tools image
 - Build and push apko-based tools image (`openhands-tools`)
 - Kyverno policy to inject tools volume into sandbox pods
-- Cloudflare Tunnel for access
-- Codex subscription as provider
 - Submit tasks via web GUI, verify sandbox pods spin up and produce PRs
 - **Success criteria**: end-to-end flow from task -> sandbox pod -> committed code, with `bazel test` working inside the sandbox
 
@@ -264,13 +308,11 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 
 ## Open Questions for Implementation
 
-1. **Sandbox resource limits** — what CPU/memory per pod? Code compilation vs simple edits have very different profiles. Start permissive, observe, tighten.
+1. **Codex subscription_login() durability** — relatively new feature. Need to verify token refresh and rate limit behaviour during long-running autonomous tasks.
 
-2. **Codex subscription_login() durability** — relatively new feature. Need to verify token refresh and rate limit behaviour during long-running autonomous tasks.
+2. **KubernetesRuntime config specifics** — the README at `openhands/runtime/impl/kubernetes/README.md` documents requirements. Will need to read this carefully during implementation to get namespace, SA, and image pull config right.
 
-3. **KubernetesRuntime config specifics** — the README at `openhands/runtime/impl/kubernetes/README.md` documents requirements. Will need to read this carefully during implementation to get namespace, SA, and image pull config right.
-
-4. **PATH injection via Kyverno** — the `env` patch in the Kyverno policy adds `/usr/local/tools/bin` to PATH. Need to verify this works with OpenHands' runtime_init.py user setup, which rewrites `.bashrc` and `/etc/environment`. May need the tools path in both places.
+3. **PATH injection via Kyverno** — the Kyverno policy injects `/usr/local/tools/bin` into PATH via a container-level env var. However, OpenHands' `runtime_init.py` rewrites `.bashrc` and `/etc/environment` during sandbox setup, and `add_env_vars()` also appends to `.bashrc`. These are three different mechanisms affecting PATH resolution that don't compose predictably — if `runtime_init.py` overwrites PATH entirely rather than appending, the tools volume disappears from the agent's shell. **This must be tested before building the tools image.** Phase 1 validation step: spin up a sandbox pod manually, inspect what `runtime_init.py` does to PATH in `.bashrc` and `/etc/environment`, and confirm whether the container-level env var survives. If it doesn't, fallback options include patching `/etc/profile.d/` via the Kyverno policy or using `runtime_startup_env_vars` to inject the tools path through OpenHands' own config.
 
 ---
 
