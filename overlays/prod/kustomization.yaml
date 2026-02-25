@@ -10,6 +10,7 @@ resources:
   - ./gh-arc-runners
   - ./knowledge-graph
   - ./nats
+  - ./openhands
   - ./seaweedfs
   - ./todo
   - ./trips
