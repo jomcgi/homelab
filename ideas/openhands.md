@@ -71,34 +71,41 @@ The [OpenHands Cloud Helm chart](https://github.com/All-Hands-AI/OpenHands-Cloud
 Cloudflare Zero Trust (auth at edge)
          |
          v
-+- Namespace: openhands -----------------------+
-|                                               |
-|  Deployment: openhands-app (1 replica)        |
-|  +- OpenHands app image                       |
-|  +- RUNTIME=kubernetes                        |
-|  +- LLM config (Codex sub / Anthropic key)    |
-|  +- GitHub PAT (Secret mount)                 |
-|  +- ServiceAccount: openhands-agent ----------+---- K8s API
-|                                               |     (pod CRUD)
-|  Service: openhands (ClusterIP:3000)          |         |
-|  PVC: openhands-data (conversation history)   |         |
-+-----------------------------------------------+         |
-                                                          v
-+- Namespace: openhands-sandboxes --------------------------+
-|                                                           |
-|  Kyverno injects tools volume into every sandbox pod      |
-|                                                           |
-|  [ephemeral pods created/destroyed per task]               |
-|  +------------------------------------------------------+ |
-|  | sandbox-a (runtime)                                   | |
-|  | +- OpenHands runtime image (upstream, unmodified)     | |
-|  | +- /usr/local/tools (image volume, read-only)         | |
-|  |    +- ghcr.io/jomcgi/homelab/openhands-tools:latest   | |
-|  |    +- bb (aliased as bazel/bazelisk), go, pnpm, node  | |
-|  +------------------------------------------------------+ |
-|                                                           |
-|  ResourceQuota: bound max concurrent sandboxes            |
-+-----------------------------------------------------------+
++- Namespace: openhands --------------------------------+
+|                                                        |
+|  OnePasswordItem: openhands-secrets                    |
+|  +- LLM_API_KEY (Codex sub / Anthropic key)            |
+|  +- SANDBOX_ENV_GITHUB_TOKEN (forwarded to sandboxes)  |
+|  +- SANDBOX_ENV_BUILDBUDDY_API_KEY (forwarded)         |
+|                                                        |
+|  Deployment: openhands-app (1 replica)                 |
+|  +- OpenHands app image                                |
+|  +- RUNTIME=kubernetes                                 |
+|  +- Secret env vars from OnePasswordItem               |
+|  +- ServiceAccount: openhands-agent -------------------+-- K8s API
+|                                                        |   (pod CRUD)
+|  Service: openhands (ClusterIP:3000)                   |       |
+|  PVC: openhands-data (conversation history)            |       |
++--------------------------------------------------------+       |
+                                                                 v
++- Namespace: openhands-sandboxes --------------------------------+
+|                                                                  |
+|  Kyverno injects tools volume into every sandbox pod             |
+|                                                                  |
+|  [ephemeral pods created/destroyed per task]                      |
+|  +-------------------------------------------------------------+ |
+|  | sandbox-a (runtime)                                          | |
+|  | +- OpenHands runtime image (upstream, unmodified)            | |
+|  | +- /usr/local/tools (image volume, read-only)                | |
+|  |    +- ghcr.io/jomcgi/homelab/openhands-tools:latest          | |
+|  |    +- bb (aliased as bazel/bazelisk), go, pnpm, node         | |
+|  | +- Env vars injected at runtime by app:                      | |
+|  |    +- GITHUB_TOKEN (from SANDBOX_ENV_GITHUB_TOKEN)           | |
+|  |    +- BUILDBUDDY_API_KEY (from SANDBOX_ENV_BUILDBUDDY_...)   | |
+|  +-------------------------------------------------------------+ |
+|                                                                  |
+|  ResourceQuota: bound max concurrent sandboxes                   |
++------------------------------------------------------------------+
 ```
 
 ### RBAC (the only non-trivial K8s config)
@@ -168,6 +175,26 @@ The tools image includes:
 | pnpm + Node.js | Build websites/ frontend apps | — |
 | git | Already in runtime, but pinned version in tools | — |
 
+### Secret Management
+
+OpenHands does not use Kubernetes Secrets on sandbox pods. The app pod is the trust boundary — it holds all secrets and injects them into sandboxes at runtime via shell commands (`export` + `.bashrc` append). This means secrets flow through two paths:
+
+**App-only secrets** (never reach sandboxes):
+
+| Secret | Purpose |
+|---|---|
+| LLM API key | Model inference (Codex subscription or Anthropic API) |
+| JWT secret | Web UI session authentication |
+
+**Sandbox-forwarded secrets** via `SANDBOX_ENV_*` prefix — any env var on the app pod prefixed with `SANDBOX_ENV_` is automatically forwarded to every sandbox with the prefix stripped:
+
+| App Pod Env Var | Sandbox Env Var | Purpose |
+|---|---|---|
+| `SANDBOX_ENV_GITHUB_TOKEN` | `GITHUB_TOKEN` | Git clone, PR creation |
+| `SANDBOX_ENV_BUILDBUDDY_API_KEY` | `BUILDBUDDY_API_KEY` | Remote build execution via bb CLI |
+
+All secrets are sourced from 1Password via `OnePasswordItem` CRDs, consistent with every other service in the cluster. The `OnePasswordItem` creates a K8s Secret in the `openhands` namespace, which is mounted as env vars on the app Deployment. No secrets are stored in Git or config files.
+
 ### LLM Provider
 
 OpenHands supports a `subscription_login()` flow that authenticates against an existing ChatGPT Plus/Pro subscription to use Codex models without API credits:
@@ -185,6 +212,7 @@ This makes autonomous agent loops effectively **zero marginal cost** at the LLM 
 
 ### Phase 1 — Working Agent Loop
 - Deploy app + KubernetesRuntime with upstream runtime image
+- `OnePasswordItem` for LLM key + `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
 - Build and push apko-based tools image (`openhands-tools`)
 - Kyverno policy to inject tools volume into sandbox pods
 - Cloudflare Tunnel for access
