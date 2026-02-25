@@ -86,11 +86,16 @@ Cloudflare Zero Trust (auth at edge)
                                                           v
 +- Namespace: openhands-sandboxes --------------------------+
 |                                                           |
+|  Kyverno injects tools volume into every sandbox pod      |
+|                                                           |
 |  [ephemeral pods created/destroyed per task]               |
-|  +-----------+ +-----------+ +-----------+                |
-|  | sandbox-a | | sandbox-b | | sandbox-c |                |
-|  | (runtime) | | (runtime) | | (runtime) |                |
-|  +-----------+ +-----------+ +-----------+                |
+|  +------------------------------------------------------+ |
+|  | sandbox-a (runtime)                                   | |
+|  | +- OpenHands runtime image (upstream, unmodified)     | |
+|  | +- /usr/local/tools (image volume, read-only)         | |
+|  |    +- ghcr.io/jomcgi/homelab/openhands-tools:latest   | |
+|  |    +- bb (aliased as bazel/bazelisk), go, pnpm, node  | |
+|  +------------------------------------------------------+ |
 |                                                           |
 |  ResourceQuota: bound max concurrent sandboxes            |
 +-----------------------------------------------------------+
@@ -105,6 +110,63 @@ The app pod's ServiceAccount needs a Role in the sandboxes namespace:
 - `pods/exec`: create
 
 This is what the proprietary chart sets up. It's ~20 lines of YAML.
+
+### Sandbox Tooling Strategy
+
+OpenHands sandbox pods use a pre-built runtime image (`runtime_container_image`) that includes the agent engine, Python, micromamba, and VSCode Server. We use this image unmodified — no custom builds on top of their base.
+
+Project-specific tooling (Go, BuildBuddy CLI, pnpm, etc.) is delivered via a **separate OCI image mounted as a Kubernetes image volume**. K8s 1.31+ supports mounting OCI images directly as read-only volumes — no initContainers or copy steps required. The tooling image is built with apko (Wolfi packages + static binaries) and managed as a standard Bazel target.
+
+A Kyverno `ClusterPolicy` injects the tools volume into every sandbox pod:
+
+```yaml
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: inject-openhands-tools
+spec:
+  rules:
+    - name: inject-tools-volume
+      match:
+        resources:
+          kinds: [Pod]
+          selector:
+            matchLabels:
+              app: openhands-runtime
+      mutate:
+        patchStrategicMerge:
+          spec:
+            containers:
+              - name: runtime
+                volumeMounts:
+                  - name: tools
+                    mountPath: /usr/local/tools
+                    readOnly: true
+                env:
+                  - name: PATH
+                    value: "/usr/local/tools/bin:$(PATH)"
+            volumes:
+              - name: tools
+                image:
+                  reference: ghcr.io/jomcgi/homelab/openhands-tools:latest
+                  pullPolicy: IfNotPresent
+```
+
+This separation means:
+
+- **Runtime image stays upstream** — easier upgrades, no rebuild on OpenHands releases
+- **Tools image is apko-built** — consistent with the rest of the repo, dual-arch, non-root, reproducible
+- **Tools update independently** — push a new tools image without touching OpenHands config
+- **Image volumes are cached per node** — pulled once, mounted read-only into every sandbox pod
+
+The tools image includes:
+
+| Tool | Purpose | Alias |
+|---|---|---|
+| BuildBuddy CLI (`bb`) | Build + test via remote execution | `bazel`, `bazelisk` |
+| Go | Build/test Go services and operators | — |
+| pnpm + Node.js | Build websites/ frontend apps | — |
+| git | Already in runtime, but pinned version in tools | — |
 
 ### LLM Provider
 
@@ -122,15 +184,16 @@ This makes autonomous agent loops effectively **zero marginal cost** at the LLM 
 ## Rollout
 
 ### Phase 1 — Working Agent Loop
-- Deploy app + KubernetesRuntime
+- Deploy app + KubernetesRuntime with upstream runtime image
+- Build and push apko-based tools image (`openhands-tools`)
+- Kyverno policy to inject tools volume into sandbox pods
 - Cloudflare Tunnel for access
 - Codex subscription as provider
 - Submit tasks via web GUI, verify sandbox pods spin up and produce PRs
-- **Success criteria**: end-to-end flow from task -> sandbox pod -> committed code
+- **Success criteria**: end-to-end flow from task -> sandbox pod -> committed code, with `bazel test` working inside the sandbox
 
 ### Phase 2 — Integration
 - GitHub App for PR workflows
-- Custom sandbox image with project-specific tooling
 - OTel traces to SigNoz
 - Persistent conversation history via PVC
 
@@ -145,11 +208,11 @@ This makes autonomous agent loops effectively **zero marginal cost** at the LLM 
 
 1. **Sandbox resource limits** — what CPU/memory per pod? Code compilation vs simple edits have very different profiles. Start permissive, observe, tighten.
 
-2. **Custom sandbox image** — the default `nikolaik/python-nodejs` runtime won't have Go, Rust, Bazel, etc. OpenHands supports `SANDBOX_BASE_CONTAINER_IMAGE` for custom bases. May need one image per project type.
+2. **Codex subscription_login() durability** — relatively new feature. Need to verify token refresh and rate limit behaviour during long-running autonomous tasks.
 
-3. **Codex subscription_login() durability** — relatively new feature. Need to verify token refresh and rate limit behaviour during long-running autonomous tasks.
+3. **KubernetesRuntime config specifics** — the README at `openhands/runtime/impl/kubernetes/README.md` documents requirements. Will need to read this carefully during implementation to get namespace, SA, and image pull config right.
 
-4. **KubernetesRuntime config specifics** — the README at `openhands/runtime/impl/kubernetes/README.md` documents requirements. Will need to read this carefully during implementation to get namespace, SA, and image pull config right.
+4. **PATH injection via Kyverno** — the `env` patch in the Kyverno policy adds `/usr/local/tools/bin` to PATH. Need to verify this works with OpenHands' runtime_init.py user setup, which rewrites `.bashrc` and `/etc/environment`. May need the tools path in both places.
 
 ---
 
