@@ -278,15 +278,15 @@ OpenHands app → LiteLLM proxy (ClusterIP:4000) → Claude Agent SDK provider �
 |---|---|
 | `LLM_BASE_URL` | `http://litellm-claude-sdk:4000/v1` |
 | `LLM_API_KEY` | `$LITELLM_MASTER_KEY` (proxy auth, not a Claude key) |
-| `LLM_MODEL` | `claude-sonnet-4-6` (default for most tasks) |
+| `LLM_MODEL` | `claude-opus-4-6` (default) |
 
-**Multi-model support**: The LiteLLM proxy serves all Claude models through the same endpoint — the model is selected per-request, not per-deployment. OpenHands supports configuring multiple models: a primary model for the agent loop and an optional cheaper/faster model for condensation (context compaction). The recommended configuration:
+**Multi-model support**: The LiteLLM proxy serves all Claude models through the same endpoint — the model is selected per-request, not per-deployment. OpenHands supports configuring multiple models: a primary model for the agent loop and an optional cheaper/faster model for condensation (context compaction). With flat-rate Max subscription pricing, there's no cost penalty for defaulting to the most capable model. The recommended configuration:
 
 | Role | Model | Rationale |
 |---|---|---|
-| Primary agent | `claude-sonnet-4-6` | Best balance of capability vs speed for autonomous coding |
-| Complex tasks | `claude-opus-4-6` | Available for tasks requiring deeper reasoning — selectable per-task in the UI |
-| Condensation | `claude-haiku-4-5-20251001` | Cheap/fast model for summarizing conversation history when context window fills |
+| Primary agent | `claude-opus-4-6` | Most capable model — no cost penalty on Max subscription, best reasoning for autonomous coding |
+| Fast tasks | `claude-sonnet-4-6` | Available for simpler tasks where speed matters more than depth — selectable per-task in the UI |
+| Condensation | `claude-haiku-4-5-20251001` | Fast model for summarizing conversation history when context window fills |
 
 Users can switch between Opus and Sonnet per-task via the OpenHands web UI without any infrastructure changes — the proxy handles all models through the same `LLM_BASE_URL`.
 
