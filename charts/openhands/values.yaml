@@ -34,6 +34,18 @@ app:
     storageClass: ""
     size: 5Gi
     mountPath: /opt/workspace_base
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 65532
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+    # readOnlyRootFilesystem intentionally omitted — OpenHands writes to
+    # internal caches, session state, and __pycache__ beyond /tmp and the
+    # workspace mount. See architecture/rfcs/background-agents.md Security Deviations.
 
 # =============================================================================
 # LiteLLM Claude Proxy Component
