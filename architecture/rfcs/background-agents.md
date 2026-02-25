@@ -82,7 +82,6 @@ agents.jomcgi.dev (Cloudflare Zero Trust)
 +- Namespace: openhands ----------------------------------------+
 |                                                                |
 |  OnePasswordItem: openhands-secrets                            |
-|  +- LITELLM_MASTER_KEY (proxy auth)                            |
 |  +- SANDBOX_ENV_GITHUB_TOKEN (forwarded to sandboxes)          |
 |  +- SANDBOX_ENV_BUILDBUDDY_API_KEY (forwarded)                 |
 |                                                                |
@@ -92,15 +91,15 @@ agents.jomcgi.dev (Cloudflare Zero Trust)
 |  Deployment: litellm-claude-sdk (1 replica)                    |
 |  +- ghcr.io/cabinlab/litellm-claude-code                       |
 |  +- CLAUDE_AUTH_TOKEN from claude-sdk-token Secret              |
-|  +- LITELLM_MASTER_KEY from openhands-secrets Secret            |
+|  +- No master key — ClusterIP-only, no external ingress        |
 |  Service: litellm-claude-sdk (ClusterIP:4000)                  |
 |                                                                |
 |  Deployment: openhands-app (1 replica)                         |
 |  +- OpenHands app image                                        |
 |  +- RUNTIME=kubernetes                                         |
 |  +- LLM_BASE_URL=http://litellm-claude-sdk:4000/v1             |
-|  +- LLM_API_KEY=$LITELLM_MASTER_KEY                            |
-|  +- Secret env vars from OnePasswordItem                       |
+|  +- LLM_API_KEY=not-needed (dummy value, proxy has no auth)    |
+|  +- Secret env vars from OnePasswordItem|
 |  +- ServiceAccount: openhands-agent --------------------------+-- K8s API
 |                                                                |   (pod CRUD)
 |  Service: openhands (ClusterIP:3000)                           |       |
@@ -239,7 +238,6 @@ OpenHands does not use Kubernetes Secrets on sandbox pods. The app pod is the tr
 
 | Secret | Purpose |
 |---|---|
-| `LITELLM_MASTER_KEY` | Auth key for OpenHands -> LiteLLM proxy requests |
 | JWT secret | Web UI session authentication |
 
 **LiteLLM proxy secrets** (separate Deployment, never reach sandboxes):
@@ -247,7 +245,8 @@ OpenHands does not use Kubernetes Secrets on sandbox pods. The app pod is the tr
 | Secret | Purpose |
 |---|---|
 | `CLAUDE_AUTH_TOKEN` | Long-lived Claude Max subscription token (`sk-ant-oat01-*` from `claude setup-token`) |
-| `LITELLM_MASTER_KEY` | Validates incoming requests from OpenHands |
+
+The LiteLLM proxy runs without a master key — it's a ClusterIP Service with no external ingress, so only pods within the cluster can reach it. No auth overhead needed for internal-only traffic.
 
 **Sandbox-forwarded secrets** via `SANDBOX_ENV_*` prefix — any env var on the app pod prefixed with `SANDBOX_ENV_` is automatically forwarded to every sandbox with the prefix stripped:
 
@@ -277,7 +276,7 @@ OpenHands app → LiteLLM proxy (ClusterIP:4000) → Claude Agent SDK provider �
 | Setting | Value |
 |---|---|
 | `LLM_BASE_URL` | `http://litellm-claude-sdk:4000/v1` |
-| `LLM_API_KEY` | `$LITELLM_MASTER_KEY` (proxy auth, not a Claude key) |
+| `LLM_API_KEY` | `not-needed` (dummy value — proxy runs without auth, but LiteLLM client requires a non-empty string) |
 | `LLM_MODEL` | `claude-opus-4-6` (default) |
 
 **Multi-model support**: The LiteLLM proxy serves all Claude models through the same endpoint — the model is selected per-request, not per-deployment. OpenHands supports configuring multiple models: a primary model for the agent loop and an optional cheaper/faster model for condensation (context compaction). With flat-rate Max subscription pricing, there's no cost penalty for defaulting to the most capable model. The recommended configuration:
@@ -325,7 +324,7 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 
 ### Phase 1 — Working Agent Loop
 - Deploy app + KubernetesRuntime with upstream runtime image
-- `OnePasswordItem` for `LITELLM_MASTER_KEY` + `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
+- `OnePasswordItem` for `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
 - `OnePasswordItem` for `CLAUDE_AUTH_TOKEN` (`sk-ant-oat01-*` from `claude setup-token`)
 - Deploy `litellm-claude-code` proxy: Deployment + ClusterIP Service on port 4000
 - Configure OpenHands LLM settings: `LLM_BASE_URL=http://litellm-claude-sdk:4000/v1`
