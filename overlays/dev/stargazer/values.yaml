@@ -30,11 +30,11 @@ persistence:
 # Resource limits
 resources:
   limits:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 100m
+    memory: 256Mi
   requests:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 100m
+    memory: 256Mi
 # OpenTelemetry configuration
 config:
   opentelemetry:
