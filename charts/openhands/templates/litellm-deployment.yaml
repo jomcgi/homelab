@@ -55,6 +55,8 @@ spec:
             periodSeconds: 10
             failureThreshold: 3
           volumeMounts:
+            - name: claude-home
+              mountPath: /home/claude/.claude
             - name: tmp
               mountPath: /tmp
       {{- with .Values.nodeSelector }}
@@ -70,5 +72,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       volumes:
+        - name: claude-home
+          emptyDir: {}
         - name: tmp
           emptyDir: {}
