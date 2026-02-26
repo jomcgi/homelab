@@ -5,7 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
-  tar: '>=7.5.4'
+  tar: '>=7.5.9'
   glob@>=10.2.0 <10.5.0: '>=10.5.0'
   semver-regex: '>=3.1.4'
   trim-newlines: '>=3.0.1'
@@ -5758,8 +5758,8 @@ packages:
     resolution: {integrity: sha512-g9ljZiwki/LfxmQADO3dEY1CbpmXT5Hm2fJ+QaGKwSXUylMybePR7/67YW7jOrrvjEgL1Fmz5kzyAjWVWLlucg==}
     engines: {node: '>=6'}
 
-  tar@7.5.6:
-    resolution: {integrity: sha512-xqUeu2JAIJpXyvskvU3uvQW8PAmHrtXp2KDuMJwQqW8Sqq0CaZBAQ+dKS3RBXVhU4wC5NjAdKrmh84241gO9cA==}
+  tar@7.5.9:
+    resolution: {integrity: sha512-BTLcK0xsDh2+PUe9F6c2TlRp4zOOBMTkoQHQIWSIzI0R7KG46uEwq4OPk2W7bZcprBMsuaeFsqwYr7pjh6CuHg==}
     engines: {node: '>=18'}
 
   teex@1.0.1:
@@ -8756,7 +8756,7 @@ snapshots:
       minipass-pipeline: 1.2.4
       p-map: 4.0.0
       ssri: 10.0.6
-      tar: 7.5.6
+      tar: 7.5.9
       unique-filename: 3.0.0
 
   cacheable-lookup@5.0.4: {}
@@ -11253,7 +11253,7 @@ snapshots:
       nopt: 7.2.1
       proc-log: 4.2.0
       semver: 7.7.1
-      tar: 7.5.6
+      tar: 7.5.9
       which: 4.0.0
     transitivePeerDependencies:
       - supports-color
@@ -11621,7 +11621,7 @@ snapshots:
       promise-retry: 2.0.1
       sigstore: 2.3.1
       ssri: 10.0.6
-      tar: 7.5.6
+      tar: 7.5.9
     transitivePeerDependencies:
       - bluebird
       - supports-color
@@ -12692,7 +12692,7 @@ snapshots:
 
   tapable@2.3.0: {}
 
-  tar@7.5.6:
+  tar@7.5.9:
     dependencies:
       '@isaacs/fs-minipass': 4.0.1
       chownr: 3.0.0
