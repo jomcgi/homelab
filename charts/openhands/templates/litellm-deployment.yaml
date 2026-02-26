@@ -49,8 +49,9 @@ spec:
               httpHeaders:
                 - name: Authorization
                   value: Bearer {{ .Values.llm.apiKey }}
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 15
+            timeoutSeconds: 5
             failureThreshold: 3
           readinessProbe:
             httpGet:
@@ -59,8 +60,9 @@ spec:
               httpHeaders:
                 - name: Authorization
                   value: Bearer {{ .Values.llm.apiKey }}
-            initialDelaySeconds: 5
+            initialDelaySeconds: 15
             periodSeconds: 10
+            timeoutSeconds: 5
             failureThreshold: 3
           volumeMounts:
             - name: claude-home
