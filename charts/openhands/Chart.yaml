@@ -3,7 +3,7 @@ name: openhands
 description: OpenHands autonomous coding agents with KubernetesRuntime
 type: application
 version: 0.1.0
-appVersion: "0.48.0"
+appVersion: "0.62.0"
 maintainers:
   - name: homelab
 keywords:
