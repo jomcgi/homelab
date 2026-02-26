@@ -42,7 +42,7 @@ graph TB
     subgraph "New Components"
         Adapter["Runtime API Adapter<br/>Go · ~200 LOC"]
         Controller["agent-sandbox<br/>Controller"]
-        WarmPool[("SandboxWarmPool<br/>2 pre-warmed pods")]
+        WarmPool[("SandboxWarmPool<br/>1 pre-warmed pod")]
     end
 
     subgraph "openhands-sandboxes namespace"
@@ -132,20 +132,20 @@ Stateless Go service (~200 LOC) translating the [RemoteSandboxService HTTP contr
 |----------|-----------------|
 | `POST /start` | Create `SandboxClaim` with env vars, image, resource requests |
 | `POST /stop` | Delete `SandboxClaim` |
-| `POST /pause` | Set `Sandbox.spec.replicas: 0` |
-| `POST /resume` | Set `Sandbox.spec.replicas: 1` |
+| `POST /pause` | Not yet supported — return `501` until agent-sandbox adds PVC-preserving pause |
+| `POST /resume` | Not yet supported — return `501` until agent-sandbox adds PVC-preserving resume |
 | `GET /sessions/{id}` | Read `Sandbox` status, return `{url, pod_status, session_api_key}` |
 | `GET /sessions/batch` | Batch read `Sandbox` statuses |
 | `GET /list` | List `Sandbox` CRs in namespace |
 
-Auth: `X-API-Key` header against a 1Password-managed secret.
+Auth: app-server-to-adapter requests are authenticated via an `X-API-Key` header checked against a 1Password-managed secret. The adapter talks to Kubernetes via its own service account.
 
 ## Prior Art
 
 | Project | Notes |
 |---------|-------|
 | [OpenHands Cloud `runtime-api`](https://github.com/All-Hands-AI/OpenHands-Cloud) | Official K8s backend. Python/Flask, PostgreSQL, warm pools. Polyform license (commercial) |
-| [zparnold/openhands-kubernetes-remote-runtime](https://github.com/zparnold/openhands-kubernetes-remote-runtime) | Community Go implementation. Full API, in-memory state (no crash recovery). MIT, 3 weeks old |
+| [zparnold/openhands-kubernetes-remote-runtime](https://github.com/zparnold/openhands-kubernetes-remote-runtime) | Community Go implementation. Full API, in-memory session→pod map (lost on crash). This RFC's adapter derives state from CRD labels instead — stateless and crash-safe. MIT, 3 weeks old |
 | [zxkane/openhands-infra](https://github.com/zxkane/openhands-infra) | Same API on AWS ECS Fargate + DynamoDB. Confirms the contract is portable. Apache 2.0 |
 
 ## Risks
