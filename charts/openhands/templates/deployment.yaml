@@ -59,8 +59,6 @@ spec:
           env:
             - name: RUNTIME
               value: "kubernetes"
-            - name: ENABLE_V1
-              value: "0"
             - name: LLM_BASE_URL
               value: {{ .Values.llm.baseUrl | default (printf "http://%s-litellm:4000/v1" (include "openhands.fullname" .)) | quote }}
             - name: LLM_API_KEY
@@ -103,6 +101,10 @@ spec:
             - name: config
               mountPath: /app/config.toml
               subPath: config.toml
+              readOnly: true
+            - name: config
+              mountPath: /app/openhands/app_server/config.py
+              subPath: app_server_config.py
               readOnly: true
             - name: workspace
               mountPath: {{ .Values.app.persistence.mountPath }}
