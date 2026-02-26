@@ -19,7 +19,7 @@ schedule: "0,30 * * * *"
 # Stargazer service image
 image:
   repository: ghcr.io/jomcgi/homelab/services/stargazer
-  tag: "main@sha256:c045a03e898171e0ae08ef404236baef12be553be062dab104c12fa91483a169"
+  tag: "main@sha256:3049bd502ca774bf833b5bf01eec674a94529876f5c524598752612e0374e4a6"
   pullPolicy: IfNotPresent
 # Persistent storage
 persistence:
