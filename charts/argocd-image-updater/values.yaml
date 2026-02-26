@@ -7,8 +7,6 @@ argocd-image-updater:
   extraArgs:
     - --interval
     - 2m
-    - --max-concurrency
-    - "2"
 
   # Image updater configuration
   config:
