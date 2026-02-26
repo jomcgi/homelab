@@ -34,6 +34,8 @@ linkerdInjection:
     - longhorn-system # Storage system
     # Observability (optional - can mesh these if desired)
     - signoz # SigNoz collector (avoid circular tracing)
+    # Sandbox namespaces (ephemeral pods, no sidecar needed)
+    - openhands-sandboxes
 
 kyverno:
   # Admission controller configuration
