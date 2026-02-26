@@ -34,7 +34,8 @@ linkerdInjection:
     - longhorn-system # Storage system
     # Observability (optional - can mesh these if desired)
     - signoz # SigNoz collector (avoid circular tracing)
-    # Sandbox namespaces (ephemeral pods, no sidecar needed)
+    # OpenHands (third-party images, no sidecar needed)
+    - openhands
     - openhands-sandboxes
 
 kyverno:
