@@ -58,7 +58,7 @@ spec:
               protocol: TCP
           env:
             - name: RUNTIME
-              value: "local"
+              value: "kubernetes"
             - name: LLM_BASE_URL
               value: {{ .Values.llm.baseUrl | default (printf "http://%s-litellm:4000/v1" (include "openhands.fullname" .)) | quote }}
             - name: LLM_API_KEY
