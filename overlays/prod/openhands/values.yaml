@@ -5,9 +5,9 @@ imagePullSecret:
 # 1Password secret paths
 secrets:
   claudeSdkToken:
-    itemPath: "vaults/k8s-homelab/items/claude-sdk-token"
+    itemPath: "vaults/k8s-homelab/items/openhands-claude-proxy"
   openhandsSecrets:
-    itemPath: "vaults/k8s-homelab/items/openhands-secrets"
+    itemPath: "vaults/k8s-homelab/items/openhands"
 
 # Kubernetes runtime
 kubernetes:

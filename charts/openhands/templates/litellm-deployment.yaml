@@ -37,7 +37,7 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: claude-sdk-token
-                  key: credential
+                  key: CLAUDE_AUTH_TOKEN
           resources:
             {{- toYaml .Values.litellm.resources | nindent 12 }}
           livenessProbe:
