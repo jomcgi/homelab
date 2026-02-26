@@ -18,7 +18,7 @@ imagePullSecret:
 # =============================================================================
 app:
   image:
-    repository: docker.all-hands.dev/all-hands-ai/openhands
+    repository: ghcr.io/all-hands-ai/openhands
     tag: "0.48"
     pullPolicy: IfNotPresent
   replicas: 1
@@ -96,7 +96,7 @@ serviceAccount:
 # =============================================================================
 kubernetes:
   sandboxNamespace: openhands-sandboxes
-  runtimeImage: "docker.all-hands.dev/all-hands-ai/runtime:0.48-nikolaik"
+  runtimeImage: "ghcr.io/all-hands-ai/runtime:0.48-nikolaik"
   pvcStorageClass: "longhorn"
   pvcStorageSize: "2Gi"
   resourceCpuRequest: "1"
