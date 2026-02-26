@@ -55,7 +55,7 @@ litellm:
     pullPolicy: Always
   resources:
     requests:
-      cpu: "1"
+      cpu: "2"
       memory: 4Gi
     limits:
       cpu: "1"
