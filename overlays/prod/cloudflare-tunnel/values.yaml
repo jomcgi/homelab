@@ -8,6 +8,8 @@ namespace:
 
 ingress:
   routes:
+    - hostname: agents.jomcgi.dev
+      service: http://openhands.openhands.svc.cluster.local:3000
     - hostname: argocd.jomcgi.dev
       service: http://argocd-server.argocd.svc.cluster.local:80
     - hostname: longhorn.jomcgi.dev

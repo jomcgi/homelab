@@ -1,0 +1,14 @@
+{{- if .Values.sandboxes.resourceQuota.enabled }}
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: {{ include "openhands.fullname" . }}-sandbox-quota
+  namespace: {{ .Values.kubernetes.sandboxNamespace }}
+  labels:
+    {{- include "openhands.labels" . | nindent 4 }}
+spec:
+  hard:
+    pods: {{ .Values.sandboxes.resourceQuota.maxPods | quote }}
+    requests.cpu: {{ .Values.sandboxes.resourceQuota.maxCpu | quote }}
+    requests.memory: {{ .Values.sandboxes.resourceQuota.maxMemory | quote }}
+{{- end }}
