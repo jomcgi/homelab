@@ -46,25 +46,19 @@ spec:
             {{- toYaml .Values.litellm.resources | nindent 12 }}
           livenessProbe:
             httpGet:
-              path: /health
+              path: /health/liveliness
               port: http
-              httpHeaders:
-                - name: Authorization
-                  value: Bearer {{ .Values.llm.apiKey }}
-            initialDelaySeconds: 30
+            initialDelaySeconds: 15
             periodSeconds: 15
-            timeoutSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /health
+              path: /health/readiness
               port: http
-              httpHeaders:
-                - name: Authorization
-                  value: Bearer {{ .Values.llm.apiKey }}
-            initialDelaySeconds: 15
+            initialDelaySeconds: 5
             periodSeconds: 10
-            timeoutSeconds: 5
+            timeoutSeconds: 3
             failureThreshold: 3
           volumeMounts:
             - name: claude-home
