@@ -35,22 +35,18 @@ app:
     size: 5Gi
     mountPath: /opt/workspace_base
   podSecurityContext:
-    fsGroup: 1000
     seccompProfile:
       type: RuntimeDefault
   securityContext:
     allowPrivilegeEscalation: false
-    runAsNonRoot: true
-    # runAsUser intentionally omitted — upstream OpenHands image defines its own
-    # non-root user. runAsNonRoot: true asserts the image doesn't run as root.
+    # runAsNonRoot omitted — upstream OpenHands image runs as root.
+    # readOnlyRootFilesystem omitted — OpenHands writes to internal caches,
+    # session state, and __pycache__. See architecture/rfcs/background-agents.md.
     capabilities:
       drop:
         - ALL
     seccompProfile:
       type: RuntimeDefault
-    # readOnlyRootFilesystem intentionally omitted — OpenHands writes to
-    # internal caches, session state, and __pycache__ beyond /tmp and the
-    # workspace mount. See architecture/rfcs/background-agents.md Security Deviations.
 
 # =============================================================================
 # LiteLLM Claude Proxy Component
@@ -131,13 +127,12 @@ podSecurityContext:
   seccompProfile:
     type: RuntimeDefault
 
-# Container security context (shared)
+# Container security context (used by litellm)
 securityContext:
   readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  # runAsUser intentionally omitted — upstream litellm-claude-code image defines
-  # its own non-root user. runAsNonRoot: true asserts the image doesn't run as root.
+  runAsUser: 1001  # litellm-claude-code image uses USER claude (uid 1001)
   capabilities:
     drop:
       - ALL
