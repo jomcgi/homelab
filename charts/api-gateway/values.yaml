@@ -7,11 +7,11 @@ nginx:
     pullPolicy: IfNotPresent
   resources:
     requests:
-      cpu: 10m
-      memory: 32Mi
+      cpu: 100m
+      memory: 48Mi
     limits:
       cpu: 100m
-      memory: 64Mi
+      memory: 48Mi
 
 clusterInfo:
   enabled: true
@@ -35,6 +35,7 @@ clusterInfo:
       cpu: 50m
       memory: 256Mi
     limits:
+      cpu: 50m
       memory: 256Mi
 
 # Backend services to route to
