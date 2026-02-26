@@ -38,9 +38,9 @@ podAnnotations:
 
 resources:
   requests:
-    cpu: 4
-    memory: "32Gi"
+    cpu: 2
+    memory: "4Gi"
     nvidia.com/gpu: 1
   limits:
-    memory: "48Gi"
+    memory: "8Gi"
     nvidia.com/gpu: 1
