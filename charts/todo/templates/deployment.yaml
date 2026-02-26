@@ -24,8 +24,8 @@ spec:
       affinity:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      # TODO: Add pod security context (runAsNonRoot, seccompProfile)
-      # Blocked by: init container needs root to chown git repo for API user
+      # Known limitation: no pod security context — init container needs root
+      # to chown git repo for the API user (uid 65532)
       initContainers:
         - name: git-clone
           image: alpine/git:latest
@@ -61,8 +61,8 @@ spec:
         - name: api
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
-          # TODO: Add container security context (runAsNonRoot, readOnlyRootFilesystem)
-          # Blocked by: needs write access to git repo for commits
+          # Known limitation: no container security context — needs write
+          # access to git repo for commits
           ports:
             - name: api
               containerPort: 8080
@@ -94,7 +94,7 @@ spec:
             {{- toYaml .Values.resources.api | nindent 12 }}
         - name: static
           image: nginx:alpine
-          # TODO: Add security context - switch to nginx-unprivileged image
+          # Known limitation: using nginx:alpine (should switch to nginx-unprivileged)
           ports:
             - name: http
               containerPort: 80
