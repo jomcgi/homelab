@@ -156,32 +156,3 @@ Auth: `X-API-Key` header against a 1Password-managed secret.
 | V0 removal may slip again | Run V1 in parallel; cut over when stable, not when forced |
 | Warm pool resource cost | Start with 1 warm pod; scale based on usage patterns |
 | PVC retention on pause not yet implemented | [On roadmap](https://github.com/kubernetes-sigs/agent-sandbox/blob/main/roadmap.md); use stop+recreate as interim |
-
-## Migration
-
-```mermaid
-gantt
-    title Migration Timeline
-    dateFormat YYYY-MM-DD
-    axisFormat %b %d
-
-    section Phase 0 · Current
-    V0 KubernetesRuntime + RUNTIME=process    :done, p0, 2026-02-25, 1d
-
-    section Phase 1 · Install
-    Deploy agent-sandbox controller            :p1a, 2026-03-01, 3d
-    Create SandboxTemplate + WarmPool          :p1b, after p1a, 2d
-
-    section Phase 2 · Build
-    Write runtime API adapter                  :p2a, after p1a, 7d
-    Deploy adapter to cluster                  :p2b, after p2a, 2d
-
-    section Phase 3 · Switch
-    RUNTIME=remote, test in parallel           :p3, after p2b, 5d
-
-    section Phase 4 · Cleanup
-    Remove V0 config.toml + old RBAC           :p4, after p3, 2d
-
-    section Upstream
-    V0 scheduled removal                       :milestone, 2026-04-01, 0d
-```
