@@ -25,10 +25,10 @@ app:
   resources:
     requests:
       cpu: 250m
-      memory: 512Mi
+      memory: 1Gi
     limits:
       cpu: "2"
-      memory: 2Gi
+      memory: 1Gi
   persistence:
     enabled: true
     storageClass: ""
@@ -55,11 +55,11 @@ litellm:
     pullPolicy: Always
   resources:
     requests:
-      cpu: "4"
-      memory: 8Gi
+      cpu: "2"
+      memory: 4Gi
     limits:
-      cpu: "4"
-      memory: 8Gi
+      cpu: "2"
+      memory: 4Gi
 
 # =============================================================================
 # LLM Settings
@@ -96,8 +96,8 @@ kubernetes:
   pvcStorageClass: "longhorn"
   pvcStorageSize: "2Gi"
   resourceCpuRequest: "1"
-  resourceMemoryRequest: "2Gi"
-  resourceMemoryLimit: "8Gi"
+  resourceMemoryRequest: "3Gi"
+  resourceMemoryLimit: "3Gi"
 
 # =============================================================================
 # Sandbox Namespace Resource Controls
@@ -108,15 +108,15 @@ sandboxes:
     create: true
   limitRange:
     enabled: true
-    defaultCpu: "4"
-    defaultMemory: "8Gi"
+    defaultCpu: "1"
+    defaultMemory: "3Gi"
     defaultRequestCpu: "1"
-    defaultRequestMemory: "2Gi"
+    defaultRequestMemory: "3Gi"
   resourceQuota:
     enabled: true
     maxPods: 5
-    maxCpu: "8"
-    maxMemory: "16Gi"
+    maxCpu: "5"
+    maxMemory: "15Gi"
 
 # Pod security context (shared)
 podSecurityContext:
