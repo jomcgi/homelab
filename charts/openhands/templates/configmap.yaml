@@ -1,0 +1,21 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openhands.fullname" . }}-config
+  labels:
+    {{- include "openhands.labels" . | nindent 4 }}
+data:
+  config.toml: |
+    [core]
+    runtime = "kubernetes"
+
+    [sandbox]
+    runtime_container_image = "{{ .Values.kubernetes.runtimeImage }}"
+
+    [kubernetes]
+    namespace = "{{ .Values.kubernetes.sandboxNamespace }}"
+    pvc_storage_class = "{{ .Values.kubernetes.pvcStorageClass }}"
+    pvc_storage_size = "{{ .Values.kubernetes.pvcStorageSize }}"
+    resource_cpu_request = "{{ .Values.kubernetes.resourceCpuRequest }}"
+    resource_memory_request = "{{ .Values.kubernetes.resourceMemoryRequest }}"
+    resource_memory_limit = "{{ .Values.kubernetes.resourceMemoryLimit }}"

@@ -1,0 +1,106 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "openhands.fullname" . }}
+  labels:
+    {{- include "openhands.app.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.app.replicas }}
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      {{- include "openhands.app.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "openhands.app.selectorLabels" . | nindent 8 }}
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      serviceAccountName: {{ include "openhands.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.app.podSecurityContext | nindent 8 }}
+      containers:
+        - name: openhands
+          image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
+          imagePullPolicy: {{ .Values.app.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.app.securityContext | nindent 12 }}
+          ports:
+            - name: http
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: LLM_BASE_URL
+              value: {{ .Values.llm.baseUrl | default (printf "http://%s-litellm:4000/v1" (include "openhands.fullname" .)) | quote }}
+            - name: LLM_API_KEY
+              value: {{ .Values.llm.apiKey | quote }}
+            - name: LLM_MODEL
+              value: {{ .Values.llm.model | quote }}
+            - name: OH_PERSISTENCE_DIR
+              value: {{ .Values.app.persistence.mountPath | quote }}
+            - name: SANDBOX_ENV_GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: openhands-secrets
+                  key: GITHUB_TOKEN
+            - name: SANDBOX_ENV_BUILDBUDDY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: openhands-secrets
+                  key: BUILDBUDDY_API_KEY
+          resources:
+            {{- toYaml .Values.app.resources | nindent 12 }}
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          volumeMounts:
+            - name: config
+              mountPath: /app/config.toml
+              subPath: config.toml
+              readOnly: true
+            - name: workspace
+              mountPath: {{ .Values.app.persistence.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+        - name: config
+          configMap:
+            name: {{ include "openhands.fullname" . }}-config
+        - name: workspace
+          {{- if .Values.app.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "openhands.fullname" . }}-data
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: tmp
+          emptyDir: {}

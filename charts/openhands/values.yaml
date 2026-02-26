@@ -1,0 +1,150 @@
+# OpenHands Chart
+# Autonomous coding agents with KubernetesRuntime
+
+# Shared settings
+nameOverride: ""
+fullnameOverride: ""
+
+# Image pull secret configuration (OnePassword)
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
+# =============================================================================
+# OpenHands App Component
+# Main OpenHands web UI and agent runtime coordinator
+# =============================================================================
+app:
+  image:
+    repository: docker.all-hands.dev/all-hands-ai/openhands
+    tag: "0.48"
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "2"
+      memory: 2Gi
+  persistence:
+    enabled: true
+    storageClass: ""
+    size: 5Gi
+    mountPath: /opt/workspace_base
+  podSecurityContext:
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    # runAsUser intentionally omitted — upstream OpenHands image defines its own
+    # non-root user. runAsNonRoot: true asserts the image doesn't run as root.
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+    # readOnlyRootFilesystem intentionally omitted — OpenHands writes to
+    # internal caches, session state, and __pycache__ beyond /tmp and the
+    # workspace mount. See architecture/rfcs/background-agents.md Security Deviations.
+
+# =============================================================================
+# LiteLLM Claude Proxy Component
+# Proxies OpenHands LLM requests to Claude via OAuth token
+# =============================================================================
+litellm:
+  image:
+    repository: ghcr.io/cabinlab/litellm-claude-code
+    tag: "latest"
+    pullPolicy: Always
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# =============================================================================
+# LLM Settings
+# Configures which model OpenHands uses via the LiteLLM proxy
+# =============================================================================
+llm:
+  baseUrl: ""  # Set in overlay: http://{{ .Release.Name }}-litellm:4000/v1
+  apiKey: "not-needed"
+  model: "claude-opus-4-6"
+
+# =============================================================================
+# 1Password Secrets
+# External secret references managed by the 1Password Operator
+# =============================================================================
+secrets:
+  claudeSdkToken:
+    itemPath: ""  # Set in overlay: vaults/k8s-homelab/items/claude-sdk-token
+  openhandsSecrets:
+    itemPath: ""  # Set in overlay: vaults/k8s-homelab/items/openhands-secrets
+
+# Service account (shared)
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# =============================================================================
+# Kubernetes Runtime Config
+# Settings written to config.toml for OpenHands KubernetesRuntime
+# =============================================================================
+kubernetes:
+  sandboxNamespace: openhands-sandboxes
+  runtimeImage: "docker.all-hands.dev/all-hands-ai/runtime:0.48-nikolaik"
+  pvcStorageClass: "longhorn"
+  pvcStorageSize: "2Gi"
+  resourceCpuRequest: "1"
+  resourceMemoryRequest: "2Gi"
+  resourceMemoryLimit: "8Gi"
+
+# =============================================================================
+# Sandbox Namespace Resource Controls
+# Namespace, LimitRange, and ResourceQuota for sandbox pods
+# =============================================================================
+sandboxes:
+  namespace:
+    create: true
+  limitRange:
+    enabled: true
+    defaultCpu: "4"
+    defaultMemory: "8Gi"
+    defaultRequestCpu: "1"
+    defaultRequestMemory: "2Gi"
+  resourceQuota:
+    enabled: true
+    maxPods: 5
+    maxCpu: "8"
+    maxMemory: "16Gi"
+
+# Pod security context (shared)
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container security context (shared)
+securityContext:
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  runAsNonRoot: true
+  # runAsUser intentionally omitted — upstream litellm-claude-code image defines
+  # its own non-root user. runAsNonRoot: true asserts the image doesn't run as root.
+  capabilities:
+    drop:
+      - ALL
+  seccompProfile:
+    type: RuntimeDefault
+
+# Scheduling constraints (shared)
+nodeSelector: {}
+tolerations: []
+affinity: {}
