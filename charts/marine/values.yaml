@@ -52,8 +52,8 @@ aisstream:
   boundingBox: "[[[-2.455379, -173.009262], [71.414709, -32.0327]]]"
 
 # Pod security context (shared)
-# Note: Running as root because aspect_rules_py venv needs to write
-# to the installation directory. TODO: Fix image to run as non-root
+# Known limitation: runs as root because aspect_rules_py venv writes
+# to the installation directory at runtime
 podSecurityContext:
   seccompProfile:
     type: RuntimeDefault

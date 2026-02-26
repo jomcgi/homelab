@@ -38,8 +38,8 @@ spec:
                 topologyKey: kubernetes.io/hostname
       {{- end }}
       securityContext:
-        # Note: Running as root because aspect_rules_py venv needs to write
-        # to the installation directory. TODO: Fix image to run as non-root
+        # Known limitation: runs as root because aspect_rules_py venv writes
+        # to the installation directory at runtime
         seccompProfile:
           type: RuntimeDefault
       containers:
