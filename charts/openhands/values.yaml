@@ -34,10 +34,15 @@ app:
     storageClass: ""
     size: 5Gi
     mountPath: /opt/workspace_base
+  podSecurityContext:
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
   securityContext:
     allowPrivilegeEscalation: false
     runAsNonRoot: true
-    runAsUser: 65532
+    # runAsUser intentionally omitted — upstream OpenHands image defines its own
+    # non-root user. runAsNonRoot: true asserts the image doesn't run as root.
     capabilities:
       drop:
         - ALL
@@ -131,7 +136,8 @@ securityContext:
   readOnlyRootFilesystem: true
   allowPrivilegeEscalation: false
   runAsNonRoot: true
-  runAsUser: 65532
+  # runAsUser intentionally omitted — upstream litellm-claude-code image defines
+  # its own non-root user. runAsNonRoot: true asserts the image doesn't run as root.
   capabilities:
     drop:
       - ALL

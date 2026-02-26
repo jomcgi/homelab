@@ -6,6 +6,8 @@ metadata:
     {{- include "openhands.app.labels" . | nindent 4 }}
 spec:
   replicas: {{ .Values.app.replicas }}
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "openhands.app.selectorLabels" . | nindent 6 }}
@@ -22,7 +24,7 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "openhands.serviceAccountName" . }}
       securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+        {{- toYaml .Values.app.podSecurityContext | nindent 8 }}
       containers:
         - name: openhands
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
@@ -40,6 +42,8 @@ spec:
               value: {{ .Values.llm.apiKey | quote }}
             - name: LLM_MODEL
               value: {{ .Values.llm.model | quote }}
+            - name: OH_PERSISTENCE_DIR
+              value: {{ .Values.app.persistence.mountPath | quote }}
             - name: SANDBOX_ENV_GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
