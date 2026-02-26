@@ -47,13 +47,13 @@ api:
     tag: main@sha256:41fe89f61cf4747304cc2c8cee32774829708e1445fb56505fc184e7177e9e1e
     pullPolicy: Always
     digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
-  # Overprovisioned for catchup - reduce after caught up
   resources:
     requests:
-      cpu: 1
-      memory: 1Gi
+      cpu: 100m
+      memory: 900Mi
     limits:
-      memory: 10Gi
+      cpu: 100m
+      memory: 900Mi
   # Increased tolerance for liveness probe during NATS message catchup
   # The API may be unresponsive while processing large backlogs
   livenessProbe:
@@ -77,10 +77,10 @@ frontend:
   resources:
     requests:
       cpu: 10m
-      memory: 128Mi
+      memory: 100Mi
     limits:
-      cpu: 200m
-      memory: 512Mi
+      cpu: 10m
+      memory: 100Mi
   # Zero Trust access policy - disabled, manually configured in Cloudflare
   zeroTrust:
     policyId: ""

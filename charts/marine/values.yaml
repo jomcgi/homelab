@@ -97,11 +97,11 @@ ingest:
   # Increased for global AIS coverage (~300 msg/sec)
   resources:
     requests:
-      cpu: 100m
-      memory: 128Mi
+      cpu: 20m
+      memory: 100Mi
     limits:
-      cpu: 500m
-      memory: 256Mi
+      cpu: 20m
+      memory: 100Mi
 
   # Pod annotations
   podAnnotations: {}
@@ -140,13 +140,13 @@ api:
     origins: "http://localhost:3000"
 
   # Resource limits
-  # Increased memory for larger SQLite operations
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      memory: 900Mi
     limits:
-      memory: 1Gi
+      cpu: 100m
+      memory: 900Mi
 
   # Liveness probe - checks if container should be restarted
   # During catchup, the API may be unresponsive; increase tolerance
@@ -204,10 +204,10 @@ frontend:
   resources:
     requests:
       cpu: 10m
-      memory: 64Mi
+      memory: 100Mi
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 10m
+      memory: 100Mi
 
   # Pod annotations
   podAnnotations: {}
