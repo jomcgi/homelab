@@ -38,13 +38,9 @@ app:
     seccompProfile:
       type: RuntimeDefault
   securityContext:
-    allowPrivilegeEscalation: false
-    # runAsNonRoot omitted — upstream OpenHands image runs as root.
-    # readOnlyRootFilesystem omitted — OpenHands writes to internal caches,
-    # session state, and __pycache__. See architecture/rfcs/background-agents.md.
-    capabilities:
-      drop:
-        - ALL
+    # Minimal restrictions — upstream OpenHands image runs as root and requires
+    # DAC_OVERRIDE (dropped by capabilities.drop: ALL). See architecture/rfcs/
+    # background-agents.md Security Deviations.
     seccompProfile:
       type: RuntimeDefault
 
