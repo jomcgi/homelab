@@ -29,7 +29,7 @@ corefile: |
         prefer_udp
         max_concurrent 1000
       }
-      cache 30
+      cache 300
       loop
       reload
       loadbalance
@@ -43,7 +43,7 @@ forwarders:
   - 8.8.8.8 # Google
 
 # Cache TTL in seconds
-cacheTTL: 30
+cacheTTL: 300
 
 # Max concurrent forwards
 maxConcurrent: 1000
