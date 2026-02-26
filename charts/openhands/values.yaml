@@ -71,7 +71,7 @@ litellm:
 # =============================================================================
 llm:
   baseUrl: ""  # Set in overlay: http://{{ .Release.Name }}-litellm:4000/v1
-  apiKey: "not-needed"
+  apiKey: "sk-openhands-internal"  # Shared between app and litellm (in-cluster only)
   model: "claude-opus-4-6"
 
 # =============================================================================
