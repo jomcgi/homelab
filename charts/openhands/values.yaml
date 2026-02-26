@@ -18,8 +18,8 @@ imagePullSecret:
 # =============================================================================
 app:
   image:
-    repository: ghcr.io/all-hands-ai/openhands
-    tag: "0.48"
+    repository: ghcr.io/openhands/openhands
+    tag: "0.62"
     pullPolicy: IfNotPresent
   replicas: 1
   resources:
@@ -92,7 +92,7 @@ serviceAccount:
 # =============================================================================
 kubernetes:
   sandboxNamespace: openhands-sandboxes
-  runtimeImage: "ghcr.io/all-hands-ai/runtime:0.48-nikolaik"
+  runtimeImage: "ghcr.io/openhands/runtime:0.62-nikolaik"
   pvcStorageClass: "longhorn"
   pvcStorageSize: "2Gi"
   resourceCpuRequest: "1"
