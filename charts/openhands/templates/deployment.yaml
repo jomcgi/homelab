@@ -25,6 +25,27 @@ spec:
       serviceAccountName: {{ include "openhands.serviceAccountName" . }}
       securityContext:
         {{- toYaml .Values.app.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: seed-settings
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              STORE={{ .Values.app.persistence.mountPath }}/.openhands/file_store
+              if [ ! -f "$STORE/settings.json" ]; then
+                mkdir -p "$STORE"
+                cp /defaults/settings.json "$STORE/settings.json"
+                echo "Seeded default settings.json"
+              else
+                echo "settings.json already exists, skipping"
+              fi
+          volumeMounts:
+            - name: defaults
+              mountPath: /defaults
+              readOnly: true
+            - name: workspace
+              mountPath: {{ .Values.app.persistence.mountPath }}
       containers:
         - name: openhands
           image: "{{ .Values.app.image.repository }}:{{ .Values.app.image.tag }}"
@@ -41,9 +62,13 @@ spec:
             - name: LLM_API_KEY
               value: {{ .Values.llm.apiKey | quote }}
             - name: LLM_MODEL
-              value: {{ .Values.llm.model | quote }}
+              value: "openai/{{ .Values.llm.model }}"
             - name: OH_PERSISTENCE_DIR
               value: {{ .Values.app.persistence.mountPath | quote }}
+            - name: FILE_STORE_PATH
+              value: "{{ .Values.app.persistence.mountPath }}/.openhands/file_store"
+            - name: HIDE_LLM_SETTINGS
+              value: "true"
             - name: SANDBOX_ENV_GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
@@ -95,6 +120,12 @@ spec:
         - name: config
           configMap:
             name: {{ include "openhands.fullname" . }}-config
+        - name: defaults
+          configMap:
+            name: {{ include "openhands.fullname" . }}-config
+            items:
+              - key: settings.json
+                path: settings.json
         - name: workspace
           {{- if .Values.app.persistence.enabled }}
           persistentVolumeClaim:

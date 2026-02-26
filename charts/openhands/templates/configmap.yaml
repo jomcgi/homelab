@@ -9,6 +9,12 @@ data:
     [core]
     runtime = "kubernetes"
 
+    [llm]
+    model = "openai/{{ .Values.llm.model }}"
+    api_key = "{{ .Values.llm.apiKey }}"
+    base_url = {{ .Values.llm.baseUrl | default (printf "http://%s-litellm:4000/v1" (include "openhands.fullname" .)) | quote }}
+    custom_llm_provider = "openai"
+
     [sandbox]
     runtime_container_image = "{{ .Values.kubernetes.runtimeImage }}"
 
@@ -19,3 +25,15 @@ data:
     resource_cpu_request = "{{ .Values.kubernetes.resourceCpuRequest }}"
     resource_memory_request = "{{ .Values.kubernetes.resourceMemoryRequest }}"
     resource_memory_limit = "{{ .Values.kubernetes.resourceMemoryLimit }}"
+
+  settings.json: |
+    {
+      "llm_model": "openai/{{ .Values.llm.model }}",
+      "llm_api_key": {{ .Values.llm.apiKey | quote }},
+      "llm_base_url": {{ .Values.llm.baseUrl | default (printf "http://%s-litellm:4000/v1" (include "openhands.fullname" .)) | quote }},
+      "agent": "CodeActAgent",
+      "language": "en",
+      "confirmation_mode": false,
+      "security_analyzer": "llm",
+      "enable_default_condenser": true
+    }
