@@ -72,7 +72,7 @@ api:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
-    tag: main@sha256:bcb8b630dfc03628358d081bfce3aabb33b4b448ecb2abed7e4c85f0266f68ca
+    tag: latest@sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
     digest: sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   resources:
     requests:
