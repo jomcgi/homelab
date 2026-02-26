@@ -55,11 +55,11 @@ litellm:
     pullPolicy: Always
   resources:
     requests:
-      cpu: 100m
-      memory: 1.5Gi
+      cpu: "4"
+      memory: 8Gi
     limits:
-      cpu: "1"
-      memory: 1.5Gi
+      cpu: "4"
+      memory: 8Gi
 
 # =============================================================================
 # LLM Settings

@@ -33,6 +33,8 @@ spec:
               containerPort: 4000
               protocol: TCP
           env:
+            - name: LITELLM_LOG
+              value: "ERROR"
             - name: LITELLM_MASTER_KEY
               value: {{ .Values.llm.apiKey | quote }}
             - name: CLAUDE_CODE_OAUTH_TOKEN
