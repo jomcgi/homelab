@@ -48,6 +48,7 @@ exports_files(
 
 # gazelle:prefix github.com/jomcgi/homelab
 # gazelle:exclude cdk8s
+# gazelle:exclude poc
 # gazelle:exclude .claude
 
 # Custom gazelle binary with ArgoCD and wrangler extensions
