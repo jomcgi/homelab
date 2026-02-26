@@ -38,11 +38,11 @@ securityContext:
 # Resource limits for processing geospatial data
 resources:
   limits:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 100m
+    memory: 256Mi
   requests:
-    cpu: 500m
-    memory: 1Gi
+    cpu: 100m
+    memory: 256Mi
 
 # Persistent storage for data
 persistence:
