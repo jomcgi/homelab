@@ -275,7 +275,7 @@ The `embedding_text` must be grounded in the source `content_text`. Three catego
 - **Accepted risk**: this is rare when Flash is summarizing text it's literally reading. Not worth a second validation LLM call.
 
 **3. Omissions** (entity present in source text but never extracted)
-- **Detection**: post-extraction coverage check. After all sections of a book are processed, scan all `content_text` for capitalized multi-word phrases that appear 3+ times across different sections but were never extracted as entities. Flag these as candidate missed entities.
+- **Detection**: post-extraction coverage check. After all sections of a book are processed, scan all `content_text` for capitalized phrases not in the entity list or aliases. Multi-word phrases flagged at 2+ occurrences, single-word at 3+ (higher threshold to filter common nouns). Flag these as candidate missed entities.
 - **On failure**: batch the candidates and send to Flash: "These names appear repeatedly in the source but were not extracted. For each, determine if it's an entity worth extracting or a false positive (e.g., a common phrase, a generic title)."
 
 ```mermaid
@@ -295,7 +295,7 @@ flowchart LR
         Scan --> Candidates[/"Candidate<br>missed entities"/]
         XRef --> XRefHits[/"Cross-book<br>references"/]
         Candidates --> Flash2["Flash: real entity<br>or false positive?"]
-        XRefHits --> NewRel["Create REFERENCED_IN<br>relationship to<br>existing entity"]
+        XRefHits --> NewRel["Create APPEARS_IN<br>relationship to<br>existing entity"]
         Flash2 -->|"real"| Extract["Extract as entity<br>+ re-run mention linking"]
         Flash2 -->|"false positive"| Skip["Discard"]
     end
@@ -479,7 +479,7 @@ Homebrew entities:
 | **SourceBook** | `id, title, system, publisher, total_pages` | One per PDF |
 | **RawBlock** | `id, source_book_id, block_id, block_type, page, html, bbox, section_hierarchy` | Verbatim from Marker output |
 | **Entity** | `id, entity_type, name, aliases[], description, properties, embedding_text, source_type, source_refs[], embedding` | `source_type`: "extracted" or "homebrew". `aliases` from entity resolution. `source_refs` = [{book_id, page}] (null for homebrew) |
-| **Relationship** | `id, source_entity_id, target_entity_id, rel_type, metadata, source_book_id` | Graph edges |
+| **Relationship** | `id, source_entity_id, target_entity_id, rel_type, metadata, source_book_id` | Graph edges. `source_book_id` nullable for DM-created relationships (homebrew-to-extracted or homebrew-to-homebrew). |
 | **KnowledgeChunk** | `id, source_book_id, block_ids[], section_path, content_text, embedding_text, embedding` | `content_text` is raw source for display, `embedding_text` is LLM-generated for search |
 | **ChunkEntityMention** | `id, chunk_id, entity_id, mention_span, context` | Links chunks to entities they reference |
 
@@ -604,4 +604,5 @@ Homebrew entities:
 | `CREATED_BY` | Item → NPC, Deity | Luxon Beacons → Luxon |
 | `RULES` | NPC → Location, Faction | King Dwendal → Empire |
 | `GUARDS` | Creature, NPC → Location | encounter placement |
+| `APPEARS_IN` | Entity → SourceBook | Cross-book reference: entity from one book mentioned in another |
 | `RELATED_TO` | any → any | catch-all for LLM-detected relationships |
