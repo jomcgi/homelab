@@ -26,10 +26,11 @@ imgproxy:
 
   resources:
     requests:
-      cpu: 500m
-      memory: 1Gi
+      cpu: 10m
+      memory: 75Mi
     limits:
-      memory: 1Gi
+      cpu: 10m
+      memory: 75Mi
 
   config:
     quality: "90"
@@ -48,11 +49,11 @@ nginx:
 
   resources:
     requests:
-      cpu: 20m
-      memory: 32Mi
+      cpu: 5m
+      memory: 16Mi
     limits:
-      cpu: 200m
-      memory: 128Mi
+      cpu: 5m
+      memory: 16Mi
 
 # API server configuration
 api:
@@ -68,11 +69,11 @@ api:
 
   resources:
     requests:
-      cpu: 50m
-      memory: 64Mi
+      cpu: 10m
+      memory: 75Mi
     limits:
-      cpu: 500m
-      memory: 256Mi
+      cpu: 10m
+      memory: 75Mi
 
   # Upload API authentication (from 1Password secret)
   auth:

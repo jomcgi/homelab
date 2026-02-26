@@ -38,8 +38,8 @@ securityContext:
 # Resource limits for processing geospatial data
 resources:
   limits:
-    cpu: 2000m
-    memory: 4Gi
+    cpu: 500m
+    memory: 1Gi
   requests:
     cpu: 500m
     memory: 1Gi
@@ -118,11 +118,11 @@ api:
     runAsUser: 101 # nginx user in nginx-unprivileged image
   resources:
     limits:
-      cpu: 200m
-      memory: 256Mi
+      cpu: 5m
+      memory: 32Mi
     requests:
-      cpu: 50m
-      memory: 128Mi
+      cpu: 5m
+      memory: 32Mi
   httproute:
     enabled: false
     hostname: api.jomcgi.dev
