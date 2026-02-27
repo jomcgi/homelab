@@ -8,3 +8,8 @@
 # as an explicit dep where needed (extractors BUILD) so it's still
 # available at runtime.
 lxml==6.0.2
+
+# Override pillow upper bound from open-gopro[gui] (requires <12).
+# Pillow 12.1.1 is needed to fix CVE. The <12 bound in open-gopro
+# is a cautious constraint, not a known incompatibility.
+pillow>=12.1.1

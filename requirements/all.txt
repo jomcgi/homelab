@@ -2115,7 +2115,7 @@ pillow==12.1.1 \
     --hash=sha256:fc44ef1f3de4f45b50ccf9136999d71abb99dca7706bc75d222ed350b9fd2289
     # via
     #   -c requirements/runtime.txt
-    #   --override (workspace)
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   open-gopro
 platformdirs==4.5.0 \
