@@ -65,4 +65,4 @@ See [.claude/CLAUDE.md](.claude/CLAUDE.md) for operational details.
 
 ## License
 
-MIT
+[MPL-2.0](LICENSE)

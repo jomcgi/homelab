@@ -39,6 +39,16 @@ logs/
 .env.local
 .env.*.local
 
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+kubeconfig
+*.kubeconfig
+**/.claude/settings.local.json
+
 # OS files
 .DS_Store
 Thumbs.db
