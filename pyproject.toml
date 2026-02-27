@@ -77,8 +77,3 @@ dependencies = [
 # See https://docs.astral.sh/ruff/configuration/
 [tool.ruff]
 extend-exclude = [".claude/worktrees"]
-
-[tool.uv]
-override-dependencies = [
-    "pillow>=12.1.1",
-]

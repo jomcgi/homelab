@@ -1868,7 +1868,7 @@ pillow==12.1.1 \
     --hash=sha256:fc354a04072b765eccf2204f588a7a532c9511e8b9c7f900e1b64e3e33487090 \
     --hash=sha256:fc44ef1f3de4f45b50ccf9136999d71abb99dca7706bc75d222ed350b9fd2289
     # via
-    #   --override (workspace)
+    #   --override requirements/overrides.txt
     #   homelab (pyproject.toml)
     #   open-gopro
 platformdirs==4.5.0 \
