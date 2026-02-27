@@ -25,6 +25,7 @@ manifest:
     aiohttp: aiohttp
     aiosignal: aiosignal
     aiosqlite: aiosqlite
+    annotated_doc: annotated_doc
     annotated_types: annotated_types
     anyio: anyio
     apscheduler: APScheduler
