@@ -75,7 +75,7 @@ export default function HotInHereDemo() {
 
   // Load audio
   useEffect(() => {
-    const audio = new Audio("/HotInHere.mp3");
+    const audio = new Audio("https://cdn.jomcgi.dev/HotInHere.mp3");
     audio.loop = true;
     audioRef.current = audio;
 

@@ -65,7 +65,7 @@ export default function SexyBackDemo() {
 
   // Load audio
   useEffect(() => {
-    const audio = new Audio("/SexyBack.mp3");
+    const audio = new Audio("https://cdn.jomcgi.dev/SexyBack.mp3");
     audio.loop = true;
     audioRef.current = audio;
 
