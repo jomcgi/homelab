@@ -1,65 +1,58 @@
 # Kyverno
 
-Policy engine for Kubernetes with custom policies for observability automation.
+Policy engine for Kubernetes with custom ClusterPolicies for automated observability and service mesh injection.
 
 ## Overview
 
+Kyverno acts as a Kubernetes admission controller that mutates resources to enforce cluster-wide conventions. This chart wraps the upstream Kyverno chart and adds two custom ClusterPolicies that automatically inject OpenTelemetry configuration and Linkerd service mesh annotations into all workloads.
+
 ```mermaid
 flowchart LR
-    subgraph Admission
-        API[API Server] --> KYV[Kyverno]
-        KYV -->|mutate/validate| API
-    end
+    API[API Server] -->|admission webhook| KYV[Kyverno]
 
     subgraph Policies
-        OTEL[OTEL Injection]
-        LINK[Linkerd Injection]
+        OTEL[OTel Injection Policy]
+        LINK[Linkerd Injection Policy]
     end
 
     KYV --> OTEL
     KYV --> LINK
+    OTEL -->|inject env vars| Workloads[Deployments / StatefulSets / DaemonSets]
+    LINK -->|annotate| NS[Namespaces]
 ```
 
-## Custom Policies
+## Architecture
 
-### OTEL Environment Variable Injection
+The chart deploys four Kyverno controllers plus two custom ClusterPolicies:
 
-Automatically injects OpenTelemetry configuration into all workloads:
+- **Admission Controller** - Intercepts API server requests to mutate and validate resources against policies
+- **Background Controller** - Applies policies retroactively to existing resources (not just new ones)
+- **Cleanup Controller** - Manages lifecycle of policy reports
+- **Reports Controller** - Generates policy compliance reports
 
-```yaml
-OTEL_EXPORTER_OTLP_ENDPOINT: signoz-otel-collector.signoz.svc.cluster.local:4317
-OTEL_EXPORTER_OTLP_PROTOCOL: grpc
-```
+Custom policies included:
 
-**Opt-out:**
+- **OTel Injection** (`inject-otel-env-vars`) - Mutates Deployments, StatefulSets, and DaemonSets to inject `OTEL_EXPORTER_OTLP_ENDPOINT` and `OTEL_EXPORTER_OTLP_PROTOCOL` environment variables
+- **Linkerd Injection** (`inject-linkerd-namespace-annotation`) - Mutates Namespaces to add `linkerd.io/inject: enabled` annotation for automatic sidecar injection
 
-```yaml
-metadata:
-  labels:
-    otel.instrumentation: "disabled"
-```
+## Key Features
 
-### Linkerd Namespace Injection
-
-Automatically enables Linkerd mesh for all namespaces.
-
-**Opt-out:**
-
-```yaml
-metadata:
-  labels:
-    linkerd.io/inject: "disabled"
-```
+- **Cluster-wide observability** - All workloads automatically get OTel configuration
+- **Automatic mesh enrollment** - All namespaces get Linkerd sidecar injection by default
+- **Opt-out model** - Label with `otel.instrumentation: disabled` or `linkerd.io/inject: disabled` to exclude
+- **Background enforcement** - Policies apply to both existing and new resources
+- **Audit mode** - Policies use `validationFailureAction: Audit` (non-blocking)
+- **Policy exceptions** - Supports Kyverno PolicyExceptions for fine-grained overrides
 
 ## Configuration
 
-| Value                      | Description                        | Default                                                |
-| -------------------------- | ---------------------------------- | ------------------------------------------------------ |
-| `otelInjection.enabled`    | Enable OTEL env var injection      | `true`                                                 |
-| `otelInjection.endpoint`   | OTEL collector endpoint            | `signoz-otel-collector...`                             |
-| `linkerdInjection.enabled` | Enable Linkerd namespace injection | `true`                                                 |
-| `kyverno.*`                | Upstream chart values              | See [kyverno chart](https://kyverno.github.io/kyverno) |
-
-## Excluded Namespaces
-
-Both policies exclude system namespaces: `kube-system`, `kube-public`, `kube-node-lease`, `linkerd`, `cert-manager`, `kyverno`, `argocd`, `longhorn-system`, `signoz`.
+| Value | Description | Default |
+| ----- | ----------- | ------- |
+| `otelInjection.enabled` | Enable OTel env var injection policy | `true` |
+| `otelInjection.endpoint` | OTel collector endpoint | `signoz-otel-collector.signoz.svc.cluster.local:4317` |
+| `otelInjection.protocol` | OTel exporter protocol | `grpc` |
+| `otelInjection.targetKinds` | Resource kinds to inject into | `[Deployment, StatefulSet, DaemonSet]` |
+| `linkerdInjection.enabled` | Enable Linkerd namespace injection policy | `true` |
+| `linkerdInjection.excludeNamespaces` | Namespaces excluded from Linkerd injection | System + infra namespaces |
+| `kyverno.admissionController.replicas` | Admission controller replicas | `1` |
+| `kyverno.features.policyExceptions.enabled` | Enable PolicyException CRD | `true` |
