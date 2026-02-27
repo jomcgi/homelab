@@ -23,6 +23,8 @@ dist/
 
 *.venv/
 __pycache__
+*.sqlite
+*.sqlite.db
 
 .astro
 .playwright-mcp
