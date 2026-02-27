@@ -8,7 +8,7 @@
     "run-server": "python3 -m http.server 3000 --directory public"
   },
   "devDependencies": {
-    "@playwright/test": "^1.40.0",
+    "@playwright/test": "^1.58.2",
     "wrangler": "^4.0.0"
   }
 }
