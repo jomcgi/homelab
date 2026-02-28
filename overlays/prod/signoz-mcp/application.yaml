@@ -1,26 +1,25 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: context-forge
+  name: signoz-mcp
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: charts/context-forge
+    path: charts/signoz-mcp
     targetRevision: HEAD
     helm:
-      releaseName: context-forge
+      releaseName: signoz-mcp
       valueFiles:
         - values.yaml
-        - ../../overlays/prod/context-forge/values.yaml
+        - ../../overlays/prod/signoz-mcp/values.yaml
   destination:
     server: https://kubernetes.default.svc
-    namespace: mcp-gateway
+    namespace: mcp-servers
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
-      - ServerSideApply=true

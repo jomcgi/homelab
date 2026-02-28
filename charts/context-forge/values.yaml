@@ -1,40 +1,80 @@
 # Context Forge MCP Gateway
-# Aggregates upstream MCP servers behind a single endpoint.
+# Wraps upstream IBM mcp-stack chart with environment-specific config.
 
-# Gateway container (IBM Context Forge)
-gateway:
-  image:
-    repository: ghcr.io/ibm/mcp-context-forge
-    tag: "v1.0.0-RC1"
-    pullPolicy: IfNotPresent
-  port: 4444
-  resources:
-    requests:
-      cpu: 50m
-      memory: 256Mi
-    limits:
-      cpu: 200m
-      memory: 512Mi
+mcp-stack:
+  mcpContextForge:
+    image:
+      repository: ghcr.io/ibm/mcp-context-forge
+      tag: "v1.0.0-RC1"
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    hpa:
+      enabled: false
+    ingress:
+      enabled: false
+    config:
+      GUNICORN_WORKERS: "2"
+      MCPGATEWAY_UI_ENABLED: "false"
+      MCPGATEWAY_A2A_ENABLED: "false"
+      LLMCHAT_ENABLED: "false"
+      MCPGATEWAY_CATALOG_ENABLED: "false"
+      MCPGATEWAY_DIRECT_PROXY_ENABLED: "false"
+      MCPGATEWAY_BULK_IMPORT_ENABLED: "false"
+    secret:
+      AUTH_REQUIRED: "false"
+      MCP_CLIENT_AUTH_ENABLED: "false"
+      JWT_SECRET_KEY: ""  # Injected from 1Password via extraEnvFrom
+    extraEnvFrom:
+      - secretRef:
+          name: context-forge
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
 
-# SigNoz MCP server (sidecar)
-signoz:
-  enabled: true
-  image:
-    repository: docker.io/signoz/signoz-mcp-server
-    tag: "v0.0.5"
-    pullPolicy: IfNotPresent
-  port: 8000
-  # SigNoz backend URL (cluster-internal)
-  url: http://signoz.signoz.svc.cluster.local:8080
-  resources:
-    requests:
-      cpu: 10m
-      memory: 64Mi
-    limits:
-      cpu: 100m
-      memory: 128Mi
+  postgres:
+    persistence:
+      storageClassName: longhorn
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
 
-# 1Password secret for backend credentials
+  redis:
+    enabled: true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # Disable components we don't need
+  pgadmin:
+    enabled: false
+  redisCommander:
+    enabled: false
+  minio:
+    enabled: false
+  mcpFastTimeServer:
+    enabled: false
+
+# 1Password secret for JWT_SECRET_KEY
 secret:
   name: context-forge
   itemPath: "vaults/k8s-homelab/items/context-forge"
+
+# Registration job — registers MCP servers with the gateway after deploy
+registration:
+  signoz:
+    name: signoz-mcp
+    url: "http://signoz-mcp.mcp-servers.svc.cluster.local:8000/mcp"
+    transport: STREAMABLEHTTP
