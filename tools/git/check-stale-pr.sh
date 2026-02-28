@@ -16,16 +16,33 @@ if [[ ! "$COMMAND" =~ git[[:space:]].*push ]] && [[ ! "$COMMAND" =~ ^git[[:space
 	exit 0
 fi
 
-# Extract -C directory if present (for worktree pushes)
+# Extract just the "git ... push ..." segment from chained commands.
+# e.g. "cd /tmp/foo && git add . && git commit -m x && git push -u origin branch"
+# becomes "git push -u origin branch"
+PUSH_SEGMENT="$COMMAND"
+if [[ "$COMMAND" == *"&&"* ]]; then
+	PUSH_SEGMENT=$(echo "$COMMAND" | tr '&' '\n' | grep -E 'git[[:space:]].*push|git[[:space:]]+push' | tail -1 | xargs)
+fi
+
+# Extract working directory for git operations.
+# Handles: git -C /path push, git push (after cd /path &&), worktree pushes.
+# Uses sed for portability (BASH_REMATCH unreliable on macOS bash 5.3+).
 GIT_ARGS=()
-if [[ "$COMMAND" =~ -C[[:space:]]+([^[:space:]]+) ]]; then
-	GIT_ARGS=(-C "${BASH_REMATCH[1]}")
+GIT_DIR=$(echo "$PUSH_SEGMENT" | sed -nE 's/.*-C[[:space:]]+([^[:space:]]+).*/\1/p')
+if [ -z "$GIT_DIR" ]; then
+	GIT_DIR=$(echo "$COMMAND" | sed -nE 's/.*-C[[:space:]]+([^[:space:]]+).*/\1/p')
+fi
+if [ -z "$GIT_DIR" ]; then
+	GIT_DIR=$(echo "$COMMAND" | sed -nE 's/^cd[[:space:]]+([^[:space:]&]+).*/\1/p')
+fi
+if [ -n "$GIT_DIR" ]; then
+	GIT_ARGS=(-C "$GIT_DIR")
 fi
 
 # Determine the branch being pushed.
 # Strip the git push prefix and known flags to find [remote] [branch].
 # Use [[:space:]] and [^[:space:]] instead of \s and \S for macOS sed compatibility.
-PUSH_ARGS=$(echo "$COMMAND" | sed -E 's/^git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(--no-pager[[:space:]]+)?push[[:space:]]*//')
+PUSH_ARGS=$(echo "$PUSH_SEGMENT" | sed -E 's/^git[[:space:]]+(-C[[:space:]]+[^[:space:]]+[[:space:]]+)?(--no-pager[[:space:]]+)?push[[:space:]]*//')
 PUSH_ARGS=$(echo "$PUSH_ARGS" | sed -E 's/(-u|--set-upstream|--force|-f|--no-verify|--force-with-lease|--quiet|-q)[[:space:]]*//g')
 PUSH_ARGS=$(echo "$PUSH_ARGS" | xargs) # trim whitespace
 
