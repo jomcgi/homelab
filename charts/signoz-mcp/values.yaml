@@ -8,7 +8,7 @@ image:
 
 port: 8000
 
-signozBackendUrl: "http://signoz.signoz.svc.cluster.local:8080"
+signozUrl: "http://signoz.signoz.svc.cluster.local:8080"
 
 resources:
   requests:
