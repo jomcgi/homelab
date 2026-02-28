@@ -81,9 +81,6 @@ frontend:
     limits:
       cpu: 10m
       memory: 100Mi
-  # Zero Trust access policy - disabled, manually configured in Cloudflare
-  zeroTrust:
-    policyId: ""
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars

@@ -26,6 +26,15 @@ ingress:
     # D&D campaign manager (nginx proxies /ws to ws-gateway internally)
     - hostname: grimoire.jomcgi.dev
       service: http://grimoire-frontend.grimoire.svc.cluster.local:8080
+    # Marine tracking (ships map)
+    - hostname: ships.jomcgi.dev
+      service: http://marine-frontend.marine.svc.cluster.local:80
+    # Todo app (public read-only view)
+    - hostname: todo.jomcgi.dev
+      service: http://todo-public.todo.svc.cluster.local:80
+    # Todo admin
+    - hostname: todo-admin.jomcgi.dev
+      service: http://todo-admin.todo.svc.cluster.local:8080
     # Shared API hosting (route-based: /trips, /cluster-info, etc.)
     - hostname: api.jomcgi.dev
       service: http://api-gateway.api-gateway.svc.cluster.local:80

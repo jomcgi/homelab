@@ -4,9 +4,6 @@ metadata:
   name: {{ include "todo.fullname" . }}-public
   labels:
     {{- include "todo.labels" . | nindent 4 }}
-  annotations:
-    cloudflare.ingress.hostname: {{ .Values.cloudflare.publicHostname }}
-    cloudflare.zero-trust.enabled: "false"
 spec:
   type: ClusterIP
   ports:
@@ -23,9 +20,6 @@ metadata:
   name: {{ include "todo.fullname" . }}-admin
   labels:
     {{- include "todo.labels" . | nindent 4 }}
-  annotations:
-    cloudflare.ingress.hostname: {{ .Values.cloudflare.adminHostname }}
-    cloudflare.zero-trust.enabled: "false"  # Policy created separately
 spec:
   type: ClusterIP
   ports:
