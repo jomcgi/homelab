@@ -20,7 +20,7 @@ Agents (Claude Code, Cursor, OpenHands sandboxes) need programmatic access to cl
 
 ## Proposal
 
-Deploy IBM MCP Context Forge (Apache 2.0) as a single in-cluster gateway that wraps internal REST/HTTP APIs as virtual MCP tools via configuration. The gateway runs inside the cluster network, bypassing Cloudflare entirely for backend access, and is exposed to agents through a single Cloudflare-authenticated endpoint.
+Deploy IBM MCP Context Forge (Apache 2.0) as a single in-cluster gateway that wraps internal REST/HTTP APIs as virtual MCP tools via configuration. The gateway runs inside the cluster network, accessing backends via ClusterIP directly. Agents connect through Cloudflare Zero Trust using a service token — no port-forwarding, no local proxies, no per-MCP-server auth workarounds.
 
 ### Before and After
 
@@ -29,7 +29,7 @@ Deploy IBM MCP Context Forge (Apache 2.0) as a single in-cluster gateway that wr
 | SigNoz access | Custom MCP binary + orphaned permissions | `signoz.query_logs({service: "trips", severity: "ERROR"})` |
 | ArgoCD access | `argocd app get` via Bash pattern | `argocd.get_application({name: "trips"})` |
 | Cloudflare auth | Per-MCP-server workaround needed | Gateway handles it once, backends are cluster-internal |
-| Remote agent access | Not possible (stdio only) | HTTP/SSE transport, any agent in or outside cluster |
+| Remote agent access | Not possible (stdio only) | HTTP transport, any agent in or outside cluster |
 | New tool provisioning | Build MCP server + add Bash patterns | Register API endpoint in gateway config |
 
 ---
@@ -39,24 +39,29 @@ Deploy IBM MCP Context Forge (Apache 2.0) as a single in-cluster gateway that wr
 ```
 ┌──────────────────────────────────┐
 │  Agents                          │
-│  - Claude Code (local, stdio)    │
-│  - Claude Code (local, SSE)     │
+│  - Claude Code (local)           │
 │  - OpenHands sandboxes (cluster) │
 │  - Cursor                        │
 └───────────────┬──────────────────┘
                 │
-        ┌───────┴────────┐
-        │ Local agents:  │  Remote/cluster agents:
-        │ stdio or SSE   │  SSE via Cloudflare
-        │ via port-fwd   │  mcp.jomcgi.dev
-        └───────┬────────┘
+        ┌───────┴────────────────────────────────┐
+        │ Local agents:                          │  In-cluster agents:
+        │ HTTPS to mcp.jomcgi.dev                │  ClusterIP (no auth)
+        │ + CF service token headers             │
+        └───────┬────────────────────────────────┘
+                │
+                ▼
+    ┌─ Cloudflare Zero Trust ─┐
+    │  mcp.jomcgi.dev         │
+    │  Service token policy   │
+    └───────────┬─────────────┘
                 │
                 ▼
 ┌─ Namespace: mcp-gateway ──────────────────────────────────┐
 │                                                            │
 │  Deployment: context-forge (1 replica)                     │
 │  ├─ Registers virtual MCP tools for each backend           │
-│  ├─ Transports: stdio, SSE, streamable-HTTP                │
+│  ├─ Transport: streamable-HTTP                             │
 │  ├─ Built-in: rate limits, OTel traces, request logging    │
 │  └─ ClusterIP Service on port 8000                         │
 │                                                            │
@@ -85,15 +90,50 @@ No Cloudflare tunnel, no CF headers, no SSO. The gateway itself is the auth boun
 
 This is the same pattern used by every other service in the cluster (see `overlays/prod/cloudflare-tunnel/values.yaml`).
 
-### Agent Access Paths
+### Agent Access: Cloudflare Service Token
 
-**Local Claude Code (stdio)** — For the simplest local setup, `kubectl port-forward` the gateway and configure Claude Code with stdio transport wrapping a local HTTP client. This is optional; SSE works too.
+All external agents connect via `https://mcp.jomcgi.dev/mcp` using Cloudflare Access service token headers. Claude Code natively supports custom headers on remote MCP servers via the `.mcp.json` `headers` field:
 
-**Local Claude Code (SSE)** — Point Claude Code at `http://localhost:8000/mcp` via port-forward, or at `https://mcp.jomcgi.dev/mcp` through Cloudflare (requires CF service token or browser SSO).
+```json
+{
+  "mcpServers": {
+    "context-forge": {
+      "type": "http",
+      "url": "https://mcp.jomcgi.dev/mcp",
+      "headers": {
+        "CF-Access-Client-Id": "${CF_ACCESS_CLIENT_ID}",
+        "CF-Access-Client-Secret": "${CF_ACCESS_CLIENT_SECRET}"
+      }
+    }
+  }
+}
+```
 
-**OpenHands sandboxes** — Sandbox pods access the gateway via ClusterIP: `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`. No auth needed for in-cluster traffic (ClusterIP is not externally reachable).
+The `${VAR}` syntax expands environment variables at runtime — secrets stay in the local shell environment (e.g., via `direnv` and 1Password CLI) rather than in the config file checked into Git.
 
-**Cursor** — SSE transport to `https://mcp.jomcgi.dev/mcp` with CF service token headers.
+This reuses the same service token pattern the cluster's OTel deployment already uses for synthetic health checks (the `synthetic-tests` 1Password item). A dedicated service token scoped to `mcp.jomcgi.dev` can be created for tighter access control.
+
+**In-cluster agents** (OpenHands sandboxes) access the gateway via ClusterIP: `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`. No Cloudflare auth needed — ClusterIP is not externally reachable, and sandboxes are already scoped to an isolated namespace with ResourceQuota (see `architecture/rfcs/openhands-agent-sandbox.md`).
+
+### Full Request Flow
+
+```
+Claude Code (local Mac)
+    │
+    │  HTTPS + CF-Access-Client-Id + CF-Access-Client-Secret
+    │
+    ▼
+Cloudflare Zero Trust (mcp.jomcgi.dev)
+    │  ✓ Service token validated
+    │  ✓ No browser SSO required
+    ▼
+Cloudflare Tunnel → context-forge.mcp-gateway.svc.cluster.local:8000
+    │
+    ▼
+Context Forge pod → SigNoz / ArgoCD (ClusterIP, backend credentials injected server-side)
+```
+
+No port-forwarding. No local proxy. No exposed ports. The service token bypasses interactive SSO while still being validated by Zero Trust.
 
 ---
 
@@ -105,7 +145,7 @@ Deploy Context Forge with two backends — the two services agents query most fr
 
 - Agents can query SigNoz logs/traces/metrics without a custom MCP binary or Cloudflare bypass
 - Agents can inspect ArgoCD application state without `argocd` CLI + Bash patterns
-- SSE transport works from both local Claude Code and in-cluster OpenHands sandboxes
+- HTTP transport works from both local Claude Code and in-cluster OpenHands sandboxes
 - OTel spans flow through the existing Kyverno-injected collector to SigNoz (observing the observer)
 
 ### MVP Virtual Tools
@@ -132,9 +172,7 @@ Deploy Context Forge with two backends — the two services agents query most fr
 
 **Auth:** Read-only service accounts only. SigNoz viewer API key, ArgoCD read-only token. No write verbs registered in the gateway.
 
-**Network:** ClusterIP service. External access via Cloudflare tunnel route (`mcp.jomcgi.dev`). Zero Trust policy requires either:
-- Browser-based SSO (for interactive use)
-- CF service token headers (for programmatic agent access — reuse the existing `synthetic-tests` 1Password item)
+**Network:** ClusterIP service. External access via Cloudflare tunnel route (`mcp.jomcgi.dev`). Zero Trust policy requires a CF service token — created in Cloudflare Zero Trust dashboard (Access > Service Auth > Service Tokens), scoped to the `mcp.jomcgi.dev` application.
 
 **SSRF:** Context Forge defaults block private network ranges. Required configuration:
 
@@ -144,7 +182,7 @@ SSRF_ALLOWED_NETWORKS=["10.42.0.0/16", "10.43.0.0/16"]
 
 (Adjust to match cluster pod and service CIDRs.)
 
-**Secrets:** All credentials via `OnePasswordItem` CRDs, consistent with every other service. No secrets in Git or container images.
+**Secrets:** All credentials via `OnePasswordItem` CRDs, consistent with every other service. No secrets in Git or container images. The CF service token for local agent access is stored in 1Password and loaded into the shell environment via `direnv` + 1Password CLI.
 
 **Container security:** Standard homelab security context — non-root (uid 65532), read-only root filesystem, drop all capabilities.
 
@@ -155,7 +193,6 @@ SSRF_ALLOWED_NETWORKS=["10.42.0.0/16", "10.43.0.0/16"]
 - Longhorn API registration
 - Virtual server bundling (role-scoped tool subsets per agent type)
 - JWT-based per-agent authentication
-- WebSocket transport relay
 
 ---
 
@@ -188,12 +225,12 @@ The gateway configuration (which backends to register, which endpoints to expose
 
 ```
 Internet ──[Cloudflare Zero Trust]──▶ mcp.jomcgi.dev ──▶ Context Forge pod
-                                                              │
-                                                              ├──▶ SigNoz (viewer key)
-                                                              └──▶ ArgoCD (read-only token)
+             (service token)                                    │
+                                                                ├──▶ SigNoz (viewer key)
+                                                                └──▶ ArgoCD (read-only token)
 ```
 
-- **External agents** (local Claude Code, Cursor): authenticated by Cloudflare Zero Trust before reaching the gateway. Same SSO policy as `signoz.jomcgi.dev`, `argocd.jomcgi.dev`.
+- **External agents** (local Claude Code, Cursor): authenticated by Cloudflare Zero Trust via service token before traffic reaches the cluster. Same trust model as `signoz.jomcgi.dev`, `argocd.jomcgi.dev` — nothing is exposed outside of Zero Trust.
 - **In-cluster agents** (OpenHands sandboxes): access via ClusterIP. No Cloudflare auth needed — but sandboxes are already scoped to an isolated namespace with ResourceQuota (see `architecture/rfcs/openhands-agent-sandbox.md`).
 - **Gateway → backends**: uses service-specific read-only credentials. The gateway pod holds these secrets; agents never see raw API keys.
 
@@ -205,7 +242,7 @@ Internet ──[Cloudflare Zero Trust]──▶ mcp.jomcgi.dev ──▶ Context
 
 ### Deviations from Security Model
 
-None. Unlike the OpenHands RFC, this deployment follows all five layers from `architecture/security.md`:
+None. This deployment follows all five layers from `architecture/security.md`:
 
 - Non-root, read-only filesystem, drop all capabilities
 - Linkerd-meshed (mTLS to backends)
@@ -233,9 +270,12 @@ None. Unlike the OpenHands RFC, this deployment follows all five layers from `ar
 - Deploy Context Forge as ArgoCD Application
 - Register SigNoz (viewer key) and ArgoCD (read-only token) as virtual tools
 - Cloudflare tunnel route: `mcp.jomcgi.dev` → `context-forge.mcp-gateway.svc.cluster.local:8000`
-- Configure local Claude Code to use SSE transport
+- Create CF service token scoped to `mcp.jomcgi.dev` in Zero Trust dashboard
+- Store CF service token in 1Password, configure local `direnv` to export `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`
+- Add `.mcp.json` to the repo with the gateway config (env var refs, no secrets)
+- Validate from local Claude Code session
 - Validate from OpenHands sandbox pod (if deployed)
-- **Success criteria:** agent queries SigNoz logs and ArgoCD app status via MCP tools, no Bash patterns needed
+- **Success criteria:** agent queries SigNoz logs and ArgoCD app status via MCP tools, no Bash patterns or port-forwarding needed
 
 ### Phase 2 — Expand Backends
 
@@ -255,11 +295,9 @@ None. Unlike the OpenHands RFC, this deployment follows all five layers from `ar
 
 1. **Namespace placement** — `mcp-gateway` (dedicated) or colocate with `api-gateway`? Dedicated namespace is cleaner for RBAC scoping if K8s API access is added in Phase 2.
 
-2. **Local stdio vs SSE** — Claude Code supports both. Stdio requires `kubectl port-forward`; SSE works directly over HTTPS. SSE is simpler but adds Cloudflare latency. For local dev, port-forward may be preferable.
+2. **Upstream version pinning** — `0.9.0` (last stable) or `1.0.0rc1` (with SSRF allowlist)? RC1 has the SSRF controls we need but may have breaking changes.
 
-3. **Upstream version pinning** — `0.9.0` (last stable) or `1.0.0rc1` (with SSRF allowlist)? RC1 has the SSRF controls we need but may have breaking changes.
-
-4. **Container image** — Context Forge is Python/PyPI. Build an apko image with the package, or use upstream Docker image? Apko is consistent with the repo but requires maintaining a Python layer.
+3. **Container image** — Context Forge is Python/PyPI. Build an apko image with the package, or use upstream Docker image? Apko is consistent with the repo but requires maintaining a Python layer.
 
 ---
 
@@ -268,7 +306,8 @@ None. Unlike the OpenHands RFC, this deployment follows all five layers from `ar
 | Resource | Relevance |
 |----------|-----------|
 | [IBM MCP Context Forge](https://github.com/IBM/mcp-context-forge) | Gateway source, Apache 2.0 |
-| [SigNoz MCP Server](https://github.com/SigNoz/signoz-mcp-server) | Standalone alternative (no CF header support — motivating this RFC) |
+| [Cloudflare Service Tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/) | Service token creation and scoping |
+| [Claude Code MCP Configuration](https://docs.anthropic.com/en/docs/claude-code/mcp) | `.mcp.json` format, `headers` field, env var expansion |
 | [SigNoz API docs](https://signoz.io/docs/developers/query-service/) | Backend API surface for virtual tool registration |
 | [ArgoCD API docs](https://cd.apps.argoproj.io/swagger-ui) | Backend API surface for virtual tool registration |
 | [architecture/security.md](../security.md) | Cluster security model (this RFC is fully compliant) |
