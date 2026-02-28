@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "context-forge.fullname" . }}-config
+  labels:
+    {{- include "context-forge.labels" . | nindent 4 }}
+data:
+  register-gateways.sh: |
+    #!/bin/sh
+    # Register upstream MCP servers with Context Forge gateway.
+    # Runs as a postStart lifecycle hook — gateway starts concurrently,
+    # so we poll /health until it's ready before registering.
+    GATEWAY="http://localhost:{{ .Values.gateway.port }}"
+
+    # Wait for gateway to be healthy (up to 60s)
+    attempts=0
+    until curl -sf "$GATEWAY/health" > /dev/null 2>&1; do
+      attempts=$((attempts + 1))
+      if [ "$attempts" -ge 60 ]; then
+        echo "ERROR: gateway not healthy after 60s" >&2
+        exit 1
+      fi
+      sleep 1
+    done
+
+    {{ if .Values.signoz.enabled }}
+    # Register SigNoz MCP server
+    curl -sf -X POST "$GATEWAY/gateways" \
+      -H "Content-Type: application/json" \
+      -d '{"name":"signoz","url":"http://localhost:{{ .Values.signoz.port }}/sse","description":"SigNoz observability — logs, traces, metrics, alerts, dashboards"}'
+    {{- end }}

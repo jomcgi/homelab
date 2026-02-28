@@ -6,6 +6,7 @@ namePrefix: prod-
 resources:
   - ./api-gateway
   - ./cloudflare-tunnel
+  - ./context-forge
   - ./gh-arc-controller
   - ./gh-arc-runners
   - ./knowledge-graph
