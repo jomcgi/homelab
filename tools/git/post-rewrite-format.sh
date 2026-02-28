@@ -13,7 +13,7 @@ fi
 cd "$(git rev-parse --show-toplevel)"
 
 echo "Running format after rebase..."
-if command -v format > /dev/null; then
+if command -v format >/dev/null; then
 	format
 else
 	tools/format/fast-format.sh

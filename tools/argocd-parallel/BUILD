@@ -28,6 +28,7 @@ filegroup(
         "//overlays/dev/stargazer:render_manifests",
         "//overlays/prod/api-gateway:render_manifests",
         "//overlays/prod/cloudflare-tunnel:render_manifests",
+        "//overlays/prod/context-forge:render_manifests",
         "//overlays/prod/gh-arc-controller:render_manifests",
         "//overlays/prod/gh-arc-runners:render_manifests",
         "//overlays/prod/knowledge-graph:render_manifests",
