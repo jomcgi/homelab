@@ -29,13 +29,6 @@ service:
   admin:
     port: 8080
 
-cloudflare:
-  publicHostname: todo.jomcgi.dev
-  adminHostname: todo-admin.jomcgi.dev
-  # Allowed emails for admin access (Cloudflare Zero Trust)
-  allowedEmails:
-    - joe@jomcgi.dev
-
 persistence:
   enabled: true
   storageClass: "" # Use cluster default

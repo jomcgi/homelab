@@ -182,15 +182,6 @@ frontend:
   # Single replica
   replicas: 1
 
-  # Cloudflare ingress hostname
-  hostname: ships.jomcgi.dev
-
-  # Zero Trust access policy
-  zeroTrust:
-    enabled: true
-    # Cloudflare Access Group UUID (find in Zero Trust dashboard)
-    policyId: ""
-
   # Directory containing built frontend assets
   publicDir: /app/public/websites/ships.jomcgi.dev/dist
 

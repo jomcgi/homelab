@@ -7,11 +7,6 @@ imagePullSecret:
 git:
   # Uses the same 1Password item as argocd-image-updater (has repo write access)
   onePasswordItem: "vaults/k8s-homelab/items/argocd-image-updater"
-cloudflare:
-  publicHostname: todo.jomcgi.dev
-  adminHostname: todo-admin.jomcgi.dev
-  allowedEmails:
-  - joe@jomcgi.dev
 persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
