@@ -1,12 +1,10 @@
 # Homelab
 
-K3s cluster running in my office. GitOps via ArgoCD, automatic mTLS via Linkerd, observability via SigNoz.
-
-You can't run this directly — it's tied to my hardware and 1Password secrets — but the patterns and projects might be useful if you're building something similar.
+Personal projects running on a K3s cluster in my office. Limited free time, so the infrastructure handles the boring parts — mTLS, observability, image builds, deploys — and I spend my time building things instead.
 
 ## Projects
 
-The interesting stuff lives in `services/`, `websites/`, and `operators/`. See [`architecture/services.md`](architecture/services.md) for a full inventory of everything running in the cluster.
+See [`architecture/services.md`](architecture/services.md) for everything running in the cluster.
 
 ### Marine tracking
 
@@ -69,7 +67,7 @@ RAG pipeline that scrapes, embeds, and searches content.
 
 ## Infrastructure patterns
 
-Traffic enters through Cloudflare Tunnel (nothing exposed directly), Linkerd meshes all pod-to-pod traffic for automatic mTLS and tracing, and Kyverno enforces policy (non-root, read-only filesystems) and auto-injects OTEL environment variables so every service is observable by default. See [`architecture/security.md`](architecture/security.md) for the full defense-in-depth model and [`architecture/observability.md`](architecture/observability.md) for how automatic instrumentation works.
+The goal is to make shipping a new service as low-friction as possible — push code, get a secure, observable deployment without thinking about certificates, tracing, or image pipelines. See [`architecture/security.md`](architecture/security.md) for the defense-in-depth model and [`architecture/observability.md`](architecture/observability.md) for how automatic instrumentation works.
 
 | Area | Approach |
 |------|----------|
