@@ -17,7 +17,8 @@ homelab/
 ├── services/            # Application source code (Go, Python)
 ├── websites/            # Frontend apps (Vite + React, Astro) — JS, not TypeScript
 ├── tools/               # Build tooling (Bazel macros, OCI helpers, scripts)
-├── architecture/        # Design docs and RFCs — ls to discover available docs
+├── architecture/        # Design docs and ADRs — ls to discover available docs
+│   └── decisions/       # Architecture Decision Records — ls decisions/<category>/
 ├── clusters/            # Kustomization entry point for ArgoCD
 ├── MODULE.bazel         # Bazel dependency management (bzlmod, not WORKSPACE)
 └── buildbuddy.yaml      # CI pipeline definition
@@ -63,7 +64,7 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 - **Observability work**: Read `architecture/observability.md`
 - **Alerting work**: Read `architecture/observability-alerting.md`
 - **Operator changes**: Read `operators/best-practices.md`
-- **Design proposals**: Check `architecture/rfcs/` for existing RFCs
+- **Design proposals**: Check `architecture/decisions/` for ADRs (numbered per category)
 
 ## Key Patterns
 

@@ -1,7 +1,7 @@
 # RFC: Self-Hosted Autonomous Coding Agents via OpenHands
 
 **Author:** Joe McGinley
-**Status:** Draft
+**Status:** Superseded by [004-autonomous-agents](004-autonomous-agents.md)
 **Created:** 2026-02-25
 
 ---
@@ -295,7 +295,7 @@ Users can switch between Opus and Sonnet per-task via the OpenHands web UI witho
 
 ## Security Deviations
 
-This deployment intentionally violates several principles from [`architecture/security.md`](../security.md). Each deviation is required by the OpenHands runtime and is scoped to the `openhands` and `openhands-sandboxes` namespaces only.
+This deployment intentionally violates several principles from [`architecture/security.md`](../../security.md). Each deviation is required by the OpenHands runtime and is scoped to the `openhands` and `openhands-sandboxes` namespaces only.
 
 ### Sandbox pods run as root
 
