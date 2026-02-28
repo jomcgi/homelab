@@ -1,5 +1,5 @@
 ---
-name: bazelisk
+name: bazel
 description: Use when building code, formatting files, rendering manifests, pushing container images, or running tests. Handles all Bazel operations via BuildBuddy CLI (bb) with automatic version management via .bazelversion.
 ---
 
