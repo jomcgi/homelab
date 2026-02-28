@@ -32,7 +32,7 @@ spec:
             - |
               set -e
 
-              GATEWAY_URL="http://{{ .Release.Name }}-mcp-stack:80"
+              GATEWAY_URL="http://{{ .Release.Name }}-mcp-stack-mcpgateway:80"
 
               echo "Waiting for gateway at ${GATEWAY_URL}/health..."
               until curl -sf "${GATEWAY_URL}/health" > /dev/null 2>&1; do
