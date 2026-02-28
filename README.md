@@ -98,7 +98,7 @@ rules_wrangler/       # Custom Bazel rules for Cloudflare Pages
 architecture/         # Design docs and ADRs
 ```
 
-Service code lives inside its chart directory (colocation), not in separate `cmd/`/`pkg/` trees. See [`architecture/contributing.md`](architecture/contributing.md) for the full structure and how to add a new service. Architecture decisions are tracked in [`architecture/decisions/`](architecture/decisions).
+Service backends live under `services/`, Helm charts under `charts/`, and environment config under `overlays/`. See [`architecture/contributing.md`](architecture/contributing.md) for the full structure and how to add a new service. Architecture decisions are tracked in [`architecture/decisions/`](architecture/decisions).
 
 ## License
 
