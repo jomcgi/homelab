@@ -6,7 +6,7 @@ You can't run this directly — it's tied to my hardware and 1Password secrets �
 
 ## Projects
 
-The interesting stuff lives in `services/`, `websites/`, and `operators/`.
+The interesting stuff lives in `services/`, `websites/`, and `operators/`. See [`architecture/services.md`](architecture/services.md) for a full inventory of everything running in the cluster.
 
 ### Marine tracking
 
@@ -69,6 +69,8 @@ RAG pipeline that scrapes, embeds, and searches content.
 
 ## Infrastructure patterns
 
+Traffic enters through Cloudflare Tunnel (nothing exposed directly), Linkerd meshes all pod-to-pod traffic for automatic mTLS and tracing, and Kyverno enforces policy (non-root, read-only filesystems) and auto-injects OTEL environment variables so every service is observable by default. See [`architecture/security.md`](architecture/security.md) for the full defense-in-depth model and [`architecture/observability.md`](architecture/observability.md) for how automatic instrumentation works.
+
 | Area | Approach |
 |------|----------|
 | **Ingress** | Cloudflare Tunnel only — nothing exposed directly |
@@ -97,6 +99,8 @@ rules_helm/           # Custom Bazel rules for Helm
 rules_wrangler/       # Custom Bazel rules for Cloudflare Pages
 architecture/         # Design docs and ADRs
 ```
+
+Service code lives inside its chart directory (colocation), not in separate `cmd/`/`pkg/` trees. See [`architecture/contributing.md`](architecture/contributing.md) for the full structure and how to add a new service. Architecture decisions are tracked in [`architecture/decisions/`](architecture/decisions).
 
 ## License
 
