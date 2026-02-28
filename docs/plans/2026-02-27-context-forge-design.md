@@ -111,7 +111,7 @@ Added to existing `overlays/prod/cloudflare-tunnel/values.yaml`:
 
 ### Secrets
 
-One `OnePasswordItem` CRD: `context-forge-secrets` with `SIGNOZ_API_KEY` (SigNoz viewer API key). Item path: `vaults/k8s-homelab/items/context-forge-secrets`.
+One `OnePasswordItem` CRD: `context-forge` with `SIGNOZ_API_KEY` (SigNoz viewer API key). Item path: `vaults/k8s-homelab/items/context-forge`.
 
 ## Security
 
@@ -123,10 +123,11 @@ One `OnePasswordItem` CRD: `context-forge-secrets` with `SIGNOZ_API_KEY` (SigNoz
 
 ## Manual Steps (not in Git)
 
-1. Create 1Password item `context-forge-secrets` with SigNoz viewer API key
-2. Create Cloudflare Zero Trust service token scoped to `mcp.jomcgi.dev`
-3. Store CF service token in 1Password, configure local `direnv` to export `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`
-4. Add `.mcp.json` entry for Claude Code after deployment validates
+1. ~~Create 1Password item `context-forge` with SigNoz viewer API key~~ **DONE**
+2. ~~Create Cloudflare Zero Trust service token scoped to `mcp.jomcgi.dev`~~ **DONE**
+3. ~~Register tunnel subdomain~~ **DONE**
+4. Store CF service token in 1Password, configure local `direnv` to export `CF_ACCESS_CLIENT_ID` / `CF_ACCESS_CLIENT_SECRET`
+5. Add `.mcp.json` entry for Claude Code after deployment validates
 
 ## Out of Scope
 
