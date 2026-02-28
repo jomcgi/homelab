@@ -2,31 +2,22 @@
 
 ## Repository
 
-Hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated:
-
-```bash
-gh issue list
-gh issue view <number>
-gh pr create --title "..." --body "..."
-gh pr view <number>
-```
+Hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated.
 
 ## Repository Structure
 
 ```
 homelab/
-├── charts/              # Helm charts (27 charts: argocd, signoz, trips, grimoire, ...)
-├── overlays/            # Environment-specific overrides
-│   ├── cluster-critical/  # Core infra (argocd, cert-manager, linkerd, longhorn, signoz)
-│   ├── dev/               # Development services (grimoire, marine, stargazer)
-│   └── prod/              # Production services (trips, knowledge-graph, nats, ...)
+├── charts/              # Helm charts — ls to discover available charts
+├── overlays/            # Environment-specific overrides — ls overlays/<env>/ for services
+│   ├── cluster-critical/  # Core infra (networking, storage, observability, policy)
+│   ├── dev/               # Development services
+│   └── prod/              # Production services
 ├── operators/           # Custom Kubernetes operators (Go, controller-runtime)
-│   ├── cloudflare/        # Cloudflare DNS/tunnel operator
-│   └── oci-model-cache/   # ML model caching operator
 ├── services/            # Application source code (Go, Python)
 ├── websites/            # Frontend apps (Vite + React, Astro) — JS, not TypeScript
 ├── tools/               # Build tooling (Bazel macros, OCI helpers, scripts)
-├── architecture/        # Design docs (security, observability, services, contributing)
+├── architecture/        # Design docs and RFCs — ls to discover available docs
 ├── clusters/            # Kustomization entry point for ArgoCD
 ├── MODULE.bazel         # Bazel dependency management (bzlmod, not WORKSPACE)
 └── buildbuddy.yaml      # CI pipeline definition
@@ -66,7 +57,9 @@ bazelisk run //charts/<service>/image:push
 - **Security changes**: Read `architecture/security.md` FIRST
 - **New services**: Read `architecture/contributing.md` + `architecture/services.md`
 - **Observability work**: Read `architecture/observability.md`
+- **Alerting work**: Read `architecture/observability-alerting.md`
 - **Operator changes**: Read `operators/best-practices.md`
+- **Design proposals**: Check `architecture/rfcs/` for existing RFCs
 
 ## Key Patterns
 
