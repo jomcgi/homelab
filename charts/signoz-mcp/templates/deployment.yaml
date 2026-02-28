@@ -28,8 +28,8 @@ spec:
               containerPort: {{ .Values.port }}
               protocol: TCP
           env:
-            - name: SIGNOZ_BACKEND_URL
-              value: {{ .Values.signozBackendUrl | quote }}
+            - name: SIGNOZ_URL
+              value: {{ .Values.signozUrl | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Values.secret.name }}
