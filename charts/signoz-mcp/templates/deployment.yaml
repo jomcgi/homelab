@@ -30,6 +30,10 @@ spec:
           env:
             - name: SIGNOZ_URL
               value: {{ .Values.signozUrl | quote }}
+            - name: TRANSPORT_MODE
+              value: "http"
+            - name: MCP_SERVER_PORT
+              value: {{ .Values.port | quote }}
           envFrom:
             - secretRef:
                 name: {{ .Values.secret.name }}
