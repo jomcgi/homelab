@@ -281,51 +281,6 @@ After creating the ImageUpdater:
    kubectl get imageupdater -n argocd
    ```
 
-## Complete Example
-
-For a new service `myapp` in `overlays/prod/myapp/`:
-
-**overlays/prod/myapp/imageupdater.yaml:**
-
-```yaml
-apiVersion: argocd-image-updater.argoproj.io/v1alpha1
-kind: ImageUpdater
-metadata:
-  name: myapp
-  namespace: argocd
-spec:
-  applicationRefs:
-    - images:
-        - alias: myapp
-          commonUpdateSettings:
-            updateStrategy: digest
-            forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/charts/myapp:main
-          manifestTargets:
-            helm:
-              name: image.repository
-              tag: image.tag
-      namePattern: myapp
-  namespace: argocd
-  writeBackConfig:
-    method: git:secret:argocd/argocd-image-updater-token
-    gitConfig:
-      repository: https://github.com/jomcgi/homelab.git
-      branch: main
-      writeBackTarget: helmvalues:../../overlays/prod/myapp/values.yaml
-```
-
-**overlays/prod/myapp/kustomization.yaml:**
-
-```yaml
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
-
-resources:
-  - application.yaml
-  - imageupdater.yaml
-```
-
 ## Troubleshooting
 
 | Issue                     | Solution                                                              |

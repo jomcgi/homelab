@@ -205,50 +205,10 @@ imagePullSecret:
 
 ## Common Add-ons
 
-After creating the base service, you may want to add:
+After creating the base service, use these skills to add supporting resources:
 
-### Image Updater (for auto-updating container images)
-
-Create `overlays/{env}/{service}/imageupdater.yaml`:
-
-```yaml
-apiVersion: argocd-image-updater.argoproj.io/v1alpha1
-kind: ImageUpdater
-metadata:
-  name: { service }
-  namespace: argocd
-spec:
-  applicationRefs:
-    - images:
-        - alias: { service }
-          commonUpdateSettings:
-            updateStrategy: digest
-            forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/charts/{service}:main
-          manifestTargets:
-            helm:
-              name: image.repository
-              tag: image.tag
-      namePattern: { service }
-  writeBackConfig:
-    method: git:secret:argocd/argocd-image-updater-token
-    gitConfig:
-      repository: https://github.com/jomcgi/homelab.git
-      branch: main
-      writeBackTarget: helmvalues:../../overlays/{env}/{service}/values.yaml
-```
-
-Then update `kustomization.yaml`:
-
-```yaml
-resources:
-  - application.yaml
-  - imageupdater.yaml
-```
-
-### HTTP Check Alert (for monitoring)
-
-Create `overlays/{env}/{service}/{service}-httpcheck-alert.yaml` with SigNoz alert rules.
+- `/add-image-updater` — automatic container image updates via ArgoCD Image Updater
+- `/add-httpcheck-alert` — SigNoz HTTP health check monitoring
 
 ## Workflow Summary
 
