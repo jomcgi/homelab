@@ -2,7 +2,7 @@
   "mcpServers": {
     "context-forge": {
       "type": "http",
-      "url": "https://mcp.jomcgi.dev/mcp",
+      "url": "https://mcp.jomcgi.dev/mcp/",
       "headers": {
         "CF-Access-Client-Id": "${CF_ACCESS_CLIENT_ID}",
         "CF-Access-Client-Secret": "${CF_ACCESS_CLIENT_SECRET}"
