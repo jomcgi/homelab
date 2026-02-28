@@ -36,8 +36,8 @@ data:
       exit 0
     fi
 
-    # Register SigNoz MCP server
-    if curl -sf -X POST "$GATEWAY/gateways" \
+    # Register SigNoz MCP server (admin API requires basic auth)
+    if curl -sf -u "admin:changeme" -X POST "$GATEWAY/gateways" \
       -H "Content-Type: application/json" \
       -d '{"name":"signoz","url":"http://localhost:{{ .Values.signoz.port }}/mcp","transport":"STREAMABLEHTTP","description":"SigNoz observability — logs, traces, metrics, alerts, dashboards"}'; then
       echo "Registered signoz MCP server"

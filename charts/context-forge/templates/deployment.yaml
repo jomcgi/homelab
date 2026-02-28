@@ -50,6 +50,8 @@ spec:
               value: "false"
             - name: MCPGATEWAY_ADMIN_API_ENABLED
               value: "true"
+            - name: API_ALLOW_BASIC_AUTH
+              value: "true"
           volumeMounts:
             - name: data
               mountPath: /data
