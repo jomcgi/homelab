@@ -22,7 +22,6 @@ multirun(
         "//services/knowledge_graph:scraper-image.push",
         "//services/ships_api:image.push",
         "//services/ships_frontend:image.push",
-        "//services/signoz_mcp_server:image.push",
         "//services/stargazer:image.push",
         "//services/trips_api:image.push",
         "//tools/hf2oci:image.push",

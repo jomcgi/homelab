@@ -20,9 +20,9 @@ gateway:
 signoz:
   enabled: true
   image:
-    repository: ghcr.io/jomcgi/homelab/services/signoz_mcp_server
-    tag: "latest"
-    pullPolicy: Always
+    repository: docker.io/signoz/signoz-mcp-server
+    tag: "v0.0.5"
+    pullPolicy: IfNotPresent
   port: 8000
   # SigNoz backend URL (cluster-internal)
   url: http://signoz.signoz.svc.cluster.local:8080
