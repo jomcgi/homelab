@@ -5,7 +5,7 @@
 gateway:
   image:
     repository: ghcr.io/ibm/mcp-context-forge
-    tag: "1.0.0-BETA-1"
+    tag: "v1.0.0-RC1"
     pullPolicy: IfNotPresent
   port: 4444
   resources:
