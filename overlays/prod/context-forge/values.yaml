@@ -1,0 +1,7 @@
+# Production overrides for Context Forge MCP gateway
+# Base values in charts/context-forge/values.yaml
+
+signoz:
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/signoz_mcp_server
+    tag: main
