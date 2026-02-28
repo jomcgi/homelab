@@ -2,66 +2,101 @@
 
 K3s cluster running in my office. GitOps via ArgoCD, automatic mTLS via Linkerd, observability via SigNoz.
 
-## Architecture
+You can't run this directly — it's tied to my hardware and 1Password secrets — but the patterns and projects might be useful if you're building something similar.
 
-```mermaid
-flowchart LR
-    subgraph Internet
-        User([User])
-    end
-    subgraph Cloudflare
-        CF[Cloudflare Tunnel]
-    end
-    subgraph "K3s Cluster"
-        subgraph Ingress
-            TUN[Tunnel Pod]
-        end
-        subgraph "Service Mesh"
-            L[Linkerd]
-        end
-        subgraph Workloads
-            SVC[Services]
-        end
-        subgraph Observability
-            SIG[SigNoz]
-        end
-    end
-    User --> CF --> TUN
-    TUN --> L --> SVC
-    L -.->|traces| SIG
-    SVC -.->|metrics/logs| SIG
+## Projects
+
+The interesting stuff lives in `services/`, `websites/`, and `operators/`.
+
+### Marine tracking
+
+Real-time AIS vessel tracking for the Pacific Northwest coast.
+
+- [`services/ais_ingest`](services/ais_ingest) — Streams AIS position reports from AISStream.io via WebSocket, filters to a coastal bounding box, publishes to NATS JetStream
+- [`services/ships_api`](services/ships_api) — Consumes positions from NATS, stores in SQLite (7-day retention), serves REST + WebSocket API with moored-vessel deduplication
+- [`websites/ships.jomcgi.dev`](websites/ships.jomcgi.dev) — MapLibre GL map showing live vessel positions, types, and courses
+
+### Trip tracker
+
+Photo-based GPS trip logging — upload travel photos and it reconstructs the route from EXIF data.
+
+- [`services/trips_api`](services/trips_api) — Extracts GPS from photo EXIF, enriches with elevation from NRCan CDEM API, broadcasts via WebSocket. Replays NATS stream on startup to rebuild state
+- [`websites/trips.jomcgi.dev`](websites/trips.jomcgi.dev) — Timeline view with day-by-day maps and elevation profiles
+
+### Stargazer
+
+Finds the best stargazing spots in Scotland for the next 72 hours.
+
+- [`services/stargazer`](services/stargazer) — Multi-phase pipeline: downloads light pollution atlas + OSM road data, identifies dark zones near roads, scores by weather forecast clarity
+
+### Grimoire
+
+AI-assisted D&D campaign manager. Built for a Gemini Live integration experiment.
+
+- [`services/grimoire/api`](services/grimoire/api) — Go REST API with Firestore persistence, campaign/character/encounter management
+- [`services/grimoire/ws-gateway`](services/grimoire/ws-gateway) — WebSocket gateway for real-time session events
+
+### Knowledge graph
+
+RAG pipeline that scrapes, embeds, and searches content.
+
+- [`services/knowledge_graph`](services/knowledge_graph) — Three components: RSS/HTML scraper with SSRF protection → text chunker + vector embedder (Ollama or Gemini) → MCP server for semantic search over Qdrant
+
+### Hiking routes
+
+- [`services/hikes`](services/hikes) — Scrapes Scottish hiking routes from WalkHighlands, enriches with weather forecasts
+- [`websites/hikes.jomcgi.dev`](websites/hikes.jomcgi.dev) — Route finder that surfaces hikes with good weather conditions
+
+## Custom tooling
+
+### sextant
+
+[`sextant/`](sextant) — Code generator for type-safe state machines in Kubernetes operators. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
+
+### Operators
+
+- [`operators/cloudflare`](operators/cloudflare) — Manages Cloudflare Tunnel routing, DNS records, and Zero Trust policies from Kubernetes annotations via Gateway API
+- [`operators/oci-model-cache`](operators/oci-model-cache) — Syncs HuggingFace models to OCI registries using a `ModelCache` CRD
+
+### hf2oci
+
+[`tools/hf2oci`](tools/hf2oci) — CLI that converts HuggingFace model repos to multi-platform OCI images by streaming weight files directly into layers (no temp files).
+
+### Bazel rules
+
+- [`rules_helm/`](rules_helm) — Helm chart lint, template, package, and OCI push as Bazel targets. Includes ArgoCD application macro with live diff support
+- [`rules_wrangler/`](rules_wrangler) — Cloudflare Pages deployment via Wrangler as Bazel targets
+
+## Infrastructure patterns
+
+| Area | Approach |
+|------|----------|
+| **Ingress** | Cloudflare Tunnel only — nothing exposed directly |
+| **Service mesh** | Linkerd — automatic mTLS and distributed tracing, no code changes |
+| **Observability** | SigNoz — unified metrics, logs, traces. Kyverno auto-injects OTEL env vars |
+| **Policy** | Kyverno — enforces non-root (uid 65532), read-only filesystems |
+| **Secrets** | 1Password Operator — `OnePasswordItem` CRDs, nothing in Git |
+| **Storage** | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage |
+| **Messaging** | NATS JetStream — pub/sub backbone for AIS data, trip points, events |
+| **Images** | apko + rules_apko — no Dockerfiles, dual-arch (x86_64 + aarch64), non-root |
+| **CI** | BuildBuddy Workflows — format check + `bazel test //...` + image push on main |
+| **GitOps** | ArgoCD syncs from `clusters/` → `overlays/` → `charts/`. kubectl is read-only |
+
+## Repo layout
+
 ```
-
-Internet → Cloudflare Tunnel → pod-to-pod. Linkerd meshes everything after the tunnel terminates, so all internal traffic gets mTLS and tracing without touching application code.
-
-## Decisions
-
-- **Ingress** — Cloudflare Tunnel only. Nothing exposed directly.
-- **Service mesh** — Linkerd. Automatic mTLS and tracing for all pod-to-pod traffic without application changes.
-- **Observability** — SigNoz. One thing instead of Prometheus/Loki/Tempo.
-- **Storage** — Longhorn. Avoiding state where possible.
-- **Policy** — Kyverno enforces non-root + read-only filesystems. No peer reviews here so I need something catching mistakes.
-- **Secrets** — 1Password operator.
-
-## Structure
-
+services/             # Go, Python backends
+websites/             # Vite + React, Astro frontends
+operators/            # Kubernetes controllers (Go, controller-runtime)
+charts/               # Helm charts (custom + upstream wrappers)
+overlays/             # Environment values (cluster-critical, dev, prod)
+clusters/             # ArgoCD kustomization entry points
+sextant/              # State machine code generator
+tools/                # Build helpers (hf2oci, formatting, dev-deploy)
+rules_helm/           # Custom Bazel rules for Helm
+rules_wrangler/       # Custom Bazel rules for Cloudflare Pages
+architecture/         # Design docs and ADRs
 ```
-charts/               # Helm charts
-overlays/
-  cluster-critical/   # argocd, linkerd, signoz, kyverno, longhorn
-  prod/               # cloudflare-tunnel, gh-arc, nats, trips, vllm
-  dev/                # marine, stargazer, oci-model-cache
-clusters/             # ArgoCD entry points
-operators/            # Custom operators (cloudflare, oci-model-cache)
-services/             # Backend code
-websites/             # Frontend apps
-```
-
-## Running this
-
-You can't — it's tied to my 1Password secrets and hardware. Patterns might be useful if you're building something similar.
-
-See [.claude/CLAUDE.md](.claude/CLAUDE.md) for operational details.
 
 ## License
 
