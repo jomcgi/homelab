@@ -2,6 +2,5 @@ load("//rules_helm:defs.bzl", "helm_chart")
 
 helm_chart(
     name = "chart",
-    lint = False,
-    visibility = ["//overlays/prod/context-forge:__pkg__"],
+    visibility = ["//overlays/prod/signoz-mcp:__pkg__"],
 )

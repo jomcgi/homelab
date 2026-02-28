@@ -36,6 +36,7 @@ filegroup(
         "//overlays/prod/nats:render_manifests",
         "//overlays/prod/openhands:render_manifests",
         "//overlays/prod/seaweedfs:render_manifests",
+        "//overlays/prod/signoz-mcp:render_manifests",
         "//overlays/prod/todo:render_manifests",
         "//overlays/prod/trips:render_manifests",
     ],

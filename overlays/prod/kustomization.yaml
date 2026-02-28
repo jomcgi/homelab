@@ -13,6 +13,7 @@ resources:
   - ./nats
   - ./openhands
   - ./seaweedfs
+  - ./signoz-mcp
   - ./todo
   - ./trips
   - ./llama-cpp
