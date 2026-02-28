@@ -103,6 +103,7 @@ SUMMARY
 Always use the new format for consistency and OpenTelemetry compatibility.
 Key takeaway: Wrap everything in curly braces, quote anything with dots, metric name goes first.
 `
+
 const ClickhouseSqlQueryForMetrics = `
 SigNoz Metrics ClickHouse Query Examples
 Source: https://signoz.io/docs/userguide/write-a-metrics-clickhouse-query/

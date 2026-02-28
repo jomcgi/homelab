@@ -483,7 +483,6 @@ func (h *Handler) RegisterDashboardHandlers(s *server.MCPServer) {
 		h.logger.Debug("Tool called: signoz_create_dashboard", zap.String("title", dashboardConfig.Title))
 		client := h.GetClient(ctx)
 		data, err := client.CreateDashboard(ctx, dashboardConfig)
-
 		if err != nil {
 			h.logger.Error("Failed to create dashboard in SigNoz", zap.Error(err))
 			return mcp.NewToolResultError(fmt.Sprintf("SigNoz API Error: %s", err.Error())), nil
@@ -545,7 +544,6 @@ func (h *Handler) RegisterDashboardHandlers(s *server.MCPServer) {
 		h.logger.Debug("Tool called: signoz_update_dashboard", zap.String("title", updateDashboardConfig.Dashboard.Title))
 		client := h.GetClient(ctx)
 		err = client.UpdateDashboard(ctx, updateDashboardConfig.UUID, updateDashboardConfig.Dashboard)
-
 		if err != nil {
 			h.logger.Error("Failed to update dashboard in SigNoz", zap.Error(err))
 			return mcp.NewToolResultError(fmt.Sprintf("SigNoz API Error: %s", err.Error())), nil
@@ -741,7 +739,6 @@ func (h *Handler) RegisterDashboardHandlers(s *server.MCPServer) {
 			},
 		}, nil
 	})
-
 }
 
 func (h *Handler) RegisterServiceHandlers(s *server.MCPServer) {
@@ -1345,7 +1342,6 @@ func (h *Handler) RegisterLogsHandlers(s *server.MCPServer) {
 
 		return mcp.NewToolResultText(string(result)), nil
 	})
-
 }
 
 func (h *Handler) RegisterTracesHandlers(s *server.MCPServer) {
@@ -1652,5 +1648,4 @@ func (h *Handler) RegisterTracesHandlers(s *server.MCPServer) {
 		}
 		return mcp.NewToolResultText(string(result)), nil
 	})
-
 }
