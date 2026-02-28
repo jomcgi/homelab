@@ -1,21 +1,8 @@
 # AGENTS.md - Specialized Agent Definitions
 
 This file defines specialized agents for common tasks in this repository.
-Agents duplicated by on-demand skills (`bazelisk`, `helm`, `kubectl`, `signoz`, `gh-pr`, `buildbuddy`) have been removed — use those skills instead.
 
----
-
-## CRITICAL: All Tests Must Use Bazel
-
-**NEVER run tests directly with `pytest`, `go test`, `vitest`, or `npm test`.** All tests in this repository MUST be run via Bazel:
-
-```bash
-bazel test //...                                    # Run all tests
-bazel test //services/ships_api:ships_api_test      # Run specific target
-bazel test //... --config=ci                        # CI mode (remote caching)
-```
-
-**When adding new tests:** create test files, add BUILD.bazel with test targets, use patterns from language-specific sections below.
+Repo-wide rules (test commands, anti-patterns, key patterns) live in CLAUDE.md — not repeated here.
 
 ---
 
@@ -179,9 +166,7 @@ use_repo(apko, "myservice_lock")
 1. **Not updating lock file** — run `bazel run @rules_apko//apko -- lock <path>` after changing apko.yaml
 2. **Missing architectures** — always include both `x86_64` and `aarch64`
 3. **Missing CA certificates** — HTTPS calls fail without `ca-certificates-bundle`
-4. **Running as root** — always set `run-as` to non-root uid
-5. **Forgetting MODULE.bazel** — new locks must be registered with `apko.translate_lock`
-6. **Using Dockerfiles** — this repo uses apko exclusively
+4. **Forgetting MODULE.bazel** — new locks must be registered with `apko.translate_lock`
 
 ### Debugging Image Issues
 
@@ -284,7 +269,7 @@ helm template kyverno charts/kyverno/ -s templates/otel-injection-policy.yaml
 ```yaml
 securityContext:
   runAsNonRoot: true
-  runAsUser: 65534
+  runAsUser: 65532
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:
@@ -320,11 +305,9 @@ spec:
 
 ### Common Mistakes to Avoid
 
-1. **Running containers as root** — always use `runAsNonRoot: true`
-2. **Using `:latest` image tags** — pin to digest or immutable tags
-3. **Storing secrets in Git** — use 1Password Operator (OnePasswordItem CRD)
-4. **Wildcard RBAC permissions** — specify exact resources and verbs
-5. **No NetworkPolicies** — apply default-deny in every namespace
+1. **Using `:latest` image tags** — pin to digest or immutable tags
+2. **Wildcard RBAC permissions** — specify exact resources and verbs
+3. **No NetworkPolicies** — apply default-deny in every namespace
 
 ---
 
@@ -338,44 +321,9 @@ ArgoCD GitOps specialist. Use the `kubectl` skill for general cluster debugging.
 - Understanding Application.yaml patterns
 - Debugging sync failures specific to ArgoCD configuration
 
-### Application.yaml Pattern (This Repo)
+### Application.yaml Pattern
 
-```yaml
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: <env>-<service> # e.g., prod-trips
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/jomcgi/homelab.git
-    path: charts/<chart>
-    targetRevision: HEAD
-    helm:
-      releaseName: <service>
-      valueFiles:
-        - values.yaml
-        - ../../overlays/<env>/<service>/values.yaml
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: <namespace>
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
-```
+Use the `/add-service` skill to scaffold new applications. For the full template, see `overlays/<env>/<service>/application.yaml` in any existing service.
 
 ### Sync Strategies
 
@@ -453,11 +401,7 @@ Vite build tool specialist for the frontend apps in this repo.
 
 Code review specialist for PR validation. Use with the `code-review` or `coderabbit` skills.
 
-### Pre-requisite Reading (Context-dependent)
-
-- **Security changes:** `architecture/security.md`
-- **New services:** `architecture/contributing.md` + `architecture/services.md`
-- **Observability changes:** `architecture/observability.md`
+Pre-requisite reading is context-dependent — see "Context Loading Rules" in CLAUDE.md.
 
 ### Checklist by Change Type
 
@@ -491,7 +435,7 @@ Code review specialist for PR validation. Use with the `code-review` or `coderab
 
 ## observability
 
-Observability specialist. Use the `signoz` skill for querying logs, traces, and metrics via MCP.
+Observability specialist.
 
 ### Pre-requisite Reading
 

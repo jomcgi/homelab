@@ -187,74 +187,6 @@ Creates: `overlays/cluster-critical/signoz/signoz-httpcheck-alert.yaml`
 
 Creates: `overlays/prod/api-gateway/api-gateway-httpcheck-alert.yaml`
 
-## Complete Example
-
-For a service named `myapp` with URL `https://myapp.jomcgi.dev`:
-
-```yaml
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: myapp-httpcheck-alert
-  namespace: myapp
-  labels:
-    signoz.io/alert: "true"
-  annotations:
-    signoz.io/alert-name: "myapp Unreachable"
-    signoz.io/severity: "critical"
-    signoz.io/notification-channels: "pagerduty-homelab"
-data:
-  alert.json: |
-    {
-      "alert": "myapp Unreachable",
-      "alertType": "METRICS_BASED_ALERT",
-      "ruleType": "threshold_rule",
-      "broadcastToAll": false,
-      "disabled": false,
-      "evalWindow": "10m0s",
-      "frequency": "2m0s",
-      "severity": "critical",
-      "labels": {
-        "service": "myapp",
-        "environment": "production"
-      },
-      "annotations": {
-        "summary": "myapp at https://myapp.jomcgi.dev is unreachable",
-        "description": "HTTP health check has failed 5 consecutive times over 10 minutes. This could indicate the service is down or Cloudflare auth is failing (3xx redirect)."
-      },
-      "condition": {
-        "compositeQuery": {
-          "builderQueries": {
-            "A": {
-              "queryName": "A",
-              "dataSource": "metrics",
-              "aggregateOperator": "avg",
-              "aggregateAttribute": {
-                "key": "httpcheck.status",
-                "dataType": "float64",
-                "type": "Gauge"
-              },
-              "filters": {
-                "items": [
-                  {
-                    "key": {"key": "http.url"},
-                    "op": "=",
-                    "value": "https://myapp.jomcgi.dev"
-                  }
-                ]
-              }
-            }
-          },
-          "queryType": "builder"
-        },
-        "op": "<",
-        "target": 1,
-        "matchType": "5"
-      },
-      "preferredChannels": ["pagerduty-homelab"]
-    }
-```
-
 ## Post-Creation Steps
 
 1. Add the alert file to the service's `kustomization.yaml` if not using `resources: ["*.yaml"]`
@@ -267,15 +199,5 @@ data:
 After ArgoCD syncs, verify the alert was created:
 
 ```bash
-# Check ConfigMap exists
 kubectl get configmap <service>-httpcheck-alert -n <namespace>
-
-# Verify in SigNoz (via MCP)
-mcp__signoz__list_alerts
 ```
-
-## Related Skills
-
-- `/signoz` - Query SigNoz for logs, traces, and alert status
-- `/worktree` - Create worktree for making changes
-- `/gh-pr` - Create PR after adding the alert

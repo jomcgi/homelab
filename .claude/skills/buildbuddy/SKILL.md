@@ -95,139 +95,38 @@ curl -s -X POST \
   https://jomcgi.buildbuddy.io/api/v1/GetLog
 ```
 
-## Common Use Cases
+## API Request Pattern
 
-### 1. Analyze Failed Bazel Builds
+All endpoints use the same request format:
 
 ```bash
-# Get invocation summary (success status, duration, command, patterns)
 curl -s -X POST \
   -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
-  | jq '{success: .invocation.success, duration_ms: .invocation.duration_millis, command: .invocation.command}'
-
-# Get build logs (includes stdout/stderr)
-curl -s -X POST \
-  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://jomcgi.buildbuddy.io/api/v1/GetLog \
-  | jq -r '.log'
+  -d '{"selector":{"invocation_id":"<INVOCATION_ID>"}}' \
+  https://jomcgi.buildbuddy.io/api/v1/<ENDPOINT>
 ```
 
-### 2. Check Build Performance
+### Useful jq Filters by Endpoint
+
+| Endpoint | jq Filter | Returns |
+| --- | --- | --- |
+| `GetInvocation` | `'{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis}'` | Build summary |
+| `GetInvocation` | `'{repo: .invocation.repo_url, commit: .invocation.commit_sha, branch: .invocation.branch_name}'` | Repo context |
+| `GetLog` | `-r '.log'` | Full build log |
+| `GetLog` | `-r '.log' \| grep -iE "(error\|fail\|fatal)" \| head -20` | Errors only |
+
+## GitHub PR Integration
 
 ```bash
-# Get timing and action count
-curl -s -X POST \
-  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
-  | jq '{duration_ms: .invocation.duration_millis, action_count: .invocation.action_count}'
-```
-
-### 3. Get Repository Context
-
-```bash
-# Get repo URL, commit, and branch info
-curl -s -X POST \
-  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"selector":{"invocation_id":"<id>"}}' \
-  https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
-  | jq '{repo: .invocation.repo_url, commit: .invocation.commit_sha, branch: .invocation.branch_name}'
-```
-
-## Integration with GitHub PR Debugging
-
-### Full Workflow
-
-```bash
-# 1. Check PR status
-gh pr checks --json name,state,link
-
-# 2. Extract BuildBuddy invocation IDs from failed checks
+# Extract invocation IDs from failed PR checks
 gh pr checks --json link,state | \
   jq -r '.[] | select(.state == "FAILURE") | .link' | \
   grep buildbuddy | \
   sed 's|.*/invocation/||'
-
-# 3. For each failed invocation, get details
-for INVOCATION_ID in $(gh pr checks --json link,state | jq -r '.[] | select(.state == "FAILURE") | .link' | grep buildbuddy | sed 's|.*/invocation/||'); do
-  echo "=== Invocation: $INVOCATION_ID ==="
-
-  # Get summary
-  curl -s -X POST \
-    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-    https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
-    | jq -r '{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis}'
-
-  # Get logs (first 50 lines)
-  curl -s -X POST \
-    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-    https://jomcgi.buildbuddy.io/api/v1/GetLog \
-    | jq -r '.log' | head -50
-
-  echo ""
-done
 ```
 
-### Quick Error Check
-
-```bash
-# Get logs and filter for ERROR/FAILURE patterns
-INVOCATION_ID="<id>"
-
-curl -s -X POST \
-  -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d "{\"selector\":{\"invocation_id\":\"$INVOCATION_ID\"}}" \
-  https://jomcgi.buildbuddy.io/api/v1/GetLog \
-  | jq -r '.log' \
-  | grep -i -E "(error|fail|fatal)" \
-  | head -20
-```
-
-## Helper Functions
-
-Add to your shell profile for easier debugging:
-
-```bash
-# Get BuildBuddy invocation summary
-bb_summary() {
-  local id="$1"
-  curl -s -X POST \
-    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"selector\":{\"invocation_id\":\"$id\"}}" \
-    https://jomcgi.buildbuddy.io/api/v1/GetInvocation \
-    | jq '{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis, action_count: .invocation.action_count}'
-}
-
-# Get BuildBuddy logs
-bb_logs() {
-  local id="$1"
-  curl -s -X POST \
-    -H "x-buildbuddy-api-key: $BUILDBUDDY_API_KEY" \
-    -H "Content-Type: application/json" \
-    -d "{\"selector\":{\"invocation_id\":\"$id\"}}" \
-    https://jomcgi.buildbuddy.io/api/v1/GetLog \
-    | jq -r '.log'
-}
-
-# Get BuildBuddy errors
-bb_errors() {
-  local id="$1"
-  bb_logs "$id" | grep -i -E "(error|fail|fatal)" | head -30
-}
-```
+Then use the invocation ID with the API request pattern above.
 
 ## Tips
 
