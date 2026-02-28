@@ -27,5 +27,5 @@ data:
     # Register SigNoz MCP server
     curl -sf -X POST "$GATEWAY/gateways" \
       -H "Content-Type: application/json" \
-      -d '{"name":"signoz","url":"http://localhost:{{ .Values.signoz.port }}/sse","description":"SigNoz observability — logs, traces, metrics, alerts, dashboards"}'
+      -d '{"name":"signoz","url":"http://localhost:{{ .Values.signoz.port }}/mcp","description":"SigNoz observability — logs, traces, metrics, alerts, dashboards"}'
     {{- end }}
