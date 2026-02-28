@@ -38,6 +38,8 @@ spec:
               value: "0.0.0.0"
             - name: PORT
               value: {{ .Values.gateway.port | quote }}
+            - name: GUNICORN_WORKERS
+              value: "2"
             - name: DATABASE_URL
               value: "sqlite:////data/context-forge.db"
             - name: AUTH_REQUIRED
@@ -62,13 +64,13 @@ spec:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 30
             periodSeconds: 30
           readinessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
           resources:
             {{- toYaml .Values.gateway.resources | nindent 12 }}

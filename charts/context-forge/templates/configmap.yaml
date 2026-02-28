@@ -8,24 +8,42 @@ data:
   register-gateways.sh: |
     #!/bin/sh
     # Register upstream MCP servers with Context Forge gateway.
-    # Runs as a postStart lifecycle hook — gateway starts concurrently,
-    # so we poll /health until it's ready before registering.
+    # Runs as a postStart lifecycle hook — must exit 0 or Kubernetes
+    # kills the container. Registration failures are logged but non-fatal.
     GATEWAY="http://localhost:{{ .Values.gateway.port }}"
 
-    # Wait for gateway to be healthy (up to 60s)
-    attempts=0
-    until curl -sf "$GATEWAY/health" > /dev/null 2>&1; do
-      attempts=$((attempts + 1))
-      if [ "$attempts" -ge 60 ]; then
-        echo "ERROR: gateway not healthy after 60s" >&2
-        exit 1
-      fi
-      sleep 1
-    done
+    wait_for() {
+      url="$1"; label="$2"; max="$3"
+      attempts=0
+      until curl -sf "$url" > /dev/null 2>&1; do
+        attempts=$((attempts + 1))
+        if [ "$attempts" -ge "$max" ]; then
+          echo "WARNING: $label not ready after ${max}s" >&2
+          return 1
+        fi
+        sleep 1
+      done
+    }
+
+    # Wait for gateway to be healthy (up to 90s)
+    if ! wait_for "$GATEWAY/health" "gateway" 90; then
+      exit 0
+    fi
 
     {{ if .Values.signoz.enabled }}
+    # Wait for SigNoz sidecar to be healthy (up to 30s)
+    if ! wait_for "http://localhost:{{ .Values.signoz.port }}/mcp" "signoz-mcp" 30; then
+      exit 0
+    fi
+
     # Register SigNoz MCP server
-    curl -sf -X POST "$GATEWAY/gateways" \
+    if curl -sf -X POST "$GATEWAY/gateways" \
       -H "Content-Type: application/json" \
-      -d '{"name":"signoz","url":"http://localhost:{{ .Values.signoz.port }}/mcp","transport":"STREAMABLEHTTP","description":"SigNoz observability — logs, traces, metrics, alerts, dashboards"}'
+      -d '{"name":"signoz","url":"http://localhost:{{ .Values.signoz.port }}/mcp","transport":"STREAMABLEHTTP","description":"SigNoz observability — logs, traces, metrics, alerts, dashboards"}'; then
+      echo "Registered signoz MCP server"
+    else
+      echo "WARNING: failed to register signoz MCP server" >&2
+    fi
     {{- end }}
+
+    exit 0
