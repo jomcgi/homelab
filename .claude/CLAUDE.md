@@ -28,29 +28,33 @@ homelab/
 ## Essential Commands
 
 ```bash
-# ALWAYS use bazelisk, not bazel directly (.bazelversion manages version)
-bazelisk build //...          # Build everything
-bazelisk test //...           # Test everything
+# Shell aliases route bazel/bazelisk to bb (BuildBuddy CLI)
+bazel build //...             # Build everything
+bazel test //...              # Test everything
 format                        # Format code + update all lock files (apko, pip, gazelle)
-bazelisk run gazelle          # Regenerate BUILD files after adding Go imports
+bazel run gazelle             # Regenerate BUILD files after adding Go imports
 
 # Render Helm templates (NEVER helm install — GitOps only)
 helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml
 
 # Push container images
-bazelisk run //charts/<service>/image:push
+bazel run //charts/<service>/image:push
 ```
 
 **Vendored tools** (available via `direnv allow`): `format`, `argocd`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`
 
 ## Development Workflow
 
-**NEVER commit directly to main.** All changes MUST go through a worktree + PR:
+**NEVER commit directly to main.** All changes MUST go through a worktree + PR.
+
+The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktrees for active development.
 
 1. `git -C ~/repos/homelab worktree add -b feat/my-feature /tmp/claude-worktrees/my-feature origin/main`
 2. Make changes in `/tmp/claude-worktrees/my-feature`
 3. Commit, push, create PR
 4. Merge after CI passes
+
+**PR safety:** Always verify PR state (`gh pr view --json state`) before pushing additional commits. Never push to a merged branch — create a new worktree instead.
 
 ## Context Loading Rules
 
@@ -103,13 +107,12 @@ Runs on every push/PR:
 - **Format check** — formatters + gazelle, verifies no uncommitted changes
 - **Test and push** — `bazel test //...`, pushes images on main branch
 
-Debug CI failures: use `/buildbuddy` skill or reproduce locally with `bazelisk test //... --config=ci`
+Debug CI failures: use `/buildbuddy` skill or reproduce locally with `bazel test //... --config=ci`
 
 Static sites deploy via `.github/workflows/cf-pages-*.yaml` (requires self-hosted runners).
 
 ## Anti-Patterns
 
-- **Using `bazel` instead of `bazelisk`** — bazelisk manages versions via .bazelversion
 - **Using Dockerfiles** — this repo uses apko exclusively for container images
 - **Running as root** — always use non-root (uid 65532)
 - **Direct internet exposure** — all traffic goes through Cloudflare
