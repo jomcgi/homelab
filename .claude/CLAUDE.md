@@ -118,4 +118,5 @@ Static sites deploy via `.github/workflows/cf-pages-*.yaml` (requires self-hoste
 - **Direct internet exposure** — all traffic goes through Cloudflare
 - **Running tests outside Bazel** — no `pytest`, `go test`, `npm test` directly
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
+- **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating `charts/<service>/`
 - **Over-engineering** simple services
