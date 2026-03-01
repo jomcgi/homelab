@@ -3,7 +3,7 @@
 **Author:** Joe McGinley
 **Status:** Draft
 **Created:** 2026-03-01
-**Relates to:** [003-context-forge](003-context-forge.md)
+**Relates to:** [003-context-forge](003-context-forge.md), [006-oidc-auth-mcp-gateway](006-oidc-auth-mcp-gateway.md)
 
 ---
 
@@ -35,22 +35,21 @@ Every MCP request passes through both layers sequentially. Token scoping filters
 
 ```mermaid
 flowchart TD
-    A[MCP Client Request] --> B{Cloudflare Zero Trust}
-    B -->|Service token valid| C[Context Forge Gateway]
-    B -->|Invalid| X1[403 Rejected]
+    A[MCP Client Request] --> B{Context Forge OAuth}
+    B -->|Bearer token valid| C{Layer 1: Token Scoping}
+    B -->|No token / invalid| X1["401 Unauthorized → OAuth redirect"]
 
-    C --> D{Layer 1: Token Scoping}
-    D -->|JWT teams claim| E{Resolve visible tools}
-    E -->|"teams: null + is_admin"| F[All tools — admin bypass]
-    E -->|"teams: [team-id]"| G[Team + public tools only]
-    E -->|"teams: [] or missing"| H[Public tools only]
+    C -->|JWT teams claim| D{Resolve visible tools}
+    D -->|"teams: null + is_admin"| E[All tools — admin bypass]
+    D -->|"teams: [team-id]"| F[Team + public tools only]
+    D -->|"teams: [] or missing"| G[Public tools only]
 
-    F --> I{Layer 2: RBAC}
-    G --> I
-    H --> I
+    E --> H{Layer 2: RBAC}
+    F --> H
+    G --> H
 
-    I -->|Role has permission?| J[Tool executed]
-    I -->|Permission denied| X2[403 Forbidden]
+    H -->|Role has permission?| I[Tool executed]
+    H -->|Permission denied| X2[403 Forbidden]
 ```
 
 ### Agent-to-Team-to-Tool Mapping
@@ -110,29 +109,29 @@ The difference between agent types is **which tools they can see** (team scoping
 
 ---
 
-## JWT Structure
+## Token Scoping
 
-Each agent type gets a long-lived API token with explicit team scoping:
+Regardless of how the token is issued (OAuth SSO or admin-minted API token), the authorization decision depends on these JWT claims:
 
 ```
 # Claude Code / OpenHands — full tool access
 {
-  "sub": "infra-agent@jomcgi.dev",
+  "sub": "joe@jomcgi.dev",
   "teams": ["<infra-agents-team-id>"],
-  "is_admin": false,
-  "aud": "mcpgateway-api",
-  "iss": "mcpgateway"
+  "is_admin": false
 }
 
 # Claude Web Chat — SigNoz only
 {
-  "sub": "web-chat@jomcgi.dev",
+  "sub": "joe@jomcgi.dev",
   "teams": ["<web-chat-team-id>"],
-  "is_admin": false,
-  "aud": "mcpgateway-api",
-  "iss": "mcpgateway"
+  "is_admin": false
 }
 ```
+
+**How tokens are issued** depends on the auth model (see [ADR 006](006-oidc-auth-mcp-gateway.md)):
+- **OAuth/SSO (preferred):** User authenticates via browser, Context Forge issues a token. Team membership is resolved server-side from the user's profile — not embedded in the token at mint time.
+- **API tokens (automation):** Admin mints a long-lived token via the admin API with explicit team scoping. Used for headless/CI environments where browser OAuth isn't possible.
 
 The admin registration token (`is_admin: true`, `teams: null`) remains for gateway management only — never used by agents at runtime.
 
@@ -154,15 +153,14 @@ mcp-stack:
 
 ### Setup Steps
 
-1. **Create teams** via admin API — `infra-agents` and `web-chat`
-2. **Create users** — `infra-agent@jomcgi.dev` and `web-chat@jomcgi.dev` with `developer` role in their respective teams
-3. **Mint API tokens** — long-lived, scoped to each user's teams
+1. **Enable OIDC auth** — implement [ADR 006](006-oidc-auth-mcp-gateway.md) first (OAuth replaces CF service tokens)
+2. **Create teams** via admin API — `infra-agents` and `web-chat`
+3. **Assign users to teams** — after first SSO login, admin assigns the user to the appropriate team with `developer` role (see [Open Questions](#open-questions) on automating this)
 4. **Update tool registration** — set SigNoz tools to `visibility: team` and assign to both teams; future write tools assign to `infra-agents` only
-5. **Distribute tokens** — Claude Code via `direnv` env vars; web chat via its MCP config
 
-### What Changes for Existing Claude Code Sessions
+### Client Configuration
 
-After enabling `MCP_CLIENT_AUTH_ENABLED`, the current unauthenticated MCP access stops working. Claude Code's `.mcp.json` needs a Bearer token header added alongside the existing CF headers:
+After OIDC auth ([ADR 006](006-oidc-auth-mcp-gateway.md)) is in place, `mcp-remote` handles OAuth natively — no manual token headers:
 
 ```json
 {
@@ -170,27 +168,42 @@ After enabling `MCP_CLIENT_AUTH_ENABLED`, the current unauthenticated MCP access
     "context-forge": {
       "type": "stdio",
       "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://mcp.jomcgi.dev/mcp/",
-        "--header", "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}",
-        "--header", "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}",
-        "--header", "Authorization: Bearer ${MCP_GATEWAY_TOKEN}"
-      ]
+      "args": ["mcp-remote", "https://mcp.jomcgi.dev/mcp/"]
     }
   }
 }
 ```
 
+Claude Code opens a browser for SSO login on first use; `mcp-remote` caches the token. Claude.ai web chat uses the same OAuth flow via its connector dialog — no static tokens needed.
+
 ---
 
 ## Phasing
 
-**Phase 1 — Identity separation (now):**
-Enable `MCP_CLIENT_AUTH_ENABLED`. Create a single `infra-agents` team with all tools set to public visibility. Mint one API token for Claude Code. This adds identity tracking without restricting access.
+**Phase 1 — OIDC auth ([ADR 006](006-oidc-auth-mcp-gateway.md)):**
+Replace CF service tokens with OAuth/SSO. All users authenticate via browser. This gives per-user identity and session management without changing tool visibility.
 
-**Phase 2 — Team scoping (when adding write tools):**
-Create the `web-chat` team. Move tool visibility from `public` to `team`. Register ArgoCD write tools in `infra-agents` only. Mint a scoped token for Claude web chat.
+**Phase 2 — Team scoping (this ADR):**
+Create `infra-agents` and `web-chat` teams. Assign users to teams after SSO login. Move tool visibility from `public` to `team`. Register ArgoCD write tools in `infra-agents` only.
+
+**Phase 3 — Automated team assignment:**
+Map SSO group claims to Context Forge teams so new users are automatically placed in the correct team at login. Removes the manual admin step from Phase 2.
+
+---
+
+## Security
+
+- **Over-exposure from misconfigured team assignment** — if a user is assigned to `infra-agents` instead of `web-chat`, they see write-capable tools. Mitigation: default new SSO users to no team (public-only access). Explicit admin action required to grant team membership.
+- **Token scoping / RBAC desync** — a user could have team membership (sees tools) but lack the RBAC role to execute them, or vice versa. Both layers must pass. The `developer` role is the only one that grants `tools.execute`, so this is a configuration error, not a design flaw.
+- **In-cluster agents bypass both layers** — ClusterIP access has no auth. Acceptable for sandbox pods in isolated namespaces (see [002-openhands-agent-sandbox](002-openhands-agent-sandbox.md)), but means in-cluster agents see all tools regardless of team scoping.
+
+---
+
+## Open Questions
+
+1. **Automated team assignment** — after SSO login, how does a user end up in the right team? Options: (a) admin manually assigns via admin API, (b) SSO group claim mapping (CF Access for SaaS supports groups → map to Context Forge teams via `SSO_GENERIC_SCOPE` + group claims), (c) domain-based rules. SSO group mapping is the cleanest but needs CF Access for SaaS group support verified.
+
+2. **In-cluster agent identity** — sandbox pods currently bypass auth via ClusterIP. If per-agent audit logging is needed, they could use admin-minted API tokens with team scoping. Defer until needed.
 
 ---
 
@@ -201,3 +214,4 @@ Create the `web-chat` team. Move tool visibility from `public` to `team`. Regist
 | [Context Forge RBAC docs](https://ibm.github.io/mcp-context-forge/manage/rbac/) | Role definitions, token scoping contract |
 | [Context Forge multi-tenancy](https://ibm.github.io/mcp-context-forge/architecture/multitenancy/) | Team-based resource isolation model |
 | [003-context-forge](003-context-forge.md) | Gateway deployment this builds on |
+| [006-oidc-auth-mcp-gateway](006-oidc-auth-mcp-gateway.md) | Auth model (OAuth/OIDC) this ADR depends on |
