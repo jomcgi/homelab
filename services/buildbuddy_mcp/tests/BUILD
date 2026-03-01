@@ -16,6 +16,5 @@ py_test(
         "//services/buildbuddy_mcp/app",
         "@pip//httpx",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
