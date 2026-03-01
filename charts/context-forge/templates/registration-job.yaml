@@ -43,15 +43,19 @@ spec:
               done
               echo "Gateway is healthy."
 
-              # Mint a short-lived JWT for admin API authentication
+              # Mint a short-lived JWT for admin API authentication.
+              # sub must match PLATFORM_ADMIN_EMAIL so RBAC resolves the admin user.
               TOKEN=$(python3 -c "
-              import jwt, time, os
+              import jwt, time, os, uuid
               payload = {
-                  'sub': 'registration-job',
+                  'sub': 'admin@jomcgi.dev',
                   'iat': int(time.time()),
                   'exp': int(time.time()) + 300,
+                  'jti': str(uuid.uuid4()),
                   'aud': 'mcpgateway-api',
                   'iss': 'mcpgateway',
+                  'is_admin': True,
+                  'teams': None,
               }
               print(jwt.encode(payload, os.environ.get('JWT_SECRET_KEY', ''), algorithm='HS256'))
               ")
