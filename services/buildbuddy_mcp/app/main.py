@@ -17,15 +17,19 @@ class Settings(BaseSettings):
 
 mcp = FastMCP("BuildBuddy")
 
-settings = Settings()
+_client: httpx.AsyncClient | None = None
 
-_client = httpx.AsyncClient(
-    base_url=f"{settings.url}/api/v1",
-    headers={
-        "x-buildbuddy-api-key": settings.api_key,
-        "Content-Type": "application/json",
-    },
-)
+
+def configure(settings: Settings) -> None:
+    """Configure the HTTP client with the given settings."""
+    global _client
+    _client = httpx.AsyncClient(
+        base_url=f"{settings.url}/api/v1",
+        headers={
+            "x-buildbuddy-api-key": settings.api_key,
+            "Content-Type": "application/json",
+        },
+    )
 
 
 async def _post(endpoint: str, body: dict) -> dict:
@@ -162,6 +166,8 @@ async def execute_workflow(
 
 
 def main():
+    settings = Settings()
+    configure(settings)
     mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
 
