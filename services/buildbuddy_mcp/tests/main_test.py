@@ -93,3 +93,18 @@ class TestGetFile:
 
             result = await get_file(uri="bytestream://example/blobs/sha256/abc/123")
         assert result["data"] == "file contents here"
+
+
+class TestExecuteWorkflow:
+    @pytest.mark.asyncio
+    async def test_triggers_workflow(self, mock_response):
+        expected = {"action_statuses": [{"action_name": "Test and push", "invocation_id": "new-inv-123"}]}
+
+        with patch("services.buildbuddy_mcp.app.main._post", new_callable=AsyncMock, return_value=expected):
+            from services.buildbuddy_mcp.app.main import execute_workflow
+
+            result = await execute_workflow(
+                repo_url="https://github.com/jomcgi/homelab",
+                branch="main",
+            )
+        assert result["action_statuses"][0]["action_name"] == "Test and push"
