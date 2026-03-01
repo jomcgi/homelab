@@ -12,7 +12,7 @@ resources:
   - ./knowledge-graph
   - ./nats
   - ./seaweedfs
-  - ./signoz-mcp
+  - ./mcp-servers
   - ./todo
   - ./trips
   - ./llama-cpp

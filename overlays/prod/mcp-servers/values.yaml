@@ -1,0 +1,31 @@
+servers:
+  - name: signoz-mcp
+    image:
+      repository: docker.io/signoz/signoz-mcp-server
+      tag: "v0.0.5"
+    port: 8000
+    env:
+      - name: SIGNOZ_URL
+        value: "http://signoz.signoz.svc.cluster.local:8080"
+      - name: TRANSPORT_MODE
+        value: "http"
+      - name: MCP_SERVER_PORT
+        value: "8000"
+    secret:
+      name: signoz-mcp
+      itemPath: "vaults/k8s-homelab/items/signoz-mcp"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    translate:
+      enabled: false
+    registration:
+      enabled: true
+      transport: "STREAMABLEHTTP"
+    alert:
+      enabled: true
+      url: "http://signoz-mcp.mcp-servers.svc.cluster.local:8000/health"
