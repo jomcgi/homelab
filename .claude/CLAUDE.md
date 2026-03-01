@@ -57,6 +57,20 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 
 **PR safety:** Always verify PR state (`gh pr view --json state`) before pushing additional commits. Never push to a merged branch — create a new worktree instead.
 
+**Commit messages MUST use [Conventional Commits](https://www.conventionalcommits.org/) format.** A `commit-msg` hook enforces this.
+
+Format: `<type>(<optional scope>): <description>`
+
+Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+Examples:
+- `feat: add health check endpoint for auth service`
+- `fix(signoz): correct trace sampling configuration`
+- `ci: add conventional commit pre-commit hook`
+- `docs: update observability runbook`
+
+Breaking changes: add `!` after type/scope — `feat!: redesign auth token format`
+
 ## Context Loading Rules
 
 - **Security changes**: Read `architecture/security.md` FIRST
