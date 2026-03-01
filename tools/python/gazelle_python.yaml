@@ -21,6 +21,7 @@ manifest:
     PyObjCTools.Signals: pyobjc_core
     PyObjCTools.TestSupport: pyobjc_core
     affine: affine
+    aiofile: aiofile
     aiohappyeyeballs: aiohappyeyeballs
     aiohttp: aiohttp
     aiosignal: aiosignal
@@ -34,13 +35,17 @@ manifest:
     asyncstdlib: asyncstdlib
     attr: attrs
     attrs: attrs
+    authlib: authlib
     babel: babel
+    beartype: beartype
     bleak: bleak
     bng_latlon: bng_latlon
     boto3: boto3
     botocore: botocore
     brotli: brotli
     bs4: beautifulsoup4
+    cachetools: cachetools
+    caio: caio
     cattr: cattrs
     cattrs: cattrs
     cdk8s: cdk8s
@@ -58,6 +63,7 @@ manifest:
     courlan: courlan
     cryptography: cryptography
     cv2: opencv_python
+    cyclopts: cyclopts
     dateparser: dateparser
     dateparser_cli: dateparser
     dateparser_data: dateparser
@@ -67,10 +73,16 @@ manifest:
     defusedxml: defusedxml
     dispatch: pyobjc_framework_libdispatch
     distro: distro
+    dns: dnspython
+    docstring_parser: docstring_parser
+    docutils: docutils
     dotenv: python_dotenv
     dunamai: dunamai
     edfc647aaf02b20aa651__mypyc: mypy
+    email_validator: email_validator
+    exceptiongroup: exceptiongroup
     fastapi: fastapi
+    fastmcp: fastmcp
     feedparser: feedparser
     frozenlist: frozenlist
     funcy: funcy
@@ -153,23 +165,36 @@ manifest:
     httpcore: httpcore
     httptools: httptools
     httpx: httpx
+    httpx_sse: httpx_sse
     idna: idna
     ifaddr: ifaddr
     importlib_metadata: importlib_metadata
     importlib_resources: importlib_resources
     iniconfig: iniconfig
+    jaraco.classes: jaraco.classes
+    jaraco.context: jaraco_context
+    jaraco.functools: jaraco_functools
     jinja2: jinja2
     jinja2_ansible_filters: jinja2_ansible_filters
     jmespath: jmespath
     jsii: jsii
+    jsonref: jsonref
+    jsonschema: jsonschema
+    jsonschema_path: jsonschema_path
+    jsonschema_specifications: jsonschema_specifications
     justext: justext
+    jwt: pyjwt
+    key_value: py_key_value_aio
+    keyring: keyring
     libdispatch: pyobjc_framework_libdispatch
     lxml: lxml
     lxml_html_clean: lxml_html_clean
     mako: mako
     markdown_it: markdown_it_py
     markupsafe: markupsafe
+    mcp: mcp
     mdurl: mdurl
+    more_itertools: more_itertools
     multidict: multidict
     multipart: python_multipart
     mypy: mypy
@@ -180,6 +205,7 @@ manifest:
     numpy: numpy
     objc: pyobjc_core
     open_gopro: open_gopro
+    openapi_pydantic: openapi_pydantic
     opentelemetry.attributes: opentelemetry_api
     opentelemetry.baggage: opentelemetry_api
     opentelemetry.context: opentelemetry_api
@@ -225,6 +251,7 @@ manifest:
     pandas: pandas
     parse: parse
     parse_type: parse_type
+    pathable: pathable
     pathspec: pathspec
     pexpect: pexpect
     platformdirs: platformdirs
@@ -232,6 +259,7 @@ manifest:
     plumbum: plumbum
     prompt_toolkit: prompt_toolkit
     propcache: propcache
+    proxytypes: jsonref
     ptyprocess: ptyprocess
     publication: publication
     py: pytest
@@ -246,6 +274,7 @@ manifest:
     pygments: pygments
     pyogrio: pyogrio
     pyparsing: pyparsing
+    pyperclip: pyperclip
     pyproj: pyproj
     pytest: pytest
     pytest_asyncio: pytest_asyncio
@@ -254,11 +283,14 @@ manifest:
     pytz: pytz
     questionary: questionary
     rasterio: rasterio
+    referencing: referencing
     regex: regex
     requests: requests
     requests_cache: requests_cache
     returns: returns
     rich: rich
+    rich_rst: rich_rst
+    rpds: rpds_py
     rsa: rsa
     s3transfer: s3transfer
     sgmllib: sgmllib3k
@@ -269,6 +301,7 @@ manifest:
     soupsieve: soupsieve
     sqlite_fts4: sqlite_fts4
     sqlite_utils: sqlite_utils
+    sse_starlette: sse_starlette
     starlette: starlette
     sunrisesunset: sunrisesunset
     tabulate: tabulate
