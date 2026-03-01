@@ -23,7 +23,8 @@ mcp-stack:
       MCPGATEWAY_BULK_IMPORT_ENABLED: "false"
     secret:
       AUTH_REQUIRED: "true"
-      MCP_CLIENT_AUTH_ENABLED: "false"
+      MCP_CLIENT_AUTH_ENABLED: "true"
+      MCP_REQUIRE_AUTH: "false"
     extraEnvFrom:
       - secretRef:
           name: context-forge
