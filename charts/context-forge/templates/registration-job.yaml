@@ -17,6 +17,8 @@ spec:
   backoffLimit: 3
   template:
     metadata:
+      annotations:
+        linkerd.io/inject: disabled
       labels:
         {{- include "context-forge.selectorLabels" . | nindent 8 }}
     spec:
