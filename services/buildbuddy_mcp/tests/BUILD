@@ -14,7 +14,6 @@ py_test(
     srcs = ["main_test.py"],
     deps = [
         "//services/buildbuddy_mcp/app",
-        "@pip//httpx",
         "@pip//pytest",
     ],
 )
