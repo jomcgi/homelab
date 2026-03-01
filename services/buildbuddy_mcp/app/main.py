@@ -73,6 +73,32 @@ async def get_log(
     return await _post("/GetLog", body)
 
 
+@mcp.tool
+async def get_target(
+    invocation_id: str,
+    target_id: str | None = None,
+    tag: str | None = None,
+    label: str | None = None,
+    page_token: str | None = None,
+) -> dict:
+    """Get targets for an invocation.
+
+    Returns target labels, statuses (PASSED/FAILED/FLAKY), timing, rule
+    types, and languages. Filter by target_id, tag, or label.
+    """
+    selector: dict = {"invocation_id": invocation_id}
+    if target_id:
+        selector["target_id"] = target_id
+    if tag:
+        selector["tag"] = tag
+    if label:
+        selector["label"] = label
+    body: dict = {"selector": selector}
+    if page_token:
+        body["page_token"] = page_token
+    return await _post("/GetTarget", body)
+
+
 def main():
     mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
