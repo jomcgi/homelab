@@ -45,3 +45,15 @@ class TestGetInvocation:
 
             result = await get_invocation(commit_sha="deadbeef")
         assert result["invocation"][0]["commit_sha"] == "deadbeef"
+
+
+class TestGetLog:
+    @pytest.mark.asyncio
+    async def test_returns_log_contents(self, mock_response):
+        expected = {"log": {"contents": "Building //...\nERROR: compilation failed"}}
+
+        with patch("services.buildbuddy_mcp.app.main._post", new_callable=AsyncMock, return_value=expected):
+            from services.buildbuddy_mcp.app.main import get_log
+
+            result = await get_log(invocation_id="abc-123")
+        assert "ERROR" in result["log"]["contents"]
