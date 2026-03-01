@@ -49,6 +49,14 @@ mcp-stack:
         cpu: 500m
         memory: 512Mi
 
+  # Pin migration image to match the gateway — upstream defaults to :latest
+  # which can apply migrations the pinned gateway version doesn't understand.
+  migration:
+    image:
+      repository: ghcr.io/ibm/mcp-context-forge
+      tag: "v1.0.0-RC1"
+      pullPolicy: IfNotPresent
+
   redis:
     enabled: true
     resources:
