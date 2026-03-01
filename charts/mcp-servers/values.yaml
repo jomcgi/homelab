@@ -1,0 +1,24 @@
+# Shared translate sidecar image (upstream IBM mcp-context-forge)
+translate:
+  image:
+    repository: ghcr.io/ibm/mcp-context-forge
+    tag: v1.0.0-RC1
+    pullPolicy: IfNotPresent
+
+# Context Forge gateway for registration jobs
+gateway:
+  url: "http://context-forge-mcp-stack-mcpgateway.mcp-gateway.svc.cluster.local:80"
+  secret:
+    name: context-forge-jwt
+
+# HTTPCheck alert defaults (overridable per server)
+alertDefaults:
+  evalWindow: "10m0s"
+  frequency: "2m0s"
+  matchType: "5"
+  severity: "critical"
+  channels:
+    - pagerduty-homelab
+
+# MCP servers to deploy
+servers: []
