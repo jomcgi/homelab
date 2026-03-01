@@ -1,11 +1,11 @@
 # Homelab
 
-Personal monorepo. The goal is to make shipping a new service as low-friction as possible — so that I can bring my ideas into contact with reality.
+Personal monorepo. The goal is to make shipping a new service as low-friction as possible, so that I can bring my ideas into contact with reality.
 
 ## Tooling
 
 ### sextant
-`sextant/` — Every operator I wrote had the same category of bugs: invalid state transitions, missing observability, hand-rolled switch statements. So I built a generator to eliminate the category. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
+`sextant/` - Every operator I wrote had the same category of bugs: invalid state transitions, missing observability, hand-rolled switch statements. So I built a generator to eliminate the category. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
 
 ### Operators
 - `operators/cloudflare` — Manages Cloudflare Tunnel routing, DNS records, and Zero Trust policies from Kubernetes annotations via Gateway API
