@@ -1,0 +1,18 @@
+{{- range .Values.servers }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .name }}
+  labels:
+    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart) | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ include "mcp-servers.port" . }}
+      targetPort: mcp
+      protocol: TCP
+      name: mcp
+  selector:
+    {{- include "mcp-servers.selectorLabels" . | nindent 4 }}
+{{- end }}
