@@ -46,20 +46,8 @@ data:
                     "metricName": "httpcheck.status"
                   }
                 ],
-                "filters": {
-                  "items": [
-                    {
-                      "key": {
-                        "key": "http.url",
-                        "dataType": "string",
-                        "type": "tag",
-                        "isColumn": false
-                      },
-                      "op": "=",
-                      "value": "https://jomcgi.dev"
-                    }
-                  ],
-                  "op": "AND"
+                "filter": {
+                  "expression": "http.url = 'https://jomcgi.dev'"
                 },
                 "groupBy": [],
                 "order": [],

@@ -45,20 +45,8 @@ data:
                     "metricName": "httpcheck.status"
                   }
                 ],
-                "filters": {
-                  "items": [
-                    {
-                      "key": {
-                        "key": "http.url",
-                        "dataType": "string",
-                        "type": "tag",
-                        "isColumn": false
-                      },
-                      "op": "=",
-                      "value": "https://img.jomcgi.dev/health"
-                    }
-                  ],
-                  "op": "AND"
+                "filter": {
+                  "expression": "http.url = 'https://img.jomcgi.dev/health'"
                 },
                 "groupBy": [],
                 "order": [],
