@@ -1,11 +1,11 @@
 # Homelab
 
-Personal monorepo. One way to build, deploy, and ship — reused everywhere.
+Personal monorepo. The goal is to make shipping a new service as low-friction as possible — push code, get a secure, observable deployment without thinking about certificates, tracing, or image pipelines. One way to build, deploy, and ship — reused everywhere.
 
 ## Tooling
 
 ### sextant
-`sextant/` — Code generator for type-safe state machines in Kubernetes operators. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
+`sextant/` — Every operator I wrote had the same category of bugs: invalid state transitions, missing observability, hand-rolled switch statements. So I built a generator to eliminate the category. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
 
 ### Operators
 - `operators/cloudflare` — Manages Cloudflare Tunnel routing, DNS records, and Zero Trust policies from Kubernetes annotations via Gateway API
@@ -59,7 +59,7 @@ Scottish route finder with weather-aware surfacing.
 
 ## Infrastructure patterns
 
-The goal is to make shipping a new service as low-friction as possible — push code, get a secure, observable deployment without thinking about certificates, tracing, or image pipelines. See [architecture/security.md](architecture/security.md) for the defense-in-depth model and [architecture/observability.md](architecture/observability.md) for how automatic instrumentation works.
+See [architecture/security.md](architecture/security.md) for the defense-in-depth model and [architecture/observability.md](architecture/observability.md) for how automatic instrumentation works.
 
 | Area | Approach |
 |---|---|
