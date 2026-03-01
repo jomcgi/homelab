@@ -45,16 +45,11 @@ data:
                     "metricName": "k8s.node.condition_disk_pressure"
                   }
                 ],
-                "filters": {
-                  "items": [],
-                  "op": "AND"
-                },
                 "groupBy": [
                   {
                     "name": "k8s.node.name",
-                    "dataType": "string",
-                    "type": "resource",
-                    "isColumn": false
+                    "fieldDataType": "string",
+                    "fieldContext": "resource"
                   }
                 ],
                 "order": [],

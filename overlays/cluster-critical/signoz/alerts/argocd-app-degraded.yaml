@@ -45,33 +45,19 @@ data:
                     "metricName": "argocd_app_info"
                   }
                 ],
-                "filters": {
-                  "items": [
-                    {
-                      "key": {
-                        "key": "health_status",
-                        "dataType": "string",
-                        "type": "tag",
-                        "isColumn": false
-                      },
-                      "op": "=",
-                      "value": "Degraded"
-                    }
-                  ],
-                  "op": "AND"
+                "filter": {
+                  "expression": "health_status = 'Degraded'"
                 },
                 "groupBy": [
                   {
                     "name": "name",
-                    "dataType": "string",
-                    "type": "tag",
-                    "isColumn": false
+                    "fieldDataType": "string",
+                    "fieldContext": "tag"
                   },
                   {
                     "name": "namespace",
-                    "dataType": "string",
-                    "type": "tag",
-                    "isColumn": false
+                    "fieldDataType": "string",
+                    "fieldContext": "tag"
                   }
                 ],
                 "order": [],

@@ -45,22 +45,16 @@ data:
                     "metricName": "k8s.pod.phase"
                   }
                 ],
-                "filters": {
-                  "items": [],
-                  "op": "AND"
-                },
                 "groupBy": [
                   {
                     "name": "k8s.namespace.name",
-                    "dataType": "string",
-                    "type": "resource",
-                    "isColumn": false
+                    "fieldDataType": "string",
+                    "fieldContext": "resource"
                   },
                   {
                     "name": "k8s.pod.name",
-                    "dataType": "string",
-                    "type": "resource",
-                    "isColumn": false
+                    "fieldDataType": "string",
+                    "fieldContext": "resource"
                   }
                 ],
                 "order": [],
