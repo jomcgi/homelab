@@ -57,6 +57,22 @@ async def get_invocation(
     return await _post("/GetInvocation", body)
 
 
+@mcp.tool
+async def get_log(
+    invocation_id: str,
+    page_token: str | None = None,
+) -> dict:
+    """Get build logs for an invocation.
+
+    Returns the build log contents as a string. Logs may be paginated
+    for large builds — use page_token to fetch subsequent pages.
+    """
+    body: dict = {"selector": {"invocation_id": invocation_id}}
+    if page_token:
+        body["page_token"] = page_token
+    return await _post("/GetLog", body)
+
+
 def main():
     mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
