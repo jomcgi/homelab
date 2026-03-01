@@ -14,6 +14,7 @@ mcp-stack:
       enabled: false
     config:
       GUNICORN_WORKERS: "2"
+      PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
       MCPGATEWAY_UI_ENABLED: "false"
       MCPGATEWAY_A2A_ENABLED: "false"
       LLMCHAT_ENABLED: "false"
