@@ -3,6 +3,7 @@
 **Author:** Joe McGinley
 **Status:** Draft
 **Created:** 2026-03-01
+**Relates to:** [003-context-forge](003-context-forge.md), [005-role-based-mcp-access](005-role-based-mcp-access.md)
 
 ---
 
@@ -134,7 +135,7 @@ This reuses whatever identity provider is already configured in CF Zero Trust (o
   - `SSO_GENERIC_ISSUER=<CF issuer URL>`
   - `SSO_GENERIC_SCOPE=openid profile email`
   - `SSO_AUTO_CREATE_USERS=true`
-  - `SSO_TRUSTED_DOMAINS=jomcgi.dev`
+  - `SSO_TRUSTED_DOMAINS=jomcgi.dev` (controls who can *log in* — authorization is handled by ADR 005's team/RBAC layer)
   - `SSO_PRESERVE_ADMIN_AUTH=true`
 - [ ] Enable Context Forge OAuth authorization server:
   - `MCP_REQUIRE_AUTH=true`
@@ -213,9 +214,14 @@ This is the same pattern used by any public OAuth-protected API (GitHub API, Sla
 
 1. **DCR vs static client credentials for Claude.ai** — Claude.ai supports both Dynamic Client Registration (auto-registers) and static credentials (entered in advanced settings). DCR is cleaner but adds a public registration endpoint. If DCR proves noisy, fall back to static client credentials.
 
-2. **In-cluster agents and OAuth** — Currently in-cluster agents bypass auth entirely via ClusterIP. If per-agent identity becomes important (audit logs per sandbox), in-cluster agents could use Context Forge's JWT auth with service accounts. Defer until ADR 005 (role-based access) is implemented.
+2. **Team assignment for SSO-created users** — `SSO_AUTO_CREATE_USERS=true` creates a Context Forge user on first login, but does not assign them to a team. ADR 005's RBAC model depends on users being in specific teams (`infra-agents`, `web-chat`) with a `developer` role. The bridge between authentication (this ADR) and authorization (ADR 005) needs a team assignment mechanism. Options:
+   - **SSO group claim mapping** (recommended) — CF Access for SaaS supports the `groups` scope. Map CF Access groups to Context Forge teams. This is automatic and doesn't require manual intervention after first login.
+   - **Admin manual assignment** — admin assigns team after first login. Simple but doesn't scale and breaks the Claude.ai flow (user would authenticate but have no tool access until manually promoted).
+   - **Default team assignment** — new SSO users auto-join a default team (e.g., `web-chat` with read-only SigNoz). CLI users are manually promoted to `infra-agents`. Safe default, but requires investigating whether Context Forge supports default team assignment on user creation.
 
-3. **Token caching in `mcp-remote`** — Verify that `mcp-remote` persists OAuth tokens across Claude Code sessions to avoid repeated browser login prompts. If not, consider a local token cache wrapper.
+3. **In-cluster agents and OAuth** — Currently in-cluster agents bypass auth entirely via ClusterIP. If per-agent identity becomes important (audit logs per sandbox), in-cluster agents could use Context Forge's JWT auth with service accounts. More broadly, *all* user-to-team mapping — not just in-cluster — needs to be defined before ADR 005's role-based access works. This ADR provides the authentication layer; ADR 005 consumes it for authorization. The two should share a combined phasing plan.
+
+4. **Token caching in `mcp-remote`** — Verify that `mcp-remote` persists OAuth tokens across Claude Code sessions to avoid repeated browser login prompts. If not, consider a local token cache wrapper.
 
 ---
 
@@ -229,4 +235,5 @@ This is the same pattern used by any public OAuth-protected API (GitHub API, Sla
 | [Context Forge — Dynamic Client Registration](https://ibm.github.io/mcp-context-forge/manage/dcr/) | DCR configuration for MCP clients |
 | [Context Forge — OAuth 2.0 Integration](https://ibm.github.io/mcp-context-forge/manage/oauth/) | OAuth authorization server configuration |
 | [ADR 003 — Context Forge](003-context-forge.md) | Current service-token auth model (being replaced) |
+| [ADR 005 — Role-Based MCP Access](005-role-based-mcp-access.md) | Authorization layer that consumes this ADR's authentication model (team scoping, RBAC) |
 | [architecture/security.md](../../security.md) | Cluster security model — one deviation documented above |
