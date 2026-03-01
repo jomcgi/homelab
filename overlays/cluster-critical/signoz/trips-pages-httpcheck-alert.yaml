@@ -67,7 +67,7 @@ data:
               "target": 1,
               "targetUnit": "",
               "matchType": "5",
-              "op": "<",
+              "op": "2",
               "channels": ["pagerduty-homelab"]
             }
           ]
