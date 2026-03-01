@@ -77,6 +77,19 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 | **Package deps (JS)** | pnpm + rules_js |
 | **Non-root containers** | uid 65532 convention, `runAsNonRoot: true` |
 
+## Cluster Investigation
+
+**Default to SigNoz** (via Context Forge MCP) for logs, metrics, and traces. Use `kubectl` only for resource state (`get`, `describe`) that SigNoz doesn't cover.
+
+| Need | Tool |
+|------|------|
+| **Logs** | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs` |
+| **Traces** | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
+| **Metrics** | `signoz-search-metric-by-text`, `signoz-list-metric-keys` |
+| **Services** | `signoz-list-services`, `signoz-get-service-top-operations` |
+| **Dashboards** | `signoz-list-dashboards`, `signoz-get-dashboard` |
+| **Alerts** | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history` |
+
 ## Kubernetes Operations (kubectl)
 
 **CRITICAL: This cluster is managed via GitOps. kubectl is READ-ONLY.**
