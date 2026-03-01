@@ -8,7 +8,7 @@
 
 ## Problem
 
-The homelab repository contains ~95 markdown files (~18,900 lines) spread across
+The homelab repository contains ~99 markdown files (~19,100 lines) spread across
 `architecture/`, `services/*/`, `charts/*/`, `operators/`, `docs/plans/`,
 `.claude/skills/`, and assorted READMEs. This documentation is only accessible by
 navigating the raw repository, which creates friction for day-to-day reference and
@@ -38,10 +38,14 @@ via the existing `rules_wrangler` + Bazel pipeline.
    and plugin ecosystem. No second toolchain to learn or maintain.
 2. **Markdown-first** — A directory of `.md` files *is* the site structure. Minimal
    ceremony to get from raw markdown to a navigable site.
-3. **Bazel integration** — VitePress runs `vite build` under the hood. The existing
-   `vite_build` macro in `tools/js/vite_build.bzl` already handles Vite builds within
-   Bazel. VitePress slots into the same pattern: `js_run_binary` with `vite build`
-   args, producing a `dist/` output directory consumed by `wrangler_pages`.
+3. **Bazel integration** — The existing `vite_build` macro in
+   `tools/js/vite_build.bzl` is framework-agnostic. It wraps `js_run_binary` with
+   configurable `tool`, `build_args`, and `out_dir`. VitePress fits the same pattern
+   used by `jomcgi.dev` (Astro) and `trips.jomcgi.dev` (Vite+React): pass
+   `:vitepress` as the tool binary, and VitePress CLI's `build` subcommand matches
+   the macro's default `build_args = ["build"]`. The `--outDir dist` flag normalises
+   VitePress's non-standard `.vitepress/dist` output to the standard `dist/` the
+   macro expects.
 4. **Deployment** — Same `rules_wrangler` CF Pages deployment used by
    `trips.jomcgi.dev`, `ships.jomcgi.dev`, and `jomcgi.dev`. No new infra.
 
@@ -63,12 +67,14 @@ result.
 ### Content Assembly via Bazel Filegroups
 
 The key design question is how to assemble documentation from scattered locations
-into the VitePress source tree at build time. Raw `vitepress dev docs/` assumes all
-content lives under one directory — but ours is spread across the repo.
+into the VitePress source tree at build time. VitePress assumes all content lives
+under one directory — but ours is spread across the repo.
 
 The approach: use Bazel `filegroup` targets to declare which markdown files
 participate in the docs site, then assemble them into a predictable directory
-structure that VitePress consumes.
+structure via a `genrule`. This is the same pattern used by
+`hikes.jomcgi.dev/BUILD` (static filegroup → `wrangler_pages`), extended with an
+assembly step.
 
 ```mermaid
 graph LR
@@ -77,7 +83,6 @@ graph LR
         B[services/*/README.md]
         C[charts/*/README.md]
         D[operators/*.md]
-        E[docs/plans/*.md]
     end
 
     subgraph Bazel
@@ -91,7 +96,7 @@ graph LR
         J[docs.jomcgi.dev]
     end
 
-    A & B & C & D & E --> F
+    A & B & C & D --> F
     F --> G --> H --> I --> J
 ```
 
@@ -128,37 +133,82 @@ genrule(
 )
 ```
 
-This gives full control over what lands on the public site (security-sensitive
-content stays excluded) and makes the build hermetic — Bazel knows exactly which
-files the site depends on.
+**Why filegroups, not glob-all**: This gives full control over what lands on the
+public site. Only files explicitly named in a `filegroup`'s `srcs` are included —
+an allowlist model. Files like `.claude/AGENTS.md` (internal agent capabilities),
+`.claude/skills/` (prompt engineering), and `docs/plans/` (ephemeral design
+documents) stay excluded by default. When a new content source should be published,
+it requires adding a `filegroup` export and an assembly line — a deliberate act, not
+an accidental inclusion.
 
-### VitePress Config
-
-VitePress configuration lives at `websites/docs.jomcgi.dev/.vitepress/config.js`.
-The sidebar and navigation are derived from the assembled directory structure.
-VitePress supports auto-generated sidebars, but explicit configuration gives better
-control over ordering and grouping.
+**Why genrule over a custom Starlark rule**: A `genrule` with shell `cp` is
+sufficient for Phase 1 where the assembly is a flat copy per content area. The
+trade-off is that nested directory structures (e.g., `decisions/agents/001-*.md`)
+require explicit `mkdir -p` per subdirectory. If the assembly grows beyond ~10
+sources or needs path rewriting (e.g., renaming directories during copy), a custom
+Starlark rule would give better control. Start with genrule, migrate if it gets
+unwieldy.
 
 ### Build Target Structure
 
+The BUILD file follows the same pattern as `trips.jomcgi.dev/BUILD` and
+`jomcgi.dev/BUILD` — both use `vite_build` + `wrangler_pages`:
+
 ```python
 # websites/docs.jomcgi.dev/BUILD
+load("@npm//websites/docs.jomcgi.dev:vitepress/package_json.bzl", vitepress_bin = "bin")
+load("@npm//websites/docs.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("//rules_wrangler:defs.bzl", "wrangler_pages")
+load("//tools/js:vite_build.bzl", "vite_build")
+
+# VitePress binary
+vitepress_bin.vitepress_binary(name = "vitepress")
+
+# Wrangler binary for Cloudflare Pages deployment
+wrangler_bin.wrangler_binary(name = "wrangler")
+
+# Assemble markdown from across the repo into VitePress source tree
+genrule(
+    name = "assemble_docs",
+    srcs = [
+        "//architecture:docs",
+        # Phase 2: add services, charts, operators filegroups
+    ],
+    outs = ["assembled"],
+    cmd = """
+        mkdir -p $@/architecture $@/architecture/decisions/agents $@/architecture/decisions/docs
+        cp $(locations //architecture:docs) $@/architecture/
+    """,
+)
+
+# Build docs site — VitePress wraps Vite, so vite_build macro works directly.
+# --outDir dist normalises output from .vitepress/dist to dist/ for the macro.
 vite_build(
     name = "build",
     srcs = [":assemble_docs"] + glob([".vitepress/**/*"]),
+    build_args = ["build", "--outDir", "dist"],
+    config = None,  # VitePress auto-discovers .vitepress/config.js
     tool = ":vitepress",
+    visibility = ["//visibility:public"],
     deps = ["vitepress"],
-    # VitePress outputs to .vitepress/dist by default
-    out_dir = ".vitepress/dist",
 )
 
+# Cloudflare Pages deployment
 wrangler_pages(
     name = "docs",
     dist = ":build_dist",
     project_name = "docs-jomcgi-dev",
+    visibility = ["//websites:__pkg__"],
     wrangler = ":wrangler",
 )
 ```
+
+**`vite_build` macro compatibility**: The macro (`tools/js/vite_build.bzl`) creates
+three targets: `:node_modules`, `:src` (js_library), and `:build` (js_run_binary).
+It accepts any tool binary — `jomcgi.dev` passes `:astro`, `trips.jomcgi.dev` passes
+`:vite`, and this site passes `:vitepress`. The `build_args` parameter overrides the
+default `["build"]` to add `--outDir dist`, which makes VitePress write output to
+the standard `dist/` directory instead of `.vitepress/dist`. No macro changes needed.
 
 ### Deployment
 
@@ -192,12 +242,12 @@ Same pattern as all other websites in this repo:
 - [ ] Add `filegroup` exports for `operators/` docs
 - [ ] Expand assembly genrule to include all sources
 - [ ] Configure VitePress sidebar to reflect full content tree
-- [ ] Add search (VitePress built-in local search or Algolia)
+- [ ] Add search (VitePress built-in local search)
 
 ### Phase 3: Polish
 
 - [ ] Custom theme / branding alignment with jomcgi.dev
-- [ ] Cross-reference links between docs (architecture → service → chart)
+- [ ] Cross-reference links between docs (architecture -> service -> chart)
 - [ ] ADR index page (auto-generated from `architecture/decisions/`)
 - [ ] Add to CLAUDE.md as documentation reference
 
@@ -209,9 +259,18 @@ No sensitive content should be published. The `filegroup` approach provides an
 explicit allowlist — only files named in `srcs` are included. This is safer than
 a glob-everything approach where secrets or internal notes could leak.
 
+Content to exclude:
+
+| Path | Reason |
+|------|--------|
+| `.claude/AGENTS.md` | Internal agent capabilities and permissions |
+| `.claude/skills/` | Prompt engineering — internal tooling |
+| `.claude/templates/` | Internal workflow templates |
+| `docs/plans/` | Ephemeral design documents, not reference material |
+| `advent_of_code/` | Puzzle solutions, not homelab docs |
+| `websites/jomcgi.dev/src/assets/cv.md` | Personal CV, not homelab docs |
+
 Review the content of each exported filegroup before adding it to the assembly.
-Files like `.claude/AGENTS.md` (which contains internal agent capabilities) should
-be excluded.
 
 ---
 
@@ -228,14 +287,8 @@ be excluded.
 
 ## Open Questions
 
-1. Should the docs site include plan/design documents from `docs/plans/`, or are
-   those too ephemeral for a reference site?
-2. Should ADRs render with their full implementation checklists, or should those
+1. Should ADRs render with their full implementation checklists, or should those
    be stripped for the public-facing version?
-3. Is `vite_build` macro sufficient for VitePress, or does VitePress's non-standard
-   output directory (`.vitepress/dist` vs `dist/`) require a small macro extension?
-4. Should the assembly step use a `genrule` (shell-based copy) or a custom Starlark
-   rule for better file mapping control?
 
 ---
 
@@ -244,8 +297,8 @@ be excluded.
 | Resource | Relevance |
 |----------|-----------|
 | [VitePress docs](https://vitepress.dev) | Framework documentation |
-| `tools/js/vite_build.bzl` | Existing Vite build macro to extend/reuse |
+| `tools/js/vite_build.bzl` | Existing Vite build macro — framework-agnostic, supports VitePress directly |
 | `rules_wrangler/defs.bzl` | CF Pages deployment rule |
-| `websites/trips.jomcgi.dev/BUILD` | Reference Vite + Bazel + CF Pages pattern |
-| `websites/jomcgi.dev/BUILD` | Reference Astro + Bazel + CF Pages pattern |
-| `websites/hikes.jomcgi.dev/BUILD` | Reference static filegroup + CF Pages pattern |
+| `websites/trips.jomcgi.dev/BUILD` | Reference: Vite + `vite_build` macro + `wrangler_pages` |
+| `websites/jomcgi.dev/BUILD` | Reference: Astro (wraps Vite) + `vite_build` macro + `wrangler_pages` |
+| `websites/hikes.jomcgi.dev/BUILD` | Reference: static `filegroup` -> `wrangler_pages` (no build step) |
