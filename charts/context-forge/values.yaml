@@ -23,7 +23,6 @@ mcp-stack:
     secret:
       AUTH_REQUIRED: "false"
       MCP_CLIENT_AUTH_ENABLED: "false"
-      JWT_SECRET_KEY: ""  # Injected from 1Password via extraEnvFrom
     extraEnvFrom:
       - secretRef:
           name: context-forge
@@ -70,7 +69,7 @@ mcp-stack:
   mcpFastTimeServer:
     enabled: false
 
-# 1Password secret for JWT_SECRET_KEY
+# 1Password secret — provides JWT_SECRET_KEY for admin API auth
 secret:
   name: context-forge
   itemPath: "vaults/k8s-homelab/items/context-forge"
