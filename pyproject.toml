@@ -12,7 +12,8 @@ version = "0"
 dependencies = [
     "aiohttp",
     "fastapi>=0.115.0",
-    "uvicorn[standard]~=0.34.0",
+    "fastmcp>=3.0.0",
+    "uvicorn[standard]>=0.34.0",
     "pydantic~=2.5",
     "pydantic-settings~=2.1",
     "pydantic-extra-types~=2.0",
