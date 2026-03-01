@@ -1090,10 +1090,20 @@ func (s *Sidecar) syncAlert(ctx context.Context, cm *corev1.ConfigMap, forceUpda
 
 	if exists {
 		if err := s.updateAlert(ctx, existing.ID, alert); err != nil {
-			alertSyncTotal.WithLabelValues("sync", "update_error").Inc()
-			return err
+			// If rule was deleted from SigNoz (e.g. after fresh install),
+			// clear stale state and fall through to create below.
+			if strings.Contains(err.Error(), "status 404") {
+				s.logger.Info("Alert not found in SigNoz, recreating",
+					"id", existing.ID, "namespace", cm.Namespace, "name", cm.Name)
+				exists = false
+			} else {
+				alertSyncTotal.WithLabelValues("sync", "update_error").Inc()
+				return err
+			}
 		}
+	}
 
+	if exists {
 		s.stateMu.Lock()
 		s.alertState[uid] = AlertState{
 			ID:          existing.ID,
