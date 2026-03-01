@@ -138,6 +138,29 @@ async def get_file(uri: str) -> dict:
     return await _post("/GetFile", {"uri": uri})
 
 
+@mcp.tool
+async def execute_workflow(
+    repo_url: str,
+    branch: str | None = None,
+    commit_sha: str | None = None,
+    action_names: list[str] | None = None,
+    run_async: bool = True,
+) -> dict:
+    """Trigger a BuildBuddy workflow run.
+
+    Re-runs CI for a repo/branch/commit. Returns invocation IDs for
+    each triggered action. Runs async by default.
+    """
+    body: dict = {"repo_url": repo_url, "async": run_async}
+    if branch:
+        body["branch"] = branch
+    if commit_sha:
+        body["commit_sha"] = commit_sha
+    if action_names:
+        body["action_names"] = action_names
+    return await _post("/ExecuteWorkflow", body)
+
+
 def main():
     mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
