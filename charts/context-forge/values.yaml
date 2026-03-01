@@ -83,10 +83,3 @@ mcp-stack:
 secret:
   name: context-forge
   itemPath: "vaults/k8s-homelab/items/context-forge"
-
-# Registration job — registers MCP servers with the gateway after deploy
-registration:
-  signoz:
-    name: signoz-mcp
-    url: "http://signoz-mcp.mcp-servers.svc.cluster.local:8000/mcp"
-    transport: STREAMABLEHTTP

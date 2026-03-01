@@ -1,6 +1,0 @@
-apiVersion: v2
-name: signoz-mcp
-description: SigNoz MCP server for observability tool access
-type: application
-version: 1.0.0
-appVersion: "0.0.5"
