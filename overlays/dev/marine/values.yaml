@@ -34,7 +34,7 @@ imagePullSecrets:
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
-    tag: main@sha256:c8b7ddf3839ab8f2f2e539bc7d51a9c408bee3f3cfd8741724f34f8badf479ca
+    tag: main@sha256:26a313e9fd11961d4813fd9bfe3e5bf4071399d2b84d8db908080ef287fb48f2
     pullPolicy: Always
     digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
@@ -44,7 +44,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
-    tag: main@sha256:e448eb131eb0670604f4a81af0997fabc3dc7ff06a032eee44a80fffa5d7e7d3
+    tag: main@sha256:5208c42a1652d940bc1fb162d55f7decc6ed5cda5cb26800ae07558cab478e8c
     pullPolicy: Always
     digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
   resources:
