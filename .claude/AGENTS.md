@@ -435,11 +435,34 @@ Pre-requisite reading is context-dependent — see "Context Loading Rules" in CL
 
 ## observability
 
-Observability specialist.
+Observability specialist. Uses **SigNoz via Context Forge MCP** as the primary investigation tool.
 
 ### Pre-requisite Reading
 
 **Always read first:** `architecture/observability.md`
+
+### Investigation Workflow
+
+**Default to SigNoz MCP tools** for all cluster investigation. Use `kubectl` only for resource state that SigNoz doesn't cover.
+
+1. **Identify the service:** `signoz-list-services` → find the service name
+2. **Check errors:** `signoz-get-error-logs` or `signoz-search-logs-by-service` with severity filter
+3. **Trace requests:** `signoz-search-traces-by-service` → `signoz-get-trace-details` → `signoz-get-trace-span-hierarchy`
+4. **Check metrics:** `signoz-search-metric-by-text` or `signoz-get-service-top-operations`
+5. **Review alerts:** `signoz-list-alerts` → `signoz-get-alert-history`
+6. **Check dashboards:** `signoz-list-dashboards` → `signoz-get-dashboard`
+
+### Available SigNoz MCP Tools
+
+| Category | Tools |
+|----------|-------|
+| **Logs** | `search-logs`, `search-logs-by-service`, `get-error-logs`, `get-logs-for-alert`, `get-logs-available-fields`, `get-logs-field-values`, `list-log-views`, `get-log-view` |
+| **Traces** | `search-traces-by-service`, `aggregate-traces`, `get-trace-details`, `get-trace-span-hierarchy`, `get-trace-error-analysis`, `get-trace-available-fields`, `get-trace-field-values` |
+| **Metrics** | `search-metric-by-text`, `list-metric-keys`, `get-metrics-available-fields`, `get-metrics-field-values` |
+| **Services** | `list-services`, `get-service-top-operations` |
+| **Dashboards** | `list-dashboards`, `get-dashboard`, `create-dashboard`, `update-dashboard` |
+| **Alerts** | `list-alerts`, `get-alert`, `get-alert-history` |
+| **Queries** | `execute-builder-query` |
 
 ### Auto-Instrumentation (This Repo)
 
@@ -454,13 +477,6 @@ Kyverno policies automatically inject OpenTelemetry instrumentation:
 - **High cardinality:** never use user IDs as metric labels
 - **Structured logging:** always include `service`, `trace_id`, `level`, `timestamp`
 - **Alerting:** alert on error rates (symptoms), not CPU; always include runbooks
-
-### SigNoz Query Patterns
-
-```sql
-service.name = "trips-api" AND severity_text = "ERROR"   -- Logs: errors
-duration > 1s AND service.name = "ships-api"              -- Traces: slow requests
-```
 
 ---
 

@@ -57,6 +57,20 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 
 **PR safety:** Always verify PR state (`gh pr view --json state`) before pushing additional commits. Never push to a merged branch — create a new worktree instead.
 
+**Commit messages MUST use [Conventional Commits](https://www.conventionalcommits.org/) format.** A `commit-msg` hook enforces this.
+
+Format: `<type>(<optional scope>): <description>`
+
+Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
+
+Examples:
+- `feat: add health check endpoint for auth service`
+- `fix(signoz): correct trace sampling configuration`
+- `ci: add conventional commit pre-commit hook`
+- `docs: update observability runbook`
+
+Breaking changes: add `!` after type/scope — `feat!: redesign auth token format`
+
 ## Context Loading Rules
 
 - **Security changes**: Read `architecture/security.md` FIRST
@@ -76,6 +90,19 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 | **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`) |
 | **Package deps (JS)** | pnpm + rules_js |
 | **Non-root containers** | uid 65532 convention, `runAsNonRoot: true` |
+
+## Cluster Investigation
+
+**Default to SigNoz** (via Context Forge MCP) for logs, metrics, and traces. Use `kubectl` only for resource state (`get`, `describe`) that SigNoz doesn't cover.
+
+| Need | Tool |
+|------|------|
+| **Logs** | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs` |
+| **Traces** | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
+| **Metrics** | `signoz-search-metric-by-text`, `signoz-list-metric-keys` |
+| **Services** | `signoz-list-services`, `signoz-get-service-top-operations` |
+| **Dashboards** | `signoz-list-dashboards`, `signoz-get-dashboard` |
+| **Alerts** | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history` |
 
 ## Kubernetes Operations (kubectl)
 

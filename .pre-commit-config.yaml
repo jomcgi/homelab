@@ -43,6 +43,23 @@ repos:
         always_run: true
         pass_filenames: false
         stages: [post-rewrite]
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.4.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args:
+          - feat
+          - fix
+          - docs
+          - style
+          - refactor
+          - perf
+          - test
+          - build
+          - ci
+          - chore
+          - revert
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
     hooks:
