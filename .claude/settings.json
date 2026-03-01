@@ -19,6 +19,8 @@
   },
   "permissions": {
     "allow": [
+      "Bash(cd /tmp/claude-worktrees:*)",
+      "Bash(cd /private/tmp/claude-worktrees:*)",
       "Bash(git status:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
