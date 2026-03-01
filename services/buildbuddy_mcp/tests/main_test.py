@@ -57,3 +57,15 @@ class TestGetLog:
 
             result = await get_log(invocation_id="abc-123")
         assert "ERROR" in result["log"]["contents"]
+
+
+class TestGetTarget:
+    @pytest.mark.asyncio
+    async def test_returns_targets(self, mock_response):
+        expected = {"target": [{"label": "//pkg:test", "status": "PASSED"}]}
+
+        with patch("services.buildbuddy_mcp.app.main._post", new_callable=AsyncMock, return_value=expected):
+            from services.buildbuddy_mcp.app.main import get_target
+
+            result = await get_target(invocation_id="abc-123")
+        assert result["target"][0]["label"] == "//pkg:test"
