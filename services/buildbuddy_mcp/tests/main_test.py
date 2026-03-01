@@ -69,3 +69,27 @@ class TestGetTarget:
 
             result = await get_target(invocation_id="abc-123")
         assert result["target"][0]["label"] == "//pkg:test"
+
+
+class TestGetAction:
+    @pytest.mark.asyncio
+    async def test_returns_actions(self, mock_response):
+        expected = {"action": [{"target_label": "//pkg:test", "shard": 0, "run": 1, "attempt": 1}]}
+
+        with patch("services.buildbuddy_mcp.app.main._post", new_callable=AsyncMock, return_value=expected):
+            from services.buildbuddy_mcp.app.main import get_action
+
+            result = await get_action(invocation_id="abc-123")
+        assert result["action"][0]["target_label"] == "//pkg:test"
+
+
+class TestGetFile:
+    @pytest.mark.asyncio
+    async def test_returns_file_data(self, mock_response):
+        expected = {"data": "file contents here"}
+
+        with patch("services.buildbuddy_mcp.app.main._post", new_callable=AsyncMock, return_value=expected):
+            from services.buildbuddy_mcp.app.main import get_file
+
+            result = await get_file(uri="bytestream://example/blobs/sha256/abc/123")
+        assert result["data"] == "file contents here"

@@ -99,6 +99,45 @@ async def get_target(
     return await _post("/GetTarget", body)
 
 
+@mcp.tool
+async def get_action(
+    invocation_id: str,
+    target_id: str | None = None,
+    configuration_id: str | None = None,
+    action_id: str | None = None,
+    target_label: str | None = None,
+    page_token: str | None = None,
+) -> dict:
+    """Get actions for a target in an invocation.
+
+    Returns action details including test shard, run, and attempt info,
+    plus file references (test logs, outputs) with bytestream URIs.
+    """
+    selector: dict = {"invocation_id": invocation_id}
+    if target_id:
+        selector["target_id"] = target_id
+    if configuration_id:
+        selector["configuration_id"] = configuration_id
+    if action_id:
+        selector["action_id"] = action_id
+    if target_label:
+        selector["target_label"] = target_label
+    body: dict = {"selector": selector}
+    if page_token:
+        body["page_token"] = page_token
+    return await _post("/GetAction", body)
+
+
+@mcp.tool
+async def get_file(uri: str) -> dict:
+    """Download a file by its bytestream URI.
+
+    Use URIs from get_action file references. Supports ZSTD-compressed
+    variants (append /compressed-blobs/zstd/ to URI).
+    """
+    return await _post("/GetFile", {"uri": uri})
+
+
 def main():
     mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
