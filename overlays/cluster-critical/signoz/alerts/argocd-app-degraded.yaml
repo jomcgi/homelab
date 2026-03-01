@@ -15,6 +15,7 @@ data:
       "alert": "ArgoCD App Degraded",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
+      "version": "v5",
       "broadcastToAll": false,
       "disabled": false,
       "evalWindow": "5m0s",
@@ -30,36 +31,71 @@ data:
       },
       "condition": {
         "compositeQuery": {
-          "builderQueries": {
-            "A": {
-              "queryName": "A",
-              "dataSource": "metrics",
-              "aggregateOperator": "count",
-              "aggregateAttribute": {
-                "key": "argocd_app_info",
-                "dataType": "float64",
-                "type": "Gauge"
-              },
-              "filters": {
-                "items": [
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "metrics",
+                "stepInterval": 60,
+                "aggregations": [
                   {
-                    "key": {"key": "health_status"},
-                    "op": "=",
-                    "value": "Degraded"
+                    "timeAggregation": "count",
+                    "spaceAggregation": "sum",
+                    "metricName": "argocd_app_info"
                   }
-                ]
-              },
-              "groupBy": [
-                {"key": "name"},
-                {"key": "namespace"}
-              ]
+                ],
+                "filters": {
+                  "items": [
+                    {
+                      "key": {
+                        "key": "health_status",
+                        "dataType": "string",
+                        "type": "tag",
+                        "isColumn": false
+                      },
+                      "op": "=",
+                      "value": "Degraded"
+                    }
+                  ],
+                  "op": "AND"
+                },
+                "groupBy": [
+                  {
+                    "name": "name",
+                    "dataType": "string",
+                    "type": "tag",
+                    "isColumn": false
+                  },
+                  {
+                    "name": "namespace",
+                    "dataType": "string",
+                    "type": "tag",
+                    "isColumn": false
+                  }
+                ],
+                "order": [],
+                "disabled": false
+              }
             }
-          },
+          ],
+          "panelType": "graph",
           "queryType": "builder"
         },
-        "op": ">",
-        "target": 0,
-        "matchType": "1"
+        "selectedQueryName": "A",
+        "thresholds": {
+          "kind": "basic",
+          "spec": [
+            {
+              "name": "warning",
+              "target": 0,
+              "targetUnit": "",
+              "matchType": "1",
+              "op": ">",
+              "channels": ["pagerduty-homelab"]
+            }
+          ]
+        }
       },
       "preferredChannels": ["pagerduty-homelab"]
     }

@@ -15,6 +15,7 @@ data:
       "alert": "Node PID Pressure",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
+      "version": "v5",
       "broadcastToAll": false,
       "disabled": false,
       "evalWindow": "5m0s",
@@ -30,29 +31,54 @@ data:
       },
       "condition": {
         "compositeQuery": {
-          "builderQueries": {
-            "A": {
-              "queryName": "A",
-              "dataSource": "metrics",
-              "aggregateOperator": "max",
-              "aggregateAttribute": {
-                "key": "k8s.node.condition_pid_pressure",
-                "dataType": "float64",
-                "type": "Gauge"
-              },
-              "filters": {
-                "items": []
-              },
-              "groupBy": [
-                {"key": "k8s.node.name"}
-              ]
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "metrics",
+                "stepInterval": 60,
+                "aggregations": [
+                  {
+                    "timeAggregation": "max",
+                    "spaceAggregation": "max",
+                    "metricName": "k8s.node.condition_pid_pressure"
+                  }
+                ],
+                "filters": {
+                  "items": [],
+                  "op": "AND"
+                },
+                "groupBy": [
+                  {
+                    "name": "k8s.node.name",
+                    "dataType": "string",
+                    "type": "resource",
+                    "isColumn": false
+                  }
+                ],
+                "order": [],
+                "disabled": false
+              }
             }
-          },
+          ],
+          "panelType": "graph",
           "queryType": "builder"
         },
-        "op": ">",
-        "target": 0,
-        "matchType": "3"
+        "selectedQueryName": "A",
+        "thresholds": {
+          "kind": "basic",
+          "spec": [
+            {
+              "name": "warning",
+              "target": 0,
+              "targetUnit": "",
+              "matchType": "3",
+              "op": ">",
+              "channels": ["pagerduty-homelab"]
+            }
+          ]
+        }
       },
       "preferredChannels": ["pagerduty-homelab"]
     }
