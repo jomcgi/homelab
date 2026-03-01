@@ -1,0 +1,66 @@
+{{- range .Values.servers }}
+{{- if and .alert .alert.enabled }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .name }}-httpcheck-alert
+  labels:
+    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart) | nindent 4 }}
+    signoz.io/alert: "true"
+  annotations:
+    signoz.io/alert-name: {{ printf "%s Unreachable" .name | quote }}
+    signoz.io/severity: {{ .alert.severity | default $.Values.alertDefaults.severity | quote }}
+    signoz.io/notification-channels: {{ join "," (.alert.channels | default $.Values.alertDefaults.channels) | quote }}
+data:
+  alert.json: |
+    {
+      "alert": {{ printf "%s Unreachable" .name | quote }},
+      "alertType": "METRICS_BASED_ALERT",
+      "ruleType": "threshold_rule",
+      "broadcastToAll": false,
+      "disabled": false,
+      "evalWindow": {{ .alert.evalWindow | default $.Values.alertDefaults.evalWindow | quote }},
+      "frequency": {{ .alert.frequency | default $.Values.alertDefaults.frequency | quote }},
+      "severity": {{ .alert.severity | default $.Values.alertDefaults.severity | quote }},
+      "labels": {
+        "service": {{ .name | quote }},
+        "environment": "production"
+      },
+      "annotations": {
+        "summary": {{ printf "%s at %s is unreachable" .name .alert.url | quote }},
+        "description": "HTTP health check has failed {{ $.Values.alertDefaults.matchType }} consecutive times. Service may be down."
+      },
+      "condition": {
+        "compositeQuery": {
+          "builderQueries": {
+            "A": {
+              "queryName": "A",
+              "dataSource": "metrics",
+              "aggregateOperator": "avg",
+              "aggregateAttribute": {
+                "key": "httpcheck.status",
+                "dataType": "float64",
+                "type": "Gauge"
+              },
+              "filters": {
+                "items": [
+                  {
+                    "key": {"key": "http.url"},
+                    "op": "=",
+                    "value": {{ .alert.url | quote }}
+                  }
+                ]
+              }
+            }
+          },
+          "queryType": "builder"
+        },
+        "op": "<",
+        "target": 1,
+        "matchType": {{ $.Values.alertDefaults.matchType | quote }}
+      },
+      "preferredChannels": {{ .alert.channels | default $.Values.alertDefaults.channels | toJson }}
+    }
+{{- end }}
+{{- end }}
