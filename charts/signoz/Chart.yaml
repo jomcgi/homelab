@@ -3,13 +3,13 @@ name: signoz
 description: A Helm chart wrapper for SigNoz
 type: application
 version: 0.1.0
-appVersion: "0.92.0"
+appVersion: "0.113.0"
 dependencies:
   - name: signoz
-    version: 0.92.0
+    version: 0.113.0
     repository: https://charts.signoz.io
   - name: k8s-infra
-    version: 0.14.1
+    version: 0.15.0
     repository: https://charts.signoz.io
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
