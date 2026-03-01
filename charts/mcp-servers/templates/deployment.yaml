@@ -23,7 +23,7 @@ spec:
         seccompProfile:
           type: RuntimeDefault
       containers:
-        {{- if .translate.enabled }}
+        {{- if and .translate .translate.enabled }}
         - name: server
           image: "{{ .image.repository }}:{{ .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}

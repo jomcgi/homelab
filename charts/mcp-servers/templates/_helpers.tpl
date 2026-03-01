@@ -21,7 +21,7 @@ Effective port for a server (translate port if enabled, otherwise server port).
 Usage: {{ include "mcp-servers.port" $server }}
 */}}
 {{- define "mcp-servers.port" -}}
-{{- if .translate.enabled -}}
+{{- if and .translate .translate.enabled -}}
 {{- .translate.port | default 8080 -}}
 {{- else -}}
 {{- .port -}}
