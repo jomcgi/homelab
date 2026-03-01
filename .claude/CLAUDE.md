@@ -71,6 +71,8 @@ Examples:
 
 Breaking changes: add `!` after type/scope — `feat!: redesign auth token format`
 
+**Plan & design files:** The brainstorming and writing-plans skills save to `docs/plans/`. Create a worktree **before** saving any plan or design documents — they must land on the feature branch, not main. A PreToolUse hook enforces this.
+
 ## Context Loading Rules
 
 - **Security changes**: Read `architecture/security.md` FIRST
