@@ -17,9 +17,47 @@ class Settings(BaseSettings):
 
 mcp = FastMCP("BuildBuddy")
 
+settings = Settings()
+
+_client = httpx.AsyncClient(
+    base_url=f"{settings.url}/api/v1",
+    headers={
+        "x-buildbuddy-api-key": settings.api_key,
+        "Content-Type": "application/json",
+    },
+)
+
+
+async def _post(endpoint: str, body: dict) -> dict:
+    """POST to a BuildBuddy API endpoint and return parsed JSON."""
+    resp = await _client.post(endpoint, json=body)
+    resp.raise_for_status()
+    return resp.json()
+
+
+@mcp.tool
+async def get_invocation(
+    invocation_id: str | None = None,
+    commit_sha: str | None = None,
+    page_token: str | None = None,
+) -> dict:
+    """Get build invocation details by invocation ID or commit SHA.
+
+    Returns build metadata including success status, duration, command,
+    repo URL, branch, and bazel exit code.
+    """
+    selector = {}
+    if invocation_id:
+        selector["invocation_id"] = invocation_id
+    if commit_sha:
+        selector["commit_sha"] = commit_sha
+    body: dict = {"selector": selector}
+    if page_token:
+        body["page_token"] = page_token
+    return await _post("/GetInvocation", body)
+
 
 def main():
-    settings = Settings()
     mcp.run(transport="http", host="0.0.0.0", port=settings.port)
 
 
