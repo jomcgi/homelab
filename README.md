@@ -1,6 +1,6 @@
 # Homelab
 
-Personal monorepo. The goal is to make shipping a new service as low-friction as possible — push code, get a secure, observable deployment without thinking about certificates, tracing, or image pipelines. One way to build, deploy, and ship — reused everywhere.
+Personal monorepo. The goal is to make shipping a new service as low-friction as possible — so that I can bring my ideas into contact with reality.
 
 ## Tooling
 
