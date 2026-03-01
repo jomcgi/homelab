@@ -73,8 +73,8 @@ data:
               "name": "warning",
               "target": 1,
               "targetUnit": "",
-              "matchType": "15",
-              "op": "=",
+              "matchType": "5",
+              "op": "3",
               "channels": ["pagerduty-homelab"]
             }
           ]
