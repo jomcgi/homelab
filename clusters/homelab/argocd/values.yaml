@@ -55,6 +55,9 @@ argo-cd:
       limits:
         cpu: 125m
         memory: 512Mi
+    livenessProbe:
+      timeoutSeconds: 5
+      failureThreshold: 5
     topologySpreadConstraints:
       - maxSkew: 1
         topologyKey: kubernetes.io/hostname
