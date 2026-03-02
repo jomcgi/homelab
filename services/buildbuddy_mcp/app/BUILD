@@ -6,6 +6,7 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
+        ":app",
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
@@ -16,6 +17,7 @@ py_library(
     name = "app",
     srcs = [
         "__init__.py",
+        "composite.py",
         "main.py",
     ],
     visibility = ["//:__subpackages__"],
