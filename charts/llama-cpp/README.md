@@ -42,20 +42,20 @@ Key design decisions:
 
 ## Configuration
 
-| Value | Description | Default |
-| --- | --- | --- |
-| `image.tag` | llama.cpp server image tag | `server-cuda` |
-| `modelVolume.enabled` | Mount model from OCI image volume | `false` |
-| `modelVolume.reference` | OCI image reference containing GGUF model | `""` |
-| `server.modelPath` | Explicit model path (empty = auto-discover) | `""` |
-| `server.nGpuLayers` | GPU layers to offload (-1 = all) | `99` |
-| `server.ctxSize` | Context window size in tokens | `32768` |
-| `server.flashAttn` | Flash attention mode (`on`/`off`/`auto`) | `"on"` |
-| `server.cacheTypeK` | KV cache quantization for keys | `"q8_0"` |
-| `server.cacheTypeV` | KV cache quantization for values | `"q4_0"` |
-| `server.threads` | Number of CPU threads | `8` |
-| `server.chatTemplate` | Jinja chat template override (creates ConfigMap) | `""` |
-| `runtimeClassName` | Kubernetes RuntimeClass for GPU access | `nvidia` |
+| Value                   | Description                                      | Default       |
+| ----------------------- | ------------------------------------------------ | ------------- |
+| `image.tag`             | llama.cpp server image tag                       | `server-cuda` |
+| `modelVolume.enabled`   | Mount model from OCI image volume                | `false`       |
+| `modelVolume.reference` | OCI image reference containing GGUF model        | `""`          |
+| `server.modelPath`      | Explicit model path (empty = auto-discover)      | `""`          |
+| `server.nGpuLayers`     | GPU layers to offload (-1 = all)                 | `99`          |
+| `server.ctxSize`        | Context window size in tokens                    | `32768`       |
+| `server.flashAttn`      | Flash attention mode (`on`/`off`/`auto`)         | `"on"`        |
+| `server.cacheTypeK`     | KV cache quantization for keys                   | `"q8_0"`      |
+| `server.cacheTypeV`     | KV cache quantization for values                 | `"q4_0"`      |
+| `server.threads`        | Number of CPU threads                            | `8`           |
+| `server.chatTemplate`   | Jinja chat template override (creates ConfigMap) | `""`          |
+| `runtimeClassName`      | Kubernetes RuntimeClass for GPU access           | `nvidia`      |
 
 ## Usage
 

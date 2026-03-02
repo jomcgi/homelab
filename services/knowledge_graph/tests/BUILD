@@ -7,8 +7,6 @@ load("//tools/pytest:defs.bzl", "py_test")
 # gazelle:resolve py services.knowledge_graph.app.storage //services/knowledge_graph/app:storage
 # gazelle:resolve py services.knowledge_graph.app.notifications //services/knowledge_graph/app:notifications
 # gazelle:resolve py services.knowledge_graph.app.qdrant_client //services/knowledge_graph/app:qdrant_client
-# gazelle:resolve py services.knowledge_graph.app.scraper_main //services/knowledge_graph/app:scraper_main
-# gazelle:resolve py services.knowledge_graph.app.mcp_main //services/knowledge_graph/app:mcp_main
 # gazelle:resolve py services.knowledge_graph.app.extractors.base //services/knowledge_graph/app/extractors:base
 # gazelle:resolve py services.knowledge_graph.app.extractors.html_extractor //services/knowledge_graph/app/extractors:html_extractor
 # gazelle:resolve py services.knowledge_graph.app.extractors.feed_extractor //services/knowledge_graph/app/extractors:feed_extractor
@@ -95,7 +93,8 @@ py_test(
     srcs = ["scraper_main_test.py"],
     deps = [
         ":conftest",
-        "//services/knowledge_graph/app:scraper_main",
+        "//services/knowledge_graph/app",
+        "//services/knowledge_graph/app:scraper_main",  # keep
         "@pip//httpx",
         "@pip//pytest",
         "@pip//pyyaml",
@@ -107,7 +106,8 @@ py_test(
     srcs = ["mcp_main_test.py"],
     deps = [
         ":conftest",
-        "//services/knowledge_graph/app:mcp_main",
+        "//services/knowledge_graph/app",
+        "//services/knowledge_graph/app:mcp_main",  # keep
         "@pip//httpx",
         "@pip//pytest",
     ],

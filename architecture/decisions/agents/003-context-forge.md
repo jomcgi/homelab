@@ -24,13 +24,13 @@ Deploy IBM MCP Context Forge (Apache 2.0) as a single in-cluster gateway that wr
 
 ### Before and After
 
-| Aspect | Today | With Context Forge |
-|--------|-------|-------------------|
-| SigNoz access | Custom MCP binary + orphaned permissions | `signoz.query_logs({service: "trips", severity: "ERROR"})` |
-| ArgoCD access | `argocd app get` via Bash pattern | `argocd.get_application({name: "trips"})` |
-| Cloudflare auth | Per-MCP-server workaround needed | Gateway handles it once, backends are cluster-internal |
-| Remote agent access | Not possible (stdio only) | HTTP transport, any agent in or outside cluster |
-| New tool provisioning | Build MCP server + add Bash patterns | Register API endpoint in gateway config |
+| Aspect                | Today                                    | With Context Forge                                         |
+| --------------------- | ---------------------------------------- | ---------------------------------------------------------- |
+| SigNoz access         | Custom MCP binary + orphaned permissions | `signoz.query_logs({service: "trips", severity: "ERROR"})` |
+| ArgoCD access         | `argocd app get` via Bash pattern        | `argocd.get_application({name: "trips"})`                  |
+| Cloudflare auth       | Per-MCP-server workaround needed         | Gateway handles it once, backends are cluster-internal     |
+| Remote agent access   | Not possible (stdio only)                | HTTP transport, any agent in or outside cluster            |
+| New tool provisioning | Build MCP server + add Bash patterns     | Register API endpoint in gateway config                    |
 
 ---
 
@@ -152,21 +152,21 @@ Deploy Context Forge with two backends — the two services agents query most fr
 
 **SigNoz** (read-only):
 
-| Tool | Backend Endpoint | Purpose |
-|------|-----------------|---------|
-| `signoz.list_services` | `GET /api/v1/services` | Discover services |
-| `signoz.search_logs` | `POST /api/v3/query_range` | Query logs by service/severity |
-| `signoz.search_traces` | `POST /api/v3/query_range` | Find traces by service/error/duration |
-| `signoz.get_trace` | `GET /api/v1/traces/{traceId}` | Full trace with spans |
-| `signoz.list_alerts` | `GET /api/v1/rules` | Active alert rules |
+| Tool                   | Backend Endpoint               | Purpose                               |
+| ---------------------- | ------------------------------ | ------------------------------------- |
+| `signoz.list_services` | `GET /api/v1/services`         | Discover services                     |
+| `signoz.search_logs`   | `POST /api/v3/query_range`     | Query logs by service/severity        |
+| `signoz.search_traces` | `POST /api/v3/query_range`     | Find traces by service/error/duration |
+| `signoz.get_trace`     | `GET /api/v1/traces/{traceId}` | Full trace with spans                 |
+| `signoz.list_alerts`   | `GET /api/v1/rules`            | Active alert rules                    |
 
 **ArgoCD** (read-only):
 
-| Tool | Backend Endpoint | Purpose |
-|------|-----------------|---------|
-| `argocd.list_applications` | `GET /api/v1/applications` | All managed apps |
-| `argocd.get_application` | `GET /api/v1/applications/{name}` | App status, sync state, health |
-| `argocd.get_app_history` | `GET /api/v1/applications/{name}/history` | Deployment history |
+| Tool                       | Backend Endpoint                          | Purpose                        |
+| -------------------------- | ----------------------------------------- | ------------------------------ |
+| `argocd.list_applications` | `GET /api/v1/applications`                | All managed apps               |
+| `argocd.get_application`   | `GET /api/v1/applications/{name}`         | App status, sync state, health |
+| `argocd.get_app_history`   | `GET /api/v1/applications/{name}/history` | Deployment history             |
 
 ### MVP Constraints
 
@@ -254,12 +254,12 @@ None. This deployment follows all five layers from `architecture/security.md`:
 
 ## Risks
 
-| Risk | Mitigation |
-|------|-----------|
-| **Gateway SPOF** — pod failure blocks all MCP tool access | Single replica acceptable for homelab. Agents fall back to direct CLI/Bash patterns if gateway is down. Add PDB if promoting to multi-replica. |
-| **Upstream maturity** — no GA `1.0.0` yet | Pin to specific release tag. 30-day checkpoint: if upstream goes dormant, the gateway config is portable — backends are standard REST APIs that any MCP server can wrap. |
-| **SSRF via registered endpoints** — attacker-controlled input reaches backend APIs | Read-only endpoints only. SSRF allowlist restricts to cluster CIDRs. Gateway validates request schemas before forwarding. |
-| **Credential exposure** — gateway pod compromise exposes backend tokens | Tokens are read-only scoped. Rotate via 1Password. Pod runs with standard security context (non-root, read-only fs, no privilege escalation). |
+| Risk                                                                               | Mitigation                                                                                                                                                               |
+| ---------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Gateway SPOF** — pod failure blocks all MCP tool access                          | Single replica acceptable for homelab. Agents fall back to direct CLI/Bash patterns if gateway is down. Add PDB if promoting to multi-replica.                           |
+| **Upstream maturity** — no GA `1.0.0` yet                                          | Pin to specific release tag. 30-day checkpoint: if upstream goes dormant, the gateway config is portable — backends are standard REST APIs that any MCP server can wrap. |
+| **SSRF via registered endpoints** — attacker-controlled input reaches backend APIs | Read-only endpoints only. SSRF allowlist restricts to cluster CIDRs. Gateway validates request schemas before forwarding.                                                |
+| **Credential exposure** — gateway pod compromise exposes backend tokens            | Tokens are read-only scoped. Rotate via 1Password. Pod runs with standard security context (non-root, read-only fs, no privilege escalation).                            |
 
 ---
 
@@ -303,12 +303,12 @@ None. This deployment follows all five layers from `architecture/security.md`:
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
-| [IBM MCP Context Forge](https://github.com/IBM/mcp-context-forge) | Gateway source, Apache 2.0 |
-| [Cloudflare Service Tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/) | Service token creation and scoping |
-| [Claude Code MCP Configuration](https://docs.anthropic.com/en/docs/claude-code/mcp) | `.mcp.json` format, `headers` field, env var expansion |
-| [SigNoz API docs](https://signoz.io/docs/developers/query-service/) | Backend API surface for virtual tool registration |
-| [ArgoCD API docs](https://cd.apps.argoproj.io/swagger-ui) | Backend API surface for virtual tool registration |
-| [architecture/security.md](../../security.md) | Cluster security model (this RFC is fully compliant) |
-| [architecture/rfcs/openhands-agent-sandbox.md](openhands-agent-sandbox.md) | OpenHands sandbox architecture (in-cluster agent consumer of this gateway) |
+| Resource                                                                                                                          | Relevance                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [IBM MCP Context Forge](https://github.com/IBM/mcp-context-forge)                                                                 | Gateway source, Apache 2.0                                                 |
+| [Cloudflare Service Tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/) | Service token creation and scoping                                         |
+| [Claude Code MCP Configuration](https://docs.anthropic.com/en/docs/claude-code/mcp)                                               | `.mcp.json` format, `headers` field, env var expansion                     |
+| [SigNoz API docs](https://signoz.io/docs/developers/query-service/)                                                               | Backend API surface for virtual tool registration                          |
+| [ArgoCD API docs](https://cd.apps.argoproj.io/swagger-ui)                                                                         | Backend API surface for virtual tool registration                          |
+| [architecture/security.md](../../security.md)                                                                                     | Cluster security model (this RFC is fully compliant)                       |
+| [architecture/rfcs/openhands-agent-sandbox.md](openhands-agent-sandbox.md)                                                        | OpenHands sandbox architecture (in-cluster agent consumer of this gateway) |

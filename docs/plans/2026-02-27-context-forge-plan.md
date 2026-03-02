@@ -17,6 +17,7 @@
 ### Task 1: Vendor SigNoz MCP server source
 
 **Files:**
+
 - Create: `services/signoz_mcp_server/` (vendored Go source)
 
 **Step 1: Clone and copy source**
@@ -53,6 +54,7 @@ Understand the module path (likely `github.com/SigNoz/signoz-mcp-server`) and pa
 Two approaches depending on complexity:
 
 **Approach A (preferred): Re-module under root go.mod**
+
 - Rewrite import paths from `github.com/SigNoz/signoz-mcp-server` → `github.com/jomcgi/homelab/services/signoz_mcp_server` in all `.go` files
 - Merge external dependencies into root `go.mod` via `go get`
 - Run `go mod tidy`
@@ -79,6 +81,7 @@ go_deps.from_file(go_mod = "//services/signoz_mcp_server:go.mod")
 ```
 
 Add gazelle directive to `services/signoz_mcp_server/BUILD`:
+
 ```starlark
 # gazelle:prefix github.com/SigNoz/signoz-mcp-server
 ```
@@ -118,6 +121,7 @@ git commit -m "feat: vendor SigNoz MCP server source for Bazel build"
 ### Task 2: Build SigNoz MCP Go image
 
 **Files:**
+
 - Create: `services/signoz_mcp_server/BUILD` (go_image)
 - Modify: `images/BUILD` (add to push_all)
 
@@ -164,6 +168,7 @@ git commit -m "feat: add SigNoz MCP server container image build"
 ### Task 3: Create Helm chart scaffold
 
 **Files:**
+
 - Create: `charts/context-forge/Chart.yaml`
 - Create: `charts/context-forge/values.yaml`
 - Create: `charts/context-forge/templates/_helpers.tpl`
@@ -232,7 +237,7 @@ secret:
   itemPath: "vaults/k8s-homelab/items/context-forge"
 ```
 
-**Step 3: Create _helpers.tpl**
+**Step 3: Create \_helpers.tpl**
 
 Create `charts/context-forge/templates/_helpers.tpl`:
 
@@ -300,6 +305,7 @@ git commit -m "feat: add Context Forge Helm chart scaffold"
 ### Task 4: Create deployment template
 
 **Files:**
+
 - Create: `charts/context-forge/templates/deployment.yaml`
 
 **Step 1: Create deployment.yaml**
@@ -446,6 +452,7 @@ git commit -m "feat: add Context Forge deployment template with sidecar"
 ### Task 5: Create service, configmap, and secret templates
 
 **Files:**
+
 - Create: `charts/context-forge/templates/service.yaml`
 - Create: `charts/context-forge/templates/configmap.yaml`
 - Create: `charts/context-forge/templates/onepassworditem.yaml`
@@ -458,18 +465,16 @@ Create `charts/context-forge/templates/service.yaml`:
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "context-forge.fullname" . }}
-  labels:
-    {{- include "context-forge.labels" . | nindent 4 }}
+  name: { { include "context-forge.fullname" . } }
+  labels: { { - include "context-forge.labels" . | nindent 4 } }
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.gateway.port }}
+    - port: { { .Values.gateway.port } }
       targetPort: http
       protocol: TCP
       name: http
-  selector:
-    {{- include "context-forge.selectorLabels" . | nindent 4 }}
+  selector: { { - include "context-forge.selectorLabels" . | nindent 4 } }
 ```
 
 **Step 2: Create configmap.yaml**
@@ -520,11 +525,10 @@ Create `charts/context-forge/templates/onepassworditem.yaml`:
 apiVersion: onepassword.com/v1
 kind: OnePasswordItem
 metadata:
-  name: {{ .Values.secret.name }}
-  labels:
-    {{- include "context-forge.labels" . | nindent 4 }}
+  name: { { .Values.secret.name } }
+  labels: { { - include "context-forge.labels" . | nindent 4 } }
 spec:
-  itemPath: {{ .Values.secret.itemPath | quote }}
+  itemPath: { { .Values.secret.itemPath | quote } }
 ```
 
 **Step 4: Verify full chart renders**
@@ -547,6 +551,7 @@ git commit -m "feat: add Context Forge service, configmap, and secret templates"
 ### Task 6: Create ArgoCD overlay
 
 **Files:**
+
 - Create: `overlays/prod/context-forge/application.yaml`
 - Create: `overlays/prod/context-forge/kustomization.yaml`
 - Create: `overlays/prod/context-forge/values.yaml`
@@ -641,6 +646,7 @@ git commit -m "feat: add Context Forge ArgoCD application overlay"
 ### Task 7: Add Cloudflare tunnel route
 
 **Files:**
+
 - Modify: `overlays/prod/cloudflare-tunnel/values.yaml`
 
 **Step 1: Add mcp.jomcgi.dev route**

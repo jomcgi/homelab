@@ -34,12 +34,12 @@ Authentication credentials are stored in a Kubernetes Secret managed by the 1Pas
 
 ## Configuration
 
-| Value | Description | Default |
-| ----- | ----------- | ------- |
-| `secret.type` | Secret provider (`onepassword` or `manual`) | `onepassword` |
-| `secret.onepassword.itemPath` | 1Password vault path for GitHub PAT | `vaults/k8s-homelab/items/gh-arc` |
-| `gha-runner-scale-set-controller.replicaCount` | Controller replicas | `1` |
-| `gha-runner-scale-set-controller.resources.limits.cpu` | CPU limit | `500m` |
-| `gha-runner-scale-set-controller.resources.limits.memory` | Memory limit | `512Mi` |
-| `gha-runner-scale-set-controller.metrics.controllerManagerAddr` | Metrics listen address | `:8080` |
-| `gha-runner-scale-set-controller.serviceAccount.name` | Controller service account name | `arc-controller` |
+| Value                                                           | Description                                 | Default                           |
+| --------------------------------------------------------------- | ------------------------------------------- | --------------------------------- |
+| `secret.type`                                                   | Secret provider (`onepassword` or `manual`) | `onepassword`                     |
+| `secret.onepassword.itemPath`                                   | 1Password vault path for GitHub PAT         | `vaults/k8s-homelab/items/gh-arc` |
+| `gha-runner-scale-set-controller.replicaCount`                  | Controller replicas                         | `1`                               |
+| `gha-runner-scale-set-controller.resources.limits.cpu`          | CPU limit                                   | `500m`                            |
+| `gha-runner-scale-set-controller.resources.limits.memory`       | Memory limit                                | `512Mi`                           |
+| `gha-runner-scale-set-controller.metrics.controllerManagerAddr` | Metrics listen address                      | `:8080`                           |
+| `gha-runner-scale-set-controller.serviceAccount.name`           | Controller service account name             | `arc-controller`                  |

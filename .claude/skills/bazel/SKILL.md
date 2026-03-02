@@ -10,6 +10,7 @@ description: Use when building code, formatting files, rendering manifests, push
 This repo uses the **BuildBuddy CLI (`bb`)** as its Bazel launcher. Shell aliases route `bazel` and `bazelisk` to `bb`, so all three commands are interchangeable. The `.bazelversion` file pins BuildBuddy CLI 5.0.321 + Bazel 9.0.0.
 
 The `bb` CLI wraps Bazelisk and adds:
+
 - **Local gRPC proxy** for remote cache/BES — handles retries and buffering transparently
 - **`bb login`** for easy BuildBuddy authentication (no manual `--remote_header` needed)
 - **Plugin support** for extending the build system
@@ -78,16 +79,16 @@ bazel query "deps(//charts/todo/image:image)"
 
 ## Key Targets
 
-| Target                        | Description                    |
-| ----------------------------- | ------------------------------ |
+| Target                      | Description                    |
+| --------------------------- | ------------------------------ |
 | `//charts/todo/image:image` | Todo container image           |
 | `//charts/todo/image:push`  | Push Todo image to registry    |
-| `//tools/format:format`       | Format + render all            |
-| `//tools:help`                | List all available targets     |
-| `//tools/cluster:pods`        | List pods in key namespaces    |
-| `//tools/cluster:events`      | Recent cluster events          |
-| `//tools/cluster:status`      | Cluster health summary         |
-| `//tools/cluster:argocd`      | ArgoCD application sync status |
+| `//tools/format:format`     | Format + render all            |
+| `//tools:help`              | List all available targets     |
+| `//tools/cluster:pods`      | List pods in key namespaces    |
+| `//tools/cluster:events`    | Recent cluster events          |
+| `//tools/cluster:status`    | Cluster health summary         |
+| `//tools/cluster:argocd`    | ArgoCD application sync status |
 
 ### Cluster Inspection (Read-Only)
 

@@ -39,16 +39,16 @@ When the API has 2+ replicas, pod anti-affinity spreads them across nodes and a 
 
 ## Configuration
 
-| Value                   | Description                                | Default                              |
-| ----------------------- | ------------------------------------------ | ------------------------------------ |
-| `seaweedfs.endpoint`    | SeaweedFS S3 endpoint URL                  | `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333` |
-| `nats.url`              | NATS server URL                            | `nats://nats.nats.svc.cluster.local:4222` |
-| `bucket`                | S3 bucket name for images                  | `trips`                              |
-| `imgproxy.replicas`     | Number of imgproxy replicas                | `2`                                  |
-| `imgproxy.config.quality` | Default JPEG quality                     | `90`                                 |
-| `api.replicas`          | Number of API replicas (2+ enables HA)     | `1`                                  |
-| `api.corsOrigins`       | Allowed CORS origins (comma-separated)     | `https://trips.jomcgi.dev,...`       |
-| `api.auth.secretName`   | Secret containing upload API key           | `trips-api-key`                      |
+| Value                     | Description                            | Default                                                |
+| ------------------------- | -------------------------------------- | ------------------------------------------------------ |
+| `seaweedfs.endpoint`      | SeaweedFS S3 endpoint URL              | `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333` |
+| `nats.url`                | NATS server URL                        | `nats://nats.nats.svc.cluster.local:4222`              |
+| `bucket`                  | S3 bucket name for images              | `trips`                                                |
+| `imgproxy.replicas`       | Number of imgproxy replicas            | `2`                                                    |
+| `imgproxy.config.quality` | Default JPEG quality                   | `90`                                                   |
+| `api.replicas`            | Number of API replicas (2+ enables HA) | `1`                                                    |
+| `api.corsOrigins`         | Allowed CORS origins (comma-separated) | `https://trips.jomcgi.dev,...`                         |
+| `api.auth.secretName`     | Secret containing upload API key       | `trips-api-key`                                        |
 
 ## Usage
 

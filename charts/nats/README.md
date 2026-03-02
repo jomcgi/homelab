@@ -39,18 +39,18 @@ Clustering is disabled -- this is a single-node NATS deployment suitable for a h
 
 ## Configuration
 
-| Value | Description | Default |
-| --- | --- | --- |
-| `nats.container.image.tag` | NATS server image tag | `"2.10.24-alpine"` |
-| `nats.config.jetstream.enabled` | Enable JetStream persistent messaging | `true` |
-| `nats.config.jetstream.fileStore.pvc.size` | JetStream storage PVC size | `50Gi` |
-| `nats.config.jetstream.fileStore.pvc.storageClassName` | Storage class for JetStream data | `longhorn` |
-| `nats.config.cluster.enabled` | Enable NATS clustering | `false` |
-| `nats.config.monitor.port` | Server monitoring endpoint port | `8222` |
-| `nats.promExporter.enabled` | Enable Prometheus exporter sidecar | `true` |
-| `nats.promExporter.port` | Exporter metrics port | `7777` |
-| `nats.statefulSet.replicas` | Number of NATS server replicas | `1` |
-| `nats.service.ports.nats.port` | Client connection port | `4222` |
+| Value                                                  | Description                           | Default            |
+| ------------------------------------------------------ | ------------------------------------- | ------------------ |
+| `nats.container.image.tag`                             | NATS server image tag                 | `"2.10.24-alpine"` |
+| `nats.config.jetstream.enabled`                        | Enable JetStream persistent messaging | `true`             |
+| `nats.config.jetstream.fileStore.pvc.size`             | JetStream storage PVC size            | `50Gi`             |
+| `nats.config.jetstream.fileStore.pvc.storageClassName` | Storage class for JetStream data      | `longhorn`         |
+| `nats.config.cluster.enabled`                          | Enable NATS clustering                | `false`            |
+| `nats.config.monitor.port`                             | Server monitoring endpoint port       | `8222`             |
+| `nats.promExporter.enabled`                            | Enable Prometheus exporter sidecar    | `true`             |
+| `nats.promExporter.port`                               | Exporter metrics port                 | `7777`             |
+| `nats.statefulSet.replicas`                            | Number of NATS server replicas        | `1`                |
+| `nats.service.ports.nats.port`                         | Client connection port                | `4222`             |
 
 ## Connecting from Other Services
 
@@ -69,7 +69,7 @@ js, err := nc.JetStream()
 
 ## Resource Budgets
 
-| Component | CPU Request | Memory Request | CPU Limit | Memory Limit |
-| --- | --- | --- | --- | --- |
-| NATS Server | 50m | 64Mi | 500m | 512Mi |
-| Prometheus Exporter | 10m | 32Mi | 100m | 64Mi |
+| Component           | CPU Request | Memory Request | CPU Limit | Memory Limit |
+| ------------------- | ----------- | -------------- | --------- | ------------ |
+| NATS Server         | 50m         | 64Mi           | 500m      | 512Mi        |
+| Prometheus Exporter | 10m         | 32Mi           | 100m      | 64Mi         |

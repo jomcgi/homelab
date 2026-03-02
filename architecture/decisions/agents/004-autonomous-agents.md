@@ -34,27 +34,27 @@ Goose eliminates all of this. It runs directly inside a sandbox pod — no coord
 
 Five-layer architecture with clean separation of concerns:
 
-| Layer | Component | Responsibility |
-|-------|-----------|----------------|
-| **Sandbox lifecycle** | kubernetes-sigs/agent-sandbox | CRDs for pod management, warm pools, TTL cleanup |
-| **Agent execution** | Goose (Block) | MCP-native agent loop inside sandbox pods |
-| **LLM access** | LiteLLM + litellm-claude-code | Claude Max subscription proxy, OpenAI-compatible API |
-| **Cluster tooling** | Context Forge MCP gateway | Cluster-internal service access (SigNoz, ArgoCD, K8s API) |
-| **VM isolation** | Kata Containers + Firecracker | Hardware-enforced kernel isolation + snapshot warm starts (future) |
+| Layer                 | Component                     | Responsibility                                                     |
+| --------------------- | ----------------------------- | ------------------------------------------------------------------ |
+| **Sandbox lifecycle** | kubernetes-sigs/agent-sandbox | CRDs for pod management, warm pools, TTL cleanup                   |
+| **Agent execution**   | Goose (Block)                 | MCP-native agent loop inside sandbox pods                          |
+| **LLM access**        | LiteLLM + litellm-claude-code | Claude Max subscription proxy, OpenAI-compatible API               |
+| **Cluster tooling**   | Context Forge MCP gateway     | Cluster-internal service access (SigNoz, ArgoCD, K8s API)          |
+| **VM isolation**      | Kata Containers + Firecracker | Hardware-enforced kernel isolation + snapshot warm starts (future) |
 
 ### Before / After
 
-| Aspect | OpenHands (previous) | Goose + agent-sandbox (proposed) |
-|--------|---------------------|----------------------------------|
-| Agent framework | OpenHands agent-server | Goose |
-| Architecture | App server + adapter + sandbox pods | Sandbox pods only |
-| Sandbox lifecycle | Custom Go adapter → agent-sandbox CRDs | agent-sandbox CRDs directly |
-| LLM access | LiteLLM proxy (Claude Max) | LiteLLM proxy (Claude Max) — unchanged |
-| Tool access | Kyverno-injected image volumes | MCP servers (built-in + Context Forge) |
-| Cluster service access | Bash patterns / port-forwarding | Context Forge MCP gateway |
-| Web UI | OpenHands React SPA | None — CLI/script trigger |
-| Container images | Upstream OpenHands + custom tools image | Single apko-built Goose image |
-| VM isolation | Not planned | Kata/Firecracker (Phase 2) |
+| Aspect                 | OpenHands (previous)                    | Goose + agent-sandbox (proposed)       |
+| ---------------------- | --------------------------------------- | -------------------------------------- |
+| Agent framework        | OpenHands agent-server                  | Goose                                  |
+| Architecture           | App server + adapter + sandbox pods     | Sandbox pods only                      |
+| Sandbox lifecycle      | Custom Go adapter → agent-sandbox CRDs  | agent-sandbox CRDs directly            |
+| LLM access             | LiteLLM proxy (Claude Max)              | LiteLLM proxy (Claude Max) — unchanged |
+| Tool access            | Kyverno-injected image volumes          | MCP servers (built-in + Context Forge) |
+| Cluster service access | Bash patterns / port-forwarding         | Context Forge MCP gateway              |
+| Web UI                 | OpenHands React SPA                     | None — CLI/script trigger              |
+| Container images       | Upstream OpenHands + custom tools image | Single apko-built Goose image          |
+| VM isolation           | Not planned                             | Kata/Firecracker (Phase 2)             |
 
 ---
 
@@ -146,12 +146,12 @@ sequenceDiagram
 
 [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) (SIG Apps, Apache 2.0) provides purpose-built CRDs for managing isolated agent pods. It fills the gap between Deployments (stateless, replicated) and StatefulSets (numbered, stable) with a single stateful pod abstraction.
 
-| CRD | Purpose |
-|-----|---------|
-| `Sandbox` | Single-pod workload with PodTemplate, VolumeClaimTemplates, auto-delete lifecycle |
-| `SandboxTemplate` | Reusable pod definition — define the Goose image, resources, and env once |
-| `SandboxClaim` | Per-task request against a template or warm pool (created by trigger) |
-| `SandboxWarmPool` | Pre-warmed pods for near-instant allocation vs. cold scheduling |
+| CRD               | Purpose                                                                           |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `Sandbox`         | Single-pod workload with PodTemplate, VolumeClaimTemplates, auto-delete lifecycle |
+| `SandboxTemplate` | Reusable pod definition — define the Goose image, resources, and env once         |
+| `SandboxClaim`    | Per-task request against a template or warm pool (created by trigger)             |
+| `SandboxWarmPool` | Pre-warmed pods for near-instant allocation vs. cold scheduling                   |
 
 The controller reconciles the full stack: Pod, headless Service (stable FQDN), PVCs, lifecycle timers. Standard `controller-runtime` — crash-safe, declarative, survives restarts. No custom adapter needed — the trigger CLI creates `SandboxClaim` CRs directly.
 
@@ -166,22 +166,22 @@ metadata:
 spec:
   template:
     spec:
-      runtimeClassName: kata-fc          # Phase 2 — omit in Phase 1
+      runtimeClassName: kata-fc # Phase 2 — omit in Phase 1
       containers:
         - name: goose
           image: ghcr.io/jomcgi/homelab/goose-agent:latest
           command: ["/bin/sh", "-c"]
-          args: ["goose run --text \"$AGENT_TASK\" --profile sandbox"]
+          args: ['goose run --text "$AGENT_TASK" --profile sandbox']
           env:
             - name: GOOSE_PROVIDER
-              value: openai              # OpenAI-compatible (LiteLLM)
+              value: openai # OpenAI-compatible (LiteLLM)
             - name: OPENAI_BASE_URL
               value: http://litellm-claude-sdk.litellm.svc.cluster.local:4000/v1
             - name: OPENAI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: llm-creds
-                  key: litellm-api-key   # Dummy or master key
+                  key: litellm-api-key # Dummy or master key
             - name: GOOSE_MODEL
               value: claude-opus-4-6
             - name: GITHUB_TOKEN
@@ -222,7 +222,7 @@ metadata:
 spec:
   templateRef:
     name: goose-agent
-  size: 1                                # Start conservative — 1 warm pod
+  size: 1 # Start conservative — 1 warm pod
 ```
 
 #### Namespace Design
@@ -232,16 +232,16 @@ The `goose-sandboxes` namespace gets both a `LimitRange` (per-pod defaults) and 
 **LimitRange** (per-pod defaults):
 
 | Resource | Request | Limit |
-|----------|---------|-------|
-| CPU | 1 | 4 |
-| Memory | 2Gi | 8Gi |
+| -------- | ------- | ----- |
+| CPU      | 1       | 4     |
+| Memory   | 2Gi     | 8Gi   |
 
 **ResourceQuota** (namespace-wide):
 
-| Resource | Max |
-|----------|-----|
-| pods | 5 |
-| requests.cpu | 8 |
+| Resource        | Max  |
+| --------------- | ---- |
+| pods            | 5    |
+| requests.cpu    | 8    |
 | requests.memory | 16Gi |
 
 ---
@@ -254,25 +254,25 @@ Stripe's Minions system (1,000+ merged PRs/week) is built on a fork of Goose, de
 
 #### Why Goose Over OpenHands
 
-| Concern | OpenHands | Goose |
-|---------|-----------|-------|
-| Runtime model | App server coordinates separate sandbox pods | Agent runs directly in the pod |
-| Tool integration | Shell commands + custom injection | MCP-native — structured tool calls |
-| Adapter complexity | Custom Go adapter for RemoteSandboxService | None — SandboxClaim is the interface |
-| Image management | Upstream image + Kyverno-injected tools volume | Single image with everything baked in |
-| Cluster access | Bash patterns / port-forwarding | Context Forge MCP gateway |
+| Concern            | OpenHands                                      | Goose                                 |
+| ------------------ | ---------------------------------------------- | ------------------------------------- |
+| Runtime model      | App server coordinates separate sandbox pods   | Agent runs directly in the pod        |
+| Tool integration   | Shell commands + custom injection              | MCP-native — structured tool calls    |
+| Adapter complexity | Custom Go adapter for RemoteSandboxService     | None — SandboxClaim is the interface  |
+| Image management   | Upstream image + Kyverno-injected tools volume | Single image with everything baked in |
+| Cluster access     | Bash patterns / port-forwarding                | Context Forge MCP gateway             |
 
 #### Container Image
 
 The `goose-agent` image is built with apko (consistent with every other image in the repo), dual-arch (x86_64 + aarch64), non-root (uid 65532):
 
-| Component | Purpose |
-|-----------|---------|
-| Goose | Agent framework |
+| Component             | Purpose                                                            |
+| --------------------- | ------------------------------------------------------------------ |
+| Goose                 | Agent framework                                                    |
 | BuildBuddy CLI (`bb`) | Build + test via remote execution (aliased as `bazel`, `bazelisk`) |
-| Go | Build/test Go services and operators |
-| pnpm + Node.js | Build website frontend apps |
-| git + gh | Clone repos, create PRs |
+| Go                    | Build/test Go services and operators                               |
+| pnpm + Node.js        | Build website frontend apps                                        |
+| git + gh              | Clone repos, create PRs                                            |
 
 The image includes a `sandbox` profile for Goose that configures MCP servers for the homelab environment. The profile is baked into the image at build time.
 
@@ -280,11 +280,11 @@ The image includes a `sandbox` profile for Goose that configures MCP servers for
 
 Goose's `sandbox` profile wires up these MCP servers:
 
-| Server | Type | Purpose |
-|--------|------|---------|
-| `developer` | Built-in | Filesystem, shell, text editor (scoped to `/workspace`) |
+| Server          | Type             | Purpose                                                 |
+| --------------- | ---------------- | ------------------------------------------------------- |
+| `developer`     | Built-in         | Filesystem, shell, text editor (scoped to `/workspace`) |
 | `context-forge` | HTTP (ClusterIP) | Cluster services: SigNoz logs/traces, ArgoCD app status |
-| `github` | Built-in or MCP | PR creation, issue reading, code search |
+| `github`        | Built-in or MCP  | PR creation, issue reading, code search                 |
 
 The `developer` built-in provides filesystem, shell, and editor tools — Goose's equivalent of what OpenHands sandbox pods got from the runtime image. The key difference: these are structured MCP tool calls with proper schemas, not raw shell commands.
 
@@ -306,11 +306,11 @@ Goose (sandbox pod) → LiteLLM proxy (ClusterIP:4000) → Claude SDK → Claude
 
 **Multi-model support:** LiteLLM serves all Claude models through a single endpoint — the model is selected per-request. With flat-rate Max pricing, there's no cost penalty for defaulting to the most capable model.
 
-| Role | Model | Rationale |
-|------|-------|-----------|
-| Primary agent | `claude-opus-4-6` | Best reasoning for autonomous coding |
-| Fast tasks | `claude-sonnet-4-6` | Speed over depth for simpler tasks |
-| Condensation | `claude-sonnet-4-6` | Context compaction quality |
+| Role          | Model               | Rationale                            |
+| ------------- | ------------------- | ------------------------------------ |
+| Primary agent | `claude-opus-4-6`   | Best reasoning for autonomous coding |
+| Fast tasks    | `claude-sonnet-4-6` | Speed over depth for simpler tasks   |
+| Condensation  | `claude-sonnet-4-6` | Context compaction quality           |
 
 **Deployment:** The LiteLLM proxy runs as a Deployment + ClusterIP Service in its own namespace. No external ingress — only sandbox pods within the cluster reach it. No master key required for internal-only traffic.
 
@@ -325,6 +325,7 @@ Designed and deployed separately — see [003-context-forge](003-context-forge.m
 Context Forge (IBM, Apache 2.0) runs as a single in-cluster MCP gateway wrapping internal REST/HTTP APIs as virtual MCP tools. It solves the problem of agent access to cluster-internal services behind Cloudflare Zero Trust.
 
 For Goose sandbox pods, the connection is straightforward:
+
 - **Transport:** MCP over HTTP (streamable-HTTP)
 - **Endpoint:** `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`
 - **Auth:** None needed — ClusterIP is cluster-internal only
@@ -349,6 +350,7 @@ Install Kata Containers with the Firecracker VMM backend. Add `runtimeClassName:
 Firecracker's snapshot API captures full VM memory + disk state for later restore — enabling near-instantaneous warm starts from a pre-built baseline. This is how AWS Lambda SnapStart eliminates cold-start latency, and is directly applicable to Bazel analysis cache warm-up.
 
 Intended flow:
+
 1. A periodic Job boots a `kata-fc` pod and runs `bazel build //...` to warm the analysis cache
 2. The Job calls the Firecracker snapshot API via the Kata shim socket
 3. The snapshot (memory + disk image) is written to a shared PV backed by local NVMe
@@ -380,6 +382,7 @@ agent-run --issue 42    # Fetch issue body from GitHub as task description
 ```
 
 Future triggers:
+
 - **GitHub webhook** — auto-assign agents to issues labelled `agent`
 - **Slack slash command** — fire-and-forget from Slack
 
@@ -389,14 +392,14 @@ Future triggers:
 
 All secrets are sourced from 1Password via `OnePasswordItem` CRDs, consistent with every other service in the cluster.
 
-| Secret | Location | Consumed By |
-|--------|----------|-------------|
-| `CLAUDE_AUTH_TOKEN` | `OnePasswordItem` in LiteLLM namespace | LiteLLM proxy pod |
-| `GITHUB_TOKEN` | `OnePasswordItem` in goose-sandboxes namespace | Sandbox pods (git push, PRs) |
-| `BUILDBUDDY_API_KEY` | `OnePasswordItem` in goose-sandboxes namespace | Sandbox pods (remote build) |
-| LiteLLM API key | `OnePasswordItem` in goose-sandboxes namespace | Sandbox pods → LiteLLM (dummy or master key) |
-| SigNoz viewer key | `OnePasswordItem` in mcp-gateway namespace | Context Forge (not visible to agents) |
-| ArgoCD read-only token | `OnePasswordItem` in mcp-gateway namespace | Context Forge (not visible to agents) |
+| Secret                 | Location                                       | Consumed By                                  |
+| ---------------------- | ---------------------------------------------- | -------------------------------------------- |
+| `CLAUDE_AUTH_TOKEN`    | `OnePasswordItem` in LiteLLM namespace         | LiteLLM proxy pod                            |
+| `GITHUB_TOKEN`         | `OnePasswordItem` in goose-sandboxes namespace | Sandbox pods (git push, PRs)                 |
+| `BUILDBUDDY_API_KEY`   | `OnePasswordItem` in goose-sandboxes namespace | Sandbox pods (remote build)                  |
+| LiteLLM API key        | `OnePasswordItem` in goose-sandboxes namespace | Sandbox pods → LiteLLM (dummy or master key) |
+| SigNoz viewer key      | `OnePasswordItem` in mcp-gateway namespace     | Context Forge (not visible to agents)        |
+| ArgoCD read-only token | `OnePasswordItem` in mcp-gateway namespace     | Context Forge (not visible to agents)        |
 
 Note that backend credentials (SigNoz, ArgoCD) live in the Context Forge namespace and are injected server-side by the gateway. Agents never see raw API keys for cluster services — they make MCP tool calls and the gateway handles auth.
 
@@ -408,19 +411,19 @@ Note that backend credentials (SigNoz, ArgoCD) live in the Context Forge namespa
 
 This deployment has **fewer security deviations** than the OpenHands design:
 
-| Concern | OpenHands | Goose + agent-sandbox |
-|---------|-----------|----------------------|
-| Root containers | Required — `runtime_init.py` needs `useradd`, writes `/etc/sudoers` | **Not required** — apko image runs as uid 65532 |
-| Linkerd | Disabled on sandbox namespace | Can be enabled (no agent-server protocol conflicts) |
-| Privilege escalation | Required by runtime init | **Not required** |
-| ServiceAccount breadth | Create/delete pods, services, PVCs, ingresses | **Narrower** — agent-sandbox controller handles pod lifecycle; sandbox SA only needs minimal RBAC |
+| Concern                | OpenHands                                                           | Goose + agent-sandbox                                                                             |
+| ---------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Root containers        | Required — `runtime_init.py` needs `useradd`, writes `/etc/sudoers` | **Not required** — apko image runs as uid 65532                                                   |
+| Linkerd                | Disabled on sandbox namespace                                       | Can be enabled (no agent-server protocol conflicts)                                               |
+| Privilege escalation   | Required by runtime init                                            | **Not required**                                                                                  |
+| ServiceAccount breadth | Create/delete pods, services, PVCs, ingresses                       | **Narrower** — agent-sandbox controller handles pod lifecycle; sandbox SA only needs minimal RBAC |
 
 ### RBAC Model
 
-| ServiceAccount | Namespace | Permissions |
-|----------------|-----------|-------------|
-| `agent-sandbox-controller` | `agent-sandbox-system` | Full lifecycle management of Sandbox CRDs, Pods, Services, PVCs across sandbox namespaces |
-| `goose-agent` | `goose-sandboxes` | Read-only cluster access + write to `goose-sandboxes` namespace. Firecracker's kernel isolation is the outer security boundary; RBAC is defence in depth |
+| ServiceAccount             | Namespace              | Permissions                                                                                                                                              |
+| -------------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `agent-sandbox-controller` | `agent-sandbox-system` | Full lifecycle management of Sandbox CRDs, Pods, Services, PVCs across sandbox namespaces                                                                |
+| `goose-agent`              | `goose-sandboxes`      | Read-only cluster access + write to `goose-sandboxes` namespace. Firecracker's kernel isolation is the outer security boundary; RBAC is defence in depth |
 
 ### Resource Limits
 
@@ -473,15 +476,15 @@ The `goose-sandboxes` namespace gets both a LimitRange and ResourceQuota (see [N
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| agent-sandbox v1alpha1 API breaks | Medium | Medium | Pin to specific release tag; track upstream changelog |
-| Goose headless mode gaps | Low | High | Validate `goose run` non-interactive mode early in Phase 1; fall back to `goose session` with stdin pipe |
-| Kata/Firecracker not available on all nodes | Low | Low | Label nodes `kata-fc-capable=true`; `nodeSelector` on SandboxTemplate |
-| Goose loops indefinitely | Medium | Medium | Resource limits + Sandbox TTL in SandboxTemplate; cap retry attempts (Stripe caps at 2) |
-| LLM API key exposed in sandbox | Low | Low | Kubernetes Secret + projected volume; microVM isolation in Phase 3; never bake into image |
-| Claude Max token expiry mid-task | Low | Medium | Monitor token refresh; LiteLLM should return clear error on auth failure |
-| Snapshot restore via Kata shim is fragile | Medium | Medium | Defer to Phase 4; track upstream progress; `snapshotRef` proposal may obviate |
+| Risk                                        | Likelihood | Impact | Mitigation                                                                                               |
+| ------------------------------------------- | ---------- | ------ | -------------------------------------------------------------------------------------------------------- |
+| agent-sandbox v1alpha1 API breaks           | Medium     | Medium | Pin to specific release tag; track upstream changelog                                                    |
+| Goose headless mode gaps                    | Low        | High   | Validate `goose run` non-interactive mode early in Phase 1; fall back to `goose session` with stdin pipe |
+| Kata/Firecracker not available on all nodes | Low        | Low    | Label nodes `kata-fc-capable=true`; `nodeSelector` on SandboxTemplate                                    |
+| Goose loops indefinitely                    | Medium     | Medium | Resource limits + Sandbox TTL in SandboxTemplate; cap retry attempts (Stripe caps at 2)                  |
+| LLM API key exposed in sandbox              | Low        | Low    | Kubernetes Secret + projected volume; microVM isolation in Phase 3; never bake into image                |
+| Claude Max token expiry mid-task            | Low        | Medium | Monitor token refresh; LiteLLM should return clear error on auth failure                                 |
+| Snapshot restore via Kata shim is fragile   | Medium     | Medium | Defer to Phase 4; track upstream progress; `snapshotRef` proposal may obviate                            |
 
 ---
 
@@ -507,34 +510,34 @@ The `goose-sandboxes` namespace gets both a LimitRange and ResourceQuota (see [N
 
 ### Core Components
 
-| Resource | Relevance |
-|----------|-----------|
-| [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) | Sandbox CRDs, warm pool, lifecycle management |
-| [block/goose](https://github.com/block/goose) | Agent framework, MCP-native tool model |
-| [litellm-claude-code](https://github.com/cabinlab/litellm-claude-code) | LiteLLM custom provider for Claude Agent SDK |
-| [Context Forge RFC](context-forge.md) | MCP gateway for cluster services (separate RFC) |
-| [Kata Containers](https://katacontainers.io/) | microVM-based container runtime |
-| [Firecracker](https://firecracker-microvm.github.io/) | VMM for lightweight microVMs |
+| Resource                                                                          | Relevance                                       |
+| --------------------------------------------------------------------------------- | ----------------------------------------------- |
+| [kubernetes-sigs/agent-sandbox](https://github.com/kubernetes-sigs/agent-sandbox) | Sandbox CRDs, warm pool, lifecycle management   |
+| [block/goose](https://github.com/block/goose)                                     | Agent framework, MCP-native tool model          |
+| [litellm-claude-code](https://github.com/cabinlab/litellm-claude-code)            | LiteLLM custom provider for Claude Agent SDK    |
+| [Context Forge RFC](context-forge.md)                                             | MCP gateway for cluster services (separate RFC) |
+| [Kata Containers](https://katacontainers.io/)                                     | microVM-based container runtime                 |
+| [Firecracker](https://firecracker-microvm.github.io/)                             | VMM for lightweight microVMs                    |
 
 ### The Pattern We're Replicating
 
-| Resource | Relevance |
-|----------|-----------|
-| [Stripe Minions Part 1](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents) | High-level one-shot agent architecture |
-| [Stripe Minions Part 2](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2) | Blueprints, CI feedback, tool curation |
-| [KubeCon NA 2025: Agent Sandbox](https://opensource.googleblog.com/2025/11/unleashing-autonomous-ai-agents-why-kubernetes-needs-a-new-standard-for-agent-execution.html) | Why SIG Apps built agent-sandbox |
+| Resource                                                                                                                                                                 | Relevance                              |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------- |
+| [Stripe Minions Part 1](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)                                                                       | High-level one-shot agent architecture |
+| [Stripe Minions Part 2](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2)                                                                | Blueprints, CI feedback, tool curation |
+| [KubeCon NA 2025: Agent Sandbox](https://opensource.googleblog.com/2025/11/unleashing-autonomous-ai-agents-why-kubernetes-needs-a-new-standard-for-agent-execution.html) | Why SIG Apps built agent-sandbox       |
 
 ### Superseded RFCs
 
-| RFC | What It Covered |
-|-----|-----------------|
-| [001-background-agents](001-background-agents.md) | OpenHands-based agent architecture — motivation, LiteLLM, secrets, RBAC |
-| [002-openhands-agent-sandbox](002-openhands-agent-sandbox.md) | agent-sandbox CRDs + Go adapter for OpenHands RemoteSandboxService |
+| RFC                                                           | What It Covered                                                         |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [001-background-agents](001-background-agents.md)             | OpenHands-based agent architecture — motivation, LiteLLM, secrets, RBAC |
+| [002-openhands-agent-sandbox](002-openhands-agent-sandbox.md) | agent-sandbox CRDs + Go adapter for OpenHands RemoteSandboxService      |
 
 ### Infrastructure References
 
-| Resource | Relevance |
-|----------|-----------|
-| [architecture/security.md](../../security.md) | Cluster security model |
-| [`claude setup-token`](https://docs.anthropic.com/en/docs/claude-code/cli-usage) | Headless Claude auth token generation |
+| Resource                                                                                                                          | Relevance                                                     |
+| --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| [architecture/security.md](../../security.md)                                                                                     | Cluster security model                                        |
+| [`claude setup-token`](https://docs.anthropic.com/en/docs/claude-code/cli-usage)                                                  | Headless Claude auth token generation                         |
 | [Cloudflare Service Tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/) | Service token auth for external agent access to Context Forge |

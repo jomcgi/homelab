@@ -15,7 +15,7 @@ Context Forge currently treats all MCP clients identically. Any agent that reach
 - Prevent a future agent from calling write-capable tools (ArgoCD sync, dashboard mutation)
 - Audit which agent performed which operation
 
-Cloudflare Zero Trust authenticates the *transport* (is this request allowed to reach the gateway?) but not the *identity* (which agent is this, and what should it be allowed to do?).
+Cloudflare Zero Trust authenticates the _transport_ (is this request allowed to reach the gateway?) but not the _identity_ (which agent is this, and what should it be allowed to do?).
 
 ---
 
@@ -31,7 +31,7 @@ Each agent type gets a dedicated JWT with a `teams` claim that controls which to
 
 ### Two-Layer Auth Model
 
-Every MCP request passes through both layers sequentially. Token scoping filters *what you can see*; RBAC controls *what you can do*.
+Every MCP request passes through both layers sequentially. Token scoping filters _what you can see_; RBAC controls _what you can do_.
 
 ```mermaid
 flowchart TD
@@ -98,12 +98,12 @@ flowchart LR
 
 Context Forge provides five built-in roles. Two are relevant:
 
-| Role | Scope | Permissions | Use case |
-|------|-------|-------------|----------|
-| `developer` | Team | `tools.read`, `tools.execute`, `resources.read` | Agents that call tools |
-| `viewer` | Team | `tools.read`, `resources.read` | Agents that only list tools (not useful for us) |
+| Role        | Scope | Permissions                                     | Use case                                        |
+| ----------- | ----- | ----------------------------------------------- | ----------------------------------------------- |
+| `developer` | Team  | `tools.read`, `tools.execute`, `resources.read` | Agents that call tools                          |
+| `viewer`    | Team  | `tools.read`, `resources.read`                  | Agents that only list tools (not useful for us) |
 
-Both Claude Code and web chat need `tools.execute` to actually call SigNoz tools — the tools are read-only at the *backend*, but invoking them is still an `execute` action at the *gateway*. The `developer` role covers this.
+Both Claude Code and web chat need `tools.execute` to actually call SigNoz tools — the tools are read-only at the _backend_, but invoking them is still an `execute` action at the _gateway_. The `developer` role covers this.
 
 The difference between agent types is **which tools they can see** (team scoping), not which RBAC actions they can perform.
 
@@ -130,6 +130,7 @@ Regardless of how the token is issued (OAuth SSO or admin-minted API token), the
 ```
 
 **How tokens are issued** depends on the auth model (see [ADR 006](006-oidc-auth-mcp-gateway.md)):
+
 - **OAuth/SSO (preferred):** User authenticates via browser, Context Forge issues a token. Team membership is resolved server-side from the user's profile — not embedded in the token at mint time.
 - **API tokens (automation):** Admin mints a long-lived token via the admin API with explicit team scoping. Used for headless/CI environments where browser OAuth isn't possible.
 
@@ -209,9 +210,9 @@ Map SSO group claims to Context Forge teams so new users are automatically place
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
-| [Context Forge RBAC docs](https://ibm.github.io/mcp-context-forge/manage/rbac/) | Role definitions, token scoping contract |
-| [Context Forge multi-tenancy](https://ibm.github.io/mcp-context-forge/architecture/multitenancy/) | Team-based resource isolation model |
-| [003-context-forge](003-context-forge.md) | Gateway deployment this builds on |
-| [006-oidc-auth-mcp-gateway](006-oidc-auth-mcp-gateway.md) | Auth model (OAuth/OIDC) this ADR depends on |
+| Resource                                                                                          | Relevance                                   |
+| ------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| [Context Forge RBAC docs](https://ibm.github.io/mcp-context-forge/manage/rbac/)                   | Role definitions, token scoping contract    |
+| [Context Forge multi-tenancy](https://ibm.github.io/mcp-context-forge/architecture/multitenancy/) | Team-based resource isolation model         |
+| [003-context-forge](003-context-forge.md)                                                         | Gateway deployment this builds on           |
+| [006-oidc-auth-mcp-gateway](006-oidc-auth-mcp-gateway.md)                                         | Auth model (OAuth/OIDC) this ADR depends on |

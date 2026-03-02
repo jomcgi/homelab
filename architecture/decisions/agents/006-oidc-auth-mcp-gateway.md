@@ -23,17 +23,17 @@ The MCP gateway (Context Forge) is currently protected by Cloudflare Access serv
 
 Replace the Cloudflare Access service token gatekeeper with Context Forge's built-in OAuth 2.0 authorization server, backed by Cloudflare Access for SaaS as the OIDC identity provider. All MCP clients — CLI and web — authenticate through the same OAuth flow.
 
-| Aspect | Today | Proposed |
-|--------|-------|----------|
-| **Edge auth** | CF Access service token (static headers) | None — CF Tunnel still routes traffic (DDoS, TLS) but Access application removed |
-| **MCP endpoint auth** | `MCP_REQUIRE_AUTH=false` (trusts CF Access) | `MCP_REQUIRE_AUTH=true` (Context Forge validates OAuth tokens) |
-| **Identity provider** | N/A (service token has no user identity) | Cloudflare Access for SaaS (OIDC) — reuses existing CF Zero Trust IdP |
-| **Claude Code CLI** | `mcp-remote` + CF service token headers | `mcp-remote` (OAuth flow — opens browser, caches token) |
-| **Claude.ai web** | Not possible | Works via standard MCP connector dialog |
-| **In-cluster agents** | ClusterIP, no auth | Unchanged — ClusterIP access stays unauthenticated |
-| **Token type** | CF Access JWT (edge-validated) | Context Forge OAuth token (application-validated) |
-| **Per-user identity** | No | Yes — SSO login identifies the user |
-| **Session revocation** | Rotate shared service token | Revoke individual user session |
+| Aspect                 | Today                                       | Proposed                                                                         |
+| ---------------------- | ------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Edge auth**          | CF Access service token (static headers)    | None — CF Tunnel still routes traffic (DDoS, TLS) but Access application removed |
+| **MCP endpoint auth**  | `MCP_REQUIRE_AUTH=false` (trusts CF Access) | `MCP_REQUIRE_AUTH=true` (Context Forge validates OAuth tokens)                   |
+| **Identity provider**  | N/A (service token has no user identity)    | Cloudflare Access for SaaS (OIDC) — reuses existing CF Zero Trust IdP            |
+| **Claude Code CLI**    | `mcp-remote` + CF service token headers     | `mcp-remote` (OAuth flow — opens browser, caches token)                          |
+| **Claude.ai web**      | Not possible                                | Works via standard MCP connector dialog                                          |
+| **In-cluster agents**  | ClusterIP, no auth                          | Unchanged — ClusterIP access stays unauthenticated                               |
+| **Token type**         | CF Access JWT (edge-validated)              | Context Forge OAuth token (application-validated)                                |
+| **Per-user identity**  | No                                          | Yes — SSO login identifies the user                                              |
+| **Session revocation** | Rotate shared service token                 | Revoke individual user session                                                   |
 
 ---
 
@@ -93,13 +93,13 @@ In-cluster agents (OpenHands sandboxes, Goose pods) continue to access Context F
 
 Cloudflare Access for SaaS acts as a standards-compliant OIDC provider, exposing:
 
-| Endpoint | URL |
-|----------|-----|
-| Authorization | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/authorization` |
-| Token | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/token` |
-| Userinfo | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/userinfo` |
-| JWKS | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/jwks` |
-| Discovery | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/.well-known/openid-configuration` |
+| Endpoint      | URL                                                                                                        |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| Authorization | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/authorization`                    |
+| Token         | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/token`                            |
+| Userinfo      | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/userinfo`                         |
+| JWKS          | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/jwks`                             |
+| Discovery     | `https://<team>.cloudflareaccess.com/cdn-cgi/access/sso/oidc/<client-id>/.well-known/openid-configuration` |
 
 This reuses whatever identity provider is already configured in CF Zero Trust (one-time PIN at minimum, optionally GitHub/Google). No new identity provider accounts needed.
 
@@ -135,7 +135,7 @@ This reuses whatever identity provider is already configured in CF Zero Trust (o
   - `SSO_GENERIC_ISSUER=<CF issuer URL>`
   - `SSO_GENERIC_SCOPE=openid profile email`
   - `SSO_AUTO_CREATE_USERS=true`
-  - `SSO_TRUSTED_DOMAINS=jomcgi.dev` (controls who can *log in* — authorization is handled by ADR 005's team/RBAC layer)
+  - `SSO_TRUSTED_DOMAINS=jomcgi.dev` (controls who can _log in_ — authorization is handled by ADR 005's team/RBAC layer)
   - `SSO_PRESERVE_ADMIN_AUTH=true`
 - [ ] Enable Context Forge OAuth authorization server:
   - `MCP_REQUIRE_AUTH=true`
@@ -200,13 +200,13 @@ This is the same pattern used by any public OAuth-protected API (GitHub API, Sla
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| **OAuth endpoint abuse** — discovery/token endpoints are now public | Medium | Low | Rate limiting via CF Tunnel + Context Forge built-in rate limits. DCR registration is the main vector — monitor for unusual client registrations. |
-| **DCR spam** — automated client registrations | Low | Low | Context Forge supports `DCR_ALLOWED_ISSUERS` to restrict which authorization servers can register. Monitor registered clients via admin API. |
-| **Token theft** — stolen OAuth token grants MCP access | Low | Medium | Short token expiry (minutes). Refresh tokens tied to session. Same risk profile as any OAuth API — no worse than the current shared service token. |
-| **SSO outage** — CF Access OIDC endpoints go down | Low | Medium | Existing cached tokens continue to work until expiry. `SSO_PRESERVE_ADMIN_AUTH=true` keeps local admin access for emergency. CLI can fall back to direct admin JWT if needed. |
-| **Browser popup on CLI** — `mcp-remote` OAuth opens a browser tab | Certain | Low | One-time action per session. Token is cached locally. Headless environments (CI, remote SSH) may need a pre-authenticated token — address if needed. |
+| Risk                                                                | Likelihood | Impact | Mitigation                                                                                                                                                                    |
+| ------------------------------------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **OAuth endpoint abuse** — discovery/token endpoints are now public | Medium     | Low    | Rate limiting via CF Tunnel + Context Forge built-in rate limits. DCR registration is the main vector — monitor for unusual client registrations.                             |
+| **DCR spam** — automated client registrations                       | Low        | Low    | Context Forge supports `DCR_ALLOWED_ISSUERS` to restrict which authorization servers can register. Monitor registered clients via admin API.                                  |
+| **Token theft** — stolen OAuth token grants MCP access              | Low        | Medium | Short token expiry (minutes). Refresh tokens tied to session. Same risk profile as any OAuth API — no worse than the current shared service token.                            |
+| **SSO outage** — CF Access OIDC endpoints go down                   | Low        | Medium | Existing cached tokens continue to work until expiry. `SSO_PRESERVE_ADMIN_AUTH=true` keeps local admin access for emergency. CLI can fall back to direct admin JWT if needed. |
+| **Browser popup on CLI** — `mcp-remote` OAuth opens a browser tab   | Certain    | Low    | One-time action per session. Token is cached locally. Headless environments (CI, remote SSH) may need a pre-authenticated token — address if needed.                          |
 
 ---
 
@@ -219,7 +219,7 @@ This is the same pattern used by any public OAuth-protected API (GitHub API, Sla
    - **Admin manual assignment** — admin assigns team after first login. Simple but doesn't scale and breaks the Claude.ai flow (user would authenticate but have no tool access until manually promoted).
    - **Default team assignment** — new SSO users auto-join a default team (e.g., `web-chat` with read-only SigNoz). CLI users are manually promoted to `infra-agents`. Safe default, but requires investigating whether Context Forge supports default team assignment on user creation.
 
-3. **In-cluster agents and OAuth** — Currently in-cluster agents bypass auth entirely via ClusterIP. If per-agent identity becomes important (audit logs per sandbox), in-cluster agents could use Context Forge's JWT auth with service accounts. More broadly, *all* user-to-team mapping — not just in-cluster — needs to be defined before ADR 005's role-based access works. This ADR provides the authentication layer; ADR 005 consumes it for authorization. The two should share a combined phasing plan.
+3. **In-cluster agents and OAuth** — Currently in-cluster agents bypass auth entirely via ClusterIP. If per-agent identity becomes important (audit logs per sandbox), in-cluster agents could use Context Forge's JWT auth with service accounts. More broadly, _all_ user-to-team mapping — not just in-cluster — needs to be defined before ADR 005's role-based access works. This ADR provides the authentication layer; ADR 005 consumes it for authorization. The two should share a combined phasing plan.
 
 4. **Token caching in `mcp-remote`** — Verify that `mcp-remote` persists OAuth tokens across Claude Code sessions to avoid repeated browser login prompts. If not, consider a local token cache wrapper.
 
@@ -227,13 +227,13 @@ This is the same pattern used by any public OAuth-protected API (GitHub API, Sla
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
-| [Claude.ai remote MCP connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers) | Claude.ai OAuth requirements (DCR, PKCE, callback URL) |
-| [Cloudflare Access for SaaS — Generic OIDC](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/saas-apps/generic-oidc-saas/) | CF Access as OIDC provider configuration |
-| [Context Forge — Generic OIDC SSO Setup](https://ibm.github.io/mcp-context-forge/manage/sso-generic-oidc-tutorial/) | SSO environment variables and callback URL pattern |
-| [Context Forge — Dynamic Client Registration](https://ibm.github.io/mcp-context-forge/manage/dcr/) | DCR configuration for MCP clients |
-| [Context Forge — OAuth 2.0 Integration](https://ibm.github.io/mcp-context-forge/manage/oauth/) | OAuth authorization server configuration |
-| [ADR 003 — Context Forge](003-context-forge.md) | Current service-token auth model (being replaced) |
-| [ADR 005 — Role-Based MCP Access](005-role-based-mcp-access.md) | Authorization layer that consumes this ADR's authentication model (team scoping, RBAC) |
-| [architecture/security.md](../../security.md) | Cluster security model — one deviation documented above |
+| Resource                                                                                                                                                          | Relevance                                                                              |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| [Claude.ai remote MCP connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers)                              | Claude.ai OAuth requirements (DCR, PKCE, callback URL)                                 |
+| [Cloudflare Access for SaaS — Generic OIDC](https://developers.cloudflare.com/cloudflare-one/access-controls/applications/http-apps/saas-apps/generic-oidc-saas/) | CF Access as OIDC provider configuration                                               |
+| [Context Forge — Generic OIDC SSO Setup](https://ibm.github.io/mcp-context-forge/manage/sso-generic-oidc-tutorial/)                                               | SSO environment variables and callback URL pattern                                     |
+| [Context Forge — Dynamic Client Registration](https://ibm.github.io/mcp-context-forge/manage/dcr/)                                                                | DCR configuration for MCP clients                                                      |
+| [Context Forge — OAuth 2.0 Integration](https://ibm.github.io/mcp-context-forge/manage/oauth/)                                                                    | OAuth authorization server configuration                                               |
+| [ADR 003 — Context Forge](003-context-forge.md)                                                                                                                   | Current service-token auth model (being replaced)                                      |
+| [ADR 005 — Role-Based MCP Access](005-role-based-mcp-access.md)                                                                                                   | Authorization layer that consumes this ADR's authentication model (team scoping, RBAC) |
+| [architecture/security.md](../../security.md)                                                                                                                     | Cluster security model — one deviation documented above                                |

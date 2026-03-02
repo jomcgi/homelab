@@ -13,6 +13,7 @@
 ### Task 1: Add fastmcp dependency
 
 **Files:**
+
 - Modify: `pyproject.toml`
 
 **Step 1: Add fastmcp to pyproject.toml**
@@ -43,6 +44,7 @@ git commit -m "deps: add fastmcp for BuildBuddy MCP server"
 ### Task 2: Create service directory structure
 
 **Files:**
+
 - Create: `services/buildbuddy_mcp/__init__.py`
 - Create: `services/buildbuddy_mcp/app/__init__.py`
 - Create: `services/buildbuddy_mcp/app/main.py` (empty placeholder)
@@ -103,6 +105,7 @@ git commit -m "feat: scaffold buildbuddy-mcp service directory"
 ### Task 3: Write tests for get_invocation tool
 
 **Files:**
+
 - Create: `services/buildbuddy_mcp/tests/main_test.py`
 
 **Step 1: Write tests**
@@ -170,6 +173,7 @@ Expected: FAIL — `get_invocation` and `_post` don't exist yet.
 ### Task 4: Implement get_invocation tool and HTTP client
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py`
 
 **Step 1: Add the HTTP client helper and get_invocation tool**
@@ -235,6 +239,7 @@ git commit -m "feat: add get_invocation tool with HTTP client"
 ### Task 5: Write tests for get_log tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
 **Step 1: Add test class for get_log**
@@ -265,6 +270,7 @@ Expected: FAIL — `get_log` not defined.
 ### Task 6: Implement get_log tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py`
 
 **Step 1: Add get_log tool**
@@ -306,6 +312,7 @@ git commit -m "feat: add get_log tool"
 ### Task 7: Write tests for get_target tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
 **Step 1: Add test class**
@@ -334,6 +341,7 @@ Expected: FAIL
 ### Task 8: Implement get_target tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py`
 
 **Step 1: Add get_target tool**
@@ -383,6 +391,7 @@ git commit -m "feat: add get_target tool"
 ### Task 9: Write tests for get_action and get_file tools
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
 **Step 1: Add test classes**
@@ -423,6 +432,7 @@ Expected: FAIL
 ### Task 10: Implement get_action and get_file tools
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py`
 
 **Step 1: Add get_action tool**
@@ -488,6 +498,7 @@ git commit -m "feat: add get_action and get_file tools"
 ### Task 11: Write test for execute_workflow tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
 **Step 1: Add test class**
@@ -519,6 +530,7 @@ Expected: FAIL
 ### Task 12: Implement execute_workflow tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py`
 
 **Step 1: Add execute_workflow tool**
@@ -565,6 +577,7 @@ git commit -m "feat: add execute_workflow tool"
 ### Task 13: Add BUILD files
 
 **Files:**
+
 - Create: `services/buildbuddy_mcp/app/BUILD`
 - Create: `services/buildbuddy_mcp/tests/BUILD`
 - Create: `services/buildbuddy_mcp/BUILD`

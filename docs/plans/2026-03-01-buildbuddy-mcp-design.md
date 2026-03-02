@@ -40,14 +40,14 @@ class Settings(BaseSettings):
 
 ## Tools
 
-| Tool | Endpoint | Read/Write | Purpose |
-|------|----------|------------|---------|
-| `get_invocation` | `/GetInvocation` | Read | Build metadata by invocation ID or commit SHA |
-| `get_log` | `/GetLog` | Read | Build logs (paginated) |
-| `get_target` | `/GetTarget` | Read | Target labels, status, timing |
-| `get_action` | `/GetAction` | Read | Action details, test shard/run info |
-| `get_file` | `/GetFile` | Read | Download file by bytestream URI |
-| `execute_workflow` | `/ExecuteWorkflow` | Write | Re-trigger CI workflow runs |
+| Tool               | Endpoint           | Read/Write | Purpose                                       |
+| ------------------ | ------------------ | ---------- | --------------------------------------------- |
+| `get_invocation`   | `/GetInvocation`   | Read       | Build metadata by invocation ID or commit SHA |
+| `get_log`          | `/GetLog`          | Read       | Build logs (paginated)                        |
+| `get_target`       | `/GetTarget`       | Read       | Target labels, status, timing                 |
+| `get_action`       | `/GetAction`       | Read       | Action details, test shard/run info           |
+| `get_file`         | `/GetFile`         | Read       | Download file by bytestream URI               |
+| `execute_workflow` | `/ExecuteWorkflow` | Write      | Re-trigger CI workflow runs                   |
 
 ## HTTP Client
 

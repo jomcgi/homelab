@@ -46,13 +46,13 @@ The chart wraps the upstream NVIDIA `gpu-operator` chart and deploys the operato
 
 ## Configuration
 
-| Value | Description | Default |
-| ----- | ----------- | ------- |
-| `gpu-operator.driver.enabled` | Install NVIDIA GPU drivers | `true` |
+| Value                                | Description                                      | Default |
+| ------------------------------------ | ------------------------------------------------ | ------- |
+| `gpu-operator.driver.enabled`        | Install NVIDIA GPU drivers                       | `true`  |
 | `gpu-operator.driver.usePrecompiled` | Use pre-compiled drivers (vs. build from source) | `false` |
-| `gpu-operator.toolkit.enabled` | Install NVIDIA Container Toolkit | `true` |
-| `gpu-operator.devicePlugin.enabled` | Deploy GPU device plugin | `true` |
-| `gpu-operator.dcgmExporter.enabled` | Deploy DCGM metrics exporter | `true` |
-| `gpu-operator.gfd.enabled` | Deploy GPU Feature Discovery | `true` |
-| `gpu-operator.nfd.enabled` | Deploy Node Feature Discovery | `true` |
-| `gpu-operator.migManager.enabled` | Enable Multi-Instance GPU manager | `false` |
+| `gpu-operator.toolkit.enabled`       | Install NVIDIA Container Toolkit                 | `true`  |
+| `gpu-operator.devicePlugin.enabled`  | Deploy GPU device plugin                         | `true`  |
+| `gpu-operator.dcgmExporter.enabled`  | Deploy DCGM metrics exporter                     | `true`  |
+| `gpu-operator.gfd.enabled`           | Deploy GPU Feature Discovery                     | `true`  |
+| `gpu-operator.nfd.enabled`           | Deploy Node Feature Discovery                    | `true`  |
+| `gpu-operator.migManager.enabled`    | Enable Multi-Instance GPU manager                | `false` |

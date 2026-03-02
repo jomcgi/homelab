@@ -46,13 +46,13 @@ Custom policies included:
 
 ## Configuration
 
-| Value | Description | Default |
-| ----- | ----------- | ------- |
-| `otelInjection.enabled` | Enable OTel env var injection policy | `true` |
-| `otelInjection.endpoint` | OTel collector endpoint | `signoz-otel-collector.signoz.svc.cluster.local:4317` |
-| `otelInjection.protocol` | OTel exporter protocol | `grpc` |
-| `otelInjection.targetKinds` | Resource kinds to inject into | `[Deployment, StatefulSet, DaemonSet]` |
-| `linkerdInjection.enabled` | Enable Linkerd namespace injection policy | `true` |
-| `linkerdInjection.excludeNamespaces` | Namespaces excluded from Linkerd injection | System + infra namespaces |
-| `kyverno.admissionController.replicas` | Admission controller replicas | `1` |
-| `kyverno.features.policyExceptions.enabled` | Enable PolicyException CRD | `true` |
+| Value                                       | Description                                | Default                                               |
+| ------------------------------------------- | ------------------------------------------ | ----------------------------------------------------- |
+| `otelInjection.enabled`                     | Enable OTel env var injection policy       | `true`                                                |
+| `otelInjection.endpoint`                    | OTel collector endpoint                    | `signoz-otel-collector.signoz.svc.cluster.local:4317` |
+| `otelInjection.protocol`                    | OTel exporter protocol                     | `grpc`                                                |
+| `otelInjection.targetKinds`                 | Resource kinds to inject into              | `[Deployment, StatefulSet, DaemonSet]`                |
+| `linkerdInjection.enabled`                  | Enable Linkerd namespace injection policy  | `true`                                                |
+| `linkerdInjection.excludeNamespaces`        | Namespaces excluded from Linkerd injection | System + infra namespaces                             |
+| `kyverno.admissionController.replicas`      | Admission controller replicas              | `1`                                                   |
+| `kyverno.features.policyExceptions.enabled` | Enable PolicyException CRD                 | `true`                                                |

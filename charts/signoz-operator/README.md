@@ -49,10 +49,10 @@ All CRDs use `apiVersion: monitoring.jomcgi.dev/v1alpha1` and provide status sub
 
 This chart installs CRDs only and has no configurable Helm values. Resources are configured individually via their specs:
 
-| CRD | Scope | Short Name | Key Fields |
-| --- | ----- | ---------- | ---------- |
-| `HTTPCheck` | Namespaced | `hc` | `endpoint`, `interval`, `timeout`, `expectedStatusCode`, `authSecretRef` |
-| `Alert` | Namespaced | `al` | `alertName`, `httpCheckRef` or `customQuery`, `condition`, `severity`, `notificationChannels` |
-| `NotificationChannel` | Cluster | `nc` | `type` (pagerduty/slack/webhook), provider-specific config, `sendResolved` |
+| CRD                   | Scope      | Short Name | Key Fields                                                                                    |
+| --------------------- | ---------- | ---------- | --------------------------------------------------------------------------------------------- |
+| `HTTPCheck`           | Namespaced | `hc`       | `endpoint`, `interval`, `timeout`, `expectedStatusCode`, `authSecretRef`                      |
+| `Alert`               | Namespaced | `al`       | `alertName`, `httpCheckRef` or `customQuery`, `condition`, `severity`, `notificationChannels` |
+| `NotificationChannel` | Cluster    | `nc`       | `type` (pagerduty/slack/webhook), provider-specific config, `sendResolved`                    |
 
 See the [CRD README](./crds/README.md) for detailed usage examples and the [API Reference](./crds/API_REFERENCE.md) for complete field documentation.

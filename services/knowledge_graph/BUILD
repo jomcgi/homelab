@@ -9,18 +9,18 @@ py_library(
 
 py3_image(
     name = "scraper-image",
-    binary = "//services/knowledge_graph/app:scraper_main",
+    binary = "//services/knowledge_graph/app:scraper",
     repository = "ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper",
 )
 
 py3_image(
     name = "embedder-image",
-    binary = "//services/knowledge_graph/app:embedder_main",
+    binary = "//services/knowledge_graph/app:embedder",
     repository = "ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder",
 )
 
 py3_image(
     name = "mcp-image",
-    binary = "//services/knowledge_graph/app:mcp_main",
+    binary = "//services/knowledge_graph/app:mcp",
     repository = "ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp",
 )

@@ -72,6 +72,7 @@ Single point of failure, no local tooling, manual SSH session management.
 **Flow:** kubectl (SA token) --> `cloudflared access tcp` (local proxy, injects CF service token headers) --> Cloudflare Edge (Access policy enforced) --> in-cluster cloudflared --> K8s API server.
 
 Two independent auth layers:
+
 1. **Cloudflare Access** (network): service token headers authenticate the tunnel connection
 2. **K8s RBAC** (API): ServiceAccount token authenticates API requests
 
@@ -88,6 +89,7 @@ Two independent auth layers:
 - Works with all K8s ecosystem tools (k9s, stern, Lens, helm, etc.)
 
 Alternatives considered and rejected:
+
 - **Credential exec plugin** (K8s API server would need OIDC config changes — unnecessary complexity)
 - **WARP private routing** (requires WARP client on every device — viable future enhancement)
 
@@ -150,9 +152,9 @@ roleRef:
   kind: ClusterRole
   name: cluster-admin
 subjects:
-- kind: ServiceAccount
-  name: remote-admin
-  namespace: kube-system
+  - kind: ServiceAccount
+    name: remote-admin
+    namespace: kube-system
 ```
 
 Store the SA token in 1Password alongside the CF service token credentials.
@@ -175,19 +177,19 @@ Kubeconfig (`~/.kube/homelab-remote.yaml`):
 apiVersion: v1
 kind: Config
 clusters:
-- cluster:
-    server: https://127.0.0.1:16443
-    insecure-skip-tls-verify: true   # API server cert won't match localhost; tunnel encrypts the real hop
-  name: homelab
+  - cluster:
+      server: https://127.0.0.1:16443
+      insecure-skip-tls-verify: true # API server cert won't match localhost; tunnel encrypts the real hop
+    name: homelab
 users:
-- name: homelab-remote
-  user:
-    token: <remote-admin-sa-token>
+  - name: homelab-remote
+    user:
+      token: <remote-admin-sa-token>
 contexts:
-- context:
-    cluster: homelab
-    user: homelab-remote
-  name: homelab-remote
+  - context:
+      cluster: homelab
+      user: homelab-remote
+    name: homelab-remote
 current-context: homelab-remote
 ```
 
@@ -229,36 +231,36 @@ current-context: homelab-remote
 
 The connection has two TLS segments:
 
-| Segment | TLS | Notes |
-|---|---|---|
-| kubectl --> local cloudflared | `insecure-skip-tls-verify` | API server cert won't match localhost. Traffic never leaves the machine. |
-| Cloudflare edge transit | Encrypted by tunnel protocol | End-to-end within Cloudflare's network. |
-| In-cluster cloudflared --> API server | `noTLSVerify` in tunnel config | Internal cluster network, API server uses self-signed cert. |
+| Segment                               | TLS                            | Notes                                                                    |
+| ------------------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| kubectl --> local cloudflared         | `insecure-skip-tls-verify`     | API server cert won't match localhost. Traffic never leaves the machine. |
+| Cloudflare edge transit               | Encrypted by tunnel protocol   | End-to-end within Cloudflare's network.                                  |
+| In-cluster cloudflared --> API server | `noTLSVerify` in tunnel config | Internal cluster network, API server uses self-signed cert.              |
 
 Acceptable for a homelab. For hardening: pin the API server CA via `originCaPool` in tunnel config.
 
 ## Security Model
 
-| Layer | Function |
-|---|---|
+| Layer             | Function                                                             |
+| ----------------- | -------------------------------------------------------------------- |
 | Cloudflare Access | Network-level authn (service token), session controls, audit logging |
-| K8s RBAC | API-level authz (SA token), ClusterRole scoping, audit policy |
-| Cloudflare Tunnel | Transport encryption, no exposed ports, outbound-only, HA replicas |
+| K8s RBAC          | API-level authz (SA token), ClusterRole scoping, audit policy        |
+| Cloudflare Tunnel | Transport encryption, no exposed ports, outbound-only, HA replicas   |
 
 ---
 
 ## Rollout
 
-| Phase | Task |
-|---|---|
-| 0 | Store SA token + CF service token in 1Password |
-| 1 | Add `k8s.jomcgi.dev` TCP route to tunnel values.yaml |
-| 2 | Create DNS CNAME |
-| 3 | Create CF Access application + service token |
-| 4 | Create K8s ServiceAccount + RBAC |
-| 5 | Test `cloudflared access tcp` + kubectl from laptop |
-| 6 | Set up launchd persistent proxy |
-| 7 | Remove SSH bastion dependency (after validation) |
+| Phase | Task                                                 |
+| ----- | ---------------------------------------------------- |
+| 0     | Store SA token + CF service token in 1Password       |
+| 1     | Add `k8s.jomcgi.dev` TCP route to tunnel values.yaml |
+| 2     | Create DNS CNAME                                     |
+| 3     | Create CF Access application + service token         |
+| 4     | Create K8s ServiceAccount + RBAC                     |
+| 5     | Test `cloudflared access tcp` + kubectl from laptop  |
+| 6     | Set up launchd persistent proxy                      |
+| 7     | Remove SSH bastion dependency (after validation)     |
 
 Post-deployment: monitor shared tunnel metrics. If TCP streaming (watch, logs) causes connection saturation or latency degradation on HTTP routes, split to a dedicated tunnel.
 

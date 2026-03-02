@@ -36,14 +36,14 @@ State is tracked in a ConfigMap within the release namespace to detect which das
 
 ## Configuration
 
-| Value | Description | Default |
-| ----- | ----------- | ------- |
-| `signoz.url` | SigNoz query-service URL | `http://signoz.signoz.svc.cluster.local:8080` |
-| `signoz.apiKeySecret.enabled` | Use a Secret for SigNoz API key | `false` |
-| `watch.namespace` | Namespace to watch (empty = all) | `""` |
-| `reconcile.interval` | Drift correction interval | `5m` |
-| `metrics.enabled` | Enable Prometheus metrics | `true` |
-| `metrics.port` | Metrics listen port | `9090` |
-| `dashboards.<name>.enabled` | Enable bundled dashboard | `true` (per dashboard) |
-| `dashboards.<name>.tags` | Custom tags for a dashboard | Varies by dashboard |
-| `imagePullSecret.enabled` | Create GHCR image pull secret | `false` |
+| Value                         | Description                      | Default                                       |
+| ----------------------------- | -------------------------------- | --------------------------------------------- |
+| `signoz.url`                  | SigNoz query-service URL         | `http://signoz.signoz.svc.cluster.local:8080` |
+| `signoz.apiKeySecret.enabled` | Use a Secret for SigNoz API key  | `false`                                       |
+| `watch.namespace`             | Namespace to watch (empty = all) | `""`                                          |
+| `reconcile.interval`          | Drift correction interval        | `5m`                                          |
+| `metrics.enabled`             | Enable Prometheus metrics        | `true`                                        |
+| `metrics.port`                | Metrics listen port              | `9090`                                        |
+| `dashboards.<name>.enabled`   | Enable bundled dashboard         | `true` (per dashboard)                        |
+| `dashboards.<name>.tags`      | Custom tags for a dashboard      | Varies by dashboard                           |
+| `imagePullSecret.enabled`     | Create GHCR image pull secret    | `false`                                       |

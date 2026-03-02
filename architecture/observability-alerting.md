@@ -7,11 +7,13 @@ The homelab has a complete observability stack (SigNoz v0.113, OTel, Linkerd) wi
 **What works:** 22 alert rules are synced, evaluating, and generating alert history in SigNoz v0.113. The signoz-dashboard-sidecar reconciles alert ConfigMaps every 5 minutes, creating or updating rules via the SigNoz API. PagerDuty notification channel (`pagerduty-homelab`) is configured and active.
 
 **Alert inventory:**
+
 - 11 HTTPCheck alerts — monitor service availability via `httpcheck.status` metric
 - 7 Kubernetes health alerts — node conditions (disk/memory/PID pressure, readiness), pod health (OOMKilled, pending, restart rate)
 - 4 ArgoCD app state alerts — degraded, missing, out-of-sync, suspended
 
 **Remaining gaps:**
+
 - ~17 services lack HTTPCheck alerts (#445, #444)
 - No dead man's switch for the httpcheck receiver itself
 - Sidecar's own logs are not collected by the OTel collector (uses `slog` to stdout but not instrumented)
@@ -75,6 +77,7 @@ SigNoz v0.113 uses the v5 query builder format with a `queries` array (not the o
 ```
 
 Key differences from older SigNoz versions:
+
 - `queries` is an array of `{type, spec}` objects (not a `builderQueries` map of `{queryName, dataSource, ...}`)
 - Aggregation uses `timeAggregation`/`spaceAggregation`/`metricName` (not `aggregateOperator`/`aggregateAttribute`)
 - Filters use `expression` string syntax (not `items` array with `key`/`op`/`value` objects)
@@ -113,17 +116,17 @@ The `thresholds` block is still needed for the SigNoz UI to render threshold con
 
 ### Comparison Operators (`op`)
 
-| Value | Meaning      | Use case                    |
-|-------|--------------|-----------------------------|
-| `"1"` | Greater than | Restart count > N           |
-| `"2"` | Less than    | httpcheck.status < 1        |
-| `"3"` | Equal to     | Pod phase == Pending        |
-| `"4"` | Not equal to | Status != expected          |
+| Value | Meaning      | Use case             |
+| ----- | ------------ | -------------------- |
+| `"1"` | Greater than | Restart count > N    |
+| `"2"` | Less than    | httpcheck.status < 1 |
+| `"3"` | Equal to     | Pod phase == Pending |
+| `"4"` | Not equal to | Status != expected   |
 
 ### Match Types (`matchType`)
 
 | Value | Meaning                                      | Use case                        |
-|-------|----------------------------------------------|---------------------------------|
+| ----- | -------------------------------------------- | ------------------------------- |
 | `"1"` | Once in eval window                          | OOMKilled (any occurrence)      |
 | `"3"` | Always in eval window                        | Node pressure (sustained)       |
 | `"5"` | N consecutive times (count = eval/frequency) | HTTPCheck (5 failures in 10min) |
@@ -134,25 +137,26 @@ The `thresholds` block is still needed for the SigNoz UI to render threshold con
 
 Monitor service availability via the OTel httpcheck receiver. Pattern: `avg(httpcheck.status)` where `http.url = '<url>'`, alert when `< 1` for 5 consecutive checks.
 
-| Service | URL | Location |
-|---------|-----|----------|
-| ArgoCD | `https://argocd.jomcgi.dev/healthz` | `overlays/cluster-critical/argocd/` |
-| Longhorn | `https://longhorn.jomcgi.dev` | `overlays/cluster-critical/longhorn/` |
-| SigNoz | `https://signoz.jomcgi.dev/api/v1/health` | `overlays/cluster-critical/signoz/` |
-| hikes.jomcgi.dev | `https://hikes.jomcgi.dev` | `overlays/cluster-critical/signoz/` |
-| jomcgi.dev | `https://jomcgi.dev` | `overlays/cluster-critical/signoz/` |
-| trips pages | `https://trips.jomcgi.dev` | `overlays/cluster-critical/signoz/` |
-| marine | `https://marine.jomcgi.dev/health` | `overlays/dev/marine/` |
-| api-gateway | `https://api.jomcgi.dev/status.json` | `overlays/prod/api-gateway/` |
-| todo | `https://todo.jomcgi.dev` | `overlays/prod/todo/` |
-| todo-admin | `https://todo-admin.jomcgi.dev/health` | `overlays/prod/todo/` |
-| img | `https://img.jomcgi.dev/health` | `overlays/prod/trips/` |
+| Service          | URL                                       | Location                              |
+| ---------------- | ----------------------------------------- | ------------------------------------- |
+| ArgoCD           | `https://argocd.jomcgi.dev/healthz`       | `overlays/cluster-critical/argocd/`   |
+| Longhorn         | `https://longhorn.jomcgi.dev`             | `overlays/cluster-critical/longhorn/` |
+| SigNoz           | `https://signoz.jomcgi.dev/api/v1/health` | `overlays/cluster-critical/signoz/`   |
+| hikes.jomcgi.dev | `https://hikes.jomcgi.dev`                | `overlays/cluster-critical/signoz/`   |
+| jomcgi.dev       | `https://jomcgi.dev`                      | `overlays/cluster-critical/signoz/`   |
+| trips pages      | `https://trips.jomcgi.dev`                | `overlays/cluster-critical/signoz/`   |
+| marine           | `https://marine.jomcgi.dev/health`        | `overlays/dev/marine/`                |
+| api-gateway      | `https://api.jomcgi.dev/status.json`      | `overlays/prod/api-gateway/`          |
+| todo             | `https://todo.jomcgi.dev`                 | `overlays/prod/todo/`                 |
+| todo-admin       | `https://todo-admin.jomcgi.dev/health`    | `overlays/prod/todo/`                 |
+| img              | `https://img.jomcgi.dev/health`           | `overlays/prod/trips/`                |
 
 ### ArgoCD App State Alerts
 
 Monitor GitOps application health via the `argocd_app_info` metric. Pattern: `count(argocd_app_info)` where `health_status = '<state>'`, grouped by app name and namespace.
 
 Located in `overlays/cluster-critical/signoz/alerts/`:
+
 - `argocd-app-degraded.yaml` — health_status = Degraded (warning)
 - `argocd-app-missing.yaml` — health_status = Missing (critical)
 - `argocd-app-outofsync.yaml` — sync_status = OutOfSync (warning)
@@ -163,6 +167,7 @@ Located in `overlays/cluster-critical/signoz/alerts/`:
 Monitor node and pod health via k8s receiver metrics.
 
 Located in `overlays/cluster-critical/signoz/alerts/`:
+
 - `node-disk-pressure.yaml` — `k8s.node.condition_disk_pressure` > 0 always (warning)
 - `node-memory-pressure.yaml` — `k8s.node.condition_memory_pressure` > 0 always (warning)
 - `node-pid-pressure.yaml` — `k8s.node.condition_pid_pressure` > 0 always (warning)

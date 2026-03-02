@@ -19,11 +19,11 @@ and existing SigNoz state.
 
 Update dependencies:
 
-| Dependency | Current | Target |
-|------------|---------|--------|
-| `signoz` | 0.92.0 | 0.113.0 |
-| `k8s-infra` | 0.14.1 | 0.15.0 |
-| `appVersion` | 0.92.0 | 0.113.0 |
+| Dependency   | Current | Target  |
+| ------------ | ------- | ------- |
+| `signoz`     | 0.92.0  | 0.113.0 |
+| `k8s-infra`  | 0.14.1  | 0.15.0  |
+| `appVersion` | 0.92.0  | 0.113.0 |
 
 ### 2. `charts/signoz/charts/`
 

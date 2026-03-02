@@ -1,4 +1,5 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 
 py_library(
     name = "models",
@@ -65,7 +66,7 @@ py_library(
 )
 
 py_library(
-    name = "app",
+    name = "app",  # keep
     srcs = [
         "__init__.py",
         "chunker.py",
@@ -97,40 +98,76 @@ py_library(
     ],
 )
 
-py_binary(
+py_library(
     name = "scraper_main",
     srcs = ["scraper_main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":app",
+        ":config",
+        ":models",
+        ":notifications",
+        ":storage",
+        ":telemetry",
         "//services/knowledge_graph/app/extractors",
         "@pip//fastapi",
         "@pip//httpx",
         "@pip//pydantic",
         "@pip//pyyaml",
+    ],
+)
+
+py_venv_binary(
+    name = "scraper",
+    main = "scraper_main.py",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":scraper_main",
         "@pip//uvicorn",
     ],
 )
 
-py_binary(
+py_library(
     name = "embedder_main",
     srcs = ["embedder_main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":app",
+        ":chunker",
+        ":config",
+        ":qdrant_client",
+        ":storage",
+        ":telemetry",
         "//services/knowledge_graph/app/embedders",
     ],
 )
 
-py_binary(
+py_venv_binary(
+    name = "embedder",
+    main = "embedder_main.py",
+    visibility = ["//:__subpackages__"],
+    deps = [":embedder_main"],
+)
+
+py_library(
     name = "mcp_main",
     srcs = ["mcp_main.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":app",
+        ":config",
+        ":qdrant_client",
+        ":storage",
+        ":telemetry",
         "//services/knowledge_graph/app/embedders",
         "@pip//fastapi",
         "@pip//pydantic",
+    ],
+)
+
+py_venv_binary(
+    name = "mcp",
+    main = "mcp_main.py",
+    visibility = ["//:__subpackages__"],
+    deps = [
+        ":mcp_main",
         "@pip//uvicorn",
     ],
 )

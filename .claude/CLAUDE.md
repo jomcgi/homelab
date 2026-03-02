@@ -64,6 +64,7 @@ Format: `<type>(<optional scope>): <description>`
 Allowed types: `feat`, `fix`, `docs`, `style`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`
 
 Examples:
+
 - `feat: add health check endpoint for auth service`
 - `fix(signoz): correct trace sampling configuration`
 - `ci: add conventional commit pre-commit hook`
@@ -84,27 +85,27 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Key Patterns
 
-| Pattern | Implementation |
-|---------|---------------|
-| **Secrets** | 1Password Operator (`OnePasswordItem` CRD) — never hardcode |
-| **Container images** | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64) |
-| **Auto image updates** | ArgoCD Image Updater (`imageupdater.yaml` in overlay) |
-| **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`) |
-| **Package deps (JS)** | pnpm + rules_js |
-| **Non-root containers** | uid 65532 convention, `runAsNonRoot: true` |
+| Pattern                   | Implementation                                                            |
+| ------------------------- | ------------------------------------------------------------------------- |
+| **Secrets**               | 1Password Operator (`OnePasswordItem` CRD) — never hardcode               |
+| **Container images**      | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64) |
+| **Auto image updates**    | ArgoCD Image Updater (`imageupdater.yaml` in overlay)                     |
+| **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`)                 |
+| **Package deps (JS)**     | pnpm + rules_js                                                           |
+| **Non-root containers**   | uid 65532 convention, `runAsNonRoot: true`                                |
 
 ## Cluster Investigation
 
 **Default to SigNoz** (via Context Forge MCP) for logs, metrics, and traces. Use `kubectl` only for resource state (`get`, `describe`) that SigNoz doesn't cover.
 
-| Need | Tool |
-|------|------|
-| **Logs** | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs` |
-| **Traces** | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
-| **Metrics** | `signoz-search-metric-by-text`, `signoz-list-metric-keys` |
-| **Services** | `signoz-list-services`, `signoz-get-service-top-operations` |
-| **Dashboards** | `signoz-list-dashboards`, `signoz-get-dashboard` |
-| **Alerts** | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history` |
+| Need           | Tool                                                                                     |
+| -------------- | ---------------------------------------------------------------------------------------- |
+| **Logs**       | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`           |
+| **Traces**     | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
+| **Metrics**    | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                |
+| **Services**   | `signoz-list-services`, `signoz-get-service-top-operations`                              |
+| **Dashboards** | `signoz-list-dashboards`, `signoz-get-dashboard`                                         |
+| **Alerts**     | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                     |
 
 ## Kubernetes Operations (kubectl)
 
@@ -134,6 +135,7 @@ ArgoCD syncs from `clusters/homelab/kustomization.yaml` → environment overlays
 CI uses **BuildBuddy Workflows** (not GitHub Actions). Defined in `buildbuddy.yaml`.
 
 Runs on every push/PR:
+
 - **Format check** — formatters + gazelle, verifies no uncommitted changes
 - **Test and push** — `bazel test //...`, pushes images on main branch
 

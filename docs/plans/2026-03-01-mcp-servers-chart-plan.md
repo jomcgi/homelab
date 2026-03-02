@@ -15,6 +15,7 @@
 ### Task 1: Create chart skeleton and values schema
 
 **Files:**
+
 - Create: `charts/mcp-servers/Chart.yaml`
 - Create: `charts/mcp-servers/values.yaml`
 - Create: `charts/mcp-servers/BUILD`
@@ -91,9 +92,10 @@ git commit -m "feat(mcp-servers): add chart skeleton and values schema"
 
 ---
 
-### Task 2: Create _helpers.tpl
+### Task 2: Create \_helpers.tpl
 
 **Files:**
+
 - Create: `charts/mcp-servers/templates/_helpers.tpl`
 
 **Step 1: Create helpers template**
@@ -142,11 +144,13 @@ git commit -m "feat(mcp-servers): add template helpers"
 ### Task 3: Create deployment template
 
 **Files:**
+
 - Create: `charts/mcp-servers/templates/deployment.yaml`
 
 **Step 1: Create deployment template**
 
 The deployment has two modes controlled by `.translate.enabled`:
+
 - `false`: single container, server exposes its own port
 - `true`: two containers — headless stdio server + translate sidecar with port
 
@@ -288,6 +292,7 @@ git commit -m "feat(mcp-servers): add deployment template with translate sidecar
 ### Task 4: Create service, serviceaccount, and onepassworditem templates
 
 **Files:**
+
 - Create: `charts/mcp-servers/templates/service.yaml`
 - Create: `charts/mcp-servers/templates/serviceaccount.yaml`
 - Create: `charts/mcp-servers/templates/onepassworditem.yaml`
@@ -364,6 +369,7 @@ git commit -m "feat(mcp-servers): add service, serviceaccount, and onepasswordit
 ### Task 5: Create RBAC template
 
 **Files:**
+
 - Create: `charts/mcp-servers/templates/rbac.yaml`
 
 **Step 1: Create RBAC template**
@@ -422,6 +428,7 @@ git commit -m "feat(mcp-servers): add RBAC template for optional cluster and nam
 ### Task 6: Create HTTPCheck alert template
 
 **Files:**
+
 - Create: `charts/mcp-servers/templates/alert.yaml`
 
 Reference pattern: `overlays/prod/api-gateway/api-gateway-httpcheck-alert.yaml`
@@ -509,6 +516,7 @@ git commit -m "feat(mcp-servers): add HTTPCheck alert template per server"
 ### Task 7: Create registration job template
 
 **Files:**
+
 - Create: `charts/mcp-servers/templates/registration-job.yaml`
 
 Reference pattern: `charts/context-forge/templates/registration-job.yaml`
@@ -629,6 +637,7 @@ git commit -m "feat(mcp-servers): add per-server gateway registration job"
 ### Task 8: Create overlay and migrate signoz-mcp
 
 **Files:**
+
 - Create: `overlays/prod/mcp-servers/application.yaml`
 - Create: `overlays/prod/mcp-servers/kustomization.yaml`
 - Create: `overlays/prod/mcp-servers/values.yaml`
@@ -763,6 +772,7 @@ git commit -m "feat(mcp-servers): add prod overlay with signoz-mcp as first serv
 ### Task 9: Remove old signoz-mcp chart and overlay
 
 **Files:**
+
 - Delete: `charts/signoz-mcp/` (entire directory)
 - Delete: `overlays/prod/signoz-mcp/` (entire directory)
 - Modify: `charts/context-forge/values.yaml` — remove `registration.signoz` section

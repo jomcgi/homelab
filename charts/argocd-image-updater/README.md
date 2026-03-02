@@ -35,12 +35,12 @@ Authentication uses a GitHub token stored in a Kubernetes Secret (sourced from 1
 
 ## Configuration
 
-| Value | Description | Default |
-| ----- | ----------- | ------- |
-| `argocd-image-updater.extraArgs` | CLI flags (e.g., polling interval) | `["--interval", "2m"]` |
-| `argocd-image-updater.config.registries` | Container registries to monitor | GHCR with pull secret |
-| `argocd-image-updater.authScripts.enabled` | Enable Git credential helper scripts | `true` |
-| `argocd-image-updater.env` | Environment variables (GitHub token) | Secret ref to `argocd-image-updater-token` |
-| `argocd-image-updater.metrics.enabled` | Enable Prometheus metrics | `true` |
-| `argocd-image-updater.resources.limits.memory` | Memory limit | `1Gi` |
-| `argocd-image-updater.resources.requests.cpu` | CPU request | `500m` |
+| Value                                          | Description                          | Default                                    |
+| ---------------------------------------------- | ------------------------------------ | ------------------------------------------ |
+| `argocd-image-updater.extraArgs`               | CLI flags (e.g., polling interval)   | `["--interval", "2m"]`                     |
+| `argocd-image-updater.config.registries`       | Container registries to monitor      | GHCR with pull secret                      |
+| `argocd-image-updater.authScripts.enabled`     | Enable Git credential helper scripts | `true`                                     |
+| `argocd-image-updater.env`                     | Environment variables (GitHub token) | Secret ref to `argocd-image-updater-token` |
+| `argocd-image-updater.metrics.enabled`         | Enable Prometheus metrics            | `true`                                     |
+| `argocd-image-updater.resources.limits.memory` | Memory limit                         | `1Gi`                                      |
+| `argocd-image-updater.resources.requests.cpu`  | CPU request                          | `500m`                                     |
