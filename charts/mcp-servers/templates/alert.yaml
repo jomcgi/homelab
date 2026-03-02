@@ -61,6 +61,10 @@ data:
           "queryType": "builder"
         },
         "selectedQueryName": "A",
+        "op": "2",
+        "target": 1,
+        "matchType": {{ $.Values.alertDefaults.matchType | quote }},
+        "targetUnit": "",
         "thresholds": {
           "kind": "basic",
           "spec": [
