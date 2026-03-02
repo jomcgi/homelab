@@ -21,5 +21,12 @@ alertDefaults:
   channels:
     - pagerduty-homelab
 
+# ArgoCD Image Updater defaults (for in-repo images)
+imageUpdater:
+  gitRepository: "https://github.com/jomcgi/homelab.git"
+  gitBranch: "main"
+  gitSecret: "argocd/argocd-image-updater-token"
+  writeBackTarget: ""  # required if any server has imageUpdater.enabled
+
 # MCP servers to deploy
 servers: []

@@ -1,3 +1,6 @@
+imageUpdater:
+  writeBackTarget: "helmvalues:../../overlays/prod/mcp-servers/values.yaml"
+
 servers:
   - name: signoz-mcp
     image:
@@ -29,3 +32,32 @@ servers:
     alert:
       enabled: true
       url: "http://signoz-mcp.mcp-servers.svc.cluster.local:8000/health"
+
+  - name: buildbuddy-mcp
+    image:
+      repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
+      tag: "main"
+    port: 8000
+    env:
+      - name: BUILDBUDDY_URL
+        value: "https://app.buildbuddy.io"
+    secret:
+      name: buildbuddy-mcp
+      itemPath: "vaults/k8s-homelab/items/buildbuddy-mcp"
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    translate:
+      enabled: false
+    registration:
+      enabled: true
+      transport: "STREAMABLEHTTP"
+    imageUpdater:
+      enabled: true
+    alert:
+      enabled: true
+      url: "http://buildbuddy-mcp.mcp-servers.svc.cluster.local:8000/health"
