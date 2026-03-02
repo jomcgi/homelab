@@ -15,6 +15,7 @@ from services.buildbuddy_mcp.app.main import (
     get_invocation,
     get_log,
     get_target,
+    run,
 )
 
 
@@ -342,3 +343,47 @@ class TestErrorHandling:
         ):
             result = await get_invocation(invocation_id="abc-123")
         assert result == {}
+
+
+class TestRun:
+    @pytest.mark.asyncio
+    async def test_sends_steps_as_run_dicts(self):
+        expected = {"invocation_id": "run-inv-1"}
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value=expected,
+        ) as mock_post:
+            result = await run(
+                repo_url="https://github.com/jomcgi/homelab",
+                steps=["bazel test //pkg:test", "echo done"],
+                branch="main",
+                timeout="15m",
+            )
+        call_body = mock_post.call_args[0][1]
+        assert call_body["steps"] == [
+            {"run": "bazel test //pkg:test"},
+            {"run": "echo done"},
+        ]
+        assert call_body["repo"] == "https://github.com/jomcgi/homelab"
+        assert call_body["branch"] == "main"
+        assert call_body["timeout"] == "15m"
+        assert result["invocation_id"] == "run-inv-1"
+
+    @pytest.mark.asyncio
+    async def test_passes_env_and_wait_until(self):
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value={"invocation_id": "x"},
+        ) as mock_post:
+            await run(
+                repo_url="https://github.com/jomcgi/homelab",
+                steps=["echo hi"],
+                env={"KEY": "val"},
+                wait_until="STARTED",
+            )
+        call_body = mock_post.call_args[0][1]
+        assert call_body["env"] == {"KEY": "val"}
+        assert call_body["wait_until"] == "STARTED"
