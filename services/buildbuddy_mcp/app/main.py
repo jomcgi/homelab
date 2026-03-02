@@ -213,6 +213,11 @@ async def get_action(
 
     Returns action details including test shard, run, and attempt info,
     plus file references (test logs, outputs) with bytestream URIs.
+
+    Use target_label or target_id to scope results to a single target.
+    action_id alone returns all targets sharing that ID — always combine
+    with target_id for a single result.
+    configuration_id is a bazel configuration hash, useful for precise lookups.
     """
     selector: dict = {"invocation_id": invocation_id}
     if target_id:
