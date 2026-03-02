@@ -40,6 +40,7 @@ py_test(
 py_test(
     name = "proto_conformance_test",
     srcs = ["proto_conformance_test.py"],
+    local = True,
     tags = ["external"],
     deps = [
         ":conftest",
