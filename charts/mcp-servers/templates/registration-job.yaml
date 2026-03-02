@@ -69,9 +69,17 @@ spec:
               print(jwt.encode(payload, os.environ.get('JWT_SECRET_KEY', ''), algorithm='HS256'))
               ")
 
-              # Idempotent: delete existing, then re-register
-              curl -sf -X DELETE "{{ $.Values.gateway.url }}/gateways/{{ .name }}" \
-                -H "Authorization: Bearer ${TOKEN}" || true
+              # Idempotent: look up existing gateway by name, delete by ID, then re-register.
+              # The gateway API requires the UUID for deletion, not the name.
+              EXISTING_ID=$(curl -sf "{{ $.Values.gateway.url }}/gateways" \
+                -H "Authorization: Bearer ${TOKEN}" \
+                | python3 -c "import sys,json; gws=json.load(sys.stdin); print(next((g['id'] for g in gws if g['name']=='{{ .name }}'),''))")
+
+              if [ -n "${EXISTING_ID}" ]; then
+                echo "Deleting existing registration ${EXISTING_ID}..."
+                curl -sf -X DELETE "{{ $.Values.gateway.url }}/gateways/${EXISTING_ID}" \
+                  -H "Authorization: Bearer ${TOKEN}"
+              fi
 
               echo "Registering {{ .name }}..."
               curl -sf -X POST "{{ $.Values.gateway.url }}/gateways" \
