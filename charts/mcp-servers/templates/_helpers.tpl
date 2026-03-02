@@ -11,11 +11,11 @@ helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | 
 
 {{/*
 Selector labels for a server.
-Usage: {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) }}
+Minimal and stable — selectors are immutable after Deployment creation.
+Usage: {{- include "mcp-servers.selectorLabels" .server }}
 */}}
 {{- define "mcp-servers.selectorLabels" -}}
-app.kubernetes.io/name: {{ .server.name }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/name: {{ .name }}
 {{- end }}
 
 {{/*

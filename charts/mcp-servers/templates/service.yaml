@@ -14,5 +14,5 @@ spec:
       protocol: TCP
       name: mcp
   selector:
-    {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 4 }}
+    {{- include "mcp-servers.selectorLabels" . | nindent 4 }}
 {{- end }}

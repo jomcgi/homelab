@@ -10,11 +10,11 @@ spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 6 }}
+      {{- include "mcp-servers.selectorLabels" . | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 8 }}
+        {{- include "mcp-servers.selectorLabels" . | nindent 8 }}
     spec:
       serviceAccountName: {{ .name }}
       securityContext:
