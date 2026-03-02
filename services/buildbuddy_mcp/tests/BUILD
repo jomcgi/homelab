@@ -36,3 +36,14 @@ py_test(
         "@pip//pytest",
     ],
 )
+
+py_test(
+    name = "proto_conformance_test",
+    srcs = ["proto_conformance_test.py"],
+    deps = [
+        ":conftest",
+        "//services/buildbuddy_mcp/app",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
