@@ -70,10 +70,10 @@ api:
   resources:
     requests:
       cpu: 10m
-      memory: 75Mi
+      memory: 256Mi
     limits:
-      cpu: 10m
-      memory: 75Mi
+      cpu: 250m
+      memory: 256Mi
 
   # Upload API authentication (from 1Password secret)
   auth:
