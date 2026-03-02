@@ -2,9 +2,17 @@
 
 from __future__ import annotations
 
+import re
+
 import httpx
 from fastmcp import FastMCP
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_ANSI_RE = re.compile(r"\x1b\[[0-9;]*m")
+_ERROR_RE = re.compile(
+    r"(ERROR|FAIL|FAILED|TIMEOUT|FATAL|error:|failure:)", re.IGNORECASE
+)
+_SUMMARY_RE = re.compile(r"Executed \d+ out of \d+ tests?:")
 
 
 class Settings(BaseSettings):
@@ -84,17 +92,62 @@ async def get_invocation(
 @mcp.tool
 async def get_log(
     invocation_id: str,
+    errors_only: bool = False,
     page_token: str | None = None,
 ) -> dict:
     """Get build logs for an invocation.
 
     Returns the build log contents as a string. Logs may be paginated
     for large builds — use page_token to fetch subsequent pages.
+
+    Set errors_only=True to fetch all pages, strip ANSI codes, and return
+    only error/failure lines with 3 lines of surrounding context plus
+    the final test summary line. Much smaller output for CI debugging.
     """
-    body: dict = {"selector": {"invocation_id": invocation_id}}
-    if page_token:
-        body["page_token"] = page_token
-    return await _post("/GetLog", body)
+    if not errors_only:
+        body: dict = {"selector": {"invocation_id": invocation_id}}
+        if page_token:
+            body["page_token"] = page_token
+        return await _post("/GetLog", body)
+
+    # errors_only: fetch all pages, filter to error lines
+    all_text = []
+    token = page_token
+    while True:
+        body: dict = {"selector": {"invocation_id": invocation_id}}
+        if token:
+            body["page_token"] = token
+        result = await _post("/GetLog", body)
+        if "error" in result:
+            return result
+        contents = result.get("log", {}).get("contents", "")
+        all_text.append(contents)
+        token = result.get("next_page_token") or result.get("nextPageToken")
+        if not token:
+            break
+
+    full_log = "".join(all_text)
+    clean_log = _ANSI_RE.sub("", full_log)
+    lines = clean_log.splitlines()
+
+    context_radius = 2
+    matched_indices: set[int] = set()
+    summary_line = None
+
+    for i, line in enumerate(lines):
+        if _ERROR_RE.search(line):
+            for j in range(
+                max(0, i - context_radius), min(len(lines), i + context_radius + 1)
+            ):
+                matched_indices.add(j)
+        if _SUMMARY_RE.search(line):
+            summary_line = line
+
+    filtered = [lines[i] for i in sorted(matched_indices)]
+    if summary_line and summary_line not in filtered:
+        filtered.append(summary_line)
+
+    return {"log": {"contents": "\n".join(filtered)}}
 
 
 @mcp.tool

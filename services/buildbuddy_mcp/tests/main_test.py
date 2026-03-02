@@ -96,6 +96,73 @@ class TestGetLog:
             result = await get_log(invocation_id="abc-123")
         assert "ERROR" in result["log"]["contents"]
 
+    @pytest.mark.asyncio
+    async def test_errors_only_filters_to_error_lines(self):
+        log_text = (
+            "Loading: 0 packages loaded\n"
+            "Analyzing: target //pkg:test\n"
+            "INFO: Build completed\n"
+            "FAIL: //pkg:test (see logs)\n"
+            "ERROR: Build failed\n"
+            "INFO: Streaming results\n"
+            "Executed 1 out of 5 tests: 4 pass, 1 fails.\n"
+        )
+        api_response = {"log": {"contents": log_text}}
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value=api_response,
+        ):
+            result = await get_log(invocation_id="abc-123", errors_only=True)
+        contents = result["log"]["contents"]
+        assert "FAIL:" in contents
+        assert "ERROR:" in contents
+        assert "Executed 1 out of 5 tests" in contents
+        # Non-error lines should be excluded
+        assert "Loading: 0 packages loaded" not in contents
+
+    @pytest.mark.asyncio
+    async def test_errors_only_paginates(self):
+        page1 = {
+            "log": {"contents": "INFO: ok\nERROR: bad\n"},
+            "next_page_token": "p2",
+        }
+        page2 = {
+            "log": {"contents": "FAIL: //test\nExecuted 1 out of 2 tests: 1 fails.\n"},
+        }
+
+        call_count = 0
+
+        async def mock_post(endpoint, body):
+            nonlocal call_count
+            call_count += 1
+            return page1 if call_count == 1 else page2
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            side_effect=mock_post,
+        ):
+            result = await get_log(invocation_id="abc-123", errors_only=True)
+        contents = result["log"]["contents"]
+        assert "ERROR: bad" in contents
+        assert "FAIL: //test" in contents
+
+    @pytest.mark.asyncio
+    async def test_errors_only_strips_ansi(self):
+        log_text = "\x1b[31mERROR:\x1b[0m Build failed\n"
+        api_response = {"log": {"contents": log_text}}
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value=api_response,
+        ):
+            result = await get_log(invocation_id="abc-123", errors_only=True)
+        contents = result["log"]["contents"]
+        assert "\x1b[" not in contents
+        assert "ERROR:" in contents
+
 
 class TestGetTarget:
     @pytest.mark.asyncio
