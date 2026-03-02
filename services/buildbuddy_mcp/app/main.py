@@ -154,12 +154,30 @@ async def get_action(
 
 @mcp.tool
 async def get_file(uri: str) -> dict:
-    """Download a file by its bytestream URI.
+    """Download a file by its bytestream URI and decode as text.
 
-    Use URIs from get_action file references. Supports ZSTD-compressed
-    variants (append /compressed-blobs/zstd/ to URI).
+    Use URIs from get_action file references. Returns decoded UTF-8 text
+    contents. Returns an error for binary files that can't be decoded.
     """
-    return await _post("/GetFile", {"uri": uri})
+    import base64
+
+    result = await _post("/GetFile", {"uri": uri})
+    if "error" in result:
+        return result
+    data = result.get("data", "")
+    if not data:
+        return {"error": "Empty file data returned"}
+    try:
+        raw = base64.b64decode(data)
+        contents = raw.decode("utf-8")
+        return {"contents": contents}
+    except UnicodeDecodeError:
+        return {
+            "error": "Binary file, cannot display as text",
+            "size_bytes": len(raw),
+        }
+    except Exception as e:
+        return {"error": f"Failed to decode file: {e}"}
 
 
 @mcp.tool

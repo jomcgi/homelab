@@ -131,16 +131,35 @@ class TestGetAction:
 
 class TestGetFile:
     @pytest.mark.asyncio
-    async def test_returns_file_data(self):
-        expected = {"data": "file contents here"}
+    async def test_decodes_base64_text(self):
+        import base64
+
+        text = "PASS: //pkg:test\nRan 1 test in 0.5s"
+        b64 = base64.b64encode(text.encode()).decode()
 
         with patch(
             "services.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
-            return_value=expected,
+            return_value={"data": b64},
         ):
-            result = await get_file(uri="bytestream://example/blobs/sha256/abc/123")
-        assert result["data"] == "file contents here"
+            result = await get_file(uri="bytestream://example/blobs/abc/123")
+        assert result["contents"] == text
+
+    @pytest.mark.asyncio
+    async def test_binary_file_returns_error(self):
+        import base64
+
+        binary_data = bytes(range(256))
+        b64 = base64.b64encode(binary_data).decode()
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value={"data": b64},
+        ):
+            result = await get_file(uri="bytestream://example/blobs/abc/256")
+        assert "error" in result
+        assert result["size_bytes"] == 256
 
 
 class TestExecuteWorkflow:
