@@ -98,13 +98,14 @@ data:
 | `annotations.signoz.io/severity`              | `"critical"`              | Alert severity level                 |
 | `annotations.signoz.io/notification-channels` | `"pagerduty-homelab"`     | Notification channel                 |
 
-## SigNoz Alert JSON Format
+## SigNoz Alert JSON Format (v0.113+)
 
 ```json
 {
   "alert": "<Service Name> Unreachable",
   "alertType": "METRICS_BASED_ALERT",
   "ruleType": "threshold_rule",
+  "version": "v5",
   "broadcastToAll": false,
   "disabled": false,
   "evalWindow": "10m0s",
@@ -120,32 +121,50 @@ data:
   },
   "condition": {
     "compositeQuery": {
-      "builderQueries": {
-        "A": {
-          "queryName": "A",
-          "dataSource": "metrics",
-          "aggregateOperator": "avg",
-          "aggregateAttribute": {
-            "key": "httpcheck.status",
-            "dataType": "float64",
-            "type": "Gauge"
-          },
-          "filters": {
-            "items": [
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "metrics",
+            "stepInterval": 60,
+            "aggregations": [
               {
-                "key": { "key": "http.url" },
-                "op": "=",
-                "value": "<url>"
+                "timeAggregation": "avg",
+                "spaceAggregation": "avg",
+                "metricName": "httpcheck.status"
               }
-            ]
+            ],
+            "filter": {
+              "expression": "http.url = '<url>'"
+            },
+            "groupBy": [],
+            "order": [],
+            "disabled": false
           }
         }
-      },
+      ],
+      "panelType": "graph",
       "queryType": "builder"
     },
-    "op": "<",
+    "selectedQueryName": "A",
+    "op": "2",
     "target": 1,
-    "matchType": "5"
+    "matchType": "5",
+    "targetUnit": "",
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "critical",
+          "target": 1,
+          "targetUnit": "",
+          "matchType": "5",
+          "op": "2",
+          "channels": ["pagerduty-homelab"]
+        }
+      ]
+    }
   },
   "preferredChannels": ["pagerduty-homelab"]
 }
@@ -157,9 +176,38 @@ data:
 | ------------ | ------- | ----------------------------------------------- |
 | `evalWindow` | `10m0s` | Time window to evaluate the condition           |
 | `frequency`  | `2m0s`  | How often to check the condition                |
+| `version`    | `"v5"`  | Alert schema version (required for v0.113+)     |
 | `matchType`  | `"5"`   | Alert when condition met 5 times in eval window |
-| `op`         | `<`     | Alert when status is less than target           |
+| `op`         | `"2"`   | Less than (numeric enum, see table below)       |
 | `target`     | `1`     | httpcheck.status = 1 means success, 0 = failure |
+
+### Threshold Fields (CRITICAL)
+
+Thresholds must be defined in **two places** — both are required for SigNoz v0.113:
+
+1. **Legacy fields** on the `condition` object: `op`, `target`, `matchType`, `targetUnit`
+2. **`thresholds` block** with `kind: "basic"` and a `spec` array
+
+Both must have matching values. SigNoz v0.113 defaults `schemaVersion` to `"v1"` internally,
+which reads thresholds from the legacy condition-level fields. Without them, threshold
+evaluation panics with a nil pointer dereference (`BasicRuleThreshold.TargetValue` is `*float64`).
+
+### Comparison Operators (`op`)
+
+| Value | Meaning          |
+| ----- | ---------------- |
+| `"1"` | Greater than     |
+| `"2"` | Less than        |
+| `"3"` | Equal to         |
+| `"4"` | Not equal to     |
+
+### Match Types (`matchType`)
+
+| Value | Meaning                                      |
+| ----- | -------------------------------------------- |
+| `"1"` | Once in eval window                          |
+| `"3"` | Always in eval window                        |
+| `"5"` | N consecutive times (count = eval/frequency) |
 
 ## Usage Examples
 
