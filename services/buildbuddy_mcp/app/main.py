@@ -292,6 +292,41 @@ async def execute_workflow(
     return await _post("/ExecuteWorkflow", body)
 
 
+@mcp.tool
+async def run(
+    repo_url: str,
+    steps: list[str],
+    branch: str | None = None,
+    commit_sha: str | None = None,
+    env: dict[str, str] | None = None,
+    timeout: str | None = None,
+    wait_until: str = "COMPLETED",
+) -> dict:
+    """Run commands on a remote BuildBuddy runner.
+
+    Each string in steps becomes a bash command executed in order.
+    Use for running bazel query, reproducing test failures, or any
+    remote command without needing bazel locally.
+
+    wait_until controls when the response is returned:
+    QUEUED (immediate), STARTED (after runner starts), COMPLETED (after finish).
+    """
+    body: dict = {
+        "repo": repo_url,
+        "steps": [{"run": step} for step in steps],
+        "wait_until": wait_until,
+    }
+    if branch:
+        body["branch"] = branch
+    if commit_sha:
+        body["commit_sha"] = commit_sha
+    if env:
+        body["env"] = env
+    if timeout:
+        body["timeout"] = timeout
+    return await _post("/Run", body)
+
+
 def main():
     settings = Settings()
     configure(settings)
