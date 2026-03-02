@@ -6,7 +6,7 @@ kind: Job
 metadata:
   name: register-{{ .name }}
   labels:
-    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart) | nindent 4 }}
+    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart "Release" $.Release) | nindent 4 }}
   annotations:
     "helm.sh/hook": post-install,post-upgrade
     "helm.sh/hook-weight": "1"
@@ -19,7 +19,7 @@ spec:
       annotations:
         linkerd.io/inject: disabled
       labels:
-        {{- include "mcp-servers.selectorLabels" . | nindent 8 }}
+        {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 8 }}
     spec:
       restartPolicy: OnFailure
       securityContext:

@@ -9,7 +9,8 @@ translate:
 gateway:
   url: "http://context-forge-mcp-stack-mcpgateway.mcp-gateway.svc.cluster.local:80"
   secret:
-    name: context-forge-jwt
+    name: context-forge-gateway
+    itemPath: "vaults/k8s-homelab/items/context-forge"
 
 # HTTPCheck alert defaults (overridable per server)
 alertDefaults:

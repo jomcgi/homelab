@@ -1,19 +1,21 @@
 {{/*
 Common labels for a server.
-Usage: {{- include "mcp-servers.labels" (dict "server" $server "Chart" $.Chart) }}
+Usage: {{- include "mcp-servers.labels" (dict "server" $server "Chart" $.Chart "Release" $.Release) }}
 */}}
 {{- define "mcp-servers.labels" -}}
 app.kubernetes.io/name: {{ .server.name }}
-app.kubernetes.io/managed-by: {{ .Chart.Name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
 helm.sh/chart: {{ printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" }}
 {{- end }}
 
 {{/*
 Selector labels for a server.
-Usage: {{- include "mcp-servers.selectorLabels" .server }}
+Usage: {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) }}
 */}}
 {{- define "mcp-servers.selectorLabels" -}}
-app.kubernetes.io/name: {{ .name }}
+app.kubernetes.io/name: {{ .server.name }}
+app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*

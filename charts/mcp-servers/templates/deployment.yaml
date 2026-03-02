@@ -5,16 +5,16 @@ kind: Deployment
 metadata:
   name: {{ .name }}
   labels:
-    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart) | nindent 4 }}
+    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart "Release" $.Release) | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "mcp-servers.selectorLabels" . | nindent 6 }}
+      {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 6 }}
   template:
     metadata:
       labels:
-        {{- include "mcp-servers.selectorLabels" . | nindent 8 }}
+        {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 8 }}
     spec:
       serviceAccountName: {{ .name }}
       securityContext:
@@ -24,9 +24,26 @@ spec:
           type: RuntimeDefault
       containers:
         {{- if and .translate .translate.enabled }}
-        - name: server
-          image: "{{ .image.repository }}:{{ .image.tag }}"
-          imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
+        {{- /*
+          Translate mode: single container running mcpgateway.translate.
+          It spawns the MCP server as a subprocess via --stdio <command>,
+          then exposes the result over streamable-http on the translate port.
+          Env vars and secrets are passed here since the subprocess inherits them.
+        */ -}}
+        - name: translate
+          image: "{{ $.Values.translate.image.repository }}:{{ $.Values.translate.image.tag }}"
+          imagePullPolicy: {{ $.Values.translate.image.pullPolicy }}
+          command: ["python3", "-m", "mcpgateway.translate"]
+          args:
+            - "--stdio"
+            - {{ required "translate.command is required when translate is enabled" .translate.command | quote }}
+            - "--expose-streamable-http"
+            - "--port"
+            - {{ .translate.port | default 8080 | quote }}
+          ports:
+            - name: mcp
+              containerPort: {{ .translate.port | default 8080 }}
+              protocol: TCP
           {{- with .env }}
           env:
             {{- toYaml . | nindent 12 }}
@@ -36,40 +53,15 @@ spec:
             - secretRef:
                 name: {{ .secret.name }}
           {{- end }}
-          stdin: true
           securityContext:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          {{- with .translate.resources | default (dict "requests" (dict "cpu" "10m" "memory" "64Mi") "limits" (dict "cpu" "100m" "memory" "128Mi")) }}
           resources:
-            {{- toYaml .resources | nindent 12 }}
-        - name: translate
-          image: "{{ $.Values.translate.image.repository }}:{{ $.Values.translate.image.tag }}"
-          imagePullPolicy: {{ $.Values.translate.image.pullPolicy }}
-          command: ["python3", "-m", "mcpgateway.translate"]
-          args:
-            - "--stdio"
-            - {{ .translate.command | quote }}
-            - "--expose-streamable-http"
-            - "--port"
-            - {{ .translate.port | default 8080 | quote }}
-          ports:
-            - name: mcp
-              containerPort: {{ .translate.port | default 8080 }}
-              protocol: TCP
-          securityContext:
-            allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
-            capabilities:
-              drop: ["ALL"]
-          resources:
-            requests:
-              cpu: 10m
-              memory: 64Mi
-            limits:
-              cpu: 100m
-              memory: 128Mi
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           livenessProbe:
             tcpSocket:
               port: mcp
@@ -82,11 +74,11 @@ spec:
             periodSeconds: 10
         {{- else }}
         - name: server
-          image: "{{ .image.repository }}:{{ .image.tag }}"
+          image: "{{ required "image.repository is required" .image.repository }}:{{ required "image.tag is required" .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
           ports:
             - name: mcp
-              containerPort: {{ .port }}
+              containerPort: {{ required "port is required when translate is disabled" .port }}
               protocol: TCP
           {{- with .env }}
           env:
@@ -102,8 +94,10 @@ spec:
             readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
+          {{- if .resources }}
           resources:
             {{- toYaml .resources | nindent 12 }}
+          {{- end }}
           livenessProbe:
             tcpSocket:
               port: mcp
