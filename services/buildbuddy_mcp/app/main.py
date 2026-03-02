@@ -103,12 +103,17 @@ async def get_target(
     target_id: str | None = None,
     tag: str | None = None,
     label: str | None = None,
+    status: str | None = None,
     page_token: str | None = None,
 ) -> dict:
     """Get targets for an invocation.
 
     Returns target labels, statuses (PASSED/FAILED/FLAKY), timing, rule
     types, and languages. Filter by target_id, tag, or label.
+
+    The status parameter is a client-side filter (not supported by the API).
+    When set, all pages are fetched and only targets matching the given
+    status are returned. Use status="FAILED" to find failing tests.
     """
     selector: dict = {"invocation_id": invocation_id}
     if target_id:
@@ -117,6 +122,25 @@ async def get_target(
         selector["tag"] = tag
     if label:
         selector["label"] = label
+
+    if status:
+        # Client-side filter: fetch all pages and filter
+        all_targets = []
+        token = page_token
+        while True:
+            body: dict = {"selector": selector}
+            if token:
+                body["page_token"] = token
+            result = await _post("/GetTarget", body)
+            if "error" in result:
+                return result
+            all_targets.extend(result.get("target", []))
+            token = result.get("next_page_token")
+            if not token:
+                break
+        filtered = [t for t in all_targets if t.get("status") == status]
+        return {"target": filtered}
+
     body: dict = {"selector": selector}
     if page_token:
         body["page_token"] = page_token

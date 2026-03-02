@@ -110,6 +110,51 @@ class TestGetTarget:
             result = await get_target(invocation_id="abc-123")
         assert result["target"][0]["label"] == "//pkg:test"
 
+    @pytest.mark.asyncio
+    async def test_status_filter_returns_only_matching(self):
+        api_response = {
+            "target": [
+                {"label": "//pkg:build", "status": "BUILT"},
+                {"label": "//pkg:test_a", "status": "PASSED"},
+                {"label": "//pkg:test_b", "status": "FAILED"},
+                {"label": "//pkg:test_c", "status": "FAILED"},
+            ]
+        }
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value=api_response,
+        ):
+            result = await get_target(invocation_id="abc-123", status="FAILED")
+        assert len(result["target"]) == 2
+        assert all(t["status"] == "FAILED" for t in result["target"])
+
+    @pytest.mark.asyncio
+    async def test_status_filter_with_pagination(self):
+        page1 = {
+            "target": [{"label": "//a:t", "status": "PASSED"}],
+            "next_page_token": "page2",
+        }
+        page2 = {
+            "target": [{"label": "//b:t", "status": "FAILED"}],
+        }
+
+        call_count = 0
+
+        async def mock_post(endpoint, body):
+            nonlocal call_count
+            call_count += 1
+            return page1 if call_count == 1 else page2
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            side_effect=mock_post,
+        ):
+            result = await get_target(invocation_id="abc-123", status="FAILED")
+        assert len(result["target"]) == 1
+        assert result["target"][0]["label"] == "//b:t"
+
 
 class TestGetAction:
     @pytest.mark.asyncio
