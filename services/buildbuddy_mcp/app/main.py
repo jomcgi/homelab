@@ -33,10 +33,18 @@ def configure(settings: Settings) -> None:
 
 
 async def _post(endpoint: str, body: dict) -> dict:
-    """POST to a BuildBuddy API endpoint and return parsed JSON."""
-    resp = await _client.post(endpoint, json=body)
-    resp.raise_for_status()
-    return resp.json()
+    """POST to a BuildBuddy API endpoint and return parsed JSON.
+
+    Returns an error dict on HTTP failures instead of raising, so FastMCP
+    output schema validation gets a valid dict rather than an exception.
+    """
+    try:
+        resp = await _client.post(endpoint, json=body)
+        if not resp.is_success:
+            return {"error": f"BuildBuddy API error: {resp.status_code} {resp.text}"}
+        return resp.json()
+    except Exception as e:
+        return {"error": f"BuildBuddy API request failed: {e}"}
 
 
 @mcp.tool

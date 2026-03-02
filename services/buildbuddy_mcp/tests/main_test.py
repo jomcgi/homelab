@@ -134,3 +134,29 @@ class TestExecuteWorkflow:
                 branch="main",
             )
         assert result["action_statuses"][0]["action_name"] == "Test and push"
+
+
+class TestErrorHandling:
+    @pytest.mark.asyncio
+    async def test_http_error_returns_error_dict(self):
+        with patch(
+            "services.buildbuddy_mcp.app.main._client",
+        ) as mock_client:
+            mock_resp = AsyncMock()
+            mock_resp.status_code = 404
+            mock_resp.text = "Not Found"
+            mock_resp.is_success = False
+            mock_client.post = AsyncMock(return_value=mock_resp)
+
+            result = await get_invocation(invocation_id="nonexistent")
+        assert "error" in result
+
+    @pytest.mark.asyncio
+    async def test_empty_response_returns_error_dict(self):
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value={},
+        ):
+            result = await get_invocation(invocation_id="abc-123")
+        assert result == {}
