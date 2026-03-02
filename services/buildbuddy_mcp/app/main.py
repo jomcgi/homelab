@@ -264,11 +264,17 @@ async def execute_workflow(
     commit_sha: str | None = None,
     action_names: list[str] | None = None,
     run_async: bool = True,
+    env: dict[str, str] | None = None,
+    visibility: str | None = None,
+    disable_retry: bool = False,
 ) -> dict:
     """Trigger a BuildBuddy workflow run.
 
     Re-runs CI for a repo/branch/commit. Returns invocation IDs for
     each triggered action. Runs async by default.
+
+    Use action_names to run specific actions from buildbuddy.yaml
+    (e.g. ["Format check"]). Set env to override environment variables.
     """
     body: dict = {"repo_url": repo_url, "async": run_async}
     if branch:
@@ -277,6 +283,12 @@ async def execute_workflow(
         body["commit_sha"] = commit_sha
     if action_names:
         body["action_names"] = action_names
+    if env:
+        body["env"] = env
+    if visibility:
+        body["visibility"] = visibility
+    if disable_retry:
+        body["disable_retry"] = True
     return await _post("/ExecuteWorkflow", body)
 
 
