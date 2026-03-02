@@ -61,6 +61,10 @@ data:
           "queryType": "builder"
         },
         "selectedQueryName": "A",
+        "op": "1",
+        "target": 0,
+        "matchType": "3",
+        "targetUnit": "",
         "thresholds": {
           "kind": "basic",
           "spec": [
