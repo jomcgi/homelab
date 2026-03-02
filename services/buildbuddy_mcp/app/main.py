@@ -51,12 +51,18 @@ async def _post(endpoint: str, body: dict) -> dict:
 async def get_invocation(
     invocation_id: str | None = None,
     commit_sha: str | None = None,
+    include_child_invocations: bool = False,
+    include_metadata: bool = False,
+    include_artifacts: bool = False,
     page_token: str | None = None,
 ) -> dict:
     """Get build invocation details by invocation ID or commit SHA.
 
     Returns build metadata including success status, duration, command,
     repo URL, branch, and bazel exit code.
+
+    Set include_child_invocations=True to get inner bazel invocation IDs
+    from workflow runs (needed to navigate to test results).
     """
     selector = {}
     if invocation_id:
@@ -64,6 +70,12 @@ async def get_invocation(
     if commit_sha:
         selector["commit_sha"] = commit_sha
     body: dict = {"selector": selector}
+    if include_child_invocations:
+        body["include_child_invocations"] = True
+    if include_metadata:
+        body["include_metadata"] = True
+    if include_artifacts:
+        body["include_artifacts"] = True
     if page_token:
         body["page_token"] = page_token
     return await _post("/GetInvocation", body)

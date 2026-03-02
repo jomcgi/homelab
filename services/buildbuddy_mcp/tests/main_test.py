@@ -54,6 +54,34 @@ class TestGetInvocation:
             result = await get_invocation(commit_sha="deadbeef")
         assert result["invocation"][0]["commit_sha"] == "deadbeef"
 
+    @pytest.mark.asyncio
+    async def test_include_child_invocations(self):
+        expected = {
+            "invocation": [
+                {
+                    "id": {"invocation_id": "workflow-1"},
+                    "child_invocations": [
+                        {"invocation_id": "child-1"},
+                        {"invocation_id": "child-2"},
+                    ],
+                }
+            ]
+        }
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value=expected,
+        ) as mock_post:
+            result = await get_invocation(
+                invocation_id="workflow-1",
+                include_child_invocations=True,
+            )
+        # Verify the include flag was passed as a top-level request field
+        call_body = mock_post.call_args[0][1]
+        assert call_body["include_child_invocations"] is True
+        assert len(result["invocation"][0]["child_invocations"]) == 2
+
 
 class TestGetLog:
     @pytest.mark.asyncio
