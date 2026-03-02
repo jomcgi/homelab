@@ -1,59 +1,189 @@
 # Observability & Alerting
 
-The homelab has a complete observability stack (SigNoz, OTel, Linkerd) but its alerting pipeline is broken. PagerDuty notifications never fire due to a channel sync bug, 17 services lack HTTPCheck alerts, and the synthetic monitoring system has a silent failure mode where it stops producing metrics without triggering any alert. This RFC consolidates issues #458, #445, and #444 into a single plan to make alerting reliable.
+The homelab has a complete observability stack (SigNoz v0.113, OTel, Linkerd) with a fully operational alerting pipeline. 22 alert rules monitor infrastructure health, application availability, and GitOps state. Alerts are synced to SigNoz via the signoz-dashboard-sidecar and notify through PagerDuty.
 
 ## Current State
 
-**What works:** 14 HTTPCheck endpoints are configured in the OTel deployment collector. 12 infrastructure alerts (4 node conditions, 4 ArgoCD app states, 3 pod health, 1 restart rate) and 6 HTTPCheck alerts exist as ConfigMaps synced by the signoz-dashboard-sidecar. All 23 alert rules are synced and enabled in SigNoz.
+**What works:** 22 alert rules are synced, evaluating, and generating alert history in SigNoz v0.113. The signoz-dashboard-sidecar reconciles alert ConfigMaps every 5 minutes, creating or updating rules via the SigNoz API. PagerDuty notification channel (`pagerduty-homelab`) is configured and active.
 
-**What doesn't work:** The PagerDuty notification channel sync is stuck in a create/update conflict -- the sidecar POSTs a new channel every 5 minutes instead of PUTting the existing one, so no pages are ever delivered. An orphaned `k8s-infra-otel-deployment` pod has been failing for 100+ days. Only 6 of ~23 services have HTTPCheck alerts. If the httpcheck receiver stops collecting, alerts go inactive instead of firing.
+**Alert inventory:**
+- 11 HTTPCheck alerts — monitor service availability via `httpcheck.status` metric
+- 7 Kubernetes health alerts — node conditions (disk/memory/PID pressure, readiness), pod health (OOMKilled, pending, restart rate)
+- 4 ArgoCD app state alerts — degraded, missing, out-of-sync, suspended
 
-## Failure Modes
+**Remaining gaps:**
+- ~17 services lack HTTPCheck alerts (#445, #444)
+- No dead man's switch for the httpcheck receiver itself
+- Sidecar's own logs are not collected by the OTel collector (uses `slog` to stdout but not instrumented)
 
-| Failure Mode | Severity | Current Detection | Gap |
-|---|---|---|---|
-| PagerDuty channel sync conflict | Critical | None -- fails silently every 5 min | Sidecar lacks `getChannelByName()` to detect existing channels |
-| Service goes down (no HTTPCheck alert defined) | Critical | None for 17 services | Missing alert ConfigMaps for cluster-critical and prod services |
-| HTTPCheck receiver stops producing metrics | Medium | None -- alerts go `inactive` silently | No dead man's switch to detect absent metrics |
-| Orphaned OTel deployment in error loop | Low | Noisy logs, wasted resources | Not pruned by ArgoCD (name prefix changed) |
+## Alert ConfigMap Format (SigNoz v0.113)
 
-## Proposed Alerting Strategy
+All alerts are Kubernetes ConfigMaps with the `signoz.io/alert: "true"` label, discovered and synced by the signoz-dashboard-sidecar. The alert JSON lives in `data.alert.json`.
 
-### Infrastructure Layer (exists, working)
+### Required Fields
 
-Node and ArgoCD alerts are already in place under `overlays/cluster-critical/signoz/alerts/`. These cover node pressure conditions (disk, memory, PID), node readiness, pod OOMKills, pod pending/restart rates, and ArgoCD application states (degraded, missing, out-of-sync, suspended). No changes needed here beyond fixing the PagerDuty delivery path.
+```json
+{
+  "alert": "Alert Name",
+  "alertType": "METRICS_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "version": "v5",
+  "broadcastToAll": false,
+  "disabled": false,
+  "evalWindow": "10m0s",
+  "frequency": "2m0s",
+  "severity": "critical",
+  "labels": { ... },
+  "annotations": { "summary": "...", "description": "..." },
+  "condition": { ... },
+  "preferredChannels": ["pagerduty-homelab"]
+}
+```
 
-### Application Layer (HTTPCheck gaps)
+### Query Format (v5)
 
-Every service exposed through Cloudflare Tunnel or Cloudflare Pages needs an HTTPCheck alert ConfigMap following the established pattern: 10-minute eval window, 2-minute frequency, 5 consecutive failures to trigger, severity critical, notification via `pagerduty-homelab`.
+SigNoz v0.113 uses the v5 query builder format with a `queries` array (not the older `builderQueries` map):
 
-**Cluster-critical services needing alerts (#445):** argocd-image-updater, cert-manager, coredns, kyverno, linkerd, nvidia-gpu-operator, signoz-dashboard-sidecar.
+```json
+"compositeQuery": {
+  "queries": [
+    {
+      "type": "builder_query",
+      "spec": {
+        "name": "A",
+        "signal": "metrics",
+        "stepInterval": 60,
+        "aggregations": [
+          {
+            "timeAggregation": "avg",
+            "spaceAggregation": "avg",
+            "metricName": "httpcheck.status"
+          }
+        ],
+        "filter": {
+          "expression": "http.url = 'https://example.jomcgi.dev'"
+        },
+        "groupBy": [],
+        "order": [],
+        "disabled": false
+      }
+    }
+  ],
+  "panelType": "graph",
+  "queryType": "builder"
+}
+```
 
-**Production services needing alerts (#444):** cloudflare-tunnel, gh-arc-controller, gh-arc-runners, knowledge-graph, llama-cpp, nats, openclaw-friends, openclaw-personal, perplexica, seaweedfs.
+Key differences from older SigNoz versions:
+- `queries` is an array of `{type, spec}` objects (not a `builderQueries` map of `{queryName, dataSource, ...}`)
+- Aggregation uses `timeAggregation`/`spaceAggregation`/`metricName` (not `aggregateOperator`/`aggregateAttribute`)
+- Filters use `expression` string syntax (not `items` array with `key`/`op`/`value` objects)
 
-Each alert should be a ConfigMap in the service's overlay directory, added to its `kustomization.yaml`.
+### Threshold Configuration (CRITICAL)
 
-### Synthetic Monitoring (Dead Man's Switch)
+Thresholds must be defined in **two places** on the `condition` object — both are required:
 
-Add a meta-alert that fires when the httpcheck receiver itself stops producing data:
+```json
+"condition": {
+  "compositeQuery": { ... },
+  "selectedQueryName": "A",
+  "op": "2",
+  "target": 1,
+  "matchType": "5",
+  "targetUnit": "",
+  "thresholds": {
+    "kind": "basic",
+    "spec": [
+      {
+        "name": "critical",
+        "target": 1,
+        "targetUnit": "",
+        "matchType": "5",
+        "op": "2",
+        "channels": ["pagerduty-homelab"]
+      }
+    ]
+  }
+}
+```
 
-- **Query:** `count(httpcheck.status) == 0` over a 10-minute window
-- **Condition:** If zero httpcheck data points are observed for 10 minutes, fire critical alert
-- **Purpose:** Detects OTel deployment failure, Cloudflare service token expiry, or receiver misconfiguration
-- **Location:** `overlays/cluster-critical/signoz/alerts/httpcheck-dead-mans-switch.yaml`
+**Why both are required:** SigNoz v0.113's `PostableRule.processRuleDefaults()` defaults the internal `schemaVersion` to `"v1"` (this is separate from the top-level `"version": "v5"` which controls query format). For v1 schema, the threshold evaluation reads from the **legacy condition-level fields** (`op`, `target`, `matchType`, `targetUnit`), not from the `thresholds` block. Without the legacy fields, `BasicRuleThreshold.TargetValue` (`*float64`) is nil, causing a panic during evaluation when a query returns data.
 
-This closes the gap where the monitoring pipeline silently dies and all HTTPCheck alerts go inactive.
+The `thresholds` block is still needed for the SigNoz UI to render threshold configuration correctly.
 
-## Action Items
+### Comparison Operators (`op`)
 
-1. **Fix PagerDuty channel sync in sidecar (#458-1)** -- Add `getChannelByName()` / `listChannels()` to the sidecar's channel reconciler. On sync, query existing channels by name before attempting POST. If channel exists, use PUT with the existing ID. Handle 400 conflict errors gracefully.
+| Value | Meaning      | Use case                    |
+|-------|--------------|-----------------------------|
+| `"1"` | Greater than | Restart count > N           |
+| `"2"` | Less than    | httpcheck.status < 1        |
+| `"3"` | Equal to     | Pod phase == Pending        |
+| `"4"` | Not equal to | Status != expected          |
 
-2. **Delete orphaned OTel deployment (#458-2)** -- Remove stale `k8s-infra-otel-deployment` Deployment from the cluster (pre-rename artifact). Add to ArgoCD resource pruning if needed.
+### Match Types (`matchType`)
 
-3. **Add dead man's switch alert (#458-3)** -- Create `httpcheck-dead-mans-switch.yaml` ConfigMap alert that fires when `count(httpcheck.status) == 0` over 10 minutes.
+| Value | Meaning                                      | Use case                        |
+|-------|----------------------------------------------|---------------------------------|
+| `"1"` | Once in eval window                          | OOMKilled (any occurrence)      |
+| `"3"` | Always in eval window                        | Node pressure (sustained)       |
+| `"5"` | N consecutive times (count = eval/frequency) | HTTPCheck (5 failures in 10min) |
 
-4. **Add 7 cluster-critical HTTPCheck alerts (#445)** -- One ConfigMap per service, following the `api-gateway-httpcheck-alert.yaml` pattern.
+## Alert Categories
 
-5. **Add 10 prod service HTTPCheck alerts (#444)** -- One ConfigMap per service, same pattern.
+### HTTPCheck Alerts
 
-6. **Verify end-to-end** -- After fixes 1-5, confirm by temporarily breaking a health check endpoint and validating that a PagerDuty page is received.
+Monitor service availability via the OTel httpcheck receiver. Pattern: `avg(httpcheck.status)` where `http.url = '<url>'`, alert when `< 1` for 5 consecutive checks.
+
+| Service | URL | Location |
+|---------|-----|----------|
+| ArgoCD | `https://argocd.jomcgi.dev/healthz` | `overlays/cluster-critical/argocd/` |
+| Longhorn | `https://longhorn.jomcgi.dev` | `overlays/cluster-critical/longhorn/` |
+| SigNoz | `https://signoz.jomcgi.dev/api/v1/health` | `overlays/cluster-critical/signoz/` |
+| hikes.jomcgi.dev | `https://hikes.jomcgi.dev` | `overlays/cluster-critical/signoz/` |
+| jomcgi.dev | `https://jomcgi.dev` | `overlays/cluster-critical/signoz/` |
+| trips pages | `https://trips.jomcgi.dev` | `overlays/cluster-critical/signoz/` |
+| marine | `https://marine.jomcgi.dev/health` | `overlays/dev/marine/` |
+| api-gateway | `https://api.jomcgi.dev/status.json` | `overlays/prod/api-gateway/` |
+| todo | `https://todo.jomcgi.dev` | `overlays/prod/todo/` |
+| todo-admin | `https://todo-admin.jomcgi.dev/health` | `overlays/prod/todo/` |
+| img | `https://img.jomcgi.dev/health` | `overlays/prod/trips/` |
+
+### ArgoCD App State Alerts
+
+Monitor GitOps application health via the `argocd_app_info` metric. Pattern: `count(argocd_app_info)` where `health_status = '<state>'`, grouped by app name and namespace.
+
+Located in `overlays/cluster-critical/signoz/alerts/`:
+- `argocd-app-degraded.yaml` — health_status = Degraded (warning)
+- `argocd-app-missing.yaml` — health_status = Missing (critical)
+- `argocd-app-outofsync.yaml` — sync_status = OutOfSync (warning)
+- `argocd-app-suspended.yaml` — health_status = Suspended (warning)
+
+### Kubernetes Infrastructure Alerts
+
+Monitor node and pod health via k8s receiver metrics.
+
+Located in `overlays/cluster-critical/signoz/alerts/`:
+- `node-disk-pressure.yaml` — `k8s.node.condition_disk_pressure` > 0 always (warning)
+- `node-memory-pressure.yaml` — `k8s.node.condition_memory_pressure` > 0 always (warning)
+- `node-pid-pressure.yaml` — `k8s.node.condition_pid_pressure` > 0 always (warning)
+- `node-not-ready.yaml` — `k8s.node.condition_ready` < 1 for 5 consecutive (critical)
+- `pod-oomkilled.yaml` — `k8s.container.restarts` where `last_terminated_reason = OOMKilled` > 0 once (critical)
+- `pod-pending.yaml` — `k8s.pod.phase` == 1 (Pending) for 5 consecutive over 15min (warning)
+- `pod-restart-rate.yaml` — `k8s.container.restarts` > 3 once in 15min (warning)
+
+## Sidecar Architecture
+
+The `signoz-dashboard-sidecar` (Go, in `charts/signoz-dashboard-sidecar/`) watches for ConfigMaps labeled `signoz.io/alert: "true"` across all namespaces. It:
+
+1. **Watches** — Kubernetes watch on ConfigMaps with the alert label
+2. **Reconciles** — Every 5 minutes, force-updates all known alerts (drift correction)
+3. **Syncs** — POSTs to create or PUTs to update alerts via SigNoz's `POST /api/v1/rules` API
+4. **Tracks state** — Stores `{ConfigMap UID → AlertState(ID, ContentHash)}` in a `signoz-dashboard-sidecar-state` ConfigMap
+
+On 404 (alert deleted from SigNoz), the sidecar recreates the alert automatically.
+
+## Remaining Action Items
+
+1. **Add ~17 missing HTTPCheck alerts (#445, #444)** — Cluster-critical and prod services still need monitoring
+2. **Add dead man's switch alert** — Fire when `count(httpcheck.status) == 0` over 10 minutes
+3. **Instrument sidecar logging** — Sidecar logs (`slog` to stdout) are not collected by the OTel collector
