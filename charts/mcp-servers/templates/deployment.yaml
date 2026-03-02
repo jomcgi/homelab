@@ -18,8 +18,10 @@ spec:
     spec:
       serviceAccountName: {{ .name }}
       securityContext:
+        {{- if not .writableTmp }}
         runAsNonRoot: true
         runAsUser: 65532
+        {{- end }}
         seccompProfile:
           type: RuntimeDefault
       containers:
