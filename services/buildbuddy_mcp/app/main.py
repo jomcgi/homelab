@@ -332,6 +332,9 @@ async def run(
     return await _post("/Run", body)
 
 
+import services.buildbuddy_mcp.app.composite as _composite  # noqa: F401, E402
+
+
 def main():
     settings = Settings()
     configure(settings)

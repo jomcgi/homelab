@@ -26,3 +26,13 @@ py_library(
     visibility = ["//:__subpackages__"],
     deps = ["@pip//pytest_asyncio"],
 )
+
+py_test(
+    name = "composite_test",
+    srcs = ["composite_test.py"],
+    deps = [
+        ":conftest",
+        "//services/buildbuddy_mcp/app",
+        "@pip//pytest",
+    ],
+)
