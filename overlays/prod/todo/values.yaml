@@ -11,7 +11,7 @@ persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
 image:
-  tag: main@sha256:2c899988b5bf38120be654213f422b76883f9a63a0a5df36766619fa0081e492
+  tag: main@sha256:4895e72909021db4ae0475213cb7bc1e90746a6f5f9ab1dfc252e3803457fa98
   repository: ghcr.io/jomcgi/homelab/charts/todo
 # Prefer to schedule on the same node to avoid volume reattachment delays
 affinity:
