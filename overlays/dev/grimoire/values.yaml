@@ -26,12 +26,12 @@ imagePullSecret:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-frontend
-    tag: latest@sha256:a76763778e3f0bc3ec3de7d050361ef36cb122d63a544c306a5da220d5ed234d
+    tag: main@sha256:c512f64d90f3602a7e824443b485eac31b03af22677f41dbbebca89d894f075b
     pullPolicy: Always
 # WebSocket Gateway
 wsGateway:
   cfAccessTeam: jomcgi.cloudflareaccess.com
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
-    tag: main@sha256:97807a194e6e619e6215cdd092e793724dc598dfc8d3079eb475600c2162bd23
+    tag: main@sha256:6e5c223a091d2cffd1e001ca610d4dd5a80a4950c00aa62ac2461be80689f381
     pullPolicy: Always
