@@ -294,6 +294,29 @@ class TestExecuteWorkflow:
             )
         assert result["action_statuses"][0]["action_name"] == "Test and push"
 
+    @pytest.mark.asyncio
+    async def test_passes_env_and_visibility(self):
+        expected = {
+            "action_statuses": [{"action_name": "Test", "invocation_id": "inv-1"}]
+        }
+
+        with patch(
+            "services.buildbuddy_mcp.app.main._post",
+            new_callable=AsyncMock,
+            return_value=expected,
+        ) as mock_post:
+            await execute_workflow(
+                repo_url="https://github.com/jomcgi/homelab",
+                branch="main",
+                env={"FOO": "bar"},
+                visibility="PUBLIC",
+                disable_retry=True,
+            )
+        call_body = mock_post.call_args[0][1]
+        assert call_body["env"] == {"FOO": "bar"}
+        assert call_body["visibility"] == "PUBLIC"
+        assert call_body["disable_retry"] is True
+
 
 class TestErrorHandling:
     @pytest.mark.asyncio
