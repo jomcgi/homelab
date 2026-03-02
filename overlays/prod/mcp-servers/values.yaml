@@ -38,6 +38,7 @@ servers:
       repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
       tag: "main"
     port: 8000
+    writableTmp: true
     env:
       - name: BUILDBUDDY_URL
         value: "https://app.buildbuddy.io"

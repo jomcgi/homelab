@@ -44,10 +44,16 @@ spec:
             - name: mcp
               containerPort: {{ .translate.port | default 8080 }}
               protocol: TCP
-          {{- with .env }}
           env:
+            {{- if .writableTmp }}
+            - name: HOME
+              value: /tmp
+            - name: UV_CACHE_DIR
+              value: /tmp/.uv-cache
+            {{- end }}
+            {{- with .env }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           {{- if .secret }}
           envFrom:
             - secretRef:
@@ -55,9 +61,14 @@ spec:
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: {{ not .writableTmp }}
             capabilities:
               drop: ["ALL"]
+          {{- if .writableTmp }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- end }}
           {{- with .translate.resources | default (dict "requests" (dict "cpu" "10m" "memory" "64Mi") "limits" (dict "cpu" "100m" "memory" "128Mi")) }}
           resources:
             {{- toYaml . | nindent 12 }}
@@ -80,10 +91,16 @@ spec:
             - name: mcp
               containerPort: {{ required "port is required when translate is disabled" .port }}
               protocol: TCP
-          {{- with .env }}
           env:
+            {{- if .writableTmp }}
+            - name: HOME
+              value: /tmp
+            - name: UV_CACHE_DIR
+              value: /tmp/.uv-cache
+            {{- end }}
+            {{- with .env }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
+            {{- end }}
           {{- if .secret }}
           envFrom:
             - secretRef:
@@ -91,9 +108,14 @@ spec:
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: {{ not .writableTmp }}
             capabilities:
               drop: ["ALL"]
+          {{- if .writableTmp }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- end }}
           {{- if .resources }}
           resources:
             {{- toYaml .resources | nindent 12 }}
@@ -109,4 +131,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
         {{- end }}
+      {{- if .writableTmp }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- end }}
 {{- end }}
