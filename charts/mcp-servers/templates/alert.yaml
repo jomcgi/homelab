@@ -6,7 +6,7 @@ kind: ConfigMap
 metadata:
   name: {{ .name }}-httpcheck-alert
   labels:
-    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart) | nindent 4 }}
+    {{- include "mcp-servers.labels" (dict "server" . "Chart" $.Chart "Release" $.Release) | nindent 4 }}
     signoz.io/alert: "true"
   annotations:
     signoz.io/alert-name: {{ printf "%s Unreachable" .name | quote }}
@@ -18,6 +18,7 @@ data:
       "alert": {{ printf "%s Unreachable" .name | quote }},
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
+      "version": "v5",
       "broadcastToAll": false,
       "disabled": false,
       "evalWindow": {{ .alert.evalWindow | default $.Values.alertDefaults.evalWindow | quote }},
@@ -33,32 +34,46 @@ data:
       },
       "condition": {
         "compositeQuery": {
-          "builderQueries": {
-            "A": {
-              "queryName": "A",
-              "dataSource": "metrics",
-              "aggregateOperator": "avg",
-              "aggregateAttribute": {
-                "key": "httpcheck.status",
-                "dataType": "float64",
-                "type": "Gauge"
-              },
-              "filters": {
-                "items": [
+          "queries": [
+            {
+              "type": "builder_query",
+              "spec": {
+                "name": "A",
+                "signal": "metrics",
+                "stepInterval": 60,
+                "aggregations": [
                   {
-                    "key": {"key": "http.url"},
-                    "op": "=",
-                    "value": {{ .alert.url | quote }}
+                    "timeAggregation": "avg",
+                    "spaceAggregation": "avg",
+                    "metricName": "httpcheck.status"
                   }
-                ]
+                ],
+                "filter": {
+                  "expression": {{ printf "http.url = '%s'" .alert.url | quote }}
+                },
+                "groupBy": [],
+                "order": [],
+                "disabled": false
               }
             }
-          },
+          ],
+          "panelType": "graph",
           "queryType": "builder"
         },
-        "op": "<",
-        "target": 1,
-        "matchType": {{ $.Values.alertDefaults.matchType | quote }}
+        "selectedQueryName": "A",
+        "thresholds": {
+          "kind": "basic",
+          "spec": [
+            {
+              "name": {{ .alert.severity | default $.Values.alertDefaults.severity | quote }},
+              "target": 1,
+              "targetUnit": "",
+              "matchType": {{ $.Values.alertDefaults.matchType | quote }},
+              "op": "2",
+              "channels": {{ .alert.channels | default $.Values.alertDefaults.channels | toJson }}
+            }
+          ]
+        }
       },
       "preferredChannels": {{ .alert.channels | default $.Values.alertDefaults.channels | toJson }}
     }

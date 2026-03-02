@@ -7,7 +7,7 @@ kind: ClusterRoleBinding
 metadata:
   name: mcp-{{ $server.name }}
   labels:
-    {{- include "mcp-servers.labels" (dict "server" $server "Chart" $.Chart) | nindent 4 }}
+    {{- include "mcp-servers.labels" (dict "server" $server "Chart" $.Chart "Release" $.Release) | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
@@ -22,10 +22,10 @@ subjects:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
-  name: mcp-{{ $server.name }}
+  name: mcp-{{ $server.name }}-{{ .namespace }}
   namespace: {{ .namespace }}
   labels:
-    {{- include "mcp-servers.labels" (dict "server" $server "Chart" $.Chart) | nindent 4 }}
+    {{- include "mcp-servers.labels" (dict "server" $server "Chart" $.Chart "Release" $.Release) | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: Role
