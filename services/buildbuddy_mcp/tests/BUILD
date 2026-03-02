@@ -13,7 +13,16 @@ py_test(
     name = "main_test",
     srcs = ["main_test.py"],
     deps = [
+        ":conftest",
         "//services/buildbuddy_mcp/app",
         "@pip//pytest",
     ],
+)
+
+py_library(
+    name = "conftest",
+    testonly = True,
+    srcs = ["conftest.py"],
+    visibility = ["//:__subpackages__"],
+    deps = ["@pip//pytest_asyncio"],
 )
