@@ -40,6 +40,7 @@ py_test(
 py_test(
     name = "proto_conformance_test",
     srcs = ["proto_conformance_test.py"],
+    tags = ["external"],
     deps = [
         ":conftest",
         "//services/buildbuddy_mcp/app",
