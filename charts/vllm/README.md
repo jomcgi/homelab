@@ -44,17 +44,17 @@ Each model defined in `servingEngineSpec.modelSpec` produces its own vLLM deploy
 
 ## Configuration
 
-| Value | Description | Default |
-| --- | --- | --- |
-| `secret.create` | Create HuggingFace token secret | `false` |
-| `secret.type` | Secret source: `onepassword` or `manual` | `"onepassword"` |
-| `secret.onepassword.itemPath` | 1Password item path for HF token | `""` |
-| `initContainer.enabled` | Enable init container model downloader | `false` |
-| `initContainer.image` | Python image for hf_transfer downloads | `python:3.12-slim` |
-| `initContainer.resources.requests.memory` | Init container memory request | `4Gi` |
-| `imagePullSecret.enabled` | Enable GHCR pull secret for OCI image volumes | `false` |
-| `patcher.image.tag` | kubectl image tag for patcher Jobs | `"1.35.0"` |
-| `vllm-stack.servingEngineSpec.modelSpec` | List of models to serve (upstream config) | `[]` |
+| Value                                     | Description                                   | Default            |
+| ----------------------------------------- | --------------------------------------------- | ------------------ |
+| `secret.create`                           | Create HuggingFace token secret               | `false`            |
+| `secret.type`                             | Secret source: `onepassword` or `manual`      | `"onepassword"`    |
+| `secret.onepassword.itemPath`             | 1Password item path for HF token              | `""`               |
+| `initContainer.enabled`                   | Enable init container model downloader        | `false`            |
+| `initContainer.image`                     | Python image for hf_transfer downloads        | `python:3.12-slim` |
+| `initContainer.resources.requests.memory` | Init container memory request                 | `4Gi`              |
+| `imagePullSecret.enabled`                 | Enable GHCR pull secret for OCI image volumes | `false`            |
+| `patcher.image.tag`                       | kubectl image tag for patcher Jobs            | `"1.35.0"`         |
+| `vllm-stack.servingEngineSpec.modelSpec`  | List of models to serve (upstream config)     | `[]`               |
 
 ## Usage
 

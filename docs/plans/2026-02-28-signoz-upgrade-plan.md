@@ -31,6 +31,7 @@ Expected: Latest commit on main.
 ### Task 2: Bump chart dependency versions
 
 **Files:**
+
 - Modify: `charts/signoz/Chart.yaml`
 
 **Step 1: Update Chart.yaml**
@@ -49,6 +50,7 @@ dependencies:
 ```
 
 Three changes:
+
 - `appVersion`: `"0.92.0"` → `"0.113.0"`
 - `signoz` version: `0.92.0` → `0.113.0`
 - `k8s-infra` version: `0.14.1` → `0.15.0`
@@ -66,6 +68,7 @@ Expected: Shows `0.113.0` for appVersion and signoz, `0.15.0` for k8s-infra.
 ### Task 3: Update vendored chart tarballs
 
 **Files:**
+
 - Remove: `charts/signoz/charts/signoz-0.92.0.tgz`
 - Remove: `charts/signoz/charts/k8s-infra-0.14.1.tgz`
 - Create: `charts/signoz/charts/signoz-0.113.0.tgz`
@@ -170,6 +173,7 @@ git push -u origin feat/signoz-upgrade
 ```
 
 Then create PR:
+
 ```bash
 gh pr create --title "Upgrade SigNoz from v0.92 to v0.113" --body "## Summary
 - Bumps signoz chart dependency 0.92.0 → 0.113.0

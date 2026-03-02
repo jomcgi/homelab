@@ -35,14 +35,14 @@ The key insight: the agent itself is nearly a commodity. The value is in the **i
 
 OpenHands maps directly onto the Stripe pattern:
 
-| Stripe Layer | OpenHands Equivalent |
-|---|---|
-| Isolated devbox per agent | KubernetesRuntime — ephemeral pod per task |
-| Agent loop with tool use | Software Agent SDK — agent loop, compaction, tool orchestration |
-| Slack trigger -> PR output | Web UI / REST API -> GitHub integration |
-| CI feedback to agent | Sandbox has terminal access, agent runs tests and reads output |
-| Context from internal tools | MCP server support, microagent system |
-| Human review gate | Agent opens PR, human reviews as normal |
+| Stripe Layer                | OpenHands Equivalent                                            |
+| --------------------------- | --------------------------------------------------------------- |
+| Isolated devbox per agent   | KubernetesRuntime — ephemeral pod per task                      |
+| Agent loop with tool use    | Software Agent SDK — agent loop, compaction, tool orchestration |
+| Slack trigger -> PR output  | Web UI / REST API -> GitHub integration                         |
+| CI feedback to agent        | Sandbox has terminal access, agent runs tests and reads output  |
+| Context from internal tools | MCP server support, microagent system                           |
+| Human review gate           | Agent opens PR, human reviews as normal                         |
 
 ### What's MIT-Licensed (everything we need)
 
@@ -159,16 +159,16 @@ The `openhands-sandboxes` namespace gets both a `LimitRange` (per-pod defaults) 
 **LimitRange** (applied to every sandbox pod that doesn't specify its own limits):
 
 | Resource | Request | Limit |
-|---|---|---|
-| CPU | 1 | 4 |
-| Memory | 2Gi | 8Gi |
+| -------- | ------- | ----- |
+| CPU      | 1       | 4     |
+| Memory   | 2Gi     | 8Gi   |
 
 **ResourceQuota** (namespace-wide aggregate):
 
-| Resource | Max |
-|---|---|
-| pods | 5 |
-| requests.cpu | 8 |
+| Resource        | Max  |
+| --------------- | ---- |
+| pods            | 5    |
+| requests.cpu    | 8    |
 | requests.memory | 16Gi |
 
 These are starting values — generous enough for compilation workloads but bounded enough to protect the cluster. The OpenHands K8s runtime config also has `resource_cpu_request`, `resource_memory_request`, and `resource_memory_limit` which are set on sandbox pods at creation time. These should be configured to match or fall within the LimitRange.
@@ -223,12 +223,12 @@ This separation means:
 
 The tools image includes:
 
-| Tool | Purpose | Alias |
-|---|---|---|
-| BuildBuddy CLI (`bb`) | Build + test via remote execution | `bazel`, `bazelisk` |
-| Go | Build/test Go services and operators | — |
-| pnpm + Node.js | Build websites/ frontend apps | — |
-| git | Already in runtime, but pinned version in tools | — |
+| Tool                  | Purpose                                         | Alias               |
+| --------------------- | ----------------------------------------------- | ------------------- |
+| BuildBuddy CLI (`bb`) | Build + test via remote execution               | `bazel`, `bazelisk` |
+| Go                    | Build/test Go services and operators            | —                   |
+| pnpm + Node.js        | Build websites/ frontend apps                   | —                   |
+| git                   | Already in runtime, but pinned version in tools | —                   |
 
 ### Secret Management
 
@@ -236,23 +236,23 @@ OpenHands does not use Kubernetes Secrets on sandbox pods. The app pod is the tr
 
 **App-only secrets** (never reach sandboxes):
 
-| Secret | Purpose |
-|---|---|
+| Secret     | Purpose                       |
+| ---------- | ----------------------------- |
 | JWT secret | Web UI session authentication |
 
 **LiteLLM proxy secrets** (separate Deployment, never reach sandboxes):
 
-| Secret | Purpose |
-|---|---|
+| Secret              | Purpose                                                                               |
+| ------------------- | ------------------------------------------------------------------------------------- |
 | `CLAUDE_AUTH_TOKEN` | Long-lived Claude Max subscription token (`sk-ant-oat01-*` from `claude setup-token`) |
 
 The LiteLLM proxy runs without a master key — it's a ClusterIP Service with no external ingress, so only pods within the cluster can reach it. No auth overhead needed for internal-only traffic.
 
 **Sandbox-forwarded secrets** via `SANDBOX_ENV_*` prefix — any env var on the app pod prefixed with `SANDBOX_ENV_` is automatically forwarded to every sandbox with the prefix stripped:
 
-| App Pod Env Var | Sandbox Env Var | Purpose |
-|---|---|---|
-| `SANDBOX_ENV_GITHUB_TOKEN` | `GITHUB_TOKEN` | Git clone, PR creation |
+| App Pod Env Var                  | Sandbox Env Var      | Purpose                           |
+| -------------------------------- | -------------------- | --------------------------------- |
+| `SANDBOX_ENV_GITHUB_TOKEN`       | `GITHUB_TOKEN`       | Git clone, PR creation            |
 | `SANDBOX_ENV_BUILDBUDDY_API_KEY` | `BUILDBUDDY_API_KEY` | Remote build execution via bb CLI |
 
 All secrets are sourced from 1Password via `OnePasswordItem` CRDs, consistent with every other service in the cluster. The `OnePasswordItem` creates a K8s Secret in the `openhands` namespace, which is mounted as env vars on the app Deployment. No secrets are stored in Git or config files.
@@ -273,19 +273,19 @@ OpenHands app → LiteLLM proxy (ClusterIP:4000) → Claude Agent SDK provider �
 
 **OpenHands LLM config**:
 
-| Setting | Value |
-|---|---|
-| `LLM_BASE_URL` | `http://litellm-claude-sdk:4000/v1` |
-| `LLM_API_KEY` | `not-needed` (dummy value — proxy runs without auth, but LiteLLM client requires a non-empty string) |
-| `LLM_MODEL` | `claude-opus-4-6` (default) |
+| Setting        | Value                                                                                                |
+| -------------- | ---------------------------------------------------------------------------------------------------- |
+| `LLM_BASE_URL` | `http://litellm-claude-sdk:4000/v1`                                                                  |
+| `LLM_API_KEY`  | `not-needed` (dummy value — proxy runs without auth, but LiteLLM client requires a non-empty string) |
+| `LLM_MODEL`    | `claude-opus-4-6` (default)                                                                          |
 
 **Multi-model support**: The LiteLLM proxy serves all Claude models through the same endpoint — the model is selected per-request, not per-deployment. OpenHands supports configuring multiple models: a primary model for the agent loop and an optional cheaper/faster model for condensation (context compaction). With flat-rate Max subscription pricing, there's no cost penalty for defaulting to the most capable model. The recommended configuration:
 
-| Role | Model | Rationale |
-|---|---|---|
-| Primary agent | `claude-opus-4-6` | Most capable model — no cost penalty on Max subscription, best reasoning for autonomous coding |
-| Fast tasks | `claude-sonnet-4-6` | Available for simpler tasks where speed matters more than depth — selectable per-task in the UI |
-| Condensation | `claude-sonnet-4-6` | Better summarization quality than Haiku — no cost penalty on Max subscription, and condensation quality directly affects agent context retention |
+| Role          | Model               | Rationale                                                                                                                                        |
+| ------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Primary agent | `claude-opus-4-6`   | Most capable model — no cost penalty on Max subscription, best reasoning for autonomous coding                                                   |
+| Fast tasks    | `claude-sonnet-4-6` | Available for simpler tasks where speed matters more than depth — selectable per-task in the UI                                                  |
+| Condensation  | `claude-sonnet-4-6` | Better summarization quality than Haiku — no cost penalty on Max subscription, and condensation quality directly affects agent context retention |
 
 Users can switch between Opus and Sonnet per-task via the OpenHands web UI without any infrastructure changes — the proxy handles all models through the same `LLM_BASE_URL`.
 
@@ -323,6 +323,7 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 ## Rollout
 
 ### Phase 1 — Working Agent Loop
+
 - Deploy app + KubernetesRuntime with upstream runtime image
 - `OnePasswordItem` for `SANDBOX_ENV_*` secrets (GitHub PAT, BuildBuddy API key)
 - `OnePasswordItem` for `CLAUDE_AUTH_TOKEN` (`sk-ant-oat01-*` from `claude setup-token`)
@@ -337,11 +338,13 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 - **Success criteria**: end-to-end flow from task -> sandbox pod -> committed code, with `bazel test` working inside the sandbox
 
 ### Phase 2 — Integration
+
 - GitHub App for PR workflows
 - OTel traces to SigNoz
 - Persistent conversation history via PVC
 
 ### Phase 3 — Automation
+
 - Slack webhook for fire-and-forget submission
 - GitHub webhook to auto-assign agents to labelled issues
 - ResourceQuota tuning based on observed sandbox resource usage
@@ -362,44 +365,44 @@ The `openhands-agent` ServiceAccount has create/delete on pods, services, PVCs, 
 
 ### The Pattern We're Replicating
 
-| Resource | Why It Matters |
-|---|---|
-| [Stripe Minions Part 1](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents) | High-level one-shot agent architecture |
-| [Stripe Minions Part 2](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2) | Implementation: blueprints, CI feedback, tool curation |
+| Resource                                                                                                                                                         | Why It Matters                                              |
+| ---------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [Stripe Minions Part 1](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents)                                                               | High-level one-shot agent architecture                      |
+| [Stripe Minions Part 2](https://stripe.dev/blog/minions-stripes-one-shot-end-to-end-coding-agents-part-2)                                                        | Implementation: blueprints, CI feedback, tool curation      |
 | [Medium: Stripe's 6-layer architecture](https://medium.com/@janithprabhash/beyond-copilot-how-stripes-autonomous-ai-minions-merge-1-000-prs-a-week-9eb7838c562d) | Context prefetching, MCP integration, tiered CI, retry caps |
-| [The Register: Gitpod -> Ona](https://www.theregister.com/2025/09/03/gitpod_rebrands_as_ona/) | Ona's pivot, VPC deployment, agent modes |
+| [The Register: Gitpod -> Ona](https://www.theregister.com/2025/09/03/gitpod_rebrands_as_ona/)                                                                    | Ona's pivot, VPC deployment, agent modes                    |
 
 ### OpenHands — Start Here During Implementation
 
-| Resource | What You'll Find |
-|---|---|
-| [OpenHands GitHub repo](https://github.com/All-Hands-AI/OpenHands) | Source. KubernetesRuntime lives at `openhands/runtime/impl/kubernetes/` |
-| [`runtime/impl/kubernetes/README.md`](https://github.com/All-Hands-AI/OpenHands/blob/main/openhands/runtime/impl/kubernetes/README.md) | **Read this first** — config requirements for the K8s runtime |
-| [`runtime/base.py`](https://github.com/All-Hands-AI/OpenHands/blob/main/openhands/runtime/base.py) | Runtime base class, shows all 4 built-in implementations |
-| [Release 0.45.0 changelog](https://github.com/All-Hands-AI/OpenHands/releases/tag/0.45.0) | When KubernetesRuntime shipped (PR #8814) |
-| [SDK getting started](https://docs.openhands.dev/sdk/getting-started) | Provider config, agent SDK usage |
-| [Sandbox overview (V1)](https://docs.openhands.dev/openhands/usage/sandboxes/overview) | Sandbox providers, `RUNTIME` env var |
-| [Configuration options (V1)](https://docs.openhands.dev/openhands/usage/advanced/configuration-options) | Env vars: `RUNTIME`, `OH_PERSISTENCE_DIR`, `SANDBOX_VOLUMES` |
-| [Runtime architecture](https://docs.openhands.dev/openhands/usage/architecture/runtime) | Client-server model, image building, action execution |
-| [Custom sandbox guide](https://docs.openhands.dev/openhands/usage/advanced/custom-sandbox-guide) | Custom base images for project-specific tooling |
+| Resource                                                                                                                               | What You'll Find                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [OpenHands GitHub repo](https://github.com/All-Hands-AI/OpenHands)                                                                     | Source. KubernetesRuntime lives at `openhands/runtime/impl/kubernetes/` |
+| [`runtime/impl/kubernetes/README.md`](https://github.com/All-Hands-AI/OpenHands/blob/main/openhands/runtime/impl/kubernetes/README.md) | **Read this first** — config requirements for the K8s runtime           |
+| [`runtime/base.py`](https://github.com/All-Hands-AI/OpenHands/blob/main/openhands/runtime/base.py)                                     | Runtime base class, shows all 4 built-in implementations                |
+| [Release 0.45.0 changelog](https://github.com/All-Hands-AI/OpenHands/releases/tag/0.45.0)                                              | When KubernetesRuntime shipped (PR #8814)                               |
+| [SDK getting started](https://docs.openhands.dev/sdk/getting-started)                                                                  | Provider config, agent SDK usage                                        |
+| [Sandbox overview (V1)](https://docs.openhands.dev/openhands/usage/sandboxes/overview)                                                 | Sandbox providers, `RUNTIME` env var                                    |
+| [Configuration options (V1)](https://docs.openhands.dev/openhands/usage/advanced/configuration-options)                                | Env vars: `RUNTIME`, `OH_PERSISTENCE_DIR`, `SANDBOX_VOLUMES`            |
+| [Runtime architecture](https://docs.openhands.dev/openhands/usage/architecture/runtime)                                                | Client-server model, image building, action execution                   |
+| [Custom sandbox guide](https://docs.openhands.dev/openhands/usage/advanced/custom-sandbox-guide)                                       | Custom base images for project-specific tooling                         |
 
 ### OpenHands — Proprietary Chart (Reference Only)
 
-| Resource | What You'll Find |
-|---|---|
-| [OpenHands-Cloud Helm chart](https://github.com/All-Hands-AI/OpenHands-Cloud) | What the paid chart does — useful to understand the full resource set |
-| [Self-hosted blog post](https://openhands.dev/blog/openhands-cloud-self-hosted-secure-convenient-deployment-of-ai-software-development-agents) | Licensing rationale, Polyform Free Trial terms |
-| [DeepWiki: Product Variants](https://deepwiki.com/OpenHands/OpenHands/1.3-product-variants) | Enterprise K8s architecture, required resources table |
+| Resource                                                                                                                                       | What You'll Find                                                      |
+| ---------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| [OpenHands-Cloud Helm chart](https://github.com/All-Hands-AI/OpenHands-Cloud)                                                                  | What the paid chart does — useful to understand the full resource set |
+| [Self-hosted blog post](https://openhands.dev/blog/openhands-cloud-self-hosted-secure-convenient-deployment-of-ai-software-development-agents) | Licensing rationale, Polyform Free Trial terms                        |
+| [DeepWiki: Product Variants](https://deepwiki.com/OpenHands/OpenHands/1.3-product-variants)                                                    | Enterprise K8s architecture, required resources table                 |
 
 ### LiteLLM Claude Code Proxy
 
-| Resource | What You'll Find |
-|---|---|
-| [`litellm-claude-code`](https://github.com/cabinlab/litellm-claude-code) | Custom LiteLLM provider bridging Claude Agent SDK to OpenAI-compatible API |
-| [`claude setup-token`](https://docs.anthropic.com/en/docs/claude-code/cli-usage) | CLI command to generate long-lived auth tokens for headless use |
+| Resource                                                                         | What You'll Find                                                           |
+| -------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| [`litellm-claude-code`](https://github.com/cabinlab/litellm-claude-code)         | Custom LiteLLM provider bridging Claude Agent SDK to OpenAI-compatible API |
+| [`claude setup-token`](https://docs.anthropic.com/en/docs/claude-code/cli-usage) | CLI command to generate long-lived auth tokens for headless use            |
 
 ### Community Context
 
-| Resource | What You'll Find |
-|---|---|
+| Resource                                                             | What You'll Find                                                                                                |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
 | [Issue #6864](https://github.com/All-Hands-AI/OpenHands/issues/6864) | **Ignore** — pre-dates KubernetesRuntime (Feb 2025). DinD sidecar hacks from before native K8s support existed. |

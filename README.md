@@ -5,16 +5,20 @@ Personal monorepo. The goal is to make shipping a new service as low-friction as
 ## Tooling
 
 ### sextant
+
 `sextant/` - Every operator I wrote had the same category of bugs: invalid state transitions, missing observability, hand-rolled switch statements. So I built a generator to eliminate the category. Define states and transitions in YAML, get Go code with compiler-enforced transitions, sealed interfaces, and OpenTelemetry tracing. Used by both operators below.
 
 ### Operators
+
 - `operators/cloudflare` - Manages Cloudflare Tunnel routing, DNS records, and Zero Trust policies from Kubernetes annotations via Gateway API
 - `operators/oci-model-cache` - Syncs HuggingFace models to OCI registries using a `ModelCache` CRD
 
 ### hf2oci
+
 `tools/hf2oci` - CLI that converts HuggingFace model repos to multi-platform OCI images by streaming weight files directly into layers, no temp files.
 
 ### Bazel rules
+
 - `rules_helm/` - Helm chart lint, template, package, and OCI push as Bazel targets. Includes an ArgoCD application macro with live diff support
 - `rules_wrangler/` - Cloudflare Pages deployment via Wrangler as Bazel targets
 
@@ -23,6 +27,7 @@ Personal monorepo. The goal is to make shipping a new service as low-friction as
 See [architecture/services.md](architecture/services.md) for everything running in the cluster.
 
 ### Marine tracking
+
 Real-time AIS vessel tracking for the Pacific Northwest coast.
 
 - `services/ais_ingest` - Streams AIS position reports from AISStream.io via WebSocket, filters to a coastal bounding box, publishes to NATS JetStream
@@ -30,28 +35,33 @@ Real-time AIS vessel tracking for the Pacific Northwest coast.
 - `websites/ships.jomcgi.dev` - MapLibre GL map showing live vessel positions, types, and courses
 
 ### Trip tracker
+
 Photo-based GPS trip logging - upload travel photos and it reconstructs the route from EXIF data.
 
 - `services/trips_api` - Extracts GPS from photo EXIF, enriches with elevation from NRCan CDEM API, broadcasts via WebSocket. Replays NATS stream on startup to rebuild state
 - `websites/trips.jomcgi.dev` - Timeline view with day-by-day maps and elevation profiles
 
 ### Stargazer
+
 Finds the best stargazing spots in Scotland for the next 72 hours.
 
 - `services/stargazer` - Multi-phase pipeline: downloads light pollution atlas + OSM road data, identifies dark zones near roads, scores by weather forecast clarity
 
 ### Grimoire
+
 AI-assisted D&D campaign manager.
 
 - `services/grimoire/api` - Go REST API with Firestore persistence, campaign/character/encounter management
 - `services/grimoire/ws-gateway` - WebSocket gateway for real-time session events
 
 ### Knowledge graph
+
 RAG pipeline that scrapes, embeds, and searches content.
 
 - `services/knowledge_graph` - Three components: RSS/HTML scraper with SSRF protection → text chunker + vector embedder (Ollama or Gemini) → MCP server for semantic search over Qdrant
 
 ### Hiking routes
+
 Scottish route finder with weather-aware surfacing.
 
 - `services/hikes` - Scrapes routes from WalkHighlands, enriches with weather forecasts
@@ -61,18 +71,18 @@ Scottish route finder with weather-aware surfacing.
 
 See [architecture/security.md](architecture/security.md) for the defense-in-depth model and [architecture/observability.md](architecture/observability.md) for how automatic instrumentation works.
 
-| Area | Approach |
-|---|---|
-| Ingress | Cloudflare Tunnel only - nothing exposed directly |
-| Service mesh | Linkerd - automatic mTLS and distributed tracing, no code changes |
-| Observability | SigNoz - unified metrics, logs, traces. Kyverno auto-injects OTEL env vars |
-| Policy | Kyverno - enforces non-root (uid 65532), read-only filesystems |
-| Secrets | 1Password Operator - OnePasswordItem CRDs, nothing in Git |
-| Storage | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage |
-| Messaging | NATS JetStream - pub/sub backbone for AIS data, trip points, events |
-| Images | apko + rules_apko - no Dockerfiles, dual-arch (x86_64 + aarch64), non-root |
-| CI | BuildBuddy Workflows - format check + `bazel test //...` + image push on main |
-| GitOps | ArgoCD syncs from `clusters/` → `overlays/` → `charts/`. `kubectl` is read-only |
+| Area          | Approach                                                                        |
+| ------------- | ------------------------------------------------------------------------------- |
+| Ingress       | Cloudflare Tunnel only - nothing exposed directly                               |
+| Service mesh  | Linkerd - automatic mTLS and distributed tracing, no code changes               |
+| Observability | SigNoz - unified metrics, logs, traces. Kyverno auto-injects OTEL env vars      |
+| Policy        | Kyverno - enforces non-root (uid 65532), read-only filesystems                  |
+| Secrets       | 1Password Operator - OnePasswordItem CRDs, nothing in Git                       |
+| Storage       | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage     |
+| Messaging     | NATS JetStream - pub/sub backbone for AIS data, trip points, events             |
+| Images        | apko + rules_apko - no Dockerfiles, dual-arch (x86_64 + aarch64), non-root      |
+| CI            | BuildBuddy Workflows - format check + `bazel test //...` + image push on main   |
+| GitOps        | ArgoCD syncs from `clusters/` → `overlays/` → `charts/`. `kubectl` is read-only |
 
 ## Repo layout
 

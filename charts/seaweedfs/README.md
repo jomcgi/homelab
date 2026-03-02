@@ -42,18 +42,18 @@ All components have anti-affinity disabled (single-node cluster) and include pre
 
 ## Configuration
 
-| Value | Description | Default |
-| --- | --- | --- |
-| `seaweedfs.master.replicas` | Number of master replicas | `1` |
-| `seaweedfs.master.data.size` | Master metadata PVC size | `1Gi` |
-| `seaweedfs.volume.replicas` | Number of volume server replicas | `1` |
-| `seaweedfs.volume.dataDirs[0].size` | Volume data PVC size | `100Gi` |
-| `seaweedfs.volume.dataDirs[0].storageClass` | Storage class for volume data | `longhorn` |
-| `seaweedfs.filer.replicas` | Number of filer replicas | `1` |
-| `seaweedfs.filer.data.size` | Filer database PVC size | `5Gi` |
-| `seaweedfs.s3.port` | S3 gateway listen port | `8333` |
-| `seaweedfs.s3.enableAuth` | Enable S3 authentication | `false` |
-| `seaweedfs.global.enableSecurity` | Enable inter-component mTLS | `false` |
+| Value                                       | Description                      | Default    |
+| ------------------------------------------- | -------------------------------- | ---------- |
+| `seaweedfs.master.replicas`                 | Number of master replicas        | `1`        |
+| `seaweedfs.master.data.size`                | Master metadata PVC size         | `1Gi`      |
+| `seaweedfs.volume.replicas`                 | Number of volume server replicas | `1`        |
+| `seaweedfs.volume.dataDirs[0].size`         | Volume data PVC size             | `100Gi`    |
+| `seaweedfs.volume.dataDirs[0].storageClass` | Storage class for volume data    | `longhorn` |
+| `seaweedfs.filer.replicas`                  | Number of filer replicas         | `1`        |
+| `seaweedfs.filer.data.size`                 | Filer database PVC size          | `5Gi`      |
+| `seaweedfs.s3.port`                         | S3 gateway listen port           | `8333`     |
+| `seaweedfs.s3.enableAuth`                   | Enable S3 authentication         | `false`    |
+| `seaweedfs.global.enableSecurity`           | Enable inter-component mTLS      | `false`    |
 
 ## Connecting from Other Services
 
@@ -79,9 +79,9 @@ s3.put_object(Bucket="my-bucket", Key="data.json", Body=b'{"hello": "world"}')
 
 ## Resource Budgets
 
-| Component | CPU Request | Memory Request | CPU Limit | Memory Limit |
-| --- | --- | --- | --- | --- |
-| Master | 50m | 64Mi | 200m | 256Mi |
-| Volume | 100m | 128Mi | 500m | 512Mi |
-| Filer | 100m | 128Mi | 500m | 512Mi |
-| S3 Gateway | 50m | 64Mi | 200m | 256Mi |
+| Component  | CPU Request | Memory Request | CPU Limit | Memory Limit |
+| ---------- | ----------- | -------------- | --------- | ------------ |
+| Master     | 50m         | 64Mi           | 200m      | 256Mi        |
+| Volume     | 100m        | 128Mi          | 500m      | 512Mi        |
+| Filer      | 100m        | 128Mi          | 500m      | 512Mi        |
+| S3 Gateway | 50m         | 64Mi           | 200m      | 256Mi        |

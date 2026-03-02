@@ -57,33 +57,33 @@ servers: []
 ### Per-server entry
 
 ```yaml
-- name: signoz-mcp                         # required: used for all resource names
-  image:                                    # required
+- name: signoz-mcp # required: used for all resource names
+  image: # required
     repository: docker.io/signoz/signoz-mcp-server
     tag: "v0.0.5"
-  port: 8000                                # required when translate.enabled=false
-  env: []                                   # optional: env vars for server container
-  secret:                                   # optional: creates OnePasswordItem + secretRef
+  port: 8000 # required when translate.enabled=false
+  env: [] # optional: env vars for server container
+  secret: # optional: creates OnePasswordItem + secretRef
     name: signoz-mcp
     itemPath: "vaults/k8s-homelab/items/signoz-mcp"
-  resources:                                # required
+  resources: # required
     requests: { cpu: 10m, memory: 64Mi }
-    limits:   { cpu: 100m, memory: 128Mi }
-  translate:                                # required (at minimum enabled: false)
-    enabled: false                          # true = add sidecar
-    command: ""                             # stdio command for translate to wrap
-    port: 8080                              # sidecar listen port (default 8080)
-  registration:                             # optional
+    limits: { cpu: 100m, memory: 128Mi }
+  translate: # required (at minimum enabled: false)
+    enabled: false # true = add sidecar
+    command: "" # stdio command for translate to wrap
+    port: 8080 # sidecar listen port (default 8080)
+  registration: # optional
     enabled: true
-    transport: "streamable-http"            # default transport for gateway registration
-  alert:                                    # optional
+    transport: "streamable-http" # default transport for gateway registration
+  alert: # optional
     enabled: true
     url: "http://signoz-mcp.mcp-servers.svc.cluster.local:8000/health"
-    severity: ""                            # override alertDefaults.severity
-    channels: []                            # override alertDefaults.channels
-  rbac:                                     # optional
-    clusterRole: ""                         # bind SA to existing ClusterRole
-    namespaced: []                          # list of {namespace, role} for RoleBindings
+    severity: "" # override alertDefaults.severity
+    channels: [] # override alertDefaults.channels
+  rbac: # optional
+    clusterRole: "" # bind SA to existing ClusterRole
+    namespaced: [] # list of {namespace, role} for RoleBindings
 ```
 
 ## Deployment Modes
@@ -95,6 +95,7 @@ Single-container pod. The server exposes its own port. Service targets that port
 ### Stdio server with translate sidecar (translate.enabled: true)
 
 Two-container pod:
+
 - **server** -- runs headless with `stdin: true`, no ports, no probes
 - **translate** -- runs `python3 -m mcpgateway.translate --stdio "<command>" --expose-streamable-http --port <port>`. Exposes the network port. Gets the probes.
 
@@ -115,6 +116,7 @@ Registration is best-effort. A failed Job does not block the sync -- servers are
 ## HTTPCheck Alerts
 
 Each server with `alert.enabled: true` generates a ConfigMap with:
+
 - Label `signoz.io/alert: "true"` (picked up by signoz-dashboard-sidecar)
 - Standard HTTPCheck alert JSON matching the existing `api-gateway-httpcheck-alert.yaml` pattern
 - Defaults from `alertDefaults`, overridable per server
@@ -122,6 +124,7 @@ Each server with `alert.enabled: true` generates a ConfigMap with:
 ## Security
 
 All pods follow existing patterns:
+
 - `runAsNonRoot: true`, `runAsUser: 65532`
 - `readOnlyRootFilesystem: true`
 - `allowPrivilegeEscalation: false`

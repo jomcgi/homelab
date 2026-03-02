@@ -27,14 +27,14 @@ Agent → Cloudflare (mcp.jomcgi.dev) → Context Forge pod
 
 ## Key Design Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| SigNoz integration | Official MCP server (not REST wrappers) | 25+ maintained tools vs 5 hand-crafted; SigNoz team maintains schemas |
-| Gateway pattern | Context Forge proxying to SigNoz MCP | Single URL for all future backends; gateway ready for ArgoCD in Phase 2 |
-| SigNoz MCP image | Bazel `go_image` (distroless, dual-arch) | Consistent with repo conventions; uid 65532, no Dockerfiles |
-| Context Forge image | Upstream Docker image (pinned tag) | Python deps make Bazel build impractical |
-| Tool registration | emptyDir SQLite + postStart hook | Fully declarative (script in ConfigMap), no PVC, no drift from Git |
-| Namespace | `mcp-gateway` (dedicated) | Clean RBAC scoping for future K8s API access |
+| Decision            | Choice                                   | Rationale                                                               |
+| ------------------- | ---------------------------------------- | ----------------------------------------------------------------------- |
+| SigNoz integration  | Official MCP server (not REST wrappers)  | 25+ maintained tools vs 5 hand-crafted; SigNoz team maintains schemas   |
+| Gateway pattern     | Context Forge proxying to SigNoz MCP     | Single URL for all future backends; gateway ready for ArgoCD in Phase 2 |
+| SigNoz MCP image    | Bazel `go_image` (distroless, dual-arch) | Consistent with repo conventions; uid 65532, no Dockerfiles             |
+| Context Forge image | Upstream Docker image (pinned tag)       | Python deps make Bazel build impractical                                |
+| Tool registration   | emptyDir SQLite + postStart hook         | Fully declarative (script in ConfigMap), no PVC, no drift from Git      |
+| Namespace           | `mcp-gateway` (dedicated)                | Clean RBAC scoping for future K8s API access                            |
 
 ## File Structure
 

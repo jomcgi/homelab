@@ -95,6 +95,7 @@ flowchart LR
 ```
 
 **Merge strategy details:**
+
 - **Canonical name**: most complete form wins ("Bertrand Dwendal" over "King Dwendal" over "the King")
 - **Aliases**: all name variants stored in `aliases[]` on the entity (used for mention detection later)
 - **Properties**: union, with later/more-specific source winning conflicts (e.g., stat block overrides brief mention)
@@ -105,11 +106,12 @@ flowchart LR
 
 **Cross-book ordering dependency:**
 
-Cross-book reference detection runs on the newly ingested book against all existing entities. This means references are only detected *toward* existing entities, not *from* them. If Wildemount is ingested first and Monster Manual second, the MM scan catches references to Wildemount entities, but Wildemount won't retroactively detect references to MM entities that didn't exist at ingestion time.
+Cross-book reference detection runs on the newly ingested book against all existing entities. This means references are only detected _toward_ existing entities, not _from_ them. If Wildemount is ingested first and Monster Manual second, the MM scan catches references to Wildemount entities, but Wildemount won't retroactively detect references to MM entities that didn't exist at ingestion time.
 
 This is acceptable for batch ingestion (DM loads 5 books at once, order doesn't matter much) and for incremental additions (new book references existing entities). To get full bidirectional coverage, you'd re-run the cross-reference scan on all books whenever a new book is added — correct but expensive. Defer this until it's a real problem; for now, document the limitation.
 
 **What this doesn't catch (and that's OK for now):**
+
 - Pronoun-only references ("the King" mid-paragraph with no prior name) - these are handled at the embedding_text level (Flash resolves pronouns during extraction)
 - Entities that appear in narrative but are never named - these aren't extractable regardless
 - Retroactive cross-book references from previously ingested books (see above)
@@ -188,14 +190,16 @@ The extraction prompt instructs Flash to produce `embedding_text` for each entit
 #### Prompt guidance for Flash (included in extraction prompt)
 
 For each entity, generate an `embedding_text` field that:
+
 1. **Leads with identity** - name, type, classification
 2. **Describes in natural language** - what it is, what it does, what makes it distinctive
 3. **Includes relational context** - where it's found, who it's connected to, what faction it belongs to
 4. **Resolves pronouns** - never use "he", "it", "the city" without the name; embedding text must stand alone
-5. **Omits raw numbers** - no stat dumps (AC, HP, ability scores). Describe *what they mean* instead ("heavily armored", "extremely resilient", "exceptionally intelligent")
+5. **Omits raw numbers** - no stat dumps (AC, HP, ability scores). Describe _what they mean_ instead ("heavily armored", "extremely resilient", "exceptionally intelligent")
 6. **Omits metadata** - no page numbers, source book IDs, block references
 
 For each chunk, generate an `embedding_text` field that:
+
 1. **Prepends section context** - `[Book > Chapter > Section > Subsection]`
 2. **Resolves ambiguous references** - "the war" → "the war between the Kryn Dynasty and Dwendalian Empire"
 3. **Preserves factual content** - do not embellish or add information not present in the source
@@ -247,11 +251,13 @@ Adjacent images from the Marker output are included in the prompt payload as sup
 ```
 
 Prompt constraints for image handling:
+
 1. **Images can enrich, never create** - if Flash is extracting the Raven Queen and sees a raven symbol in adjacent images, it can note the association (e.g., add `image_block_id` to the entity output). But an orphaned image with no corresponding text entity gets skipped.
 2. **No entity creation from images alone** - decorative art, chapter headers, and full-page illustrations that Marker extracted as standalone blocks must not generate entities.
 3. **Alt-text only** - image bytes are not sent. Marker's generated alt-text descriptions are sufficient for D&D content (symbols, creature appearances, location illustrations). Maps may eventually need multimodal, but start text-only.
 
 Entity output with image association:
+
 ```json
 {
   "name": "The Raven Queen",
@@ -267,14 +273,17 @@ Entity output with image association:
 The `embedding_text` must be grounded in the source `content_text`. Three categories of error, each with a different detection strategy:
 
 **1. Hallucinated additions** (embedding text contains entities/facts not in source)
+
 - **Detection**: check that every entity name in `embedding_text` appears in either the source `content_text`, the `section_path`, or the list of already-extracted entities from this section. This is a string match against the entity name list (from Pipeline 2 output), NOT a proper noun extractor (which would be noisy and require another model).
 - **On failure**: re-prompt Flash with the specific error. Retry up to 2 times. Fall back to template construction from `properties` if exhausted.
 
 **2. Misattribution** (correct entity name, wrong properties assigned)
+
 - **Detection**: hard to catch automatically. Mitigated by prompt design (Flash reads source text directly) and by keeping `content_text` for display so users can verify.
 - **Accepted risk**: this is rare when Flash is summarizing text it's literally reading. Not worth a second validation LLM call.
 
 **3. Omissions** (entity present in source text but never extracted)
+
 - **Detection**: post-extraction coverage check. After all sections of a book are processed, scan all `content_text` for capitalized phrases not in the entity list or aliases. Multi-word phrases flagged at 2+ occurrences, single-word at 3+ (higher threshold to filter common nouns). Flag these as candidate missed entities.
 - **On failure**: batch the candidates and send to Flash: "These names appear repeatedly in the source but were not extracted. For each, determine if it's an entity worth extracting or a false positive (e.g., a common phrase, a generic title)."
 
@@ -313,13 +322,13 @@ This is the one place we still use template construction. The speaker/role prefi
 
 #### What goes in `embedding_text` vs what stays in `properties`
 
-| | `embedding_text` (semantic search) | `properties` jsonb (SQL filters) |
-|---|---|---|
+|              | `embedding_text` (semantic search)              | `properties` jsonb (SQL filters)            |
+| ------------ | ----------------------------------------------- | ------------------------------------------- |
 | **Creature** | Name, type, description, key abilities, habitat | AC, HP, exact ability scores, CR number, XP |
-| **Spell** | Name, school, effect description, class list | Level number, exact range, exact components |
-| **Location** | Name, type, atmosphere, notable features | Population number, exact coordinates |
-| **NPC** | Name, role, personality, faction context | Alignment code, exact race |
-| **Item** | Name, type, effect description, lore | Rarity enum, attunement bool, weight |
+| **Spell**    | Name, school, effect description, class list    | Level number, exact range, exact components |
+| **Location** | Name, type, atmosphere, notable features        | Population number, exact coordinates        |
+| **NPC**      | Name, role, personality, faction context        | Alignment code, exact race                  |
+| **Item**     | Name, type, effect description, lore            | Rarity enum, attunement bool, weight        |
 
 **Rule of thumb**: if someone would **describe** it in a natural language query, it goes in `embedding_text`. If someone would **filter** by it in a dropdown, it stays in `properties`.
 
@@ -369,7 +378,7 @@ flowchart LR
 The danger is asymmetric: a false positive (narration routed as question) wastes a cheap vector search. A false negative (question routed as narration) means the player misses context. So **bias toward triggering search**:
 
 - Low-confidence classifications default to "question" (better to search unnecessarily than miss)
-- "I remember hearing about a temple to the east" — this is narration that *implies* a knowledge check. The classifier should still trigger search if it detects entity references, regardless of intent label.
+- "I remember hearing about a temple to the east" — this is narration that _implies_ a knowledge check. The classifier should still trigger search if it detects entity references, regardless of intent label.
 - `confidence` stored on `SessionTranscript` for debugging — if a session produces consistently wrong routing, tune the classifier threshold.
 - **Everything gets logged regardless of intent** — the transcript is always recorded, intent only affects whether search is triggered.
 
@@ -377,15 +386,15 @@ The danger is asymmetric: a false positive (narration routed as question) wastes
 
 Automatic grants from event detection risk revealing information the DM didn't intend to share. Tiered approach:
 
-| Event Type | Auto-grant? | Scope | Rationale |
-|---|---|---|---|
-| `npc_met` | Yes | `name_only` | Low risk - PCs obviously know they met someone |
-| `location_entered` | Yes | `name_only` | Low risk - PCs know where they are |
-| `item_acquired` | Yes | `full` | PCs literally have the item, can inspect it |
-| `lore_revealed` | **No - DM confirms** | varies | High risk - DM controls what lore is shared |
-| `quest_accepted` | **No - DM confirms** | varies | May contain spoilers about quest details |
-| `death` | Yes | `full` | Observable event |
-| `combat_start` | Yes | `name_only` | PCs can see what they're fighting |
+| Event Type         | Auto-grant?          | Scope       | Rationale                                      |
+| ------------------ | -------------------- | ----------- | ---------------------------------------------- |
+| `npc_met`          | Yes                  | `name_only` | Low risk - PCs obviously know they met someone |
+| `location_entered` | Yes                  | `name_only` | Low risk - PCs know where they are             |
+| `item_acquired`    | Yes                  | `full`      | PCs literally have the item, can inspect it    |
+| `lore_revealed`    | **No - DM confirms** | varies      | High risk - DM controls what lore is shared    |
+| `quest_accepted`   | **No - DM confirms** | varies      | May contain spoilers about quest details       |
+| `death`            | Yes                  | `full`      | Observable event                               |
+| `combat_start`     | Yes                  | `name_only` | PCs can see what they're fighting              |
 
 DM reviews pending grants via the side panel between or during sessions. Pending grants are visible to DM but not surfaced to player queries until confirmed.
 
@@ -425,24 +434,24 @@ flowchart LR
 
 When a player query hits an entity, the response is shaped by `grant_scope`:
 
-| `grant_scope` | What the player query returns | Example |
-|---|---|---|
-| `full` | Full `embedding_text` + all `properties` | PC has the item, can inspect everything |
-| `partial` | Entity name + type + only the text in `revealed_details` | PC heard the dragon's name and that it breathes fire, but doesn't know its CR or lair |
-| `name_only` | **Recognition only, not retrieval.** Entity appears in relationship context ("you're currently in Zadash", "you met Essek") but is excluded from direct query results. A player searching "tell me about Zadash" with `name_only` gets no result — not a useless stub. | PC entered Zadash but hasn't explored it. The system acknowledges they know the name but doesn't pretend to have content for them. |
-| No grant | Entity is **excluded from results entirely** | PC has never encountered this entity |
+| `grant_scope` | What the player query returns                                                                                                                                                                                                                                          | Example                                                                                                                            |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| `full`        | Full `embedding_text` + all `properties`                                                                                                                                                                                                                               | PC has the item, can inspect everything                                                                                            |
+| `partial`     | Entity name + type + only the text in `revealed_details`                                                                                                                                                                                                               | PC heard the dragon's name and that it breathes fire, but doesn't know its CR or lair                                              |
+| `name_only`   | **Recognition only, not retrieval.** Entity appears in relationship context ("you're currently in Zadash", "you met Essek") but is excluded from direct query results. A player searching "tell me about Zadash" with `name_only` gets no result — not a useless stub. | PC entered Zadash but hasn't explored it. The system acknowledges they know the name but doesn't pretend to have content for them. |
+| No grant      | Entity is **excluded from results entirely**                                                                                                                                                                                                                           | PC has never encountered this entity                                                                                               |
 
-For graph traversal results: a 1-hop query from a granted entity may reach entities the player has NO grant for. These are excluded from the player response but logged in `QueryLog.graph_results` so the DM can see what the player *almost* found (useful for pacing reveals).
+For graph traversal results: a 1-hop query from a granted entity may reach entities the player has NO grant for. These are excluded from the player response but logged in `QueryLog.graph_results` so the DM can see what the player _almost_ found (useful for pacing reveals).
 
 For chunks: `KnowledgeChunk` results are filtered by the **grant ratio** of their mentioned entities (via `ChunkEntityMention`):
 
-| Grant ratio | Behavior | Rationale |
-|---|---|---|
-| 100% granted | Return chunk fully | Safe, all entities known |
-| >50% granted | Return chunk, flag ungranted entity names for LLM to avoid | Acceptable risk, mostly known context |
-| ≤50% granted | **Drop chunk entirely** | Too much ungranted content to safely redact - asking the LLM to surgically avoid multiple entities is brittle and risks accidental spoilers |
+| Grant ratio  | Behavior                                                   | Rationale                                                                                                                                   |
+| ------------ | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| 100% granted | Return chunk fully                                         | Safe, all entities known                                                                                                                    |
+| >50% granted | Return chunk, flag ungranted entity names for LLM to avoid | Acceptable risk, mostly known context                                                                                                       |
+| ≤50% granted | **Drop chunk entirely**                                    | Too much ungranted content to safely redact - asking the LLM to surgically avoid multiple entities is brittle and risks accidental spoilers |
 
-**First-mention override:** even if the grant ratio is >50%, drop the chunk if its *first-mentioned entity* is ungranted. First-mention position is a reasonable proxy for "subject of this chunk." Example: "The Bright Queen rules the Kryn Dynasty from Rosohna, where Essek serves as shadowhand." Player has grants for Kryn Dynasty and Rosohna but not the Bright Queen — ratio is 67% (above threshold), but the Bright Queen is the subject. Return this and the LLM will struggle to avoid her. Drop it.
+**First-mention override:** even if the grant ratio is >50%, drop the chunk if its _first-mentioned entity_ is ungranted. First-mention position is a reasonable proxy for "subject of this chunk." Example: "The Bright Queen rules the Kryn Dynasty from Rosohna, where Essek serves as shadowhand." Player has grants for Kryn Dynasty and Rosohna but not the Bright Queen — ratio is 67% (above threshold), but the Bright Queen is the subject. Return this and the LLM will struggle to avoid her. Drop it.
 
 Dropped chunks aren't lost - they'll surface once more grants are issued.
 
@@ -462,6 +471,7 @@ flowchart LR
 ```
 
 Homebrew entities:
+
 - Are immediately available for vector search and graph traversal
 - Can be granted to players like any extracted entity
 - Can have relationships to extracted entities ("my custom NPC is MEMBER_OF Cobalt Soul")
@@ -474,27 +484,27 @@ Homebrew entities:
 
 ### Core Tables
 
-| Table | Key Fields | Notes |
-|---|---|---|
-| **SourceBook** | `id, title, system, publisher, total_pages` | One per PDF |
-| **RawBlock** | `id, source_book_id, block_id, block_type, page, html, bbox, section_hierarchy` | Verbatim from Marker output |
-| **Entity** | `id, entity_type, name, aliases[], description, properties, embedding_text, source_type, source_refs[], embedding` | `source_type`: "extracted" or "homebrew". `aliases` from entity resolution. `source_refs` = [{book_id, page}] (null for homebrew) |
-| **Relationship** | `id, source_entity_id, target_entity_id, rel_type, metadata, source_book_id` | Graph edges. `source_book_id` nullable for DM-created relationships (homebrew-to-extracted or homebrew-to-homebrew). |
-| **KnowledgeChunk** | `id, source_book_id, block_ids[], section_path, content_text, embedding_text, embedding` | `content_text` is raw source for display, `embedding_text` is LLM-generated for search |
-| **ChunkEntityMention** | `id, chunk_id, entity_id, mention_span, context` | Links chunks to entities they reference |
+| Table                  | Key Fields                                                                                                         | Notes                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| **SourceBook**         | `id, title, system, publisher, total_pages`                                                                        | One per PDF                                                                                                                       |
+| **RawBlock**           | `id, source_book_id, block_id, block_type, page, html, bbox, section_hierarchy`                                    | Verbatim from Marker output                                                                                                       |
+| **Entity**             | `id, entity_type, name, aliases[], description, properties, embedding_text, source_type, source_refs[], embedding` | `source_type`: "extracted" or "homebrew". `aliases` from entity resolution. `source_refs` = [{book_id, page}] (null for homebrew) |
+| **Relationship**       | `id, source_entity_id, target_entity_id, rel_type, metadata, source_book_id`                                       | Graph edges. `source_book_id` nullable for DM-created relationships (homebrew-to-extracted or homebrew-to-homebrew).              |
+| **KnowledgeChunk**     | `id, source_book_id, block_ids[], section_path, content_text, embedding_text, embedding`                           | `content_text` is raw source for display, `embedding_text` is LLM-generated for search                                            |
+| **ChunkEntityMention** | `id, chunk_id, entity_id, mention_span, context`                                                                   | Links chunks to entities they reference                                                                                           |
 
 ### Campaign & Session Tables
 
-| Table | Key Fields | Notes |
-|---|---|---|
-| **Campaign** | `id, name, system, setting, source_book_ids, homebrew_rules` | Top-level container |
-| **Player** | `id, campaign_id, name, role` | DM or Player |
-| **PlayerCharacter** | `id, player_id, campaign_id, character_name, race, class, level, stats` | |
-| **Session** | `id, campaign_id, session_number, session_date, summary` | One per game session |
-| **SessionTranscript** | `id, session_id, speaker_id, sequence, raw_text, cleaned_text, intent, confidence, embedding` | `confidence` on intent classification for debugging |
-| **SessionEvent** | `id, session_id, event_type, event_data, entity_id, status` | `status`: pending (awaiting DM confirm) or confirmed |
-| **KnowledgeGrant** | `id, entity_id, campaign_id, player_character_id, grant_scope, revealed_details, session_event_id, status` | `status`: pending or confirmed. `grant_scope`: full/partial/name_only |
-| **QueryLog** | `id, session_id, player_id, query_text, query_mode, vector_results, graph_results, surfaced_context` | Audit trail |
+| Table                 | Key Fields                                                                                                 | Notes                                                                 |
+| --------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| **Campaign**          | `id, name, system, setting, source_book_ids, homebrew_rules`                                               | Top-level container                                                   |
+| **Player**            | `id, campaign_id, name, role`                                                                              | DM or Player                                                          |
+| **PlayerCharacter**   | `id, player_id, campaign_id, character_name, race, class, level, stats`                                    |                                                                       |
+| **Session**           | `id, campaign_id, session_number, session_date, summary`                                                   | One per game session                                                  |
+| **SessionTranscript** | `id, session_id, speaker_id, sequence, raw_text, cleaned_text, intent, confidence, embedding`              | `confidence` on intent classification for debugging                   |
+| **SessionEvent**      | `id, session_id, event_type, event_data, entity_id, status`                                                | `status`: pending (awaiting DM confirm) or confirmed                  |
+| **KnowledgeGrant**    | `id, entity_id, campaign_id, player_character_id, grant_scope, revealed_details, session_event_id, status` | `status`: pending or confirmed. `grant_scope`: full/partial/name_only |
+| **QueryLog**          | `id, session_id, player_id, query_text, query_mode, vector_results, graph_results, surfaced_context`       | Audit trail                                                           |
 
 ### Entity Types & Their Properties (jsonb)
 
@@ -510,17 +520,25 @@ Homebrew entities:
   "ac_source": "natural armor",
   "hit_points": 136,
   "hp_formula": "16d10 + 48",
-  "speed": {"walk": 40, "fly": 0, "swim": 0},
-  "ability_scores": {"STR": 18, "DEX": 14, "CON": 16, "INT": 3, "WIS": 12, "CHA": 7},
-  "saving_throws": {"DEX": "+5", "CON": "+6"},
+  "speed": { "walk": 40, "fly": 0, "swim": 0 },
+  "ability_scores": {
+    "STR": 18,
+    "DEX": 14,
+    "CON": 16,
+    "INT": 3,
+    "WIS": 12,
+    "CHA": 7
+  },
+  "saving_throws": { "DEX": "+5", "CON": "+6" },
   "damage_immunities": ["radiant", "necrotic"],
-  "senses": {"darkvision": 120, "passive_perception": 16},
+  "senses": { "darkvision": 120, "passive_perception": 16 },
   "challenge_rating": 10,
   "xp": 5900,
-  "traits": [{"name": "Magic Resistance", "description": "..."}],
-  "actions": [{"name": "Bite", "attack_bonus": 7, "damage": "2d6+4 piercing"}]
+  "traits": [{ "name": "Magic Resistance", "description": "..." }],
+  "actions": [{ "name": "Bite", "attack_bonus": 7, "damage": "2d6+4 piercing" }]
 }
 ```
+
 </details>
 
 <details>
@@ -532,7 +550,7 @@ Homebrew entities:
   "school": "conjuration",
   "casting_time": "1 action",
   "range": "60 feet",
-  "components": {"V": true, "S": true, "M": "a crystal prism"},
+  "components": { "V": true, "S": true, "M": "a crystal prism" },
   "duration": "Concentration, up to 1 minute",
   "concentration": true,
   "ritual": false,
@@ -540,6 +558,7 @@ Homebrew entities:
   "class_lists": ["wizard"]
 }
 ```
+
 </details>
 
 <details>
@@ -554,6 +573,7 @@ Homebrew entities:
   "economy": "trade hub, mining"
 }
 ```
+
 </details>
 
 <details>
@@ -568,6 +588,7 @@ Homebrew entities:
   "pantheon": "Prime Deities"
 }
 ```
+
 </details>
 
 <details>
@@ -583,26 +604,27 @@ Homebrew entities:
 // Item
 {"item_type": "wondrous", "rarity": "rare", "requires_attunement": true, "effect_text": "..."}
 ```
+
 </details>
 
 ---
 
 ## Relationship Types
 
-| rel_type | Source → Target | Example |
-|---|---|---|
-| `LOCATED_IN` | NPC, Creature, Item → Location | Ferol → Salsvault |
-| `CONTAINS` | Location → Location | Wildemount → Zadash |
-| `MEMBER_OF` | NPC → Faction | Essek → Kryn Dynasty |
-| `CONTROLS` | Faction → Location | Dwendalian Empire → Zadash |
-| `WORSHIPS` | NPC, Faction → Deity | Cobalt Soul → Ioun |
-| `HOSTILE_TO` | Faction ↔ Faction | Kryn Dynasty ↔ Dwendalian Empire |
-| `ALLIED_WITH` | Faction ↔ Faction | symmetric |
-| `AVAILABLE_TO` | Spell → Class | Reality Break → Wizard |
-| `FOUND_IN` | Item, Creature → Location | Aeorian Absorber → Aeorian ruins |
-| `DROPS` | Creature → Item | loot tables |
-| `CREATED_BY` | Item → NPC, Deity | Luxon Beacons → Luxon |
-| `RULES` | NPC → Location, Faction | King Dwendal → Empire |
-| `GUARDS` | Creature, NPC → Location | encounter placement |
-| `APPEARS_IN` | Entity → SourceBook | Cross-book reference: entity from one book mentioned in another |
-| `RELATED_TO` | any → any | catch-all for LLM-detected relationships |
+| rel_type       | Source → Target                | Example                                                         |
+| -------------- | ------------------------------ | --------------------------------------------------------------- |
+| `LOCATED_IN`   | NPC, Creature, Item → Location | Ferol → Salsvault                                               |
+| `CONTAINS`     | Location → Location            | Wildemount → Zadash                                             |
+| `MEMBER_OF`    | NPC → Faction                  | Essek → Kryn Dynasty                                            |
+| `CONTROLS`     | Faction → Location             | Dwendalian Empire → Zadash                                      |
+| `WORSHIPS`     | NPC, Faction → Deity           | Cobalt Soul → Ioun                                              |
+| `HOSTILE_TO`   | Faction ↔ Faction              | Kryn Dynasty ↔ Dwendalian Empire                                |
+| `ALLIED_WITH`  | Faction ↔ Faction              | symmetric                                                       |
+| `AVAILABLE_TO` | Spell → Class                  | Reality Break → Wizard                                          |
+| `FOUND_IN`     | Item, Creature → Location      | Aeorian Absorber → Aeorian ruins                                |
+| `DROPS`        | Creature → Item                | loot tables                                                     |
+| `CREATED_BY`   | Item → NPC, Deity              | Luxon Beacons → Luxon                                           |
+| `RULES`        | NPC → Location, Faction        | King Dwendal → Empire                                           |
+| `GUARDS`       | Creature, NPC → Location       | encounter placement                                             |
+| `APPEARS_IN`   | Entity → SourceBook            | Cross-book reference: entity from one book mentioned in another |
+| `RELATED_TO`   | any → any                      | catch-all for LLM-detected relationships                        |

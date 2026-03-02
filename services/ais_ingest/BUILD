@@ -1,10 +1,11 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
-py_binary(
+py_venv_binary(
     name = "main",
-    srcs = ["main.py"],
+    main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//certifi",

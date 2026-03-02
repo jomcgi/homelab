@@ -22,32 +22,32 @@ The chart iterates over a `servers` array in values.yaml. Each entry generates:
 Add an entry to the `servers` array in `overlays/prod/mcp-servers/values.yaml`:
 
 ```yaml
-  - name: my-mcp-server
-    image:
-      repository: ghcr.io/jomcgi/homelab/services/my-mcp-server
-      tag: "main"
-    port: 8000
-    env:
-      - name: MY_ENV_VAR
-        value: "some-value"
-    secret:
-      name: my-mcp-server                                    # K8s Secret name
-      itemPath: "vaults/k8s-homelab/items/my-mcp-server"     # 1Password vault path
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-      limits:
-        cpu: 100m
-        memory: 128Mi
-    translate:
-      enabled: false          # true for stdio servers, false for native HTTP
-    registration:
-      enabled: true
-      transport: "STREAMABLEHTTP"
-    alert:
-      enabled: true
-      url: "http://my-mcp-server.mcp-servers.svc.cluster.local:8000/health"
+- name: my-mcp-server
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/my-mcp-server
+    tag: "main"
+  port: 8000
+  env:
+    - name: MY_ENV_VAR
+      value: "some-value"
+  secret:
+    name: my-mcp-server # K8s Secret name
+    itemPath: "vaults/k8s-homelab/items/my-mcp-server" # 1Password vault path
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  translate:
+    enabled: false # true for stdio servers, false for native HTTP
+  registration:
+    enabled: true
+    transport: "STREAMABLEHTTP"
+  alert:
+    enabled: true
+    url: "http://my-mcp-server.mcp-servers.svc.cluster.local:8000/health"
 ```
 
 ### 2. Create the 1Password item
@@ -59,8 +59,8 @@ Create an item in the `k8s-homelab` vault with the name matching your `secret.it
 If the image is built in this repo (pushed via `//images:push_all`), add `imageUpdater.enabled: true` to your server entry:
 
 ```yaml
-    imageUpdater:
-      enabled: true
+imageUpdater:
+  enabled: true
 ```
 
 The chart auto-generates the ImageUpdater resource with the correct `servers[N]` array index. The overlay's `imageUpdater.writeBackTarget` must also be set:
@@ -81,12 +81,13 @@ helm template mcp-servers charts/mcp-servers/ \
 
 ## Native HTTP vs translate sidecar
 
-| Mode | `translate.enabled` | Use when |
-|------|-------------------|----------|
-| Native HTTP | `false` | Server exposes streamable-HTTP natively (e.g., FastMCP with `transport="http"`) |
-| Translate sidecar | `true` | Server only supports stdio; the IBM translate sidecar wraps it as HTTP |
+| Mode              | `translate.enabled` | Use when                                                                        |
+| ----------------- | ------------------- | ------------------------------------------------------------------------------- |
+| Native HTTP       | `false`             | Server exposes streamable-HTTP natively (e.g., FastMCP with `transport="http"`) |
+| Translate sidecar | `true`              | Server only supports stdio; the IBM translate sidecar wraps it as HTTP          |
 
 For translate mode, also set:
+
 - `translate.command` — the stdio command to run (e.g., `python3 -m my_server`)
 - `translate.port` — sidecar HTTP port (default 8080)
 
@@ -105,10 +106,10 @@ The server then appears as a virtual tool provider in Context Forge at `https://
 
 HTTPCheck alerts use these defaults (overridable per server):
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `evalWindow` | `10m0s` | Time window for evaluation |
-| `frequency` | `2m0s` | Check frequency |
-| `matchType` | `5` | Consecutive failures before firing |
-| `severity` | `critical` | Alert severity |
-| `channels` | `[pagerduty-homelab]` | Notification channels |
+| Setting      | Default               | Description                        |
+| ------------ | --------------------- | ---------------------------------- |
+| `evalWindow` | `10m0s`               | Time window for evaluation         |
+| `frequency`  | `2m0s`                | Check frequency                    |
+| `matchType`  | `5`                   | Consecutive failures before firing |
+| `severity`   | `critical`            | Alert severity                     |
+| `channels`   | `[pagerduty-homelab]` | Notification channels              |

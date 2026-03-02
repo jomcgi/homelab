@@ -37,17 +37,17 @@ Traffic is routed through Cloudflare Tunnel: static assets go to the frontend, `
 
 ## Configuration
 
-| Value                         | Description                              | Default        |
-| ----------------------------- | ---------------------------------------- | -------------- |
-| `frontend.replicaCount`       | Number of frontend replicas              | `1`            |
-| `frontend.image.repository`   | Frontend container image                 | `ghcr.io/jomcgi/homelab/services/grimoire-frontend` |
-| `wsGateway.replicaCount`      | Number of WebSocket gateway replicas     | `1`            |
-| `wsGateway.cfAccessTeam`      | Cloudflare Access team name              | `""`           |
-| `redis.image.tag`             | Redis image tag                          | `7-alpine`     |
-| `grimoireSecret.onepassword.itemPath` | 1Password item for API keys and passwords | `vaults/k8s-homelab/items/grimoire` |
-| `networkPolicy.enabled`       | Enable Redis NetworkPolicy               | `true`         |
-| `tunnel.enabled`              | Enable Cloudflare Tunnel routing         | `false`        |
-| `tunnel.hostname`             | Public hostname for the tunnel           | `grimoire.jomcgi.dev` |
+| Value                                 | Description                               | Default                                             |
+| ------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
+| `frontend.replicaCount`               | Number of frontend replicas               | `1`                                                 |
+| `frontend.image.repository`           | Frontend container image                  | `ghcr.io/jomcgi/homelab/services/grimoire-frontend` |
+| `wsGateway.replicaCount`              | Number of WebSocket gateway replicas      | `1`                                                 |
+| `wsGateway.cfAccessTeam`              | Cloudflare Access team name               | `""`                                                |
+| `redis.image.tag`                     | Redis image tag                           | `7-alpine`                                          |
+| `grimoireSecret.onepassword.itemPath` | 1Password item for API keys and passwords | `vaults/k8s-homelab/items/grimoire`                 |
+| `networkPolicy.enabled`               | Enable Redis NetworkPolicy                | `true`                                              |
+| `tunnel.enabled`                      | Enable Cloudflare Tunnel routing          | `false`                                             |
+| `tunnel.hostname`                     | Public hostname for the tunnel            | `grimoire.jomcgi.dev`                               |
 
 ## Usage
 

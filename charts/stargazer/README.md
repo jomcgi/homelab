@@ -36,18 +36,18 @@ Both components share a Longhorn-backed PVC for data persistence.
 
 ## Configuration
 
-| Value                          | Description                              | Default              |
-| ------------------------------ | ---------------------------------------- | -------------------- |
-| `schedule`                     | CronJob schedule                         | `0 */6 * * *`       |
-| `config.gridSpacingM`          | Grid cell size in meters                 | `5000`              |
-| `config.roadBufferM`           | Minimum distance from roads              | `1000`              |
-| `config.minAstronomyScore`     | Weather score threshold (0-100)          | `60`                |
-| `config.forecastHours`         | Weather forecast look-ahead              | `72`                |
-| `config.metNorwayRateLimit`    | MET Norway API requests per second       | `15`                |
-| `persistence.size`             | PVC size for output data                 | `5Gi`               |
-| `persistence.storageClass`     | Storage class for PVC                    | `longhorn`          |
-| `api.enabled`                  | Enable Nginx API for serving results     | `false`             |
-| `config.opentelemetry.enabled` | Enable OpenTelemetry tracing             | `true`              |
+| Value                          | Description                          | Default       |
+| ------------------------------ | ------------------------------------ | ------------- |
+| `schedule`                     | CronJob schedule                     | `0 */6 * * *` |
+| `config.gridSpacingM`          | Grid cell size in meters             | `5000`        |
+| `config.roadBufferM`           | Minimum distance from roads          | `1000`        |
+| `config.minAstronomyScore`     | Weather score threshold (0-100)      | `60`          |
+| `config.forecastHours`         | Weather forecast look-ahead          | `72`          |
+| `config.metNorwayRateLimit`    | MET Norway API requests per second   | `15`          |
+| `persistence.size`             | PVC size for output data             | `5Gi`         |
+| `persistence.storageClass`     | Storage class for PVC                | `longhorn`    |
+| `api.enabled`                  | Enable Nginx API for serving results | `false`       |
+| `config.opentelemetry.enabled` | Enable OpenTelemetry tracing         | `true`        |
 
 ## Usage
 

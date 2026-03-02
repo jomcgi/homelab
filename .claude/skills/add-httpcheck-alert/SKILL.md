@@ -194,12 +194,12 @@ evaluation panics with a nil pointer dereference (`BasicRuleThreshold.TargetValu
 
 ### Comparison Operators (`op`)
 
-| Value | Meaning          |
-| ----- | ---------------- |
-| `"1"` | Greater than     |
-| `"2"` | Less than        |
-| `"3"` | Equal to         |
-| `"4"` | Not equal to     |
+| Value | Meaning      |
+| ----- | ------------ |
+| `"1"` | Greater than |
+| `"2"` | Less than    |
+| `"3"` | Equal to     |
+| `"4"` | Not equal to |
 
 ### Match Types (`matchType`)
 

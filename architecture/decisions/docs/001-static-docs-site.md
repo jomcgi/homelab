@@ -25,19 +25,19 @@ Use **VitePress** to generate the documentation site, deployed to Cloudflare Pag
 via the existing `rules_wrangler` + Bazel pipeline. A new **`rules_vitepress`**
 module provides the content assembly and link rewriting layer.
 
-| Aspect | Today | Proposed |
-|--------|-------|----------|
-| Discovery | `grep` / browse GitHub | Search at docs.jomcgi.dev |
-| Navigation | Repository tree | Sidebar + cross-links |
-| Access | Requires repo access | Public static site |
-| Build system | N/A | Bazel (`rules_vitepress` + `vite_build` macro) |
+| Aspect       | Today                  | Proposed                                       |
+| ------------ | ---------------------- | ---------------------------------------------- |
+| Discovery    | `grep` / browse GitHub | Search at docs.jomcgi.dev                      |
+| Navigation   | Repository tree        | Sidebar + cross-links                          |
+| Access       | Requires repo access   | Public static site                             |
+| Build system | N/A                    | Bazel (`rules_vitepress` + `vite_build` macro) |
 
 ### Why VitePress
 
 1. **Toolchain alignment** — Vite is already in use across `websites/`. VitePress
    is maintained by the Vite team and shares the same dev server, config conventions,
    and plugin ecosystem. No second toolchain to learn or maintain.
-2. **Markdown-first** — A directory of `.md` files *is* the site structure. Minimal
+2. **Markdown-first** — A directory of `.md` files _is_ the site structure. Minimal
    ceremony to get from raw markdown to a navigable site.
 3. **Bazel integration** — The existing `vite_build` macro in
    `tools/js/vite_build.bzl` is framework-agnostic. It wraps `js_run_binary` with
@@ -238,11 +238,11 @@ correctly in both GitHub and the docs site.
 The rewriter (`rules_vitepress/rewriter/rewrite.py`) processes every `.md` file
 in the assembled tree through a three-step pipeline:
 
-| Step | Operation | On failure |
-|------|-----------|------------|
-| **Resolve** | Relative path → full repo path | Warn (malformed link) |
-| **Remap** | Full repo path → vitepress path via path map | No mapping → strip link |
-| **Validate** | Check file exists in assembled tree | Missing → strip link |
+| Step         | Operation                                    | On failure              |
+| ------------ | -------------------------------------------- | ----------------------- |
+| **Resolve**  | Relative path → full repo path               | Warn (malformed link)   |
+| **Remap**    | Full repo path → vitepress path via path map | No mapping → strip link |
+| **Validate** | Check file exists in assembled tree          | Missing → strip link    |
 
 **Resolve**: Uses the file's `repo_path` (from `VitePressContentInfo`) to resolve
 relative links. A link `../services/ships_api/README.md` in a file at repo path
@@ -262,11 +262,14 @@ Example transformations:
 # In architecture/services.md (repo source)
 
 See the [Ships API](../services/ships_api/README.md) for details.
+
 # → See the [Ships API](/services/ships-api/README.md) for details.
 
 Read about [agent capabilities](../.claude/AGENTS.md) for context.
+
 # → Read about agent capabilities for context.
-#    (link stripped — .claude/AGENTS.md not in any vitepress_filegroup)
+
+# (link stripped — .claude/AGENTS.md not in any vitepress_filegroup)
 ```
 
 Stripped links produce build warnings (not errors) so the build does not block
@@ -279,6 +282,7 @@ WARNING: architecture/services.md:42 — link to .claude/AGENTS.md stripped (not
 ### Deployment
 
 Same pattern as all other websites in this repo:
+
 - `bazel run //websites/docs.jomcgi.dev:docs.push` for manual deploys
 - GitHub Actions workflow (`.github/workflows/cf-pages-docs.yaml`) for CI
 - Cloudflare Pages project: `docs-jomcgi-dev`
@@ -337,26 +341,26 @@ than producing broken links on the public site.
 
 Content that must remain excluded:
 
-| Path | Reason |
-|------|--------|
-| `.claude/AGENTS.md` | Internal agent capabilities and permissions |
-| `.claude/skills/` | Prompt engineering — internal tooling |
-| `.claude/templates/` | Internal workflow templates |
-| `docs/plans/` | Ephemeral design documents, not reference material |
-| `advent_of_code/` | Puzzle solutions, not homelab docs |
-| `websites/jomcgi.dev/src/assets/cv.md` | Personal CV, not homelab docs |
+| Path                                   | Reason                                             |
+| -------------------------------------- | -------------------------------------------------- |
+| `.claude/AGENTS.md`                    | Internal agent capabilities and permissions        |
+| `.claude/skills/`                      | Prompt engineering — internal tooling              |
+| `.claude/templates/`                   | Internal workflow templates                        |
+| `docs/plans/`                          | Ephemeral design documents, not reference material |
+| `advent_of_code/`                      | Puzzle solutions, not homelab docs                 |
+| `websites/jomcgi.dev/src/assets/cv.md` | Personal CV, not homelab docs                      |
 
 ---
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| VitePress breaking changes | Low | Low | Pin version in package.json, Bazel ensures hermetic builds |
-| Stale docs on site | Medium | Medium | CI rebuilds on every push to main; Bazel deps track source files |
-| Accidental secret publication | Low | High | Explicit `vitepress_filegroup` allowlist, link stripping for excluded content |
-| Link rewriter misses edge cases | Medium | Low | Warnings on stripped links surface issues; relative links still work on GitHub as fallback |
-| `rules_vitepress` maintenance overhead | Low | Low | Small surface area (~3 files), follows existing `rules_wrangler` patterns |
+| Risk                                   | Likelihood | Impact | Mitigation                                                                                 |
+| -------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------ |
+| VitePress breaking changes             | Low        | Low    | Pin version in package.json, Bazel ensures hermetic builds                                 |
+| Stale docs on site                     | Medium     | Medium | CI rebuilds on every push to main; Bazel deps track source files                           |
+| Accidental secret publication          | Low        | High   | Explicit `vitepress_filegroup` allowlist, link stripping for excluded content              |
+| Link rewriter misses edge cases        | Medium     | Low    | Warnings on stripped links surface issues; relative links still work on GitHub as fallback |
+| `rules_vitepress` maintenance overhead | Low        | Low    | Small surface area (~3 files), follows existing `rules_wrangler` patterns                  |
 
 ---
 
@@ -372,12 +376,12 @@ Content that must remain excluded:
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
-| [VitePress docs](https://vitepress.dev) | Framework documentation |
-| `tools/js/vite_build.bzl` | Existing Vite build macro — framework-agnostic, supports VitePress directly |
-| `rules_wrangler/defs.bzl` | CF Pages deployment rule — `rules_vitepress` follows same patterns |
-| `rules_wrangler/gazelle/` | Reference for future gazelle extension (Phase 3) |
-| `websites/trips.jomcgi.dev/BUILD` | Reference: Vite + `vite_build` macro + `wrangler_pages` |
-| `websites/jomcgi.dev/BUILD` | Reference: Astro (wraps Vite) + `vite_build` macro + `wrangler_pages` |
-| `websites/hikes.jomcgi.dev/BUILD` | Reference: static `filegroup` → `wrangler_pages` (no build step) |
+| Resource                                | Relevance                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------------- |
+| [VitePress docs](https://vitepress.dev) | Framework documentation                                                     |
+| `tools/js/vite_build.bzl`               | Existing Vite build macro — framework-agnostic, supports VitePress directly |
+| `rules_wrangler/defs.bzl`               | CF Pages deployment rule — `rules_vitepress` follows same patterns          |
+| `rules_wrangler/gazelle/`               | Reference for future gazelle extension (Phase 3)                            |
+| `websites/trips.jomcgi.dev/BUILD`       | Reference: Vite + `vite_build` macro + `wrangler_pages`                     |
+| `websites/jomcgi.dev/BUILD`             | Reference: Astro (wraps Vite) + `vite_build` macro + `wrangler_pages`       |
+| `websites/hikes.jomcgi.dev/BUILD`       | Reference: static `filegroup` → `wrangler_pages` (no build step)            |

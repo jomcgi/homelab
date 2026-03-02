@@ -454,15 +454,15 @@ Observability specialist. Uses **SigNoz via Context Forge MCP** as the primary i
 
 ### Available SigNoz MCP Tools
 
-| Category | Tools |
-|----------|-------|
-| **Logs** | `search-logs`, `search-logs-by-service`, `get-error-logs`, `get-logs-for-alert`, `get-logs-available-fields`, `get-logs-field-values`, `list-log-views`, `get-log-view` |
-| **Traces** | `search-traces-by-service`, `aggregate-traces`, `get-trace-details`, `get-trace-span-hierarchy`, `get-trace-error-analysis`, `get-trace-available-fields`, `get-trace-field-values` |
-| **Metrics** | `search-metric-by-text`, `list-metric-keys`, `get-metrics-available-fields`, `get-metrics-field-values` |
-| **Services** | `list-services`, `get-service-top-operations` |
-| **Dashboards** | `list-dashboards`, `get-dashboard`, `create-dashboard`, `update-dashboard` |
-| **Alerts** | `list-alerts`, `get-alert`, `get-alert-history` |
-| **Queries** | `execute-builder-query` |
+| Category       | Tools                                                                                                                                                                               |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Logs**       | `search-logs`, `search-logs-by-service`, `get-error-logs`, `get-logs-for-alert`, `get-logs-available-fields`, `get-logs-field-values`, `list-log-views`, `get-log-view`             |
+| **Traces**     | `search-traces-by-service`, `aggregate-traces`, `get-trace-details`, `get-trace-span-hierarchy`, `get-trace-error-analysis`, `get-trace-available-fields`, `get-trace-field-values` |
+| **Metrics**    | `search-metric-by-text`, `list-metric-keys`, `get-metrics-available-fields`, `get-metrics-field-values`                                                                             |
+| **Services**   | `list-services`, `get-service-top-operations`                                                                                                                                       |
+| **Dashboards** | `list-dashboards`, `get-dashboard`, `create-dashboard`, `update-dashboard`                                                                                                          |
+| **Alerts**     | `list-alerts`, `get-alert`, `get-alert-history`                                                                                                                                     |
+| **Queries**    | `execute-builder-query`                                                                                                                                                             |
 
 ### Auto-Instrumentation (This Repo)
 
@@ -581,12 +581,12 @@ kubectl get serverauthorizations -A
 
 ### Common Issues
 
-| Symptom | Check | Common Cause |
-| --- | --- | --- |
-| Proxy not injected | `kubectl get ns -L linkerd.io/inject` | Namespace missing annotation |
-| Connection refused | Proxy logs + `kubectl get endpoints` | Service not in mesh or port mismatch |
-| TLS handshake errors | Proxy logs for both sides | Identity certificate issues |
-| High latency through mesh | `kubectl top pods` on proxy containers | Proxy resource limits too low |
+| Symptom                   | Check                                  | Common Cause                         |
+| ------------------------- | -------------------------------------- | ------------------------------------ |
+| Proxy not injected        | `kubectl get ns -L linkerd.io/inject`  | Namespace missing annotation         |
+| Connection refused        | Proxy logs + `kubectl get endpoints`   | Service not in mesh or port mismatch |
+| TLS handshake errors      | Proxy logs for both sides              | Identity certificate issues          |
+| High latency through mesh | `kubectl top pods` on proxy containers | Proxy resource limits too low        |
 
 ### Common Mistakes to Avoid
 

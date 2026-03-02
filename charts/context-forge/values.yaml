@@ -30,7 +30,7 @@ mcp-stack:
           name: context-forge
     metrics:
       serviceMonitor:
-        enabled: false  # Requires prometheus-operator CRDs
+        enabled: false # Requires prometheus-operator CRDs
     resources:
       requests:
         cpu: 50m

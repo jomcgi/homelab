@@ -12,6 +12,7 @@ ADRs are the primary mechanism for proposing, tracking, and recording architectu
 ADRs live in `architecture/decisions/<category>/` as numbered Markdown files.
 
 Current categories:
+
 - `agents/` — Autonomous coding agents, sandbox lifecycle, MCP tooling
 
 New categories are created as needed. Keep them broad enough to be useful.
@@ -38,7 +39,7 @@ ls architecture/decisions/<category>/
 
 Create `architecture/decisions/<category>/NNN-<slug>.md` using this template:
 
-```markdown
+````markdown
 # ADR NNN: <Title>
 
 **Author:** <Name>
@@ -59,8 +60,8 @@ What problem does this solve? Why now?
 Core idea in 2-3 paragraphs. Include a Before/After table if helpful:
 
 | Aspect | Today | Proposed |
-|--------|-------|----------|
-| ... | ... | ... |
+| ------ | ----- | -------- |
+| ...    | ...   | ...      |
 
 ---
 
@@ -73,16 +74,19 @@ graph LR
     A[Service A] --> B[Service B]
     B --> C[Service C]
 ```
+````
 
 ## Implementation
 
 Break work into phases with a checklist. This is the canonical task list — no GitHub issues needed.
 
 ### Phase 1: MVP
+
 - [ ] Task with enough context to execute independently
 - [ ] Another task
 
 ### Phase 2+
+
 - [ ] Follow-on work
 
 ## Security
@@ -92,8 +96,8 @@ Reference `architecture/security.md` for baseline. Document any deviations.
 ## Risks
 
 | Risk | Likelihood | Impact | Mitigation |
-|------|-----------|--------|------------|
-| ... | ... | ... | ... |
+| ---- | ---------- | ------ | ---------- |
+| ...  | ...        | ...    | ...        |
 
 ## Open Questions
 
@@ -101,30 +105,32 @@ Reference `architecture/security.md` for baseline. Document any deviations.
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
+| Resource    | Relevance      |
+| ----------- | -------------- |
 | [Link](url) | Why it matters |
-```
+
+````
 
 ### Step 3: Commit with `adr:` prefix
 
 ```bash
 git commit -m "adr: <short description>"
-```
+````
 
 ## ADR Statuses
 
-| Status | Meaning |
-|--------|---------|
-| **Draft** | Under discussion, not yet approved |
-| **Accepted** | Approved for implementation |
-| **Implemented** | Work is complete |
+| Status                | Meaning                                                                     |
+| --------------------- | --------------------------------------------------------------------------- |
+| **Draft**             | Under discussion, not yet approved                                          |
+| **Accepted**          | Approved for implementation                                                 |
+| **Implemented**       | Work is complete                                                            |
 | **Superseded by NNN** | Replaced by a newer ADR (link to it). Keep the file — it preserves context. |
-| **Deprecated** | Abandoned without replacement |
+| **Deprecated**        | Abandoned without replacement                                               |
 
 ## Superseding an ADR
 
 When a decision is reversed or evolved:
+
 1. Create the new ADR with a `Supersedes:` field linking to the old one
 2. Update the old ADR's status to `Superseded by [NNN-slug](NNN-slug.md)`
 3. **Do not delete the old ADR** — it preserves the reasoning and context that led to the change
@@ -137,6 +143,7 @@ ADRs track their own work via markdown checklists in the Implementation section.
 ## Implementation
 
 ### Phase 1: MVP
+
 - [x] Create Helm chart in `charts/context-forge/` with gateway config
 - [x] Add overlay in `overlays/cluster-critical/context-forge/`
 - [ ] Register SigNoz API endpoints in gateway config

@@ -42,18 +42,18 @@ All four components connect to SeaweedFS for storage and share embedding provide
 
 ## Configuration
 
-| Value | Description | Default |
-| --- | --- | --- |
-| `sources` | List of URLs/feeds to scrape (mounted as ConfigMap) | `[]` |
-| `cronjob.schedule` | Scraper cron schedule | `"0 */6 * * *"` |
-| `embedder.schedule` | Embedder cron schedule | `"30 */6 * * *"` |
-| `seaweedfs.endpoint` | S3-compatible storage endpoint | `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333` |
-| `qdrant.url` | Qdrant vector database URL | `http://qdrant.qdrant.svc.cluster.local:6333` |
-| `qdrant.collection` | Qdrant collection name | `knowledge_graph` |
-| `embedding.ollama.model` | Ollama embedding model | `nomic-embed-text` |
-| `storage.bucket` | S3 bucket for raw content | `knowledge` |
-| `notifications.slackWebhookUrl` | Slack webhook for new content alerts | `""` |
-| `mcp.enabled` | Deploy the MCP server | `true` |
+| Value                           | Description                                         | Default                                                |
+| ------------------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| `sources`                       | List of URLs/feeds to scrape (mounted as ConfigMap) | `[]`                                                   |
+| `cronjob.schedule`              | Scraper cron schedule                               | `"0 */6 * * *"`                                        |
+| `embedder.schedule`             | Embedder cron schedule                              | `"30 */6 * * *"`                                       |
+| `seaweedfs.endpoint`            | S3-compatible storage endpoint                      | `http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333` |
+| `qdrant.url`                    | Qdrant vector database URL                          | `http://qdrant.qdrant.svc.cluster.local:6333`          |
+| `qdrant.collection`             | Qdrant collection name                              | `knowledge_graph`                                      |
+| `embedding.ollama.model`        | Ollama embedding model                              | `nomic-embed-text`                                     |
+| `storage.bucket`                | S3 bucket for raw content                           | `knowledge`                                            |
+| `notifications.slackWebhookUrl` | Slack webhook for new content alerts                | `""`                                                   |
+| `mcp.enabled`                   | Deploy the MCP server                               | `true`                                                 |
 
 ## Usage
 

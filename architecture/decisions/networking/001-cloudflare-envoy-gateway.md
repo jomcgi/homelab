@@ -11,14 +11,14 @@
 
 The Cloudflare operator (`operators/cloudflare/`) has grown to 6 controllers and 2 CRDs:
 
-| Controller | Responsibility |
-|------------|---------------|
-| `GatewayClass` | Validates credentials, sets Accepted condition |
-| `Gateway` | Creates `CloudflareTunnel` CRD, deploys `cloudflared` Deployment + HPA + PDB |
-| `CloudflareTunnel` | Full state machine for Cloudflare tunnel API lifecycle (create/delete/credentials) |
-| `HTTPRoute` | Resolves backends, creates Cloudflare published routes + DNS CNAME records |
-| `CloudflareAccessPolicy` | Manages Cloudflare Zero Trust access applications (GEP-713 policy attachment) |
-| `Service` | Convenience layer — annotation-driven auto-creation of Gateway + HTTPRoute + AccessPolicy |
+| Controller               | Responsibility                                                                            |
+| ------------------------ | ----------------------------------------------------------------------------------------- |
+| `GatewayClass`           | Validates credentials, sets Accepted condition                                            |
+| `Gateway`                | Creates `CloudflareTunnel` CRD, deploys `cloudflared` Deployment + HPA + PDB              |
+| `CloudflareTunnel`       | Full state machine for Cloudflare tunnel API lifecycle (create/delete/credentials)        |
+| `HTTPRoute`              | Resolves backends, creates Cloudflare published routes + DNS CNAME records                |
+| `CloudflareAccessPolicy` | Manages Cloudflare Zero Trust access applications (GEP-713 policy attachment)             |
+| `Service`                | Convenience layer — annotation-driven auto-creation of Gateway + HTTPRoute + AccessPolicy |
 
 This reimplements routing primitives (listener config, backend resolution, route matching) that Envoy Gateway handles natively. Meanwhile, production traffic still runs through the static `cloudflare-tunnel` Helm chart (`overlays/prod/cloudflare-tunnel/values.yaml`) with 12 hardcoded routes — the operator isn't serving production yet.
 
@@ -33,6 +33,7 @@ Replace the operator's in-cluster routing with Envoy Gateway and reduce the oper
 ### Layer 1 — Envoy Gateway (upstream, not owned)
 
 Envoy Gateway provides a conformant Gateway API implementation:
+
 - `Gateway` resources per trust boundary (public, private)
 - `HTTPRoute` resources for per-app routing with real in-cluster load balancing
 - TLS termination, header/path matching, traffic splitting — all upstream
@@ -43,23 +44,23 @@ This replaces the operator's `GatewayClass`, `Gateway`, `HTTPRoute`, and `Servic
 
 Three CRDs remain:
 
-| CRD | Responsibility |
-|-----|---------------|
-| `CloudflareTunnel` | Manages tunnel API lifecycle, deploys `cloudflared` pointing at an Envoy Gateway Service endpoint |
-| `CloudflareDNSRecord` | Manages Cloudflare DNS CNAME records (currently embedded in HTTPRoute controller) |
-| `CloudflareAccessPolicy` | Manages Cloudflare Zero Trust access applications (unchanged) |
+| CRD                      | Responsibility                                                                                    |
+| ------------------------ | ------------------------------------------------------------------------------------------------- |
+| `CloudflareTunnel`       | Manages tunnel API lifecycle, deploys `cloudflared` pointing at an Envoy Gateway Service endpoint |
+| `CloudflareDNSRecord`    | Manages Cloudflare DNS CNAME records (currently embedded in HTTPRoute controller)                 |
+| `CloudflareAccessPolicy` | Manages Cloudflare Zero Trust access applications (unchanged)                                     |
 
 The tunnel-to-gateway mapping is one tunnel per Gateway — `cloudflared` points at the Envoy Gateway Service instead of resolving backends directly.
 
 ### What Gets Deleted
 
-| Current | Replacement |
-|---------|------------|
-| `GatewayClass` controller | Envoy Gateway's GatewayClass |
+| Current                                                  | Replacement                                                                                                                                                                                                             |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GatewayClass` controller                                | Envoy Gateway's GatewayClass                                                                                                                                                                                            |
 | `Gateway` controller (tunnel + deployment orchestration) | `CloudflareTunnel` CRD refs an Envoy Gateway; deployment orchestration (`ensureCloudflaredDeployment`, HPA, PDB, `DefaultCloudflaredReplicas`) migrates from `gateway_controller.go` into `CloudflareTunnel` controller |
-| `HTTPRoute` controller (DNS + published routes) | Envoy Gateway handles routing; `CloudflareDNSRecord` CRD handles DNS |
-| `Service` controller (annotation convenience) | Removed — teams create HTTPRoute + CloudflareDNSRecord directly |
-| Published routes API calls | Removed — `cloudflared` uses `--url` pointing at gateway, no per-route config |
+| `HTTPRoute` controller (DNS + published routes)          | Envoy Gateway handles routing; `CloudflareDNSRecord` CRD handles DNS                                                                                                                                                    |
+| `Service` controller (annotation convenience)            | Removed — teams create HTTPRoute + CloudflareDNSRecord directly                                                                                                                                                         |
+| Published routes API calls                               | Removed — `cloudflared` uses `--url` pointing at gateway, no per-route config                                                                                                                                           |
 
 ### What Changes in `CloudflareTunnel`
 
@@ -81,9 +82,9 @@ The tunnel-to-gateway mapping is one tunnel per Gateway — `cloudflared` points
 CloudflareDNSRecord:
   spec:
     tunnelRef:
-      name: string            # ref to CloudflareTunnel
-    hostname: string          # e.g. app.jomcgi.dev
-    proxied: bool             # Cloudflare proxy enabled
+      name: string # ref to CloudflareTunnel
+    hostname: string # e.g. app.jomcgi.dev
+    proxied: bool # Cloudflare proxy enabled
 ```
 
 Replaces the DNS record management currently embedded in the HTTPRoute controller (lines that call `CreateTunnelDNSRecord` and store record IDs in annotations).

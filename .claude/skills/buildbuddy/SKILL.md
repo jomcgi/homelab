@@ -109,12 +109,12 @@ curl -s -X POST \
 
 ### Useful jq Filters by Endpoint
 
-| Endpoint | jq Filter | Returns |
-| --- | --- | --- |
-| `GetInvocation` | `'{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis}'` | Build summary |
-| `GetInvocation` | `'{repo: .invocation.repo_url, commit: .invocation.commit_sha, branch: .invocation.branch_name}'` | Repo context |
-| `GetLog` | `-r '.log'` | Full build log |
-| `GetLog` | `-r '.log' \| grep -iE "(error\|fail\|fatal)" \| head -20` | Errors only |
+| Endpoint        | jq Filter                                                                                                  | Returns        |
+| --------------- | ---------------------------------------------------------------------------------------------------------- | -------------- |
+| `GetInvocation` | `'{success: .invocation.success, command: .invocation.command, duration_ms: .invocation.duration_millis}'` | Build summary  |
+| `GetInvocation` | `'{repo: .invocation.repo_url, commit: .invocation.commit_sha, branch: .invocation.branch_name}'`          | Repo context   |
+| `GetLog`        | `-r '.log'`                                                                                                | Full build log |
+| `GetLog`        | `-r '.log' \| grep -iE "(error\|fail\|fatal)" \| head -20`                                                 | Errors only    |
 
 ## GitHub PR Integration
 
