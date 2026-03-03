@@ -35,7 +35,7 @@ servers:
 - name: buildbuddy-mcp
   image:
     repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
-    tag: "main@sha256:329e6c0d3cca32397cdb47926142b4fcb6bbfc99f6e2edda2782a2bca54fb9b9"
+    tag: "main@sha256:bdbfff85ced097cf2d51973328c805d8252be19ccca4410231613e100ec3c883"
   port: 8000
   writableTmp: true
   env:
