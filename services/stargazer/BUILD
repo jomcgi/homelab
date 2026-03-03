@@ -1,4 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 load("//tools/oci:py3_image.bzl", "py3_image")
 
 py_library(
@@ -22,4 +23,10 @@ py3_image(
         "OTEL_ENABLED": "false",
     },
     repository = "ghcr.io/jomcgi/homelab/services/stargazer",
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )

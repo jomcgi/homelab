@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_test")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 """Targets in the repository root"""
 
@@ -57,6 +58,7 @@ gazelle_binary(
     languages = [
         "//rules_helm/gazelle",
         "//rules_wrangler/gazelle",
+        "//rules_semgrep/gazelle",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle//language/go",
         "@gazelle//language/proto",
@@ -70,6 +72,7 @@ gazelle(
         "ENABLE_LANGUAGES": ",".join([
             "argocd",
             "wrangler",
+            "semgrep",
             "bzl",
             "proto",
             "go",
@@ -118,4 +121,10 @@ go_test(
         "@com_github_stretchr_testify//assert",
         "@io_k8s_metrics//pkg/client/clientset/versioned",
     ],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )

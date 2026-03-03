@@ -1,4 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 py_library(
     name = "detect-wildlife",
@@ -21,4 +22,10 @@ py_binary(
         "@pip//open_gopro",
         "@pip//typer",
     ],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )

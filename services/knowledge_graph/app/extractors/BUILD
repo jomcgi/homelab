@@ -1,4 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 # gazelle:resolve py services.knowledge_graph.app.models //services/knowledge_graph/app:models
 # gazelle:resolve py services.knowledge_graph.app.extractors.base //services/knowledge_graph/app/extractors:base
@@ -60,4 +61,10 @@ py_library(
         "@pip//lxml_html_clean",
         "@pip//trafilatura",
     ],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )

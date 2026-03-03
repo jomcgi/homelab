@@ -1,5 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 load("//tools/oci:apko_image.bzl", "apko_image")
 
 # Package the Bun server
@@ -37,4 +38,10 @@ py_library(
     name = "ships_frontend",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )
