@@ -5,6 +5,8 @@
 #
 # Combines helm template rendering with semgrep scanning in a single test.
 # Exit code 0 = no findings, non-zero = violations found or render failure.
+#
+# Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
 
 set -euo pipefail
 
@@ -24,10 +26,16 @@ shift 6
 # osemgrep (native engine) execs pysemgrep at runtime — add it to PATH
 export PATH="$(dirname "$PYSEMGREP"):$PATH"
 
-# Collect rule files until -- separator
+# Build comma-delimited exclude string for simple substring matching
+EXCLUDE_LIST=",${SEMGREP_EXCLUDE_RULES:-},"
+
+# Collect rule files until -- separator, skipping excluded rules
 RULES=()
 while [[ $# -gt 0 && "$1" != "--" ]]; do
-	RULES+=("--config" "$1")
+	rule_name="$(basename "$1" .yaml)"
+	if [[ "$EXCLUDE_LIST" != *",$rule_name,"* ]]; then
+		RULES+=("--config" "$1")
+	fi
 	shift
 done
 
@@ -61,8 +69,13 @@ fi
 
 echo ""
 echo "Scanning rendered manifests with semgrep:"
-echo "  Rules: ${RULES[*]}"
+echo "  Rules: ${RULES[*]:-none}"
 echo ""
+
+if [[ ${#RULES[@]} -eq 0 ]]; then
+	echo "PASSED: All rules excluded, nothing to scan"
+	exit 0
+fi
 
 if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$MANIFESTS"; then
 	echo "PASSED: No semgrep findings in rendered manifests"

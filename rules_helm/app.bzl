@@ -14,6 +14,7 @@ def argocd_app(
         generate_diff = False,
         generate_semgrep = True,
         semgrep_rules = ["//semgrep_rules:kubernetes_rules"],
+        semgrep_exclude_rules = [],
         tags = []):
     """Declares an ArgoCD application overlay with template testing and manifest rendering.
 
@@ -34,6 +35,7 @@ def argocd_app(
         generate_diff: If True, create live diff rule (default: False)
         generate_semgrep: If True, create semgrep_test for rendered manifests (default: True)
         semgrep_rules: List of semgrep rule config labels for manifest scanning
+        semgrep_exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
         tags: Additional tags for the template test
     """
     if release_name == None:
@@ -115,6 +117,7 @@ def argocd_app(
             namespace = namespace,
             values_files = values_files,
             rules = semgrep_rules,
+            exclude_rules = semgrep_exclude_rules,
             tags = tags + ["semgrep"],
         )
 
