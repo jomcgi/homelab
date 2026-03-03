@@ -1,3 +1,4 @@
 # Tools that are run manually for developmer tasks or run by Bazel
 # but not used by tests or at runtime.
 copier>=9.11.2
+semgrep

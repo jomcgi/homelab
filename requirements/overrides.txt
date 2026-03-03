@@ -13,3 +13,18 @@ lxml==6.0.2
 # Pillow 12.1.1 is needed to fix CVE. The <12 bound in open-gopro
 # is a cautious constraint, not a known incompatibility.
 pillow>=12.1.1
+
+# Override semgrep's tight compatible-release (~=) pins that conflict
+# with runtime dependency versions. semgrep pins click~=8.1.8, rich~=13.5.2,
+# exceptiongroup~=1.2.0, opentelemetry-sdk~=1.37.0, mcp==1.23.3, etc.,
+# but runtime deps pin newer versions. Since all.in combines runtime and
+# tools into a single pip.parse() lock file, we broaden these to let
+# semgrep (a build-time-only tool) coexist with the runtime dependency set.
+click>=8.1.8
+rich>=13.5.2
+exceptiongroup>=1.2.0
+jsonschema>=4.25.1
+mcp>=1.23.3
+opentelemetry-api>=1.25.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-exporter-otlp-proto-http>=1.25.0
