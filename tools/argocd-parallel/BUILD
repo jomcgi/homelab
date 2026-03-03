@@ -20,6 +20,7 @@ filegroup(
         "//overlays/cluster-critical/linkerd:render_manifests",
         "//overlays/cluster-critical/longhorn:render_manifests",
         "//overlays/cluster-critical/nvidia-gpu-operator:render_manifests",
+        "//overlays/cluster-critical/opentelemetry-operator:render_manifests",
         "//overlays/cluster-critical/signoz:render_manifests",
         "//overlays/cluster-critical/signoz-dashboard-sidecar:render_manifests",
         "//overlays/dev/grimoire:render_manifests",

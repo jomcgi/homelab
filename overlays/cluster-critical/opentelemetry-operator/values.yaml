@@ -1,0 +1,22 @@
+# Cluster-specific overrides for OpenTelemetry Operator
+
+# Enable all three auto-instrumentation languages
+instrumentation:
+  python:
+    enabled: true
+  nodejs:
+    enabled: true
+  go:
+    enabled: true
+  # Namespaces to deploy Instrumentation CRs into
+  namespaces:
+    # Production
+    - trips
+    - knowledge-graph
+    - api-gateway
+    - mcp-servers
+    - todo
+    # Development
+    - grimoire
+    - marine
+    - stargazer
