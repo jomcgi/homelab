@@ -46,7 +46,6 @@ multirun(
         "//scripts:generate-push-all",
         "//scripts:generate-push-all-pages",
         "//scripts:generate-render-all",
-        "//scripts:generate-dev-deploy-registry",
         ":update_apko_locks",
         ":update_python_requirements",
         ":validate_apko_configs",
