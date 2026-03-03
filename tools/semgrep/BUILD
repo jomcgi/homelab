@@ -5,3 +5,11 @@ py_console_script_binary(
     pkg = "@pip//semgrep",
     visibility = ["//visibility:public"],
 )
+
+# osemgrep (the native engine inside semgrep) execs pysemgrep at runtime.
+# Both must be available on PATH for semgrep to work in sandboxed tests.
+py_console_script_binary(
+    name = "pysemgrep",
+    pkg = "@pip//semgrep",
+    visibility = ["//visibility:public"],
+)
