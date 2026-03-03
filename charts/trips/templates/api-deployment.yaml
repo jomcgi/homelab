@@ -20,6 +20,9 @@ spec:
       annotations:
         # Mark NATS port as opaque for Linkerd
         config.linkerd.io/opaque-ports: "4222"
+        {{- with .Values.api.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- if .Values.imagePullSecret.enabled }}
       imagePullSecrets:

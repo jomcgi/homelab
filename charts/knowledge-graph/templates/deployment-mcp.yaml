@@ -17,6 +17,10 @@ spec:
       labels:
         {{- include "knowledge-graph.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: mcp
+      {{- with .Values.mcp.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
     spec:
       {{- if .Values.imagePullSecret.enabled }}
       imagePullSecrets:

@@ -14,6 +14,9 @@ spec:
       annotations:
         checksum/nginx-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
         checksum/collector-config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "api-gateway.selectorLabels" . | nindent 8 }}
     spec:

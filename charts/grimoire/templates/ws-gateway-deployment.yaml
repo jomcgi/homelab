@@ -15,6 +15,9 @@ spec:
     metadata:
       annotations:
         config.linkerd.io/skip-outbound-ports: "{{ .Values.redis.service.port }}"
+        {{- with .Values.wsGateway.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
       labels:
         {{- include "grimoire.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: ws-gateway
