@@ -7,6 +7,8 @@ servers:
     repository: docker.io/signoz/signoz-mcp-server
     tag: "v0.0.5"
   port: 8000
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-python: "true"
   env:
   - name: SIGNOZ_URL
     value: "http://signoz.signoz.svc.cluster.local:8080"
@@ -37,6 +39,8 @@ servers:
     repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
     tag: "main@sha256:329e6c0d3cca32397cdb47926142b4fcb6bbfc99f6e2edda2782a2bca54fb9b9"
   port: 8000
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-python: "true"
   writableTmp: true
   env:
   - name: BUILDBUDDY_URL
