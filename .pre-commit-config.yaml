@@ -60,6 +60,12 @@ repos:
           - ci
           - chore
           - revert
+  - repo: https://github.com/semgrep/pre-commit
+    rev: v1.153.1
+    hooks:
+      - id: semgrep
+        args: ['--config', 'semgrep_rules/', '--error']
+        exclude: '^semgrep_rules/'
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
     hooks:
