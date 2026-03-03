@@ -94,7 +94,7 @@ charts/               # Helm charts (custom + upstream wrappers)
 overlays/             # Environment values (cluster-critical, dev, prod)
 clusters/             # ArgoCD kustomization entry points
 sextant/              # State machine code generator
-tools/                # Build helpers (hf2oci, formatting, dev-deploy)
+tools/                # Build helpers (hf2oci, formatting, hooks)
 rules_helm/           # Custom Bazel rules for Helm
 rules_wrangler/       # Custom Bazel rules for Cloudflare Pages
 architecture/         # Design docs and ADRs

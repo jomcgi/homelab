@@ -17,12 +17,3 @@ annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.licenses: "MPL-2.0"
-  dev-deploy.enabled: "true"
-  dev-deploy.value-overrides: |
-    imagePullSecret.create=false
-    imageUpdater.enabled=false
-    secret.type=manual
-    secret.manual.apiKey=dummy-for-testing
-    ingest.image.digest=
-    api.image.digest=
-    frontend.image.digest=
