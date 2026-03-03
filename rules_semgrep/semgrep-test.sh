@@ -22,7 +22,7 @@ export PATH="$(dirname "$PYSEMGREP"):$PATH"
 # Collect rule files until we hit the -- separator
 RULES=()
 while [[ $# -gt 0 && "$1" != "--" ]]; do
-	RULES+=("--config" "$1")
+	RULES+=("--config" "$(pwd)/$1")
 	shift
 done
 
@@ -32,12 +32,15 @@ if [[ $# -eq 0 ]]; then
 fi
 shift # skip --
 
-echo "Running semgrep scan:"
-echo "  Rules: ${RULES[*]}"
-echo "  Files: $*"
-echo ""
+# Copy source files to a temp directory — semgrep rejects Bazel sandbox symlinks
+SCAN_DIR="${TEST_TMPDIR}/scan"
+mkdir -p "$SCAN_DIR"
+for f in "$@"; do
+	mkdir -p "$SCAN_DIR/$(dirname "$f")"
+	cp "$f" "$SCAN_DIR/$f"
+done
 
-if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$@"; then
+if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
 	echo "PASSED: No semgrep findings"
 	exit 0
 else

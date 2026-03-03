@@ -8,6 +8,7 @@ load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
 load("@rules_multirun//:defs.bzl", "multirun")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 # gazelle:exclude
 package(default_visibility = ["//:__subpackages__"])
@@ -77,4 +78,10 @@ sh_binary(
 sh_binary(
     name = "fast_format",
     srcs = ["fast-format.sh"],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.sh"]),
+    rules = ["//semgrep_rules:shell_rules"],
 )

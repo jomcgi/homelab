@@ -18,9 +18,10 @@ bzl_library(
     ],
 )
 
+# keep: Gazelle mis-resolves @rules_shell//shell:sh_test.bzl
 bzl_library(
     name = "test",
     srcs = ["test.bzl"],
     visibility = ["//visibility:public"],
-    deps = ["@rules_shell//shell:sh_test"],
+    deps = ["@rules_shell//shell:rules_bzl"],  # keep
 )
