@@ -1,26 +1,24 @@
 imagePullSecret:
   enabled: true
-
 scraper:
   image:
-    tag: main
+    tag: main@sha256:e3a4e572dc36eef2f7b6782c02edcda393db2936d97440e982e28f34368a371c
+    repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
-
 embedder:
   image:
-    tag: main
-
+    tag: main@sha256:d2dd6f78f3982a1e3f80d298a7aa25d9db624e679f7809e96cd293410abf1ca1
+    repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder
 mcp:
   image:
-    tag: main
+    tag: main@sha256:f05325d2d9c271a373552390bb538490b4990e36cbaf427b530d56fe16769888
+    repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
-
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
-
 sources:
-  - url: "https://example.com/feed.xml"
-    type: "rss"
-    name: "Example Blog"
+- url: "https://example.com/feed.xml"
+  type: "rss"
+  name: "Example Blog"
