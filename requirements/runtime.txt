@@ -576,6 +576,7 @@ click==8.3.0 \
     --hash=sha256:9b9f285302c6e3064f4330c05f05b81945b2a39544279343e6e7c5f27a9baddc \
     --hash=sha256:e7b8232224eba16f4ebe410c25ced9f7875cb5f3263ffc93cc3e8da705e229c4
     # via
+    #   --override requirements/overrides.txt
     #   click-default-group
     #   click-plugins
     #   cligj
@@ -747,7 +748,12 @@ email-validator==2.3.0 \
 exceptiongroup==1.3.1 \
     --hash=sha256:8b412432c6055b0b7d14c310000ae93352ed6754f70fa8f7c34141f91c4e3219 \
     --hash=sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598
-    # via fastmcp
+    # via
+    #   --override requirements/overrides.txt
+    #   anyio
+    #   cattrs
+    #   fastmcp
+    #   pytest
 fastapi==0.133.1 \
     --hash=sha256:658f34ba334605b1617a65adf2ea6461901bdb9af3a3080d63ff791ecf7dc2e2 \
     --hash=sha256:ed152a45912f102592976fde6cbce7dae1a8a1053da94202e51dd35d184fadd6
@@ -1117,7 +1123,9 @@ jsonref==1.1.0 \
 jsonschema==4.26.0 \
     --hash=sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326 \
     --hash=sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce
-    # via mcp
+    # via
+    #   --override requirements/overrides.txt
+    #   mcp
 jsonschema-path==0.4.4 \
     --hash=sha256:4c55842890fc384262a59fb63a25c86cc0e2b059e929c18b851c1d19ef612026 \
     --hash=sha256:669bb69cb92cd4c54acf38ee2ff7c3d9ab6b69991698f7a2f17d2bb0e5c9c394
@@ -1389,7 +1397,9 @@ markupsafe==3.0.3 \
 mcp==1.26.0 \
     --hash=sha256:904a21c33c25aa98ddbeb47273033c435e595bbacfdb177f4bd87f6dceebe1ca \
     --hash=sha256:db6e2ef491eecc1a0d93711a76f28dec2e05999f93afd48795da1c1137142c66
-    # via fastmcp
+    # via
+    #   --override requirements/overrides.txt
+    #   fastmcp
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
@@ -1685,6 +1695,7 @@ opentelemetry-api==1.38.0 \
     --hash=sha256:2891b0197f47124454ab9f0cf58f3be33faca394457ac3e09daba13ff50aa582 \
     --hash=sha256:f4c193b5e8acb0912b06ac5b16321908dd0843d75049c091487322284a3eea12
     # via
+    #   --override requirements/overrides.txt
     #   homelab (pyproject.toml)
     #   fastmcp
     #   opentelemetry-exporter-otlp-proto-grpc
@@ -1712,7 +1723,9 @@ opentelemetry-exporter-otlp-proto-grpc==1.38.0 \
 opentelemetry-exporter-otlp-proto-http==1.38.0 \
     --hash=sha256:84b937305edfc563f08ec69b9cb2298be8188371217e867c1854d77198d0825b \
     --hash=sha256:f16bd44baf15cbe07633c5112ffc68229d0edbeac7b37610be0b2def4e21e90b
-    # via opentelemetry-exporter-otlp
+    # via
+    #   --override requirements/overrides.txt
+    #   opentelemetry-exporter-otlp
 opentelemetry-instrumentation==0.59b0 \
     --hash=sha256:44082cc8fe56b0186e87ee8f7c17c327c4c2ce93bdbe86496e600985d74368ee \
     --hash=sha256:6010f0faaacdaf7c4dff8aac84e226d23437b331dcda7e70367f6d73a7db1adc
@@ -1743,6 +1756,7 @@ opentelemetry-sdk==1.38.0 \
     --hash=sha256:1c66af6564ecc1553d72d811a01df063ff097cdc82ce188da9951f93b8d10f6b \
     --hash=sha256:93df5d4d871ed09cb4272305be4d996236eedb232253e3ab864c8620f051cebe
     # via
+    #   --override requirements/overrides.txt
     #   homelab (pyproject.toml)
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
@@ -2836,6 +2850,7 @@ rich==14.2.0 \
     --hash=sha256:73ff50c7c0c1c77c8243079283f4edb376f0f6442433aecb8ce7e6d0b92d1fe4 \
     --hash=sha256:76bc51fe2e57d2b1be1f96c524b890b816e334ab4c1e45888799bfaab0021edd
     # via
+    #   --override requirements/overrides.txt
     #   cyclopts
     #   fastmcp
     #   open-gopro

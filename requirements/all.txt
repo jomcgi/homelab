@@ -223,11 +223,13 @@ attrs==25.4.0 \
     #   aiohttp
     #   cattrs
     #   cyclopts
+    #   glom
     #   jsii
     #   jsonschema
     #   rasterio
     #   referencing
     #   requests-cache
+    #   semgrep
 authlib==1.6.8 \
     --hash=sha256:41ae180a17cf672bc784e4a518e5c82687f1fe1e98b0cafaeda80c8e4ab2d1cb \
     --hash=sha256:97286fd7a15e6cfefc32771c8ef9c54f0ed58028f1322de6a2a7c969c3817888
@@ -267,6 +269,13 @@ bng-latlon==1.1 \
     # via
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
+boltons==21.0.0 \
+    --hash=sha256:65e70a79a731a7fe6e98592ecfb5ccf2115873d01dbc576079874629e5c90f13 \
+    --hash=sha256:b9bb7b58b2b420bbe11a6025fdef6d3e5edc9f76a42fb467afe7ca212ef9948b
+    # via
+    #   face
+    #   glom
+    #   semgrep
 boto3==1.40.60 \
     --hash=sha256:5d0e5153ddc4660091838ca255b0fc1ab70ec5b04bf7d578106ae709d31e38aa \
     --hash=sha256:fd3fa9de730c0f4d8a584d6b5313755923a9e181496fa6b09bbf78011e6c2ab3
@@ -281,6 +290,10 @@ botocore==1.40.60 \
     #   -r requirements/runtime.txt
     #   boto3
     #   s3transfer
+bracex==2.6 \
+    --hash=sha256:0b0049264e7340b3ec782b5cb99beb325f36c3782a32e36e876452fd49a09952 \
+    --hash=sha256:98f1347cd77e22ee8d967a30ad4e310b233f7754dbf31ff3fceb76145ba47dc7
+    # via wcmatch
 brotli==1.2.0 \
     --hash=sha256:022426c9e99fd65d9475dce5c195526f04bb8be8907607e27e747893f6ee3e24 \
     --hash=sha256:072e7624b1fc4d601036ab3f4f27942ef772887e876beff0301d261210bca97f \
@@ -650,11 +663,14 @@ click==8.3.0 \
     --hash=sha256:e7b8232224eba16f4ebe410c25ced9f7875cb5f3263ffc93cc3e8da705e229c4
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   click-default-group
+    #   click-option-group
     #   click-plugins
     #   cligj
     #   rasterio
+    #   semgrep
     #   sqlite-utils
     #   typer
     #   uvicorn
@@ -665,6 +681,10 @@ click-default-group==1.2.4 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   sqlite-utils
+click-option-group==0.5.9 \
+    --hash=sha256:ad2599248bd373e2e19bec5407967c3eec1d0d4fc4a5e77b08a0481e75991080 \
+    --hash=sha256:f94ed2bc4cf69052e0f29592bd1e771a1789bd7bfc482dd0bc482134aff95823
+    # via semgrep
 click-plugins==1.1.1.2 \
     --hash=sha256:008d65743833ffc1f5417bf0e78e8d2c23aab04d9745ba817bd3e71b0feb6aa6 \
     --hash=sha256:d7af3984a99d243c131aa1a828331e7630f4a88a9741fd05c927b204bcf92261
@@ -688,6 +708,7 @@ colorama==0.4.6 \
     #   click
     #   copier
     #   pytest
+    #   semgrep
     #   uvicorn
 construct==2.10.70 \
     --hash=sha256:4d2472f9684731e58cc9c56c463be63baa1447d674e0d66aeb5627b22f512c29 \
@@ -877,8 +898,17 @@ exceptiongroup==1.3.1 \
     --hash=sha256:a7a39a3bd276781e98394987d3a5701d0c4edffb633bb7a5144577f82c773598
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
+    #   anyio
+    #   cattrs
     #   fastmcp
+    #   pytest
+    #   semgrep
+face==26.0.0 \
+    --hash=sha256:6ec9cf271d8ee2447f04b14264209a09ec9cbe8252255e61fb7ab6b154e300f9 \
+    --hash=sha256:ae12136ff0052f124811f5319670a8d9d29b7d2caaaabe542813690967cc6bca
+    # via glom
 fastapi==0.133.1 \
     --hash=sha256:658f34ba334605b1617a65adf2ea6461901bdb9af3a3080d63ff791ecf7dc2e2 \
     --hash=sha256:ed152a45912f102592976fde6cbce7dae1a8a1053da94202e51dd35d184fadd6
@@ -1043,6 +1073,10 @@ geopandas==1.1.2 \
     # via
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
+glom==25.12.0 \
+    --hash=sha256:1ae7da88be3693df40ad27bdf57a765a55c075c86c971bcddd67927403eb0069 \
+    --hash=sha256:b9f21e77f71a6576a43864e85066b8cc3f0f778d0d50961563f8981377a6dcb1
+    # via semgrep
 google-auth[requests]==2.48.0 \
     --hash=sha256:2e2a537873d449434252a9632c28bfc268b0adb1e53f9fb62afc5333a975903f \
     --hash=sha256:4f7e706b0cd3208a3d940a19a822c37a476ddba5450156c3e6624a71f7c841ce
@@ -1331,8 +1365,10 @@ jsonschema==4.26.0 \
     --hash=sha256:d489f15263b8d200f8387e64b4c3a75f06629559fb73deb8fdfb525f2dab50ce
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   mcp
+    #   semgrep
 jsonschema-path==0.4.4 \
     --hash=sha256:4c55842890fc384262a59fb63a25c86cc0e2b059e929c18b851c1d19ef612026 \
     --hash=sha256:669bb69cb92cd4c54acf38ee2ff7c3d9ab6b69991698f7a2f17d2bb0e5c9c394
@@ -1630,8 +1666,10 @@ mcp==1.26.0 \
     --hash=sha256:db6e2ef491eecc1a0d93711a76f28dec2e05999f93afd48795da1c1137142c66
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   fastmcp
+    #   semgrep
 mdurl==0.1.2 \
     --hash=sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8 \
     --hash=sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba
@@ -1955,6 +1993,7 @@ opentelemetry-api==1.38.0 \
     --hash=sha256:f4c193b5e8acb0912b06ac5b16321908dd0843d75049c091487322284a3eea12
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   fastmcp
     #   opentelemetry-exporter-otlp-proto-grpc
@@ -1963,8 +2002,11 @@ opentelemetry-api==1.38.0 \
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-requests
+    #   opentelemetry-instrumentation-threading
     #   opentelemetry-sdk
     #   opentelemetry-semantic-conventions
+    #   semgrep
 opentelemetry-exporter-otlp==1.38.0 \
     --hash=sha256:2f55acdd475e4136117eff20fbf1b9488b1b0b665ab64407516e1ac06f9c3f9d \
     --hash=sha256:bc6562cef229fac8887ed7109fc5abc52315f39d9c03fd487bb8b4ef8fbbc231
@@ -1991,8 +2033,10 @@ opentelemetry-exporter-otlp-proto-http==1.38.0 \
     --hash=sha256:f16bd44baf15cbe07633c5112ffc68229d0edbeac7b37610be0b2def4e21e90b
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   opentelemetry-exporter-otlp
+    #   semgrep
 opentelemetry-instrumentation==0.59b0 \
     --hash=sha256:44082cc8fe56b0186e87ee8f7c17c327c4c2ce93bdbe86496e600985d74368ee \
     --hash=sha256:6010f0faaacdaf7c4dff8aac84e226d23437b331dcda7e70367f6d73a7db1adc
@@ -2002,6 +2046,8 @@ opentelemetry-instrumentation==0.59b0 \
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-requests
+    #   opentelemetry-instrumentation-threading
 opentelemetry-instrumentation-asgi==0.59b0 \
     --hash=sha256:2509d6fe9fd829399ce3536e3a00426c7e3aa359fc1ed9ceee1628b56da40e7a \
     --hash=sha256:ba9703e09d2c33c52fa798171f344c8123488fcd45017887981df088452d3c53
@@ -2021,6 +2067,14 @@ opentelemetry-instrumentation-httpx==0.59b0 \
     # via
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
+opentelemetry-instrumentation-requests==0.59b0 \
+    --hash=sha256:9af2ffe3317f03074d7f865919139e89170b6763a0251b68c25e8e64e04b3400 \
+    --hash=sha256:d43121532877e31a46c48649279cec2504ee1e0ceb3c87b80fe5ccd7eafc14c1
+    # via semgrep
+opentelemetry-instrumentation-threading==0.59b0 \
+    --hash=sha256:76da2fc01fe1dccebff6581080cff9e42ac7b27cc61eb563f3c4435c727e8eca \
+    --hash=sha256:ce5658730b697dcbc0e0d6d13643a69fd8aeb1b32fa8db3bade8ce114c7975f3
+    # via semgrep
 opentelemetry-proto==1.38.0 \
     --hash=sha256:88b161e89d9d372ce723da289b7da74c3a8354a8e5359992be813942969ed468 \
     --hash=sha256:b6ebe54d3217c42e45462e2a1ae28c3e2bf2ec5a5645236a490f55f45f1a0a18
@@ -2035,9 +2089,11 @@ opentelemetry-sdk==1.38.0 \
     --hash=sha256:93df5d4d871ed09cb4272305be4d996236eedb232253e3ab864c8620f051cebe
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   opentelemetry-exporter-otlp-proto-grpc
     #   opentelemetry-exporter-otlp-proto-http
+    #   semgrep
 opentelemetry-semantic-conventions==0.59b0 \
     --hash=sha256:35d3b8833ef97d614136e253c1da9342b4c3c083bbaf29ce31d572a1c3825eed \
     --hash=sha256:7a6db3f30d70202d5bf9fa4b69bc866ca6a30437287de6c510fb594878aed6b0
@@ -2048,6 +2104,7 @@ opentelemetry-semantic-conventions==0.59b0 \
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-requests
     #   opentelemetry-sdk
 opentelemetry-util-http==0.59b0 \
     --hash=sha256:6d036a07563bce87bf521839c0671b507a02a0d39d7ea61b88efa14c6e25355d \
@@ -2058,6 +2115,7 @@ opentelemetry-util-http==0.59b0 \
     #   opentelemetry-instrumentation-asgi
     #   opentelemetry-instrumentation-fastapi
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-requests
 osmium==4.2.0 \
     --hash=sha256:0094871c1c7c960121abd7f55af4cd09d08f12da3306aefbbf987eda1782ca39 \
     --hash=sha256:0097c370d23d6fbcd91e4c6e3602761857b341b3e107a077d4b4d7d3d828cc9b \
@@ -2131,6 +2189,7 @@ packaging==25.0 \
     #   pyogrio
     #   pytest
     #   pytest-bdd
+    #   semgrep
 pandas==2.3.3 \
     --hash=sha256:0242fe9a49aa8b4d78a4fa03acb397a58833ef6199e9aa40a95f027bb3a1b6e7 \
     --hash=sha256:1611aedd912e1ff81ff41c745822980c49ce4a7907537be8692c8dbc31924593 \
@@ -2221,6 +2280,10 @@ pathspec==0.12.1 \
     #   -r requirements/runtime.txt
     #   copier
     #   mypy
+peewee==3.19.0 \
+    --hash=sha256:de220b94766e6008c466e00ce4ba5299b9a832117d9eb36d45d0062f3cfd7417 \
+    --hash=sha256:f88292a6f0d7b906cb26bca9c8599b8f4d8920ebd36124400d0cbaaaf915511f
+    # via semgrep
 pexpect==4.9.0 \
     --hash=sha256:7236d1e080e4936be2dc3e326cec0af72acf9212a7e1d060210e70a47e253523 \
     --hash=sha256:ee7d41123f3c9911050ea2c2dac107568dc43b2d3b0c7557a33212c398ead30f
@@ -2712,6 +2775,7 @@ pyjwt[crypto]==2.11.0 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   mcp
+    #   semgrep
 pyobjc-core==10.3.2 ; sys_platform == 'darwin' \
     --hash=sha256:16644a92fb9661de841ba6115e5354db06a1d193a5e239046e840013c7b3874d \
     --hash=sha256:48e9ac3af42b2340dae709a8b894f5ef7e5132d8546adcd1797cffcc449dabdc \
@@ -2975,6 +3039,7 @@ pywin32==311 ; sys_platform == 'win32' \
     #   -r requirements/runtime.txt
     #   mcp
     #   plumbum
+    #   semgrep
 pywin32-ctypes==0.2.3 ; sys_platform == 'win32' \
     --hash=sha256:8a1513379d709975552d202d942d9837758905c8d01eb82b8bcc30918929e7b8 \
     --hash=sha256:d162dc04946d704503b2edc4d55f3dba5c1d539ead017afa00142c38b9885755
@@ -3250,6 +3315,7 @@ requests==2.32.5 \
     #   opentelemetry-exporter-otlp-proto-http
     #   osmium
     #   requests-cache
+    #   semgrep
 requests-cache==1.2.1 \
     --hash=sha256:1285151cddf5331067baa82598afe2d47c7495a1334bfe7a7d329b43e9fd3603 \
     --hash=sha256:68abc986fdc5b8d0911318fbb5f7c80eebcd4d01bfacc6685ecf8876052511d1
@@ -3268,11 +3334,13 @@ rich==14.2.0 \
     --hash=sha256:76bc51fe2e57d2b1be1f96c524b890b816e334ab4c1e45888799bfaab0021edd
     # via
     #   -c requirements/runtime.txt
+    #   --override requirements/overrides.txt
     #   -r requirements/runtime.txt
     #   cyclopts
     #   fastmcp
     #   open-gopro
     #   rich-rst
+    #   semgrep
     #   typer
 rich-rst==1.3.2 \
     --hash=sha256:a1196fdddf1e364b02ec68a05e8ff8f6914fee10fbca2e6b6735f166bb0da8d4 \
@@ -3409,6 +3477,69 @@ rsa==4.9.1 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   google-auth
+ruamel-yaml==0.19.1 \
+    --hash=sha256:27592957fedf6e0b62f281e96effd28043345e0e66001f97683aa9a40c667c93 \
+    --hash=sha256:53eb66cd27849eff968ebf8f0bf61f46cdac2da1d1f3576dd4ccee9b25c31993
+    # via semgrep
+ruamel-yaml-clib==0.2.14 \
+    --hash=sha256:090782b5fb9d98df96509eecdbcaffd037d47389a89492320280d52f91330d78 \
+    --hash=sha256:0a54e5e40a7a691a426c2703b09b0d61a14294d25cfacc00631aa6f9c964df0d \
+    --hash=sha256:10d9595b6a19778f3269399eff6bab642608e5966183abc2adbe558a42d4efc9 \
+    --hash=sha256:13997d7d354a9890ea1ec5937a219817464e5cc344805b37671562a401ca3008 \
+    --hash=sha256:16a60d69f4057ad9a92f3444e2367c08490daed6428291aa16cefb445c29b0e9 \
+    --hash=sha256:18c041b28f3456ddef1f1951d4492dbebe0f8114157c1b3c981a4611c2020792 \
+    --hash=sha256:1c1acc3a0209ea9042cc3cfc0790edd2eddd431a2ec3f8283d081e4d5018571e \
+    --hash=sha256:1f118b707eece8cf84ecbc3e3ec94d9db879d85ed608f95870d39b2d2efa5dca \
+    --hash=sha256:2070bf0ad1540d5c77a664de07ebcc45eebd1ddcab71a7a06f26936920692beb \
+    --hash=sha256:26a8de280ab0d22b6e3ec745b4a5a07151a0f74aad92dd76ab9c8d8d7087720d \
+    --hash=sha256:275f938692013a3883edbd848edde6d9f26825d65c9a2eb1db8baa1adc96a05d \
+    --hash=sha256:27c070cf3888e90d992be75dd47292ff9aa17dafd36492812a6a304a1aedc182 \
+    --hash=sha256:29757bdb7c142f9595cc1b62ec49a3d1c83fab9cef92db52b0ccebaad4eafb98 \
+    --hash=sha256:4ccba93c1e5a40af45b2f08e4591969fa4697eae951c708f3f83dcbf9f6c6bb1 \
+    --hash=sha256:4f4a150a737fccae13fb51234d41304ff2222e3b7d4c8e9428ed1a6ab48389b8 \
+    --hash=sha256:557df28dbccf79b152fe2d1b935f6063d9cc431199ea2b0e84892f35c03bb0ee \
+    --hash=sha256:5ac5ff9425d8acb8f59ac5b96bcb7fd3d272dc92d96a7c730025928ffcc88a7a \
+    --hash=sha256:5bae1a073ca4244620425cd3d3aa9746bde590992b98ee8c7c8be8c597ca0d4e \
+    --hash=sha256:5e56ac47260c0eed992789fa0b8efe43404a9adb608608631a948cee4fc2b052 \
+    --hash=sha256:6aeadc170090ff1889f0d2c3057557f9cd71f975f17535c26a5d37af98f19c27 \
+    --hash=sha256:6d5472f63a31b042aadf5ed28dd3ef0523da49ac17f0463e10fda9c4a2773352 \
+    --hash=sha256:70eda7703b8126f5e52fcf276e6c0f40b0d314674f896fc58c47b0aef2b9ae83 \
+    --hash=sha256:7df6f6e9d0e33c7b1d435defb185095386c469109de723d514142632a7b9d07f \
+    --hash=sha256:7e4f9da7e7549946e02a6122dcad00b7c1168513acb1f8a726b1aaf504a99d32 \
+    --hash=sha256:803f5044b13602d58ea378576dd75aa759f52116a0232608e8fdada4da33752e \
+    --hash=sha256:808c7190a0fe7ae7014c42f73897cf8e9ef14ff3aa533450e51b1e72ec5239ad \
+    --hash=sha256:81f6d3b19bc703679a5705c6a16dabdc79823c71d791d73c65949be7f3012c02 \
+    --hash=sha256:83bbd8354f6abb3fdfb922d1ed47ad8d1db3ea72b0523dac8d07cdacfe1c0fcf \
+    --hash=sha256:8dd3c2cc49caa7a8d64b67146462aed6723a0495e44bf0aa0a2e94beaa8432f6 \
+    --hash=sha256:915748cfc25b8cfd81b14d00f4bfdb2ab227a30d6d43459034533f4d1c207a2a \
+    --hash=sha256:94f3efb718f8f49b031f2071ec7a27dd20cbfe511b4dfd54ecee54c956da2b31 \
+    --hash=sha256:9b4104bf43ca0cd4e6f738cb86326a3b2f6eef00f417bd1e7efb7bdffe74c539 \
+    --hash=sha256:9bd8fe07f49c170e09d76773fb86ad9135e0beee44f36e1576a201b0676d3d1d \
+    --hash=sha256:9bf6b699223afe6c7fe9f2ef76e0bfa6dd892c21e94ce8c957478987ade76cd8 \
+    --hash=sha256:a05ba88adf3d7189a974b2de7a9d56731548d35dc0a822ec3dc669caa7019b29 \
+    --hash=sha256:a0ac90efbc7a77b0d796c03c8cc4e62fd710b3f1e4c32947713ef2ef52e09543 \
+    --hash=sha256:a0cb71ccc6ef9ce36eecb6272c81afdc2f565950cdcec33ae8e6cd8f7fc86f27 \
+    --hash=sha256:a37f40a859b503304dd740686359fcf541d6fb3ff7fc10f539af7f7150917c68 \
+    --hash=sha256:a911aa73588d9a8b08d662b9484bc0567949529824a55d3885b77e8dd62a127a \
+    --hash=sha256:aef953f3b8bd0b50bd52a2e52fb54a6a2171a1889d8dea4a5959d46c6624c451 \
+    --hash=sha256:b28caeaf3e670c08cb7e8de221266df8494c169bd6ed8875493fab45be9607a4 \
+    --hash=sha256:b30110b29484adc597df6bd92a37b90e63a8c152ca8136aad100a02f8ba6d1b6 \
+    --hash=sha256:b5b0f7e294700b615a3bcf6d28b26e6da94e8eba63b079f4ec92e9ba6c0d6b54 \
+    --hash=sha256:c099cafc1834d3c5dac305865d04235f7c21c167c8dd31ebc3d6bbc357e2f023 \
+    --hash=sha256:d73a0187718f6eec5b2f729b0f98e4603f7bd9c48aa65d01227d1a5dcdfbe9e8 \
+    --hash=sha256:d8354515ab62f95a07deaf7f845886cc50e2f345ceab240a3d2d09a9f7d77853 \
+    --hash=sha256:dba72975485f2b87b786075e18a6e5d07dc2b4d8973beb2732b9b2816f1bad70 \
+    --hash=sha256:dd7546c851e59c06197a7c651335755e74aa383a835878ca86d2c650c07a2f85 \
+    --hash=sha256:df3ec9959241d07bc261f4983d25a1205ff37703faf42b474f15d54d88b4f8c9 \
+    --hash=sha256:e1d1735d97fd8a48473af048739379975651fab186f8a25a9f683534e6904179 \
+    --hash=sha256:e501c096aa3889133d674605ebd018471bc404a59cbc17da3c5924421c54d97c \
+    --hash=sha256:e7cb9ad1d525d40f7d87b6df7c0ff916a66bc52cb61b66ac1b2a16d0c1b07640 \
+    --hash=sha256:f4e97a1cf0b7a30af9e1d9dad10a5671157b9acee790d9e26996391f49b965a2 \
+    --hash=sha256:f8b2acb0ffdd2ce8208accbec2dca4a06937d556fdcaefd6473ba1b5daa7e3c4 \
+    --hash=sha256:fb04c5650de6668b853623eceadcdb1a9f2fee381f5d7b6bc842ee7c239eeec4 \
+    --hash=sha256:fbc08c02e9b147a11dfcaa1ac8a83168b699863493e183f7c0c8b12850b7d259 \
+    --hash=sha256:ff86876889ea478b1381089e55cf9e345707b312beda4986f823e1d95e8c0f59
+    # via semgrep
 s3transfer==0.14.0 \
     --hash=sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456 \
     --hash=sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125
@@ -3423,6 +3554,18 @@ secretstorage==3.5.0 ; sys_platform == 'linux' \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   keyring
+semantic-version==2.10.0 \
+    --hash=sha256:bdabb6d336998cbb378d4b9db3a4b56a1e3235701dc05ea2690d9a997ed5041c \
+    --hash=sha256:de78a3b8e0feda74cabc54aab2da702113e33ac9d9eb9d2389bcf1f58b7d9177
+    # via semgrep
+semgrep==1.153.1 \
+    --hash=sha256:0222eb958f17ddad449c8e524f6795805e0a39e90b14551feaff1d22867a046d \
+    --hash=sha256:489ab1693d61f3be62e3c7bcb1a53bc2b757026f0e74b8d2eee04dead2c33212 \
+    --hash=sha256:62aeddc71946937f2d38747d2340bb3035f2f172ef2e28d6c07a1ad3b4fe3e45 \
+    --hash=sha256:b190ab62029ef3aa89578e844bc5a49b4f168114467b98e88f071430e49fa01d \
+    --hash=sha256:c15dde331e41b32fd4ec8393b9093a29705c8ceab55ebb945221e4f830eae5d6 \
+    --hash=sha256:f79b6cfd472f0bcb11a98c7043f43c451302cdeeff9917d7c6cdd3ec066090f5
+    # via -r requirements/tools.in
 sgmllib3k==1.0.0 \
     --hash=sha256:7868fb1c8bfa764c1ac563d3cf369c381d1325d36124933a726f29fcdaa812e9
     # via
@@ -3590,6 +3733,10 @@ tld==0.13.1 \
     #   -c requirements/runtime.txt
     #   -r requirements/runtime.txt
     #   courlan
+tomli==2.0.2 \
+    --hash=sha256:2ebe24485c53d303f690b0ec092806a085f07af5a5aa1464f3931eec36caaa38 \
+    --hash=sha256:d46d457a85337051c36524bc5349dd91b1877838e2979ac5ced3e710ed8a60ed
+    # via semgrep
 trafilatura==1.12.2 \
     --hash=sha256:4c9cb1434f7e13ef0b16cb44ee1d44e84523ec7268940b9559c374e7effc9a96 \
     --hash=sha256:6df5b666f625c9579a50d7cc715005f450fa75606696aceab73eeda0a76dbe96
@@ -3636,6 +3783,7 @@ typing-extensions==4.15.0 \
     #   pydantic-extra-types
     #   pytest-bdd
     #   returns
+    #   semgrep
     #   typer
     #   typing-inspection
 typing-inspection==0.4.2 \
@@ -3684,6 +3832,7 @@ urllib3==2.6.3 \
     #   htmldate
     #   requests
     #   requests-cache
+    #   semgrep
     #   trafilatura
 uvicorn[standard]==0.41.0 \
     --hash=sha256:09d11cf7008da33113824ee5a1c6422d89fbc2ff476540d69a34c87fab8b571a \
@@ -3862,6 +4011,10 @@ watchfiles==1.1.1 \
     #   -r requirements/runtime.txt
     #   fastmcp
     #   uvicorn
+wcmatch==8.5.2 \
+    --hash=sha256:17d3ad3758f9d0b5b4dedc770b65420d4dac62e680229c287bf24c9db856a478 \
+    --hash=sha256:a70222b86dea82fb382dd87b73278c10756c138bd6f8f714e2183128887b9eb2
+    # via semgrep
 wcwidth==0.2.14 \
     --hash=sha256:4d478375d31bc5395a3c55c40ccdf3354688364cd61c4f6adacaa9215d0b3605 \
     --hash=sha256:a7bb560c8aee30f9957e5f9895805edd20602f2d7f720186dfd906e82b4982e1
@@ -4205,6 +4358,7 @@ wrapt==1.17.3 \
     #   open-gopro
     #   opentelemetry-instrumentation
     #   opentelemetry-instrumentation-httpx
+    #   opentelemetry-instrumentation-threading
 yarl==1.22.0 \
     --hash=sha256:01e73b85a5434f89fc4fe27dcda2aff08ddf35e4d47bbbea3bdcd25321af538a \
     --hash=sha256:029866bde8d7b0878b9c160e72305bbf0a7342bcd20b9999381704ae03308dc8 \
