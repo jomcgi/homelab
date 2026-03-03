@@ -1,3 +1,7 @@
+# gazelle:semgrep disabled
+
+load("//rules_semgrep:defs.bzl", "semgrep_test")
+
 package(default_visibility = ["//visibility:public"])
 
 filegroup(
@@ -24,6 +28,19 @@ filegroup(
 )
 
 filegroup(
+    name = "python_rules",
+    srcs = glob(["python/*.yaml"]),
+)
+
+filegroup(
     name = "all_rules",
     srcs = glob(["**/*.yaml"]),
+)
+
+semgrep_test(
+    name = "python_rules_test",
+    srcs = glob(["python/*.py"]),
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":python_rules"],
+    tags = ["semgrep"],
 )
