@@ -1,4 +1,5 @@
 # gazelle:semgrep disabled
+# gazelle:exclude python
 
 load("//rules_semgrep:defs.bzl", "semgrep_test")
 
