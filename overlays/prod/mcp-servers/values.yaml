@@ -61,3 +61,38 @@ servers:
   alert:
     enabled: true
     url: "http://buildbuddy-mcp.mcp-servers.svc.cluster.local:8000/health"
+- name: kubernetes-mcp
+  image:
+    repository: ghcr.io/containers/kubernetes-mcp-server
+    tag: "latest"
+  port: 8080
+  args:
+  - "--port"
+  - "8080"
+  - "--disable-destructive"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+  translate:
+    enabled: false
+  rbac:
+    clusterRoleRules:
+    - apiGroups: ["", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io"]
+      resources: ["*"]
+      verbs: ["get", "list", "watch"]
+    - apiGroups: [""]
+      resources: ["pods/exec", "pods/portforward", "pods/log"]
+      verbs: ["create", "get"]
+    - apiGroups: ["metrics.k8s.io"]
+      resources: ["pods", "nodes"]
+      verbs: ["get", "list"]
+  registration:
+    enabled: true
+    transport: "STREAMABLEHTTP"
+  alert:
+    enabled: true
+    url: "http://kubernetes-mcp.mcp-servers.svc.cluster.local:8080/mcp"
