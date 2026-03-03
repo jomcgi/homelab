@@ -203,6 +203,20 @@ oci.pull(
 )
 use_repo(oci, "gdal_python_base", "gdal_python_base_linux_amd64", "gdal_python_base_linux_arm64")
 
+#########################
+# Semgrep Pro — engine + per-language rule packs from GHCR
+# Digests auto-updated by .github/workflows/update-semgrep-pro.yaml
+semgrep_pro = use_extension("//third_party/semgrep_pro:extensions.bzl", "semgrep_pro")
+use_repo(
+    semgrep_pro,
+    "semgrep_pro_engine_amd64",
+    "semgrep_pro_engine_arm64",
+    "semgrep_pro_rules_golang",
+    "semgrep_pro_rules_javascript",
+    "semgrep_pro_rules_kubernetes",
+    "semgrep_pro_rules_python",
+)
+
 # Configure apko for container images
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(

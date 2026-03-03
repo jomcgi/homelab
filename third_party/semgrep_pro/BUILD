@@ -4,7 +4,10 @@ bzl_library(
     name = "extensions",
     srcs = ["extensions.bzl"],
     visibility = ["//visibility:public"],
-    deps = [":oci_archive"],
+    deps = [
+        ":digests",
+        ":oci_archive",
+    ],
 )
 
 # Platform-aware alias for the pro engine binary
