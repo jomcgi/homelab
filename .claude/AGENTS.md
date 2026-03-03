@@ -249,9 +249,9 @@ cosign sign --key cosign.key <image:tag>              # Image signing
 
 ### Inspecting Kyverno Policies (This Repo)
 
+> **Note:** `kubectl get` and `kubectl describe` are redirected to Kubernetes MCP tools by PreToolUse hooks. Use `kubernetes-mcp-resources-list` and `kubernetes-mcp-resources-get` instead.
+
 ```bash
-kubectl get clusterpolicies
-kubectl describe clusterpolicy inject-linkerd-namespace-annotation
 helm template kyverno charts/kyverno/ -s templates/linkerd-injection-policy.yaml
 helm template kyverno charts/kyverno/ -s templates/otel-injection-policy.yaml
 ```
@@ -313,13 +313,30 @@ spec:
 
 ## argocd
 
-ArgoCD GitOps specialist. Use the `kubectl` skill for general cluster debugging.
+ArgoCD GitOps specialist. Uses **ArgoCD MCP tools** (via Context Forge) as the primary interface.
 
 ### When to Use
 
 - Configuring sync strategies and retry policies
 - Understanding Application.yaml patterns
 - Debugging sync failures specific to ArgoCD configuration
+
+### ArgoCD MCP Tools
+
+Load with: `ToolSearch` query `+argocd`
+
+| Tool                                        | Purpose                          |
+| ------------------------------------------- | -------------------------------- |
+| `argocd-mcp-list-applications`              | List all applications            |
+| `argocd-mcp-get-application`                | Get application details/status   |
+| `argocd-mcp-get-application-resource-tree`  | Resource tree (replaces `diff`)  |
+| `argocd-mcp-get-application-managed-resources` | List managed resources        |
+| `argocd-mcp-get-application-events`         | Application events               |
+| `argocd-mcp-get-application-workload-logs`  | Workload logs                    |
+| `argocd-mcp-sync-application`               | Sync an application              |
+| `argocd-mcp-get-resources`                  | Get specific resources           |
+| `argocd-mcp-get-resource-events`            | Resource events                  |
+| `argocd-mcp-get-resource-actions`           | Available resource actions       |
 
 ### Application.yaml Pattern
 
@@ -443,7 +460,7 @@ Observability specialist. Uses **SigNoz via Context Forge MCP** as the primary i
 
 ### Investigation Workflow
 
-**Default to SigNoz MCP tools** for all cluster investigation. Use `kubectl` only for resource state that SigNoz doesn't cover.
+**Default to MCP tools** for all cluster investigation. SigNoz for logs/traces/metrics, Kubernetes MCP for resource state. PreToolUse hooks block kubectl read commands.
 
 1. **Identify the service:** `signoz-list-services` → find the service name
 2. **Check errors:** `signoz-get-error-logs` or `signoz-search-logs-by-service` with severity filter
@@ -463,6 +480,15 @@ Observability specialist. Uses **SigNoz via Context Forge MCP** as the primary i
 | **Dashboards** | `list-dashboards`, `get-dashboard`, `create-dashboard`, `update-dashboard`                                                                                                          |
 | **Alerts**     | `list-alerts`, `get-alert`, `get-alert-history`                                                                                                                                     |
 | **Queries**    | `execute-builder-query`                                                                                                                                                             |
+
+### Kubernetes Resource State (via MCP)
+
+For resource state not available in SigNoz, use Kubernetes MCP tools (`ToolSearch` query `+kubernetes`):
+
+- `kubernetes-mcp-resources-list` / `kubernetes-mcp-resources-get` — general resource queries
+- `kubernetes-mcp-pods-list-in-namespace` / `kubernetes-mcp-pods-get` — pod details
+- `kubernetes-mcp-pods-top` / `kubernetes-mcp-nodes-top` — resource usage
+- `kubernetes-mcp-events-list` — cluster events
 
 ### Auto-Instrumentation (This Repo)
 
@@ -520,15 +546,16 @@ operators/cloudflare/
 
 ### Key Commands
 
+> **Note:** `kubectl get` and `describe` are redirected to MCP tools by PreToolUse hooks. Use `kubernetes-mcp-resources-list` and `kubernetes-mcp-resources-get` instead.
+
 ```bash
 bazel build //operators/cloudflare/...
 bazel test //operators/cloudflare/...
 bazel run //:gazelle                    # After adding Go imports
 
-# Debug tunnel status
-kubectl get cloudflaretunnels -A
-kubectl describe cloudflaretunnel <name> -n <namespace>
-kubectl get cloudflareaccesspolicies -A
+# Debug tunnel status (via MCP)
+# kubernetes-mcp-resources-list: cloudflaretunnels, cloudflareaccesspolicies
+# kubernetes-mcp-resources-get: cloudflaretunnel <name> -n <namespace>
 ```
 
 ### Common Mistakes to Avoid
@@ -561,22 +588,15 @@ Linkerd service mesh specialist for the mesh running in `cluster-critical`.
 
 ### Key Commands
 
+> **Note:** `kubectl get`, `describe`, and `logs` are redirected to MCP tools by PreToolUse hooks. Use `kubernetes-mcp-pods-list-in-namespace`, `kubernetes-mcp-resources-get`, and `kubernetes-mcp-pods-log` instead.
+
 ```bash
-# Check mesh status
-kubectl get pods -n linkerd
-kubectl get pods -n linkerd-viz          # If viz extension installed
+# Check proxy injection (via MCP)
+# kubernetes-mcp-resources-list: namespaces with linkerd.io/inject label
+# kubernetes-mcp-resources-get: clusterpolicy inject-linkerd-namespace-annotation
 
-# Check proxy injection
-kubectl get namespace -L linkerd.io/inject
-kubectl describe clusterpolicy inject-linkerd-namespace-annotation
-
-# Debug proxy for a specific pod
-kubectl logs <pod> -n <namespace> -c linkerd-proxy
-kubectl describe pod <pod> -n <namespace> | grep -A5 linkerd
-
-# Check mTLS between services
-kubectl get authorizationpolicies -A
-kubectl get serverauthorizations -A
+# Check mTLS between services (via MCP)
+# kubernetes-mcp-resources-list: authorizationpolicies, serverauthorizations
 ```
 
 ### Common Issues

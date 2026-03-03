@@ -42,7 +42,7 @@ helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml
 bazel run //charts/<service>/image:push
 ```
 
-**Vendored tools** (available via `direnv allow`): `format`, `argocd`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`
+**Vendored tools** (available via `direnv allow`): `format`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`
 
 ## Development Workflow
 
@@ -98,24 +98,32 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Cluster Investigation
 
-**Default to SigNoz** (via Context Forge MCP) for logs, metrics, and traces. Use `kubectl` only for resource state (`get`, `describe`) that SigNoz doesn't cover.
+**MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools.
 
-| Need           | Tool                                                                                     |
-| -------------- | ---------------------------------------------------------------------------------------- |
-| **Logs**       | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`           |
-| **Traces**     | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
-| **Metrics**    | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                |
-| **Services**   | `signoz-list-services`, `signoz-get-service-top-operations`                              |
-| **Dashboards** | `signoz-list-dashboards`, `signoz-get-dashboard`                                         |
-| **Alerts**     | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                     |
+| Need                  | Tool                                                                                     |
+| --------------------- | ---------------------------------------------------------------------------------------- |
+| **K8s resources**     | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list` |
+| **K8s logs**          | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                            |
+| **K8s metrics**       | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                    |
+| **ArgoCD apps**       | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application` |
+| **ArgoCD resources**  | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources` |
+| **BuildBuddy CI**     | `buildbuddy-mcp-get-invocation`, `buildbuddy-mcp-get-log`, `buildbuddy-mcp-get-target`   |
+| **Logs**              | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`           |
+| **Traces**            | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
+| **Metrics**           | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                |
+| **Services**          | `signoz-list-services`, `signoz-get-service-top-operations`                              |
+| **Dashboards**        | `signoz-list-dashboards`, `signoz-get-dashboard`                                         |
+| **Alerts**            | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                     |
 
 ## Kubernetes Operations (kubectl)
 
-**CRITICAL: This cluster is managed via GitOps. kubectl is READ-ONLY.**
+**CRITICAL: This cluster is managed via GitOps. MCP tools are primary for reads — hooks enforce this.**
 
-Safe operations: `get`, `describe`, `logs`, `top`, `explain`, `api-resources`
+Allowed kubectl commands (not covered by MCP): `explain`, `api-resources`, `port-forward`, `exec`, `cp`, `run`, `label`, `annotate`, `auth`, `config`, `version`, `wait`
 
 **FORBIDDEN** — modify Git instead: `apply`, `patch`, `edit`, `scale`, `delete`
+
+**Redirected to MCP** — hooks block these: `get`, `describe`, `logs`, `top`
 
 To make changes: edit `overlays/<env>/<service>/values.yaml` → commit → push → ArgoCD auto-syncs (~5-10s).
 
@@ -153,4 +161,5 @@ Static sites deploy via `.github/workflows/cf-pages-*.yaml` (requires self-hoste
 - **Running tests outside Bazel** — no `pytest`, `go test`, `npm test` directly
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating `charts/<service>/`
+- **Using kubectl/argocd CLI for cluster reads** — use MCP tools via Context Forge; PreToolUse hooks enforce this
 - **Over-engineering** simple services
