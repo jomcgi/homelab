@@ -64,7 +64,25 @@ py_library(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "base_semgrep_test",
+    srcs = ["base.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "feed_extractor_semgrep_test",
+    srcs = ["feed_extractor.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "html_extractor_semgrep_test",
+    srcs = ["html_extractor.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

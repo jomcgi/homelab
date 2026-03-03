@@ -174,7 +174,67 @@ py_venv_binary(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "chunker_semgrep_test",
+    srcs = ["chunker.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "config_semgrep_test",
+    srcs = ["config.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "embedder_main_semgrep_test",
+    srcs = ["embedder_main.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "mcp_main_semgrep_test",
+    srcs = ["mcp_main.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "models_semgrep_test",
+    srcs = ["models.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "notifications_semgrep_test",
+    srcs = ["notifications.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "qdrant_client_semgrep_test",
+    srcs = ["qdrant_client.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "scraper_main_semgrep_test",
+    srcs = ["scraper_main.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "storage_semgrep_test",
+    srcs = ["storage.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "telemetry_semgrep_test",
+    srcs = ["telemetry.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

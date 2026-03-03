@@ -49,7 +49,25 @@ py_test(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "api_test_semgrep_test",
+    srcs = ["api_test.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "conftest_semgrep_test",
+    srcs = ["conftest.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "database_test_semgrep_test",
+    srcs = ["database_test.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

@@ -48,7 +48,7 @@ sh_binary(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.sh"]),
-    rules = ["//semgrep_rules:shell_rules"],
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
 )

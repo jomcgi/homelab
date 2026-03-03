@@ -62,8 +62,36 @@ py_test(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "error_handling_semgrep_test",
+    srcs = ["error_handling.py"],
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "error_handling_test_semgrep_test",
+    srcs = ["error_handling_test.py"],
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "scrape_semgrep_test",
+    srcs = ["scrape.py"],
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "scrape_test_semgrep_test",
+    srcs = ["scrape_test.py"],
     exclude_rules = ["no-requests"],
     rules = ["//semgrep_rules:python_rules"],
 )

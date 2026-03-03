@@ -66,7 +66,19 @@ py_library(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "main_semgrep_test",
+    srcs = ["main.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "trips_api_test_semgrep_test",
+    srcs = ["trips_api_test.py"],
     rules = ["//semgrep_rules:python_rules"],
 )
