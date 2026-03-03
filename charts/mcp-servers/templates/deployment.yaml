@@ -89,6 +89,10 @@ spec:
         - name: server
           image: "{{ required "image.repository is required" .image.repository }}:{{ required "image.tag is required" .image.tag }}"
           imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
+          {{- with .args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - name: mcp
               containerPort: {{ required "port is required when translate is disabled" .port }}
