@@ -28,9 +28,6 @@ spec:
       {{- end }}
       serviceAccountName: {{ include "grimoire.serviceAccountName" . }}
       securityContext:
-        runAsNonRoot: true
-        runAsUser: 65532
-        runAsGroup: 65532
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -58,6 +55,9 @@ spec:
                   key: redis_password
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65532
+            runAsGroup: 65532
             capabilities:
               drop:
                 - ALL
