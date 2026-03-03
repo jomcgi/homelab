@@ -2,7 +2,7 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-def semgrep_test(name, srcs, rules, **kwargs):
+def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
     """Creates a cacheable test that runs semgrep against source files.
 
     Runs semgrep with the given rule configs against the source files and
@@ -13,8 +13,13 @@ def semgrep_test(name, srcs, rules, **kwargs):
         name: Name of the test target
         srcs: Source files to scan (labels)
         rules: Semgrep rule config files or filegroups (labels)
+        exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
         **kwargs: Additional arguments passed to sh_test
     """
+    env = kwargs.pop("env", {})
+    if exclude_rules:
+        env["SEMGREP_EXCLUDE_RULES"] = ",".join(exclude_rules)
+
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-test.sh"],
@@ -28,6 +33,7 @@ def semgrep_test(name, srcs, rules, **kwargs):
             "//tools/semgrep",
             "//tools/semgrep:pysemgrep",
         ] + rules + srcs,
+        env = env,
         **kwargs
     )
 
@@ -39,6 +45,7 @@ def semgrep_manifest_test(
         namespace,
         values_files,
         rules = ["//semgrep_rules:kubernetes_rules"],
+        exclude_rules = [],
         **kwargs):
     """Creates a test that renders Helm manifests and scans them with semgrep.
 
@@ -53,8 +60,13 @@ def semgrep_manifest_test(
         namespace: Kubernetes namespace for rendering
         values_files: List of values file labels in order
         rules: Semgrep rule config files (default: kubernetes rules)
+        exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
         **kwargs: Additional arguments passed to sh_test
     """
+    env = kwargs.pop("env", {})
+    if exclude_rules:
+        env["SEMGREP_EXCLUDE_RULES"] = ",".join(exclude_rules)
+
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-manifest-test.sh"],
@@ -74,5 +86,6 @@ def semgrep_manifest_test(
             "@multitool//tools/helm",
             chart_files,
         ] + rules + values_files,
+        env = env,
         **kwargs
     )

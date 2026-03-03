@@ -4,6 +4,8 @@
 # Usage: semgrep-test.sh <semgrep-binary> <pysemgrep-binary> <rule-files...> -- <source-files...>
 #
 # Exit code 0 = no findings, non-zero = semgrep found violations.
+#
+# Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
 
 set -euo pipefail
 
@@ -19,10 +21,16 @@ shift 2
 # osemgrep (native engine) execs pysemgrep at runtime — add it to PATH
 export PATH="$(dirname "$PYSEMGREP"):$PATH"
 
-# Collect rule files until we hit the -- separator
+# Build comma-delimited exclude string for simple substring matching
+EXCLUDE_LIST=",${SEMGREP_EXCLUDE_RULES:-},"
+
+# Collect rule files until we hit the -- separator, skipping excluded rules
 RULES=()
 while [[ $# -gt 0 && "$1" != "--" ]]; do
-	RULES+=("--config" "$(pwd)/$1")
+	rule_name="$(basename "$1" .yaml)"
+	if [[ "$EXCLUDE_LIST" != *",$rule_name,"* ]]; then
+		RULES+=("--config" "$(pwd)/$1")
+	fi
 	shift
 done
 
@@ -39,6 +47,11 @@ for f in "$@"; do
 	mkdir -p "$SCAN_DIR/$(dirname "$f")"
 	cp "$f" "$SCAN_DIR/$f"
 done
+
+if [[ ${#RULES[@]} -eq 0 ]]; then
+	echo "PASSED: All rules excluded, nothing to scan"
+	exit 0
+fi
 
 if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
 	echo "PASSED: No semgrep findings"
