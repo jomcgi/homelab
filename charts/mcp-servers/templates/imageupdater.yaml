@@ -20,7 +20,7 @@ spec:
             helm:
               name: servers[{{ $index }}].image.repository
               tag: servers[{{ $index }}].image.tag
-      namePattern: {{ $.Release.Name }}
+      namePattern: {{ $.Values.imageUpdater.applicationName | default $.Release.Name }}
   namespace: argocd
   writeBackConfig:
     method: git:secret:{{ $.Values.imageUpdater.gitSecret }}
