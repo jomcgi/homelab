@@ -55,6 +55,8 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 3. Commit, push, create PR
 4. Merge after CI passes
 
+**PR merge method:** This repo only allows **rebase merging** — use `gh pr merge --rebase` (or `--auto --rebase`). Squash and merge commits are disabled.
+
 **PR safety:** Always verify PR state (`gh pr view --json state`) before pushing additional commits. Never push to a merged branch — create a new worktree instead.
 
 **Commit messages MUST use [Conventional Commits](https://www.conventionalcommits.org/) format.** A `commit-msg` hook enforces this.
