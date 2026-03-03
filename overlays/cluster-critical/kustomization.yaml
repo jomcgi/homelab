@@ -7,6 +7,7 @@ resources:
   - ./cert-manager # Must be before linkerd
   - ./coredns
   - ./kyverno
+  - ./opentelemetry-operator
   - ./linkerd
   - ./longhorn
   - ./nvidia-gpu-operator
