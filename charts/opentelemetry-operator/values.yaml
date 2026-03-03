@@ -28,3 +28,5 @@ instrumentation:
     enabled: false
   go:
     enabled: false
+    # Go eBPF agent uses HTTP OTLP (not gRPC), so it needs port 4318
+    endpoint: ""

@@ -8,7 +8,7 @@ metadata:
   namespace: {{ . }}
 spec:
   exporter:
-    endpoint: {{ $.Values.instrumentation.endpoint }}
+    endpoint: {{ $.Values.instrumentation.go.endpoint | default $.Values.instrumentation.endpoint }}
   propagators:
   {{- range $.Values.instrumentation.propagators }}
     - {{ . }}

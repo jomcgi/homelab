@@ -8,6 +8,7 @@ instrumentation:
     enabled: true
   go:
     enabled: true
+    endpoint: http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4318
   # Namespaces to deploy Instrumentation CRs into
   namespaces:
     # Production
