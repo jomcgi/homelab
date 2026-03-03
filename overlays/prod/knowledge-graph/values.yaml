@@ -4,6 +4,8 @@ imagePullSecret:
 scraper:
   image:
     tag: main
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-python: "true"
 
 embedder:
   image:
@@ -12,6 +14,8 @@ embedder:
 mcp:
   image:
     tag: main
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-python: "true"
 
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
