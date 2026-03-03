@@ -1,0 +1,30 @@
+# Upstream opentelemetry-operator subchart values
+opentelemetry-operator:
+  manager:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
+    # Enable Go eBPF auto-instrumentation support
+    autoInstrumentation:
+      go:
+        enabled: true
+
+# Instrumentation CRD configuration
+instrumentation:
+  # OTEL collector endpoint (SigNoz k8s-infra agent)
+  endpoint: http://signoz-k8s-infra-otel-agent.signoz.svc.cluster.local:4317
+  propagators:
+    - tracecontext
+    - baggage
+  # Target namespaces to deploy Instrumentation CRs into
+  namespaces: []
+  python:
+    enabled: false
+  nodejs:
+    enabled: false
+  go:
+    enabled: false
