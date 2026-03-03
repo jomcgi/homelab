@@ -32,7 +32,7 @@ frontend:
 wsGateway:
   cfAccessTeam: jomcgi.cloudflareaccess.com
   podAnnotations:
-    instrumentation.opentelemetry.io/inject-go: "true"
+    instrumentation.opentelemetry.io/inject-go: "go"
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
     tag: main@sha256:97807a194e6e619e6215cdd092e793724dc598dfc8d3079eb475600c2162bd23

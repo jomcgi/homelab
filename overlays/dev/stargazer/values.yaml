@@ -68,4 +68,4 @@ imagePullSecrets:
 # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
 podAnnotations:
   otel.injected-by: kyverno/inject-otel-env-vars
-  instrumentation.opentelemetry.io/inject-python: "true"
+  instrumentation.opentelemetry.io/inject-python: "python"
