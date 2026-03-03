@@ -13,6 +13,10 @@ spec:
       {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 6 }}
   template:
     metadata:
+      {{- with .podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
       labels:
         {{- include "mcp-servers.selectorLabels" (dict "server" . "Release" $.Release) | nindent 8 }}
     spec:

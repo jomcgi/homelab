@@ -19,6 +19,9 @@ spec:
         app.kubernetes.io/component: scraper
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        {{- with .Values.scraper.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
     spec:
       {{- if .Values.imagePullSecret.enabled }}
       imagePullSecrets:
