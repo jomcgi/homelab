@@ -1,5 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 py_venv_binary(
     name = "main",
@@ -115,4 +116,10 @@ py_venv_binary(
     name = "api",
     main = "api.py",
     visibility = ["//:__subpackages__"],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )

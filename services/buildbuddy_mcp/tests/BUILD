@@ -1,4 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 load("//tools/pytest:defs.bzl", "py_test")
 
 # gazelle:resolve py services.buildbuddy_mcp.app.main //services/buildbuddy_mcp/app:app
@@ -48,4 +49,10 @@ py_test(
         "@pip//httpx",
         "@pip//pytest",
     ],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )

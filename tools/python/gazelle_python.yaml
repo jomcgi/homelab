@@ -40,8 +40,10 @@ manifest:
     beartype: beartype
     bleak: bleak
     bng_latlon: bng_latlon
+    boltons: boltons
     boto3: boto3
     botocore: botocore
+    bracex: bracex
     brotli: brotli
     bs4: beautifulsoup4
     cachetools: cachetools
@@ -54,6 +56,7 @@ manifest:
     charset_normalizer: charset_normalizer
     click: click
     click_default_group: click_default_group
+    click_option_group: click_option_group
     click_plugins: click_plugins
     cligj: cligj
     colorama: colorama
@@ -81,12 +84,14 @@ manifest:
     edfc647aaf02b20aa651__mypyc: mypy
     email_validator: email_validator
     exceptiongroup: exceptiongroup
+    face: face
     fastapi: fastapi
     fastmcp: fastmcp
     feedparser: feedparser
     frozenlist: frozenlist
     funcy: funcy
     geopandas: geopandas
+    glom: glom
     google.api.annotations_pb2: googleapis_common_protos
     google.api.auth_pb2: googleapis_common_protos
     google.api.backend_pb2: googleapis_common_protos
@@ -225,7 +230,9 @@ manifest:
     opentelemetry.instrumentation.httpx: opentelemetry_instrumentation_httpx
     opentelemetry.instrumentation.instrumentor: opentelemetry_instrumentation
     opentelemetry.instrumentation.propagators: opentelemetry_instrumentation
+    opentelemetry.instrumentation.requests: opentelemetry_instrumentation_requests
     opentelemetry.instrumentation.sqlcommenter_utils: opentelemetry_instrumentation
+    opentelemetry.instrumentation.threading: opentelemetry_instrumentation_threading
     opentelemetry.instrumentation.utils: opentelemetry_instrumentation
     opentelemetry.instrumentation.version: opentelemetry_instrumentation
     opentelemetry.metrics: opentelemetry_api
@@ -253,8 +260,10 @@ manifest:
     parse_type: parse_type
     pathable: pathable
     pathspec: pathspec
+    peewee: peewee
     pexpect: pexpect
     platformdirs: platformdirs
+    playhouse: peewee
     pluggy: pluggy
     plumbum: plumbum
     prompt_toolkit: prompt_toolkit
@@ -262,6 +271,7 @@ manifest:
     proxytypes: jsonref
     ptyprocess: ptyprocess
     publication: publication
+    pwiz: peewee
     py: pytest
     pyasn1: pyasn1
     pyasn1_modules: pyasn1_modules
@@ -292,7 +302,11 @@ manifest:
     rich_rst: rich_rst
     rpds: rpds_py
     rsa: rsa
+    ruamel.yaml: ruamel_yaml
     s3transfer: s3transfer
+    semantic_version: semantic_version
+    semdep: semgrep
+    semgrep: semgrep
     sgmllib: sgmllib3k
     shapely: shapely
     shellingham: shellingham
@@ -309,6 +323,7 @@ manifest:
     timelength: timelength
     tinydb: tinydb
     tld: tld
+    tomli: tomli
     trafilatura: trafilatura
     typeguard: typeguard
     typer: typer
@@ -321,6 +336,7 @@ manifest:
     uvicorn: uvicorn
     uvloop: uvloop
     watchfiles: watchfiles
+    wcmatch: wcmatch
     wcwidth: wcwidth
     websockets: websockets
     wrapt: wrapt

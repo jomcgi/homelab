@@ -1,4 +1,6 @@
+# gazelle:semgrep_exclude_rules no-requests
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 load("//tools/pytest:defs.bzl", "py_test")
 
 py_binary(
@@ -57,4 +59,11 @@ py_test(
         "@pip//pytest",
         "@pip//requests",
     ],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
 )

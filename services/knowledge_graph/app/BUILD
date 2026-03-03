@@ -1,5 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 py_library(
     name = "models",
@@ -170,4 +171,10 @@ py_venv_binary(
         ":mcp_main",
         "@pip//uvicorn",
     ],
+)
+
+semgrep_test(
+    name = "semgrep_test",
+    srcs = glob(["*.py"]),
+    rules = ["//semgrep_rules:python_rules"],
 )
