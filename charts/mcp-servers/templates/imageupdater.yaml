@@ -15,7 +15,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: {{ $server.imageUpdater.strategy | default "digest" }}
             forceUpdate: {{ $server.imageUpdater.forceUpdate | default false }}
-          imageName: {{ $server.image.repository }}:{{ $server.image.tag }}
+          imageName: {{ $server.image.repository }}:{{ regexReplaceAll "@sha256:.*" $server.image.tag "" }}
           manifestTargets:
             helm:
               name: servers[{{ $index }}].image.repository
