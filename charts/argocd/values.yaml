@@ -1,3 +1,13 @@
 globals:
   logging:
     format: json
+
+argo-cd:
+  configs:
+    cm:
+      accounts.mcp-agent: apiKey
+    rbac:
+      policy.csv: |
+        p, mcp-agent, applications, *, */*, allow
+        p, mcp-agent, projects, get, *, allow
+        p, mcp-agent, clusters, get, *, allow
