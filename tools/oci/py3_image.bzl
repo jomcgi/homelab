@@ -26,9 +26,11 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
     binary_path = "{}{}/{}".format(root, binary.package, binary.name)
     runfiles_dir = "{}.runfiles".format(binary_path)
     repo_name = binary.repo_name or "_main"
+    workspace_root = "{}/{}".format(runfiles_dir, repo_name)
     env = dict({
         "BAZEL_WORKSPACE": repo_name,
         "RUNFILES_DIR": runfiles_dir,
+        "PYTHONPATH": workspace_root,
     }, **env)
 
     if multi_platform:
@@ -44,7 +46,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
             ),
             entrypoint = [binary_path],
             env = env,
-            workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
+            workdir = workdir or workspace_root,
         )
         platform_transition_filegroup(
             name = name + "_amd64",
@@ -64,7 +66,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
             ),
             entrypoint = [binary_path],
             env = env,
-            workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
+            workdir = workdir or workspace_root,
         )
         platform_transition_filegroup(
             name = name + "_arm64",
@@ -108,7 +110,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
             ),
             entrypoint = [binary_path],
             env = env,
-            workdir = workdir or "{}/{}".format(runfiles_dir, repo_name),
+            workdir = workdir or workspace_root,
         )
         platform_transition_filegroup(
             name = name,
