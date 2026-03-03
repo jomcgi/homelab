@@ -1,4 +1,5 @@
 imageUpdater:
+  applicationName: "prod-mcp-servers"
   writeBackTarget: "helmvalues:../../overlays/prod/mcp-servers/values.yaml"
 
 servers:
