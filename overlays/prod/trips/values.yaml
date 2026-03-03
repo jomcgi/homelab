@@ -12,4 +12,4 @@ api:
     repository: ghcr.io/jomcgi/homelab/services/trips_api
     tag: main # Use branch tag from CI
   podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"

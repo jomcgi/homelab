@@ -8,7 +8,7 @@ servers:
     tag: "v0.0.5"
   port: 8000
   podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"
   env:
   - name: SIGNOZ_URL
     value: "http://signoz.signoz.svc.cluster.local:8080"
@@ -40,7 +40,7 @@ servers:
     tag: "main@sha256:bdbfff85ced097cf2d51973328c805d8252be19ccca4410231613e100ec3c883"
   port: 8000
   podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"
   writableTmp: true
   env:
   - name: BUILDBUDDY_URL

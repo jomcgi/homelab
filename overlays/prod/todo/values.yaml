@@ -14,7 +14,7 @@ image:
   tag: main@sha256:2c899988b5bf38120be654213f422b76883f9a63a0a5df36766619fa0081e492
   repository: ghcr.io/jomcgi/homelab/charts/todo
 podAnnotations:
-  instrumentation.opentelemetry.io/inject-go: "true"
+  instrumentation.opentelemetry.io/inject-go: "go"
 # Prefer to schedule on the same node to avoid volume reattachment delays
 affinity:
   podAffinity:

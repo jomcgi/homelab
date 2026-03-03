@@ -40,7 +40,7 @@ ingest:
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"
 # Ships API component
 api:
   image:
@@ -70,7 +70,7 @@ api:
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
@@ -86,4 +86,4 @@ frontend:
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
   podAnnotations:
     otel.injected-by: kyverno/inject-otel-env-vars
-    instrumentation.opentelemetry.io/inject-nodejs: "true"
+    instrumentation.opentelemetry.io/inject-nodejs: "nodejs"

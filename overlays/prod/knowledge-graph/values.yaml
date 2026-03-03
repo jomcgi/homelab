@@ -5,7 +5,7 @@ scraper:
   image:
     tag: main
   podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"
 
 embedder:
   image:
@@ -15,7 +15,7 @@ mcp:
   image:
     tag: main
   podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "true"
+    instrumentation.opentelemetry.io/inject-python: "python"
 
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
