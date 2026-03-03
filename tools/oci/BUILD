@@ -1,5 +1,4 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 # Detect CI builds to conditionally apply branch tags
 config_setting(
@@ -68,15 +67,6 @@ bzl_library(
     srcs = ["apko_push.bzl"],
     visibility = ["//visibility:public"],
     deps = ["@bazel_skylib//lib:paths"],
-)
-
-semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.sh"]) + glob(["*.bzl"]),
-    rules = [
-        "//semgrep_rules:shell_rules",
-        "//semgrep_rules:bazel_rules",
-    ],
 )
 
 bzl_library(

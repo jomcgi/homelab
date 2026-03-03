@@ -119,7 +119,55 @@ py_venv_binary(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "acquisition_semgrep_test",
+    srcs = ["acquisition.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "api_semgrep_test",
+    srcs = ["api.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "config_semgrep_test",
+    srcs = ["config.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "main_semgrep_test",
+    srcs = ["main.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "preprocessing_semgrep_test",
+    srcs = ["preprocessing.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "scoring_semgrep_test",
+    srcs = ["scoring.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "spatial_semgrep_test",
+    srcs = ["spatial.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "weather_semgrep_test",
+    srcs = ["weather.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

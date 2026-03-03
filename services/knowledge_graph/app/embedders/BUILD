@@ -34,7 +34,25 @@ py_library(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "base_semgrep_test",
+    srcs = ["base.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "gemini_semgrep_test",
+    srcs = ["gemini.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "ollama_semgrep_test",
+    srcs = ["ollama.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

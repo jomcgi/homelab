@@ -13,7 +13,25 @@ py_library(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "algo_semgrep_test",
+    srcs = ["algo.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "grid_semgrep_test",
+    srcs = ["grid.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "parse_semgrep_test",
+    srcs = ["parse.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

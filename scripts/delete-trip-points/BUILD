@@ -24,7 +24,7 @@ py_library(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "main_semgrep_test",
+    srcs = ["main.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

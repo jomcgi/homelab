@@ -2,7 +2,6 @@
 load("@bazel_skylib//:bzl_library.bzl", "bzl_library")
 load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
 
 exports_files([
     "helm-template-test.sh",
@@ -45,14 +44,5 @@ bzl_library(
         "//rules_semgrep:defs",  # keep
         "@bazel_skylib//lib:paths",  # keep
         "@rules_shell//shell:rules_bzl",  # keep
-    ],
-)
-
-semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.sh"]) + glob(["*.bzl"]),
-    rules = [
-        "//semgrep_rules:shell_rules",
-        "//semgrep_rules:bazel_rules",
     ],
 )

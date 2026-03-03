@@ -16,7 +16,7 @@ exports_files(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
     rules = ["//semgrep_rules:python_rules"],
 )

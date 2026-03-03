@@ -54,8 +54,22 @@ py_test(
 )
 
 semgrep_test(
-    name = "semgrep_test",
-    srcs = glob(["*.py"]),
+    name = "__init___semgrep_test",
+    srcs = ["__init__.py"],
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "update_semgrep_test",
+    srcs = ["update.py"],
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "update_test_semgrep_test",
+    srcs = ["update_test.py"],
     exclude_rules = ["no-requests"],
     rules = ["//semgrep_rules:python_rules"],
 )
