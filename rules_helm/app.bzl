@@ -1,6 +1,7 @@
 """Macro for declaring ArgoCD application overlays."""
 
 load("//rules_helm:test.bzl", "helm_template_test")
+load("//rules_semgrep:test.bzl", "semgrep_manifest_test")
 
 def argocd_app(
         name,
@@ -11,6 +12,8 @@ def argocd_app(
         values_files = [],
         generate_manifests = True,
         generate_diff = False,
+        generate_semgrep = True,
+        semgrep_rules = ["//semgrep_rules:kubernetes_rules"],
         tags = []):
     """Declares an ArgoCD application overlay with template testing and manifest rendering.
 
@@ -29,6 +32,8 @@ def argocd_app(
         values_files: List of values file labels in order
         generate_manifests: If True, create render_manifests genrule (default: True)
         generate_diff: If True, create live diff rule (default: False)
+        generate_semgrep: If True, create semgrep_test for rendered manifests (default: True)
+        semgrep_rules: List of semgrep rule config labels for manifest scanning
         tags: Additional tags for the template test
     """
     if release_name == None:
@@ -99,6 +104,18 @@ def argocd_app(
             local = True,
             tags = ["manual"],
             visibility = ["//visibility:public"],
+        )
+
+    if generate_semgrep:
+        semgrep_manifest_test(
+            name = "semgrep_test",
+            chart = chart,
+            chart_files = chart_files,
+            release_name = release_name,
+            namespace = namespace,
+            values_files = values_files,
+            rules = semgrep_rules,
+            tags = tags + ["semgrep"],
         )
 
     if generate_diff:

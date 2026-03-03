@@ -20,11 +20,13 @@ def semgrep_test(name, srcs, rules, **kwargs):
         srcs = ["//rules_semgrep:semgrep-test.sh"],
         args = [
                    "$(rootpath //tools/semgrep)",
-               ] + ["$(rootpath {})".format(r) for r in rules] +
+                   "$(rootpath //tools/semgrep:pysemgrep)",
+               ] + ["$(rootpaths {})".format(r) for r in rules] +
                ["--"] +
-               ["$(rootpath {})".format(s) for s in srcs],
+               ["$(rootpaths {})".format(s) for s in srcs],
         data = [
             "//tools/semgrep",
+            "//tools/semgrep:pysemgrep",
         ] + rules + srcs,
         **kwargs
     )
@@ -58,15 +60,17 @@ def semgrep_manifest_test(
         srcs = ["//rules_semgrep:semgrep-manifest-test.sh"],
         args = [
                    "$(rootpath //tools/semgrep)",
+                   "$(rootpath //tools/semgrep:pysemgrep)",
                    "$(rootpath @multitool//tools/helm)",
                    release_name,
                    chart,
                    namespace,
-               ] + ["$(rootpath {})".format(r) for r in rules] +
+               ] + ["$(rootpaths {})".format(r) for r in rules] +
                ["--"] +
                ["$(rootpath {})".format(vf) for vf in values_files],
         data = [
             "//tools/semgrep",
+            "//tools/semgrep:pysemgrep",
             "@multitool//tools/helm",
             chart_files,
         ] + rules + values_files,

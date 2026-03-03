@@ -1,24 +1,28 @@
 #!/usr/bin/env bash
 # semgrep-manifest-test.sh - Renders Helm manifests and scans with semgrep
 #
-# Usage: semgrep-manifest-test.sh <semgrep> <helm> <release> <chart> <namespace> <rules...> -- <values-files...>
+# Usage: semgrep-manifest-test.sh <semgrep> <pysemgrep> <helm> <release> <chart> <namespace> <rules...> -- <values-files...>
 #
 # Combines helm template rendering with semgrep scanning in a single test.
 # Exit code 0 = no findings, non-zero = violations found or render failure.
 
 set -euo pipefail
 
-if [[ $# -lt 6 ]]; then
-	echo "Usage: $0 <semgrep> <helm> <release> <chart> <namespace> <rules...> -- <values...>"
+if [[ $# -lt 7 ]]; then
+	echo "Usage: $0 <semgrep> <pysemgrep> <helm> <release> <chart> <namespace> <rules...> -- <values...>"
 	exit 1
 fi
 
 SEMGREP="$1"
-HELM="$2"
-RELEASE="$3"
-CHART="$4"
-NAMESPACE="$5"
-shift 5
+PYSEMGREP="$2"
+HELM="$3"
+RELEASE="$4"
+CHART="$5"
+NAMESPACE="$6"
+shift 6
+
+# osemgrep (native engine) execs pysemgrep at runtime — add it to PATH
+export PATH="$(dirname "$PYSEMGREP"):$PATH"
 
 # Collect rule files until -- separator
 RULES=()
