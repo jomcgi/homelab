@@ -4,6 +4,7 @@ load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None, visibility = ["//images:__pkg__"], multi_platform = True):
     """Create a multi-platform Python 3 image from a Python binary.
@@ -150,6 +151,17 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
         stamp_substitutions = {
             "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
         },
+    )
+
+    # Verify image config has correct Python runtime environment.
+    # Tests one platform (amd64) since the config is identical across architectures.
+    sh_test(
+        name = name + "_config_test",
+        srcs = ["//tools/oci:verify-py3-image.sh"],
+        args = ["$(rootpath {})".format(
+            name + "_base_amd64" if multi_platform else name + "_image",
+        )],
+        data = [name + "_base_amd64" if multi_platform else name + "_image"],
     )
 
     # Push uses the index for multi-platform, or platform-specific for single platform

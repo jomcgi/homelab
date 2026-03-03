@@ -13,6 +13,7 @@ exports_files(
     [
         "apko_push.sh.tpl",
         "verify-apko-lock.sh",
+        "verify-py3-image.sh",
     ],
     visibility = ["//visibility:public"],
 )
@@ -36,6 +37,7 @@ bzl_library(
         "@aspect_bazel_lib//lib:transitions",
         "@aspect_rules_py//py:defs",
         "@rules_oci//oci:defs",
+        "@rules_shell//shell:rules_bzl",
     ],
 )
 
