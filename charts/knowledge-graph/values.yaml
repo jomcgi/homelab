@@ -13,10 +13,9 @@ scraper:
   resources:
     requests:
       cpu: 10m
-      memory: 128Mi
+      memory: 256Mi
     limits:
-      cpu: 10m
-      memory: 128Mi
+      memory: 256Mi
 
 # --- CronJob (batch scrape) ---
 cronjob:
@@ -64,10 +63,9 @@ mcp:
   resources:
     requests:
       cpu: 10m
-      memory: 128Mi
+      memory: 256Mi
     limits:
-      cpu: 10m
-      memory: 128Mi
+      memory: 256Mi
 
 # --- Shared ---
 imagePullSecret:
