@@ -6,6 +6,8 @@
 # Exit code 0 = no findings, non-zero = semgrep found violations.
 #
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
+# Env: SEMGREP_TEST_MODE — if set to "1", uses semgrep --test to validate rule
+#      annotations (# ruleid: / # ok:) instead of scanning for violations
 
 set -euo pipefail
 
@@ -26,10 +28,12 @@ EXCLUDE_LIST=",${SEMGREP_EXCLUDE_RULES:-},"
 
 # Collect rule files until we hit the -- separator, skipping excluded rules
 RULES=()
+RULE_FILES=()
 while [[ $# -gt 0 && "$1" != "--" ]]; do
 	rule_name="$(basename "$1" .yaml)"
 	if [[ "$EXCLUDE_LIST" != *",$rule_name,"* ]]; then
 		RULES+=("--config" "$(pwd)/$1")
+		RULE_FILES+=("$1")
 	fi
 	shift
 done
@@ -53,11 +57,32 @@ if [[ ${#RULES[@]} -eq 0 ]]; then
 	exit 0
 fi
 
-if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
-	echo "PASSED: No semgrep findings"
-	exit 0
+if [[ "${SEMGREP_TEST_MODE:-}" == "1" ]]; then
+	# Test mode: validate # ruleid: / # ok: annotations in fixture files.
+	# semgrep test requires rules and test files co-located in a single directory.
+	TEST_DIR="${TEST_TMPDIR}/rule-test"
+	mkdir -p "$TEST_DIR"
+	for rf in "${RULE_FILES[@]}"; do
+		cp "$(pwd)/$rf" "$TEST_DIR/"
+	done
+	for f in "$@"; do
+		cp "$f" "$TEST_DIR/"
+	done
+	if "$SEMGREP" test "$TEST_DIR"; then
+		echo "PASSED: All rule tests passed"
+		exit 0
+	else
+		echo ""
+		echo "FAILED: Rule test validation failed"
+		exit 1
+	fi
 else
-	echo ""
-	echo "FAILED: Semgrep found violations"
-	exit 1
+	if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
+		echo "PASSED: No semgrep findings"
+		exit 0
+	else
+		echo ""
+		echo "FAILED: Semgrep found violations"
+		exit 1
+	fi
 fi
