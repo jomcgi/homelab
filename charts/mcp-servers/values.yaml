@@ -26,6 +26,7 @@ imageUpdater:
   gitRepository: "https://github.com/jomcgi/homelab.git"
   gitBranch: "main"
   gitSecret: "argocd/argocd-image-updater-token"
+  applicationName: "" # ArgoCD Application name (defaults to release name)
   writeBackTarget: "" # required if any server has imageUpdater.enabled
 
 # MCP servers to deploy

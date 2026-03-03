@@ -33,7 +33,7 @@ spec:
             helm:
               name: mcp.image.repository
               tag: mcp.image.tag
-      namePattern: knowledge-graph
+      namePattern: prod-knowledge-graph
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token

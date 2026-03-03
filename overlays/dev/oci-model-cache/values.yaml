@@ -1,9 +1,9 @@
 imagePullSecrets:
-  - name: ghcr-pull-secret
+- name: ghcr-pull-secret
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
-    tag: main@sha256:3d831523a677218da4574050ec6770f960cab70f4f3f0d8c20fcd3de83d95241
+    tag: main@sha256:8720c76bdc21b93ba828ce52ca5626ef62b9a4e27d4a9ada723259164ead22cc
     pullPolicy: Always
   tracing:
     serviceName: "oci-model-cache-operator"
@@ -28,21 +28,21 @@ hfToken:
 imageUpdater:
   enabled: true
   images:
-    - alias: operator
-      imageName: ghcr.io/jomcgi/homelab/operators/oci-model-cache:main
-      helm:
-        name: controllerManager.image.repository
-        tag: controllerManager.image.tag
+  - alias: operator
+    imageName: ghcr.io/jomcgi/homelab/operators/oci-model-cache:main
+    helm:
+      name: controllerManager.image.repository
+      tag: controllerManager.image.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
     branch: main
     target: helmvalues:../../../../overlays/dev/oci-model-cache/values.yaml
 extraResources:
-  - apiVersion: onepassword.com/v1
-    kind: OnePasswordItem
-    metadata:
-      name: ghcr-pull-secret
-    spec:
-      itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
-    type: "kubernetes.io/dockerconfigjson"
+- apiVersion: onepassword.com/v1
+  kind: OnePasswordItem
+  metadata:
+    name: ghcr-pull-secret
+  spec:
+    itemPath: "vaults/k8s-homelab/items/argocd-image-updater"
+  type: "kubernetes.io/dockerconfigjson"
