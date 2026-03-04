@@ -489,8 +489,8 @@ def ensure_bucket(s3_client, bucket: str) -> None:
 
 
 def calculate_md5(file_path: Path) -> str:
-    """Calculate MD5 hash of a file."""
-    md5 = hashlib.md5()
+    """Calculate MD5 hash of a file for S3 ETag comparison."""
+    md5 = hashlib.md5(usedforsecurity=False)  # nosec: MD5 required for S3 ETag match
     with open(file_path, "rb") as f:
         for chunk in iter(lambda: f.read(8192), b""):
             md5.update(chunk)
