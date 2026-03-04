@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # semgrep-manifest-test.sh - Renders Helm manifests and scans with semgrep-core
 #
-# Usage: semgrep-manifest-test.sh <semgrep-core> <helm> <release> <chart> <namespace> <rules...> -- <values-files...>
+# Usage: semgrep-manifest-test.sh <helm> <release> <chart> <namespace> <rules...> -- <values-files...>
+#
+# The semgrep-core binary is discovered via find(1) in runfiles rather than
+# passed as an argument, because the engine filegroup may be empty when GHCR
+# credentials are missing (graceful degradation).
 #
 # Combines helm template rendering with semgrep-core scanning in a single test.
 # Exit code 0 = no findings, non-zero = violations found or render failure.
@@ -13,22 +17,22 @@
 
 set -euo pipefail
 
-if [[ $# -lt 6 ]]; then
-	echo "Usage: $0 <semgrep-core> <helm> <release> <chart> <namespace> <rules...> -- <values...>"
+if [[ $# -lt 5 ]]; then
+	echo "Usage: $0 <helm> <release> <chart> <namespace> <rules...> -- <values...>"
 	exit 1
 fi
 
-SEMGREP_CORE="$1"
-HELM="$2"
-RELEASE="$3"
-CHART="$4"
-NAMESPACE="$5"
-shift 5
+HELM="$1"
+RELEASE="$2"
+CHART="$3"
+NAMESPACE="$4"
+shift 4
 
-# Graceful degradation: if semgrep-core binary is empty (OCI artifact not fetched),
-# skip the scan with a warning. Same pattern as the pro engine.
-if [[ ! -x "$SEMGREP_CORE" ]]; then
-	echo "SKIPPED: semgrep-core binary not found or not executable (GHCR credentials may be missing)"
+# Discover semgrep-core from runfiles. The engine filegroup may be empty
+# (no GHCR token / empty digest) — in that case, skip gracefully.
+SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
+if [[ -z "$SEMGREP_CORE" || ! -x "$SEMGREP_CORE" ]]; then
+	echo "SKIPPED: semgrep-core binary not found in runfiles (GHCR credentials may be missing)"
 	exit 0
 fi
 

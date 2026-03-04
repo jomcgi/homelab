@@ -15,6 +15,12 @@ def semgrep_test(
     flags, bypassing the Python pysemgrep wrapper. Results are cached by Bazel
     based on input file hashes — only re-runs when sources or rules change.
 
+    The semgrep-core binary is discovered at runtime via find(1) in the
+    runfiles tree, rather than passed as an argument, because the engine
+    filegroup may be empty (no GHCR token / empty digest). Empty filegroups
+    would cause $(rootpath) to fail at analysis time. The find-based discovery
+    gracefully degrades to SKIPPED when the binary is absent.
+
     Args:
         name: Name of the test target
         srcs: Source files to scan (labels)
@@ -43,9 +49,7 @@ def semgrep_test(
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-test.sh"],
-        args = [
-                   "$(rootpath //third_party/semgrep:engine)",
-               ] + ["$(rootpaths {})".format(r) for r in rules] +
+        args = ["$(rootpaths {})".format(r) for r in rules] +
                ["--"] +
                ["$(rootpaths {})".format(s) for s in srcs],
         data = data,
@@ -105,7 +109,6 @@ def semgrep_manifest_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-manifest-test.sh"],
         args = [
-                   "$(rootpath //third_party/semgrep:engine)",
                    "$(rootpath @multitool//tools/helm)",
                    release_name,
                    chart,
