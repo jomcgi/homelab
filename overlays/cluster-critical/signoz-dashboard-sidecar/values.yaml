@@ -4,10 +4,10 @@
 image:
   repository: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar
   # tag will be updated by argocd-image-updater
-  tag: main@sha256:fd95ea695fb20a49eabfaad4221c281aae7cd971dd2ad0186a5f345609601a1b
+  tag: main@sha256:2b687ab711380a19b61d10b4acdd361908f4364fc6f8bb93134da30725c64eec
 # GHCR image pull authentication
 imagePullSecrets:
-  - name: ghcr-imagepull-secret
+- name: ghcr-imagepull-secret
 imagePullSecret:
   enabled: true
 # SigNoz configuration - use cluster-internal DNS
