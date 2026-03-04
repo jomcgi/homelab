@@ -26,11 +26,20 @@ filegroup(
 """
 
 def _semgrep_pro_impl(module_ctx):
-    # Engine binary — one repo per platform
+    # Engine binary — one repo per platform (Linux)
     for platform in ["amd64", "arm64"]:
         oci_archive(
             name = "semgrep_pro_engine_" + platform,
             image = _GHCR_PREFIX + "/engine-" + platform,
+            digest = SEMGREP_PRO_DIGESTS.get("engine_" + platform, ""),
+            build_file_content = _ENGINE_BUILD,
+        )
+
+    # Engine binary — macOS
+    for platform in ["osx_arm64", "osx_x86_64"]:
+        oci_archive(
+            name = "semgrep_pro_engine_" + platform,
+            image = _GHCR_PREFIX + "/engine-" + platform.replace("_", "-"),
             digest = SEMGREP_PRO_DIGESTS.get("engine_" + platform, ""),
             build_file_content = _ENGINE_BUILD,
         )

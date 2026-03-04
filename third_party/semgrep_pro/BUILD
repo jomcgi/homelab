@@ -14,8 +14,10 @@ bzl_library(
 alias(
     name = "engine",
     actual = select({
-        "@platforms//cpu:x86_64": "@semgrep_pro_engine_amd64//:engine",
-        "@platforms//cpu:aarch64": "@semgrep_pro_engine_arm64//:engine",
+        "//third_party/semgrep:linux_x86_64": "@semgrep_pro_engine_amd64//:engine",
+        "//third_party/semgrep:linux_aarch64": "@semgrep_pro_engine_arm64//:engine",
+        "//third_party/semgrep:macos_x86_64": "@semgrep_pro_engine_osx_x86_64//:engine",
+        "//third_party/semgrep:macos_aarch64": "@semgrep_pro_engine_osx_arm64//:engine",
     }),
     visibility = ["//visibility:public"],
 )

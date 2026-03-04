@@ -18,10 +18,20 @@ filegroup(
 """
 
 def _semgrep_impl(module_ctx):
+    # Linux engines (from PyPI manylinux wheels)
     for platform in ["amd64", "arm64"]:
         oci_archive(
             name = "semgrep_engine_" + platform,
             image = _GHCR_PREFIX + "-" + platform,
+            digest = SEMGREP_DIGESTS.get("engine_" + platform, ""),
+            build_file_content = _ENGINE_BUILD,
+        )
+
+    # macOS engines (from PyPI macOS wheels)
+    for platform in ["osx_arm64", "osx_x86_64"]:
+        oci_archive(
+            name = "semgrep_engine_" + platform,
+            image = _GHCR_PREFIX + "-" + platform.replace("_", "-"),
             digest = SEMGREP_DIGESTS.get("engine_" + platform, ""),
             build_file_content = _ENGINE_BUILD,
         )
