@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//tools/oci:py3_image.bzl", "py3_image")
 load("//tools/pytest:defs.bzl", "py_test")
 
@@ -72,13 +72,13 @@ semgrep_test(
 )
 
 semgrep_test(
-    name = "main_semgrep_test",
-    srcs = ["main.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
     name = "trips_api_test_semgrep_test",
     srcs = ["trips_api_test.py"],
     rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_target_test(
+    name = "main_semgrep_test",
+    rules = ["//semgrep_rules:python_rules"],
+    target = ":main",
 )

@@ -14,11 +14,17 @@ var binaryKinds = map[string]bool{
 	"py_binary":      true,
 }
 
+// libraryKinds are the rule kinds that represent Python libraries.
+var libraryKinds = map[string]bool{
+	"py_library": true,
+}
+
 // generateRules generates semgrep test targets for a package.
 //
 // When py_venv_binary or py_binary targets exist in the BUILD file:
 //   - Generates one semgrep_target_test per binary (aspect scans transitive deps)
-//   - Generates per-file semgrep_test for orphan .py files not covered by any binary's main
+//   - Generates per-file semgrep_test only for orphan .py files not covered by any
+//     binary's transitive local deps (files that the aspect won't scan)
 //
 // When no binaries exist, falls back to per-file semgrep_test for every .py file.
 func generateRules(args language.GenerateArgs) language.GenerateResult {
@@ -40,13 +46,9 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	binaries := findBinaries(args.File)
 
 	if len(binaries) > 0 {
-		// Collect main files covered by binaries
-		coveredMains := make(map[string]bool)
-		for _, b := range binaries {
-			if main := b.AttrString("main"); main != "" {
-				coveredMains[main] = true
-			}
-		}
+		// Build the set of .py files covered by binaries' transitive local deps.
+		// The aspect will scan these files, so they don't need per-file tests.
+		coveredFiles := coveredByBinaries(args.File, binaries)
 
 		// Generate semgrep_target_test for each binary
 		for _, b := range binaries {
@@ -63,7 +65,7 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 
 		// Generate per-file semgrep_test for orphan .py files
 		for _, f := range pyFiles {
-			if coveredMains[f] {
+			if coveredFiles[f] {
 				continue
 			}
 			name := strings.TrimSuffix(f, ".py") + "_semgrep_test"
@@ -94,6 +96,79 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	result.Empty = staleRules(args, result.Gen)
 
 	return result
+}
+
+// coveredByBinaries returns the set of .py files that are transitively reachable
+// from the given binary targets through package-local deps. These files will be
+// scanned by the semgrep aspect and don't need individual semgrep_test targets.
+func coveredByBinaries(f *rule.File, binaries []*rule.Rule) map[string]bool {
+	if f == nil {
+		return nil
+	}
+
+	// Index: target name -> rule
+	ruleByName := make(map[string]*rule.Rule)
+	for _, r := range f.Rules {
+		ruleByName[r.Name()] = r
+	}
+
+	// Index: target name -> srcs
+	srcsByName := make(map[string][]string)
+	for _, r := range f.Rules {
+		if binaryKinds[r.Kind()] || libraryKinds[r.Kind()] {
+			srcsByName[r.Name()] = r.AttrStrings("srcs")
+		}
+	}
+
+	covered := make(map[string]bool)
+	visited := make(map[string]bool)
+
+	// Walk local deps from each binary, collecting all srcs
+	for _, b := range binaries {
+		walkLocalDeps(b, ruleByName, srcsByName, covered, visited)
+	}
+
+	return covered
+}
+
+// walkLocalDeps recursively collects .py srcs from a target and its
+// package-local dependencies.
+func walkLocalDeps(r *rule.Rule, ruleByName map[string]*rule.Rule, srcsByName map[string][]string, covered map[string]bool, visited map[string]bool) {
+	name := r.Name()
+	if visited[name] {
+		return
+	}
+	visited[name] = true
+
+	// Mark this target's srcs as covered
+	if main := r.AttrString("main"); main != "" {
+		covered[main] = true
+	}
+	for _, src := range srcsByName[name] {
+		covered[src] = true
+	}
+
+	// Walk local deps (":foo" references)
+	for _, dep := range r.AttrStrings("deps") {
+		localName := localDepName(dep)
+		if localName == "" {
+			continue
+		}
+		depRule, ok := ruleByName[localName]
+		if !ok {
+			continue
+		}
+		walkLocalDeps(depRule, ruleByName, srcsByName, covered, visited)
+	}
+}
+
+// localDepName extracts the target name from a package-local dep like ":foo".
+// Returns "" for external or cross-package deps.
+func localDepName(dep string) string {
+	if strings.HasPrefix(dep, ":") {
+		return dep[1:]
+	}
+	return ""
 }
 
 // findBinaries returns py_venv_binary and py_binary rules from the BUILD file.

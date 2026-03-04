@@ -27,18 +27,19 @@ bzl_library(
     deps = ["@rules_shell//shell:rules_bzl"],  # keep
 )
 
-bzl_library(
-    name = "aspect",
-    srcs = ["aspect.bzl"],
-    visibility = ["//visibility:public"],
-)
-
+# keep: Gazelle mis-resolves @rules_shell//shell:sh_test.bzl
 bzl_library(
     name = "target_test",
-    srcs = ["target_test.bzl"],
+    srcs = ["target_test.bzl"],  # keep
     visibility = ["//visibility:public"],
     deps = [
         ":aspect",
         "@rules_shell//shell:rules_bzl",  # keep
     ],
+)
+
+bzl_library(
+    name = "aspect",
+    srcs = ["aspect.bzl"],
+    visibility = ["//visibility:public"],
 )

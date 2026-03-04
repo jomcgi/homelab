@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test")
 
 py_venv_binary(
     name = "main",
@@ -29,20 +29,8 @@ py_library(
     ],
 )
 
-semgrep_test(
-    name = "__init___semgrep_test",
-    srcs = ["__init__.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "composite_semgrep_test",
-    srcs = ["composite.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
+semgrep_target_test(
     name = "main_semgrep_test",
-    srcs = ["main.py"],
     rules = ["//semgrep_rules:python_rules"],
+    target = ":main",
 )
