@@ -2,8 +2,13 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-def semgrep_test(name, srcs, rules, exclude_rules = [],
-                 pro_engine = "//third_party/semgrep_pro:engine", **kwargs):
+def semgrep_test(
+        name,
+        srcs,
+        rules,
+        exclude_rules = [],
+        pro_engine = "//third_party/semgrep_pro:engine",
+        **kwargs):
     """Creates a cacheable test that runs semgrep against source files.
 
     Runs semgrep with the given rule configs against the source files and
