@@ -35,6 +35,8 @@ spec:
         - name: llama-server
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
           {{- if .Values.server.modelPath }}
           command: ["/bin/sh", "-c"]
           args:
