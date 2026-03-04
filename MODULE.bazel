@@ -217,6 +217,11 @@ use_repo(
     "semgrep_pro_rules_python",
 )
 
+# Semgrep OSS — semgrep-core binary from GHCR (extracted from PyPI wheels)
+# Digests auto-updated by .github/workflows/update-semgrep-pro.yaml
+semgrep = use_extension("//third_party/semgrep:extensions.bzl", "semgrep")
+use_repo(semgrep, "semgrep_engine_amd64", "semgrep_engine_arm64")
+
 # Configure apko for container images
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(

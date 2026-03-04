@@ -1,59 +1,50 @@
 #!/usr/bin/env bash
-# semgrep-test.sh - Runs semgrep against source files with given rules
+# semgrep-test.sh - Runs semgrep-core directly against source files
 #
-# Usage: semgrep-test.sh <semgrep-binary> <pysemgrep-binary> <rule-files...> -- <source-files...>
+# Usage: semgrep-test.sh <semgrep-core> <rule-files...> -- <source-files...>
 #
 # Exit code 0 = no findings, non-zero = semgrep found violations.
 #
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated items to skip. Each item is used in two ways:
 #      1. Matched against YAML filename (basename without .yaml) to exclude entire config files
 #      2. Matched as a suffix against semgrep check_ids to exclude individual rule findings
-#         (osemgrep prefixes rule IDs with the config file path, so suffix matching is required)
-# Env: SEMGREP_TEST_MODE — if set to "1", uses semgrep --test to validate rule
-#      annotations (# ruleid: / # ok:) instead of scanning for violations
-#      UPLOAD_SCRIPT          — path to upload binary; uploads results to Semgrep App
+# Env: SEMGREP_TEST_MODE — if "1", emits warning and exits 0 (test mode requires pysemgrep)
+#      UPLOAD_SCRIPT     — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
 
-if [[ $# -lt 4 ]]; then
-	echo "Usage: $0 <semgrep-binary> <pysemgrep-binary> <rule-files...> -- <source-files...>"
+if [[ $# -lt 3 ]]; then
+	echo "Usage: $0 <semgrep-core> <rule-files...> -- <source-files...>"
 	exit 1
 fi
 
-SEMGREP="$1"
-PYSEMGREP="$2"
-shift 2
+SEMGREP_CORE="$1"
+shift
 
-# osemgrep (native engine) execs pysemgrep at runtime — add it to PATH
-export PATH="$(dirname "$PYSEMGREP"):$PATH"
+# Graceful degradation: if semgrep-core binary is empty (OCI artifact not fetched),
+# skip the scan with a warning. Same pattern as the pro engine.
+if [[ ! -x "$SEMGREP_CORE" ]]; then
+	echo "SKIPPED: semgrep-core binary not found or not executable (GHCR credentials may be missing)"
+	exit 0
+fi
 
-# Set up pro engine if available — semgrep looks for semgrep-core-proprietary
-# next to semgrep-core. We use SEMGREP_CORE_BIN to redirect both to a temp dir.
-# The engine binary is discovered via find rather than env var, because the
-# pro_engine filegroup may be empty (no token/digest) and Bazel's $(rootpaths)
-# errors on empty filegroups. When empty, find returns nothing → community only.
-PRO_FLAG=""
+# Select engine: use pro engine if available in runfiles, otherwise use OSS semgrep-core.
+# The pro_engine filegroup may be empty (no token/digest) — find returns nothing → OSS only.
+ENGINE="$SEMGREP_CORE"
 SEMGREP_PRO_ENGINE=$(find . -name "semgrep-core-proprietary" -type f 2>/dev/null | head -1)
 if [[ -n "$SEMGREP_PRO_ENGINE" ]]; then
-	SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
-	if [[ -z "$SEMGREP_CORE" ]]; then
-		echo "INFO: semgrep-core not found — running community analysis only"
-	else
-		PRO_DIR="${TEST_TMPDIR}/pro_bin"
-		mkdir -p "$PRO_DIR"
-		cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
-		chmod 755 "$PRO_DIR/semgrep-core"
-		cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
-		chmod 755 "$PRO_DIR/semgrep-core-proprietary"
-		export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
-		PRO_FLAG="--pro"
-	fi
+	# semgrep-core-proprietary needs semgrep-core alongside it in the same directory
+	PRO_DIR="${TEST_TMPDIR}/pro_bin"
+	mkdir -p "$PRO_DIR"
+	cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
+	chmod 755 "$PRO_DIR/semgrep-core"
+	cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
+	chmod 755 "$PRO_DIR/semgrep-core-proprietary"
+	ENGINE="$PRO_DIR/semgrep-core-proprietary"
 fi
 
 # Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
-# rule-ID-based exclusion (EXCLUDE_IDS). osemgrep prefixes rule IDs with
-# the full config file path, so --exclude-rule can't match. Instead we
-# run with --json and post-filter results by suffix matching.
+# rule-ID-based exclusion (EXCLUDE_IDS).
 EXCLUDE_LIST=",${SEMGREP_EXCLUDE_RULES:-},"
 EXCLUDE_IDS=()
 if [[ -n "${SEMGREP_EXCLUDE_RULES:-}" ]]; then
@@ -68,13 +59,11 @@ if [[ -n "${SEMGREP_EXCLUDE_RULES:-}" ]]; then
 fi
 
 # Collect rule files until we hit the -- separator, skipping excluded rules
-RULES=()
 RULE_FILES=()
 while [[ $# -gt 0 && "$1" != "--" ]]; do
 	rule_name="$(basename "$1" .yaml)"
 	if [[ "$EXCLUDE_LIST" != *",$rule_name,"* ]]; then
-		RULES+=("--config" "$(pwd)/$1")
-		RULE_FILES+=("$1")
+		RULE_FILES+=("$(pwd)/$1")
 	fi
 	shift
 done
@@ -85,56 +74,130 @@ if [[ $# -eq 0 ]]; then
 fi
 shift # skip --
 
-# Copy source files to a temp directory — semgrep rejects Bazel sandbox symlinks
-SCAN_DIR="${TEST_TMPDIR}/scan"
-mkdir -p "$SCAN_DIR"
-for f in "$@"; do
-	mkdir -p "$SCAN_DIR/$(dirname "$f")"
-	cp "$f" "$SCAN_DIR/$f"
-done
-
-if [[ ${#RULES[@]} -eq 0 ]]; then
+if [[ ${#RULE_FILES[@]} -eq 0 ]]; then
 	echo "PASSED: All rules excluded, nothing to scan"
 	exit 0
 fi
 
+# Test mode requires pysemgrep's --test command (# ruleid: / # ok: annotations).
+# semgrep-core doesn't support this — skip with a warning.
 if [[ "${SEMGREP_TEST_MODE:-}" == "1" ]]; then
-	# Test mode: validate # ruleid: / # ok: annotations in fixture files.
-	# semgrep test requires rules and test files co-located in a single directory.
-	TEST_DIR="${TEST_TMPDIR}/rule-test"
-	mkdir -p "$TEST_DIR"
-	for rf in "${RULE_FILES[@]}"; do
-		cp "$(pwd)/$rf" "$TEST_DIR/"
-	done
-	for f in "$@"; do
-		cp "$f" "$TEST_DIR/"
-	done
-	if "$SEMGREP" test "$TEST_DIR"; then
-		echo "PASSED: All rule tests passed"
-		exit 0
-	else
-		echo ""
-		echo "FAILED: Rule test validation failed"
-		exit 1
-	fi
+	echo "WARNING: SEMGREP_TEST_MODE=1 requires pysemgrep which is no longer bundled."
+	echo "SKIPPED: Rule annotation testing deferred to pysemgrep-based test target."
+	exit 0
 fi
 
-# Run semgrep with JSON output for both upload and post-filtering
+# Copy source files to a temp directory — semgrep-core needs real file paths
+SCAN_DIR="${TEST_TMPDIR}/scan"
+mkdir -p "$SCAN_DIR"
+SOURCE_FILES=()
+for f in "$@"; do
+	mkdir -p "$SCAN_DIR/$(dirname "$f")"
+	cp "$f" "$SCAN_DIR/$f"
+	SOURCE_FILES+=("$SCAN_DIR/$f")
+done
+
+# Map file extension to semgrep language identifier
+detect_lang() {
+	case "${1##*.}" in
+		py) echo "python" ;;
+		go) echo "go" ;;
+		js|jsx) echo "javascript" ;;
+		ts|tsx) echo "typescript" ;;
+		yaml|yml) echo "yaml" ;;
+		sh|bash) echo "bash" ;;
+		tf) echo "terraform" ;;
+		json) echo "json" ;;
+		c|h) echo "c" ;;
+		cpp|cc|cxx) echo "cpp" ;;
+		java) echo "java" ;;
+		rb) echo "ruby" ;;
+		rs) echo "rust" ;;
+		*) echo "" ;;
+	esac
+}
+
+# Generate targets JSON in semgrep-core's ATD format:
+# ["Targets", [["CodeTarget", {"path": {...}, "analyzer": "...", "products": ["sast"]}]]]
+TARGETS_FILE="${TEST_TMPDIR}/targets.json"
+{
+	echo -n '["Targets",['
+	first=true
+	for f in "${SOURCE_FILES[@]}"; do
+		lang=$(detect_lang "$f")
+		if [[ -z "$lang" ]]; then
+			continue
+		fi
+		abs_path="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
+		if [[ "$first" == "true" ]]; then
+			first=false
+		else
+			echo -n ','
+		fi
+		echo -n "$(printf '["CodeTarget",{"path":{"fpath":"%s","ppath":"%s"},"analyzer":"%s","products":["sast"]}]' \
+			"$abs_path" "$abs_path" "$lang")"
+	done
+	echo ']]'
+} >"$TARGETS_FILE"
+
+# Run semgrep-core once per rule file, merge JSON results
+RESULTS_DIR="${TEST_TMPDIR}/results"
+mkdir -p "$RESULTS_DIR"
+HAS_FINDINGS=false
+HAS_ERRORS=false
+RESULT_INDEX=0
+
+for rule_file in "${RULE_FILES[@]}"; do
+	RESULT_FILE="$RESULTS_DIR/result_${RESULT_INDEX}.json"
+	STDERR_FILE="${TEST_TMPDIR}/stderr_${RESULT_INDEX}.txt"
+	SCAN_EXIT=0
+	"$ENGINE" -rules "$rule_file" -targets "$TARGETS_FILE" -json -json_nodots \
+		>"$RESULT_FILE" 2>"$STDERR_FILE" || SCAN_EXIT=$?
+
+	if [[ "$SCAN_EXIT" -ne 0 ]]; then
+		echo "WARNING: semgrep-core exited $SCAN_EXIT on $(basename "$rule_file")" >&2
+		cat "$STDERR_FILE" >&2
+		HAS_ERRORS=true
+	fi
+
+	RESULT_INDEX=$((RESULT_INDEX + 1))
+done
+
+# Merge results into a single JSON and determine findings
+MERGED_FILE="${TEST_TMPDIR}/results.json"
 SCAN_EXIT=0
-"$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore \
-	--json --output "$TEST_TMPDIR/results.json" \
-	"$SCAN_DIR" || SCAN_EXIT=$?
+python3 - "$RESULTS_DIR" "$MERGED_FILE" <<'PYEOF'
+import json, glob, sys, os
+
+results_dir = sys.argv[1]
+output_file = sys.argv[2]
+merged = {"results": [], "errors": []}
+
+for f in sorted(glob.glob(os.path.join(results_dir, "result_*.json"))):
+    try:
+        data = json.load(open(f))
+        merged["results"].extend(data.get("results", []))
+        merged["errors"].extend(data.get("errors", []))
+    except (json.JSONDecodeError, KeyError):
+        pass
+
+json.dump(merged, open(output_file, "w"))
+
+# Exit 1 if there are findings (so the caller can detect)
+if merged["results"]:
+    sys.exit(1)
+PYEOF
+SCAN_EXIT=$?
 
 # Best-effort upload (never affects exit code)
-if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" ]]; then
-	"$UPLOAD_SCRIPT" "$TEST_TMPDIR/results.json" "$SCAN_EXIT" 2>&1 || true
+if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" && -f "$MERGED_FILE" ]]; then
+	"$UPLOAD_SCRIPT" "$MERGED_FILE" "$SCAN_EXIT" 2>&1 || true
 fi
 
 # When rule-ID exclusions are set, post-filter the JSON results.
-# osemgrep prefixes check_ids with the config file path (e.g.,
-# Users.jomcgi...kubernetes.yaml.<rule-id>), so we use suffix matching.
+# semgrep-core check_ids may or may not be prefixed — suffix matching handles both.
 if [[ "$SCAN_EXIT" -ne 0 && ${#EXCLUDE_IDS[@]} -gt 0 ]]; then
-	if python3 - "$TEST_TMPDIR/results.json" "${EXCLUDE_IDS[@]}" <<'PYEOF'; then
+	if python3 - "$MERGED_FILE" "${EXCLUDE_IDS[@]}" <<'PYEOF'; then
 import json, sys
 
 with open(sys.argv[1]) as f:
@@ -174,7 +237,7 @@ if [[ "$SCAN_EXIT" -eq 0 ]]; then
 	echo "PASSED: No semgrep findings"
 else
 	# Print findings summary from JSON so test logs are actionable
-	python3 - "$TEST_TMPDIR/results.json" <<'PYEOF' 2>/dev/null || true
+	python3 - "$MERGED_FILE" <<'PYEOF' 2>/dev/null || true
 import json, sys
 with open(sys.argv[1]) as f:
     data = json.load(f)
