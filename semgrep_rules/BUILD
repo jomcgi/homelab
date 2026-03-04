@@ -25,17 +25,32 @@ filegroup(
     srcs = glob(
         ["kubernetes/*.yaml"],
         allow_empty = True,
-    ),
+    ) + ["@semgrep_pro_rules_kubernetes//:rules"],
 )
 
 filegroup(
     name = "python_rules",
-    srcs = glob(["python/*.yaml"]),
+    srcs = glob(["python/*.yaml"]) + ["@semgrep_pro_rules_python//:rules"],
+)
+
+filegroup(
+    name = "golang_rules",
+    srcs = ["@semgrep_pro_rules_golang//:rules"],
+)
+
+filegroup(
+    name = "javascript_rules",
+    srcs = ["@semgrep_pro_rules_javascript//:rules"],
 )
 
 filegroup(
     name = "all_rules",
-    srcs = glob(["**/*.yaml"]),
+    srcs = glob(["**/*.yaml"]) + [
+        "@semgrep_pro_rules_golang//:rules",
+        "@semgrep_pro_rules_javascript//:rules",
+        "@semgrep_pro_rules_kubernetes//:rules",
+        "@semgrep_pro_rules_python//:rules",
+    ],
 )
 
 semgrep_test(
