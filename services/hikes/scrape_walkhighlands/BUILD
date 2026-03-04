@@ -7,6 +7,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 py_venv_binary(
     name = "scrape",
     srcs = ["scrape.py"],
+    main = "scrape.py",
     visibility = ["//:__subpackages__"],
     deps = [
         ":scrape_walkhighlands",
