@@ -1,5 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//tools/pytest:defs.bzl", "py_test")
 
 py_binary(
@@ -39,13 +39,13 @@ semgrep_test(
 )
 
 semgrep_test(
-    name = "solution_semgrep_test",
-    srcs = ["solution.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
     name = "solution_test_semgrep_test",
     srcs = ["solution_test.py"],
     rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_target_test(
+    name = "solution_semgrep_test",
+    rules = ["//semgrep_rules:python_rules"],
+    target = ":solution",
 )

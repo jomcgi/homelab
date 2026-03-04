@@ -60,6 +60,8 @@ func (l *semgrepLang) Kinds() map[string]rule.KindInfo {
 				"rules": true,
 			},
 			MergeableAttrs: map[string]bool{
+				"srcs":          true,
+				"rules":         true,
 				"exclude_rules": true,
 			},
 		},
@@ -70,6 +72,8 @@ func (l *semgrepLang) Kinds() map[string]rule.KindInfo {
 				"rules":  true,
 			},
 			MergeableAttrs: map[string]bool{
+				"target":        true,
+				"rules":         true,
 				"exclude_rules": true,
 			},
 		},

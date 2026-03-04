@@ -1,6 +1,6 @@
 # gazelle:semgrep_exclude_rules no-requests
 load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//tools/pytest:defs.bzl", "py_test")
 
 py_binary(
@@ -62,29 +62,8 @@ py_test(
 )
 
 semgrep_test(
-    name = "__init___semgrep_test",
-    srcs = ["__init__.py"],
-    exclude_rules = ["no-requests"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "error_handling_semgrep_test",
-    srcs = ["error_handling.py"],
-    exclude_rules = ["no-requests"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
     name = "error_handling_test_semgrep_test",
     srcs = ["error_handling_test.py"],
-    exclude_rules = ["no-requests"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "scrape_semgrep_test",
-    srcs = ["scrape.py"],
     exclude_rules = ["no-requests"],
     rules = ["//semgrep_rules:python_rules"],
 )
@@ -94,4 +73,11 @@ semgrep_test(
     srcs = ["scrape_test.py"],
     exclude_rules = ["no-requests"],
     rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_target_test(
+    name = "scrape_semgrep_test",
+    exclude_rules = ["no-requests"],
+    rules = ["//semgrep_rules:python_rules"],
+    target = ":scrape",
 )

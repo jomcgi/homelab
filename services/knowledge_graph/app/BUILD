@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
 
 py_library(
     name = "models",
@@ -179,62 +179,20 @@ semgrep_test(
     rules = ["//semgrep_rules:python_rules"],
 )
 
-semgrep_test(
-    name = "chunker_semgrep_test",
-    srcs = ["chunker.py"],
+semgrep_target_test(
+    name = "embedder_semgrep_test",
     rules = ["//semgrep_rules:python_rules"],
+    target = ":embedder",
 )
 
-semgrep_test(
-    name = "config_semgrep_test",
-    srcs = ["config.py"],
+semgrep_target_test(
+    name = "mcp_semgrep_test",
     rules = ["//semgrep_rules:python_rules"],
+    target = ":mcp",
 )
 
-semgrep_test(
-    name = "embedder_main_semgrep_test",
-    srcs = ["embedder_main.py"],
+semgrep_target_test(
+    name = "scraper_semgrep_test",
     rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "mcp_main_semgrep_test",
-    srcs = ["mcp_main.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "models_semgrep_test",
-    srcs = ["models.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "notifications_semgrep_test",
-    srcs = ["notifications.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "qdrant_client_semgrep_test",
-    srcs = ["qdrant_client.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "scraper_main_semgrep_test",
-    srcs = ["scraper_main.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "storage_semgrep_test",
-    srcs = ["storage.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
-semgrep_test(
-    name = "telemetry_semgrep_test",
-    srcs = ["telemetry.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    target = ":scraper",
 )

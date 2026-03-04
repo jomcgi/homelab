@@ -292,6 +292,22 @@ func newPyLibrary(name string, srcs []string) *rule.Rule {
 	return r
 }
 
+// newPyLibraryWithDeps creates a py_library rule with srcs and deps.
+func newPyLibraryWithDeps(name string, srcs []string, deps []string) *rule.Rule {
+	r := rule.NewRule("py_library", name)
+	r.SetAttr("srcs", srcs)
+	r.SetAttr("deps", deps)
+	return r
+}
+
+// newPyBinaryWithDeps creates a py_venv_binary rule with main and deps.
+func newPyBinaryWithDeps(name, main string, deps []string) *rule.Rule {
+	r := rule.NewRule("py_venv_binary", name)
+	r.SetAttr("main", main)
+	r.SetAttr("deps", deps)
+	return r
+}
+
 // --- Tests for binary-based semgrep test generation ---
 
 func TestGenerateRules_WithBinary(t *testing.T) {
@@ -537,6 +553,189 @@ func TestGenerateRules_PyBinaryKindAlsoDetected(t *testing.T) {
 
 	// Second rule: per-file semgrep_test for orphan
 	assertRule(t, result.Gen[1], "helpers_semgrep_test", []string{"helpers.py"})
+}
+
+func TestGenerateRules_BinaryWithLocalLibDeps(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	// Simulate a package like knowledge_graph/app:
+	// - scraper binary depends on :config and :models (local libraries)
+	// - config.py and models.py are srcs of those libraries
+	// - __init__.py is NOT a dep of any binary
+	configLib := newPyLibrary("config", []string{"config.py"})
+	modelsLib := newPyLibrary("models", []string{"models.py"})
+	scraperMain := newPyLibraryWithDeps("scraper_main", []string{"scraper_main.py"}, []string{":config", ":models"})
+	scraperBin := newPyBinaryWithDeps("scraper", "scraper_main.py", []string{":scraper_main"})
+	buildFile := buildFileWithRules(configLib, modelsLib, scraperMain, scraperBin)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/pipeline",
+		RegularFiles: []string{"__init__.py", "config.py", "models.py", "scraper_main.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// Expect: 1 semgrep_target_test for binary + 1 per-file semgrep_test for __init__.py only
+	// config.py and models.py are covered by the binary's transitive local deps
+	if len(result.Gen) != 2 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name())
+		}
+		t.Fatalf("expected 2 generated rules, got %d: %v", len(result.Gen), names)
+	}
+
+	// First rule: semgrep_target_test for the binary
+	if result.Gen[0].Kind() != "semgrep_target_test" {
+		t.Errorf("rule[0] kind = %q, want semgrep_target_test", result.Gen[0].Kind())
+	}
+	if result.Gen[0].AttrString("target") != ":scraper" {
+		t.Errorf("rule[0] target = %q, want :scraper", result.Gen[0].AttrString("target"))
+	}
+
+	// Second rule: only __init__.py as orphan
+	assertRule(t, result.Gen[1], "__init___semgrep_test", []string{"__init__.py"})
+}
+
+func TestGenerateRules_MultipleBinariesWithSharedDeps(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	// Two binaries that share some deps. Like knowledge_graph/app.
+	configLib := newPyLibrary("config", []string{"config.py"})
+	modelsLib := newPyLibrary("models", []string{"models.py"})
+	storageLib := newPyLibraryWithDeps("storage", []string{"storage.py"}, []string{":models"})
+	telemetryLib := newPyLibrary("telemetry", []string{"telemetry.py"})
+	chunkerLib := newPyLibraryWithDeps("chunker", []string{"chunker.py"}, []string{":models"})
+
+	scraperMainLib := newPyLibraryWithDeps("scraper_main", []string{"scraper_main.py"},
+		[]string{":config", ":models", ":storage", ":telemetry"})
+	scraperBin := newPyBinaryWithDeps("scraper", "scraper_main.py", []string{":scraper_main"})
+
+	embedderMainLib := newPyLibraryWithDeps("embedder_main", []string{"embedder_main.py"},
+		[]string{":chunker", ":config", ":storage", ":telemetry"})
+	embedderBin := newPyBinaryWithDeps("embedder", "embedder_main.py", []string{":embedder_main"})
+
+	buildFile := buildFileWithRules(
+		configLib, modelsLib, storageLib, telemetryLib, chunkerLib,
+		scraperMainLib, scraperBin, embedderMainLib, embedderBin,
+	)
+
+	args := language.GenerateArgs{
+		Config: c,
+		Dir:    "/tmp/test",
+		Rel:    "services/pipeline",
+		RegularFiles: []string{
+			"__init__.py", "chunker.py", "config.py", "embedder_main.py",
+			"models.py", "scraper_main.py", "storage.py", "telemetry.py",
+		},
+		File: buildFile,
+	}
+
+	result := generateRules(args)
+
+	// Expect: 2 semgrep_target_test (embedder, scraper) + 1 orphan (__init__.py)
+	// All other files are transitively reachable from the binaries
+	if len(result.Gen) != 3 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name())
+		}
+		t.Fatalf("expected 3 generated rules, got %d: %v", len(result.Gen), names)
+	}
+
+	if result.Gen[0].Kind() != "semgrep_target_test" {
+		t.Errorf("rule[0] kind = %q, want semgrep_target_test", result.Gen[0].Kind())
+	}
+	if result.Gen[0].AttrString("target") != ":embedder" {
+		t.Errorf("rule[0] target = %q, want :embedder", result.Gen[0].AttrString("target"))
+	}
+
+	if result.Gen[1].Kind() != "semgrep_target_test" {
+		t.Errorf("rule[1] kind = %q, want semgrep_target_test", result.Gen[1].Kind())
+	}
+	if result.Gen[1].AttrString("target") != ":scraper" {
+		t.Errorf("rule[1] target = %q, want :scraper", result.Gen[1].AttrString("target"))
+	}
+
+	// Only __init__.py is orphaned
+	assertRule(t, result.Gen[2], "__init___semgrep_test", []string{"__init__.py"})
+}
+
+func TestGenerateRules_StalePerFileTestsRemovedWhenBinaryCovers(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	// Simulate: existing BUILD has per-file semgrep_tests AND a binary with deps
+	configLib := newPyLibrary("config", []string{"config.py"})
+	modelsLib := newPyLibrary("models", []string{"models.py"})
+	scraperMainLib := newPyLibraryWithDeps("scraper_main", []string{"scraper_main.py"}, []string{":config", ":models"})
+	scraperBin := newPyBinaryWithDeps("scraper", "scraper_main.py", []string{":scraper_main"})
+
+	// Old per-file semgrep tests
+	oldInitTest := rule.NewRule("semgrep_test", "__init___semgrep_test")
+	oldInitTest.SetAttr("srcs", []string{"__init__.py"})
+	oldConfigTest := rule.NewRule("semgrep_test", "config_semgrep_test")
+	oldConfigTest.SetAttr("srcs", []string{"config.py"})
+	oldModelsTest := rule.NewRule("semgrep_test", "models_semgrep_test")
+	oldModelsTest.SetAttr("srcs", []string{"models.py"})
+	oldScraperTest := rule.NewRule("semgrep_test", "scraper_main_semgrep_test")
+	oldScraperTest.SetAttr("srcs", []string{"scraper_main.py"})
+
+	buildFile := buildFileWithRules(
+		configLib, modelsLib, scraperMainLib, scraperBin,
+		oldInitTest, oldConfigTest, oldModelsTest, oldScraperTest,
+	)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/pipeline",
+		RegularFiles: []string{"__init__.py", "config.py", "models.py", "scraper_main.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// Expect: 1 semgrep_target_test + 1 orphan (init)
+	if len(result.Gen) != 2 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name())
+		}
+		t.Fatalf("expected 2 generated rules, got %d: %v", len(result.Gen), names)
+	}
+
+	// Verify stale rules
+	// config_semgrep_test, models_semgrep_test, scraper_main_semgrep_test should be stale
+	staleNames := make(map[string]bool)
+	for _, r := range result.Empty {
+		staleNames[r.Kind()+"/"+r.Name()] = true
+		t.Logf("stale: %s/%s", r.Kind(), r.Name())
+	}
+
+	expectedStale := []string{
+		"semgrep_test/config_semgrep_test",
+		"semgrep_test/models_semgrep_test",
+		"semgrep_test/scraper_main_semgrep_test",
+	}
+	for _, s := range expectedStale {
+		if !staleNames[s] {
+			t.Errorf("expected %q in Empty set but not found", s)
+		}
+	}
+
+	// __init___semgrep_test should NOT be stale (it's an orphan)
+	if staleNames["semgrep_test/__init___semgrep_test"] {
+		t.Error("__init___semgrep_test should NOT be in Empty set")
+	}
 }
 
 // assertRule checks a rule's name, kind, and srcs.
