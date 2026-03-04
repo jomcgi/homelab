@@ -102,15 +102,19 @@ def _fetch_manifest(rctx, bearer_token, image, digest):
 def _archive_extension(media_type):
     """Determine file extension from OCI layer mediaType.
 
+    Handles both OCI media types (suffix +gzip/+zstd) and Docker media
+    types (suffix .gzip). crane append produces Docker-style layers by
+    default: application/vnd.docker.image.rootfs.diff.tar.gzip
+
     Args:
-        media_type: OCI mediaType string.
+        media_type: OCI or Docker mediaType string.
 
     Returns:
         File extension including leading dot (e.g. ".tar.gz").
     """
-    if media_type.endswith("+gzip"):
+    if "gzip" in media_type:
         return ".tar.gz"
-    if media_type.endswith("+zstd"):
+    if "zstd" in media_type:
         return ".tar.zst"
     return ".tar"
 
