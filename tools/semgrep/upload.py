@@ -83,7 +83,7 @@ def _detect_branch() -> str:
 
 
 def _detect_semgrep_version() -> str:
-    """Read semgrep version from the results JSON or fall back to hardcoded."""
+    """Return the pinned semgrep version matching requirements/all.txt."""
     return "1.153.1"
 
 
