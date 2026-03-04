@@ -71,6 +71,8 @@ jobs:
           declare -A PLATFORMS=(
             ["amd64"]="manylinux2014_x86_64"
             ["arm64"]="manylinux2014_aarch64"
+            ["osx-arm64"]="macosx_11_0_arm64"
+            ["osx-x86_64"]="macosx_10_14_x86_64"
           )
 
           for arch in "${!PLATFORMS[@]}"; do
@@ -119,6 +121,8 @@ jobs:
           declare -A PLATFORMS=(
             ["amd64"]="manylinux"
             ["arm64"]="linux-arm64"
+            ["osx-arm64"]="osx-arm64"
+            ["osx-x86_64"]="osx-x86_64"
           )
 
           for arch in "${!PLATFORMS[@]}"; do
@@ -173,15 +177,17 @@ jobs:
 
           # Package and push pro artifacts
           GHCR_PRO="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
-          PRO_ARTIFACTS="engine-amd64 engine-arm64 rules-golang rules-python rules-javascript rules-kubernetes"
+          PRO_ARTIFACTS="engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes"
 
           for artifact in ${PRO_ARTIFACTS}; do
             echo "Packaging pro/${artifact}..."
             tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
 
             case "${artifact}" in
-              *-arm64) PLATFORM="linux/arm64" ;;
-              *)       PLATFORM="linux/amd64" ;;
+              *osx-arm64)   PLATFORM="darwin/arm64" ;;
+              *osx-x86_64)  PLATFORM="darwin/amd64" ;;
+              *-arm64)      PLATFORM="linux/arm64" ;;
+              *)            PLATFORM="linux/amd64" ;;
             esac
 
             IMAGE="${GHCR_PRO}/${artifact}:${DATE_TAG}"
@@ -199,18 +205,20 @@ jobs:
 
           # Package and push OSS engine artifacts
           GHCR_OSS="ghcr.io/jomcgi/homelab/tools/semgrep"
-          OSS_ARTIFACTS="oss-engine-amd64 oss-engine-arm64"
+          OSS_ARTIFACTS="oss-engine-amd64 oss-engine-arm64 oss-engine-osx-arm64 oss-engine-osx-x86_64"
 
           for artifact in ${OSS_ARTIFACTS}; do
             echo "Packaging ${artifact}..."
             tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
 
             case "${artifact}" in
-              *-arm64) PLATFORM="linux/arm64" ;;
-              *)       PLATFORM="linux/amd64" ;;
+              *osx-arm64)   PLATFORM="darwin/arm64" ;;
+              *osx-x86_64)  PLATFORM="darwin/amd64" ;;
+              *-arm64)      PLATFORM="linux/arm64" ;;
+              *)            PLATFORM="linux/amd64" ;;
             esac
 
-            # Push as engine-amd64/engine-arm64 (strip oss- prefix for image name)
+            # Push as engine-amd64/engine-arm64/etc (strip oss- prefix for image name)
             IMAGE_NAME="${artifact#oss-}"
             IMAGE="${GHCR_OSS}/${IMAGE_NAME}:${DATE_TAG}"
             crane append \
@@ -236,6 +244,8 @@ jobs:
           # Pro digests
           DIGEST_PRO_ENGINE_AMD64: ${{ steps.digests.outputs.pro_engine_amd64 }}
           DIGEST_PRO_ENGINE_ARM64: ${{ steps.digests.outputs.pro_engine_arm64 }}
+          DIGEST_PRO_ENGINE_OSX_ARM64: ${{ steps.digests.outputs.pro_engine_osx_arm64 }}
+          DIGEST_PRO_ENGINE_OSX_X86_64: ${{ steps.digests.outputs.pro_engine_osx_x86_64 }}
           DIGEST_PRO_RULES_GOLANG: ${{ steps.digests.outputs.pro_rules_golang }}
           DIGEST_PRO_RULES_PYTHON: ${{ steps.digests.outputs.pro_rules_python }}
           DIGEST_PRO_RULES_JAVASCRIPT: ${{ steps.digests.outputs.pro_rules_javascript }}
@@ -243,6 +253,8 @@ jobs:
           # OSS digests
           DIGEST_OSS_ENGINE_AMD64: ${{ steps.digests.outputs.oss_engine_amd64 }}
           DIGEST_OSS_ENGINE_ARM64: ${{ steps.digests.outputs.oss_engine_arm64 }}
+          DIGEST_OSS_ENGINE_OSX_ARM64: ${{ steps.digests.outputs.oss_engine_osx_arm64 }}
+          DIGEST_OSS_ENGINE_OSX_X86_64: ${{ steps.digests.outputs.oss_engine_osx_x86_64 }}
         run: |
           set -euo pipefail
 
@@ -258,6 +270,8 @@ jobs:
           SEMGREP_PRO_DIGESTS = {
               "engine_amd64": "${DIGEST_PRO_ENGINE_AMD64}",
               "engine_arm64": "${DIGEST_PRO_ENGINE_ARM64}",
+              "engine_osx_arm64": "${DIGEST_PRO_ENGINE_OSX_ARM64}",
+              "engine_osx_x86_64": "${DIGEST_PRO_ENGINE_OSX_X86_64}",
               "rules_golang": "${DIGEST_PRO_RULES_GOLANG}",
               "rules_python": "${DIGEST_PRO_RULES_PYTHON}",
               "rules_javascript": "${DIGEST_PRO_RULES_JAVASCRIPT}",
@@ -277,6 +291,8 @@ jobs:
           SEMGREP_DIGESTS = {
               "engine_amd64": "${DIGEST_OSS_ENGINE_AMD64}",
               "engine_arm64": "${DIGEST_OSS_ENGINE_ARM64}",
+              "engine_osx_arm64": "${DIGEST_OSS_ENGINE_OSX_ARM64}",
+              "engine_osx_x86_64": "${DIGEST_OSS_ENGINE_OSX_X86_64}",
           }
           EOF
 
@@ -321,9 +337,9 @@ jobs:
           ## Summary
 
           - Updates Semgrep OCI artifact digests (semgrep v${SEMGREP_VERSION})
-          - Pro engine binaries: amd64, arm64
+          - Pro engine binaries: amd64, arm64, osx-arm64, osx-x86_64
           - Pro rule packs: golang, python, javascript, kubernetes
-          - OSS engine binaries: amd64, arm64 (extracted from PyPI wheels)
+          - OSS engine binaries: amd64, arm64, osx-arm64, osx-x86_64 (extracted from PyPI wheels)
           - Date tag: ${DATE_TAG}
 
           Auto-generated by the [Update Semgrep Artifacts](${WORKFLOW_URL}) workflow.
