@@ -7,12 +7,15 @@ load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None, visibility = ["//images:__pkg__"], multi_platform = True):
+def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None, visibility = ["//images:__pkg__"], multi_platform = True):
     """Create a multi-platform Python 3 image from a Python binary.
 
     Args:
         name: The name of the image.
         binary: The Python binary to create the image from.
+        main: The main .py source file for the binary. Auto-derived as "{binary_name}.py"
+              for same-package binaries. Set explicitly for non-standard naming. Cross-package
+              binaries are skipped (their sources are in transitive deps).
         root: The root directory where everything will be put into
         layer_groups: The layer groups to use for the image.
         env: The environment variables to set in the image.
@@ -35,6 +38,23 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
         "PYTHONPATH": workspace_root,
     }, **env)
 
+    # py_venv_binary omits ctx.file.main from runfiles — create a supplementary
+    # tar layer to include the source file at the correct runfiles path.
+    src_tars = []
+    if main == None and binary.package == native.package_name():
+        main = binary.name + ".py"
+    if main:
+        main_label = str(binary).rsplit(":", 1)[0] + ":" + main
+        source_dest = ".{}/{}/{}".format(workspace_root, binary.package, main)
+        tar(
+            name = name + "_srcs",
+            srcs = [main_label],
+            mtree = [
+                "{} type=file content=$(execpath {})".format(source_dest, main_label),
+            ],
+        )
+        src_tars = [name + "_srcs"]
+
     if multi_platform:
         # Build AMD64 image
         oci_image(
@@ -45,7 +65,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
                 binary = binary,
                 root = root,
                 layer_groups = layer_groups,
-            ),
+            ) + src_tars,
             entrypoint = [binary_path],
             env = env,
             workdir = workdir or workspace_root,
@@ -65,7 +85,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
                 binary = binary,
                 root = root,
                 layer_groups = layer_groups,
-            ),
+            ) + src_tars,
             entrypoint = [binary_path],
             env = env,
             workdir = workdir or workspace_root,
@@ -109,7 +129,7 @@ def py3_image(name, binary, root = "/", layer_groups = {}, env = {}, workdir = N
                 binary = binary,
                 root = root,
                 layer_groups = layer_groups,
-            ),
+            ) + src_tars,
             entrypoint = [binary_path],
             env = env,
             workdir = workdir or workspace_root,
