@@ -5,10 +5,10 @@ Do not edit manually — changes will be overwritten.
 """
 
 SEMGREP_PRO_DIGESTS = {
-    "engine_amd64": "sha256:e3eccfc7e70fd030223ca4108b968f30b199b2079b17aec5be5d6c042b7bf076",
-    "engine_arm64": "sha256:680f02529657dee145edc4937b29881c208f9601791b7bc20e3bfd275e01715c",
-    "rules_golang": "sha256:0f38dc21aa4bd6447a01c3d1a3a269c18a890d5005dc8dbedfb0b5fb73e09b2d",
-    "rules_python": "sha256:1356eaeaa7296e695764e3138d99e2eae7b5f51f5326e9158ecb3646554d4a5e",
-    "rules_javascript": "sha256:960597c4544bd7a92f6ca40bcf0312d57196203622f3a7c76b08acf40b1118b9",
-    "rules_kubernetes": "sha256:d0f22ca6f4d2c2d1001ae635808baef1a731e3c1c86989e98b0f255662863159",
+    "engine_amd64": "sha256:f27a6997c0f27c6a391549418e526b6cbedcbc35005e63c60fceaf32e53958aa",
+    "engine_arm64": "sha256:41c14155f6b92ce4ecf2d4092c91bfe1795fab8e37be72521094c708929651b9",
+    "rules_golang": "sha256:9826a73327e9f949c6f9ebcb1ccbab9f1fe57ce371cc1c88758e6309f707d784",
+    "rules_python": "sha256:5e2412551bf03edf54dea6e23a587c1c4bf8767d09037c72a32be14c1c63b4e1",
+    "rules_javascript": "sha256:150828dd2c0217a8409fc916d8e421f55f3f4aec395ae7362df5e9b056915c10",
+    "rules_kubernetes": "sha256:876858af02949de3bab4073f846a579aebcae3fe1152554bc124cd83029b2839",
 }
