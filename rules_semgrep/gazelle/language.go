@@ -63,6 +63,16 @@ func (l *semgrepLang) Kinds() map[string]rule.KindInfo {
 				"exclude_rules": true,
 			},
 		},
+		"semgrep_target_test": {
+			MatchAny: false,
+			NonEmptyAttrs: map[string]bool{
+				"target": true,
+				"rules":  true,
+			},
+			MergeableAttrs: map[string]bool{
+				"exclude_rules": true,
+			},
+		},
 	}
 }
 
@@ -71,7 +81,7 @@ func (l *semgrepLang) Loads() []rule.LoadInfo {
 	return []rule.LoadInfo{
 		{
 			Name:    "//rules_semgrep:defs.bzl",
-			Symbols: []string{"semgrep_test"},
+			Symbols: []string{"semgrep_test", "semgrep_target_test"},
 		},
 	}
 }

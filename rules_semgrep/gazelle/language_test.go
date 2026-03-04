@@ -59,7 +59,7 @@ func TestSemgrepLang_Kinds(t *testing.T) {
 	lang := NewLanguage()
 	kinds := lang.Kinds()
 
-	expectedKinds := []string{"semgrep_test"}
+	expectedKinds := []string{"semgrep_test", "semgrep_target_test"}
 
 	for _, k := range expectedKinds {
 		if _, ok := kinds[k]; !ok {
@@ -98,6 +98,36 @@ func TestSemgrepLang_Kinds_SemgrepTest(t *testing.T) {
 	}
 }
 
+func TestSemgrepLang_Kinds_SemgrepTargetTest(t *testing.T) {
+	lang := NewLanguage()
+	kinds := lang.Kinds()
+
+	semgrepTargetTest, ok := kinds["semgrep_target_test"]
+	if !ok {
+		t.Fatal("Kinds() missing semgrep_target_test")
+	}
+
+	if semgrepTargetTest.MatchAny {
+		t.Error("semgrep_target_test should have MatchAny=false")
+	}
+
+	// Check NonEmptyAttrs
+	nonEmptyExpected := []string{"target", "rules"}
+	for _, attr := range nonEmptyExpected {
+		if !semgrepTargetTest.NonEmptyAttrs[attr] {
+			t.Errorf("semgrep_target_test should have %s as non-empty attr", attr)
+		}
+	}
+
+	// Check MergeableAttrs
+	mergeableExpected := []string{"exclude_rules"}
+	for _, attr := range mergeableExpected {
+		if !semgrepTargetTest.MergeableAttrs[attr] {
+			t.Errorf("semgrep_target_test should have %s as mergeable attr", attr)
+		}
+	}
+}
+
 func TestSemgrepLang_Loads(t *testing.T) {
 	lang := NewLanguage()
 	loads := lang.Loads()
@@ -111,15 +141,12 @@ func TestSemgrepLang_Loads(t *testing.T) {
 		t.Errorf("Loads()[0].Name = %q, want %q", load.Name, "//rules_semgrep:defs.bzl")
 	}
 
-	found := false
+	expectedSymbols := map[string]bool{"semgrep_test": true, "semgrep_target_test": true}
 	for _, s := range load.Symbols {
-		if s == "semgrep_test" {
-			found = true
-			break
-		}
+		delete(expectedSymbols, s)
 	}
-	if !found {
-		t.Error("defs.bzl should export semgrep_test symbol")
+	for missing := range expectedSymbols {
+		t.Errorf("defs.bzl should export %q symbol", missing)
 	}
 }
 
