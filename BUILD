@@ -52,6 +52,8 @@ exports_files(
 # gazelle:exclude poc
 # gazelle:exclude .claude
 
+# gazelle:semgrep_target_kinds py_venv_binary
+
 # Custom gazelle binary with ArgoCD and wrangler extensions
 gazelle_binary(
     name = "gazelle_binary",
