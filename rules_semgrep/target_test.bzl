@@ -1,4 +1,4 @@
-"""Bazel test rule for running semgrep against a target's transitive Python sources."""
+"""Bazel test rule for running semgrep against a target's transitive sources."""
 
 load("//rules_semgrep:aspect.bzl", "SemgrepSourcesInfo", "semgrep_source_aspect")
 
@@ -18,20 +18,14 @@ def _semgrep_target_test_impl(ctx):
             ",".join(ctx.attr.exclude_rules),
         ))
 
-    pro_file = None
-    if ctx.attr.pro_engine:
-        pro_files = ctx.attr.pro_engine.files.to_list()
-        if pro_files:
-            pro_file = pro_files[0]
-            env_lines.append("export SEMGREP_PRO_ENGINE=\"{}\"".format(pro_file.short_path))
+    # Upload script path
+    upload = ctx.attr._upload[DefaultInfo].files_to_run.executable
+    env_lines.append("export UPLOAD_SCRIPT=\"{}\"".format(upload.short_path))
 
-    # Build args for semgrep-test.sh
-    semgrep = ctx.attr._semgrep[DefaultInfo].files_to_run.executable
-    pysemgrep = ctx.attr._pysemgrep[DefaultInfo].files_to_run.executable
+    # Build args for semgrep-test.sh: <rule-files> -- <source-files>
     test_runner = ctx.file._test_runner
 
-    args = [semgrep.short_path, pysemgrep.short_path]
-    args.extend([f.short_path for f in rule_files])
+    args = [f.short_path for f in rule_files]
     args.append("--")
     args.extend([f.short_path for f in sources])
 
@@ -41,7 +35,7 @@ def _semgrep_target_test_impl(ctx):
     lines.extend(env_lines)
 
     if not sources:
-        lines.append("echo 'No Python sources found in target dependency tree'")
+        lines.append("echo 'No sources found in target dependency tree'")
         lines.append("exit 0")
     else:
         quoted_args = " ".join(["\"{}\"".format(a) for a in args])
@@ -55,11 +49,15 @@ def _semgrep_target_test_impl(ctx):
 
     # Build runfiles — include all files the test needs at runtime
     all_files = [test_runner] + rule_files + sources
-    if pro_file:
-        all_files.append(pro_file)
     runfiles = ctx.runfiles(files = all_files)
-    runfiles = runfiles.merge(ctx.attr._semgrep[DefaultInfo].default_runfiles)
-    runfiles = runfiles.merge(ctx.attr._pysemgrep[DefaultInfo].default_runfiles)
+
+    # Engine runfiles (semgrep-core discovered via find in semgrep-test.sh)
+    runfiles = runfiles.merge(ctx.attr._engine[DefaultInfo].default_runfiles)
+    runfiles = runfiles.merge(ctx.attr._upload[DefaultInfo].default_runfiles)
+
+    # Pro engine (optional — may be empty filegroup)
+    if ctx.attr.pro_engine:
+        runfiles = runfiles.merge(ctx.attr.pro_engine[DefaultInfo].default_runfiles)
 
     return [DefaultInfo(executable = launcher, runfiles = runfiles)]
 
@@ -70,7 +68,7 @@ _semgrep_target_test = rule(
         "target": attr.label(
             aspects = [semgrep_source_aspect],
             mandatory = True,
-            doc = "Target whose transitive Python sources will be scanned.",
+            doc = "Target whose transitive sources will be scanned.",
         ),
         "rules": attr.label_list(
             allow_files = [".yaml"],
@@ -81,23 +79,22 @@ _semgrep_target_test = rule(
             doc = "Semgrep rule IDs to skip (matched against YAML filename).",
         ),
         "pro_engine": attr.label(
-            allow_single_file = True,
             doc = "Label for semgrep-core-proprietary binary. Enables --pro flag.",
         ),
         "_test_runner": attr.label(
             default = "//rules_semgrep:semgrep-test.sh",
             allow_single_file = True,
         ),
-        "_semgrep": attr.label(default = "//tools/semgrep"),
-        "_pysemgrep": attr.label(default = "//tools/semgrep:pysemgrep"),
+        "_engine": attr.label(default = "//third_party/semgrep:engine"),
+        "_upload": attr.label(default = "//tools/semgrep:upload"),
     },
 )
 
-def semgrep_target_test(name, target, rules, exclude_rules = [], pro_engine = None, **kwargs):
-    """Creates a test that scans a target's transitive Python sources with semgrep.
+def semgrep_target_test(name, target, rules, exclude_rules = [], pro_engine = "//third_party/semgrep_pro:engine", **kwargs):
+    """Creates a test that scans a target's transitive sources with semgrep.
 
-    Uses an aspect to walk the target's dependency graph and collect all .py
-    files from the main repository (excluding @pip// externals). Runs semgrep
+    Uses an aspect to walk the target's dependency graph and collect all source
+    files from the main repository (excluding external deps). Runs semgrep
     once on the full source closure, enabling meaningful --pro cross-file analysis.
 
     Args:
