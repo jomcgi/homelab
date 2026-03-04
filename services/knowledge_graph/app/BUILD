@@ -121,10 +121,6 @@ py_venv_binary(
     name = "scraper",
     main = "scraper_main.py",
     visibility = ["//:__subpackages__"],
-    deps = [
-        ":scraper_main",
-        "@pip//uvicorn",
-    ],
 )
 
 py_library(
@@ -145,7 +141,6 @@ py_venv_binary(
     name = "embedder",
     main = "embedder_main.py",
     visibility = ["//:__subpackages__"],
-    deps = [":embedder_main"],
 )
 
 py_library(
@@ -167,10 +162,6 @@ py_venv_binary(
     name = "mcp",
     main = "mcp_main.py",
     visibility = ["//:__subpackages__"],
-    deps = [
-        ":mcp_main",
-        "@pip//uvicorn",
-    ],
 )
 
 semgrep_test(
