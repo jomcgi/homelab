@@ -120,7 +120,9 @@ func TestGenerateRules_Disabled(t *testing.T) {
 	c := &config.Config{
 		Exts: map[string]interface{}{
 			semgrepConfigKey: &semgrepConfig{
-				enabled: false,
+				enabled:     false,
+				targetKinds: map[string]string{"py_venv_binary": ""},
+				languages:   []string{"py"},
 			},
 		},
 	}
@@ -145,6 +147,8 @@ func TestGenerateRules_WithExcludeRules(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:      true,
 				excludeRules: []string{"no-requests", "no-eval-exec"},
+				targetKinds:  map[string]string{"py_venv_binary": ""},
+				languages:    []string{"py"},
 			},
 		},
 	}
@@ -192,44 +196,62 @@ func TestGenerateRules_TestFilesIncluded(t *testing.T) {
 	assertRule(t, result.Gen[2], "main_test_semgrep_test", []string{"main_test.py"})
 }
 
-func TestPythonFiles(t *testing.T) {
+func TestScannableFiles(t *testing.T) {
 	tests := []struct {
 		name  string
 		files []string
+		langs []string
 		want  []string
 	}{
 		{
-			name:  "mixed files",
+			name:  "mixed files python only",
 			files: []string{"main.go", "utils.py", "main.py", "BUILD"},
+			langs: []string{"py"},
 			want:  []string{"main.py", "utils.py"},
 		},
 		{
 			name:  "no python files",
 			files: []string{"main.go", "README.md"},
+			langs: []string{"py"},
 			want:  nil,
 		},
 		{
 			name:  "empty",
 			files: []string{},
+			langs: []string{"py"},
 			want:  nil,
 		},
 		{
 			name:  "py in filename but not extension",
 			files: []string{"pytest.ini", "deploy.yaml"},
+			langs: []string{"py"},
 			want:  nil,
 		},
 		{
 			name:  "sorted output",
 			files: []string{"z.py", "a.py", "m.py"},
+			langs: []string{"py"},
 			want:  []string{"a.py", "m.py", "z.py"},
+		},
+		{
+			name:  "multi-language",
+			files: []string{"main.go", "utils.py", "BUILD"},
+			langs: []string{"py", "go"},
+			want:  []string{"main.go", "utils.py"},
+		},
+		{
+			name:  "go only",
+			files: []string{"main.go", "utils.py"},
+			langs: []string{"go"},
+			want:  []string{"main.go"},
 		},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			got := pythonFiles(tc.files)
+			got := scannableFiles(tc.files, tc.langs)
 			if len(got) != len(tc.want) {
-				t.Fatalf("pythonFiles() = %v, want %v", got, tc.want)
+				t.Fatalf("scannableFiles() = %v, want %v", got, tc.want)
 			}
 			for i := range got {
 				if got[i] != tc.want[i] {
@@ -436,6 +458,8 @@ func TestGenerateRules_BinaryWithExcludeRules(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:      true,
 				excludeRules: []string{"no-requests", "no-eval-exec"},
+				targetKinds:  map[string]string{"py_venv_binary": ""},
+				languages:    []string{"py"},
 			},
 		},
 	}
@@ -515,9 +539,11 @@ func TestGenerateRules_StaleTargetTestsRemoved(t *testing.T) {
 }
 
 func TestGenerateRules_PyBinaryKindAlsoDetected(t *testing.T) {
-	c := &config.Config{
-		Exts: make(map[string]interface{}),
-	}
+	// py_binary is not in default targetKinds, but can be configured
+	c := configWithTargetKinds(map[string]string{
+		"py_venv_binary": "",
+		"py_binary":      "",
+	})
 
 	// Use py_binary instead of py_venv_binary
 	pyBin := rule.NewRule("py_binary", "cli")
