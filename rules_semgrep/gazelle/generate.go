@@ -1,18 +1,13 @@
 package gazelle
 
 import (
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/bazelbuild/bazel-gazelle/language"
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
-
-// binaryKinds are the rule kinds that represent Python binary entry points.
-var binaryKinds = map[string]bool{
-	"py_venv_binary": true,
-	"py_binary":      true,
-}
 
 // libraryKinds are the rule kinds that represent Python libraries.
 var libraryKinds = map[string]bool{
@@ -21,12 +16,15 @@ var libraryKinds = map[string]bool{
 
 // generateRules generates semgrep test targets for a package.
 //
-// When py_venv_binary or py_binary targets exist in the BUILD file:
-//   - Generates one semgrep_target_test per binary (aspect scans transitive deps)
-//   - Generates per-file semgrep_test only for orphan .py files not covered by any
-//     binary's transitive local deps (files that the aspect won't scan)
+// When configured target kinds exist in the BUILD file:
+//   - Generates one semgrep_target_test per target (aspect scans transitive deps)
+//   - For self-targeting kinds (attr=""), also walks local deps to find covered files
+//   - Deduplicates by resolved target label
+//   - Generates per-file semgrep_test only for orphan files not covered by any
+//     target's transitive local deps (files that the aspect won't scan)
 //
-// When no binaries exist, falls back to per-file semgrep_test for every .py file.
+// When no configured targets exist, falls back to per-file semgrep_test for
+// every scannable file.
 func generateRules(args language.GenerateArgs) language.GenerateResult {
 	cfg := getSemgrepConfig(args.Config)
 
@@ -36,26 +34,48 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 		return result
 	}
 
-	pyFiles := pythonFiles(args.RegularFiles)
-	if len(pyFiles) == 0 {
+	scanFiles := scannableFiles(args.RegularFiles, cfg.languages)
+
+	// Detect configured targets in the existing BUILD file
+	targets := findTargets(args.File, cfg.targetKinds)
+
+	if len(scanFiles) == 0 && len(targets) == 0 {
 		result.Empty = staleRules(args, nil)
 		return result
 	}
 
-	// Detect binary targets in the existing BUILD file
-	binaries := findBinaries(args.File)
+	if len(targets) > 0 {
+		// Build the set of files covered by self-targeting kinds' transitive local deps.
+		coveredFiles := coveredByTargets(args.File, targets, cfg.targetKinds)
 
-	if len(binaries) > 0 {
-		// Build the set of .py files covered by binaries' transitive local deps.
-		// The aspect will scan these files, so they don't need per-file tests.
-		coveredFiles := coveredByBinaries(args.File, binaries)
+		// Resolve each target and deduplicate by resolved label.
+		// Track which resolved labels we've already emitted.
+		seen := make(map[string]bool)
 
-		// Generate semgrep_target_test for each binary
-		for _, b := range binaries {
-			name := b.Name() + "_semgrep_test"
-			r := rule.NewRule("semgrep_target_test", name)
-			r.SetAttr("target", ":"+b.Name())
-			r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
+		// Collect target tests, sorted by rule name for determinism
+		type targetEntry struct {
+			name   string
+			target string
+		}
+		var entries []targetEntry
+		for _, t := range targets {
+			resolved := resolveTarget(t, cfg.targetKinds)
+			if seen[resolved] {
+				continue
+			}
+			seen[resolved] = true
+			entries = append(entries, targetEntry{
+				name:   t.Name() + "_semgrep_test",
+				target: resolved,
+			})
+		}
+
+		allRules := rulesForLanguages(cfg.languages)
+
+		for _, e := range entries {
+			r := rule.NewRule("semgrep_target_test", e.name)
+			r.SetAttr("target", e.target)
+			r.SetAttr("rules", allRules)
 			if len(cfg.excludeRules) > 0 {
 				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
 			}
@@ -63,15 +83,16 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 			result.Imports = append(result.Imports, nil)
 		}
 
-		// Generate per-file semgrep_test for orphan .py files
-		for _, f := range pyFiles {
+		// Generate per-file semgrep_test for orphan files
+		for _, f := range scanFiles {
 			if coveredFiles[f] {
 				continue
 			}
-			name := strings.TrimSuffix(f, ".py") + "_semgrep_test"
+			ext := fileExtension(f)
+			name := strings.TrimSuffix(f, ext) + "_semgrep_test"
 			r := rule.NewRule("semgrep_test", name)
 			r.SetAttr("srcs", []string{f})
-			r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
+			r.SetAttr("rules", rulesForExtension(ext, cfg.languages))
 			if len(cfg.excludeRules) > 0 {
 				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
 			}
@@ -79,12 +100,13 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 			result.Imports = append(result.Imports, nil)
 		}
 	} else {
-		// No binaries — fall back to per-file semgrep_test
-		for _, f := range pyFiles {
-			name := strings.TrimSuffix(f, ".py") + "_semgrep_test"
+		// No configured targets — fall back to per-file semgrep_test
+		for _, f := range scanFiles {
+			ext := fileExtension(f)
+			name := strings.TrimSuffix(f, ext) + "_semgrep_test"
 			r := rule.NewRule("semgrep_test", name)
 			r.SetAttr("srcs", []string{f})
-			r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
+			r.SetAttr("rules", rulesForExtension(ext, cfg.languages))
 			if len(cfg.excludeRules) > 0 {
 				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
 			}
@@ -98,11 +120,24 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	return result
 }
 
-// coveredByBinaries returns the set of .py files that are transitively reachable
-// from the given binary targets through package-local deps. These files will be
-// scanned by the semgrep aspect and don't need individual semgrep_test targets.
-func coveredByBinaries(f *rule.File, binaries []*rule.Rule) map[string]bool {
+// coveredByTargets returns the set of files that are transitively reachable
+// from self-targeting kinds through package-local deps. Indirected kinds
+// (e.g. py3_image=binary) point to cross-package targets, so local dep
+// walking doesn't apply to them.
+func coveredByTargets(f *rule.File, targets []*rule.Rule, targetKinds map[string]string) map[string]bool {
 	if f == nil {
+		return nil
+	}
+
+	// Collect only self-targeting rules (attr == "")
+	var selfTargets []*rule.Rule
+	for _, t := range targets {
+		if attr := targetKinds[t.Kind()]; attr == "" {
+			selfTargets = append(selfTargets, t)
+		}
+	}
+
+	if len(selfTargets) == 0 {
 		return nil
 	}
 
@@ -112,10 +147,11 @@ func coveredByBinaries(f *rule.File, binaries []*rule.Rule) map[string]bool {
 		ruleByName[r.Name()] = r
 	}
 
-	// Index: target name -> srcs
+	// Index: target name -> srcs (for self-targeting kinds and libraries)
 	srcsByName := make(map[string][]string)
 	for _, r := range f.Rules {
-		if binaryKinds[r.Kind()] || libraryKinds[r.Kind()] {
+		kind := r.Kind()
+		if _, isSelfTarget := targetKinds[kind]; (isSelfTarget && targetKinds[kind] == "") || libraryKinds[kind] {
 			srcsByName[r.Name()] = r.AttrStrings("srcs")
 		}
 	}
@@ -123,15 +159,14 @@ func coveredByBinaries(f *rule.File, binaries []*rule.Rule) map[string]bool {
 	covered := make(map[string]bool)
 	visited := make(map[string]bool)
 
-	// Walk local deps from each binary, collecting all srcs
-	for _, b := range binaries {
-		walkLocalDeps(b, ruleByName, srcsByName, covered, visited)
+	for _, t := range selfTargets {
+		walkLocalDeps(t, ruleByName, srcsByName, covered, visited)
 	}
 
 	return covered
 }
 
-// walkLocalDeps recursively collects .py srcs from a target and its
+// walkLocalDeps recursively collects srcs from a target and its
 // package-local dependencies.
 func walkLocalDeps(r *rule.Rule, ruleByName map[string]*rule.Rule, srcsByName map[string][]string, covered map[string]bool, visited map[string]bool) {
 	name := r.Name()
@@ -171,34 +206,85 @@ func localDepName(dep string) string {
 	return ""
 }
 
-// findBinaries returns py_venv_binary and py_binary rules from the BUILD file.
-func findBinaries(f *rule.File) []*rule.Rule {
+// findTargets returns rules matching configured targetKinds from the BUILD file,
+// sorted by name for deterministic output.
+func findTargets(f *rule.File, targetKinds map[string]string) []*rule.Rule {
 	if f == nil {
 		return nil
 	}
-	var binaries []*rule.Rule
+	var targets []*rule.Rule
 	for _, r := range f.Rules {
-		if binaryKinds[r.Kind()] {
-			binaries = append(binaries, r)
+		if _, ok := targetKinds[r.Kind()]; ok {
+			targets = append(targets, r)
 		}
 	}
 	// Sort by name for deterministic output
-	sort.Slice(binaries, func(i, j int) bool {
-		return binaries[i].Name() < binaries[j].Name()
+	sort.Slice(targets, func(i, j int) bool {
+		return targets[i].Name() < targets[j].Name()
 	})
-	return binaries
+	return targets
 }
 
-// pythonFiles returns the sorted subset of files that end with .py.
-func pythonFiles(files []string) []string {
-	var py []string
-	for _, f := range files {
-		if strings.HasSuffix(f, ".py") {
-			py = append(py, f)
+// resolveTarget returns the label that a rule resolves to for semgrep scanning.
+// For self-targeting kinds (attr=""), returns ":name".
+// For indirected kinds (attr="binary"), reads that attr value.
+func resolveTarget(r *rule.Rule, targetKinds map[string]string) string {
+	attr := targetKinds[r.Kind()]
+	if attr == "" {
+		return ":" + r.Name()
+	}
+	return r.AttrString(attr)
+}
+
+// scannableFiles returns the sorted subset of files with extensions matching
+// the configured languages.
+func scannableFiles(files []string, languages []string) []string {
+	extSet := make(map[string]bool)
+	for _, lang := range languages {
+		if ext, ok := langExtensions[lang]; ok {
+			extSet[ext] = true
 		}
 	}
-	sort.Strings(py)
-	return py
+
+	var scannable []string
+	for _, f := range files {
+		if extSet[fileExtension(f)] {
+			scannable = append(scannable, f)
+		}
+	}
+	sort.Strings(scannable)
+	return scannable
+}
+
+// fileExtension returns the file extension including the dot (e.g. ".py").
+func fileExtension(f string) string {
+	return filepath.Ext(f)
+}
+
+// rulesForLanguages returns sorted rule config labels for all configured languages.
+func rulesForLanguages(languages []string) []string {
+	var rules []string
+	for _, lang := range languages {
+		if label, ok := langRules[lang]; ok {
+			rules = append(rules, label)
+		}
+	}
+	sort.Strings(rules)
+	return rules
+}
+
+// rulesForExtension returns rule config labels for a specific file extension.
+func rulesForExtension(ext string, languages []string) []string {
+	var rules []string
+	for _, lang := range languages {
+		if langExtensions[lang] == ext {
+			if label, ok := langRules[lang]; ok {
+				rules = append(rules, label)
+			}
+		}
+	}
+	sort.Strings(rules)
+	return rules
 }
 
 // staleRules returns empty rules for existing semgrep_test and semgrep_target_test
