@@ -5,6 +5,7 @@ load("//tools/oci:py3_image.bzl", "py3_image")
 
 py_venv_binary(
     name = "main",
+    srcs = ["main.py"],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [

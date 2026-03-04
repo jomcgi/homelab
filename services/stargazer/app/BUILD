@@ -4,6 +4,7 @@ load("//rules_semgrep:defs.bzl", "semgrep_target_test")
 
 py_venv_binary(
     name = "main",
+    srcs = ["main.py"],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
@@ -114,6 +115,7 @@ py_library(
 
 py_venv_binary(
     name = "api",
+    srcs = ["api.py"],
     main = "api.py",
     visibility = ["//:__subpackages__"],
 )

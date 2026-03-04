@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test")
 
 py_venv_binary(
     name = "upload",
@@ -10,15 +10,15 @@ py_venv_binary(
     deps = ["@pip//httpx"],
 )
 
-semgrep_test(
-    name = "upload_semgrep_test",
-    srcs = ["upload.py"],
-    rules = ["//semgrep_rules:python_rules"],
-)
-
 py_library(
     name = "semgrep",
     srcs = ["upload.py"],
     visibility = ["//:__subpackages__"],
     deps = ["@pip//httpx"],
+)
+
+semgrep_target_test(
+    name = "upload_semgrep_test",
+    rules = ["//semgrep_rules:python_rules"],
+    target = ":upload",
 )
