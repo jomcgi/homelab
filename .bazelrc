@@ -87,6 +87,9 @@ common:ci --stamp
 common:ci --workspace_status_command=./tools/workspace_status.sh
 common:ci --define=CI=true
 
+# Pass Semgrep App token to test actions for best-effort result upload
+test:ci --test_env=SEMGREP_APP_TOKEN
+
 build:ci --verbose_failures
 build:ci --keep_going=false  # Fail immediately in CI
 build:ci --test_output=errors
