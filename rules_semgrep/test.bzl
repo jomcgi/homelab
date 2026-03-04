@@ -45,7 +45,6 @@ def semgrep_test(
 
     if pro_engine:
         data.append(pro_engine)
-        env["SEMGREP_PRO_ENGINE"] = "$(rootpaths {})".format(pro_engine)
 
     sh_test(
         name = name,
@@ -111,7 +110,6 @@ def semgrep_manifest_test(
 
     if pro_engine:
         data.append(pro_engine)
-        env["SEMGREP_PRO_ENGINE"] = "$(rootpaths {})".format(pro_engine)
 
     sh_test(
         name = name,

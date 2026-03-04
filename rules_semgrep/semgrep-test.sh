@@ -8,7 +8,6 @@
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
 # Env: SEMGREP_TEST_MODE — if set to "1", uses semgrep --test to validate rule
 #      annotations (# ruleid: / # ok:) instead of scanning for violations
-#      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro
 #      UPLOAD_SCRIPT          — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
@@ -27,26 +26,24 @@ export PATH="$(dirname "$PYSEMGREP"):$PATH"
 
 # Set up pro engine if available — semgrep looks for semgrep-core-proprietary
 # next to semgrep-core. We use SEMGREP_CORE_BIN to redirect both to a temp dir.
-# Graceful degradation: when the engine filegroup is empty (no token/digest),
-# SEMGREP_PRO_ENGINE is empty → this block is skipped entirely.
+# The engine binary is discovered via find rather than env var, because the
+# pro_engine filegroup may be empty (no token/digest) and Bazel's $(rootpaths)
+# errors on empty filegroups. When empty, find returns nothing → community only.
 PRO_FLAG=""
-if [[ -n "${SEMGREP_PRO_ENGINE:-}" ]]; then
-	if [[ ! -f "${SEMGREP_PRO_ENGINE}" ]]; then
-		echo "INFO: Pro engine not available — running community analysis only"
+SEMGREP_PRO_ENGINE=$(find . -name "semgrep-core-proprietary" -type f 2>/dev/null | head -1)
+if [[ -n "$SEMGREP_PRO_ENGINE" ]]; then
+	SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
+	if [[ -z "$SEMGREP_CORE" ]]; then
+		echo "INFO: semgrep-core not found — running community analysis only"
 	else
-		SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
-		if [[ -z "$SEMGREP_CORE" ]]; then
-			echo "INFO: semgrep-core not found — running community analysis only"
-		else
-			PRO_DIR="${TEST_TMPDIR}/pro_bin"
-			mkdir -p "$PRO_DIR"
-			cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
-			chmod 755 "$PRO_DIR/semgrep-core"
-			cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
-			chmod 755 "$PRO_DIR/semgrep-core-proprietary"
-			export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
-			PRO_FLAG="--pro"
-		fi
+		PRO_DIR="${TEST_TMPDIR}/pro_bin"
+		mkdir -p "$PRO_DIR"
+		cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
+		chmod 755 "$PRO_DIR/semgrep-core"
+		cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
+		chmod 755 "$PRO_DIR/semgrep-core-proprietary"
+		export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
+		PRO_FLAG="--pro"
 	fi
 fi
 
