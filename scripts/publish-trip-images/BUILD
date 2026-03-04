@@ -1,4 +1,5 @@
-load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
 
 py_library(
@@ -18,7 +19,7 @@ py_library(
     ],
 )
 
-py_binary(
+py_venv_binary(
     name = "main",
     srcs = ["main.py"],
     visibility = ["//:__subpackages__"],
