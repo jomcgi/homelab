@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 # semgrep-test.sh - Runs semgrep-core directly against source files
 #
-# Usage: semgrep-test.sh <semgrep-core> <rule-files...> -- <source-files...>
+# Usage: semgrep-test.sh <rule-files...> -- <source-files...>
+#
+# The semgrep-core binary is discovered via find(1) in runfiles rather than
+# passed as an argument, because the engine filegroup may be empty when GHCR
+# credentials are missing (graceful degradation).
 #
 # Exit code 0 = no findings, non-zero = semgrep found violations.
 #
@@ -13,18 +17,16 @@
 
 set -euo pipefail
 
-if [[ $# -lt 3 ]]; then
-	echo "Usage: $0 <semgrep-core> <rule-files...> -- <source-files...>"
+if [[ $# -lt 2 ]]; then
+	echo "Usage: $0 <rule-files...> -- <source-files...>"
 	exit 1
 fi
 
-SEMGREP_CORE="$1"
-shift
-
-# Graceful degradation: if semgrep-core binary is empty (OCI artifact not fetched),
-# skip the scan with a warning. Same pattern as the pro engine.
-if [[ ! -x "$SEMGREP_CORE" ]]; then
-	echo "SKIPPED: semgrep-core binary not found or not executable (GHCR credentials may be missing)"
+# Discover semgrep-core from runfiles. The engine filegroup may be empty
+# (no GHCR token / empty digest) — in that case, skip gracefully.
+SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
+if [[ -z "$SEMGREP_CORE" || ! -x "$SEMGREP_CORE" ]]; then
+	echo "SKIPPED: semgrep-core binary not found in runfiles (GHCR credentials may be missing)"
 	exit 0
 fi
 
@@ -100,20 +102,20 @@ done
 # Map file extension to semgrep language identifier
 detect_lang() {
 	case "${1##*.}" in
-		py) echo "python" ;;
-		go) echo "go" ;;
-		js|jsx) echo "javascript" ;;
-		ts|tsx) echo "typescript" ;;
-		yaml|yml) echo "yaml" ;;
-		sh|bash) echo "bash" ;;
-		tf) echo "terraform" ;;
-		json) echo "json" ;;
-		c|h) echo "c" ;;
-		cpp|cc|cxx) echo "cpp" ;;
-		java) echo "java" ;;
-		rb) echo "ruby" ;;
-		rs) echo "rust" ;;
-		*) echo "" ;;
+	py) echo "python" ;;
+	go) echo "go" ;;
+	js | jsx) echo "javascript" ;;
+	ts | tsx) echo "typescript" ;;
+	yaml | yml) echo "yaml" ;;
+	sh | bash) echo "bash" ;;
+	tf) echo "terraform" ;;
+	json) echo "json" ;;
+	c | h) echo "c" ;;
+	cpp | cc | cxx) echo "cpp" ;;
+	java) echo "java" ;;
+	rb) echo "ruby" ;;
+	rs) echo "rust" ;;
+	*) echo "" ;;
 	esac
 }
 
@@ -143,8 +145,6 @@ TARGETS_FILE="${TEST_TMPDIR}/targets.json"
 # Run semgrep-core once per rule file, merge JSON results
 RESULTS_DIR="${TEST_TMPDIR}/results"
 mkdir -p "$RESULTS_DIR"
-HAS_FINDINGS=false
-HAS_ERRORS=false
 RESULT_INDEX=0
 
 for rule_file in "${RULE_FILES[@]}"; do
@@ -157,7 +157,6 @@ for rule_file in "${RULE_FILES[@]}"; do
 	if [[ "$SCAN_EXIT" -ne 0 ]]; then
 		echo "WARNING: semgrep-core exited $SCAN_EXIT on $(basename "$rule_file")" >&2
 		cat "$STDERR_FILE" >&2
-		HAS_ERRORS=true
 	fi
 
 	RESULT_INDEX=$((RESULT_INDEX + 1))
