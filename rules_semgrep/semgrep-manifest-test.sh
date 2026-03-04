@@ -7,6 +7,7 @@
 # Exit code 0 = no findings, non-zero = violations found or render failure.
 #
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
+#      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro-intrafile
 
 set -euo pipefail
 
@@ -31,16 +32,18 @@ export PATH="$(dirname "$PYSEMGREP"):$PATH"
 PRO_FLAG=""
 if [[ -n "${SEMGREP_PRO_ENGINE:-}" ]]; then
 	SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
-	if [[ -n "$SEMGREP_CORE" ]]; then
-		PRO_DIR="${TEST_TMPDIR}/pro_bin"
-		mkdir -p "$PRO_DIR"
-		cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
-		chmod 755 "$PRO_DIR/semgrep-core"
-		cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
-		chmod 755 "$PRO_DIR/semgrep-core-proprietary"
-		export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
-		PRO_FLAG="--pro-intrafile"
+	if [[ -z "$SEMGREP_CORE" ]]; then
+		echo "ERROR: SEMGREP_PRO_ENGINE is set but semgrep-core binary was not found in sandbox"
+		exit 1
 	fi
+	PRO_DIR="${TEST_TMPDIR}/pro_bin"
+	mkdir -p "$PRO_DIR"
+	cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
+	chmod 755 "$PRO_DIR/semgrep-core"
+	cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
+	chmod 755 "$PRO_DIR/semgrep-core-proprietary"
+	export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
+	PRO_FLAG="--pro-intrafile"
 fi
 
 # Build comma-delimited exclude string for simple substring matching
