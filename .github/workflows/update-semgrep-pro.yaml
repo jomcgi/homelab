@@ -95,7 +95,8 @@ jobs:
             curl -sSfL -o /tmp/semgrep-${arch}.whl "${WHEEL_URL}"
 
             echo "Extracting semgrep-core from wheel..."
-            unzip -p "/tmp/semgrep-${arch}.whl" "semgrep/bin/semgrep-core" > "${dir}/semgrep-core"
+            # Wheel layout: {name}-{version}.data/purelib/semgrep/bin/semgrep-core
+            unzip -p "/tmp/semgrep-${arch}.whl" "*/semgrep/bin/semgrep-core" > "${dir}/semgrep-core"
             chmod 755 "${dir}/semgrep-core"
 
             SIZE=$(stat --format=%s "${dir}/semgrep-core")
