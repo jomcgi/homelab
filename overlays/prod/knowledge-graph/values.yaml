@@ -8,11 +8,11 @@ scraper:
     instrumentation.opentelemetry.io/inject-python: "python"
 embedder:
   image:
-    tag: main@sha256:d2dd6f78f3982a1e3f80d298a7aa25d9db624e679f7809e96cd293410abf1ca1
+    tag: latest@sha256:d2dd6f78f3982a1e3f80d298a7aa25d9db624e679f7809e96cd293410abf1ca1
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder
 mcp:
   image:
-    tag: main@sha256:f05325d2d9c271a373552390bb538490b4990e36cbaf427b530d56fe16769888
+    tag: latest@sha256:f05325d2d9c271a373552390bb538490b4990e36cbaf427b530d56fe16769888
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
