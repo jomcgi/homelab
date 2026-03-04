@@ -88,7 +88,7 @@ exports_files(
 )
 
 # Produce aspect_rules_py targets rather than rules_python
-# gazelle:map_kind py_binary py_binary @aspect_rules_py//py:defs.bzl
+# gazelle:map_kind py_binary py_venv_binary @aspect_rules_py//py/private/py_venv:defs.bzl
 # gazelle:map_kind py_library py_library @aspect_rules_py//py:defs.bzl
 # gazelle:map_kind py_test py_test //tools/pytest:defs.bzl
 #

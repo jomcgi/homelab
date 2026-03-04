@@ -1,10 +1,11 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
-load("@rules_python//python:py_binary.bzl", "py_binary")
+load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//rules_semgrep:defs.bzl", "semgrep_test")
 
-py_binary(
+py_venv_binary(
     name = "upload",
     srcs = ["upload.py"],
+    main = "upload.py",
     visibility = ["//visibility:public"],
     deps = ["@pip//httpx"],
 )
