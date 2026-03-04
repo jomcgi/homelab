@@ -8,7 +8,19 @@ import (
 	"github.com/bazelbuild/bazel-gazelle/rule"
 )
 
-// generateRules generates one semgrep_test per Python file in the package.
+// binaryKinds are the rule kinds that represent Python binary entry points.
+var binaryKinds = map[string]bool{
+	"py_venv_binary": true,
+	"py_binary":      true,
+}
+
+// generateRules generates semgrep test targets for a package.
+//
+// When py_venv_binary or py_binary targets exist in the BUILD file:
+//   - Generates one semgrep_target_test per binary (aspect scans transitive deps)
+//   - Generates per-file semgrep_test for orphan .py files not covered by any binary's main
+//
+// When no binaries exist, falls back to per-file semgrep_test for every .py file.
 func generateRules(args language.GenerateArgs) language.GenerateResult {
 	cfg := getSemgrepConfig(args.Config)
 
@@ -19,24 +31,87 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 	}
 
 	pyFiles := pythonFiles(args.RegularFiles)
-	for _, f := range pyFiles {
-		name := strings.TrimSuffix(f, ".py") + "_semgrep_test"
-		r := rule.NewRule("semgrep_test", name)
-		r.SetAttr("srcs", []string{f})
-		r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
-
-		if len(cfg.excludeRules) > 0 {
-			r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
-		}
-
-		result.Gen = append(result.Gen, r)
-		result.Imports = append(result.Imports, nil)
+	if len(pyFiles) == 0 {
+		result.Empty = staleRules(args, nil)
+		return result
 	}
 
-	// Mark stale semgrep_test rules for removal
+	// Detect binary targets in the existing BUILD file
+	binaries := findBinaries(args.File)
+
+	if len(binaries) > 0 {
+		// Collect main files covered by binaries
+		coveredMains := make(map[string]bool)
+		for _, b := range binaries {
+			if main := b.AttrString("main"); main != "" {
+				coveredMains[main] = true
+			}
+		}
+
+		// Generate semgrep_target_test for each binary
+		for _, b := range binaries {
+			name := b.Name() + "_semgrep_test"
+			r := rule.NewRule("semgrep_target_test", name)
+			r.SetAttr("target", ":"+b.Name())
+			r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
+			if len(cfg.excludeRules) > 0 {
+				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
+			}
+			result.Gen = append(result.Gen, r)
+			result.Imports = append(result.Imports, nil)
+		}
+
+		// Generate per-file semgrep_test for orphan .py files
+		for _, f := range pyFiles {
+			if coveredMains[f] {
+				continue
+			}
+			name := strings.TrimSuffix(f, ".py") + "_semgrep_test"
+			r := rule.NewRule("semgrep_test", name)
+			r.SetAttr("srcs", []string{f})
+			r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
+			if len(cfg.excludeRules) > 0 {
+				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
+			}
+			result.Gen = append(result.Gen, r)
+			result.Imports = append(result.Imports, nil)
+		}
+	} else {
+		// No binaries — fall back to per-file semgrep_test
+		for _, f := range pyFiles {
+			name := strings.TrimSuffix(f, ".py") + "_semgrep_test"
+			r := rule.NewRule("semgrep_test", name)
+			r.SetAttr("srcs", []string{f})
+			r.SetAttr("rules", []string{"//semgrep_rules:python_rules"})
+			if len(cfg.excludeRules) > 0 {
+				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
+			}
+			result.Gen = append(result.Gen, r)
+			result.Imports = append(result.Imports, nil)
+		}
+	}
+
 	result.Empty = staleRules(args, result.Gen)
 
 	return result
+}
+
+// findBinaries returns py_venv_binary and py_binary rules from the BUILD file.
+func findBinaries(f *rule.File) []*rule.Rule {
+	if f == nil {
+		return nil
+	}
+	var binaries []*rule.Rule
+	for _, r := range f.Rules {
+		if binaryKinds[r.Kind()] {
+			binaries = append(binaries, r)
+		}
+	}
+	// Sort by name for deterministic output
+	sort.Slice(binaries, func(i, j int) bool {
+		return binaries[i].Name() < binaries[j].Name()
+	})
+	return binaries
 }
 
 // pythonFiles returns the sorted subset of files that end with .py.
@@ -51,7 +126,8 @@ func pythonFiles(files []string) []string {
 	return py
 }
 
-// staleRules returns empty rules for existing semgrep_test rules not in the generated set.
+// staleRules returns empty rules for existing semgrep_test and semgrep_target_test
+// rules not in the generated set.
 func staleRules(args language.GenerateArgs, gen []*rule.Rule) []*rule.Rule {
 	if args.File == nil {
 		return nil
@@ -59,13 +135,14 @@ func staleRules(args language.GenerateArgs, gen []*rule.Rule) []*rule.Rule {
 
 	active := make(map[string]bool)
 	for _, r := range gen {
-		active[r.Name()] = true
+		active[r.Kind()+"/"+r.Name()] = true
 	}
 
 	var empty []*rule.Rule
 	for _, r := range args.File.Rules {
-		if r.Kind() == "semgrep_test" && !active[r.Name()] {
-			empty = append(empty, rule.NewRule("semgrep_test", r.Name()))
+		kind := r.Kind()
+		if (kind == "semgrep_test" || kind == "semgrep_target_test") && !active[kind+"/"+r.Name()] {
+			empty = append(empty, rule.NewRule(kind, r.Name()))
 		}
 	}
 	return empty
