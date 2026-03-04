@@ -86,6 +86,7 @@ test --sandbox_default_allow_network=false
 common:ci --stamp
 common:ci --workspace_status_command=./tools/workspace_status.sh
 common:ci --define=CI=true
+common:ci --repo_env=GHCR_TOKEN
 
 # Pass Semgrep App token to test actions for best-effort result upload
 test:ci --test_env=SEMGREP_APP_TOKEN

@@ -2,7 +2,8 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-def semgrep_test(name, srcs, rules, exclude_rules = [], pro_engine = None, **kwargs):
+def semgrep_test(name, srcs, rules, exclude_rules = [],
+                 pro_engine = "//third_party/semgrep_pro:engine", **kwargs):
     """Creates a cacheable test that runs semgrep against source files.
 
     Runs semgrep with the given rule configs against the source files and
@@ -14,9 +15,9 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], pro_engine = None, **kwa
         srcs: Source files to scan (labels)
         rules: Semgrep rule config files or filegroups (labels)
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
-        pro_engine: Optional label for the semgrep-core-proprietary binary.
-            Must resolve to exactly one file. When set, enables --pro flag
-            for cross-file analysis.
+        pro_engine: Label for the semgrep-core-proprietary binary filegroup.
+            Defaults to the pro engine; set to None to disable pro analysis.
+            Empty filegroups (no token/digest) degrade gracefully.
         **kwargs: Additional arguments passed to sh_test
     """
     env = kwargs.pop("env", {})
@@ -39,7 +40,7 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], pro_engine = None, **kwa
 
     if pro_engine:
         data.append(pro_engine)
-        env["SEMGREP_PRO_ENGINE"] = "$(rootpath {})".format(pro_engine)
+        env["SEMGREP_PRO_ENGINE"] = "$(rootpaths {})".format(pro_engine)
 
     sh_test(
         name = name,
@@ -65,7 +66,7 @@ def semgrep_manifest_test(
         values_files,
         rules = ["//semgrep_rules:kubernetes_rules"],
         exclude_rules = [],
-        pro_engine = None,
+        pro_engine = "//third_party/semgrep_pro:engine",
         **kwargs):
     """Creates a test that renders Helm manifests and scans them with semgrep.
 
@@ -81,9 +82,9 @@ def semgrep_manifest_test(
         values_files: List of values file labels in order
         rules: Semgrep rule config files (default: kubernetes rules)
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
-        pro_engine: Optional label for the semgrep-core-proprietary binary.
-            Must resolve to exactly one file. When set, enables --pro flag
-            for cross-file analysis.
+        pro_engine: Label for the semgrep-core-proprietary binary filegroup.
+            Defaults to the pro engine; set to None to disable pro analysis.
+            Empty filegroups (no token/digest) degrade gracefully.
         **kwargs: Additional arguments passed to sh_test
     """
     env = kwargs.pop("env", {})
@@ -105,7 +106,7 @@ def semgrep_manifest_test(
 
     if pro_engine:
         data.append(pro_engine)
-        env["SEMGREP_PRO_ENGINE"] = "$(rootpath {})".format(pro_engine)
+        env["SEMGREP_PRO_ENGINE"] = "$(rootpaths {})".format(pro_engine)
 
     sh_test(
         name = name,

@@ -170,15 +170,15 @@ def _oci_archive_impl(rctx):
         rctx.file("BUILD.bazel", build_content)
         return
 
-    # Resolve a GitHub token
+    # Resolve a GitHub token — if absent, create an empty repo so that
+    # builds without credentials degrade gracefully (community analysis only).
     github_token = _get_github_token(rctx)
     if not github_token:
-        fail(
-            "oci_archive requires a GitHub token to pull from GHCR.\n" +
-            "Set one of these environment variables:\n" +
-            "  GHCR_TOKEN  - a GHCR personal access token (preferred)\n" +
-            "  GITHUB_TOKEN - a GitHub personal access token with read:packages scope\n",
-        )
+        # buildifier: disable=print
+        print("WARNING: oci_archive: no GHCR_TOKEN or GITHUB_TOKEN — skipping fetch of " + rctx.attr.image)
+        build_content = rctx.attr.build_file_content or _DEFAULT_BUILD_FILE_CONTENT
+        rctx.file("BUILD.bazel", build_content)
+        return
 
     image = rctx.attr.image
 
@@ -236,9 +236,10 @@ This repository rule implements a minimal OCI Distribution client:
 3. Downloads the layer blob (using curl -L to follow CDN redirects)
 4. Extracts the tarball and generates a BUILD file
 
-Requires either GITHUB_TOKEN or GHCR_TOKEN environment variable to be set.
-If digest is empty, creates an empty repository with a default BUILD file
-for graceful degradation during initial setup.
+If GITHUB_TOKEN or GHCR_TOKEN is not set, creates an empty repository with
+a default BUILD file for graceful degradation (community analysis only).
+Similarly, an empty digest creates an empty repository for initial setup
+before digests are known.
 
 Example:
 
