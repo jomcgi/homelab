@@ -8,6 +8,7 @@
 #
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
 #      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro
+#      UPLOAD_SCRIPT          — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
 
@@ -97,11 +98,20 @@ if [[ ${#RULES[@]} -eq 0 ]]; then
 	exit 0
 fi
 
-if "$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore "$MANIFESTS"; then
+SCAN_EXIT=0
+"$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore \
+	--json --output "$TEST_TMPDIR/results.json" \
+	"$MANIFESTS" || SCAN_EXIT=$?
+
+# Best-effort upload (never affects exit code)
+if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" ]]; then
+	"$UPLOAD_SCRIPT" "$TEST_TMPDIR/results.json" "$SCAN_EXIT" 2>&1 || true
+fi
+
+if [[ "$SCAN_EXIT" -eq 0 ]]; then
 	echo "PASSED: No semgrep findings in rendered manifests"
-	exit 0
 else
 	echo ""
 	echo "FAILED: Semgrep found violations in rendered manifests"
-	exit 1
 fi
+exit "$SCAN_EXIT"
