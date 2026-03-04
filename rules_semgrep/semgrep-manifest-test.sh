@@ -172,7 +172,23 @@ fi
 if [[ "$SCAN_EXIT" -eq 0 ]]; then
 	echo "PASSED: No semgrep findings in rendered manifests"
 else
-	echo ""
+	# Print findings summary from JSON so test logs are actionable
+	python3 - "$TEST_TMPDIR/results.json" <<'PYEOF' 2>/dev/null || true
+import json, sys
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for r in data.get("results", []):
+    cid = r.get("check_id", "")
+    parts = cid.rsplit(".", 2)
+    short = ".".join(parts[-2:]) if len(parts) >= 2 else cid
+    path = r.get("path", "?")
+    line = r.get("start", {}).get("line", "?")
+    msg = r.get("extra", {}).get("message", "")
+    print(f"  {short} at {path}:{line}")
+    if msg:
+        print(f"    {msg[:200]}")
+    print()
+PYEOF
 	echo "FAILED: Semgrep found violations in rendered manifests"
 fi
 exit "$SCAN_EXIT"
