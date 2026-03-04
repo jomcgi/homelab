@@ -6,7 +6,10 @@
 # Combines helm template rendering with semgrep scanning in a single test.
 # Exit code 0 = no findings, non-zero = violations found or render failure.
 #
-# Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
+# Env: SEMGREP_EXCLUDE_RULES — comma-separated items to skip. Each item is used in two ways:
+#      1. Matched against YAML filename (basename without .yaml) to exclude entire config files
+#      2. Matched as a suffix against semgrep check_ids to exclude individual rule findings
+#         (osemgrep prefixes rule IDs with the config file path, so suffix matching is required)
 #      UPLOAD_SCRIPT          — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
@@ -50,8 +53,22 @@ if [[ -n "$SEMGREP_PRO_ENGINE" ]]; then
 	fi
 fi
 
-# Build comma-delimited exclude string for simple substring matching
+# Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
+# rule-ID-based exclusion (EXCLUDE_IDS). osemgrep prefixes rule IDs with
+# the full config file path, so --exclude-rule can't match. Instead we
+# run with --json and post-filter results by suffix matching.
 EXCLUDE_LIST=",${SEMGREP_EXCLUDE_RULES:-},"
+EXCLUDE_IDS=()
+if [[ -n "${SEMGREP_EXCLUDE_RULES:-}" ]]; then
+	IFS=',' read -ra _EXCLUDE_ITEMS <<<"$SEMGREP_EXCLUDE_RULES"
+	for _item in "${_EXCLUDE_ITEMS[@]}"; do
+		_item="${_item## }"
+		_item="${_item%% }"
+		if [[ -n "$_item" ]]; then
+			EXCLUDE_IDS+=("$_item")
+		fi
+	done
+fi
 
 # Collect rule files until -- separator, skipping excluded rules
 RULES=()
@@ -101,6 +118,7 @@ if [[ ${#RULES[@]} -eq 0 ]]; then
 	exit 0
 fi
 
+# Run semgrep with JSON output for both upload and post-filtering
 SCAN_EXIT=0
 "$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore \
 	--json --output "$TEST_TMPDIR/results.json" \
@@ -109,6 +127,47 @@ SCAN_EXIT=0
 # Best-effort upload (never affects exit code)
 if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" ]]; then
 	"$UPLOAD_SCRIPT" "$TEST_TMPDIR/results.json" "$SCAN_EXIT" 2>&1 || true
+fi
+
+# When rule-ID exclusions are set, post-filter the JSON results.
+# osemgrep prefixes check_ids with the config file path (e.g.,
+# Users.jomcgi...kubernetes.yaml.<rule-id>), so we use suffix matching.
+if [[ "$SCAN_EXIT" -ne 0 && ${#EXCLUDE_IDS[@]} -gt 0 ]]; then
+	if python3 - "$TEST_TMPDIR/results.json" "${EXCLUDE_IDS[@]}" <<'PYEOF'
+import json, sys
+
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+exclude_ids = sys.argv[2:]
+results = data.get("results", [])
+filtered, excluded = [], 0
+for r in results:
+    cid = r.get("check_id", "")
+    if any(cid.endswith("." + e) or cid == e for e in exclude_ids):
+        excluded += 1
+    else:
+        filtered.append(r)
+if filtered:
+    for r in filtered:
+        cid = r.get("check_id", "")
+        parts = cid.rsplit(".", 2)
+        short = ".".join(parts[-2:]) if len(parts) >= 2 else cid
+        path = r.get("path", "?")
+        line = r.get("start", {}).get("line", "?")
+        msg = r.get("extra", {}).get("message", "")
+        print(f"  {short} at {path}:{line}")
+        if msg:
+            print(f"    {msg[:200]}")
+        print()
+    print(f"Found {len(filtered)} finding(s) ({excluded} excluded)")
+    sys.exit(1)
+if excluded:
+    print(f"  ({excluded} finding(s) excluded by rule ID filter)")
+sys.exit(0)
+PYEOF
+	then
+		SCAN_EXIT=0
+	fi
 fi
 
 if [[ "$SCAN_EXIT" -eq 0 ]]; then
