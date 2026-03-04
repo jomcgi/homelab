@@ -9,6 +9,7 @@
 # Env: SEMGREP_TEST_MODE — if set to "1", uses semgrep --test to validate rule
 #      annotations (# ruleid: / # ok:) instead of scanning for violations
 #      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro
+#      UPLOAD_SCRIPT          — path to upload binary; uploads results to Semgrep App
 
 set -euo pipefail
 
@@ -97,12 +98,21 @@ if [[ "${SEMGREP_TEST_MODE:-}" == "1" ]]; then
 		exit 1
 	fi
 else
-	if "$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
+	SCAN_EXIT=0
+	"$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore \
+		--json --output "$TEST_TMPDIR/results.json" \
+		"$SCAN_DIR" || SCAN_EXIT=$?
+
+	# Best-effort upload (never affects exit code)
+	if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" ]]; then
+		"$UPLOAD_SCRIPT" "$TEST_TMPDIR/results.json" "$SCAN_EXIT" 2>&1 || true
+	fi
+
+	if [[ "$SCAN_EXIT" -eq 0 ]]; then
 		echo "PASSED: No semgrep findings"
-		exit 0
 	else
 		echo ""
 		echo "FAILED: Semgrep found violations"
-		exit 1
 	fi
+	exit "$SCAN_EXIT"
 fi
