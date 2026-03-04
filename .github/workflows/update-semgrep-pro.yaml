@@ -1,0 +1,214 @@
+name: Update Semgrep Pro Artifacts
+
+on:
+  schedule:
+    - cron: "0 6 * * *" # Daily at 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      semgrep_version:
+        description: "Semgrep version (leave empty for latest)"
+        required: false
+
+concurrency:
+  group: update-semgrep-pro
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup crane
+        uses: imjasonh/setup-crane@v0.4
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install semgrep
+        env:
+          SEMGREP_VERSION_INPUT: ${{ inputs.semgrep_version }}
+        run: |
+          if [ -n "${SEMGREP_VERSION_INPUT}" ]; then
+            pip install "semgrep==${SEMGREP_VERSION_INPUT}"
+          else
+            pip install semgrep
+          fi
+
+      - name: Determine semgrep version
+        id: version
+        run: |
+          SEMGREP_VERSION=$(python3 -c "from semgrep import __VERSION__; print(__VERSION__)")
+          echo "semgrep_version=${SEMGREP_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "date_tag=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
+          echo "Semgrep version: ${SEMGREP_VERSION}"
+          echo "Date tag: $(date -u +%Y%m%d)"
+
+      - name: Download pro engine
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+          SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
+        run: |
+          set -euo pipefail
+
+          declare -A PLATFORMS=(
+            ["amd64"]="manylinux"
+            ["arm64"]="linux-arm64"
+          )
+
+          for arch in "${!PLATFORMS[@]}"; do
+            platform="${PLATFORMS[$arch]}"
+            dir="artifacts/engine-${arch}"
+            mkdir -p "${dir}"
+
+            echo "Downloading pro engine for ${arch} (${platform})..."
+            curl -sSfL \
+              -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
+              "https://semgrep.dev/api/agent/deployments/deepbinary/${platform}?version=${SEMGREP_VERSION}" \
+              -o "${dir}/semgrep-core-proprietary"
+
+            chmod 755 "${dir}/semgrep-core-proprietary"
+            echo "Downloaded engine-${arch} ($(stat --format=%s "${dir}/semgrep-core-proprietary") bytes)"
+          done
+
+      - name: Download pro rule packs
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+        run: |
+          set -euo pipefail
+          LANGUAGES="golang python javascript kubernetes"
+
+          for lang in ${LANGUAGES}; do
+            dir="artifacts/rules-${lang}"
+            mkdir -p "${dir}"
+
+            echo "Downloading rules for ${lang}..."
+            curl -sSfL \
+              -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
+              "https://semgrep.dev/c/p/${lang}" \
+              -o "${dir}/${lang}.yaml"
+
+            echo "Downloaded rules-${lang} ($(stat --format=%s "${dir}/${lang}.yaml") bytes)"
+          done
+
+      - name: Package and push OCI artifacts
+        id: digests
+        env:
+          DATE_TAG: ${{ steps.version.outputs.date_tag }}
+        run: |
+          set -euo pipefail
+          GHCR_PREFIX="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
+
+          declare -A DIGESTS
+
+          ARTIFACTS="engine-amd64 engine-arm64 rules-golang rules-python rules-javascript rules-kubernetes"
+
+          for artifact in ${ARTIFACTS}; do
+            echo "Packaging ${artifact}..."
+            tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
+
+            IMAGE="${GHCR_PREFIX}/${artifact}:${DATE_TAG}"
+            crane append \
+              -f "artifacts/${artifact}.tar" \
+              -t "${IMAGE}" \
+              --platform linux/amd64
+
+            DIGEST=$(crane digest "${IMAGE}")
+            echo "Pushed ${IMAGE} -> ${DIGEST}"
+
+            # Convert artifact name to digests.bzl key (e.g., engine-amd64 -> engine_amd64)
+            KEY="${artifact//-/_}"
+            DIGESTS["${KEY}"]="${DIGEST}"
+          done
+
+          # Write digests as step outputs
+          for key in "${!DIGESTS[@]}"; do
+            echo "${key}=${DIGESTS[$key]}" >> "$GITHUB_OUTPUT"
+          done
+
+      - name: Update digests.bzl if changed
+        id: check
+        env:
+          DIGEST_ENGINE_AMD64: ${{ steps.digests.outputs.engine_amd64 }}
+          DIGEST_ENGINE_ARM64: ${{ steps.digests.outputs.engine_arm64 }}
+          DIGEST_RULES_GOLANG: ${{ steps.digests.outputs.rules_golang }}
+          DIGEST_RULES_PYTHON: ${{ steps.digests.outputs.rules_python }}
+          DIGEST_RULES_JAVASCRIPT: ${{ steps.digests.outputs.rules_javascript }}
+          DIGEST_RULES_KUBERNETES: ${{ steps.digests.outputs.rules_kubernetes }}
+        run: |
+          set -euo pipefail
+          DIGESTS_FILE="third_party/semgrep_pro/digests.bzl"
+
+          cat > "${DIGESTS_FILE}" << EOF
+          """Semgrep Pro OCI artifact digests.
+
+          Updated automatically by .github/workflows/update-semgrep-pro.yaml.
+          Do not edit manually — changes will be overwritten.
+          """
+
+          SEMGREP_PRO_DIGESTS = {
+              "engine_amd64": "${DIGEST_ENGINE_AMD64}",
+              "engine_arm64": "${DIGEST_ENGINE_ARM64}",
+              "rules_golang": "${DIGEST_RULES_GOLANG}",
+              "rules_python": "${DIGEST_RULES_PYTHON}",
+              "rules_javascript": "${DIGEST_RULES_JAVASCRIPT}",
+              "rules_kubernetes": "${DIGEST_RULES_KUBERNETES}",
+          }
+          EOF
+
+          if git diff --quiet "${DIGESTS_FILE}"; then
+            echo "No changes to digests.bzl"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "Digests changed:"
+            git diff "${DIGESTS_FILE}"
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create PR with automerge
+        if: steps.check.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DATE_TAG: ${{ steps.version.outputs.date_tag }}
+          SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
+          WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          BRANCH="update/semgrep-pro-${DATE_TAG}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -b "${BRANCH}"
+          git add third_party/semgrep_pro/digests.bzl
+          git commit -m "build(semgrep): update pro artifact digests"
+
+          git push -u origin "${BRANCH}"
+
+          gh pr create \
+            --title "build(semgrep): update pro artifact digests" \
+            --body "$(cat <<EOF
+          ## Summary
+
+          - Updates Semgrep Pro OCI artifact digests (semgrep v${SEMGREP_VERSION})
+          - Engine binaries: amd64, arm64
+          - Rule packs: golang, python, javascript, kubernetes
+          - Date tag: ${DATE_TAG}
+
+          Auto-generated by the [Update Semgrep Pro Artifacts](${WORKFLOW_URL}) workflow.
+          EOF
+          )"
+
+          gh pr merge --auto --rebase
