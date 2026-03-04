@@ -22,6 +22,7 @@ py_library(
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],
+    main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//boto3",

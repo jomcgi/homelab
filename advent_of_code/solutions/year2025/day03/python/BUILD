@@ -7,6 +7,7 @@ py_venv_binary(
     name = "solution",
     srcs = ["solution.py"],
     data = ["//advent_of_code/solutions/year2025/day03:input.txt"],
+    main = "solution.py",
     visibility = ["//:__subpackages__"],
     deps = ["//advent_of_code/python/aoc"],
 )

@@ -6,6 +6,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 py_venv_binary(
     name = "solution",
     srcs = ["solution.py"],
+    main = "solution.py",
     visibility = ["//:__subpackages__"],
     deps = ["//advent_of_code/python/aoc"],
 )
