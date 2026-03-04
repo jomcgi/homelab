@@ -50,6 +50,39 @@ resources:
       memory: "16Mi"
       cpu: "5m"
 
+## Pod security context
+podSecurityContext:
+  seccompProfile:
+    type: RuntimeDefault
+
+## Init container (git-clone) security context — needs root for chown
+initSecurityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+    add:
+      - CHOWN
+      - DAC_OVERRIDE
+
+## API container security context (Go binary, uid 65532)
+apiSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false # Needs write access to git repo for commits
+  capabilities:
+    drop:
+      - ALL
+
+## Static (nginx) container security context
+staticSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false # nginx needs writable /var/cache/nginx and /var/run
+  capabilities:
+    drop:
+      - ALL
+
 # Pod affinity/anti-affinity rules
 # Useful for RWO volumes to keep pod on same node and avoid volume reattachment delays
 affinity: {}
