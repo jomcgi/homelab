@@ -41,6 +41,7 @@ jobs:
         env:
           SEMGREP_VERSION_INPUT: ${{ inputs.semgrep_version }}
         run: |
+          set -euo pipefail
           if [ -n "${SEMGREP_VERSION_INPUT}" ]; then
             pip install "semgrep==${SEMGREP_VERSION_INPUT}"
           else
@@ -50,7 +51,12 @@ jobs:
       - name: Determine semgrep version
         id: version
         run: |
+          set -euo pipefail
           SEMGREP_VERSION=$(python3 -c "from semgrep import __VERSION__; print(__VERSION__)")
+          if ! [[ "${SEMGREP_VERSION}" =~ ^[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "ERROR: unexpected semgrep version format: ${SEMGREP_VERSION}"
+            exit 1
+          fi
           echo "semgrep_version=${SEMGREP_VERSION}" >> "$GITHUB_OUTPUT"
           echo "date_tag=$(date -u +%Y%m%d)" >> "$GITHUB_OUTPUT"
           echo "Semgrep version: ${SEMGREP_VERSION}"
@@ -80,7 +86,13 @@ jobs:
               -o "${dir}/semgrep-core-proprietary"
 
             chmod 755 "${dir}/semgrep-core-proprietary"
-            echo "Downloaded engine-${arch} ($(stat --format=%s "${dir}/semgrep-core-proprietary") bytes)"
+
+            SIZE=$(stat --format=%s "${dir}/semgrep-core-proprietary")
+            echo "Downloaded engine-${arch} (${SIZE} bytes)"
+            if [ "${SIZE}" -lt 50000000 ]; then
+              echo "ERROR: engine-${arch} is suspiciously small (${SIZE} bytes, expected >50MB)"
+              exit 1
+            fi
           done
 
       - name: Download pro rule packs
@@ -193,6 +205,12 @@ jobs:
         run: |
           set -euo pipefail
           BRANCH="update/semgrep-pro-${DATE_TAG}"
+
+          # Skip if a branch from a prior same-day run already exists
+          if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
+            echo "Branch ${BRANCH} already exists — skipping PR creation"
+            exit 0
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
