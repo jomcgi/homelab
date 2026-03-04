@@ -20,6 +20,13 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
     if exclude_rules:
         env["SEMGREP_EXCLUDE_RULES"] = ",".join(exclude_rules)
 
+    # Merge caller tags with no-sandbox: the semgrep pip dependency tree has
+    # thousands of files, making darwin-sandbox symlink setup ~100s per test.
+    # The scan itself is read-only and safe to run unsandboxed.
+    tags = kwargs.pop("tags", [])
+    if "no-sandbox" not in tags:
+        tags = tags + ["no-sandbox"]
+
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-test.sh"],
@@ -34,6 +41,7 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
             "//tools/semgrep:pysemgrep",
         ] + rules + srcs,
         env = env,
+        tags = tags,
         **kwargs
     )
 
@@ -67,6 +75,10 @@ def semgrep_manifest_test(
     if exclude_rules:
         env["SEMGREP_EXCLUDE_RULES"] = ",".join(exclude_rules)
 
+    tags = kwargs.pop("tags", [])
+    if "no-sandbox" not in tags:
+        tags = tags + ["no-sandbox"]
+
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-manifest-test.sh"],
@@ -87,5 +99,6 @@ def semgrep_manifest_test(
             chart_files,
         ] + rules + values_files,
         env = env,
+        tags = tags,
         **kwargs
     )
