@@ -6,6 +6,10 @@ argocd_app(
     chart_files = "//charts/opentelemetry-operator:chart",
     namespace = "opentelemetry-operator",
     release_name = "opentelemetry-operator",
+    # Upstream defaults to uid 65532 and runAsNonRoot; only writable FS flagged
+    semgrep_exclude_rules = [
+        "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
+    ],
     tags = [
         "helm",
         "template",

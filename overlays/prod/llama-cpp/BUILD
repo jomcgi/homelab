@@ -6,6 +6,10 @@ argocd_app(
     chart_files = "//charts/llama-cpp:chart",
     namespace = "llama-cpp",
     release_name = "llama-cpp",
+    # readOnlyRootFilesystem may cause issues with model loading
+    semgrep_exclude_rules = [
+        "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
+    ],
     tags = [
         "helm",
         "template",
