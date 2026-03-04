@@ -42,6 +42,8 @@ func (l *semgrepLang) KnownDirectives() []string {
 	return []string{
 		"semgrep",
 		"semgrep_exclude_rules",
+		"semgrep_target_kinds",
+		"semgrep_languages",
 	}
 }
 
