@@ -1,4 +1,4 @@
-name: Update Semgrep Pro Artifacts
+name: Update Semgrep Artifacts
 
 on:
   schedule:
@@ -62,6 +62,52 @@ jobs:
           echo "Semgrep version: ${SEMGREP_VERSION}"
           echo "Date tag: $(date -u +%Y%m%d)"
 
+      - name: Extract semgrep-core from PyPI wheels
+        env:
+          SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
+        run: |
+          set -euo pipefail
+
+          declare -A PLATFORMS=(
+            ["amd64"]="manylinux2014_x86_64"
+            ["arm64"]="manylinux2014_aarch64"
+          )
+
+          for arch in "${!PLATFORMS[@]}"; do
+            platform="${PLATFORMS[$arch]}"
+            dir="artifacts/oss-engine-${arch}"
+            mkdir -p "${dir}"
+
+            echo "Fetching PyPI wheel URL for ${arch} (${platform})..."
+            WHEEL_URL=$(curl -sSf "https://pypi.org/pypi/semgrep/${SEMGREP_VERSION}/json" | python3 -c "
+          import json, sys
+          data = json.load(sys.stdin)
+          for f in data['urls']:
+              if '${platform}' in f['filename'] and f['packagetype'] == 'bdist_wheel':
+                  print(f['url'])
+                  break
+          else:
+              print('ERROR: no wheel found for ${platform}', file=sys.stderr)
+              sys.exit(1)
+          ")
+
+            echo "Downloading wheel: ${WHEEL_URL##*/}"
+            curl -sSfL -o /tmp/semgrep-${arch}.whl "${WHEEL_URL}"
+
+            echo "Extracting semgrep-core from wheel..."
+            unzip -p "/tmp/semgrep-${arch}.whl" "semgrep/bin/semgrep-core" > "${dir}/semgrep-core"
+            chmod 755 "${dir}/semgrep-core"
+
+            SIZE=$(stat --format=%s "${dir}/semgrep-core")
+            echo "Extracted oss-engine-${arch} (${SIZE} bytes)"
+            if [ "${SIZE}" -lt 30000000 ]; then
+              echo "ERROR: oss-engine-${arch} is suspiciously small (${SIZE} bytes, expected >30MB)"
+              exit 1
+            fi
+
+            rm -f "/tmp/semgrep-${arch}.whl"
+          done
+
       - name: Download pro engine
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
@@ -121,23 +167,23 @@ jobs:
           DATE_TAG: ${{ steps.version.outputs.date_tag }}
         run: |
           set -euo pipefail
-          GHCR_PREFIX="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
 
           declare -A DIGESTS
 
-          ARTIFACTS="engine-amd64 engine-arm64 rules-golang rules-python rules-javascript rules-kubernetes"
+          # Package and push pro artifacts
+          GHCR_PRO="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
+          PRO_ARTIFACTS="engine-amd64 engine-arm64 rules-golang rules-python rules-javascript rules-kubernetes"
 
-          for artifact in ${ARTIFACTS}; do
-            echo "Packaging ${artifact}..."
+          for artifact in ${PRO_ARTIFACTS}; do
+            echo "Packaging pro/${artifact}..."
             tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
 
-            # Derive OCI platform from artifact name (arm64 engine needs linux/arm64)
             case "${artifact}" in
               *-arm64) PLATFORM="linux/arm64" ;;
               *)       PLATFORM="linux/amd64" ;;
             esac
 
-            IMAGE="${GHCR_PREFIX}/${artifact}:${DATE_TAG}"
+            IMAGE="${GHCR_PRO}/${artifact}:${DATE_TAG}"
             crane append \
               -f "artifacts/${artifact}.tar" \
               -t "${IMAGE}" \
@@ -146,30 +192,62 @@ jobs:
             DIGEST=$(crane digest "${IMAGE}")
             echo "Pushed ${IMAGE} -> ${DIGEST}"
 
-            # Convert artifact name to digests.bzl key (e.g., engine-amd64 -> engine_amd64)
-            KEY="${artifact//-/_}"
+            KEY="pro_${artifact//-/_}"
             DIGESTS["${KEY}"]="${DIGEST}"
           done
 
-          # Write digests as step outputs
+          # Package and push OSS engine artifacts
+          GHCR_OSS="ghcr.io/jomcgi/homelab/tools/semgrep"
+          OSS_ARTIFACTS="oss-engine-amd64 oss-engine-arm64"
+
+          for artifact in ${OSS_ARTIFACTS}; do
+            echo "Packaging ${artifact}..."
+            tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
+
+            case "${artifact}" in
+              *-arm64) PLATFORM="linux/arm64" ;;
+              *)       PLATFORM="linux/amd64" ;;
+            esac
+
+            # Push as engine-amd64/engine-arm64 (strip oss- prefix for image name)
+            IMAGE_NAME="${artifact#oss-}"
+            IMAGE="${GHCR_OSS}/${IMAGE_NAME}:${DATE_TAG}"
+            crane append \
+              -f "artifacts/${artifact}.tar" \
+              -t "${IMAGE}" \
+              --platform "${PLATFORM}"
+
+            DIGEST=$(crane digest "${IMAGE}")
+            echo "Pushed ${IMAGE} -> ${DIGEST}"
+
+            KEY="oss_${IMAGE_NAME//-/_}"
+            DIGESTS["${KEY}"]="${DIGEST}"
+          done
+
+          # Write all digests as step outputs
           for key in "${!DIGESTS[@]}"; do
             echo "${key}=${DIGESTS[$key]}" >> "$GITHUB_OUTPUT"
           done
 
-      - name: Update digests.bzl if changed
+      - name: Update digest files if changed
         id: check
         env:
-          DIGEST_ENGINE_AMD64: ${{ steps.digests.outputs.engine_amd64 }}
-          DIGEST_ENGINE_ARM64: ${{ steps.digests.outputs.engine_arm64 }}
-          DIGEST_RULES_GOLANG: ${{ steps.digests.outputs.rules_golang }}
-          DIGEST_RULES_PYTHON: ${{ steps.digests.outputs.rules_python }}
-          DIGEST_RULES_JAVASCRIPT: ${{ steps.digests.outputs.rules_javascript }}
-          DIGEST_RULES_KUBERNETES: ${{ steps.digests.outputs.rules_kubernetes }}
+          # Pro digests
+          DIGEST_PRO_ENGINE_AMD64: ${{ steps.digests.outputs.pro_engine_amd64 }}
+          DIGEST_PRO_ENGINE_ARM64: ${{ steps.digests.outputs.pro_engine_arm64 }}
+          DIGEST_PRO_RULES_GOLANG: ${{ steps.digests.outputs.pro_rules_golang }}
+          DIGEST_PRO_RULES_PYTHON: ${{ steps.digests.outputs.pro_rules_python }}
+          DIGEST_PRO_RULES_JAVASCRIPT: ${{ steps.digests.outputs.pro_rules_javascript }}
+          DIGEST_PRO_RULES_KUBERNETES: ${{ steps.digests.outputs.pro_rules_kubernetes }}
+          # OSS digests
+          DIGEST_OSS_ENGINE_AMD64: ${{ steps.digests.outputs.oss_engine_amd64 }}
+          DIGEST_OSS_ENGINE_ARM64: ${{ steps.digests.outputs.oss_engine_arm64 }}
         run: |
           set -euo pipefail
-          DIGESTS_FILE="third_party/semgrep_pro/digests.bzl"
 
-          cat > "${DIGESTS_FILE}" << EOF
+          # Update pro digests
+          PRO_FILE="third_party/semgrep_pro/digests.bzl"
+          cat > "${PRO_FILE}" << EOF
           """Semgrep Pro OCI artifact digests.
 
           Updated automatically by .github/workflows/update-semgrep-pro.yaml.
@@ -177,21 +255,36 @@ jobs:
           """
 
           SEMGREP_PRO_DIGESTS = {
-              "engine_amd64": "${DIGEST_ENGINE_AMD64}",
-              "engine_arm64": "${DIGEST_ENGINE_ARM64}",
-              "rules_golang": "${DIGEST_RULES_GOLANG}",
-              "rules_python": "${DIGEST_RULES_PYTHON}",
-              "rules_javascript": "${DIGEST_RULES_JAVASCRIPT}",
-              "rules_kubernetes": "${DIGEST_RULES_KUBERNETES}",
+              "engine_amd64": "${DIGEST_PRO_ENGINE_AMD64}",
+              "engine_arm64": "${DIGEST_PRO_ENGINE_ARM64}",
+              "rules_golang": "${DIGEST_PRO_RULES_GOLANG}",
+              "rules_python": "${DIGEST_PRO_RULES_PYTHON}",
+              "rules_javascript": "${DIGEST_PRO_RULES_JAVASCRIPT}",
+              "rules_kubernetes": "${DIGEST_PRO_RULES_KUBERNETES}",
           }
           EOF
 
-          if git diff --quiet "${DIGESTS_FILE}"; then
-            echo "No changes to digests.bzl"
+          # Update OSS digests
+          OSS_FILE="third_party/semgrep/digests.bzl"
+          cat > "${OSS_FILE}" << EOF
+          """Semgrep OSS engine OCI artifact digests.
+
+          Updated automatically by .github/workflows/update-semgrep-pro.yaml.
+          Do not edit manually — changes will be overwritten.
+          """
+
+          SEMGREP_DIGESTS = {
+              "engine_amd64": "${DIGEST_OSS_ENGINE_AMD64}",
+              "engine_arm64": "${DIGEST_OSS_ENGINE_ARM64}",
+          }
+          EOF
+
+          if git diff --quiet "${PRO_FILE}" "${OSS_FILE}"; then
+            echo "No changes to digest files"
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
             echo "Digests changed:"
-            git diff "${DIGESTS_FILE}"
+            git diff "${PRO_FILE}" "${OSS_FILE}"
             echo "changed=true" >> "$GITHUB_OUTPUT"
           fi
 
@@ -204,7 +297,7 @@ jobs:
           WORKFLOW_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           set -euo pipefail
-          BRANCH="update/semgrep-pro-${DATE_TAG}"
+          BRANCH="update/semgrep-${DATE_TAG}"
 
           # Skip if a branch from a prior same-day run already exists
           if git ls-remote --exit-code --heads origin "${BRANCH}" >/dev/null 2>&1; then
@@ -216,22 +309,23 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "${BRANCH}"
-          git add third_party/semgrep_pro/digests.bzl
-          git commit -m "build(semgrep): update pro artifact digests"
+          git add third_party/semgrep_pro/digests.bzl third_party/semgrep/digests.bzl
+          git commit -m "build(semgrep): update artifact digests"
 
           git push -u origin "${BRANCH}"
 
           gh pr create \
-            --title "build(semgrep): update pro artifact digests" \
+            --title "build(semgrep): update artifact digests" \
             --body "$(cat <<EOF
           ## Summary
 
-          - Updates Semgrep Pro OCI artifact digests (semgrep v${SEMGREP_VERSION})
-          - Engine binaries: amd64, arm64
-          - Rule packs: golang, python, javascript, kubernetes
+          - Updates Semgrep OCI artifact digests (semgrep v${SEMGREP_VERSION})
+          - Pro engine binaries: amd64, arm64
+          - Pro rule packs: golang, python, javascript, kubernetes
+          - OSS engine binaries: amd64, arm64 (extracted from PyPI wheels)
           - Date tag: ${DATE_TAG}
 
-          Auto-generated by the [Update Semgrep Pro Artifacts](${WORKFLOW_URL}) workflow.
+          Auto-generated by the [Update Semgrep Artifacts](${WORKFLOW_URL}) workflow.
           EOF
           )"
 
