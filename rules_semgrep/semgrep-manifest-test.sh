@@ -7,7 +7,7 @@
 # Exit code 0 = no findings, non-zero = violations found or render failure.
 #
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
-#      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro-intrafile
+#      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro
 
 set -euo pipefail
 
@@ -43,7 +43,7 @@ if [[ -n "${SEMGREP_PRO_ENGINE:-}" ]]; then
 	cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
 	chmod 755 "$PRO_DIR/semgrep-core-proprietary"
 	export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
-	PRO_FLAG="--pro-intrafile"
+	PRO_FLAG="--pro"
 fi
 
 # Build comma-delimited exclude string for simple substring matching
