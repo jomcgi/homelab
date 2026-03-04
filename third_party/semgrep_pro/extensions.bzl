@@ -10,11 +10,9 @@ load(":oci_archive.bzl", "oci_archive")
 _GHCR_PREFIX = "jomcgi/homelab/tools/semgrep-pro"
 
 _ENGINE_BUILD = """\
-exports_files(["semgrep-core-proprietary"])
-
 filegroup(
     name = "engine",
-    srcs = ["semgrep-core-proprietary"],
+    srcs = glob(["semgrep-core-proprietary"], allow_empty = True),
     visibility = ["//visibility:public"],
 )
 """
