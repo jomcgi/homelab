@@ -37,6 +37,8 @@ func TestSemgrepLang_KnownDirectives(t *testing.T) {
 	expected := []string{
 		"semgrep",
 		"semgrep_exclude_rules",
+		"semgrep_target_kinds",
+		"semgrep_languages",
 	}
 
 	if len(directives) != len(expected) {
