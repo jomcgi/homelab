@@ -47,15 +47,16 @@ def _semgrep_target_test_impl(ctx):
         is_executable = True,
     )
 
-    # Build runfiles — include all files the test needs at runtime
-    all_files = [test_runner] + rule_files + sources
+    # Build runfiles — include all files the test needs at runtime.
+    # Engine and pro_engine are filegroups whose files live in
+    # DefaultInfo.files, not default_runfiles, so we must add both.
+    engine_files = ctx.attr._engine[DefaultInfo].files.to_list()
+    pro_files = ctx.attr.pro_engine[DefaultInfo].files.to_list() if ctx.attr.pro_engine else []
+    all_files = [test_runner] + rule_files + sources + engine_files + pro_files
     runfiles = ctx.runfiles(files = all_files)
 
-    # Engine runfiles (semgrep-core discovered via find in semgrep-test.sh)
     runfiles = runfiles.merge(ctx.attr._engine[DefaultInfo].default_runfiles)
     runfiles = runfiles.merge(ctx.attr._upload[DefaultInfo].default_runfiles)
-
-    # Pro engine (optional — may be empty filegroup)
     if ctx.attr.pro_engine:
         runfiles = runfiles.merge(ctx.attr.pro_engine[DefaultInfo].default_runfiles)
 

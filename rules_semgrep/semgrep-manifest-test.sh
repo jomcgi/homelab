@@ -30,15 +30,26 @@ shift 4
 
 # Discover semgrep-core from runfiles. The engine filegroup may be empty
 # (no GHCR token / empty digest) — in that case, skip gracefully.
-SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
+# Search RUNFILES_DIR (not cwd) because external repo files live in sibling
+# directories (e.g. +semgrep+semgrep_engine_arm64/) outside _main/.
+# Use -type f -o -type l to match both regular files and symlinks.
+SEARCH_ROOT="${RUNFILES_DIR:-.}"
+SEMGREP_CORE=$(find "$SEARCH_ROOT" -name "semgrep-core" -not -name "*proprietary*" \( -type f -o -type l \) 2>/dev/null | head -1)
 if [[ -z "$SEMGREP_CORE" || ! -x "$SEMGREP_CORE" ]]; then
 	echo "SKIPPED: semgrep-core binary not found in runfiles (GHCR credentials may be missing)"
 	exit 0
 fi
 
+# Verify the binary can actually execute on this platform (the OCI-vendored
+# engine is a Linux ELF binary — it won't run on macOS).
+if ! "$SEMGREP_CORE" -version >/dev/null 2>&1; then
+	echo "SKIPPED: semgrep-core found but cannot execute on this platform ($(uname -s)/$(uname -m))"
+	exit 0
+fi
+
 # Select engine: use pro engine if available in runfiles, otherwise use OSS semgrep-core.
 ENGINE="$SEMGREP_CORE"
-SEMGREP_PRO_ENGINE=$(find . -name "semgrep-core-proprietary" -type f 2>/dev/null | head -1)
+SEMGREP_PRO_ENGINE=$(find "$SEARCH_ROOT" -name "semgrep-core-proprietary" \( -type f -o -type l \) 2>/dev/null | head -1)
 if [[ -n "$SEMGREP_PRO_ENGINE" ]]; then
 	PRO_DIR="${TEST_TMPDIR}/pro_bin"
 	mkdir -p "$PRO_DIR"
