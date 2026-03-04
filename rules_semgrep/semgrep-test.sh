@@ -134,7 +134,7 @@ fi
 # osemgrep prefixes check_ids with the config file path (e.g.,
 # Users.jomcgi...kubernetes.yaml.<rule-id>), so we use suffix matching.
 if [[ "$SCAN_EXIT" -ne 0 && ${#EXCLUDE_IDS[@]} -gt 0 ]]; then
-	if python3 - "$TEST_TMPDIR/results.json" "${EXCLUDE_IDS[@]}" <<'PYEOF'
+	if python3 - "$TEST_TMPDIR/results.json" "${EXCLUDE_IDS[@]}" <<'PYEOF'; then
 import json, sys
 
 with open(sys.argv[1]) as f:
@@ -166,7 +166,6 @@ if excluded:
     print(f"  ({excluded} finding(s) excluded by rule ID filter)")
 sys.exit(0)
 PYEOF
-	then
 		SCAN_EXIT=0
 	fi
 fi
