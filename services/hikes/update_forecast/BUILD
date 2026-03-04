@@ -7,6 +7,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 
 py_venv_binary(
     name = "update",
+    srcs = ["update.py"],
     data = ["//services/hikes/scrape_walkhighlands:walks.db"],
     main = "update.py",
     visibility = ["//:__subpackages__"],

@@ -6,6 +6,7 @@ load("//tools/pytest:defs.bzl", "py_test")
 
 py_venv_binary(
     name = "main",
+    srcs = ["main.py"],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
