@@ -758,3 +758,252 @@ func assertRule(t *testing.T, r *rule.Rule, wantName string, wantSrcs []string) 
 		}
 	}
 }
+
+// --- Helper functions for config-driven generation tests ---
+
+// newPy3Image creates a py3_image rule with a binary attr.
+func newPy3Image(name, binary string) *rule.Rule {
+	r := rule.NewRule("py3_image", name)
+	r.SetAttr("binary", binary)
+	return r
+}
+
+// configWithTargetKinds creates a config.Config with the given targetKinds
+// and default languages (["py"]).
+func configWithTargetKinds(kinds map[string]string) *config.Config {
+	return &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: &semgrepConfig{
+				enabled:     true,
+				targetKinds: kinds,
+				languages:   []string{"py"},
+			},
+		},
+	}
+}
+
+// configWithLanguages creates a config.Config with the given targetKinds
+// and languages.
+func configWithLanguages(kinds map[string]string, langs []string) *config.Config {
+	return &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: &semgrepConfig{
+				enabled:     true,
+				targetKinds: kinds,
+				languages:   langs,
+			},
+		},
+	}
+}
+
+// --- Tests for config-driven generation ---
+
+func TestGenerateRules_Py3ImageTargetKind(t *testing.T) {
+	// py3_image with cross-package binary attr → semgrep_target_test targets the binary
+	c := configWithTargetKinds(map[string]string{
+		"py_venv_binary": "",
+		"py3_image":      "binary",
+	})
+
+	image := newPy3Image("scraper-image", "//services/knowledge_graph/app:scraper")
+	buildFile := buildFileWithRules(image)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/knowledge_graph/deploy",
+		RegularFiles: []string{},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// Expect: 1 semgrep_target_test targeting the binary label from the image
+	if len(result.Gen) != 1 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name())
+		}
+		t.Fatalf("expected 1 generated rule, got %d: %v", len(result.Gen), names)
+	}
+
+	r := result.Gen[0]
+	if r.Kind() != "semgrep_target_test" {
+		t.Errorf("rule kind = %q, want semgrep_target_test", r.Kind())
+	}
+	if r.Name() != "scraper-image_semgrep_test" {
+		t.Errorf("rule name = %q, want scraper-image_semgrep_test", r.Name())
+	}
+	if r.AttrString("target") != "//services/knowledge_graph/app:scraper" {
+		t.Errorf("target = %q, want //services/knowledge_graph/app:scraper", r.AttrString("target"))
+	}
+	rulesList := r.AttrStrings("rules")
+	if len(rulesList) != 1 || rulesList[0] != "//semgrep_rules:python_rules" {
+		t.Errorf("rules = %v, want [//semgrep_rules:python_rules]", rulesList)
+	}
+}
+
+func TestGenerateRules_Py3ImageLocalBinary(t *testing.T) {
+	// When both py_venv_binary and py3_image point to the same target,
+	// deduplicate by resolved label — only one semgrep_target_test.
+	c := configWithTargetKinds(map[string]string{
+		"py_venv_binary": "",
+		"py3_image":      "binary",
+	})
+
+	binary := newPyBinary("update", "update.py")
+	image := newPy3Image("update_image", ":update")
+	buildFile := buildFileWithRules(binary, image)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"update.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// Expect: 1 semgrep_target_test (deduplicated) — both resolve to ":update"
+	targetTests := 0
+	for _, r := range result.Gen {
+		if r.Kind() == "semgrep_target_test" {
+			targetTests++
+			if r.AttrString("target") != ":update" {
+				t.Errorf("target = %q, want :update", r.AttrString("target"))
+			}
+		}
+	}
+	if targetTests != 1 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name()+"→"+r.AttrString("target"))
+		}
+		t.Fatalf("expected 1 semgrep_target_test (deduplicated), got %d: %v", targetTests, names)
+	}
+}
+
+func TestGenerateRules_LanguageRulesConfig(t *testing.T) {
+	// Multi-language config → target test gets all rule configs
+	c := configWithLanguages(
+		map[string]string{"py_venv_binary": ""},
+		[]string{"py", "go"},
+	)
+
+	binary := newPyBinary("server", "server.py")
+	buildFile := buildFileWithRules(binary)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"server.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	if len(result.Gen) < 1 {
+		t.Fatalf("expected at least 1 generated rule, got %d", len(result.Gen))
+	}
+
+	targetRule := result.Gen[0]
+	if targetRule.Kind() != "semgrep_target_test" {
+		t.Fatalf("rule[0] kind = %q, want semgrep_target_test", targetRule.Kind())
+	}
+
+	rules := targetRule.AttrStrings("rules")
+	// Should contain both go_rules and python_rules, sorted
+	if len(rules) != 2 {
+		t.Fatalf("rules = %v, want 2 entries", rules)
+	}
+	if rules[0] != "//semgrep_rules:go_rules" {
+		t.Errorf("rules[0] = %q, want //semgrep_rules:go_rules", rules[0])
+	}
+	if rules[1] != "//semgrep_rules:python_rules" {
+		t.Errorf("rules[1] = %q, want //semgrep_rules:python_rules", rules[1])
+	}
+}
+
+func TestGenerateRules_MultiLangOrphans(t *testing.T) {
+	// .py and .go files both get per-file tests when no binaries exist
+	c := configWithLanguages(
+		map[string]string{"py_venv_binary": ""},
+		[]string{"py", "go"},
+	)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"main.py", "utils.go"},
+	}
+
+	result := generateRules(args)
+
+	// Expect: 2 per-file semgrep_test rules
+	if len(result.Gen) != 2 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name())
+		}
+		t.Fatalf("expected 2 generated rules, got %d: %v", len(result.Gen), names)
+	}
+
+	// .py file gets python_rules
+	pyRule := result.Gen[0]
+	if pyRule.Name() != "main_semgrep_test" {
+		t.Errorf("rule[0] name = %q, want main_semgrep_test", pyRule.Name())
+	}
+	pyRules := pyRule.AttrStrings("rules")
+	if len(pyRules) != 1 || pyRules[0] != "//semgrep_rules:python_rules" {
+		t.Errorf("py file rules = %v, want [//semgrep_rules:python_rules]", pyRules)
+	}
+
+	// .go file gets go_rules
+	goRule := result.Gen[1]
+	if goRule.Name() != "utils_semgrep_test" {
+		t.Errorf("rule[1] name = %q, want utils_semgrep_test", goRule.Name())
+	}
+	goRules := goRule.AttrStrings("rules")
+	if len(goRules) != 1 || goRules[0] != "//semgrep_rules:go_rules" {
+		t.Errorf("go file rules = %v, want [//semgrep_rules:go_rules]", goRules)
+	}
+}
+
+func TestGenerateRules_TargetKindNotInConfig(t *testing.T) {
+	// py3_image NOT in config → ignored, falls back to per-file
+	c := configWithTargetKinds(map[string]string{
+		"py_venv_binary": "",
+	})
+
+	image := newPy3Image("scraper-image", "//services/app:scraper")
+	buildFile := buildFileWithRules(image)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/deploy",
+		RegularFiles: []string{"deploy.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	// py3_image should be ignored since it's not in targetKinds.
+	// Only the .py file should get a per-file semgrep_test.
+	if len(result.Gen) != 1 {
+		var names []string
+		for _, r := range result.Gen {
+			names = append(names, r.Kind()+"/"+r.Name())
+		}
+		t.Fatalf("expected 1 generated rule (per-file), got %d: %v", len(result.Gen), names)
+	}
+
+	r := result.Gen[0]
+	if r.Kind() != "semgrep_test" {
+		t.Errorf("rule kind = %q, want semgrep_test", r.Kind())
+	}
+	assertRule(t, r, "deploy_semgrep_test", []string{"deploy.py"})
+}
