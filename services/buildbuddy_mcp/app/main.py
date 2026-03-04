@@ -69,6 +69,10 @@ async def get_invocation(
     Returns build metadata including success status, duration, command,
     repo URL, branch, and bazel exit code.
 
+    IMPORTANT: commit_sha must be a full 40-character hex SHA. Short SHAs
+    (e.g. "88a97bd0") will return no results. Use `git rev-parse <short>`
+    to resolve before calling.
+
     Set include_child_invocations=True to get inner bazel invocation IDs
     from workflow runs (needed to navigate to test results).
     """
