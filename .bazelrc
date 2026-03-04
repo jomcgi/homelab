@@ -91,6 +91,9 @@ common:ci --repo_env=GHCR_TOKEN
 # Pass Semgrep App token to test actions for best-effort result upload
 test:ci --test_env=SEMGREP_APP_TOKEN
 
+# Semgrep tests are deterministic — never retry on failure
+test:ci --flaky_test_attempts=.*semgrep.*@1
+
 build:ci --verbose_failures
 build:ci --keep_going=false  # Fail immediately in CI
 build:ci --test_output=errors

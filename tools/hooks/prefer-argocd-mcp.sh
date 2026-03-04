@@ -12,8 +12,9 @@ set -euo pipefail
 INPUT=$(cat)
 COMMAND=$(echo "$INPUT" | jq -r '.tool_input.command // empty')
 
-# Only check commands that contain argocd
-if [[ ! "$COMMAND" =~ argocd ]]; then
+# Only block the argocd CLI binary — not commands that mention "argocd"
+# in paths or labels (e.g. bazel test //overlays/.../argocd:semgrep_test).
+if [[ ! "$COMMAND" =~ (^|[;&|[:space:]])argocd([[:space:]]|$) ]]; then
 	exit 0
 fi
 
