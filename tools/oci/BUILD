@@ -33,6 +33,7 @@ bzl_library(
     srcs = ["py3_image.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        "@aspect_bazel_lib//lib:tar",
         "@aspect_bazel_lib//lib:transitions",
         "@aspect_rules_py//py:defs",
         "@rules_oci//oci:defs",
