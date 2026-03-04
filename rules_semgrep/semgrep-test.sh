@@ -8,6 +8,7 @@
 # Env: SEMGREP_EXCLUDE_RULES — comma-separated rule IDs to skip (matched against YAML filename)
 # Env: SEMGREP_TEST_MODE — if set to "1", uses semgrep --test to validate rule
 #      annotations (# ruleid: / # ok:) instead of scanning for violations
+#      SEMGREP_PRO_ENGINE     — path to semgrep-core-proprietary binary; enables --pro
 
 set -euo pipefail
 
@@ -22,6 +23,25 @@ shift 2
 
 # osemgrep (native engine) execs pysemgrep at runtime — add it to PATH
 export PATH="$(dirname "$PYSEMGREP"):$PATH"
+
+# Set up pro engine if available — semgrep looks for semgrep-core-proprietary
+# next to semgrep-core. We use SEMGREP_CORE_BIN to redirect both to a temp dir.
+PRO_FLAG=""
+if [[ -n "${SEMGREP_PRO_ENGINE:-}" ]]; then
+	SEMGREP_CORE=$(find . -name "semgrep-core" -not -name "*proprietary*" -type f 2>/dev/null | head -1)
+	if [[ -z "$SEMGREP_CORE" ]]; then
+		echo "ERROR: SEMGREP_PRO_ENGINE is set but semgrep-core binary was not found in sandbox"
+		exit 1
+	fi
+	PRO_DIR="${TEST_TMPDIR}/pro_bin"
+	mkdir -p "$PRO_DIR"
+	cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
+	chmod 755 "$PRO_DIR/semgrep-core"
+	cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
+	chmod 755 "$PRO_DIR/semgrep-core-proprietary"
+	export SEMGREP_CORE_BIN="$PRO_DIR/semgrep-core"
+	PRO_FLAG="--pro"
+fi
 
 # Build comma-delimited exclude string for simple substring matching
 EXCLUDE_LIST=",${SEMGREP_EXCLUDE_RULES:-},"
@@ -77,7 +97,7 @@ if [[ "${SEMGREP_TEST_MODE:-}" == "1" ]]; then
 		exit 1
 	fi
 else
-	if "$SEMGREP" "${RULES[@]}" --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
+	if "$SEMGREP" "${RULES[@]}" $PRO_FLAG --error --metrics=off --no-git-ignore "$SCAN_DIR"; then
 		echo "PASSED: No semgrep findings"
 		exit 0
 	else

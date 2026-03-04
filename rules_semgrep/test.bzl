@@ -2,7 +2,7 @@
 
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
+def semgrep_test(name, srcs, rules, exclude_rules = [], pro_engine = None, **kwargs):
     """Creates a cacheable test that runs semgrep against source files.
 
     Runs semgrep with the given rule configs against the source files and
@@ -14,6 +14,9 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
         srcs: Source files to scan (labels)
         rules: Semgrep rule config files or filegroups (labels)
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
+        pro_engine: Optional label for the semgrep-core-proprietary binary.
+            Must resolve to exactly one file. When set, enables --pro flag
+            for cross-file analysis.
         **kwargs: Additional arguments passed to sh_test
     """
     env = kwargs.pop("env", {})
@@ -27,6 +30,15 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
     if "no-sandbox" not in tags:
         tags = tags + ["no-sandbox"]
 
+    data = [
+        "//tools/semgrep",
+        "//tools/semgrep:pysemgrep",
+    ] + rules + srcs
+
+    if pro_engine:
+        data.append(pro_engine)
+        env["SEMGREP_PRO_ENGINE"] = "$(rootpath {})".format(pro_engine)
+
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-test.sh"],
@@ -36,10 +48,7 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], **kwargs):
                ] + ["$(rootpaths {})".format(r) for r in rules] +
                ["--"] +
                ["$(rootpaths {})".format(s) for s in srcs],
-        data = [
-            "//tools/semgrep",
-            "//tools/semgrep:pysemgrep",
-        ] + rules + srcs,
+        data = data,
         env = env,
         tags = tags,
         **kwargs
@@ -54,6 +63,7 @@ def semgrep_manifest_test(
         values_files,
         rules = ["//semgrep_rules:kubernetes_rules"],
         exclude_rules = [],
+        pro_engine = None,
         **kwargs):
     """Creates a test that renders Helm manifests and scans them with semgrep.
 
@@ -69,6 +79,9 @@ def semgrep_manifest_test(
         values_files: List of values file labels in order
         rules: Semgrep rule config files (default: kubernetes rules)
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
+        pro_engine: Optional label for the semgrep-core-proprietary binary.
+            Must resolve to exactly one file. When set, enables --pro flag
+            for cross-file analysis.
         **kwargs: Additional arguments passed to sh_test
     """
     env = kwargs.pop("env", {})
@@ -78,6 +91,17 @@ def semgrep_manifest_test(
     tags = kwargs.pop("tags", [])
     if "no-sandbox" not in tags:
         tags = tags + ["no-sandbox"]
+
+    data = [
+        "//tools/semgrep",
+        "//tools/semgrep:pysemgrep",
+        "@multitool//tools/helm",
+        chart_files,
+    ] + rules + values_files
+
+    if pro_engine:
+        data.append(pro_engine)
+        env["SEMGREP_PRO_ENGINE"] = "$(rootpath {})".format(pro_engine)
 
     sh_test(
         name = name,
@@ -92,12 +116,7 @@ def semgrep_manifest_test(
                ] + ["$(rootpaths {})".format(r) for r in rules] +
                ["--"] +
                ["$(rootpath {})".format(vf) for vf in values_files],
-        data = [
-            "//tools/semgrep",
-            "//tools/semgrep:pysemgrep",
-            "@multitool//tools/helm",
-            chart_files,
-        ] + rules + values_files,
+        data = data,
         env = env,
         tags = tags,
         **kwargs
