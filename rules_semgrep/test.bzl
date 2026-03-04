@@ -22,6 +22,7 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], pro_engine = None, **kwa
     env = kwargs.pop("env", {})
     if exclude_rules:
         env["SEMGREP_EXCLUDE_RULES"] = ",".join(exclude_rules)
+    env["UPLOAD_SCRIPT"] = "$(rootpath //tools/semgrep:upload)"
 
     # Merge caller tags with no-sandbox: the semgrep pip dependency tree has
     # thousands of files, making darwin-sandbox symlink setup ~100s per test.
@@ -33,6 +34,7 @@ def semgrep_test(name, srcs, rules, exclude_rules = [], pro_engine = None, **kwa
     data = [
         "//tools/semgrep",
         "//tools/semgrep:pysemgrep",
+        "//tools/semgrep:upload",
     ] + rules + srcs
 
     if pro_engine:
@@ -87,6 +89,7 @@ def semgrep_manifest_test(
     env = kwargs.pop("env", {})
     if exclude_rules:
         env["SEMGREP_EXCLUDE_RULES"] = ",".join(exclude_rules)
+    env["UPLOAD_SCRIPT"] = "$(rootpath //tools/semgrep:upload)"
 
     tags = kwargs.pop("tags", [])
     if "no-sandbox" not in tags:
@@ -95,6 +98,7 @@ def semgrep_manifest_test(
     data = [
         "//tools/semgrep",
         "//tools/semgrep:pysemgrep",
+        "//tools/semgrep:upload",
         "@multitool//tools/helm",
         chart_files,
     ] + rules + values_files
