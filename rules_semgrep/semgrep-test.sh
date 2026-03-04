@@ -176,7 +176,7 @@ done
 # Merge results into a single JSON and determine findings
 MERGED_FILE="${TEST_TMPDIR}/results.json"
 SCAN_EXIT=0
-python3 - "$RESULTS_DIR" "$MERGED_FILE" <<'PYEOF'
+python3 - "$RESULTS_DIR" "$MERGED_FILE" <<'PYEOF' || SCAN_EXIT=$?
 import json, glob, sys, os
 
 results_dir = sys.argv[1]
@@ -197,7 +197,6 @@ json.dump(merged, open(output_file, "w"))
 if merged["results"]:
     sys.exit(1)
 PYEOF
-SCAN_EXIT=$?
 
 # Best-effort upload (never affects exit code)
 if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" && -f "$MERGED_FILE" ]]; then
