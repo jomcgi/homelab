@@ -119,11 +119,17 @@ jobs:
             echo "Packaging ${artifact}..."
             tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
 
+            # Derive OCI platform from artifact name (arm64 engine needs linux/arm64)
+            case "${artifact}" in
+              *-arm64) PLATFORM="linux/arm64" ;;
+              *)       PLATFORM="linux/amd64" ;;
+            esac
+
             IMAGE="${GHCR_PREFIX}/${artifact}:${DATE_TAG}"
             crane append \
               -f "artifacts/${artifact}.tar" \
               -t "${IMAGE}" \
-              --platform linux/amd64
+              --platform "${PLATFORM}"
 
             DIGEST=$(crane digest "${IMAGE}")
             echo "Pushed ${IMAGE} -> ${DIGEST}"
