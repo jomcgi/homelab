@@ -28,37 +28,44 @@ CHART="$3"
 NAMESPACE="$4"
 shift 4
 
-# Discover semgrep-core from runfiles. The engine filegroup may be empty
+# Discover Pro engine (primary). The engine filegroup may be empty
 # (no GHCR token / empty digest) — in that case, skip gracefully.
 # Search RUNFILES_DIR (not cwd) because external repo files live in sibling
 # directories (e.g. +semgrep+semgrep_engine_arm64/) outside _main/.
 # Use -type f -o -type l to match both regular files and symlinks.
 SEARCH_ROOT="${RUNFILES_DIR:-.}"
-SEMGREP_CORE=$(find "$SEARCH_ROOT" -name "semgrep-core" -not -name "*proprietary*" \( -type f -o -type l \) 2>/dev/null | head -1)
-if [[ -z "$SEMGREP_CORE" || ! -x "$SEMGREP_CORE" ]]; then
-	echo "SKIPPED: semgrep-core binary not found in runfiles (GHCR credentials may be missing)"
+SEMGREP_PRO_ENGINE=$(find "$SEARCH_ROOT" -name "semgrep-core-proprietary" \( -type f -o -type l \) 2>/dev/null | head -1)
+if [[ -z "$SEMGREP_PRO_ENGINE" ]]; then
+	echo "SKIPPED: semgrep-core-proprietary not found in runfiles (GHCR credentials may be missing)"
 	exit 0
 fi
 
-# Verify the binary can actually execute on this platform (the OCI-vendored
-# engine is a Linux ELF binary — it won't run on macOS).
+# OSS engine is a runtime dependency — must be co-located for Pro to work
+SEMGREP_CORE=$(find "$SEARCH_ROOT" -name "semgrep-core" -not -name "*proprietary*" \( -type f -o -type l \) 2>/dev/null | head -1)
+if [[ -z "$SEMGREP_CORE" ]]; then
+	echo "SKIPPED: semgrep-core (OSS) not found — required as Pro runtime dependency"
+	exit 0
+fi
+
+# Verify the binary can execute on this platform (OCI-vendored engine is
+# Linux ELF — won't run on macOS). Use OSS binary for lighter check.
 if ! "$SEMGREP_CORE" -version >/dev/null 2>&1; then
 	echo "SKIPPED: semgrep-core found but cannot execute on this platform ($(uname -s)/$(uname -m))"
 	exit 0
 fi
 
-# Select engine: use pro engine if available in runfiles, otherwise use OSS semgrep-core.
-ENGINE="$SEMGREP_CORE"
-SEMGREP_PRO_ENGINE=$(find "$SEARCH_ROOT" -name "semgrep-core-proprietary" \( -type f -o -type l \) 2>/dev/null | head -1)
-if [[ -n "$SEMGREP_PRO_ENGINE" ]]; then
-	PRO_DIR="${TEST_TMPDIR}/pro_bin"
-	mkdir -p "$PRO_DIR"
-	cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
-	chmod 755 "$PRO_DIR/semgrep-core"
-	cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
-	chmod 755 "$PRO_DIR/semgrep-core-proprietary"
-	ENGINE="$PRO_DIR/semgrep-core-proprietary"
-fi
+# Stage both binaries in the same directory (Pro requires co-located OSS binary)
+PRO_DIR="${TEST_TMPDIR}/pro_bin"
+mkdir -p "$PRO_DIR"
+cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
+chmod 755 "$PRO_DIR/semgrep-core"
+cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
+chmod 755 "$PRO_DIR/semgrep-core-proprietary"
+ENGINE="$PRO_DIR/semgrep-core-proprietary"
+
+# Pro engine requires a non-empty SEMGREP_APP_TOKEN for interfile analysis.
+# The token isn't validated for local scans — a placeholder suffices.
+export SEMGREP_APP_TOKEN="${SEMGREP_APP_TOKEN:-placeholder}"
 
 # Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
 # rule-ID-based exclusion (EXCLUDE_IDS).
@@ -123,13 +130,12 @@ if [[ ${#RULE_FILES[@]} -eq 0 ]]; then
 	exit 0
 fi
 
-# Generate targets JSON for the rendered manifest file
-TARGETS_FILE="${TEST_TMPDIR}/targets.json"
-abs_manifest="$(cd "$(dirname "$MANIFESTS")" && pwd)/$(basename "$MANIFESTS")"
-printf '["Targets",[["CodeTarget",{"path":{"fpath":"%s","ppath":"%s"},"analyzer":"yaml","products":["sast"]}]]]' \
-	"$abs_manifest" "$abs_manifest" >"$TARGETS_FILE"
+# Copy rendered manifest into a scan directory for -lang yaml <dir> invocation
+SCAN_DIR="${TEST_TMPDIR}/manifest_scan"
+mkdir -p "$SCAN_DIR"
+cp "$MANIFESTS" "$SCAN_DIR/rendered-manifests.yaml"
 
-# Run semgrep-core once per rule file, merge JSON results
+# Run semgrep-core once per rule file with interfile analysis, merge JSON results
 RESULTS_DIR="${TEST_TMPDIR}/results"
 mkdir -p "$RESULTS_DIR"
 RESULT_INDEX=0
@@ -138,7 +144,7 @@ for rule_file in "${RULE_FILES[@]}"; do
 	RESULT_FILE="$RESULTS_DIR/result_${RESULT_INDEX}.json"
 	STDERR_FILE="${TEST_TMPDIR}/stderr_${RESULT_INDEX}.txt"
 	SCAN_EXIT=0
-	"$ENGINE" -rules "$rule_file" -targets "$TARGETS_FILE" -json -json_nodots \
+	"$ENGINE" -rules "$rule_file" -pro_inter_file -lang yaml "$SCAN_DIR" -json -json_nodots \
 		>"$RESULT_FILE" 2>"$STDERR_FILE" || SCAN_EXIT=$?
 
 	if [[ "$SCAN_EXIT" -ne 0 ]]; then

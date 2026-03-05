@@ -22,39 +22,44 @@ if [[ $# -lt 2 ]]; then
 	exit 1
 fi
 
-# Discover semgrep-core from runfiles. The engine filegroup may be empty
+# Discover Pro engine (primary). The engine filegroup may be empty
 # (no GHCR token / empty digest) — in that case, skip gracefully.
 # Search RUNFILES_DIR (not cwd) because external repo files live in sibling
 # directories (e.g. +semgrep+semgrep_engine_arm64/) outside _main/.
 # Use -type f -o -type l to match both regular files and symlinks.
 SEARCH_ROOT="${RUNFILES_DIR:-.}"
-SEMGREP_CORE=$(find "$SEARCH_ROOT" -name "semgrep-core" -not -name "*proprietary*" \( -type f -o -type l \) 2>/dev/null | head -1)
-if [[ -z "$SEMGREP_CORE" || ! -x "$SEMGREP_CORE" ]]; then
-	echo "SKIPPED: semgrep-core binary not found in runfiles (GHCR credentials may be missing)"
+SEMGREP_PRO_ENGINE=$(find "$SEARCH_ROOT" -name "semgrep-core-proprietary" \( -type f -o -type l \) 2>/dev/null | head -1)
+if [[ -z "$SEMGREP_PRO_ENGINE" ]]; then
+	echo "SKIPPED: semgrep-core-proprietary not found in runfiles (GHCR credentials may be missing)"
 	exit 0
 fi
 
-# Verify the binary can actually execute on this platform (the OCI-vendored
-# engine is a Linux ELF binary — it won't run on macOS).
+# OSS engine is a runtime dependency — must be co-located for Pro to work
+SEMGREP_CORE=$(find "$SEARCH_ROOT" -name "semgrep-core" -not -name "*proprietary*" \( -type f -o -type l \) 2>/dev/null | head -1)
+if [[ -z "$SEMGREP_CORE" ]]; then
+	echo "SKIPPED: semgrep-core (OSS) not found — required as Pro runtime dependency"
+	exit 0
+fi
+
+# Verify the binary can execute on this platform (OCI-vendored engine is
+# Linux ELF — won't run on macOS). Use OSS binary for lighter check.
 if ! "$SEMGREP_CORE" -version >/dev/null 2>&1; then
 	echo "SKIPPED: semgrep-core found but cannot execute on this platform ($(uname -s)/$(uname -m))"
 	exit 0
 fi
 
-# Select engine: use pro engine if available in runfiles, otherwise use OSS semgrep-core.
-# The pro_engine filegroup may be empty (no token/digest) — find returns nothing → OSS only.
-ENGINE="$SEMGREP_CORE"
-SEMGREP_PRO_ENGINE=$(find "$SEARCH_ROOT" -name "semgrep-core-proprietary" \( -type f -o -type l \) 2>/dev/null | head -1)
-if [[ -n "$SEMGREP_PRO_ENGINE" ]]; then
-	# semgrep-core-proprietary needs semgrep-core alongside it in the same directory
-	PRO_DIR="${TEST_TMPDIR}/pro_bin"
-	mkdir -p "$PRO_DIR"
-	cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
-	chmod 755 "$PRO_DIR/semgrep-core"
-	cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
-	chmod 755 "$PRO_DIR/semgrep-core-proprietary"
-	ENGINE="$PRO_DIR/semgrep-core-proprietary"
-fi
+# Stage both binaries in the same directory (Pro requires co-located OSS binary)
+PRO_DIR="${TEST_TMPDIR}/pro_bin"
+mkdir -p "$PRO_DIR"
+cp "$SEMGREP_CORE" "$PRO_DIR/semgrep-core"
+chmod 755 "$PRO_DIR/semgrep-core"
+cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
+chmod 755 "$PRO_DIR/semgrep-core-proprietary"
+ENGINE="$PRO_DIR/semgrep-core-proprietary"
+
+# Pro engine requires a non-empty SEMGREP_APP_TOKEN for interfile analysis.
+# The token isn't validated for local scans — a placeholder suffices.
+export SEMGREP_APP_TOKEN="${SEMGREP_APP_TOKEN:-placeholder}"
 
 # Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
 # rule-ID-based exclusion (EXCLUDE_IDS).
@@ -126,7 +131,7 @@ done
 
 # Copy lockfile files to scan directory
 LOCKFILE_FILES=()
-for f in "${LOCKFILE_ARGS[@]}"; do
+for f in ${LOCKFILE_ARGS[@]+"${LOCKFILE_ARGS[@]}"}; do
 	mkdir -p "$SCAN_DIR/$(dirname "$f")"
 	cp "$f" "$SCAN_DIR/$f"
 	LOCKFILE_FILES+=("$SCAN_DIR/$f")
@@ -169,86 +174,115 @@ detect_lockfile_kind() {
 	esac
 }
 
-# Determine products and dependency_source based on lockfiles
-HAS_LOCKFILES=false
-LOCKFILE_JSON=""
+# Build list of unique languages present in source files
+_ALL_LANGS=()
+for f in "${SOURCE_FILES[@]}"; do
+	lang=$(detect_lang "$f")
+	if [[ -n "$lang" ]]; then
+		_ALL_LANGS+=("$lang")
+	fi
+done
+# Deduplicate (sort -u is POSIX, no bash 4 associative arrays needed)
+SCAN_LANGS=()
+if [[ ${#_ALL_LANGS[@]} -gt 0 ]]; then
+	while IFS= read -r l; do
+		SCAN_LANGS+=("$l")
+	done < <(printf '%s\n' "${_ALL_LANGS[@]}" | sort -u)
+fi
+
+# --- SAST pass: interfile analysis, per-language ---
+# -pro_inter_file requires -lang <lang> <dir> (not -targets).
+RESULTS_DIR="${TEST_TMPDIR}/results"
+mkdir -p "$RESULTS_DIR"
+RESULT_INDEX=0
+
+for lang in ${SCAN_LANGS[@]+"${SCAN_LANGS[@]}"}; do
+	for rule_file in "${RULE_FILES[@]}"; do
+		RESULT_FILE="$RESULTS_DIR/result_${RESULT_INDEX}.json"
+		STDERR_FILE="${TEST_TMPDIR}/stderr_${RESULT_INDEX}.txt"
+		SCAN_EXIT_CUR=0
+		"$ENGINE" -rules "$rule_file" -pro_inter_file -lang "$lang" "$SCAN_DIR" -json -json_nodots \
+			>"$RESULT_FILE" 2>"$STDERR_FILE" || SCAN_EXIT_CUR=$?
+
+		if [[ "$SCAN_EXIT_CUR" -ne 0 ]]; then
+			echo "WARNING: semgrep-core exited $SCAN_EXIT_CUR on $(basename "$rule_file") (lang=$lang)" >&2
+			cat "$STDERR_FILE" >&2
+		fi
+
+		RESULT_INDEX=$((RESULT_INDEX + 1))
+	done
+done
+
+# --- SCA pass: lockfile dependency scanning (when lockfiles present) ---
+# Interfile mode doesn't support SCA's dependency_source format, so SCA
+# keeps the -targets JSON invocation style.
 if [[ ${#LOCKFILE_FILES[@]} -gt 0 ]]; then
-	HAS_LOCKFILES=true
-	# Use the first lockfile for dependency_source (semgrep deduplicates internally)
+	# Build dependency_source JSON from first lockfile
 	LF="${LOCKFILE_FILES[0]}"
 	LF_KIND=$(detect_lockfile_kind "$LF")
+	LOCKFILE_JSON=""
 	if [[ -n "$LF_KIND" ]]; then
 		LF_ABS="$(cd "$(dirname "$LF")" && pwd)/$(basename "$LF")"
 		LOCKFILE_JSON=$(printf ',"dependency_source":["LockfileOnly",{"kind":"%s","path":"%s"}]' "$LF_KIND" "$LF_ABS")
 	fi
-fi
 
-PRODUCTS='["sast"]'
-if [[ "$HAS_LOCKFILES" == "true" ]]; then
-	PRODUCTS='["sast","sca"]'
-fi
+	# Generate targets JSON for SCA scan
+	TARGETS_FILE="${TEST_TMPDIR}/sca_targets.json"
+	{
+		echo -n '["Targets",['
+		first=true
 
-# Generate targets JSON in semgrep-core's ATD format
-TARGETS_FILE="${TEST_TMPDIR}/targets.json"
-{
-	echo -n '["Targets",['
-	first=true
-
-	# CodeTargets for source files
-	for f in "${SOURCE_FILES[@]}"; do
-		lang=$(detect_lang "$f")
-		if [[ -z "$lang" ]]; then
-			continue
-		fi
-		abs_path="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
-		if [[ "$first" == "true" ]]; then
-			first=false
-		else
-			echo -n ','
-		fi
-		echo -n "$(printf '["CodeTarget",{"path":{"fpath":"%s","ppath":"%s"},"analyzer":"%s","products":%s%s}]' \
-			"$abs_path" "$abs_path" "$lang" "$PRODUCTS" "$LOCKFILE_JSON")"
-	done
-
-	# DependencySourceTargets for lockfile-only mode (no source files)
-	if [[ ${#SOURCE_FILES[@]} -eq 0 && "$HAS_LOCKFILES" == "true" ]]; then
-		for lf in "${LOCKFILE_FILES[@]}"; do
-			lf_kind=$(detect_lockfile_kind "$lf")
-			if [[ -z "$lf_kind" ]]; then
+		# CodeTargets with SCA product for source files
+		for f in "${SOURCE_FILES[@]}"; do
+			lang=$(detect_lang "$f")
+			if [[ -z "$lang" ]]; then
 				continue
 			fi
-			lf_abs="$(cd "$(dirname "$lf")" && pwd)/$(basename "$lf")"
+			abs_path="$(cd "$(dirname "$f")" && pwd)/$(basename "$f")"
 			if [[ "$first" == "true" ]]; then
 				first=false
 			else
 				echo -n ','
 			fi
-			echo -n "$(printf '["DependencySourceTarget",["LockfileOnly",{"kind":"%s","path":"%s"}]]' "$lf_kind" "$lf_abs")"
+			echo -n "$(printf '["CodeTarget",{"path":{"fpath":"%s","ppath":"%s"},"analyzer":"%s","products":["sca"]%s}]' \
+				"$abs_path" "$abs_path" "$lang" "$LOCKFILE_JSON")"
 		done
-	fi
 
-	echo ']]'
-} >"$TARGETS_FILE"
+		# DependencySourceTargets for lockfile-only mode (no source files)
+		if [[ ${#SOURCE_FILES[@]} -eq 0 ]]; then
+			for lf in "${LOCKFILE_FILES[@]}"; do
+				lf_kind=$(detect_lockfile_kind "$lf")
+				if [[ -z "$lf_kind" ]]; then
+					continue
+				fi
+				lf_abs="$(cd "$(dirname "$lf")" && pwd)/$(basename "$lf")"
+				if [[ "$first" == "true" ]]; then
+					first=false
+				else
+					echo -n ','
+				fi
+				echo -n "$(printf '["DependencySourceTarget",["LockfileOnly",{"kind":"%s","path":"%s"}]]' "$lf_kind" "$lf_abs")"
+			done
+		fi
 
-# Run semgrep-core once per rule file, merge JSON results
-RESULTS_DIR="${TEST_TMPDIR}/results"
-mkdir -p "$RESULTS_DIR"
-RESULT_INDEX=0
+		echo ']]'
+	} >"$TARGETS_FILE"
 
-for rule_file in "${RULE_FILES[@]}"; do
-	RESULT_FILE="$RESULTS_DIR/result_${RESULT_INDEX}.json"
-	STDERR_FILE="${TEST_TMPDIR}/stderr_${RESULT_INDEX}.txt"
-	SCAN_EXIT=0
-	"$ENGINE" -rules "$rule_file" -targets "$TARGETS_FILE" -json -json_nodots \
-		>"$RESULT_FILE" 2>"$STDERR_FILE" || SCAN_EXIT=$?
+	for rule_file in "${RULE_FILES[@]}"; do
+		RESULT_FILE="$RESULTS_DIR/result_${RESULT_INDEX}.json"
+		STDERR_FILE="${TEST_TMPDIR}/stderr_${RESULT_INDEX}.txt"
+		SCAN_EXIT_CUR=0
+		"$ENGINE" -rules "$rule_file" -targets "$TARGETS_FILE" -json -json_nodots \
+			>"$RESULT_FILE" 2>"$STDERR_FILE" || SCAN_EXIT_CUR=$?
 
-	if [[ "$SCAN_EXIT" -ne 0 ]]; then
-		echo "WARNING: semgrep-core exited $SCAN_EXIT on $(basename "$rule_file")" >&2
-		cat "$STDERR_FILE" >&2
-	fi
+		if [[ "$SCAN_EXIT_CUR" -ne 0 ]]; then
+			echo "WARNING: semgrep-core (SCA) exited $SCAN_EXIT_CUR on $(basename "$rule_file")" >&2
+			cat "$STDERR_FILE" >&2
+		fi
 
-	RESULT_INDEX=$((RESULT_INDEX + 1))
-done
+		RESULT_INDEX=$((RESULT_INDEX + 1))
+	done
+fi
 
 # Merge results into a single JSON and determine findings
 MERGED_FILE="${TEST_TMPDIR}/results.json"
