@@ -44,6 +44,11 @@ filegroup(
 )
 
 filegroup(
+    name = "sca_rules",
+    srcs = ["@semgrep_sca_rules//:rules"],
+)
+
+filegroup(
     name = "all_rules",
     srcs = glob(["**/*.yaml"]) + [
         "@semgrep_pro_rules_golang//:rules",
