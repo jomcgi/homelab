@@ -275,6 +275,209 @@ if merged["results"]:
     sys.exit(1)
 PYEOF
 
+# SCA version filter: semgrep-core does reachability analysis but does not
+# compare lockfile versions against the rule's version constraint (that is
+# normally pysemgrep's job). Post-filter SCA findings here so we don't
+# report CVEs for versions that aren't actually vulnerable.
+if [[ "$SCAN_EXIT" -ne 0 && "$HAS_LOCKFILES" == "true" ]]; then
+	LOCKFILE_PATHS=""
+	for lf in "${LOCKFILE_FILES[@]}"; do
+		LOCKFILE_PATHS+="$lf"$'\n'
+	done
+	RULE_PATHS=""
+	for rf in "${RULE_FILES[@]}"; do
+		RULE_PATHS+="$rf"$'\n'
+	done
+
+	if python3 - "$MERGED_FILE" <<PYEOF; then
+import json, os, re, sys
+
+# --- Version comparison (no external dependencies) ---
+
+def parse_version(v):
+    """Parse version string into comparable tuple of ints."""
+    v = v.strip().lstrip("v")
+    # Strip pre-release/build suffixes for basic comparison but keep
+    # pre-release ordering: a pre-release sorts before the release.
+    pre = None
+    for sep in ("-", "+"):
+        if sep in v:
+            v, pre = v.split(sep, 1)
+            break
+    parts = []
+    for p in v.split("."):
+        try:
+            parts.append(int(p))
+        except ValueError:
+            parts.append(0)
+    return (tuple(parts), 0 if pre is None else -1, pre or "")
+
+def ver_cmp(a, b):
+    """Compare two parsed versions. Returns -1, 0, or 1."""
+    pa, prea, _ = parse_version(a)
+    pb, preb, _ = parse_version(b)
+    if pa != pb:
+        return -1 if pa < pb else 1
+    if prea != preb:
+        return -1 if prea < preb else 1
+    return 0
+
+def matches_constraint(installed, constraint):
+    """Check if installed version satisfies a single constraint like '<0.23.0'."""
+    m = re.match(r"(>=|<=|!=|==|>|<)\s*(.+)", constraint.strip())
+    if not m:
+        return True  # unparseable constraint — keep finding (conservative)
+    op, ver = m.group(1), m.group(2)
+    c = ver_cmp(installed, ver)
+    if op == "==":  return c == 0
+    if op == "!=":  return c != 0
+    if op == "<":   return c < 0
+    if op == "<=":  return c <= 0
+    if op == ">":   return c > 0
+    if op == ">=":  return c >= 0
+    return True
+
+def version_in_range(installed, version_spec):
+    """Check if installed version falls within a comma-separated version spec."""
+    for part in version_spec.split(","):
+        part = part.strip()
+        if part and not matches_constraint(installed, part):
+            return False
+    return True
+
+# --- Lockfile parsing ---
+
+def parse_pip_requirements(path):
+    """Parse pip requirements.txt: package==version lines."""
+    versions = {}
+    with open(path) as f:
+        for line in f:
+            line = line.strip().split("#")[0].split(";")[0].split("\\\\")[0].strip()
+            m = re.match(r"^([A-Za-z0-9_][A-Za-z0-9._-]*)==([^\s;\\\\]+)", line)
+            if m:
+                # Normalize: pip uses hyphens/underscores interchangeably
+                pkg = re.sub(r"[-_.]+", "-", m.group(1)).lower()
+                versions[pkg] = m.group(2)
+    return versions
+
+def parse_go_sum(path):
+    """Parse go.sum: module version hash lines."""
+    versions = {}
+    with open(path) as f:
+        for line in f:
+            parts = line.strip().split()
+            if len(parts) >= 2:
+                mod = parts[0]
+                ver = parts[1].split("/")[0]  # strip /go.mod suffix
+                ver = ver.lstrip("v")
+                if mod not in versions:
+                    versions[mod] = ver
+    return versions
+
+def parse_pnpm_lock(path):
+    """Parse pnpm-lock.yaml for package versions (simplified)."""
+    versions = {}
+    with open(path) as f:
+        for line in f:
+            # Matches lines like: '/packagename@version:' or '/@scope/name@version:'
+            m = re.match(r"\s+'?/?(@?[^@']+)@([^:('+]+)", line)
+            if m:
+                pkg = m.group(1).strip("/")
+                versions[pkg] = m.group(2)
+    return versions
+
+def parse_lockfile(path):
+    """Auto-detect lockfile format and parse it."""
+    basename = os.path.basename(path)
+    if basename == "go.sum":
+        return parse_go_sum(path)
+    if basename == "pnpm-lock.yaml":
+        return parse_pnpm_lock(path)
+    # Default: pip requirements format (requirements*.txt, etc.)
+    return parse_pip_requirements(path)
+
+# --- Rule constraint extraction ---
+
+def build_rule_constraints(rule_files):
+    """Build map of rule_id -> [(package, version_spec)] from rule files."""
+    constraints = {}
+    for rf in rule_files:
+        try:
+            with open(rf) as f:
+                data = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            continue
+        for rule in data.get("rules", []):
+            rid = rule.get("id", "")
+            if not rid.startswith("ssc-"):
+                continue
+            dep = rule.get("r2c-internal-project-depends-on", {})
+            for entry in dep.get("depends-on-either", []):
+                pkg = re.sub(r"[-_.]+", "-", entry.get("package", "")).lower()
+                ver = entry.get("version", "")
+                if pkg and ver:
+                    constraints.setdefault(rid, []).append((pkg, ver))
+    return constraints
+
+# --- Main ---
+
+merged_file = sys.argv[1]
+lockfile_paths = [p for p in """${LOCKFILE_PATHS}""".strip().splitlines() if p]
+rule_paths = [p for p in """${RULE_PATHS}""".strip().splitlines() if p]
+
+# Parse lockfiles
+installed = {}
+for lf in lockfile_paths:
+    installed.update(parse_lockfile(lf))
+
+# Parse SCA rule constraints
+constraints = build_rule_constraints(rule_paths)
+
+if not installed or not constraints:
+    sys.exit(1)  # can't filter — keep original exit code
+
+# Filter merged results
+with open(merged_file) as f:
+    data = json.load(f)
+
+kept, dropped = [], 0
+for r in data.get("results", []):
+    cid = r.get("check_id", "")
+    # Extract the ssc- rule ID (may be prefixed with rule file path)
+    ssc_match = re.search(r"(ssc-[0-9a-f-]+)", cid)
+    if not ssc_match:
+        kept.append(r)  # not an SCA finding — keep
+        continue
+    ssc_id = ssc_match.group(1)
+    rule_deps = constraints.get(ssc_id)
+    if not rule_deps:
+        kept.append(r)  # no constraint info — keep (conservative)
+        continue
+    vulnerable = False
+    for pkg, ver_spec in rule_deps:
+        pkg_version = installed.get(pkg)
+        if pkg_version and version_in_range(pkg_version, ver_spec):
+            vulnerable = True
+            break
+    if vulnerable:
+        kept.append(r)
+    else:
+        dropped += 1
+
+data["results"] = kept
+with open(merged_file, "w") as f:
+    json.dump(data, f)
+
+if dropped:
+    print(f"  SCA version filter: {dropped} finding(s) not applicable to installed versions")
+if kept:
+    sys.exit(1)
+sys.exit(0)
+PYEOF
+		SCAN_EXIT=0
+	fi
+fi
+
 # Best-effort upload (never affects exit code)
 if [[ -n "${SEMGREP_APP_TOKEN:-}" && -n "${UPLOAD_SCRIPT:-}" && -f "$MERGED_FILE" ]]; then
 	"$UPLOAD_SCRIPT" "$MERGED_FILE" "$SCAN_EXIT" 2>&1 || true
