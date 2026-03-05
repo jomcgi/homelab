@@ -1003,6 +1003,22 @@ transitions:
                 </div>
             </div>
 
+            <h3>Static Analysis</h3>
+            <p>Semgrep Pro rules as hermetic Bazel tests. The OCaml engine is vendored as an OCI artifact—no pip install, no registry fetches. Scans re-run only when source files or rules change.</p>
+
+            <div class="execution">
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">rules_semgrep</div>
+                        <div class="execution-value">Three rule types: source files, Helm manifests, and full transitive targets via aspect. Gazelle auto-generates them all.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Speed</div>
+                        <div class="execution-value">30s cached diff, 50s with new rules. Down from 2m+ on managed CI. Cache invalidation is content-addressed, not time-based.</div>
+                    </div>
+                </div>
+            </div>
+
         </section>
 
         <!-- Deep Dive 7: Self-Hosted AI Stack -->
