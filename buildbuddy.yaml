@@ -34,6 +34,8 @@ actions:
   - name: "Test and push"
     container_image: "ubuntu-24.04"
     resource_requests:
+      cpu: "8"
+      memory: "12GB"
       disk: "75GB"
     triggers:
       push:
