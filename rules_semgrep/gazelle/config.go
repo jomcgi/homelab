@@ -42,8 +42,8 @@ type semgrepConfig struct {
 	languages []string
 	// scaEnabled controls whether to generate SCA lockfile attrs
 	scaEnabled bool
-	// scaRules is the label for SCA advisory rules
-	scaRules string
+	// scaRules maps dep ecosystem to SCA advisory rule label
+	scaRules map[string]string
 	// lockfiles maps dep ecosystem to lockfile label
 	lockfiles map[string]string
 }
@@ -61,7 +61,7 @@ func getSemgrepConfig(c *config.Config) *semgrepConfig {
 		targetKinds: copyTargetKinds(defaultTargetKinds),
 		languages:   append([]string{}, defaultLanguages...),
 		scaEnabled:  true,
-		scaRules:    "//semgrep_rules:sca_rules",
+		scaRules:    copyScaRules(defaultScaRules),
 		lockfiles:   copyLockfiles(defaultLockfiles),
 	}
 }
@@ -78,7 +78,7 @@ func configure(c *config.Config, rel string, f *rule.File) {
 		targetKinds:  copyTargetKinds(parent.targetKinds),
 		languages:    append([]string{}, parent.languages...),
 		scaEnabled:   parent.scaEnabled,
-		scaRules:     parent.scaRules,
+		scaRules:     copyScaRules(parent.scaRules),
 		lockfiles:    copyLockfiles(parent.lockfiles),
 	}
 
@@ -112,9 +112,15 @@ func configure(c *config.Config, rel string, f *rule.File) {
 				// # gazelle:semgrep_sca disabled
 				cfg.scaEnabled = d.Value != "disabled"
 			case "semgrep_sca_rules":
-				// # gazelle:semgrep_sca_rules //custom:sca_rules
-				if d.Value != "" {
-					cfg.scaRules = d.Value
+				parts := strings.SplitN(d.Value, " ", 2)
+				if len(parts) == 2 {
+					// Per-ecosystem override: # gazelle:semgrep_sca_rules pip //custom:sca
+					cfg.scaRules[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
+				} else if d.Value != "" {
+					// Global override: # gazelle:semgrep_sca_rules //custom:all_sca
+					for k := range cfg.scaRules {
+						cfg.scaRules[k] = d.Value
+					}
 				}
 			case "semgrep_lockfile":
 				// # gazelle:semgrep_lockfile pip //requirements:all.txt

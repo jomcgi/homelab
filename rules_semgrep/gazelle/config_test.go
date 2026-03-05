@@ -558,8 +558,17 @@ func TestConfigure_SCADefaults(t *testing.T) {
 	if !cfg.scaEnabled {
 		t.Error("expected scaEnabled to be true by default")
 	}
-	if cfg.scaRules != "//semgrep_rules:sca_rules" {
-		t.Errorf("expected default scaRules, got %q", cfg.scaRules)
+	if len(cfg.scaRules) != 3 {
+		t.Errorf("expected 3 default scaRules, got %d: %v", len(cfg.scaRules), cfg.scaRules)
+	}
+	if cfg.scaRules["pip"] != "//semgrep_rules:sca_python_rules" {
+		t.Errorf("expected pip scaRules, got %q", cfg.scaRules["pip"])
+	}
+	if cfg.scaRules["pnpm"] != "//semgrep_rules:sca_javascript_rules" {
+		t.Errorf("expected pnpm scaRules, got %q", cfg.scaRules["pnpm"])
+	}
+	if cfg.scaRules["gomod"] != "//semgrep_rules:sca_golang_rules" {
+		t.Errorf("expected gomod scaRules, got %q", cfg.scaRules["gomod"])
 	}
 	if len(cfg.lockfiles) != 3 {
 		t.Errorf("expected 3 default lockfiles, got %d: %v", len(cfg.lockfiles), cfg.lockfiles)
@@ -592,15 +601,15 @@ func TestConfigure_SCARulesDirective(t *testing.T) {
 
 	f := &rule.File{
 		Directives: []rule.Directive{
-			{Key: "semgrep_sca_rules", Value: "//custom:sca_rules"},
+			{Key: "semgrep_sca_rules", Value: "pip //custom:sca_rules"},
 		},
 	}
 
 	configure(c, "", f)
 	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
 
-	if cfg.scaRules != "//custom:sca_rules" {
-		t.Errorf("expected custom scaRules, got %q", cfg.scaRules)
+	if cfg.scaRules["pip"] != "//custom:sca_rules" {
+		t.Errorf("expected custom pip scaRules, got %q", cfg.scaRules["pip"])
 	}
 }
 
@@ -608,7 +617,7 @@ func TestConfigure_SCAInheritance(t *testing.T) {
 	parent := &semgrepConfig{
 		enabled:     true,
 		scaEnabled:  false,
-		scaRules:    "//custom:sca",
+		scaRules:    map[string]string{"pip": "//custom:sca"},
 		lockfiles:   map[string]string{"pip": "//custom:req.txt"},
 		targetKinds: map[string]string{"py_venv_binary": ""},
 		languages:   []string{"py"},
@@ -626,8 +635,8 @@ func TestConfigure_SCAInheritance(t *testing.T) {
 	if cfg.scaEnabled {
 		t.Error("scaEnabled should be inherited as false")
 	}
-	if cfg.scaRules != "//custom:sca" {
-		t.Errorf("scaRules should be inherited, got %q", cfg.scaRules)
+	if cfg.scaRules["pip"] != "//custom:sca" {
+		t.Errorf("scaRules should be inherited, got %v", cfg.scaRules)
 	}
 	if cfg.lockfiles["pip"] != "//custom:req.txt" {
 		t.Errorf("lockfiles should be inherited, got %v", cfg.lockfiles)
@@ -638,6 +647,7 @@ func TestConfigure_SCALockfileParentNotMutated(t *testing.T) {
 	parent := &semgrepConfig{
 		enabled:     true,
 		scaEnabled:  true,
+		scaRules:    copyScaRules(defaultScaRules),
 		lockfiles:   map[string]string{"pip": "//req:all.txt"},
 		targetKinds: map[string]string{"py_venv_binary": ""},
 		languages:   []string{"py"},

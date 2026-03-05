@@ -1006,7 +1006,7 @@ func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:     true,
 				scaEnabled:  true,
-				scaRules:    "//semgrep_rules:sca_rules",
+				scaRules:    map[string]string{"pip": "//semgrep_rules:sca_python_rules"},
 				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
@@ -1042,8 +1042,8 @@ func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
 	}
 
 	scaRules := targetRule.AttrStrings("sca_rules")
-	if len(scaRules) != 1 || scaRules[0] != "//semgrep_rules:sca_rules" {
-		t.Errorf("sca_rules = %v, want [//semgrep_rules:sca_rules]", scaRules)
+	if len(scaRules) != 1 || scaRules[0] != "//semgrep_rules:sca_python_rules" {
+		t.Errorf("sca_rules = %v, want [//semgrep_rules:sca_python_rules]", scaRules)
 	}
 }
 
@@ -1086,7 +1086,7 @@ func TestGenerateRules_MultipleDepsMultipleEcosystems(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:     true,
 				scaEnabled:  true,
-				scaRules:    "//semgrep_rules:sca_rules",
+				scaRules:    copyScaRules(defaultScaRules),
 				lockfiles:   map[string]string{"pip": "//requirements:all.txt", "gomod": "//:go.sum"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
@@ -1119,6 +1119,18 @@ func TestGenerateRules_MultipleDepsMultipleEcosystems(t *testing.T) {
 	if lockfiles[1] != "//requirements:all.txt" {
 		t.Errorf("lockfiles[1] = %q, want //requirements:all.txt", lockfiles[1])
 	}
+
+	scaRules := targetRule.AttrStrings("sca_rules")
+	if len(scaRules) != 2 {
+		t.Fatalf("expected 2 sca_rules, got %v", scaRules)
+	}
+	// Sorted: //semgrep_rules:sca_golang_rules before //semgrep_rules:sca_python_rules
+	if scaRules[0] != "//semgrep_rules:sca_golang_rules" {
+		t.Errorf("sca_rules[0] = %q, want //semgrep_rules:sca_golang_rules", scaRules[0])
+	}
+	if scaRules[1] != "//semgrep_rules:sca_python_rules" {
+		t.Errorf("sca_rules[1] = %q, want //semgrep_rules:sca_python_rules", scaRules[1])
+	}
 }
 
 func TestGenerateRules_NoDepsNoLockfiles(t *testing.T) {
@@ -1127,7 +1139,7 @@ func TestGenerateRules_NoDepsNoLockfiles(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:     true,
 				scaEnabled:  true,
-				scaRules:    "//semgrep_rules:sca_rules",
+				scaRules:    copyScaRules(defaultScaRules),
 				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
