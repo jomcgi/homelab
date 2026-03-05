@@ -940,12 +940,12 @@ func TestGenerateRules_LanguageRulesConfig(t *testing.T) {
 	}
 
 	rules := targetRule.AttrStrings("rules")
-	// Should contain both go_rules and python_rules, sorted
+	// Should contain both golang_rules and python_rules, sorted
 	if len(rules) != 2 {
 		t.Fatalf("rules = %v, want 2 entries", rules)
 	}
-	if rules[0] != "//semgrep_rules:go_rules" {
-		t.Errorf("rules[0] = %q, want //semgrep_rules:go_rules", rules[0])
+	if rules[0] != "//semgrep_rules:golang_rules" {
+		t.Errorf("rules[0] = %q, want //semgrep_rules:golang_rules", rules[0])
 	}
 	if rules[1] != "//semgrep_rules:python_rules" {
 		t.Errorf("rules[1] = %q, want //semgrep_rules:python_rules", rules[1])
@@ -987,14 +987,14 @@ func TestGenerateRules_MultiLangOrphans(t *testing.T) {
 		t.Errorf("py file rules = %v, want [//semgrep_rules:python_rules]", pyRules)
 	}
 
-	// .go file gets go_rules
+	// .go file gets golang_rules
 	goRule := result.Gen[1]
 	if goRule.Name() != "utils_semgrep_test" {
 		t.Errorf("rule[1] name = %q, want utils_semgrep_test", goRule.Name())
 	}
 	goRules := goRule.AttrStrings("rules")
-	if len(goRules) != 1 || goRules[0] != "//semgrep_rules:go_rules" {
-		t.Errorf("go file rules = %v, want [//semgrep_rules:go_rules]", goRules)
+	if len(goRules) != 1 || goRules[0] != "//semgrep_rules:golang_rules" {
+		t.Errorf("go file rules = %v, want [//semgrep_rules:golang_rules]", goRules)
 	}
 }
 

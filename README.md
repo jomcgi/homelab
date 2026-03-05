@@ -20,6 +20,7 @@ Personal monorepo. The goal is to make shipping a new service as low-friction as
 ### Bazel rules
 
 - `rules_helm/` - Helm chart lint, template, package, and OCI push as Bazel targets. Includes an ArgoCD application macro with live diff support
+- `rules_semgrep/` - Hermetic Semgrep scanning as native Bazel tests. Vendors semgrep-core as OCI artifacts, supports Pro rules, auto-generates scan targets via Gazelle
 - `rules_wrangler/` - Cloudflare Pages deployment via Wrangler as Bazel targets
 
 ## Projects
