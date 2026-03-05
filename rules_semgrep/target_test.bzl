@@ -11,6 +11,16 @@ def _semgrep_target_test_impl(ctx):
     for rule_target in ctx.attr.rules:
         rule_files.extend(rule_target.files.to_list())
 
+    # Collect lockfile files
+    lockfile_files = []
+    for lf_target in ctx.attr.lockfiles:
+        lockfile_files.extend(lf_target.files.to_list())
+
+    # Collect SCA rule files
+    sca_rule_files = []
+    for sca_target in ctx.attr.sca_rules:
+        sca_rule_files.extend(sca_target.files.to_list())
+
     # Build environment variable exports
     env_lines = []
     if ctx.attr.exclude_rules:
@@ -22,12 +32,15 @@ def _semgrep_target_test_impl(ctx):
     upload = ctx.attr._upload[DefaultInfo].files_to_run.executable
     env_lines.append("export UPLOAD_SCRIPT=\"{}\"".format(upload.short_path))
 
-    # Build args for semgrep-test.sh: <rule-files> -- <source-files>
+    # Build args: <rule-files> <sca-rule-files> -- <source-files> [-- <lockfile-files>]
     test_runner = ctx.file._test_runner
 
-    args = [f.short_path for f in rule_files]
+    args = [f.short_path for f in rule_files + sca_rule_files]
     args.append("--")
     args.extend([f.short_path for f in sources])
+    if lockfile_files:
+        args.append("--")
+        args.extend([f.short_path for f in lockfile_files])
 
     # Write launcher script
     launcher = ctx.actions.declare_file(ctx.label.name + ".sh")
@@ -52,7 +65,7 @@ def _semgrep_target_test_impl(ctx):
     # DefaultInfo.files, not default_runfiles, so we must add both.
     engine_files = ctx.attr._engine[DefaultInfo].files.to_list()
     pro_files = ctx.attr.pro_engine[DefaultInfo].files.to_list() if ctx.attr.pro_engine else []
-    all_files = [test_runner] + rule_files + sources + engine_files + pro_files
+    all_files = [test_runner] + rule_files + sca_rule_files + sources + lockfile_files + engine_files + pro_files
     runfiles = ctx.runfiles(files = all_files)
 
     runfiles = runfiles.merge(ctx.attr._engine[DefaultInfo].default_runfiles)
@@ -79,6 +92,14 @@ _semgrep_target_test = rule(
         "exclude_rules": attr.string_list(
             doc = "Semgrep rule IDs to skip (matched against YAML filename).",
         ),
+        "lockfiles": attr.label_list(
+            allow_files = True,
+            doc = "Lockfile(s) for SCA dependency scanning (e.g., go.sum, requirements.txt).",
+        ),
+        "sca_rules": attr.label_list(
+            allow_files = [".yaml"],
+            doc = "SCA advisory rule config files or filegroups.",
+        ),
         "pro_engine": attr.label(
             doc = "Label for semgrep-core-proprietary binary. Enables --pro flag.",
         ),
@@ -91,7 +112,7 @@ _semgrep_target_test = rule(
     },
 )
 
-def semgrep_target_test(name, target, rules, exclude_rules = [], pro_engine = "//third_party/semgrep_pro:engine", **kwargs):
+def semgrep_target_test(name, target, rules, lockfiles = [], sca_rules = [], exclude_rules = [], pro_engine = "//third_party/semgrep_pro:engine", **kwargs):
     """Creates a test that scans a target's transitive sources with semgrep.
 
     Uses an aspect to walk the target's dependency graph and collect all source
@@ -102,6 +123,8 @@ def semgrep_target_test(name, target, rules, exclude_rules = [], pro_engine = "/
         name: Name of the test target.
         target: Label of the target to scan (e.g., a py_venv_binary).
         rules: Semgrep rule config files or filegroups.
+        lockfiles: Lockfile(s) for SCA dependency scanning (e.g., go.sum, requirements.txt).
+        sca_rules: SCA advisory rule config files or filegroups.
         exclude_rules: List of semgrep rule IDs to skip.
         pro_engine: Optional label for semgrep-core-proprietary binary.
         **kwargs: Additional arguments passed to the test rule.
@@ -114,6 +137,8 @@ def semgrep_target_test(name, target, rules, exclude_rules = [], pro_engine = "/
         name = name,
         target = target,
         rules = rules,
+        lockfiles = lockfiles,
+        sca_rules = sca_rules,
         exclude_rules = exclude_rules,
         pro_engine = pro_engine,
         tags = tags,
