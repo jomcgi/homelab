@@ -70,11 +70,59 @@ semgrep_target_test(
 )
 ```
 
+## SCA (Supply Chain Analysis)
+
+All three rules support optional SCA scanning — vulnerability detection in lockfile dependencies via Semgrep Supply Chain.
+
+```starlark
+semgrep_target_test(
+    name = "semgrep_test",
+    target = ":api_server",
+    rules = ["//semgrep_rules:python_rules"],
+    lockfiles = ["//requirements:all.txt"],
+    sca_rules = ["//semgrep_rules:sca_rules"],
+)
+```
+
+When `lockfiles` is provided:
+- `products` becomes `["sast", "sca"]` in the targets.json sent to semgrep-core
+- Each `CodeTarget` gets a `dependency_source` linking the lockfile for reachability analysis
+- The Pro engine traces which vulnerable packages are actually imported (not just listed)
+
+When `lockfiles` is empty (the default), behavior is identical to pure SAST scanning.
+
+### Supported Lockfiles
+
+| Filename | Lockfile Kind | Ecosystem |
+|---|---|---|
+| `go.sum` | `GoModLock` | Go |
+| `requirements*.txt` | `PipRequirementsTxt` | Python |
+| `poetry.lock` | `PoetryLock` | Python |
+| `Pipfile.lock` | `PipfileLock` | Python |
+| `uv.lock` | `UvLock` | Python |
+| `package-lock.json` | `NpmPackageLockJson` | JS |
+| `yarn.lock` | `YarnLock` | JS |
+| `pnpm-lock.yaml` | `PnpmLock` | JS |
+
+### Gazelle Auto-Detection
+
+The Gazelle extension auto-detects lockfiles by inspecting target deps for known external repo prefixes:
+
+| Dep Prefix | Ecosystem | Default Lockfile |
+|---|---|---|
+| `@pip//` | pip | `//requirements:all.txt` |
+| `@npm//` | pnpm | `//:pnpm-lock.yaml` |
+| `@go_deps//` | gomod | `//:go.sum` |
+
+No configuration needed for the common case — targets with `@pip//` deps automatically get `lockfiles = ["//requirements:all.txt"]`.
+
 ## Common Attributes
 
 | Attribute | Type | Default | Description |
 |---|---|---|---|
 | `rules` | `label_list` | (required) | Filegroups containing Semgrep rule YAML files |
+| `lockfiles` | `label_list` | `[]` | Lockfiles for SCA dependency scanning |
+| `sca_rules` | `label_list` | `[]` | SCA advisory rule configs |
 | `exclude_rules` | `string_list` | `[]` | Rule filenames or `check_id` suffixes to exclude |
 | `pro_engine` | `label` | `//third_party/semgrep_pro:engine` | Pro engine binary (set to `None` to disable) |
 
@@ -88,6 +136,9 @@ The Gazelle extension auto-generates `semgrep_test` and `semgrep_target_test` ta
 | `# gazelle:semgrep_exclude_rules` | `no-requests,no-eval` | Set `exclude_rules` on all generated targets |
 | `# gazelle:semgrep_target_kinds` | `py_venv_binary,py3_image=binary` | Which rule kinds trigger `semgrep_target_test` |
 | `# gazelle:semgrep_languages` | `py,go` | Which language rule configs to apply |
+| `# gazelle:semgrep_sca disabled` | | Disable SCA lockfile generation |
+| `# gazelle:semgrep_sca_rules` | `//custom:sca_rules` | Override SCA rule target |
+| `# gazelle:semgrep_lockfile` | `pip //requirements:custom.txt` | Override lockfile for an ecosystem |
 
 All directives inherit from parent directories.
 
@@ -102,6 +153,7 @@ All directives inherit from parent directories.
 | Shell | `//semgrep_rules:shell_rules` | Custom rules (no-kubectl-mutate, no-direct-test) |
 | Bazel | `//semgrep_rules:bazel_rules` | Custom rules (no-rules-python) |
 | Dockerfile | `//semgrep_rules:dockerfile_rules` | Custom rules (no-dockerfile) |
+| SCA | `//semgrep_rules:sca_rules` | Supply chain advisory rules (CVE database) |
 
 ## Pro Engine
 
