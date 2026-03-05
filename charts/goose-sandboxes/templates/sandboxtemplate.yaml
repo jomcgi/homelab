@@ -1,0 +1,45 @@
+apiVersion: extensions.agents.x-k8s.io/v1alpha1
+kind: SandboxTemplate
+metadata:
+  name: {{ .Values.sandboxTemplate.name }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  template:
+    spec:
+      containers:
+        - name: goose
+          image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
+          command: ["/bin/sh", "-c"]
+          args: ['goose run --text "$AGENT_TASK" --profile sandbox']
+          env:
+            - name: GOOSE_PROVIDER
+              value: {{ .Values.sandboxTemplate.env.gooseProvider }}
+            - name: OPENAI_BASE_URL
+              value: {{ .Values.sandboxTemplate.env.litellmBaseUrl }}
+            - name: OPENAI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: llm-creds
+                  key: litellm-api-key
+            - name: GOOSE_MODEL
+              value: {{ .Values.sandboxTemplate.env.gooseModel }}
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: github-token
+          resources:
+            {{- toYaml .Values.sandboxTemplate.resources | nindent 12 }}
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          ephemeral:
+            volumeClaimTemplate:
+              spec:
+                storageClassName: {{ .Values.sandboxTemplate.workspace.storageClassName }}
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: {{ .Values.sandboxTemplate.workspace.size }}

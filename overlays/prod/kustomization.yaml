@@ -9,6 +9,7 @@ resources:
   - ./context-forge
   - ./gh-arc-controller
   - ./gh-arc-runners
+  - ./goose-sandboxes
   - ./knowledge-graph
   - ./nats
   - ./seaweedfs
