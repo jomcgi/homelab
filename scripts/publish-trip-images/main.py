@@ -490,6 +490,37 @@ def ensure_bucket(s3_client, bucket: str) -> None:
         s3_client.create_bucket(Bucket=bucket)
 
 
+def list_s3_keys(s3_client, bucket: str, prefix: str = "") -> list[str]:
+    """List all object keys in an S3 bucket (paginated).
+
+    Only returns keys with image extensions (.jpg, .jpeg, .png, .heic, .heif).
+    """
+    image_extensions = {".jpg", ".jpeg", ".png", ".heic", ".heif"}
+    keys = []
+    continuation_token = None
+
+    while True:
+        kwargs = {"Bucket": bucket, "MaxKeys": 1000}
+        if prefix:
+            kwargs["Prefix"] = prefix
+        if continuation_token:
+            kwargs["ContinuationToken"] = continuation_token
+
+        response = s3_client.list_objects_v2(**kwargs)
+
+        for obj in response.get("Contents", []):
+            key = obj["Key"]
+            ext = Path(key).suffix.lower()
+            if ext in image_extensions:
+                keys.append(key)
+
+        if not response.get("IsTruncated"):
+            break
+        continuation_token = response["NextContinuationToken"]
+
+    return keys
+
+
 def calculate_md5(file_path: Path) -> str:
     """Calculate MD5 hash of a file for S3 ETag comparison."""
     md5 = hashlib.md5(usedforsecurity=False)  # nosec: MD5 required for S3 ETag match
