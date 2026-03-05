@@ -88,7 +88,7 @@ graph TD
 | Vendor engine as OCI artifact (not pip) | Content-addressed digest pinning; platform-specific binaries; no pip resolution |
 | `no-sandbox` Bazel tag | semgrep-core needs real filesystem paths; sandbox adds ~100x overhead |
 | Aspect for transitive source collection | Walks the real dependency graph for cross-file `--pro` analysis |
-| Graceful degradation (empty filegroup → SKIP) | Missing GHCR credentials produce SKIP, not FAIL — works without Pro license |
+| Graceful degradation (empty filegroup → SKIP) | Missing GHCR credentials produce SKIP, not FAIL — local dev works without registry access |
 | Gazelle auto-generation | Zero-maintenance BUILD files; orphan detection ensures no coverage gaps |
 | Per-rule-file execution with post-scan ID filtering | File-level exclusion is O(1); rule-ID exclusion handles granular suppressions |
 

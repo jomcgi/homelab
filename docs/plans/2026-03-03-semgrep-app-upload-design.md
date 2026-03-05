@@ -15,7 +15,7 @@ affecting hermeticity, cacheability, or test pass/fail behavior.
 
 - Upload must never fail the Bazel action
 - Upload must only fire on cache misses (actual scan executions)
-- Pro engine runs fully offline — no license callback required
+- Pro engine runs fully offline
 - No new pip dependencies (httpx 0.28.1 already in requirements)
 - Both source file scans and manifest scans get upload support
 - Test mode (`SEMGREP_TEST_MODE=1`) does not upload
