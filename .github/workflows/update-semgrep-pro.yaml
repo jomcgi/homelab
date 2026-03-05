@@ -172,8 +172,6 @@ jobs:
           SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
         run: |
           set -euo pipefail
-          dir="artifacts/rules-sca"
-          mkdir -p "${dir}"
 
           echo "Downloading SCA supply-chain advisory rules..."
           # The scans/config endpoint requires User-Agent matching semgrep/<version>
@@ -184,28 +182,46 @@ jobs:
             "https://semgrep.dev/api/agent/deployments/scans/config?dry_run=True&full_scan=True&semgrep_version=${SEMGREP_VERSION}&sca=True" \
             -o /tmp/sca-response.json
 
-          echo "Extracting rule_config from API response..."
+          echo "Splitting SCA rules by ecosystem..."
           python3 -c "
-          import json, sys
+          import json, sys, os
+          from collections import defaultdict
+
           with open('/tmp/sca-response.json') as f:
               data = json.load(f)
           rule_config = data.get('rule_config')
           if not rule_config:
               print('ERROR: no rule_config in response', file=sys.stderr)
               sys.exit(1)
-          rules = json.loads(rule_config)
-          count = len(rules.get('rules', []))
-          print(f'Extracted {count} SCA advisory rules')
-          with open('${dir}/supply-chain.json', 'w') as f:
-              json.dump(rules, f, separators=(',', ':'))
-          "
+          all_rules = json.loads(rule_config).get('rules', [])
+          print(f'Total SCA advisory rules: {len(all_rules)}')
 
-          SIZE=$(stat --format=%s "${dir}/supply-chain.json")
-          echo "Downloaded SCA rules (${SIZE} bytes)"
-          if [ "${SIZE}" -lt 1000000 ]; then
-            echo "ERROR: SCA rules file is suspiciously small (${SIZE} bytes, expected >1MB)"
-            exit 1
-          fi
+          # Map API namespace to our ecosystem name
+          namespace_to_eco = {'gomod': 'golang', 'pypi': 'python', 'npm': 'javascript'}
+
+          by_eco = defaultdict(list)
+          for rule in all_rules:
+              dep = rule.get('r2c-internal-project-depends-on', {})
+              for entry in dep.get('depends-on-either', []):
+                  ns = entry.get('namespace', '')
+                  eco = namespace_to_eco.get(ns)
+                  if eco:
+                      by_eco[eco].append(rule)
+                      break  # each rule belongs to one namespace
+
+          for eco in ['golang', 'python', 'javascript']:
+              rules = by_eco[eco]
+              out_dir = f'artifacts/rules-sca-{eco}'
+              os.makedirs(out_dir, exist_ok=True)
+              out_path = f'{out_dir}/supply-chain.json'
+              with open(out_path, 'w') as f:
+                  json.dump({'rules': rules}, f, separators=(',', ':'))
+              size = os.path.getsize(out_path)
+              print(f'  {eco}: {len(rules)} rules ({size / 1024 / 1024:.1f} MB)')
+              if size < 100000:
+                  print(f'ERROR: {eco} rules file is suspiciously small ({size} bytes)', file=sys.stderr)
+                  sys.exit(1)
+          "
 
           rm -f /tmp/sca-response.json
 
@@ -220,7 +236,7 @@ jobs:
 
           # Package and push pro artifacts
           GHCR_PRO="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
-          PRO_ARTIFACTS="engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes rules-sca"
+          PRO_ARTIFACTS="engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes rules-sca-golang rules-sca-python rules-sca-javascript"
 
           for artifact in ${PRO_ARTIFACTS}; do
             echo "Packaging pro/${artifact}..."
@@ -293,7 +309,9 @@ jobs:
           DIGEST_PRO_RULES_PYTHON: ${{ steps.digests.outputs.pro_rules_python }}
           DIGEST_PRO_RULES_JAVASCRIPT: ${{ steps.digests.outputs.pro_rules_javascript }}
           DIGEST_PRO_RULES_KUBERNETES: ${{ steps.digests.outputs.pro_rules_kubernetes }}
-          DIGEST_PRO_RULES_SCA: ${{ steps.digests.outputs.pro_rules_sca }}
+          DIGEST_PRO_RULES_SCA_GOLANG: ${{ steps.digests.outputs.pro_rules_sca_golang }}
+          DIGEST_PRO_RULES_SCA_PYTHON: ${{ steps.digests.outputs.pro_rules_sca_python }}
+          DIGEST_PRO_RULES_SCA_JAVASCRIPT: ${{ steps.digests.outputs.pro_rules_sca_javascript }}
           # OSS digests
           DIGEST_OSS_ENGINE_AMD64: ${{ steps.digests.outputs.oss_engine_amd64 }}
           DIGEST_OSS_ENGINE_ARM64: ${{ steps.digests.outputs.oss_engine_arm64 }}
@@ -320,7 +338,9 @@ jobs:
               "rules_python": "${DIGEST_PRO_RULES_PYTHON}",
               "rules_javascript": "${DIGEST_PRO_RULES_JAVASCRIPT}",
               "rules_kubernetes": "${DIGEST_PRO_RULES_KUBERNETES}",
-              "rules_sca": "${DIGEST_PRO_RULES_SCA}",
+              "rules_sca_golang": "${DIGEST_PRO_RULES_SCA_GOLANG}",
+              "rules_sca_python": "${DIGEST_PRO_RULES_SCA_PYTHON}",
+              "rules_sca_javascript": "${DIGEST_PRO_RULES_SCA_JAVASCRIPT}",
           }
           EOF
 
@@ -383,7 +403,8 @@ jobs:
 
           - Updates Semgrep OCI artifact digests (semgrep v${SEMGREP_VERSION})
           - Pro engine binaries: amd64, arm64, osx-arm64, osx-x86_64
-          - Pro rule packs: golang, python, javascript, kubernetes, sca
+          - Pro rule packs: golang, python, javascript, kubernetes
+          - SCA advisory rules: golang, python, javascript (split by ecosystem)
           - OSS engine binaries: amd64, arm64, osx-arm64, osx-x86_64 (extracted from PyPI wheels)
           - Date tag: ${DATE_TAG}
 
