@@ -13,4 +13,5 @@ SEMGREP_PRO_DIGESTS = {
     "rules_python": "sha256:bc9cb032844baea4332d19c8420bba175742c53ed25f5b06e6bc3fdb6c3d41f7",
     "rules_javascript": "sha256:103b5eb261ad70e76985e11e1276e9f5b4fbd8397e0554b4470545bf763a9cea",
     "rules_kubernetes": "sha256:e15db268a53ff6ec31c7ad647abe4dcbc4115386b5e3adef6dcf80435efcf73b",
+    "rules_sca": "",
 }

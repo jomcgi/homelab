@@ -217,6 +217,7 @@ use_repo(
     "semgrep_pro_rules_javascript",
     "semgrep_pro_rules_kubernetes",
     "semgrep_pro_rules_python",
+    "semgrep_sca_rules",
 )
 
 # Semgrep OSS — semgrep-core binary from GHCR (extracted from PyPI wheels)

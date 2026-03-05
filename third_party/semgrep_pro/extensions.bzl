@@ -53,4 +53,12 @@ def _semgrep_pro_impl(module_ctx):
             build_file_content = _RULES_BUILD,
         )
 
+    # SCA advisory rules — vendored from Semgrep registry
+    oci_archive(
+        name = "semgrep_sca_rules",
+        image = _GHCR_PREFIX + "/rules-sca",
+        digest = SEMGREP_PRO_DIGESTS.get("rules_sca", ""),
+        build_file_content = _RULES_BUILD,
+    )
+
 semgrep_pro = module_extension(implementation = _semgrep_pro_impl)
