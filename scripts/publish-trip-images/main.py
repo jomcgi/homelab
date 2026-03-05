@@ -490,6 +490,73 @@ def ensure_bucket(s3_client, bucket: str) -> None:
         s3_client.create_bucket(Bucket=bucket)
 
 
+class OpticsCache:
+    """SQLite cache for OPTICS data to avoid re-downloading images."""
+
+    def __init__(self, db_path: Path):
+        self.db_path = db_path
+        self._init_db()
+
+    def _init_db(self) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS optics_cache (
+                    image_key TEXT PRIMARY KEY,
+                    light_value REAL,
+                    iso INTEGER,
+                    shutter_speed TEXT,
+                    aperture REAL,
+                    focal_length_35mm INTEGER,
+                    cached_at TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+
+    def get(self, image_key: str) -> tuple[bool, OpticsData | None]:
+        """Returns (found_in_cache, optics_data)."""
+        with sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT * FROM optics_cache WHERE image_key = ?", (image_key,)
+            ).fetchone()
+            if not row:
+                return False, None
+            return True, OpticsData(
+                light_value=row["light_value"],
+                iso=row["iso"],
+                shutter_speed=row["shutter_speed"],
+                aperture=row["aperture"],
+                focal_length_35mm=row["focal_length_35mm"],
+            )
+
+    def put(self, image_key: str, optics: OpticsData | None) -> None:
+        with sqlite3.connect(self.db_path) as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO optics_cache
+                (image_key, light_value, iso, shutter_speed, aperture, focal_length_35mm, cached_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    image_key,
+                    optics.light_value if optics else None,
+                    optics.iso if optics else None,
+                    optics.shutter_speed if optics else None,
+                    optics.aperture if optics else None,
+                    optics.focal_length_35mm if optics else None,
+                    datetime.now().isoformat(),
+                ),
+            )
+            conn.commit()
+
+    def stats(self) -> int:
+        with sqlite3.connect(self.db_path) as conn:
+            return conn.execute("SELECT COUNT(*) FROM optics_cache").fetchone()[0]
+
+
+OPTICS_CACHE_PATH = Path(__file__).parent / "optics_cache.db"
+
+
 def list_s3_keys(s3_client, bucket: str, prefix: str = "") -> list[str]:
     """List all object keys in an S3 bucket (paginated).
 
@@ -1144,73 +1211,6 @@ def publish_all(
 
     asyncio.run(_publish_all())
     print("Done")
-
-
-class OpticsCache:
-    """SQLite cache for OPTICS data to avoid re-downloading images."""
-
-    def __init__(self, db_path: Path):
-        self.db_path = db_path
-        self._init_db()
-
-    def _init_db(self) -> None:
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute("""
-                CREATE TABLE IF NOT EXISTS optics_cache (
-                    image_key TEXT PRIMARY KEY,
-                    light_value REAL,
-                    iso INTEGER,
-                    shutter_speed TEXT,
-                    aperture REAL,
-                    focal_length_35mm INTEGER,
-                    cached_at TEXT NOT NULL
-                )
-            """)
-            conn.commit()
-
-    def get(self, image_key: str) -> tuple[bool, OpticsData | None]:
-        """Returns (found_in_cache, optics_data)."""
-        with sqlite3.connect(self.db_path) as conn:
-            conn.row_factory = sqlite3.Row
-            row = conn.execute(
-                "SELECT * FROM optics_cache WHERE image_key = ?", (image_key,)
-            ).fetchone()
-            if not row:
-                return False, None
-            return True, OpticsData(
-                light_value=row["light_value"],
-                iso=row["iso"],
-                shutter_speed=row["shutter_speed"],
-                aperture=row["aperture"],
-                focal_length_35mm=row["focal_length_35mm"],
-            )
-
-    def put(self, image_key: str, optics: OpticsData | None) -> None:
-        with sqlite3.connect(self.db_path) as conn:
-            conn.execute(
-                """
-                INSERT OR REPLACE INTO optics_cache
-                (image_key, light_value, iso, shutter_speed, aperture, focal_length_35mm, cached_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                """,
-                (
-                    image_key,
-                    optics.light_value if optics else None,
-                    optics.iso if optics else None,
-                    optics.shutter_speed if optics else None,
-                    optics.aperture if optics else None,
-                    optics.focal_length_35mm if optics else None,
-                    datetime.now().isoformat(),
-                ),
-            )
-            conn.commit()
-
-    def stats(self) -> int:
-        with sqlite3.connect(self.db_path) as conn:
-            return conn.execute("SELECT COUNT(*) FROM optics_cache").fetchone()[0]
-
-
-OPTICS_CACHE_PATH = Path(__file__).parent / "optics_cache.db"
 
 
 @app.command()
