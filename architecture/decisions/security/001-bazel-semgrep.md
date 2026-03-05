@@ -3,6 +3,7 @@
 **Author:** Joe McGinley
 **Status:** Accepted
 **Created:** 2026-03-04
+**See also:** [rules_semgrep README](../../../rules_semgrep/README.md)
 
 ---
 

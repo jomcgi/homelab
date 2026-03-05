@@ -65,7 +65,7 @@ load("//rules_semgrep:defs.bzl", "semgrep_target_test")
 
 semgrep_target_test(
     name = "semgrep_test",
-    target = ":server",
+    target = ":api_server",
     rules = ["//semgrep_rules:python_rules"],
 )
 ```
