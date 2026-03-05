@@ -212,7 +212,7 @@ This is the same pattern used by any public OAuth-protected API (GitHub API, Sla
 
 ## Open Questions
 
-1. **DCR vs static client credentials for Claude.ai** — Claude.ai supports both Dynamic Client Registration (auto-registers) and static credentials (entered in advanced settings). DCR is cleaner but adds a public registration endpoint. If DCR proves noisy, fall back to static client credentials.
+1. ~~**DCR vs static client credentials for Claude.ai**~~ — **Resolved: static credentials, DCR disabled.** Single-user homelab doesn't benefit from DCR, and disabling it eliminates the public registration endpoint as an attack surface. `MCPGATEWAY_DCR_ENABLED=false` is set in values.yaml. Claude.ai and Claude Code CLI both use pre-registered static client credentials.
 
 2. **Team assignment for SSO-created users** — `SSO_AUTO_CREATE_USERS=true` creates a Context Forge user on first login, but does not assign them to a team. ADR 005's RBAC model depends on users being in specific teams (`infra-agents`, `web-chat`) with a `developer` role. The bridge between authentication (this ADR) and authorization (ADR 005) needs a team assignment mechanism. Options:
    - **SSO group claim mapping** (recommended) — CF Access for SaaS supports the `groups` scope. Map CF Access groups to Context Forge teams. This is automatic and doesn't require manual intervention after first login.
