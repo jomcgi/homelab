@@ -166,6 +166,19 @@ jobs:
             echo "Downloaded rules-${lang} ($(stat --format=%s "${dir}/${lang}.yaml") bytes)"
           done
 
+      - name: Download SCA advisory rules
+        run: |
+          set -euo pipefail
+          dir="artifacts/rules-sca"
+          mkdir -p "${dir}"
+
+          echo "Downloading SCA supply-chain advisory rules..."
+          curl -sSfL \
+            "https://semgrep.dev/c/supply-chain" \
+            -o "${dir}/supply-chain.yaml"
+
+          echo "Downloaded SCA rules ($(stat --format=%s "${dir}/supply-chain.yaml") bytes)"
+
       - name: Package and push OCI artifacts
         id: digests
         env:
@@ -177,7 +190,7 @@ jobs:
 
           # Package and push pro artifacts
           GHCR_PRO="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
-          PRO_ARTIFACTS="engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes"
+          PRO_ARTIFACTS="engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes rules-sca"
 
           for artifact in ${PRO_ARTIFACTS}; do
             echo "Packaging pro/${artifact}..."
@@ -250,6 +263,7 @@ jobs:
           DIGEST_PRO_RULES_PYTHON: ${{ steps.digests.outputs.pro_rules_python }}
           DIGEST_PRO_RULES_JAVASCRIPT: ${{ steps.digests.outputs.pro_rules_javascript }}
           DIGEST_PRO_RULES_KUBERNETES: ${{ steps.digests.outputs.pro_rules_kubernetes }}
+          DIGEST_PRO_RULES_SCA: ${{ steps.digests.outputs.pro_rules_sca }}
           # OSS digests
           DIGEST_OSS_ENGINE_AMD64: ${{ steps.digests.outputs.oss_engine_amd64 }}
           DIGEST_OSS_ENGINE_ARM64: ${{ steps.digests.outputs.oss_engine_arm64 }}
@@ -276,6 +290,7 @@ jobs:
               "rules_python": "${DIGEST_PRO_RULES_PYTHON}",
               "rules_javascript": "${DIGEST_PRO_RULES_JAVASCRIPT}",
               "rules_kubernetes": "${DIGEST_PRO_RULES_KUBERNETES}",
+              "rules_sca": "${DIGEST_PRO_RULES_SCA}",
           }
           EOF
 
@@ -338,7 +353,7 @@ jobs:
 
           - Updates Semgrep OCI artifact digests (semgrep v${SEMGREP_VERSION})
           - Pro engine binaries: amd64, arm64, osx-arm64, osx-x86_64
-          - Pro rule packs: golang, python, javascript, kubernetes
+          - Pro rule packs: golang, python, javascript, kubernetes, sca
           - OSS engine binaries: amd64, arm64, osx-arm64, osx-x86_64 (extracted from PyPI wheels)
           - Date tag: ${DATE_TAG}
 
