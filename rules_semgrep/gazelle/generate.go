@@ -56,6 +56,7 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 		type targetEntry struct {
 			name   string
 			target string
+			rule   *rule.Rule // original BUILD rule for dep inspection
 		}
 		var entries []targetEntry
 		for _, t := range targets {
@@ -67,6 +68,7 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 			entries = append(entries, targetEntry{
 				name:   t.Name() + "_semgrep_test",
 				target: resolved,
+				rule:   t,
 			})
 		}
 
@@ -78,6 +80,14 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 			r.SetAttr("rules", allRules)
 			if len(cfg.excludeRules) > 0 {
 				r.SetAttr("exclude_rules", sortedExcludeRules(cfg.excludeRules))
+			}
+			// Detect lockfiles from target deps
+			if cfg.scaEnabled {
+				lockfiles := detectLockfiles(e.rule, cfg)
+				if len(lockfiles) > 0 {
+					r.SetAttr("lockfiles", lockfiles)
+					r.SetAttr("sca_rules", []string{cfg.scaRules})
+				}
 			}
 			result.Gen = append(result.Gen, r)
 			result.Imports = append(result.Imports, nil)

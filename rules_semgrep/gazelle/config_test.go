@@ -527,6 +527,141 @@ func TestConfigure_EmptyTargetKindsValueKeepsParent(t *testing.T) {
 	}
 }
 
+// --- Tests for SCA config directives ---
+
+func TestConfigure_SCADirectives(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_sca", Value: "disabled"},
+		},
+	}
+
+	configure(c, "", f)
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+
+	if cfg.scaEnabled {
+		t.Error("expected scaEnabled to be false after disabled directive")
+	}
+}
+
+func TestConfigure_SCADefaults(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	cfg := getSemgrepConfig(c)
+
+	if !cfg.scaEnabled {
+		t.Error("expected scaEnabled to be true by default")
+	}
+	if cfg.scaRules != "//semgrep_rules:sca_rules" {
+		t.Errorf("expected default scaRules, got %q", cfg.scaRules)
+	}
+	if len(cfg.lockfiles) != 3 {
+		t.Errorf("expected 3 default lockfiles, got %d: %v", len(cfg.lockfiles), cfg.lockfiles)
+	}
+}
+
+func TestConfigure_SCALockfileDirective(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_lockfile", Value: "pip //requirements:custom.txt"},
+		},
+	}
+
+	configure(c, "", f)
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+
+	if cfg.lockfiles["pip"] != "//requirements:custom.txt" {
+		t.Errorf("expected pip lockfile override, got %q", cfg.lockfiles["pip"])
+	}
+}
+
+func TestConfigure_SCARulesDirective(t *testing.T) {
+	c := &config.Config{
+		Exts: make(map[string]interface{}),
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_sca_rules", Value: "//custom:sca_rules"},
+		},
+	}
+
+	configure(c, "", f)
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+
+	if cfg.scaRules != "//custom:sca_rules" {
+		t.Errorf("expected custom scaRules, got %q", cfg.scaRules)
+	}
+}
+
+func TestConfigure_SCAInheritance(t *testing.T) {
+	parent := &semgrepConfig{
+		enabled:     true,
+		scaEnabled:  false,
+		scaRules:    "//custom:sca",
+		lockfiles:   map[string]string{"pip": "//custom:req.txt"},
+		targetKinds: map[string]string{"py_venv_binary": ""},
+		languages:   []string{"py"},
+	}
+
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: parent,
+		},
+	}
+
+	configure(c, "sub/dir", nil)
+	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
+
+	if cfg.scaEnabled {
+		t.Error("scaEnabled should be inherited as false")
+	}
+	if cfg.scaRules != "//custom:sca" {
+		t.Errorf("scaRules should be inherited, got %q", cfg.scaRules)
+	}
+	if cfg.lockfiles["pip"] != "//custom:req.txt" {
+		t.Errorf("lockfiles should be inherited, got %v", cfg.lockfiles)
+	}
+}
+
+func TestConfigure_SCALockfileParentNotMutated(t *testing.T) {
+	parent := &semgrepConfig{
+		enabled:     true,
+		scaEnabled:  true,
+		lockfiles:   map[string]string{"pip": "//req:all.txt"},
+		targetKinds: map[string]string{"py_venv_binary": ""},
+		languages:   []string{"py"},
+	}
+
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: parent,
+		},
+	}
+
+	f := &rule.File{
+		Directives: []rule.Directive{
+			{Key: "semgrep_lockfile", Value: "pip //requirements:custom.txt"},
+		},
+	}
+
+	configure(c, "", f)
+
+	if parent.lockfiles["pip"] != "//req:all.txt" {
+		t.Errorf("parent lockfiles was mutated: got %v", parent.lockfiles)
+	}
+}
+
 func TestCopyTargetKinds(t *testing.T) {
 	src := map[string]string{"a": "1", "b": "2"}
 	dst := copyTargetKinds(src)

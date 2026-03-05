@@ -71,6 +71,8 @@ semgrep_test(
 semgrep_target_test(
     name = "update_semgrep_test",
     exclude_rules = ["no-requests"],
+    lockfiles = ["//requirements:all.txt"],
     rules = ["//semgrep_rules:python_rules"],
+    sca_rules = ["//semgrep_rules:sca_rules"],
     target = ":update",
 )
