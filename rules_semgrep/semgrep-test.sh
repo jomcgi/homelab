@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # semgrep-test.sh - Runs semgrep-core directly against source files
 #
-# Usage: semgrep-test.sh <rule-files...> -- <source-files...>
+# Usage: semgrep-test.sh <rule-files...> -- <source-files...> [-- <lockfile-files...>]
 #
 # The semgrep-core binary is discovered via find(1) in runfiles rather than
 # passed as an argument, because the engine filegroup may be empty when GHCR
@@ -100,14 +100,36 @@ if [[ "${SEMGREP_TEST_MODE:-}" == "1" ]]; then
 	exit 0
 fi
 
+# Collect source files until we hit another -- separator (or end of args)
+SOURCE_ARGS=()
+while [[ $# -gt 0 && "$1" != "--" ]]; do
+	SOURCE_ARGS+=("$1")
+	shift
+done
+
+# Collect lockfile files after the optional second --
+LOCKFILE_ARGS=()
+if [[ $# -gt 0 && "$1" == "--" ]]; then
+	shift # skip second --
+	LOCKFILE_ARGS=("$@")
+fi
+
 # Copy source files to a temp directory — semgrep-core needs real file paths
 SCAN_DIR="${TEST_TMPDIR}/scan"
 mkdir -p "$SCAN_DIR"
 SOURCE_FILES=()
-for f in "$@"; do
+for f in "${SOURCE_ARGS[@]}"; do
 	mkdir -p "$SCAN_DIR/$(dirname "$f")"
 	cp "$f" "$SCAN_DIR/$f"
 	SOURCE_FILES+=("$SCAN_DIR/$f")
+done
+
+# Copy lockfile files to scan directory
+LOCKFILE_FILES=()
+for f in "${LOCKFILE_ARGS[@]}"; do
+	mkdir -p "$SCAN_DIR/$(dirname "$f")"
+	cp "$f" "$SCAN_DIR/$f"
+	LOCKFILE_FILES+=("$SCAN_DIR/$f")
 done
 
 # Map file extension to semgrep language identifier
@@ -130,12 +152,49 @@ detect_lang() {
 	esac
 }
 
-# Generate targets JSON in semgrep-core's ATD format:
-# ["Targets", [["CodeTarget", {"path": {...}, "analyzer": "...", "products": ["sast"]}]]]
+# Map lockfile filename to semgrep-core lockfile_kind enum
+detect_lockfile_kind() {
+	local basename
+	basename="$(basename "$1")"
+	case "$basename" in
+	go.sum) echo "GoModLock" ;;
+	requirements*.txt | requirements*.pip) echo "PipRequirementsTxt" ;;
+	poetry.lock) echo "PoetryLock" ;;
+	Pipfile.lock) echo "PipfileLock" ;;
+	uv.lock) echo "UvLock" ;;
+	package-lock.json) echo "NpmPackageLockJson" ;;
+	yarn.lock) echo "YarnLock" ;;
+	pnpm-lock.yaml) echo "PnpmLock" ;;
+	*) echo "" ;;
+	esac
+}
+
+# Determine products and dependency_source based on lockfiles
+HAS_LOCKFILES=false
+LOCKFILE_JSON=""
+if [[ ${#LOCKFILE_FILES[@]} -gt 0 ]]; then
+	HAS_LOCKFILES=true
+	# Use the first lockfile for dependency_source (semgrep deduplicates internally)
+	LF="${LOCKFILE_FILES[0]}"
+	LF_KIND=$(detect_lockfile_kind "$LF")
+	if [[ -n "$LF_KIND" ]]; then
+		LF_ABS="$(cd "$(dirname "$LF")" && pwd)/$(basename "$LF")"
+		LOCKFILE_JSON=$(printf ',"dependency_source":["LockfileOnly",{"kind":"%s","path":"%s"}]' "$LF_KIND" "$LF_ABS")
+	fi
+fi
+
+PRODUCTS='["sast"]'
+if [[ "$HAS_LOCKFILES" == "true" ]]; then
+	PRODUCTS='["sast","sca"]'
+fi
+
+# Generate targets JSON in semgrep-core's ATD format
 TARGETS_FILE="${TEST_TMPDIR}/targets.json"
 {
 	echo -n '["Targets",['
 	first=true
+
+	# CodeTargets for source files
 	for f in "${SOURCE_FILES[@]}"; do
 		lang=$(detect_lang "$f")
 		if [[ -z "$lang" ]]; then
@@ -147,9 +206,27 @@ TARGETS_FILE="${TEST_TMPDIR}/targets.json"
 		else
 			echo -n ','
 		fi
-		echo -n "$(printf '["CodeTarget",{"path":{"fpath":"%s","ppath":"%s"},"analyzer":"%s","products":["sast"]}]' \
-			"$abs_path" "$abs_path" "$lang")"
+		echo -n "$(printf '["CodeTarget",{"path":{"fpath":"%s","ppath":"%s"},"analyzer":"%s","products":%s%s}]' \
+			"$abs_path" "$abs_path" "$lang" "$PRODUCTS" "$LOCKFILE_JSON")"
 	done
+
+	# DependencySourceTargets for lockfile-only mode (no source files)
+	if [[ ${#SOURCE_FILES[@]} -eq 0 && "$HAS_LOCKFILES" == "true" ]]; then
+		for lf in "${LOCKFILE_FILES[@]}"; do
+			lf_kind=$(detect_lockfile_kind "$lf")
+			if [[ -z "$lf_kind" ]]; then
+				continue
+			fi
+			lf_abs="$(cd "$(dirname "$lf")" && pwd)/$(basename "$lf")"
+			if [[ "$first" == "true" ]]; then
+				first=false
+			else
+				echo -n ','
+			fi
+			echo -n "$(printf '["DependencySourceTarget",["LockfileOnly",{"kind":"%s","path":"%s"}]]' "$lf_kind" "$lf_abs")"
+		done
+	fi
+
 	echo ']]'
 } >"$TARGETS_FILE"
 
