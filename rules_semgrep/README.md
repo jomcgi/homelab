@@ -80,7 +80,8 @@ semgrep_target_test(
     target = ":api_server",
     rules = ["//semgrep_rules:python_rules"],
     lockfiles = ["//requirements:all.txt"],
-    sca_rules = ["//semgrep_rules:sca_rules"],
+    # Gazelle auto-selects per-ecosystem SCA rules from deps:
+    sca_rules = ["//semgrep_rules:sca_python_rules"],
 )
 ```
 
@@ -137,7 +138,7 @@ The Gazelle extension auto-generates `semgrep_test` and `semgrep_target_test` ta
 | `# gazelle:semgrep_target_kinds` | `py_venv_binary,py3_image=binary` | Which rule kinds trigger `semgrep_target_test` |
 | `# gazelle:semgrep_languages` | `py,go` | Which language rule configs to apply |
 | `# gazelle:semgrep_sca disabled` | | Disable SCA lockfile generation |
-| `# gazelle:semgrep_sca_rules` | `//custom:sca_rules` | Override SCA rule target |
+| `# gazelle:semgrep_sca_rules` | `pip //custom:sca_rules` | Override SCA rules for one ecosystem (or `//label` for all) |
 | `# gazelle:semgrep_lockfile` | `pip //requirements:custom.txt` | Override lockfile for an ecosystem |
 
 All directives inherit from parent directories.
@@ -153,7 +154,10 @@ All directives inherit from parent directories.
 | Shell | `//semgrep_rules:shell_rules` | Custom rules (no-kubectl-mutate, no-direct-test) |
 | Bazel | `//semgrep_rules:bazel_rules` | Custom rules (no-rules-python) |
 | Dockerfile | `//semgrep_rules:dockerfile_rules` | Custom rules (no-dockerfile) |
-| SCA | `//semgrep_rules:sca_rules` | Supply chain advisory rules (CVE database) |
+| SCA (Go) | `//semgrep_rules:sca_golang_rules` | Go supply chain advisory rules |
+| SCA (Python) | `//semgrep_rules:sca_python_rules` | Python supply chain advisory rules |
+| SCA (JS) | `//semgrep_rules:sca_javascript_rules` | JavaScript supply chain advisory rules |
+| SCA (all) | `//semgrep_rules:sca_rules` | Combined SCA rules (all ecosystems) |
 
 ## Pro Engine
 
