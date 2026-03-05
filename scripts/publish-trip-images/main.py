@@ -1461,5 +1461,269 @@ def backfill_optics(
         print(f"  Skipped {skipped} points that already have OPTICS data")
 
 
+async def _run_rebuild(
+    bucket: str,
+    batch_size: int,
+    concurrency: int,
+    dry_run: bool,
+    source: str,
+    db_path: Path,
+    fix_retention: bool,
+) -> None:
+    """Main rebuild logic."""
+    import shutil
+    import tempfile
+
+    queue = UploadQueue(db_path)
+    optics_cache = OpticsCache(OPTICS_CACHE_PATH)
+    s3_client = get_s3_client()
+
+    # Step 1: Connect to NATS
+    print("Connecting to NATS...")
+    nc, js = await get_jetstream()
+
+    try:
+        # Step 2: Fix stream retention
+        if fix_retention and not dry_run:
+            try:
+                stream_info = await js.stream_info("trips")
+                config = stream_info.config
+                if config.max_age and config.max_age > 0:
+                    config.max_age = 0  # unlimited
+                    await js.update_stream(config)
+                    print("Fixed NATS stream max_age: removed 30d TTL (now unlimited)")
+                else:
+                    print("NATS stream max_age already unlimited")
+            except Exception as e:
+                print(f"Warning: Could not update stream retention: {e}")
+
+        # Step 3: List all S3 keys
+        print(f"Listing objects in s3://{bucket}...")
+        all_keys = list_s3_keys(s3_client, bucket)
+        print(f"Found {len(all_keys)} images in S3")
+
+        if not all_keys:
+            return
+
+        # Step 4: Process in batches
+        tmp_dir = Path(tempfile.mkdtemp(prefix="rebuild-"))
+        all_points = []
+
+        try:
+            num_batches = (len(all_keys) + batch_size - 1) // batch_size
+
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeRemainingColumn(),
+            ) as progress:
+                task = progress.add_task(
+                    f"Processing batches (0/{num_batches})...",
+                    total=len(all_keys),
+                )
+
+                for batch_idx in range(0, len(all_keys), batch_size):
+                    batch_keys = all_keys[batch_idx : batch_idx + batch_size]
+                    batch_num = batch_idx // batch_size + 1
+
+                    progress.update(
+                        task,
+                        description=f"Batch {batch_num}/{num_batches} ({len(batch_keys)} images)...",
+                    )
+
+                    batch_points = _rebuild_batch(
+                        s3_client=s3_client,
+                        bucket=bucket,
+                        keys=batch_keys,
+                        queue=queue,
+                        optics_cache=optics_cache,
+                        tmp_dir=tmp_dir,
+                        source=source,
+                        concurrency=concurrency,
+                    )
+
+                    all_points.extend(batch_points)
+                    progress.advance(task, advance=len(batch_keys))
+
+        finally:
+            # Clean up temp dir
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+
+        no_gps = len(all_keys) - len(all_points)
+        print(
+            f"\nExtracted {len(all_points)} points with GPS ({no_gps} skipped, no GPS)"
+        )
+        print(f"Optics cache: {optics_cache.stats()} entries")
+
+        if not all_points:
+            print("No points to publish")
+            return
+
+        # Step 5: Fetch elevation
+        coords = [(p["lat"], p["lng"]) for p in all_points]
+        print(f"\nFetching elevation for {len(coords)} points...")
+
+        async with ElevationClient() as elev_client:
+            with Progress(
+                SpinnerColumn(),
+                TextColumn("[progress.description]{task.description}"),
+                BarColumn(),
+                TaskProgressColumn(),
+                TimeRemainingColumn(),
+            ) as progress:
+                task = progress.add_task("Fetching elevations...", total=len(coords))
+
+                def update_progress(completed, total):
+                    progress.update(task, completed=completed)
+
+                results = await elev_client.get_elevations(
+                    coords, progress_callback=update_progress
+                )
+
+        with_elevation = sum(1 for r in results if r.elevation is not None)
+        cached = sum(1 for r in results if r.cached)
+        print(
+            f"Elevation: {with_elevation}/{len(results)} resolved ({cached} from cache)"
+        )
+
+        # Attach elevation to points
+        for point, result in zip(all_points, results):
+            point["elevation"] = result.elevation
+
+        if dry_run:
+            print(f"\n[DRY RUN] Would publish {len(all_points)} points to NATS")
+            # Show sample
+            for p in all_points[:5]:
+                elev = f"{p['elevation']:.0f}m" if p["elevation"] else "none"
+                optics_str = ""
+                if p["optics"] and p["optics"].light_value:
+                    optics_str = f" EV:{p['optics'].light_value}"
+                print(
+                    f"  {p['key']} ({p['lat']:.4f}, {p['lng']:.4f}) elev={elev}{optics_str}"
+                )
+            if len(all_points) > 5:
+                print(f"  ... and {len(all_points) - 5} more")
+            return
+
+        # Step 6: Publish to NATS
+        print(f"\nPublishing {len(all_points)} points to NATS...")
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            BarColumn(),
+            TaskProgressColumn(),
+            TimeRemainingColumn(),
+        ) as progress:
+            task = progress.add_task("Publishing...", total=len(all_points))
+
+            for point in all_points:
+                key = point["key"]
+                key_hex = key.replace("img_", "").rsplit(".", 1)[0]
+
+                msg = {
+                    "id": key_hex,
+                    "lat": round(point["lat"], 5),
+                    "lng": round(point["lng"], 5),
+                    "timestamp": point["timestamp"] or datetime.now().isoformat(),
+                    "image": key,
+                    "source": source,
+                    "tags": [],
+                }
+
+                if point["elevation"] is not None:
+                    msg["elevation"] = point["elevation"]
+
+                optics = point["optics"]
+                if optics:
+                    if optics.light_value is not None:
+                        msg["light_value"] = optics.light_value
+                    if optics.iso is not None:
+                        msg["iso"] = optics.iso
+                    if optics.shutter_speed is not None:
+                        msg["shutter_speed"] = optics.shutter_speed
+                    if optics.aperture is not None:
+                        msg["aperture"] = optics.aperture
+                    if optics.focal_length_35mm is not None:
+                        msg["focal_length_35mm"] = optics.focal_length_35mm
+
+                await js.publish("trips.point", json.dumps(msg).encode())
+                progress.advance(task)
+
+        # Step 7: Final stats
+        queue_stats = queue.get_stats()
+        print(f"\nDone! Published {len(all_points)} points to NATS")
+        print(f"  With elevation: {with_elevation}")
+        print(
+            f"  Queue DB: {queue_stats.get(UploadStatus.COMPLETED.value, 0)} completed"
+        )
+
+    finally:
+        await nc.close()
+
+
+@app.command()
+def rebuild(
+    bucket: Annotated[
+        str, typer.Option("--bucket", "-b", help="S3 bucket name")
+    ] = DEFAULT_BUCKET,
+    batch_size: Annotated[
+        int, typer.Option("--batch-size", help="Images per download batch")
+    ] = 80,
+    concurrency: Annotated[
+        int, typer.Option("--concurrency", "-c", help="Parallel downloads per batch")
+    ] = 10,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", "-n", help="Extract and report only, don't publish"),
+    ] = False,
+    source: Annotated[
+        str,
+        typer.Option("--source", "-s", help="Image source tag"),
+    ] = "gopro",
+    db_path: Annotated[
+        Path, typer.Option("--db", help="Path to upload queue database")
+    ] = DB_PATH,
+    fix_retention: Annotated[
+        bool,
+        typer.Option(
+            "--fix-retention/--no-fix-retention",
+            help="Fix NATS stream max_age to unlimited",
+        ),
+    ] = True,
+) -> None:
+    """Rebuild trip data from SeaweedFS when NATS stream data has been lost.
+
+    Lists all images in the S3 bucket, downloads in batches to extract EXIF
+    metadata (GPS, timestamps, camera settings), fetches elevation from NRCan,
+    populates the local queue DB, and republishes all points to NATS.
+
+    Disk usage is capped by processing images in batches (default 80 images
+    ~440MB per batch). Temp files are cleaned between batches.
+
+    Example:
+        # Preview what would be recovered (dry run)
+        publish-trip-images rebuild --dry-run
+
+        # Full rebuild with elevation
+        publish-trip-images rebuild
+
+        # Custom batch size for lower disk usage
+        publish-trip-images rebuild --batch-size 40
+    """
+    asyncio.run(
+        _run_rebuild(
+            bucket=bucket,
+            batch_size=batch_size,
+            concurrency=concurrency,
+            dry_run=dry_run,
+            source=source,
+            db_path=db_path,
+            fix_retention=fix_retention,
+        )
+    )
+
+
 if __name__ == "__main__":
     app()
