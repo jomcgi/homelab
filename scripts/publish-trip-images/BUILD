@@ -10,6 +10,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//scripts/elevation",
         "@pip//boto3",
         "@pip//botocore",
         "@pip//nats_py",
@@ -25,6 +26,7 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
+        "//scripts/elevation",
         "@pip//boto3",
         "@pip//botocore",
         "@pip//nats_py",
