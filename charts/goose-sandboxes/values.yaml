@@ -1,0 +1,45 @@
+namespace:
+  limitRange:
+    cpu:
+      request: "1"
+      limit: "4"
+    memory:
+      request: 2Gi
+      limit: 8Gi
+  resourceQuota:
+    pods: "5"
+    requestsCpu: "8"
+    requestsMemory: 16Gi
+
+sandboxTemplate:
+  name: goose-agent
+  image:
+    repository: ghcr.io/jomcgi/homelab/goose-agent
+    tag: latest
+  env:
+    gooseProvider: openai
+    gooseModel: claude-opus-4-6
+    litellmBaseUrl: http://litellm-claude-sdk.litellm.svc.cluster.local:4000/v1
+    contextForgeUrl: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+  resources:
+    requests:
+      cpu: "1"
+      memory: 2Gi
+    limits:
+      cpu: "4"
+      memory: 8Gi
+  workspace:
+    storageClassName: longhorn
+    size: 20Gi
+
+warmPool:
+  name: goose-pool
+  size: 1
+
+secrets:
+  llmCreds:
+    onePasswordItem: litellm-api-key
+    vault: homelab
+  agentSecrets:
+    onePasswordItem: agent-secrets
+    vault: homelab
