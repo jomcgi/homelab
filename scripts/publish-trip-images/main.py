@@ -528,7 +528,6 @@ def _rebuild_batch(
     queue: UploadQueue,
     optics_cache: OpticsCache,
     tmp_dir: Path,
-    source: str,
     concurrency: int,
 ) -> list[dict]:
     """Download a batch of images from S3, extract EXIF, add to queue.
@@ -548,6 +547,7 @@ def _rebuild_batch(
         found, cached_optics = optics_cache.get(key)
 
         local_path = tmp_dir / key
+        local_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             s3_client.download_file(bucket, key, str(local_path))
             lat, lng, timestamp, optics = extract_exif(local_path)
@@ -1540,7 +1540,6 @@ async def _run_rebuild(
                         queue=queue,
                         optics_cache=optics_cache,
                         tmp_dir=tmp_dir,
-                        source=source,
                         concurrency=concurrency,
                     )
 
