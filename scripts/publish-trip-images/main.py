@@ -521,6 +521,93 @@ def list_s3_keys(s3_client, bucket: str, prefix: str = "") -> list[str]:
     return keys
 
 
+def _rebuild_batch(
+    s3_client,
+    bucket: str,
+    keys: list[str],
+    queue: UploadQueue,
+    optics_cache: OpticsCache,
+    tmp_dir: Path,
+    source: str,
+    concurrency: int,
+) -> list[dict]:
+    """Download a batch of images from S3, extract EXIF, add to queue.
+
+    Returns list of point dicts (with lat/lng/timestamp/optics) for later
+    elevation lookup and NATS publishing. Cleans up downloaded files after.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    points = []
+
+    def download_and_extract(
+        key: str,
+    ) -> tuple[str, float | None, float | None, str | None, OpticsData | None]:
+        """Download one image and extract EXIF. Runs in thread pool."""
+        # Check optics cache first
+        found, cached_optics = optics_cache.get(key)
+
+        local_path = tmp_dir / key
+        try:
+            s3_client.download_file(bucket, key, str(local_path))
+            lat, lng, timestamp, optics = extract_exif(local_path)
+
+            # Cache optics result
+            if not found:
+                optics_cache.put(key, optics)
+            elif cached_optics:
+                # Use cached optics if we had them (extract_exif may return same)
+                optics = cached_optics
+
+            return key, lat, lng, timestamp, optics
+        except Exception as e:
+            print(f"  Warning: Failed to process {key}: {e}")
+            return key, None, None, None, None
+
+    with ThreadPoolExecutor(max_workers=concurrency) as executor:
+        futures = {executor.submit(download_and_extract, key): key for key in keys}
+
+        for future in as_completed(futures):
+            key, lat, lng, timestamp, optics = future.result()
+
+            # Skip images without GPS
+            if lat is None or lng is None:
+                continue
+
+            # Add to queue DB (source_path is S3 key since local path is gone)
+            record_id = queue.add(
+                source_path=Path(key),
+                dest_key=key,
+                lat=lat,
+                lng=lng,
+                timestamp=timestamp,
+                tags=None,
+                optics=optics,
+            )
+
+            # Mark as completed immediately (image already in S3)
+            if record_id:
+                queue.mark_completed(record_id)
+
+            # Collect point for elevation + NATS publishing
+            point = {
+                "key": key,
+                "lat": lat,
+                "lng": lng,
+                "timestamp": timestamp,
+                "optics": optics,
+            }
+            points.append(point)
+
+    # Clean up downloaded files
+    import shutil
+
+    shutil.rmtree(tmp_dir)
+    tmp_dir.mkdir(parents=True, exist_ok=True)
+
+    return points
+
+
 def calculate_md5(file_path: Path) -> str:
     """Calculate MD5 hash of a file for S3 ETag comparison."""
     md5 = hashlib.md5(usedforsecurity=False)  # nosec: MD5 required for S3 ETag match
