@@ -218,7 +218,9 @@ done
 # --- SCA pass: lockfile dependency scanning (when lockfiles present) ---
 # Interfile mode doesn't support SCA's dependency_source format, so SCA
 # keeps the -targets JSON invocation style.
+HAS_LOCKFILES=false
 if [[ ${#LOCKFILE_FILES[@]} -gt 0 ]]; then
+	HAS_LOCKFILES=true
 	# Build dependency_source JSON from first lockfile
 	LF="${LOCKFILE_FILES[0]}"
 	LF_KIND=$(detect_lockfile_kind "$LF")
