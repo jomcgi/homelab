@@ -40,6 +40,12 @@ type semgrepConfig struct {
 	targetKinds map[string]string
 	// languages lists the language keys to scan (e.g. "py", "go").
 	languages []string
+	// scaEnabled controls whether to generate SCA lockfile attrs
+	scaEnabled bool
+	// scaRules is the label for SCA advisory rules
+	scaRules string
+	// lockfiles maps dep ecosystem to lockfile label
+	lockfiles map[string]string
 }
 
 const semgrepConfigKey = "semgrep_config"
@@ -54,6 +60,9 @@ func getSemgrepConfig(c *config.Config) *semgrepConfig {
 		enabled:     true,
 		targetKinds: copyTargetKinds(defaultTargetKinds),
 		languages:   append([]string{}, defaultLanguages...),
+		scaEnabled:  true,
+		scaRules:    "//semgrep_rules:sca_rules",
+		lockfiles:   copyLockfiles(defaultLockfiles),
 	}
 }
 
@@ -68,6 +77,9 @@ func configure(c *config.Config, rel string, f *rule.File) {
 		excludeRules: append([]string{}, parent.excludeRules...),
 		targetKinds:  copyTargetKinds(parent.targetKinds),
 		languages:    append([]string{}, parent.languages...),
+		scaEnabled:   parent.scaEnabled,
+		scaRules:     parent.scaRules,
+		lockfiles:    copyLockfiles(parent.lockfiles),
 	}
 
 	// Process directives if a BUILD file exists
@@ -95,6 +107,20 @@ func configure(c *config.Config, rel string, f *rule.File) {
 				// # gazelle:semgrep_languages py,go
 				if d.Value != "" {
 					cfg.languages = parseLanguages(d.Value)
+				}
+			case "semgrep_sca":
+				// # gazelle:semgrep_sca disabled
+				cfg.scaEnabled = d.Value != "disabled"
+			case "semgrep_sca_rules":
+				// # gazelle:semgrep_sca_rules //custom:sca_rules
+				if d.Value != "" {
+					cfg.scaRules = d.Value
+				}
+			case "semgrep_lockfile":
+				// # gazelle:semgrep_lockfile pip //requirements:all.txt
+				parts := strings.SplitN(d.Value, " ", 2)
+				if len(parts) == 2 {
+					cfg.lockfiles[strings.TrimSpace(parts[0])] = strings.TrimSpace(parts[1])
 				}
 			}
 		}

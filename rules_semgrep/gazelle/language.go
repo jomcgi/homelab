@@ -44,6 +44,9 @@ func (l *semgrepLang) KnownDirectives() []string {
 		"semgrep_exclude_rules",
 		"semgrep_target_kinds",
 		"semgrep_languages",
+		"semgrep_sca",
+		"semgrep_sca_rules",
+		"semgrep_lockfile",
 	}
 }
 
@@ -65,6 +68,8 @@ func (l *semgrepLang) Kinds() map[string]rule.KindInfo {
 				"srcs":          true,
 				"rules":         true,
 				"exclude_rules": true,
+				"lockfiles":     true,
+				"sca_rules":     true,
 			},
 		},
 		"semgrep_target_test": {
@@ -77,6 +82,8 @@ func (l *semgrepLang) Kinds() map[string]rule.KindInfo {
 				"target":        true,
 				"rules":         true,
 				"exclude_rules": true,
+				"lockfiles":     true,
+				"sca_rules":     true,
 			},
 		},
 	}

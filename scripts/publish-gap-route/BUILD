@@ -27,6 +27,8 @@ py_library(
 
 semgrep_target_test(
     name = "main_semgrep_test",
+    lockfiles = ["//requirements:all.txt"],
     rules = ["//semgrep_rules:python_rules"],
+    sca_rules = ["//semgrep_rules:sca_rules"],
     target = ":main",
 )

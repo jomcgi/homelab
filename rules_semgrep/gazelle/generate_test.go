@@ -998,6 +998,245 @@ func TestGenerateRules_MultiLangOrphans(t *testing.T) {
 	}
 }
 
+// --- Tests for SCA lockfile detection in generation ---
+
+func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: &semgrepConfig{
+				enabled:     true,
+				scaEnabled:  true,
+				scaRules:    "//semgrep_rules:sca_rules",
+				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
+				targetKinds: map[string]string{"py_venv_binary": ""},
+				languages:   []string{"py"},
+			},
+		},
+	}
+
+	binary := newPyBinaryWithDeps("server", "server.py", []string{"@pip//requests", ":utils"})
+	buildFile := buildFileWithRules(binary)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"server.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+
+	if len(result.Gen) < 1 {
+		t.Fatalf("expected at least 1 rule, got %d", len(result.Gen))
+	}
+
+	targetRule := result.Gen[0]
+	if targetRule.Kind() != "semgrep_target_test" {
+		t.Fatalf("rule[0] kind = %q, want semgrep_target_test", targetRule.Kind())
+	}
+
+	lockfiles := targetRule.AttrStrings("lockfiles")
+	if len(lockfiles) != 1 || lockfiles[0] != "//requirements:all.txt" {
+		t.Errorf("lockfiles = %v, want [//requirements:all.txt]", lockfiles)
+	}
+
+	scaRules := targetRule.AttrStrings("sca_rules")
+	if len(scaRules) != 1 || scaRules[0] != "//semgrep_rules:sca_rules" {
+		t.Errorf("sca_rules = %v, want [//semgrep_rules:sca_rules]", scaRules)
+	}
+}
+
+func TestGenerateRules_SCADisabled(t *testing.T) {
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: &semgrepConfig{
+				enabled:     true,
+				scaEnabled:  false,
+				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
+				targetKinds: map[string]string{"py_venv_binary": ""},
+				languages:   []string{"py"},
+			},
+		},
+	}
+
+	binary := newPyBinaryWithDeps("server", "server.py", []string{"@pip//requests"})
+	buildFile := buildFileWithRules(binary)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"server.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+	targetRule := result.Gen[0]
+
+	lockfiles := targetRule.AttrStrings("lockfiles")
+	if len(lockfiles) != 0 {
+		t.Errorf("lockfiles should be empty when SCA disabled, got %v", lockfiles)
+	}
+}
+
+func TestGenerateRules_MultipleDepsMultipleEcosystems(t *testing.T) {
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: &semgrepConfig{
+				enabled:     true,
+				scaEnabled:  true,
+				scaRules:    "//semgrep_rules:sca_rules",
+				lockfiles:   map[string]string{"pip": "//requirements:all.txt", "gomod": "//:go.sum"},
+				targetKinds: map[string]string{"py_venv_binary": ""},
+				languages:   []string{"py"},
+			},
+		},
+	}
+
+	binary := newPyBinaryWithDeps("server", "server.py", []string{"@pip//requests", "@go_deps//example.com/pkg"})
+	buildFile := buildFileWithRules(binary)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"server.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+	targetRule := result.Gen[0]
+
+	lockfiles := targetRule.AttrStrings("lockfiles")
+	if len(lockfiles) != 2 {
+		t.Fatalf("expected 2 lockfiles, got %v", lockfiles)
+	}
+	// Sorted: //:go.sum comes before //requirements:all.txt
+	if lockfiles[0] != "//:go.sum" {
+		t.Errorf("lockfiles[0] = %q, want //:go.sum", lockfiles[0])
+	}
+	if lockfiles[1] != "//requirements:all.txt" {
+		t.Errorf("lockfiles[1] = %q, want //requirements:all.txt", lockfiles[1])
+	}
+}
+
+func TestGenerateRules_NoDepsNoLockfiles(t *testing.T) {
+	c := &config.Config{
+		Exts: map[string]interface{}{
+			semgrepConfigKey: &semgrepConfig{
+				enabled:     true,
+				scaEnabled:  true,
+				scaRules:    "//semgrep_rules:sca_rules",
+				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
+				targetKinds: map[string]string{"py_venv_binary": ""},
+				languages:   []string{"py"},
+			},
+		},
+	}
+
+	binary := newPyBinary("server", "server.py")
+	buildFile := buildFileWithRules(binary)
+
+	args := language.GenerateArgs{
+		Config:       c,
+		Dir:          "/tmp/test",
+		Rel:          "services/myapp",
+		RegularFiles: []string{"server.py"},
+		File:         buildFile,
+	}
+
+	result := generateRules(args)
+	targetRule := result.Gen[0]
+
+	lockfiles := targetRule.AttrStrings("lockfiles")
+	if len(lockfiles) != 0 {
+		t.Errorf("lockfiles should be empty when target has no external deps, got %v", lockfiles)
+	}
+}
+
+func TestDetectLockfiles(t *testing.T) {
+	tests := []struct {
+		name       string
+		deps       []string
+		scaEnabled bool
+		lockfiles  map[string]string
+		want       []string
+	}{
+		{
+			name:       "pip deps detected",
+			deps:       []string{"@pip//requests", "@pip//flask"},
+			scaEnabled: true,
+			lockfiles:  map[string]string{"pip": "//requirements:all.txt"},
+			want:       []string{"//requirements:all.txt"},
+		},
+		{
+			name:       "go deps detected",
+			deps:       []string{"@go_deps//example.com/pkg"},
+			scaEnabled: true,
+			lockfiles:  map[string]string{"gomod": "//:go.sum"},
+			want:       []string{"//:go.sum"},
+		},
+		{
+			name:       "pnpm deps detected",
+			deps:       []string{"@npm//react"},
+			scaEnabled: true,
+			lockfiles:  map[string]string{"pnpm": "//:pnpm-lock.yaml"},
+			want:       []string{"//:pnpm-lock.yaml"},
+		},
+		{
+			name:       "no external deps",
+			deps:       []string{":local_lib", "//other:target"},
+			scaEnabled: true,
+			lockfiles:  map[string]string{"pip": "//requirements:all.txt"},
+			want:       nil,
+		},
+		{
+			name:       "sca disabled",
+			deps:       []string{"@pip//requests"},
+			scaEnabled: false,
+			lockfiles:  map[string]string{"pip": "//requirements:all.txt"},
+			want:       nil,
+		},
+		{
+			name:       "multiple ecosystems sorted",
+			deps:       []string{"@pip//requests", "@go_deps//example.com/pkg"},
+			scaEnabled: true,
+			lockfiles:  map[string]string{"pip": "//requirements:all.txt", "gomod": "//:go.sum"},
+			want:       []string{"//:go.sum", "//requirements:all.txt"},
+		},
+		{
+			name:       "ecosystem without lockfile config",
+			deps:       []string{"@pip//requests"},
+			scaEnabled: true,
+			lockfiles:  map[string]string{"gomod": "//:go.sum"},
+			want:       nil,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := rule.NewRule("py_venv_binary", "test")
+			r.SetAttr("deps", tc.deps)
+
+			cfg := &semgrepConfig{
+				scaEnabled: tc.scaEnabled,
+				lockfiles:  tc.lockfiles,
+			}
+
+			got := detectLockfiles(r, cfg)
+			if len(got) != len(tc.want) {
+				t.Fatalf("detectLockfiles() = %v, want %v", got, tc.want)
+			}
+			for i := range got {
+				if got[i] != tc.want[i] {
+					t.Errorf("[%d] = %q, want %q", i, got[i], tc.want[i])
+				}
+			}
+		})
+	}
+}
+
 func TestGenerateRules_TargetKindNotInConfig(t *testing.T) {
 	// py3_image NOT in config → ignored, falls back to per-file
 	c := configWithTargetKinds(map[string]string{
