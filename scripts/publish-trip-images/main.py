@@ -36,6 +36,8 @@ from rich.progress import (
 )
 import typer
 
+from scripts.elevation import ElevationClient
+
 # Defaults
 DB_PATH = Path(__file__).parent / "publish_queue.db"
 DEFAULT_BUCKET = "trips"
