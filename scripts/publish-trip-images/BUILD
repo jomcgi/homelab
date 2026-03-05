@@ -1,6 +1,9 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//tools/pytest:defs.bzl", "py_test")
+
+# gazelle:resolve py main //scripts/publish-trip-images:publish-trip-images
 
 py_library(
     name = "publish-trip-images",
@@ -48,4 +51,21 @@ semgrep_target_test(
     rules = ["//semgrep_rules:python_rules"],
     sca_rules = ["//semgrep_rules:sca_rules"],
     target = ":main",
+)
+
+py_test(
+    name = "rebuild_test",
+    srcs = ["rebuild_test.py"],
+    imports = ["."],
+    deps = [
+        ":publish-trip-images",
+        "//scripts/elevation",
+        "@pip//pytest",
+    ],
+)
+
+semgrep_test(
+    name = "rebuild_test_semgrep_test",
+    srcs = ["rebuild_test.py"],
+    rules = ["//semgrep_rules:python_rules"],
 )
