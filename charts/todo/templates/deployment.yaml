@@ -104,7 +104,7 @@ spec:
             {{- toYaml .Values.staticSecurityContext | nindent 12 }}
           ports:
             - name: http
-              containerPort: 8080
+              containerPort: 8081
           volumeMounts:
             - name: repo
               mountPath: /usr/share/nginx/html
