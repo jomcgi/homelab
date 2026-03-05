@@ -167,6 +167,8 @@ jobs:
           done
 
       - name: Download SCA advisory rules
+        env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
         run: |
           set -euo pipefail
           dir="artifacts/rules-sca"
@@ -174,7 +176,8 @@ jobs:
 
           echo "Downloading SCA supply-chain advisory rules..."
           curl -sSfL \
-            "https://semgrep.dev/c/supply-chain" \
+            -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
+            "https://semgrep.dev/api/agent/deployments/scans/config?sca=true" \
             -o "${dir}/supply-chain.yaml"
 
           echo "Downloaded SCA rules ($(stat --format=%s "${dir}/supply-chain.yaml") bytes)"
