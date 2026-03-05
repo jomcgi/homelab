@@ -21,6 +21,13 @@ var defaultLockfiles = map[string]string{
 	"gomod": "//:go.sum",
 }
 
+// defaultScaRules maps ecosystem keys to per-ecosystem SCA rule labels.
+var defaultScaRules = map[string]string{
+	"pip":   "//semgrep_rules:sca_python_rules",
+	"pnpm":  "//semgrep_rules:sca_javascript_rules",
+	"gomod": "//semgrep_rules:sca_golang_rules",
+}
+
 // detectLockfiles inspects a target's deps for external dependency prefixes
 // and returns the matching lockfile labels from the config.
 func detectLockfiles(target *rule.Rule, cfg *semgrepConfig) []string {
@@ -51,8 +58,49 @@ func detectLockfiles(target *rule.Rule, cfg *semgrepConfig) []string {
 	return lockfiles
 }
 
+// detectScaRules returns the SCA rule labels for ecosystems detected in a target's deps.
+func detectScaRules(target *rule.Rule, cfg *semgrepConfig) []string {
+	if !cfg.scaEnabled || len(cfg.scaRules) == 0 {
+		return nil
+	}
+
+	deps := target.AttrStrings("deps")
+	ecosystems := make(map[string]bool)
+
+	for _, dep := range deps {
+		for prefix, ecosystem := range depPrefixToEcosystem {
+			if strings.HasPrefix(dep, prefix) {
+				ecosystems[ecosystem] = true
+				break
+			}
+		}
+	}
+
+	var rules []string
+	for ecosystem := range ecosystems {
+		if label, ok := cfg.scaRules[ecosystem]; ok {
+			rules = append(rules, label)
+		}
+	}
+
+	sort.Strings(rules)
+	return rules
+}
+
 // copyLockfiles creates a shallow copy of a lockfiles map.
 func copyLockfiles(src map[string]string) map[string]string {
+	if src == nil {
+		return nil
+	}
+	dst := make(map[string]string, len(src))
+	for k, v := range src {
+		dst[k] = v
+	}
+	return dst
+}
+
+// copyScaRules creates a shallow copy of a scaRules map.
+func copyScaRules(src map[string]string) map[string]string {
 	if src == nil {
 		return nil
 	}

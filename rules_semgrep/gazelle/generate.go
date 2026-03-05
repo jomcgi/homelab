@@ -86,7 +86,10 @@ func generateRules(args language.GenerateArgs) language.GenerateResult {
 				lockfiles := detectLockfiles(e.rule, cfg)
 				if len(lockfiles) > 0 {
 					r.SetAttr("lockfiles", lockfiles)
-					r.SetAttr("sca_rules", []string{cfg.scaRules})
+					scaRules := detectScaRules(e.rule, cfg)
+					if len(scaRules) > 0 {
+						r.SetAttr("sca_rules", scaRules)
+					}
 				}
 			}
 			result.Gen = append(result.Gen, r)

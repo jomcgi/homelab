@@ -82,6 +82,6 @@ semgrep_target_test(
     exclude_rules = ["no-requests"],
     lockfiles = ["//requirements:all.txt"],
     rules = ["//semgrep_rules:python_rules"],
-    sca_rules = ["//semgrep_rules:sca_rules"],
+    sca_rules = ["//semgrep_rules:sca_python_rules"],
     target = ":scrape",
 )
