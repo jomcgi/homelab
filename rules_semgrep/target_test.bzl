@@ -97,7 +97,7 @@ _semgrep_target_test = rule(
             doc = "Lockfile(s) for SCA dependency scanning (e.g., go.sum, requirements.txt).",
         ),
         "sca_rules": attr.label_list(
-            allow_files = [".yaml"],
+            allow_files = True,
             doc = "SCA advisory rule config files or filegroups.",
         ),
         "pro_engine": attr.label(

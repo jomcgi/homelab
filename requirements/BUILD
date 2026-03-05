@@ -1,5 +1,10 @@
 load("@rules_uv//uv:pip.bzl", "pip_compile")
 
+exports_files(
+    ["all.txt"],
+    visibility = ["//visibility:public"],
+)
+
 pip_compile(
     name = "runtime",
     requirements_in = "//:pyproject.toml",
