@@ -163,22 +163,18 @@ def _oci_archive_impl(rctx):
 
     digest = rctx.attr.digest
 
-    # Graceful degradation: empty digest creates an empty repo with a
-    # default BUILD file. This allows initial setup before digests are known.
+    # Empty digest means the artifact hasn't been published yet (e.g. new
+    # platform or language pack). This is a build-time error — all digests
+    # must be pinned before merging.
     if not digest:
-        build_content = rctx.attr.build_file_content or _DEFAULT_BUILD_FILE_CONTENT
-        rctx.file("BUILD.bazel", build_content)
-        return
+        fail("oci_archive: empty digest for " + rctx.attr.image +
+             " — all artifacts must have pinned digests. Run the update workflow.")
 
-    # Resolve a GitHub token — if absent, create an empty repo so that
-    # builds without credentials degrade gracefully (community analysis only).
+    # GHCR_TOKEN (or GITHUB_TOKEN) is required to fetch OCI artifacts.
     github_token = _get_github_token(rctx)
     if not github_token:
-        # buildifier: disable=print
-        print("WARNING: oci_archive: no GHCR_TOKEN or GITHUB_TOKEN — skipping fetch of " + rctx.attr.image)
-        build_content = rctx.attr.build_file_content or _DEFAULT_BUILD_FILE_CONTENT
-        rctx.file("BUILD.bazel", build_content)
-        return
+        fail("oci_archive: GHCR_TOKEN or GITHUB_TOKEN required to fetch " + rctx.attr.image +
+             ". Set GHCR_TOKEN in your environment or .bazelrc.")
 
     image = rctx.attr.image
 
@@ -217,7 +213,8 @@ oci_archive = repository_rule(
             doc = "GHCR image path without registry prefix (e.g. 'jomcgi/homelab/tools/semgrep-pro/engine-amd64').",
         ),
         "digest": attr.string(
-            doc = "OCI manifest digest (sha256:...). Empty string creates an empty repo for graceful degradation.",
+            mandatory = True,
+            doc = "OCI manifest digest (sha256:...). Must be pinned — empty digests are a build error.",
         ),
         "build_file_content": attr.string(
             doc = "Custom BUILD.bazel content for the extracted files. " +
@@ -236,10 +233,8 @@ This repository rule implements a minimal OCI Distribution client:
 3. Downloads the layer blob (using curl -L to follow CDN redirects)
 4. Extracts the tarball and generates a BUILD file
 
-If GITHUB_TOKEN or GHCR_TOKEN is not set, creates an empty repository with
-a default BUILD file for graceful degradation (community analysis only).
-Similarly, an empty digest creates an empty repository for initial setup
-before digests are known.
+Both GHCR_TOKEN (or GITHUB_TOKEN) and a pinned digest are required.
+Missing credentials or empty digests are build errors.
 
 Example:
 
