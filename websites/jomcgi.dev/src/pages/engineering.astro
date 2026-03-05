@@ -971,6 +971,26 @@ transitions:
                 </div>
             </div>
 
+            <h3>Custom Starlark Rulesets</h3>
+            <p>Three rulesets that extend Bazel into domains it doesn't cover out of the box. Each includes a Gazelle extension for automatic BUILD file generation.</p>
+
+            <div class="execution">
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">rules_helm</div>
+                        <div class="execution-value">Lint, template, package, and OCI-push Helm charts. Includes an ArgoCD application macro that wires up manifests, image updater, and Semgrep scanning per overlay.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">rules_semgrep</div>
+                        <div class="execution-value">Hermetic Semgrep Pro scanning. Vendors the OCaml engine as OCI artifacts, bypasses the Python wrapper. Three rule types: source files, Helm manifests, transitive targets via aspect.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">rules_wrangler</div>
+                        <div class="execution-value">Cloudflare Pages deployment via Wrangler. Builds static sites and pushes to Cloudflare in one target.</div>
+                    </div>
+                </div>
+            </div>
+
             <h3>GitOps Manifests</h3>
             <p>Helm charts render through Bazel. Output goes to the source tree so Git tracks it. PR diffs show exactly what's changing in the cluster.</p>
 
