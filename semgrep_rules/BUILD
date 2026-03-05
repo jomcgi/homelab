@@ -44,8 +44,27 @@ filegroup(
 )
 
 filegroup(
+    name = "sca_golang_rules",
+    srcs = ["@semgrep_sca_rules_golang//:rules"],
+)
+
+filegroup(
+    name = "sca_python_rules",
+    srcs = ["@semgrep_sca_rules_python//:rules"],
+)
+
+filegroup(
+    name = "sca_javascript_rules",
+    srcs = ["@semgrep_sca_rules_javascript//:rules"],
+)
+
+filegroup(
     name = "sca_rules",
-    srcs = ["@semgrep_sca_rules//:rules"],
+    srcs = [
+        ":sca_golang_rules",
+        ":sca_javascript_rules",
+        ":sca_python_rules",
+    ],
 )
 
 filegroup(
