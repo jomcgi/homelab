@@ -192,6 +192,7 @@ const semgrepDiagram = `flowchart TD
         Core[semgrep-core]
         Srcs[Source Files]
         Rules[Rule YAML]
+        Lockfiles[Lockfiles]
         Result[Pass / Fail]
     end
 
@@ -201,6 +202,7 @@ const semgrepDiagram = `flowchart TD
     Engine --> Core
     Srcs --> Core
     Rules --> Core
+    Lockfiles -->|SCA| Core
     Core -->|cached| Result
 
     style PyPI fill:#ff6b6b,stroke:#ff6b6b,color:#fff
@@ -1068,7 +1070,7 @@ transitions:
         <section class="deep-dive" id="semgrep">
             <div class="deep-dive-header">
                 <span class="deep-dive-number">07</span>
-                <h2>rules_semgrep: Hermetic Static Analysis</h2>
+                <h2>rules_semgrep: Hermetic Static &amp; Supply Chain Analysis</h2>
             </div>
 
             <div class="motivation">
@@ -1098,11 +1100,15 @@ transitions:
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Three Rules</div>
-                        <div class="execution-value">semgrep_test for source files, semgrep_manifest_test for Helm-rendered YAML, semgrep_target_test for transitive deps via aspect. Gazelle auto-generates all of them.</div>
+                        <div class="execution-value">semgrep_test for source files, semgrep_manifest_test for Helm-rendered YAML, semgrep_target_test for transitive deps via aspect. All support optional SCA lockfile scanning. Gazelle auto-generates all of them.</div>
                     </div>
                     <div class="execution-row">
                         <div class="execution-key">Pro Analysis</div>
                         <div class="execution-value">Cross-file taint tracking with --pro. Degrades gracefully — missing credentials mean SKIP, not FAIL. Local dev works even without GHCR access.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Supply Chain</div>
+                        <div class="execution-value">SCA lockfile scanning detects CVEs in third-party dependencies. With Pro reachability, traces whether vulnerable code paths are actually invoked. Gazelle auto-detects lockfiles from @pip//@npm// dep prefixes — zero config.</div>
                     </div>
                 </div>
             </div>
