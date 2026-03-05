@@ -5,13 +5,15 @@ Do not edit manually — changes will be overwritten.
 """
 
 SEMGREP_PRO_DIGESTS = {
-    "engine_amd64": "sha256:8160a0f87728a838924753a20f863b7f6a24d2b6c074aaf2b0f8bf1f6aa9a5d5",
-    "engine_arm64": "sha256:1fb280ebc3dad9f6a99433e82ca478ca038f0409b105952572d97de63929e47e",
-    "engine_osx_arm64": "sha256:7fc72c6831386ef61c5d93ef1690d7678f41514fe8af2844e7860f20307bee0d",
-    "engine_osx_x86_64": "sha256:19097de4252865167099cf36485c172c48bfa4f9678a7960bedf92ece90fc61c",
-    "rules_golang": "sha256:325b2700858e91f614e466e484e4f0c911132e64ad1a5c8a6bf288bc1bde9296",
-    "rules_python": "sha256:8306d94da5887b7f7a2ae802afcd118c01fc8efc3d08ea8a940e62a2b60f7d23",
-    "rules_javascript": "sha256:96762c717ecd8756eecb6349e8548c3c396c40d77fa491eb6cbdee5070e02471",
-    "rules_kubernetes": "sha256:9b6d48deda8475204e6dd9a1dc47aebbb3f02b67eadd04cc429366e1a33e023f",
-    "rules_sca": "sha256:73ea8a34f721c48bba131544173f2cf63f8f64710f78d7b90480574744d090ff",
+    "engine_amd64": "sha256:07b47fdf0bfd60e621f7f79da93b230251d0b33fee16848ea70f23d770a94760",
+    "engine_arm64": "sha256:bc7baad8c5da08a7c0fd5ce84ea4b2d08cba1696daaf9b85e203564d96394b06",
+    "engine_osx_arm64": "sha256:abf5927f51c56025c2324f697f829da85b9e66f4a420f6cab192bca7c7ac7b14",
+    "engine_osx_x86_64": "sha256:a2396d4f0d7fcfb6571c9265a1326796b381426d2e0d7a7d15eee3b38e74489c",
+    "rules_golang": "sha256:011bd15cba96f565bfabd619bb0f7da27fdadcbec5303032fac833adba6a013e",
+    "rules_python": "sha256:4e43fa6ba9749339c892b1940b4765b80c79e87cc5cc3c165c0c154d90461340",
+    "rules_javascript": "sha256:9498d2b9dd3754be6a01150dc55270448b974bc64c96a8160c9ffc2b2c0bda9a",
+    "rules_kubernetes": "sha256:1a9305c696b2d806d8c043d9809ac408e7130109cfbf80850bb7cdc1f15ce67a",
+    "rules_sca_golang": "sha256:85b44be32c03d58cc1f05d2f8c56eede12eca86e5d0374faab227ae0cd106237",
+    "rules_sca_python": "sha256:35aff4f8898a213dbf5a82271b4ada7959aac6ec87485c52c0c820b5019011ab",
+    "rules_sca_javascript": "sha256:e206a09523940243b542e76c094d1916d3f06f16b0da2b88d0dcc9ebeb4dd65c",
 }
