@@ -17,13 +17,13 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: marine
-  # Ignore fields injected by Kyverno policies (OTEL env vars)
+  # Ignore fields injected by OTel operator and Kyverno policies
   ignoreDifferences:
     - group: apps
       kind: Deployment
       jqPathExpressions:
         - .spec.template.metadata.annotations."otel.injected-by"
-        - .spec.template.spec.containers[].env[] | select(.name | startswith("OTEL_"))
+        - .spec.template.spec.containers[].env
   syncPolicy:
     automated:
       prune: true

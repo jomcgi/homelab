@@ -75,10 +75,12 @@ apiSecurityContext:
     drop:
       - ALL
 
-## Static (nginx) container security context
+## Static (nginx-unprivileged) container security context
 staticSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65532
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false # nginx needs writable /var/cache/nginx and /var/run
+  readOnlyRootFilesystem: false # nginx needs writable /tmp and /var/cache/nginx
   capabilities:
     drop:
       - ALL

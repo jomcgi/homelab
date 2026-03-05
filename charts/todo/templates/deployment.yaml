@@ -99,12 +99,12 @@ spec:
           resources:
             {{- toYaml .Values.resources.api | nindent 12 }}
         - name: static
-          image: nginx:alpine
+          image: nginxinc/nginx-unprivileged:alpine
           securityContext:
             {{- toYaml .Values.staticSecurityContext | nindent 12 }}
           ports:
             - name: http
-              containerPort: 80
+              containerPort: 8080
           volumeMounts:
             - name: repo
               mountPath: /usr/share/nginx/html
