@@ -20,7 +20,7 @@ filegroup(
 _RULES_BUILD = """\
 filegroup(
     name = "rules",
-    srcs = glob(["*.yaml"], allow_empty = True),
+    srcs = glob(["*.yaml", "*.json"], allow_empty = True),
     visibility = ["//visibility:public"],
 )
 """

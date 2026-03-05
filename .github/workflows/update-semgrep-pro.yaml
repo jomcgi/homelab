@@ -169,18 +169,45 @@ jobs:
       - name: Download SCA advisory rules
         env:
           SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
+          SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
         run: |
           set -euo pipefail
           dir="artifacts/rules-sca"
           mkdir -p "${dir}"
 
           echo "Downloading SCA supply-chain advisory rules..."
+          # The scans/config endpoint requires User-Agent matching semgrep/<version>
+          # and returns a JSON envelope with rules nested in a stringified rule_config field.
           curl -sSfL \
             -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
-            "https://semgrep.dev/api/agent/deployments/scans/config?sca=true" \
-            -o "${dir}/supply-chain.yaml"
+            -H "User-Agent: semgrep/${SEMGREP_VERSION}" \
+            "https://semgrep.dev/api/agent/deployments/scans/config?dry_run=True&full_scan=True&semgrep_version=${SEMGREP_VERSION}&sca=True" \
+            -o /tmp/sca-response.json
 
-          echo "Downloaded SCA rules ($(stat --format=%s "${dir}/supply-chain.yaml") bytes)"
+          echo "Extracting rule_config from API response..."
+          python3 -c "
+          import json, sys
+          with open('/tmp/sca-response.json') as f:
+              data = json.load(f)
+          rule_config = data.get('rule_config')
+          if not rule_config:
+              print('ERROR: no rule_config in response', file=sys.stderr)
+              sys.exit(1)
+          rules = json.loads(rule_config)
+          count = len(rules.get('rules', []))
+          print(f'Extracted {count} SCA advisory rules')
+          with open('${dir}/supply-chain.json', 'w') as f:
+              json.dump(rules, f, separators=(',', ':'))
+          "
+
+          SIZE=$(stat --format=%s "${dir}/supply-chain.json")
+          echo "Downloaded SCA rules (${SIZE} bytes)"
+          if [ "${SIZE}" -lt 1000000 ]; then
+            echo "ERROR: SCA rules file is suspiciously small (${SIZE} bytes, expected >1MB)"
+            exit 1
+          fi
+
+          rm -f /tmp/sca-response.json
 
       - name: Package and push OCI artifacts
         id: digests
