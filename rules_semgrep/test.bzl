@@ -6,6 +6,8 @@ def semgrep_test(
         name,
         srcs,
         rules,
+        lockfiles = [],
+        sca_rules = [],
         exclude_rules = [],
         pro_engine = "//third_party/semgrep_pro:engine",
         **kwargs):
@@ -25,6 +27,12 @@ def semgrep_test(
         name: Name of the test target
         srcs: Source files to scan (labels)
         rules: Semgrep rule config files or filegroups (labels)
+        lockfiles: Lockfiles for SCA dependency scanning (e.g., go.sum, package-lock.json).
+            When provided, these are passed after a second "--" separator so the
+            test runner can feed them to semgrep-core for supply-chain analysis.
+        sca_rules: Semgrep Supply Chain rule configs for dependency scanning.
+            These rules target lockfile patterns and are merged with the regular
+            rules list when invoking semgrep-core.
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
         pro_engine: Label for the semgrep-core-proprietary binary filegroup.
             Defaults to the pro engine; set to None to disable pro analysis.
@@ -41,17 +49,19 @@ def semgrep_test(
     data = [
         "//third_party/semgrep:engine",
         "//tools/semgrep:upload",
-    ] + rules + srcs
+    ] + rules + sca_rules + srcs + lockfiles
 
     if pro_engine:
         data.append(pro_engine)
 
+    rule_args = ["$(rootpaths {})".format(r) for r in rules + sca_rules]
+    src_args = ["$(rootpaths {})".format(s) for s in srcs]
+    lockfile_args = ["$(rootpaths {})".format(lf) for lf in lockfiles] if lockfiles else []
+
     sh_test(
         name = name,
         srcs = ["//rules_semgrep:semgrep-test.sh"],
-        args = ["$(rootpaths {})".format(r) for r in rules] +
-               ["--"] +
-               ["$(rootpaths {})".format(s) for s in srcs],
+        args = rule_args + ["--"] + src_args + (["--"] + lockfile_args if lockfile_args else []),
         data = data,
         env = env,
         tags = tags,
