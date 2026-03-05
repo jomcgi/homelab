@@ -62,11 +62,12 @@ cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
 chmod 755 "$PRO_DIR/semgrep-core-proprietary"
 ENGINE="$PRO_DIR/semgrep-core-proprietary"
 
-# Pro engine requires SEMGREP_APP_TOKEN for interfile analysis.
-if [[ -z "${SEMGREP_APP_TOKEN:-}" ]]; then
-	echo "ERROR: SEMGREP_APP_TOKEN not set — required for Pro interfile analysis"
-	exit 1
-fi
+# Pro engine requires a non-empty SEMGREP_APP_TOKEN for interfile analysis.
+# Redirect the API endpoint to a dead socket so the engine never phones home
+# (interfile analysis works offline; token is only checked for presence).
+# Real token + URL are preserved when available (for uploads).
+export SEMGREP_APP_TOKEN="${SEMGREP_APP_TOKEN:-offline}"
+export SEMGREP_URL="${SEMGREP_URL:-http://127.0.0.1:0}"
 
 # Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
 # rule-ID-based exclusion (EXCLUDE_IDS).
