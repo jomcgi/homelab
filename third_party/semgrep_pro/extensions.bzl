@@ -53,12 +53,13 @@ def _semgrep_pro_impl(module_ctx):
             build_file_content = _RULES_BUILD,
         )
 
-    # SCA advisory rules — vendored from Semgrep registry
-    oci_archive(
-        name = "semgrep_sca_rules",
-        image = _GHCR_PREFIX + "/rules-sca",
-        digest = SEMGREP_PRO_DIGESTS.get("rules_sca", ""),
-        build_file_content = _RULES_BUILD,
-    )
+    # SCA advisory rules — split per ecosystem, vendored from Semgrep registry
+    for lang in ["golang", "python", "javascript"]:
+        oci_archive(
+            name = "semgrep_sca_rules_" + lang,
+            image = _GHCR_PREFIX + "/rules-sca-" + lang,
+            digest = SEMGREP_PRO_DIGESTS.get("rules_sca_" + lang, ""),
+            build_file_content = _RULES_BUILD,
+        )
 
 semgrep_pro = module_extension(implementation = _semgrep_pro_impl)
