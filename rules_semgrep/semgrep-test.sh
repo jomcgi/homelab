@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# semgrep-test.sh - Runs semgrep-core directly against source files
+# semgrep-test.sh - Runs semgrep-core Pro directly against source files
 #
 # Usage: semgrep-test.sh <rule-files...> -- <source-files...> [-- <lockfile-files...>]
 #
 # The semgrep-core binary is discovered via find(1) in runfiles rather than
-# passed as an argument, because the engine filegroup may be empty when GHCR
-# credentials are missing (graceful degradation).
+# passed as an argument, because Bazel's $(rootpath) can't resolve platform-
+# specific select() targets in sh_test args.
 #
 # Exit code 0 = no findings, non-zero = semgrep found violations.
 #
@@ -22,23 +22,22 @@ if [[ $# -lt 2 ]]; then
 	exit 1
 fi
 
-# Discover Pro engine (primary). The engine filegroup may be empty
-# (no GHCR token / empty digest) — in that case, skip gracefully.
+# Discover Pro engine from runfiles.
 # Search RUNFILES_DIR (not cwd) because external repo files live in sibling
 # directories (e.g. +semgrep+semgrep_engine_arm64/) outside _main/.
 # Use -type f -o -type l to match both regular files and symlinks.
 SEARCH_ROOT="${RUNFILES_DIR:-.}"
 SEMGREP_PRO_ENGINE=$(find "$SEARCH_ROOT" -name "semgrep-core-proprietary" \( -type f -o -type l \) 2>/dev/null | head -1)
 if [[ -z "$SEMGREP_PRO_ENGINE" ]]; then
-	echo "SKIPPED: semgrep-core-proprietary not found in runfiles (GHCR credentials may be missing)"
-	exit 0
+	echo "ERROR: semgrep-core-proprietary not found in runfiles"
+	exit 1
 fi
 
 # OSS engine is a runtime dependency — must be co-located for Pro to work
 SEMGREP_CORE=$(find "$SEARCH_ROOT" -name "semgrep-core" -not -name "*proprietary*" \( -type f -o -type l \) 2>/dev/null | head -1)
 if [[ -z "$SEMGREP_CORE" ]]; then
-	echo "SKIPPED: semgrep-core (OSS) not found — required as Pro runtime dependency"
-	exit 0
+	echo "ERROR: semgrep-core (OSS) not found — required as Pro runtime dependency"
+	exit 1
 fi
 
 # Verify the binary can execute on this platform (OCI-vendored engine is
@@ -59,8 +58,8 @@ ENGINE="$PRO_DIR/semgrep-core-proprietary"
 
 # Pro engine requires SEMGREP_APP_TOKEN for interfile analysis.
 if [[ -z "${SEMGREP_APP_TOKEN:-}" ]]; then
-	echo "SKIPPED: SEMGREP_APP_TOKEN not set — required for Pro interfile analysis"
-	exit 0
+	echo "ERROR: SEMGREP_APP_TOKEN not set — required for Pro interfile analysis"
+	exit 1
 fi
 
 # Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
