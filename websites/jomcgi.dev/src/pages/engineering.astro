@@ -175,6 +175,45 @@ const bazelDiagram = `flowchart LR
     style Git fill:#e056fd,stroke:#e056fd,color:#fff
     style Reg fill:#e056fd,stroke:#e056fd,color:#fff`;
 
+const semgrepDiagram = `flowchart TD
+    subgraph Daily["Daily Update"]
+        PyPI[PyPI Wheels]
+        API[Semgrep API]
+        Extract[Extract semgrep-core]
+        GHCR[GHCR]
+    end
+
+    subgraph Bazel["Bazel Analysis"]
+        OCI[oci_archive]
+        Engine[Engine Binary]
+    end
+
+    subgraph Test["Bazel Test"]
+        Core[semgrep-core]
+        Srcs[Source Files]
+        Rules[Rule YAML]
+        Result[Pass / Fail]
+    end
+
+    PyPI --> Extract --> GHCR
+    API --> GHCR
+    GHCR -->|digest| OCI --> Engine
+    Engine --> Core
+    Srcs --> Core
+    Rules --> Core
+    Core -->|cached| Result
+
+    style PyPI fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style API fill:#ff6b6b,stroke:#ff6b6b,color:#fff
+    style Extract fill:#ffa502,stroke:#ffa502,color:#fff
+    style GHCR fill:#ffd93d,stroke:#ffd93d,color:#000
+    style OCI fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Engine fill:#6bcb77,stroke:#6bcb77,color:#fff
+    style Core fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Srcs fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Rules fill:#4d96ff,stroke:#4d96ff,color:#fff
+    style Result fill:#9b59b6,stroke:#9b59b6,color:#fff`;
+
 const shipsDiagram = `flowchart LR
     subgraph Ingest
         AIS[AISStream.io]
@@ -1023,28 +1062,75 @@ transitions:
                 </div>
             </div>
 
-            <h3>Static Analysis</h3>
-            <p>Semgrep Pro rules as hermetic Bazel tests. The OCaml engine is vendored as an OCI artifact—no pip install, no registry fetches. Scans re-run only when source files or rules change.</p>
+        </section>
 
+        <!-- Deep Dive 7: Hermetic Static Analysis -->
+        <section class="deep-dive" id="semgrep">
+            <div class="deep-dive-header">
+                <span class="deep-dive-number">07</span>
+                <h2>rules_semgrep: Hermetic Static Analysis</h2>
+            </div>
+
+            <div class="motivation">
+                <div class="motivation-label">Motivation</div>
+                <div class="motivation-text">
+                    Semgrep on managed CI took 2+ minutes per diff scan, 5+ minutes for full scans. Rule registry
+                    fetches made results non-deterministic. I needed scans that run in seconds, produce identical
+                    results from identical inputs, and only re-run when something actually changes. Bazel's
+                    content-addressed cache gives all three — but Semgrep had no Bazel integration.
+                </div>
+            </div>
+
+            <div class="diagram-container">
+                <MermaidDiagram diagram={semgrepDiagram} id="semgrep" />
+            </div>
+
+            <div class="execution">
+                <div class="execution-label">How It Works</div>
+                <div class="execution-grid">
+                    <div class="execution-row">
+                        <div class="execution-key">No Python</div>
+                        <div class="execution-value">Extracts the semgrep-core OCaml binary from PyPI wheels and vendors it as an OCI artifact on GHCR. Bypasses the Python wrapper entirely — no pip install, no 2-4s startup tax.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Digest-Pinned</div>
+                        <div class="execution-value">Engine binaries and Pro rule packs are pinned to sha256 digests. A daily GitHub Action updates digests and opens a PR. Same inputs, same results, every time.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Three Rules</div>
+                        <div class="execution-value">semgrep_test for source files, semgrep_manifest_test for Helm-rendered YAML, semgrep_target_test for transitive deps via aspect. Gazelle auto-generates all of them.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Pro Analysis</div>
+                        <div class="execution-value">Cross-file taint tracking with --pro. Degrades gracefully — no GHCR token means SKIP, not FAIL. Works with or without a Pro license.</div>
+                    </div>
+                </div>
+            </div>
+
+            <h3>Results</h3>
             <div class="execution">
                 <div class="execution-grid">
                     <div class="execution-row">
-                        <div class="execution-key">rules_semgrep</div>
-                        <div class="execution-value">Three rule types: source files, Helm manifests, and full transitive targets via aspect. Gazelle auto-generates them all.</div>
+                        <div class="execution-key">Cached Diff</div>
+                        <div class="execution-value">30 seconds. Down from 2+ minutes on managed infrastructure.</div>
                     </div>
                     <div class="execution-row">
-                        <div class="execution-key">Speed</div>
-                        <div class="execution-value">30s cached diff, 50s with new rules. Down from 2m+ on managed CI. Cache invalidation is content-addressed, not time-based.</div>
+                        <div class="execution-key">New Rules</div>
+                        <div class="execution-value">50 seconds. Cache invalidated only for affected targets.</div>
+                    </div>
+                    <div class="execution-row">
+                        <div class="execution-key">Cold Cache</div>
+                        <div class="execution-value">4 minutes for all tests, all images, all scans on a fresh runner.</div>
                     </div>
                 </div>
             </div>
 
         </section>
 
-        <!-- Deep Dive 7: Self-Hosted AI Stack -->
+        <!-- Deep Dive 8: Self-Hosted AI Stack -->
         <section class="deep-dive" id="ai-stack">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">07</span>
+                <span class="deep-dive-number">08</span>
                 <h2>Self-Hosted AI Stack</h2>
             </div>
 
@@ -1087,7 +1173,7 @@ transitions:
         <!-- Deep Dive 8: OCI Model Cache Operator -->
         <section class="deep-dive" id="oci-model-cache">
             <div class="deep-dive-header">
-                <span class="deep-dive-number">08</span>
+                <span class="deep-dive-number">09</span>
                 <h2>OCI Model Cache Operator</h2>
             </div>
 
