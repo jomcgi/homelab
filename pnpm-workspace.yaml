@@ -5,5 +5,6 @@ packages:
   - websites/ships.jomcgi.dev
   - websites/trips.jomcgi.dev
   - websites/jomcgi.dev
+  - websites/docs.jomcgi.dev
   - websites/hikes.jomcgi.dev
   - services/grimoire/frontend
