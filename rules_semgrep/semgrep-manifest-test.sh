@@ -63,9 +63,11 @@ cp "$SEMGREP_PRO_ENGINE" "$PRO_DIR/semgrep-core-proprietary"
 chmod 755 "$PRO_DIR/semgrep-core-proprietary"
 ENGINE="$PRO_DIR/semgrep-core-proprietary"
 
-# Pro engine requires a non-empty SEMGREP_APP_TOKEN for interfile analysis.
-# The token isn't validated for local scans — a placeholder suffices.
-export SEMGREP_APP_TOKEN="${SEMGREP_APP_TOKEN:-placeholder}"
+# Pro engine requires SEMGREP_APP_TOKEN for interfile analysis.
+if [[ -z "${SEMGREP_APP_TOKEN:-}" ]]; then
+	echo "SKIPPED: SEMGREP_APP_TOKEN not set — required for Pro interfile analysis"
+	exit 0
+fi
 
 # Parse exclude items: filename-based exclusion (EXCLUDE_LIST) and
 # rule-ID-based exclusion (EXCLUDE_IDS).
