@@ -1,188 +1,68 @@
-# rules_semgrep: Deterministic SAST in Bazel
+# rules_semgrep Demo
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│                    OCI Artifact Pipeline                     │
-│  Daily: download engines + rules → content-hash → push GHCR  │
-│  digests.bzl pins every artifact by sha256 manifest digest   │
-└────────────────────────────┬─────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────┐
-│                      Bazel Rules                             │
-│  semgrep_test          — scan explicit file list             │
-│  semgrep_target_test   — scan target's transitive sources    │
-│  semgrep_manifest_test — render Helm chart, scan YAML        │
-│                                                              │
-│  All invoke semgrep-core directly (no pysemgrep)             │
-│  Inputs: sources + rules + engine binary → content-addressed │
-└────────────────────────────┬─────────────────────────────────┘
-                             │
-┌────────────────────────────▼─────────────────────────────────┐
-│                   Gazelle Extension                          │
-│  Auto-generates semgrep BUILD targets from existing code     │
-│  Zero manual maintenance — just run `bazel run gazelle`      │
-└──────────────────────────────────────────────────────────────┘
-```
+Talk track for a 3-minute overview. Open links during the walkthrough.
 
 ---
 
-## Deterministic Semgrep
+## Pitch
 
-Every input is digest-pinned. No network calls at scan time. No pysemgrep.
+Semgrep runs as a Bazel test. Gazelle auto-generates the targets. Everything is cached.
 
-```python
-# third_party/semgrep_pro/digests.bzl (auto-updated daily)
-SEMGREP_PRO_DIGESTS = {
-    "engine_amd64":     "sha256:9b9cc77cf65d...",
-    "rules_python":     "sha256:6cf429baea5d...",
-    "rules_kubernetes": "sha256:eaeeeff194ba...",
-    # ...11 artifacts total
-}
+```
+Code change → bazel test //... → semgrep-core runs (only if inputs changed) → PR blocked on findings
 ```
 
-Daily CI downloads engines + rules, computes a content hash, and skips the push if nothing changed. **Same content = same digest = warm cache.**
+No pysemgrep CLI. No manual config. No special CI jobs. Just `bazel test`.
 
 ---
 
-## Cache Management
+## 1. It's deterministic
 
-Bazel hashes all test inputs. If nothing changed, the test doesn't re-run.
+Engines, rules, and SCA advisories are vendored as OCI artifacts, pinned by digest.
 
-```
-Edit scrape.py         → source hash changes    → re-run
-Edit rule YAML         → rule hash changes      → re-run
-New semgrep release    → engine digest changes   → re-run
-Edit unrelated file    → not in input set        → cache hit
-Re-run same commit     → all hashes match        → cache hit
-```
+A daily workflow downloads artifacts, content-hashes them, and skips the push if nothing changed. Same content = same digest = cache stays warm.
+
+> **Open:** [Commit updating only python rules](https://github.com/jomcgi/homelab/commit/360cf6d28e53d24895b345b1445726e86acb1f2b) — show `digests.bzl` change, only the rules that changed get new digests.
 
 ---
 
-## Gazelle-Managed BUILD Files
+## 2. It's cached
 
-Developers never write semgrep targets. Given an existing target:
+Bazel hashes: source files + rule YAMLs + engine binary + lockfiles. Cache hit = 0s. Cache miss = 2-8s.
 
-```python
-py_venv_binary(
-    name = "scrape",
-    srcs = ["scrape.py"],
-    deps = [":scrape_walkhighlands", "@pip//requests", "@pip//beautifulsoup4"],
-)
-```
-
-`bazel run gazelle` auto-generates:
-
-```python
-semgrep_target_test(
-    name = "scrape_semgrep_test",
-    target = ":scrape",
-    rules = ["//semgrep_rules:python_rules"],
-    lockfiles = ["//requirements:all.txt"],       # detected from @pip// deps
-    sca_rules = ["//semgrep_rules:sca_python_rules"],
-    exclude_rules = ["no-requests"],              # from gazelle directive
-)
-```
-
-Orphan files (tests not in any target's dep tree) get their own `semgrep_test` automatically.
+> **Open:** [BuildBuddy full execution](https://jomcgi.buildbuddy.io/invocation/90fac43b-4e7f-4271-b42a-28492b53e4fe) — show which semgrep tests ran vs cached.
 
 ---
 
-## What Semgrep Actually Scans
+## 3. Developers don't maintain it
 
-A Bazel aspect walks the target's dependency graph. Two scan passes run against the result:
+Gazelle auto-generates `semgrep_target_test` for every scannable target. It detects `@pip//` deps and wires in SCA lockfile scanning automatically.
 
 ```
-semgrep_target_test(target = ":scrape")
-         │
-         ▼ aspect walks deps
-    ┌────────────┐
-    │  :scrape   │ → scrape.py
-    │   :scrape_walkhighlands ──→ __init__.py, error_handling.py
-    │   @pip//requests ──→ (external, skipped from SAST)
-    └────────────┘
-
-    SAST pass: semgrep-core --pro_inter_file
-      Scans: [scrape.py, __init__.py, error_handling.py]
-      Cross-file dataflow scoped to real dependencies, not the whole repo
-
-    SCA pass: semgrep-core with lockfile + advisory rules
-      Gazelle saw @pip// in deps → wired in requirements.txt + sca_python_rules
-      Scans: requirements.txt against known vulnerability advisories
-      Findings filtered to actually-installed versions
+py_venv_binary(deps = ["@pip//requests"])
+  → Gazelle generates semgrep_target_test with:
+    - SAST: cross-file analysis on transitive source closure
+    - SCA:  requirements.txt scanned against vulnerability advisories
 ```
 
-SAST finds code issues (eval, hardcoded secrets). SCA finds vulnerable dependencies (requests CVEs). Both are cached by the same input hash.
+> **Open:** [scrape_walkhighlands target on BuildBuddy](https://jomcgi.buildbuddy.io/invocation/e8f10161-1793-41ac-b6ab-b8f138900106?target=%2F%2Fservices%2Fhikes%2Fscrape_walkhighlands%3Ascrape_semgrep_test&targetStatus=5#@7) — show a real semgrep_target_test execution with SAST + SCA passes.
 
 ---
 
-## Cache Invalidation: New Rule on a PR
+## 4. New rules invalidate precisely
 
-Add a rule, push to a PR, watch it cascade:
-
-```yaml
-# semgrep_rules/python/no-print.yaml
-rules:
-  - id: no-print
-    languages: [python]
-    severity: WARNING
-    message: Use logging module instead of print()
-    pattern: print(...)
-```
-
-```
-PR pushed → bazel test //...
-  //semgrep_rules:python_rules filegroup changed (new YAML)
-  → ALL Python semgrep tests invalidated → re-run
-  → Go / Kubernetes tests: different rules filegroup → cache hit
-  → Unit tests: no semgrep dep → cache hit
-  → Any print() found → test FAILS → PR blocked
-```
-
-Invalidation is precise to the dependency graph.
+Adding a Python rule YAML invalidates all Python semgrep tests (shared `rules` input). Go tests, Kubernetes manifest tests, unit tests — all cache hit.
 
 ---
 
-## Merge Queue Compatibility
+## 5. Violations block PRs
 
-Semgrep tests are regular `bazel test` targets — cached and parallelized alongside everything else.
+> **Open:** [Demo PR with security violation](https://github.com/jomcgi/homelab/pull/773) — show CI failure from `no-eval-exec` rule catching dynamic code execution.
 
-```
-PR #1: edit scrape.py         → semgrep re-runs for scrape targets
-PR #2: edit ships_api/main.go → semgrep re-runs for Go targets only
-PR #3: docs-only change       → all semgrep tests cache-hit
-
-Merge queue rebases PR #2 onto PR #1:
-  scrape targets:    cached from PR #1  → hit
-  ships_api targets: cached from PR #2  → hit
-  everything else:   unchanged          → hit
-```
-
-| Scenario | Latency |
-|----------|---------|
-| Cache hit | **0s** — instant pass |
-| Cache miss | **2-8s** — semgrep-core Pro, no pysemgrep overhead |
-
-No special CI treatment. A merge queue rebase that doesn't touch your files = instant cache hit.
+The pre-commit hook also runs semgrep locally — same rules, same engine, same result.
 
 ---
 
-```
-Developer writes code
-        │
-        ▼
-  `bazel run gazelle`  →  auto-generates scan targets
-        │
-        ▼
-  `bazel test //...`
-        │
-        ├─ Cache hit  → 0s
-        └─ Cache miss → semgrep-core Pro (~2-8s)
-                │
-                ├─ SAST: interfile analysis on transitive sources
-                ├─ SCA: lockfile dependency scanning
-                └─ Manifest: rendered Helm YAML policy checks
-                         │
-                         ▼
-                  Finding → PR blocked
-                  Clean   → cached for next run
-```
+## 6. Merge queue compatible
+
+Semgrep tests are just `bazel test` targets. They share the remote cache with everything else. A merge queue rebase that doesn't touch your files = instant cache hit. No added latency.
