@@ -62,26 +62,43 @@ jobs:
           echo "Semgrep version: ${SEMGREP_VERSION}"
           echo "Date tag: $(date -u +%Y%m%d)"
 
-      - name: Extract semgrep-core from PyPI wheels
+      - name: Download all artifacts
         env:
+          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
           SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
         run: |
           set -euo pipefail
 
-          declare -A PLATFORMS=(
-            ["amd64"]="manylinux2014_x86_64"
-            ["arm64"]="manylinux2014_aarch64"
-            ["osx-arm64"]="macosx_11_0_arm64"
-            ["osx-x86_64"]="macosx_10_14_x86_64"
-          )
+          # --- Helper: wait for background jobs and fail if any errored ---
+          wait_all() {
+            local failed=0
+            for pid in "$@"; do
+              wait "$pid" || failed=1
+            done
+            if [ "$failed" -ne 0 ]; then
+              echo "ERROR: one or more background downloads failed"
+              exit 1
+            fi
+          }
 
-          for arch in "${!PLATFORMS[@]}"; do
-            platform="${PLATFORMS[$arch]}"
-            dir="artifacts/oss-engine-${arch}"
-            mkdir -p "${dir}"
+          # --- OSS engines (from PyPI wheels) ---
+          download_oss_engines() {
+            declare -A PLATFORMS=(
+              ["amd64"]="manylinux2014_x86_64"
+              ["arm64"]="manylinux2014_aarch64"
+              ["osx-arm64"]="macosx_11_0_arm64"
+              ["osx-x86_64"]="macosx_10_14_x86_64"
+            )
 
-            echo "Fetching PyPI wheel URL for ${arch} (${platform})..."
-            WHEEL_URL=$(curl -sSf "https://pypi.org/pypi/semgrep/${SEMGREP_VERSION}/json" | python3 -c "
+            local pids=()
+            for arch in "${!PLATFORMS[@]}"; do
+              (
+                platform="${PLATFORMS[$arch]}"
+                dir="artifacts/oss-engine-${arch}"
+                mkdir -p "${dir}"
+
+                echo "[oss-engine-${arch}] Fetching PyPI wheel URL..."
+                WHEEL_URL=$(curl --compressed -sSf "https://pypi.org/pypi/semgrep/${SEMGREP_VERSION}/json" | python3 -c "
           import json, sys
           data = json.load(sys.stdin)
           for f in data['urls']:
@@ -93,97 +110,100 @@ jobs:
               sys.exit(1)
           ")
 
-            echo "Downloading wheel: ${WHEEL_URL##*/}"
-            curl -sSfL -o /tmp/semgrep-${arch}.whl "${WHEEL_URL}"
+                echo "[oss-engine-${arch}] Downloading wheel: ${WHEEL_URL##*/}"
+                curl --compressed -sSfL -o "/tmp/semgrep-${arch}.whl" "${WHEEL_URL}"
 
-            echo "Extracting semgrep-core from wheel..."
-            # Wheel layout: {name}-{version}.data/purelib/semgrep/bin/semgrep-core
-            unzip -p "/tmp/semgrep-${arch}.whl" "*/semgrep/bin/semgrep-core" > "${dir}/semgrep-core"
-            chmod 755 "${dir}/semgrep-core"
+                # Wheel layout: {name}-{version}.data/purelib/semgrep/bin/semgrep-core
+                unzip -p "/tmp/semgrep-${arch}.whl" "*/semgrep/bin/semgrep-core" > "${dir}/semgrep-core"
+                chmod 755 "${dir}/semgrep-core"
 
-            SIZE=$(stat --format=%s "${dir}/semgrep-core")
-            echo "Extracted oss-engine-${arch} (${SIZE} bytes)"
-            if [ "${SIZE}" -lt 30000000 ]; then
-              echo "ERROR: oss-engine-${arch} is suspiciously small (${SIZE} bytes, expected >30MB)"
-              exit 1
-            fi
+                SIZE=$(stat --format=%s "${dir}/semgrep-core")
+                echo "[oss-engine-${arch}] Extracted (${SIZE} bytes)"
+                if [ "${SIZE}" -lt 30000000 ]; then
+                  echo "ERROR: oss-engine-${arch} is suspiciously small (${SIZE} bytes, expected >30MB)"
+                  exit 1
+                fi
 
-            rm -f "/tmp/semgrep-${arch}.whl"
-          done
+                rm -f "/tmp/semgrep-${arch}.whl"
+              ) &
+              pids+=($!)
+            done
+            wait_all "${pids[@]}"
+            echo "All OSS engines downloaded."
+          }
 
-      - name: Download pro engine
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-          SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
-        run: |
-          set -euo pipefail
+          # --- Pro engines ---
+          download_pro_engines() {
+            declare -A PLATFORMS=(
+              ["amd64"]="manylinux"
+              ["arm64"]="linux-arm64"
+              ["osx-arm64"]="osx-arm64"
+              ["osx-x86_64"]="osx-x86_64"
+            )
 
-          declare -A PLATFORMS=(
-            ["amd64"]="manylinux"
-            ["arm64"]="linux-arm64"
-            ["osx-arm64"]="osx-arm64"
-            ["osx-x86_64"]="osx-x86_64"
-          )
+            local pids=()
+            for arch in "${!PLATFORMS[@]}"; do
+              (
+                platform="${PLATFORMS[$arch]}"
+                dir="artifacts/engine-${arch}"
+                mkdir -p "${dir}"
 
-          for arch in "${!PLATFORMS[@]}"; do
-            platform="${PLATFORMS[$arch]}"
-            dir="artifacts/engine-${arch}"
-            mkdir -p "${dir}"
+                echo "[engine-${arch}] Downloading pro engine..."
+                curl --compressed -sSfL \
+                  -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
+                  "https://semgrep.dev/api/agent/deployments/deepbinary/${platform}?version=${SEMGREP_VERSION}" \
+                  -o "${dir}/semgrep-core-proprietary"
 
-            echo "Downloading pro engine for ${arch} (${platform})..."
-            curl -sSfL \
+                chmod 755 "${dir}/semgrep-core-proprietary"
+
+                SIZE=$(stat --format=%s "${dir}/semgrep-core-proprietary")
+                echo "[engine-${arch}] Downloaded (${SIZE} bytes)"
+                if [ "${SIZE}" -lt 50000000 ]; then
+                  echo "ERROR: engine-${arch} is suspiciously small (${SIZE} bytes, expected >50MB)"
+                  exit 1
+                fi
+              ) &
+              pids+=($!)
+            done
+            wait_all "${pids[@]}"
+            echo "All pro engines downloaded."
+          }
+
+          # --- Pro rule packs ---
+          download_rules() {
+            local pids=()
+            for lang in golang python javascript kubernetes; do
+              (
+                dir="artifacts/rules-${lang}"
+                mkdir -p "${dir}"
+
+                echo "[rules-${lang}] Downloading..."
+                curl --compressed -sSfL \
+                  -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
+                  "https://semgrep.dev/c/p/${lang}" \
+                  -o "${dir}/${lang}.yaml"
+
+                echo "[rules-${lang}] Downloaded ($(stat --format=%s "${dir}/${lang}.yaml") bytes)"
+              ) &
+              pids+=($!)
+            done
+            wait_all "${pids[@]}"
+            echo "All rule packs downloaded."
+          }
+
+          # --- SCA advisory rules ---
+          download_sca_rules() {
+            echo "[sca] Downloading supply-chain advisory rules..."
+            # The scans/config endpoint requires User-Agent matching semgrep/<version>
+            # and returns a JSON envelope with rules nested in a stringified rule_config field.
+            curl --compressed -sSfL \
               -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
-              "https://semgrep.dev/api/agent/deployments/deepbinary/${platform}?version=${SEMGREP_VERSION}" \
-              -o "${dir}/semgrep-core-proprietary"
+              -H "User-Agent: semgrep/${SEMGREP_VERSION}" \
+              "https://semgrep.dev/api/agent/deployments/scans/config?dry_run=True&full_scan=True&semgrep_version=${SEMGREP_VERSION}&sca=True" \
+              -o /tmp/sca-response.json
 
-            chmod 755 "${dir}/semgrep-core-proprietary"
-
-            SIZE=$(stat --format=%s "${dir}/semgrep-core-proprietary")
-            echo "Downloaded engine-${arch} (${SIZE} bytes)"
-            if [ "${SIZE}" -lt 50000000 ]; then
-              echo "ERROR: engine-${arch} is suspiciously small (${SIZE} bytes, expected >50MB)"
-              exit 1
-            fi
-          done
-
-      - name: Download pro rule packs
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-        run: |
-          set -euo pipefail
-          LANGUAGES="golang python javascript kubernetes"
-
-          for lang in ${LANGUAGES}; do
-            dir="artifacts/rules-${lang}"
-            mkdir -p "${dir}"
-
-            echo "Downloading rules for ${lang}..."
-            curl -sSfL \
-              -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
-              "https://semgrep.dev/c/p/${lang}" \
-              -o "${dir}/${lang}.yaml"
-
-            echo "Downloaded rules-${lang} ($(stat --format=%s "${dir}/${lang}.yaml") bytes)"
-          done
-
-      - name: Download SCA advisory rules
-        env:
-          SEMGREP_APP_TOKEN: ${{ secrets.SEMGREP_APP_TOKEN }}
-          SEMGREP_VERSION: ${{ steps.version.outputs.semgrep_version }}
-        run: |
-          set -euo pipefail
-
-          echo "Downloading SCA supply-chain advisory rules..."
-          # The scans/config endpoint requires User-Agent matching semgrep/<version>
-          # and returns a JSON envelope with rules nested in a stringified rule_config field.
-          curl -sSfL \
-            -H "Authorization: Bearer ${SEMGREP_APP_TOKEN}" \
-            -H "User-Agent: semgrep/${SEMGREP_VERSION}" \
-            "https://semgrep.dev/api/agent/deployments/scans/config?dry_run=True&full_scan=True&semgrep_version=${SEMGREP_VERSION}&sca=True" \
-            -o /tmp/sca-response.json
-
-          echo "Splitting SCA rules by ecosystem..."
-          python3 -c "
+            echo "[sca] Splitting rules by ecosystem..."
+            python3 -c "
           import json, sys, os
           from collections import defaultdict
 
@@ -194,9 +214,8 @@ jobs:
               print('ERROR: no rule_config in response', file=sys.stderr)
               sys.exit(1)
           all_rules = json.loads(rule_config).get('rules', [])
-          print(f'Total SCA advisory rules: {len(all_rules)}')
+          print(f'[sca] Total advisory rules: {len(all_rules)}')
 
-          # Map API namespace to our ecosystem name
           namespace_to_eco = {'gomod': 'golang', 'pypi': 'python', 'npm': 'javascript'}
 
           by_eco = defaultdict(list)
@@ -207,7 +226,7 @@ jobs:
                   eco = namespace_to_eco.get(ns)
                   if eco:
                       by_eco[eco].append(rule)
-                      break  # each rule belongs to one namespace
+                      break
 
           for eco in ['golang', 'python', 'javascript']:
               rules = by_eco[eco]
@@ -217,13 +236,28 @@ jobs:
               with open(out_path, 'w') as f:
                   json.dump({'rules': rules}, f, separators=(',', ':'))
               size = os.path.getsize(out_path)
-              print(f'  {eco}: {len(rules)} rules ({size / 1024 / 1024:.1f} MB)')
+              print(f'  [sca-{eco}] {len(rules)} rules ({size / 1024 / 1024:.1f} MB)')
               if size < 100000:
                   print(f'ERROR: {eco} rules file is suspiciously small ({size} bytes)', file=sys.stderr)
                   sys.exit(1)
           "
 
-          rm -f /tmp/sca-response.json
+            rm -f /tmp/sca-response.json
+            echo "[sca] Done."
+          }
+
+          # --- Run all four download groups in parallel ---
+          download_oss_engines &
+          pid_oss=$!
+          download_pro_engines &
+          pid_pro=$!
+          download_rules &
+          pid_rules=$!
+          download_sca_rules &
+          pid_sca=$!
+
+          wait_all "$pid_oss" "$pid_pro" "$pid_rules" "$pid_sca"
+          echo "All artifacts downloaded."
 
       - name: Package and push OCI artifacts
         id: digests
@@ -232,70 +266,72 @@ jobs:
         run: |
           set -euo pipefail
 
-          declare -A DIGESTS
+          DIGEST_DIR=$(mktemp -d)
 
-          # Package and push pro artifacts
+          resolve_platform() {
+            case "$1" in
+              *osx-arm64)   echo "darwin/arm64" ;;
+              *osx-x86_64)  echo "darwin/amd64" ;;
+              *-arm64)      echo "linux/arm64" ;;
+              *)            echo "linux/amd64" ;;
+            esac
+          }
+
+          # Push a single artifact and write its digest to a file.
+          # Usage: push_artifact <artifact-dir> <image-ref> <digest-key>
+          push_artifact() {
+            local artifact_dir="$1" image="$2" key="$3"
+            local platform
+            platform=$(resolve_platform "$image")
+
+            echo "[${key}] Packaging..."
+            tar -cf "${artifact_dir}.tar" -C "${artifact_dir}" .
+
+            echo "[${key}] Pushing ${image}..."
+            crane append \
+              -f "${artifact_dir}.tar" \
+              -t "${image}" \
+              --platform "${platform}"
+
+            local digest
+            digest=$(crane digest "${image}")
+            echo "[${key}] Pushed -> ${digest}"
+            echo "${key}=${digest}" > "${DIGEST_DIR}/${key}"
+          }
+
+          pids=()
+
+          # Pro artifacts
           GHCR_PRO="ghcr.io/jomcgi/homelab/tools/semgrep-pro"
-          PRO_ARTIFACTS="engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes rules-sca-golang rules-sca-python rules-sca-javascript"
-
-          for artifact in ${PRO_ARTIFACTS}; do
-            echo "Packaging pro/${artifact}..."
-            tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
-
-            case "${artifact}" in
-              *osx-arm64)   PLATFORM="darwin/arm64" ;;
-              *osx-x86_64)  PLATFORM="darwin/amd64" ;;
-              *-arm64)      PLATFORM="linux/arm64" ;;
-              *)            PLATFORM="linux/amd64" ;;
-            esac
-
-            IMAGE="${GHCR_PRO}/${artifact}:${DATE_TAG}"
-            crane append \
-              -f "artifacts/${artifact}.tar" \
-              -t "${IMAGE}" \
-              --platform "${PLATFORM}"
-
-            DIGEST=$(crane digest "${IMAGE}")
-            echo "Pushed ${IMAGE} -> ${DIGEST}"
-
-            KEY="pro_${artifact//-/_}"
-            DIGESTS["${KEY}"]="${DIGEST}"
+          for artifact in engine-amd64 engine-arm64 engine-osx-arm64 engine-osx-x86_64 rules-golang rules-python rules-javascript rules-kubernetes rules-sca-golang rules-sca-python rules-sca-javascript; do
+            key="pro_${artifact//-/_}"
+            push_artifact "artifacts/${artifact}" "${GHCR_PRO}/${artifact}:${DATE_TAG}" "${key}" &
+            pids+=($!)
           done
 
-          # Package and push OSS engine artifacts
+          # OSS engine artifacts
           GHCR_OSS="ghcr.io/jomcgi/homelab/tools/semgrep"
-          OSS_ARTIFACTS="oss-engine-amd64 oss-engine-arm64 oss-engine-osx-arm64 oss-engine-osx-x86_64"
-
-          for artifact in ${OSS_ARTIFACTS}; do
-            echo "Packaging ${artifact}..."
-            tar -cf "artifacts/${artifact}.tar" -C "artifacts/${artifact}" .
-
-            case "${artifact}" in
-              *osx-arm64)   PLATFORM="darwin/arm64" ;;
-              *osx-x86_64)  PLATFORM="darwin/amd64" ;;
-              *-arm64)      PLATFORM="linux/arm64" ;;
-              *)            PLATFORM="linux/amd64" ;;
-            esac
-
-            # Push as engine-amd64/engine-arm64/etc (strip oss- prefix for image name)
-            IMAGE_NAME="${artifact#oss-}"
-            IMAGE="${GHCR_OSS}/${IMAGE_NAME}:${DATE_TAG}"
-            crane append \
-              -f "artifacts/${artifact}.tar" \
-              -t "${IMAGE}" \
-              --platform "${PLATFORM}"
-
-            DIGEST=$(crane digest "${IMAGE}")
-            echo "Pushed ${IMAGE} -> ${DIGEST}"
-
-            KEY="oss_${IMAGE_NAME//-/_}"
-            DIGESTS["${KEY}"]="${DIGEST}"
+          for artifact in oss-engine-amd64 oss-engine-arm64 oss-engine-osx-arm64 oss-engine-osx-x86_64; do
+            image_name="${artifact#oss-}"
+            key="oss_${image_name//-/_}"
+            push_artifact "artifacts/${artifact}" "${GHCR_OSS}/${image_name}:${DATE_TAG}" "${key}" &
+            pids+=($!)
           done
 
-          # Write all digests as step outputs
-          for key in "${!DIGESTS[@]}"; do
-            echo "${key}=${DIGESTS[$key]}" >> "$GITHUB_OUTPUT"
+          # Wait for all pushes
+          failed=0
+          for pid in "${pids[@]}"; do
+            wait "$pid" || failed=1
           done
+          if [ "$failed" -ne 0 ]; then
+            echo "ERROR: one or more OCI pushes failed"
+            exit 1
+          fi
+
+          # Collect all digests into step outputs
+          cat "${DIGEST_DIR}"/* >> "$GITHUB_OUTPUT"
+          rm -rf "${DIGEST_DIR}"
+          echo "All artifacts pushed."
 
       - name: Update digest files if changed
         id: check
