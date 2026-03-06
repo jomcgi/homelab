@@ -21,6 +21,22 @@ secret:
   name: mcp-oauth-proxy
   itemPath: "vaults/k8s-homelab/items/mcp-oauth-proxy"
 
+# PostgreSQL sidecar — replaces SQLite (upstream binary lacks CGO)
+postgres:
+  image:
+    repository: postgres
+    tag: "17-alpine"
+  user: "mcp"
+  database: "mcp_oauth"
+  dsn: "postgres://mcp@localhost:5432/mcp_oauth?sslmode=disable"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
 resources:
   requests:
     cpu: 10m
@@ -31,15 +47,14 @@ resources:
 
 podSecurityContext:
   runAsNonRoot: true
-  runAsUser: 65532
-  runAsGroup: 65532
-  fsGroup: 65532
   seccompProfile:
     type: RuntimeDefault
 
 securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false  # SQLite needs writable filesystem
+  readOnlyRootFilesystem: true
   capabilities:
     drop:
       - ALL
