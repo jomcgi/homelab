@@ -1,7 +1,5 @@
 # rules_semgrep demo
 
----
-
 ## Pitch
 
 Semgrep runs as a Bazel test. Gazelle auto-generates the targets. Everything is cached.
