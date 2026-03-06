@@ -11,17 +11,17 @@ def semgrep_test(
         exclude_rules = [],
         pro_engine = "//third_party/semgrep_pro:engine",
         **kwargs):
-    """Creates a cacheable test that runs semgrep-core against source files.
+    """Creates a cacheable test that runs semgrep-core Pro against source files.
 
-    Invokes the OCI-vendored semgrep-core binary directly with -rules/-targets
-    flags, bypassing the Python pysemgrep wrapper. Results are cached by Bazel
-    based on input file hashes — only re-runs when sources or rules change.
+    Invokes the OCI-vendored semgrep-core-proprietary binary with interfile
+    analysis (-pro_inter_file), bypassing the Python pysemgrep wrapper. Results
+    are cached by Bazel based on input file hashes — only re-runs when sources
+    or rules change.
 
     The semgrep-core binary is discovered at runtime via find(1) in the
-    runfiles tree, rather than passed as an argument, because the engine
-    filegroup may be empty (no GHCR token / empty digest). Empty filegroups
-    would cause $(rootpath) to fail at analysis time. The find-based discovery
-    gracefully degrades to SKIPPED when the binary is absent.
+    runfiles tree, rather than passed as an argument, because Bazel's
+    $(rootpath) can't resolve platform-specific select() targets in sh_test
+    args. GHCR_TOKEN and SEMGREP_APP_TOKEN are required.
 
     Args:
         name: Name of the test target
@@ -35,8 +35,7 @@ def semgrep_test(
             rules list when invoking semgrep-core.
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
         pro_engine: Label for the semgrep-core-proprietary binary filegroup.
-            Defaults to the pro engine; set to None to disable pro analysis.
-            Empty filegroups (no token/digest) degrade gracefully.
+            Defaults to the pro engine.
         **kwargs: Additional arguments passed to sh_test
     """
     env = kwargs.pop("env", {})
@@ -94,8 +93,7 @@ def semgrep_manifest_test(
         rules: Semgrep rule config files (default: kubernetes rules)
         exclude_rules: List of semgrep rule IDs to skip (e.g., ["no-privileged"])
         pro_engine: Label for the semgrep-core-proprietary binary filegroup.
-            Defaults to the pro engine; set to None to disable pro analysis.
-            Empty filegroups (no token/digest) degrade gracefully.
+            Defaults to the pro engine.
         **kwargs: Additional arguments passed to sh_test
     """
     env = kwargs.pop("env", {})

@@ -5,13 +5,15 @@ Do not edit manually — changes will be overwritten.
 """
 
 SEMGREP_PRO_DIGESTS = {
-    "engine_amd64": "sha256:8160a0f87728a838924753a20f863b7f6a24d2b6c074aaf2b0f8bf1f6aa9a5d5",
-    "engine_arm64": "sha256:1fb280ebc3dad9f6a99433e82ca478ca038f0409b105952572d97de63929e47e",
-    "engine_osx_arm64": "sha256:7fc72c6831386ef61c5d93ef1690d7678f41514fe8af2844e7860f20307bee0d",
-    "engine_osx_x86_64": "sha256:19097de4252865167099cf36485c172c48bfa4f9678a7960bedf92ece90fc61c",
-    "rules_golang": "sha256:325b2700858e91f614e466e484e4f0c911132e64ad1a5c8a6bf288bc1bde9296",
-    "rules_python": "sha256:8306d94da5887b7f7a2ae802afcd118c01fc8efc3d08ea8a940e62a2b60f7d23",
-    "rules_javascript": "sha256:96762c717ecd8756eecb6349e8548c3c396c40d77fa491eb6cbdee5070e02471",
-    "rules_kubernetes": "sha256:9b6d48deda8475204e6dd9a1dc47aebbb3f02b67eadd04cc429366e1a33e023f",
-    "rules_sca": "sha256:73ea8a34f721c48bba131544173f2cf63f8f64710f78d7b90480574744d090ff",
+    "engine_amd64": "sha256:ec959e3b1ebf02c0f691d938c9099cff6e4e21c40ed2d36510ab5087322b71da",
+    "engine_arm64": "sha256:71ed3758b22e1e9c8201abb6741ffc29093dbf6a164865f6f22e3355c259742f",
+    "engine_osx_arm64": "sha256:49fd6f10677e56604f026c26f798252a97de7bcdc8efa9194eefd3d4ba61494f",
+    "engine_osx_x86_64": "sha256:a765f283e709c317eeb34010065a29d242baffdd024127bd9724d35980179d38",
+    "rules_golang": "sha256:dc5410ef25022ad3c23c06f8a783db28607b38f9b686f01ad58dc55157b70dd8",
+    "rules_python": "sha256:23c39fd8baa38d4a2a6a9fb86bf3bb3a2f2e2078698f2ece3a02ef06bbd73195",
+    "rules_javascript": "sha256:3fdcb4b1e9055378975e400baf0f5ee3cb684bc2b596bb7ed1afdb53a92f23a9",
+    "rules_kubernetes": "sha256:585a28a267bbb91df1026c3fa639cbfb1cde75208997339e37cf6605571e87f3",
+    "rules_sca_golang": "sha256:1c420e6b1fbea234370f971a5651a601e427ef707068e0b8660a6c66ee7c4ed2",
+    "rules_sca_python": "sha256:f42f91a1f9cfd10501b619b45bee6a480ff12514a77ea961a921e3c6aff7c504",
+    "rules_sca_javascript": "sha256:f19f1e670b0f76594b985b412d4fed5807c79c098e88c9a0c3f2e4ee8f0f31c9",
 }

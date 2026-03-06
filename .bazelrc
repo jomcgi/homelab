@@ -88,7 +88,7 @@ common:ci --workspace_status_command=./tools/workspace_status.sh
 common:ci --define=CI=true
 common:ci --repo_env=GHCR_TOKEN
 
-# Pass Semgrep App token to test actions for best-effort result upload
+# Pass Semgrep App token to test actions for Pro interfile analysis
 test:ci --test_env=SEMGREP_APP_TOKEN
 
 # Semgrep tests are deterministic — never retry on failure

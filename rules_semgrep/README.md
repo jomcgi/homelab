@@ -161,15 +161,16 @@ All directives inherit from parent directories.
 
 ## Pro Engine
 
-The Pro engine (`semgrep-core-proprietary`) enables cross-file taint analysis via `--pro`. It degrades gracefully: no GHCR token → empty filegroup → engine not found at runtime → test exits with SKIP (not FAIL).
+The Pro engine (`semgrep-core-proprietary`) enables cross-file taint analysis via `-pro_inter_file`. Both `GHCR_TOKEN` and `SEMGREP_APP_TOKEN` are required — missing credentials are build/test errors, not silent skips.
 
 ```mermaid
 graph LR
     TOKEN{"GHCR_TOKEN set?"}
     TOKEN -->|"yes"| DOWNLOAD["Download digest-pinned binary"]
-    TOKEN -->|"no"| EMPTY["Empty filegroup"]
-    DOWNLOAD --> RUN["semgrep-core-proprietary --pro"]
-    EMPTY --> SKIP["SKIPPED at runtime"]
+    TOKEN -->|"no"| FAIL["Build ERROR"]
+    DOWNLOAD --> APP{"SEMGREP_APP_TOKEN set?"}
+    APP -->|"yes"| RUN["semgrep-core-proprietary -pro_inter_file"]
+    APP -->|"no"| FAIL2["Test ERROR"]
 ```
 
 ## Platform Support

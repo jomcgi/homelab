@@ -12,7 +12,7 @@ _GHCR_PREFIX = "jomcgi/homelab/tools/semgrep-pro"
 _ENGINE_BUILD = """\
 filegroup(
     name = "engine",
-    srcs = glob(["semgrep-core-proprietary"], allow_empty = True),
+    srcs = glob(["semgrep-core-proprietary"]),
     visibility = ["//visibility:public"],
 )
 """
