@@ -21,25 +21,13 @@ mcp-stack:
       MCPGATEWAY_CATALOG_ENABLED: "false"
       MCPGATEWAY_DIRECT_PROXY_ENABLED: "false"
       MCPGATEWAY_BULK_IMPORT_ENABLED: "false"
-      # SSO via Cloudflare Access for SaaS (OIDC) — see ADR 006
-      # Sensitive values (client ID/secret, OIDC URLs, encryption key)
-      # are sourced from 1Password via extraEnvFrom below.
-      SSO_ENABLED: "true"
-      SSO_GENERIC_ENABLED: "true"
-      SSO_GENERIC_PROVIDER_ID: "cloudflare"
-      SSO_GENERIC_DISPLAY_NAME: "Cloudflare Access"
-      SSO_GENERIC_SCOPE: "openid profile email"
-      SSO_AUTO_CREATE_USERS: "true"
-      SSO_TRUSTED_DOMAINS: "jomcgi.dev"
-      SSO_PRESERVE_ADMIN_AUTH: "true"
-      # OAuth authorization server
-      OAUTH_DISCOVERY_ENABLED: "true"
-      # Static client credentials only — no public registration endpoint
-      MCPGATEWAY_DCR_ENABLED: "false"
     secret:
       AUTH_REQUIRED: "true"
-      MCP_CLIENT_AUTH_ENABLED: "true"
-      MCP_REQUIRE_AUTH: "true"
+      MCP_CLIENT_AUTH_ENABLED: "false"
+      MCP_REQUIRE_AUTH: "false"
+      # mcp-oauth-proxy handles auth and injects X-Forwarded-User — see ADR 006
+      TRUST_PROXY_AUTH: "true"
+      PROXY_USER_HEADER: "X-Forwarded-User"
     extraEnvFrom:
       - secretRef:
           name: context-forge
@@ -94,10 +82,7 @@ mcp-stack:
   mcpFastTimeServer:
     enabled: false
 
-# 1Password secret — provides JWT_SECRET_KEY, SSO credentials, and
-# OIDC endpoint URLs (SSO_GENERIC_CLIENT_ID, SSO_GENERIC_CLIENT_SECRET,
-# SSO_GENERIC_AUTHORIZATION_URL, SSO_GENERIC_TOKEN_URL,
-# SSO_GENERIC_USERINFO_URL, SSO_GENERIC_ISSUER, AUTH_ENCRYPTION_SECRET)
+# 1Password secret — provides JWT_SECRET_KEY, AUTH_ENCRYPTION_SECRET
 secret:
   name: context-forge
   itemPath: "vaults/k8s-homelab/items/context-forge"

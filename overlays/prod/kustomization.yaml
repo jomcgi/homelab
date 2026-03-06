@@ -13,6 +13,7 @@ resources:
   - ./knowledge-graph
   - ./nats
   - ./seaweedfs
+  - ./mcp-oauth-proxy
   - ./mcp-servers
   - ./todo
   - ./trips
