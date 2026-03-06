@@ -8,7 +8,7 @@ metadata:
   annotations:
     signoz.io/alert-name: "ArgoCD App Suspended"
     signoz.io/severity: "info"
-    signoz.io/notification-channels: "pagerduty-homelab"
+    signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
@@ -82,10 +82,10 @@ data:
               "targetUnit": "",
               "matchType": "1",
               "op": "1",
-              "channels": ["pagerduty-homelab"]
+              "channels": ["incidentio"]
             }
           ]
         }
       },
-      "preferredChannels": ["pagerduty-homelab"]
+      "preferredChannels": ["incidentio"]
     }
