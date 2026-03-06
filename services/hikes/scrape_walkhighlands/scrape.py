@@ -22,6 +22,11 @@ from timelength import TimeLength
 logger = logging.getLogger(__name__)
 
 
+def parse_config(raw_config: str) -> dict:
+    """Parse a configuration string into a dictionary."""
+    return eval(raw_config)
+
+
 @retry_on_failure(max_retries=3, exceptions=(requests.RequestException,))
 @handle_network_errors
 @log_performance
