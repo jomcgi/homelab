@@ -247,10 +247,24 @@ apko.translate_lock(
     name = "todo_lock",
     lock = "//charts/todo/image:apko.lock.json",
 )
-use_repo(apko, "grimoire_frontend_lock", "ships_frontend_lock", "todo_lock")
+apko.translate_lock(
+    name = "goose_agent_lock",
+    lock = "//charts/goose-agent/image:apko.lock.json",
+)
+use_repo(apko, "goose_agent_lock", "grimoire_frontend_lock", "ships_frontend_lock", "todo_lock")
 
 # Download multiarch archives (binaries from zip files)
 multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
+
+multiarch_http_archive(
+    name = "goose",
+    amd64_sha256 = "cfd81f9e17a02d3b87917de7411e43daa7bb72fb3b79fc26c3329010a0471f1e",
+    amd64_url = "https://github.com/block/goose/releases/download/v1.27.1/goose-x86_64-unknown-linux-gnu.tar.bz2",
+    arm64_sha256 = "fae890273700778a73891c51afe992aee254657fb0882702596eb7a6aeb1b894",
+    arm64_url = "https://github.com/block/goose/releases/download/v1.27.1/goose-aarch64-unknown-linux-gnu.tar.bz2",
+    binary_name = "goose",
+    package_dir = "/usr/local/bin",
+)
 
 multiarch_http_archive(
     name = "opencode",
@@ -264,6 +278,16 @@ multiarch_http_archive(
 
 # Download multiarch binaries (raw binary files)
 multiarch_http_file = use_repo_rule("//tools/http:multiarch_http_file.bzl", "multiarch_http_file")
+
+multiarch_http_file(
+    name = "bb",
+    amd64_sha256 = "54282799c6c2e4ca4e2589d8c9c23b7e7caa3a6faa87a53a06cbe990a353550e",
+    amd64_url = "https://github.com/buildbuddy-io/bazel/releases/download/5.0.321/bazel-5.0.321-linux-x86_64",
+    arm64_sha256 = "0d81fe62e060d6b8a862f1ea553afc571bba2aa2cbbff97c59ada3ea20b7d2bb",
+    arm64_url = "https://github.com/buildbuddy-io/bazel/releases/download/5.0.321/bazel-5.0.321-linux-arm64",
+    binary_name = "bb",
+    package_dir = "/usr/local/bin",
+)
 
 multiarch_http_file(
     name = "ttyd",
