@@ -1,0 +1,20 @@
+# Goose configuration baked into the goose-agent container image.
+# Provider and model are set via environment variables (GOOSE_PROVIDER, GOOSE_MODEL)
+# injected by the SandboxTemplate, not hardcoded here.
+#
+# Extensions configured:
+#   - developer (builtin): filesystem, shell, editor scoped to /workspace
+#   - context-forge (remote): SigNoz observability, ArgoCD, Kubernetes via MCP gateway
+extensions:
+  developer:
+    bundled: true
+    enabled: true
+    name: developer
+    timeout: 300
+    type: builtin
+  context-forge:
+    enabled: true
+    name: context-forge
+    timeout: 300
+    type: streamablehttp
+    uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
