@@ -12,8 +12,6 @@ Code change → bazel test //... → semgrep-core runs (only if inputs changed) 
 
 No pysemgrep CLI. No manual config. No special CI jobs. Just `bazel test`.
 
----
-
 ## 1. It's deterministic
 
 Engines, rules, and SCA advisories are vendored as OCI artifacts, pinned by digest.
@@ -22,15 +20,11 @@ A hourly workflow downloads artifacts, content-hashes them, and skips the push i
 
 > **Open:** [Commit updating only python rules](https://github.com/jomcgi/homelab/commit/360cf6d28e53d24895b345b1445726e86acb1f2b) — show `digests.bzl` change, only the rules that changed get new digests.
 
----
-
 ## 2. It's cached
 
 Bazel hashes: source files + rule YAMLs + engine binary + lockfiles. Cache hit = 0s. Cache miss = 2-30s.
 
 > **Open:** [BuildBuddy full execution](https://jomcgi.buildbuddy.io/invocation/90fac43b-4e7f-4271-b42a-28492b53e4fe) — show which semgrep tests ran vs cached.
-
----
 
 ## 3. Developers don't maintain it
 
@@ -45,19 +39,13 @@ py_venv_binary(deps = ["@pip//requests"])
 
 > **Open:** [scrape_walkhighlands target on BuildBuddy](https://jomcgi.buildbuddy.io/invocation/e8f10161-1793-41ac-b6ab-b8f138900106?target=%2F%2Fservices%2Fhikes%2Fscrape_walkhighlands%3Ascrape_semgrep_test&targetStatus=5#@7) — show a real semgrep_target_test execution with SAST + SCA passes.
 
----
-
 ## 4. New rules invalidate precisely
 
 Adding a Python rule YAML invalidates all Python semgrep tests (shared `rules` input). Go tests, Kubernetes manifest tests, unit tests — all cache hit.
 
----
-
 ## 5. Violations block PRs
 
 > **Open:** [Demo PR with security violation](https://github.com/jomcgi/homelab/pull/773) — show CI failure from `no-eval-exec` rule catching dynamic code execution.
-
----
 
 ## 6. Merge queue compatible
 
