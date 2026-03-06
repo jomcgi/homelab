@@ -268,6 +268,12 @@ jobs:
 
           DIGEST_DIR=$(mktemp -d)
 
+          # content_hash DIR - deterministic hash of all files in a directory.
+          # Used as an OCI tag so identical content produces the same digest.
+          content_hash() {
+            (cd "$1" && find . -type f | LC_ALL=C sort | xargs sha256sum | sha256sum | cut -d' ' -f1)
+          }
+
           resolve_platform() {
             case "$1" in
               *osx-arm64)   echo "darwin/arm64" ;;
@@ -277,14 +283,32 @@ jobs:
             esac
           }
 
-          # Push a single artifact and write its digest to a file.
+          # Push a single artifact if its content has changed.
+          # Computes a content hash tag, checks if the image already exists in
+          # GHCR. If it does, reuses the existing manifest digest. Otherwise
+          # pushes a new image tagged with both the content hash and date.
           # Usage: push_artifact <artifact-dir> <image-ref> <digest-key>
           push_artifact() {
             local artifact_dir="$1" image="$2" key="$3"
+            local registry_image="${image%:*}"
+
+            local hash
+            hash=$(content_hash "${artifact_dir}")
+            local content_tag="content-${hash:0:16}"
+
+            local existing_digest
+            existing_digest=$(crane digest "${registry_image}:${content_tag}" 2>/dev/null || echo "")
+
+            if [ -n "${existing_digest}" ]; then
+              echo "[${key}] Content unchanged (${content_tag}), reusing ${existing_digest}"
+              echo "${key}=${existing_digest}" > "${DIGEST_DIR}/${key}"
+              return
+            fi
+
             local platform
             platform=$(resolve_platform "$image")
 
-            echo "[${key}] Packaging..."
+            echo "[${key}] Content changed (${content_tag}), packaging..."
             tar -cf "${artifact_dir}.tar" -C "${artifact_dir}" .
 
             echo "[${key}] Pushing ${image}..."
@@ -292,6 +316,9 @@ jobs:
               -f "${artifact_dir}.tar" \
               -t "${image}" \
               --platform "${platform}"
+
+            # Tag with content hash for future lookups
+            crane tag "${image}" "${content_tag}"
 
             local digest
             digest=$(crane digest "${image}")
@@ -331,7 +358,7 @@ jobs:
           # Collect all digests into step outputs
           cat "${DIGEST_DIR}"/* >> "$GITHUB_OUTPUT"
           rm -rf "${DIGEST_DIR}"
-          echo "All artifacts pushed."
+          echo "All artifacts processed."
 
       - name: Update digest files if changed
         id: check
