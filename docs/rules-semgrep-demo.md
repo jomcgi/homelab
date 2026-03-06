@@ -65,4 +65,5 @@ Semgrep tests are just `bazel test` targets. They share the remote cache with ev
 
 ## 7. Result
 
-<img width="1442" height="1122" alt="image" src="https://github.com/user-attachments/assets/f1035cb5-8ccd-47df-8e8e-3d579271fd65" />
+<img width="649" height="426" alt="image" src="https://github.com/user-attachments/assets/c25cd219-f909-4a5a-86c2-3091153e023d" />
+
