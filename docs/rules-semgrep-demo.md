@@ -2,25 +2,25 @@
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│                    OCI Artifact Pipeline                      │
+│                    OCI Artifact Pipeline                     │
 │  Daily: download engines + rules → content-hash → push GHCR  │
-│  digests.bzl pins every artifact by sha256 manifest digest    │
+│  digests.bzl pins every artifact by sha256 manifest digest   │
 └────────────────────────────┬─────────────────────────────────┘
                              │
 ┌────────────────────────────▼─────────────────────────────────┐
-│                      Bazel Rules                              │
-│  semgrep_test          — scan explicit file list              │
-│  semgrep_target_test   — scan target's transitive sources     │
-│  semgrep_manifest_test — render Helm chart, scan YAML         │
-│                                                               │
-│  All invoke semgrep-core directly (no pysemgrep)              │
-│  Inputs: sources + rules + engine binary → content-addressed  │
+│                      Bazel Rules                             │
+│  semgrep_test          — scan explicit file list             │
+│  semgrep_target_test   — scan target's transitive sources    │
+│  semgrep_manifest_test — render Helm chart, scan YAML        │
+│                                                              │
+│  All invoke semgrep-core directly (no pysemgrep)             │
+│  Inputs: sources + rules + engine binary → content-addressed │
 └────────────────────────────┬─────────────────────────────────┘
                              │
 ┌────────────────────────────▼─────────────────────────────────┐
-│                   Gazelle Extension                           │
-│  Auto-generates semgrep BUILD targets from existing code      │
-│  Zero manual maintenance — just run `bazel run gazelle`       │
+│                   Gazelle Extension                          │
+│  Auto-generates semgrep BUILD targets from existing code     │
+│  Zero manual maintenance — just run `bazel run gazelle`      │
 └──────────────────────────────────────────────────────────────┘
 ```
 
