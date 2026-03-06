@@ -1,6 +1,4 @@
-# rules_semgrep Demo
-
-Talk track for a 3-minute overview. Open links during the walkthrough.
+# rules_semgrep demo
 
 ---
 
@@ -20,7 +18,7 @@ No pysemgrep CLI. No manual config. No special CI jobs. Just `bazel test`.
 
 Engines, rules, and SCA advisories are vendored as OCI artifacts, pinned by digest.
 
-A daily workflow downloads artifacts, content-hashes them, and skips the push if nothing changed. Same content = same digest = cache stays warm.
+A hourly workflow downloads artifacts, content-hashes them, and skips the push if nothing changed. Same content = same digest = cache stays warm.
 
 > **Open:** [Commit updating only python rules](https://github.com/jomcgi/homelab/commit/360cf6d28e53d24895b345b1445726e86acb1f2b) — show `digests.bzl` change, only the rules that changed get new digests.
 
@@ -28,7 +26,7 @@ A daily workflow downloads artifacts, content-hashes them, and skips the push if
 
 ## 2. It's cached
 
-Bazel hashes: source files + rule YAMLs + engine binary + lockfiles. Cache hit = 0s. Cache miss = 2-8s.
+Bazel hashes: source files + rule YAMLs + engine binary + lockfiles. Cache hit = 0s. Cache miss = 2-30s.
 
 > **Open:** [BuildBuddy full execution](https://jomcgi.buildbuddy.io/invocation/90fac43b-4e7f-4271-b42a-28492b53e4fe) — show which semgrep tests ran vs cached.
 
@@ -59,10 +57,12 @@ Adding a Python rule YAML invalidates all Python semgrep tests (shared `rules` i
 
 > **Open:** [Demo PR with security violation](https://github.com/jomcgi/homelab/pull/773) — show CI failure from `no-eval-exec` rule catching dynamic code execution.
 
-The pre-commit hook also runs semgrep locally — same rules, same engine, same result.
-
 ---
 
 ## 6. Merge queue compatible
 
-Semgrep tests are just `bazel test` targets. They share the remote cache with everything else. A merge queue rebase that doesn't touch your files = instant cache hit. No added latency.
+Semgrep tests are just `bazel test` targets. They share the remote cache with everything else. A merge queue rebase that doesn't touch your files = instant cache hit. No added latency. (vs 2-5m+ on SMS)
+
+## 7. Result
+
+<img width="1442" height="1122" alt="image" src="https://github.com/user-attachments/assets/f1035cb5-8ccd-47df-8e8e-3d579271fd65" />
