@@ -5,15 +5,15 @@ Do not edit manually — changes will be overwritten.
 """
 
 SEMGREP_PRO_DIGESTS = {
-    "engine_amd64": "sha256:d9a2859a735764b6b67b5f4b33fab1af0e29c0c5882894c1e07c10e380cc2397",
-    "engine_arm64": "sha256:ca34a76fe99680e8ad0b42cbb92592948ae0c0413c9977a5e00886fd9efd773c",
-    "engine_osx_arm64": "sha256:ca98518a50068d8f3fe537144c79cbca61ba87a4bd7234aacdb9e92fcdfaebc3",
-    "engine_osx_x86_64": "sha256:b31c6a94d41f46606b9ed4cebf4b54b6548d1eab057a70afa69050a9dfde0bd1",
-    "rules_golang": "sha256:0691d775f8798fca79ca39834f2813c28f69946594b37c0bced6f957240f875a",
-    "rules_python": "sha256:192266bf199f8682da5ee8e48b9466c983e6ccc2fc2310683d8d7f9df5629dad",
-    "rules_javascript": "sha256:ddacbe3d4e5c4a2f2b1821009fa937b91465f6a4f8f75303bf0d9a58ab3c66d8",
-    "rules_kubernetes": "sha256:b227b9b971281ba2e62ad3a05d1fc72681925f91edf471ae44e1cc351eb45c20",
-    "rules_sca_golang": "sha256:3d5d81f6ed243a1481161fea6fda44e30ea379a00493dcc2852ed41272d11787",
-    "rules_sca_python": "sha256:942b500ebea6252fb6218dcb8883d72c829af9de3b9e63767c48617a0c315f41",
-    "rules_sca_javascript": "sha256:9e13a5f1e290b8fbec7e62474bea538bd98c65b679fd42a718ba7e3e2acb1bbd",
+    "engine_amd64": "sha256:9b9cc77cf65d7b2c738da798d1e2fe954d2b706c2f340f024ac6f4eb7a49b4a4",
+    "engine_arm64": "sha256:30076cf5af48ff830bcdea371d55100f554e8653a321d268010b5732b48d617e",
+    "engine_osx_arm64": "sha256:66b91e667f06b65c5612e468d944ca34b759bf7899d47a39bc38a3487d68c053",
+    "engine_osx_x86_64": "sha256:e78c9c3338a930fd042ef4394a492f22b93bf7d10fb1d825b0ece4c4883ac205",
+    "rules_golang": "sha256:30ea669247fb6cf1b46730ea4442ecc80a4e8437506621dfcbe3dadd79c24ee7",
+    "rules_python": "sha256:6cf429baea5dcece443a0bafe2042801bac22be646be0ad6f5a3a334207211ea",
+    "rules_javascript": "sha256:6e2afb768bec6b7712d35b8c03bae31c1d1c3af23faa53132821588e8ee904ee",
+    "rules_kubernetes": "sha256:eaeeeff194bad2f8ab7433a172e6968b853a2cf3be358563b1134f0b4a447602",
+    "rules_sca_golang": "sha256:7620581765dd7ed961a0e5b75d08bed02e2b8ce350a73f80c51d8b81f41e426b",
+    "rules_sca_python": "sha256:44da1825946b428a962787f5ecca45e558244208adc6c5795fbbe360073d40a1",
+    "rules_sca_javascript": "sha256:c6375ffd492862d96a95226ef30387d5e3b3a493d1a6df9f2f63831d0c53a31e",
 }
