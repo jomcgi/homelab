@@ -89,7 +89,7 @@ Orphan files (tests not in any target's dep tree) get their own `semgrep_test` a
 
 ## What Semgrep Actually Scans
 
-A Bazel aspect walks the target's dependency graph and collects transitive sources:
+A Bazel aspect walks the target's dependency graph. Two scan passes run against the result:
 
 ```
 semgrep_target_test(target = ":scrape")
@@ -98,12 +98,20 @@ semgrep_target_test(target = ":scrape")
     ┌────────────┐
     │  :scrape   │ → scrape.py
     │   :scrape_walkhighlands ──→ __init__.py, error_handling.py
-    │   @pip//requests ──→ (external, skipped)
+    │   @pip//requests ──→ (external, skipped from SAST)
     └────────────┘
-    Scans exactly: [scrape.py, __init__.py, error_handling.py]
+
+    SAST pass: semgrep-core --pro_inter_file
+      Scans: [scrape.py, __init__.py, error_handling.py]
+      Cross-file dataflow scoped to real dependencies, not the whole repo
+
+    SCA pass: semgrep-core with lockfile + advisory rules
+      Gazelle saw @pip// in deps → wired in requirements.txt + sca_python_rules
+      Scans: requirements.txt against known vulnerability advisories
+      Findings filtered to actually-installed versions
 ```
 
-This feeds semgrep-core's `--pro_inter_file` for cross-file dataflow — scoped to real dependencies, not the whole repo.
+SAST finds code issues (eval, hardcoded secrets). SCA finds vulnerable dependencies (requests CVEs). Both are cached by the same input hash.
 
 ---
 
