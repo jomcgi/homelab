@@ -5,6 +5,7 @@ resources:
   - application.yaml
   - synthetic-monitor-secret.yaml
   - pagerduty-channel.yaml
+  - incidentio-channel.yaml
   - signoz-httpcheck-alert.yaml
   - jomcgi-dev-httpcheck-alert.yaml
   - hikes-httpcheck-alert.yaml
