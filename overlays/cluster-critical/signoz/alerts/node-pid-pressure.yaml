@@ -8,7 +8,7 @@ metadata:
   annotations:
     signoz.io/alert-name: "Node PID Pressure"
     signoz.io/severity: "warning"
-    signoz.io/notification-channels: "pagerduty-homelab"
+    signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
@@ -74,10 +74,10 @@ data:
               "targetUnit": "",
               "matchType": "3",
               "op": "1",
-              "channels": ["pagerduty-homelab"]
+              "channels": ["incidentio"]
             }
           ]
         }
       },
-      "preferredChannels": ["pagerduty-homelab"]
+      "preferredChannels": ["incidentio"]
     }
