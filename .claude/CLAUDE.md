@@ -57,6 +57,7 @@ The main repo at `~/repos/homelab` auto-fetches every 60s — always use worktre
 **PR merge method:** This repo only allows **rebase merging** — use `gh pr merge --rebase` (or `--auto --rebase`). Squash and merge commits are disabled.
 
 **Auto-merge for small bug fixes:** For small, focused fixes (e.g. one-line config changes, typo fixes), enable auto-merge with `gh pr merge --auto --rebase`. After enabling, follow through:
+
 1. Poll `gh pr view <number> --json state,mergeStateStatus` until CI passes and the PR merges
 2. Poll the rollout (via MCP tools) to verify the fix is live and working
 
@@ -103,20 +104,20 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 **MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools.
 
-| Need                  | Tool                                                                                     |
-| --------------------- | ---------------------------------------------------------------------------------------- |
-| **K8s resources**     | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list` |
-| **K8s logs**          | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                            |
-| **K8s metrics**       | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                    |
-| **ArgoCD apps**       | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application` |
-| **ArgoCD resources**  | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources` |
-| **BuildBuddy CI**     | `buildbuddy-mcp-get-invocation`, `buildbuddy-mcp-get-log`, `buildbuddy-mcp-get-target`   |
-| **Logs**              | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`           |
-| **Traces**            | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details` |
-| **Metrics**           | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                |
-| **Services**          | `signoz-list-services`, `signoz-get-service-top-operations`                              |
-| **Dashboards**        | `signoz-list-dashboards`, `signoz-get-dashboard`                                         |
-| **Alerts**            | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                     |
+| Need                 | Tool                                                                                        |
+| -------------------- | ------------------------------------------------------------------------------------------- |
+| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list` |
+| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                               |
+| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                       |
+| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application` |
+| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`  |
+| **BuildBuddy CI**    | `buildbuddy-mcp-get-invocation`, `buildbuddy-mcp-get-log`, `buildbuddy-mcp-get-target`      |
+| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`              |
+| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`    |
+| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                   |
+| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                 |
+| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                            |
+| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                        |
 
 ## Kubernetes Operations (kubectl)
 
