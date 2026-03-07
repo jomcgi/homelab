@@ -3,13 +3,11 @@
 # via the Claude Agent SDK.
 
 image:
-  repository: ghcr.io/berriai/litellm
-  tag: "main-latest"
+  repository: ghcr.io/cabinlab/litellm-claude-code
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 config:
-  # litellm-claude-code custom provider module
-  LITELLM_CUSTOM_PROVIDER: "litellm_claude_code"
   LITELLM_LOG: "INFO"
 
 # 1Password secrets
@@ -28,18 +26,18 @@ litellmConfig:
   model_list:
     - model_name: claude-opus-4-6
       litellm_params:
-        model: claude_code/claude-opus-4-6
+        model: claude-agent-sdk/claude-opus-4-6
     - model_name: claude-sonnet-4-6
       litellm_params:
-        model: claude_code/claude-sonnet-4-6
+        model: claude-agent-sdk/claude-sonnet-4-6
 
 resources:
   requests:
-    cpu: 100m
-    memory: 512Mi
+    cpu: "2"
+    memory: 4Gi
   limits:
     cpu: "2"
-    memory: 3Gi
+    memory: 4Gi
 
 podSecurityContext:
   runAsNonRoot: true
@@ -47,8 +45,8 @@ podSecurityContext:
     type: RuntimeDefault
 
 securityContext:
-  runAsUser: 65532
-  runAsGroup: 65532
+  runAsUser: 1001
+  runAsGroup: 1001
   allowPrivilegeEscalation: false
   readOnlyRootFilesystem: true
   capabilities:

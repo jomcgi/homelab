@@ -4,5 +4,5 @@
 # Override fullname to match the service DNS name expected by goose-sandboxes
 fullnameOverride: litellm-claude-sdk
 image:
-  tag: main-latest@sha256:59a2736ac84800821fa0e1656487366089f2d29d10f8ae05c918df9c6e4940af
-  repository: ghcr.io/berriai/litellm
+  repository: ghcr.io/cabinlab/litellm-claude-code
+  tag: latest

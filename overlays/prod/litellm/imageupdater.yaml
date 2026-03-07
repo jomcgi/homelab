@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/berriai/litellm:main-latest
+          imageName: ghcr.io/cabinlab/litellm-claude-code:latest
           manifestTargets:
             helm:
               name: image.repository
