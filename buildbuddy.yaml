@@ -12,6 +12,7 @@ actions:
       pull_request:
         branches:
           - "*"
+        merge_with_base: false
     steps:
       - run: |
           # Skip automated commits to avoid loops
@@ -74,7 +75,7 @@ actions:
           git config user.name "ci-format-bot"
           git config user.email "ci-format-bot@users.noreply.github.com"
           git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/jomcgi/homelab.git"
-          git add -A
+          git add -u
           git commit -m "style: auto-format"
           git push origin HEAD:"$current_branch"
           echo "Formatting fixes pushed to $current_branch"
@@ -93,6 +94,7 @@ actions:
       pull_request:
         branches:
           - "*"
+        merge_with_base: false
     steps:
       - run: |
           # Skip automated commits
