@@ -51,15 +51,15 @@ spec:
           env:
             - name: GOOSE_PROVIDER
               value: {{ .Values.sandboxTemplate.env.gooseProvider }}
-            - name: OPENAI_HOST
-              value: {{ .Values.sandboxTemplate.env.litellmBaseUrl }}
-            - name: OPENAI_API_KEY
-              valueFrom:
-                secretKeyRef:
-                  name: llm-creds
-                  key: LITELLM_MASTER_KEY
             - name: GOOSE_MODEL
               value: {{ .Values.sandboxTemplate.env.gooseModel }}
+            - name: CLAUDE_CODE_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: claude-auth
+                  key: CLAUDE_AUTH_TOKEN
+            - name: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
+              value: "1"
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:

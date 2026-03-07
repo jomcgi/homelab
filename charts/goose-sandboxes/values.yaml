@@ -17,9 +17,10 @@ sandboxTemplate:
     repository: ghcr.io/jomcgi/homelab/goose-agent
     tag: main
   env:
-    gooseProvider: openai
-    gooseModel: claude-opus-4-6
-    litellmBaseUrl: http://litellm-claude-sdk.litellm.svc.cluster.local:4000
+    # Goose uses Claude Code CLI as the LLM provider (no LiteLLM proxy needed).
+    # The claude binary is baked into the image and authenticates via OAuth token.
+    gooseProvider: claude-code
+    gooseModel: claude-sonnet-4-6
     contextForgeUrl: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
     repoOwner: jomcgi
     repoName: homelab
@@ -39,8 +40,8 @@ warmPool:
   size: 1
 
 secrets:
-  llmCreds:
-    onePasswordItem: litellm-api-key
+  claudeAuth:
+    onePasswordItem: litellm-claude-auth
     vault: k8s-homelab
   agentSecrets:
     onePasswordItem: agent-secrets

@@ -276,6 +276,18 @@ multiarch_http_archive(
     package_dir = "/usr/local/bin",
 )
 
+# Download npm packages as OCI tar layers
+npm_package_tar = use_repo_rule("//tools/http:npm_package_tar.bzl", "npm_package_tar")
+
+npm_package_tar(
+    name = "claude_code",
+    bin_entry = "cli.js",
+    bin_name = "claude",
+    package_name = "@anthropic-ai/claude-code",
+    sha256 = "6fcb0c53da6d1aff652a55383cde0d03f0bffc036f491fd005296e06a26ef7d1",
+    url = "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.1.71.tgz",
+)
+
 # Download multiarch binaries (raw binary files)
 multiarch_http_file = use_repo_rule("//tools/http:multiarch_http_file.bzl", "multiarch_http_file")
 
