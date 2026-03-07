@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Update all apko lock files in the repository
+# Note: requires Bazel — see architecture/decisions/tooling/001-oci-tool-distribution.md
 
 set -euo pipefail
 
