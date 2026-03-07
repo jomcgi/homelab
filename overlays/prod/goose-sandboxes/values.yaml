@@ -1,2 +1,9 @@
 # goose-sandboxes — production overrides
 # Base values in charts/goose-sandboxes/values.yaml
+
+# Image config — managed by ArgoCD Image Updater (digest strategy).
+# Do not remove: the updater needs this structure to write back digest updates.
+sandboxTemplate:
+  image:
+    repository: ghcr.io/jomcgi/homelab/goose-agent
+    tag: main
