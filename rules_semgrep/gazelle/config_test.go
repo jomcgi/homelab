@@ -21,12 +21,15 @@ func TestGetSemgrepConfig_Defaults(t *testing.T) {
 		t.Errorf("expected excludeRules to be empty by default, got %v", cfg.excludeRules)
 	}
 
-	// Default targetKinds: py_venv_binary → ""
-	if len(cfg.targetKinds) != 1 {
-		t.Fatalf("expected 1 default targetKind, got %d: %v", len(cfg.targetKinds), cfg.targetKinds)
+	// Default targetKinds: py_venv_binary → "", go_binary → ""
+	if len(cfg.targetKinds) != 2 {
+		t.Fatalf("expected 2 default targetKinds, got %d: %v", len(cfg.targetKinds), cfg.targetKinds)
 	}
 	if attr, ok := cfg.targetKinds["py_venv_binary"]; !ok || attr != "" {
 		t.Errorf("expected targetKinds[py_venv_binary]=\"\", got ok=%v attr=%q", ok, attr)
+	}
+	if attr, ok := cfg.targetKinds["go_binary"]; !ok || attr != "" {
+		t.Errorf("expected targetKinds[go_binary]=\"\", got ok=%v attr=%q", ok, attr)
 	}
 
 	// Default languages: ["py"]

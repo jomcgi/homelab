@@ -47,6 +47,10 @@ if ! "$SEMGREP_CORE" -version >/dev/null 2>&1; then
 	exit 0
 fi
 
+# Export the engine version for downstream tools (e.g., upload.py).
+SEMGREP_ENGINE_VERSION=$("$SEMGREP_CORE" -version 2>/dev/null | head -1 || echo "")
+export SEMGREP_ENGINE_VERSION
+
 # Stage both binaries in the same directory (Pro requires co-located OSS binary)
 PRO_DIR="${TEST_TMPDIR}/pro_bin"
 mkdir -p "$PRO_DIR"

@@ -11,12 +11,18 @@ import (
 var langRules = map[string]string{
 	"py": "//semgrep_rules:python_rules",
 	"go": "//semgrep_rules:golang_rules",
+	"js": "//semgrep_rules:javascript_rules",
 }
 
 // langExtensions maps language keys to their file extensions.
+// For languages with multiple extensions (e.g., .js/.jsx/.ts/.tsx), only the
+// primary extension is listed here. The Gazelle extension matches files by
+// this extension; other extensions can be covered via semgrep_target_test which
+// uses an aspect to collect transitive sources regardless of extension.
 var langExtensions = map[string]string{
 	"py": ".py",
 	"go": ".go",
+	"js": ".js",
 }
 
 // defaultTargetKinds is the default set of rule kinds that trigger
@@ -24,6 +30,7 @@ var langExtensions = map[string]string{
 // ("" means the target itself).
 var defaultTargetKinds = map[string]string{
 	"py_venv_binary": "",
+	"go_binary":      "",
 }
 
 // defaultLanguages is the default set of languages to scan.

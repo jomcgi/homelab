@@ -68,3 +68,11 @@ graph TD
 | Cold cache (all tests + images + semgrep) | N/A | **4m** |
 | Determinism | Non-deterministic (registry fetches) | **Hermetic** (digest-pinned) |
 | Cache invalidation | Time-based / none | **Content-addressed** (source + rule hash) |
+
+## References
+
+- [semgrep-core CLI](https://semgrep.dev/docs/contributing/semgrep-core-overview/) — OCaml engine invoked directly, bypassing the Python `pysemgrep` wrapper
+- [semgrep-core ATD target format](https://github.com/semgrep/semgrep/blob/develop/libs/ojsonnet/) — JSON `["Targets",[["CodeTarget",{...}]]]` schema used for `-targets` flag; see `semgrep-test.sh` for generation
+- [Semgrep Pro Engine](https://semgrep.dev/docs/semgrep-code/semgrep-pro-engine-intro/) — `semgrep-core-proprietary` binary enabling cross-file analysis via `--pro` flag
+- [Semgrep App API (scan upload)](https://semgrep.dev/docs/semgrep-ci/running-semgrep-ci-without-semgrep-cloud-platform/) — 3-step REST flow: register scan → upload findings → mark complete (used by `upload.py`)
+- [GHCR OCI artifact layout](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-container-registry) — engine binaries stored as content-addressed OCI artifacts at `ghcr.io/<org>/semgrep-*`, pulled via `oci_archive` Bazel repository rules with SHA-256 digest pinning
