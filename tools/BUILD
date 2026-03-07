@@ -69,6 +69,8 @@ bazel_env(
         "advent": "//advent_of_code/cmd/aoc",
         # HuggingFace model tools
         "hf_lock": ":hf_lock",
+        # Agent tools
+        "agent-run": "//tools/agent-run",
     },
 )
 
