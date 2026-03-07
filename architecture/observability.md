@@ -39,7 +39,7 @@ The following diagram shows how observability is automatically added to every po
 ┌─────────────────────────────────────────────────────────────────────┐
 │              Layer 2: OpenTelemetry Operator (opt-in)                │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Instrumentation CRDs deployed per-namespace inject:                │
+│  Per-namespace Instrumentation custom resources (CRs) inject:       │
 │  - Go: eBPF auto-instrumentation (autoinstrumentation-go)           │
 │  - Python: auto-instrument init container                           │
 │  - Node.js: require-hook init container                             │
