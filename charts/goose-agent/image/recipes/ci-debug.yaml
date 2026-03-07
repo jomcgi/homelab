@@ -10,6 +10,7 @@ instructions: |
 prompt: "{{ task_description }}"
 parameters:
   - key: task_description
+    description: "The task to perform"
     input_type: string
     requirement: required
 extensions:

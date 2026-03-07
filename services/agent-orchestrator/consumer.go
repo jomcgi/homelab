@@ -91,7 +91,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 
 	// Create new attempt.
 	attemptNum := len(job.Attempts) + 1
-	claimName := fmt.Sprintf("orch-%s-%d", strings.ToLower(truncateID(job.ID, 8)), attemptNum)
+	claimName := fmt.Sprintf("orch-%s-%d", strings.ToLower(job.ID), attemptNum)
 
 	attempt := Attempt{
 		Number:           attemptNum,
@@ -260,12 +260,4 @@ func (c *Consumer) flushOutput(ctx context.Context, jobID string, buf *syncBuffe
 	if err := c.store.Put(ctx, current); err != nil {
 		c.logger.Warn("failed to flush output", "jobID", jobID, "error", err)
 	}
-}
-
-// truncateID returns the first n characters of s, or s if shorter.
-func truncateID(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	return s[:n]
 }
