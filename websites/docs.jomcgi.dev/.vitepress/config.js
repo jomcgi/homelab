@@ -11,7 +11,6 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Architecture', link: '/architecture/services' },
-      { text: 'ADRs', link: '/architecture/decisions/' },
       { text: 'GitHub', link: 'https://github.com/jomcgi/homelab' },
     ],
 

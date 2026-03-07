@@ -10,9 +10,6 @@ hero:
       text: Architecture
       link: /architecture/services
     - theme: alt
-      text: ADRs
-      link: /architecture/decisions/
-    - theme: alt
       text: GitHub
       link: https://github.com/jomcgi/homelab
 
