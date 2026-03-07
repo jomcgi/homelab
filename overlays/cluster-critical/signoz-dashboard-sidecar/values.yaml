@@ -4,7 +4,7 @@
 image:
   repository: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar
   # tag will be updated by argocd-image-updater
-  tag: main@sha256:a3d9c2f147acf9a726e69b7fa4b804772c6a548ea006dbfd93a60b5eb75fb61a
+  tag: main@sha256:0b3308a56451123b2e88b97d01e303373c576340405541af0f37406c4bbc3c3c
 # GHCR image pull authentication
 imagePullSecrets:
 - name: ghcr-imagepull-secret
