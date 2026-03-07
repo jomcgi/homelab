@@ -31,6 +31,7 @@ export default defineConfig({
         text: 'ADRs',
         collapsed: false,
         items: [
+          { text: 'Overview', link: '/architecture/decisions/' },
           {
             text: 'Agents',
             collapsed: true,
