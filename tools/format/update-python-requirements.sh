@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Update Python requirements lock files from pyproject.toml
+# Note: requires Bazel — see architecture/decisions/tooling/001-oci-tool-distribution.md
 set -euo pipefail
 
 echo "Updating Python requirements..."
