@@ -1,0 +1,103 @@
+{{- range $name, $agent := .Values.agents }}
+{{- if $agent.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: agent-{{ $name }}
+  namespace: {{ $.Release.Namespace }}
+  labels:
+    app.kubernetes.io/name: agent-{{ $name }}
+    app.kubernetes.io/component: agent
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: agent-{{ $name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: agent-{{ $name }}
+        app.kubernetes.io/component: agent
+      annotations:
+        checksum/prompt: {{ include (print $.Template.BasePath "/configmap-agents.yaml") $ | sha256sum }}
+        linkerd.io/inject: disabled
+    spec:
+      serviceAccountName: goose-agent
+      securityContext:
+        runAsNonRoot: true
+        fsGroup: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      initContainers:
+        - name: clone-repo
+          image: "{{ $.Values.sandboxTemplate.image.repository }}:{{ $.Values.sandboxTemplate.image.tag }}"
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              git clone --depth 1 https://x-access-token:${GITHUB_TOKEN}@github.com/{{ $.Values.sandboxTemplate.env.repoOwner }}/{{ $.Values.sandboxTemplate.env.repoName }}.git /workspace/{{ $.Values.sandboxTemplate.env.repoName }}
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: GITHUB_TOKEN
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      containers:
+        - name: goose
+          image: "{{ $.Values.sandboxTemplate.image.repository }}:{{ $.Values.sandboxTemplate.image.tag }}"
+          command: ["goose", "run", "--text", "$(AGENT_PROMPT)"]
+          workingDir: /workspace/{{ $.Values.sandboxTemplate.env.repoName }}
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: [ALL]
+          env:
+            - name: AGENT_PROMPT
+              valueFrom:
+                configMapKeyRef:
+                  name: agent-prompt-{{ $name }}
+                  key: prompt
+            - name: GOOSE_PROVIDER
+              value: {{ $.Values.sandboxTemplate.env.gooseProvider }}
+            - name: GOOSE_MODEL
+              value: {{ $.Values.sandboxTemplate.env.gooseModel }}
+            - name: CLAUDE_CODE_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: claude-auth
+                  key: CLAUDE_AUTH_TOKEN
+            - name: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
+              value: "1"
+            - name: GITHUB_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: GITHUB_TOKEN
+            - name: BUILDBUDDY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: BUILDBUDDY_API_KEY
+          resources:
+            {{- toYaml ($agent.resources | default $.Values.sandboxTemplate.resources) | nindent 12 }}
+          volumeMounts:
+            - name: workspace
+              mountPath: /workspace
+      volumes:
+        - name: workspace
+          emptyDir: {}
+---
+{{- end }}
+{{- end }}
