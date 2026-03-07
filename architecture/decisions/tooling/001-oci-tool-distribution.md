@@ -87,12 +87,16 @@ case "$(uname -m)" in
 esac
 
 # Pull tools if missing or stale (>24h)
-if [[ ! -d "$TOOLS_DIR/bin" ]] || find "$TOOLS_DIR/.pulled" -mtime +1 -print -quit 2>/dev/null | grep -q .; then
+if [[ ! -d "$TOOLS_DIR/bin" || ! -f "$TOOLS_DIR/.pulled" || $(find "$TOOLS_DIR/.pulled" -mtime +1 -print -quit 2>/dev/null) ]]; then
   echo "Pulling developer tools from $TOOLS_IMAGE..."
   mkdir -p "$TOOLS_DIR"
 
   # Use docker create + docker cp to avoid bind-mount UID/GID issues
-  CID="$(docker create ${PLATFORM:+--platform "$PLATFORM"} "$TOOLS_IMAGE")"
+  PLATFORM_ARGS=()
+  if [[ -n "$PLATFORM" ]]; then
+    PLATFORM_ARGS=(--platform "$PLATFORM")
+  fi
+  CID="$(docker create "${PLATFORM_ARGS[@]}" "$TOOLS_IMAGE")"
   docker cp "$CID":/tools/. "$TOOLS_DIR"/
   docker rm "$CID" >/dev/null
   touch "$TOOLS_DIR/.pulled"
@@ -246,7 +250,7 @@ No deviations from `architecture/security.md`:
 | **Format auto-commit race** | Medium | Low | CI format job creates a separate commit. Developer must pull before pushing again. Standard git workflow. |
 | **Remote query latency** | Medium | Low | `bb query` adds network round-trip (~1-2s). Acceptable for infrequent queries. BuildBuddy MCP covers common cases. |
 | **Tool version drift** | Low | Medium | Single source of truth (apko.yaml). ArgoCD Image Updater pins digests. Version changes are tracked in git. |
-| **Docker/Podman not available** | Low | High | Document requirement in README. Most dev machines have one. Fallback: `crane export` if container runtime unavailable. |
+| **Docker/Podman not available** | Low | High | Document requirement in README. Most dev machines have one. Provide a `bootstrap.sh` that downloads a static `crane` binary as fallback, then uses `crane export` to extract tools without a container runtime. |
 | **apko can't package all tools** | Medium | Medium | Some tools (like `bb` itself) may not be in Wolfi repos. Fallback: download binary in a build step and copy into image. |
 
 ---
