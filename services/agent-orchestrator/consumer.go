@@ -1,0 +1,212 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
+)
+
+const maxOutputBytes = 512 * 1024 // 512KB
+
+// Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
+type Consumer struct {
+	cons    jetstream.Consumer
+	store   Store
+	sandbox *SandboxExecutor
+	logger  *slog.Logger
+}
+
+// NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox *SandboxExecutor, logger *slog.Logger) *Consumer {
+	return &Consumer{
+		cons:    cons,
+		store:   store,
+		sandbox: sandbox,
+		logger:  logger,
+	}
+}
+
+// Run processes jobs until the context is cancelled.
+func (c *Consumer) Run(ctx context.Context) {
+	c.logger.Info("consumer started")
+	for {
+		select {
+		case <-ctx.Done():
+			c.logger.Info("consumer stopping")
+			return
+		default:
+		}
+
+		msgs, err := c.cons.Fetch(1, jetstream.FetchMaxWait(30*time.Second))
+		if err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			c.logger.Warn("fetch error", "error", err)
+			continue
+		}
+
+		for msg := range msgs.Messages() {
+			c.processJob(ctx, msg)
+		}
+
+		if err := msgs.Error(); err != nil {
+			if ctx.Err() != nil {
+				return
+			}
+			// FetchMaxWait timeout is not an error worth logging
+			c.logger.Debug("fetch iteration ended", "error", err)
+		}
+	}
+}
+
+func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
+	jobID := string(msg.Data())
+	logger := c.logger.With("jobID", jobID)
+
+	job, err := c.store.Get(ctx, jobID)
+	if err != nil {
+		logger.Error("failed to get job", "error", err)
+		_ = msg.Nak()
+		return
+	}
+
+	if job.Status == JobCancelled {
+		logger.Info("skipping cancelled job")
+		_ = msg.Ack()
+		return
+	}
+
+	// Create new attempt.
+	attemptNum := len(job.Attempts) + 1
+	claimName := fmt.Sprintf("orch-%s-%d", truncateID(job.ID, 8), attemptNum)
+
+	attempt := Attempt{
+		Number:           attemptNum,
+		SandboxClaimName: claimName,
+		StartedAt:        time.Now().UTC(),
+	}
+	job.Attempts = append(job.Attempts, attempt)
+	job.Status = JobRunning
+
+	if err := c.store.Put(ctx, job); err != nil {
+		logger.Error("failed to update job to running", "error", err)
+		_ = msg.Nak()
+		return
+	}
+
+	task := c.buildTaskPrompt(job, attemptNum)
+	logger.Info("executing task", "attempt", attemptNum, "claim", claimName)
+
+	cancelFn := func() bool {
+		current, err := c.store.Get(ctx, jobID)
+		if err != nil {
+			return false
+		}
+		return current.Status == JobCancelled
+	}
+
+	result, execErr := c.sandbox.Run(ctx, claimName, task, cancelFn)
+
+	// Re-read job to get latest state.
+	job, err = c.store.Get(ctx, jobID)
+	if err != nil {
+		logger.Error("failed to re-read job after exec", "error", err)
+		_ = msg.Nak()
+		return
+	}
+
+	// Update the attempt record.
+	now := time.Now().UTC()
+	idx := len(job.Attempts) - 1
+	job.Attempts[idx].FinishedAt = &now
+
+	if result != nil {
+		job.Attempts[idx].ExitCode = &result.ExitCode
+		output := result.Output
+		if len(output) > maxOutputBytes {
+			output = output[len(output)-maxOutputBytes:]
+		}
+		job.Attempts[idx].Output = output
+	}
+
+	// Check for cancellation after exec.
+	if job.Status == JobCancelled {
+		logger.Info("job was cancelled during execution")
+		if err := c.store.Put(ctx, job); err != nil {
+			logger.Error("failed to store cancelled job", "error", err)
+		}
+		_ = msg.Ack()
+		return
+	}
+
+	failed := execErr != nil || (result != nil && result.ExitCode != 0)
+	retriesRemaining := job.MaxRetries - len(job.Attempts)
+
+	if failed && retriesRemaining > 0 {
+		logger.Info("task failed, will retry", "attempt", attemptNum, "retriesRemaining", retriesRemaining)
+		// Keep status as RUNNING for next attempt; store and Nak to redeliver.
+		job.Status = JobPending
+		if err := c.store.Put(ctx, job); err != nil {
+			logger.Error("failed to store retry state", "error", err)
+		}
+		_ = msg.Nak()
+		return
+	}
+
+	if failed {
+		logger.Info("task failed, retries exhausted", "attempt", attemptNum)
+		job.Status = JobFailed
+		if err := c.store.Put(ctx, job); err != nil {
+			logger.Error("failed to store failed state", "error", err)
+		}
+		_ = msg.Ack()
+		return
+	}
+
+	logger.Info("task succeeded", "attempt", attemptNum)
+	job.Status = JobSucceeded
+	if err := c.store.Put(ctx, job); err != nil {
+		logger.Error("failed to store succeeded state", "error", err)
+	}
+	_ = msg.Ack()
+}
+
+func (c *Consumer) buildTaskPrompt(job *JobRecord, attemptNum int) string {
+	if attemptNum <= 1 || len(job.Attempts) < 2 {
+		return job.Task
+	}
+
+	// Get the previous attempt for context.
+	prev := job.Attempts[len(job.Attempts)-2]
+	prevOutput := prev.Output
+	if len(prevOutput) > 2000 {
+		prevOutput = prevOutput[len(prevOutput)-2000:]
+	}
+
+	exitCode := -1
+	if prev.ExitCode != nil {
+		exitCode = *prev.ExitCode
+	}
+
+	return fmt.Sprintf(`This is retry attempt %d. The previous attempt (attempt %d) failed with exit code %d.
+
+Last 2000 characters of previous output:
+---
+%s
+---
+
+Original task:
+%s`, attemptNum, prev.Number, exitCode, prevOutput, job.Task)
+}
+
+// truncateID returns the first n characters of s, or s if shorter.
+func truncateID(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
+}

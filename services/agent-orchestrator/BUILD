@@ -5,15 +5,28 @@ go_library(
     name = "agent-orchestrator_lib",
     srcs = [
         "api.go",
+        "consumer.go",
         "main.go",
         "model.go",
+        "sandbox.go",
         "store.go",
     ],
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator",
     visibility = ["//visibility:private"],
     deps = [
+        "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
         "@com_github_oklog_ulid_v2//:ulid",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_client_go//dynamic",
+        "@io_k8s_client_go//kubernetes",
+        "@io_k8s_client_go//kubernetes/scheme",
+        "@io_k8s_client_go//rest",
+        "@io_k8s_client_go//tools/remotecommand",
+        "@io_k8s_client_go//util/exec",
     ],
 )
 
@@ -31,7 +44,10 @@ go_test(
 
 go_test(
     name = "agent-orchestrator_test",
-    srcs = ["store_test.go"],
+    srcs = [
+        "api_test.go",
+        "store_test.go",
+    ],
     embed = [":agent-orchestrator_lib"],
     tags = ["manual"],
     deps = [
