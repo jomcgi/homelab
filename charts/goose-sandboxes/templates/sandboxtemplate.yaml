@@ -35,19 +35,19 @@ spec:
               valueFrom:
                 secretKeyRef:
                   name: llm-creds
-                  key: litellm-api-key
+                  key: LITELLM_MASTER_KEY
             - name: GOOSE_MODEL
               value: {{ .Values.sandboxTemplate.env.gooseModel }}
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: agent-secrets
-                  key: github-token
+                  key: GITHUB_TOKEN
             - name: BUILDBUDDY_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: agent-secrets
-                  key: buildbuddy-api-key
+                  key: BUILDBUDDY_API_KEY
           resources:
             {{- toYaml .Values.sandboxTemplate.resources | nindent 12 }}
           volumeMounts:
