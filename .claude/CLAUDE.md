@@ -32,8 +32,7 @@ homelab/
 # Shell aliases route bazel/bazelisk to bb (BuildBuddy CLI)
 bazel build //...             # Build everything
 bazel test //...              # Test everything
-format                        # Format code + update all lock files (apko, pip, gazelle)
-bazel run gazelle             # Regenerate BUILD files after adding Go imports
+format                        # Format code + update BUILD files (standalone, no Bazel needed)
 
 # Render Helm templates (NEVER helm install — GitOps only)
 helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml
@@ -42,7 +41,7 @@ helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml
 bazel run //charts/<service>/image:push
 ```
 
-**Vendored tools** (available via `direnv allow`): `format`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`
+**Vendored tools** (available via `./bootstrap.sh` + `direnv allow`): `format`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`, `ruff`, `gofumpt`, `shfmt`, `prettier`, `gazelle`
 
 ## Development Workflow
 
