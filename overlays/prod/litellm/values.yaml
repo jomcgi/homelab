@@ -1,0 +1,5 @@
+# litellm — production overrides
+# Base values in charts/litellm/values.yaml
+
+# Override fullname to match the service DNS name expected by goose-sandboxes
+fullnameOverride: litellm-claude-sdk

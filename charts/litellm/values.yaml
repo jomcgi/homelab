@@ -1,0 +1,49 @@
+# LiteLLM proxy with litellm-claude-code custom provider.
+# Bridges OpenAI-compatible API (port 4000) to Claude Max subscription
+# via the Claude Agent SDK.
+
+image:
+  repository: ghcr.io/berriai/litellm
+  tag: "main-latest"
+  pullPolicy: IfNotPresent
+
+config:
+  # litellm-claude-code custom provider module
+  LITELLM_CUSTOM_PROVIDER: "litellm_claude_code"
+  LITELLM_LOG: "INFO"
+
+# 1Password secret — provides CLAUDE_AUTH_TOKEN
+secret:
+  name: litellm-claude-auth
+  itemPath: "vaults/k8s-homelab/items/litellm-claude-auth"
+
+# LiteLLM config.yaml mounted as ConfigMap
+litellmConfig:
+  model_list:
+    - model_name: claude-opus-4-6
+      litellm_params:
+        model: claude_code/claude-opus-4-6
+    - model_name: claude-sonnet-4-6
+      litellm_params:
+        model: claude_code/claude-sonnet-4-6
+
+resources:
+  requests:
+    cpu: 50m
+    memory: 256Mi
+  limits:
+    cpu: 500m
+    memory: 512Mi
+
+podSecurityContext:
+  runAsNonRoot: true
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  runAsUser: 65532
+  runAsGroup: 65532
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL

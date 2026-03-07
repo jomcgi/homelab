@@ -6,12 +6,15 @@ metadata:
 spec:
   template:
     spec:
+      serviceAccountName: goose-agent
       containers:
         - name: goose
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
           command: ["/bin/sh", "-c"]
-          args: ['goose run --text "$AGENT_TASK" --profile sandbox']
+          args: ['goose run --text "$AGENT_TASK"']
           env:
+            - name: AGENT_TASK
+              value: ""
             - name: GOOSE_PROVIDER
               value: {{ .Values.sandboxTemplate.env.gooseProvider }}
             - name: OPENAI_BASE_URL
@@ -28,6 +31,11 @@ spec:
                 secretKeyRef:
                   name: agent-secrets
                   key: github-token
+            - name: BUILDBUDDY_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: agent-secrets
+                  key: buildbuddy-api-key
           resources:
             {{- toYaml .Values.sandboxTemplate.resources | nindent 12 }}
           volumeMounts:
