@@ -11,6 +11,7 @@ export default defineConfig({
   themeConfig: {
     nav: [
       { text: 'Architecture', link: '/architecture/services' },
+      { text: 'ADRs', link: '/architecture/decisions/' },
       { text: 'GitHub', link: 'https://github.com/jomcgi/homelab' },
     ],
 
@@ -23,6 +24,7 @@ export default defineConfig({
           { text: 'Observability', link: '/architecture/observability' },
           { text: 'Alerting', link: '/architecture/observability-alerting' },
           { text: 'Contributing', link: '/architecture/contributing' },
+          { text: 'Agent Platform', link: '/architecture/agents' },
         ],
       },
       {
