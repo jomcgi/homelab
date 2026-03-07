@@ -15,7 +15,7 @@ sandboxTemplate:
   name: goose-agent
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: latest
+    tag: main
   env:
     gooseProvider: openai
     gooseModel: claude-opus-4-6
