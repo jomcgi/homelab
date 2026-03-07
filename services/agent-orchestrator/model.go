@@ -13,10 +13,18 @@ const (
 	JobCancelled JobStatus = "CANCELLED"
 )
 
+// ValidProfiles maps profile names to their recipe paths inside the container.
+// An empty profile means default behavior (no recipe, all tools).
+var ValidProfiles = map[string]string{
+	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
+	"code-fix": "/home/goose-agent/recipes/code-fix.yaml",
+}
+
 // JobRecord is the primary data model persisted in the NATS KV store.
 type JobRecord struct {
 	ID         string    `json:"id"`
 	Task       string    `json:"task"`
+	Profile    string    `json:"profile,omitempty"`
 	Status     JobStatus `json:"status"`
 	CreatedAt  time.Time `json:"created_at"`
 	UpdatedAt  time.Time `json:"updated_at"`
@@ -45,6 +53,7 @@ type Attempt struct {
 // SubmitRequest is the JSON body for POST /jobs.
 type SubmitRequest struct {
 	Task       string `json:"task"`
+	Profile    string `json:"profile,omitempty"`
 	MaxRetries *int   `json:"max_retries,omitempty"`
 	Source     string `json:"source,omitempty"`
 }

@@ -41,6 +41,7 @@ go_test(
     name = "agent-orchestrator_unit_test",
     srcs = [
         "api_test.go",
+        "sandbox_test.go",
         "watchdog_test.go",
     ],
     embed = [":agent-orchestrator_lib"],
@@ -50,6 +51,7 @@ go_test(
     name = "agent-orchestrator_test",
     srcs = [
         "api_test.go",
+        "sandbox_test.go",
         "store_test.go",
         "watchdog_test.go",
     ],

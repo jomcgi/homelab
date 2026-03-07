@@ -51,6 +51,12 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		a.writeError(w, http.StatusBadRequest, "task is required")
 		return
 	}
+	if req.Profile != "" {
+		if _, ok := ValidProfiles[req.Profile]; !ok {
+			a.writeError(w, http.StatusBadRequest, "unknown profile: "+req.Profile)
+			return
+		}
+	}
 
 	maxRetries := a.defaultMaxRetries
 	if req.MaxRetries != nil {
@@ -79,6 +85,7 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	job := &JobRecord{
 		ID:         id.String(),
 		Task:       req.Task,
+		Profile:    req.Profile,
 		Status:     JobPending,
 		CreatedAt:  now,
 		UpdatedAt:  now,

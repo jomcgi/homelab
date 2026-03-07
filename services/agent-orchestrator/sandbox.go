@@ -73,7 +73,7 @@ func NewSandboxExecutor(config *rest.Config, namespace, template string, inactiv
 // Run creates a SandboxClaim, waits for the pod, refreshes the workspace,
 // executes goose with the task, captures output, and cleans up.
 // The cancelFn is checked before each phase to support cooperative cancellation.
-func (s *SandboxExecutor) Run(ctx context.Context, claimName, task string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
+func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, profile string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
 	s.logger.Info("creating sandbox claim", "claim", claimName, "namespace", s.namespace)
 
 	if err := s.createClaim(ctx, claimName); err != nil {
@@ -109,8 +109,9 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task string, cance
 		return nil, fmt.Errorf("cancelled before exec")
 	}
 
-	s.logger.Info("running goose task", "pod", podName)
-	exitCode, err := s.execGoose(ctx, podName, task, outputBuf)
+	s.logger.Info("running goose task", "pod", podName, "profile", profile)
+	cmd := buildGooseCommand(task, profile)
+	exitCode, err := s.execGoose(ctx, podName, cmd, outputBuf)
 	if err != nil {
 		return nil, fmt.Errorf("exec goose: %w", err)
 	}
@@ -278,8 +279,25 @@ func (w *logWriter) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
+// buildGooseCommand constructs the goose CLI arguments for the given task and profile.
+// When profile is empty, it uses the default behavior (all tools via config.yaml).
+// When profile is set, it uses the corresponding recipe with --no-profile to avoid
+// loading default extensions.
+func buildGooseCommand(task, profile string) []string {
+	if profile == "" {
+		return []string{"goose", "run", "--text", task}
+	}
+	recipePath := ValidProfiles[profile]
+	return []string{
+		"goose", "run",
+		"--recipe", recipePath,
+		"--no-profile",
+		"--params", fmt.Sprintf("task_description=%s", task),
+	}
+}
+
 // execGoose runs goose inside the sandbox pod and captures stdout+stderr.
-func (s *SandboxExecutor) execGoose(ctx context.Context, podName, task string, outputBuf *syncBuffer) (int, error) {
+func (s *SandboxExecutor) execGoose(ctx context.Context, podName string, cmd []string, outputBuf *syncBuffer) (int, error) {
 	req := s.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -287,7 +305,7 @@ func (s *SandboxExecutor) execGoose(ctx context.Context, podName, task string, o
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: "goose",
-			Command:   []string{"goose", "run", "--text", task},
+			Command:   cmd,
 			Stdout:    true,
 			Stderr:    true,
 		}, scheme.ParameterCodec)
