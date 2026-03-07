@@ -95,7 +95,7 @@ PATH_add "$TOOLS_DIR/bin"
 
 The `.tools/` directory is gitignored. Tools are refreshed daily or on demand.
 
-**Bootstrap prerequisite:** `crane` — install via `brew install crane`. This is the only tool required before the first `direnv allow`. Once pulled, the tools image itself contains `crane`, so future updates are self-sustaining.
+**Bootstrap:** Run `./bootstrap.sh` on first clone. The script is macOS-only — it checks for Homebrew, installs `crane` if missing, and pulls the tools image. After that, `direnv allow` handles automatic refreshes via `.envrc`.
 
 ### Agent Integration
 
@@ -191,7 +191,7 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 
 - [ ] Update `.envrc` to pull tools via `crane export` instead of `bazel_env`
 - [ ] Add `.tools/` to `.gitignore`
-- [ ] Add `.envrc` guard that checks for `crane` and prints install instructions if missing
+- [ ] Create `bootstrap.sh` — macOS-only script that installs `crane` via Homebrew and pulls tools image
 - [ ] Update `README.bazel.md` to reflect new workflow
 - [ ] Remove `bazel_env` rule from `tools/BUILD` (or deprecate)
 
