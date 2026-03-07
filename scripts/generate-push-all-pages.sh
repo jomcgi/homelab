@@ -2,7 +2,7 @@
 # Auto-generate websites/BUILD with push_all_pages multirun target
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 BUILD_FILE="websites/BUILD"
 

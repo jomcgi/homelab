@@ -3,7 +3,7 @@
 # Used by both pre-commit and CI for identical formatting
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 # Colors for output
 GREEN='\033[0;32m'
