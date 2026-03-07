@@ -20,13 +20,13 @@ The homelab repo uses Bazel for everything — builds, tests, formatting, image 
 
 ## Proposal
 
-Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI image built in CI and pulled locally via Docker/Podman. All builds, tests, and formatting run remotely via BuildBuddy — triggered by pushing code rather than executing locally.
+Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI image built in CI and pulled locally via `crane export`. All builds, tests, and formatting run remotely via BuildBuddy — triggered by pushing code rather than executing locally.
 
 ### Before and After
 
 | Aspect                   | Today                                          | Proposed                                                    |
 | ------------------------ | ---------------------------------------------- | ----------------------------------------------------------- |
-| Developer tool setup     | `bazel run //tools:bazel_env` (~45s warm)       | `docker pull` + extract (~5s)                                |
+| Developer tool setup     | `bazel run //tools:bazel_env` (~45s warm)       | `crane export` + extract (~5s)                               |
 | Tool versions            | Resolved independently per environment          | Single multi-arch OCI image, identical everywhere            |
 | Running tests            | `bazel test //...` (local execution)            | Push → BuildBuddy remote execution → MCP to observe results |
 | Formatting               | `bazel run //tools/format:fast_format` (local)  | Push → CI format job → auto-commit fixes back                |
@@ -73,32 +73,20 @@ Claude Code is included as a first-class tool — it's installed via `pnpm add -
 
 ### Tool Pull Mechanism
 
+Local development is macOS-only, so the bootstrap assumes `crane` is available (installable via `brew install crane`). `crane export` extracts a filesystem tarball from an OCI image without needing a container runtime — no Docker, no Podman, no platform mapping.
+
 Local `.envrc` replaces the `bazel_env` integration:
 
 ```bash
 TOOLS_IMAGE="ghcr.io/jomcgi/homelab-tools:latest"
 TOOLS_DIR="$PWD/.tools"
 
-# Map host architecture to Docker platform
-case "$(uname -m)" in
-  x86_64|amd64)  PLATFORM="linux/amd64" ;;
-  arm64|aarch64) PLATFORM="linux/arm64" ;;
-  *)             PLATFORM="" ;;
-esac
-
 # Pull tools if missing or stale (>24h)
 if [[ ! -d "$TOOLS_DIR/bin" || ! -f "$TOOLS_DIR/.pulled" || $(find "$TOOLS_DIR/.pulled" -mtime +1 -print -quit 2>/dev/null) ]]; then
   echo "Pulling developer tools from $TOOLS_IMAGE..."
   mkdir -p "$TOOLS_DIR"
-
-  # Use docker create + docker cp to avoid bind-mount UID/GID issues
-  PLATFORM_ARGS=()
-  if [[ -n "$PLATFORM" ]]; then
-    PLATFORM_ARGS=(--platform "$PLATFORM")
-  fi
-  CID="$(docker create "${PLATFORM_ARGS[@]}" "$TOOLS_IMAGE")"
-  docker cp "$CID":/tools/. "$TOOLS_DIR"/
-  docker rm "$CID" >/dev/null
+  crane export "$TOOLS_IMAGE" - | tar -xf - -C "$TOOLS_DIR" tools/
+  mv "$TOOLS_DIR/tools/"* "$TOOLS_DIR/bin/" 2>/dev/null || true
   touch "$TOOLS_DIR/.pulled"
 fi
 
@@ -106,6 +94,8 @@ PATH_add "$TOOLS_DIR/bin"
 ```
 
 The `.tools/` directory is gitignored. Tools are refreshed daily or on demand.
+
+**Bootstrap prerequisite:** `crane` — install via `brew install crane`. This is the only tool required before the first `direnv allow`. Once pulled, the tools image itself contains `crane`, so future updates are self-sustaining.
 
 ### Agent Integration
 
@@ -199,9 +189,9 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 
 ### Phase 2: Local Bootstrap
 
-- [ ] Update `.envrc` to pull tools from GHCR instead of `bazel_env`
+- [ ] Update `.envrc` to pull tools via `crane export` instead of `bazel_env`
 - [ ] Add `.tools/` to `.gitignore`
-- [ ] Add a `bootstrap.sh` script for first-time setup (validates docker/podman, pulls image)
+- [ ] Add `.envrc` guard that checks for `crane` and prints install instructions if missing
 - [ ] Update `README.bazel.md` to reflect new workflow
 - [ ] Remove `bazel_env` rule from `tools/BUILD` (or deprecate)
 
@@ -250,7 +240,7 @@ No deviations from `architecture/security.md`:
 | **Format auto-commit race** | Medium | Low | CI format job creates a separate commit. Developer must pull before pushing again. Standard git workflow. |
 | **Remote query latency** | Medium | Low | `bb query` adds network round-trip (~1-2s). Acceptable for infrequent queries. BuildBuddy MCP covers common cases. |
 | **Tool version drift** | Low | Medium | Single source of truth (apko.yaml). ArgoCD Image Updater pins digests. Version changes are tracked in git. |
-| **Docker/Podman not available** | Low | High | Document requirement in README. Most dev machines have one. Provide a `bootstrap.sh` that downloads a static `crane` binary as fallback, then uses `crane export` to extract tools without a container runtime. |
+| **`crane` not installed** | Low | Low | Single prerequisite: `brew install crane`. Documented in README and `.envrc` error message. Once tools are pulled, the image itself contains `crane` for future updates. |
 | **apko can't package all tools** | Medium | Medium | Some tools (like `bb` itself) may not be in Wolfi repos. Fallback: download binary in a build step and copy into image. |
 
 ---
