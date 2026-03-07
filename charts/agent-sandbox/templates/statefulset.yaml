@@ -25,5 +25,11 @@ spec:
         - name: agent-sandbox-controller
           image: "{{ .Values.controller.image.repository }}:{{ .Values.controller.image.tag }}"
           args: ["--extensions"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop:
+                - ALL
           resources:
             {{- toYaml .Values.controller.resources | nindent 12 }}

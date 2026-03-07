@@ -7,11 +7,23 @@ spec:
   template:
     spec:
       serviceAccountName: goose-agent
+      securityContext:
+        runAsNonRoot: true
+        seccompProfile:
+          type: RuntimeDefault
       containers:
         - name: goose
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
           command: ["/bin/sh", "-c"]
           args: ['goose run --text "$AGENT_TASK"']
+          securityContext:
+            runAsUser: 65532
+            runAsGroup: 65532
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false # Agent needs writable fs for git, npm, build tools
+            capabilities:
+              drop:
+                - ALL
           env:
             - name: AGENT_TASK
               value: ""
