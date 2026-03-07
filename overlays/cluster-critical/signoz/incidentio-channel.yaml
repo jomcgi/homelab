@@ -16,7 +16,7 @@ data:
       "webhook_configs": [
         {
           "send_resolved": true,
-          "api_url": "https://api.incident.io/v2/alert_events/alertmanager/01KJZQPDWP2HY5E3HDC2TXKS6K",
+          "url": "https://api.incident.io/v2/alert_events/alertmanager/01KJZQPDWP2HY5E3HDC2TXKS6K",
           "http_config": {
             "authorization": {
               "type": "Bearer",

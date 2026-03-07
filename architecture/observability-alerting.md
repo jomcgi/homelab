@@ -1,10 +1,10 @@
 # Observability & Alerting
 
-The homelab has a complete observability stack (SigNoz v0.113, OTel, Linkerd) with a fully operational alerting pipeline. 22 alert rules monitor infrastructure health, application availability, and GitOps state. Alerts are synced to SigNoz via the signoz-dashboard-sidecar and notify through PagerDuty.
+The homelab has a complete observability stack (SigNoz v0.113, OTel, Linkerd) with a fully operational alerting pipeline. 22 alert rules monitor infrastructure health, application availability, and GitOps state. Alerts are synced to SigNoz via the signoz-dashboard-sidecar and notify through Incident.io.
 
 ## Current State
 
-**What works:** 22 alert rules are synced, evaluating, and generating alert history in SigNoz v0.113. The signoz-dashboard-sidecar reconciles alert ConfigMaps every 5 minutes, creating or updating rules via the SigNoz API. PagerDuty notification channel (`pagerduty-homelab`) is configured and active.
+**What works:** 22 alert rules are synced, evaluating, and generating alert history in SigNoz v0.113. The signoz-dashboard-sidecar reconciles alert ConfigMaps every 5 minutes, creating or updating rules via the SigNoz API. Incident.io notification channel (`incidentio`) is configured via webhook, with Bearer token auth sourced from 1Password.
 
 **Alert inventory:**
 
@@ -38,7 +38,7 @@ All alerts are Kubernetes ConfigMaps with the `signoz.io/alert: "true"` label, d
   "labels": { ... },
   "annotations": { "summary": "...", "description": "..." },
   "condition": { ... },
-  "preferredChannels": ["pagerduty-homelab"]
+  "preferredChannels": ["incidentio"]
 }
 ```
 
@@ -103,7 +103,7 @@ Thresholds must be defined in **two places** on the `condition` object — both 
         "targetUnit": "",
         "matchType": "5",
         "op": "2",
-        "channels": ["pagerduty-homelab"]
+        "channels": ["incidentio"]
       }
     ]
   }
