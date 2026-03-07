@@ -6,7 +6,7 @@
 sandboxTemplate:
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: main@sha256:9f723e5618a7e4f7b8cda0a91d4c5e26885c4ce0462216b6499428cfa20614c7
+    tag: main@sha256:158164f90b66d08bacdb26c58ca06e83f8f75cc1cc171eb9a14e93aecea8816f
 agents:
   ci-watcher:
     enabled: true
