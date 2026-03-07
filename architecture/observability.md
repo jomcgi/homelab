@@ -4,10 +4,11 @@ This document describes the automatic observability setup in the cluster.
 
 ## Overview
 
-Every service gets automatic observability through two layers:
+Every service gets automatic observability through three layers:
 
-1. **OTEL Environment Variables** - Application-level instrumentation
-2. **Linkerd Service Mesh** - Infrastructure-level tracing
+1. **OTEL Environment Variables** (Kyverno) - Endpoint configuration for all workloads
+2. **OpenTelemetry Operator** - Language-specific auto-instrumentation (Go, Python, Node.js)
+3. **Linkerd Service Mesh** - Infrastructure-level distributed tracing and mTLS
 
 ## Pod Creation Flow
 
@@ -36,7 +37,20 @@ The following diagram shows how observability is automatically added to every po
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                   Layer 2: Linkerd Proxy Injection                   │
+│              Layer 2: OpenTelemetry Operator (opt-in)                │
+├─────────────────────────────────────────────────────────────────────┤
+│  Instrumentation CRDs deployed per-namespace inject:                │
+│  - Go: eBPF auto-instrumentation (autoinstrumentation-go)           │
+│  - Python: auto-instrument init container                           │
+│  - Node.js: require-hook init container                             │
+│                                                                      │
+│  Currently enabled for: trips, knowledge-graph, api-gateway,        │
+│  mcp-servers, todo, grimoire                                        │
+└────────────────────────────────┬────────────────────────────────────┘
+                                 │
+                                 ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                   Layer 3: Linkerd Proxy Injection                   │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Linkerd webhook sees namespace annotation and injects:             │
 │  - linkerd-proxy sidecar container                                  │
@@ -53,7 +67,9 @@ The following diagram shows how observability is automatically added to every po
 │  │  Container         │◄────────►│  (intercepts all traffic)    │  │
 │  ├────────────────────┤          ├──────────────────────────────┤  │
 │  │ OTEL env vars set  │          │ Sends traces to SigNoz       │  │
-│  │ (app can use SDK)  │          │ via control plane            │  │
+│  │ OTel SDK injected  │          │ via control plane            │  │
+│  │ (if namespace opted│          │                              │  │
+│  │  into Operator)    │          │                              │  │
 │  └────────────────────┘          └──────────────────────────────┘  │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
@@ -78,7 +94,17 @@ The following diagram shows how observability is automatically added to every po
 - Applications without OTEL SDKs ignore the vars (harmless)
 - **Policy:** `charts/kyverno/templates/otel-injection-policy.yaml`
 
-### 2. Linkerd Namespace Annotation (Infrastructure-Level)
+### 2. OTel Operator Auto-Instrumentation (Language-Level)
+
+- **Opt-in per namespace** via `Instrumentation` CRDs
+- The OpenTelemetry Operator watches for these CRDs and injects language-specific init containers
+- **Go:** eBPF-based — no code changes needed, instruments at the kernel level
+- **Python:** Injects `autoinstrumentation-python` init container that patches the runtime
+- **Node.js:** Injects `autoinstrumentation-nodejs` init container with require hooks
+- Kyverno sets the OTEL endpoint; the Operator provides the SDK — they complement each other
+- **Configuration:** `charts/opentelemetry-operator/` with namespace list in overlay values
+
+### 3. Linkerd Service Mesh (Infrastructure-Level)
 
 - **All namespaces** automatically get `linkerd.io/inject=enabled`
 - Linkerd webhook injects sidecars into all pods
@@ -88,7 +114,8 @@ The following diagram shows how observability is automatically added to every po
 
 ## Observable by Default Philosophy
 
-- New deployments → Get OTEL env vars + Linkerd sidecar
+- New deployments → Get OTEL env vars (Kyverno) + Linkerd sidecar
+- Namespaces opted into OTel Operator → Also get language-level SDK injection
 - Existing deployments → Get annotations/vars via background policies
 - **Opt-out if needed** (see below)
 
@@ -119,10 +146,10 @@ metadata:
 - OTEL: `charts/kyverno/values.yaml` (otelInjection section)
 - Linkerd: `charts/kyverno/values.yaml` (linkerdInjection section)
 
-## Excluded Namespaces (both policies)
+## Excluded Namespaces (Kyverno policies)
 
 - System: kube-system, kube-public, kube-node-lease
-- Infrastructure: linkerd, cert-manager, kyverno, argocd, longhorn-system, signoz
+- Infrastructure: linkerd, cert-manager, kyverno, argocd, longhorn-system, signoz, opentelemetry-operator
 
 ## Service Requirements
 
