@@ -1,5 +1,22 @@
-py_binary(
+load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
+load("//rules_semgrep:defs.bzl", "semgrep_target_test")
+
+py_venv_binary(
     name = "rewrite",
     srcs = ["rewrite.py"],
+    main = "rewrite.py",
     visibility = ["//visibility:public"],
+)
+
+py_library(
+    name = "rewriter",
+    srcs = ["rewrite.py"],
+    visibility = ["//:__subpackages__"],
+)
+
+semgrep_target_test(
+    name = "rewrite_semgrep_test",
+    rules = ["//semgrep_rules:python_rules"],
+    target = ":rewrite",
 )
