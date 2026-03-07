@@ -127,3 +127,30 @@ servers:
   alert:
     enabled: true
     url: "http://argocd-mcp.mcp-servers.svc.cluster.local:3000/mcp"
+- name: todo-mcp
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/todo-mcp
+    tag: "main"
+  port: 8000
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-python: "python"
+  env:
+  - name: TODO_URL
+    value: "http://todo.todo.svc.cluster.local:8080"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  translate:
+    enabled: false
+  registration:
+    enabled: true
+    transport: "STREAMABLEHTTP"
+  imageUpdater:
+    enabled: true
+  alert:
+    enabled: true
+    url: "http://todo-mcp.mcp-servers.svc.cluster.local:8000/health"
