@@ -24,9 +24,9 @@ extensions:
     name: github
     timeout: 300
     type: stdio
-    cmd: npx
+    cmd: pnpm
     args:
-      - -y
+      - dlx
       - "@modelcontextprotocol/server-github"
     env_keys:
       - GITHUB_TOKEN
