@@ -139,13 +139,37 @@ For `bazel query` (dependency inspection, target discovery):
 
 Most query needs are covered by `bb query` running remotely.
 
+### Missing Tools & Workflow Gaps
+
+The OCI tools image is an opportunity to close gaps in the current `bazel_env` setup. These tools are either used in workflows but not distributed, or represent workflow gaps that should be filled:
+
+#### Currently missing from `bazel_env`
+
+| Tool | Current status | Why it should be in the tools image |
+| ---- | -------------- | ----------------------------------- |
+| `gh` | In goose-agent apko image, not in `bazel_env` | Essential for PR workflow (`gh pr create`, `gh pr merge --auto --rebase`) |
+| `ruff` | Only runs via Bazel lint aspect | Useful for quick local Python linting without remote execution |
+| `shellcheck` | Only runs via Bazel lint aspect | Useful for quick local shell script linting |
+| `eslint` | Only runs via Bazel lint aspect | Useful for quick local JS linting |
+| `agent-run` | Custom Go binary in `tools/agent-run/` | CLI for triggering Goose agent tasks — needs to be available locally |
+| `hf2oci` | Custom Go binary in `tools/hf2oci/` | CLI for HuggingFace model → OCI conversion |
+
+#### Workflow gaps (new tooling needed)
+
+| Workflow | Gap | Proposed solution |
+| -------- | --- | ----------------- |
+| **ArgoCD app diffing** | `rules_helm/app.bzl` has a `diff` rule referencing `argocd-live-diff.sh`, but the script doesn't exist. No way to preview what a values.yaml change will do to the live cluster. | Create the diff script. Include `argocd` CLI in the tools image (already in multitool). The script should: render local Helm template → diff against live ArgoCD app manifests. Can also be exposed as an MCP tool via Context Forge. |
+| **Manifest preview** | `render_manifests` requires Bazel to run `helm template`. Without local Bazel, developers can't preview rendered manifests before pushing. | `helm` is already in the tools image. Create a standalone `render` script that calls `helm template` directly with the right flags, without Bazel wrapping. |
+| **Lint without Bazel** | Linters (`ruff`, `shellcheck`, `eslint`) only run via Bazel aspects. Can't lint a single file quickly. | Include linter binaries in the tools image. Add a `lint` script that runs them directly on changed files. |
+
 ---
 
 ## Implementation
 
 ### Phase 1: OCI Tools Image
 
-- [ ] Create `tools/image/apko.yaml` with all tools currently in `bazel_env`
+- [ ] Create `tools/image/apko.yaml` with all tools currently in `bazel_env` plus missing tools (`gh`, `ruff`, `shellcheck`, `eslint`)
+- [ ] Include custom Go binaries (`agent-run`, `hf2oci`) — built in CI, copied into image
 - [ ] Create `tools/image/BUILD` with apko build + push rules
 - [ ] Add `homelab-tools` image push to `buildbuddy.yaml` CI pipeline (push on main)
 - [ ] Add ArgoCD Image Updater config for automatic digest updates
@@ -159,7 +183,14 @@ Most query needs are covered by `bb query` running remotely.
 - [ ] Update `README.bazel.md` to reflect new workflow
 - [ ] Remove `bazel_env` rule from `tools/BUILD` (or deprecate)
 
-### Phase 3: Remote-Only Execution
+### Phase 3: Standalone Workflow Scripts
+
+- [ ] Create `argocd-live-diff.sh` — renders local Helm template, diffs against live ArgoCD app manifests
+- [ ] Create standalone `render` script — calls `helm template` directly without Bazel
+- [ ] Create standalone `lint` script — runs ruff/shellcheck/eslint on changed files
+- [ ] Wire diff script into `rules_helm/app.bzl` (completing the existing `generate_diff` infrastructure)
+
+### Phase 4: Remote-Only Execution
 
 - [ ] Update `buildbuddy.yaml` format check to auto-commit fixes back to the branch
 - [ ] Update CLAUDE.md "Essential Commands" section — remove local `bazel build/test` references
@@ -168,7 +199,7 @@ Most query needs are covered by `bb query` running remotely.
 - [ ] Add PreToolUse hook to block local `bazel build/test/run` commands (redirect to push + trigger)
 - [ ] Verify `bb query` works remotely for common query patterns
 
-### Phase 4: Goose Convergence
+### Phase 5: Goose Convergence
 
 - [ ] Update `charts/goose-agent/image/apko.yaml` to copy tools from `homelab-tools` image
 - [ ] Remove duplicated tool packages from goose-agent apko config
