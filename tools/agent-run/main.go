@@ -1,11 +1,9 @@
 // Package main provides the agent-run CLI for triggering Goose agent tasks
-// by creating SandboxClaim resources and streaming pod logs.
+// by creating SandboxClaim resources and exec-ing into sandbox pods.
 package main
 
 import (
-	"bufio"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -16,11 +14,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/kubernetes/scheme"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	"k8s.io/client-go/tools/remotecommand"
+	executil "k8s.io/client-go/util/exec"
 
 	"github.com/spf13/cobra"
 )
@@ -49,8 +49,8 @@ var rootCmd = &cobra.Command{
 	Short: "Trigger a Goose agent task in a sandbox pod",
 	Long: `agent-run creates a SandboxClaim referencing the goose-agent SandboxTemplate,
 waits for the controller to allocate a Sandbox (from the warm pool if available),
-patches the pod's AGENT_TASK environment variable, streams pod logs until Goose
-exits, and reports the exit code.`,
+exec's into the pod to run goose with the task, and streams output until Goose exits.
+The SandboxClaim is cleaned up on exit, recycling the pod.`,
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
 	RunE:         run,
@@ -133,20 +133,16 @@ func run(cmd *cobra.Command, args []string) error {
 	}
 	fmt.Printf("Sandbox pod: %s\n", podName)
 
-	// Patch the pod's AGENT_TASK env var with the task description.
-	if err := patchAgentTask(ctx, clientset, podName, task); err != nil {
-		return fmt.Errorf("patching AGENT_TASK: %w", err)
-	}
-
-	// Wait for pod to be running.
+	// Wait for pod to be running (init containers finished).
 	if err := waitPodRunning(ctx, clientset, podName); err != nil {
 		return fmt.Errorf("waiting for pod running: %w", err)
 	}
 
-	// Stream logs until completion.
-	exitCode, err := streamLogs(ctx, clientset, podName)
+	// Exec goose in the sandbox pod and stream output.
+	fmt.Printf("Running goose task in %s...\n", podName)
+	exitCode, err := execGoose(ctx, config, clientset, podName, task)
 	if err != nil {
-		return fmt.Errorf("streaming logs: %w", err)
+		return fmt.Errorf("exec goose: %w", err)
 	}
 
 	fmt.Printf("\nGoose exited with code %d\n", exitCode)
@@ -219,90 +215,69 @@ func resolvePodName(ctx context.Context, client dynamic.Interface, sandboxName s
 	return sandboxName, nil
 }
 
-// patchAgentTask sets the AGENT_TASK env var on the goose container via a strategic merge patch.
-func patchAgentTask(ctx context.Context, clientset kubernetes.Interface, podName, task string) error {
-	patch := map[string]interface{}{
-		"spec": map[string]interface{}{
-			"containers": []map[string]interface{}{
-				{
-					"name": "goose",
-					"env": []map[string]interface{}{
-						{
-							"name":  "AGENT_TASK",
-							"value": task,
-						},
-					},
-				},
-			},
-		},
-	}
-	patchBytes, err := json.Marshal(patch)
-	if err != nil {
-		return fmt.Errorf("marshaling patch: %w", err)
-	}
-	_, err = clientset.CoreV1().Pods(namespace).Patch(ctx, podName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
-	return err
-}
-
 func waitPodRunning(ctx context.Context, clientset kubernetes.Interface, podName string) error {
-	w, err := clientset.CoreV1().Pods(namespace).Watch(ctx, metav1.ListOptions{
-		FieldSelector: "metadata.name=" + podName,
-	})
-	if err != nil {
-		return err
-	}
-	defer w.Stop()
+	fmt.Printf("Waiting for pod %s to be ready...\n", podName)
 
-	fmt.Printf("Waiting for pod %s to be running...\n", podName)
-	for event := range w.ResultChan() {
-		if event.Type == watch.Error {
-			return fmt.Errorf("watch error")
+	timeout := 5 * time.Minute
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	for {
+		pod, err := clientset.CoreV1().Pods(namespace).Get(ctx, podName, metav1.GetOptions{})
+		if err != nil {
+			return err
 		}
-		pod, ok := event.Object.(*corev1.Pod)
-		if !ok {
-			continue
-		}
+
 		switch pod.Status.Phase {
 		case corev1.PodRunning:
-			fmt.Println("Pod is running")
-			return nil
-		case corev1.PodSucceeded:
-			fmt.Println("Pod completed")
-			return nil
+			// Verify the goose container is ready (init containers finished).
+			for _, cs := range pod.Status.ContainerStatuses {
+				if cs.Name == "goose" && cs.Ready {
+					fmt.Println("Pod is ready")
+					return nil
+				}
+			}
 		case corev1.PodFailed:
 			return fmt.Errorf("pod failed: %s", pod.Status.Message)
 		}
+
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timed out waiting for pod to be ready")
+		case <-time.After(2 * time.Second):
+		}
 	}
-	return fmt.Errorf("watch closed")
 }
 
-func streamLogs(ctx context.Context, clientset kubernetes.Interface, podName string) (int, error) {
-	req := clientset.CoreV1().Pods(namespace).GetLogs(podName, &corev1.PodLogOptions{
-		Container: "goose",
-		Follow:    true,
+// execGoose runs goose inside the sandbox pod via K8s exec and streams output.
+func execGoose(ctx context.Context, config *rest.Config, clientset kubernetes.Interface, podName, task string) (int, error) {
+	req := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: "goose",
+			Command:   []string{"goose", "run", "--text", task},
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return -1, fmt.Errorf("creating executor: %w", err)
+	}
+
+	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
 	})
-
-	stream, err := req.Stream(ctx)
 	if err != nil {
-		return -1, fmt.Errorf("opening log stream: %w", err)
-	}
-	defer stream.Close()
-
-	scanner := bufio.NewScanner(stream)
-	for scanner.Scan() {
-		fmt.Println(scanner.Text())
-	}
-
-	// Check final pod status for exit code.
-	pod, err := clientset.CoreV1().Pods(namespace).Get(context.Background(), podName, metav1.GetOptions{})
-	if err != nil {
-		return -1, fmt.Errorf("getting final pod status: %w", err)
-	}
-
-	for _, cs := range pod.Status.ContainerStatuses {
-		if cs.Name == "goose" && cs.State.Terminated != nil {
-			return int(cs.State.Terminated.ExitCode), nil
+		// Extract exit code from exec error if possible.
+		if exitErr, ok := err.(executil.ExitError); ok {
+			return exitErr.ExitStatus(), nil
 		}
+		return -1, err
 	}
 
 	return 0, nil
