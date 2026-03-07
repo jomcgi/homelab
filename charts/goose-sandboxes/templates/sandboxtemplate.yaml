@@ -70,6 +70,12 @@ spec:
                 secretKeyRef:
                   name: agent-secrets
                   key: BUILDBUDDY_API_KEY
+            - name: CI_DEBUG_MCP_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: goose-mcp-tokens
+                  key: CI_DEBUG_MCP_TOKEN
+                  optional: true
           resources:
             {{- toYaml .Values.sandboxTemplate.resources | nindent 12 }}
           volumeMounts:

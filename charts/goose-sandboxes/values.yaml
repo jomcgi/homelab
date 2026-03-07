@@ -46,6 +46,9 @@ secrets:
   agentSecrets:
     onePasswordItem: agent-secrets
     vault: k8s-homelab
+  mcpTokens:
+    onePasswordItem: goose-mcp-tokens
+    vault: k8s-homelab
 
 # Long-lived agents — each entry generates a ConfigMap + Deployment.
 # Prompt changes trigger pod restart via checksum annotation.
