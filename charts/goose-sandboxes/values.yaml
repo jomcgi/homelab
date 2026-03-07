@@ -39,7 +39,7 @@ warmPool:
 secrets:
   llmCreds:
     onePasswordItem: litellm-api-key
-    vault: homelab
+    vault: k8s-homelab
   agentSecrets:
     onePasswordItem: agent-secrets
-    vault: homelab
+    vault: k8s-homelab
