@@ -11,7 +11,7 @@ metadata:
     app.kubernetes.io/managed-by: {{ $.Release.Service }}
 data:
   prompt: |
-    {{- $agent.prompt | nindent 4 }}
+{{ $agent.prompt | indent 4 }}
 ---
 {{- end }}
 {{- end }}
