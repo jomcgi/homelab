@@ -38,8 +38,10 @@ spec:
               value: {{ $value | quote }}
             {{- end }}
           envFrom:
+            {{- range $key, $secret := .Values.secrets }}
             - secretRef:
-                name: {{ .Values.secret.name }}
+                name: {{ $secret.name }}
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /health
