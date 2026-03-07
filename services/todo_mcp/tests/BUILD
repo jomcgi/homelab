@@ -33,3 +33,15 @@ semgrep_test(
     srcs = ["__init__.py"],
     rules = ["//semgrep_rules:python_rules"],
 )
+
+semgrep_test(
+    name = "conftest_semgrep_test",
+    srcs = ["conftest.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+semgrep_test(
+    name = "main_test_semgrep_test",
+    srcs = ["main_test.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
