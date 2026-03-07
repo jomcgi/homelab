@@ -30,14 +30,16 @@ actions:
             //tools/format:prettier \
             //:gazelle_binary
           BAZEL_BIN=$(bazel info bazel-bin)
-          export PATH="$BAZEL_BIN:$BAZEL_BIN/external:$PATH"
-          # Create symlinks so tools are findable by name
+          # Create a local bin dir with symlinks to Bazel-built tools
+          TOOLS_BIN="$PWD/.ci-tools/bin"
+          mkdir -p "$TOOLS_BIN"
           for tool in ruff shfmt gofumpt buildifier prettier gazelle; do
             bin=$(find -L "$BAZEL_BIN" -name "$tool" -type f -perm /111 2>/dev/null | head -1)
             if [ -n "$bin" ]; then
-              ln -sf "$bin" /usr/local/bin/"$tool"
+              ln -sf "$bin" "$TOOLS_BIN/$tool"
             fi
           done
+          export PATH="$TOOLS_BIN:$PATH"
 
           # Run standalone format
           ./tools/format/fast-format.sh
