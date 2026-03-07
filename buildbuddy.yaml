@@ -19,8 +19,32 @@ actions:
             echo "Skipping argocd-image-updater commit"
             exit 0
           fi
-          # Run full format (includes formatters + gazelle)
-          bazel run //tools/format:fast_format
+
+          # Build formatter tools via Bazel and add to PATH
+          # TODO: Replace with OCI tools image once homelab-tools includes formatters
+          bazel build \
+            @aspect_rules_lint//format:ruff \
+            @aspect_rules_lint//format:shfmt \
+            @aspect_rules_lint//format:gofumpt \
+            @buildifier_prebuilt//:buildifier \
+            //tools/format:prettier \
+            //:gazelle_binary
+          BAZEL_BIN=$(bazel info bazel-bin)
+          export PATH="$BAZEL_BIN:$BAZEL_BIN/external:$PATH"
+          # Create symlinks so tools are findable by name
+          for tool in ruff shfmt gofumpt buildifier prettier gazelle; do
+            bin=$(find -L "$BAZEL_BIN" -name "$tool" -type f -perm /111 2>/dev/null | head -1)
+            if [ -n "$bin" ]; then
+              ln -sf "$bin" /usr/local/bin/"$tool"
+            fi
+          done
+
+          # Run standalone format
+          ./tools/format/fast-format.sh
+
+          # Validate grep-based generate scripts against bazel query
+          ./scripts/validate-generate-scripts.sh
+
           if ! git diff --exit-code; then
             echo "ERROR: Code not formatted or BUILD files out of sync."
             echo "Run 'format' locally to fix."
