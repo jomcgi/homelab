@@ -15,12 +15,14 @@ sandboxTemplate:
   name: goose-agent
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: latest
+    tag: main
   env:
     gooseProvider: openai
     gooseModel: claude-opus-4-6
     litellmBaseUrl: http://litellm-claude-sdk.litellm.svc.cluster.local:4000/v1
     contextForgeUrl: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+    repoOwner: jomcgi
+    repoName: homelab
   resources:
     requests:
       cpu: "1"
