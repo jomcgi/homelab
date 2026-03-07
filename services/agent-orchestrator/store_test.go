@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"testing"
 	"time"
 
@@ -41,7 +42,7 @@ func setupTestStore(t *testing.T) *JobStore {
 		_ = js.DeleteKeyValue(ctx, bucket)
 	})
 
-	return NewJobStore(kv)
+	return NewJobStore(kv, slog.Default())
 }
 
 func TestPutGetRoundTrip(t *testing.T) {

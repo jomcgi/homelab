@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -23,12 +24,13 @@ type Store interface {
 
 // JobStore implements Store using a NATS JetStream KeyValue bucket.
 type JobStore struct {
-	kv jetstream.KeyValue
+	kv     jetstream.KeyValue
+	logger *slog.Logger
 }
 
 // NewJobStore returns a JobStore backed by the given NATS KV bucket.
-func NewJobStore(kv jetstream.KeyValue) *JobStore {
-	return &JobStore{kv: kv}
+func NewJobStore(kv jetstream.KeyValue, logger *slog.Logger) *JobStore {
+	return &JobStore{kv: kv, logger: logger}
 }
 
 // Put creates or updates a job record in the KV store.
@@ -87,10 +89,12 @@ func (s *JobStore) List(ctx context.Context, statusFilter []string, limit, offse
 	for _, key := range keys {
 		entry, err := s.kv.Get(ctx, key)
 		if err != nil {
+			s.logger.Debug("skipping key during list", "key", key, "error", err)
 			continue
 		}
 		var job JobRecord
 		if err := json.Unmarshal(entry.Value(), &job); err != nil {
+			s.logger.Warn("corrupt job record", "key", key, "error", err)
 			continue
 		}
 		if len(filterSet) > 0 && !filterSet[string(job.Status)] {

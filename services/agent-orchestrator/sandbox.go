@@ -272,7 +272,9 @@ type logWriter struct {
 }
 
 func (w *logWriter) Write(p []byte) (int, error) {
-	w.logger.Debug("sandbox output", "data", string(p))
+	if w.logger.Enabled(context.Background(), slog.LevelDebug) {
+		w.logger.Debug("sandbox output", "data", string(p))
+	}
 	return len(p), nil
 }
 

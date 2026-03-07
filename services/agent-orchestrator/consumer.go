@@ -77,7 +77,8 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	job, err := c.store.Get(jobCtx, jobID)
 	if err != nil {
 		logger.Error("failed to get job", "error", err)
-		_ = msg.Nak()
+		// ACK to prevent infinite redelivery of poison messages (e.g. deleted/expired KV entry).
+		_ = msg.Ack()
 		return
 	}
 
@@ -116,7 +117,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 		return current.Status == JobCancelled
 	}
 
-	outputBuf := &syncBuffer{}
+	outputBuf := newSyncBuffer(maxOutputBytes)
 
 	// Run sandbox in a goroutine so we can flush output periodically.
 	type sandboxResult struct {
@@ -184,7 +185,7 @@ loop:
 
 	if failed && retriesRemaining > 0 {
 		logger.Info("task failed, will retry", "attempt", attemptNum, "retriesRemaining", retriesRemaining)
-		// Keep status as RUNNING for next attempt; store and Nak to redeliver.
+		// Set status back to PENDING for next attempt; store and Nak to redeliver.
 		job.Status = JobPending
 		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store retry state", "error", err)

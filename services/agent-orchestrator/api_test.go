@@ -77,7 +77,7 @@ func (m *memStore) List(_ context.Context, statusFilter []string, limit, offset 
 
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
-	api := NewAPI(store, nil, nil, logger)
+	api := NewAPI(store, nil, nil, 2, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	return api, mux
