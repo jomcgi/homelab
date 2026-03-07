@@ -21,8 +21,6 @@ OCI_PUSH=$(
 					in_macro = 1
 				}
 				in_macro && /name *= *"[^"]*"/ {
-					match($0, /name *= *"([^"]*)"/)
-					# Extract the name value using sub
 					name = $0
 					sub(/.*name *= *"/, "", name)
 					sub(/".*/, "", name)
@@ -55,7 +53,7 @@ HELM_PUSH=$(
 				in_macro && /publish *= *True/ {
 					has_publish = 1
 				}
-				in_macro && /\)/ {
+				in_macro && /^[[:space:]]*\)[[:space:]]*$/ {
 					if (has_publish && name != "") {
 						print "//" dir ":" name ".push"
 					}
