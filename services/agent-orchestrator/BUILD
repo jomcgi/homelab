@@ -39,7 +39,10 @@ go_binary(
 
 go_test(
     name = "agent-orchestrator_unit_test",
-    srcs = ["api_test.go"],
+    srcs = [
+        "api_test.go",
+        "watchdog_test.go",
+    ],
     embed = [":agent-orchestrator_lib"],
 )
 
@@ -48,6 +51,7 @@ go_test(
     srcs = [
         "api_test.go",
         "store_test.go",
+        "watchdog_test.go",
     ],
     embed = [":agent-orchestrator_lib"],
     tags = ["manual"],

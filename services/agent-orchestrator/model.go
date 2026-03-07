@@ -37,11 +37,12 @@ type Attempt struct {
 	SandboxClaimName string     `json:"sandbox_claim_name"`
 	ExitCode         *int       `json:"exit_code,omitempty"`
 	Output           string     `json:"output"`
+	Truncated        bool       `json:"truncated,omitempty"`
 	StartedAt        time.Time  `json:"started_at"`
 	FinishedAt       *time.Time `json:"finished_at,omitempty"`
 }
 
-// SubmitRequest is the JSON body for POST /api/v1/jobs.
+// SubmitRequest is the JSON body for POST /jobs.
 type SubmitRequest struct {
 	Task       string `json:"task"`
 	MaxRetries *int   `json:"max_retries,omitempty"`
@@ -55,13 +56,13 @@ type SubmitResponse struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-// ListResponse is returned by GET /api/v1/jobs.
+// ListResponse is returned by GET /jobs.
 type ListResponse struct {
 	Jobs  []JobRecord `json:"jobs"`
 	Total int         `json:"total"`
 }
 
-// OutputResponse is returned by GET /api/v1/jobs/{id}/output.
+// OutputResponse is returned by GET /jobs/{id}/output.
 type OutputResponse struct {
 	Attempt   int    `json:"attempt"`
 	ExitCode  *int   `json:"exit_code,omitempty"`

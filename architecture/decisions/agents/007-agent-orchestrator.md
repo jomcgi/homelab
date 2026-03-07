@@ -61,7 +61,7 @@ graph TB
 
 **NATS JetStream + KV** — Durable queue survives service restarts. KV provides queryable state without a separate database. Both use the existing single-node NATS deployment.
 
-**max-in-flight=1** — Serializes job execution. Avoids concurrent sandbox contention and provides natural backpressure. A hung Goose session blocks the queue, mitigated by existing sandbox timeout behaviour.
+**MaxAckPending=3 (configurable)** — Allows up to 3 concurrent job executions via the `MAX_CONCURRENT` environment variable. Provides natural backpressure via JetStream's `MaxAckPending` setting. A stuck Goose session is detected by an inactivity watchdog (default 10 minutes of no output) which kills the execution context.
 
 **Self-provisioning** — The service creates the JetStream stream and KV bucket on startup if they don't exist (idempotent).
 
