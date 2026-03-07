@@ -12,10 +12,16 @@ config:
   LITELLM_CUSTOM_PROVIDER: "litellm_claude_code"
   LITELLM_LOG: "INFO"
 
-# 1Password secret — provides CLAUDE_AUTH_TOKEN
-secret:
-  name: litellm-claude-auth
-  itemPath: "vaults/k8s-homelab/items/litellm-claude-auth"
+# 1Password secrets
+secrets:
+  # Provides CLAUDE_AUTH_TOKEN for the custom provider
+  claudeAuth:
+    name: litellm-claude-auth
+    itemPath: "vaults/k8s-homelab/items/litellm-claude-auth"
+  # Provides LITELLM_MASTER_KEY — shared with agents as OPENAI_API_KEY
+  apiKey:
+    name: litellm-api-key
+    itemPath: "vaults/k8s-homelab/items/litellm-api-key"
 
 # LiteLLM config.yaml mounted as ConfigMap
 litellmConfig:
