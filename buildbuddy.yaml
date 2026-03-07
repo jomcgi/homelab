@@ -43,8 +43,13 @@ actions:
           ln -sf "$BAZEL_BIN/gazelle_binary_/gazelle_binary" "$TOOLS_BIN/gazelle"
           export PATH="$TOOLS_BIN:$PATH"
 
-          # Run standalone format
+          # Run standalone format (formatters + generate scripts + standalone gazelle)
           ./tools/format/fast-format.sh
+
+          # Re-run gazelle via Bazel for accurate Go dependency resolution.
+          # The standalone gazelle binary lacks Bazel module context needed to
+          # map Go imports to @com_github_* labels. This overwrites its output.
+          bazel run //:gazelle
 
           # Validate grep-based generate scripts against bazel query
           ./scripts/validate-generate-scripts.sh
