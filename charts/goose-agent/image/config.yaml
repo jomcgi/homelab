@@ -17,7 +17,7 @@ extensions:
     enabled: true
     name: context-forge
     timeout: 300
-    type: streamablehttp
+    type: streamable_http
     uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
   github:
     enabled: true
