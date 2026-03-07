@@ -1,9 +1,8 @@
 {
   "mcpServers": {
     "context-forge": {
-      "type": "http",
-      "url": "https://mcp.jomcgi.dev/mcp/",
-      "clientId": "${MCP_OAUTH_CLIENT_ID}"
+      "command": "sh",
+      "args": ["-c", "npx mcp-remote https://mcp.jomcgi.dev/mcp/ $MCP_OAUTH_CALLBACK_PORT --static-oauth-client-info '{\"client_id\":\"'\"$MCP_OAUTH_CLIENT_ID\"'\"}'"]
     }
   }
 }
