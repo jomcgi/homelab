@@ -22,7 +22,7 @@ from pathlib import Path
 
 # Match markdown links: [text](url)
 # Exclude images (![...](...)  and external URLs (http://, https://)
-LINK_PATTERN = re.compile(r'(?<!!)\[([^\]]*)\]\(([^)]+)\)')
+LINK_PATTERN = re.compile(r"(?<!!)\[([^\]]*)\]\(([^)]+)\)")
 
 
 def resolve_link(link_target, file_repo_path):
@@ -36,11 +36,11 @@ def resolve_link(link_target, file_repo_path):
         Resolved repo-relative path, or None if the link is external/anchor-only
     """
     # Skip external URLs and anchors
-    if link_target.startswith(('http://', 'https://', 'mailto:', '#')):
+    if link_target.startswith(("http://", "https://", "mailto:", "#")):
         return None
 
     # Strip anchor fragments for resolution (preserve for output)
-    target_without_anchor = link_target.split('#')[0]
+    target_without_anchor = link_target.split("#")[0]
     if not target_without_anchor:
         return None
 
@@ -48,10 +48,10 @@ def resolve_link(link_target, file_repo_path):
     resolved = os.path.normpath(os.path.join(file_repo_path, target_without_anchor))
 
     # Normalise to forward slashes
-    resolved = resolved.replace('\\', '/')
+    resolved = resolved.replace("\\", "/")
 
     # Remove leading ./ if present
-    if resolved.startswith('./'):
+    if resolved.startswith("./"):
         resolved = resolved[2:]
 
     return resolved
@@ -70,12 +70,12 @@ def remap_link(resolved_path, path_map):
         Remapped vitepress path, or None if no mapping found
     """
     # Try progressively shorter prefixes
-    parts = resolved_path.split('/')
+    parts = resolved_path.split("/")
     for i in range(len(parts), 0, -1):
-        prefix = '/'.join(parts[:i])
+        prefix = "/".join(parts[:i])
         if prefix in path_map:
             vitepress_prefix = path_map[prefix]
-            remainder = '/'.join(parts[i:])
+            remainder = "/".join(parts[i:])
             if remainder:
                 return f"{vitepress_prefix}/{remainder}"
             return vitepress_prefix
@@ -102,10 +102,10 @@ def rewrite_file(content, file_repo_path, path_map, assembled_root):
         link_target = match.group(2)
 
         # Preserve anchor fragment
-        anchor = ''
-        if '#' in link_target:
-            _, anchor = link_target.split('#', 1)
-            anchor = '#' + anchor
+        anchor = ""
+        if "#" in link_target:
+            _, anchor = link_target.split("#", 1)
+            anchor = "#" + anchor
 
         # Step 1: Resolve
         resolved = resolve_link(link_target, file_repo_path)
@@ -122,7 +122,9 @@ def rewrite_file(content, file_repo_path, path_map, assembled_root):
         # Step 3: Validate — check file exists in assembled tree
         check_path = os.path.join(assembled_root, remapped)
         if not os.path.exists(check_path):
-            warnings.append(f"link to {resolved} stripped (file not found at {remapped})")
+            warnings.append(
+                f"link to {resolved} stripped (file not found at {remapped})"
+            )
             return display_text
 
         # Build the final link with absolute path
@@ -134,13 +136,16 @@ def rewrite_file(content, file_repo_path, path_map, assembled_root):
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Rewrite markdown links for VitePress')
-    parser.add_argument('--content-dir', required=True,
-                        help='Path to assembled content directory')
-    parser.add_argument('--path-map', required=True,
-                        help='Path to JSON path map file')
-    parser.add_argument('--output-dir', required=True,
-                        help='Path to output directory for rewritten files')
+    parser = argparse.ArgumentParser(description="Rewrite markdown links for VitePress")
+    parser.add_argument(
+        "--content-dir", required=True, help="Path to assembled content directory"
+    )
+    parser.add_argument("--path-map", required=True, help="Path to JSON path map file")
+    parser.add_argument(
+        "--output-dir",
+        required=True,
+        help="Path to output directory for rewritten files",
+    )
     args = parser.parse_args()
 
     with open(args.path_map) as f:
@@ -150,15 +155,18 @@ def main():
     output_dir = Path(args.output_dir)
     total_warnings = 0
 
-    for md_file in content_dir.rglob('*.md'):
+    for md_file in content_dir.rglob("*.md"):
         rel_path = md_file.relative_to(content_dir)
         file_repo_dir = str(rel_path.parent)
-        if file_repo_dir == '.':
-            file_repo_dir = ''
+        if file_repo_dir == ".":
+            file_repo_dir = ""
 
-        content = md_file.read_text(encoding='utf-8')
+        content = md_file.read_text(encoding="utf-8")
         rewritten, warnings = rewrite_file(
-            content, file_repo_dir, path_map, str(content_dir),
+            content,
+            file_repo_dir,
+            path_map,
+            str(content_dir),
         )
 
         for w in warnings:
@@ -167,7 +175,7 @@ def main():
 
         out_path = output_dir / rel_path
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        out_path.write_text(rewritten, encoding='utf-8')
+        out_path.write_text(rewritten, encoding="utf-8")
 
     if total_warnings > 0:
         print(f"\n{total_warnings} link(s) stripped during rewrite", file=sys.stderr)
@@ -175,5 +183,5 @@ def main():
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())
