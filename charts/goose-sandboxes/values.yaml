@@ -19,7 +19,7 @@ sandboxTemplate:
   env:
     gooseProvider: openai
     gooseModel: claude-opus-4-6
-    litellmBaseUrl: http://litellm-claude-sdk.litellm.svc.cluster.local:4000/v1
+    litellmBaseUrl: http://litellm-claude-sdk.litellm.svc.cluster.local:4000
     contextForgeUrl: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
     repoOwner: jomcgi
     repoName: homelab
