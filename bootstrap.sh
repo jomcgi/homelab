@@ -4,19 +4,19 @@
 set -euo pipefail
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "ERROR: bootstrap.sh is only supported on macOS."
-  echo "For Linux/CI environments, tools are provided via the OCI tools image directly."
-  exit 1
+	echo "ERROR: bootstrap.sh is only supported on macOS."
+	echo "For Linux/CI environments, tools are provided via the OCI tools image directly."
+	exit 1
 fi
 
 # Install crane if missing
 if ! command -v crane &>/dev/null; then
-  if ! command -v brew &>/dev/null; then
-    echo "ERROR: Homebrew is required. Install from https://brew.sh"
-    exit 1
-  fi
-  echo "Installing crane via Homebrew..."
-  brew install crane
+	if ! command -v brew &>/dev/null; then
+		echo "ERROR: Homebrew is required. Install from https://brew.sh"
+		exit 1
+	fi
+	echo "Installing crane via Homebrew..."
+	brew install crane
 fi
 
 # Pull tools from OCI image
