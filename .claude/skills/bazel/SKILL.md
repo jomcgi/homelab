@@ -17,19 +17,19 @@ The `bb` CLI wraps Bazelisk and adds:
 
 ## Common Commands
 
-### Format and Render (Most Common)
+### Format (Most Common)
 
 ```bash
-# Format code + render all Helm manifests
 format
 ```
 
-This runs multiple tasks in parallel:
+This runs standalone formatter binaries in parallel (no Bazel required):
 
-- Updates apko lock files
-- Validates apko configs
-- Formats Go, Python, JS, Shell code
-- Renders all Helm charts to manifests/all.yaml
+- Formats Go (gofumpt), Python (ruff), JS/JSON/YAML (prettier), Shell (shfmt), Starlark (buildifier)
+- Regenerates push/render BUILD files via grep-based scripts
+- Runs gazelle to update BUILD files for Go/Python/Helm
+
+Tools are provided by the OCI tools image via `./bootstrap.sh`.
 
 ### Building
 
@@ -83,7 +83,7 @@ bazel query "deps(//charts/todo/image:image)"
 | --------------------------- | ------------------------------ |
 | `//charts/todo/image:image` | Todo container image           |
 | `//charts/todo/image:push`  | Push Todo image to registry    |
-| `//tools/format:format`     | Format + render all            |
+| `//tools/format:format`     | Format + render all (CI only)  |
 | `//tools:help`              | List all available targets     |
 | `//tools/cluster:pods`      | List pods in key namespaces    |
 | `//tools/cluster:events`    | Recent cluster events          |
