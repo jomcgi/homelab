@@ -30,6 +30,10 @@ litellmConfig:
     - model_name: claude-sonnet-4-6
       litellm_params:
         model: claude-agent-sdk/claude-sonnet-4-6
+    # Goose uses gpt-4o-mini internally for tool planning — route to Sonnet
+    - model_name: gpt-4o-mini
+      litellm_params:
+        model: claude-agent-sdk/claude-sonnet-4-6
   general_settings:
     master_key: os.environ/LITELLM_MASTER_KEY
   litellm_settings:
