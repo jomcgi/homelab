@@ -4,6 +4,10 @@ export default defineConfig({
   title: 'Homelab Docs',
   description: 'Documentation for jomcgi/homelab',
 
+  rewrites: {
+    'docs_rewrite/:rest*': ':rest*',
+  },
+
   themeConfig: {
     nav: [
       { text: 'Architecture', link: '/architecture/services' },
