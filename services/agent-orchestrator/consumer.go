@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"sync"
 	"time"
 
@@ -90,7 +91,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 
 	// Create new attempt.
 	attemptNum := len(job.Attempts) + 1
-	claimName := fmt.Sprintf("orch-%s-%d", truncateID(job.ID, 8), attemptNum)
+	claimName := fmt.Sprintf("orch-%s-%d", strings.ToLower(truncateID(job.ID, 8)), attemptNum)
 
 	attempt := Attempt{
 		Number:           attemptNum,
