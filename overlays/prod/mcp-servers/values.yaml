@@ -136,7 +136,7 @@ servers:
     instrumentation.opentelemetry.io/inject-python: "python"
   env:
   - name: TODO_URL
-    value: "http://todo.todo.svc.cluster.local:8080"
+    value: "http://todo-admin.todo.svc.cluster.local:8080"
   resources:
     requests:
       cpu: 10m
