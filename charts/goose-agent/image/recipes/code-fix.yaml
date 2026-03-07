@@ -1,0 +1,23 @@
+version: "1.0.0"
+title: "Code Fix"
+description: "Fix code issues without cluster access"
+instructions: |
+  Fix the described issue in the homelab repo.
+  Run bazel test //... to verify your changes.
+  Commit using conventional commits format and create a PR.
+  You do NOT have access to cluster tools.
+prompt: "{{ task_description }}"
+parameters:
+  - key: task_description
+    input_type: string
+    requirement: required
+extensions:
+  - type: builtin
+    name: developer
+  - type: stdio
+    name: github
+    cmd: pnpm
+    args: ["dlx", "@modelcontextprotocol/server-github"]
+    env_keys: ["GITHUB_TOKEN"]
+settings:
+  max_turns: 50
