@@ -126,7 +126,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	}
 	resultCh := make(chan sandboxResult, 1)
 	go func() {
-		r, err := c.sandbox.Run(jobCtx, claimName, task, cancelFn, outputBuf)
+		r, err := c.sandbox.Run(jobCtx, claimName, task, job.Profile, cancelFn, outputBuf)
 		resultCh <- sandboxResult{r, err}
 	}()
 

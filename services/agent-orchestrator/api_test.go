@@ -111,6 +111,75 @@ func TestHandleSubmit(t *testing.T) {
 	}
 }
 
+func TestHandleSubmit_WithProfile(t *testing.T) {
+	store := newMemStore()
+	_, mux := newTestAPI(store)
+
+	body := `{"task":"fix the build","profile":"ci-debug"}`
+	req := httptest.NewRequest(http.MethodPost, "/jobs", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp SubmitResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	// Verify profile was stored on the job record.
+	job, err := store.Get(context.Background(), resp.ID)
+	if err != nil {
+		t.Fatalf("get job: %v", err)
+	}
+	if job.Profile != "ci-debug" {
+		t.Fatalf("expected profile ci-debug, got %q", job.Profile)
+	}
+}
+
+func TestHandleSubmit_NoProfile(t *testing.T) {
+	store := newMemStore()
+	_, mux := newTestAPI(store)
+
+	body := `{"task":"run tests"}`
+	req := httptest.NewRequest(http.MethodPost, "/jobs", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp SubmitResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	// Verify empty profile preserves default behavior.
+	job, err := store.Get(context.Background(), resp.ID)
+	if err != nil {
+		t.Fatalf("get job: %v", err)
+	}
+	if job.Profile != "" {
+		t.Fatalf("expected empty profile, got %q", job.Profile)
+	}
+}
+
+func TestHandleSubmit_InvalidProfile(t *testing.T) {
+	_, mux := newTestAPI(newMemStore())
+
+	body := `{"task":"run tests","profile":"nonexistent"}`
+	req := httptest.NewRequest(http.MethodPost, "/jobs", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
 func TestHandleSubmit_MissingTask(t *testing.T) {
 	_, mux := newTestAPI(newMemStore())
 
