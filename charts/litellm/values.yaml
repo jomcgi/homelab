@@ -30,6 +30,13 @@ litellmConfig:
     - model_name: claude-sonnet-4-6
       litellm_params:
         model: claude-agent-sdk/claude-sonnet-4-6
+  general_settings:
+    master_key: os.environ/LITELLM_MASTER_KEY
+  litellm_settings:
+    drop_params: true
+    custom_provider_map:
+      - provider: claude-agent-sdk
+        custom_handler: providers.claude_agent_provider.claude_agent_provider
 
 resources:
   requests:
