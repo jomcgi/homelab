@@ -37,11 +37,16 @@ spec:
             - name: {{ $key }}
               value: {{ $value | quote }}
             {{- end }}
-          envFrom:
-            {{- range $key, $secret := .Values.secrets }}
-            - secretRef:
-                name: {{ $secret.name }}
-            {{- end }}
+            - name: CLAUDE_CODE_OAUTH_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.claudeAuth.name }}
+                  key: CLAUDE_AUTH_TOKEN
+            - name: LITELLM_MASTER_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.secrets.apiKey.name }}
+                  key: LITELLM_MASTER_KEY
           livenessProbe:
             httpGet:
               path: /health/liveliness
@@ -60,12 +65,16 @@ spec:
             - name: config
               mountPath: /etc/litellm
               readOnly: true
+            - name: claude-home
+              mountPath: /home/claude
             - name: tmp
               mountPath: /tmp
       volumes:
         - name: config
           configMap:
             name: {{ include "litellm.fullname" . }}-config
+        - name: claude-home
+          emptyDir: {}
         - name: tmp
           emptyDir:
             medium: Memory
