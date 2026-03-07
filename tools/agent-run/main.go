@@ -144,6 +144,14 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("refreshing workspace: %w", err)
 	}
 
+	// Patch .mcp.json to use in-cluster Context Forge URL.
+	// The repo's .mcp.json uses mcp-remote with Cloudflare service token
+	// headers for local development, but sandbox pods access Context Forge
+	// directly via ClusterIP without authentication.
+	if err := patchMCPConfig(ctx, config, clientset, podName); err != nil {
+		return fmt.Errorf("patching MCP config: %w", err)
+	}
+
 	// Exec goose in the sandbox pod and stream output.
 	fmt.Printf("Running goose task in %s...\n", podName)
 	exitCode, err := execGoose(ctx, config, clientset, podName, task)
@@ -267,6 +275,47 @@ func refreshWorkspace(ctx context.Context, config *rest.Config, clientset kubern
 		VersionedParams(&corev1.PodExecOptions{
 			Container: "goose",
 			Command:   []string{"git", "-C", "/workspace/homelab", "pull", "--ff-only", "origin", "main"},
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("creating executor: %w", err)
+	}
+
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	})
+}
+
+// inClusterMCPConfig is the .mcp.json content for in-cluster Context Forge access.
+// Sandbox pods connect directly to the Context Forge ClusterIP service, bypassing
+// the Cloudflare tunnel and mcp-remote bridge used by local development.
+const inClusterMCPConfig = `{
+  "mcpServers": {
+    "context-forge": {
+      "type": "streamablehttp",
+      "url": "http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp"
+    }
+  }
+}
+`
+
+// patchMCPConfig overwrites .mcp.json with the in-cluster Context Forge config.
+// The repo's .mcp.json routes through Cloudflare (mcp-remote + service token headers),
+// which requires CF_ACCESS_CLIENT_ID/SECRET env vars that aren't available in sandbox
+// pods. This replaces it with a direct streamablehttp connection to the ClusterIP.
+func patchMCPConfig(ctx context.Context, config *rest.Config, clientset kubernetes.Interface, podName string) error {
+	req := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: "goose",
+			Command:   []string{"sh", "-c", "cat > /workspace/homelab/.mcp.json << 'MCPEOF'\n" + inClusterMCPConfig + "MCPEOF"},
 			Stdout:    true,
 			Stderr:    true,
 		}, scheme.ParameterCodec)
