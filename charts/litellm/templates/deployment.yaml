@@ -58,7 +58,13 @@ spec:
             - name: config
               mountPath: /etc/litellm
               readOnly: true
+            - name: tmp
+              mountPath: /tmp
       volumes:
         - name: config
           configMap:
             name: {{ include "litellm.fullname" . }}-config
+        - name: tmp
+          emptyDir:
+            medium: Memory
+            sizeLimit: 64Mi
