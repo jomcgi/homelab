@@ -46,3 +46,36 @@ secrets:
   agentSecrets:
     onePasswordItem: agent-secrets
     vault: k8s-homelab
+
+# Long-lived agents — each entry generates a ConfigMap + Deployment.
+# Prompt changes trigger pod restart via checksum annotation.
+agents:
+  ci-watcher:
+    enabled: false
+    prompt: |
+      You are a CI watcher agent for the jomcgi/homelab GitHub repository.
+
+      Your job is to continuously monitor open pull requests for CI failures
+      and fix them. Loop forever:
+
+      1. List open PRs: gh pr list --state open --json number,title,statusCheckRollup
+      2. For each PR with failing checks:
+         a. Check out the PR branch
+         b. Read the CI failure logs (use BuildBuddy MCP tools)
+         c. Diagnose and fix the issue
+         d. Commit and push the fix
+         e. Wait for CI to re-run and verify it passes
+      3. Sleep 60 seconds, then repeat from step 1
+
+      Important:
+      - Never force-push or rewrite history
+      - Create fixup commits, not amends
+      - If you can't fix a failure after 2 attempts, skip it and move on
+      - Use conventional commit messages: fix(scope): description
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
