@@ -5,7 +5,7 @@
 # Only intended to run in CI where Bazel is available.
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 FAILED=0
 TMPDIR_VALIDATE=$(mktemp -d)

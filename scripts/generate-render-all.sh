@@ -2,7 +2,7 @@
 # Auto-generate tools/argocd-parallel/BUILD with filegroup target for all render_manifests
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
 BUILD_DIR="tools/argocd-parallel"
 BUILD_FILE="$BUILD_DIR/BUILD"
