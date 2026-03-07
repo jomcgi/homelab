@@ -4,6 +4,7 @@ load("//tools/oci:go_image.bzl", "go_image")
 go_library(
     name = "agent-orchestrator_lib",
     srcs = [
+        "api.go",
         "main.go",
         "model.go",
         "store.go",
@@ -12,6 +13,7 @@ go_library(
     visibility = ["//visibility:private"],
     deps = [
         "@com_github_nats_io_nats_go//jetstream",
+        "@com_github_oklog_ulid_v2//:ulid",
     ],
 )
 
@@ -19,6 +21,12 @@ go_binary(
     name = "agent-orchestrator",
     embed = [":agent-orchestrator_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "agent-orchestrator_unit_test",
+    srcs = ["api_test.go"],
+    embed = [":agent-orchestrator_lib"],
 )
 
 go_test(
