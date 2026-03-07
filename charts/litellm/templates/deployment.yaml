@@ -58,7 +58,8 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: config
-              mountPath: /app/config
+              mountPath: /app/config/litellm_config.yaml
+              subPath: litellm_config.yaml
               readOnly: true
             - name: claude-home
               mountPath: /home/claude
