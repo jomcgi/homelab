@@ -13,7 +13,7 @@ pkg_tar(
 # Build the goose-agent image:
 #   apko base: bash, git, gh, go, node, pnpm (from Wolfi)
 #   multiarch tars: goose binary, bb (BuildBuddy CLI)
-#   regular tars: Goose config
+#   regular tars: Goose config, Claude Code CLI (npm package)
 apko_image(
     name = "image",
     config = "apko.yaml",
@@ -23,5 +23,8 @@ apko_image(
         "@bb//:tar",
     ],
     repository = "ghcr.io/jomcgi/homelab/goose-agent",
-    tars = [":config_tar"],
+    tars = [
+        ":config_tar",
+        "@claude_code//:tar",
+    ],
 )
