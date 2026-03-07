@@ -8,7 +8,7 @@ metadata:
   annotations:
     signoz.io/alert-name: "img Unreachable"
     signoz.io/severity: "critical"
-    signoz.io/notification-channels: "pagerduty-homelab"
+    signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
@@ -71,10 +71,10 @@ data:
               "targetUnit": "",
               "matchType": "5",
               "op": "2",
-              "channels": ["pagerduty-homelab"]
+              "channels": ["incidentio"]
             }
           ]
         }
       },
-      "preferredChannels": ["pagerduty-homelab"]
+      "preferredChannels": ["incidentio"]
     }
