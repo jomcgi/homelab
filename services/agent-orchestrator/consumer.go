@@ -14,19 +14,21 @@ const maxOutputBytes = 512 * 1024 // 512KB
 
 // Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
 type Consumer struct {
-	cons    jetstream.Consumer
-	store   Store
-	sandbox *SandboxExecutor
-	logger  *slog.Logger
+	cons        jetstream.Consumer
+	store       Store
+	sandbox     *SandboxExecutor
+	maxDuration time.Duration
+	logger      *slog.Logger
 }
 
 // NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
-func NewConsumer(cons jetstream.Consumer, store Store, sandbox *SandboxExecutor, logger *slog.Logger) *Consumer {
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox *SandboxExecutor, maxDuration time.Duration, logger *slog.Logger) *Consumer {
 	return &Consumer{
-		cons:    cons,
-		store:   store,
-		sandbox: sandbox,
-		logger:  logger,
+		cons:        cons,
+		store:       store,
+		sandbox:     sandbox,
+		maxDuration: maxDuration,
+		logger:      logger,
 	}
 }
 
@@ -66,10 +68,13 @@ func (c *Consumer) Run(ctx context.Context) {
 }
 
 func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
+	jobCtx, jobCancel := context.WithTimeout(ctx, c.maxDuration)
+	defer jobCancel()
+
 	jobID := string(msg.Data())
 	logger := c.logger.With("jobID", jobID)
 
-	job, err := c.store.Get(ctx, jobID)
+	job, err := c.store.Get(jobCtx, jobID)
 	if err != nil {
 		logger.Error("failed to get job", "error", err)
 		_ = msg.Nak()
@@ -94,7 +99,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	job.Attempts = append(job.Attempts, attempt)
 	job.Status = JobRunning
 
-	if err := c.store.Put(ctx, job); err != nil {
+	if err := c.store.Put(jobCtx, job); err != nil {
 		logger.Error("failed to update job to running", "error", err)
 		_ = msg.Nak()
 		return
@@ -104,17 +109,45 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	logger.Info("executing task", "attempt", attemptNum, "claim", claimName)
 
 	cancelFn := func() bool {
-		current, err := c.store.Get(ctx, jobID)
+		current, err := c.store.Get(jobCtx, jobID)
 		if err != nil {
 			return false
 		}
 		return current.Status == JobCancelled
 	}
 
-	result, execErr := c.sandbox.Run(ctx, claimName, task, cancelFn)
+	outputBuf := &syncBuffer{}
+
+	// Run sandbox in a goroutine so we can flush output periodically.
+	type sandboxResult struct {
+		result *ExecResult
+		err    error
+	}
+	resultCh := make(chan sandboxResult, 1)
+	go func() {
+		r, err := c.sandbox.Run(jobCtx, claimName, task, cancelFn, outputBuf)
+		resultCh <- sandboxResult{r, err}
+	}()
+
+	// Periodic output flush.
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+
+	var res sandboxResult
+loop:
+	for {
+		select {
+		case res = <-resultCh:
+			break loop
+		case <-ticker.C:
+			c.flushOutput(jobCtx, job, outputBuf)
+		}
+	}
+
+	result, execErr := res.result, res.err
 
 	// Re-read job to get latest state.
-	job, err = c.store.Get(ctx, jobID)
+	job, err = c.store.Get(jobCtx, jobID)
 	if err != nil {
 		logger.Error("failed to re-read job after exec", "error", err)
 		_ = msg.Nak()
@@ -138,7 +171,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	// Check for cancellation after exec.
 	if job.Status == JobCancelled {
 		logger.Info("job was cancelled during execution")
-		if err := c.store.Put(ctx, job); err != nil {
+		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store cancelled job", "error", err)
 		}
 		_ = msg.Ack()
@@ -152,7 +185,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 		logger.Info("task failed, will retry", "attempt", attemptNum, "retriesRemaining", retriesRemaining)
 		// Keep status as RUNNING for next attempt; store and Nak to redeliver.
 		job.Status = JobPending
-		if err := c.store.Put(ctx, job); err != nil {
+		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store retry state", "error", err)
 		}
 		_ = msg.Nak()
@@ -162,7 +195,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	if failed {
 		logger.Info("task failed, retries exhausted", "attempt", attemptNum)
 		job.Status = JobFailed
-		if err := c.store.Put(ctx, job); err != nil {
+		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store failed state", "error", err)
 		}
 		_ = msg.Ack()
@@ -171,7 +204,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 
 	logger.Info("task succeeded", "attempt", attemptNum)
 	job.Status = JobSucceeded
-	if err := c.store.Put(ctx, job); err != nil {
+	if err := c.store.Put(jobCtx, job); err != nil {
 		logger.Error("failed to store succeeded state", "error", err)
 	}
 	_ = msg.Ack()
@@ -203,6 +236,21 @@ Last 2000 characters of previous output:
 
 Original task:
 %s`, attemptNum, prev.Number, exitCode, prevOutput, job.Task)
+}
+
+func (c *Consumer) flushOutput(ctx context.Context, job *JobRecord, buf *syncBuffer) {
+	if len(job.Attempts) == 0 {
+		return
+	}
+	output := buf.String()
+	if len(output) > maxOutputBytes {
+		output = output[len(output)-maxOutputBytes:]
+	}
+	last := &job.Attempts[len(job.Attempts)-1]
+	last.Output = output
+	if err := c.store.Put(ctx, job); err != nil {
+		c.logger.Warn("failed to flush output", "jobID", job.ID, "error", err)
+	}
 }
 
 // truncateID returns the first n characters of s, or s if shorter.

@@ -53,6 +53,8 @@ config:
   maxRetries: "2"
   maxConcurrent: "3"
   httpPort: "8080"
+  jobInactivityTimeout: "10m"
+  jobMaxDuration: "168h"
 
 nodeSelector: {}
 tolerations: []

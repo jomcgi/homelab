@@ -34,6 +34,17 @@ func main() {
 	httpPort := envOr("HTTP_PORT", "8080")
 	_ = maxRetries // reserved for future per-consumer override
 
+	inactivityTimeout, err := time.ParseDuration(envOr("JOB_INACTIVITY_TIMEOUT", "10m"))
+	if err != nil {
+		logger.Error("invalid JOB_INACTIVITY_TIMEOUT", "error", err)
+		os.Exit(1)
+	}
+	maxDuration, err := time.ParseDuration(envOr("JOB_MAX_DURATION", "168h"))
+	if err != nil {
+		logger.Error("invalid JOB_MAX_DURATION", "error", err)
+		os.Exit(1)
+	}
+
 	// Connect to NATS.
 	nc, err := nats.Connect(natsURL,
 		nats.RetryOnFailedConnect(true),
@@ -98,7 +109,7 @@ func main() {
 
 	var sandbox *SandboxExecutor
 	if k8sConfig != nil {
-		sandbox, err = NewSandboxExecutor(k8sConfig, sandboxNamespace, sandboxTemplate, logger)
+		sandbox, err = NewSandboxExecutor(k8sConfig, sandboxNamespace, sandboxTemplate, inactivityTimeout, logger)
 		if err != nil {
 			logger.Error("failed to create sandbox executor", "error", err)
 			os.Exit(1)
@@ -122,7 +133,7 @@ func main() {
 
 	// Start consumer if sandbox is available.
 	if sandbox != nil {
-		consumer := NewConsumer(cons, store, sandbox, logger)
+		consumer := NewConsumer(cons, store, sandbox, maxDuration, logger)
 		go consumer.Run(ctx)
 	} else {
 		logger.Info("running in API-only mode (no sandbox executor)")

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	"io"
@@ -34,12 +33,13 @@ var sandboxGVR = schema.GroupVersionResource{
 
 // SandboxExecutor manages the lifecycle of sandbox pods for running agent tasks.
 type SandboxExecutor struct {
-	dynClient dynamic.Interface
-	clientset kubernetes.Interface
-	config    *rest.Config
-	namespace string
-	template  string
-	logger    *slog.Logger
+	dynClient         dynamic.Interface
+	clientset         kubernetes.Interface
+	config            *rest.Config
+	namespace         string
+	template          string
+	inactivityTimeout time.Duration
+	logger            *slog.Logger
 }
 
 // ExecResult holds the outcome of a sandbox execution.
@@ -50,7 +50,7 @@ type ExecResult struct {
 }
 
 // NewSandboxExecutor creates a SandboxExecutor from the given Kubernetes config.
-func NewSandboxExecutor(config *rest.Config, namespace, template string, logger *slog.Logger) (*SandboxExecutor, error) {
+func NewSandboxExecutor(config *rest.Config, namespace, template string, inactivityTimeout time.Duration, logger *slog.Logger) (*SandboxExecutor, error) {
 	dynClient, err := dynamic.NewForConfig(config)
 	if err != nil {
 		return nil, fmt.Errorf("creating dynamic client: %w", err)
@@ -60,19 +60,20 @@ func NewSandboxExecutor(config *rest.Config, namespace, template string, logger 
 		return nil, fmt.Errorf("creating clientset: %w", err)
 	}
 	return &SandboxExecutor{
-		dynClient: dynClient,
-		clientset: clientset,
-		config:    config,
-		namespace: namespace,
-		template:  template,
-		logger:    logger,
+		dynClient:         dynClient,
+		clientset:         clientset,
+		config:            config,
+		namespace:         namespace,
+		template:          template,
+		inactivityTimeout: inactivityTimeout,
+		logger:            logger,
 	}, nil
 }
 
 // Run creates a SandboxClaim, waits for the pod, refreshes the workspace,
 // executes goose with the task, captures output, and cleans up.
 // The cancelFn is checked before each phase to support cooperative cancellation.
-func (s *SandboxExecutor) Run(ctx context.Context, claimName, task string, cancelFn func() bool) (*ExecResult, error) {
+func (s *SandboxExecutor) Run(ctx context.Context, claimName, task string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
 	s.logger.Info("creating sandbox claim", "claim", claimName, "namespace", s.namespace)
 
 	if err := s.createClaim(ctx, claimName); err != nil {
@@ -109,7 +110,7 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task string, cance
 	}
 
 	s.logger.Info("running goose task", "pod", podName)
-	exitCode, output, err := s.execGoose(ctx, podName, task)
+	exitCode, err := s.execGoose(ctx, podName, task, outputBuf)
 	if err != nil {
 		return nil, fmt.Errorf("exec goose: %w", err)
 	}
@@ -118,7 +119,7 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task string, cance
 	return &ExecResult{
 		ClaimName: claimName,
 		ExitCode:  exitCode,
-		Output:    output,
+		Output:    outputBuf.String(),
 	}, nil
 }
 
@@ -274,7 +275,7 @@ func (w *logWriter) Write(p []byte) (int, error) {
 }
 
 // execGoose runs goose inside the sandbox pod and captures stdout+stderr.
-func (s *SandboxExecutor) execGoose(ctx context.Context, podName, task string) (int, string, error) {
+func (s *SandboxExecutor) execGoose(ctx context.Context, podName, task string, outputBuf *syncBuffer) (int, error) {
 	req := s.clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -289,23 +290,31 @@ func (s *SandboxExecutor) execGoose(ctx context.Context, podName, task string) (
 
 	executor, err := remotecommand.NewSPDYExecutor(s.config, "POST", req.URL())
 	if err != nil {
-		return -1, "", fmt.Errorf("creating executor: %w", err)
+		return -1, fmt.Errorf("creating executor: %w", err)
 	}
 
-	var buf bytes.Buffer
-	lw := &logWriter{logger: s.logger}
-	w := io.MultiWriter(&buf, lw)
+	execCtx, execCancel := context.WithCancel(ctx)
+	defer execCancel()
 
-	err = executor.StreamWithContext(ctx, remotecommand.StreamOptions{
+	watchdog := newActivityWatchdog(s.inactivityTimeout, func() {
+		s.logger.Warn("agent silent, killing execution", "threshold", s.inactivityTimeout, "pod", podName)
+		execCancel()
+	})
+	defer watchdog.Stop()
+
+	lw := &logWriter{logger: s.logger}
+	w := io.MultiWriter(outputBuf, lw, watchdog)
+
+	err = executor.StreamWithContext(execCtx, remotecommand.StreamOptions{
 		Stdout: w,
 		Stderr: w,
 	})
 	if err != nil {
 		if exitErr, ok := err.(executil.ExitError); ok {
-			return exitErr.ExitStatus(), buf.String(), nil
+			return exitErr.ExitStatus(), nil
 		}
-		return -1, buf.String(), err
+		return -1, err
 	}
 
-	return 0, buf.String(), nil
+	return 0, nil
 }
