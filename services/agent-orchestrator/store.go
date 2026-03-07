@@ -17,6 +17,7 @@ const kvBucket = "job-records"
 type Store interface {
 	Put(ctx context.Context, job *JobRecord) error
 	Get(ctx context.Context, id string) (*JobRecord, error)
+	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, statusFilter []string, limit, offset int) ([]JobRecord, int, error)
 }
 
@@ -39,6 +40,11 @@ func (s *JobStore) Put(ctx context.Context, job *JobRecord) error {
 	}
 	_, err = s.kv.Put(ctx, job.ID, data)
 	return err
+}
+
+// Delete removes a job record from the KV store.
+func (s *JobStore) Delete(ctx context.Context, id string) error {
+	return s.kv.Delete(ctx, id)
 }
 
 // Get retrieves a single job record by ID.

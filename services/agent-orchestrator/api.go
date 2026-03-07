@@ -12,18 +12,23 @@ import (
 	"github.com/oklog/ulid/v2"
 )
 
-const defaultMaxRetries = 2
+const (
+	defaultMaxRetries = 2
+	maxMaxRetries     = 10
+	defaultSource     = "api"
+)
 
 // API provides HTTP handlers for the job orchestration service.
 type API struct {
-	store   Store
-	publish func(jobID string) error // publishes job ID to JetStream, nil = no-op
-	logger  *slog.Logger
+	store       Store
+	publish     func(jobID string) error // publishes job ID to JetStream, nil = no-op
+	healthCheck func() error             // checks backing store connectivity
+	logger      *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -50,6 +55,17 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	maxRetries := defaultMaxRetries
 	if req.MaxRetries != nil {
 		maxRetries = *req.MaxRetries
+		if maxRetries < 0 {
+			maxRetries = 0
+		}
+		if maxRetries > maxMaxRetries {
+			maxRetries = maxMaxRetries
+		}
+	}
+
+	source := req.Source
+	if source == "" {
+		source = defaultSource
 	}
 
 	now := time.Now().UTC()
@@ -60,7 +76,7 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		CreatedAt:  now,
 		UpdatedAt:  now,
 		MaxRetries: maxRetries,
-		Source:     req.Source,
+		Source:     source,
 		Attempts:   []Attempt{},
 	}
 
@@ -73,6 +89,10 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	if a.publish != nil {
 		if err := a.publish(job.ID); err != nil {
 			a.logger.Error("failed to publish job", "id", job.ID, "error", err)
+			// Roll back the KV entry so we don't leave a ghost job.
+			_ = a.store.Delete(r.Context(), job.ID)
+			a.writeError(w, http.StatusInternalServerError, "failed to enqueue job")
+			return
 		}
 	}
 
@@ -173,13 +193,20 @@ func (a *API) handleOutput(w http.ResponseWriter, r *http.Request) {
 
 	latest := job.Attempts[len(job.Attempts)-1]
 	a.writeJSON(w, http.StatusOK, OutputResponse{
-		Attempt:  latest.Number,
-		ExitCode: latest.ExitCode,
-		Output:   latest.Output,
+		Attempt:   latest.Number,
+		ExitCode:  latest.ExitCode,
+		Output:    latest.Output,
+		Truncated: latest.Truncated,
 	})
 }
 
 func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
+	if a.healthCheck != nil {
+		if err := a.healthCheck(); err != nil {
+			a.writeJSON(w, http.StatusServiceUnavailable, map[string]string{"status": "unhealthy", "error": err.Error()})
+			return
+		}
+	}
 	a.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 

@@ -148,8 +148,10 @@ func (s *SandboxExecutor) createClaim(ctx context.Context, claimName string) err
 
 func (s *SandboxExecutor) deleteClaim(claimName string) {
 	s.logger.Info("cleaning up sandbox claim", "claim", claimName)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
 	err := s.dynClient.Resource(sandboxClaimGVR).Namespace(s.namespace).Delete(
-		context.Background(), claimName, metav1.DeleteOptions{})
+		ctx, claimName, metav1.DeleteOptions{})
 	if err != nil {
 		s.logger.Warn("failed to delete sandbox claim", "claim", claimName, "error", err)
 	}

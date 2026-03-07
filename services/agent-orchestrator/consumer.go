@@ -140,7 +140,7 @@ loop:
 		case res = <-resultCh:
 			break loop
 		case <-ticker.C:
-			c.flushOutput(jobCtx, job, outputBuf)
+			c.flushOutput(jobCtx, jobID, outputBuf)
 		}
 	}
 
@@ -164,6 +164,7 @@ loop:
 		output := result.Output
 		if len(output) > maxOutputBytes {
 			output = output[len(output)-maxOutputBytes:]
+			job.Attempts[idx].Truncated = true
 		}
 		job.Attempts[idx].Output = output
 	}
@@ -238,18 +239,22 @@ Original task:
 %s`, attemptNum, prev.Number, exitCode, prevOutput, job.Task)
 }
 
-func (c *Consumer) flushOutput(ctx context.Context, job *JobRecord, buf *syncBuffer) {
-	if len(job.Attempts) == 0 {
+func (c *Consumer) flushOutput(ctx context.Context, jobID string, buf *syncBuffer) {
+	// Re-read from KV to avoid overwriting status changes (e.g. cancellation).
+	current, err := c.store.Get(ctx, jobID)
+	if err != nil || len(current.Attempts) == 0 {
 		return
 	}
 	output := buf.String()
-	if len(output) > maxOutputBytes {
+	truncated := len(output) > maxOutputBytes
+	if truncated {
 		output = output[len(output)-maxOutputBytes:]
 	}
-	last := &job.Attempts[len(job.Attempts)-1]
+	last := &current.Attempts[len(current.Attempts)-1]
 	last.Output = output
-	if err := c.store.Put(ctx, job); err != nil {
-		c.logger.Warn("failed to flush output", "jobID", job.ID, "error", err)
+	last.Truncated = truncated
+	if err := c.store.Put(ctx, current); err != nil {
+		c.logger.Warn("failed to flush output", "jobID", jobID, "error", err)
 	}
 }
 

@@ -1,8 +1,9 @@
 {{- if .Values.serviceAccount.create }}
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: {{ include "agent-orchestrator.fullname" . }}
+  namespace: {{ .Values.config.sandboxNamespace }}
   labels:
     {{- include "agent-orchestrator.labels" . | nindent 4 }}
 rules:
@@ -20,14 +21,15 @@ rules:
     verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: {{ include "agent-orchestrator.fullname" . }}
+  namespace: {{ .Values.config.sandboxNamespace }}
   labels:
     {{- include "agent-orchestrator.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: {{ include "agent-orchestrator.fullname" . }}
 subjects:
   - kind: ServiceAccount

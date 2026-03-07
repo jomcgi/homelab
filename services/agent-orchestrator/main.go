@@ -121,7 +121,12 @@ func main() {
 		return err
 	}
 
-	api := NewAPI(store, publish, logger)
+	healthCheck := func() error {
+		_, err := kv.Status(ctx)
+		return err
+	}
+
+	api := NewAPI(store, publish, healthCheck, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 

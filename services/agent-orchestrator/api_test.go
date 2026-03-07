@@ -30,6 +30,11 @@ func (m *memStore) Put(_ context.Context, job *JobRecord) error {
 	return nil
 }
 
+func (m *memStore) Delete(_ context.Context, id string) error {
+	delete(m.jobs, id)
+	return nil
+}
+
 func (m *memStore) Get(_ context.Context, id string) (*JobRecord, error) {
 	job, ok := m.jobs[id]
 	if !ok {
@@ -72,7 +77,7 @@ func (m *memStore) List(_ context.Context, statusFilter []string, limit, offset 
 
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
-	api := NewAPI(store, nil, logger)
+	api := NewAPI(store, nil, nil, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	return api, mux
