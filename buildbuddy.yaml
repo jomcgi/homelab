@@ -24,9 +24,9 @@ actions:
           # Build formatter tools and gazelle via Bazel and add to PATH
           # TODO: Replace with OCI tools image once homelab-tools includes formatters
           bazel build \
-            @rules_multitool++multitool+multitool//tools/ruff:ruff \
-            @rules_multitool++multitool+multitool//tools/shfmt:shfmt \
-            @rules_multitool++multitool+multitool//tools/gofumpt:gofumpt \
+            @aspect_rules_lint//format:ruff \
+            @aspect_rules_lint//format:shfmt \
+            @aspect_rules_lint//format:gofumpt \
             @buildifier_prebuilt//:buildifier \
             //tools/format:prettier \
             //:gazelle
