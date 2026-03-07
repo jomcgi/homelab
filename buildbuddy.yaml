@@ -22,7 +22,6 @@ actions:
           fi
 
           # Build formatter tools and gazelle via Bazel and add to PATH
-          # TODO: Replace with OCI tools image once homelab-tools includes formatters
           bazel build \
             @aspect_rules_lint//format:ruff \
             @aspect_rules_lint//format:shfmt \
