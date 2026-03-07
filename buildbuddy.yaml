@@ -1,5 +1,5 @@
 actions:
-  # Format check - runs formatters and gazelle, verifies no changes needed
+  # Format check - runs formatters and gazelle, auto-commits fixes on PR branches
   # Runs in parallel with Test action
   - name: "Format check"
     container_image: "ubuntu-24.04"
@@ -14,21 +14,22 @@ actions:
           - "*"
     steps:
       - run: |
-          # Skip if commit is from argocd-image-updater
-          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
-            echo "Skipping argocd-image-updater commit"
+          # Skip automated commits to avoid loops
+          AUTHOR="$(git log -1 --format='%an')"
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
+            echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
 
-          # Build formatter tools via Bazel and add to PATH
+          # Build formatter tools and gazelle via Bazel and add to PATH
           # TODO: Replace with OCI tools image once homelab-tools includes formatters
           bazel build \
-            @aspect_rules_lint//format:ruff \
-            @aspect_rules_lint//format:shfmt \
-            @aspect_rules_lint//format:gofumpt \
+            @rules_multitool++multitool+multitool//tools/ruff:ruff \
+            @rules_multitool++multitool+multitool//tools/shfmt:shfmt \
+            @rules_multitool++multitool+multitool//tools/gofumpt:gofumpt \
             @buildifier_prebuilt//:buildifier \
             //tools/format:prettier \
-            //:gazelle_binary
+            //:gazelle
           BAZEL_BIN=$(bazel info bazel-bin)
           # Create a local bin dir with symlinks to Bazel-built tools
           TOOLS_BIN="$PWD/.ci-tools/bin"
@@ -39,29 +40,45 @@ actions:
               ln -sf "$bin" "$TOOLS_BIN/$tool"
             fi
           done
-          # gazelle_binary target produces "gazelle_binary" not "gazelle"
           ln -sf "$BAZEL_BIN/gazelle_binary_/gazelle_binary" "$TOOLS_BIN/gazelle"
           export PATH="$TOOLS_BIN:$PATH"
 
-          # Run standalone format (formatters + generate scripts + standalone gazelle)
-          ./tools/format/fast-format.sh
+          # Run standalone format (formatters + generate scripts)
+          # Skip standalone gazelle in CI — bazel run handles it below
+          SKIP_GAZELLE=1 ./tools/format/fast-format.sh
 
-          # Re-run gazelle via Bazel for accurate Go dependency resolution.
+          # Run gazelle via Bazel for accurate Go dependency resolution.
           # The standalone gazelle binary lacks Bazel module context needed to
-          # map Go imports to @com_github_* labels. This overwrites its output.
-          bazel run //:gazelle
+          # map Go imports to @com_github_* labels.
+          bazel run //:gazelle 2>&1 | grep -v "^INFO:"
 
           # Validate grep-based generate scripts against bazel query
           ./scripts/validate-generate-scripts.sh
 
-          if ! git diff --exit-code; then
+          # Check for formatting changes
+          if git diff --exit-code; then
+            echo "All files formatted correctly"
+            exit 0
+          fi
+
+          # On main, fail — formatting must be correct before merge
+          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+          if [ "$current_branch" = "main" ]; then
             echo "ERROR: Code not formatted or BUILD files out of sync."
             echo "Run 'format' locally to fix."
-            echo ""
-            echo "Changes detected:"
             git --no-pager diff
             exit 1
           fi
+
+          # On PR branches, auto-commit formatting fixes
+          echo "Auto-committing formatting fixes..."
+          git config user.name "ci-format-bot"
+          git config user.email "ci-format-bot@users.noreply.github.com"
+          git remote set-url origin "https://x-access-token:${GHCR_TOKEN}@github.com/jomcgi/homelab.git"
+          git add -A
+          git commit -m "style: auto-format"
+          git push origin HEAD:"$current_branch"
+          echo "Formatting fixes pushed to $current_branch"
 
   # Test and push - runs test suite, pushes images on main branch
   - name: "Test and push"
@@ -79,16 +96,18 @@ actions:
           - "*"
     steps:
       - run: |
-          # Skip if commit is from argocd-image-updater
-          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
-            echo "Skipping argocd-image-updater commit"
+          # Skip automated commits
+          AUTHOR="$(git log -1 --format='%an')"
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
+            echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
           bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
 
       # Push images on main branch only
       - run: |
-          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+          AUTHOR="$(git log -1 --format='%an')"
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
             exit 0
           fi
 
@@ -105,7 +124,8 @@ actions:
       # Deploy CF Pages on main branch only
       # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
       - run: |
-          if [ "$(git log -1 --format='%an')" = "argocd-image-updater" ]; then
+          AUTHOR="$(git log -1 --format='%an')"
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
             exit 0
           fi
 

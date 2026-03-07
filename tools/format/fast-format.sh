@@ -67,7 +67,10 @@ for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
 
 # Gazelle (generates BUILD files for Go/Python)
 # Run after formatters complete since it needs formatted files
-log "Running gazelle..."
-gazelle 2>/dev/null || true
+# SKIP_GAZELLE=1 allows CI to use bazel run //:gazelle instead
+if [ "${SKIP_GAZELLE:-0}" != "1" ]; then
+	log "Running gazelle..."
+	gazelle 2>/dev/null || true
+fi
 
 log "Done!"
