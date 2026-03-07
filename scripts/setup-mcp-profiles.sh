@@ -35,7 +35,10 @@ if [[ -z "$GATEWAY_URL" ]]; then
   echo "Starting port-forward to Context Forge..."
   kubectl port-forward -n mcp-gateway svc/context-forge-mcp-stack-mcpgateway 4444:80 &
   PF_PID=$!
-  sleep 3
+  echo "Waiting for gateway to be ready..."
+  until curl -sf "http://localhost:4444/health" > /dev/null 2>&1; do
+    sleep 2
+  done
   GATEWAY_URL="http://localhost:4444"
 fi
 
@@ -46,8 +49,8 @@ JWT_SECRET=$(op read "op://${VAULT}/context-forge/JWT_SECRET_KEY")
 
 # Mint a short-lived admin token for API calls
 mint_admin_token() {
-  python3 -c "
-import jwt, time, uuid
+  JWT_SECRET="$JWT_SECRET" python3 -c "
+import jwt, time, uuid, os
 payload = {
     'sub': '${ADMIN_EMAIL}',
     'iat': int(time.time()),
@@ -58,15 +61,15 @@ payload = {
     'is_admin': True,
     'teams': None,
 }
-print(jwt.encode(payload, '${JWT_SECRET}', algorithm='HS256'))
+print(jwt.encode(payload, os.environ['JWT_SECRET'], algorithm='HS256'))
 "
 }
 
 # Mint a scoped profile token
 mint_profile_token() {
   local sub="$1" teams_json="$2"
-  python3 -c "
-import jwt, time, uuid, json
+  JWT_SECRET="$JWT_SECRET" TEAMS_JSON="$teams_json" python3 -c "
+import jwt, time, uuid, json, os
 payload = {
     'sub': '${sub}',
     'iat': int(time.time()),
@@ -75,9 +78,9 @@ payload = {
     'aud': 'mcpgateway-api',
     'iss': 'mcpgateway',
     'is_admin': False,
-    'teams': json.loads('${teams_json}'),
+    'teams': json.loads(os.environ['TEAMS_JSON']),
 }
-print(jwt.encode(payload, '${JWT_SECRET}', algorithm='HS256'))
+print(jwt.encode(payload, os.environ['JWT_SECRET'], algorithm='HS256'))
 "
 }
 
@@ -101,6 +104,11 @@ else
     -H "Content-Type: application/json" \
     -d '{"name": "ci-debug", "description": "BuildBuddy tools for CI debugging"}')
   TEAM_ID=$(echo "$TEAM_RESPONSE" | jq -r '.id')
+  if [[ -z "$TEAM_ID" || "$TEAM_ID" == "null" ]]; then
+    echo "ERROR: Team creation response did not include an id"
+    echo "$TEAM_RESPONSE"
+    exit 1
+  fi
   echo "Created team ci-debug: ${TEAM_ID}"
 fi
 
@@ -124,6 +132,11 @@ if [[ -z "$BB_TOOL_IDS" ]]; then
   echo ""
   echo "You may need to adjust the tool name filter. Searching for tools containing 'build'..."
   BB_TOOL_IDS=$(echo "$TOOLS_JSON" | jq -r '[.[] | select(.name | test("build"; "i")) | .id] | join(",")')
+fi
+
+if [[ -z "$BB_TOOL_IDS" ]]; then
+  echo "ERROR: No BuildBuddy tools found. Cannot proceed."
+  exit 1
 fi
 
 echo "BuildBuddy tool IDs: ${BB_TOOL_IDS}"
