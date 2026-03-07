@@ -34,7 +34,7 @@ This document provides an overview of all services running in the cluster.
 | **LiteLLM**           | LLM API proxy for agents                    | [charts/litellm](../charts/litellm/)                     |
 | **llama-cpp**         | Local LLM inference (Hermes 4.3-36B)        | [charts/llama-cpp](../charts/llama-cpp/)                 |
 | **MCP OAuth Proxy**   | OAuth 2.1 auth layer for remote MCP access  | [charts/mcp-oauth-proxy](../charts/mcp-oauth-proxy/)     |
-| **MCP Servers**       | Consolidated ArgoCD, K8s, BB, SigNoz MCP    | [charts/mcp-servers](../charts/mcp-servers/)             |
+| **MCP Servers**       | Consolidated ArgoCD, Kubernetes, BuildBuddy, and SigNoz MCP servers | [charts/mcp-servers](../charts/mcp-servers/)             |
 | **NATS**              | High-performance messaging with JetStream   | [charts/nats](../charts/nats/)                           |
 | **SeaweedFS**         | Distributed S3-compatible object storage    | [charts/seaweedfs](../charts/seaweedfs/)                 |
 | **Todo**              | Git-backed todo list with static UI         | [charts/todo](../charts/todo/)                           |
