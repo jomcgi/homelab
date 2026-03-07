@@ -11,6 +11,7 @@ go_library(
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
         "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_apimachinery//pkg/types",
         "@io_k8s_apimachinery//pkg/watch",
         "@io_k8s_client_go//dynamic",
         "@io_k8s_client_go//kubernetes",

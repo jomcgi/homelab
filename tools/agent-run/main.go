@@ -5,6 +5,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -15,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -25,7 +27,7 @@ import (
 
 const (
 	namespace    = "goose-sandboxes"
-	warmPoolName = "goose-pool"
+	templateName = "goose-agent"
 )
 
 var sandboxClaimGVR = schema.GroupVersionResource{
@@ -45,9 +47,9 @@ var issueFlag int
 var rootCmd = &cobra.Command{
 	Use:   "agent-run [task description]",
 	Short: "Trigger a Goose agent task in a sandbox pod",
-	Long: `agent-run creates a SandboxClaim referencing the goose-pool WarmPool,
-injects the task as the AGENT_TASK environment variable, watches the
-Sandbox until the pod reaches Running, streams pod logs until Goose
+	Long: `agent-run creates a SandboxClaim referencing the goose-agent SandboxTemplate,
+waits for the controller to allocate a Sandbox (from the warm pool if available),
+patches the pod's AGENT_TASK environment variable, streams pod logs until Goose
 exits, and reports the exit code.`,
 	Args:         cobra.MinimumNArgs(0),
 	SilenceUsage: true,
@@ -101,14 +103,11 @@ func run(cmd *cobra.Command, args []string) error {
 				"namespace": namespace,
 			},
 			"spec": map[string]interface{}{
-				"warmPoolRef": map[string]interface{}{
-					"name": warmPoolName,
+				"sandboxTemplateRef": map[string]interface{}{
+					"name": templateName,
 				},
-				"envOverrides": []interface{}{
-					map[string]interface{}{
-						"name":  "AGENT_TASK",
-						"value": task,
-					},
+				"lifecycle": map[string]interface{}{
+					"shutdownPolicy": "Delete",
 				},
 			},
 		},
@@ -133,6 +132,11 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("waiting for pod: %w", err)
 	}
 	fmt.Printf("Sandbox pod: %s\n", podName)
+
+	// Patch the pod's AGENT_TASK env var with the task description.
+	if err := patchAgentTask(ctx, clientset, podName, task); err != nil {
+		return fmt.Errorf("patching AGENT_TASK: %w", err)
+	}
 
 	// Wait for pod to be running.
 	if err := waitPodRunning(ctx, clientset, podName); err != nil {
@@ -176,22 +180,13 @@ func waitForPod(ctx context.Context, client dynamic.Interface, claimName string)
 
 		status, ok := claim.Object["status"].(map[string]interface{})
 		if ok {
-			sandboxName, _ := status["sandboxName"].(string)
-			if sandboxName != "" {
-				// Get the sandbox to find the pod name.
-				sandbox, err := client.Resource(sandboxGVR).Namespace(namespace).Get(ctx, sandboxName, metav1.GetOptions{})
-				if err != nil {
-					return "", fmt.Errorf("getting sandbox %s: %w", sandboxName, err)
+			sandbox, _ := status["sandbox"].(map[string]interface{})
+			if sandbox != nil {
+				sandboxName, _ := sandbox["Name"].(string)
+				if sandboxName != "" {
+					// Use sandbox name as pod name (controller creates pod with same name).
+					return sandboxName, nil
 				}
-				sStatus, _ := sandbox.Object["status"].(map[string]interface{})
-				if sStatus != nil {
-					podName, _ := sStatus["podName"].(string)
-					if podName != "" {
-						return podName, nil
-					}
-				}
-				// Pod name not yet set, use sandbox name as pod name (common pattern).
-				return sandboxName, nil
 			}
 		}
 
@@ -201,6 +196,31 @@ func waitForPod(ctx context.Context, client dynamic.Interface, claimName string)
 		case <-time.After(2 * time.Second):
 		}
 	}
+}
+
+// patchAgentTask sets the AGENT_TASK env var on the goose container via a strategic merge patch.
+func patchAgentTask(ctx context.Context, clientset kubernetes.Interface, podName, task string) error {
+	patch := map[string]interface{}{
+		"spec": map[string]interface{}{
+			"containers": []map[string]interface{}{
+				{
+					"name": "goose",
+					"env": []map[string]interface{}{
+						{
+							"name":  "AGENT_TASK",
+							"value": task,
+						},
+					},
+				},
+			},
+		},
+	}
+	patchBytes, err := json.Marshal(patch)
+	if err != nil {
+		return fmt.Errorf("marshaling patch: %w", err)
+	}
+	_, err = clientset.CoreV1().Pods(namespace).Patch(ctx, podName, types.StrategicMergePatchType, patchBytes, metav1.PatchOptions{})
+	return err
 }
 
 func waitPodRunning(ctx context.Context, clientset kubernetes.Interface, podName string) error {
