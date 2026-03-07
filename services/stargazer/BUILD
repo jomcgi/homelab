@@ -6,6 +6,7 @@ py_library(
     name = "stargazer",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
+    deps = ["//services"],
 )
 
 # Container image for stargazer with GDAL tools
