@@ -23,11 +23,6 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
-          args:
-            - "--config"
-            - "/etc/litellm/config.yaml"
-            - "--port"
-            - "4000"
           ports:
             - name: http
               containerPort: 4000
@@ -63,7 +58,7 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           volumeMounts:
             - name: config
-              mountPath: /etc/litellm
+              mountPath: /app/config
               readOnly: true
             - name: claude-home
               mountPath: /home/claude

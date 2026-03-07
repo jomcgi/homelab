@@ -6,5 +6,5 @@ metadata:
   labels:
     {{- include "litellm.labels" . | nindent 4 }}
 data:
-  config.yaml: |
+  litellm_config.yaml: |
     {{- toYaml .Values.litellmConfig | nindent 4 }}
