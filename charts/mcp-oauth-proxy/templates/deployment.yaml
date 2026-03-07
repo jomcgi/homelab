@@ -17,6 +17,41 @@ spec:
     spec:
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        - name: postgres
+          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
+          restartPolicy: Always
+          securityContext:
+            runAsUser: 70
+            runAsGroup: 70
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: POSTGRES_USER
+              value: {{ .Values.postgres.user | quote }}
+            - name: POSTGRES_DB
+              value: {{ .Values.postgres.database | quote }}
+            - name: POSTGRES_HOST_AUTH_METHOD
+              value: "trust"
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgres
+              containerPort: 5432
+              protocol: TCP
+          startupProbe:
+            exec:
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
+            initialDelaySeconds: 3
+            periodSeconds: 3
+            failureThreshold: 10
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          volumeMounts:
+            - name: pgdata
+              mountPath: /var/lib/postgresql/data
       containers:
         - name: {{ .Chart.Name }}
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
@@ -41,48 +76,16 @@ spec:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
           readinessProbe:
             httpGet:
               path: /healthz
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 5
             periodSeconds: 10
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
-        - name: postgres
-          image: "{{ .Values.postgres.image.repository }}:{{ .Values.postgres.image.tag }}"
-          securityContext:
-            runAsUser: 70
-            runAsGroup: 70
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
-          env:
-            - name: POSTGRES_USER
-              value: {{ .Values.postgres.user | quote }}
-            - name: POSTGRES_DB
-              value: {{ .Values.postgres.database | quote }}
-            - name: POSTGRES_HOST_AUTH_METHOD
-              value: "trust"
-            - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
-          ports:
-            - name: postgres
-              containerPort: 5432
-              protocol: TCP
-          readinessProbe:
-            exec:
-              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
-            initialDelaySeconds: 5
-            periodSeconds: 5
-          resources:
-            {{- toYaml .Values.postgres.resources | nindent 12 }}
-          volumeMounts:
-            - name: pgdata
-              mountPath: /var/lib/postgresql/data
       volumes:
         - name: pgdata
           emptyDir: {}
