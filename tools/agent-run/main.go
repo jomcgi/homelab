@@ -43,6 +43,12 @@ var sandboxGVR = schema.GroupVersionResource{
 }
 
 var issueFlag int
+var profileFlag string
+
+var validProfiles = map[string]string{
+	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
+	"code-fix": "/home/goose-agent/recipes/code-fix.yaml",
+}
 
 var rootCmd = &cobra.Command{
 	Use:   "agent-run [task description]",
@@ -58,6 +64,7 @@ The SandboxClaim is cleaned up on exit, recycling the pod.`,
 
 func init() {
 	rootCmd.Flags().IntVar(&issueFlag, "issue", 0, "GitHub issue number to use as task description")
+	rootCmd.Flags().StringVar(&profileFlag, "profile", "", "Goose profile to use (ci-debug, code-fix)")
 }
 
 func main() {
@@ -73,6 +80,12 @@ func run(cmd *cobra.Command, args []string) error {
 	task, err := resolveTask(args)
 	if err != nil {
 		return err
+	}
+
+	if profileFlag != "" {
+		if _, ok := validProfiles[profileFlag]; !ok {
+			return fmt.Errorf("unknown profile %q, valid profiles: ci-debug, code-fix", profileFlag)
+		}
 	}
 
 	config, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
@@ -146,7 +159,10 @@ func run(cmd *cobra.Command, args []string) error {
 
 	// Exec goose in the sandbox pod and stream output.
 	fmt.Printf("Running goose task in %s...\n", podName)
-	exitCode, err := execGoose(ctx, config, clientset, podName, task)
+	if profileFlag != "" {
+		fmt.Printf("Using profile: %s (recipe: %s)\n", profileFlag, validProfiles[profileFlag])
+	}
+	exitCode, err := execGoose(ctx, config, clientset, podName, task, profileFlag)
 	if err != nil {
 		return fmt.Errorf("exec goose: %w", err)
 	}
@@ -282,8 +298,24 @@ func refreshWorkspace(ctx context.Context, config *rest.Config, clientset kubern
 	})
 }
 
+// buildGooseCommand constructs the goose CLI command based on whether a profile is set.
+// With a profile, it uses --recipe and --no-profile to load only the recipe's extensions.
+// Without a profile, it uses the default config.yaml (current behavior).
+func buildGooseCommand(task, profile string) []string {
+	if profile == "" {
+		return []string{"goose", "run", "--text", task}
+	}
+	recipePath := validProfiles[profile]
+	return []string{
+		"goose", "run",
+		"--recipe", recipePath,
+		"--no-profile",
+		"--params", fmt.Sprintf("task_description=%s", task),
+	}
+}
+
 // execGoose runs goose inside the sandbox pod via K8s exec and streams output.
-func execGoose(ctx context.Context, config *rest.Config, clientset kubernetes.Interface, podName, task string) (int, error) {
+func execGoose(ctx context.Context, config *rest.Config, clientset kubernetes.Interface, podName, task, profile string) (int, error) {
 	req := clientset.CoreV1().RESTClient().Post().
 		Resource("pods").
 		Name(podName).
@@ -291,7 +323,7 @@ func execGoose(ctx context.Context, config *rest.Config, clientset kubernetes.In
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: "goose",
-			Command:   []string{"goose", "run", "--text", task},
+			Command:   buildGooseCommand(task, profile),
 			Stdout:    true,
 			Stderr:    true,
 		}, scheme.ParameterCodec)
