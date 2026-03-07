@@ -12,7 +12,7 @@ This document provides an overview of all services running in the cluster.
 | **cert-manager**             | X.509 certificate management; required by Linkerd for mTLS | [charts/cert-manager](../charts/cert-manager/)                         |
 | **CoreDNS**                  | Cluster DNS resolution for Kubernetes services             | [charts/coredns](../charts/coredns/)                                   |
 | **Kyverno**                  | Policy engine with auto OTEL/Linkerd injection             | [charts/kyverno](../charts/kyverno/)                                   |
-| **Linkerd**                  | Service mesh for automatic distributed tracing and mTLS    | [charts/linkerd](../charts/linkerd/)                                   |
+| **Linkerd**                  | Service mesh providing default mTLS and metrics; optional tracing when enabled | [charts/linkerd](../charts/linkerd/)                                   |
 | **Longhorn**                 | Distributed persistent storage with automated backups      | [charts/longhorn](../charts/longhorn/)                                 |
 | **NVIDIA GPU Operator**      | GPU support for LLM inference workloads                    | [charts/nvidia-gpu-operator](../charts/nvidia-gpu-operator/)           |
 | **OpenTelemetry Operator**   | Auto-instrumentation for Go, Python, Node.js               | [charts/opentelemetry-operator](../charts/opentelemetry-operator/)     |
