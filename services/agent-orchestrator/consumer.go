@@ -10,7 +10,7 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 )
 
-const maxOutputBytes = 512 * 1024 // 512KB
+const maxOutputBytes = 32 * 1024 // 32KB tail — full output lives in pod logs / SigNoz
 
 // Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
 type Consumer struct {
