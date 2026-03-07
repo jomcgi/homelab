@@ -17,6 +17,7 @@
 The `homelab-tools` image is built with apko. We need to add formatter packages. The image definition likely lives near the bootstrap or tools area.
 
 **Files:**
+
 - Discover: Find the apko.yaml that builds the `homelab-tools` image (search for `ghcr.io/jomcgi/homelab-tools`)
 - Modify: That apko.yaml — add packages for ruff, gofumpt, shfmt, buildifier, prettier
 
@@ -31,6 +32,7 @@ If no apko.yaml exists yet for this image, create one at `tools/image/apko.yaml`
 **Step 2: Add formatter packages**
 
 Add to the apko config's `packages:` section. Check Wolfi package availability:
+
 - `ruff` — available in Wolfi as `ruff`
 - `gofumpt` — may need `go` ecosystem; check `wolfi-dev` packages
 - `shfmt` — available in Wolfi as `shfmt`
@@ -46,6 +48,7 @@ bazel build //tools/image:image
 ```
 
 Or if using standalone apko:
+
 ```bash
 apko build tools/image/apko.yaml ghcr.io/jomcgi/homelab-tools:dev /tmp/tools-image.tar
 ```
@@ -64,12 +67,14 @@ git commit -m "build: add formatter binaries to homelab-tools OCI image"
 The custom gazelle binary includes repo-specific plugins (rules_helm, rules_wrangler, rules_semgrep gazelle extensions). It must be compiled from Go source via Bazel, then included in the tools image.
 
 **Files:**
+
 - Read: `BUILD` (root) — the `gazelle_binary` target definition
 - Create: CI step or Bazel target that builds gazelle and stages it for the OCI image
 
 **Step 1: Identify the gazelle binary target**
 
 The root BUILD file defines:
+
 ```python
 gazelle_binary(
     name = "gazelle_binary",
@@ -88,6 +93,7 @@ gazelle_binary(
 **Step 2: Create a CI step that builds gazelle and copies it into the image build context**
 
 Add a Bazel target or script that:
+
 1. `bazel build //:gazelle_binary`
 2. Copies the output binary to the tools image overlay directory
 
@@ -120,6 +126,7 @@ git commit -m "build: add pre-built gazelle binary to homelab-tools image"
 Replace `bazel query 'kind("oci_push", //...)'` with grep-based BUILD file scanning.
 
 **Files:**
+
 - Modify: `scripts/generate-push-all.sh`
 
 **Step 1: Write the test — create a validation script**
@@ -150,6 +157,7 @@ echo "✅ generate-push-all: grep matches bazel query"
 Replace the `bazel query` calls with grep/find. The pattern to find is `oci_push(` and `helm_push(` in BUILD files, then extract the `name` attribute and construct Bazel labels from the directory path.
 
 Current (lines 13-15):
+
 ```bash
 OCI_PUSH=$(bazel query 'kind("oci_push", //...)' --output label 2>/dev/null || true)
 HELM_PUSH=$(bazel query 'kind("helm_push", //...)' --output label 2>/dev/null || true)
@@ -157,6 +165,7 @@ PUSH_TARGETS=$(echo -e "${OCI_PUSH}\n${HELM_PUSH}" | grep -v '^$' | LC_ALL=C sor
 ```
 
 New:
+
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 
@@ -182,6 +191,7 @@ PUSH_TARGETS=$(echo -e "${OCI_PUSH}\n${HELM_PUSH}" | grep -v '^$' | LC_ALL=C sor
 ```
 
 Note: macOS `grep` doesn't support `-P` (Perl regex). Use `sed` or `awk` instead:
+
 ```bash
 grep 'oci_push(' "$build_file" | sed -n 's/.*name *= *"\([^"]*\)".*/\1/p'
 ```
@@ -213,16 +223,19 @@ git commit -m "refactor: rewrite generate-push-all to use grep instead of bazel 
 Same pattern as Task 3 but for `wrangler_pages_push` targets.
 
 **Files:**
+
 - Modify: `scripts/generate-push-all-pages.sh`
 
 **Step 1: Rewrite the script**
 
 Replace (line 13):
+
 ```bash
 PUSH_TARGETS=$(bazel query 'kind("wrangler_pages_push", //...)' --output label 2>/dev/null | LC_ALL=C sort || true)
 ```
 
 With:
+
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 PUSH_TARGETS=$(grep -rl 'wrangler_pages_push(' --include=BUILD --include=BUILD.bazel . \
@@ -260,16 +273,19 @@ git commit -m "refactor: rewrite generate-push-all-pages to use grep instead of 
 Same pattern but for `render_manifests` genrule targets in `overlays/`.
 
 **Files:**
+
 - Modify: `scripts/generate-render-all.sh`
 
 **Step 1: Rewrite the script**
 
 Replace (line 17):
+
 ```bash
 RENDER_TARGETS=$(bazel query 'kind("genrule", //overlays/...) intersect attr("name", "render_manifests", //overlays/...)' --output label 2>/dev/null | sort)
 ```
 
 With:
+
 ```bash
 cd "$(git rev-parse --show-toplevel)"
 RENDER_TARGETS=$(grep -rl 'name = "render_manifests"' overlays/ --include=BUILD --include=BUILD.bazel \
@@ -280,6 +296,7 @@ RENDER_TARGETS=$(grep -rl 'name = "render_manifests"' overlays/ --include=BUILD 
 ```
 
 Also replace the buildifier call at the end (line 55):
+
 ```bash
 # Old: bazel run @buildifier_prebuilt//:buildifier -- "$BUILD_FILE" 2>/dev/null
 # New: use standalone buildifier from PATH
@@ -310,6 +327,7 @@ git commit -m "refactor: rewrite generate-render-all to use grep instead of baze
 CI runs the `bazel query` versions as a cross-check against the grep-based local scripts.
 
 **Files:**
+
 - Create: `scripts/validate-generate-scripts.sh`
 
 **Step 1: Write the validation script**
@@ -356,11 +374,13 @@ git commit -m "ci: add validation script for grep-based generate scripts"
 This is the main change — replace the Bazel-dependent format script with one that uses tools from `$PATH`.
 
 **Files:**
+
 - Modify: `tools/format/fast-format.sh`
 
 **Step 1: Rewrite the script**
 
 Replace the entire script. Key changes:
+
 - Remove `bazel build` call (lines 16-25)
 - Remove `find_bin()` function (lines 30-36)
 - Find tools via `command -v` or direct `$PATH` lookup
@@ -473,11 +493,13 @@ git commit -m "refactor: rewrite fast-format.sh to use standalone binaries from 
 ### Task 8: Update .envrc to use .tools/bin instead of bazel_env
 
 **Files:**
+
 - Modify: `.envrc`
 
 **Step 1: Replace the PATH setup**
 
 Current `.envrc`:
+
 ```bash
 export ORION_EXTENSIONS_DIR=$PWD/.aspect/gazelle/
 
@@ -489,6 +511,7 @@ fi
 ```
 
 New `.envrc`:
+
 ```bash
 export ORION_EXTENSIONS_DIR=$PWD/.aspect/gazelle/
 
@@ -522,16 +545,19 @@ git commit -m "build: switch .envrc from bazel_env to .tools/bin"
 CI needs to use the standalone format script. It also needs to run the generate script validation.
 
 **Files:**
+
 - Modify: `buildbuddy.yaml`
 
 **Step 1: Update the format check step**
 
 Replace (line 23):
+
 ```bash
 bazel run //tools/format:fast_format
 ```
 
 With:
+
 ```bash
 # Install standalone tools (CI environment)
 ./bootstrap.sh || true  # May need adaptation for Linux CI
@@ -557,6 +583,7 @@ git commit -m "ci: update format check to use standalone tools + generate valida
 ### Task 10: Update Claude skill and CLAUDE.md
 
 **Files:**
+
 - Modify: `.claude/skills/bazel/SKILL.md`
 - Modify: `CLAUDE.md`
 
@@ -565,19 +592,23 @@ git commit -m "ci: update format check to use standalone tools + generate valida
 In `.claude/skills/bazel/SKILL.md`, update the "Format and Render" section:
 
 Change:
-```markdown
+
+````markdown
 ### Format and Render (Most Common)
 
 ```bash
 format
 ```
+````
 
 This runs multiple tasks in parallel:
+
 - Updates apko lock files
 - Validates apko configs
 - Formats Go, Python, JS, Shell code
 - Renders all Helm charts to manifests/all.yaml
-```
+
+````
 
 To:
 ```markdown
@@ -585,15 +616,17 @@ To:
 
 ```bash
 format
-```
+````
 
 This runs standalone formatter binaries in parallel (no Bazel required):
+
 - Formats Go (gofumpt), Python (ruff), JS/JSON/YAML (prettier), Shell (shfmt), Starlark (buildifier)
 - Regenerates push/render BUILD files via grep-based scripts
 - Runs gazelle to update BUILD files for Go/Python/Helm
 
 Tools are provided by the OCI tools image via `./bootstrap.sh`.
-```
+
+````
 
 Remove `//tools/format:format` and `//tools/format:fast_format` from the Key Targets table.
 
@@ -602,7 +635,7 @@ Remove `//tools/format:format` and `//tools/format:fast_format` from the Key Tar
 In the "Essential Commands" section, update:
 ```bash
 format                        # Format code + update BUILD files (standalone, no Bazel needed)
-```
+````
 
 Add a note that `format` requires `./bootstrap.sh` to have been run.
 
@@ -618,6 +651,7 @@ git commit -m "docs: update skill and CLAUDE.md for standalone formatting"
 ### Task 11: Clean up Claude permissions (settings.json and settings.local.json)
 
 **Files:**
+
 - Modify: `.claude/settings.json` — minimal changes (permissions already work since `format` is still in PATH)
 - Modify: `.claude/settings.local.json` — remove stale bazel-format entries
 
@@ -630,6 +664,7 @@ Consider removing `Bash(bazelisk:*)` if Bazel is no longer needed locally — bu
 **Step 2: Clean settings.local.json**
 
 Remove entries that reference Bazel-based formatting:
+
 - `"Bash(RUFF=bazel-bin/external/rules_multitool++multitool+multitool/tools/ruff/ruff:*)"` — stale
 - `"Bash(\"$RUFF\" format --check services/ais-ingest/main.py)"` — stale
 
@@ -645,6 +680,7 @@ git commit -m "chore: remove stale bazel-format permissions from settings"
 ### Task 12: Update pre-commit hook entries
 
 **Files:**
+
 - Modify: `.pre-commit-config.yaml` (if needed)
 - Modify: `tools/format/update-apko-locks.sh`
 - Modify: `tools/format/update-python-requirements.sh`
