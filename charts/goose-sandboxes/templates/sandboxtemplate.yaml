@@ -4,7 +4,7 @@ metadata:
   name: {{ .Values.sandboxTemplate.name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  template:
+  podTemplate:
     spec:
       serviceAccountName: goose-agent
       securityContext:

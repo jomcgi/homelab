@@ -4,6 +4,6 @@ metadata:
   name: {{ .Values.warmPool.name }}
   namespace: {{ .Release.Namespace }}
 spec:
-  templateRef:
+  sandboxTemplateRef:
     name: {{ .Values.sandboxTemplate.name }}
-  size: {{ .Values.warmPool.size }}
+  replicas: {{ .Values.warmPool.size }}
