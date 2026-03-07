@@ -10,6 +10,7 @@ go_library(
         "model.go",
         "sandbox.go",
         "store.go",
+        "watchdog.go",
     ],
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator",
     visibility = ["//visibility:private"],
