@@ -32,6 +32,7 @@ Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI i
 | Formatting               | `bazel run //tools/format:fast_format` (local)  | Push → CI format job → auto-commit fixes back                |
 | Build graph queries      | `bazel query` (local)                           | `bb query` (remote via BuildBuddy) or BuildBuddy MCP tools   |
 | Goose tool availability  | Separate apko image with its own tool versions  | Same OCI tools image, shared versions                        |
+| Claude Code version      | Installed independently per machine              | Pinned in tools image, identical across all environments     |
 | Bazel on dev machine     | Required                                        | Not required                                                 |
 
 ---
@@ -59,10 +60,16 @@ ghcr.io/jomcgi/homelab-tools:latest
 ├── python            # Python runtime
 ├── bb                # BuildBuddy CLI (for remote query/execution)
 ├── scaffold          # Scaffold code generator
-└── copier            # Project templating
+├── copier            # Project templating
+└── claude            # Claude Code CLI (via npm, @anthropic-ai/claude-code)
 ```
 
 Built via apko (consistent with all other images in the repo), pushed to GHCR on every merge to main.
+
+Claude Code is included as a first-class tool — it's installed via `pnpm add -g @anthropic-ai/claude-code` during the image build. This gives:
+- **Pinned versions** across local dev, CI, and in-cluster agents
+- **Goose replacement path** — in-cluster agents could run Claude Code directly instead of Goose, using the same skills, hooks, and CLAUDE.md from the repo
+- **Consistent MCP configuration** — the `.mcp.json` and `.claude/` configs ship with the repo, and the CLI version matches what was tested against them
 
 ### Tool Pull Mechanism
 
@@ -153,6 +160,7 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 | `eslint` | Only runs via Bazel lint aspect | Useful for quick local JS linting |
 | `agent-run` | Custom Go binary in `tools/agent-run/` | CLI for triggering Goose agent tasks — needs to be available locally |
 | `hf2oci` | Custom Go binary in `tools/hf2oci/` | CLI for HuggingFace model → OCI conversion |
+| `claude` | Installed independently per machine via npm | Claude Code CLI — pinning version ensures skills, hooks, and MCP config are tested against a known version. Enables in-cluster agents to run Claude Code directly. |
 
 #### Workflow gaps (new tooling needed)
 
@@ -240,6 +248,10 @@ No deviations from `architecture/security.md`:
 3. **`bb` packaging** — The BuildBuddy CLI is distributed as a standalone binary, not a Wolfi package. How should it be included in the apko image — download in a pre-build step, or maintain a local apko package?
 
 4. **Transition period** — Should we support both `bazel_env` and OCI tools during migration, or cut over atomically? Parallel support avoids breakage but doubles maintenance.
+
+5. **Claude Code in-cluster auth** — Claude Code in the tools image enables in-cluster agents to use it directly (potentially replacing Goose). Auth would use `claude setup-token` with the existing `CLAUDE_AUTH_TOKEN` from the `OnePasswordItem`. Should in-cluster Claude Code use the existing LiteLLM proxy, or authenticate directly to Anthropic?
+
+6. **Claude Code version pinning** — Claude Code releases frequently. Should the tools image pin to a specific version (e.g., `@anthropic-ai/claude-code@1.x.y`), or track latest? Pinning avoids surprises but requires manual bumps. ArgoCD Image Updater can't help here since it's an npm package, not an image tag.
 
 ---
 
