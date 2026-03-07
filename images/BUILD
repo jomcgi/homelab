@@ -29,6 +29,7 @@ multirun(
         "//services/todo_mcp:image.push",
         "//services/trips_api:image.push",
         "//tools/hf2oci:image.push",
+        "//tools/image:image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],
