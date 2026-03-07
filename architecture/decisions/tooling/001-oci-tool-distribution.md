@@ -14,7 +14,7 @@ The homelab repo uses Bazel for everything — builds, tests, formatting, image 
 
 2. **No tool parity between environments** — Local development (macOS/aarch64), CI (Linux/x86_64), and Goose agent sandboxes (Linux/x86_64) each resolve tool versions independently. The Goose agent image (`charts/goose-agent/image/apko.yaml`) packages its own copies of `go`, `node`, `pnpm`, etc. — there's no guarantee these match what `bazel_env` provides locally.
 
-3. **Local Bazel execution is inefficient** — Running `bazel test //...` or `bazel build //...` locally downloads the full Bazel toolchain, resolves all external dependencies, and executes on a single machine. BuildBuddy remote execution is faster (parallelism, shared caching, beefy runners) and already runs on every push via `buildbuddy.yaml`.
+3. **Local Bazel execution is inefficient** — Running `bazel test //...` or `bazel build //...` locally downloads the full Bazel toolchain, resolves all external dependencies, and executes on a single machine. BuildBuddy remote execution is faster (parallelism, shared caching, beefy runners) and already runs on every PR and push to main via `buildbuddy.yaml`.
 
 ---
 
@@ -79,12 +79,22 @@ Local `.envrc` replaces the `bazel_env` integration:
 TOOLS_IMAGE="ghcr.io/jomcgi/homelab-tools:latest"
 TOOLS_DIR="$PWD/.tools"
 
+# Map host architecture to Docker platform
+case "$(uname -m)" in
+  x86_64|amd64)  PLATFORM="linux/amd64" ;;
+  arm64|aarch64) PLATFORM="linux/arm64" ;;
+  *)             PLATFORM="" ;;
+esac
+
 # Pull tools if missing or stale (>24h)
 if [[ ! -d "$TOOLS_DIR/bin" ]] || find "$TOOLS_DIR/.pulled" -mtime +1 -print -quit 2>/dev/null | grep -q .; then
   echo "Pulling developer tools from $TOOLS_IMAGE..."
-  docker run --rm --platform "$(uname -m)" \
-    -v "$TOOLS_DIR:/out" "$TOOLS_IMAGE" \
-    cp -r /tools/. /out/
+  mkdir -p "$TOOLS_DIR"
+
+  # Use docker create + docker cp to avoid bind-mount UID/GID issues
+  CID="$(docker create ${PLATFORM:+--platform "$PLATFORM"} "$TOOLS_IMAGE")"
+  docker cp "$CID":/tools/. "$TOOLS_DIR"/
+  docker rm "$CID" >/dev/null
   touch "$TOOLS_DIR/.pulled"
 fi
 
@@ -111,9 +121,9 @@ All Bazel operations execute remotely. The developer workflow becomes:
 Edit code
     │
     ▼
-git push (to feature branch)
+git push + open/update PR
     │
-    ├──▶ BuildBuddy CI triggers automatically
+    ├──▶ BuildBuddy CI triggers on PR (or push to main)
     │    ├── Format check (formatters + gazelle)
     │    ├── Test suite (bazel test //...)
     │    └── Image push (main branch only)
@@ -264,6 +274,6 @@ No deviations from `architecture/security.md`:
 | [BuildBuddy CLI](https://www.buildbuddy.io/docs/cli/) | `bb` CLI for remote query and execution |
 | [apko](https://github.com/chainguard-dev/apko) | OCI image build tool used throughout the repo |
 | [rules_apko](https://github.com/chainguard-dev/rules_apko) | Bazel rules for apko image builds |
-| [`tools/BUILD` bazel_env rule](../../tools/BUILD) | Current tool distribution mechanism being replaced |
+| [`tools/BUILD` bazel_env rule](../../../tools/BUILD) | Current tool distribution mechanism being replaced |
 | [BuildBuddy Workflows](https://www.buildbuddy.io/docs/workflows-setup/) | CI pipeline definition in `buildbuddy.yaml` |
 | [architecture/security.md](../../security.md) | Cluster security model (this ADR is fully compliant) |
