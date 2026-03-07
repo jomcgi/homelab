@@ -168,6 +168,8 @@ loop:
 			job.Attempts[idx].Truncated = true
 		}
 		job.Attempts[idx].Output = output
+	} else if execErr != nil {
+		job.Attempts[idx].Output = execErr.Error()
 	}
 
 	// Check for cancellation after exec.
@@ -184,7 +186,7 @@ loop:
 	retriesRemaining := job.MaxRetries - len(job.Attempts)
 
 	if failed && retriesRemaining > 0 {
-		logger.Info("task failed, will retry", "attempt", attemptNum, "retriesRemaining", retriesRemaining)
+		logger.Info("task failed, will retry", "attempt", attemptNum, "retriesRemaining", retriesRemaining, "error", execErr)
 		// Set status back to PENDING for next attempt; store and Nak to redeliver.
 		job.Status = JobPending
 		if err := c.store.Put(jobCtx, job); err != nil {
@@ -195,7 +197,7 @@ loop:
 	}
 
 	if failed {
-		logger.Info("task failed, retries exhausted", "attempt", attemptNum)
+		logger.Info("task failed, retries exhausted", "attempt", attemptNum, "error", execErr)
 		job.Status = JobFailed
 		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store failed state", "error", err)
