@@ -1,16 +1,9 @@
 {
   "mcpServers": {
     "context-forge": {
-      "type": "stdio",
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "https://mcp.jomcgi.dev/mcp/",
-        "--header",
-        "CF-Access-Client-Id: ${CF_ACCESS_CLIENT_ID}",
-        "--header",
-        "CF-Access-Client-Secret: ${CF_ACCESS_CLIENT_SECRET}"
-      ]
+      "type": "http",
+      "url": "https://mcp.jomcgi.dev/mcp/",
+      "clientId": "${MCP_OAUTH_CLIENT_ID}"
     }
   }
 }
