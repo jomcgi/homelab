@@ -157,19 +157,19 @@ Example usage in MODULE.bazel:
     load("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
 
     multiarch_http_archive(
-        name = "opencode",
-        amd64_url = "https://github.com/sst/opencode/releases/download/v1.0.10/opencode-linux-x64.zip",
+        name = "goose",
+        amd64_url = "https://github.com/block/goose/releases/download/v1.27.1/goose-x86_64-unknown-linux-gnu.tar.bz2",
         amd64_sha256 = "...",
-        arm64_url = "https://github.com/sst/opencode/releases/download/v1.0.10/opencode-linux-arm64.zip",
+        arm64_url = "https://github.com/block/goose/releases/download/v1.27.1/goose-aarch64-unknown-linux-gnu.tar.bz2",
         arm64_sha256 = "...",
-        binary_name = "opencode",
+        binary_name = "goose",
     )
 
 Then in BUILD files:
 
     apko_image(
         name = "my_image",
-        multiarch_tars = ["@opencode//:tar"],
+        multiarch_tars = ["@goose//:tar"],
     )
 """,
 )

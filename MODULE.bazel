@@ -266,28 +266,6 @@ multiarch_http_archive(
     package_dir = "/usr/local/bin",
 )
 
-multiarch_http_archive(
-    name = "opencode",
-    amd64_sha256 = "abd7292146d3293b3347ebad84de36fa0689a7850cea53df64c73506cc463072",
-    amd64_url = "https://github.com/sst/opencode/releases/download/v1.0.39/opencode-linux-x64.zip",
-    arm64_sha256 = "02ca134403781337240a6308c87ee2fc515cca77c5a32e2fae859aa1540d3e44",
-    arm64_url = "https://github.com/sst/opencode/releases/download/v1.0.39/opencode-linux-arm64.zip",
-    binary_name = "opencode",
-    package_dir = "/usr/local/bin",
-)
-
-# Download npm packages as OCI tar layers
-npm_package_tar = use_repo_rule("//tools/http:npm_package_tar.bzl", "npm_package_tar")
-
-npm_package_tar(
-    name = "claude_code",
-    bin_entry = "cli.js",
-    bin_name = "claude",
-    package_name = "@anthropic-ai/claude-code",
-    sha256 = "6fcb0c53da6d1aff652a55383cde0d03f0bffc036f491fd005296e06a26ef7d1",
-    url = "https://registry.npmjs.org/@anthropic-ai/claude-code/-/claude-code-2.1.71.tgz",
-)
-
 # Download multiarch binaries (raw binary files)
 multiarch_http_file = use_repo_rule("//tools/http:multiarch_http_file.bzl", "multiarch_http_file")
 
