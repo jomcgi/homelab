@@ -20,7 +20,7 @@ spec:
         app.kubernetes.io/name: agent-{{ $name }}
         app.kubernetes.io/component: agent
       annotations:
-        checksum/prompt: {{ include (print $.Template.BasePath "/configmap-agents.yaml") $ | sha256sum }}
+        checksum/prompt: {{ $agent.prompt | sha256sum }}
         linkerd.io/inject: disabled
     spec:
       serviceAccountName: goose-agent
@@ -41,7 +41,8 @@ spec:
             runAsGroup: 65532
             allowPrivilegeEscalation: false
             capabilities:
-              drop: [ALL]
+              drop:
+                - ALL
           env:
             - name: GITHUB_TOKEN
               valueFrom:
@@ -62,7 +63,8 @@ spec:
             allowPrivilegeEscalation: false
             readOnlyRootFilesystem: false
             capabilities:
-              drop: [ALL]
+              drop:
+                - ALL
           env:
             - name: AGENT_PROMPT
               valueFrom:
