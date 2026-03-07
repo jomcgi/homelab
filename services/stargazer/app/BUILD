@@ -9,6 +9,8 @@ py_venv_binary(
     visibility = ["//:__subpackages__"],
     deps = [
         ":app",
+        "//services:services",
+        "//services/stargazer",
         "@pip//httpx",
         "@pip//opentelemetry_api",
         "@pip//opentelemetry_exporter_otlp_proto_grpc",

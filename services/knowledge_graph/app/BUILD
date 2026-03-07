@@ -121,6 +121,11 @@ py_venv_binary(
     name = "scraper",
     main = "scraper_main.py",
     visibility = ["//:__subpackages__"],
+    deps = [
+        ":scraper_main",
+        "//services:services",
+        "//services/knowledge_graph",
+    ],
 )
 
 py_library(
@@ -141,6 +146,11 @@ py_venv_binary(
     name = "embedder",
     main = "embedder_main.py",
     visibility = ["//:__subpackages__"],
+    deps = [
+        ":embedder_main",
+        "//services:services",
+        "//services/knowledge_graph",
+    ],
 )
 
 py_library(
@@ -162,6 +172,11 @@ py_venv_binary(
     name = "mcp",
     main = "mcp_main.py",
     visibility = ["//:__subpackages__"],
+    deps = [
+        ":mcp_main",
+        "//services:services",
+        "//services/knowledge_graph",
+    ],
 )
 
 semgrep_test(
