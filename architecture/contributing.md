@@ -54,6 +54,9 @@ This is a GitOps monorepo where related code and deployment configuration live t
 │    - ../../overlays/prod                                             │
 │    - ../../overlays/dev                                              │
 │                                                                      │
+│  The "canada" Application is the root app-of-apps.                   │
+│  It references all three environment overlays:                       │
+│                                                                      │
 │  ArgoCD runs "kustomize build" on these paths and discovers          │
 │  all Application manifests                                           │
 └────────────────────────────────┬────────────────────────────────────┘

@@ -58,6 +58,7 @@ This cluster implements five layers of security:
 │  - OnePasswordItem CRDs sync secrets into Kubernetes                 │
 │  - No secrets in Git or container images                             │
 │  - Automatic secret rotation support                                 │
+│  - Installed via Helm outside ArgoCD (only non-GitOps component)     │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
