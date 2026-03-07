@@ -21,9 +21,3 @@ bzl_library(
     srcs = ["multiarch_http_archive.bzl"],
     visibility = ["//visibility:public"],
 )
-
-bzl_library(
-    name = "npm_package_tar",
-    srcs = ["npm_package_tar.bzl"],
-    visibility = ["//visibility:public"],
-)

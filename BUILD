@@ -31,15 +31,6 @@ js_library(
     deps = [],
 )
 
-# Code TUI
-js_library(
-    name = "opencode",
-    visibility = ["//visibility:public"],
-    deps = [
-        ":node_modules/opencode-ai",
-    ],
-)
-
 exports_files(
     [
         ".shellcheckrc",
