@@ -157,7 +157,7 @@ signoz:
     resources:
       requests:
         cpu: 2
-        memory: 3Gi
+        memory: 5Gi
       limits:
         cpu: 4
         memory: 8Gi
