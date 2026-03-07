@@ -30,3 +30,9 @@ ADRs document significant architectural decisions and their context.
 | ADR | Decision |
 |-----|----------|
 | [001 - Bazel Semgrep](security/001-bazel-semgrep.md) | Semgrep SAST integrated via Bazel rules |
+
+## Tooling
+
+| ADR | Decision |
+|-----|----------|
+| [001 - OCI Tool Distribution](tooling/001-oci-tool-distribution.md) | Multi-arch OCI image for developer tools, eliminating local Bazel |
