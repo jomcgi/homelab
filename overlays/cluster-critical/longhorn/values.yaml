@@ -15,3 +15,6 @@ longhorn:
     # Options: "disabled", "least-effort", "best-effort"
     # "best-effort" = Active rebalancing to distribute replicas evenly
     replicaAutoBalance: "best-effort"
+
+    # Default to single replica for homelab workloads
+    defaultReplicaCount: 1
