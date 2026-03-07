@@ -43,7 +43,7 @@ spec:
               protocol: TCP
           startupProbe:
             exec:
-              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}]
+              command: ["pg_isready", "-U", {{ .Values.postgres.user | quote }}, "-d", {{ .Values.postgres.database | quote }}]
             initialDelaySeconds: 3
             periodSeconds: 3
             failureThreshold: 10
