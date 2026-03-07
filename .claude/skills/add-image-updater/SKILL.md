@@ -281,11 +281,37 @@ After creating the ImageUpdater:
    kubectl get imageupdater -n argocd
    ```
 
+## Critical: Seed the Write-Back Target
+
+The overlay `values.yaml` **must contain a valid YAML mapping** with the image keys before the image updater can write to it. If the file is empty or contains only comments, the updater will fail with:
+
+```
+failed to set image parameter version value: unexpected type  for root
+```
+
+When creating an image updater, always ensure the overlay `values.yaml` includes the image structure that matches the `manifestTargets.helm` paths:
+
+```yaml
+# Example: for helm.name=image.repository and helm.tag=image.tag
+image:
+  repository: ghcr.io/jomcgi/homelab/charts/myapp
+  tag: main
+
+# Example: for helm.name=sandboxTemplate.image.repository
+sandboxTemplate:
+  image:
+    repository: ghcr.io/jomcgi/homelab/goose-agent
+    tag: main
+```
+
+The updater will then overwrite the `tag` value with the digest-pinned version on each update cycle.
+
 ## Troubleshooting
 
 | Issue                     | Solution                                                              |
 | ------------------------- | --------------------------------------------------------------------- |
 | Image not updating        | Check `namePattern` matches ArgoCD Application name exactly           |
 | Git write-back fails      | Verify `argocd-image-updater-token` secret exists in argocd namespace |
+| `unexpected type for root`| Overlay `values.yaml` is empty — seed it with the image key structure |
 | Wrong values file updated | Check `writeBackTarget` relative path is correct                      |
 | Digest not changing       | Ensure CI is pushing to the correct image tag (`:main`)               |

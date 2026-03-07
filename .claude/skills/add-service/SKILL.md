@@ -99,11 +99,13 @@ resources:
 
 ### values.yaml Template
 
+**Important:** If you plan to add an image updater (via `/add-image-updater`), the `image` keys must be **uncommented** — not just present as comments. The image updater's git write-back fails on empty YAML files. Always seed the values with the actual image config.
+
 ```yaml
 # {Environment} values for {service}
 # Override chart defaults here
 
-# Example: Image configuration
+# Image configuration — uncomment if using /add-image-updater
 # image:
 #   repository: ghcr.io/jomcgi/homelab/services/{service}
 #   tag: main
