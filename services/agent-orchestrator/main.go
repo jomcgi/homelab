@@ -30,6 +30,7 @@ func main() {
 	sandboxNamespace := envOr("SANDBOX_NAMESPACE", "goose-sandboxes")
 	sandboxTemplate := envOr("SANDBOX_TEMPLATE", "goose-agent")
 	maxRetries, _ := strconv.Atoi(envOr("MAX_RETRIES", "2"))
+	maxConcurrent, _ := strconv.Atoi(envOr("MAX_CONCURRENT", "3"))
 	httpPort := envOr("HTTP_PORT", "8080")
 	_ = maxRetries // reserved for future per-consumer override
 
@@ -78,7 +79,7 @@ func main() {
 		Name:          "orchestrator",
 		Durable:       "orchestrator",
 		AckPolicy:     jetstream.AckExplicitPolicy,
-		MaxAckPending: 1,
+		MaxAckPending: maxConcurrent,
 	})
 	if err != nil {
 		logger.Error("failed to create consumer", "error", err)

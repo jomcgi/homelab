@@ -46,6 +46,8 @@ spec:
           value: {{ .Values.config.sandboxTemplate | quote }}
         - name: MAX_RETRIES
           value: {{ .Values.config.maxRetries | quote }}
+        - name: MAX_CONCURRENT
+          value: {{ .Values.config.maxConcurrent | quote }}
         - name: HTTP_PORT
           value: {{ .Values.config.httpPort | quote }}
         livenessProbe:
