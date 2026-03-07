@@ -83,8 +83,15 @@ def _detect_branch() -> str:
 
 
 def _detect_semgrep_version() -> str:
-    """Return the pinned semgrep version matching requirements/all.txt."""
-    return "1.153.1"
+    """Return the semgrep engine version from the environment or a fallback.
+
+    The SEMGREP_ENGINE_VERSION env var is set by the test runner from the actual
+    semgrep-core binary's -version output. Falls back to a static version if
+    the env var is not set (e.g., when invoked outside the test runner).
+    """
+    import os
+
+    return os.environ.get("SEMGREP_ENGINE_VERSION", "1.153.1")
 
 
 def main() -> None:
