@@ -42,8 +42,10 @@ var sandboxGVR = schema.GroupVersionResource{
 	Resource: "sandboxes",
 }
 
-var issueFlag int
-var profileFlag string
+var (
+	issueFlag   int
+	profileFlag string
+)
 
 var validProfiles = map[string]string{
 	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
