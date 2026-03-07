@@ -14,7 +14,7 @@ config:
   # OAuth scopes to request from Google
   SCOPES_SUPPORTED: "openid,email,profile"
   # Upstream MCP server URL (Context Forge ClusterIP)
-  MCP_SERVER_URL: "http://context-forge-mcp-stack-mcpgateway.mcp-gateway.svc.cluster.local:80/mcp/"
+  MCP_SERVER_URL: "http://context-forge-mcp-stack-mcpgateway.mcp-gateway.svc.cluster.local:80"
 
 # 1Password secret — provides OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, ENCRYPTION_KEY
 secret:
