@@ -19,11 +19,11 @@ const (
 
 // API provides HTTP handlers for the job orchestration service.
 type API struct {
-	store            Store
-	publish          func(jobID string) error // publishes job ID to JetStream, nil = no-op
-	healthCheck      func() error             // checks backing store connectivity
+	store             Store
+	publish           func(jobID string) error // publishes job ID to JetStream, nil = no-op
+	healthCheck       func() error             // checks backing store connectivity
 	defaultMaxRetries int
-	logger           *slog.Logger
+	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
