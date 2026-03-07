@@ -93,15 +93,15 @@ PATH_add "$TOOLS_DIR/bin"
 
 The `.tools/` directory is gitignored. Tools are refreshed daily or on demand.
 
-### Goose Integration
+### Agent Integration
 
-The Goose agent image (`charts/goose-agent/image/apko.yaml`) currently packages its own tools. Two options:
+The tools image includes Claude Code, making it a viable base for in-cluster agents. Two integration paths:
 
-**Option A — Multi-stage copy:** The goose-agent apko image copies binaries from the tools image. Tool versions are guaranteed identical because they come from the same source.
+**Option A — Tools image as agent base:** The `homelab-tools` image already contains `node`, `pnpm`, `go`, `git`, `gh`, and `claude`. An in-cluster agent pod mounts the repo, injects a `CLAUDE_AUTH_TOKEN` via `OnePasswordItem`, and runs `claude` directly. This could replace Goose entirely — Claude Code natively understands the repo's skills, hooks, and CLAUDE.md.
 
-**Option B — Base image:** The goose-agent image uses `homelab-tools` as its base, adding goose-specific packages on top.
+**Option B — Shared tools, separate agent image:** Keep a separate agent image but copy tools from `homelab-tools` to guarantee version parity. Agent-specific packages (e.g., Goose runtime) are added on top.
 
-Option A is preferred — it's more explicit and doesn't couple the goose image lifecycle to the tools image.
+Option A is preferred — it eliminates the Goose ↔ LiteLLM ↔ Claude indirection and lets in-cluster agents use the exact same tool that local development uses.
 
 ### Remote Execution Workflow
 
@@ -207,11 +207,13 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 - [ ] Add PreToolUse hook to block local `bazel build/test/run` commands (redirect to push + trigger)
 - [ ] Verify `bb query` works remotely for common query patterns
 
-### Phase 5: Goose Convergence
+### Phase 5: In-Cluster Agent Convergence
 
-- [ ] Update `charts/goose-agent/image/apko.yaml` to copy tools from `homelab-tools` image
-- [ ] Remove duplicated tool packages from goose-agent apko config
-- [ ] Verify Goose agent has identical tool versions to local dev
+- [ ] Create agent sandbox template that uses `homelab-tools` image directly with `claude` as entrypoint
+- [ ] Inject `CLAUDE_AUTH_TOKEN` via `OnePasswordItem` into agent pods
+- [ ] Configure `.claude/` settings for headless/non-interactive mode
+- [ ] Validate Claude Code runs in-cluster with MCP access to Context Forge (ClusterIP, no auth needed)
+- [ ] Evaluate whether Goose agent can be deprecated in favor of direct Claude Code execution
 
 ---
 
@@ -249,7 +251,7 @@ No deviations from `architecture/security.md`:
 
 4. **Transition period** — Should we support both `bazel_env` and OCI tools during migration, or cut over atomically? Parallel support avoids breakage but doubles maintenance.
 
-5. **Claude Code in-cluster auth** — Claude Code in the tools image enables in-cluster agents to use it directly (potentially replacing Goose). Auth would use `claude setup-token` with the existing `CLAUDE_AUTH_TOKEN` from the `OnePasswordItem`. Should in-cluster Claude Code use the existing LiteLLM proxy, or authenticate directly to Anthropic?
+5. **Claude Code in-cluster auth** — Claude Code authenticates directly to Anthropic via a token from `claude setup-token`, stored in a `OnePasswordItem`. Including Claude Code in the tools image enables in-cluster agents to run it directly (potentially replacing Goose), using the same token.
 
 6. **Claude Code version pinning** — Claude Code releases frequently. Should the tools image pin to a specific version (e.g., `@anthropic-ai/claude-code@1.x.y`), or track latest? Pinning avoids surprises but requires manual bumps. ArgoCD Image Updater can't help here since it's an npm package, not an image tag.
 
