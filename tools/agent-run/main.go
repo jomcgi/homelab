@@ -259,8 +259,10 @@ func execGoose(ctx context.Context, config *rest.Config, clientset kubernetes.In
 		VersionedParams(&corev1.PodExecOptions{
 			Container: "goose",
 			Command:   []string{"goose", "run", "--text", task},
+			Stdin:     true,
 			Stdout:    true,
 			Stderr:    true,
+			TTY:       true,
 		}, scheme.ParameterCodec)
 
 	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
@@ -269,8 +271,10 @@ func execGoose(ctx context.Context, config *rest.Config, clientset kubernetes.In
 	}
 
 	err = exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdin:  os.Stdin,
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
+		Tty:    true,
 	})
 	if err != nil {
 		// Extract exit code from exec error if possible.
