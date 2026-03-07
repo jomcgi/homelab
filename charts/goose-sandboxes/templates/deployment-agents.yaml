@@ -55,7 +55,14 @@ spec:
       containers:
         - name: goose
           image: "{{ $.Values.sandboxTemplate.image.repository }}:{{ $.Values.sandboxTemplate.image.tag }}"
-          command: ["goose", "run", "--text", "$(AGENT_PROMPT)"]
+          command: ["/bin/sh", "-c"]
+          args:
+            - |
+              while true; do
+                goose run --text "$AGENT_PROMPT"
+                echo "Agent exited, sleeping before restart..."
+                sleep ${AGENT_POLL_INTERVAL:-300}
+              done
           workingDir: /workspace/{{ $.Values.sandboxTemplate.env.repoName }}
           securityContext:
             runAsUser: 65532
@@ -71,6 +78,8 @@ spec:
                 configMapKeyRef:
                   name: agent-prompt-{{ $name }}
                   key: prompt
+            - name: AGENT_POLL_INTERVAL
+              value: {{ $agent.pollInterval | default 300 | quote }}
             - name: GOOSE_PROVIDER
               value: {{ $.Values.sandboxTemplate.env.gooseProvider }}
             - name: GOOSE_MODEL
