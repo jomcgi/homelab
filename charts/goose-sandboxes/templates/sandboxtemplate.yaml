@@ -51,7 +51,7 @@ spec:
           env:
             - name: GOOSE_PROVIDER
               value: {{ .Values.sandboxTemplate.env.gooseProvider }}
-            - name: OPENAI_BASE_URL
+            - name: OPENAI_HOST
               value: {{ .Values.sandboxTemplate.env.litellmBaseUrl }}
             - name: OPENAI_API_KEY
               valueFrom:
