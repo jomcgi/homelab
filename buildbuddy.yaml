@@ -33,12 +33,14 @@ actions:
           # Create a local bin dir with symlinks to Bazel-built tools
           TOOLS_BIN="$PWD/.ci-tools/bin"
           mkdir -p "$TOOLS_BIN"
-          for tool in ruff shfmt gofumpt buildifier prettier gazelle; do
+          for tool in ruff shfmt gofumpt buildifier prettier; do
             bin=$(find -L "$BAZEL_BIN" -name "$tool" -type f -perm /111 2>/dev/null | head -1)
             if [ -n "$bin" ]; then
               ln -sf "$bin" "$TOOLS_BIN/$tool"
             fi
           done
+          # gazelle_binary target produces "gazelle_binary" not "gazelle"
+          ln -sf "$BAZEL_BIN/gazelle_binary_/gazelle_binary" "$TOOLS_BIN/gazelle"
           export PATH="$TOOLS_BIN:$PATH"
 
           # Run standalone format
