@@ -37,7 +37,7 @@ var sandboxClaimGVR = schema.GroupVersionResource{
 }
 
 var sandboxGVR = schema.GroupVersionResource{
-	Group:    "extensions.agents.x-k8s.io",
+	Group:    "agents.x-k8s.io",
 	Version:  "v1alpha1",
 	Resource: "sandboxes",
 }
@@ -166,7 +166,10 @@ func resolveTask(args []string) (string, error) {
 	return strings.Join(args, " "), nil
 }
 
-// waitForPod watches SandboxClaims until one is bound and returns the pod name.
+// waitForPod watches SandboxClaims until one is bound and resolves the actual pod name.
+// The SandboxClaim status contains the Sandbox resource name, but when a pod is adopted
+// from the warm pool, the pod name differs from the sandbox name. The actual pod name
+// is stored in the Sandbox's agents.x-k8s.io/pod-name annotation.
 func waitForPod(ctx context.Context, client dynamic.Interface, claimName string) (string, error) {
 	timeout := 2 * time.Minute
 	ctx, cancel := context.WithTimeout(ctx, timeout)
@@ -184,8 +187,7 @@ func waitForPod(ctx context.Context, client dynamic.Interface, claimName string)
 			if sandbox != nil {
 				sandboxName, _ := sandbox["Name"].(string)
 				if sandboxName != "" {
-					// Use sandbox name as pod name (controller creates pod with same name).
-					return sandboxName, nil
+					return resolvePodName(ctx, client, sandboxName)
 				}
 			}
 		}
@@ -196,6 +198,25 @@ func waitForPod(ctx context.Context, client dynamic.Interface, claimName string)
 		case <-time.After(2 * time.Second):
 		}
 	}
+}
+
+// resolvePodName looks up the Sandbox resource and returns the pod name.
+// When the warm pool controller adopts a pod, the pod name is stored in
+// the agents.x-k8s.io/pod-name annotation. Otherwise the pod name matches
+// the sandbox name.
+func resolvePodName(ctx context.Context, client dynamic.Interface, sandboxName string) (string, error) {
+	sandbox, err := client.Resource(sandboxGVR).Namespace(namespace).Get(ctx, sandboxName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("getting Sandbox %s: %w", sandboxName, err)
+	}
+
+	annotations := sandbox.GetAnnotations()
+	if podName, ok := annotations["agents.x-k8s.io/pod-name"]; ok && podName != "" {
+		return podName, nil
+	}
+
+	// Fall back to sandbox name when no annotation is present (no warm pool).
+	return sandboxName, nil
 }
 
 // patchAgentTask sets the AGENT_TASK env var on the goose container via a strategic merge patch.
