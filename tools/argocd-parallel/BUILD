@@ -28,6 +28,7 @@ filegroup(
         "//overlays/dev/marine:render_manifests",
         "//overlays/dev/oci-model-cache:render_manifests",
         "//overlays/dev/stargazer:render_manifests",
+        "//overlays/prod/agent-orchestrator:render_manifests",
         "//overlays/prod/api-gateway:render_manifests",
         "//overlays/prod/cloudflare-tunnel:render_manifests",
         "//overlays/prod/context-forge:render_manifests",

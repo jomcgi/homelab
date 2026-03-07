@@ -13,6 +13,7 @@ multirun(
         "//operators/cloudflare:image.push",
         "//operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
         "//operators/oci-model-cache:image.push",
+        "//services/agent-orchestrator:image.push",
         "//services/ais_ingest:image.push",
         "//services/buildbuddy_mcp:image.push",
         "//services/grimoire/api:image.push",
