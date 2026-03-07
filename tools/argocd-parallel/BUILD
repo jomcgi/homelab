@@ -12,6 +12,7 @@ builds them in parallel with full caching support.
 filegroup(
     name = "render_all_parallel",
     srcs = [
+        "//overlays/cluster-critical/agent-sandbox:render_manifests",
         "//overlays/cluster-critical/argocd:render_manifests",
         "//overlays/cluster-critical/argocd-image-updater:render_manifests",
         "//overlays/cluster-critical/cert-manager:render_manifests",
@@ -32,8 +33,11 @@ filegroup(
         "//overlays/prod/context-forge:render_manifests",
         "//overlays/prod/gh-arc-controller:render_manifests",
         "//overlays/prod/gh-arc-runners:render_manifests",
+        "//overlays/prod/goose-sandboxes:render_manifests",
         "//overlays/prod/knowledge-graph:render_manifests",
+        "//overlays/prod/litellm:render_manifests",
         "//overlays/prod/llama-cpp:render_manifests",
+        "//overlays/prod/mcp-oauth-proxy:render_manifests",
         "//overlays/prod/mcp-servers:render_manifests",
         "//overlays/prod/nats:render_manifests",
         "//overlays/prod/seaweedfs:render_manifests",

@@ -5,6 +5,7 @@
 # Extensions configured:
 #   - developer (builtin): filesystem, shell, editor scoped to /workspace
 #   - context-forge (remote): SigNoz observability, ArgoCD, Kubernetes via MCP gateway
+#   - github (stdio): PR creation, issue reading via official GitHub MCP server
 extensions:
   developer:
     bundled: true
@@ -18,3 +19,14 @@ extensions:
     timeout: 300
     type: streamablehttp
     uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+  github:
+    enabled: true
+    name: github
+    timeout: 300
+    type: stdio
+    cmd: npx
+    args:
+      - -y
+      - "@modelcontextprotocol/server-github"
+    env_keys:
+      - GITHUB_TOKEN
