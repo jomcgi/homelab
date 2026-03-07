@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -32,14 +33,11 @@ func NewConsumer(cons jetstream.Consumer, store Store, sandbox *SandboxExecutor,
 // Run processes jobs until the context is cancelled.
 func (c *Consumer) Run(ctx context.Context) {
 	c.logger.Info("consumer started")
-	for {
-		select {
-		case <-ctx.Done():
-			c.logger.Info("consumer stopping")
-			return
-		default:
-		}
 
+	var wg sync.WaitGroup
+	defer wg.Wait() // Wait for in-flight jobs on shutdown
+
+	for {
 		msgs, err := c.cons.Fetch(1, jetstream.FetchMaxWait(30*time.Second))
 		if err != nil {
 			if ctx.Err() != nil {
@@ -50,7 +48,11 @@ func (c *Consumer) Run(ctx context.Context) {
 		}
 
 		for msg := range msgs.Messages() {
-			c.processJob(ctx, msg)
+			wg.Add(1)
+			go func() {
+				defer wg.Done()
+				c.processJob(ctx, msg)
+			}()
 		}
 
 		if err := msgs.Error(); err != nil {

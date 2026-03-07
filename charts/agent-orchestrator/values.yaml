@@ -51,6 +51,7 @@ config:
   sandboxNamespace: "goose-sandboxes"
   sandboxTemplate: "goose-agent"
   maxRetries: "2"
+  maxConcurrent: "3"
   httpPort: "8080"
 
 nodeSelector: {}
