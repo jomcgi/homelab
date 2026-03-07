@@ -4,6 +4,7 @@ kind: Kustomization
 namePrefix: prod-
 
 resources:
+  - ./agent-orchestrator
   - ./api-gateway
   - ./cloudflare-tunnel
   - ./context-forge
