@@ -138,6 +138,12 @@ func run(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("waiting for pod running: %w", err)
 	}
 
+	// Pull latest main so warm-pool pods have fresh code.
+	fmt.Println("Refreshing workspace to latest main...")
+	if err := refreshWorkspace(ctx, config, clientset, podName); err != nil {
+		return fmt.Errorf("refreshing workspace: %w", err)
+	}
+
 	// Exec goose in the sandbox pod and stream output.
 	fmt.Printf("Running goose task in %s...\n", podName)
 	exitCode, err := execGoose(ctx, config, clientset, podName, task)
@@ -247,6 +253,33 @@ func waitPodRunning(ctx context.Context, clientset kubernetes.Interface, podName
 		case <-time.After(2 * time.Second):
 		}
 	}
+}
+
+// refreshWorkspace pulls the latest main branch in the sandbox pod's workspace.
+// Warm-pool pods may have been created hours ago with a stale clone, so this
+// ensures goose always works against the latest code.
+func refreshWorkspace(ctx context.Context, config *rest.Config, clientset kubernetes.Interface, podName string) error {
+	req := clientset.CoreV1().RESTClient().Post().
+		Resource("pods").
+		Name(podName).
+		Namespace(namespace).
+		SubResource("exec").
+		VersionedParams(&corev1.PodExecOptions{
+			Container: "goose",
+			Command:   []string{"git", "-C", "/workspace/homelab", "pull", "--ff-only", "origin", "main"},
+			Stdout:    true,
+			Stderr:    true,
+		}, scheme.ParameterCodec)
+
+	exec, err := remotecommand.NewSPDYExecutor(config, "POST", req.URL())
+	if err != nil {
+		return fmt.Errorf("creating executor: %w", err)
+	}
+
+	return exec.StreamWithContext(ctx, remotecommand.StreamOptions{
+		Stdout: os.Stdout,
+		Stderr: os.Stderr,
+	})
 }
 
 // execGoose runs goose inside the sandbox pod via K8s exec and streams output.
