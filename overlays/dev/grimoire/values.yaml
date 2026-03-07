@@ -26,7 +26,7 @@ imagePullSecret:
 frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-frontend
-    tag: latest@sha256:c512f64d90f3602a7e824443b485eac31b03af22677f41dbbebca89d894f075b
+    tag: main@sha256:d244f33ff34b42bd230143cc800a736049019390e95bb139fdc2ddab40eacb8d
     pullPolicy: Always
 # WebSocket Gateway
 wsGateway:
@@ -36,5 +36,5 @@ wsGateway:
     instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
-    tag: main@sha256:5db1d583ef82edadef97e9cb4839c83918970ee4e6343ca62d0177959ad7092f
+    tag: latest@sha256:5db1d583ef82edadef97e9cb4839c83918970ee4e6343ca62d0177959ad7092f
     pullPolicy: Always
