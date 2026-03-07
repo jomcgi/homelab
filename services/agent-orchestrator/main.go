@@ -32,7 +32,6 @@ func main() {
 	maxRetries, _ := strconv.Atoi(envOr("MAX_RETRIES", "2"))
 	maxConcurrent, _ := strconv.Atoi(envOr("MAX_CONCURRENT", "3"))
 	httpPort := envOr("HTTP_PORT", "8080")
-	_ = maxRetries // reserved for future per-consumer override
 
 	inactivityTimeout, err := time.ParseDuration(envOr("JOB_INACTIVITY_TIMEOUT", "10m"))
 	if err != nil {
@@ -91,6 +90,7 @@ func main() {
 		Durable:       "orchestrator",
 		AckPolicy:     jetstream.AckExplicitPolicy,
 		MaxAckPending: maxConcurrent,
+		AckWait:       maxDuration + time.Minute,
 	})
 	if err != nil {
 		logger.Error("failed to create consumer", "error", err)
@@ -105,7 +105,7 @@ func main() {
 		k8sConfig = nil
 	}
 
-	store := NewJobStore(kv)
+	store := NewJobStore(kv, logger)
 
 	var sandbox *SandboxExecutor
 	if k8sConfig != nil {
@@ -126,7 +126,7 @@ func main() {
 		return err
 	}
 
-	api := NewAPI(store, publish, healthCheck, logger)
+	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 

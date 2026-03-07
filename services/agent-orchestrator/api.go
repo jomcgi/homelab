@@ -13,22 +13,22 @@ import (
 )
 
 const (
-	defaultMaxRetries = 2
-	maxMaxRetries     = 10
-	defaultSource     = "api"
+	maxMaxRetries = 10
+	defaultSource = "api"
 )
 
 // API provides HTTP handlers for the job orchestration service.
 type API struct {
-	store       Store
-	publish     func(jobID string) error // publishes job ID to JetStream, nil = no-op
-	healthCheck func() error             // checks backing store connectivity
-	logger      *slog.Logger
+	store            Store
+	publish          func(jobID string) error // publishes job ID to JetStream, nil = no-op
+	healthCheck      func() error             // checks backing store connectivity
+	defaultMaxRetries int
+	logger           *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -52,7 +52,7 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	maxRetries := defaultMaxRetries
+	maxRetries := a.defaultMaxRetries
 	if req.MaxRetries != nil {
 		maxRetries = *req.MaxRetries
 		if maxRetries < 0 {
@@ -69,8 +69,15 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	}
 
 	now := time.Now().UTC()
+	id, err := ulid.New(ulid.Timestamp(now), rand.Reader)
+	if err != nil {
+		a.logger.Error("failed to generate job ID", "error", err)
+		a.writeError(w, http.StatusInternalServerError, "failed to generate job ID")
+		return
+	}
+
 	job := &JobRecord{
-		ID:         ulid.MustNew(ulid.Timestamp(now), rand.Reader).String(),
+		ID:         id.String(),
 		Task:       req.Task,
 		Status:     JobPending,
 		CreatedAt:  now,
