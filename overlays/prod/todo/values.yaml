@@ -11,7 +11,7 @@ persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
 image:
-  tag: main@sha256:3c3afe7ebd8ac45fd08f61dcdac111700437b050d50b3708285d3a5c347585c8
+  tag: main@sha256:c0e79a78eedd5ab361aca49d98fec75e0e2de260e18c2805a685084ac06737ec
   repository: ghcr.io/jomcgi/homelab/charts/todo
 podAnnotations:
   instrumentation.opentelemetry.io/inject-go: "go"
