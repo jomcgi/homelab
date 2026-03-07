@@ -1,0 +1,6 @@
+imagePullSecret:
+  enabled: true
+
+image:
+  tag: main
+  repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
