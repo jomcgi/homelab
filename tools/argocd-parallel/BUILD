@@ -33,7 +33,6 @@ filegroup(
         "//overlays/prod/cloudflare-tunnel:render_manifests",
         "//overlays/prod/context-forge:render_manifests",
         "//overlays/prod/goose-sandboxes:render_manifests",
-        "//overlays/prod/knowledge-graph:render_manifests",
         "//overlays/prod/llama-cpp:render_manifests",
         "//overlays/prod/mcp-oauth-proxy:render_manifests",
         "//overlays/prod/mcp-servers:render_manifests",

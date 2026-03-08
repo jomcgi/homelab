@@ -13,7 +13,6 @@ instrumentation:
   namespaces:
     # Production
     - trips
-    - knowledge-graph
     - api-gateway
     - mcp-servers
     - todo
