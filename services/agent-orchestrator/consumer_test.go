@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	nats "github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -20,13 +21,13 @@ type fakeMsg struct {
 	data    []byte
 	acked   atomic.Bool
 	nacked  atomic.Bool
-	headers jetstream.Headers
+	headers nats.Header
 }
 
 func newFakeMsg(data []byte) *fakeMsg { return &fakeMsg{data: data} }
 
-func (m *fakeMsg) Data() []byte               { return m.data }
-func (m *fakeMsg) Headers() jetstream.Headers { return m.headers }
+func (m *fakeMsg) Data() []byte            { return m.data }
+func (m *fakeMsg) Headers() nats.Header   { return m.headers }
 func (m *fakeMsg) Ack() error                 { m.acked.Store(true); return nil }
 func (m *fakeMsg) Nak() error                 { m.nacked.Store(true); return nil }
 func (m *fakeMsg) NakWithDelay(_ time.Duration) error {

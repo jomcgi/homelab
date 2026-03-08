@@ -50,6 +50,7 @@ go_test(
     ],
     embed = [":agent-orchestrator_lib"],
     deps = [
+        "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
     ],
 )
