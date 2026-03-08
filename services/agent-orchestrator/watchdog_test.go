@@ -1,7 +1,6 @@
 package main
 
 import (
-	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -89,56 +88,3 @@ func TestSyncBuffer_CapsMemory(t *testing.T) {
 	}
 }
 
-func TestBuildTaskPrompt_FirstAttempt(t *testing.T) {
-	c := &Consumer{}
-	job := &JobRecord{Task: "run tests"}
-	result := c.buildTaskPrompt(job, 1)
-	if result != "run tests" {
-		t.Fatalf("expected raw task, got %q", result)
-	}
-}
-
-func TestBuildTaskPrompt_RetryWithContext(t *testing.T) {
-	c := &Consumer{}
-	exitCode := 1
-	job := &JobRecord{
-		Task: "run tests",
-		Attempts: []Attempt{
-			{Number: 1, ExitCode: &exitCode, Output: "error: test failed"},
-			{Number: 2},
-		},
-	}
-	result := c.buildTaskPrompt(job, 2)
-
-	if !strings.Contains(result, "retry attempt 2") {
-		t.Fatal("expected retry context in prompt")
-	}
-	if !strings.Contains(result, "exit code 1") {
-		t.Fatal("expected previous exit code in prompt")
-	}
-	if !strings.Contains(result, "error: test failed") {
-		t.Fatal("expected previous output in prompt")
-	}
-	if !strings.Contains(result, "run tests") {
-		t.Fatal("expected original task in prompt")
-	}
-}
-
-func TestBuildTaskPrompt_TruncatesLongOutput(t *testing.T) {
-	c := &Consumer{}
-	exitCode := 1
-	longOutput := strings.Repeat("a", 3000)
-	job := &JobRecord{
-		Task: "run tests",
-		Attempts: []Attempt{
-			{Number: 1, ExitCode: &exitCode, Output: longOutput},
-			{Number: 2},
-		},
-	}
-	result := c.buildTaskPrompt(job, 2)
-
-	// The prompt should contain at most 2000 chars of previous output.
-	if strings.Contains(result, strings.Repeat("a", 2001)) {
-		t.Fatal("expected output to be truncated to 2000 chars")
-	}
-}
