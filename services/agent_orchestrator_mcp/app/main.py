@@ -100,6 +100,50 @@ async def list_jobs(
     return await _request("GET", "/jobs", params=params)
 
 
+@mcp.tool
+async def get_job(job_id: str) -> dict:
+    """Get a single agent job with full details and attempt history.
+
+    Returns the complete job record including task, status, profile,
+    retry config, and all execution attempts with their output and
+    exit codes.
+
+    Args:
+        job_id: The job ID (26-character ULID returned by submit_job).
+    """
+    return await _request("GET", f"/jobs/{job_id}")
+
+
+@mcp.tool
+async def cancel_job(job_id: str) -> dict:
+    """Cancel a pending or running agent job.
+
+    Only jobs in PENDING or RUNNING status can be cancelled.
+    Returns 409 Conflict if the job is already in a terminal state
+    (SUCCEEDED, FAILED, or CANCELLED).
+
+    Args:
+        job_id: The job ID to cancel.
+    """
+    return await _request("POST", f"/jobs/{job_id}/cancel")
+
+
+@mcp.tool
+async def get_job_output(job_id: str) -> dict:
+    """Get the output from a job's latest execution attempt.
+
+    Returns the last 32KB of stdout/stderr from the most recent attempt.
+    For full output, check pod logs via SigNoz.
+
+    The truncated field indicates whether the output was trimmed to fit
+    the 32KB KV store limit.
+
+    Args:
+        job_id: The job ID to get output for.
+    """
+    return await _request("GET", f"/jobs/{job_id}/output")
+
+
 def main():
     settings = Settings()
     configure(settings)
