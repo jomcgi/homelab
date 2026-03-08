@@ -1,0 +1,30 @@
+# Envoy Gateway cluster-specific overrides
+
+gateway-helm:
+  deployment:
+    envoyGateway:
+      # Keep control plane alive under node pressure
+      priorityClassName: system-cluster-critical
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+  config:
+    envoyGateway:
+      provider:
+        type: Kubernetes
+        kubernetes:
+          envoyDeployment:
+            # Conservative data-plane resources for a 5-node homelab
+            container:
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi

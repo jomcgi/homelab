@@ -1,0 +1,10 @@
+{{- /*
+ReferenceGrants are NOT needed for this chart's current design.
+
+HTTPRoutes are placed in the same namespace as their backend Services, so
+cross-namespace backendRefs are not used. The Gateway accepts routes from all
+namespaces via allowedRoutes.namespaces.from: All, which does not require a
+ReferenceGrant.
+
+This file is intentionally empty and kept as a placeholder.
+*/}}

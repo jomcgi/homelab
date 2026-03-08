@@ -8,8 +8,18 @@ namespace:
 
 ingress:
   routes:
+    # Phase 1: pilot routes now flow through Envoy Gateway.
+    # Envoy Gateway creates a Service named envoy-{gateway-namespace}-{gateway-name}
+    # in the envoy-gateway-system namespace for each Gateway resource.
+    # For Gateway "homelab-gateway" in namespace "gateway" this resolves to:
+    #   envoy-gateway-homelab-gateway.envoy-gateway-system.svc.cluster.local:80
+    # NOTE: confirm exact service name after first Envoy Gateway sync — it may include
+    # a UID suffix in older EG versions. Check with:
+    #   kubectl get svc -n envoy-gateway-system
     - hostname: argocd.jomcgi.dev
-      service: http://argocd-server.argocd.svc.cluster.local:80
+      service: http://envoy-gateway-homelab-gateway.envoy-gateway-system.svc.cluster.local:80
+    - hostname: signoz.jomcgi.dev
+      service: http://envoy-gateway-homelab-gateway.envoy-gateway-system.svc.cluster.local:80
     - hostname: longhorn.jomcgi.dev
       service: http://longhorn-frontend.longhorn.svc.cluster.local:80
     - hostname: mcp.jomcgi.dev
@@ -18,8 +28,6 @@ ingress:
       service: http://n8n.n8n.svc.cluster.local:80
     - hostname: feeds.jomcgi.dev
       service: http://freshrss.freshrss.svc.cluster.local:80
-    - hostname: signoz.jomcgi.dev
-      service: http://signoz.signoz.svc.cluster.local:8080
     # Shared image hosting (projects use /project-name/ prefix)
     - hostname: img.jomcgi.dev
       service: http://trips-nginx.trips.svc.cluster.local:80

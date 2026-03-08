@@ -1,0 +1,21 @@
+# Envoy Gateway default values
+# Environment-specific overrides live in overlays/<env>/envoy/values.yaml
+
+gateway-helm:
+  # Deploy the Envoy Gateway control plane
+  deployment:
+    envoyGateway:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+
+  # Default Envoy proxy (data plane) resource limits
+  # Can be overridden per-GatewayClass via EnvoyProxy CRD
+  config:
+    envoyGateway:
+      provider:
+        type: Kubernetes

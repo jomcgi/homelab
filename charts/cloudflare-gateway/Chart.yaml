@@ -1,0 +1,11 @@
+apiVersion: v2
+name: cloudflare-gateway
+description: Gateway API resources (GatewayClass, Gateway, HTTPRoutes) for Envoy Gateway-based ingress routing
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
+
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

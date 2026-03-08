@@ -1,0 +1,38 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: envoy-gateway
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    targetRevision: HEAD
+    path: charts/envoy-gateway
+    helm:
+      valueFiles:
+        - values.yaml
+        - ../../overlays/cluster-critical/envoy/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: envoy-gateway-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    managedNamespaceMetadata:
+      annotations:
+        # Disable Linkerd sidecar injection — iptables transparent proxy rules
+        # interfere with QUIC/UDP conntrack flows (same issue seen with cloudflare-tunnel).
+        linkerd.io/inject: disabled
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m

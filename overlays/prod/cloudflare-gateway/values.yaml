@@ -1,0 +1,28 @@
+# Production Gateway API resources for Phase 1 pilot routes
+
+gatewayClass:
+  name: homelab
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+
+gateway:
+  name: homelab-gateway
+  namespace: gateway
+  listener:
+    port: 80
+
+# Phase 1 pilot routes — migrated through Envoy Gateway.
+# HTTPRoutes are placed in the same namespace as their backend Service to avoid
+# cross-namespace backendRefs (and thus avoid needing ReferenceGrants).
+# The Gateway accepts routes from all namespaces via allowedRoutes.namespaces.from: All.
+routes:
+  - name: argocd
+    hostname: argocd.jomcgi.dev
+    backendNamespace: argocd
+    backendService: argocd-server
+    backendPort: 80
+
+  - name: signoz
+    hostname: signoz.jomcgi.dev
+    backendNamespace: signoz
+    backendService: signoz
+    backendPort: 8080
