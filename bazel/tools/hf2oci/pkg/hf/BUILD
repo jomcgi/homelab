@@ -7,7 +7,7 @@ go_library(
         "parallel.go",
         "types.go",
     ],
-    importpath = "github.com/jomcgi/homelab/tools/hf2oci/pkg/hf",
+    importpath = "github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf",
     visibility = ["//visibility:public"],
 )
 

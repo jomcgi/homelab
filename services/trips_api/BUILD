@@ -70,19 +70,19 @@ py_library(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "trips_api_test_semgrep_test",
     srcs = ["trips_api_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_target_test(
     name = "main_semgrep_test",
     lockfiles = ["//requirements:all.txt"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
+    sca_rules = ["//semgrep_rules:sca_python_rules"],
     target = ":main",
 )

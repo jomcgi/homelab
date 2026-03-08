@@ -58,21 +58,21 @@ semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
     exclude_rules = ["no-requests"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "update_test_semgrep_test",
     srcs = ["update_test.py"],
     exclude_rules = ["no-requests"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_target_test(
     name = "update_semgrep_test",
     exclude_rules = ["no-requests"],
     lockfiles = ["//requirements:all.txt"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
+    sca_rules = ["//semgrep_rules:sca_python_rules"],
     target = ":update",
 )

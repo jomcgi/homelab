@@ -9,7 +9,7 @@ go_library(
         "types.go",
         "write.go",
     ],
-    importpath = "github.com/jomcgi/homelab/tools/hf2oci/pkg/gguf",
+    importpath = "github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/gguf",
     visibility = ["//visibility:public"],
 )
 
