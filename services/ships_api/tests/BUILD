@@ -81,10 +81,12 @@ semgrep_test(
 py_test(
     name = "ships_api_test",
     srcs = ["ships_api_test.py"],
+    imports = [".."],
     deps = [
         ":conftest",
         "//services/ships_api:ships-api",
         "@pip//fastapi",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
     ],
 )
