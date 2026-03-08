@@ -25,8 +25,11 @@ from fastapi import (
     UploadFile,
     File,
     Header,
+    Depends,
+    Security,
 )
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security.api_key import APIKeyHeader
 from pydantic import BaseModel
 
 # Configure logging
@@ -39,6 +42,24 @@ CORS_ORIGINS = os.getenv(
     "CORS_ORIGINS", "http://localhost:5173,http://localhost:3000"
 ).split(",")
 TRIP_API_KEY = os.getenv("TRIP_API_KEY", "")
+
+# API key authentication
+_api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+
+async def require_api_key(api_key: str = Security(_api_key_header)) -> str:
+    """Validate the X-API-Key header against the configured TRIP_API_KEY.
+
+    When TRIP_API_KEY is empty (e.g. local dev), auth is disabled and all
+    requests are allowed through. When it is set, every request must supply
+    a matching X-API-Key header or receive a 401.
+    """
+    if not TRIP_API_KEY:
+        # Auth not configured — allow through (dev / test mode).
+        return ""
+    if api_key == TRIP_API_KEY:
+        return api_key
+    raise HTTPException(status_code=401, detail="Invalid or missing API key")
 
 
 class TripPoint(BaseModel):
@@ -337,14 +358,18 @@ async def health():
 
 
 @app.get("/api/points")
-async def get_points(limit: Optional[int] = None, offset: int = 0):
+async def get_points(
+    limit: Optional[int] = None,
+    offset: int = 0,
+    _: str = Depends(require_api_key),
+):
     """Get all trip points with optional pagination."""
     points = state.get_points(limit=limit, offset=offset)
     return {"points": [p.model_dump() for p in points], "total": len(state.points)}
 
 
 @app.get("/api/points/{point_id}")
-async def get_point(point_id: str):
+async def get_point(point_id: str, _: str = Depends(require_api_key)):
     """Get a single point by ID."""
     point = state.get_point(point_id)
     if not point:
@@ -353,7 +378,7 @@ async def get_point(point_id: str):
 
 
 @app.get("/api/stats")
-async def get_stats():
+async def get_stats(_: str = Depends(require_api_key)):
     """Get trip statistics."""
     return state.get_stats()
 
