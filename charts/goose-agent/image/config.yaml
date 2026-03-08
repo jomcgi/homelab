@@ -19,6 +19,8 @@ extensions:
     timeout: 300
     type: streamable_http
     uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+    headers:
+      Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
   github:
     enabled: true
     name: github
