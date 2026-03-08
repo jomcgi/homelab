@@ -12,7 +12,7 @@ embedder:
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder
 mcp:
   image:
-    tag: main@sha256:8e1c0d05fb9cdbe5c0954d953375000520e2fa447a44eab8ecc03e226645bd59
+    tag: main@sha256:e711fedbe73ce35d7966238e36abe5e89c7652b290bcee6ac0ba683e70b20a7d
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
