@@ -1,4 +1,4 @@
-# gazelle:python_generation_mode none
+# gazelle:exclude python_deps.py
 
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
