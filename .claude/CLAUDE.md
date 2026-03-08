@@ -102,7 +102,7 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Cluster Investigation
 
-**MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools.
+**MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools. Tool names below are shortened — actual IDs have the `mcp__context-forge__` prefix (e.g., `mcp__context-forge__kubernetes-mcp-resources-list`).
 
 | Need                 | Tool                                                                                        |
 | -------------------- | ------------------------------------------------------------------------------------------- |
@@ -148,14 +148,16 @@ ArgoCD syncs from `clusters/homelab/kustomization.yaml` → environment overlays
 
 CI uses **BuildBuddy Workflows** (not GitHub Actions). Defined in `buildbuddy.yaml`.
 
+All builds run **remotely** via BuildBuddy RBE — `bazel`/`bazelisk` is aliased to the BuildBuddy CLI (`bb`).
+
 Runs on every push/PR:
 
-- **Format check** — formatters + gazelle, verifies no uncommitted changes
+- **Format check** — standalone formatters + gazelle, auto-commits fixes on PR branches (as `ci-format-bot`)
 - **Test and push** — `bazel test //...`, pushes images on main branch
 
 Debug CI failures: use `/buildbuddy` skill or reproduce locally with `bazel test //... --config=ci`
 
-Static sites deploy via `.github/workflows/cf-pages-*.yaml` (requires self-hosted runners).
+Static sites deploy via `bazel run //websites:push_all_pages` on main branch (BuildBuddy CI).
 
 ## Anti-Patterns
 

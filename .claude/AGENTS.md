@@ -495,7 +495,7 @@ For resource state not available in SigNoz, use Kubernetes MCP tools (`ToolSearc
 Kyverno policies automatically inject OpenTelemetry instrumentation:
 
 - Pods in labeled namespaces get OTEL sidecars injected
-- Check policy: `kubectl describe clusterpolicy inject-otel-instrumentation`
+- Check policy: `kubernetes-mcp-resources-get` clusterpolicy `inject-otel-instrumentation`
 
 ### Key Patterns
 
@@ -601,12 +601,12 @@ Linkerd service mesh specialist for the mesh running in `cluster-critical`.
 
 ### Common Issues
 
-| Symptom                   | Check                                  | Common Cause                         |
-| ------------------------- | -------------------------------------- | ------------------------------------ |
-| Proxy not injected        | `kubectl get ns -L linkerd.io/inject`  | Namespace missing annotation         |
-| Connection refused        | Proxy logs + `kubectl get endpoints`   | Service not in mesh or port mismatch |
-| TLS handshake errors      | Proxy logs for both sides              | Identity certificate issues          |
-| High latency through mesh | `kubectl top pods` on proxy containers | Proxy resource limits too low        |
+| Symptom                   | Check                                                          | Common Cause                         |
+| ------------------------- | -------------------------------------------------------------- | ------------------------------------ |
+| Proxy not injected        | `kubernetes-mcp-resources-list`: namespaces                    | Namespace missing annotation         |
+| Connection refused        | `kubernetes-mcp-pods-log` + `kubernetes-mcp-resources-get`     | Service not in mesh or port mismatch |
+| TLS handshake errors      | `kubernetes-mcp-pods-log` for both sides                       | Identity certificate issues          |
+| High latency through mesh | `kubernetes-mcp-pods-top` on proxy containers                  | Proxy resource limits too low        |
 
 ### Common Mistakes to Avoid
 
