@@ -41,12 +41,12 @@ Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI i
 
 ### OCI Tools Image
 
-A single multi-arch (x86_64 + aarch64) OCI image containing all developer tools:
+A single multi-arch (x86_64 + aarch64) OCI image containing all developer tools. Wolfi packages install to standard paths (`/usr/bin/`, `/usr/lib/`), and the full image filesystem is extracted locally — no symlink indirection layer.
 
 ```
 ghcr.io/jomcgi/homelab-tools:latest
 
-/tools/bin/
+/usr/bin/
 ├── helm              # Helm CLI (from multitool)
 ├── crane             # OCI image tool (from multitool)
 ├── kind              # Local K8s clusters (from multitool)
@@ -57,7 +57,8 @@ ghcr.io/jomcgi/homelab-tools:latest
 ├── go                # Go toolchain
 ├── node              # Node.js runtime
 ├── pnpm              # Node package manager
-├── python            # Python runtime
+├── python3           # Python runtime (+ stdlib in /usr/lib/python3.x/)
+├── prettier          # Code formatter (symlink → /usr/local/lib/node_modules/prettier/)
 ├── bb                # BuildBuddy CLI (for remote query/execution)
 ├── scaffold          # Scaffold code generator
 ├── copier            # Project templating
@@ -65,6 +66,8 @@ ghcr.io/jomcgi/homelab-tools:latest
 ```
 
 Built via apko (consistent with all other images in the repo), pushed to GHCR on every merge to main.
+
+**Why full extraction instead of a symlink layer:** Earlier designs created a `/tools/bin/` directory with symlinks to `/usr/bin/` and extracted only that subtree. This broke on macOS — the symlinks resolved to the host's `/usr/bin/` (e.g., Xcode shims) instead of the image's binaries. Extracting the full filesystem avoids this entirely. Tools like Python also depend on their stdlib (`/usr/lib/python3.x/`), which only works when the full image is present.
 
 Claude Code is included as a first-class tool — it's installed via `pnpm add -g @anthropic-ai/claude-code` during the image build. This gives:
 - **Pinned versions** across local dev, CI, and in-cluster agents
@@ -78,20 +81,21 @@ Local development is macOS-only, so the bootstrap assumes `crane` is available (
 Local `.envrc` replaces the `bazel_env` integration:
 
 ```bash
-TOOLS_IMAGE="ghcr.io/jomcgi/homelab-tools:latest"
 TOOLS_DIR="$PWD/.tools"
-
-# Pull tools if missing or stale (>24h)
-if [[ ! -d "$TOOLS_DIR/bin" || ! -f "$TOOLS_DIR/.pulled" || $(find "$TOOLS_DIR/.pulled" -mtime +1 -print -quit 2>/dev/null) ]]; then
-  echo "Pulling developer tools from $TOOLS_IMAGE..."
-  mkdir -p "$TOOLS_DIR"
-  crane export "$TOOLS_IMAGE" - | tar -xf - -C "$TOOLS_DIR" tools/
-  mv "$TOOLS_DIR/tools/"* "$TOOLS_DIR/bin/" 2>/dev/null || true
-  touch "$TOOLS_DIR/.pulled"
+if [[ ! -d "$TOOLS_DIR/usr/bin" ]]; then
+  log_error "Run './bootstrap.sh' to install dev tools"
+else
+  PATH_add "$TOOLS_DIR/usr/bin"
 fi
-
-PATH_add "$TOOLS_DIR/bin"
 ```
+
+`bootstrap.sh` extracts the full image filesystem into `.tools/`:
+
+```bash
+crane export "$TOOLS_IMAGE" - | tar -xf - -C "$TOOLS_DIR"
+```
+
+No `--strip-components`, no path filtering. The image's `/usr/bin/go` becomes `.tools/usr/bin/go`, and the full dependency tree (stdlib, shared libs) is preserved at relative paths.
 
 The `.tools/` directory is gitignored. Tools are refreshed daily or on demand.
 
@@ -180,18 +184,18 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 
 ### Phase 1: OCI Tools Image
 
-- [ ] Create `tools/image/apko.yaml` with all tools currently in `bazel_env` plus missing tools (`gh`, `ruff`, `shellcheck`, `eslint`)
+- [x] Create `tools/image/apko.yaml` with all tools currently in `bazel_env` plus missing tools (`gh`, `ruff`, `shellcheck`, `eslint`)
 - [ ] Include custom Go binaries (`agent-run`, `hf2oci`) — built in CI, copied into image
-- [ ] Create `tools/image/BUILD` with apko build + push rules
+- [x] Create `tools/image/BUILD` with apko build + push rules (no symlink layer — full image extraction)
 - [ ] Add `homelab-tools` image push to `buildbuddy.yaml` CI pipeline (push on main)
 - [ ] Add ArgoCD Image Updater config for automatic digest updates
 - [ ] Verify multi-arch (x86_64 + aarch64) build works
 
 ### Phase 2: Local Bootstrap
 
-- [ ] Update `.envrc` to pull tools via `crane export` instead of `bazel_env`
+- [x] Update `.envrc` to PATH_add `.tools/usr/bin` (full image extraction, no symlink indirection)
 - [ ] Add `.tools/` to `.gitignore`
-- [ ] Create `bootstrap.sh` — macOS-only script that installs `crane` via Homebrew and pulls tools image
+- [x] Create `bootstrap.sh` — extracts full image filesystem via `crane export` (no path filtering)
 - [ ] Update `README.bazel.md` to reflect new workflow
 - [ ] Remove `bazel_env` rule from `tools/BUILD` (or deprecate)
 

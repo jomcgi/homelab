@@ -256,22 +256,22 @@
       },
       {
         "name": "libacl1",
-        "url": "https://packages.wolfi.dev/os/x86_64/libacl1-2.3.2-r54.apk",
-        "version": "2.3.2-r54",
+        "url": "https://packages.wolfi.dev/os/x86_64/libacl1-2.3.2-r55.apk",
+        "version": "2.3.2-r55",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6706",
-          "checksum": "sha1-/JQZFaXMysggjQNmeOUav7xEqg4="
+          "range": "bytes=0-7702",
+          "checksum": "sha1-yPga0Q7H2gxy18ZuQTovdIHWQvY="
         },
         "data": {
-          "range": "bytes=6707-27429",
-          "checksum": "sha256-rOp5f+h5E6s7DdUX6BeqG0YfawO1QKF2UTSWeAAmyHw="
+          "range": "bytes=7703-28751",
+          "checksum": "sha256-0/eSvAC2Htvs+FehVF8Wx4+mwO3cLJM3nJly2lJgEPg="
         },
-        "checksum": "Q1/JQZFaXMysggjQNmeOUav7xEqg4="
+        "checksum": "Q1yPga0Q7H2gxy18ZuQTovdIHWQvY="
       },
       {
         "name": "libattr1",
@@ -1700,22 +1700,22 @@
       },
       {
         "name": "libacl1",
-        "url": "https://packages.wolfi.dev/os/aarch64/libacl1-2.3.2-r54.apk",
-        "version": "2.3.2-r54",
+        "url": "https://packages.wolfi.dev/os/aarch64/libacl1-2.3.2-r55.apk",
+        "version": "2.3.2-r55",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-6757",
-          "checksum": "sha1-qmnLb5wi6lZi+6bgdN4YLtZD41w="
+          "range": "bytes=0-7755",
+          "checksum": "sha1-QuETN12TZyAYavvqfsBmZl9q4Bc="
         },
         "data": {
-          "range": "bytes=6758-28022",
-          "checksum": "sha256-l2VOV2JuxzxSMiV2ap5AHLMMzyTE4NT16gNF8W8UY1I="
+          "range": "bytes=7756-29382",
+          "checksum": "sha256-M4NWjimRiTyV0ZRBtBu7mgAQ6US97kwJjfeRVCFo27A="
         },
-        "checksum": "Q1qmnLb5wi6lZi+6bgdN4YLtZD41w="
+        "checksum": "Q1QuETN12TZyAYavvqfsBmZl9q4Bc="
       },
       {
         "name": "libattr1",

@@ -38,8 +38,8 @@ fi
 
 echo "Pulling developer tools from $TOOLS_IMAGE..."
 rm -rf "$TOOLS_DIR"
-mkdir -p "$TOOLS_DIR/bin"
-crane export "$TOOLS_IMAGE" - | tar -xf - -C "$TOOLS_DIR" --strip-components=1 tools/
+mkdir -p "$TOOLS_DIR"
+crane export "$TOOLS_IMAGE" - | tar -xf - -C "$TOOLS_DIR"
 echo "$REMOTE_DIGEST" >"$TOOLS_DIR/.digest"
 
 echo "Done. Run 'direnv allow' to add tools to your PATH."
