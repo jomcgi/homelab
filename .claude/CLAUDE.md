@@ -118,6 +118,7 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 | **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                 |
 | **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                            |
 | **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                        |
+| **Agent jobs**   | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
 
 ## Kubernetes Operations (kubectl)
 
