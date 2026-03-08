@@ -9,31 +9,22 @@ import (
 	"time"
 )
 
-func TestPatrolAgent_AnalyzesFindings(t *testing.T) {
-	llmServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := ChatCompletionResponse{
-			Choices: []Choice{{
-				Message: Message{
-					Content: `[{"action_type":"orchestrator_job","finding_fingerprint":"patrol:pod:default/bad:CrashLoopBackOff","severity":"critical"}]`,
-				},
-			}},
-		}
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer llmServer.Close()
+func TestPatrolAgent_AnalyzeConvertsAllFindingsToJobs(t *testing.T) {
+	patrol := NewPatrolAgent(nil, nil, 1*time.Hour)
 
-	findings := []Finding{{
-		Fingerprint: "patrol:pod:default/bad:CrashLoopBackOff",
-		Source:      "k8s:pod",
-		Severity:    SeverityCritical,
-		Title:       "Container CrashLoopBackOff",
-		Detail:      "default/bad container app is crash-looping",
-	}}
-
-	llm := NewLLMClient(llmServer.URL, "test-model")
-	patrol := &PatrolAgent{
-		llm:      llm,
-		interval: 5 * time.Minute,
+	findings := []Finding{
+		{
+			Fingerprint: "patrol.alert.1",
+			Severity:    SeverityCritical,
+			Title:       "Pod OOMKilled",
+			Data:        map[string]any{"rule_id": 1},
+		},
+		{
+			Fingerprint: "patrol.alert.2",
+			Severity:    SeverityWarning,
+			Title:       "High Error Rate",
+			Data:        map[string]any{"rule_id": 2},
+		},
 	}
 
 	actions, err := patrol.Analyze(context.Background(), findings)
@@ -41,10 +32,50 @@ func TestPatrolAgent_AnalyzesFindings(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if len(actions) == 0 {
-		t.Fatal("expected at least one action")
+	if len(actions) != 2 {
+		t.Fatalf("expected 2 actions, got %d", len(actions))
 	}
-	if actions[0].Type != ActionOrchestratorJob {
-		t.Errorf("expected orchestrator_job action, got %s", actions[0].Type)
+	for i, action := range actions {
+		if action.Type != ActionOrchestratorJob {
+			t.Errorf("action[%d]: expected orchestrator_job, got %s", i, action.Type)
+		}
+	}
+}
+
+func TestPatrolAgent_AnalyzeEmptyFindings(t *testing.T) {
+	patrol := NewPatrolAgent(nil, nil, 1*time.Hour)
+
+	actions, err := patrol.Analyze(context.Background(), nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(actions) != 0 {
+		t.Errorf("expected 0 actions for empty findings, got %d", len(actions))
+	}
+}
+
+func TestPatrolAgent_CollectAggregatesFromCollector(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := alertRulesResponse{
+			Status: "success",
+			Data: alertRulesData{
+				Rules: []alertRule{
+					{ID: 10, Name: "Test Alert", State: "firing", Severity: "critical"},
+				},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	collector := NewAlertCollector(server.URL, "")
+	patrol := NewPatrolAgent(collector, nil, 1*time.Hour)
+
+	findings, err := patrol.Collect(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(findings) != 1 {
+		t.Fatalf("expected 1 finding, got %d", len(findings))
 	}
 }
