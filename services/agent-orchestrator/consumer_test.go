@@ -233,14 +233,11 @@ func TestProcessJob_CancelledDuringExecution(t *testing.T) {
 	sandbox := &fakeSandbox{
 		runFn: func(ctx context.Context, claimName, _, _ string, cancelFn func() bool, _ *syncBuffer) (*ExecResult, error) {
 			// Simulate the job being cancelled externally mid-execution.
-			_ = store.Put(ctx, &JobRecord{
-				ID:        job.ID,
-				Task:      job.Task,
-				Status:    JobCancelled,
-				Attempts:  []Attempt{},
-				CreatedAt: job.CreatedAt,
-				UpdatedAt: time.Now().UTC(),
-			})
+			// Read current record (which has the in-progress attempt) and flip status.
+			current, _ := store.Get(ctx, job.ID)
+			current.Status = JobCancelled
+			current.UpdatedAt = time.Now().UTC()
+			_ = store.Put(ctx, current)
 			return &ExecResult{ExitCode: 1, Output: "cancelled mid-run"}, nil
 		},
 	}
@@ -311,7 +308,7 @@ func TestProcessJob_StoreUpdateFailureOnStart_Nacks(t *testing.T) {
 	callCount := 0
 	errStore := &errOnPutStore{
 		inner:     store,
-		failAfter: 1,
+		failAfter: 0, // fail on the very first Put (transition to RUNNING)
 		callCount: &callCount,
 	}
 
@@ -342,6 +339,7 @@ func TestBuildTaskPrompt_RetryIncludesPreviousOutput(t *testing.T) {
 		Task: "run the tests",
 		Attempts: []Attempt{
 			{Number: 1, ExitCode: &exitCode, Output: "ERROR: build failed"},
+			{Number: 2, StartedAt: time.Now().UTC()}, // current in-progress attempt (appended before buildTaskPrompt is called)
 		},
 	}
 
@@ -366,6 +364,7 @@ func TestBuildTaskPrompt_LongOutputTruncated(t *testing.T) {
 		Task: "run the tests",
 		Attempts: []Attempt{
 			{Number: 1, ExitCode: &exitCode, Output: longOutput},
+			{Number: 2, StartedAt: time.Now().UTC()}, // current in-progress attempt
 		},
 	}
 
