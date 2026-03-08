@@ -5,11 +5,11 @@ namespace:
       limit: "4"
     memory:
       request: 2Gi
-      limit: 8Gi
+      limit: 4Gi
   resourceQuota:
-    pods: "5"
-    requestsCpu: "8"
-    requestsMemory: 16Gi
+    pods: "15"
+    requestsCpu: "16"
+    requestsMemory: 32Gi
 
 sandboxTemplate:
   name: goose-agent
