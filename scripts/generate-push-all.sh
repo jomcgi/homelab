@@ -7,7 +7,8 @@ cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 BUILD_FILE="images/BUILD"
 
 # Image macros that generate .push targets (go_image, py3_image, apko_image, apko_nginx_frontend)
-IMAGE_MACROS="go_image\|py3_image\|apko_image\|apko_nginx_frontend"
+# Also matches raw oci_push targets (used by tools/image which doesn't use a macro wrapper)
+IMAGE_MACROS="go_image\|py3_image\|apko_image\|apko_nginx_frontend\|oci_push"
 
 # Find all OCI push targets by scanning BUILD files for image macros
 OCI_PUSH=$(
@@ -16,15 +17,23 @@ OCI_PUSH=$(
 		while IFS= read -r build_file; do
 			dir=$(dirname "$build_file" | sed 's|^\./||')
 			# Use awk to find image macro calls and extract their name attribute
+			# For oci_push, the name IS the push target (no .push suffix needed)
 			awk -v dir="$dir" '
 				/^[^#]*(go_image|py3_image|apko_image|apko_nginx_frontend)\(/ {
-					in_macro = 1
+					in_macro = 1; is_push = 0
+				}
+				/^[^#]*oci_push\(/ {
+					in_macro = 1; is_push = 1
 				}
 				in_macro && /name *= *"[^"]*"/ {
 					name = $0
 					sub(/.*name *= *"/, "", name)
 					sub(/".*/, "", name)
-					print "//" dir ":" name ".push"
+					if (is_push) {
+						print "//" dir ":" name
+					} else {
+						print "//" dir ":" name ".push"
+					}
 					in_macro = 0
 				}
 			' "$build_file"
