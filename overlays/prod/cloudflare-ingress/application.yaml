@@ -12,6 +12,7 @@ spec:
     targetRevision: HEAD
     path: charts/cloudflare-ingress
     helm:
+      releaseName: cloudflare-ingress
       valueFiles:
         - values.yaml
         - ../../overlays/prod/cloudflare-ingress/values.yaml
