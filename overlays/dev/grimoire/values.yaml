@@ -36,5 +36,5 @@ wsGateway:
     instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
   image:
     repository: ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway
-    tag: latest@sha256:2279dc2ed5fbb9d60ef9bd1f8de95da25e557866b39941993c53262ac58df7e0
+    tag: main@sha256:873e5e515a915bdb20f5a2555d4ddaf86719d4292cc3be9ac49956c8c08105a1
     pullPolicy: Always
