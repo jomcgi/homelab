@@ -8,24 +8,25 @@ import (
 	"testing"
 )
 
-func TestEscalator_SkipsWhenOpenPRExists(t *testing.T) {
+func TestEscalator_SkipsWhenActiveJobExists(t *testing.T) {
 	var jobSubmitted bool
 	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// Return a matching job for the tag query.
+			json.NewEncoder(w).Encode(orchestratorListResponse{
+				Jobs:  []orchestratorJob{{ID: "existing-job", Status: "RUNNING"}},
+				Total: 1,
+			})
+			return
+		}
 		jobSubmitted = true
 		w.WriteHeader(http.StatusAccepted)
 		json.NewEncoder(w).Encode(map[string]string{"id": "job-1"})
 	}))
 	defer orchestrator.Close()
 
-	github := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]ghPullRequest{{Number: 99, State: "open"}})
-	}))
-	defer github.Close()
-
 	esc := &Escalator{
-		github:       NewGitHubPRChecker(github.URL, "", "jomcgi/homelab"),
 		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
-		mergeWindow:  0,
 	}
 
 	actions := []Action{{
@@ -34,35 +35,36 @@ func TestEscalator_SkipsWhenOpenPRExists(t *testing.T) {
 			Fingerprint: "patrol.alert.42",
 			Severity:    SeverityCritical,
 			Title:       "Pod OOMKilled",
-			Data:        map[string]any{"rule_id": 42},
+			Data:        map[string]any{"rule_id": "42"},
 		},
 	}}
 
 	esc.Execute(context.Background(), actions)
 
 	if jobSubmitted {
-		t.Error("expected job NOT to be submitted when open PR exists")
+		t.Error("expected job NOT to be submitted when active job exists")
 	}
 }
 
-func TestEscalator_SubmitsJobWhenNoPR(t *testing.T) {
+func TestEscalator_SubmitsJobWhenNoActiveJob(t *testing.T) {
 	var received map[string]any
 	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// No matching jobs.
+			json.NewEncoder(w).Encode(orchestratorListResponse{
+				Jobs:  []orchestratorJob{},
+				Total: 0,
+			})
+			return
+		}
 		json.NewDecoder(r.Body).Decode(&received)
 		w.WriteHeader(http.StatusAccepted)
 		json.NewEncoder(w).Encode(map[string]string{"id": "job-1"})
 	}))
 	defer orchestrator.Close()
 
-	github := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		json.NewEncoder(w).Encode([]ghPullRequest{})
-	}))
-	defer github.Close()
-
 	esc := &Escalator{
-		github:       NewGitHubPRChecker(github.URL, "", "jomcgi/homelab"),
 		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
-		mergeWindow:  0,
 	}
 
 	actions := []Action{{
@@ -71,7 +73,7 @@ func TestEscalator_SubmitsJobWhenNoPR(t *testing.T) {
 			Fingerprint: "patrol.alert.42",
 			Severity:    SeverityCritical,
 			Title:       "Pod OOMKilled",
-			Data:        map[string]any{"rule_id": 42},
+			Data:        map[string]any{"rule_id": "42"},
 		},
 	}}
 
@@ -83,6 +85,10 @@ func TestEscalator_SubmitsJobWhenNoPR(t *testing.T) {
 	source, ok := received["source"].(string)
 	if !ok || source != "patrol:42" {
 		t.Errorf("expected source patrol:42, got %v", received["source"])
+	}
+	tags, ok := received["tags"].([]any)
+	if !ok || len(tags) != 1 || tags[0] != "alert:42" {
+		t.Errorf("expected tags [alert:42], got %v", received["tags"])
 	}
 }
 

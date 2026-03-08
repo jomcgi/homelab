@@ -49,7 +49,6 @@ resources:
 config:
   signozUrl: "http://signoz.signoz.svc.cluster.local:8080"
   orchestratorUrl: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
-  githubRepo: "jomcgi/homelab"
   httpPort: "8080"
   patrolInterval: "1h"
 

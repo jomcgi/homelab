@@ -19,7 +19,7 @@ type Store interface {
 	Put(ctx context.Context, job *JobRecord) error
 	Get(ctx context.Context, id string) (*JobRecord, error)
 	Delete(ctx context.Context, id string) error
-	List(ctx context.Context, statusFilter []string, limit, offset int) ([]JobRecord, int, error)
+	List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error)
 }
 
 // JobStore implements Store using a NATS JetStream KeyValue bucket.
@@ -64,7 +64,7 @@ func (s *JobStore) Get(ctx context.Context, id string) (*JobRecord, error) {
 
 // List returns job records with optional status filtering and pagination.
 // Jobs are sorted by key in reverse order (newest first when using ULID keys).
-func (s *JobStore) List(ctx context.Context, statusFilter []string, limit, offset int) ([]JobRecord, int, error) {
+func (s *JobStore) List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error) {
 	lister, err := s.kv.ListKeys(ctx)
 	if err != nil {
 		if err == jetstream.ErrNoKeysFound {
@@ -100,6 +100,9 @@ func (s *JobStore) List(ctx context.Context, statusFilter []string, limit, offse
 		if len(filterSet) > 0 && !filterSet[string(job.Status)] {
 			continue
 		}
+		if len(tagFilter) > 0 && !hasAllTags(job.Tags, tagFilter) {
+			continue
+		}
 		all = append(all, job)
 	}
 
@@ -112,4 +115,17 @@ func (s *JobStore) List(ctx context.Context, statusFilter []string, limit, offse
 		end = total
 	}
 	return all[offset:end], total, nil
+}
+
+func hasAllTags(jobTags, required []string) bool {
+	set := make(map[string]bool, len(jobTags))
+	for _, t := range jobTags {
+		set[t] = true
+	}
+	for _, r := range required {
+		if !set[r] {
+			return false
+		}
+	}
+	return true
 }

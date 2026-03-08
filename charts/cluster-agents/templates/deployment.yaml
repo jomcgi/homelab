@@ -47,17 +47,10 @@ spec:
               key: SIGNOZ_API_KEY
         - name: ORCHESTRATOR_URL
           value: {{ .Values.config.orchestratorUrl | quote }}
-        - name: GITHUB_REPO
-          value: {{ .Values.config.githubRepo | quote }}
         - name: HTTP_PORT
           value: {{ .Values.config.httpPort | quote }}
         - name: PATROL_INTERVAL
           value: {{ .Values.config.patrolInterval | quote }}
-        - name: GITHUB_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: agent-secrets
-              key: GITHUB_TOKEN
         livenessProbe:
           httpGet:
             path: /health
