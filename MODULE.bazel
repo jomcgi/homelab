@@ -50,7 +50,7 @@ buildbuddy = use_extension("@toolchains_buildbuddy//:extensions.bzl", "buildbudd
 use_repo(buildbuddy, "buildbuddy_toolchain")
 
 multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
-multitool.hub(lockfile = "//tools:tools.lock.json")
+multitool.hub(lockfile = "//bazel/tools:tools.lock.json")
 use_repo(
     multitool,
     "multitool",
