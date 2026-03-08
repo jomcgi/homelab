@@ -22,9 +22,9 @@ class TestHaversineDistance:
 
     def test_known_distance(self):
         # Vancouver (49.2827, -123.1207) to Seattle (47.6062, -122.3321)
-        # Approximately 226 km
+        # Approximately 195 km great-circle distance
         dist = haversine_distance(49.2827, -123.1207, 47.6062, -122.3321)
-        assert 220_000 < dist < 235_000
+        assert 185_000 < dist < 210_000
 
     def test_one_degree_latitude(self):
         # One degree of latitude is roughly 111 km
