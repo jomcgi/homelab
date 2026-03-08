@@ -25,12 +25,6 @@ os.environ["DB_PATH"] = ":memory:"
 os.environ["CORS_ORIGINS"] = "http://localhost:3000"
 
 
-@pytest.fixture(scope="session")
-def event_loop_policy():
-    """Use default event loop policy for async tests."""
-    return asyncio.DefaultEventLoopPolicy()
-
-
 @pytest.fixture
 def sample_position_data() -> dict:
     """Sample AIS position message data."""
