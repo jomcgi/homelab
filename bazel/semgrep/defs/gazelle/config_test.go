@@ -564,13 +564,13 @@ func TestConfigure_SCADefaults(t *testing.T) {
 	if len(cfg.scaRules) != 3 {
 		t.Errorf("expected 3 default scaRules, got %d: %v", len(cfg.scaRules), cfg.scaRules)
 	}
-	if cfg.scaRules["pip"] != "//semgrep_rules:sca_python_rules" {
+	if cfg.scaRules["pip"] != "//bazel/semgrep/rules:sca_python_rules" {
 		t.Errorf("expected pip scaRules, got %q", cfg.scaRules["pip"])
 	}
-	if cfg.scaRules["pnpm"] != "//semgrep_rules:sca_javascript_rules" {
+	if cfg.scaRules["pnpm"] != "//bazel/semgrep/rules:sca_javascript_rules" {
 		t.Errorf("expected pnpm scaRules, got %q", cfg.scaRules["pnpm"])
 	}
-	if cfg.scaRules["gomod"] != "//semgrep_rules:sca_golang_rules" {
+	if cfg.scaRules["gomod"] != "//bazel/semgrep/rules:sca_golang_rules" {
 		t.Errorf("expected gomod scaRules, got %q", cfg.scaRules["gomod"])
 	}
 	if len(cfg.lockfiles) != 3 {

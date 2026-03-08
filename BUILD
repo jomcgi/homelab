@@ -117,5 +117,5 @@ go_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )

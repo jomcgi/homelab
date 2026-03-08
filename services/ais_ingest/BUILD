@@ -57,19 +57,19 @@ py_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "ais_ingest_test_semgrep_test",
     srcs = ["ais_ingest_test.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_target_test(
     name = "main_semgrep_test",
     lockfiles = ["//requirements:all.txt"],
-    rules = ["//semgrep_rules:python_rules"],
-    sca_rules = ["//semgrep_rules:sca_python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":main",
 )

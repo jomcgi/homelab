@@ -37,17 +37,17 @@ py_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_test(
     name = "solution_test_semgrep_test",
     srcs = ["solution_test.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
 semgrep_target_test(
     name = "solution_semgrep_test",
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":solution",
 )
