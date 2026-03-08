@@ -9,11 +9,7 @@ contents:
     - ca-certificates-bundle
     - coreutils
     - git
-    - gh
-    - go
-    - nodejs
     - openssh-client
-    - pnpm
     - tzdata
 
 archs:

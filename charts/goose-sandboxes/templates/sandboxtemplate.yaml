@@ -65,6 +65,8 @@ spec:
               drop:
                 - ALL
           env:
+            - name: PATH
+              value: "{{ .Values.devTools.mountPath }}/usr/local/go/bin:{{ .Values.devTools.mountPath }}/usr/local/bin:{{ .Values.devTools.mountPath }}/usr/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
             - name: GOOSE_PROVIDER
               value: {{ .Values.sandboxTemplate.env.gooseProvider }}
             - name: GOOSE_MODEL
@@ -100,7 +102,14 @@ spec:
           volumeMounts:
             - name: workspace
               mountPath: /workspace
+            - name: dev-tools
+              mountPath: {{ .Values.devTools.mountPath }}
+              readOnly: true
       volumes:
+        - name: dev-tools
+          image:
+            reference: {{ .Values.devTools.image }}
+            pullPolicy: IfNotPresent
         - name: workspace
           ephemeral:
             volumeClaimTemplate:

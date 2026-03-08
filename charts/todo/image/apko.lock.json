@@ -180,22 +180,22 @@
       },
       {
         "name": "libexpat1",
-        "url": "https://packages.wolfi.dev/os/x86_64/libexpat1-2.7.4-r3.apk",
-        "version": "2.7.4-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/libexpat1-2.7.4-r4.apk",
+        "version": "2.7.4-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5055",
-          "checksum": "sha1-J6sRMj6a89BEeEHph4cIzVApUwg="
+          "range": "bytes=0-4856",
+          "checksum": "sha1-euRie8RCOe2QTYlUXixsf3GDhPc="
         },
         "data": {
-          "range": "bytes=5056-88470",
-          "checksum": "sha256-isweyIeZ6MmM4TEHVqAXzb/bVStdBgsKiHyNc5a5Gww="
+          "range": "bytes=4857-88271",
+          "checksum": "sha256-GGljjK2AlfL8CKylE+X5ygaIOSiLpRoGOrDpp9U3W4w="
         },
-        "checksum": "Q1J6sRMj6a89BEeEHph4cIzVApUwg="
+        "checksum": "Q1euRie8RCOe2QTYlUXixsf3GDhPc="
       },
       {
         "name": "libunistring",
@@ -256,41 +256,41 @@
       },
       {
         "name": "libbrotlicommon1",
-        "url": "https://packages.wolfi.dev/os/x86_64/libbrotlicommon1-1.2.0-r1.apk",
-        "version": "1.2.0-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/libbrotlicommon1-1.2.0-r2.apk",
+        "version": "1.2.0-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5720",
-          "checksum": "sha1-8W75xZPekcxpRQc7Rjau7aDICg4="
+          "range": "bytes=0-6535",
+          "checksum": "sha1-SOfINjVVjWnQHsldGKW9gxRTGlc="
         },
         "data": {
-          "range": "bytes=5721-75591",
-          "checksum": "sha256-T5oQD72nCSQc5+LNzfcvOsecQJ0fgHsET7slU/eYJv0="
+          "range": "bytes=6536-76695",
+          "checksum": "sha256-vRKvQF9UA6NgndRWKvb+HiX0jOo6aqAMnejodaNGLl0="
         },
-        "checksum": "Q18W75xZPekcxpRQc7Rjau7aDICg4="
+        "checksum": "Q1SOfINjVVjWnQHsldGKW9gxRTGlc="
       },
       {
         "name": "libbrotlidec1",
-        "url": "https://packages.wolfi.dev/os/x86_64/libbrotlidec1-1.2.0-r1.apk",
-        "version": "1.2.0-r1",
+        "url": "https://packages.wolfi.dev/os/x86_64/libbrotlidec1-1.2.0-r2.apk",
+        "version": "1.2.0-r2",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5731",
-          "checksum": "sha1-uYGCtevwN4il39gIr24tPutP8Tw="
+          "range": "bytes=0-6551",
+          "checksum": "sha1-krZ//Y++IW/dBpNGrVncV+yvYOs="
         },
         "data": {
-          "range": "bytes=5732-37023",
-          "checksum": "sha256-L6JfADow/ORXenVYb+N5nTXw0JoC/onPJqpuuCylhsM="
+          "range": "bytes=6552-38113",
+          "checksum": "sha256-XP6fOVXT0+95eMcIo1/MwXKptMAwI+K9gFMj4lwfGJg="
         },
-        "checksum": "Q1uYGCtevwN4il39gIr24tPutP8Tw="
+        "checksum": "Q1krZ//Y++IW/dBpNGrVncV+yvYOs="
       },
       {
         "name": "nghttp3",
@@ -940,22 +940,22 @@
       },
       {
         "name": "libexpat1",
-        "url": "https://packages.wolfi.dev/os/aarch64/libexpat1-2.7.4-r3.apk",
-        "version": "2.7.4-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/libexpat1-2.7.4-r4.apk",
+        "version": "2.7.4-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5108",
-          "checksum": "sha1-uqtN5J3mVySc9aEASDogvhRpFqE="
+          "range": "bytes=0-4902",
+          "checksum": "sha1-DYEm1yvoAfozkdHVo2sCOyaHPhA="
         },
         "data": {
-          "range": "bytes=5109-85726",
-          "checksum": "sha256-oUfLc94p+ZOWhT09lBluxhkB1uQoDdsmhRS8Z2NLTCY="
+          "range": "bytes=4903-85512",
+          "checksum": "sha256-wrkNBFsrnmGoQX30O/hmZFMjT1YlLQLEfAbeIUgz/rY="
         },
-        "checksum": "Q1uqtN5J3mVySc9aEASDogvhRpFqE="
+        "checksum": "Q1DYEm1yvoAfozkdHVo2sCOyaHPhA="
       },
       {
         "name": "libunistring",
@@ -1016,41 +1016,41 @@
       },
       {
         "name": "libbrotlicommon1",
-        "url": "https://packages.wolfi.dev/os/aarch64/libbrotlicommon1-1.2.0-r1.apk",
-        "version": "1.2.0-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/libbrotlicommon1-1.2.0-r2.apk",
+        "version": "1.2.0-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5750",
-          "checksum": "sha1-ccaMmf9zyxkFIC+jOgPd8ikKGq8="
+          "range": "bytes=0-6564",
+          "checksum": "sha1-cCIDgAGpa2DqlcbpkMynPi+WkQI="
         },
         "data": {
-          "range": "bytes=5751-75990",
-          "checksum": "sha256-e+s+ztL322ROtLa5sPnoBRdeXer5uA90SyRrcnfDkoE="
+          "range": "bytes=6565-77157",
+          "checksum": "sha256-43xrQaxo1TTlNDhucdxelI3DZMl2J1EqBNumwRm5pKE="
         },
-        "checksum": "Q1ccaMmf9zyxkFIC+jOgPd8ikKGq8="
+        "checksum": "Q1cCIDgAGpa2DqlcbpkMynPi+WkQI="
       },
       {
         "name": "libbrotlidec1",
-        "url": "https://packages.wolfi.dev/os/aarch64/libbrotlidec1-1.2.0-r1.apk",
-        "version": "1.2.0-r1",
+        "url": "https://packages.wolfi.dev/os/aarch64/libbrotlidec1-1.2.0-r2.apk",
+        "version": "1.2.0-r2",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-5773",
-          "checksum": "sha1-Xu/XrSM38djnnP9e/qkMVeplcFM="
+          "range": "bytes=0-6591",
+          "checksum": "sha1-255x3vUjEhAHjxGnxMmDxlrWtgY="
         },
         "data": {
-          "range": "bytes=5774-36516",
-          "checksum": "sha256-jGhvX683KgtXh7W8a6duqgwQJYZ5nwZ5gwQhvzuE8YI="
+          "range": "bytes=6592-37671",
+          "checksum": "sha256-Y2OuXxCz+YB+5DZsHzXzWCjGafv0im6VjQi0cu+Osf0="
         },
-        "checksum": "Q1Xu/XrSM38djnnP9e/qkMVeplcFM="
+        "checksum": "Q1255x3vUjEhAHjxGnxMmDxlrWtgY="
       },
       {
         "name": "nghttp3",

@@ -11,6 +11,12 @@ namespace:
     requestsCpu: "16"
     requestsMemory: 32Gi
 
+devTools:
+  # OCI image mounted as a read-only volume to provide dev tools (go, node, claude,
+  # formatters, linters). Matches .tools-version in the repo root — update both together.
+  image: ghcr.io/jomcgi/homelab-tools:main
+  mountPath: /opt/homelab-tools
+
 sandboxTemplate:
   name: goose-agent
   image:

@@ -6,6 +6,7 @@ load("//rules_semgrep:defs.bzl", "semgrep_target_test")
 load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
+load(":go_tar.bzl", "go_tar")
 load(":multitool_tar.bzl", "multitool_tar")
 load(":node_tar.bzl", "node_tar")
 load(":python_tar.bzl", "python_tar")
@@ -100,6 +101,36 @@ python_tar(
     binary = ":python_deps",
 )
 
+# Per-platform Go SDK tars.
+# Creates :go_tar_linux_amd64, :go_tar_linux_arm64, :go_tar_darwin_arm64
+# each containing the full Go SDK at /usr/local/go/ with a symlink at /usr/bin/go.
+go_tar(
+    name = "go_tar",
+    version = "1.24.1",
+)
+
+# Package Claude Code CLI from the pnpm lockfile-managed npm package.
+# Places the package at /usr/local/lib/node_modules/@anthropic-ai/claude-code/
+# with a symlink at /usr/local/bin/claude for PATH discovery.
+genrule(
+    name = "claude_code_tar",
+    srcs = ["//:node_modules/@anthropic-ai/claude-code"],
+    outs = ["claude_code.tar"],
+    cmd = """
+        set -e
+        WORK=$$(mktemp -d)
+        DEST="$$WORK/usr/local/lib/node_modules/@anthropic-ai/claude-code"
+        mkdir -p "$$DEST"
+        SRC_DIR=$$(echo '$(locations //:node_modules/@anthropic-ai/claude-code)' | tr ' ' '\\n' | grep 'claude-code$$' | head -1)
+        cp -rL "$$SRC_DIR/." "$$DEST/"
+        chmod 755 "$$DEST/cli.js"
+        mkdir -p "$$WORK/usr/local/bin"
+        ln -s "../lib/node_modules/@anthropic-ai/claude-code/cli.js" "$$WORK/usr/local/bin/claude"
+        tar -cf $@ -C "$$WORK" .
+        rm -rf "$$WORK"
+    """,
+)
+
 oci_image(
     name = "image_linux_amd64",
     architecture = "amd64",
@@ -107,9 +138,12 @@ oci_image(
     tars = [
         ":tools_tar_linux_amd64",
         ":node_tar_linux_amd64",
+        ":go_tar_linux_amd64",
         ":python_tar_linux_amd64",
         ":pnpm_tar",
         ":prettier_tar",
+        ":claude_code_tar",
+        "@bb//:tar_amd64",
     ],
 )
 
@@ -120,9 +154,12 @@ oci_image(
     tars = [
         ":tools_tar_linux_arm64",
         ":node_tar_linux_arm64",
+        ":go_tar_linux_arm64",
         ":python_tar_linux_arm64",
         ":pnpm_tar",
         ":prettier_tar",
+        ":claude_code_tar",
+        "@bb//:tar_arm64",
     ],
 )
 
@@ -133,9 +170,11 @@ oci_image(
     tars = [
         ":tools_tar_darwin_arm64",
         ":node_tar_darwin_arm64",
+        ":go_tar_darwin_arm64",
         ":python_tar_darwin_arm64",
         ":pnpm_tar",
         ":prettier_tar",
+        ":claude_code_tar",
     ],
 )
 
