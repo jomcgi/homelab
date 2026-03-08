@@ -176,6 +176,35 @@ Located in `overlays/cluster-critical/signoz/alerts/`:
 - `pod-pending.yaml` — `k8s.pod.phase` == 1 (Pending) for 5 consecutive over 15min (warning)
 - `pod-restart-rate.yaml` — `increase(k8s.container.restarts)` > 3 once in 15min (warning). Uses `increase` time aggregation to detect restarts within the eval window, not cumulative lifetime count.
 
+### SLO-Based Alerts
+
+Services can define SLOs using the `signoz-alerts` library chart (`charts/signoz-alerts/`). Each SLO definition generates two alerts using multi-window multi-burn-rate principles:
+
+1. **Burn-fast** (`<name>-slo-burn-fast`) — Short eval window (5m), fires when the metric sustains a threshold violation. Detects active incidents that would rapidly consume the error budget.
+
+2. **Budget-exhausted** (`<name>-slo-budget-exhausted`) — Long eval window (6h), fires when the metric sustains a threshold violation. Detects slow degradation that has consumed the error budget over time.
+
+SLO definitions live in the consuming chart's `values.yaml`:
+
+```yaml
+slos:
+  - name: api-gateway
+    metric: httpcheck.status
+    filter: "http.url = 'https://api.jomcgi.dev/status.json'"
+    op: "2"          # less than
+    threshold: 1
+```
+
+The library chart uses `spaceAggregation: "max"` by default to avoid false positives from stale metric series.
+
+To add SLO alerts to a chart:
+
+1. Add `signoz-alerts` as a dependency in `Chart.yaml` (`repository: "file://../signoz-alerts"`)
+2. Add `sloDefaults` and `slos` to `values.yaml`
+3. Create `templates/slo-alerts.yaml` that ranges over `.Values.slos` and includes `signoz-alerts.slo`
+
+See `charts/api-gateway/` for a working example.
+
 ## Sidecar Architecture
 
 The `signoz-dashboard-sidecar` (Go, in `charts/signoz-dashboard-sidecar/`) watches for ConfigMaps labeled `signoz.io/alert: "true"` across all namespaces. It:
