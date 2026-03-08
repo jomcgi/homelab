@@ -12,8 +12,8 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         ":defs",
-        "//bazel/wrangler:defs",
         "//bazel/tools/js:vite_build",
+        "//bazel/wrangler:defs",
         "@bazel_skylib//lib:paths",
     ],
 )

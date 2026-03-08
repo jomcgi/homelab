@@ -6,7 +6,7 @@ go_library(
         "image.go",
         "push.go",
     ],
-    importpath = "github.com/jomcgi/homelab/tools/hf2oci/pkg/oci",
+    importpath = "github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/oci",
     visibility = ["//visibility:public"],
     deps = [
         "@com_github_google_go_containerregistry//pkg/name",

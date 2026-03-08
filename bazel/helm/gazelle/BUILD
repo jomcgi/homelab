@@ -7,7 +7,7 @@ go_library(
         "generate.go",
         "language.go",
     ],
-    importpath = "github.com/jomcgi/homelab/rules_helm/gazelle",
+    importpath = "github.com/jomcgi/homelab/bazel/helm/gazelle",
     visibility = ["//:__pkg__"],
     deps = [
         "@gazelle//config",

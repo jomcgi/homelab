@@ -8,7 +8,7 @@ go_library(
         "language.go",
         "sca.go",
     ],
-    importpath = "github.com/jomcgi/homelab/rules_semgrep/gazelle",
+    importpath = "github.com/jomcgi/homelab/bazel/semgrep/defs/gazelle",
     visibility = ["//:__pkg__"],
     deps = [
         "@gazelle//config",

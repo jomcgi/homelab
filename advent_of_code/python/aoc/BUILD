@@ -15,23 +15,23 @@ py_library(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "algo_semgrep_test",
     srcs = ["algo.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "grid_semgrep_test",
     srcs = ["grid.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "parse_semgrep_test",
     srcs = ["parse.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )

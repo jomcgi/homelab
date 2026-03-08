@@ -95,47 +95,47 @@ py_test(
 semgrep_test(
     name = "acquisition_test_semgrep_test",
     srcs = ["acquisition_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "api_test_semgrep_test",
     srcs = ["api_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "config_test_semgrep_test",
     srcs = ["config_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "conftest_semgrep_test",
     srcs = ["conftest.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "preprocessing_test_semgrep_test",
     srcs = ["preprocessing_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "scoring_test_semgrep_test",
     srcs = ["scoring_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "spatial_test_semgrep_test",
     srcs = ["spatial_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "weather_test_semgrep_test",
     srcs = ["weather_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )

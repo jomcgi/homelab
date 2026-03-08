@@ -41,7 +41,7 @@ bzl_library(
     ],
     visibility = ["//visibility:public"],
     deps = [
-        "//bazel/semgrep/defs:defs",  # keep
+        "//bazel/semgrep/defs",  # keep
         "@bazel_skylib//lib:paths",  # keep
         "@rules_shell//shell:rules_bzl",  # keep
     ],

@@ -167,65 +167,65 @@ py_venv_binary(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_target_test(
     name = "embedder_semgrep_test",
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
     target = ":embedder",
 )
 
 semgrep_target_test(
     name = "mcp_semgrep_test",
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
     target = ":mcp",
 )
 
 semgrep_target_test(
     name = "scraper_semgrep_test",
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
     target = ":scraper",
 )
 
 semgrep_test(
     name = "chunker_semgrep_test",
     srcs = ["chunker.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "config_semgrep_test",
     srcs = ["config.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "models_semgrep_test",
     srcs = ["models.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "notifications_semgrep_test",
     srcs = ["notifications.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "qdrant_client_semgrep_test",
     srcs = ["qdrant_client.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "storage_semgrep_test",
     srcs = ["storage.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )
 
 semgrep_test(
     name = "telemetry_semgrep_test",
     srcs = ["telemetry.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
 )

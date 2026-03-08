@@ -20,7 +20,7 @@ py_library(
 semgrep_target_test(
     name = "upload_semgrep_test",
     lockfiles = ["//requirements:all.txt"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-    sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
+    rules = ["//semgrep_rules:python_rules"],
+    sca_rules = ["//semgrep_rules:sca_python_rules"],
     target = ":upload",
 )

@@ -6,9 +6,9 @@ assembly, link rewriting, VitePress building, and Cloudflare Pages deployment.
 
 load("@aspect_rules_js//js:defs.bzl", "js_run_binary")
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("//bazel/tools/js:vite_build.bzl", "vite_build")
 load("//bazel/vitepress:defs.bzl", "VitePressContentInfo")
 load("//bazel/wrangler:defs.bzl", "wrangler_pages")
-load("//bazel/tools/js:vite_build.bzl", "vite_build")
 
 def _assemble_impl(ctx):
     """Collect files from vitepress_filegroup deps into a directory tree."""
