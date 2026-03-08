@@ -56,7 +56,7 @@ Create an item in the `k8s-homelab` vault with the name matching your `secret.it
 
 ### 3. Enable ArgoCD Image Updater (for in-repo images)
 
-If the image is built in this repo (pushed via `//images:push_all`), add `imageUpdater.enabled: true` to your server entry:
+If the image is built in this repo (pushed via `//bazel/images:push_all`), add `imageUpdater.enabled: true` to your server entry:
 
 ```yaml
 imageUpdater:

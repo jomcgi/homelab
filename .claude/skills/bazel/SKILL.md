@@ -47,9 +47,9 @@ On PR branches, CI auto-commits formatting fixes as `ci-format-bot`. On main, fo
 | -------------------------------- | ------------------------- |
 | `//charts/<service>/image:image` | Container image           |
 | `//charts/<service>/image:push`  | Push image to registry    |
-| `//images:push_all`              | Push all container images |
+| `//bazel/images:push_all`        | Push all container images |
 | `//websites:push_all_pages`      | Deploy all CF Pages sites |
-| `//tools/format:format`          | Format + render all       |
+| `//bazel/tools/format:format`    | Format + render all       |
 
 ## Writing BUILD Files
 
@@ -100,7 +100,7 @@ Use the `/buildbuddy` skill or MCP tools directly:
 
 ## Cluster Inspection
 
-Use MCP tools (`ToolSearch` with `+kubernetes`, `+argocd`) — not `//tools/cluster:*` targets (those wrap kubectl commands blocked by PreToolUse hooks).
+Use MCP tools (`ToolSearch` with `+kubernetes`, `+argocd`) — not `//bazel/tools/cluster:*` targets (those wrap kubectl commands blocked by PreToolUse hooks).
 
 ## Workflow Integration
 

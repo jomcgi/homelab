@@ -3,7 +3,7 @@ load("@npm//:defs.bzl", "npm_link_all_packages")
 # hikes.jomcgi.dev - Static site, no build step needed
 # gazelle:wrangler_dist :public
 load("@npm//websites/hikes.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
-load("//rules_wrangler:defs.bzl", "wrangler_pages")
+load("//bazel/wrangler:defs.bzl", "wrangler_pages")
 
 # Link npm packages for this workspace package
 npm_link_all_packages(name = "node_modules")

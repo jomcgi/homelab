@@ -6,22 +6,22 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tools/git/check-stale-pr.sh",
+            "command": "bazel/tools/git/check-stale-pr.sh",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "tools/hooks/prefer-k8s-mcp.sh",
+            "command": "bazel/tools/hooks/prefer-k8s-mcp.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "tools/hooks/prefer-argocd-mcp.sh",
+            "command": "bazel/tools/hooks/prefer-argocd-mcp.sh",
             "timeout": 5
           },
           {
             "type": "command",
-            "command": "tools/hooks/prefer-buildbuddy-mcp.sh",
+            "command": "bazel/tools/hooks/prefer-buildbuddy-mcp.sh",
             "timeout": 5
           }
         ]
@@ -31,7 +31,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "tools/git/check-plan-worktree.sh",
+            "command": "bazel/tools/git/check-plan-worktree.sh",
             "timeout": 5
           }
         ]

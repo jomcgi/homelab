@@ -1,5 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
 # gazelle:resolve py services.knowledge_graph.app.models //services/knowledge_graph/app:models
 # gazelle:resolve py services.knowledge_graph.app.extractors.base //services/knowledge_graph/app/extractors:base

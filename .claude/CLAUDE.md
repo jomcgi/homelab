@@ -16,7 +16,7 @@ homelab/
 ├── operators/           # Custom Kubernetes operators (Go, controller-runtime)
 ├── services/            # Application source code (Go, Python)
 ├── websites/            # Frontend apps (Vite + React, Astro) — JS, not TypeScript
-├── tools/               # Build tooling (Bazel macros, OCI helpers, scripts)
+├── bazel/               # All Bazel build infrastructure (rules, tools, images, semgrep)
 ├── architecture/        # Design docs and ADRs — ls to discover available docs
 │   └── decisions/       # Architecture Decision Records — ls decisions/<category>/
 ├── clusters/            # Kustomization entry point for ArgoCD

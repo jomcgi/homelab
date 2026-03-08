@@ -1,7 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//rules_semgrep:defs.bzl", "semgrep_target_test", "semgrep_test")
-load("//tools/pytest:defs.bzl", "py_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_venv_binary(
     name = "solution",

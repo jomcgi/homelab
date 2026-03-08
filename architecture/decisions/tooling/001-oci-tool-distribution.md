@@ -24,16 +24,16 @@ Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI i
 
 ### Before and After
 
-| Aspect                  | Today                                          | Proposed                                                    |
-| ----------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| Developer tool setup    | `bazel run //tools:bazel_env` (~45s warm)      | `crane export` + extract (~5s)                              |
-| Tool versions           | Resolved independently per environment         | Single multi-arch OCI image, identical everywhere           |
-| Running tests           | `bazel test //...` (local execution)           | Push → BuildBuddy remote execution → MCP to observe results |
-| Formatting              | `bazel run //tools/format:fast_format` (local) | Push → CI format job → auto-commit fixes back               |
-| Build graph queries     | `bazel query` (local)                          | `bb query` (remote via BuildBuddy) or BuildBuddy MCP tools  |
-| Goose tool availability | Separate apko image with its own tool versions | Same OCI tools image, shared versions                       |
-| Claude Code version     | Installed independently per machine            | Pinned in tools image, identical across all environments    |
-| Bazel on dev machine    | Required                                       | Not required                                                |
+| Aspect                  | Today                                                | Proposed                                                    |
+| ----------------------- | ---------------------------------------------------- | ----------------------------------------------------------- |
+| Developer tool setup    | `bazel run //tools:bazel_env` (~45s warm)            | `crane export` + extract (~5s)                              |
+| Tool versions           | Resolved independently per environment               | Single multi-arch OCI image, identical everywhere           |
+| Running tests           | `bazel test //...` (local execution)                 | Push → BuildBuddy remote execution → MCP to observe results |
+| Formatting              | `bazel run //bazel/tools/format:fast_format` (local) | Push → CI format job → auto-commit fixes back               |
+| Build graph queries     | `bazel query` (local)                                | `bb query` (remote via BuildBuddy) or BuildBuddy MCP tools  |
+| Goose tool availability | Separate apko image with its own tool versions       | Same OCI tools image, shared versions                       |
+| Claude Code version     | Installed independently per machine                  | Pinned in tools image, identical across all environments    |
+| Bazel on dev machine    | Required                                             | Not required                                                |
 
 ---
 
@@ -136,7 +136,7 @@ Observe results via:
 
 ### Remote Format Workflow
 
-Today, `format` runs locally via `bazel run //tools/format:fast_format`. In the new model:
+Today, `format` runs locally via `bazel run //bazel/tools/format:fast_format`. In the new model:
 
 1. Developer pushes to a branch
 2. CI "Format check" job runs formatters + gazelle

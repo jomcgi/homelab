@@ -1,5 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-load("//tools/oci:go_image.bzl", "go_image")
+load("//bazel/tools/oci:go_image.bzl", "go_image")
 
 go_library(
     name = "ws-gateway_lib",

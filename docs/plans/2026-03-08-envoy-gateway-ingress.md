@@ -19,6 +19,7 @@
 Create the Helm chart that wraps the upstream `gateway-helm` chart.
 
 **Files:**
+
 - Create: `charts/envoy-gateway/Chart.yaml`
 - Create: `charts/envoy-gateway/values.yaml`
 - Create: `charts/envoy-gateway/charts/gateway-helm-v1.3.2.tgz` (vendored dependency)
@@ -93,6 +94,7 @@ git commit -m "feat(envoy-gateway): add wrapper chart for upstream gateway-helm 
 ### Task 2: Envoy Gateway ArgoCD overlay (cluster-critical)
 
 **Files:**
+
 - Create: `overlays/cluster-critical/envoy/application.yaml`
 - Create: `overlays/cluster-critical/envoy/kustomization.yaml`
 - Create: `overlays/cluster-critical/envoy/values.yaml`
@@ -223,9 +225,9 @@ helm_chart(
 Modify `overlays/cluster-critical/kustomization.yaml` -- add `./envoy` after `./opentelemetry-operator` and before `./linkerd`:
 
 ```yaml
-  - ./opentelemetry-operator
-  - ./envoy # Installs Gateway API CRDs; must be before linkerd
-  - ./linkerd
+- ./opentelemetry-operator
+- ./envoy # Installs Gateway API CRDs; must be before linkerd
+- ./linkerd
 ```
 
 **Step 7: Run helm template to verify**
@@ -248,6 +250,7 @@ git commit -m "feat(envoy-gateway): add cluster-critical ArgoCD overlay"
 ### Task 3: Cloudflare ingress chart (GatewayClass + Gateway + EnvoyProxy + stable Service)
 
 **Files:**
+
 - Create: `charts/cloudflare-ingress/Chart.yaml`
 - Create: `charts/cloudflare-ingress/values.yaml`
 - Create: `charts/cloudflare-ingress/BUILD`
@@ -309,7 +312,7 @@ service:
   port: 80
 ```
 
-**Step 3: Create templates/_helpers.tpl**
+**Step 3: Create templates/\_helpers.tpl**
 
 ```
 {{/*
@@ -330,18 +333,16 @@ The `EnvoyProxy` CRD controls the data-plane proxy resources per GatewayClass. I
 apiVersion: gateway.envoyproxy.io/v1alpha1
 kind: EnvoyProxy
 metadata:
-  name: {{ .Values.envoyProxy.name }}
-  namespace: {{ .Values.envoyProxy.namespace }}
-  labels:
-    {{- include "cloudflare-ingress.labels" . | nindent 4 }}
+  name: { { .Values.envoyProxy.name } }
+  namespace: { { .Values.envoyProxy.namespace } }
+  labels: { { - include "cloudflare-ingress.labels" . | nindent 4 } }
 spec:
   provider:
     type: Kubernetes
     kubernetes:
       envoyDeployment:
         container:
-          resources:
-            {{- toYaml .Values.envoyProxy.resources | nindent 12 }}
+          resources: { { - toYaml .Values.envoyProxy.resources | nindent 12 } }
           securityContext:
             readOnlyRootFilesystem: true
             allowPrivilegeEscalation: false
@@ -361,16 +362,15 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: GatewayClass
 metadata:
-  name: {{ .Values.gatewayClass.name }}
-  labels:
-    {{- include "cloudflare-ingress.labels" . | nindent 4 }}
+  name: { { .Values.gatewayClass.name } }
+  labels: { { - include "cloudflare-ingress.labels" . | nindent 4 } }
 spec:
-  controllerName: {{ .Values.gatewayClass.controllerName }}
+  controllerName: { { .Values.gatewayClass.controllerName } }
   parametersRef:
     group: gateway.envoyproxy.io
     kind: EnvoyProxy
-    name: {{ .Values.envoyProxy.name }}
-    namespace: {{ .Values.envoyProxy.namespace }}
+    name: { { .Values.envoyProxy.name } }
+    namespace: { { .Values.envoyProxy.namespace } }
 ```
 
 **Step 6: Create templates/gateway.yaml**
@@ -379,16 +379,15 @@ spec:
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
 metadata:
-  name: {{ .Values.gateway.name }}
-  namespace: {{ .Values.gateway.namespace }}
-  labels:
-    {{- include "cloudflare-ingress.labels" . | nindent 4 }}
+  name: { { .Values.gateway.name } }
+  namespace: { { .Values.gateway.namespace } }
+  labels: { { - include "cloudflare-ingress.labels" . | nindent 4 } }
 spec:
-  gatewayClassName: {{ .Values.gatewayClass.name }}
+  gatewayClassName: { { .Values.gatewayClass.name } }
   listeners:
     - name: http
       protocol: HTTP
-      port: {{ .Values.gateway.listener.port }}
+      port: { { .Values.gateway.listener.port } }
       allowedRoutes:
         namespaces:
           from: All
@@ -402,20 +401,20 @@ Stable Service that selects the Envoy proxy pods by their well-known Gateway API
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ .Values.service.name }}
-  namespace: {{ .Values.service.namespace }}
-  labels:
-    {{- include "cloudflare-ingress.labels" . | nindent 4 }}
+  name: { { .Values.service.name } }
+  namespace: { { .Values.service.namespace } }
+  labels: { { - include "cloudflare-ingress.labels" . | nindent 4 } }
 spec:
   type: ClusterIP
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.gateway.listener.port }}
+    - port: { { .Values.service.port } }
+      targetPort: { { .Values.gateway.listener.port } }
       protocol: TCP
       name: http
   selector:
-    gateway.envoyproxy.io/owning-gateway-name: {{ .Values.gateway.name }}
-    gateway.envoyproxy.io/owning-gateway-namespace: {{ .Values.gateway.namespace }}
+    gateway.envoyproxy.io/owning-gateway-name: { { .Values.gateway.name } }
+    gateway.envoyproxy.io/owning-gateway-namespace:
+      { { .Values.gateway.namespace } }
 ```
 
 **Step 8: Create BUILD**
@@ -452,6 +451,7 @@ git commit -m "feat(cloudflare-ingress): add chart with GatewayClass, Gateway, E
 ### Task 4: Cloudflare ingress ArgoCD overlay (prod)
 
 **Files:**
+
 - Create: `overlays/prod/cloudflare-ingress/application.yaml`
 - Create: `overlays/prod/cloudflare-ingress/kustomization.yaml`
 - Create: `overlays/prod/cloudflare-ingress/values.yaml`
@@ -543,9 +543,9 @@ argocd_app(
 Modify `overlays/prod/kustomization.yaml` -- add `./cloudflare-ingress` after `./api-gateway`:
 
 ```yaml
-  - ./api-gateway
-  - ./cloudflare-ingress
-  - ./cloudflare-tunnel
+- ./api-gateway
+- ./cloudflare-ingress
+- ./cloudflare-tunnel
 ```
 
 **Step 6: Commit**
@@ -560,6 +560,7 @@ git commit -m "feat(cloudflare-ingress): add prod ArgoCD overlay"
 ### Task 5: Wire tunnel catch-all to Envoy Gateway
 
 **Files:**
+
 - Modify: `overlays/prod/cloudflare-tunnel/values.yaml`
 
 **Step 1: Change the catch-all**
@@ -632,6 +633,7 @@ Poll `gh pr view <number> --json statusCheckRollup` until both "Format check" an
 **Step 5: Verify deployment**
 
 After merge, use ArgoCD MCP tools to verify:
+
 - `envoy-gateway` app syncs in cluster-critical, pods healthy in `envoy-gateway-system`
 - `prod-cloudflare-ingress` app syncs, GatewayClass/Gateway/EnvoyProxy/Service created
 - `cloudflare-ingress` Service has endpoints (matching Envoy proxy pods)

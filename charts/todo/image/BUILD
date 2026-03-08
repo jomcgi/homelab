@@ -1,7 +1,7 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("//tools/oci:apko_image.bzl", "apko_image")
+load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 # Package the Go binary for amd64
 platform_transition_filegroup(

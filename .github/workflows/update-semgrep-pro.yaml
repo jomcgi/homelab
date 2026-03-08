@@ -384,7 +384,7 @@ jobs:
           set -euo pipefail
 
           # Update pro digests
-          PRO_FILE="third_party/semgrep_pro/digests.bzl"
+          PRO_FILE="bazel/semgrep/third_party/semgrep_pro/digests.bzl"
           cat > "${PRO_FILE}" << EOF
           """Semgrep Pro OCI artifact digests.
 
@@ -408,7 +408,7 @@ jobs:
           EOF
 
           # Update OSS digests
-          OSS_FILE="third_party/semgrep/digests.bzl"
+          OSS_FILE="bazel/semgrep/third_party/semgrep/digests.bzl"
           cat > "${OSS_FILE}" << EOF
           """Semgrep OSS engine OCI artifact digests.
 
@@ -454,7 +454,7 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
           git checkout -b "${BRANCH}"
-          git add third_party/semgrep_pro/digests.bzl third_party/semgrep/digests.bzl
+          git add bazel/semgrep/third_party/semgrep_pro/digests.bzl bazel/semgrep/third_party/semgrep/digests.bzl
           git commit -m "build(semgrep): update artifact digests"
 
           git push -u origin "${BRANCH}"

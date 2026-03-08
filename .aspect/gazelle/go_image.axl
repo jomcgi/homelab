@@ -1,7 +1,7 @@
 "Orion extension for generating go_image targets."
 
 aspect.register_rule_kind("go_image", {
-    "From": "//tools/oci:go_image.bzl",
+    "From": "//bazel/tools/oci:go_image.bzl",
     "ResolveAttrs": ["binary"],
 })
 

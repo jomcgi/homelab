@@ -1,0 +1,163 @@
+"go_image macro for multi-platform OCI containers"
+
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
+load("@aspect_bazel_lib//lib:tar.bzl", "tar")
+load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
+
+def go_image(name, binary, base = "@distroless_base", repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
+    """Create a multi-platform Go OCI image from a Go binary.
+
+    Args:
+        name: The name of the image.
+        binary: The Go binary target to package.
+        base: The base image to use. Defaults to distroless base.
+        repository: The container registry repository (e.g., "ghcr.io/jomcgi/homelab/my-app").
+                   Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
+        visibility: Visibility of the generated .push target. Defaults to ["//bazel/images:__pkg__"]
+                   to allow access from the auto-generated //images:push_all multirun.
+        multi_platform: Build for both amd64 and arm64. Defaults to True.
+
+    Creates:
+        :{name} - The oci_image target (or oci_image_index for multi-platform)
+        :{name}_amd64 - AMD64-specific image (if multi_platform=True)
+        :{name}_arm64 - ARM64-specific image (if multi_platform=True)
+        :{name}.load - Target to load image into local Docker
+        :{name}.push - Target to push image to registry
+    """
+    if multi_platform:
+        # Build AMD64 image
+        tar(
+            name = name + "_app_layer_amd64",
+            srcs = [binary],
+            mtree = [
+                "./opt/app type=file content=$(execpath {})".format(binary),
+            ],
+        )
+        oci_image(
+            name = name + "_base_amd64",
+            base = base,
+            tars = [name + "_app_layer_amd64"],
+            entrypoint = ["/opt/app"],
+            user = "65532",  # nonroot user in distroless
+        )
+        platform_transition_filegroup(
+            name = name + "_amd64",
+            srcs = [name + "_base_amd64"],
+            target_platform = "@rules_go//go/toolchain:linux_amd64",
+        )
+
+        # Build ARM64 image
+        tar(
+            name = name + "_app_layer_arm64",
+            srcs = [binary],
+            mtree = [
+                "./opt/app type=file content=$(execpath {})".format(binary),
+            ],
+        )
+        oci_image(
+            name = name + "_base_arm64",
+            base = base,
+            tars = [name + "_app_layer_arm64"],
+            entrypoint = ["/opt/app"],
+            user = "65532",  # nonroot user in distroless
+        )
+        platform_transition_filegroup(
+            name = name + "_arm64",
+            srcs = [name + "_base_arm64"],
+            target_platform = "@rules_go//go/toolchain:linux_arm64",
+        )
+
+        # Create multi-platform index
+        oci_image_index(
+            name = name,
+            images = [
+                name + "_amd64",
+                name + "_arm64",
+            ],
+        )
+
+        # Load uses host platform
+        platform_transition_filegroup(
+            name = name + "_platform",
+            srcs = select({
+                "@platforms//cpu:arm64": [name + "_base_arm64"],
+                "@platforms//cpu:x86_64": [name + "_base_amd64"],
+            }),
+            target_platform = select({
+                "@platforms//cpu:arm64": "@rules_go//go/toolchain:linux_arm64",
+                "@platforms//cpu:x86_64": "@rules_go//go/toolchain:linux_amd64",
+            }),
+        )
+        oci_load(
+            name = name + ".load",
+            image = name + "_platform",
+            repo_tags = [native.package_name() + ":latest"],
+        )
+    else:
+        # Single platform build (legacy)
+        tar(
+            name = name + "_app_layer",
+            srcs = [binary],
+            mtree = [
+                "./opt/app type=file content=$(execpath {})".format(binary),
+            ],
+        )
+        oci_image(
+            name = name,
+            base = base,
+            tars = [name + "_app_layer"],
+            entrypoint = ["/opt/app"],
+            user = "65532",  # nonroot user in distroless
+        )
+        platform_transition_filegroup(
+            name = name + "_platform",
+            srcs = [name],
+            target_platform = select({
+                "@platforms//cpu:arm64": "@rules_go//go/toolchain:linux_arm64",
+                "@platforms//cpu:x86_64": "@rules_go//go/toolchain:linux_amd64",
+            }),
+        )
+        oci_load(
+            name = name + ".load",
+            image = name + "_platform",
+            repo_tags = [native.package_name() + ":latest"],
+        )
+
+    # Create stamped tags file for CI builds (branch + timestamp)
+    expand_template(
+        name = name + "_stamped_tags_ci",
+        out = name + "_stamped_ci.tags.txt",
+        template = [
+            "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
+        ],
+        stamp_substitutions = {
+            "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+    )
+
+    # Create stamped tags file for local builds (timestamp only)
+    expand_template(
+        name = name + "_stamped_tags_local",
+        out = name + "_stamped_local.tags.txt",
+        template = [
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
+        ],
+        stamp_substitutions = {
+            "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+        },
+    )
+
+    # Push uses the index for multi-platform, or platform-specific for single platform
+    oci_push(
+        name = name + ".push",
+        image = name if multi_platform else name + "_platform",
+        repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
+        remote_tags = select({
+            "//bazel/tools/oci:ci_build": name + "_stamped_tags_ci",
+            "//conditions:default": name + "_stamped_tags_local",
+        }),
+        visibility = visibility,
+    )

@@ -8,7 +8,7 @@
 #   2. Create recipe in charts/goose-agent/image/recipes/<name>.yaml
 #   3. Add token_env to values.yaml profileTokens section
 #   4. Run scripts/setup-mcp-profiles.sh to provision team + token
-#   5. Add profile name to validProfiles in tools/agent-run/main.go
+#   5. Add profile name to validProfiles in bazel/tools/agent-run/main.go
 
 profiles:
   ci-debug:

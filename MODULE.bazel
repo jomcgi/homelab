@@ -99,7 +99,7 @@ go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 # Download an SDK for the host OS & architecture as well as common remote execution
 # platforms, using the version given from the `go.mod` file.
 go_sdk.from_file(go_mod = "//:go.mod")
-go_sdk.nogo(nogo = "//tools/lint:nogo")
+go_sdk.nogo(nogo = "//bazel/tools/lint:nogo")
 
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
@@ -160,7 +160,7 @@ use_repo(
 # Hermetic Python interpreter and pip dependencies
 # Note: pip.parse() itself doesn't cause eager fetching - that's a good thing!
 # The problem is load("@pip//:requirements.bzl") in BUILD files, which we've
-# moved to //tools/python to avoid loading during CI analysis.
+# moved to //bazel/tools/python to avoid loading during CI analysis.
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 
 python = use_extension("@rules_python//python/extensions:python.bzl", "python")
@@ -251,7 +251,7 @@ use_repo(oci, "gdal_python_base", "gdal_python_base_linux_amd64", "gdal_python_b
 #########################
 # Semgrep Pro — engine + per-language rule packs from GHCR
 # Digests auto-updated by .github/workflows/update-semgrep-pro.yaml
-semgrep_pro = use_extension("//third_party/semgrep_pro:extensions.bzl", "semgrep_pro")
+semgrep_pro = use_extension("//bazel/semgrep/third_party/semgrep_pro:extensions.bzl", "semgrep_pro")
 use_repo(
     semgrep_pro,
     "semgrep_pro_engine_amd64",
@@ -269,7 +269,7 @@ use_repo(
 
 # Semgrep OSS — semgrep-core binary from GHCR (extracted from PyPI wheels)
 # Digests auto-updated by .github/workflows/update-semgrep-pro.yaml
-semgrep = use_extension("//third_party/semgrep:extensions.bzl", "semgrep")
+semgrep = use_extension("//bazel/semgrep/third_party/semgrep:extensions.bzl", "semgrep")
 use_repo(
     semgrep,
     "semgrep_engine_amd64",
@@ -299,7 +299,7 @@ apko.translate_lock(
 use_repo(apko, "goose_agent_lock", "grimoire_frontend_lock", "ships_frontend_lock", "todo_lock")
 
 # Download multiarch archives (binaries from zip files)
-multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
+multiarch_http_archive = use_repo_rule("//bazel/tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
 
 multiarch_http_archive(
     name = "goose",
@@ -312,7 +312,7 @@ multiarch_http_archive(
 )
 
 # Download multiarch binaries (raw binary files)
-multiarch_http_file = use_repo_rule("//tools/http:multiarch_http_file.bzl", "multiarch_http_file")
+multiarch_http_file = use_repo_rule("//bazel/tools/http:multiarch_http_file.bzl", "multiarch_http_file")
 
 multiarch_http_file(
     name = "bb",

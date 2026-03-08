@@ -1,4 +1,4 @@
-load("//rules_helm:defs.bzl", "argocd_app")
+load("//bazel/helm:defs.bzl", "argocd_app")
 
 argocd_app(
     name = "agent-sandbox",
