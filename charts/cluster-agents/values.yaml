@@ -47,13 +47,11 @@ resources:
     memory: 256Mi
 
 config:
-  natsUrl: "nats://nats.nats.svc.cluster.local:4222"
-  llmUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
-  llmModel: "default"
+  signozUrl: "http://signoz-query-service.signoz.svc.cluster.local:8080"
   orchestratorUrl: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
   githubRepo: "jomcgi/homelab"
   httpPort: "8080"
-  patrolInterval: "5m"
+  patrolInterval: "1h"
 
 secrets:
   agentSecrets:
