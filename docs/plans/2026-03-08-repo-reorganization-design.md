@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-08
 **Status:** Draft
-**Supersedes:** ADR 001 Phase 2 (directory reorganisation)
+**Supersedes:** ADR 001 Phase 2 (directory reorganization)
 
 ---
 
@@ -56,10 +56,10 @@ User-facing products. Directory name = subdomain (e.g. `trips/` → `trips.jomcg
 ```
 websites/
 ├── home/                   # jomcgi.dev
-├── trips/                  # trips.jomcgi.dev — api, site, scripts
-├── ships/                  # ships.jomcgi.dev — api, site, ingest
-├── hikes/                  # hikes.jomcgi.dev — service, site
-├── grimoire/               # grimoire.jomcgi.dev — service, site
+├── trips/                  # trips.jomcgi.dev — backend, frontend, tools
+├── ships/                  # ships.jomcgi.dev — backend, frontend, ingest
+├── hikes/                  # hikes.jomcgi.dev — backend, frontend
+├── grimoire/               # grimoire.jomcgi.dev — backend, frontend
 ├── stars/                  # stars.jomcgi.dev (renamed from stargazer)
 └── docs/                   # docs.jomcgi.dev
 ```
@@ -83,8 +83,7 @@ platform/
 ├── nvidia-gpu-operator/
 ├── opentelemetry-operator/
 ├── seaweedfs/
-├── signoz/                 # signoz + alerts + dashboard-sidecar + operator
-└── signoz-operator/
+└── signoz/                 # signoz + alerts + dashboard-sidecar + operator
 ```
 
 ### `projects/operators/`
@@ -135,89 +134,93 @@ docs/
 
 ## Inner subproject convention
 
-Every subproject follows the same layout:
+Every subproject uses a standardized set of subdirectories. Not every project needs all of them — use only what applies.
 
 ```
 <subproject>/
-├── cmd/ or main.go         # Entrypoint (if source code exists)
-├── pkg/                    # Go packages (if applicable)
-├── site/                   # Frontend (if applicable)
-├── deploy/
+├── backend/                # API / service source code (Go, Python)
+├── frontend/               # Web UI (Vite, React, Astro)
+├── ingest/                 # Data ingestion from third parties
+├── deploy/                 # Helm chart + ArgoCD config (flat)
 │   ├── application.yaml    # ArgoCD Application
 │   ├── values.yaml         # Helm values (prod — single source of truth)
 │   ├── imageupdater.yaml   # ArgoCD Image Updater (optional)
 │   ├── Chart.yaml
 │   └── templates/
+├── tools/                  # Scripts, utilities specific to this project
 └── BUILD
 ```
 
 ### Key conventions
 
+- **Standardized subdirectories** — `backend/`, `frontend/`, `ingest/`, `deploy/`, `tools/`. Use only what applies.
 - **No overlays** — `deploy/values.yaml` IS the prod config. No dev/prod distinction.
 - **No separate `charts/`** — chart templates colocated in `deploy/` within each subproject.
 - **Subdomain convention** — website directory name = subdomain prefix.
 - **Flat deploy** — ArgoCD app, values, chart all in one `deploy/` directory.
+- **Values merge** — when collapsing chart `values.yaml` + overlay `values.yaml`, the overlay values take precedence. The merged result becomes `deploy/values.yaml`. Also update `helm.valueFiles` in `application.yaml` to reference the colocated `values.yaml`.
 
 ---
 
 ## Migration mapping
 
-| Current location                  | New location                                     |
-| --------------------------------- | ------------------------------------------------ |
-| `services/agent-orchestrator`     | `projects/agent-platform/orchestrator/`          |
-| `services/agent_orchestrator_mcp` | `projects/agent-platform/orchestrator/` (merge)  |
-| `services/cluster-agents`         | `projects/agent-platform/cluster-agents/`        |
-| `services/todo_mcp`               | `projects/agent-platform/todo-mcp/`              |
-| `services/buildbuddy_mcp`         | `projects/agent-platform/buildbuddy-mcp/`        |
-| `services/knowledge_graph`        | `projects/agent-platform/knowledge-graph/`       |
-| `services/grimoire`               | `projects/websites/grimoire/service/`            |
-| `services/trips_api`              | `projects/websites/trips/api/`                   |
-| `services/trips-api`              | `projects/websites/trips/api/` (merge)           |
-| `services/hikes`                  | `projects/websites/hikes/`                       |
-| `services/ships_api`              | `projects/websites/ships/api/`                   |
-| `services/ships_frontend`         | `projects/websites/ships/site/`                  |
-| `services/ais_ingest`             | `projects/websites/ships/ingest/`                |
-| `services/stargazer`              | `projects/websites/stars/`                       |
-| `websites/jomcgi.dev`             | `projects/websites/home/`                        |
-| `websites/trips.jomcgi.dev`       | `projects/websites/trips/site/`                  |
-| `websites/ships.jomcgi.dev`       | `projects/websites/ships/site/`                  |
-| `websites/hikes.jomcgi.dev`       | `projects/websites/hikes/site/`                  |
-| `websites/docs.jomcgi.dev`        | `projects/websites/docs/`                        |
-| `charts/*`                        | `projects/**/deploy/` (colocated)                |
-| `overlays/prod/*`                 | `projects/**/deploy/` (values merged)            |
-| `overlays/dev/*`                  | `projects/**/deploy/` (values merged)            |
-| `overlays/cluster-critical/*`     | `projects/platform/*/deploy/`                    |
-| `argo-cd/`                        | `projects/platform/argocd/`                      |
-| `rules_semgrep/`                  | `bazel/semgrep/defs/`                            |
-| `semgrep_rules/`                  | `bazel/semgrep/rules/`                           |
-| `third_party/semgrep*`            | `bazel/semgrep/third_party/`                     |
-| `rules_helm/`                     | `bazel/helm/`                                    |
-| `rules_vitepress/`                | `bazel/vitepress/`                               |
-| `rules_wrangler/`                 | `bazel/wrangler/`                                |
-| `tools/`                          | `bazel/tools/`                                   |
-| `images/`                         | `bazel/images/`                                  |
-| `poc/cdk8s`                       | `bazel/tools/cdk8s/`                             |
-| `scripts/publish-trip-images`     | `projects/websites/trips/scripts/`               |
-| `scripts/backfill-elevation`      | `projects/websites/trips/scripts/`               |
-| `scripts/detect-wildlife`         | `projects/websites/trips/scripts/`               |
-| `scripts/delete-trip-points`      | `projects/websites/trips/scripts/`               |
-| `scripts/elevation`               | `projects/websites/trips/scripts/`               |
-| `scripts/publish-gap-route`       | `projects/websites/trips/scripts/`               |
-| `architecture/`                   | `docs/`                                          |
-| `operators/cloudflare`            | `projects/operators/cloudflare/`                 |
-| `operators/oci-model-cache`       | `projects/operators/oci-model-cache/`            |
-| `sextant/`                        | `projects/operators/sextant/`                    |
-| `seaweedfs/`                      | `projects/platform/seaweedfs/` (merge templates) |
+| Current location                  | New location                                      |
+| --------------------------------- | ------------------------------------------------- |
+| `services/agent-orchestrator`     | `projects/agent-platform/orchestrator/backend/`   |
+| `services/agent_orchestrator_mcp` | `projects/agent-platform/orchestrator/backend/`   |
+| `services/cluster-agents`         | `projects/agent-platform/cluster-agents/backend/` |
+| `services/todo_mcp`               | `projects/agent-platform/todo-mcp/backend/`       |
+| `services/buildbuddy_mcp`         | `projects/agent-platform/buildbuddy-mcp/backend/` |
+| `services/knowledge_graph`        | `projects/agent-platform/knowledge-graph/backend/`|
+| `services/grimoire`               | `projects/websites/grimoire/backend/`             |
+| `services/trips_api`              | `projects/websites/trips/backend/`                |
+| `services/hikes`                  | `projects/websites/hikes/backend/`                |
+| `services/ships_api`              | `projects/websites/ships/backend/`                |
+| `services/ships_frontend`         | `projects/websites/ships/frontend/`               |
+| `services/ais_ingest`             | `projects/websites/ships/ingest/`                 |
+| `services/stargazer`              | `projects/websites/stars/backend/`                |
+| `websites/jomcgi.dev`             | `projects/websites/home/frontend/`                |
+| `websites/trips.jomcgi.dev`       | `projects/websites/trips/frontend/`               |
+| `websites/ships.jomcgi.dev`       | `projects/websites/ships/frontend/`               |
+| `websites/hikes.jomcgi.dev`       | `projects/websites/hikes/frontend/`               |
+| `websites/docs.jomcgi.dev`        | `projects/websites/docs/frontend/`                |
+| `charts/*`                        | `projects/**/deploy/` (colocated)                 |
+| `overlays/prod/*`                 | `projects/**/deploy/` (values merged)             |
+| `overlays/dev/*`                  | `projects/**/deploy/` (values merged)             |
+| `overlays/cluster-critical/*`     | `projects/platform/*/deploy/`                     |
+| `argo-cd/`                        | `projects/platform/argocd/`                       |
+| `rules_semgrep/`                  | `bazel/semgrep/defs/`                             |
+| `semgrep_rules/`                  | `bazel/semgrep/rules/`                            |
+| `third_party/semgrep*`            | `bazel/semgrep/third_party/`                      |
+| `rules_helm/`                     | `bazel/helm/`                                     |
+| `rules_vitepress/`                | `bazel/vitepress/`                                |
+| `rules_wrangler/`                 | `bazel/wrangler/`                                 |
+| `tools/`                          | `bazel/tools/`                                    |
+| `images/`                         | `bazel/images/`                                   |
+| `poc/cdk8s`                       | `bazel/tools/cdk8s/`                              |
+| `scripts/publish-trip-images`     | `projects/websites/trips/tools/`                  |
+| `scripts/backfill-elevation`      | `projects/websites/trips/tools/`                  |
+| `scripts/detect-wildlife`         | `projects/websites/trips/tools/`                  |
+| `scripts/delete-trip-points`      | `projects/websites/trips/tools/`                  |
+| `scripts/elevation`               | `projects/websites/trips/tools/`                  |
+| `scripts/publish-gap-route`       | `projects/websites/trips/tools/`                  |
+| `architecture/`                   | `docs/`                                           |
+| `operators/cloudflare`            | `projects/operators/cloudflare/`                  |
+| `operators/oci-model-cache`       | `projects/operators/oci-model-cache/`             |
+| `sextant/`                        | `projects/operators/sextant/`                     |
+| `seaweedfs/`                      | `projects/platform/seaweedfs/` (merge templates)  |
+
+Note: `services/trips-api/` exists but only contains `__pycache__` — delete, don't migrate.
 
 ### Scripts not specific to a domain
 
-| Script                                 | Disposition                       |
-| -------------------------------------- | --------------------------------- |
-| `scripts/setup-mcp-profiles.sh`        | `bazel/tools/` or root `scripts/` |
-| `scripts/signoz-mcp-wrapper.sh`        | `bazel/tools/`                    |
-| `scripts/test-charts.sh`               | `bazel/tools/`                    |
-| `scripts/generate-*.sh`                | `bazel/tools/`                    |
-| `scripts/validate-generate-scripts.sh` | `bazel/tools/`                    |
+| Script                                 | Disposition  |
+| -------------------------------------- | ------------ |
+| `scripts/setup-mcp-profiles.sh`        | `bazel/tools/` |
+| `scripts/signoz-mcp-wrapper.sh`        | `bazel/tools/` |
+| `scripts/test-charts.sh`               | `bazel/tools/` |
+| `scripts/generate-*.sh`                | `bazel/tools/` |
+| `scripts/validate-generate-scripts.sh` | `bazel/tools/` |
 
 ---
 
