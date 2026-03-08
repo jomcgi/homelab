@@ -55,6 +55,12 @@ actions:
           # Validate grep-based generate scripts against bazel query
           ./scripts/validate-generate-scripts.sh
 
+          # Reject non-ASCII characters in commit messages.
+          # Wrangler Pages (Cloudflare) fails with error 8000111 when commits
+          # in the deployed branch contain non-ASCII characters (smart quotes,
+          # em-dashes, arrows, etc.). Check all commits since origin/main.
+          ./tools/git/check-commit-msg-ascii.sh --all origin/main
+
           # Check for formatting changes
           if git diff --exit-code; then
             echo "All files formatted correctly"

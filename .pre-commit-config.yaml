@@ -43,6 +43,20 @@ repos:
         always_run: true
         pass_filenames: false
         stages: [post-rewrite]
+  - repo: local
+    hooks:
+      # Reject commit messages with non-ASCII characters (smart quotes,
+      # em-dashes, arrows, etc.) — Wrangler Pages fails with error 8000111
+      # when such characters appear in commit history.
+      # Install with: pre-commit install --hook-type commit-msg
+      - id: ascii-commit-msg
+        name: Reject non-ASCII characters in commit message
+        entry: tools/git/check-commit-msg-ascii.sh
+        language: script
+        stages: [commit-msg]
+        always_run: true
+        pass_filenames: true   # pre-commit passes the commit-msg file path
+
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
     hooks:
