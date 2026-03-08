@@ -260,7 +260,8 @@ charts/<service_name>/
 overlays/<env>/<service_name>/
 ├── application.yaml
 ├── kustomization.yaml
-└── values.yaml                       # with imageupdater block if enabled
+├── values.yaml
+└── imageupdater.yaml                 # if enable_image_updater=true
 
 services/<service_name>/              # if type=python or mcp
 ├── BUILD
