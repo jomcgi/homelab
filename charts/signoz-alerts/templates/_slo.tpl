@@ -2,7 +2,7 @@
 signoz-alerts.slo generates two SigNoz alert ConfigMaps for an SLO definition.
 
 Usage:
-  {{- include "signoz-alerts.slo" (dict "slo" $sloEntry "Chart" $.Chart "Release" $.Release "defaults" $.Values.sloDefaults) }}
+  {{- include "signoz-alerts.slo" (dict "slo" $sloEntry "Chart" .Chart "Release" .Release "defaults" $.Values.sloDefaults) }}
 
 Required fields in .slo:
   - name: string (alert name prefix, e.g., "api-gateway")
@@ -31,6 +31,7 @@ Optional fields in .slo (with defaults from .defaults):
 {{- $spaceAgg := $slo.spaceAggregation | default "max" }}
 {{- $timeAgg := $slo.timeAggregation | default "avg" }}
 {{- $groupBy := $slo.groupBy | default list }}
+{{- $environment := $slo.environment | default $defaults.environment | default "production" }}
 {{- $burnFast := $defaults.burnFast | default dict }}
 {{- $budgetExhausted := $defaults.budgetExhausted | default dict }}
 ---
@@ -39,9 +40,9 @@ kind: ConfigMap
 metadata:
   name: {{ $slo.name }}-slo-burn-fast
   labels:
-    app.kubernetes.io/managed-by: {{ $.Release.Service }}
-    app.kubernetes.io/instance: {{ $.Release.Name }}
-    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     signoz.io/alert: "true"
     signoz.io/alert-type: "slo-burn-fast"
   annotations:
@@ -63,7 +64,7 @@ data:
       "labels": {
         "service": {{ $slo.name | quote }},
         "alert_type": "slo_burn_fast",
-        "environment": "production"
+        "environment": {{ $environment | quote }}
       },
       "annotations": {
         "summary": {{ printf "%s is burning through its error budget rapidly" $slo.name | quote }},
@@ -124,9 +125,9 @@ kind: ConfigMap
 metadata:
   name: {{ $slo.name }}-slo-budget-exhausted
   labels:
-    app.kubernetes.io/managed-by: {{ $.Release.Service }}
-    app.kubernetes.io/instance: {{ $.Release.Name }}
-    helm.sh/chart: {{ $.Chart.Name }}-{{ $.Chart.Version }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    helm.sh/chart: {{ .Chart.Name }}-{{ .Chart.Version }}
     signoz.io/alert: "true"
     signoz.io/alert-type: "slo-budget-exhausted"
   annotations:
@@ -148,7 +149,7 @@ data:
       "labels": {
         "service": {{ $slo.name | quote }},
         "alert_type": "slo_budget_exhausted",
-        "environment": "production"
+        "environment": {{ $environment | quote }}
       },
       "annotations": {
         "summary": {{ printf "%s has exhausted its error budget" $slo.name | quote }},
