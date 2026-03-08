@@ -115,6 +115,9 @@ k8s-infra:
               headers:
                 CF-Access-Client-Id: "${env:CF_ACCESS_CLIENT_ID}"
                 CF-Access-Client-Secret: "${env:CF_ACCESS_CLIENT_SECRET}"
+            # Cluster agents (internal health check - no public domain)
+            - endpoint: http://cluster-agents.cluster-agents.svc.cluster.local:8080/health
+              method: GET
             # Ships/Marine frontend
             - endpoint: https://ships.jomcgi.dev
               method: GET
