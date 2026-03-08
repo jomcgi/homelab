@@ -1,8 +1,8 @@
 {
   "version": "v1",
   "config": {
-    "name": "tools/image/apko.yaml",
-    "checksum": "sha256-XUu5DZlTLT2Qlh9i9xpbHrqO1mJKjaJO7K9Yp27t37c="
+    "name": "./tools/image/apko.yaml",
+    "checksum": "sha256-3xjzBtnCBsLTQwBNTP+SQeswWxyCtqfS/2orSU+X6qs="
   },
   "contents": {
     "keyring": [
