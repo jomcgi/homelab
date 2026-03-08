@@ -1,29 +1,28 @@
 ---
 name: bazel
-description: Use when building code, formatting files, rendering manifests, pushing container images, or running tests. Handles all Bazel operations via BuildBuddy CLI (bb) with automatic version management via .bazelversion.
+description: Use when working with BUILD files, understanding build targets, debugging CI failures, or writing Starlark. Bazel runs remotely via BuildBuddy CI — not locally.
 ---
 
-# Bazel Build System (BuildBuddy CLI)
+# Bazel Build System
 
 ## Overview
 
-This repo uses the **BuildBuddy CLI (`bb`)** as its Bazel launcher. Shell aliases route `bazel` and `bazelisk` to `bb`, so all three commands are interchangeable. The `.bazelversion` file pins BuildBuddy CLI 5.0.321 + Bazel 9.0.0.
+Bazel is the build system for this repo but runs **remotely via BuildBuddy CI only** — not locally. Developers write BUILD files and push; CI handles building, testing, and pushing images.
 
-The `bb` CLI wraps Bazelisk and adds:
+Locally, use:
 
-- **Local gRPC proxy** for remote cache/BES — handles retries and buffering transparently
-- **`bb login`** for easy BuildBuddy authentication (no manual `--remote_header` needed)
-- **Plugin support** for extending the build system
+- **`format`** — standalone formatter (no Bazel required), runs as a pre-commit hook
+- **`gh pr checks`** — monitor CI results
+- **`/buildbuddy`** — debug CI failures via MCP tools
 
-## Common Commands
-
-### Format (Most Common)
+## Local Commands
 
 ```bash
-format
+format                        # Format code + update BUILD files (standalone)
+helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml  # Render templates
 ```
 
-This runs standalone formatter binaries in parallel (no Bazel required):
+`format` runs standalone binaries in parallel:
 
 - Formats Go (gofumpt), Python (ruff), JS/JSON/YAML (prettier), Shell (shfmt), Starlark (buildifier)
 - Regenerates push/render BUILD files via grep-based scripts
@@ -31,62 +30,49 @@ This runs standalone formatter binaries in parallel (no Bazel required):
 
 Tools are provided by the OCI tools image via `./bootstrap.sh`.
 
-### Building
+## What CI Runs
 
-```bash
-# Build everything
-bazel build //...
+CI is defined in `buildbuddy.yaml` with two parallel actions:
 
-# Build specific image
-bazel build //charts/todo/image:image
+| Action             | What it does                                                         |
+| ------------------ | -------------------------------------------------------------------- |
+| **Format check**   | Runs formatters + gazelle, auto-commits fixes on PR branches         |
+| **Test and push**  | `bazel test //...`, pushes images + deploys pages on main            |
 
-# Build with verbose output
-bazel build //charts/todo/image:image --verbose_failures
-```
+On PR branches, CI auto-commits formatting fixes as `ci-format-bot`. On main, formatting errors fail the build.
 
-### Pushing Images
+## Key Targets (CI-only)
 
-```bash
-# Push Todo image to registry
-bazel run //charts/todo/image:push
-```
+| Target                              | Description                 |
+| ----------------------------------- | --------------------------- |
+| `//charts/<service>/image:image`    | Container image             |
+| `//charts/<service>/image:push`     | Push image to registry      |
+| `//images:push_all`                 | Push all container images   |
+| `//websites:push_all_pages`         | Deploy all CF Pages sites   |
+| `//tools/format:format`             | Format + render all         |
 
-### Running Tests
+## Writing BUILD Files
 
-```bash
-# Run all tests
-bazel test //...
-
-# Run specific test
-bazel test //pkg/mypackage:mypackage_test
-
-# Run with verbose output
-bazel test //... --test_output=all
-```
+BUILD files are still written locally — they define what CI builds.
 
 ### Querying Build Graph
 
 ```bash
-# List all targets in a package
+# These still work locally via bb CLI
 bazel query //charts/todo/...
-
-# Find what depends on a target
 bazel query "rdeps(//..., //charts/todo/image:image)"
-
-# Show target dependencies
 bazel query "deps(//charts/todo/image:image)"
 ```
 
-## Key Targets
+### Gazelle (BUILD File Generation)
 
-| Target                      | Description                 |
-| --------------------------- | --------------------------- |
-| `//charts/todo/image:image` | Todo container image        |
-| `//charts/todo/image:push`  | Push Todo image to registry |
-| `//tools/format:format`     | Format + render all (CI)    |
-| `//images:push_all`         | Push all container images   |
+Gazelle auto-generates BUILD files for Go, Python, and Helm. Run via:
 
-> **Cluster inspection:** Use MCP tools (`ToolSearch` with `+kubernetes`, `+argocd`) instead of `//tools/cluster:*` targets — those targets wrap kubectl commands which are blocked by PreToolUse hooks.
+```bash
+format    # Runs gazelle as part of the format pipeline
+```
+
+After adding new Go imports or Python dependencies, run `format` to regenerate BUILD files.
 
 ## Container Images with apko
 
@@ -95,38 +81,26 @@ For apko.yaml structure, BUILD.bazel patterns, and package reference, see the `c
 ### Updating Lock Files
 
 ```bash
+# Update all locks (recommended)
+format
+
 # Update a single lock
 bazel run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
-
-# Or update all locks
-format
 ```
 
-## Caching
+## Debugging CI Failures
 
-Bazel caches build artifacts aggressively:
+Use the `/buildbuddy` skill or MCP tools directly:
 
-- Local cache in `~/.cache/bazel`
-- Remote cache via BuildBuddy (see build output URLs)
+1. Get invocation ID: `gh pr checks --json link | jq -r '.[] | select(.link | contains("buildbuddy")) | .link'`
+2. Load tools: `ToolSearch` with `+buildbuddy`
+3. Investigate: `buildbuddy-mcp-get-invocation` → `buildbuddy-mcp-get-log` → `buildbuddy-mcp-get-target`
 
-To force rebuild:
+> **Important:** BuildBuddy `get-invocation` requires full 40-char commit SHAs. Always `git rev-parse` short SHAs first.
 
-```bash
-bazel build //target --noremote_cache
-```
+## Cluster Inspection
 
-## Troubleshooting
-
-```bash
-# Clean build artifacts
-bazel clean
-
-# Clean everything including external deps
-bazel clean --expunge
-
-# Show why a target was rebuilt
-bazel build //target --explain=explain.log --verbose_explanations
-```
+Use MCP tools (`ToolSearch` with `+kubernetes`, `+argocd`) — not `//tools/cluster:*` targets (those wrap kubectl commands blocked by PreToolUse hooks).
 
 ## Workflow Integration
 
@@ -137,3 +111,4 @@ Typical workflow after making changes:
 3. Review changes with `git diff`
 4. Commit with conventional commit format and push
 5. Create PR via `gh pr create`
+6. CI builds, tests, and pushes automatically
