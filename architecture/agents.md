@@ -63,18 +63,19 @@ The [`kubernetes-sigs/agent-sandbox`](https://github.com/kubernetes-sigs/agent-s
 
 ### CRDs
 
-| CRD | Purpose |
-|-----|---------|
-| `Sandbox` (`agents.x-k8s.io/v1alpha1`) | Single-pod workload with PVC, headless Service, auto-delete lifecycle |
-| `SandboxTemplate` (`agents.x-k8s.io/v1alpha1`) | Reusable pod spec — image, env, resources defined once |
-| `SandboxClaim` (`extensions.agents.x-k8s.io/v1alpha1`) | Per-job request that claims a sandbox from a pool or creates one |
-| `SandboxWarmPool` (`agents.x-k8s.io/v1alpha1`) | Pre-warmed pods for near-instant allocation |
+| CRD                                                    | Purpose                                                               |
+| ------------------------------------------------------ | --------------------------------------------------------------------- |
+| `Sandbox` (`agents.x-k8s.io/v1alpha1`)                 | Single-pod workload with PVC, headless Service, auto-delete lifecycle |
+| `SandboxTemplate` (`agents.x-k8s.io/v1alpha1`)         | Reusable pod spec — image, env, resources defined once                |
+| `SandboxClaim` (`extensions.agents.x-k8s.io/v1alpha1`) | Per-job request that claims a sandbox from a pool or creates one      |
+| `SandboxWarmPool` (`agents.x-k8s.io/v1alpha1`)         | Pre-warmed pods for near-instant allocation                           |
 
 ### Goose Sandboxes
 
 **Chart:** `charts/goose-sandboxes/` — deployed to `goose-sandboxes` namespace
 
 Installs:
+
 - `SandboxTemplate` named `goose-agent` (references the apko-built image)
 - `SandboxWarmPool` named `goose-pool` (size: 1)
 - `LimitRange` — 1–4 CPU, 2–8Gi memory per pod
@@ -89,32 +90,32 @@ Installs:
 
 Wolfi packages baked in:
 
-| Package | Purpose |
-|---------|---------|
-| `goose` | Agent framework — entrypoint |
-| `go` | Build/test Go services |
-| `nodejs` + `pnpm` | Build frontend apps |
-| `git` + `gh` | Clone repos, push branches, open PRs |
-| `bash`, `coreutils`, `busybox` | Shell tooling for recipe scripts |
-| `ca-certificates-bundle` | TLS for outbound HTTPS |
+| Package                        | Purpose                              |
+| ------------------------------ | ------------------------------------ |
+| `goose`                        | Agent framework — entrypoint         |
+| `go`                           | Build/test Go services               |
+| `nodejs` + `pnpm`              | Build frontend apps                  |
+| `git` + `gh`                   | Clone repos, push branches, open PRs |
+| `bash`, `coreutils`, `busybox` | Shell tooling for recipe scripts     |
+| `ca-certificates-bundle`       | TLS for outbound HTTPS               |
 
 Goose extensions baked into the image (`~/.config/goose/config.yaml`):
 
-| Extension | Type | Endpoint |
-|-----------|------|---------|
-| `developer` | builtin | Filesystem, shell, text editor (scoped to `/workspace`) |
-| `context-forge` | `streamable_http` | `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp` |
-| `github` | stdio | `pnpm dlx @modelcontextprotocol/server-github` (uses `GITHUB_TOKEN`) |
+| Extension       | Type              | Endpoint                                                             |
+| --------------- | ----------------- | -------------------------------------------------------------------- |
+| `developer`     | builtin           | Filesystem, shell, text editor (scoped to `/workspace`)              |
+| `context-forge` | `streamable_http` | `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`        |
+| `github`        | stdio             | `pnpm dlx @modelcontextprotocol/server-github` (uses `GITHUB_TOKEN`) |
 
 ### Agent Profiles
 
 Profiles narrow tool access for specific task types. Each maps to a Goose recipe YAML and a scoped Context Forge token (stored in `goose-mcp-tokens` secret).
 
-| Profile | Tools | Use case |
-|---------|-------|---------|
-| _(none)_ | All extensions | General coding tasks |
-| `ci-debug` | `buildbuddy-mcp` only | CI failure investigation |
-| `code-fix` | No cluster tools | Pure code changes, no observability access |
+| Profile    | Tools                 | Use case                                   |
+| ---------- | --------------------- | ------------------------------------------ |
+| _(none)_   | All extensions        | General coding tasks                       |
+| `ci-debug` | `buildbuddy-mcp` only | CI failure investigation                   |
+| `code-fix` | No cluster tools      | Pure code changes, no observability access |
 
 Profile definitions are documented in `charts/goose-sandboxes/profiles.yaml`. Recipes live in `charts/goose-agent/image/recipes/`.
 
@@ -256,16 +257,17 @@ Step 8 ensures agents always work from the latest `main`.
 
 ### REST API
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/jobs` | Submit job -> 202 Accepted |
-| `GET` | `/jobs` | List jobs (`?status=RUNNING,PENDING`, `?limit=`, `?offset=`) |
-| `GET` | `/jobs/{id}` | Job detail + all attempt records |
-| `POST` | `/jobs/{id}/cancel` | Cancel PENDING or RUNNING job |
-| `GET` | `/jobs/{id}/output` | Latest attempt output (last 32KB) |
-| `GET` | `/health` | Liveness / readiness |
+| Method | Path                | Description                                                  |
+| ------ | ------------------- | ------------------------------------------------------------ |
+| `POST` | `/jobs`             | Submit job -> 202 Accepted                                   |
+| `GET`  | `/jobs`             | List jobs (`?status=RUNNING,PENDING`, `?limit=`, `?offset=`) |
+| `GET`  | `/jobs/{id}`        | Job detail + all attempt records                             |
+| `POST` | `/jobs/{id}/cancel` | Cancel PENDING or RUNNING job                                |
+| `GET`  | `/jobs/{id}/output` | Latest attempt output (last 32KB)                            |
+| `GET`  | `/health`           | Liveness / readiness                                         |
 
 **Submit example:**
+
 ```json
 // POST /jobs
 { "task": "Fix the flaky test in services/grimoire", "profile": "ci-debug", "max_retries": 2 }
@@ -304,12 +306,12 @@ type Attempt struct {
 
 The orchestrator's `ServiceAccount` has the minimum permissions needed to drive sandbox lifecycle:
 
-| Resource | Verbs |
-|----------|-------|
+| Resource                                   | Verbs                            |
+| ------------------------------------------ | -------------------------------- |
 | `extensions.agents.x-k8s.io/sandboxclaims` | create, get, list, watch, delete |
-| `agents.x-k8s.io/sandboxes` | get, list, watch |
-| `core/pods` | get, list, watch |
-| `core/pods/exec` | create |
+| `agents.x-k8s.io/sandboxes`                | get, list, watch                 |
+| `core/pods`                                | get, list, watch                 |
+| `core/pods/exec`                           | create                           |
 
 ---
 
@@ -324,13 +326,13 @@ A thin FastMCP wrapper around the orchestrator REST API. Registered with Context
 
 ### MCP Tools
 
-| Tool | Wraps | Description |
-|------|-------|-------------|
-| `submit_job` | `POST /jobs` | Queue a task for agent execution |
-| `list_jobs` | `GET /jobs` | List jobs with status filter and pagination |
-| `get_job` | `GET /jobs/{id}` | Full job record with attempt history |
-| `cancel_job` | `POST /jobs/{id}/cancel` | Cancel a pending or running job |
-| `get_job_output` | `GET /jobs/{id}/output` | Latest attempt output (last 32KB) |
+| Tool             | Wraps                    | Description                                 |
+| ---------------- | ------------------------ | ------------------------------------------- |
+| `submit_job`     | `POST /jobs`             | Queue a task for agent execution            |
+| `list_jobs`      | `GET /jobs`              | List jobs with status filter and pagination |
+| `get_job`        | `GET /jobs/{id}`         | Full job record with attempt history        |
+| `cancel_job`     | `POST /jobs/{id}/cancel` | Cancel a pending or running job             |
+| `get_job_output` | `GET /jobs/{id}/output`  | Latest attempt output (last 32KB)           |
 
 ### Full Request Path: Claude Chat -> Running Agent
 
@@ -391,12 +393,12 @@ IBM's [`mcp-context-forge`](https://github.com/ibm/mcp-context-forge) aggregates
 
 ### Deployed Components
 
-| Component | Purpose |
-|-----------|---------|
-| Context Forge gateway | MCP protocol routing, tool registry, RBAC |
-| Postgres | Durable state — tool registrations, teams, tokens |
-| Redis | Session caching |
-| Schema migration Job | Applied on upgrade, pinned to same image tag as gateway |
+| Component             | Purpose                                                 |
+| --------------------- | ------------------------------------------------------- |
+| Context Forge gateway | MCP protocol routing, tool registry, RBAC               |
+| Postgres              | Durable state — tool registrations, teams, tokens       |
+| Redis                 | Session caching                                         |
+| Schema migration Job  | Applied on upgrade, pinned to same image tag as gateway |
 
 ### Auth Stack (External Access)
 
@@ -431,24 +433,24 @@ Context Forge uses two authorization layers (see [ADR 005](decisions/agents/005-
 1. **Token scoping** — JWT `teams` claim controls which tools an agent can see
 2. **Role** — `developer` grants `tools.read` + `tools.execute`
 
-| Client | Team | Visible tools |
-|--------|------|--------------|
-| Claude Code / Claude.ai | `infra-agents` | All registered servers |
-| Claude.ai web chat | `web-chat` | SigNoz read tools only |
-| In-cluster Goose pods (ClusterIP) | — (bypass auth) | All tools |
+| Client                            | Team            | Visible tools          |
+| --------------------------------- | --------------- | ---------------------- |
+| Claude Code / Claude.ai           | `infra-agents`  | All registered servers |
+| Claude.ai web chat                | `web-chat`      | SigNoz read tools only |
+| In-cluster Goose pods (ClusterIP) | — (bypass auth) | All tools              |
 
 ### Registered MCP Servers
 
 All servers run in `mcp-servers` namespace. Registration happens once at deploy time via a Kubernetes `Job` that calls the Context Forge admin API.
 
-| Server | Image | Transport | Tools |
-|--------|-------|-----------|-------|
-| `signoz-mcp` | `docker.io/signoz/signoz-mcp-server` | STREAMABLEHTTP | Logs, traces, metrics, alerts, dashboards |
-| `buildbuddy-mcp` | homelab Go service | STREAMABLEHTTP | CI invocations, build logs, targets |
-| `kubernetes-mcp` | `ghcr.io/containers/kubernetes-mcp-server` | STREAMABLEHTTP | Pod list/logs/exec, resource reads |
-| `argocd-mcp` | `ghcr.io/argoproj-labs/mcp-for-argocd` | STREAMABLEHTTP | App status, sync, history |
-| `todo-mcp` | homelab Python service | STREAMABLEHTTP | Todo CRUD |
-| `agent-orchestrator-mcp` | homelab Python service | STREAMABLEHTTP | Job submit/list/cancel/output |
+| Server                   | Image                                      | Transport      | Tools                                     |
+| ------------------------ | ------------------------------------------ | -------------- | ----------------------------------------- |
+| `signoz-mcp`             | `docker.io/signoz/signoz-mcp-server`       | STREAMABLEHTTP | Logs, traces, metrics, alerts, dashboards |
+| `buildbuddy-mcp`         | homelab Go service                         | STREAMABLEHTTP | CI invocations, build logs, targets       |
+| `kubernetes-mcp`         | `ghcr.io/containers/kubernetes-mcp-server` | STREAMABLEHTTP | Pod list/logs/exec, resource reads        |
+| `argocd-mcp`             | `ghcr.io/argoproj-labs/mcp-for-argocd`     | STREAMABLEHTTP | App status, sync, history                 |
+| `todo-mcp`               | homelab Python service                     | STREAMABLEHTTP | Todo CRUD                                 |
+| `agent-orchestrator-mcp` | homelab Python service                     | STREAMABLEHTTP | Job submit/list/cancel/output             |
 
 All server definitions live in `overlays/prod/mcp-servers/values.yaml`. ArgoCD Image Updater maintains digest-pinned image tags automatically.
 
@@ -460,10 +462,10 @@ The orchestrator uses **NATS JetStream** as both job queue and state store.
 
 ### NATS Resources
 
-| Resource | Type | Config |
-|----------|------|--------|
-| `agent-jobs` stream | WorkQueue | subject: `agent.jobs`, max 1000 msgs |
-| `job-records` KV bucket | KeyValue | keyed by ULID, TTL 7 days |
+| Resource                | Type         | Config                                       |
+| ----------------------- | ------------ | -------------------------------------------- |
+| `agent-jobs` stream     | WorkQueue    | subject: `agent.jobs`, max 1000 msgs         |
+| `job-records` KV bucket | KeyValue     | keyed by ULID, TTL 7 days                    |
 | `orchestrator` consumer | Durable pull | MaxAckPending=3, AckWait=JOB_MAX_DURATION+1m |
 
 All three are self-provisioned on orchestrator startup. Single-node NATS at `nats://nats.nats.svc.cluster.local:4222` (`charts/nats/`, `overlays/prod/nats/`).
@@ -504,15 +506,15 @@ This is the intended extension point for future webhook dispatch, DLQ handling, 
 
 ## Related ADRs
 
-| ADR | Decision |
-|-----|---------|
-| [001 - Background Agents](decisions/agents/001-background-agents.md) | Initial motivation |
-| [002 - OpenHands Agent Sandbox](decisions/agents/002-openhands-agent-sandbox.md) | Superseded approach |
-| [003 - Context Forge](decisions/agents/003-context-forge.md) | MCP gateway deployment |
-| [004 - Autonomous Agents](decisions/agents/004-autonomous-agents.md) | Goose + agent-sandbox architecture |
-| [005 - Role-Based MCP Access](decisions/agents/005-role-based-mcp-access.md) | Context Forge RBAC model |
-| [006 - OIDC Auth MCP Gateway](decisions/agents/006-oidc-auth-mcp-gateway.md) | OAuth proxy + Google OIDC |
-| [007 - Agent Orchestrator](decisions/agents/007-agent-orchestrator.md) | Orchestrator service design |
+| ADR                                                                              | Decision                           |
+| -------------------------------------------------------------------------------- | ---------------------------------- |
+| [001 - Background Agents](decisions/agents/001-background-agents.md)             | Initial motivation                 |
+| [002 - OpenHands Agent Sandbox](decisions/agents/002-openhands-agent-sandbox.md) | Superseded approach                |
+| [003 - Context Forge](decisions/agents/003-context-forge.md)                     | MCP gateway deployment             |
+| [004 - Autonomous Agents](decisions/agents/004-autonomous-agents.md)             | Goose + agent-sandbox architecture |
+| [005 - Role-Based MCP Access](decisions/agents/005-role-based-mcp-access.md)     | Context Forge RBAC model           |
+| [006 - OIDC Auth MCP Gateway](decisions/agents/006-oidc-auth-mcp-gateway.md)     | OAuth proxy + Google OIDC          |
+| [007 - Agent Orchestrator](decisions/agents/007-agent-orchestrator.md)           | Orchestrator service design        |
 
 ## Quick Reference
 
