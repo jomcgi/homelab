@@ -37,7 +37,7 @@ servers:
 - name: buildbuddy-mcp
   image:
     repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
-    tag: "main@sha256:61cae4bcab4564c8b38889eda372f45f0d418291d1f1c1fdb660c5f2645fb50a"
+    tag: "main@sha256:96dcf95886c2d9aed542c03aff6d2473072f61fd34e6e252508ec8afec137d7a"
   port: 8000
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
