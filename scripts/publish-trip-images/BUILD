@@ -58,8 +58,8 @@ py_test(
     srcs = ["rebuild_test.py"],
     imports = ["."],
     deps = [
-        ":publish-trip-images",
         "//scripts/elevation",
+        "//scripts/publish-trip-images",
         "@pip//pytest",
     ],
 )

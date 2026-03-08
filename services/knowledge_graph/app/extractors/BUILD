@@ -16,10 +16,10 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":base",
-        ":feed_extractor",
-        ":html_extractor",
         "//services/knowledge_graph/app:models",
+        "//services/knowledge_graph/app/extractors:base",
+        "//services/knowledge_graph/app/extractors:feed_extractor",
+        "//services/knowledge_graph/app/extractors:html_extractor",
         "@pip//feedparser",
         "@pip//httpx",
         "@pip//trafilatura",
