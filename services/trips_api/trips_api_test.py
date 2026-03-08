@@ -573,7 +573,7 @@ class TestJetStreamReplay:
 
         state.js = AsyncMock()
         state.js.pull_subscribe = AsyncMock(
-            side_effect=nats.js.errors.StreamNotFoundError()
+            side_effect=nats.js.errors.NotFoundError()
         )
 
         # Should not raise; state should remain empty.

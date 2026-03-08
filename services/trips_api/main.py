@@ -189,7 +189,7 @@ class TripsState:
 
             logger.info(f"Replayed {len(self.points)} points from stream")
 
-        except nats.js.errors.StreamNotFoundError:
+        except nats.js.errors.NotFoundError:
             logger.warning("Stream 'trips' not found - starting with empty cache")
         except Exception as e:
             logger.error(f"Error replaying stream: {e}")
