@@ -9,6 +9,7 @@ resources:
   - ./coredns
   - ./kyverno
   - ./opentelemetry-operator
+  - ./envoy # Installs Gateway API CRDs; must be before linkerd
   - ./linkerd
   - ./longhorn
   - ./nvidia-gpu-operator
