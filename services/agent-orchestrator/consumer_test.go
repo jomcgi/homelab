@@ -26,10 +26,10 @@ type fakeMsg struct {
 
 func newFakeMsg(data []byte) *fakeMsg { return &fakeMsg{data: data} }
 
-func (m *fakeMsg) Data() []byte            { return m.data }
-func (m *fakeMsg) Headers() nats.Header   { return m.headers }
-func (m *fakeMsg) Ack() error                 { m.acked.Store(true); return nil }
-func (m *fakeMsg) Nak() error                 { m.nacked.Store(true); return nil }
+func (m *fakeMsg) Data() []byte         { return m.data }
+func (m *fakeMsg) Headers() nats.Header { return m.headers }
+func (m *fakeMsg) Ack() error           { m.acked.Store(true); return nil }
+func (m *fakeMsg) Nak() error           { m.nacked.Store(true); return nil }
 func (m *fakeMsg) NakWithDelay(_ time.Duration) error {
 	m.nacked.Store(true)
 	return nil
