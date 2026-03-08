@@ -51,7 +51,7 @@ config:
   sandboxNamespace: "goose-sandboxes"
   sandboxTemplate: "goose-agent"
   maxRetries: "2"
-  maxConcurrent: "3"
+  maxConcurrent: "5"
   httpPort: "8080"
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
