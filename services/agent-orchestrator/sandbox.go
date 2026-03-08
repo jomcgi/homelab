@@ -346,6 +346,9 @@ func (s *SandboxExecutor) pollOutput(ctx context.Context, baseURL string, offset
 	if err != nil {
 		return offset, err
 	}
+	if resp.StatusCode != http.StatusOK {
+		return offset, fmt.Errorf("GET /output returned %d: %s", resp.StatusCode, string(body))
+	}
 	if len(body) > 0 {
 		outputBuf.Write(body)
 	}
@@ -370,6 +373,10 @@ func (s *SandboxExecutor) pollStatus(ctx context.Context, baseURL string) (state
 		return "", -1, err
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", -1, fmt.Errorf("GET /status returned %d: %s", resp.StatusCode, string(body))
+	}
 	var status struct {
 		State    string `json:"state"`
 		ExitCode *int   `json:"exit_code"`
