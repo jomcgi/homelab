@@ -1,0 +1,35 @@
+# Tests for require-readiness-probe rule.
+---
+# ok: container has readinessProbe
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ok-pod
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+      readinessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
+        initialDelaySeconds: 5
+        periodSeconds: 10
+
+---
+# ruleid: require-readiness-probe
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-pod
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+      ports:
+        - containerPort: 8080
+      # no readinessProbe!
+      livenessProbe:
+        httpGet:
+          path: /healthz
+          port: 8080
