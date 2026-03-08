@@ -1,5 +1,5 @@
 imagePullSecret:
   enabled: true
 image:
-  tag: main@sha256:17a793e624bfc0339277e1f16ae2a7345b3f21c12f6621fbabcc466141715ce1
+  tag: main@sha256:8099c08f0c6729392f90cfcd68b0e9367272e3f27a57fefa50c9c698326010f1
   repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
