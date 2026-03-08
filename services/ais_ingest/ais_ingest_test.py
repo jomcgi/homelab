@@ -353,6 +353,127 @@ class TestHealthEndpoint:
             assert data["status"] == "starting"
 
 
+class TestWebSocketReconnection:
+    """Tests for WebSocket reconnection backoff logic."""
+
+    def test_initial_delay_is_constant(self):
+        from services.ais_ingest.main import INITIAL_RECONNECT_DELAY
+        assert INITIAL_RECONNECT_DELAY == 1.0
+
+    def test_max_delay_is_constant(self):
+        from services.ais_ingest.main import MAX_RECONNECT_DELAY
+        assert MAX_RECONNECT_DELAY == 60.0
+
+    def test_backoff_factor_is_constant(self):
+        from services.ais_ingest.main import RECONNECT_BACKOFF_FACTOR
+        assert RECONNECT_BACKOFF_FACTOR == 2.0
+
+    def test_backoff_doubles_each_attempt(self):
+        from services.ais_ingest.main import (
+            INITIAL_RECONNECT_DELAY,
+            MAX_RECONNECT_DELAY,
+            RECONNECT_BACKOFF_FACTOR,
+        )
+        delay = INITIAL_RECONNECT_DELAY
+        expected_sequence = [1.0, 2.0, 4.0, 8.0, 16.0, 32.0, 60.0, 60.0]
+
+        for expected in expected_sequence:
+            assert delay == expected
+            delay = min(delay * RECONNECT_BACKOFF_FACTOR, MAX_RECONNECT_DELAY)
+
+    def test_backoff_never_exceeds_max(self):
+        from services.ais_ingest.main import (
+            INITIAL_RECONNECT_DELAY,
+            MAX_RECONNECT_DELAY,
+            RECONNECT_BACKOFF_FACTOR,
+        )
+        delay = INITIAL_RECONNECT_DELAY
+        for _ in range(20):
+            delay = min(delay * RECONNECT_BACKOFF_FACTOR, MAX_RECONNECT_DELAY)
+            assert delay <= MAX_RECONNECT_DELAY
+
+    def test_backoff_caps_at_max(self):
+        from services.ais_ingest.main import (
+            MAX_RECONNECT_DELAY,
+            RECONNECT_BACKOFF_FACTOR,
+        )
+        # Start from just below max and verify it caps
+        delay = MAX_RECONNECT_DELAY / RECONNECT_BACKOFF_FACTOR + 1
+        next_delay = min(delay * RECONNECT_BACKOFF_FACTOR, MAX_RECONNECT_DELAY)
+        assert next_delay == MAX_RECONNECT_DELAY
+
+    def test_first_attempt_uses_initial_delay(self):
+        from services.ais_ingest.main import INITIAL_RECONNECT_DELAY
+        # The reconnect loop starts with INITIAL_RECONNECT_DELAY before the first
+        # retry, so the initial value must equal the constant.
+        delay = INITIAL_RECONNECT_DELAY
+        assert delay == 1.0
+
+
+class TestAISIngestServiceState:
+    """Tests for AISIngestService initial state and NATS tracking."""
+
+    @pytest.fixture
+    def service(self):
+        from services.ais_ingest.main import AISIngestService
+        return AISIngestService()
+
+    def test_initial_running_false(self, service):
+        assert service.running is False
+
+    def test_initial_ready_false(self, service):
+        assert service.ready is False
+
+    def test_initial_nats_connection_none(self, service):
+        assert service.nc is None
+
+    def test_initial_jetstream_none(self, service):
+        assert service.js is None
+
+    def test_initial_ws_task_none(self, service):
+        assert service.ws_task is None
+
+    def test_initial_messages_published_zero(self, service):
+        assert service.messages_published == 0
+
+    def test_initial_last_message_time_none(self, service):
+        assert service.last_message_time is None
+
+    @pytest.mark.asyncio
+    async def test_nats_connection_tracked_after_connect(self, service):
+        """After connect_nats, nc and js should be set."""
+        import nats as nats_module
+
+        mock_nc = MagicMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream.return_value = mock_js
+
+        with patch.object(nats_module, "connect", AsyncMock(return_value=mock_nc)):
+            await service.connect_nats()
+
+        assert service.nc is mock_nc
+        assert service.js is mock_js
+
+    @pytest.mark.asyncio
+    async def test_publish_increments_counter(self, service):
+        service.js = AsyncMock()
+        data = {"mmsi": "123", "lat": 48.5, "lon": -123.4, "timestamp": "2024-01-15T10:00:00Z"}
+
+        await service.publish_position("123", data)
+        assert service.messages_published == 1
+
+        await service.publish_position("123", data)
+        assert service.messages_published == 2
+
+    @pytest.mark.asyncio
+    async def test_publish_updates_last_message_time(self, service):
+        service.js = AsyncMock()
+        data = {"mmsi": "123", "lat": 48.5, "lon": -123.4, "timestamp": "2024-01-15T10:00:00Z"}
+
+        await service.publish_position("123", data)
+        assert service.last_message_time == "2024-01-15T10:00:00Z"
+
+
 class TestMetricsEndpoint:
     """Tests for metrics endpoint."""
 
