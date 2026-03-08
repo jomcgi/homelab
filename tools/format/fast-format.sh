@@ -5,6 +5,11 @@ set -euo pipefail
 
 cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
+# Ensure .tools/bin is on PATH (pre-commit doesn't run through direnv)
+if [[ -d "$PWD/.tools/bin" ]]; then
+	export PATH="$PWD/.tools/bin:$PATH"
+fi
+
 # Colors for output
 GREEN='\033[0;32m'
 RED='\033[0;31m'
@@ -24,6 +29,7 @@ done
 if [ ${#MISSING[@]} -gt 0 ]; then
 	err "Missing tools: ${MISSING[*]}"
 	err "Run './bootstrap.sh' to install dev tools"
+	err "In a worktree? Run 'direnv allow' to symlink tools from the main repo"
 	exit 1
 fi
 
