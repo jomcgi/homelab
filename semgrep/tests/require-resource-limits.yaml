@@ -1,0 +1,45 @@
+# Tests for require-resource-limits rule.
+---
+# ok: container has resource limits
+apiVersion: v1
+kind: Pod
+metadata:
+  name: ok-pod
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "250m"
+        limits:
+          memory: "512Mi"
+          cpu: "500m"
+
+---
+# ruleid: require-resource-limits
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-no-resources
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+      # no resources block at all
+
+---
+# ruleid: require-resource-limits
+apiVersion: v1
+kind: Pod
+metadata:
+  name: bad-requests-only
+spec:
+  containers:
+    - name: app
+      image: myapp:latest
+      resources:
+        requests:
+          memory: "128Mi"
+        # limits block missing
