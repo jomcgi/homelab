@@ -44,8 +44,6 @@ spec:
           value: {{ .Values.config.llmUrl | quote }}
         - name: LLM_MODEL
           value: {{ .Values.config.llmModel | quote }}
-        - name: ARGOCD_URL
-          value: {{ .Values.config.argocdUrl | quote }}
         - name: ORCHESTRATOR_URL
           value: {{ .Values.config.orchestratorUrl | quote }}
         - name: GITHUB_REPO
@@ -57,13 +55,8 @@ spec:
         - name: GITHUB_TOKEN
           valueFrom:
             secretKeyRef:
-              name: github-token-cluster-agents
-              key: credential
-        - name: ARGOCD_TOKEN
-          valueFrom:
-            secretKeyRef:
-              name: argocd-token-cluster-agents
-              key: credential
+              name: agent-secrets
+              key: GITHUB_TOKEN
         livenessProbe:
           httpGet:
             path: /health

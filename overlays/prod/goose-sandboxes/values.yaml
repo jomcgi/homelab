@@ -25,22 +25,22 @@ sandboxTemplate:
   # see the LiteLLM overlay — LiteLLM emits these via its OTEL callback when
   # requests are routed through it.
   extraEnv:
-  # Signal-specific HTTP endpoints override Kyverno's generic gRPC endpoint.
-  - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-    value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-  - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-    value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-  - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
-    value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-  # Explicitly enable OTLP export for all three signals.
-  - name: OTEL_TRACES_EXPORTER
-    value: "otlp"
-  - name: OTEL_METRICS_EXPORTER
-    value: "otlp"
-  - name: OTEL_LOGS_EXPORTER
-    value: "otlp"
-  # Service identity in SigNoz.
-  - name: OTEL_SERVICE_NAME
-    value: "goose-agent"
-  - name: OTEL_RESOURCE_ATTRIBUTES
-    value: "service.namespace=goose-sandboxes,deployment.environment=prod"
+    # Signal-specific HTTP endpoints override Kyverno's generic gRPC endpoint.
+    - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+    - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+    - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+    # Explicitly enable OTLP export for all three signals.
+    - name: OTEL_TRACES_EXPORTER
+      value: "otlp"
+    - name: OTEL_METRICS_EXPORTER
+      value: "otlp"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    # Service identity in SigNoz.
+    - name: OTEL_SERVICE_NAME
+      value: "goose-agent"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.namespace=goose-sandboxes,deployment.environment=prod"
