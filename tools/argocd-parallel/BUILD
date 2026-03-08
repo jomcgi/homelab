@@ -31,6 +31,7 @@ filegroup(
         "//overlays/prod/agent-orchestrator:render_manifests",
         "//overlays/prod/api-gateway:render_manifests",
         "//overlays/prod/cloudflare-tunnel:render_manifests",
+        "//overlays/prod/cluster-agents:render_manifests",
         "//overlays/prod/context-forge:render_manifests",
         "//overlays/prod/goose-sandboxes:render_manifests",
         "//overlays/prod/knowledge-graph:render_manifests",

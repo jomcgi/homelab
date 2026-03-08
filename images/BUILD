@@ -17,6 +17,7 @@ multirun(
         "//services/agent_orchestrator_mcp:image.push",
         "//services/ais_ingest:image.push",
         "//services/buildbuddy_mcp:image.push",
+        "//services/cluster-agents:image.push",
         "//services/grimoire/api:image.push",
         "//services/grimoire/frontend:image.push",
         "//services/grimoire/ws-gateway:image.push",
