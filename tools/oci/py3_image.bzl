@@ -108,7 +108,10 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         # Load uses host platform
         platform_transition_filegroup(
             name = name + "_platform",
-            srcs = [name + "_base_amd64" if native.package_name().endswith("_amd64") else name + "_base_arm64"],
+            srcs = select({
+                "@platforms//cpu:arm64": [name + "_base_arm64"],
+                "@platforms//cpu:x86_64": [name + "_base_amd64"],
+            }),
             target_platform = select({
                 "@platforms//cpu:arm64": "//tools/platforms:linux_aarch64",
                 "@platforms//cpu:x86_64": "//tools/platforms:linux_x86_64",
