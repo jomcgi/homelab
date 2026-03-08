@@ -44,11 +44,11 @@ Wrap `_post` to return valid empty structures instead of triggering FastMCP outp
 
 New parameters (top-level request fields, not selector fields):
 
-| Parameter | Type | Purpose |
-|-----------|------|---------|
+| Parameter                   | Type   | Purpose                                    |
+| --------------------------- | ------ | ------------------------------------------ |
 | `include_child_invocations` | `bool` | Return child invocation IDs from workflows |
-| `include_metadata` | `bool` | Return build_metadata and workspace_status |
-| `include_artifacts` | `bool` | Return attached artifacts |
+| `include_metadata`          | `bool` | Return build_metadata and workspace_status |
+| `include_artifacts`         | `bool` | Return attached artifacts                  |
 
 `include_child_invocations` is the key addition — enables navigating from workflow invocation to inner bazel invocations without commit_sha lookup.
 
@@ -56,9 +56,9 @@ New parameters (top-level request fields, not selector fields):
 
 New parameter:
 
-| Parameter | Type | Purpose |
-|-----------|------|---------|
-| `status` | `str \| None` | Client-side filter: PASSED, FAILED, BUILT, FLAKY |
+| Parameter | Type          | Purpose                                          |
+| --------- | ------------- | ------------------------------------------------ |
+| `status`  | `str \| None` | Client-side filter: PASSED, FAILED, BUILT, FLAKY |
 
 The BuildBuddy API does not support status filtering. The MCP server fetches all targets (paginating if needed), filters to matching statuses, and returns the filtered list. Tool description must state this is client-side.
 
@@ -68,11 +68,12 @@ This is the single biggest context reduction — turns 258KB (1,075 targets) int
 
 New parameter:
 
-| Parameter | Type | Purpose |
-|-----------|------|---------|
+| Parameter     | Type   | Purpose                        |
+| ------------- | ------ | ------------------------------ |
 | `errors_only` | `bool` | Strip to error lines + context |
 
 When `errors_only=True`:
+
 1. Fetch all log pages (follow `next_page_token`)
 2. Strip ANSI escape codes
 3. Filter to lines matching: `ERROR`, `FAILED`, `TIMEOUT`, `FATAL`, `error:`, `failure:`
@@ -83,6 +84,7 @@ When `errors_only=True`:
 ### get_file — fix base64 decode
 
 The API returns `{"data": "<base64-encoded bytes>"}` (protobuf `bytes` → base64 in JSON). Fix:
+
 1. Decode base64 `data` field
 2. Attempt UTF-8 decode (test logs, test.xml are always text)
 3. If UTF-8 fails, return `{"error": "Binary file, cannot display as text", "size_bytes": N}`
@@ -92,11 +94,11 @@ The API returns `{"data": "<base64-encoded bytes>"}` (protobuf `bytes` → base6
 
 New parameters:
 
-| Parameter | Type | Purpose |
-|-----------|------|---------|
-| `env` | `dict[str, str] \| None` | Environment variable overrides |
-| `visibility` | `str \| None` | "PUBLIC" or private (default) |
-| `disable_retry` | `bool` | Disable automatic retry |
+| Parameter       | Type                     | Purpose                        |
+| --------------- | ------------------------ | ------------------------------ |
+| `env`           | `dict[str, str] \| None` | Environment variable overrides |
+| `visibility`    | `str \| None`            | "PUBLIC" or private (default)  |
+| `disable_retry` | `bool`                   | Disable automatic retry        |
 
 ### run — new tool
 
@@ -115,6 +117,7 @@ async def run(
 ```
 
 Each string in `steps` becomes `{"run": step}`. Covers:
+
 - `bazel query` without local bazel
 - `bazel test //specific:target` for reproducing failures
 - Arbitrary remote command execution
@@ -142,6 +145,7 @@ Orchestrates the full failure investigation:
 6. `get_log(errors_only=True)` → error summary from build log
 
 Returns:
+
 ```json
 {
   "invocation_id": "...",
@@ -151,7 +155,7 @@ Returns:
     {
       "label": "//pkg:test",
       "status": "FAILED",
-      "timing": {"duration": "1.2s"},
+      "timing": { "duration": "1.2s" },
       "test_log": "... decoded test.log contents ..."
     }
   ],
@@ -204,16 +208,16 @@ py_test(
 
 ## Tool Summary
 
-| Tool | Type | Change |
-|------|------|--------|
-| `get_invocation` | Primitive | Add `include_child_invocations`, `include_metadata`, `include_artifacts` |
-| `get_log` | Primitive | Add `errors_only` mode |
-| `get_target` | Primitive | Add client-side `status` filter |
-| `get_action` | Primitive | Improve docstrings only |
-| `get_file` | Primitive | Fix base64 decode to UTF-8 text |
-| `execute_workflow` | Primitive | Add `env`, `visibility`, `disable_retry` |
-| `run` | Primitive (NEW) | Remote command execution via /Run endpoint |
-| `diagnose_failure` | Composite (NEW) | One-shot CI failure diagnosis |
+| Tool               | Type            | Change                                                                   |
+| ------------------ | --------------- | ------------------------------------------------------------------------ |
+| `get_invocation`   | Primitive       | Add `include_child_invocations`, `include_metadata`, `include_artifacts` |
+| `get_log`          | Primitive       | Add `errors_only` mode                                                   |
+| `get_target`       | Primitive       | Add client-side `status` filter                                          |
+| `get_action`       | Primitive       | Improve docstrings only                                                  |
+| `get_file`         | Primitive       | Fix base64 decode to UTF-8 text                                          |
+| `execute_workflow` | Primitive       | Add `env`, `visibility`, `disable_retry`                                 |
+| `run`              | Primitive (NEW) | Remote command execution via /Run endpoint                               |
+| `diagnose_failure` | Composite (NEW) | One-shot CI failure diagnosis                                            |
 
 ## Non-goals
 

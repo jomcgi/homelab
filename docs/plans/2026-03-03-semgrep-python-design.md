@@ -5,6 +5,7 @@
 PR #692 added hermetic semgrep scanning as Bazel tests for Kubernetes manifests, shell scripts, and Starlark files. The `semgrep_test` macro and shell runner are language-agnostic — semgrep natively supports Python via AST parsing.
 
 This design extends coverage to Python with two additions:
+
 1. Python-specific semgrep rules (security + repo conventions)
 2. A Gazelle extension that auto-generates `semgrep_test` targets for Python packages
 
@@ -26,18 +27,18 @@ Five rules in `semgrep_rules/python/`, combining security guardrails and repo co
 
 ### Security
 
-| Rule | Pattern | Severity | Rationale |
-|------|---------|----------|-----------|
-| `no-shell-true` | `subprocess.*(..., shell=True, ...)` | ERROR | Command injection risk |
-| `no-os-system` | `os.system(...)` | ERROR | Command injection; use subprocess.run() |
-| `no-eval-exec` | `eval(...)` / `exec(...)` | ERROR | Arbitrary code execution |
+| Rule            | Pattern                              | Severity | Rationale                               |
+| --------------- | ------------------------------------ | -------- | --------------------------------------- |
+| `no-shell-true` | `subprocess.*(..., shell=True, ...)` | ERROR    | Command injection risk                  |
+| `no-os-system`  | `os.system(...)`                     | ERROR    | Command injection; use subprocess.run() |
+| `no-eval-exec`  | `eval(...)` / `exec(...)`            | ERROR    | Arbitrary code execution                |
 
 ### Conventions
 
-| Rule | Pattern | Severity | Rationale |
-|------|---------|----------|-----------|
-| `no-requests` | `import requests` | WARNING | Prefer httpx for async consistency |
-| `no-hardcoded-secret` | `password = "..."` / `api_key = "..."` / `secret = "..."` | ERROR | Use env vars or pydantic-settings |
+| Rule                  | Pattern                                                   | Severity | Rationale                          |
+| --------------------- | --------------------------------------------------------- | -------- | ---------------------------------- |
+| `no-requests`         | `import requests`                                         | WARNING  | Prefer httpx for async consistency |
+| `no-hardcoded-secret` | `password = "..."` / `api_key = "..."` / `secret = "..."` | ERROR    | Use env vars or pydantic-settings  |
 
 Each rule YAML includes a companion `.py` test fixture containing code that triggers the rule, verifiable via `bazel test //semgrep_rules:python_rules_test`.
 

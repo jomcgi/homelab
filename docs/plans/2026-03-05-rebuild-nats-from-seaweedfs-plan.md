@@ -13,6 +13,7 @@
 ### Task 1: Add `//scripts/elevation` dep to BUILD
 
 **Files:**
+
 - Modify: `scripts/publish-trip-images/BUILD` — add `//scripts/elevation` and `@pip//aiohttp` to both `py_venv_binary` and `py_library` targets
 
 **Step 1: Update BUILD file**
@@ -20,12 +21,14 @@
 Add `"//scripts/elevation"` and `"@pip//aiohttp"` to the `deps` lists for the `main` target (py_venv_binary, line 7-18) and the `publish-trip-images` target (py_library, line 5-19). The `elevation` library needs `aiohttp` as a transitive dep.
 
 In `py_venv_binary` named `"main"` (line 7), add to deps:
+
 ```python
         "//scripts/elevation",
         "@pip//aiohttp",
 ```
 
 In `py_library` named `"publish-trip-images"` (line 5), add to deps:
+
 ```python
         "//scripts/elevation",
         "@pip//aiohttp",
@@ -48,6 +51,7 @@ git commit -m "build(publish-trip-images): add elevation dependency for rebuild 
 ### Task 2: Add `list_s3_keys` helper function
 
 **Files:**
+
 - Modify: `scripts/publish-trip-images/main.py` — add function after `ensure_bucket()` (after line 488)
 
 **Step 1: Write `list_s3_keys` function**
@@ -98,6 +102,7 @@ git commit -m "feat(publish-trip-images): add list_s3_keys helper for S3 bucket 
 ### Task 3: Add `_rebuild_batch` helper function
 
 **Files:**
+
 - Modify: `scripts/publish-trip-images/main.py` — add function after `list_s3_keys`
 
 **Step 1: Write the batch processing helper**
@@ -201,6 +206,7 @@ git commit -m "feat(publish-trip-images): add _rebuild_batch helper for batched 
 ### Task 4: Add `rebuild` typer command
 
 **Files:**
+
 - Modify: `scripts/publish-trip-images/main.py` — add import for `ElevationClient` at top, add `rebuild` command after `backfill_optics` (after line 1340)
 
 **Step 1: Add elevation import**
@@ -486,6 +492,7 @@ git commit -m "feat(publish-trip-images): add rebuild command to recover data fr
 ### Task 5: Run format and Bazel build check
 
 **Files:**
+
 - Possibly modify: `scripts/publish-trip-images/main.py` (formatting), `scripts/publish-trip-images/BUILD` (buildifier)
 
 **Step 1: Run formatters**

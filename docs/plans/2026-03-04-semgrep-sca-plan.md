@@ -17,6 +17,7 @@
 Add the OCI artifact definition for SCA advisory rules, following the existing Pro rule pack pattern.
 
 **Files:**
+
 - Modify: `third_party/semgrep_pro/digests.bzl:7-16` — add `rules_sca` digest entry
 - Modify: `third_party/semgrep_pro/extensions.bzl:47-54` — add `semgrep_sca_rules` OCI archive
 - Modify: `MODULE.bazel:209-220` — register `semgrep_sca_rules` repo
@@ -89,6 +90,7 @@ git commit -m "feat(semgrep): add SCA rule vendoring infrastructure"
 Add optional `lockfiles` and `sca_rules` attributes to the `semgrep_target_test` rule, passing them through to the test script.
 
 **Files:**
+
 - Modify: `rules_semgrep/target_test.bzl:1-122`
 
 **Step 1: Add attributes to the rule definition**
@@ -183,6 +185,7 @@ git commit -m "feat(semgrep): add lockfiles and sca_rules attrs to semgrep_targe
 Add the same optional `lockfiles` and `sca_rules` attributes to the `semgrep_test` macro.
 
 **Files:**
+
 - Modify: `rules_semgrep/test.bzl:5-59`
 
 **Step 1: Update semgrep_test macro**
@@ -247,6 +250,7 @@ git commit -m "feat(semgrep): add lockfiles and sca_rules attrs to semgrep_test"
 Extend `semgrep-test.sh` to handle lockfiles and generate SCA-aware `targets.json`.
 
 **Files:**
+
 - Modify: `rules_semgrep/semgrep-test.sh`
 
 **Step 1: Add lockfile kind detection function**
@@ -394,6 +398,7 @@ git commit -m "feat(semgrep): add SCA lockfile support to test script"
 Add SCA lockfile auto-detection to the Gazelle extension via dep prefix matching.
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/config.go` — add SCA config fields and directives
 - Modify: `rules_semgrep/gazelle/generate.go` — add dep inspection and lockfile attachment
 - Modify: `rules_semgrep/gazelle/language.go` — register new directives and mergeable attrs
@@ -728,6 +733,7 @@ git commit -m "feat(semgrep): add SCA lockfile detection to Gazelle extension"
 Extend the update workflow to fetch SCA advisory rules, package them as OCI, and push to GHCR.
 
 **Files:**
+
 - Modify: `.github/workflows/update-semgrep-pro.yaml`
 
 **Step 1: Add SCA rule download step**
@@ -735,18 +741,18 @@ Extend the update workflow to fetch SCA advisory rules, package them as OCI, and
 After the "Download pro rule packs" step (line 167), add:
 
 ```yaml
-      - name: Download SCA advisory rules
-        run: |
-          set -euo pipefail
-          dir="artifacts/rules-sca"
-          mkdir -p "${dir}"
+- name: Download SCA advisory rules
+  run: |
+    set -euo pipefail
+    dir="artifacts/rules-sca"
+    mkdir -p "${dir}"
 
-          echo "Downloading SCA supply-chain advisory rules..."
-          curl -sSfL \
-            "https://semgrep.dev/c/supply-chain" \
-            -o "${dir}/supply-chain.yaml"
+    echo "Downloading SCA supply-chain advisory rules..."
+    curl -sSfL \
+      "https://semgrep.dev/c/supply-chain" \
+      -o "${dir}/supply-chain.yaml"
 
-          echo "Downloaded SCA rules ($(stat --format=%s "${dir}/supply-chain.yaml") bytes)"
+    echo "Downloaded SCA rules ($(stat --format=%s "${dir}/supply-chain.yaml") bytes)"
 ```
 
 **Step 2: Add SCA artifact to packaging step**
@@ -785,6 +791,7 @@ git commit -m "ci(semgrep): add SCA advisory rule vendoring to update workflow"
 Run Gazelle to regenerate BUILD files with the new SCA lockfile attributes.
 
 **Files:**
+
 - Modified by Gazelle: various BUILD files across the repo
 
 **Step 1: Run Gazelle**
@@ -816,6 +823,7 @@ git commit -m "build(semgrep): regenerate BUILD files with SCA lockfile attrs"
 Update the README, ADR/docs, and webpage to document SCA support.
 
 **Files:**
+
 - Modify: `rules_semgrep/README.md`
 - Modify: `websites/jomcgi.dev/src/pages/engineering.astro`
 
@@ -834,6 +842,7 @@ Add SCA section after "Rules" table (around line 33). Update the rules table to 
 **Step 2: Update engineering webpage**
 
 In `websites/jomcgi.dev/src/pages/engineering.astro`:
+
 - Update the `semgrepDiagram` mermaid flowchart to include SCA/lockfile flow
 - Update the `rules_semgrep` description to mention SCA reachability analysis
 

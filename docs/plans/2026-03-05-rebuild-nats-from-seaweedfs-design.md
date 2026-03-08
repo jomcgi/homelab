@@ -55,8 +55,8 @@ Batch size of 80 images × ~5.5MB avg = ~440MB peak. Temp directory is wiped bet
 ```json
 {
   "id": "abc123def456",
-  "lat": 49.28270,
-  "lng": -123.12070,
+  "lat": 49.2827,
+  "lng": -123.1207,
   "timestamp": "2025-12-28T14:30:00",
   "image": "img_abc123def456.jpg",
   "source": "gopro",
@@ -87,6 +87,7 @@ Batch size of 80 images × ~5.5MB avg = ~440MB peak. Temp directory is wiped bet
 ### NATS Stream Fix
 
 Before publishing, update the stream config:
+
 ```python
 await js.update_stream(name="trips", max_age=0)  # unlimited
 ```

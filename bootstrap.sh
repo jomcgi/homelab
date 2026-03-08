@@ -4,7 +4,13 @@
 # OCI tools image (linux/amd64, linux/arm64, darwin/arm64).
 set -euo pipefail
 
-TOOLS_IMAGE="ghcr.io/jomcgi/homelab-tools:main"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VERSION_FILE="$SCRIPT_DIR/.tools-version"
+if [[ ! -f "$VERSION_FILE" ]]; then
+	echo "ERROR: Missing .tools-version file in $SCRIPT_DIR"
+	exit 1
+fi
+TOOLS_IMAGE="$(head -1 "$VERSION_FILE" | tr -d '[:space:]')"
 TOOLS_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/homelab-tools"
 
 # Detect platform for multi-platform image

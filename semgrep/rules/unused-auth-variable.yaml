@@ -5,7 +5,7 @@ rules:
       - pattern: $KEY = os.getenv(...)
       - metavariable-regex:
           metavariable: $KEY
-          regex: '^[A-Z_]*_API_KEY$'
+          regex: "^[A-Z_]*_API_KEY$"
       # Exclude if the variable is used in a comparison or function call below
       - pattern-not-inside: |
           ...

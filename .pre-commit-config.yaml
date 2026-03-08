@@ -55,7 +55,7 @@ repos:
         language: script
         stages: [commit-msg]
         always_run: true
-        pass_filenames: true   # pre-commit passes the commit-msg file path
+        pass_filenames: true # pre-commit passes the commit-msg file path
 
   - repo: https://github.com/compilerla/conventional-pre-commit
     rev: v4.4.0
@@ -78,8 +78,8 @@ repos:
     rev: v1.153.1
     hooks:
       - id: semgrep
-        args: ['--config', 'semgrep_rules/', '--error']
-        exclude: '^semgrep_rules/'
+        args: ["--config", "semgrep_rules/", "--error"]
+        exclude: "^semgrep_rules/"
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.2
     hooks:

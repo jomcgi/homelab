@@ -11,14 +11,14 @@ Use BuildBuddy MCP tools via Context Forge. MCP handles authentication automatic
 
 Load tools with: `ToolSearch` query `+buildbuddy`
 
-| Tool                              | Purpose                            |
-| --------------------------------- | ---------------------------------- |
-| `buildbuddy-mcp-get-invocation`   | Build metadata, status, duration   |
-| `buildbuddy-mcp-get-log`          | Full build logs (stdout/stderr)    |
-| `buildbuddy-mcp-get-target`       | Target information and results     |
-| `buildbuddy-mcp-get-action`       | Action details and execution info  |
-| `buildbuddy-mcp-get-file`         | Download files by URI              |
-| `buildbuddy-mcp-execute-workflow` | Trigger a BuildBuddy workflow      |
+| Tool                              | Purpose                           |
+| --------------------------------- | --------------------------------- |
+| `buildbuddy-mcp-get-invocation`   | Build metadata, status, duration  |
+| `buildbuddy-mcp-get-log`          | Full build logs (stdout/stderr)   |
+| `buildbuddy-mcp-get-target`       | Target information and results    |
+| `buildbuddy-mcp-get-action`       | Action details and execution info |
+| `buildbuddy-mcp-get-file`         | Download files by URI             |
+| `buildbuddy-mcp-execute-workflow` | Trigger a BuildBuddy workflow     |
 
 ## Debugging Failed CI
 

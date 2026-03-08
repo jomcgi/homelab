@@ -30,20 +30,20 @@ No apko, no Wolfi packages, no apko lock files. Each platform variant is an `oci
 
 **Standalone binaries via `rules_multitool` (`tools/tools.lock.json`):**
 
-| Tool | Status | GitHub releases |
-|------|--------|-----------------|
-| helm | Already in multitool | Yes |
-| crane | Already in multitool | Yes |
-| buildozer | Already in multitool | Yes |
-| gazelle | Already in multitool | Yes |
-| kind | Already in multitool | Yes |
-| argocd | Already in multitool | Yes |
-| op | Already in multitool | Yes |
-| ruff | **Add** | astral-sh/ruff |
-| shfmt | **Add** | mvdan/sh |
-| gofumpt | **Add** | mvdan/gofumpt |
-| gh | **Add** | cli/cli |
-| git | Skip — system-provided on both macOS (Xcode CLT) and Linux (CI host) |
+| Tool      | Status                                                               | GitHub releases |
+| --------- | -------------------------------------------------------------------- | --------------- |
+| helm      | Already in multitool                                                 | Yes             |
+| crane     | Already in multitool                                                 | Yes             |
+| buildozer | Already in multitool                                                 | Yes             |
+| gazelle   | Already in multitool                                                 | Yes             |
+| kind      | Already in multitool                                                 | Yes             |
+| argocd    | Already in multitool                                                 | Yes             |
+| op        | Already in multitool                                                 | Yes             |
+| ruff      | **Add**                                                              | astral-sh/ruff  |
+| shfmt     | **Add**                                                              | mvdan/sh        |
+| gofumpt   | **Add**                                                              | mvdan/gofumpt   |
+| gh        | **Add**                                                              | cli/cli         |
+| git       | Skip — system-provided on both macOS (Xcode CLT) and Linux (CI host) |
 
 Each entry in `tools.lock.json` has binaries for `linux/amd64`, `linux/arm64`, and `macos/arm64` with pinned SHA256 hashes.
 
@@ -54,6 +54,7 @@ Node.js publishes platform-specific tarballs at `nodejs.org/dist/`. Add to multi
 **Python runtime + monorepo deps from Bazel:**
 
 The Python tar layer includes:
+
 1. Python interpreter from `@rules_python` toolchain (platform-specific)
 2. Python stdlib
 3. All pip packages from `requirements/all.txt` via `@pip//...`
@@ -213,18 +214,21 @@ fi
 ## Trade-offs
 
 **Gains:**
+
 - macOS dev gets native binaries via `crane export` (~5s)
 - Single source of truth for tool versions across all platforms
 - No Wolfi package resolution or apko lock management
 - Python runtime + deps are identical across local dev and CI
 
 **Costs:**
+
 - More entries in `tools.lock.json` to maintain
 - Python packaging is complex (interpreter + stdlib + pip deps in a tar)
 - Image size increases (3 platform variants instead of 2)
 - No system packages (ca-certs, busybox) — in-cluster agent use case may need a separate base
 
 **Risks:**
+
 - Not all tools may publish standalone macOS binaries (prettier is npm-based)
 - Python tar packaging may need custom Bazel rules
 - `rules_oci` `oci_image` with `os = "darwin"` may need verification — less common than Linux images

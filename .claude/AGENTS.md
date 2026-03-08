@@ -325,18 +325,18 @@ ArgoCD GitOps specialist. Uses **ArgoCD MCP tools** (via Context Forge) as the p
 
 Load with: `ToolSearch` query `+argocd`
 
-| Tool                                        | Purpose                          |
-| ------------------------------------------- | -------------------------------- |
-| `argocd-mcp-list-applications`              | List all applications            |
-| `argocd-mcp-get-application`                | Get application details/status   |
-| `argocd-mcp-get-application-resource-tree`  | Resource tree (replaces `diff`)  |
-| `argocd-mcp-get-application-managed-resources` | List managed resources        |
-| `argocd-mcp-get-application-events`         | Application events               |
-| `argocd-mcp-get-application-workload-logs`  | Workload logs                    |
-| `argocd-mcp-sync-application`               | Sync an application              |
-| `argocd-mcp-get-resources`                  | Get specific resources           |
-| `argocd-mcp-get-resource-events`            | Resource events                  |
-| `argocd-mcp-get-resource-actions`           | Available resource actions       |
+| Tool                                           | Purpose                         |
+| ---------------------------------------------- | ------------------------------- |
+| `argocd-mcp-list-applications`                 | List all applications           |
+| `argocd-mcp-get-application`                   | Get application details/status  |
+| `argocd-mcp-get-application-resource-tree`     | Resource tree (replaces `diff`) |
+| `argocd-mcp-get-application-managed-resources` | List managed resources          |
+| `argocd-mcp-get-application-events`            | Application events              |
+| `argocd-mcp-get-application-workload-logs`     | Workload logs                   |
+| `argocd-mcp-sync-application`                  | Sync an application             |
+| `argocd-mcp-get-resources`                     | Get specific resources          |
+| `argocd-mcp-get-resource-events`               | Resource events                 |
+| `argocd-mcp-get-resource-actions`              | Available resource actions      |
 
 ### Application.yaml Pattern
 
@@ -601,12 +601,12 @@ Linkerd service mesh specialist for the mesh running in `cluster-critical`.
 
 ### Common Issues
 
-| Symptom                   | Check                                                          | Common Cause                         |
-| ------------------------- | -------------------------------------------------------------- | ------------------------------------ |
-| Proxy not injected        | `kubernetes-mcp-resources-list`: namespaces                    | Namespace missing annotation         |
-| Connection refused        | `kubernetes-mcp-pods-log` + `kubernetes-mcp-resources-get`     | Service not in mesh or port mismatch |
-| TLS handshake errors      | `kubernetes-mcp-pods-log` for both sides                       | Identity certificate issues          |
-| High latency through mesh | `kubernetes-mcp-pods-top` on proxy containers                  | Proxy resource limits too low        |
+| Symptom                   | Check                                                      | Common Cause                         |
+| ------------------------- | ---------------------------------------------------------- | ------------------------------------ |
+| Proxy not injected        | `kubernetes-mcp-resources-list`: namespaces                | Namespace missing annotation         |
+| Connection refused        | `kubernetes-mcp-pods-log` + `kubernetes-mcp-resources-get` | Service not in mesh or port mismatch |
+| TLS handshake errors      | `kubernetes-mcp-pods-log` for both sides                   | Identity certificate issues          |
+| High latency through mesh | `kubernetes-mcp-pods-top` on proxy containers              | Proxy resource limits too low        |
 
 ### Common Mistakes to Avoid
 

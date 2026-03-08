@@ -15,20 +15,20 @@ Follows the established pattern from `buildbuddy_mcp` and `todo_mcp`:
 
 ## MCP Tools
 
-| Tool | HTTP Method | Path | Description |
-|------|-------------|------|-------------|
-| `submit_job` | POST | `/jobs` | Submit a new agent job (task, profile, max_retries, source) |
-| `list_jobs` | GET | `/jobs` | List jobs with optional status filter, limit, offset |
-| `get_job` | GET | `/jobs/{id}` | Get single job with all attempt details |
-| `cancel_job` | POST | `/jobs/{id}/cancel` | Cancel a pending or running job |
-| `get_job_output` | GET | `/jobs/{id}/output` | Get latest attempt output (last 32KB) |
+| Tool             | HTTP Method | Path                | Description                                                 |
+| ---------------- | ----------- | ------------------- | ----------------------------------------------------------- |
+| `submit_job`     | POST        | `/jobs`             | Submit a new agent job (task, profile, max_retries, source) |
+| `list_jobs`      | GET         | `/jobs`             | List jobs with optional status filter, limit, offset        |
+| `get_job`        | GET         | `/jobs/{id}`        | Get single job with all attempt details                     |
+| `cancel_job`     | POST        | `/jobs/{id}/cancel` | Cancel a pending or running job                             |
+| `get_job_output` | GET         | `/jobs/{id}/output` | Get latest attempt output (last 32KB)                       |
 
 ## Configuration
 
-| Env Var | Default | Purpose |
-|---------|---------|---------|
-| `ORCHESTRATOR_URL` | — | Base URL of agent orchestrator service |
-| `ORCHESTRATOR_PORT` | `8000` | MCP server listen port |
+| Env Var             | Default | Purpose                                |
+| ------------------- | ------- | -------------------------------------- |
+| `ORCHESTRATOR_URL`  | —       | Base URL of agent orchestrator service |
+| `ORCHESTRATOR_PORT` | `8000`  | MCP server listen port                 |
 
 In-cluster URL: `http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080`
 
@@ -52,6 +52,7 @@ services/agent_orchestrator_mcp/
 ## Deployment
 
 Added to `overlays/prod/mcp-servers/values.yaml` with:
+
 - Image auto-update via ArgoCD Image Updater
 - STREAMABLEHTTP registration with gateway
 - Health check alert

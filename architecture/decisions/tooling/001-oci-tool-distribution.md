@@ -24,16 +24,16 @@ Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI i
 
 ### Before and After
 
-| Aspect                   | Today                                          | Proposed                                                    |
-| ------------------------ | ---------------------------------------------- | ----------------------------------------------------------- |
-| Developer tool setup     | `bazel run //tools:bazel_env` (~45s warm)       | `crane export` + extract (~5s)                               |
-| Tool versions            | Resolved independently per environment          | Single multi-arch OCI image, identical everywhere            |
-| Running tests            | `bazel test //...` (local execution)            | Push → BuildBuddy remote execution → MCP to observe results |
-| Formatting               | `bazel run //tools/format:fast_format` (local)  | Push → CI format job → auto-commit fixes back                |
-| Build graph queries      | `bazel query` (local)                           | `bb query` (remote via BuildBuddy) or BuildBuddy MCP tools   |
-| Goose tool availability  | Separate apko image with its own tool versions  | Same OCI tools image, shared versions                        |
-| Claude Code version      | Installed independently per machine              | Pinned in tools image, identical across all environments     |
-| Bazel on dev machine     | Required                                        | Not required                                                 |
+| Aspect                  | Today                                          | Proposed                                                    |
+| ----------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
+| Developer tool setup    | `bazel run //tools:bazel_env` (~45s warm)      | `crane export` + extract (~5s)                              |
+| Tool versions           | Resolved independently per environment         | Single multi-arch OCI image, identical everywhere           |
+| Running tests           | `bazel test //...` (local execution)           | Push → BuildBuddy remote execution → MCP to observe results |
+| Formatting              | `bazel run //tools/format:fast_format` (local) | Push → CI format job → auto-commit fixes back               |
+| Build graph queries     | `bazel query` (local)                          | `bb query` (remote via BuildBuddy) or BuildBuddy MCP tools  |
+| Goose tool availability | Separate apko image with its own tool versions | Same OCI tools image, shared versions                       |
+| Claude Code version     | Installed independently per machine            | Pinned in tools image, identical across all environments    |
+| Bazel on dev machine    | Required                                       | Not required                                                |
 
 ---
 
@@ -70,6 +70,7 @@ Built via apko (consistent with all other images in the repo), pushed to GHCR on
 **Why full extraction instead of a symlink layer:** Earlier designs created a `/tools/bin/` directory with symlinks to `/usr/bin/` and extracted only that subtree. This broke on macOS — the symlinks resolved to the host's `/usr/bin/` (e.g., Xcode shims) instead of the image's binaries. Extracting the full filesystem avoids this entirely. Tools like Python also depend on their stdlib (`/usr/lib/python3.x/`), which only works when the full image is present.
 
 Claude Code is included as a first-class tool — it's installed via `pnpm add -g @anthropic-ai/claude-code` during the image build. This gives:
+
 - **Pinned versions** across local dev, CI, and in-cluster agents
 - **Goose replacement path** — in-cluster agents could run Claude Code directly instead of Goose, using the same skills, hooks, and CLAUDE.md from the repo
 - **Consistent MCP configuration** — the `.mcp.json` and `.claude/` configs ship with the repo, and the CLI version matches what was tested against them
@@ -160,23 +161,23 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 
 #### Currently missing from `bazel_env`
 
-| Tool | Current status | Why it should be in the tools image |
-| ---- | -------------- | ----------------------------------- |
-| `gh` | In goose-agent apko image, not in `bazel_env` | Essential for PR workflow (`gh pr create`, `gh pr merge --auto --rebase`) |
-| `ruff` | Only runs via Bazel lint aspect | Useful for quick local Python linting without remote execution |
-| `shellcheck` | Only runs via Bazel lint aspect | Useful for quick local shell script linting |
-| `eslint` | Only runs via Bazel lint aspect | Useful for quick local JS linting |
-| `agent-run` | Custom Go binary in `tools/agent-run/` | CLI for triggering Goose agent tasks — needs to be available locally |
-| `hf2oci` | Custom Go binary in `tools/hf2oci/` | CLI for HuggingFace model → OCI conversion |
-| `claude` | Installed independently per machine via npm | Claude Code CLI — pinning version ensures skills, hooks, and MCP config are tested against a known version. Enables in-cluster agents to run Claude Code directly. |
+| Tool         | Current status                                | Why it should be in the tools image                                                                                                                                |
+| ------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `gh`         | In goose-agent apko image, not in `bazel_env` | Essential for PR workflow (`gh pr create`, `gh pr merge --auto --rebase`)                                                                                          |
+| `ruff`       | Only runs via Bazel lint aspect               | Useful for quick local Python linting without remote execution                                                                                                     |
+| `shellcheck` | Only runs via Bazel lint aspect               | Useful for quick local shell script linting                                                                                                                        |
+| `eslint`     | Only runs via Bazel lint aspect               | Useful for quick local JS linting                                                                                                                                  |
+| `agent-run`  | Custom Go binary in `tools/agent-run/`        | CLI for triggering Goose agent tasks — needs to be available locally                                                                                               |
+| `hf2oci`     | Custom Go binary in `tools/hf2oci/`           | CLI for HuggingFace model → OCI conversion                                                                                                                         |
+| `claude`     | Installed independently per machine via npm   | Claude Code CLI — pinning version ensures skills, hooks, and MCP config are tested against a known version. Enables in-cluster agents to run Claude Code directly. |
 
 #### Workflow gaps (new tooling needed)
 
-| Workflow | Gap | Proposed solution |
-| -------- | --- | ----------------- |
+| Workflow               | Gap                                                                                                                                                                              | Proposed solution                                                                                                                                                                                                                     |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **ArgoCD app diffing** | `rules_helm/app.bzl` has a `diff` rule referencing `argocd-live-diff.sh`, but the script doesn't exist. No way to preview what a values.yaml change will do to the live cluster. | Create the diff script. Include `argocd` CLI in the tools image (already in multitool). The script should: render local Helm template → diff against live ArgoCD app manifests. Can also be exposed as an MCP tool via Context Forge. |
-| **Manifest preview** | `render_manifests` requires Bazel to run `helm template`. Without local Bazel, developers can't preview rendered manifests before pushing. | `helm` is already in the tools image. Create a standalone `render` script that calls `helm template` directly with the right flags, without Bazel wrapping. |
-| **Lint without Bazel** | Linters (`ruff`, `shellcheck`, `eslint`) only run via Bazel aspects. Can't lint a single file quickly. | Include linter binaries in the tools image. Add a `lint` script that runs them directly on changed files. |
+| **Manifest preview**   | `render_manifests` requires Bazel to run `helm template`. Without local Bazel, developers can't preview rendered manifests before pushing.                                       | `helm` is already in the tools image. Create a standalone `render` script that calls `helm template` directly with the right flags, without Bazel wrapping.                                                                           |
+| **Lint without Bazel** | Linters (`ruff`, `shellcheck`, `eslint`) only run via Bazel aspects. Can't lint a single file quickly.                                                                           | Include linter binaries in the tools image. Add a `lint` script that runs them directly on changed files.                                                                                                                             |
 
 ---
 
@@ -238,14 +239,14 @@ No deviations from `architecture/security.md`:
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-| ---- | ---------- | ------ | ---------- |
-| **GHCR outage blocks tool pull** | Low | Medium | Cache `.tools/` locally with 24h TTL. Tools persist across outages. |
-| **Format auto-commit race** | Medium | Low | CI format job creates a separate commit. Developer must pull before pushing again. Standard git workflow. |
-| **Remote query latency** | Medium | Low | `bb query` adds network round-trip (~1-2s). Acceptable for infrequent queries. BuildBuddy MCP covers common cases. |
-| **Tool version drift** | Low | Medium | Single source of truth (apko.yaml). ArgoCD Image Updater pins digests. Version changes are tracked in git. |
-| **`crane` not installed** | Low | Low | Single prerequisite: `brew install crane`. Documented in README and `.envrc` error message. Once tools are pulled, the image itself contains `crane` for future updates. |
-| **apko can't package all tools** | Medium | Medium | Some tools (like `bb` itself) may not be in Wolfi repos. Fallback: download binary in a build step and copy into image. |
+| Risk                             | Likelihood | Impact | Mitigation                                                                                                                                                               |
+| -------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **GHCR outage blocks tool pull** | Low        | Medium | Cache `.tools/` locally with 24h TTL. Tools persist across outages.                                                                                                      |
+| **Format auto-commit race**      | Medium     | Low    | CI format job creates a separate commit. Developer must pull before pushing again. Standard git workflow.                                                                |
+| **Remote query latency**         | Medium     | Low    | `bb query` adds network round-trip (~1-2s). Acceptable for infrequent queries. BuildBuddy MCP covers common cases.                                                       |
+| **Tool version drift**           | Low        | Medium | Single source of truth (apko.yaml). ArgoCD Image Updater pins digests. Version changes are tracked in git.                                                               |
+| **`crane` not installed**        | Low        | Low    | Single prerequisite: `brew install crane`. Documented in README and `.envrc` error message. Once tools are pulled, the image itself contains `crane` for future updates. |
+| **apko can't package all tools** | Medium     | Medium | Some tools (like `bb` itself) may not be in Wolfi repos. Fallback: download binary in a build step and copy into image.                                                  |
 
 ---
 
@@ -267,11 +268,11 @@ No deviations from `architecture/security.md`:
 
 ## References
 
-| Resource | Relevance |
-| -------- | --------- |
-| [BuildBuddy CLI](https://www.buildbuddy.io/docs/cli/) | `bb` CLI for remote query and execution |
-| [apko](https://github.com/chainguard-dev/apko) | OCI image build tool used throughout the repo |
-| [rules_apko](https://github.com/chainguard-dev/rules_apko) | Bazel rules for apko image builds |
-| [`tools/BUILD` bazel_env rule](../../../tools/BUILD) | Current tool distribution mechanism being replaced |
-| [BuildBuddy Workflows](https://www.buildbuddy.io/docs/workflows-setup/) | CI pipeline definition in `buildbuddy.yaml` |
-| [architecture/security.md](../../security.md) | Cluster security model (this ADR is fully compliant) |
+| Resource                                                                | Relevance                                            |
+| ----------------------------------------------------------------------- | ---------------------------------------------------- |
+| [BuildBuddy CLI](https://www.buildbuddy.io/docs/cli/)                   | `bb` CLI for remote query and execution              |
+| [apko](https://github.com/chainguard-dev/apko)                          | OCI image build tool used throughout the repo        |
+| [rules_apko](https://github.com/chainguard-dev/rules_apko)              | Bazel rules for apko image builds                    |
+| [`tools/BUILD` bazel_env rule](../../../tools/BUILD)                    | Current tool distribution mechanism being replaced   |
+| [BuildBuddy Workflows](https://www.buildbuddy.io/docs/workflows-setup/) | CI pipeline definition in `buildbuddy.yaml`          |
+| [architecture/security.md](../../security.md)                           | Cluster security model (this ADR is fully compliant) |

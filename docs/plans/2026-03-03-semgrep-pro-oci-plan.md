@@ -26,6 +26,7 @@ Before starting implementation:
 This repository rule fetches a single OCI artifact from GHCR and extracts its filesystem layer. It's the building block — the module extension (Task 2) calls it once per artifact.
 
 **Files:**
+
 - Create: `third_party/semgrep_pro/oci_archive.bzl`
 - Create: `third_party/semgrep_pro/BUILD`
 
@@ -66,6 +67,7 @@ alias(
 **Step 2: Implement the repository rule**
 
 The rule implements a minimal OCI Distribution client:
+
 1. Exchange GitHub token for a GHCR bearer token (needs Basic auth → curl)
 2. Fetch the OCI manifest by digest (needs Accept header → curl)
 3. Download the layer blob (large file → `repository_ctx.download()` would be ideal but GHCR redirects break auth, so use curl -L)
@@ -211,6 +213,7 @@ git commit -m "feat: add oci_archive repository rule for GHCR artifacts"
 The module extension reads `digests.bzl` and creates repository rule instances for each artifact. This keeps MODULE.bazel clean — only the extension registration and `use_repo` list.
 
 **Files:**
+
 - Create: `third_party/semgrep_pro/digests.bzl`
 - Create: `third_party/semgrep_pro/extensions.bzl`
 
@@ -308,6 +311,7 @@ git commit -m "feat: add semgrep pro module extension and digest pins"
 Register the extension and declare all repos so Bazel can resolve `@semgrep_pro_*` labels.
 
 **Files:**
+
 - Modify: `MODULE.bazel` (insert after the `oci` block, before the `apko` block — around line 205)
 
 **Step 1: Add extension registration**
@@ -352,6 +356,7 @@ git commit -m "build: register semgrep pro module extension"
 The workflow downloads pro engine + rules, packages them as OCI artifacts, pushes to GHCR, and opens an automerge PR if digests changed.
 
 **Files:**
+
 - Create: `.github/workflows/update-semgrep-pro.yaml`
 
 **Step 1: Write the workflow**
@@ -593,6 +598,7 @@ Expected: Both succeed — the engine repo contains `semgrep-core-proprietary`, 
 Add optional pro engine support to the semgrep test macros and shell scripts. Pro rules require NO changes to `rules_semgrep` — they're just YAML filegroups passed via the existing `rules` parameter. The pro engine needs special handling because semgrep looks for `semgrep-core-proprietary` next to `semgrep-core`.
 
 **Files:**
+
 - Modify: `rules_semgrep/test.bzl` (add `pro_engine` parameter)
 - Modify: `rules_semgrep/semgrep-test.sh` (add pro engine setup)
 - Modify: `rules_semgrep/semgrep-manifest-test.sh` (add pro engine setup)

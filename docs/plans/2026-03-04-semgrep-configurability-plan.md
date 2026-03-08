@@ -13,6 +13,7 @@
 ### Task 1: Remove `.py` extension filter from aspect
 
 **Files:**
+
 - Modify: `rules_semgrep/aspect.bzl`
 
 **Context:** The aspect currently hardcodes `f.extension == "py"` to filter files. We need it to collect ALL non-external source files so that semgrep can scan any language. Semgrep rules determine what to scan — a `.go` file passed with Python rules is simply skipped.
@@ -22,11 +23,13 @@
 In `rules_semgrep/aspect.bzl`, make these changes:
 
 Line 1 — update doc string:
+
 ```starlark
 """Bazel aspect for collecting transitive source files for semgrep scanning."""
 ```
 
 Lines 3-6 — update provider doc:
+
 ```starlark
 SemgrepSourcesInfo = provider(
     doc = "Carries transitive source files for semgrep scanning.",
@@ -35,29 +38,35 @@ SemgrepSourcesInfo = provider(
 ```
 
 Line 11 — update comment:
+
 ```starlark
     # Collect source files from srcs attribute
 ```
 
 Line 15 — remove `.py` filter, keep external filter:
+
 ```starlark
                 if not f.short_path.startswith("../"):
 ```
 
 Line 18 — update comment:
+
 ```starlark
     # Collect from main attribute (py_venv_binary)
 ```
 
 Line 25 — same removal:
+
 ```starlark
                     if not f.short_path.startswith("../"):
 ```
 
 Line 36 — rename variable for clarity:
+
 ```starlark
         sources = depset(py_sources, transitive = transitive),
 ```
+
 (Keep the variable name `py_sources` — renaming it is optional cosmetic change, skip for now.)
 
 **Step 2: Run the existing integration test to verify the aspect still works**
@@ -81,6 +90,7 @@ determine which languages to scan."
 ### Task 2: Add language mapping to Gazelle config
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/config.go`
 
 **Context:** The config struct needs two new fields: `targetKinds` (map of kind → target attr name) and `languages` (list of language keys). Each language maps to file extensions and semgrep rule configs. These are populated from directives and inherited through the directory tree.
@@ -319,6 +329,7 @@ git commit -m "feat(semgrep): add target_kinds and languages directives to gazel
 ### Task 3: Update language.go to register new directives
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/language.go`
 - Modify: `rules_semgrep/gazelle/language_test.go`
 
@@ -376,6 +387,7 @@ git commit -m "feat(semgrep): register semgrep_target_kinds and semgrep_language
 ### Task 4: Write failing tests for config-driven generation
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/generate_test.go`
 
 **Context:** We need tests that verify: (1) target kinds from config are used instead of hardcoded map, (2) `py3_image` with `binary` attr indirection works, (3) language-driven rules config is emitted, (4) multi-language orphan detection uses configured extensions.
@@ -616,6 +628,7 @@ git commit -m "test(semgrep): add failing tests for configurable target kinds an
 ### Task 5: Implement config-driven generation in generate.go
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/generate.go`
 
 **Context:** Replace hardcoded `binaryKinds` with `cfg.targetKinds`. Add attr indirection for kinds like `py3_image`. Replace hardcoded `"//semgrep_rules:python_rules"` with language-driven rule configs. Generalize `pythonFiles` to use configured extensions.
@@ -868,6 +881,7 @@ git commit -m "feat(semgrep): implement config-driven target kinds and language 
 ### Task 6: Add directive to root BUILD and regenerate
 
 **Files:**
+
 - Modify: `BUILD` (root)
 - Run: `format` (includes gazelle)
 
@@ -889,11 +903,13 @@ Run: `format`
 Expected: Gazelle regenerates BUILD files. Services with `py3_image` targets (like `services/knowledge_graph/BUILD`) now get `semgrep_target_test` rules pointing to the underlying binaries.
 
 Verify `services/knowledge_graph/BUILD` has new target tests:
+
 ```bash
 grep -A2 semgrep_target_test services/knowledge_graph/BUILD
 ```
 
 Expected output should show targets like:
+
 ```
 semgrep_target_test(
     name = "scraper-image_semgrep_test",
@@ -929,6 +945,7 @@ Expected: Format check passes (gazelle regeneration is clean). Test and push pas
 **Step 3: If CI fails, diagnose and fix**
 
 Common failure modes:
+
 - Missing `main` attr on converted `py_venv_binary` targets (already fixed in earlier commit)
 - Stale BUILD files (re-run `format` and push)
 - New `semgrep_target_test` targets fail because aspect doesn't collect expected files (check aspect.bzl changes)

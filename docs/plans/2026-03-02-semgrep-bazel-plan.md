@@ -15,6 +15,7 @@
 ### Task 1: Add semgrep pip dependency
 
 **Files:**
+
 - Modify: `requirements/tools.in`
 - Regenerate: `requirements/all.txt`
 
@@ -53,6 +54,7 @@ git commit -m "build: add semgrep pip dependency for Bazel integration"
 ### Task 2: Create semgrep binary target
 
 **Files:**
+
 - Create: `tools/semgrep/BUILD`
 
 **Step 1: Create the BUILD file**
@@ -94,6 +96,7 @@ Import the existing rules from the `feat/semgrep-rules` branch and add BUILD
 filegroups so Bazel targets can depend on rule sets by category.
 
 **Files:**
+
 - Copy from `feat/semgrep-rules`: `semgrep_rules/` directory (all `.yaml` and fixture files)
 - Create: `semgrep_rules/BUILD`
 
@@ -104,6 +107,7 @@ git checkout feat/semgrep-rules -- semgrep_rules/
 ```
 
 This brings in:
+
 - `semgrep_rules/bazel/no-rules-python.yaml` + `.build` fixture
 - `semgrep_rules/shell/no-direct-test.yaml` + `.bash` fixture
 - `semgrep_rules/shell/no-kubectl-mutate.yaml` + `.bash` fixture
@@ -159,6 +163,7 @@ git commit -m "build: import semgrep rules and add Bazel filegroups"
 ### Task 4: Create `rules_semgrep` package with `semgrep_test` macro
 
 **Files:**
+
 - Create: `rules_semgrep/BUILD`
 - Create: `rules_semgrep/semgrep-test.sh`
 - Create: `rules_semgrep/test.bzl`
@@ -318,6 +323,7 @@ git commit -m "feat: add semgrep_test Bazel rule for source code scanning"
 ### Task 5: Write Kubernetes manifest semgrep rules
 
 **Files:**
+
 - Create: `semgrep_rules/kubernetes/no-host-network.yaml`
 - Create: `semgrep_rules/kubernetes/no-privileged.yaml`
 
@@ -395,6 +401,7 @@ This macro combines Helm rendering + semgrep scanning in a single test.
 It follows the same `sh_test` wrapping pattern as `helm_template_test`.
 
 **Files:**
+
 - Create: `rules_semgrep/semgrep-manifest-test.sh`
 - Modify: `rules_semgrep/test.bzl` (add `semgrep_manifest_test`)
 - Modify: `rules_semgrep/defs.bzl` (export new macro)
@@ -588,6 +595,7 @@ git commit -m "feat: add semgrep_manifest_test for rendered Helm manifests"
 ### Task 7: Wire semgrep into `argocd_app` macro
 
 **Files:**
+
 - Modify: `rules_helm/app.bzl`
 
 **Step 1: Add semgrep_manifest_test import and parameter**
@@ -668,6 +676,7 @@ Starlark targets. Start with `scripts/BUILD` (shell scripts) and
 `tools/lint/BUILD` (bzl files).
 
 **Files:**
+
 - Modify: `scripts/BUILD`
 
 **Step 1: Add semgrep test for shell scripts in scripts/**

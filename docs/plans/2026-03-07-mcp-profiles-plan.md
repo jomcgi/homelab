@@ -15,6 +15,7 @@
 ## Task 1: Create Goose Recipe Files
 
 **Files:**
+
 - Create: `charts/goose-agent/image/recipes/ci-debug.yaml`
 - Create: `charts/goose-agent/image/recipes/code-fix.yaml`
 
@@ -97,6 +98,7 @@ git commit -m "feat(goose-agent): add ci-debug and code-fix recipe files"
 ## Task 2: Package Recipes Into Container Image
 
 **Files:**
+
 - Modify: `charts/goose-agent/image/BUILD`
 
 **Step 1: Add recipes pkg_tar rule**
@@ -153,6 +155,7 @@ git commit -m "build(goose-agent): package recipe files into container image"
 ## Task 3: Add Profile Token Secret to goose-sandboxes Chart
 
 **Files:**
+
 - Modify: `charts/goose-sandboxes/templates/onepassworditem.yaml`
 - Modify: `charts/goose-sandboxes/templates/sandboxtemplate.yaml`
 - Modify: `charts/goose-sandboxes/values.yaml`
@@ -201,7 +204,7 @@ apiVersion: onepassword.com/v1
 kind: OnePasswordItem
 metadata:
   name: goose-mcp-tokens
-  namespace: {{ .Release.Namespace }}
+  namespace: { { .Release.Namespace } }
 spec:
   itemPath: "vaults/{{ .Values.secrets.mcpTokens.vault }}/items/{{ .Values.secrets.mcpTokens.onePasswordItem }}"
 ```
@@ -228,12 +231,12 @@ secrets:
 In `charts/goose-sandboxes/templates/sandboxtemplate.yaml`, add to the goose container's `env` list (after the existing BUILDBUDDY_API_KEY entry):
 
 ```yaml
-            - name: CI_DEBUG_MCP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: goose-mcp-tokens
-                  key: CI_DEBUG_MCP_TOKEN
-                  optional: true
+- name: CI_DEBUG_MCP_TOKEN
+  valueFrom:
+    secretKeyRef:
+      name: goose-mcp-tokens
+      key: CI_DEBUG_MCP_TOKEN
+      optional: true
 ```
 
 Note: `optional: true` ensures the pod starts even if the 1Password item doesn't exist yet.
@@ -255,6 +258,7 @@ git commit -m "feat(goose-sandboxes): add profile token secret and env var"
 ## Task 4: Add --profile Flag to agent-run
 
 **Files:**
+
 - Modify: `tools/agent-run/main.go`
 - Modify: `tools/agent-run/BUILD` (if deps change — unlikely)
 
@@ -361,6 +365,7 @@ git commit -m "feat(agent-run): add --profile flag for recipe-based tool scoping
 ## Task 5: Create Setup Script
 
 **Files:**
+
 - Create: `scripts/setup-mcp-profiles.sh`
 
 **Step 1: Write the setup script**
@@ -598,6 +603,7 @@ Expected: Starts with `eyJ` (base64 JWT header).
 Merge the PR or sync ArgoCD to pick up the new OnePasswordItem and SandboxTemplate env var. Verify the secret syncs:
 
 Use MCP tool `kubernetes-mcp-resources-get` to check:
+
 - Secret `goose-mcp-tokens` exists in `goose-sandboxes` namespace
 - Contains key `CI_DEBUG_MCP_TOKEN`
 

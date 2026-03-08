@@ -10,15 +10,15 @@ Convert the `agent-run` CLI into a long-running service that orchestrates Goose 
 
 ## Decisions
 
-| Decision | Choice | Rationale |
-|----------|--------|-----------|
-| State store | NATS JetStream + KV | Leverages existing infra, durable across restarts |
-| API style | REST with query params | Simple, curl-friendly, easy to wrap in MCP tools |
-| Retry scope | Basic retries with context inheritance | Reserve DLQ/GH issue fields for later |
-| Code location | `services/agent-orchestrator/` | Proper service, not a tool |
-| Auth | None (ClusterIP only) | MVP; add Cloudflare Access when exposed externally |
-| MCP exposure | Design API for MCP consumption | REST-first; MCP wrapping is a separate concern |
-| Architecture | Monolithic (single binary) | HTTP + consumer + NATS in one process |
+| Decision      | Choice                                 | Rationale                                          |
+| ------------- | -------------------------------------- | -------------------------------------------------- |
+| State store   | NATS JetStream + KV                    | Leverages existing infra, durable across restarts  |
+| API style     | REST with query params                 | Simple, curl-friendly, easy to wrap in MCP tools   |
+| Retry scope   | Basic retries with context inheritance | Reserve DLQ/GH issue fields for later              |
+| Code location | `services/agent-orchestrator/`         | Proper service, not a tool                         |
+| Auth          | None (ClusterIP only)                  | MVP; add Cloudflare Access when exposed externally |
+| MCP exposure  | Design API for MCP consumption         | REST-first; MCP wrapping is a separate concern     |
+| Architecture  | Monolithic (single binary)             | HTTP + consumer + NATS in one process              |
 
 ## Data Model
 
@@ -64,14 +64,14 @@ ULIDs provide lexicographic sort by creation time — free chronological orderin
 
 ## REST API
 
-| Method | Path | Purpose | MCP use case |
-|--------|------|---------|--------------|
-| POST | `/jobs` | Submit a job | "run this task" |
-| GET | `/jobs` | List/filter jobs | "what's running?", "show pending" |
-| GET | `/jobs/:id` | Job detail + attempts | "show me job X" |
-| POST | `/jobs/:id/cancel` | Cancel job | "stop that job" |
-| GET | `/jobs/:id/output` | Latest attempt output | "what did it produce?" |
-| GET | `/health` | Liveness/readiness | k8s probes |
+| Method | Path               | Purpose               | MCP use case                      |
+| ------ | ------------------ | --------------------- | --------------------------------- |
+| POST   | `/jobs`            | Submit a job          | "run this task"                   |
+| GET    | `/jobs`            | List/filter jobs      | "what's running?", "show pending" |
+| GET    | `/jobs/:id`        | Job detail + attempts | "show me job X"                   |
+| POST   | `/jobs/:id/cancel` | Cancel job            | "stop that job"                   |
+| GET    | `/jobs/:id/output` | Latest attempt output | "what did it produce?"            |
+| GET    | `/health`          | Liveness/readiness    | k8s probes                        |
 
 ### Query parameters for GET /jobs
 
@@ -157,18 +157,21 @@ Try a different approach.
 ## Deployment
 
 **Chart:** `charts/agent-orchestrator/`
+
 - Deployment (1 replica)
 - Service (ClusterIP:8080)
 - ServiceAccount + ClusterRole (SandboxClaim CRUD, pod exec)
 - ConfigMap
 
 **RBAC:**
+
 - `extensions.agents.x-k8s.io/sandboxclaims` — create, get, list, watch, delete
 - `agents.x-k8s.io/sandboxes` — get, list, watch
 - `core/pods` — get, list, watch
 - `core/pods/exec` — create
 
 **Environment:**
+
 - `NATS_URL` — nats://nats.nats.svc.cluster.local:4222
 - `SANDBOX_NAMESPACE` — goose-sandboxes
 - `SANDBOX_TEMPLATE` — goose-agent
@@ -176,6 +179,7 @@ Try a different approach.
 - `HTTP_PORT` — 8080
 
 **NATS resources** (self-provisioned on startup):
+
 - Stream: `agent.jobs` (WorkQueue retention, max 1000 msgs)
 - KV Bucket: `job-records` (TTL 7 days)
 

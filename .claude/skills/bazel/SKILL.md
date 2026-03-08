@@ -34,22 +34,22 @@ Tools are provided by the OCI tools image via `./bootstrap.sh`.
 
 CI is defined in `buildbuddy.yaml` with two parallel actions:
 
-| Action             | What it does                                                         |
-| ------------------ | -------------------------------------------------------------------- |
-| **Format check**   | Runs formatters + gazelle, auto-commits fixes on PR branches         |
-| **Test and push**  | `bazel test //...`, pushes images + deploys pages on main            |
+| Action            | What it does                                                 |
+| ----------------- | ------------------------------------------------------------ |
+| **Format check**  | Runs formatters + gazelle, auto-commits fixes on PR branches |
+| **Test and push** | `bazel test //...`, pushes images + deploys pages on main    |
 
 On PR branches, CI auto-commits formatting fixes as `ci-format-bot`. On main, formatting errors fail the build.
 
 ## Key Targets (CI-only)
 
-| Target                              | Description                 |
-| ----------------------------------- | --------------------------- |
-| `//charts/<service>/image:image`    | Container image             |
-| `//charts/<service>/image:push`     | Push image to registry      |
-| `//images:push_all`                 | Push all container images   |
-| `//websites:push_all_pages`         | Deploy all CF Pages sites   |
-| `//tools/format:format`             | Format + render all         |
+| Target                           | Description               |
+| -------------------------------- | ------------------------- |
+| `//charts/<service>/image:image` | Container image           |
+| `//charts/<service>/image:push`  | Push image to registry    |
+| `//images:push_all`              | Push all container images |
+| `//websites:push_all_pages`      | Deploy all CF Pages sites |
+| `//tools/format:format`          | Format + render all       |
 
 ## Writing BUILD Files
 

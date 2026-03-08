@@ -24,14 +24,14 @@ We need a service that wraps the existing agent-run logic with durable state and
 
 A single Go service (`agent-orchestrator`) that combines an HTTP API with a NATS JetStream consumer. The service accepts job submissions via REST, queues them in JetStream, and processes them serially using the existing SandboxClaim lifecycle.
 
-| Aspect | Today (agent-run CLI) | Proposed (agent-orchestrator) |
-| ------ | --------------------- | ----------------------------- |
-| Trigger | Human at terminal | REST API (future: webhooks) |
-| State | Ephemeral (terminal session) | NATS KV (durable, queryable) |
-| Output | Streamed to stdout | Captured to KV + pod logs |
-| Retries | Manual re-run | Automatic with context inheritance |
-| Concurrency | One per terminal | Serialized via JetStream consumer |
-| Lifecycle | Process lifetime | Service lifetime (survives restarts) |
+| Aspect      | Today (agent-run CLI)        | Proposed (agent-orchestrator)        |
+| ----------- | ---------------------------- | ------------------------------------ |
+| Trigger     | Human at terminal            | REST API (future: webhooks)          |
+| State       | Ephemeral (terminal session) | NATS KV (durable, queryable)         |
+| Output      | Streamed to stdout           | Captured to KV + pod logs            |
+| Retries     | Manual re-run                | Automatic with context inheritance   |
+| Concurrency | One per terminal             | Serialized via JetStream consumer    |
+| Lifecycle   | Process lifetime             | Service lifetime (survives restarts) |
 
 The API is designed for MCP tool wrapping — each endpoint maps to a natural conversational action (submit, list, check status, cancel, read output).
 
@@ -86,14 +86,14 @@ JobRecord
 
 ### REST API
 
-| Method | Path | Purpose | MCP use case |
-|--------|------|---------|--------------|
-| POST | `/jobs` | Submit job (202 Accepted) | "run this task" |
-| GET | `/jobs` | List jobs (`?status=`, `?limit=`, `?offset=`) | "what's running?" |
-| GET | `/jobs/:id` | Job detail + all attempts | "show me job X" |
-| POST | `/jobs/:id/cancel` | Cancel running/pending job | "stop that job" |
-| GET | `/jobs/:id/output` | Latest attempt output | "what did it produce?" |
-| GET | `/health` | Liveness/readiness | k8s probes |
+| Method | Path               | Purpose                                       | MCP use case           |
+| ------ | ------------------ | --------------------------------------------- | ---------------------- |
+| POST   | `/jobs`            | Submit job (202 Accepted)                     | "run this task"        |
+| GET    | `/jobs`            | List jobs (`?status=`, `?limit=`, `?offset=`) | "what's running?"      |
+| GET    | `/jobs/:id`        | Job detail + all attempts                     | "show me job X"        |
+| POST   | `/jobs/:id/cancel` | Cancel running/pending job                    | "stop that job"        |
+| GET    | `/jobs/:id/output` | Latest attempt output                         | "what did it produce?" |
+| GET    | `/health`          | Liveness/readiness                            | k8s probes             |
 
 ---
 
@@ -150,12 +150,12 @@ See `architecture/security.md` for baseline. No deviations.
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-| ---- | ---------- | ------ | ---------- |
-| Hung Goose session blocks queue | Medium | Medium | Sandbox timeout behaviour terminates stuck pods |
-| NATS KV output size limits | Low | Low | Truncate output in KV; full output remains in pod logs |
-| Single-node NATS downtime | Low | High | Service retries NATS connection; jobs resume after reconnect |
-| Warm pool exhaustion during retries | Low | Low | SandboxClaim waits for pool replenishment; no data loss |
+| Risk                                | Likelihood | Impact | Mitigation                                                   |
+| ----------------------------------- | ---------- | ------ | ------------------------------------------------------------ |
+| Hung Goose session blocks queue     | Medium     | Medium | Sandbox timeout behaviour terminates stuck pods              |
+| NATS KV output size limits          | Low        | Low    | Truncate output in KV; full output remains in pod logs       |
+| Single-node NATS downtime           | Low        | High   | Service retries NATS connection; jobs resume after reconnect |
+| Warm pool exhaustion during retries | Low        | Low    | SandboxClaim waits for pool replenishment; no data loss      |
 
 ---
 
@@ -169,10 +169,10 @@ See `architecture/security.md` for baseline. No deviations.
 
 ## References
 
-| Resource | Relevance |
-| -------- | --------- |
-| [ADR 004: Autonomous Agents](004-autonomous-agents.md) | Current agent architecture this extends |
-| [ADR 003: Context Forge](003-context-forge.md) | MCP gateway for future tool wrapping |
-| [tools/agent-run/main.go](../../../tools/agent-run/main.go) | Existing CLI being wrapped |
-| [NATS JetStream docs](https://docs.nats.io/nats-concepts/jetstream) | Queue and KV backing store |
-| [agent-sandbox CRDs](../../../charts/agent-sandbox/crds/crds.yaml) | SandboxClaim lifecycle |
+| Resource                                                            | Relevance                               |
+| ------------------------------------------------------------------- | --------------------------------------- |
+| [ADR 004: Autonomous Agents](004-autonomous-agents.md)              | Current agent architecture this extends |
+| [ADR 003: Context Forge](003-context-forge.md)                      | MCP gateway for future tool wrapping    |
+| [tools/agent-run/main.go](../../../tools/agent-run/main.go)         | Existing CLI being wrapped              |
+| [NATS JetStream docs](https://docs.nats.io/nats-concepts/jetstream) | Queue and KV backing store              |
+| [agent-sandbox CRDs](../../../charts/agent-sandbox/crds/crds.yaml)  | SandboxClaim lifecycle                  |

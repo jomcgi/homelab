@@ -15,6 +15,7 @@
 ### Task 1: Create the upload script
 
 **Files:**
+
 - Create: `tools/semgrep/upload.py`
 
 **Step 1: Write `upload.py`**
@@ -208,6 +209,7 @@ git commit -m "feat(semgrep): add best-effort upload script for Semgrep App"
 ### Task 2: Add py_binary target to BUILD
 
 **Files:**
+
 - Modify: `tools/semgrep/BUILD`
 
 **Step 1: Add the `py_binary` target**
@@ -247,6 +249,7 @@ git commit -m "build(semgrep): add py_binary target for upload script"
 ### Task 3: Wire upload into Bazel rules
 
 **Files:**
+
 - Modify: `rules_semgrep/test.bzl:33-36` (semgrep_test data list)
 - Modify: `rules_semgrep/test.bzl:95-100` (semgrep_manifest_test data list)
 
@@ -305,6 +308,7 @@ git commit -m "build(semgrep): wire upload script into test rules"
 ### Task 4: Modify semgrep-test.sh to call upload
 
 **Files:**
+
 - Modify: `rules_semgrep/semgrep-test.sh:9-11` (env docs)
 - Modify: `rules_semgrep/semgrep-test.sh:99-108` (scan invocation)
 
@@ -362,6 +366,7 @@ git commit -m "feat(semgrep): add best-effort upload to source scan wrapper"
 ### Task 5: Modify semgrep-manifest-test.sh to call upload
 
 **Files:**
+
 - Modify: `rules_semgrep/semgrep-manifest-test.sh:9-10` (env docs)
 - Modify: `rules_semgrep/semgrep-manifest-test.sh:100-107` (scan invocation)
 

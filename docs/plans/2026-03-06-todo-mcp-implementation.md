@@ -15,6 +15,7 @@
 ### Task 1: Scaffold service directory and BUILD files
 
 **Files:**
+
 - Create: `services/todo_mcp/__init__.py`
 - Create: `services/todo_mcp/BUILD`
 - Create: `services/todo_mcp/app/__init__.py`
@@ -167,6 +168,7 @@ git commit -m "feat(todo-mcp): scaffold service directory and BUILD files"
 ### Task 2: Write failing tests for all MCP tools
 
 **Files:**
+
 - Create: `services/todo_mcp/tests/conftest.py`
 - Create: `services/todo_mcp/tests/main_test.py`
 
@@ -315,6 +317,7 @@ git commit -m "test(todo-mcp): add failing tests for all MCP tools"
 ### Task 3: Implement the MCP server
 
 **Files:**
+
 - Create: `services/todo_mcp/app/main.py`
 
 **Step 1: Write `services/todo_mcp/app/main.py`**
@@ -472,6 +475,7 @@ git commit -m "build(todo-mcp): fix image build issues" # only if needed
 ### Task 5: Add deployment configuration
 
 **Files:**
+
 - Modify: `overlays/prod/mcp-servers/values.yaml` — add todo-mcp server entry
 
 **Step 1: Add server entry to `overlays/prod/mcp-servers/values.yaml`**
@@ -487,8 +491,8 @@ Append to the `servers` array (after the `argocd-mcp` entry):
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
   env:
-  - name: TODO_URL
-    value: "http://todo.todo.svc.cluster.local:8080"
+    - name: TODO_URL
+      value: "http://todo.todo.svc.cluster.local:8080"
   resources:
     requests:
       cpu: 10m
@@ -513,6 +517,7 @@ Append to the `servers` array (after the `argocd-mcp` entry):
 Run: `helm template mcp-servers charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml`
 
 Verify the output includes:
+
 - A Deployment for `todo-mcp`
 - A Service for `todo-mcp` on port 8000
 - A registration Job for `todo-mcp`

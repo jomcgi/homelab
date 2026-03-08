@@ -49,25 +49,25 @@ graph TD
 
 ## Key Decisions
 
-| Decision | Rationale |
-|---|---|
-| Bypass Python wrapper, invoke `semgrep-core` directly | Eliminates 2-4s Python startup per invocation |
-| Vendor engine as OCI artifact (not pip) | Content-addressed digest pinning; platform-specific binaries; no pip resolution |
-| `no-sandbox` Bazel tag | semgrep-core needs real filesystem paths; sandbox adds ~100x overhead |
-| Aspect for transitive source collection | Walks the real dependency graph for cross-file `--pro` analysis |
+| Decision                                              | Rationale                                                                          |
+| ----------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| Bypass Python wrapper, invoke `semgrep-core` directly | Eliminates 2-4s Python startup per invocation                                      |
+| Vendor engine as OCI artifact (not pip)               | Content-addressed digest pinning; platform-specific binaries; no pip resolution    |
+| `no-sandbox` Bazel tag                                | semgrep-core needs real filesystem paths; sandbox adds ~100x overhead              |
+| Aspect for transitive source collection               | Walks the real dependency graph for cross-file `--pro` analysis                    |
 | Required credentials (GHCR_TOKEN + SEMGREP_APP_TOKEN) | Missing credentials are build/test errors — Pro interfile analysis runs everywhere |
-| Gazelle auto-generation | Zero-maintenance BUILD files; orphan detection ensures no coverage gaps |
-| Per-rule-file execution with post-scan ID filtering | File-level exclusion is O(1); rule-ID exclusion handles granular suppressions |
+| Gazelle auto-generation                               | Zero-maintenance BUILD files; orphan detection ensures no coverage gaps            |
+| Per-rule-file execution with post-scan ID filtering   | File-level exclusion is O(1); rule-ID exclusion handles granular suppressions      |
 
 ## Results
 
-| Metric | Before (managed CI) | After (Bazel + BuildBuddy) |
-|---|---|---|
-| Diff scan (cached) | 2m+ | **30s** |
-| Full scan (new rules) | 5m+ | **50s** |
-| Cold cache (all tests + images + semgrep) | N/A | **4m** |
-| Determinism | Non-deterministic (registry fetches) | **Hermetic** (digest-pinned) |
-| Cache invalidation | Time-based / none | **Content-addressed** (source + rule hash) |
+| Metric                                    | Before (managed CI)                  | After (Bazel + BuildBuddy)                 |
+| ----------------------------------------- | ------------------------------------ | ------------------------------------------ |
+| Diff scan (cached)                        | 2m+                                  | **30s**                                    |
+| Full scan (new rules)                     | 5m+                                  | **50s**                                    |
+| Cold cache (all tests + images + semgrep) | N/A                                  | **4m**                                     |
+| Determinism                               | Non-deterministic (registry fetches) | **Hermetic** (digest-pinned)               |
+| Cache invalidation                        | Time-based / none                    | **Content-addressed** (source + rule hash) |
 
 ## References
 
