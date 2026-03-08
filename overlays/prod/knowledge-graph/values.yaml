@@ -2,7 +2,7 @@ imagePullSecret:
   enabled: true
 scraper:
   image:
-    tag: latest@sha256:36d84b9ee1a97b6d537d3c5d941025b4dfbfe3466a61bf85892517eb1b93c20b
+    tag: main@sha256:ce9d18b355bccd73bd212caeedd5cec8b20e252ca7122c9b1b0b756c8d65c17a
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
