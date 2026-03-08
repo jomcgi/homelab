@@ -35,7 +35,7 @@ spec:
         imagePullPolicy: {{ .Values.image.pullPolicy }}
         ports:
         - name: http
-          containerPort: {{ .Values.config.httpPort }}
+          containerPort: {{ .Values.service.port }}
           protocol: TCP
         env:
         - name: NATS_URL

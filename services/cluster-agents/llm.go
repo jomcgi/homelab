@@ -72,12 +72,12 @@ func (c *LLMClient) Complete(ctx context.Context, system, user string) (string, 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
+		respBody, _ := io.ReadAll(io.LimitReader(resp.Body, 4096))
 		return "", fmt.Errorf("llm returned %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var result ChatCompletionResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, 10<<20)).Decode(&result); err != nil {
 		return "", fmt.Errorf("decode response: %w", err)
 	}
 
