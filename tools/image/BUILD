@@ -1,5 +1,6 @@
+load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
-load("//tools/oci:apko_image.bzl", "apko_image")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
 load(":multitool_tar.bzl", "multitool_tar")
 load(":node_tar.bzl", "node_tar")
 load(":python_tar.bzl", "python_tar")
@@ -307,12 +308,82 @@ python_tar(
     binary = ":python_deps",
 )
 
-apko_image(
-    name = "image",
-    config = "apko.yaml",
-    contents = "@homelab_tools_lock//:contents",
-    repository = "ghcr.io/jomcgi/homelab-tools",
+oci_image(
+    name = "image_linux_amd64",
+    architecture = "amd64",
+    os = "linux",
     tars = [
+        ":tools_tar_linux_amd64",
+        ":node_tar_linux_amd64",
+        ":python_tar_linux_amd64",
+        ":pnpm_tar",
         ":prettier_tar",
     ],
+)
+
+oci_image(
+    name = "image_linux_arm64",
+    architecture = "arm64",
+    os = "linux",
+    tars = [
+        ":tools_tar_linux_arm64",
+        ":node_tar_linux_arm64",
+        ":python_tar_linux_arm64",
+        ":pnpm_tar",
+        ":prettier_tar",
+    ],
+)
+
+oci_image(
+    name = "image_darwin_arm64",
+    architecture = "arm64",
+    os = "darwin",
+    tars = [
+        ":tools_tar_darwin_arm64",
+        ":node_tar_darwin_arm64",
+        ":python_tar_darwin_arm64",
+        ":pnpm_tar",
+        ":prettier_tar",
+    ],
+)
+
+oci_image_index(
+    name = "image",
+    images = [
+        ":image_linux_amd64",
+        ":image_linux_arm64",
+        ":image_darwin_arm64",
+    ],
+)
+
+# Stamped tags for CI (branch + timestamp)
+expand_template(
+    name = "image_stamped_tags_ci",
+    out = "image_stamped_ci.tags.txt",
+    stamp_substitutions = {
+        "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
+        "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+    },
+    template = ["{STABLE_BRANCH_TAG}", "{STABLE_IMAGE_TAG}"],
+)
+
+# Stamped tags for local builds (timestamp only)
+expand_template(
+    name = "image_stamped_tags_local",
+    out = "image_stamped_local.tags.txt",
+    stamp_substitutions = {
+        "{STABLE_IMAGE_TAG}": "{{STABLE_IMAGE_TAG}}",
+    },
+    template = ["{STABLE_IMAGE_TAG}"],
+)
+
+oci_push(
+    name = "image.push",
+    image = ":image",
+    remote_tags = select({
+        "//tools/oci:ci_build": "image_stamped_tags_ci",
+        "//conditions:default": "image_stamped_tags_local",
+    }),
+    repository = "ghcr.io/jomcgi/homelab-tools",
+    visibility = ["//images:__pkg__"],
 )

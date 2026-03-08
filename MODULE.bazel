@@ -257,11 +257,7 @@ apko.translate_lock(
     name = "goose_agent_lock",
     lock = "//charts/goose-agent/image:apko.lock.json",
 )
-apko.translate_lock(
-    name = "homelab_tools_lock",
-    lock = "//tools/image:apko.lock.json",
-)
-use_repo(apko, "goose_agent_lock", "grimoire_frontend_lock", "homelab_tools_lock", "ships_frontend_lock", "todo_lock")
+use_repo(apko, "goose_agent_lock", "grimoire_frontend_lock", "ships_frontend_lock", "todo_lock")
 
 # Download multiarch archives (binaries from zip files)
 multiarch_http_archive = use_repo_rule("//tools/http:multiarch_http_archive.bzl", "multiarch_http_archive")
