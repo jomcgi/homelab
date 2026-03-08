@@ -47,7 +47,9 @@ func (h *Hub) Run(ctx context.Context) {
 		case <-ctx.Done():
 			h.mu.Lock()
 			for c := range h.clients {
-				c.conn.Close(websocket.StatusGoingAway, "server shutting down")
+				if c.conn != nil {
+					c.conn.Close(websocket.StatusGoingAway, "server shutting down")
+				}
 				close(c.send)
 				delete(h.clients, c)
 			}
@@ -59,7 +61,9 @@ func (h *Hub) Run(ctx context.Context) {
 			if h.connCount[client.email] >= maxConnsPerUser {
 				h.mu.Unlock()
 				slog.Warn("connection limit exceeded", "email", client.email)
-				client.conn.Close(websocket.StatusTryAgainLater, "too many connections")
+				if client.conn != nil {
+					client.conn.Close(websocket.StatusTryAgainLater, "too many connections")
+				}
 				continue
 			}
 			h.clients[client] = true
