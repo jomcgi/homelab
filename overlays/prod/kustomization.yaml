@@ -7,6 +7,7 @@ resources:
   - ./agent-orchestrator
   - ./api-gateway
   - ./cloudflare-tunnel
+  - ./cluster-agents
   - ./context-forge
   - ./goose-sandboxes
   - ./nats
