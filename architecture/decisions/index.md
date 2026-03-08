@@ -34,7 +34,7 @@ ADRs document significant architectural decisions and their context.
 
 ## Tooling
 
-| ADR                                                                 | Decision                                                          |
-| ------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| [001 - OCI Tool Distribution](tooling/001-oci-tool-distribution.md) | Multi-arch OCI image for developer tools, eliminating local Bazel |
+| ADR                                                                           | Decision                                                                      |
+| ----------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
+| [001 - OCI Tool Distribution](tooling/001-oci-tool-distribution.md)           | Multi-arch OCI image for developer tools, eliminating local Bazel             |
 | [002 - Service Deployment Tooling](tooling/002-service-deployment-tooling.md) | Copier template to scaffold new services, eliminating per-service boilerplate |

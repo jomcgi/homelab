@@ -58,6 +58,7 @@ services/<service>/
 Top-level BUILD file invokes the `py3_image()` macro from `tools/oci/py3_image.bzl`. The macro handles multi-platform builds (amd64 + arm64), non-root execution (uid 65532), Python path setup, and GHCR push targets with stamped CI tags.
 
 Key patterns from production services (`knowledge_graph`, `stargazer`, `agent_orchestrator_mcp`):
+
 - Configuration via `pydantic_settings.BaseSettings` with `env_prefix` or `env_nested_delimiter`
 - Modular `py_library` targets per logical concern (`:config`, `:storage`, `:models`)
 - Multiple `py_venv_binary` entry points when a service has multiple processes (scraper, embedder, mcp)
@@ -116,10 +117,10 @@ MCP servers are Python services with one additional deployment concern: they mus
 
 **Two deployment modes:**
 
-| Mode | When to use | Mechanism |
-|------|-------------|-----------|
-| **Native HTTP** | Server uses `FastMCP(transport="http")` | Direct Deployment + Service on port 8080 |
-| **Translate sidecar** | Server only supports stdio | IBM `mcpgateway.translate` sidecar wraps stdio as HTTP |
+| Mode                  | When to use                             | Mechanism                                              |
+| --------------------- | --------------------------------------- | ------------------------------------------------------ |
+| **Native HTTP**       | Server uses `FastMCP(transport="http")` | Direct Deployment + Service on port 8080               |
+| **Translate sidecar** | Server only supports stdio              | IBM `mcpgateway.translate` sidecar wraps stdio as HTTP |
 
 All MCP servers are co-deployed in a single Helm release via `charts/mcp-servers/` — a meta-chart that loops over a `servers:` array in `values.yaml`. Each entry in the array produces: Deployment, Service, ServiceAccount, OnePasswordItem secret, Context Forge registration Job, SigNoz HTTPCheck alert ConfigMap, and optional RBAC resources.
 
@@ -190,11 +191,11 @@ securityContext:
 
 Three tools exist in the `bazel_env` (available via `tools/BUILD`) but are **not actively used for service scaffolding**:
 
-| Tool | Source | Status |
-|------|--------|--------|
-| `copier` | `@pip//copier` | Available, no templates defined |
-| `scaffold` | `@com_github_hay_kot_scaffold//:scaffold` | Available, no templates defined |
-| `yo` | `@npm//tools:yo` | Available, no generators defined |
+| Tool       | Source                                    | Status                           |
+| ---------- | ----------------------------------------- | -------------------------------- |
+| `copier`   | `@pip//copier`                            | Available, no templates defined  |
+| `scaffold` | `@com_github_hay_kot_scaffold//:scaffold` | Available, no templates defined  |
+| `yo`       | `@npm//tools:yo`                          | Available, no generators defined |
 
 No `scripts/` directory, no `Makefile` new-service target, no cookiecutter templates, no documented step-by-step "how to add a service" guide beyond `architecture/contributing.md` (which covers contribution workflow, not service creation specifics).
 
@@ -292,6 +293,7 @@ Copier is idempotent on re-run: it only updates files that have drifted from the
 Conventions discovered during this investigation are currently implicit. Make them explicit and enforceable:
 
 **2a. Service creation guide** — Add `architecture/services.md` section "Adding a New Service" with:
+
 - When to use `go_image` vs `py3_image` vs `apko_image`
 - The 7 files every service needs and what goes in each
 - How to name 1Password vault items
@@ -299,6 +301,7 @@ Conventions discovered during this investigation are currently implicit. Make th
 - How to run `bazel run //:gazelle` after adding Go deps
 
 **2b. Template tests** — Add `bazel run //templates/new-service:validate` that:
+
 - Runs `copier copy` with each combination of options into a temp dir
 - Runs `helm lint` on the generated chart
 - Checks that `kustomize build clusters/homelab` still resolves (catches broken kustomization registration)
@@ -318,12 +321,14 @@ Conventions discovered during this investigation are currently implicit. Make th
 ### If implemented
 
 **Positive:**
+
 - "Add a new service" becomes a 2-minute task for experienced developers and a 15-minute task for new contributors (down from 1–3 hours)
 - New services automatically comply with security defaults (non-root, RO filesystem, capability drops), OTel configuration, and image update automation — because the template encodes these patterns
 - Convention drift is caught earlier: the validate target in CI fails if a generated service diverges from the template, and re-running `copier copy` on existing services surfaces drift
 - Encourages experimentation: low ceremony means developers spin up throwaway services to test ideas rather than hacking into existing ones
 
 **Negative/risks:**
+
 - Templates require maintenance — when conventions change (e.g., a new OTel annotation format), the template must be updated and `copier copy` re-run on existing services. This is manual work, not automatic.
 - The Copier template is a second source of truth alongside real services. If a real service diverges from the template for a legitimate reason, Copier will report false-positive drift on re-runs. Template answers must be checkpointed in `.copier-answers.yml` per service.
 - Phase 2 (Helm linting in CI) may surface existing chart issues that block PRs. Accept this cost — it's better to find issues in CI than in production.
@@ -336,13 +341,13 @@ The status quo continues: each service added by hand, conventions erode over tim
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
-| [Copier documentation](https://copier.readthedocs.io/) | Template engine used in this proposal |
-| [`tools/oci/py3_image.bzl`](../../../tools/oci/py3_image.bzl) | Python image macro — template generates invocations of this |
-| [`tools/oci/go_image.bzl`](../../../tools/oci/go_image.bzl) | Go image macro — template generates invocations of this |
-| [`architecture/contributing.md`](../../contributing.md) | Existing contribution guide (Phase 2 extends this) |
-| [`architecture/services.md`](../../services.md) | Existing service architecture doc (Phase 2 adds "Adding a New Service") |
-| [`operators/best-practices.md`](../../../operators/best-practices.md) | Operator-specific patterns (inform Go operator variant of template) |
-| [`charts/mcp-servers/`](../../../charts/mcp-servers/) | MCP meta-chart — reference for MCP server onboarding path |
-| [ADR 001: OCI Tool Distribution](./001-oci-tool-distribution.md) | Establishes `copier` as an available tool in the developer environment |
+| Resource                                                              | Relevance                                                               |
+| --------------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| [Copier documentation](https://copier.readthedocs.io/)                | Template engine used in this proposal                                   |
+| [`tools/oci/py3_image.bzl`](../../../tools/oci/py3_image.bzl)         | Python image macro — template generates invocations of this             |
+| [`tools/oci/go_image.bzl`](../../../tools/oci/go_image.bzl)           | Go image macro — template generates invocations of this                 |
+| [`architecture/contributing.md`](../../contributing.md)               | Existing contribution guide (Phase 2 extends this)                      |
+| [`architecture/services.md`](../../services.md)                       | Existing service architecture doc (Phase 2 adds "Adding a New Service") |
+| [`operators/best-practices.md`](../../../operators/best-practices.md) | Operator-specific patterns (inform Go operator variant of template)     |
+| [`charts/mcp-servers/`](../../../charts/mcp-servers/)                 | MCP meta-chart — reference for MCP server onboarding path               |
+| [ADR 001: OCI Tool Distribution](./001-oci-tool-distribution.md)      | Establishes `copier` as an available tool in the developer environment  |
