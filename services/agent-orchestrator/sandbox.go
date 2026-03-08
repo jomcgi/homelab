@@ -206,6 +206,28 @@ func (s *SandboxExecutor) resolvePodName(ctx context.Context, sandboxName string
 	return sandboxName, nil
 }
 
+// resolveSandboxServiceFQDN gets the stable Service FQDN from the Sandbox resource.
+// The Sandbox controller creates a headless Service per sandbox that survives
+// pod restarts, providing a stable DNS name for HTTP communication.
+func (s *SandboxExecutor) resolveSandboxServiceFQDN(ctx context.Context, sandboxName string) (string, error) {
+	sandbox, err := s.dynClient.Resource(sandboxGVR).Namespace(s.namespace).Get(ctx, sandboxName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("getting Sandbox %s: %w", sandboxName, err)
+	}
+
+	status, ok := sandbox.Object["status"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("sandbox %s has no status", sandboxName)
+	}
+
+	fqdn, ok := status["serviceFQDN"].(string)
+	if !ok || fqdn == "" {
+		return "", fmt.Errorf("sandbox %s has no serviceFQDN in status", sandboxName)
+	}
+
+	return fqdn, nil
+}
+
 func (s *SandboxExecutor) waitPodRunning(ctx context.Context, podName string) error {
 	s.logger.Info("waiting for pod to be ready", "pod", podName)
 
