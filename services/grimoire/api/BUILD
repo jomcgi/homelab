@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//tools/oci:go_image.bzl", "go_image")
 
 go_library(
@@ -16,6 +16,18 @@ go_library(
     ],
     importpath = "github.com/jomcgi/homelab/services/grimoire/api",
     visibility = ["//visibility:private"],
+    deps = [
+        "@com_google_cloud_go_firestore//:firestore",
+        "@org_golang_google_api//iterator",
+        "@org_golang_google_grpc//codes",
+        "@org_golang_google_grpc//status",
+    ],
+)
+
+go_test(
+    name = "api_test",
+    srcs = ["dice_test.go"],
+    embed = [":api_lib"],
     deps = [
         "@com_google_cloud_go_firestore//:firestore",
         "@org_golang_google_api//iterator",

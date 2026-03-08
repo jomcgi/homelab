@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//tools/oci:go_image.bzl", "go_image")
 
 go_library(
@@ -13,6 +13,16 @@ go_library(
     ],
     importpath = "github.com/jomcgi/homelab/services/grimoire/ws-gateway",
     visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_redis_go_redis_v9//:go-redis",
+        "@io_nhooyr_websocket//:websocket",
+    ],
+)
+
+go_test(
+    name = "ws-gateway_test",
+    srcs = ["hub_test.go"],
+    embed = [":ws-gateway_lib"],
     deps = [
         "@com_github_redis_go_redis_v9//:go-redis",
         "@io_nhooyr_websocket//:websocket",
