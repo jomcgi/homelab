@@ -40,8 +40,8 @@ data:
                 "stepInterval": 60,
                 "aggregations": [
                   {
-                    "timeAggregation": "max",
-                    "spaceAggregation": "max",
+                    "timeAggregation": "increase",
+                    "spaceAggregation": "sum",
                     "metricName": "k8s.container.restarts"
                   }
                 ],

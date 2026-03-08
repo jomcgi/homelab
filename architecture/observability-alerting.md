@@ -135,7 +135,7 @@ The `thresholds` block is still needed for the SigNoz UI to render threshold con
 
 ### HTTPCheck Alerts
 
-Monitor service availability via the OTel httpcheck receiver. Pattern: `avg(httpcheck.status)` where `http.url = '<url>'`, alert when `< 1` for 5 consecutive checks.
+Monitor service availability via the OTel httpcheck receiver. Pattern: `max(httpcheck.status)` (space aggregation) where `http.url = '<url>'`, alert when `< 1` for 5 consecutive checks. Uses `max` space aggregation to avoid false positives from stale metric series left by previous collector pod incarnations.
 
 | Service          | URL                                       | Location                              |
 | ---------------- | ----------------------------------------- | ------------------------------------- |
@@ -172,9 +172,9 @@ Located in `overlays/cluster-critical/signoz/alerts/`:
 - `node-memory-pressure.yaml` — `k8s.node.condition_memory_pressure` > 0 always (warning)
 - `node-pid-pressure.yaml` — `k8s.node.condition_pid_pressure` > 0 always (warning)
 - `node-not-ready.yaml` — `k8s.node.condition_ready` < 1 for 5 consecutive (critical)
-- `pod-oomkilled.yaml` — `k8s.container.restarts` where `last_terminated_reason = OOMKilled` > 0 once (critical)
+- `pod-oomkilled.yaml` — `increase(k8s.container.restarts)` where `last_terminated_reason = OOMKilled` > 0 once (critical). Uses `increase` time aggregation to detect new OOM events, not cumulative lifetime count.
 - `pod-pending.yaml` — `k8s.pod.phase` == 1 (Pending) for 5 consecutive over 15min (warning)
-- `pod-restart-rate.yaml` — `k8s.container.restarts` > 3 once in 15min (warning)
+- `pod-restart-rate.yaml` — `increase(k8s.container.restarts)` > 3 once in 15min (warning). Uses `increase` time aggregation to detect restarts within the eval window, not cumulative lifetime count.
 
 ## Sidecar Architecture
 

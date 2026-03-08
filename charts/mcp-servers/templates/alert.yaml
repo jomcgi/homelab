@@ -44,7 +44,7 @@ data:
                 "aggregations": [
                   {
                     "timeAggregation": "avg",
-                    "spaceAggregation": "avg",
+                    "spaceAggregation": "max",
                     "metricName": "httpcheck.status"
                   }
                 ],
