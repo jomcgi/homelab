@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 )
 
@@ -79,6 +80,13 @@ func (p *PatrolAgent) Analyze(ctx context.Context, findings []Finding) ([]Action
 	if err != nil {
 		return nil, fmt.Errorf("llm analysis: %w", err)
 	}
+
+	// Strip markdown code fences that local models sometimes wrap JSON in.
+	response = strings.TrimSpace(response)
+	response = strings.TrimPrefix(response, "```json")
+	response = strings.TrimPrefix(response, "```")
+	response = strings.TrimSuffix(response, "```")
+	response = strings.TrimSpace(response)
 
 	var llmActions []llmAction
 	if err := json.Unmarshal([]byte(response), &llmActions); err != nil {

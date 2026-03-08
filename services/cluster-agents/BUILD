@@ -42,26 +42,9 @@ go_test(
         "llm_test.go",
         "patrol_test.go",
         "runner_test.go",
-    ],
-    embed = [":cluster-agents_lib"],
-    deps = [
-        "@io_k8s_client_go//kubernetes/fake",
-    ],
-)
-
-go_test(
-    name = "cluster-agents_test",
-    srcs = [
-        "collector_argocd_test.go",
-        "collector_k8s_test.go",
-        "escalator_test.go",
-        "llm_test.go",
-        "patrol_test.go",
-        "runner_test.go",
         "store_test.go",
     ],
     embed = [":cluster-agents_lib"],
-    tags = ["manual"],
     deps = [
         "@io_k8s_client_go//kubernetes/fake",
     ],

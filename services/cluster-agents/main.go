@@ -102,7 +102,9 @@ func main() {
 	slog.Info("cluster-agents starting", "patrol_interval", patrolInterval)
 	runner.Run(ctx)
 
-	srv.Shutdown(context.Background())
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer shutdownCancel()
+	srv.Shutdown(shutdownCtx)
 	slog.Info("cluster-agents stopped")
 }
 

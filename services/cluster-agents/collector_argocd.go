@@ -63,6 +63,10 @@ func (c *ArgoCDCollector) Collect(ctx context.Context) ([]Finding, error) {
 	}
 	defer resp.Body.Close()
 
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("argocd returned %d", resp.StatusCode)
+	}
+
 	var apps ArgoCDAppList
 	if err := json.NewDecoder(resp.Body).Decode(&apps); err != nil {
 		return nil, fmt.Errorf("decode argocd response: %w", err)
