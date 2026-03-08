@@ -1,4 +1,22 @@
 load("//tools/oci:apko_image.bzl", "apko_image")
+load(":multitool_tar.bzl", "multitool_tar")
+
+multitool_tar(
+    name = "tools_tar",
+    tools = [
+        "argocd",
+        "buildozer",
+        "crane",
+        "gazelle",
+        "gh",
+        "gofumpt",
+        "helm",
+        "kind",
+        "op",
+        "ruff",
+        "shfmt",
+    ],
+)
 
 # Package prettier from the pnpm lockfile-managed npm package.
 # Places the package at /usr/local/lib/node_modules/prettier/
