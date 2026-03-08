@@ -2,13 +2,13 @@ imagePullSecret:
   enabled: true
 scraper:
   image:
-    tag: main@sha256:36d84b9ee1a97b6d537d3c5d941025b4dfbfe3466a61bf85892517eb1b93c20b
+    tag: latest@sha256:36d84b9ee1a97b6d537d3c5d941025b4dfbfe3466a61bf85892517eb1b93c20b
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
 embedder:
   image:
-    tag: main@sha256:4c6f5c8d8ca551a1d6a15042ea38ef60cba6cc1f3c9b89f33a5fa66cd00bce2f
+    tag: latest@sha256:4c6f5c8d8ca551a1d6a15042ea38ef60cba6cc1f3c9b89f33a5fa66cd00bce2f
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder
 mcp:
   image:
