@@ -17,3 +17,12 @@ platform(
     ],
     visibility = ["//visibility:public"],
 )
+
+platform(
+    name = "darwin_aarch64",
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:aarch64",
+    ],
+    visibility = ["//visibility:public"],
+)
