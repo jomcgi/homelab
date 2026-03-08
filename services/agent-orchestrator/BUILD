@@ -8,6 +8,7 @@ go_library(
         "consumer.go",
         "main.go",
         "model.go",
+        "reconcile.go",
         "sandbox.go",
         "store.go",
         "watchdog.go",
@@ -19,6 +20,7 @@ go_library(
         "@com_github_nats_io_nats_go//jetstream",
         "@com_github_oklog_ulid_v2//:ulid",
         "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
         "@io_k8s_apimachinery//pkg/runtime/schema",
@@ -41,6 +43,7 @@ go_test(
     name = "agent-orchestrator_unit_test",
     srcs = [
         "api_test.go",
+        "reconcile_test.go",
         "sandbox_test.go",
         "watchdog_test.go",
     ],
@@ -51,6 +54,7 @@ go_test(
     name = "agent-orchestrator_test",
     srcs = [
         "api_test.go",
+        "reconcile_test.go",
         "sandbox_test.go",
         "store_test.go",
         "watchdog_test.go",
