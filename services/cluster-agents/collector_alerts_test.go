@@ -15,26 +15,35 @@ func TestAlertCollector_FiringAlerts(t *testing.T) {
 		}
 		resp := alertRulesResponse{
 			Status: "success",
-			Data: []alertRule{
-				{
-					ID:       "rule-42",
-					Name:     "Pod OOMKilled",
-					State:    "active",
-					Severity: "warning",
-					Labels:   map[string]string{"namespace": "trips", "service": "imgproxy"},
-				},
-				{
-					ID:       "rule-43",
-					Name:     "Node NotReady",
-					State:    "inactive",
-					Severity: "critical",
-				},
-				{
-					ID:       "rule-44",
-					Name:     "High Error Rate",
-					State:    "active",
-					Severity: "critical",
-					Labels:   map[string]string{"service": "api-gateway"},
+			Data: alertRulesData{
+				Rules: []alertRule{
+					{
+						ID:    "rule-42",
+						Name:  "Pod OOMKilled",
+						State: "firing",
+						Labels: map[string]string{
+							"namespace": "trips",
+							"service":   "imgproxy",
+							"severity":  "warning",
+						},
+					},
+					{
+						ID:    "rule-43",
+						Name:  "Node NotReady",
+						State: "inactive",
+						Labels: map[string]string{
+							"severity": "critical",
+						},
+					},
+					{
+						ID:    "rule-44",
+						Name:  "High Error Rate",
+						State: "firing",
+						Labels: map[string]string{
+							"service":  "api-gateway",
+							"severity": "critical",
+						},
+					},
 				},
 			},
 		}
@@ -49,7 +58,7 @@ func TestAlertCollector_FiringAlerts(t *testing.T) {
 	}
 
 	if len(findings) != 2 {
-		t.Fatalf("expected 2 findings (only active), got %d", len(findings))
+		t.Fatalf("expected 2 findings (only firing), got %d", len(findings))
 	}
 
 	if findings[0].Fingerprint != "patrol.alert.rule-42" {
@@ -70,8 +79,17 @@ func TestAlertCollector_NoFiringAlerts(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := alertRulesResponse{
 			Status: "success",
-			Data: []alertRule{
-				{ID: "rule-1", Name: "Healthy", State: "inactive", Severity: "warning"},
+			Data: alertRulesData{
+				Rules: []alertRule{
+					{
+						ID:    "rule-1",
+						Name:  "Healthy",
+						State: "inactive",
+						Labels: map[string]string{
+							"severity": "warning",
+						},
+					},
+				},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)

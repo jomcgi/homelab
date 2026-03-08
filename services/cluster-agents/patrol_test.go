@@ -58,8 +58,17 @@ func TestPatrolAgent_CollectAggregatesFromCollector(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := alertRulesResponse{
 			Status: "success",
-			Data: []alertRule{
-				{ID: "rule-10", Name: "Test Alert", State: "active", Severity: "critical"},
+			Data: alertRulesData{
+				Rules: []alertRule{
+					{
+						ID:    "rule-10",
+						Name:  "Test Alert",
+						State: "firing",
+						Labels: map[string]string{
+							"severity": "critical",
+						},
+					},
+				},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)

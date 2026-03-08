@@ -9,16 +9,19 @@ import (
 )
 
 type alertRulesResponse struct {
-	Status string      `json:"status"`
-	Data   []alertRule `json:"data"`
+	Status string         `json:"status"`
+	Data   alertRulesData `json:"data"`
+}
+
+type alertRulesData struct {
+	Rules []alertRule `json:"rules"`
 }
 
 type alertRule struct {
-	ID       string            `json:"ruleId"`
-	Name     string            `json:"alertname"`
-	State    string            `json:"state"`
-	Severity string            `json:"severity,omitempty"`
-	Labels   map[string]string `json:"labels,omitempty"`
+	ID     string            `json:"id"`
+	Name   string            `json:"alert"`
+	State  string            `json:"state"`
+	Labels map[string]string `json:"labels,omitempty"`
 }
 
 type AlertCollector struct {
@@ -62,12 +65,12 @@ func (c *AlertCollector) Collect(ctx context.Context) ([]Finding, error) {
 	var findings []Finding
 	now := time.Now()
 
-	for _, rule := range result.Data {
-		if rule.State != "active" {
+	for _, rule := range result.Data.Rules {
+		if rule.State != "firing" {
 			continue
 		}
 
-		severity := mapSeverity(rule.Severity)
+		severity := mapSeverity(rule.Labels["severity"])
 
 		findings = append(findings, Finding{
 			Fingerprint: fmt.Sprintf("patrol.alert.%s", rule.ID),
@@ -78,7 +81,7 @@ func (c *AlertCollector) Collect(ctx context.Context) ([]Finding, error) {
 			Data: map[string]any{
 				"rule_id":  rule.ID,
 				"labels":   rule.Labels,
-				"severity": rule.Severity,
+				"severity": rule.Labels["severity"],
 			},
 			Timestamp: now,
 		})
