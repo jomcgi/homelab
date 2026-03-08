@@ -4,8 +4,6 @@ scraper:
   image:
     tag: main@sha256:ce9d18b355bccd73bd212caeedd5cec8b20e252ca7122c9b1b0b756c8d65c17a
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper
-  podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "python"
 embedder:
   image:
     tag: latest@sha256:4c6f5c8d8ca551a1d6a15042ea38ef60cba6cc1f3c9b89f33a5fa66cd00bce2f
@@ -14,8 +12,6 @@ mcp:
   image:
     tag: main@sha256:e711fedbe73ce35d7966238e36abe5e89c7652b290bcee6ac0ba683e70b20a7d
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp
-  podAnnotations:
-    instrumentation.opentelemetry.io/inject-python: "python"
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
 sources:
