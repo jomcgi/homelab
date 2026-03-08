@@ -154,3 +154,30 @@ servers:
   alert:
     enabled: true
     url: "http://todo-mcp.mcp-servers.svc.cluster.local:8000/health"
+- name: agent-orchestrator-mcp
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator-mcp
+    tag: "main"
+  port: 8000
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-python: "python"
+  env:
+  - name: ORCHESTRATOR_URL
+    value: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  translate:
+    enabled: false
+  registration:
+    enabled: true
+    transport: "STREAMABLEHTTP"
+  imageUpdater:
+    enabled: true
+  alert:
+    enabled: true
+    url: "http://agent-orchestrator-mcp.mcp-servers.svc.cluster.local:8000/health"
