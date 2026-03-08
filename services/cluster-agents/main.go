@@ -26,8 +26,6 @@ func main() {
 	natsURL := envOr("NATS_URL", "nats://nats.nats.svc.cluster.local:4222")
 	llmURL := envOr("LLM_URL", "http://llama-cpp.llama-cpp.svc.cluster.local:8080")
 	llmModel := envOr("LLM_MODEL", "default")
-	argocdURL := envOr("ARGOCD_URL", "http://argocd-server.argocd.svc.cluster.local")
-	argocdToken := os.Getenv("ARGOCD_TOKEN")
 	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080")
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	githubRepo := envOr("GITHUB_REPO", "jomcgi/homelab")
@@ -79,7 +77,6 @@ func main() {
 
 	collectors := []collector{
 		NewK8sCollector(k8sClient),
-		NewArgoCDCollector(argocdURL, argocdToken),
 	}
 
 	patrol := NewPatrolAgent(collectors, llm, escalator, patrolInterval)

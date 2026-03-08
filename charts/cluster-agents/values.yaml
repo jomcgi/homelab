@@ -50,19 +50,15 @@ config:
   natsUrl: "nats://nats.nats.svc.cluster.local:4222"
   llmUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   llmModel: "default"
-  argocdUrl: "http://argocd-server.argocd.svc.cluster.local"
   orchestratorUrl: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
   githubRepo: "jomcgi/homelab"
   httpPort: "8080"
   patrolInterval: "5m"
 
 secrets:
-  githubToken:
+  agentSecrets:
     onepassword:
-      itemPath: "vaults/k8s-homelab/items/github-token-cluster-agents"
-  argocdToken:
-    onepassword:
-      itemPath: "vaults/k8s-homelab/items/argocd-token-cluster-agents"
+      itemPath: "vaults/k8s-homelab/items/agent-secrets"
 
 nodeSelector: {}
 tolerations: []

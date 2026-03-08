@@ -74,6 +74,7 @@ type Action struct {
 ### Components
 
 **Collectors** — pluggable data gatherers, each implementing a simple interface:
+
 - `KubernetesCollector` — pod status, restart counts, resource usage, pending pods, node conditions, events
 - `ArgoCDCollector` — app sync/health status, recent sync failures
 - `SigNozCollector` — currently firing alerts, error rate spikes, log anomalies
@@ -81,12 +82,14 @@ type Action struct {
 - `GitHubCollector` — open PRs, CI status (for PR reviewer agent)
 
 **Analyzer** — abstracted LLM client with backend routing:
+
 - `llama.cpp` backend for local/cheap analysis (patrol, routine reviews)
 - `Claude API` backend for complex remediation planning
 - Structured output via JSON schema enforcement
 - Each agent provides its own system prompt and output schema
 
 **Escalator** — routes actions based on type:
+
 - `LogHandler` — structured OTel log to SigNoz (info findings)
 - `GitHubIssueHandler` — creates issue with dedup check (warning findings)
 - `OrchestratorJobHandler` — submits Goose job with context (critical findings)
@@ -94,19 +97,21 @@ type Action struct {
 - `PRMergeHandler` — merges approved PRs
 
 **Findings Store** — NATS KV bucket (`cluster-agents-findings`):
+
 - Fingerprint-based deduplication via `ShouldEscalate`/`MarkEscalated`/`MarkResolved`
 - TTL-based auto-expiry after resolution window (prevents stale dedup entries)
 
 ### Agent 1: Cluster Patrol
 
-| Component | Implementation |
-|-----------|---------------|
+| Component      | Implementation                                                              |
+| -------------- | --------------------------------------------------------------------------- |
 | **Collectors** | KubernetesCollector, ArgoCDCollector, SigNozCollector, CertificateCollector |
-| **Analyzer** | llama.cpp — classifies findings, spots correlations across data sources |
-| **Escalation** | Info → log, Warning → GitHub Issue, Critical → Agent Orchestrator job |
-| **Interval** | Every 5 minutes |
+| **Analyzer**   | llama.cpp — classifies findings, spots correlations across data sources     |
+| **Escalation** | Info → log, Warning → GitHub Issue, Critical → Agent Orchestrator job       |
+| **Interval**   | Every 5 minutes                                                             |
 
 **Scripted checks (Collector layer):**
+
 - Pods not Ready for > 5 minutes
 - Containers with restart count > 3 in last hour
 - Nodes with pressure conditions
@@ -117,18 +122,19 @@ type Action struct {
 - Resource usage > 80% of limits
 
 **LLM analysis (Analyzer layer):**
+
 - Correlate findings (restarts + memory pressure + recent deploy = likely OOM)
 - Classify severity based on blast radius and urgency
 - Generate actionable remediation context for Claude
 
 ### Agent 2: PR Reviewer (Future)
 
-| Component | Implementation |
-|-----------|---------------|
-| **Collectors** | GitHubCollector — open PRs matching criteria |
-| **Analyzer** | llama.cpp (convention checks) or Claude (complex review) |
-| **Escalation** | Approve + merge if passing, Request changes if not |
-| **Schedule** | Every 2-3 minutes |
+| Component      | Implementation                                           |
+| -------------- | -------------------------------------------------------- |
+| **Collectors** | GitHubCollector — open PRs matching criteria             |
+| **Analyzer**   | llama.cpp (convention checks) or Claude (complex review) |
+| **Escalation** | Approve + merge if passing, Request changes if not       |
+| **Schedule**   | Every 2-3 minutes                                        |
 
 ### Deduplication & Locking
 
@@ -156,6 +162,7 @@ Findings auto-expire via NATS KV TTL (default: 24 hours) to prevent stale locks.
 ### Observability
 
 Each agent emits OTel metrics:
+
 - `cluster_agents.sweep.duration` — time per collection cycle
 - `cluster_agents.findings.total` — findings per sweep by severity
 - `cluster_agents.escalations.total` — escalations by type

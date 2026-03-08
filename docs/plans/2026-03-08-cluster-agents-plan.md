@@ -15,6 +15,7 @@
 ### Task 1: Scaffold service and define core types
 
 **Files:**
+
 - Create: `services/cluster-agents/main.go`
 - Create: `services/cluster-agents/model.go`
 
@@ -112,6 +113,7 @@ git commit -m "feat(cluster-agents): scaffold service with core types"
 ### Task 2: Agent loop runner with tests
 
 **Files:**
+
 - Create: `services/cluster-agents/runner.go`
 - Create: `services/cluster-agents/runner_test.go`
 
@@ -307,6 +309,7 @@ git commit -m "feat(cluster-agents): add agent loop runner with tests"
 ### Task 3: Findings store with deduplication
 
 **Files:**
+
 - Create: `services/cluster-agents/store.go`
 - Create: `services/cluster-agents/store_test.go`
 
@@ -466,6 +469,7 @@ git commit -m "feat(cluster-agents): add findings store with dedup and TTL"
 ### Task 4: NATS KV findings store implementation
 
 **Files:**
+
 - Create: `services/cluster-agents/store_nats.go`
 
 **Step 1: Write store_nats.go**
@@ -544,6 +548,7 @@ git commit -m "feat(cluster-agents): add NATS KV findings store"
 ### Task 5: LLM client abstraction
 
 **Files:**
+
 - Create: `services/cluster-agents/llm.go`
 - Create: `services/cluster-agents/llm_test.go`
 
@@ -710,6 +715,7 @@ git commit -m "feat(cluster-agents): add LLM client for llama.cpp"
 ### Task 6: Kubernetes collector
 
 **Files:**
+
 - Create: `services/cluster-agents/collector_k8s.go`
 - Create: `services/cluster-agents/collector_k8s_test.go`
 
@@ -1028,6 +1034,7 @@ git commit -m "feat(cluster-agents): add Kubernetes pod and node collector"
 ### Task 7: ArgoCD collector
 
 **Files:**
+
 - Create: `services/cluster-agents/collector_argocd.go`
 - Create: `services/cluster-agents/collector_argocd_test.go`
 
@@ -1250,6 +1257,7 @@ git commit -m "feat(cluster-agents): add ArgoCD health and sync collector"
 ### Task 8: Escalation handlers
 
 **Files:**
+
 - Create: `services/cluster-agents/escalator.go`
 - Create: `services/cluster-agents/escalator_test.go`
 
@@ -1556,6 +1564,7 @@ git commit -m "feat(cluster-agents): add escalation handlers with dedup"
 ### Task 9: Patrol agent — wiring Collect → Analyze → Execute
 
 **Files:**
+
 - Create: `services/cluster-agents/patrol.go`
 - Create: `services/cluster-agents/patrol_test.go`
 
@@ -1771,6 +1780,7 @@ git commit -m "feat(cluster-agents): add patrol agent with LLM analysis"
 ### Task 10: Wire up main.go and add health endpoint
 
 **Files:**
+
 - Modify: `services/cluster-agents/main.go`
 
 **Step 1: Update main.go to wire everything together**
@@ -1926,6 +1936,7 @@ git commit -m "feat(cluster-agents): wire main with all components"
 ### Task 11: Bazel BUILD file
 
 **Files:**
+
 - Create: `services/cluster-agents/BUILD`
 
 **Step 1: Create BUILD file**
@@ -2011,6 +2022,7 @@ git commit -m "build(cluster-agents): add Bazel BUILD file"
 ### Task 12: Helm chart
 
 **Files:**
+
 - Create: `charts/cluster-agents/Chart.yaml`
 - Create: `charts/cluster-agents/values.yaml`
 - Create: `charts/cluster-agents/templates/_helpers.tpl`
@@ -2020,6 +2032,7 @@ git commit -m "build(cluster-agents): add Bazel BUILD file"
 - Create: `charts/cluster-agents/templates/rbac.yaml`
 
 Mirror the `charts/agent-orchestrator/` chart structure. Key differences:
+
 - ClusterRole (not Role) with read-only access to pods, nodes, events across all namespaces
 - Config section maps to env vars: `NATS_URL`, `LLM_URL`, `LLM_MODEL`, `ARGOCD_URL`, `ORCHESTRATOR_URL`, `PATROL_INTERVAL`, `HTTP_PORT`
 - Secrets for `GITHUB_TOKEN` and `ARGOCD_TOKEN` via 1Password
@@ -2095,11 +2108,13 @@ podAnnotations: {}
 **Step 3: Create templates** following `charts/agent-orchestrator/templates/` patterns exactly.
 
 Key template differences from agent-orchestrator:
+
 - `rbac.yaml`: Use `ClusterRole` + `ClusterRoleBinding` for read-only access across namespaces
 - `deployment.yaml`: Add secret env vars for `GITHUB_TOKEN` and `ARGOCD_TOKEN` from 1Password-backed secrets
 - No sandbox namespace RBAC needed
 
 **ClusterRole rules:**
+
 ```yaml
 rules:
   - apiGroups: [""]
@@ -2127,6 +2142,7 @@ git commit -m "feat(cluster-agents): add Helm chart"
 ### Task 13: ArgoCD overlay
 
 **Files:**
+
 - Create: `overlays/prod/cluster-agents/application.yaml`
 - Create: `overlays/prod/cluster-agents/kustomization.yaml`
 - Create: `overlays/prod/cluster-agents/values.yaml`
@@ -2197,6 +2213,7 @@ git commit -m "feat(cluster-agents): add prod ArgoCD overlay"
 ### Task 14: Add OTel namespace and HTTP check alert
 
 **Files:**
+
 - Modify: `overlays/cluster-critical/opentelemetry-operator/values.yaml` — add `cluster-agents` to instrumentation namespaces
 - Create: `overlays/prod/cluster-agents/httpcheck-alert.yaml` — HTTP check alert for the service
 
@@ -2224,16 +2241,19 @@ git commit -m "feat(cluster-agents): add OTel instrumentation and health check a
 These are documented for future implementation:
 
 ### PR Reviewer Agent
+
 - **Collector**: GitHub API — polls for open PRs matching criteria
 - **Analyzer**: llama.cpp for convention checks, Claude for complex review
 - **Escalation**: Approve + merge or request changes with comments
 - **Files**: `services/cluster-agents/agent_pr_reviewer.go`
 
 ### SigNoz Log Anomaly Collector
+
 - **Collector**: SigNoz API — checks error rates, log volume spikes
 - **Files**: `services/cluster-agents/collector_signoz.go`
 
 ### Certificate Expiry Collector
+
 - **Collector**: K8s API — checks TLS secret expiry dates
 - **Files**: `services/cluster-agents/collector_certs.go`
 
@@ -2241,19 +2261,19 @@ These are documented for future implementation:
 
 ## Summary
 
-| Task | Component | Commit message |
-|------|-----------|----------------|
-| 1 | Core types + scaffold | `feat(cluster-agents): scaffold service with core types` |
-| 2 | Agent loop runner | `feat(cluster-agents): add agent loop runner with tests` |
-| 3 | Findings store (mem) | `feat(cluster-agents): add findings store with dedup and TTL` |
-| 4 | Findings store (NATS) | `feat(cluster-agents): add NATS KV findings store` |
-| 5 | LLM client | `feat(cluster-agents): add LLM client for llama.cpp` |
-| 6 | K8s collector | `feat(cluster-agents): add Kubernetes pod and node collector` |
-| 7 | ArgoCD collector | `feat(cluster-agents): add ArgoCD health and sync collector` |
-| 8 | Escalation handlers | `feat(cluster-agents): add escalation handlers with dedup` |
-| 9 | Patrol agent | `feat(cluster-agents): add patrol agent with LLM analysis` |
-| 10 | Main wiring | `feat(cluster-agents): wire main with all components` |
-| 11 | Bazel BUILD | `build(cluster-agents): add Bazel BUILD file` |
-| 12 | Helm chart | `feat(cluster-agents): add Helm chart` |
-| 13 | ArgoCD overlay | `feat(cluster-agents): add prod ArgoCD overlay` |
-| 14 | OTel + alerting | `feat(cluster-agents): add OTel instrumentation and health check alert` |
+| Task | Component             | Commit message                                                          |
+| ---- | --------------------- | ----------------------------------------------------------------------- |
+| 1    | Core types + scaffold | `feat(cluster-agents): scaffold service with core types`                |
+| 2    | Agent loop runner     | `feat(cluster-agents): add agent loop runner with tests`                |
+| 3    | Findings store (mem)  | `feat(cluster-agents): add findings store with dedup and TTL`           |
+| 4    | Findings store (NATS) | `feat(cluster-agents): add NATS KV findings store`                      |
+| 5    | LLM client            | `feat(cluster-agents): add LLM client for llama.cpp`                    |
+| 6    | K8s collector         | `feat(cluster-agents): add Kubernetes pod and node collector`           |
+| 7    | ArgoCD collector      | `feat(cluster-agents): add ArgoCD health and sync collector`            |
+| 8    | Escalation handlers   | `feat(cluster-agents): add escalation handlers with dedup`              |
+| 9    | Patrol agent          | `feat(cluster-agents): add patrol agent with LLM analysis`              |
+| 10   | Main wiring           | `feat(cluster-agents): wire main with all components`                   |
+| 11   | Bazel BUILD           | `build(cluster-agents): add Bazel BUILD file`                           |
+| 12   | Helm chart            | `feat(cluster-agents): add Helm chart`                                  |
+| 13   | ArgoCD overlay        | `feat(cluster-agents): add prod ArgoCD overlay`                         |
+| 14   | OTel + alerting       | `feat(cluster-agents): add OTel instrumentation and health check alert` |
