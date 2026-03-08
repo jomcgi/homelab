@@ -26,10 +26,7 @@ go_library(
         "@io_k8s_apimachinery//pkg/runtime/schema",
         "@io_k8s_client_go//dynamic",
         "@io_k8s_client_go//kubernetes",
-        "@io_k8s_client_go//kubernetes/scheme",
         "@io_k8s_client_go//rest",
-        "@io_k8s_client_go//tools/remotecommand",
-        "@io_k8s_client_go//util/exec",
     ],
 )
 
