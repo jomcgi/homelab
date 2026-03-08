@@ -14,11 +14,11 @@ type alertRulesResponse struct {
 }
 
 type alertRule struct {
-	ID        string            `json:"ruleId"`
-	Name      string            `json:"alertname"`
-	State     string            `json:"state"`
-	Severity  string            `json:"severity,omitempty"`
-	Labels    map[string]string `json:"labels,omitempty"`
+	ID       string            `json:"ruleId"`
+	Name     string            `json:"alertname"`
+	State    string            `json:"state"`
+	Severity string            `json:"severity,omitempty"`
+	Labels   map[string]string `json:"labels,omitempty"`
 }
 
 type AlertCollector struct {
