@@ -120,17 +120,16 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ru
 		"Rule ID: %s\n"+
 		"Severity: %s\n\n"+
 		"Details: %s\n\n"+
-		"Investigate this issue using MCP tools. If a GitOps change can fix it, "+
+		"Investigate this alert using MCP tools. If a GitOps change can fix it, "+
 		"create a PR. If it requires manual intervention, "+
-		"create a GitHub issue with your findings.",
+		"create a GitHub issue summarizing your findings.",
 		action.Finding.Title, ruleID, action.Finding.Severity,
 		action.Finding.Detail)
 
 	body, _ := json.Marshal(map[string]any{
-		"task":    task,
-		"source":  fmt.Sprintf("patrol:%s", ruleID),
-		"profile": "code-fix",
-		"tags":    []string{tag},
+		"task":   task,
+		"source": fmt.Sprintf("patrol:%s", ruleID),
+		"tags":   []string{tag},
 	})
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.orchestrator.baseURL+"/jobs", bytes.NewReader(body))
