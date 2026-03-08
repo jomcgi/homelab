@@ -54,3 +54,25 @@ service:
 serviceAccount:
   create: true
   name: ""
+
+# SLO alert defaults
+sloDefaults:
+  severity: critical
+  channels:
+    - incidentio
+  burnFast:
+    evalWindow: "5m0s"
+    frequency: "1m0s"
+    matchType: "3"
+  budgetExhausted:
+    evalWindow: "6h0m0s"
+    frequency: "5m0s"
+    matchType: "3"
+
+# SLO definitions
+slos:
+  - name: api-gateway
+    metric: httpcheck.status
+    filter: "http.url = 'https://api.jomcgi.dev/status.json'"
+    op: "2"
+    threshold: 1
