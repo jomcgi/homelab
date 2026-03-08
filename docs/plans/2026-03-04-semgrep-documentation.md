@@ -15,6 +15,7 @@
 ### Task 1: Create ADR — `architecture/decisions/security/001-bazel-semgrep.md`
 
 **Files:**
+
 - Create: `architecture/decisions/security/001-bazel-semgrep.md`
 
 **Step 1: Create the security decisions directory**
@@ -28,6 +29,7 @@ mkdir -p architecture/decisions/security
 Follow the existing ADR convention (title, author/status/created header, `---` separator, sections). Content:
 
 **Header:**
+
 ```markdown
 # Hermetic Semgrep via Bazel
 
@@ -82,25 +84,25 @@ graph TD
 
 **Key Decisions section** — compact table:
 
-| Decision | Rationale |
-|---|---|
-| Bypass Python wrapper, invoke `semgrep-core` directly | Eliminates 2-4s Python startup per invocation |
-| Vendor engine as OCI artifact (not pip) | Content-addressed digest pinning; platform-specific binaries; no pip resolution |
-| `no-sandbox` Bazel tag | semgrep-core needs real filesystem paths; sandbox adds ~100x overhead |
-| Aspect for transitive source collection | Walks the real dependency graph for cross-file `--pro` analysis |
-| Graceful degradation (empty filegroup → SKIP) | Missing GHCR credentials produce SKIP, not FAIL — local dev works without registry access |
-| Gazelle auto-generation | Zero-maintenance BUILD files; orphan detection ensures no coverage gaps |
-| Per-rule-file execution with post-scan ID filtering | File-level exclusion is O(1); rule-ID exclusion handles granular suppressions |
+| Decision                                              | Rationale                                                                                 |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Bypass Python wrapper, invoke `semgrep-core` directly | Eliminates 2-4s Python startup per invocation                                             |
+| Vendor engine as OCI artifact (not pip)               | Content-addressed digest pinning; platform-specific binaries; no pip resolution           |
+| `no-sandbox` Bazel tag                                | semgrep-core needs real filesystem paths; sandbox adds ~100x overhead                     |
+| Aspect for transitive source collection               | Walks the real dependency graph for cross-file `--pro` analysis                           |
+| Graceful degradation (empty filegroup → SKIP)         | Missing GHCR credentials produce SKIP, not FAIL — local dev works without registry access |
+| Gazelle auto-generation                               | Zero-maintenance BUILD files; orphan detection ensures no coverage gaps                   |
+| Per-rule-file execution with post-scan ID filtering   | File-level exclusion is O(1); rule-ID exclusion handles granular suppressions             |
 
 **Results section** — before/after table:
 
-| Metric | Before (managed CI) | After (Bazel + BuildBuddy) |
-|---|---|---|
-| Diff scan (cached) | 2m+ | **30s** |
-| Full scan (new rules) | 5m+ | **50s** |
-| Cold cache (all tests + images + semgrep) | N/A | **4m** |
-| Determinism | Non-deterministic (registry fetches) | **Hermetic** (digest-pinned) |
-| Cache invalidation | Time-based / none | **Content-addressed** (source + rule hash) |
+| Metric                                    | Before (managed CI)                  | After (Bazel + BuildBuddy)                 |
+| ----------------------------------------- | ------------------------------------ | ------------------------------------------ |
+| Diff scan (cached)                        | 2m+                                  | **30s**                                    |
+| Full scan (new rules)                     | 5m+                                  | **50s**                                    |
+| Cold cache (all tests + images + semgrep) | N/A                                  | **4m**                                     |
+| Determinism                               | Non-deterministic (registry fetches) | **Hermetic** (digest-pinned)               |
+| Cache invalidation                        | Time-based / none                    | **Content-addressed** (source + rule hash) |
 
 **Step 3: Commit**
 
@@ -114,6 +116,7 @@ git commit -m "docs(semgrep): add ADR for hermetic Bazel Semgrep integration"
 ### Task 2: Create README — `rules_semgrep/README.md`
 
 **Files:**
+
 - Create: `rules_semgrep/README.md`
 
 **Step 1: Write the README**
@@ -121,6 +124,7 @@ git commit -m "docs(semgrep): add ADR for hermetic Bazel Semgrep integration"
 Sections in order:
 
 **Pitch** (3 lines max):
+
 > Hermetic Semgrep scanning as native Bazel tests. Pro rules on your own infrastructure. Cache invalidation on your own terms.
 >
 > Scans re-run only when source files or rule definitions change. No pip install, no registry fetches, no Python wrapper — just a digest-pinned OCaml binary.
@@ -146,15 +150,16 @@ Brief explanation (2-3 sentences): The test scripts invoke `semgrep-core` direct
 
 **Rules** — table with 3 rule types:
 
-| Rule | Purpose | Best For |
-|---|---|---|
-| `semgrep_test` | Scan a flat list of source files | Libraries, individual files, packages without a binary target |
-| `semgrep_manifest_test` | Render Helm chart with `helm template`, scan the YAML | ArgoCD overlays (auto-generated by `argocd_app` macro) |
-| `semgrep_target_test` | Scan a target's full transitive source tree via aspect | Binary targets — enables cross-file `--pro` analysis |
+| Rule                    | Purpose                                                | Best For                                                      |
+| ----------------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| `semgrep_test`          | Scan a flat list of source files                       | Libraries, individual files, packages without a binary target |
+| `semgrep_manifest_test` | Render Helm chart with `helm template`, scan the YAML  | ArgoCD overlays (auto-generated by `argocd_app` macro)        |
+| `semgrep_target_test`   | Scan a target's full transitive source tree via aspect | Binary targets — enables cross-file `--pro` analysis          |
 
 Then a usage example for each (compact, one `load()` + one rule call each):
 
 `semgrep_test`:
+
 ```starlark
 load("//rules_semgrep:defs.bzl", "semgrep_test")
 
@@ -166,6 +171,7 @@ semgrep_test(
 ```
 
 `semgrep_manifest_test`:
+
 ```starlark
 load("//rules_semgrep:defs.bzl", "semgrep_manifest_test")
 
@@ -180,6 +186,7 @@ semgrep_manifest_test(
 ```
 
 `semgrep_target_test`:
+
 ```starlark
 load("//rules_semgrep:defs.bzl", "semgrep_target_test")
 
@@ -192,11 +199,11 @@ semgrep_target_test(
 
 **Common Attributes** — table:
 
-| Attribute | Type | Default | Description |
-|---|---|---|---|
-| `rules` | `label_list` | (required) | Filegroups containing Semgrep rule YAML files |
-| `exclude_rules` | `string_list` | `[]` | Rule filenames or `check_id` suffixes to exclude |
-| `pro_engine` | `label` | `//third_party/semgrep_pro:engine` | Pro engine binary (set to `None` to disable) |
+| Attribute       | Type          | Default                            | Description                                      |
+| --------------- | ------------- | ---------------------------------- | ------------------------------------------------ |
+| `rules`         | `label_list`  | (required)                         | Filegroups containing Semgrep rule YAML files    |
+| `exclude_rules` | `string_list` | `[]`                               | Rule filenames or `check_id` suffixes to exclude |
+| `pro_engine`    | `label`       | `//third_party/semgrep_pro:engine` | Pro engine binary (set to `None` to disable)     |
 
 **Gazelle** section:
 
@@ -204,26 +211,26 @@ One-liner: The Gazelle extension auto-generates `semgrep_test` and `semgrep_targ
 
 Directive table:
 
-| Directive | Example | Effect |
-|---|---|---|
-| `# gazelle:semgrep disabled` | | Stop generating semgrep targets in this directory tree |
-| `# gazelle:semgrep_exclude_rules` | `no-requests,no-eval` | Set `exclude_rules` on all generated targets |
-| `# gazelle:semgrep_target_kinds` | `py_venv_binary,py3_image=binary` | Which rule kinds trigger `semgrep_target_test` |
-| `# gazelle:semgrep_languages` | `py,go` | Which language rule configs to apply |
+| Directive                         | Example                           | Effect                                                 |
+| --------------------------------- | --------------------------------- | ------------------------------------------------------ |
+| `# gazelle:semgrep disabled`      |                                   | Stop generating semgrep targets in this directory tree |
+| `# gazelle:semgrep_exclude_rules` | `no-requests,no-eval`             | Set `exclude_rules` on all generated targets           |
+| `# gazelle:semgrep_target_kinds`  | `py_venv_binary,py3_image=binary` | Which rule kinds trigger `semgrep_target_test`         |
+| `# gazelle:semgrep_languages`     | `py,go`                           | Which language rule configs to apply                   |
 
 All directives inherit from parent directories.
 
 **Rule Files** — table:
 
-| Category | Target | Contents |
-|---|---|---|
-| Python | `//semgrep_rules:python_rules` | Custom rules + Semgrep Pro Python pack |
-| Go | `//semgrep_rules:golang_rules` | Semgrep Pro Go pack |
-| JavaScript | `//semgrep_rules:javascript_rules` | Semgrep Pro JavaScript pack |
-| Kubernetes | `//semgrep_rules:kubernetes_rules` | Custom rules + Semgrep Pro Kubernetes pack |
-| Shell | `//semgrep_rules:shell_rules` | Custom rules (no-kubectl-mutate, no-direct-test) |
-| Bazel | `//semgrep_rules:bazel_rules` | Custom rules (no-rules-python) |
-| Dockerfile | `//semgrep_rules:dockerfile_rules` | Custom rules (no-dockerfile) |
+| Category   | Target                             | Contents                                         |
+| ---------- | ---------------------------------- | ------------------------------------------------ |
+| Python     | `//semgrep_rules:python_rules`     | Custom rules + Semgrep Pro Python pack           |
+| Go         | `//semgrep_rules:golang_rules`     | Semgrep Pro Go pack                              |
+| JavaScript | `//semgrep_rules:javascript_rules` | Semgrep Pro JavaScript pack                      |
+| Kubernetes | `//semgrep_rules:kubernetes_rules` | Custom rules + Semgrep Pro Kubernetes pack       |
+| Shell      | `//semgrep_rules:shell_rules`      | Custom rules (no-kubectl-mutate, no-direct-test) |
+| Bazel      | `//semgrep_rules:bazel_rules`      | Custom rules (no-rules-python)                   |
+| Dockerfile | `//semgrep_rules:dockerfile_rules` | Custom rules (no-dockerfile)                     |
 
 **Pro Engine** section (2 sentences + diagram):
 
@@ -240,12 +247,12 @@ graph LR
 
 **Platform Support** — table:
 
-| Platform | Engine Source |
-|---|---|
-| Linux x86_64 | PyPI manylinux wheel extraction |
+| Platform      | Engine Source                   |
+| ------------- | ------------------------------- |
+| Linux x86_64  | PyPI manylinux wheel extraction |
 | Linux aarch64 | PyPI manylinux wheel extraction |
-| macOS x86_64 | PyPI macOS wheel extraction |
-| macOS aarch64 | PyPI macOS wheel extraction |
+| macOS x86_64  | PyPI macOS wheel extraction     |
+| macOS aarch64 | PyPI macOS wheel extraction     |
 
 Resolved at analysis time via `config_setting` + `select()` in `//third_party/semgrep:engine`.
 

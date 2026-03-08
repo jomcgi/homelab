@@ -17,6 +17,7 @@
 Create five semgrep rule YAML files and their companion `.py` test fixtures. Each fixture uses semgrep's `# ruleid:` and `# ok:` annotations to verify detection.
 
 **Files:**
+
 - Create: `semgrep_rules/python/no-shell-true.yaml`
 - Create: `semgrep_rules/python/no-shell-true.py`
 - Create: `semgrep_rules/python/no-os-system.yaml`
@@ -31,6 +32,7 @@ Create five semgrep rule YAML files and their companion `.py` test fixtures. Eac
 **Step 1: Create no-shell-true rule and fixture**
 
 `semgrep_rules/python/no-shell-true.yaml`:
+
 ```yaml
 rules:
   - id: no-shell-true
@@ -51,6 +53,7 @@ rules:
 ```
 
 `semgrep_rules/python/no-shell-true.py`:
+
 ```python
 import subprocess
 
@@ -82,6 +85,7 @@ subprocess.Popen(["git", "status"])
 **Step 2: Create no-os-system rule and fixture**
 
 `semgrep_rules/python/no-os-system.yaml`:
+
 ```yaml
 rules:
   - id: no-os-system
@@ -96,6 +100,7 @@ rules:
 ```
 
 `semgrep_rules/python/no-os-system.py`:
+
 ```python
 import os
 
@@ -115,6 +120,7 @@ os.getenv("HOME")
 **Step 3: Create no-eval-exec rule and fixture**
 
 `semgrep_rules/python/no-eval-exec.yaml`:
+
 ```yaml
 rules:
   - id: no-eval-exec
@@ -132,6 +138,7 @@ rules:
 ```
 
 `semgrep_rules/python/no-eval-exec.py`:
+
 ```python
 import ast
 
@@ -157,6 +164,7 @@ result = 1 + 2
 **Step 4: Create no-requests rule and fixture**
 
 `semgrep_rules/python/no-requests.yaml`:
+
 ```yaml
 rules:
   - id: no-requests
@@ -173,6 +181,7 @@ rules:
 ```
 
 `semgrep_rules/python/no-requests.py`:
+
 ```python
 # ruleid: no-requests
 import requests
@@ -190,6 +199,7 @@ from httpx import AsyncClient
 **Step 5: Create no-hardcoded-secret rule and fixture**
 
 `semgrep_rules/python/no-hardcoded-secret.yaml`:
+
 ```yaml
 rules:
   - id: no-hardcoded-secret
@@ -212,6 +222,7 @@ rules:
 ```
 
 `semgrep_rules/python/no-hardcoded-secret.py`:
+
 ```python
 import os
 
@@ -254,6 +265,7 @@ git commit -m "feat: add Python semgrep rules for security and conventions"
 Wire the new rules into `semgrep_rules/BUILD` and add a test that verifies each rule catches its fixtures.
 
 **Files:**
+
 - Modify: `semgrep_rules/BUILD`
 
 **Step 1: Add python_rules filegroup to semgrep_rules/BUILD**
@@ -306,12 +318,14 @@ git commit -m "build: add python_rules filegroup and validation test"
 Create the `rules_semgrep/gazelle/` Go package following the exact pattern of `rules_helm/gazelle/`. This is the core logic.
 
 **Reference files to read first:**
+
 - `rules_helm/gazelle/config.go` — directive parsing pattern
 - `rules_helm/gazelle/generate.go` — rule generation pattern
 - `rules_helm/gazelle/language.go` — Language interface pattern
 - `rules_helm/gazelle/BUILD` — go_library + go_test structure
 
 **Files:**
+
 - Create: `rules_semgrep/gazelle/config.go`
 - Create: `rules_semgrep/gazelle/generate.go`
 - Create: `rules_semgrep/gazelle/language.go`
@@ -556,6 +570,7 @@ git commit -m "feat: add semgrep Gazelle extension for Python packages"
 Write the BUILD file and Go tests mirroring `rules_helm/gazelle/BUILD` and `*_test.go` patterns.
 
 **Files:**
+
 - Create: `rules_semgrep/gazelle/BUILD`
 - Create: `rules_semgrep/gazelle/config_test.go`
 - Create: `rules_semgrep/gazelle/generate_test.go`
@@ -1095,6 +1110,7 @@ git commit -m "test: add Gazelle extension tests for semgrep Python scanning"
 Add the semgrep extension to the `gazelle_binary` and enable it.
 
 **Files:**
+
 - Modify: `BUILD` (root) — add to `gazelle_binary` languages and `ENABLE_LANGUAGES`
 
 **Step 1: Add to gazelle_binary languages**
@@ -1150,6 +1166,7 @@ git commit -m "build: wire semgrep Gazelle extension into gazelle_binary"
 Add `# gazelle:semgrep disabled` to fixture directories and `# gazelle:semgrep_exclude_rules` to services that legitimately use excluded patterns. Then run gazelle to auto-generate all targets.
 
 **Files:**
+
 - Modify: `semgrep_rules/BUILD` — add `# gazelle:semgrep disabled`
 - Modify: `services/hikes/scrape_walkhighlands/BUILD` — add `# gazelle:semgrep_exclude_rules no-requests`
 - Modify: `services/hikes/update_forecast/BUILD` — add `# gazelle:semgrep_exclude_rules no-requests`
@@ -1158,6 +1175,7 @@ Add `# gazelle:semgrep disabled` to fixture directories and `# gazelle:semgrep_e
 **Step 1: Add semgrep disabled to semgrep_rules/BUILD**
 
 Add at top of `semgrep_rules/BUILD`:
+
 ```
 # gazelle:semgrep disabled
 ```
@@ -1165,11 +1183,13 @@ Add at top of `semgrep_rules/BUILD`:
 **Step 2: Add exclusion for hikes services**
 
 Add to `services/hikes/scrape_walkhighlands/BUILD`:
+
 ```
 # gazelle:semgrep_exclude_rules no-requests
 ```
 
 Add to `services/hikes/update_forecast/BUILD`:
+
 ```
 # gazelle:semgrep_exclude_rules no-requests
 ```
@@ -1246,6 +1266,7 @@ git push -u origin feat/semgrep-python
 **Step 2: Create PR**
 
 Use `gh pr create` with the title "feat: Python semgrep rules with Gazelle auto-generation" and a body summarizing:
+
 - 5 Python semgrep rules (3 security, 2 conventions)
 - Gazelle extension for auto-generating `semgrep_test` targets
 - Directive-based opt-out (`# gazelle:semgrep disabled`, `# gazelle:semgrep_exclude_rules`)

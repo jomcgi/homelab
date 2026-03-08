@@ -128,6 +128,7 @@ The Kyverno OTEL env var injection policy stays as-is. The `Instrumentation` CR'
 ## Target Namespaces
 
 ### Production
+
 - trips
 - knowledge-graph
 - api-gateway
@@ -135,6 +136,7 @@ The Kyverno OTEL env var injection policy stays as-is. The `Instrumentation` CR'
 - todo
 
 ### Development
+
 - grimoire
 - marine
 - stargazer

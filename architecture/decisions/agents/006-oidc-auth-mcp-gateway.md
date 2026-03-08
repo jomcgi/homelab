@@ -34,17 +34,17 @@ Deploy [`obot-platform/mcp-oauth-proxy`](https://github.com/obot-platform/mcp-oa
 
 The original plan (draft version of this ADR) used Context Forge's built-in SSO with Cloudflare Access for SaaS as the OIDC provider. This was abandoned because Claude.ai's MCP connector requires a full RFC 9728 → DCR → Authorization Code + PKCE flow that Context Forge's SSO integration doesn't fully implement — Context Forge can only validate its own JWTs signed with `JWT_SECRET_KEY`, not tokens from external Authorization Servers.
 
-| Aspect                 | Today                                       | Proposed                                                                          |
-| ---------------------- | ------------------------------------------- | --------------------------------------------------------------------------------- |
-| **Edge auth**          | CF Access service token (static headers)    | None — CF Tunnel still routes traffic (DDoS, TLS) but Access application removed  |
-| **MCP endpoint auth**  | `MCP_REQUIRE_AUTH=false` (trusts CF Access)  | mcp-oauth-proxy validates its own JWTs; Context Forge trusts proxy headers         |
-| **Identity provider**  | N/A (service token has no user identity)    | Google OIDC via mcp-oauth-proxy                                                   |
-| **Claude Code CLI**    | `mcp-remote` + CF service token headers     | `mcp-remote` (OAuth flow — opens browser, caches token)                           |
-| **Claude.ai web**      | Not possible                                | Works via standard MCP connector dialog (RFC 9728 discovery + DCR)                |
-| **In-cluster agents**  | ClusterIP, no auth                          | Unchanged — ClusterIP access stays unauthenticated                                |
-| **Token type**         | CF Access JWT (edge-validated)              | mcp-oauth-proxy JWT (proxy-validated)                                             |
-| **Per-user identity**  | No                                          | Yes — Google OIDC login identifies the user                                       |
-| **Session revocation** | Rotate shared service token                 | Pod restart clears SQLite state (acceptable for single user)                      |
+| Aspect                 | Today                                       | Proposed                                                                         |
+| ---------------------- | ------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Edge auth**          | CF Access service token (static headers)    | None — CF Tunnel still routes traffic (DDoS, TLS) but Access application removed |
+| **MCP endpoint auth**  | `MCP_REQUIRE_AUTH=false` (trusts CF Access) | mcp-oauth-proxy validates its own JWTs; Context Forge trusts proxy headers       |
+| **Identity provider**  | N/A (service token has no user identity)    | Google OIDC via mcp-oauth-proxy                                                  |
+| **Claude Code CLI**    | `mcp-remote` + CF service token headers     | `mcp-remote` (OAuth flow — opens browser, caches token)                          |
+| **Claude.ai web**      | Not possible                                | Works via standard MCP connector dialog (RFC 9728 discovery + DCR)               |
+| **In-cluster agents**  | ClusterIP, no auth                          | Unchanged — ClusterIP access stays unauthenticated                               |
+| **Token type**         | CF Access JWT (edge-validated)              | mcp-oauth-proxy JWT (proxy-validated)                                            |
+| **Per-user identity**  | No                                          | Yes — Google OIDC login identifies the user                                      |
+| **Session revocation** | Rotate shared service token                 | Pod restart clears SQLite state (acceptable for single user)                     |
 
 ---
 
@@ -111,7 +111,7 @@ In-cluster agents (OpenHands sandboxes, Goose pods) continue to access Context F
 
 ### Phase 3: Update Context Forge Configuration
 
-- [x] Remove SSO config (SSO_ENABLED, SSO_GENERIC_*, OAUTH_DISCOVERY_ENABLED, MCPGATEWAY_DCR_ENABLED)
+- [x] Remove SSO config (SSO*ENABLED, SSO_GENERIC*\*, OAUTH_DISCOVERY_ENABLED, MCPGATEWAY_DCR_ENABLED)
 - [x] Set `TRUST_PROXY_AUTH=true`, `PROXY_USER_HEADER=X-Forwarded-User`
 - [x] Set `MCP_CLIENT_AUTH_ENABLED=false`, `MCP_REQUIRE_AUTH=false`
 - [ ] Remove SSO fields from 1Password `context-forge` item (manual)
@@ -154,14 +154,14 @@ In-cluster agents (OpenHands sandboxes, Goose pods) continue to access Context F
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-|------|------------|--------|------------|
-| `mcp-oauth-proxy` doesn't implement RFC 9728/DCR | Low | High | Fall back to `sigbit/mcp-auth-proxy` (73 stars, Claude.ai verified, MIT) |
-| Pod restart loses SQLite state (DCR registrations) | Certain | Low | Claude.ai re-registers on next connection — acceptable for single user |
-| `TRUST_PROXY_AUTH` bypasses all MCP auth | Low | Medium | Proxy only reachable via Tunnel (external) or ClusterIP (internal) — same security boundary |
-| Container image `latest` tag is unstable | Medium | Low | Pin to specific release tag once verified |
-| Google OAuth callback URL mismatch | Low | Low | Verify exact callback path from proxy docs before creating GCP OAuth client |
-| Browser popup on CLI | Certain | Low | One-time per session. Token cached locally. Headless envs may need pre-auth token. |
+| Risk                                               | Likelihood | Impact | Mitigation                                                                                  |
+| -------------------------------------------------- | ---------- | ------ | ------------------------------------------------------------------------------------------- |
+| `mcp-oauth-proxy` doesn't implement RFC 9728/DCR   | Low        | High   | Fall back to `sigbit/mcp-auth-proxy` (73 stars, Claude.ai verified, MIT)                    |
+| Pod restart loses SQLite state (DCR registrations) | Certain    | Low    | Claude.ai re-registers on next connection — acceptable for single user                      |
+| `TRUST_PROXY_AUTH` bypasses all MCP auth           | Low        | Medium | Proxy only reachable via Tunnel (external) or ClusterIP (internal) — same security boundary |
+| Container image `latest` tag is unstable           | Medium     | Low    | Pin to specific release tag once verified                                                   |
+| Google OAuth callback URL mismatch                 | Low        | Low    | Verify exact callback path from proxy docs before creating GCP OAuth client                 |
+| Browser popup on CLI                               | Certain    | Low    | One-time per session. Token cached locally. Headless envs may need pre-auth token.          |
 
 ---
 
@@ -177,10 +177,10 @@ In-cluster agents (OpenHands sandboxes, Goose pods) continue to access Context F
 
 ## References
 
-| Resource | Relevance |
-|----------|-----------|
-| [obot-platform/mcp-oauth-proxy](https://github.com/obot-platform/mcp-oauth-proxy) | OAuth 2.1 proxy used for this implementation |
-| [Claude.ai remote MCP connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers) | Claude.ai OAuth requirements (DCR, PKCE, callback URL) |
-| [ADR 003 — Context Forge](003-context-forge.md) | Current service-token auth model (being replaced) |
-| [ADR 005 — Role-Based MCP Access](005-role-based-mcp-access.md) | Authorization layer that consumes this ADR's authentication |
-| [architecture/security.md](../../security.md) | Cluster security model — one deviation documented above |
+| Resource                                                                                                                             | Relevance                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------- |
+| [obot-platform/mcp-oauth-proxy](https://github.com/obot-platform/mcp-oauth-proxy)                                                    | OAuth 2.1 proxy used for this implementation                |
+| [Claude.ai remote MCP connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers) | Claude.ai OAuth requirements (DCR, PKCE, callback URL)      |
+| [ADR 003 — Context Forge](003-context-forge.md)                                                                                      | Current service-token auth model (being replaced)           |
+| [ADR 005 — Role-Based MCP Access](005-role-based-mcp-access.md)                                                                      | Authorization layer that consumes this ADR's authentication |
+| [architecture/security.md](../../security.md)                                                                                        | Cluster security model — one deviation documented above     |

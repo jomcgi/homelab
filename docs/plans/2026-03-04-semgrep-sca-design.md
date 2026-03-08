@@ -25,6 +25,7 @@ New optional attributes:
 - `sca_rules` (label list, default `[]`) — SCA advisory rule files (separate from SAST `rules`)
 
 When `lockfiles` is non-empty:
+
 - The test script adds `"sca"` to the products list in `targets.json`
 - Each `CodeTarget` gets a `dependency_source` field linking to the lockfile
 - Pro engine performs reachability analysis across source + lockfile
@@ -52,44 +53,62 @@ semgrep-core's ATD schema defines two target types relevant to SCA:
 **With reachability (source target + lockfile):**
 
 ```json
-["Targets", [
-  ["CodeTarget", {
-    "path": {"fpath": "/path/to/main.py", "ppath": "/path/to/main.py"},
-    "analyzer": "python",
-    "products": ["sast", "sca"],
-    "dependency_source": ["LockfileOnly", {
-      "kind": "PipRequirementsTxt",
-      "path": "/path/to/requirements.txt"
-    }]
-  }]
-]]
+[
+  "Targets",
+  [
+    [
+      "CodeTarget",
+      {
+        "path": { "fpath": "/path/to/main.py", "ppath": "/path/to/main.py" },
+        "analyzer": "python",
+        "products": ["sast", "sca"],
+        "dependency_source": [
+          "LockfileOnly",
+          {
+            "kind": "PipRequirementsTxt",
+            "path": "/path/to/requirements.txt"
+          }
+        ]
+      }
+    ]
+  ]
+]
 ```
 
 **Lockfile-only (no source target):**
 
 ```json
-["Targets", [
-  ["DependencySourceTarget", ["LockfileOnly", {
-    "kind": "GoModLock",
-    "path": "/path/to/go.sum"
-  }]]
-]]
+[
+  "Targets",
+  [
+    [
+      "DependencySourceTarget",
+      [
+        "LockfileOnly",
+        {
+          "kind": "GoModLock",
+          "path": "/path/to/go.sum"
+        }
+      ]
+    ]
+  ]
+]
 ```
 
 ### Lockfile Kind Detection
 
 The test script auto-detects `lockfile_kind` from filename:
 
-| Filename Pattern | lockfile_kind | Ecosystem |
-|---|---|---|
-| `go.sum` | `GoModLock` | Go |
-| `requirements*.txt`, `requirements*.pip` | `PipRequirementsTxt` | Python |
-| `poetry.lock` | `PoetryLock` | Python |
-| `Pipfile.lock` | `PipfileLock` | Python |
-| `uv.lock` | `UvLock` | Python |
-| `package-lock.json` | `NpmPackageLockJson` | JS |
-| `yarn.lock` | `YarnLock` | JS |
-| `pnpm-lock.yaml` | `PnpmLock` | JS |
+| Filename Pattern                         | lockfile_kind        | Ecosystem |
+| ---------------------------------------- | -------------------- | --------- |
+| `go.sum`                                 | `GoModLock`          | Go        |
+| `requirements*.txt`, `requirements*.pip` | `PipRequirementsTxt` | Python    |
+| `poetry.lock`                            | `PoetryLock`         | Python    |
+| `Pipfile.lock`                           | `PipfileLock`        | Python    |
+| `uv.lock`                                | `UvLock`             | Python    |
+| `package-lock.json`                      | `NpmPackageLockJson` | JS        |
+| `yarn.lock`                              | `YarnLock`           | JS        |
+| `pnpm-lock.yaml`                         | `PnpmLock`           | JS        |
 
 **Not supported:** apko lockfiles (Semgrep doesn't natively support them).
 
@@ -102,6 +121,7 @@ semgrep-test.sh <rule-files...> -- <source-files...> [-- <lockfile-files...>]
 ```
 
 The third section (after second `--`) contains lockfiles. When present:
+
 1. Lockfiles are copied to the scan directory alongside sources
 2. `detect_lockfile_kind()` maps filename to ATD enum
 3. `products` becomes `["sast", "sca"]` for `CodeTarget` entries
@@ -115,6 +135,7 @@ When no lockfiles are provided, the script is fully backwards-compatible.
 SCA advisory rules (CVE database) are vendored as an OCI artifact on GHCR, following the existing Pro rule pack pattern.
 
 **Layered approach:**
+
 1. **Public registry** — baseline CVE advisory rules from `https://semgrep.dev/c/supply-chain` (unauthenticated)
 2. **Authenticated overlay** — deployment-specific rules from `/api/cli/scans` when `SEMGREP_APP_TOKEN` is available
 
@@ -152,13 +173,14 @@ The Gazelle extension is extended to auto-discover lockfiles and wire them into 
 
 **Dep prefix detection:** When generating `semgrep_target_test`, the extension inspects the target's `deps` for known external dependency prefixes:
 
-| Dep Prefix | Lockfile | Ecosystem |
-|---|---|---|
-| `@pip//` | `//requirements:all.txt` | Python |
-| `@npm//` or pnpm deps | `//:pnpm-lock.yaml` | JS |
-| Go module deps | `//:go.sum` | Go |
+| Dep Prefix            | Lockfile                 | Ecosystem |
+| --------------------- | ------------------------ | --------- |
+| `@pip//`              | `//requirements:all.txt` | Python    |
+| `@npm//` or pnpm deps | `//:pnpm-lock.yaml`      | JS        |
+| Go module deps        | `//:go.sum`              | Go        |
 
 **Algorithm:**
+
 1. For each target matching `semgrep_target_kinds`, read its `deps` list from the BUILD AST
 2. Match dep labels against known prefixes
 3. Map matched prefixes to lockfile labels (hardcoded defaults, overridable via directive)
@@ -187,6 +209,7 @@ var defaultLockfiles = map[string]string{
 ### Graceful Degradation
 
 Consistent with existing patterns:
+
 - **No Pro engine** → SCA test SKIP (SCA requires Pro)
 - **No GHCR token** → SCA rules empty → SCA test SKIP
 - **Empty SCA digest** → empty filegroup → no SCA rules → SKIP
@@ -195,6 +218,7 @@ Consistent with existing patterns:
 ## Scope
 
 **In scope:**
+
 - Extend `semgrep_target_test` and `semgrep_test` with lockfile/SCA attributes
 - Modify `semgrep-test.sh` to generate SCA-aware `targets.json`
 - Add SCA rule vendoring via OCI artifact
@@ -202,6 +226,7 @@ Consistent with existing patterns:
 - Support Go, Python, JS lockfile ecosystems
 
 **Out of scope:**
+
 - apko lockfile support (not natively supported by Semgrep)
 - Secrets scanning (future work, same `products` mechanism)
 - Custom SCA policies (future: authenticated API overlay)

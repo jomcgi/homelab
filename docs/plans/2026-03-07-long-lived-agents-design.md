@@ -209,7 +209,7 @@ agents:
     enabled: true
     prompt: |
       ...
-  dependency-updater:    # Future example
+  dependency-updater: # Future example
     enabled: false
     prompt: |
       ...
@@ -220,10 +220,10 @@ agents:
 The CI watcher permanently consumes 1 pod (1 CPU request, 2Gi memory) from the namespace quota:
 
 | Resource | Quota | Used (warm pool) | Used (CI watcher) | Remaining |
-|----------|-------|-------------------|--------------------|-----------|
-| Pods     | 5     | 1                 | 1                  | 3         |
-| CPU req  | 8     | 1                 | 1                  | 6         |
-| Memory   | 16Gi  | 2Gi               | 2Gi                | 12Gi      |
+| -------- | ----- | ---------------- | ----------------- | --------- |
+| Pods     | 5     | 1                | 1                 | 3         |
+| CPU req  | 8     | 1                | 1                 | 6         |
+| Memory   | 16Gi  | 2Gi              | 2Gi               | 12Gi      |
 
 ## Recovery Behaviour
 

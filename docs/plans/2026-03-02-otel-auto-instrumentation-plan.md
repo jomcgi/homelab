@@ -19,6 +19,7 @@
 Create the Helm wrapper chart following the established pattern (see `charts/kyverno/` or `charts/cert-manager/` for reference).
 
 **Files:**
+
 - Create: `charts/opentelemetry-operator/Chart.yaml`
 - Create: `charts/opentelemetry-operator/values.yaml`
 - Create: `charts/opentelemetry-operator/BUILD`
@@ -111,6 +112,7 @@ git commit -m "feat: add opentelemetry-operator wrapper chart"
 Create Helm templates for the Python, Node.js, and Go `Instrumentation` CRDs. These deploy into each namespace listed in `.Values.instrumentation.namespaces`.
 
 **Files:**
+
 - Create: `charts/opentelemetry-operator/templates/instrumentation-python.yaml`
 - Create: `charts/opentelemetry-operator/templates/instrumentation-nodejs.yaml`
 - Create: `charts/opentelemetry-operator/templates/instrumentation-go.yaml`
@@ -212,6 +214,7 @@ git commit -m "feat: add Instrumentation CR templates for Python, Node.js, and G
 Create the ArgoCD Application, kustomization, values, and BUILD files following the pattern in `overlays/cluster-critical/kyverno/`.
 
 **Files:**
+
 - Create: `overlays/cluster-critical/opentelemetry-operator/application.yaml`
 - Create: `overlays/cluster-critical/opentelemetry-operator/kustomization.yaml`
 - Create: `overlays/cluster-critical/opentelemetry-operator/values.yaml`
@@ -340,6 +343,7 @@ git commit -m "feat: add opentelemetry-operator ArgoCD application and overlay"
 Several charts have hardcoded annotations in their Deployment templates without a `podAnnotations` values hook. Add `podAnnotations` support to enable auto-instrumentation opt-in.
 
 **Charts that already support `podAnnotations`** (no changes needed):
+
 - `charts/marine` — `.Values.ingest.podAnnotations`, `.Values.api.podAnnotations`, `.Values.frontend.podAnnotations`
 - `charts/stargazer` — `.Values.podAnnotations`
 
@@ -352,9 +356,9 @@ Several charts have hardcoded annotations in their Deployment templates without 
 Find the existing hardcoded annotations block in the pod template:
 
 ```yaml
-      annotations:
-        # Mark NATS port as opaque for Linkerd
-        config.linkerd.io/opaque-ports: "4222"
+annotations:
+  # Mark NATS port as opaque for Linkerd
+  config.linkerd.io/opaque-ports: "4222"
 ```
 
 Add after the existing annotation:
@@ -375,8 +379,8 @@ Add after the existing annotation:
 Find the existing annotations block:
 
 ```yaml
-      annotations:
-        config.linkerd.io/skip-outbound-ports: "{{ .Values.redis.service.port }}"
+annotations:
+  config.linkerd.io/skip-outbound-ports: "{{ .Values.redis.service.port }}"
 ```
 
 Add after:
@@ -402,9 +406,15 @@ Search for `charts/grimoire/templates/api-deployment.yaml` or equivalent — the
 Find the existing annotations block:
 
 ```yaml
-      annotations:
-        checksum/nginx-config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
-        checksum/collector-config: {{ include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum }}
+annotations:
+  checksum/nginx-config:
+    { { include (print $.Template.BasePath "/configmap.yaml") . | sha256sum } }
+  checksum/collector-config:
+    {
+      {
+        include (print $.Template.BasePath "/collector-configmap.yaml") . | sha256sum,
+      },
+    }
 ```
 
 Add after:
@@ -557,6 +567,7 @@ Verify the chart renders correctly and passes Bazel builds.
 Run: `helm template opentelemetry-operator charts/opentelemetry-operator/ -f overlays/cluster-critical/opentelemetry-operator/values.yaml`
 
 Expected: Valid YAML output with:
+
 - Operator Deployment in `opentelemetry-operator` namespace
 - Instrumentation CRs in each target namespace (trips, knowledge-graph, etc.)
 - Python, Node.js, and Go `Instrumentation` resources
@@ -570,6 +581,7 @@ Expected: Each Instrumentation CR should have a `namespace:` matching a workload
 **Step 3: Render service charts to verify annotations**
 
 Run for each modified service chart:
+
 - `helm template trips charts/trips/ -f overlays/prod/trips/values.yaml | grep -A5 "inject-python"`
 - `helm template marine charts/marine/ -f overlays/dev/marine/values.yaml | grep -A5 "inject-"`
 - etc.

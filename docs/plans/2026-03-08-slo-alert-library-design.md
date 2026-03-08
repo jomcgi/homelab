@@ -23,10 +23,10 @@ slos:
   - name: api-gateway
     metric: httpcheck.status
     filter: "http.url = 'https://api.jomcgi.dev/status.json'"
-    op: "2"             # comparison operator: "2" = less than (default)
-    threshold: 1        # value to compare against
-    severity: critical  # optional (default: critical)
-    channels:           # notification channels
+    op: "2" # comparison operator: "2" = less than (default)
+    threshold: 1 # value to compare against
+    severity: critical # optional (default: critical)
+    channels: # notification channels
       - incidentio
 ```
 

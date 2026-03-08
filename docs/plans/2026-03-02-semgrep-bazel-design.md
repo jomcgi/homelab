@@ -91,6 +91,7 @@ semgrep_rules/
 ```
 
 BUILD filegroups:
+
 - `//semgrep_rules:shell_rules`
 - `//semgrep_rules:bazel_rules`
 - `//semgrep_rules:kubernetes_rules`
@@ -102,6 +103,7 @@ BUILD filegroups:
 exist. Gazelle extension is out of scope for v1.
 
 Example usage:
+
 ```starlark
 load("//rules_semgrep:defs.bzl", "semgrep_test")
 

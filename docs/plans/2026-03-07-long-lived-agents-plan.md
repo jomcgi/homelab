@@ -15,6 +15,7 @@
 ### Task 1: Add ConfigMap template for agent prompts
 
 **Files:**
+
 - Create: `charts/goose-sandboxes/templates/configmap-agents.yaml`
 
 **Step 1: Create the ConfigMap template**
@@ -61,6 +62,7 @@ git commit -m "feat(goose-sandboxes): add ConfigMap template for agent prompts"
 ### Task 2: Add Deployment template for long-lived agents
 
 **Files:**
+
 - Create: `charts/goose-sandboxes/templates/deployment-agents.yaml`
 
 **Step 1: Create the Deployment template**
@@ -188,6 +190,7 @@ git commit -m "feat(goose-sandboxes): add Deployment template for long-lived age
 ### Task 3: Add CI watcher agent to values.yaml
 
 **Files:**
+
 - Modify: `charts/goose-sandboxes/values.yaml` — append `agents` section
 
 **Step 1: Add the agents section to values.yaml**
@@ -258,6 +261,7 @@ git commit -m "feat(goose-sandboxes): add ci-watcher agent definition to values"
 ### Task 4: Enable CI watcher in prod overlay
 
 **Files:**
+
 - Modify: `overlays/prod/goose-sandboxes/values.yaml` — add agent enablement
 
 **Step 1: Add agent enablement to prod overlay**

@@ -9,8 +9,8 @@
 
 Two concise, diagram-rich documents that explain `rules_semgrep` to Bazel power users:
 
-1. **ADR** (`architecture/decisions/security/001-bazel-semgrep.md`) — the *why*: reproducible build chain + CI speed for agentic workflows
-2. **README** (`rules_semgrep/README.md`) — the *what/how*: API reference + scanning methodology
+1. **ADR** (`architecture/decisions/security/001-bazel-semgrep.md`) — the _why_: reproducible build chain + CI speed for agentic workflows
+2. **README** (`rules_semgrep/README.md`) — the _what/how_: API reference + scanning methodology
 
 Both target Bazel-literate developers. Tone is punchy/technical, not marketing.
 
@@ -28,12 +28,12 @@ New `security/` category alongside `agents/`, `docs/`, `networking/`.
 
 ### Structure (tight 1-page)
 
-| Section | Content |
-|---|---|
-| **Problem** | Agentic workflows need fast, deterministic CI. Semgrep via pip/pre-commit breaks both: 2m+ diff scans, 5m+ full scans on managed infra. Python wrapper adds 2-4s/invocation, registry fetches are non-deterministic. |
-| **Proposal** | 3-layer architecture: OCI-vendored binaries -> Bazel rules -> Gazelle auto-generation. Mermaid diagram showing daily-update -> build -> scan pipeline. |
-| **Key Decisions** | Compact table: bypass Python (direct semgrep-core), vendor via OCI (digest-pinned), no-sandbox (100x speedup), aspect for transitive deps, graceful degradation (empty filegroup -> SKIP), Gazelle auto-gen |
-| **Results** | Before: 2m+ diff, 5m+ full (managed infra). After: 30s small change, 50s new rules, 4m cold cache full build+test+images+semgrep. |
+| Section           | Content                                                                                                                                                                                                              |
+| ----------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Problem**       | Agentic workflows need fast, deterministic CI. Semgrep via pip/pre-commit breaks both: 2m+ diff scans, 5m+ full scans on managed infra. Python wrapper adds 2-4s/invocation, registry fetches are non-deterministic. |
+| **Proposal**      | 3-layer architecture: OCI-vendored binaries -> Bazel rules -> Gazelle auto-generation. Mermaid diagram showing daily-update -> build -> scan pipeline.                                                               |
+| **Key Decisions** | Compact table: bypass Python (direct semgrep-core), vendor via OCI (digest-pinned), no-sandbox (100x speedup), aspect for transitive deps, graceful degradation (empty filegroup -> SKIP), Gazelle auto-gen          |
+| **Results**       | Before: 2m+ diff, 5m+ full (managed infra). After: 30s small change, 50s new rules, 4m cold cache full build+test+images+semgrep.                                                                                    |
 
 ### Mermaid: Architecture Pipeline
 
@@ -65,15 +65,15 @@ graph TD
 
 ### Structure
 
-| Section | Content |
-|---|---|
-| **Pitch** | 3 lines: what it is, why it exists, the key insight (Bazel cache invalidation = scan only what changed) |
-| **How It Works** | Mermaid diagram: scan flow from source -> aspect -> semgrep-core -> results |
-| **Rules** | 3 rule types as compact table: `semgrep_test`, `semgrep_manifest_test`, `semgrep_target_test` with one-liner + example each |
-| **Gazelle** | Directive table + "auto-generates scan targets" explanation |
-| **Rule Files** | Table of custom + Pro rule categories |
-| **Pro Engine** | Graceful degradation: no token -> empty filegroup -> SKIP (2 sentences) |
-| **Platform Support** | 4-platform select() table (linux/macOS x amd64/arm64) |
+| Section              | Content                                                                                                                     |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| **Pitch**            | 3 lines: what it is, why it exists, the key insight (Bazel cache invalidation = scan only what changed)                     |
+| **How It Works**     | Mermaid diagram: scan flow from source -> aspect -> semgrep-core -> results                                                 |
+| **Rules**            | 3 rule types as compact table: `semgrep_test`, `semgrep_manifest_test`, `semgrep_target_test` with one-liner + example each |
+| **Gazelle**          | Directive table + "auto-generates scan targets" explanation                                                                 |
+| **Rule Files**       | Table of custom + Pro rule categories                                                                                       |
+| **Pro Engine**       | Graceful degradation: no token -> empty filegroup -> SKIP (2 sentences)                                                     |
+| **Platform Support** | 4-platform select() table (linux/macOS x amd64/arm64)                                                                       |
 
 ### Mermaid: Scan Flow
 

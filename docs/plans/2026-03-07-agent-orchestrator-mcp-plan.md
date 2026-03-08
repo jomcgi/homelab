@@ -13,6 +13,7 @@
 ### Task 1: Create service skeleton
 
 **Files:**
+
 - Create: `services/agent_orchestrator_mcp/__init__.py`
 - Create: `services/agent_orchestrator_mcp/app/__init__.py`
 - Create: `services/agent_orchestrator_mcp/tests/__init__.py`
@@ -35,6 +36,7 @@ git commit -m "feat(agent-orchestrator-mcp): add service skeleton"
 ### Task 2: Write tests for submit_job and list_jobs
 
 **Files:**
+
 - Create: `services/agent_orchestrator_mcp/tests/conftest.py`
 - Create: `services/agent_orchestrator_mcp/tests/main_test.py`
 
@@ -150,6 +152,7 @@ The tests reference `services.agent_orchestrator_mcp.app.main` which doesn't exi
 ### Task 3: Implement main.py with submit_job and list_jobs
 
 **Files:**
+
 - Create: `services/agent_orchestrator_mcp/app/main.py`
 
 **Step 1: Write the full MCP server with submit_job and list_jobs**
@@ -404,6 +407,7 @@ git commit -m "feat(agent-orchestrator-mcp): add submit_job and list_jobs tools"
 ### Task 4: Add tests and implementation for get_job, cancel_job, get_job_output
 
 **Files:**
+
 - Modify: `services/agent_orchestrator_mcp/tests/main_test.py`
 - Modify: `services/agent_orchestrator_mcp/app/main.py`
 
@@ -546,6 +550,7 @@ git commit -m "feat(agent-orchestrator-mcp): add get_job, cancel_job, get_job_ou
 ### Task 5: Add deployment configuration
 
 **Files:**
+
 - Modify: `overlays/prod/mcp-servers/values.yaml`
 
 **Step 1: Add server entry to values.yaml**
@@ -561,8 +566,8 @@ Append to the `servers` list (after the `todo-mcp` entry):
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
   env:
-  - name: ORCHESTRATOR_URL
-    value: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
+    - name: ORCHESTRATOR_URL
+      value: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
   resources:
     requests:
       cpu: 10m
@@ -599,6 +604,7 @@ git commit -m "feat(agent-orchestrator-mcp): add deployment to mcp-servers chart
 ### Task 6: Add tool permissions to settings.json
 
 **Files:**
+
 - Modify: `.claude/settings.json`
 
 **Step 1: Add MCP tool allow entries**
@@ -630,6 +636,7 @@ git commit -m "feat(agent-orchestrator-mcp): whitelist MCP tools in settings"
 ### Task 7: Update CLAUDE.md cluster investigation table
 
 **Files:**
+
 - Modify: `.claude/CLAUDE.md`
 
 **Step 1: Add agent orchestrator tools to the MCP tool table**
@@ -637,7 +644,7 @@ git commit -m "feat(agent-orchestrator-mcp): whitelist MCP tools in settings"
 Add a new row to the "Cluster Investigation" MCP tools table:
 
 ```markdown
-| **Agent jobs**   | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
+| **Agent jobs** | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
 ```
 
 **Step 2: Commit**

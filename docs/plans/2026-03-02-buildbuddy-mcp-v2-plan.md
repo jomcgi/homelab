@@ -12,11 +12,12 @@
 
 ---
 
-### Task 1: Robust error handling in _post
+### Task 1: Robust error handling in \_post
 
 The foundation — make `_post` return valid structures on HTTP errors instead of raising exceptions that trigger FastMCP output schema validation failures.
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py:35-39`
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -57,7 +58,7 @@ Run: `cd /tmp/claude-worktrees/buildbuddy-mcp-v2 && bazel test //services/buildb
 
 Expected: FAIL — `_post` currently raises on HTTP errors instead of returning an error dict.
 
-**Step 3: Implement error handling in _post**
+**Step 3: Implement error handling in \_post**
 
 Replace the `_post` function in `services/buildbuddy_mcp/app/main.py` (lines 35-39) with:
 
@@ -96,6 +97,7 @@ git commit -m "fix(buildbuddy-mcp): return error dicts instead of raising on API
 ### Task 2: Add include flags to get_invocation
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py:42-61`
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -201,6 +203,7 @@ git commit -m "feat(buildbuddy-mcp): add include_child_invocations/metadata/arti
 ### Task 3: Fix get_file base64 decode
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py:135-142`
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -300,6 +303,7 @@ git commit -m "fix(buildbuddy-mcp): decode base64 file data to UTF-8 text"
 ### Task 4: Add server-side status filter to get_target
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py:80-103`
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -434,6 +438,7 @@ git commit -m "feat(buildbuddy-mcp): add client-side status filter to get_target
 ### Task 5: Add errors_only mode to get_log
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py:64-77`
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -610,6 +615,7 @@ git commit -m "feat(buildbuddy-mcp): add errors_only mode to get_log"
 ### Task 6: Add missing params to execute_workflow
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py` (execute_workflow function)
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -709,6 +715,7 @@ git commit -m "feat(buildbuddy-mcp): add env, visibility, disable_retry to execu
 ### Task 7: Add run tool
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py`
 - Modify: `services/buildbuddy_mcp/tests/main_test.py`
 
@@ -846,6 +853,7 @@ git commit -m "feat(buildbuddy-mcp): add run tool for remote command execution"
 Minimal change — just improve the docstring to document `configuration_id` and the `action_id` gotcha.
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/main.py` (get_action docstring)
 
 **Step 1: Update the docstring**
@@ -878,6 +886,7 @@ git commit -m "docs(buildbuddy-mcp): improve get_action docstring with usage gui
 ### Task 9: Create composite.py with diagnose_failure
 
 **Files:**
+
 - Create: `services/buildbuddy_mcp/app/composite.py`
 - Create: `services/buildbuddy_mcp/tests/composite_test.py`
 - Modify: `services/buildbuddy_mcp/app/main.py` (add import of composite at bottom)
@@ -1161,6 +1170,7 @@ git commit -m "feat(buildbuddy-mcp): add diagnose_failure composite tool"
 ### Task 10: Create proto conformance test
 
 **Files:**
+
 - Create: `services/buildbuddy_mcp/tests/proto_conformance_test.py`
 
 **Step 1: Write the test**
@@ -1350,6 +1360,7 @@ git commit -m "test(buildbuddy-mcp): add proto conformance test for API drift de
 ### Task 11: Update BUILD files and run gazelle
 
 **Files:**
+
 - Modify: `services/buildbuddy_mcp/app/BUILD`
 - Modify: `services/buildbuddy_mcp/tests/BUILD`
 
@@ -1366,6 +1377,7 @@ Read `services/buildbuddy_mcp/app/BUILD`. The `app` library should now include b
 **Step 3: Verify tests/BUILD includes new test targets**
 
 Read `services/buildbuddy_mcp/tests/BUILD`. It should have three test targets:
+
 - `main_test` — existing, no tags
 - `composite_test` — new, no tags
 - `proto_conformance_test` — new, with `tags = ["external"]`

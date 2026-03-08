@@ -61,11 +61,11 @@ The `code-fix` profile needs no token — it simply omits the Context Forge exte
 
 ### Initial Profiles
 
-| Profile | Team | Token Env Var | Tools | Use Case |
-|---------|------|---------------|-------|----------|
-| `ci-debug` | `ci-debug` | `CI_DEBUG_MCP_TOKEN` | BuildBuddy (6 tools) | CI failure investigation |
-| `code-fix` | none | none | developer + github only | Pure code changes |
-| (default) | none | none (no auth) | All tools via ClusterIP | Current behavior, unchanged |
+| Profile    | Team       | Token Env Var        | Tools                   | Use Case                    |
+| ---------- | ---------- | -------------------- | ----------------------- | --------------------------- |
+| `ci-debug` | `ci-debug` | `CI_DEBUG_MCP_TOKEN` | BuildBuddy (6 tools)    | CI failure investigation    |
+| `code-fix` | none       | none                 | developer + github only | Pure code changes           |
+| (default)  | none       | none (no auth)       | All tools via ClusterIP | Current behavior, unchanged |
 
 ### Profile Definition File
 
@@ -95,11 +95,13 @@ profiles:
 Recipes are YAML files at `/home/goose-agent/recipes/` that define which extensions load for a given profile. Key mechanism: `--no-profile` flag on `goose run` prevents `config.yaml` extensions from loading, so only the recipe's extensions are active.
 
 **ci-debug.yaml:**
+
 - Extensions: `developer` (builtin) + `context-forge` (streamable_http with `Authorization: Bearer ${CI_DEBUG_MCP_TOKEN}`) + `github` (stdio)
 - Settings: `max_turns: 50`
 - Instructions: guide agent to use BuildBuddy tools for CI debugging
 
 **code-fix.yaml:**
+
 - Extensions: `developer` (builtin) + `github` (stdio)
 - No Context Forge extension — agent has no cluster tool access
 - Settings: `max_turns: 50`
@@ -110,6 +112,7 @@ Recipes are YAML files at `/home/goose-agent/recipes/` that define which extensi
 Local script run from developer laptop. Requirements: `op` CLI (authenticated), `python3` with `PyJWT`, `curl`, `jq`.
 
 Steps:
+
 1. Read `JWT_SECRET_KEY` from 1Password: `op read "op://k8s-homelab/context-forge/JWT_SECRET_KEY"`
 2. Mint short-lived admin JWT (5 min TTL)
 3. Create `ci-debug` team via `POST /teams` (idempotent — skip if exists)
@@ -124,15 +127,18 @@ Token rotation: re-run the script. 1Password Operator resyncs the Secret automat
 ### 3. Infrastructure Changes
 
 **goose-sandboxes chart:**
+
 - New `OnePasswordItem` for `goose-mcp-tokens` secret
 - New env vars in SandboxTemplate for `CI_DEBUG_MCP_TOKEN`
 - `profiles.yaml` as reference documentation
 
 **goose-agent container image:**
+
 - New `recipes/` directory with `ci-debug.yaml` and `code-fix.yaml`
 - Packaged into image via BUILD rule (same pattern as existing `config.yaml`)
 
 **agent-run CLI:**
+
 - New `--profile` flag (string, optional)
 - When set: validates against known profiles, constructs `goose run --recipe ... --no-profile --params ...`
 - When unset: current behavior (`goose run --text <task>`)

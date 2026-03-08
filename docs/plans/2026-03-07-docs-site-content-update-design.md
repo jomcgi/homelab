@@ -14,31 +14,31 @@ Hybrid: add missing services to existing tiers in `services.md`, fix wording acr
 
 **Core Infrastructure (cluster-critical):**
 
-| Service | Purpose |
-|---|---|
-| Agent Sandbox | Controller for isolated agent execution pods |
+| Service                | Purpose                                               |
+| ---------------------- | ----------------------------------------------------- |
+| Agent Sandbox          | Controller for isolated agent execution pods          |
 | OpenTelemetry Operator | Auto-instrumentation for Go, Python, Node.js services |
 
 **Production Services (prod):**
 
-| Service | Purpose |
-|---|---|
-| Context Forge | IBM MCP gateway for aggregating tool servers |
-| Goose Sandboxes | Goose agent sandbox deployments |
-| LiteLLM | LLM API proxy for agents (routes to llama-cpp, external) |
-| MCP OAuth Proxy | OAuth 2.1 auth layer for remote MCP access |
-| MCP Servers | Consolidated ArgoCD, K8s, BuildBuddy, SigNoz MCP servers |
+| Service         | Purpose                                                  |
+| --------------- | -------------------------------------------------------- |
+| Context Forge   | IBM MCP gateway for aggregating tool servers             |
+| Goose Sandboxes | Goose agent sandbox deployments                          |
+| LiteLLM         | LLM API proxy for agents (routes to llama-cpp, external) |
+| MCP OAuth Proxy | OAuth 2.1 auth layer for remote MCP access               |
+| MCP Servers     | Consolidated ArgoCD, K8s, BuildBuddy, SigNoz MCP servers |
 
 **Development Services (dev):**
 
-| Service | Purpose |
-|---|---|
+| Service  | Purpose                             |
+| -------- | ----------------------------------- |
 | Grimoire | D&D knowledge management with Redis |
 
 **Static Websites:**
 
-| Site | Description |
-|---|---|
+| Site            | Description                                              |
+| --------------- | -------------------------------------------------------- |
 | docs.jomcgi.dev | Architecture docs and ADRs (VitePress, Cloudflare Pages) |
 
 ### 2. services.md — Wording Fixes
@@ -67,6 +67,7 @@ Add sentence to ArgoCD Discovery Flow: "The `canada` Application is the root app
 ### 6. New File: architecture/agents.md
 
 Agent platform overview covering:
+
 - Component map: agent-sandbox → goose-sandboxes → litellm → context-forge + mcp-servers → mcp-oauth-proxy
 - Data flow diagram showing agent request traversal
 - How the pieces compose (controller, runtime, LLM, tools, auth)

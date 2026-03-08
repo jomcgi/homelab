@@ -191,7 +191,7 @@ slos:
   - name: api-gateway
     metric: httpcheck.status
     filter: "http.url = 'https://api.jomcgi.dev/status.json'"
-    op: "2"          # less than
+    op: "2" # less than
     threshold: 1
 ```
 

@@ -37,11 +37,11 @@ A `py_binary` target using httpx to implement the 3-step Semgrep App API flow:
 
 **Environment:**
 
-| Variable | Required | Default | Source |
-|----------|----------|---------|--------|
-| `SEMGREP_APP_TOKEN` | Yes (to upload) | — | Secret from CI or local env |
-| `SEMGREP_APP_URL` | No | `https://semgrep.dev` | Override for self-hosted |
-| `SEMGREP_REPO` | No | Auto-detected | `git remote get-url origin` |
+| Variable            | Required        | Default               | Source                      |
+| ------------------- | --------------- | --------------------- | --------------------------- |
+| `SEMGREP_APP_TOKEN` | Yes (to upload) | —                     | Secret from CI or local env |
+| `SEMGREP_APP_URL`   | No              | `https://semgrep.dev` | Override for self-hosted    |
+| `SEMGREP_REPO`      | No              | Auto-detected         | `git remote get-url origin` |
 
 Git commit and branch are auto-detected via `git rev-parse` commands. Since
 tests run with `no-sandbox`, git is available. CI environments also provide
@@ -117,13 +117,13 @@ Test mode (`SEMGREP_TEST_MODE=1`) is unchanged — rule validation does not uplo
 
 ## Files Changed
 
-| File | Change |
-|------|--------|
-| `tools/semgrep/upload.py` | New — upload script |
-| `tools/semgrep/BUILD` | Add `py_binary` for upload |
-| `rules_semgrep/test.bzl` | Add upload to data/env in both macros |
-| `rules_semgrep/semgrep-test.sh` | Capture exit code, output JSON, call upload |
-| `rules_semgrep/semgrep-manifest-test.sh` | Same pattern as above |
+| File                                     | Change                                      |
+| ---------------------------------------- | ------------------------------------------- |
+| `tools/semgrep/upload.py`                | New — upload script                         |
+| `tools/semgrep/BUILD`                    | Add `py_binary` for upload                  |
+| `rules_semgrep/test.bzl`                 | Add upload to data/env in both macros       |
+| `rules_semgrep/semgrep-test.sh`          | Capture exit code, output JSON, call upload |
+| `rules_semgrep/semgrep-manifest-test.sh` | Same pattern as above                       |
 
 ## Cache Behavior
 

@@ -308,10 +308,10 @@ The updater will then overwrite the `tag` value with the digest-pinned version o
 
 ## Troubleshooting
 
-| Issue                     | Solution                                                              |
-| ------------------------- | --------------------------------------------------------------------- |
-| Image not updating        | Check `namePattern` matches ArgoCD Application name exactly           |
-| Git write-back fails      | Verify `argocd-image-updater-token` secret exists in argocd namespace |
-| `unexpected type for root`| Overlay `values.yaml` is empty — seed it with the image key structure |
-| Wrong values file updated | Check `writeBackTarget` relative path is correct                      |
-| Digest not changing       | Ensure CI is pushing to the correct image tag (`:main`)               |
+| Issue                      | Solution                                                              |
+| -------------------------- | --------------------------------------------------------------------- |
+| Image not updating         | Check `namePattern` matches ArgoCD Application name exactly           |
+| Git write-back fails       | Verify `argocd-image-updater-token` secret exists in argocd namespace |
+| `unexpected type for root` | Overlay `values.yaml` is empty — seed it with the image key structure |
+| Wrong values file updated  | Check `writeBackTarget` relative path is correct                      |
+| Digest not changing        | Ensure CI is pushing to the correct image tag (`:main`)               |

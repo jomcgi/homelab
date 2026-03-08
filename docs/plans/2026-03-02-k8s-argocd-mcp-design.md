@@ -58,13 +58,13 @@ roleRef:
 
 ## Server 1: Kubernetes MCP
 
-| Setting | Value |
-|---------|-------|
-| Image | `ghcr.io/containers/kubernetes-mcp-server:latest` |
-| Port | 8080 |
-| Args | `["--port", "8080", "--disable-destructive"]` |
-| Transport | Streamable HTTP (native at `/mcp`) |
-| User | 65532 (upstream Dockerfile default) |
+| Setting   | Value                                             |
+| --------- | ------------------------------------------------- |
+| Image     | `ghcr.io/containers/kubernetes-mcp-server:latest` |
+| Port      | 8080                                              |
+| Args      | `["--port", "8080", "--disable-destructive"]`     |
+| Transport | Streamable HTTP (native at `/mcp`)                |
+| User      | 65532 (upstream Dockerfile default)               |
 
 ### RBAC
 
@@ -72,7 +72,8 @@ Custom ClusterRole with read + non-destructive debug access:
 
 ```yaml
 clusterRoleRules:
-  - apiGroups: ["", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io"]
+  - apiGroups:
+      ["", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io"]
     resources: ["*"]
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
@@ -89,12 +90,12 @@ No 1Password secret needed — uses in-cluster ServiceAccount token.
 
 ## Server 2: ArgoCD MCP
 
-| Setting | Value |
-|---------|-------|
-| Image | `ghcr.io/argoproj-labs/mcp-for-argocd:v0.5.0` |
-| Port | 3000 |
-| Transport | HTTP stream (CMD: `node dist/index.js http`) |
-| writableTmp | true (Node.js needs tmp access) |
+| Setting     | Value                                         |
+| ----------- | --------------------------------------------- |
+| Image       | `ghcr.io/argoproj-labs/mcp-for-argocd:v0.5.0` |
+| Port        | 3000                                          |
+| Transport   | HTTP stream (CMD: `node dist/index.js http`)  |
+| writableTmp | true (Node.js needs tmp access)               |
 
 ### Environment
 

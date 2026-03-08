@@ -9,6 +9,7 @@
 **Tech Stack:** Go 1.24+, `github.com/nats-io/nats.go` (JetStream + KV), `github.com/oklog/ulid/v2` (sortable IDs), `k8s.io/client-go` (dynamic + typed clients), `net/http` (stdlib router — Go 1.22+ method routing), Bazel + `go_image` macro, Helm chart.
 
 **Key reference files:**
+
 - Existing CLI to port: `tools/agent-run/main.go`
 - HTTP server pattern: `services/grimoire/api/main.go`
 - Helm chart pattern: `charts/stargazer/` (simple single-service chart)
@@ -21,6 +22,7 @@
 ### Task 1: Add Go dependencies (NATS + ULID)
 
 **Files:**
+
 - Modify: `go.mod` (root)
 - Modify: `go.sum` (root)
 - Modify: `MODULE.bazel` (if gazelle needs new entries)
@@ -59,6 +61,7 @@ git commit -m "build: add nats.go and ulid dependencies for agent-orchestrator"
 ### Task 2: Create data model and job store
 
 **Files:**
+
 - Create: `services/agent-orchestrator/model.go`
 - Create: `services/agent-orchestrator/store.go`
 - Create: `services/agent-orchestrator/store_test.go`
@@ -432,6 +435,7 @@ git commit -m "feat(agent-orchestrator): add data model and NATS KV job store"
 ### Task 3: Implement HTTP API handlers
 
 **Files:**
+
 - Create: `services/agent-orchestrator/api.go`
 - Create: `services/agent-orchestrator/api_test.go`
 - Modify: `services/agent-orchestrator/main.go`
@@ -968,10 +972,12 @@ git commit -m "feat(agent-orchestrator): add REST API handlers with tests"
 ### Task 4: Port sandbox lifecycle from agent-run CLI
 
 **Files:**
+
 - Create: `services/agent-orchestrator/sandbox.go`
 - Modify: `services/agent-orchestrator/BUILD` (add to srcs)
 
 This ports the core sandbox logic from `tools/agent-run/main.go` (lines 97-317) into a reusable struct that the consumer will call. The key differences from the CLI:
+
 - Uses in-cluster config (`rest.InClusterConfig()`) instead of kubeconfig
 - Captures output to a buffer instead of streaming to stdout
 - Returns structured results instead of printing
@@ -1285,6 +1291,7 @@ git commit -m "feat(agent-orchestrator): port sandbox lifecycle from agent-run C
 ### Task 5: Implement consumer and wire up main.go
 
 **Files:**
+
 - Create: `services/agent-orchestrator/consumer.go`
 - Modify: `services/agent-orchestrator/main.go` (full implementation)
 - Modify: `services/agent-orchestrator/api.go` (refactor to accept publish function)
@@ -1691,6 +1698,7 @@ git commit -m "feat(agent-orchestrator): add consumer, wire up main.go with NATS
 ### Task 6: Create Helm chart
 
 **Files:**
+
 - Create: `charts/agent-orchestrator/Chart.yaml`
 - Create: `charts/agent-orchestrator/values.yaml`
 - Create: `charts/agent-orchestrator/templates/_helpers.tpl`
@@ -1790,7 +1798,7 @@ imageUpdater:
     target: ""
 ```
 
-**Step 3: Create templates/_helpers.tpl**
+**Step 3: Create templates/\_helpers.tpl**
 
 Use the standard pattern from stargazer (copy and replace "stargazer" with "agent-orchestrator"):
 
@@ -1942,18 +1950,16 @@ Note: `strategy: Recreate` — single consumer by design, no rolling update need
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "agent-orchestrator.fullname" . }}
-  labels:
-    {{- include "agent-orchestrator.labels" . | nindent 4 }}
+  name: { { include "agent-orchestrator.fullname" . } }
+  labels: { { - include "agent-orchestrator.labels" . | nindent 4 } }
 spec:
-  type: {{ .Values.service.type }}
+  type: { { .Values.service.type } }
   ports:
-    - port: {{ .Values.service.port }}
+    - port: { { .Values.service.port } }
       targetPort: http
       protocol: TCP
       name: http
-  selector:
-    {{- include "agent-orchestrator.selectorLabels" . | nindent 4 }}
+  selector: { { - include "agent-orchestrator.selectorLabels" . | nindent 4 } }
 ```
 
 **Step 6: Create templates/serviceaccount.yaml**
@@ -2045,6 +2051,7 @@ git commit -m "feat(agent-orchestrator): add Helm chart with deployment, service
 ### Task 7: Create ArgoCD overlay
 
 **Files:**
+
 - Create: `overlays/prod/agent-orchestrator/application.yaml`
 - Create: `overlays/prod/agent-orchestrator/kustomization.yaml`
 - Create: `overlays/prod/agent-orchestrator/values.yaml`

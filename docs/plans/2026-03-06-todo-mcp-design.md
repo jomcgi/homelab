@@ -16,16 +16,17 @@ No secrets required — the todo-admin API is unauthenticated within the cluster
 
 ## MCP Tools
 
-| Tool           | HTTP Method | Endpoint             | Description                              |
-| -------------- | ----------- | -------------------- | ---------------------------------------- |
-| `get_tasks`    | GET         | `/api/todo`          | Returns full state (weekly + 3 daily)    |
-| `set_tasks`    | PUT         | `/api/todo`          | Updates weekly and/or daily tasks        |
-| `reset_daily`  | POST        | `/api/reset/daily`   | Archives today, clears daily tasks       |
-| `reset_weekly` | POST        | `/api/reset/weekly`  | Archives today, clears all tasks         |
+| Tool           | HTTP Method | Endpoint            | Description                           |
+| -------------- | ----------- | ------------------- | ------------------------------------- |
+| `get_tasks`    | GET         | `/api/todo`         | Returns full state (weekly + 3 daily) |
+| `set_tasks`    | PUT         | `/api/todo`         | Updates weekly and/or daily tasks     |
+| `reset_daily`  | POST        | `/api/reset/daily`  | Archives today, clears daily tasks    |
+| `reset_weekly` | POST        | `/api/reset/weekly` | Archives today, clears all tasks      |
 
 ### Tool Details
 
 **`get_tasks`** — No parameters. Returns:
+
 ```json
 {
   "weekly": { "task": "string", "done": false },
@@ -61,6 +62,7 @@ services/todo_mcp/
 ```
 
 Follows the `buildbuddy_mcp` pattern exactly:
+
 - `pydantic_settings.BaseSettings` for config (`TODO_URL`, `TODO_PORT`)
 - `httpx.AsyncClient` for HTTP calls
 - `@mcp.tool` decorated async functions
@@ -77,6 +79,7 @@ Follows the `buildbuddy_mcp` pattern exactly:
 ### Container Image
 
 Built with `py3_image` macro (same as buildbuddy-mcp):
+
 ```python
 py3_image(
     name = "image",
@@ -98,8 +101,8 @@ New entry in `overlays/prod/mcp-servers/values.yaml`:
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
   env:
-  - name: TODO_URL
-    value: "http://todo.todo.svc.cluster.local:8080"
+    - name: TODO_URL
+      value: "http://todo.todo.svc.cluster.local:8080"
   resources:
     requests:
       cpu: 10m
@@ -128,6 +131,7 @@ New entry in `overlays/prod/mcp-servers/values.yaml`:
 ## What This Enables
 
 Once deployed, Claude can:
+
 - **Read tasks**: "What's on my todo list?" → calls `get_tasks`
 - **Update tasks**: "Add 'review PR' as my second daily task" → calls `set_tasks`
 - **Mark done**: "Mark the weekly task as done" → calls `get_tasks` then `set_tasks` with `done: true`

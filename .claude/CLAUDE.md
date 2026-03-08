@@ -103,21 +103,21 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 **MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools. Tool names below are shortened — actual IDs have the `mcp__context-forge__` prefix (e.g., `mcp__context-forge__kubernetes-mcp-resources-list`).
 
-| Need                 | Tool                                                                                        |
-| -------------------- | ------------------------------------------------------------------------------------------- |
-| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list` |
-| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                               |
-| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                       |
-| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application` |
-| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`  |
-| **BuildBuddy CI**    | `buildbuddy-mcp-get-invocation`, `buildbuddy-mcp-get-log`, `buildbuddy-mcp-get-target`      |
-| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`              |
-| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`    |
-| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                   |
-| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                 |
-| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                            |
-| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                        |
-| **Agent jobs**   | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
+| Need                 | Tool                                                                                                      |
+| -------------------- | --------------------------------------------------------------------------------------------------------- |
+| **K8s resources**    | `kubernetes-mcp-resources-list`, `kubernetes-mcp-resources-get`, `kubernetes-mcp-pods-list`               |
+| **K8s logs**         | `kubernetes-mcp-pods-log` (recent), SigNoz tools (historical)                                             |
+| **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                     |
+| **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`               |
+| **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                |
+| **BuildBuddy CI**    | `buildbuddy-mcp-get-invocation`, `buildbuddy-mcp-get-log`, `buildbuddy-mcp-get-target`                    |
+| **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                            |
+| **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                  |
+| **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                 |
+| **Services**         | `signoz-list-services`, `signoz-get-service-top-operations`                                               |
+| **Dashboards**       | `signoz-list-dashboards`, `signoz-get-dashboard`                                                          |
+| **Alerts**           | `signoz-list-alerts`, `signoz-get-alert`, `signoz-get-alert-history`                                      |
+| **Agent jobs**       | `agent-orchestrator-mcp-submit-job`, `agent-orchestrator-mcp-list-jobs`, `agent-orchestrator-mcp-get-job` |
 
 ## Kubernetes Operations (kubectl)
 

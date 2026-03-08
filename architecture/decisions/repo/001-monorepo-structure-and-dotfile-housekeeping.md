@@ -37,12 +37,12 @@ Both are correctly gitignored via glob patterns (`*.venv/` and `.playwright-mcp`
 
 #### Other dotfiles
 
-| Dir | Status | Notes |
-| --- | ------ | ----- |
-| `.git` | Keep | Obviously |
-| `.github` | Keep | Actions workflows |
-| `.aspect` | Keep | Aspect Bazel config, should be committed |
-| `.vscode` | Keep | Shared editor settings/extensions |
+| Dir       | Status                   | Notes                                                          |
+| --------- | ------------------------ | -------------------------------------------------------------- |
+| `.git`    | Keep                     | Obviously                                                      |
+| `.github` | Keep                     | Actions workflows                                              |
+| `.aspect` | Keep                     | Aspect Bazel config, should be committed                       |
+| `.vscode` | Keep                     | Shared editor settings/extensions                              |
 | `.claude` | Keep, audit periodically | Claude Code project instructions; can accumulate stale context |
 
 ### Directory Structure Observations
@@ -71,13 +71,13 @@ Most of `scripts/` (`publish-trip-images`, `backfill-elevation`, `detect-wildlif
 
 ### Proposed future top-level shape
 
-| Today | Proposed | Rationale |
-| ----- | -------- | --------- |
-| `services/` + `websites/` | `apps/` | Unified application namespace |
-| `rules_*` + `tools/` | `bazel/` | Coherent Bazel infrastructure |
-| `charts/` + `overlays/` + `clusters/` + `argo-cd/` | `deploy/` | Single GitOps namespace |
-| `semgrep_rules/` | `policies/` | Distinct from Bazel rules |
-| `docs/` + `architecture/` | `docs/` | Merged reference material |
+| Today                                              | Proposed    | Rationale                     |
+| -------------------------------------------------- | ----------- | ----------------------------- |
+| `services/` + `websites/`                          | `apps/`     | Unified application namespace |
+| `rules_*` + `tools/`                               | `bazel/`    | Coherent Bazel infrastructure |
+| `charts/` + `overlays/` + `clusters/` + `argo-cd/` | `deploy/`   | Single GitOps namespace       |
+| `semgrep_rules/`                                   | `policies/` | Distinct from Bazel rules     |
+| `docs/` + `architecture/`                          | `docs/`     | Merged reference material     |
 
 ```
 /
@@ -114,11 +114,11 @@ Most of `scripts/` (`publish-trip-images`, `backfill-elevation`, `detect-wildlif
 
 ## Risks
 
-| Risk | Likelihood | Impact | Mitigation |
-| ---- | ---------- | ------ | ---------- |
-| Directory reorg breaks Bazel targets | High | High | Automated refactor with `buildozer`; run full `bazel test //...` before merge |
-| ArgoCD apps lose sync after path changes | High | High | Update all Application manifests atomically; test with `helm template` |
-| Stale references in docs/guides | Medium | Low | Grep for old paths post-migration |
+| Risk                                     | Likelihood | Impact | Mitigation                                                                    |
+| ---------------------------------------- | ---------- | ------ | ----------------------------------------------------------------------------- |
+| Directory reorg breaks Bazel targets     | High       | High   | Automated refactor with `buildozer`; run full `bazel test //...` before merge |
+| ArgoCD apps lose sync after path changes | High       | High   | Update all Application manifests atomically; test with `helm template`        |
+| Stale references in docs/guides          | Medium     | Low    | Grep for old paths post-migration                                             |
 
 ---
 
@@ -131,7 +131,7 @@ Most of `scripts/` (`publish-trip-images`, `backfill-elevation`, `detect-wildlif
 
 ## References
 
-| Resource | Relevance |
-| -------- | --------- |
+| Resource                                                         | Relevance                          |
+| ---------------------------------------------------------------- | ---------------------------------- |
 | [Bazel bzlmod migration](https://bazel.build/external/migration) | Context for rules directory layout |
-| `architecture/contributing.md` | Will need path updates in Phase 2 |
+| `architecture/contributing.md`                                   | Will need path updates in Phase 2  |

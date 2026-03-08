@@ -13,6 +13,7 @@
 ### Task 1: Create the aspect and provider
 
 **Files:**
+
 - Create: `rules_semgrep/aspect.bzl`
 
 **Step 1: Write the aspect**
@@ -76,6 +77,7 @@ git commit -m "feat(semgrep): add aspect for collecting transitive Python source
 ### Task 2: Create the test rule
 
 **Files:**
+
 - Create: `rules_semgrep/target_test.bzl`
 
 **Context:** This rule applies `semgrep_source_aspect` to a target, collects all `.py` files from the `SemgrepSourcesInfo` provider, and generates a test script that invokes the existing `semgrep-test.sh`. The launcher script uses `short_path` references which work inside the Bazel test runner's runfiles tree.
@@ -222,6 +224,7 @@ git commit -m "feat(semgrep): add target-based test rule with aspect"
 ### Task 3: Wire up BUILD and defs.bzl
 
 **Files:**
+
 - Modify: `rules_semgrep/BUILD`
 - Modify: `rules_semgrep/defs.bzl`
 
@@ -297,6 +300,7 @@ git commit -m "build(semgrep): wire up aspect and target_test in BUILD and defs"
 ### Task 4: Integration test — verify aspect works end-to-end
 
 **Files:**
+
 - Modify: `services/trips_api/BUILD` (temporary, manual test)
 
 **Step 1: Manually add a semgrep_target_test to trips_api**
@@ -350,6 +354,7 @@ git commit -m "fix(semgrep): adjust aspect/rule based on integration testing"
 ### Task 5: Update Gazelle extension — write failing tests first
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/generate_test.go`
 
 **Context:** The Gazelle extension at `rules_semgrep/gazelle/generate.go` currently generates one `semgrep_test` per `.py` file. We need to change it to detect `py_venv_binary`/`py_binary` targets and generate `semgrep_target_test` for each, falling back to per-file `semgrep_test` for orphan `.py` files not covered by a binary's `main`.
@@ -594,6 +599,7 @@ git commit -m "test(semgrep): add failing tests for binary-based semgrep test ge
 ### Task 6: Update Gazelle extension — implement generation logic
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/generate.go`
 
 **Step 1: Rewrite generateRules**
@@ -777,6 +783,7 @@ git commit -m "feat(semgrep): generate target-based tests for binary packages"
 ### Task 7: Update Gazelle extension — register new kind and load
 
 **Files:**
+
 - Modify: `rules_semgrep/gazelle/language.go`
 
 **Step 1: Add semgrep_target_test to Kinds()**

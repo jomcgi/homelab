@@ -13,6 +13,7 @@
 ### Task 1: Add `tar` import to `py3_image.bzl`
 
 **Files:**
+
 - Modify: `tools/oci/py3_image.bzl:1-7` (imports)
 
 **Step 1: Add the import**
@@ -42,6 +43,7 @@ git commit -m "build(oci): add tar import to py3_image.bzl"
 ### Task 2: Add `main` parameter and source tar creation
 
 **Files:**
+
 - Modify: `tools/oci/py3_image.bzl:9-30` (function signature and path computation)
 
 **Step 1: Add `main` parameter to function signature**
@@ -94,6 +96,7 @@ After the `env` dict computation (after line 35), add:
 In the `multi_platform = True` branch, change both `oci_image` calls:
 
 AMD64 (around line 42):
+
 ```python
             tars = py_image_layer(
                 name = name + "_layers_amd64",
@@ -104,6 +107,7 @@ AMD64 (around line 42):
 ```
 
 ARM64 (around line 62):
+
 ```python
             tars = py_image_layer(
                 name = name + "_layers_arm64",
@@ -114,6 +118,7 @@ ARM64 (around line 62):
 ```
 
 In the `else` (single platform) branch (around line 106):
+
 ```python
             tars = py_image_layer(
                 name = name + "_layers",
@@ -140,6 +145,7 @@ git commit -m "feat(oci): auto-include py_venv_binary main source in py3_image"
 ### Task 3: Update `tools/oci/BUILD` deps
 
 **Files:**
+
 - Modify: `tools/oci/BUILD:31-41` (py3_image bzl_library)
 
 **Step 1: Add `tar` dependency**

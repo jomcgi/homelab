@@ -12,13 +12,13 @@ Publish Semgrep Pro engine and rule packs as separate OCI artifacts on GHCR, pin
 
 Separate OCI artifacts at `ghcr.io/jomcgi/homelab/tools/semgrep-pro/`:
 
-| Artifact | Content | Platforms |
-|---|---|---|
-| `engine` | Pro engine binary (`semgrep-core-proprietary`) | `linux/amd64`, `linux/arm64` |
-| `rules/golang` | Go rule YAML files | Platform-independent |
-| `rules/python` | Python rule YAML files | Platform-independent |
-| `rules/javascript` | JavaScript rule YAML files | Platform-independent |
-| `rules/kubernetes` | Kubernetes rule YAML files | Platform-independent |
+| Artifact           | Content                                        | Platforms                    |
+| ------------------ | ---------------------------------------------- | ---------------------------- |
+| `engine`           | Pro engine binary (`semgrep-core-proprietary`) | `linux/amd64`, `linux/arm64` |
+| `rules/golang`     | Go rule YAML files                             | Platform-independent         |
+| `rules/python`     | Python rule YAML files                         | Platform-independent         |
+| `rules/javascript` | JavaScript rule YAML files                     | Platform-independent         |
+| `rules/kubernetes` | Kubernetes rule YAML files                     | Platform-independent         |
 
 ### Why separate artifacts?
 
@@ -79,13 +79,13 @@ semgrep_test(
 
 ### Cache invalidation matrix
 
-| What changed | Go scan | Python scan | K8s scan |
-|---|---|---|---|
-| Go source file | **re-runs** | cached | cached |
-| Go pro rule | **re-runs** | cached | cached |
-| Python pro rule | cached | **re-runs** | cached |
+| What changed      | Go scan     | Python scan | K8s scan    |
+| ----------------- | ----------- | ----------- | ----------- |
+| Go source file    | **re-runs** | cached      | cached      |
+| Go pro rule       | **re-runs** | cached      | cached      |
+| Python pro rule   | cached      | **re-runs** | cached      |
 | Pro engine binary | **re-runs** | **re-runs** | **re-runs** |
-| Nothing | cached | cached | cached |
+| Nothing           | cached      | cached      | cached      |
 
 ## Automated Update Pipeline
 

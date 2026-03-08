@@ -17,6 +17,7 @@
 ### Task 1: Add `args` support to deployment template
 
 **Files:**
+
 - Modify: `charts/mcp-servers/templates/deployment.yaml:88-95`
 
 **Step 1: Add args block to native server container**
@@ -46,6 +47,7 @@ The result should look like:
 **Step 2: Verify template renders with no args (backward compat)**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | head -80
@@ -65,6 +67,7 @@ git commit -m "feat(mcp-servers): add args support to native server container"
 ### Task 2: Add ClusterRole creation to RBAC template
 
 **Files:**
+
 - Modify: `charts/mcp-servers/templates/rbac.yaml:1-19`
 
 **Step 1: Add ClusterRole resource creation**
@@ -139,6 +142,7 @@ subjects:
 ```
 
 Logic:
+
 - If `rbac.clusterRoleRules` is set → create both the ClusterRole and ClusterRoleBinding
 - Else if `rbac.clusterRole` is set → only create ClusterRoleBinding (existing behavior)
 - Namespaced RoleBindings remain unchanged
@@ -146,6 +150,7 @@ Logic:
 **Step 2: Verify template renders (backward compat)**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | grep -A5 "kind: ClusterRole"
@@ -165,6 +170,7 @@ git commit -m "feat(mcp-servers): support inline ClusterRole creation via cluste
 ### Task 3: Add kubernetes-mcp server entry to values
 
 **Files:**
+
 - Modify: `overlays/prod/mcp-servers/values.yaml:64` (append after buildbuddy-mcp)
 
 **Step 1: Add kubernetes-mcp entry**
@@ -178,9 +184,9 @@ Append to the `servers` list in `overlays/prod/mcp-servers/values.yaml`:
     tag: "latest"
   port: 8080
   args:
-  - "--port"
-  - "8080"
-  - "--disable-destructive"
+    - "--port"
+    - "8080"
+    - "--disable-destructive"
   resources:
     requests:
       cpu: 10m
@@ -192,15 +198,22 @@ Append to the `servers` list in `overlays/prod/mcp-servers/values.yaml`:
     enabled: false
   rbac:
     clusterRoleRules:
-    - apiGroups: ["", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io"]
-      resources: ["*"]
-      verbs: ["get", "list", "watch"]
-    - apiGroups: [""]
-      resources: ["pods/exec", "pods/portforward", "pods/log"]
-      verbs: ["create", "get"]
-    - apiGroups: ["metrics.k8s.io"]
-      resources: ["pods", "nodes"]
-      verbs: ["get", "list"]
+      - apiGroups:
+          [
+            "",
+            "apps",
+            "batch",
+            "networking.k8s.io",
+            "rbac.authorization.k8s.io",
+          ]
+        resources: ["*"]
+        verbs: ["get", "list", "watch"]
+      - apiGroups: [""]
+        resources: ["pods/exec", "pods/portforward", "pods/log"]
+        verbs: ["create", "get"]
+      - apiGroups: ["metrics.k8s.io"]
+        resources: ["pods", "nodes"]
+        verbs: ["get", "list"]
   registration:
     enabled: true
     transport: "STREAMABLEHTTP"
@@ -210,6 +223,7 @@ Append to the `servers` list in `overlays/prod/mcp-servers/values.yaml`:
 ```
 
 Notes:
+
 - No `secret` block — uses in-cluster ServiceAccount token, no external credentials
 - Higher memory limit (256Mi) — Go binary with K8s API client may use more than the Python/Node servers
 - Alert URL uses `/mcp` since kubernetes-mcp-server has no dedicated `/health` endpoint; the MCP endpoint responds to GET requests which SigNoz HTTPCheck can monitor
@@ -218,6 +232,7 @@ Notes:
 **Step 2: Verify template renders**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | grep -B2 -A20 "name: kubernetes-mcp"
@@ -226,6 +241,7 @@ helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 
 Expected: Deployment, Service, ServiceAccount, ClusterRole, ClusterRoleBinding, registration Job, and alert ConfigMap all render for `kubernetes-mcp`.
 
 Verify the args appear in the container:
+
 ```bash
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | grep -A5 "disable-destructive"
 ```
@@ -233,6 +249,7 @@ helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 
 Expected: `--disable-destructive` appears in the container args.
 
 Verify the ClusterRole rules:
+
 ```bash
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | grep -A15 "kind: ClusterRole"
 ```
@@ -251,6 +268,7 @@ git commit -m "feat(mcp-servers): add kubernetes-mcp server with read + exec RBA
 ### Task 4: Add argocd-mcp server entry to values
 
 **Files:**
+
 - Modify: `overlays/prod/mcp-servers/values.yaml` (append after kubernetes-mcp)
 
 **Step 1: Add argocd-mcp entry**
@@ -265,8 +283,8 @@ Append to the `servers` list:
   port: 3000
   writableTmp: true
   env:
-  - name: ARGOCD_BASE_URL
-    value: "http://argocd-server.argocd.svc.cluster.local:80"
+    - name: ARGOCD_BASE_URL
+      value: "http://argocd-server.argocd.svc.cluster.local:80"
   secret:
     name: argocd-mcp
     itemPath: "vaults/k8s-homelab/items/argocd-mcp"
@@ -288,6 +306,7 @@ Append to the `servers` list:
 ```
 
 Notes:
+
 - `writableTmp: true` — Node.js needs writable tmp; this also disables `runAsNonRoot` in the pod security context
 - Secret `argocd-mcp` provides `ARGOCD_API_TOKEN` from 1Password
 - `ARGOCD_BASE_URL` points to the in-cluster ArgoCD server service
@@ -296,6 +315,7 @@ Notes:
 **Step 2: Verify template renders**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | grep -B2 -A20 "name: argocd-mcp"
@@ -304,6 +324,7 @@ helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 
 Expected: Deployment (with `writableTmp` volume), Service, ServiceAccount, OnePasswordItem, registration Job, and alert ConfigMap all render for `argocd-mcp`.
 
 Verify the 1Password item:
+
 ```bash
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml 2>&1 | grep -A5 "OnePasswordItem" | grep "argocd-mcp"
 ```
@@ -324,22 +345,26 @@ git commit -m "feat(mcp-servers): add argocd-mcp server with 1Password secret"
 **Step 1: Render the complete chart and review**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 helm template test charts/mcp-servers/ -f overlays/prod/mcp-servers/values.yaml
 ```
 
 Verify these resources exist for each new server:
+
 - `kubernetes-mcp`: Deployment (with args), Service, ServiceAccount, ClusterRole, ClusterRoleBinding, registration Job, alert ConfigMap
 - `argocd-mcp`: Deployment (with writableTmp + env), Service, ServiceAccount, OnePasswordItem, registration Job, alert ConfigMap
 
 Verify existing servers still render correctly:
+
 - `signoz-mcp`: unchanged
 - `buildbuddy-mcp`: unchanged
 
 **Step 2: Run format check**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 format
@@ -350,6 +375,7 @@ Expected: All formatters pass with no changes needed.
 **Step 3: Run Bazel build**
 
 Run:
+
 ```bash
 cd /tmp/claude-worktrees/k8s-argocd-mcp
 bazel build //...
@@ -364,6 +390,7 @@ Expected: Build succeeds.
 This step must be done by the user in 1Password.
 
 Create item at `vaults/k8s-homelab/items/argocd-mcp` with field:
+
 - `ARGOCD_API_TOKEN` — generate an ArgoCD API token via `argocd account generate-token`
 
 This secret will be synced to K8s by the 1Password Operator as a Kubernetes Secret in the `mcp-servers` namespace.

@@ -13,6 +13,7 @@
 ### Task 1: Create the library chart skeleton
 
 **Files:**
+
 - Create: `charts/signoz-alerts/Chart.yaml`
 - Create: `charts/signoz-alerts/values.yaml`
 - Create: `charts/signoz-alerts/BUILD`
@@ -78,6 +79,7 @@ git commit -m "feat(signoz-alerts): add library chart skeleton"
 The core template that generates 2 ConfigMaps per SLO definition.
 
 **Files:**
+
 - Create: `charts/signoz-alerts/templates/_slo.tpl`
 
 **Step 1: Create `charts/signoz-alerts/templates/_slo.tpl`**
@@ -85,6 +87,7 @@ The core template that generates 2 ConfigMaps per SLO definition.
 This template receives a dict with keys: `slo` (the SLO definition), `Chart`, `Release`, and `defaults` (from consuming chart's sloDefaults or the library's own defaults).
 
 The template generates two ConfigMaps:
+
 1. `<name>-slo-burn-fast` — short window, high burn rate, something is broken NOW
 2. `<name>-slo-budget-exhausted` — long window, error budget consumed over the SLO period
 
@@ -325,6 +328,7 @@ If lint fails, fix any issues in `_slo.tpl` and re-run.
 This is the proof-of-concept: add `signoz-alerts` as a dependency to `charts/api-gateway`, define an SLO, and verify the rendered output matches the existing hand-written alert format.
 
 **Files:**
+
 - Modify: `charts/api-gateway/Chart.yaml` — add dependency
 - Create: `charts/api-gateway/templates/slo-alerts.yaml` — render SLO alerts
 - Modify: `charts/api-gateway/values.yaml` — add SLO definition and defaults
@@ -392,10 +396,12 @@ helm template api-gateway charts/api-gateway/ -f overlays/prod/api-gateway/value
 ```
 
 Verify the output includes two ConfigMaps:
+
 - `api-gateway-slo-burn-fast` with `evalWindow: "5m0s"`
 - `api-gateway-slo-budget-exhausted` with `evalWindow: "6h0m0s"`
 
 Both should have:
+
 - `signoz.io/alert: "true"` label
 - `spaceAggregation: "max"` (resilient to stale series)
 - `metricName: "httpcheck.status"` with correct filter
@@ -415,6 +421,7 @@ git commit -m "feat(api-gateway): integrate signoz-alerts library chart with ava
 Now that the SLO alert replaces it, remove the old hand-written ConfigMap.
 
 **Files:**
+
 - Delete: `overlays/prod/api-gateway/api-gateway-httpcheck-alert.yaml`
 - Modify: `overlays/prod/api-gateway/kustomization.yaml` — remove reference
 
@@ -457,6 +464,7 @@ git commit -m "refactor(api-gateway): replace hand-written httpcheck alert with 
 The library chart needs to be accessible from all consuming chart packages.
 
 **Files:**
+
 - Modify: `charts/signoz-alerts/BUILD` — widen visibility
 
 **Step 1: Update visibility**
@@ -489,13 +497,14 @@ Expected: shows the `chart` filegroup and `lint_test` targets.
 ### Task 7: Update the observability-alerting docs
 
 **Files:**
+
 - Modify: `architecture/observability-alerting.md`
 
 **Step 1: Add SLO Alerts section**
 
 Add after the existing "Alert Categories" section:
 
-```markdown
+````markdown
 ### SLO-Based Alerts
 
 Services can define SLOs using the `signoz-alerts` library chart (`charts/signoz-alerts/`). Each SLO definition generates two alerts:
@@ -512,24 +521,27 @@ slos:
     metric: httpcheck.status
     filter: "http.url = 'https://api.jomcgi.dev/status.json'"
     target: 99.9
-    op: "2"          # less than
+    op: "2" # less than
     threshold: 1
 ```
+````
 
 The library chart uses `spaceAggregation: "max"` by default to avoid false positives from stale metric series.
 
 To add SLO alerts to a chart:
+
 1. Add `signoz-alerts` as a dependency in `Chart.yaml`
 2. Add `sloDefaults` and `slos` to `values.yaml`
 3. Create `templates/slo-alerts.yaml` that ranges over `.Values.slos` and includes `signoz-alerts.slo`
-```
+
+````
 
 **Step 2: Commit**
 
 ```bash
 git add architecture/observability-alerting.md
 git commit -m "docs: add SLO-based alerts section to observability-alerting guide"
-```
+````
 
 ---
 

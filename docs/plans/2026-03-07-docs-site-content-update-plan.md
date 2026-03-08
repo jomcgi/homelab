@@ -15,6 +15,7 @@
 ### Task 1: Update services.md — Add Missing Services and Fix Wording
 
 **Files:**
+
 - Modify: `architecture/services.md`
 
 **Step 1: Edit the Core Infrastructure table**
@@ -22,22 +23,24 @@
 Add two rows after the Kyverno row (line 14), maintaining alphabetical order within the table:
 
 ```markdown
-| **Agent Sandbox**          | Controller for isolated agent execution pods    | [charts/agent-sandbox](../charts/agent-sandbox/)                       |
+| **Agent Sandbox** | Controller for isolated agent execution pods | [charts/agent-sandbox](../charts/agent-sandbox/) |
 ```
 
 Add after the NVIDIA GPU Operator row (line 16):
 
 ```markdown
-| **OpenTelemetry Operator** | Auto-instrumentation for Go, Python, Node.js    | [charts/opentelemetry-operator](../charts/opentelemetry-operator/)     |
+| **OpenTelemetry Operator** | Auto-instrumentation for Go, Python, Node.js | [charts/opentelemetry-operator](../charts/opentelemetry-operator/) |
 ```
 
 **Step 2: Fix cert-manager and 1Password wording**
 
 Change cert-manager row:
+
 - From: `X.509 certificate management (required by Linkerd)`
 - To: `X.509 certificate management; required by Linkerd for mTLS`
 
 Change 1Password Operator row:
+
 - From: `Secret management via OnePasswordItem CRDs              | External chart`
 - To: `Secret management via OnePasswordItem CRDs              | External chart (Helm install, outside ArgoCD)`
 
@@ -46,11 +49,11 @@ Change 1Password Operator row:
 Add these rows to the Production Services table, maintaining alphabetical order:
 
 ```markdown
-| **Context Forge**   | MCP gateway for aggregating tool servers     | [charts/context-forge](../charts/context-forge/)                 |
-| **Goose Sandboxes** | Goose agent sandbox deployments              | [charts/goose-sandboxes](../charts/goose-sandboxes/)             |
-| **LiteLLM**         | LLM API proxy for agents                     | [charts/litellm](../charts/litellm/)                             |
-| **MCP OAuth Proxy** | OAuth 2.1 auth layer for remote MCP access   | [charts/mcp-oauth-proxy](../charts/mcp-oauth-proxy/)             |
-| **MCP Servers**     | Consolidated ArgoCD, K8s, BB, SigNoz MCP     | [charts/mcp-servers](../charts/mcp-servers/)                     |
+| **Context Forge** | MCP gateway for aggregating tool servers | [charts/context-forge](../charts/context-forge/) |
+| **Goose Sandboxes** | Goose agent sandbox deployments | [charts/goose-sandboxes](../charts/goose-sandboxes/) |
+| **LiteLLM** | LLM API proxy for agents | [charts/litellm](../charts/litellm/) |
+| **MCP OAuth Proxy** | OAuth 2.1 auth layer for remote MCP access | [charts/mcp-oauth-proxy](../charts/mcp-oauth-proxy/) |
+| **MCP Servers** | Consolidated ArgoCD, K8s, BB, SigNoz MCP | [charts/mcp-servers](../charts/mcp-servers/) |
 ```
 
 **Step 4: Add missing Development Service**
@@ -58,7 +61,7 @@ Add these rows to the Production Services table, maintaining alphabetical order:
 Add to the Development Services table:
 
 ```markdown
-| **Grimoire**        | D&D knowledge management with Redis              | [charts/grimoire](../charts/grimoire/)                             |
+| **Grimoire** | D&D knowledge management with Redis | [charts/grimoire](../charts/grimoire/) |
 ```
 
 **Step 5: Add docs.jomcgi.dev to Static Websites**
@@ -86,11 +89,13 @@ git commit -m "docs(services): add 8 missing services and fix wording"
 ### Task 2: Update observability.md — Add OTel Operator Layer
 
 **Files:**
+
 - Modify: `architecture/observability.md`
 
 **Step 1: Update the overview section (lines 7-10)**
 
 Replace:
+
 ```markdown
 Every service gets automatic observability through two layers:
 
@@ -99,6 +104,7 @@ Every service gets automatic observability through two layers:
 ```
 
 With:
+
 ```markdown
 Every service gets automatic observability through three layers:
 
@@ -217,6 +223,7 @@ git commit -m "docs(observability): add OTel Operator auto-instrumentation layer
 ### Task 3: Update security.md and contributing.md
 
 **Files:**
+
 - Modify: `architecture/security.md`
 - Modify: `architecture/contributing.md`
 
@@ -225,7 +232,7 @@ git commit -m "docs(observability): add OTel Operator auto-instrumentation layer
 In the Layer 5 box (around line 56), after `- Automatic secret rotation support`, add:
 
 ```markdown
-│  - Installed via Helm outside ArgoCD (only non-GitOps component)    │
+│ - Installed via Helm outside ArgoCD (only non-GitOps component) │
 ```
 
 **Step 2: Add root app-of-apps in contributing.md**
@@ -233,8 +240,8 @@ In the Layer 5 box (around line 56), after `- Automatic secret rotation support`
 In the ArgoCD Discovery Flow diagram, add to Step 4 (around line 51), before `│  ArgoCD runs "kustomize build"`:
 
 ```markdown
-│  The "canada" Application is the root app-of-apps.                 │
-│  It references all three environment overlays:                      │
+│ The "canada" Application is the root app-of-apps. │
+│ It references all three environment overlays: │
 ```
 
 **Step 3: Verify build**
@@ -254,6 +261,7 @@ git commit -m "docs: add 1Password deployment note and root app-of-apps referenc
 ### Task 4: Create architecture/agents.md
 
 **Files:**
+
 - Create: `architecture/agents.md`
 
 **Step 1: Write the agent platform architecture doc**
@@ -270,55 +278,56 @@ This document describes the agent infrastructure running in the cluster.
 The agent platform enables autonomous AI agents to execute tasks with access to cluster tooling. It spans three environments: a cluster-critical controller, production agent runtimes and tool servers, and development sandboxes.
 
 ## Component Map
-
 ```
+
 ┌─────────────────────────────────────────────────────────────────────┐
-│                     Agent Sandbox Controller                         │
-│                     (cluster-critical)                               │
+│ Agent Sandbox Controller │
+│ (cluster-critical) │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Manages lifecycle of isolated agent pods across namespaces         │
-│  Charts: charts/agent-sandbox                                       │
+│ Manages lifecycle of isolated agent pods across namespaces │
+│ Charts: charts/agent-sandbox │
 └────────────────────────────────┬────────────────────────────────────┘
-                                 │ creates pods
-                                 ▼
+│ creates pods
+▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        Agent Runtimes                                │
+│ Agent Runtimes │
 ├──────────────────────────────┬──────────────────────────────────────┤
-│  Goose Sandboxes (prod)      │  Grimoire (dev)                      │
-│  Autonomous coding agents    │  D&D knowledge management            │
-│  charts/goose-sandboxes      │  charts/grimoire                     │
+│ Goose Sandboxes (prod) │ Grimoire (dev) │
+│ Autonomous coding agents │ D&D knowledge management │
+│ charts/goose-sandboxes │ charts/grimoire │
 └──────────────────────────────┴──────────────────────────────────────┘
-                                 │
-                                 │ LLM requests
-                                 ▼
+│
+│ LLM requests
+▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                           LiteLLM                                    │
-│                           (prod)                                     │
+│ LiteLLM │
+│ (prod) │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Unified LLM API proxy — routes requests to:                        │
-│  - llama-cpp (local GPU inference)                                  │
-│  - External providers (Anthropic, OpenAI)                           │
-│  Charts: charts/litellm                                             │
+│ Unified LLM API proxy — routes requests to: │
+│ - llama-cpp (local GPU inference) │
+│ - External providers (Anthropic, OpenAI) │
+│ Charts: charts/litellm │
 └────────────────────────────────┬────────────────────────────────────┘
-                                 │
-                                 │ tool calls
-                                 ▼
+│
+│ tool calls
+▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    MCP Tool Infrastructure                           │
-│                    (prod, mcp-gateway namespace)                     │
+│ MCP Tool Infrastructure │
+│ (prod, mcp-gateway namespace) │
 ├──────────────────────────────┬──────────────────────────────────────┤
-│  Context Forge               │  MCP Servers                         │
-│  IBM MCP gateway that        │  Individual tool servers:            │
-│  aggregates and routes       │  - ArgoCD MCP                       │
-│  tool calls to backends      │  - Kubernetes MCP                   │
-│                              │  - BuildBuddy MCP                   │
-│  charts/context-forge        │  - SigNoz MCP                       │
-│                              │  charts/mcp-servers                  │
+│ Context Forge │ MCP Servers │
+│ IBM MCP gateway that │ Individual tool servers: │
+│ aggregates and routes │ - ArgoCD MCP │
+│ tool calls to backends │ - Kubernetes MCP │
+│ │ - BuildBuddy MCP │
+│ charts/context-forge │ - SigNoz MCP │
+│ │ charts/mcp-servers │
 ├──────────────────────────────┴──────────────────────────────────────┤
-│  MCP OAuth Proxy                                                    │
-│  OAuth 2.1 auth layer for remote MCP access (e.g., Claude Desktop) │
-│  charts/mcp-oauth-proxy                                             │
+│ MCP OAuth Proxy │
+│ OAuth 2.1 auth layer for remote MCP access (e.g., Claude Desktop) │
+│ charts/mcp-oauth-proxy │
 └─────────────────────────────────────────────────────────────────────┘
+
 ```
 
 ## Request Flow
@@ -360,6 +369,7 @@ git commit -m "docs: add agent platform architecture overview"
 ### Task 5: Create architecture/decisions/index.md
 
 **Files:**
+
 - Create: `architecture/decisions/index.md`
 
 **Step 1: Write the ADR index page**
@@ -373,31 +383,31 @@ ADRs document significant architectural decisions and their context.
 
 ## Agents
 
-| ADR | Decision |
-|-----|----------|
-| [001 - Background Agents](agents/001-background-agents.md) | Kubernetes-native agent execution with sandbox isolation |
-| [002 - OpenHands Agent Sandbox](agents/002-openhands-agent-sandbox.md) | OpenHands as the agent runtime framework |
-| [003 - Context Forge](agents/003-context-forge.md) | IBM Context Forge as the MCP gateway |
-| [004 - Autonomous Agents](agents/004-autonomous-agents.md) | Design for fully autonomous agent workflows |
-| [005 - Role-Based MCP Access](agents/005-role-based-mcp-access.md) | Role-based access control for MCP tool servers |
-| [006 - OIDC Auth MCP Gateway](agents/006-oidc-auth-mcp-gateway.md) | OAuth 2.1 / OIDC authentication for remote MCP access |
+| ADR                                                                    | Decision                                                 |
+| ---------------------------------------------------------------------- | -------------------------------------------------------- |
+| [001 - Background Agents](agents/001-background-agents.md)             | Kubernetes-native agent execution with sandbox isolation |
+| [002 - OpenHands Agent Sandbox](agents/002-openhands-agent-sandbox.md) | OpenHands as the agent runtime framework                 |
+| [003 - Context Forge](agents/003-context-forge.md)                     | IBM Context Forge as the MCP gateway                     |
+| [004 - Autonomous Agents](agents/004-autonomous-agents.md)             | Design for fully autonomous agent workflows              |
+| [005 - Role-Based MCP Access](agents/005-role-based-mcp-access.md)     | Role-based access control for MCP tool servers           |
+| [006 - OIDC Auth MCP Gateway](agents/006-oidc-auth-mcp-gateway.md)     | OAuth 2.1 / OIDC authentication for remote MCP access    |
 
 ## Docs
 
-| ADR | Decision |
-|-----|----------|
+| ADR                                                    | Decision                                 |
+| ------------------------------------------------------ | ---------------------------------------- |
 | [001 - Static Docs Site](docs/001-static-docs-site.md) | VitePress for architecture documentation |
 
 ## Networking
 
-| ADR | Decision |
-|-----|----------|
+| ADR                                                                          | Decision                                      |
+| ---------------------------------------------------------------------------- | --------------------------------------------- |
 | [001 - Cloudflare Envoy Gateway](networking/001-cloudflare-envoy-gateway.md) | Cloudflare Tunnel + Envoy Gateway for ingress |
 
 ## Security
 
-| ADR | Decision |
-|-----|----------|
+| ADR                                                  | Decision                                |
+| ---------------------------------------------------- | --------------------------------------- |
 | [001 - Bazel Semgrep](security/001-bazel-semgrep.md) | Semgrep SAST integrated via Bazel rules |
 ```
 
@@ -420,6 +430,7 @@ git commit -m "docs: add ADR index page"
 ### Task 6: Update VitePress Config and Homepage
 
 **Files:**
+
 - Modify: `websites/docs.jomcgi.dev/.vitepress/config.js`
 - Modify: `websites/docs.jomcgi.dev/index.md`
 
@@ -444,9 +455,9 @@ In the sidebar Architecture items array, add after Contributing:
 In the hero actions array, add back between Architecture and GitHub:
 
 ```yaml
-    - theme: alt
-      text: ADRs
-      link: /architecture/decisions/
+- theme: alt
+  text: ADRs
+  link: /architecture/decisions/
 ```
 
 **Step 4: Verify build (critical — checks for dead links)**

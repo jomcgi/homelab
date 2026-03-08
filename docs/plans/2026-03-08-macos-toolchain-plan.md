@@ -24,12 +24,12 @@ Add `ruff`, `shfmt`, `gofumpt`, and `gh` to `tools/tools.lock.json` with binarie
 
 For each tool, find the latest release on GitHub and get download URLs + SHA256 checksums for the three platforms. Use `curl -sL <url> | shasum -a 256` to compute checksums.
 
-| Tool | GitHub repo | Release asset pattern |
-|------|------------|----------------------|
-| ruff | astral-sh/ruff | `ruff-<version>-{x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu,aarch64-apple-darwin}.tar.gz` |
-| shfmt | mvdan/sh | `shfmt_<version>_{linux,darwin}_{amd64,arm64}` (kind: file) |
-| gofumpt | mvdan/gofumpt | `gofumpt_<version>_{linux,darwin}_{amd64,arm64}` (kind: file) |
-| gh | cli/cli | `gh_<version>_{linux,macOS}_{amd64,arm64}.tar.gz` |
+| Tool    | GitHub repo    | Release asset pattern                                                                             |
+| ------- | -------------- | ------------------------------------------------------------------------------------------------- |
+| ruff    | astral-sh/ruff | `ruff-<version>-{x86_64-unknown-linux-gnu,aarch64-unknown-linux-gnu,aarch64-apple-darwin}.tar.gz` |
+| shfmt   | mvdan/sh       | `shfmt_<version>_{linux,darwin}_{amd64,arm64}` (kind: file)                                       |
+| gofumpt | mvdan/gofumpt  | `gofumpt_<version>_{linux,darwin}_{amd64,arm64}` (kind: file)                                     |
+| gh      | cli/cli        | `gh_<version>_{linux,macOS}_{amd64,arm64}.tar.gz`                                                 |
 
 **Step 2: Add entries to tools.lock.json**
 
@@ -213,6 +213,7 @@ The node binary is typically at `@nodejs_<platform>//:node` or `@nodejs_<platfor
 **Step 2: Create platform-specific node tars**
 
 For each platform, create a genrule that:
+
 1. Copies the node binary to `/usr/bin/node`
 2. Copies pnpm (from `@pnpm`) to `/usr/bin/pnpm`
 3. Copies the prettier npm package to `/usr/local/lib/node_modules/prettier/`
@@ -294,6 +295,7 @@ py_venv_binary(
 ```
 
 **Alternative approach:** If `py_image_layer` only works for Linux container images (it may hardcode platform), use a genrule that:
+
 1. Copies the Python toolchain directory
 2. Uses `pip install --target` to install wheels
 3. Tars the result
@@ -313,6 +315,7 @@ If no macOS toolchain is registered, add one in MODULE.bazel.
 **Step 4: Create per-platform tars**
 
 One tar per platform containing:
+
 - `/usr/bin/python3` → Python interpreter
 - `/usr/lib/python3.13/` → stdlib
 - `/usr/lib/python3.13/site-packages/` → pip packages
