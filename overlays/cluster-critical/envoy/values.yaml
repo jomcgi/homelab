@@ -12,6 +12,8 @@ gateway-helm:
         limits:
           cpu: 500m
           memory: 512Mi
+      securityContext:
+        readOnlyRootFilesystem: true
 
   config:
     envoyGateway:
