@@ -27,8 +27,6 @@ This document provides an overview of all services running in the cluster.
 | **API Gateway**       | External service routing with rate limiting | [charts/api-gateway](../charts/api-gateway/)             |
 | **Cloudflare Tunnel** | Zero Trust ingress (no open firewall ports) | [charts/cloudflare-tunnel](../charts/cloudflare-tunnel/) |
 | **Context Forge**     | MCP gateway for aggregating tool servers    | [charts/context-forge](../charts/context-forge/)         |
-| **gh-arc-controller** | GitHub Actions Runner Controller            | [charts/gh-arc-controller](../charts/gh-arc-controller/) |
-| **gh-arc-runners**    | Self-hosted runners with Docker-in-Docker   | [charts/gh-arc-runners](../charts/gh-arc-runners/)       |
 | **Goose Sandboxes**   | Goose agent sandbox deployments             | [charts/goose-sandboxes](../charts/goose-sandboxes/)     |
 | **Knowledge Graph**   | RSS scraping, embedding, and MCP search     | [charts/knowledge-graph](../charts/knowledge-graph/)     |
 | **LiteLLM**           | LLM API proxy for agents                    | [charts/litellm](../charts/litellm/)                     |
