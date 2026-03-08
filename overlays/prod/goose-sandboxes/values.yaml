@@ -7,3 +7,41 @@ sandboxTemplate:
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
     tag: main@sha256:0870c284d94286c94b358c2da63b956542367d36e15ca2bbbf06b9efdeef33f0
+
+  # OpenTelemetry configuration for Goose agent observability.
+  #
+  # Goose (block/goose) has native OTEL support using the Rust opentelemetry SDK.
+  # It exports traces, metrics, and logs — but uses HTTP OTLP exclusively (port 4318),
+  # not gRPC. The Kyverno policy injects OTEL_EXPORTER_OTLP_ENDPOINT pointing to the
+  # gRPC port (4317), which Goose cannot use. We set signal-specific endpoints here
+  # (OTEL_EXPORTER_OTLP_{SIGNAL}_ENDPOINT) which take precedence over the generic
+  # Kyverno-injected endpoint per the OpenTelemetry specification.
+  #
+  # What this gives us in SigNoz:
+  #   - Traces: agent reply spans, tool dispatch spans, session spans
+  #   - Metrics: infrastructure metrics from the Goose runtime
+  #   - Logs: structured log output from Goose
+  #
+  # For LLM token metrics (gen_ai.usage.input_tokens, gen_ai.usage.output_tokens),
+  # see the LiteLLM overlay — LiteLLM emits these via its OTEL callback when
+  # requests are routed through it.
+  extraEnv:
+    # Signal-specific HTTP endpoints override Kyverno's generic gRPC endpoint.
+    - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+    - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+    - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+    # Explicitly enable OTLP export for all three signals.
+    - name: OTEL_TRACES_EXPORTER
+      value: "otlp"
+    - name: OTEL_METRICS_EXPORTER
+      value: "otlp"
+    - name: OTEL_LOGS_EXPORTER
+      value: "otlp"
+    # Service identity in SigNoz.
+    - name: OTEL_SERVICE_NAME
+      value: "goose-agent"
+    - name: OTEL_RESOURCE_ATTRIBUTES
+      value: "service.namespace=goose-sandboxes,deployment.environment=prod"

@@ -31,6 +31,14 @@ sandboxTemplate:
     limits:
       cpu: "4"
       memory: 8Gi
+  # Extra env vars injected into all goose containers (SandboxTemplate pods and long-lived agent Deployments).
+  # Use this to pass additional configuration without modifying the chart templates.
+  extraEnv: []
+  # Example:
+  # extraEnv:
+  #   - name: MY_VAR
+  #     value: my-value
+
   workspace:
     storageClassName: longhorn
     size: 20Gi
