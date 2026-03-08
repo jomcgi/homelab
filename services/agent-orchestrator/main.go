@@ -136,6 +136,13 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
+	// Reconcile orphaned jobs before starting the consumer.
+	// After a restart, jobs left in RUNNING state have lost their SPDY exec
+	// connection and sandbox claims are stale. Reset them for retry.
+	if sandbox != nil {
+		reconcileOrphanedJobs(ctx, store, publish, sandbox.dynClient, sandboxNamespace, logger)
+	}
+
 	// Start consumer if sandbox is available.
 	if sandbox != nil {
 		consumer := NewConsumer(cons, store, sandbox, maxDuration, logger)
