@@ -17,7 +17,7 @@ load("@bazel_env.bzl", "bazel_env")
 load("@bazelrc-preset.bzl", "bazelrc_preset")
 load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//tools:yo/package_json.bzl", yo_bin = "bin")
+load("@npm//bazel/tools:yo/package_json.bzl", yo_bin = "bin")
 load("@rules_python//python/entry_points:py_console_script_binary.bzl", "py_console_script_binary")
 
 package(default_visibility = ["//visibility:public"])
