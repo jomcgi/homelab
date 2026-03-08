@@ -111,10 +111,10 @@ Reference `architecture/security.md` for baseline. Document any deviations.
 
 ````
 
-### Step 3: Commit with `adr:` prefix
+### Step 3: Commit with conventional commit format
 
 ```bash
-git commit -m "adr: <short description>"
+git commit -m "docs(adr): <short description>"
 ````
 
 ## ADR Statuses
@@ -154,7 +154,7 @@ ADRs track their own work via markdown checklists in the Implementation section.
 
 - **File naming**: `architecture/decisions/<category>/NNN-<kebab-case-slug>.md`
 - **Numbering**: Sequential within each category (001, 002, ...). Numbers are never reused.
-- **Commit prefix**: `adr:` for new ADRs and updates
+- **Commit prefix**: `docs(adr):` for new ADRs and updates
 - **Diagrams**: Mermaid for all architecture and flow diagrams (renders natively on GitHub)
 - **Sections**: Problem → Proposal → Architecture → Implementation → Security → Risks → References
 - **Phased rollout**: Break implementation into MVP + phases with success criteria

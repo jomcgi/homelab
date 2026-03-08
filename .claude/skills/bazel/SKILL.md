@@ -79,37 +79,14 @@ bazel query "deps(//charts/todo/image:image)"
 
 ## Key Targets
 
-| Target                      | Description                    |
-| --------------------------- | ------------------------------ |
-| `//charts/todo/image:image` | Todo container image           |
-| `//charts/todo/image:push`  | Push Todo image to registry    |
-| `//tools/format:format`     | Format + render all (CI only)  |
-| `//tools:help`              | List all available targets     |
-| `//tools/cluster:pods`      | List pods in key namespaces    |
-| `//tools/cluster:events`    | Recent cluster events          |
-| `//tools/cluster:status`    | Cluster health summary         |
-| `//tools/cluster:argocd`    | ArgoCD application sync status |
+| Target                      | Description                 |
+| --------------------------- | --------------------------- |
+| `//charts/todo/image:image` | Todo container image        |
+| `//charts/todo/image:push`  | Push Todo image to registry |
+| `//tools/format:format`     | Format + render all (CI)    |
+| `//images:push_all`         | Push all container images   |
 
-### Cluster Inspection (Read-Only)
-
-Use these targets instead of raw kubectl for common inspection tasks:
-
-```bash
-# List pods across key namespaces
-bazel run //tools/cluster:pods
-
-# View recent cluster events
-bazel run //tools/cluster:events
-
-# Cluster health overview (nodes, resource counts)
-bazel run //tools/cluster:status
-
-# ArgoCD sync status for all applications
-bazel run //tools/cluster:argocd
-
-# Discover all available targets
-bazel run //tools:help
-```
+> **Cluster inspection:** Use MCP tools (`ToolSearch` with `+kubernetes`, `+argocd`) instead of `//tools/cluster:*` targets — those targets wrap kubectl commands which are blocked by PreToolUse hooks.
 
 ## Container Images with apko
 
@@ -158,5 +135,5 @@ Typical workflow after making changes:
 1. Edit code or chart files
 2. Run `format` to format and render
 3. Review changes with `git diff`
-4. Commit and push via `worktree` skill
-5. Create PR via `gh-pr` skill
+4. Commit with conventional commit format and push
+5. Create PR via `gh pr create`
