@@ -83,6 +83,7 @@ py_test(
     srcs = ["ships_api_test.py"],
     imports = [".."],
     deps = [
+        ":conftest",
         "//services/ships_api:ships-api",
         "@pip//fastapi",
         "@pip//pytest",
