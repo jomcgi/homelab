@@ -1,5 +1,37 @@
 {
   "$schema": "https://raw.githubusercontent.com/theoremlp/rules_multitool/main/lockfile.schema.json",
+  "argocd": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-arm64",
+        "sha256": "5d7ab2e2d667664f5522e76b25e92b46aaad13f9d5bee6c3fd0f17dea9ad9e66",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-amd64",
+        "sha256": "5a10d1ebc4b903c9cb56279f66ec983134c87c252d9a9d2596dde9867359ef67",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-darwin-arm64",
+        "sha256": "784becc286d9c3b5bb67a74019f1e453b7731bb2425798505ddc8188e808b649",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-darwin-amd64",
+        "sha256": "25f99b0b488a2cfe53a7d75983dfd8c132995758bd922b0f00072643bd792c54",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
+  },
   "aspect": {
     "binaries": [
       {
@@ -50,6 +82,42 @@
       }
     ]
   },
+  "crane": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Linux_arm64.tar.gz",
+        "file": "crane",
+        "sha256": "fc0515857bc38e4ddd2d37a5ab03fb5959449c7b2d4ad759bcc1174ac0cad91b",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Linux_x86_64.tar.gz",
+        "file": "crane",
+        "sha256": "c1d593d01551f2c9a3df5ca0a0be4385a839bd9b86d4a76e18d7b17d16559127",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Darwin_arm64.tar.gz",
+        "file": "crane",
+        "sha256": "ae30b28498de3e1ac51a37042eab46116ec70d86aa9d10431a1fbde35b9918b9",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Darwin_x86_64.tar.gz",
+        "file": "crane",
+        "sha256": "5c9ad72fff8e92466e6162274fda18a59d16629025c3f1eb43cb3de494cbddc5",
+        "os": "macos",
+        "cpu": "x86_64"
+      }
+    ]
+  },
   "gazelle": {
     "binaries": [
       {
@@ -72,6 +140,95 @@
         "sha256": "70b73d2333d08938ba05222072b31d587b22e1d122837572078cd24dd1d13585",
         "os": "macos",
         "cpu": "arm64"
+      }
+    ]
+  },
+  "gh": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/cli/cli/releases/download/v2.87.3/gh_2.87.3_linux_arm64.tar.gz",
+        "file": "gh_2.87.3_linux_arm64/bin/gh",
+        "sha256": "5f5d89563bf26751e2173b37e594065504e85b6b781c1f1832d24bf2c2b4554f",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/cli/cli/releases/download/v2.87.3/gh_2.87.3_linux_amd64.tar.gz",
+        "file": "gh_2.87.3_linux_amd64/bin/gh",
+        "sha256": "c6e5537631fca45f277ef405ce8751d139b491e9402cc20891a003525a8773b2",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/cli/cli/releases/download/v2.87.3/gh_2.87.3_macOS_arm64.zip",
+        "file": "gh_2.87.3_macOS_arm64/bin/gh",
+        "sha256": "dedfc6f569e9dbc5b92d47dce44acadbdf5b6b7a861510db0c748dfac55002f6",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "gofumpt": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/mvdan/gofumpt/releases/download/v0.9.2/gofumpt_v0.9.2_linux_arm64",
+        "sha256": "5acaa5a554050f55fc81ef02a8b0d14ab6b3c058a84513885286dc52d3451645",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/mvdan/gofumpt/releases/download/v0.9.2/gofumpt_v0.9.2_linux_amd64",
+        "sha256": "72cf61b12fef91eab6df6db4a4284f30616b5ead330112e28a1fa1cb15e57339",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/mvdan/gofumpt/releases/download/v0.9.2/gofumpt_v0.9.2_darwin_arm64",
+        "sha256": "c241fb742599a6cb0563d7377f59def65d451b23dd718dbc6ddf4ab5e695e8f1",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "helm": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-arm64.tar.gz",
+        "file": "linux-arm64/helm",
+        "sha256": "d3f8f15b3d9ec8c8678fbf3280c3e5902efabe5912e2f9fcf29107efbc8ead69",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz",
+        "file": "linux-amd64/helm",
+        "sha256": "fc307327959aa38ed8f9f7e66d45492bb022a66c3e5da6063958254b9767d179",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-darwin-arm64.tar.gz",
+        "file": "darwin-arm64/helm",
+        "sha256": "e2442d8f05d53d84c39b869bc5fe5affad247ee2f4c706a040919c146edb1f94",
+        "os": "macos",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://get.helm.sh/helm-v3.16.4-darwin-amd64.tar.gz",
+        "file": "darwin-amd64/helm",
+        "sha256": "8dc25671120a4af197afe7ad9041fb8e1dd71bc01e5ef73dba1139cbc9e9f44b",
+        "os": "macos",
+        "cpu": "x86_64"
       }
     ]
   },
@@ -168,35 +325,56 @@
       }
     ]
   },
-  "argocd": {
+  "ruff": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/astral-sh/ruff/releases/download/0.15.5/ruff-aarch64-unknown-linux-gnu.tar.gz",
+        "file": "ruff-aarch64-unknown-linux-gnu/ruff",
+        "sha256": "cd01e3c9df2d6c1324744883a796e6693642494f2f6222a4f158da36f84908ce",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/astral-sh/ruff/releases/download/0.15.5/ruff-x86_64-unknown-linux-gnu.tar.gz",
+        "file": "ruff-x86_64-unknown-linux-gnu/ruff",
+        "sha256": "ac0336520fd986b3bd7c510b1f9d3049e0d150ddaab754cfa5c5eaf8cbb840ce",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/astral-sh/ruff/releases/download/0.15.5/ruff-aarch64-apple-darwin.tar.gz",
+        "file": "ruff-aarch64-apple-darwin/ruff",
+        "sha256": "f39400f9504c940fa4eb46b02e2d4889a9f86b81ce4c57bda02ea3568894d094",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
+  "shfmt": {
     "binaries": [
       {
         "kind": "file",
-        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-arm64",
-        "sha256": "5d7ab2e2d667664f5522e76b25e92b46aaad13f9d5bee6c3fd0f17dea9ad9e66",
+        "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_arm64",
+        "sha256": "5f3fe3fa6a9f766e6a182ba79a94bef8afedafc57db0b1ad32b0f67fae971ba4",
         "os": "linux",
         "cpu": "arm64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-linux-amd64",
-        "sha256": "5a10d1ebc4b903c9cb56279f66ec983134c87c252d9a9d2596dde9867359ef67",
+        "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_linux_amd64",
+        "sha256": "d9fbb2a9c33d13f47e7618cf362a914d029d02a6df124064fff04fd688a745ea",
         "os": "linux",
         "cpu": "x86_64"
       },
       {
         "kind": "file",
-        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-darwin-arm64",
-        "sha256": "784becc286d9c3b5bb67a74019f1e453b7731bb2425798505ddc8188e808b649",
+        "url": "https://github.com/mvdan/sh/releases/download/v3.12.0/shfmt_v3.12.0_darwin_arm64",
+        "sha256": "d903802e0ce3ecbc82b98512f55ba370b0d37a93f3f78de394f5b657052b33dd",
         "os": "macos",
         "cpu": "arm64"
-      },
-      {
-        "kind": "file",
-        "url": "https://github.com/argoproj/argo-cd/releases/download/v2.13.2/argocd-darwin-amd64",
-        "sha256": "25f99b0b488a2cfe53a7d75983dfd8c132995758bd922b0f00072643bd792c54",
-        "os": "macos",
-        "cpu": "x86_64"
       }
     ]
   },
@@ -225,78 +403,6 @@
         "sha256": "15320c409f55f50ac052221a29eed269a3278ed67de7c5b2462f58bfae07a3fa",
         "os": "macos",
         "cpu": "arm64"
-      }
-    ]
-  },
-  "helm": {
-    "binaries": [
-      {
-        "kind": "archive",
-        "url": "https://get.helm.sh/helm-v3.16.4-linux-arm64.tar.gz",
-        "file": "linux-arm64/helm",
-        "sha256": "d3f8f15b3d9ec8c8678fbf3280c3e5902efabe5912e2f9fcf29107efbc8ead69",
-        "os": "linux",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://get.helm.sh/helm-v3.16.4-linux-amd64.tar.gz",
-        "file": "linux-amd64/helm",
-        "sha256": "fc307327959aa38ed8f9f7e66d45492bb022a66c3e5da6063958254b9767d179",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://get.helm.sh/helm-v3.16.4-darwin-arm64.tar.gz",
-        "file": "darwin-arm64/helm",
-        "sha256": "e2442d8f05d53d84c39b869bc5fe5affad247ee2f4c706a040919c146edb1f94",
-        "os": "macos",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://get.helm.sh/helm-v3.16.4-darwin-amd64.tar.gz",
-        "file": "darwin-amd64/helm",
-        "sha256": "8dc25671120a4af197afe7ad9041fb8e1dd71bc01e5ef73dba1139cbc9e9f44b",
-        "os": "macos",
-        "cpu": "x86_64"
-      }
-    ]
-  },
-  "crane": {
-    "binaries": [
-      {
-        "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Linux_arm64.tar.gz",
-        "file": "crane",
-        "sha256": "fc0515857bc38e4ddd2d37a5ab03fb5959449c7b2d4ad759bcc1174ac0cad91b",
-        "os": "linux",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Linux_x86_64.tar.gz",
-        "file": "crane",
-        "sha256": "c1d593d01551f2c9a3df5ca0a0be4385a839bd9b86d4a76e18d7b17d16559127",
-        "os": "linux",
-        "cpu": "x86_64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Darwin_arm64.tar.gz",
-        "file": "crane",
-        "sha256": "ae30b28498de3e1ac51a37042eab46116ec70d86aa9d10431a1fbde35b9918b9",
-        "os": "macos",
-        "cpu": "arm64"
-      },
-      {
-        "kind": "archive",
-        "url": "https://github.com/google/go-containerregistry/releases/download/v0.20.6/go-containerregistry_Darwin_x86_64.tar.gz",
-        "file": "crane",
-        "sha256": "5c9ad72fff8e92466e6162274fda18a59d16629025c3f1eb43cb3de494cbddc5",
-        "os": "macos",
-        "cpu": "x86_64"
       }
     ]
   }
