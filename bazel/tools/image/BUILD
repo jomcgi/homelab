@@ -185,7 +185,7 @@ oci_push(
 
 semgrep_target_test(
     name = "python_deps_semgrep_test",
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":python_deps",
 )
 

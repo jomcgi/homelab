@@ -17,6 +17,6 @@ py_library(
 
 semgrep_target_test(
     name = "rewrite_semgrep_test",
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
     target = ":rewrite",
 )

@@ -9,9 +9,9 @@ import (
 
 // langRules maps language keys to their semgrep rule config labels.
 var langRules = map[string]string{
-	"py": "//semgrep_rules:python_rules",
-	"go": "//semgrep_rules:golang_rules",
-	"js": "//semgrep_rules:javascript_rules",
+	"py": "//bazel/semgrep/rules:python_rules",
+	"go": "//bazel/semgrep/rules:golang_rules",
+	"js": "//bazel/semgrep/rules:javascript_rules",
 }
 
 // langExtensions maps language keys to their file extensions.

@@ -23,9 +23,9 @@ var defaultLockfiles = map[string]string{
 
 // defaultScaRules maps ecosystem keys to per-ecosystem SCA rule labels.
 var defaultScaRules = map[string]string{
-	"pip":   "//semgrep_rules:sca_python_rules",
-	"pnpm":  "//semgrep_rules:sca_javascript_rules",
-	"gomod": "//semgrep_rules:sca_golang_rules",
+	"pip":   "//bazel/semgrep/rules:sca_python_rules",
+	"pnpm":  "//bazel/semgrep/rules:sca_javascript_rules",
+	"gomod": "//bazel/semgrep/rules:sca_golang_rules",
 }
 
 // detectLockfiles inspects a target's deps for external dependency prefixes

@@ -367,8 +367,8 @@ func TestGenerateRules_WithBinary(t *testing.T) {
 		t.Errorf("rule[0] target = %q, want %q", targetRule.AttrString("target"), ":main")
 	}
 	targetRules := targetRule.AttrStrings("rules")
-	if len(targetRules) != 1 || targetRules[0] != "//semgrep_rules:python_rules" {
-		t.Errorf("rule[0] rules = %v, want [//semgrep_rules:python_rules]", targetRules)
+	if len(targetRules) != 1 || targetRules[0] != "//bazel/semgrep/rules:python_rules" {
+		t.Errorf("rule[0] rules = %v, want [//bazel/semgrep/rules:python_rules]", targetRules)
 	}
 
 	// Remaining rules: per-file semgrep_test for orphans (sorted: __init__.py, utils.py)
@@ -864,8 +864,8 @@ func TestGenerateRules_Py3ImageTargetKind(t *testing.T) {
 		t.Errorf("target = %q, want //services/knowledge_graph/app:scraper", r.AttrString("target"))
 	}
 	rulesList := r.AttrStrings("rules")
-	if len(rulesList) != 1 || rulesList[0] != "//semgrep_rules:python_rules" {
-		t.Errorf("rules = %v, want [//semgrep_rules:python_rules]", rulesList)
+	if len(rulesList) != 1 || rulesList[0] != "//bazel/semgrep/rules:python_rules" {
+		t.Errorf("rules = %v, want [//bazel/semgrep/rules:python_rules]", rulesList)
 	}
 }
 
@@ -944,11 +944,11 @@ func TestGenerateRules_LanguageRulesConfig(t *testing.T) {
 	if len(rules) != 2 {
 		t.Fatalf("rules = %v, want 2 entries", rules)
 	}
-	if rules[0] != "//semgrep_rules:golang_rules" {
-		t.Errorf("rules[0] = %q, want //semgrep_rules:golang_rules", rules[0])
+	if rules[0] != "//bazel/semgrep/rules:golang_rules" {
+		t.Errorf("rules[0] = %q, want //bazel/semgrep/rules:golang_rules", rules[0])
 	}
-	if rules[1] != "//semgrep_rules:python_rules" {
-		t.Errorf("rules[1] = %q, want //semgrep_rules:python_rules", rules[1])
+	if rules[1] != "//bazel/semgrep/rules:python_rules" {
+		t.Errorf("rules[1] = %q, want //bazel/semgrep/rules:python_rules", rules[1])
 	}
 }
 
@@ -983,8 +983,8 @@ func TestGenerateRules_MultiLangOrphans(t *testing.T) {
 		t.Errorf("rule[0] name = %q, want main_semgrep_test", pyRule.Name())
 	}
 	pyRules := pyRule.AttrStrings("rules")
-	if len(pyRules) != 1 || pyRules[0] != "//semgrep_rules:python_rules" {
-		t.Errorf("py file rules = %v, want [//semgrep_rules:python_rules]", pyRules)
+	if len(pyRules) != 1 || pyRules[0] != "//bazel/semgrep/rules:python_rules" {
+		t.Errorf("py file rules = %v, want [//bazel/semgrep/rules:python_rules]", pyRules)
 	}
 
 	// .go file gets golang_rules
@@ -993,8 +993,8 @@ func TestGenerateRules_MultiLangOrphans(t *testing.T) {
 		t.Errorf("rule[1] name = %q, want utils_semgrep_test", goRule.Name())
 	}
 	goRules := goRule.AttrStrings("rules")
-	if len(goRules) != 1 || goRules[0] != "//semgrep_rules:golang_rules" {
-		t.Errorf("go file rules = %v, want [//semgrep_rules:golang_rules]", goRules)
+	if len(goRules) != 1 || goRules[0] != "//bazel/semgrep/rules:golang_rules" {
+		t.Errorf("go file rules = %v, want [//bazel/semgrep/rules:golang_rules]", goRules)
 	}
 }
 
@@ -1006,7 +1006,7 @@ func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:     true,
 				scaEnabled:  true,
-				scaRules:    map[string]string{"pip": "//semgrep_rules:sca_python_rules"},
+				scaRules:    map[string]string{"pip": "//bazel/semgrep/rules:sca_python_rules"},
 				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
@@ -1042,8 +1042,8 @@ func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
 	}
 
 	scaRules := targetRule.AttrStrings("sca_rules")
-	if len(scaRules) != 1 || scaRules[0] != "//semgrep_rules:sca_python_rules" {
-		t.Errorf("sca_rules = %v, want [//semgrep_rules:sca_python_rules]", scaRules)
+	if len(scaRules) != 1 || scaRules[0] != "//bazel/semgrep/rules:sca_python_rules" {
+		t.Errorf("sca_rules = %v, want [//bazel/semgrep/rules:sca_python_rules]", scaRules)
 	}
 }
 
@@ -1124,12 +1124,12 @@ func TestGenerateRules_MultipleDepsMultipleEcosystems(t *testing.T) {
 	if len(scaRules) != 2 {
 		t.Fatalf("expected 2 sca_rules, got %v", scaRules)
 	}
-	// Sorted: //semgrep_rules:sca_golang_rules before //semgrep_rules:sca_python_rules
-	if scaRules[0] != "//semgrep_rules:sca_golang_rules" {
-		t.Errorf("sca_rules[0] = %q, want //semgrep_rules:sca_golang_rules", scaRules[0])
+	// Sorted: //bazel/semgrep/rules:sca_golang_rules before //bazel/semgrep/rules:sca_python_rules
+	if scaRules[0] != "//bazel/semgrep/rules:sca_golang_rules" {
+		t.Errorf("sca_rules[0] = %q, want //bazel/semgrep/rules:sca_golang_rules", scaRules[0])
 	}
-	if scaRules[1] != "//semgrep_rules:sca_python_rules" {
-		t.Errorf("sca_rules[1] = %q, want //semgrep_rules:sca_python_rules", scaRules[1])
+	if scaRules[1] != "//bazel/semgrep/rules:sca_python_rules" {
+		t.Errorf("sca_rules[1] = %q, want //bazel/semgrep/rules:sca_python_rules", scaRules[1])
 	}
 }
 
