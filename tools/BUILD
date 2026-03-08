@@ -65,6 +65,10 @@ bazel_env(
         "helm": MULTITOOL_TOOLS["helm"],
         "kind": MULTITOOL_TOOLS["kind"],
         "crane": MULTITOOL_TOOLS["crane"],
+        "gh": MULTITOOL_TOOLS["gh"],
+        "gofumpt": MULTITOOL_TOOLS["gofumpt"],
+        "ruff": MULTITOOL_TOOLS["ruff"],
+        "shfmt": MULTITOOL_TOOLS["shfmt"],
         # Advent of Code CLI
         "advent": "//advent_of_code/cmd/aoc",
         # HuggingFace model tools
