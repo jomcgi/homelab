@@ -411,6 +411,6 @@ func (e *errOnPutStore) Delete(ctx context.Context, id string) error {
 	return e.inner.Delete(ctx, id)
 }
 
-func (e *errOnPutStore) List(ctx context.Context, statusFilter []string, limit, offset int) ([]JobRecord, int, error) {
-	return e.inner.List(ctx, statusFilter, limit, offset)
+func (e *errOnPutStore) List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error) {
+	return e.inner.List(ctx, statusFilter, tagFilter, limit, offset)
 }

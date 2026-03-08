@@ -91,6 +91,7 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		UpdatedAt:  now,
 		MaxRetries: maxRetries,
 		Source:     source,
+		Tags:       req.Tags,
 		Attempts:   []Attempt{},
 	}
 
@@ -142,7 +143,12 @@ func (a *API) handleList(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	jobs, total, err := a.store.List(r.Context(), statusFilter, limit, offset)
+	var tagFilter []string
+	if t := q.Get("tags"); t != "" {
+		tagFilter = strings.Split(t, ",")
+	}
+
+	jobs, total, err := a.store.List(r.Context(), statusFilter, tagFilter, limit, offset)
 	if err != nil {
 		a.logger.Error("failed to list jobs", "error", err)
 		a.writeError(w, http.StatusInternalServerError, "failed to list jobs")

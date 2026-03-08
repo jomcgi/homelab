@@ -31,7 +31,7 @@ type RunnerStatusFunc func(ctx context.Context, sandboxClaimName string) (state 
 //     - Reset to PENDING for retry (or FAILED if retries exhausted)
 //     - Re-publish to NATS stream
 func reconcileOrphanedJobs(ctx context.Context, store Store, publish func(string) error, dynClient dynamic.Interface, namespace string, checkRunner RunnerStatusFunc, logger *slog.Logger) {
-	jobs, _, err := store.List(ctx, []string{string(JobRunning)}, 100, 0)
+	jobs, _, err := store.List(ctx, []string{string(JobRunning)}, nil, 100, 0)
 	if err != nil {
 		logger.Error("reconcile: failed to list running jobs", "error", err)
 		return

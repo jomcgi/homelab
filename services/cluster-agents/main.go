@@ -21,19 +21,12 @@ func main() {
 	signozURL := envOr("SIGNOZ_URL", "http://signoz.signoz.svc.cluster.local:8080")
 	signozToken := os.Getenv("SIGNOZ_API_KEY")
 	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080")
-	githubToken := os.Getenv("GITHUB_TOKEN")
-	githubRepo := envOr("GITHUB_REPO", "jomcgi/homelab")
 	httpPort := envOr("HTTP_PORT", "8080")
 	patrolInterval := envDurationOr("PATROL_INTERVAL", 1*time.Hour)
 
 	collector := NewAlertCollector(signozURL, signozToken)
-
-	var github *GitHubPRChecker
-	if githubToken != "" {
-		github = NewGitHubPRChecker("https://api.github.com", githubToken, githubRepo)
-	}
 	orchestrator := NewOrchestratorClient(orchestratorURL)
-	escalator := NewEscalator(github, orchestrator)
+	escalator := NewEscalator(orchestrator)
 
 	patrol := NewPatrolAgent(collector, escalator, patrolInterval)
 	runner := NewRunner([]Agent{patrol})

@@ -146,7 +146,7 @@ func TestListWithStatusFilter(t *testing.T) {
 	}
 
 	// List all.
-	got, total, err := store.List(ctx, nil, 100, 0)
+	got, total, err := store.List(ctx, nil, nil, 100, 0)
 	if err != nil {
 		t.Fatalf("List all: %v", err)
 	}
@@ -158,7 +158,7 @@ func TestListWithStatusFilter(t *testing.T) {
 	}
 
 	// Filter by PENDING.
-	got, total, err = store.List(ctx, []string{"PENDING"}, 100, 0)
+	got, total, err = store.List(ctx, []string{"PENDING"}, nil, 100, 0)
 	if err != nil {
 		t.Fatalf("List PENDING: %v", err)
 	}
@@ -172,7 +172,7 @@ func TestListWithStatusFilter(t *testing.T) {
 	}
 
 	// Filter by RUNNING.
-	got, total, err = store.List(ctx, []string{"RUNNING"}, 100, 0)
+	got, total, err = store.List(ctx, []string{"RUNNING"}, nil, 100, 0)
 	if err != nil {
 		t.Fatalf("List RUNNING: %v", err)
 	}
@@ -198,7 +198,7 @@ func TestListPagination(t *testing.T) {
 	}
 
 	// First page.
-	got, total, err := store.List(ctx, nil, 2, 0)
+	got, total, err := store.List(ctx, nil, nil, 2, 0)
 	if err != nil {
 		t.Fatalf("List page 1: %v", err)
 	}
@@ -210,7 +210,7 @@ func TestListPagination(t *testing.T) {
 	}
 
 	// Second page.
-	got, total, err = store.List(ctx, nil, 2, 2)
+	got, total, err = store.List(ctx, nil, nil, 2, 2)
 	if err != nil {
 		t.Fatalf("List page 2: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestListPagination(t *testing.T) {
 	}
 
 	// Beyond last page.
-	got, total, err = store.List(ctx, nil, 2, 10)
+	got, total, err = store.List(ctx, nil, nil, 2, 10)
 	if err != nil {
 		t.Fatalf("List beyond: %v", err)
 	}

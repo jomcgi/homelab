@@ -30,6 +30,7 @@ type JobRecord struct {
 	UpdatedAt  time.Time `json:"updated_at"`
 	MaxRetries int       `json:"max_retries"`
 	Source     string    `json:"source"`
+	Tags       []string  `json:"tags,omitempty"`
 
 	// Reserved for webhook/DLQ integration.
 	GithubIssue    int    `json:"github_issue,omitempty"`
@@ -52,10 +53,11 @@ type Attempt struct {
 
 // SubmitRequest is the JSON body for POST /jobs.
 type SubmitRequest struct {
-	Task       string `json:"task"`
-	Profile    string `json:"profile,omitempty"`
-	MaxRetries *int   `json:"max_retries,omitempty"`
-	Source     string `json:"source,omitempty"`
+	Task       string   `json:"task"`
+	Profile    string   `json:"profile,omitempty"`
+	MaxRetries *int     `json:"max_retries,omitempty"`
+	Source     string   `json:"source,omitempty"`
+	Tags       []string `json:"tags,omitempty"`
 }
 
 // SubmitResponse is returned after a job is created.
