@@ -17,13 +17,13 @@ func TestPatrolAgent_AnalyzeConvertsAllFindingsToJobs(t *testing.T) {
 			Fingerprint: "patrol.alert.1",
 			Severity:    SeverityCritical,
 			Title:       "Pod OOMKilled",
-			Data:        map[string]any{"rule_id": 1},
+			Data:        map[string]any{"rule_id": "1"},
 		},
 		{
 			Fingerprint: "patrol.alert.2",
 			Severity:    SeverityWarning,
 			Title:       "High Error Rate",
-			Data:        map[string]any{"rule_id": 2},
+			Data:        map[string]any{"rule_id": "2"},
 		},
 	}
 
@@ -58,10 +58,8 @@ func TestPatrolAgent_CollectAggregatesFromCollector(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := alertRulesResponse{
 			Status: "success",
-			Data: alertRulesData{
-				Rules: []alertRule{
-					{ID: 10, Name: "Test Alert", State: "firing", Severity: "critical"},
-				},
+			Data: []alertRule{
+				{ID: "rule-10", Name: "Test Alert", State: "active", Severity: "critical"},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)

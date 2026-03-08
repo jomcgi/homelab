@@ -47,7 +47,7 @@ resources:
     memory: 256Mi
 
 config:
-  signozUrl: "http://signoz-query-service.signoz.svc.cluster.local:8080"
+  signozUrl: "http://signoz.signoz.svc.cluster.local:8080"
   orchestratorUrl: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
   githubRepo: "jomcgi/homelab"
   httpPort: "8080"
