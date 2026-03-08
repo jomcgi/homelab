@@ -572,9 +572,7 @@ class TestJetStreamReplay:
         import nats
 
         state.js = AsyncMock()
-        state.js.pull_subscribe = AsyncMock(
-            side_effect=nats.js.errors.NotFoundError()
-        )
+        state.js.pull_subscribe = AsyncMock(side_effect=nats.js.errors.NotFoundError())
 
         # Should not raise; state should remain empty.
         await state.replay_stream()
