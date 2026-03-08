@@ -1,6 +1,5 @@
 # SLO alert defaults
 sloDefaults:
-  window: 7d
   severity: critical
   channels:
     - incidentio

@@ -10,7 +10,6 @@ Required fields in .slo:
   - filter: string (SigNoz filter expression, e.g., "http.url = 'https://...'")
 
 Optional fields in .slo (with defaults from .defaults):
-  - target: float (availability percent, default 99.9)
   - op: string (comparison operator, default "2" = less than)
   - threshold: number (value to compare against, default 1)
   - severity: string (default "critical")
@@ -20,12 +19,15 @@ Optional fields in .slo (with defaults from .defaults):
   - timeAggregation: string (default "avg")
 */}}
 {{- define "signoz-alerts.slo" -}}
+{{- if not .slo.name }}{{ fail "signoz-alerts.slo: .slo.name is required" }}{{ end }}
+{{- if not .slo.metric }}{{ fail "signoz-alerts.slo: .slo.metric is required" }}{{ end }}
+{{- if not .slo.filter }}{{ fail "signoz-alerts.slo: .slo.filter is required" }}{{ end }}
 {{- $slo := .slo }}
 {{- $defaults := .defaults }}
 {{- $severity := $slo.severity | default $defaults.severity | default "critical" }}
 {{- $channels := $slo.channels | default $defaults.channels | default (list "incidentio") }}
 {{- $op := $slo.op | default "2" }}
-{{- $threshold := $slo.threshold | default 1 }}
+{{- $threshold := ternary $slo.threshold 1 (hasKey $slo "threshold") }}
 {{- $spaceAgg := $slo.spaceAggregation | default "max" }}
 {{- $timeAgg := $slo.timeAggregation | default "avg" }}
 {{- $groupBy := $slo.groupBy | default list }}
