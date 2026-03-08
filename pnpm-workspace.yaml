@@ -1,7 +1,7 @@
 # See https://pnpm.io/pnpm-workspace_yaml
 packages:
   - packages/*
-  - tools
+  - bazel/tools
   - websites/ships.jomcgi.dev
   - websites/trips.jomcgi.dev
   - websites/jomcgi.dev
