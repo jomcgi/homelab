@@ -18,7 +18,7 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	signozURL := envOr("SIGNOZ_URL", "http://signoz-query-service.signoz.svc.cluster.local:8080")
+	signozURL := envOr("SIGNOZ_URL", "http://signoz.signoz.svc.cluster.local:8080")
 	signozToken := os.Getenv("SIGNOZ_API_KEY")
 	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080")
 	githubToken := os.Getenv("GITHUB_TOKEN")

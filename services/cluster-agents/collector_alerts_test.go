@@ -15,28 +15,26 @@ func TestAlertCollector_FiringAlerts(t *testing.T) {
 		}
 		resp := alertRulesResponse{
 			Status: "success",
-			Data: alertRulesData{
-				Rules: []alertRule{
-					{
-						ID:       42,
-						Name:     "Pod OOMKilled",
-						State:    "firing",
-						Severity: "warning",
-						Labels:   map[string]string{"namespace": "trips", "service": "imgproxy"},
-					},
-					{
-						ID:       43,
-						Name:     "Node NotReady",
-						State:    "inactive",
-						Severity: "critical",
-					},
-					{
-						ID:       44,
-						Name:     "High Error Rate",
-						State:    "firing",
-						Severity: "critical",
-						Labels:   map[string]string{"service": "api-gateway"},
-					},
+			Data: []alertRule{
+				{
+					ID:       "rule-42",
+					Name:     "Pod OOMKilled",
+					State:    "active",
+					Severity: "warning",
+					Labels:   map[string]string{"namespace": "trips", "service": "imgproxy"},
+				},
+				{
+					ID:       "rule-43",
+					Name:     "Node NotReady",
+					State:    "inactive",
+					Severity: "critical",
+				},
+				{
+					ID:       "rule-44",
+					Name:     "High Error Rate",
+					State:    "active",
+					Severity: "critical",
+					Labels:   map[string]string{"service": "api-gateway"},
 				},
 			},
 		}
@@ -51,17 +49,17 @@ func TestAlertCollector_FiringAlerts(t *testing.T) {
 	}
 
 	if len(findings) != 2 {
-		t.Fatalf("expected 2 findings (only firing), got %d", len(findings))
+		t.Fatalf("expected 2 findings (only active), got %d", len(findings))
 	}
 
-	if findings[0].Fingerprint != "patrol.alert.42" {
-		t.Errorf("expected fingerprint patrol.alert.42, got %s", findings[0].Fingerprint)
+	if findings[0].Fingerprint != "patrol.alert.rule-42" {
+		t.Errorf("expected fingerprint patrol.alert.rule-42, got %s", findings[0].Fingerprint)
 	}
 	if findings[0].Severity != SeverityWarning {
 		t.Errorf("expected warning severity, got %s", findings[0].Severity)
 	}
-	if findings[1].Fingerprint != "patrol.alert.44" {
-		t.Errorf("expected fingerprint patrol.alert.44, got %s", findings[1].Fingerprint)
+	if findings[1].Fingerprint != "patrol.alert.rule-44" {
+		t.Errorf("expected fingerprint patrol.alert.rule-44, got %s", findings[1].Fingerprint)
 	}
 	if findings[1].Severity != SeverityCritical {
 		t.Errorf("expected critical severity, got %s", findings[1].Severity)
@@ -72,10 +70,8 @@ func TestAlertCollector_NoFiringAlerts(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := alertRulesResponse{
 			Status: "success",
-			Data: alertRulesData{
-				Rules: []alertRule{
-					{ID: 1, Name: "Healthy", State: "inactive", Severity: "warning"},
-				},
+			Data: []alertRule{
+				{ID: "rule-1", Name: "Healthy", State: "inactive", Severity: "warning"},
 			},
 		}
 		json.NewEncoder(w).Encode(resp)
