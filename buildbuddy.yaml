@@ -97,9 +97,9 @@ actions:
         merge_with_base: false
     steps:
       - run: |
-          # Skip automated commits
+          # Skip image-updater commits (digest-only bumps, no code to test)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -108,7 +108,7 @@ actions:
       # Push images on main branch only
       - run: |
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ]; then
             exit 0
           fi
 
@@ -126,7 +126,7 @@ actions:
       # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
       - run: |
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ]; then
             exit 0
           fi
 
