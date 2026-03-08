@@ -38,7 +38,23 @@ spec:
       containers:
         - name: goose
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
-          command: ["sleep", "infinity"]
+          command: ["agent-runner"]
+          ports:
+            - name: runner
+              containerPort: 8081
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 2
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8081
+            initialDelaySeconds: 2
+            periodSeconds: 5
           workingDir: /workspace/{{ .Values.sandboxTemplate.env.repoName }}
           securityContext:
             runAsUser: 65532
@@ -76,9 +92,6 @@ spec:
                   name: goose-mcp-tokens
                   key: CI_DEBUG_MCP_TOKEN
                   optional: true
-            {{- if .Values.sandboxTemplate.extraEnv }}
-            {{- toYaml .Values.sandboxTemplate.extraEnv | nindent 12 }}
-            {{- end }}
           resources:
             {{- toYaml .Values.sandboxTemplate.resources | nindent 12 }}
           volumeMounts:
