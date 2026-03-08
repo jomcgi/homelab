@@ -2,7 +2,7 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
 sh_binary(
     name = "signoz-mcp-wrapper",

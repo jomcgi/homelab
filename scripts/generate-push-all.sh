@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
-BUILD_FILE="images/BUILD"
+BUILD_FILE="bazel/images/BUILD"
 
 # Image macros that generate .push targets (go_image, py3_image, apko_image, apko_nginx_frontend)
 # Also matches raw oci_push targets (used by tools/image which doesn't use a macro wrapper)
@@ -80,7 +80,7 @@ if [ -z "$PUSH_TARGETS" ]; then
 fi
 
 # Create images directory if it doesn't exist
-mkdir -p images
+mkdir -p bazel/images
 
 # Generate the complete BUILD file
 cat >"$BUILD_FILE" <<'HEADER'

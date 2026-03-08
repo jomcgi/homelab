@@ -1,6 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
-load("//tools/oci:py3_image.bzl", "py3_image")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
+load("//bazel/tools/oci:py3_image.bzl", "py3_image")
 
 py_library(
     name = "buildbuddy_mcp",

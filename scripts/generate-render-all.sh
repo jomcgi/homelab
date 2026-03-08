@@ -4,7 +4,7 @@ set -euo pipefail
 
 cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
-BUILD_DIR="tools/argocd-parallel"
+BUILD_DIR="bazel/tools/argocd-parallel"
 BUILD_FILE="$BUILD_DIR/BUILD"
 
 # Create directory if it doesn't exist

@@ -128,7 +128,7 @@ Usage across the repo:
 
 ```python
 # architecture/BUILD
-load("//rules_vitepress:defs.bzl", "vitepress_filegroup")
+load("//bazel/vitepress:defs.bzl", "vitepress_filegroup")
 
 vitepress_filegroup(
     name = "docs",
@@ -174,7 +174,7 @@ wires up deployment.
 
 ```python
 # websites/docs.jomcgi.dev/BUILD
-load("//rules_vitepress:site.bzl", "vitepress_site")
+load("//bazel/vitepress:site.bzl", "vitepress_site")
 
 vitepress_site(
     name = "docs",

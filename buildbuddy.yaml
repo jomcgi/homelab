@@ -28,7 +28,7 @@ actions:
             @aspect_rules_lint//format:shfmt \
             @aspect_rules_lint//format:gofumpt \
             @buildifier_prebuilt//:buildifier \
-            //tools/format:prettier \
+            //bazel/tools/format:prettier \
             //:gazelle
           BAZEL_BIN=$(bazel info bazel-bin)
           # Create a local bin dir with symlinks to Bazel-built tools
@@ -45,7 +45,7 @@ actions:
 
           # Run standalone format (formatters + generate scripts)
           # Skip standalone gazelle in CI — bazel run handles it below
-          SKIP_GAZELLE=1 ./tools/format/fast-format.sh
+          SKIP_GAZELLE=1 ./bazel/tools/format/fast-format.sh
 
           # Run gazelle via Bazel for accurate Go dependency resolution.
           # The standalone gazelle binary lacks Bazel module context needed to
@@ -59,7 +59,7 @@ actions:
           # Wrangler Pages (Cloudflare) fails with error 8000111 when commits
           # in the deployed branch contain non-ASCII characters (smart quotes,
           # em-dashes, arrows, etc.). Check all commits since origin/main.
-          ./tools/git/check-commit-msg-ascii.sh --all origin/main
+          ./bazel/tools/git/check-commit-msg-ascii.sh --all origin/main
 
           # Check for formatting changes
           if git diff --exit-code; then
@@ -110,7 +110,7 @@ actions:
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
-          bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
+          bazel test //... --config=ci --deleted_packages=bazel/tools/python --test_tag_filters=-external
 
   # Push images — runs on main only, parallel with "Push pages", after "Test" passes
   - name: "Push images"
@@ -135,7 +135,7 @@ actions:
 
           # GHCR_TOKEN set in BuildBuddy Settings → Secrets
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
-          bazel run //images:push_all --config=ci --stamp
+          bazel run //bazel/images:push_all --config=ci --stamp
 
   # Push pages — runs on main only, parallel with "Push images", after "Test" passes
   # No dependency on "Push images" — static site deploys are independent of container images

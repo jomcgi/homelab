@@ -855,7 +855,7 @@ func generatePythonBuild(dayDir string, year, day int) error {
 	dataPath := fmt.Sprintf("//advent_of_code/solutions/year%d/day%02d", year, day)
 
 	template := `load("@aspect_rules_py//py:defs.bzl", "py_binary", "py_library")
-load("//tools/pytest:defs.bzl", "py_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_binary(
     name = "solution",

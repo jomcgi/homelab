@@ -1,5 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
 py_library(
     name = "advent_of_code",

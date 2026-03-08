@@ -1,5 +1,5 @@
 load("@rules_go//go:def.bzl", "go_test")
-load("//rules_semgrep:defs.bzl", "semgrep_test")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
 """Targets in the repository root"""
 
@@ -10,7 +10,7 @@ load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-# Python gazelle config moved to //tools/python to avoid eager-fetching all pip packages during CI analysis
+# Python gazelle config moved to //bazel/tools/python to avoid eager-fetching all pip packages during CI analysis
 
 npm_link_all_packages(name = "node_modules")
 
@@ -27,7 +27,7 @@ js_library(
 js_library(
     name = "prettierrc",
     srcs = ["prettier.config.cjs"],
-    visibility = ["//tools/format:__pkg__"],
+    visibility = ["//bazel/tools/format:__pkg__"],
     deps = [],
 )
 
@@ -39,10 +39,7 @@ exports_files(
 )
 
 # gazelle:prefix github.com/jomcgi/homelab
-# gazelle:exclude cdk8s
-# gazelle:exclude poc
 # gazelle:exclude .claude
-# gazelle:exclude semgrep
 
 # gazelle:semgrep_target_kinds py_venv_binary
 
@@ -50,9 +47,9 @@ exports_files(
 gazelle_binary(
     name = "gazelle_binary",
     languages = [
-        "//rules_helm/gazelle",
-        "//rules_wrangler/gazelle",
-        "//rules_semgrep/gazelle",
+        "//bazel/helm/gazelle",
+        "//bazel/wrangler/gazelle",
+        "//bazel/semgrep/defs/gazelle",
         "@bazel_skylib_gazelle_plugin//bzl",
         "@gazelle//language/go",
         "@gazelle//language/proto",
@@ -84,18 +81,18 @@ exports_files(
 # Produce aspect_rules_py targets rather than rules_python
 # gazelle:map_kind py_binary py_venv_binary @aspect_rules_py//py/private/py_venv:defs.bzl
 # gazelle:map_kind py_library py_library @aspect_rules_py//py:defs.bzl
-# gazelle:map_kind py_test py_test //tools/pytest:defs.bzl
+# gazelle:map_kind py_test py_test //bazel/tools/pytest:defs.bzl
 #
 # Don't walk into virtualenvs when looking for python sources.
 # We don't intend to plant BUILD files there.
 # gazelle:exclude **/*.venv
 #
-# Python gazelle configuration moved to //tools/python to avoid eager-fetching
+# Python gazelle configuration moved to //bazel/tools/python to avoid eager-fetching
 # all pip packages during CI analysis phase. Use:
-# - bazel run //tools/python:gazelle_python_manifest.update
-# - bazel test //tools/python:gazelle_python_manifest.test
+# - bazel run //bazel/tools/python:gazelle_python_manifest.update
+# - bazel test //bazel/tools/python:gazelle_python_manifest.test
 #
-# Note: gazelle_python.yaml in workspace root is a symlink to tools/python/gazelle_python.yaml
+# Note: gazelle_python.yaml in workspace root is a symlink to bazel/tools/python/gazelle_python.yaml
 # because Gazelle expects the manifest file at the workspace root.
 
 py_library(
@@ -120,5 +117,5 @@ go_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
-    rules = ["//semgrep_rules:python_rules"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )

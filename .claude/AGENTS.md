@@ -21,7 +21,7 @@ OCI container image building specialist using apko and rules_apko.
 
 ### Pre-requisite Reading
 
-**Always read first:** `tools/oci/apko_image.bzl` (understand the macro patterns)
+**Always read first:** `bazel/tools/oci/apko_image.bzl` (understand the macro patterns)
 
 ### apko.yaml Structure
 
@@ -83,11 +83,11 @@ bazel run //charts/<service>/image:image.run
 
 ### BUILD.bazel Patterns
 
-This repo uses a custom `apko_image` macro from `//tools/oci:apko_image.bzl`:
+This repo uses a custom `apko_image` macro from `//bazel/tools/oci:apko_image.bzl`:
 
 ```starlark
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("//tools/oci:apko_image.bzl", "apko_image")
+load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 pkg_tar(
     name = "static_tar",

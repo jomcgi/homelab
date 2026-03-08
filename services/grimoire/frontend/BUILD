@@ -3,7 +3,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//services/grimoire/frontend:vite/package_json.bzl", vite_bin = "bin")
-load("//tools/oci:apko_nginx_frontend.bzl", "apko_nginx_frontend")
+load("//bazel/tools/oci:apko_nginx_frontend.bzl", "apko_nginx_frontend")
 
 npm_link_all_packages(name = "node_modules")
 

@@ -2,7 +2,7 @@ load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_go//go:def.bzl", "go_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
-load("//tools/oci:apko_image.bzl", "apko_image")
+load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 # Validate that Goose recipe YAML files are well-formed and use safe template patterns.
 # Run locally: bazel test //charts/goose-agent/image:recipe_validate_test

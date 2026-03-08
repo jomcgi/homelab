@@ -1,5 +1,5 @@
-import %workspace%/tools/preset.bazelrc
-try-import %workspace%/tools/java17.bazelrc
+import %workspace%/bazel/tools/preset.bazelrc
+try-import %workspace%/bazel/tools/java17.bazelrc
 
 ### YOUR PROJECT SPECIFIC OPTIONS GO HERE ###
 
@@ -8,7 +8,7 @@ try-import %workspace%/tools/java17.bazelrc
 common --noexperimental_merged_skyframe_analysis_execution
 
 # also see: https://blog.aspect.build/configuring-bazels-downloader
-common --downloader_config=tools/downloader.cfg
+common --downloader_config=bazel/tools/downloader.cfg
 # for speed, passes an argument `--skipLibCheck` to *every* spawn of tsc
 common --@aspect_rules_ts//ts:skipLibCheck=always
 # Transpiler is set per-target (transpiler = "tsc") instead of globally.
@@ -22,7 +22,7 @@ common --repository_cache=~/.cache/bazel/repository_cache
 common --experimental_repository_cache_hardlinks
 # Garbage-collect repo contents cache entries older than 14 days (Bazel 9+)
 # This covers the extracted repository rule outputs (repository_cache/contents/)
-# but NOT the raw download blobs (content_addressable/). Use tools/bazel-cache-gc.sh
+# but NOT the raw download blobs (content_addressable/). Use bazel/tools/bazel-cache-gc.sh
 # to prune stale download blobs periodically.
 common --repo_contents_cache_gc_max_age=14d
 
@@ -61,13 +61,13 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 
 # Enable stamping by default for OCI image tags
 # Local builds: timestamp tag only (via STABLE_IMAGE_TAG)
-# CI builds: timestamp + branch tag (via //tools/oci:ci_build condition)
-common --workspace_status_command=./tools/workspace_status.sh
+# CI builds: timestamp + branch tag (via //bazel/tools/oci:ci_build condition)
+common --workspace_status_command=./bazel/tools/workspace_status.sh
 
 # Release config for backwards compatibility
-common:release --stamp --workspace_status_command=./tools/workspace_status.sh
+common:release --stamp --workspace_status_command=./bazel/tools/workspace_status.sh
 
-common:lint --aspects=//tools/lint:linters.bzl%shellcheck//tools/lint:linters.bzl%eslint//tools/lint:linters.bzl%ruff
+common:lint --aspects=//bazel/tools/lint:linters.bzl%shellcheck//tools/lint:linters.bzl%eslint//tools/lint:linters.bzl%ruff
 
 # =============================================================================
 # Test Configuration
@@ -83,7 +83,7 @@ test --sandbox_default_allow_network=false
 
 # Stamping: applies to all commands (build, test, run)
 common:ci --stamp
-common:ci --workspace_status_command=./tools/workspace_status.sh
+common:ci --workspace_status_command=./bazel/tools/workspace_status.sh
 common:ci --define=CI=true
 common:ci --repo_env=GHCR_TOKEN
 
