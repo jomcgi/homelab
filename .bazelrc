@@ -62,7 +62,6 @@ common --@rules_python//python/config_settings:bootstrap_impl=script
 # Enable stamping by default for OCI image tags
 # Local builds: timestamp tag only (via STABLE_IMAGE_TAG)
 # CI builds: timestamp + branch tag (via //tools/oci:ci_build condition)
-common --stamp
 common --workspace_status_command=./tools/workspace_status.sh
 
 # Release config for backwards compatibility

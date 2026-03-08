@@ -80,7 +80,10 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         # Load uses host platform
         platform_transition_filegroup(
             name = name + "_platform",
-            srcs = [name + "_base_amd64" if native.package_name().endswith("_amd64") else name + "_base_arm64"],
+            srcs = select({
+                "@platforms//cpu:arm64": [name + "_base_arm64"],
+                "@platforms//cpu:x86_64": [name + "_base_amd64"],
+            }),
             target_platform = select({
                 "@platforms//cpu:arm64": "@rules_go//go/toolchain:linux_arm64",
                 "@platforms//cpu:x86_64": "@rules_go//go/toolchain:linux_amd64",
