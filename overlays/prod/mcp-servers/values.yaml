@@ -157,7 +157,7 @@ servers:
 - name: agent-orchestrator-mcp
   image:
     repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator-mcp
-    tag: "main@sha256:594d4270c559668f4387403dd6ee7f6312481304dde1e4023f972e76cf01d0f9"
+    tag: "main@sha256:6d86304cb8a455efdaa8a9af5d97c50c9a2a8db5f3474c34f7fe75a87882584f"
   port: 8000
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
