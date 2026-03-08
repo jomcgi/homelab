@@ -6,8 +6,8 @@ go_library(
     importpath = "github.com/jomcgi/homelab/bazel/tools/hf2oci/cmd/hf2oci",
     visibility = ["//visibility:private"],
     deps = [
-        "@com_github_jomcgi_homelab//tools/hf2oci/cmd/hf2oci/cmd:go_default_library",
-        "@com_github_jomcgi_homelab//tools/hf2oci/pkg/copy:go_default_library",
+        "//bazel/tools/hf2oci/cmd/hf2oci/cmd",
+        "//bazel/tools/hf2oci/pkg/copy",
     ],
 )
 

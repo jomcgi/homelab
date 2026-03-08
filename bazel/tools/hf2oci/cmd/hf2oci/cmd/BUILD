@@ -11,8 +11,8 @@ go_library(
     importpath = "github.com/jomcgi/homelab/bazel/tools/hf2oci/cmd/hf2oci/cmd",
     visibility = ["//visibility:public"],
     deps = [
-        "@com_github_jomcgi_homelab//tools/hf2oci/pkg/copy:go_default_library",
-        "@com_github_jomcgi_homelab//tools/hf2oci/pkg/hf:go_default_library",
+        "//bazel/tools/hf2oci/pkg/copy",
+        "//bazel/tools/hf2oci/pkg/hf",
         "@com_github_spf13_cobra//:cobra",
     ],
 )
@@ -22,7 +22,7 @@ go_test(
     srcs = ["output_test.go"],
     embed = [":cmd"],
     deps = [
-        "@com_github_jomcgi_homelab//tools/hf2oci/pkg/copy:go_default_library",
+        "//bazel/tools/hf2oci/pkg/copy",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
     ],
