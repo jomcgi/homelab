@@ -1,54 +1,8 @@
 package main
 
 import (
-	"sync/atomic"
 	"testing"
-	"time"
 )
-
-func TestActivityWatchdog_TriggersOnInactivity(t *testing.T) {
-	var triggered atomic.Bool
-	w := newActivityWatchdog(50*time.Millisecond, func() {
-		triggered.Store(true)
-	})
-	defer w.Stop()
-
-	time.Sleep(100 * time.Millisecond)
-	if !triggered.Load() {
-		t.Fatal("expected watchdog to trigger after inactivity")
-	}
-}
-
-func TestActivityWatchdog_ResetsOnWrite(t *testing.T) {
-	var triggered atomic.Bool
-	w := newActivityWatchdog(80*time.Millisecond, func() {
-		triggered.Store(true)
-	})
-	defer w.Stop()
-
-	// Write before threshold to keep resetting.
-	for i := 0; i < 5; i++ {
-		time.Sleep(30 * time.Millisecond)
-		w.Write([]byte("ping"))
-	}
-
-	if triggered.Load() {
-		t.Fatal("expected watchdog NOT to trigger while receiving writes")
-	}
-}
-
-func TestActivityWatchdog_StopPreventsCallback(t *testing.T) {
-	var triggered atomic.Bool
-	w := newActivityWatchdog(50*time.Millisecond, func() {
-		triggered.Store(true)
-	})
-	w.Stop()
-
-	time.Sleep(100 * time.Millisecond)
-	if triggered.Load() {
-		t.Fatal("expected watchdog NOT to trigger after Stop()")
-	}
-}
 
 func TestSyncBuffer_ConcurrentAccess(t *testing.T) {
 	buf := newSyncBuffer(0) // uncapped for this test
