@@ -51,7 +51,7 @@ type Agent interface {
     Collect(ctx context.Context) ([]Finding, error)
     Analyze(ctx context.Context, findings []Finding) ([]Action, error)
     Execute(ctx context.Context, actions []Action) error
-    Schedule() time.Duration
+    Interval() time.Duration
 }
 
 type Finding struct {
@@ -94,10 +94,8 @@ type Action struct {
 - `PRMergeHandler` — merges approved PRs
 
 **Findings Store** — NATS KV bucket (`cluster-agents-findings`):
-- Fingerprint-based deduplication
-- TTL-based auto-expiry after resolution window
-- Lock acquisition before escalation (prevents duplicate issues/jobs)
-- Status tracking: `new` → `escalated` → `resolved`
+- Fingerprint-based deduplication via `ShouldEscalate`/`MarkEscalated`/`MarkResolved`
+- TTL-based auto-expiry after resolution window (prevents stale dedup entries)
 
 ### Agent 1: Cluster Patrol
 
@@ -106,7 +104,7 @@ type Action struct {
 | **Collectors** | KubernetesCollector, ArgoCDCollector, SigNozCollector, CertificateCollector |
 | **Analyzer** | llama.cpp — classifies findings, spots correlations across data sources |
 | **Escalation** | Info → log, Warning → GitHub Issue, Critical → Agent Orchestrator job |
-| **Schedule** | Every 5 minutes |
+| **Interval** | Every 5 minutes |
 
 **Scripted checks (Collector layer):**
 - Pods not Ready for > 5 minutes

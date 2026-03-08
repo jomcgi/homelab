@@ -87,12 +87,19 @@ func (e *Escalator) Execute(ctx context.Context, actions []Action) error {
 			}
 		}
 
-		e.store.MarkEscalated(ctx, action.Finding.Fingerprint, e.findingTTL)
+		if err := e.store.MarkEscalated(ctx, action.Finding.Fingerprint, e.findingTTL); err != nil {
+			slog.Error("failed to mark finding as escalated", "error", err, "fingerprint", action.Finding.Fingerprint)
+		}
 	}
 	return nil
 }
 
 func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action) error {
+	if e.orchestrator == nil {
+		slog.Warn("orchestrator client not configured, skipping job submission")
+		return nil
+	}
+
 	task := fmt.Sprintf("Cluster Patrol detected an issue that needs investigation and remediation.\n\n"+
 		"**Issue:** %s\n\n"+
 		"**Details:** %s\n\n"+
