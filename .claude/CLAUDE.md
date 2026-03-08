@@ -29,17 +29,16 @@ homelab/
 ## Essential Commands
 
 ```bash
-# Shell aliases route bazel/bazelisk to bb (BuildBuddy CLI)
-bazel build //...             # Build everything
+# Local development (no Bazel needed)
+format                        # Format code + update BUILD files (standalone)
+helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml  # Render Helm templates (NEVER helm install)
+
+# CI-only (runs remotely via BuildBuddy)
 bazel test //...              # Test everything
-format                        # Format code + update BUILD files (standalone, no Bazel needed)
-
-# Render Helm templates (NEVER helm install — GitOps only)
-helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml
-
-# Push container images
-bazel run //charts/<service>/image:push
+bazel run //charts/<service>/image:push  # Push container images
 ```
+
+Bazel runs **remotely via BuildBuddy CI** — not locally. Shell aliases route `bazel`/`bazelisk` to the BuildBuddy CLI (`bb`). Locally, use `format` for formatting + BUILD file generation, and push to let CI handle builds/tests.
 
 **Vendored tools** (available via `./bootstrap.sh` + `direnv allow`): `format`, `helm`, `crane`, `kind`, `go`, `python`, `pnpm`, `node`, `buildifier`, `buildozer`, `ruff`, `gofumpt`, `shfmt`, `prettier`, `gazelle`
 
@@ -164,7 +163,7 @@ Static sites deploy via `bazel run //websites:push_all_pages` on main branch (Bu
 - **Using Dockerfiles** — this repo uses apko exclusively for container images
 - **Running as root** — always use non-root (uid 65532)
 - **Direct internet exposure** — all traffic goes through Cloudflare
-- **Running tests outside Bazel** — no `pytest`, `go test`, `npm test` directly
+- **Running tests locally** — tests run in CI via Bazel; no `pytest`, `go test`, `npm test` directly
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating `charts/<service>/`
 - **Using kubectl/argocd CLI for cluster reads** — use MCP tools via Context Forge; PreToolUse hooks enforce this
