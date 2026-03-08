@@ -11,17 +11,26 @@ import (
 	"k8s.io/client-go/dynamic"
 )
 
+// RunnerStatusFunc checks the status of a runner for the given sandbox claim name.
+// Returns state ("idle", "running", "done", "failed") and exit code.
+// Returns error if the runner is unreachable or the claim can't be resolved.
+type RunnerStatusFunc func(ctx context.Context, sandboxClaimName string) (state string, exitCode int, err error)
+
 // reconcileOrphanedJobs scans the KV store for jobs stuck in RUNNING state
-// and resets them for retry. This handles the case where the orchestrator
-// restarts while jobs are in-flight: the SPDY exec connection is lost,
-// the sandbox claim is orphaned, and the NATS message sits unACKed until
-// AckWait expires (168h by default).
+// and reconciles them. With the HTTP runner, goose may still be executing
+// after an orchestrator restart, so we check the runner's status before
+// blindly resetting jobs.
 //
-// For each orphaned job, this function:
-//  1. Cleans up the stale SandboxClaim (if it still exists)
-//  2. Resets the job to PENDING
-//  3. Re-publishes the job ID to the NATS stream for redelivery
-func reconcileOrphanedJobs(ctx context.Context, store Store, publish func(string) error, dynClient dynamic.Interface, namespace string, logger *slog.Logger) {
+// For each RUNNING job:
+//  1. If checkRunner is provided and the runner is still active:
+//     - "running" → leave as RUNNING (consumer will re-attach)
+//     - "done"    → mark SUCCEEDED with exit code
+//     - "failed"  → mark attempt failed, fall through to retry logic
+//  2. If checkRunner is nil, returns error, or returns "idle":
+//     - Clean up stale SandboxClaim
+//     - Reset to PENDING for retry (or FAILED if retries exhausted)
+//     - Re-publish to NATS stream
+func reconcileOrphanedJobs(ctx context.Context, store Store, publish func(string) error, dynClient dynamic.Interface, namespace string, checkRunner RunnerStatusFunc, logger *slog.Logger) {
 	jobs, _, err := store.List(ctx, []string{string(JobRunning)}, 100, 0)
 	if err != nil {
 		logger.Error("reconcile: failed to list running jobs", "error", err)
@@ -37,6 +46,47 @@ func reconcileOrphanedJobs(ctx context.Context, store Store, publish func(string
 
 	for _, job := range jobs {
 		jlog := logger.With("jobID", job.ID)
+
+		// With HTTP runner, check if goose is still running before resetting.
+		if checkRunner != nil && len(job.Attempts) > 0 {
+			lastAttempt := job.Attempts[len(job.Attempts)-1]
+			if lastAttempt.SandboxClaimName != "" {
+				state, exitCode, err := checkRunner(ctx, lastAttempt.SandboxClaimName)
+				if err == nil {
+					switch state {
+					case "running":
+						jlog.Info("reconcile: goose still running, will re-attach")
+						if err := store.Put(ctx, &job); err != nil {
+							jlog.Error("reconcile: failed to update job", "error", err)
+						}
+						continue
+					case "done":
+						jlog.Info("reconcile: goose finished successfully", "exitCode", exitCode)
+						now := time.Now().UTC()
+						last := &job.Attempts[len(job.Attempts)-1]
+						last.FinishedAt = &now
+						last.ExitCode = &exitCode
+						job.Status = JobSucceeded
+						if err := store.Put(ctx, &job); err != nil {
+							jlog.Error("reconcile: failed to update job", "error", err)
+						}
+						continue
+					case "failed":
+						jlog.Info("reconcile: goose failed", "exitCode", exitCode)
+						now := time.Now().UTC()
+						last := &job.Attempts[len(job.Attempts)-1]
+						last.FinishedAt = &now
+						last.ExitCode = &exitCode
+						// Fall through to existing retry logic below.
+					default:
+						// "idle" or unknown state: fall through to reset.
+						jlog.Info("reconcile: runner idle or unknown state, will reset", "state", state)
+					}
+				} else {
+					jlog.Info("reconcile: runner unreachable, will reset", "error", err)
+				}
+			}
+		}
 
 		// Clean up stale sandbox claim from the last attempt.
 		if len(job.Attempts) > 0 {
