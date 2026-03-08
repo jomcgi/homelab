@@ -137,10 +137,11 @@ func main() {
 	}
 
 	// Reconcile orphaned jobs before starting the consumer.
-	// After a restart, jobs left in RUNNING state have lost their SPDY exec
-	// connection and sandbox claims are stale. Reset them for retry.
+	// After a restart, jobs left in RUNNING state may still have active
+	// runners (HTTP) or may be truly orphaned. Check runner status first,
+	// then reset stale jobs for retry.
 	if sandbox != nil {
-		reconcileOrphanedJobs(ctx, store, publish, sandbox.dynClient, sandboxNamespace, logger)
+		reconcileOrphanedJobs(ctx, store, publish, sandbox.dynClient, sandboxNamespace, nil, logger)
 	}
 
 	// Start consumer if sandbox is available.
