@@ -6,4 +6,4 @@
 sandboxTemplate:
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: main@sha256:158164f90b66d08bacdb26c58ca06e83f8f75cc1cc171eb9a14e93aecea8816f
+    tag: main@sha256:0870c284d94286c94b358c2da63b956542367d36e15ca2bbbf06b9efdeef33f0
