@@ -13,17 +13,23 @@ import (
 
 const maxOutputBytes = 32 * 1024 // 32KB tail — full output lives in pod logs / SigNoz
 
+// Sandbox is the interface for executing agent tasks in an isolated environment.
+// SandboxExecutor satisfies this interface; tests inject a fake implementation.
+type Sandbox interface {
+	Run(ctx context.Context, claimName, task, profile string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error)
+}
+
 // Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
 type Consumer struct {
 	cons        jetstream.Consumer
 	store       Store
-	sandbox     *SandboxExecutor
+	sandbox     Sandbox
 	maxDuration time.Duration
 	logger      *slog.Logger
 }
 
 // NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
-func NewConsumer(cons jetstream.Consumer, store Store, sandbox *SandboxExecutor, maxDuration time.Duration, logger *slog.Logger) *Consumer {
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, maxDuration time.Duration, logger *slog.Logger) *Consumer {
 	return &Consumer{
 		cons:        cons,
 		store:       store,
