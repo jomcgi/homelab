@@ -142,9 +142,29 @@ if [[ "${1-}" == "--all" ]]; then
 	BASE_REF="${2:-origin/main}"
 	FAILED=0
 
+	# Fetch the base ref so it reflects the current upstream state.
+	# CI workspaces are often recycled; a stale origin/main makes
+	# "BASE_REF..HEAD" walk back into commits that are already on main
+	# (e.g. a docs commit merged just before this branch was pushed).
+	if [[ "$BASE_REF" == */* ]]; then
+		_remote="${BASE_REF%%/*}"
+		_branch="${BASE_REF#*/}"
+		git fetch "$_remote" "$_branch" 2>/dev/null || true
+		unset _remote _branch
+	fi
+
+	# Use merge-base so the checked range contains only commits that are
+	# unique to this PR.  "BASE_REF..HEAD" alone can stray into commits
+	# that have since landed on main when origin/main was stale at fetch
+	# time; merge-base pins the lower bound to the actual fork point.
+	_merge_base=$(git merge-base HEAD "${BASE_REF}" 2>/dev/null || true)
+	_range="${_merge_base:-${BASE_REF}}..HEAD"
+	unset _merge_base
+
 	echo "Checking commit messages for non-ASCII characters (commits since ${BASE_REF})..."
 
-	COMMITS=$(git log --format="%H" "${BASE_REF}..HEAD")
+	COMMITS=$(git log --format="%H" "$_range")
+	unset _range
 	if [ -z "$COMMITS" ]; then
 		echo "No new commits to check."
 		exit 0
