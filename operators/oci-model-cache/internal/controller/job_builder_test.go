@@ -166,8 +166,10 @@ func TestBuildCopyJob_ResourceLimits(t *testing.T) {
 	expectedRequest := resource.MustParse("512Mi")
 	expectedLimit := resource.MustParse("2Gi")
 
-	assert.Equal(t, expectedRequest.Value(), resources.Requests[corev1.ResourceMemory].Value())
-	assert.Equal(t, expectedLimit.Value(), resources.Limits[corev1.ResourceMemory].Value())
+	reqQ := resources.Requests[corev1.ResourceMemory]
+	limQ := resources.Limits[corev1.ResourceMemory]
+	assert.Equal(t, expectedRequest.Value(), reqQ.Value())
+	assert.Equal(t, expectedLimit.Value(), limQ.Value())
 }
 
 // TestBuildCopyJob_GoMemLimitEnv verifies GOMEMLIMIT is set to 80% of the memory limit.
@@ -262,8 +264,8 @@ func TestBuildCopyJob_HFTokenSecret(t *testing.T) {
 
 	hfToken := findEnvFromSecret(envVars, "HF_TOKEN")
 	require.NotNil(t, hfToken, "HF_TOKEN should be injected from secret")
-	assert.Equal(t, "hf-token", hfToken.SecretKeyRef.Name)
-	assert.Equal(t, "token", hfToken.SecretKeyRef.Key)
+	assert.Equal(t, "hf-token", hfToken.Name)
+	assert.Equal(t, "token", hfToken.Key)
 }
 
 // TestBuildCopyJob_RegistryPushSecret verifies volumes and mounts are added.
