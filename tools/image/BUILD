@@ -1,5 +1,6 @@
 load("//tools/oci:apko_image.bzl", "apko_image")
 load(":multitool_tar.bzl", "multitool_tar")
+load(":node_tar.bzl", "node_tar")
 
 multitool_tar(
     name = "tools_tar",
@@ -16,6 +17,34 @@ multitool_tar(
         "ruff",
         "shfmt",
     ],
+)
+
+# Per-platform Node.js binary tars.
+# Creates :node_tar_linux_amd64, :node_tar_linux_arm64, :node_tar_darwin_arm64
+# each containing /usr/bin/node for the target platform.
+node_tar(name = "node_tar")
+
+# Package pnpm from the aspect_rules_js-managed @pnpm repo.
+# pnpm is a JS script (cross-platform) that runs on Node.js.
+# Places the package at /usr/local/lib/node_modules/pnpm/
+# with a symlink at /usr/bin/pnpm for PATH discovery.
+genrule(
+    name = "pnpm_tar",
+    srcs = ["@pnpm//:pkg"],
+    outs = ["pnpm.tar"],
+    cmd = """
+        set -e
+        WORK=$$(mktemp -d)
+        DEST="$$WORK/usr/local/lib/node_modules/pnpm"
+        mkdir -p "$$DEST"
+        SRC_DIR=$$(echo '$(location @pnpm//:pkg)' | tr ' ' '\\n' | head -1)
+        cp -rL "$$SRC_DIR/." "$$DEST/"
+        chmod 755 "$$DEST/bin/pnpm.cjs"
+        mkdir -p "$$WORK/usr/bin"
+        ln -s "../local/lib/node_modules/pnpm/bin/pnpm.cjs" "$$WORK/usr/bin/pnpm"
+        tar -cf $@ -C "$$WORK" .
+        rm -rf "$$WORK"
+    """,
 )
 
 # Package prettier from the pnpm lockfile-managed npm package.
