@@ -87,4 +87,3 @@ func TestSyncBuffer_CapsMemory(t *testing.T) {
 		t.Fatalf("expected buffer to be capped, got %d bytes", buf.Len())
 	}
 }
-
