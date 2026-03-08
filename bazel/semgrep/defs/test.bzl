@@ -74,7 +74,7 @@ def semgrep_manifest_test(
         release_name,
         namespace,
         values_files,
-        rules = ["//semgrep_rules:kubernetes_rules"],
+        rules = ["//bazel/semgrep/rules:kubernetes_rules"],
         exclude_rules = [],
         pro_engine = "//bazel/semgrep/third_party/semgrep_pro:engine",
         **kwargs):
