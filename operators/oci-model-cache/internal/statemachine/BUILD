@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "statemachine",
@@ -23,5 +23,16 @@ go_library(
         "@io_opentelemetry_go_otel//:otel",
         "@io_opentelemetry_go_otel//attribute",
         "@io_opentelemetry_go_otel_trace//:trace",
+    ],
+)
+
+go_test(
+    name = "statemachine_test",
+    srcs = ["statemachine_test.go"],
+    embed = [":statemachine"],
+    deps = [
+        "//operators/oci-model-cache/api/v1alpha1:api",
+        "@com_github_go_logr_logr//testr",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
     ],
 )

@@ -34,13 +34,21 @@ go_library(
 
 go_test(
     name = "controller_test",
-    srcs = ["job_result_test.go"],
+    srcs = [
+        "cleanup_test.go",
+        "job_builder_test.go",
+        "job_result_test.go",
+    ],
     embed = [":controller"],
     deps = [
+        "//operators/oci-model-cache/api/v1alpha1:api",
+        "//operators/oci-model-cache/internal/config",
+        "//operators/oci-model-cache/internal/naming",
         "@com_github_stretchr_testify//assert",
         "@com_github_stretchr_testify//require",
         "@io_k8s_api//batch/v1:batch",
         "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
         "@io_k8s_sigs_controller_runtime//pkg/client/fake",
