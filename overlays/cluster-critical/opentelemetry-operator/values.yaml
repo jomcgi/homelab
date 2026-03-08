@@ -17,6 +17,7 @@ instrumentation:
     - api-gateway
     - mcp-servers
     - todo
+    - agent-orchestrator
     # Development
     - grimoire
     - marine
