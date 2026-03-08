@@ -87,6 +87,5 @@ py_test(
         "//services/ships_api:ships-api",
         "@pip//fastapi",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
