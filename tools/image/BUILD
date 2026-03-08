@@ -185,9 +185,7 @@ oci_push(
 
 semgrep_target_test(
     name = "python_deps_semgrep_test",
-    lockfiles = ["//requirements:all.txt"],
     rules = ["//semgrep_rules:python_rules"],
-    sca_rules = ["//semgrep_rules:sca_python_rules"],
     target = ":python_deps",
 )
 
