@@ -23,10 +23,6 @@ go_test(
     name = "ws-gateway_test",
     srcs = ["hub_test.go"],
     embed = [":ws-gateway_lib"],
-    deps = [
-        "@com_github_redis_go_redis_v9//:go-redis",
-        "@io_nhooyr_websocket//:websocket",
-    ],
 )
 
 go_binary(
