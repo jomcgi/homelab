@@ -42,6 +42,7 @@ exports_files(
 # gazelle:exclude cdk8s
 # gazelle:exclude poc
 # gazelle:exclude .claude
+# gazelle:exclude semgrep
 
 # gazelle:semgrep_target_kinds py_venv_binary
 

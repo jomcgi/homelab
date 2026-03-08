@@ -28,12 +28,6 @@ go_test(
     name = "api_test",
     srcs = ["dice_test.go"],
     embed = [":api_lib"],
-    deps = [
-        "@com_google_cloud_go_firestore//:firestore",
-        "@org_golang_google_api//iterator",
-        "@org_golang_google_grpc//codes",
-        "@org_golang_google_grpc//status",
-    ],
 )
 
 go_binary(
