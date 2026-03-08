@@ -29,7 +29,6 @@ This document provides an overview of all services running in the cluster.
 | **Context Forge**     | MCP gateway for aggregating tool servers    | [charts/context-forge](../charts/context-forge/)         |
 | **Goose Sandboxes**   | Goose agent sandbox deployments             | [charts/goose-sandboxes](../charts/goose-sandboxes/)     |
 | **Knowledge Graph**   | RSS scraping, embedding, and MCP search     | [charts/knowledge-graph](../charts/knowledge-graph/)     |
-| **LiteLLM**           | LLM API proxy for agents                    | [charts/litellm](../charts/litellm/)                     |
 | **llama-cpp**         | Local LLM inference (Hermes 4.3-36B)        | [charts/llama-cpp](../charts/llama-cpp/)                 |
 | **MCP OAuth Proxy**   | OAuth 2.1 auth layer for remote MCP access  | [charts/mcp-oauth-proxy](../charts/mcp-oauth-proxy/)     |
 | **MCP Servers**       | Consolidated ArgoCD, Kubernetes, BuildBuddy, and SigNoz MCP servers | [charts/mcp-servers](../charts/mcp-servers/)             |

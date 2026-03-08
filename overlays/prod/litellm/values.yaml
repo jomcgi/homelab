@@ -1,8 +1,0 @@
-# litellm — production overrides
-# Base values in charts/litellm/values.yaml
-
-# Override fullname to match the service DNS name expected by goose-sandboxes
-fullnameOverride: litellm-claude-sdk
-image:
-  repository: ghcr.io/cabinlab/litellm-claude-code
-  tag: latest@sha256:31d6ffc4666a7f3f6c6c116bca89870a90dee022c371dd872d60b60a2a373da9
