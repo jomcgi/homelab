@@ -42,6 +42,11 @@ ingress:
         keepAliveConnections: 100
         keepAliveTimeout: 90s
         tcpKeepAlive: 30s
+  # Route unmatched traffic through Envoy Gateway. With no HTTPRoutes deployed,
+  # Envoy returns 404 -- same behaviour as the previous http_status:404 catch-all.
+  # As routes are migrated to HTTPRoutes, remove them from the routes list above.
+  catchAll:
+    service: http://cloudflare-ingress.envoy-gateway-system.svc.cluster.local:80
 
 # Ensure tunnel pods survive resource pressure from workload evictions
 priorityClassName: system-cluster-critical
