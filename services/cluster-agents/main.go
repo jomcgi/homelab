@@ -9,11 +9,6 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/nats-io/nats.go"
-	"github.com/nats-io/nats.go/jetstream"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 func main() {
@@ -23,63 +18,24 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	natsURL := envOr("NATS_URL", "nats://nats.nats.svc.cluster.local:4222")
-	llmURL := envOr("LLM_URL", "http://llama-cpp.llama-cpp.svc.cluster.local:8080")
-	llmModel := envOr("LLM_MODEL", "default")
+	signozURL := envOr("SIGNOZ_URL", "http://signoz-query-service.signoz.svc.cluster.local:8080")
+	signozToken := os.Getenv("SIGNOZ_API_KEY")
 	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080")
 	githubToken := os.Getenv("GITHUB_TOKEN")
 	githubRepo := envOr("GITHUB_REPO", "jomcgi/homelab")
 	httpPort := envOr("HTTP_PORT", "8080")
-	patrolInterval := envDurationOr("PATROL_INTERVAL", 5*time.Minute)
+	patrolInterval := envDurationOr("PATROL_INTERVAL", 1*time.Hour)
 
-	nc, err := nats.Connect(natsURL)
-	if err != nil {
-		slog.Error("failed to connect to NATS", "error", err)
-		os.Exit(1)
-	}
-	defer nc.Close()
+	collector := NewAlertCollector(signozURL, signozToken)
 
-	js, err := jetstream.New(nc)
-	if err != nil {
-		slog.Error("failed to create jetstream context", "error", err)
-		os.Exit(1)
-	}
-
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket: "cluster-agents-findings",
-		TTL:    48 * time.Hour,
-	})
-	if err != nil {
-		slog.Error("failed to create KV bucket", "error", err)
-		os.Exit(1)
-	}
-
-	k8sConfig, err := rest.InClusterConfig()
-	if err != nil {
-		slog.Error("failed to get in-cluster config", "error", err)
-		os.Exit(1)
-	}
-	k8sClient, err := kubernetes.NewForConfig(k8sConfig)
-	if err != nil {
-		slog.Error("failed to create kubernetes client", "error", err)
-		os.Exit(1)
-	}
-
-	store := NewNATSFindingsStore(kv)
-	llm := NewLLMClient(llmURL, llmModel)
-
-	var github *GitHubClient
+	var github *GitHubPRChecker
 	if githubToken != "" {
-		github = NewGitHubClient(githubToken, githubRepo)
+		github = NewGitHubPRChecker("https://api.github.com", githubToken, githubRepo)
 	}
 	orchestrator := NewOrchestratorClient(orchestratorURL)
-	escalator := NewEscalator(store, github, orchestrator)
+	escalator := NewEscalator(github, orchestrator)
 
-	collectors := []collector{
-		NewK8sCollector(k8sClient),
-	}
-
-	patrol := NewPatrolAgent(collectors, llm, escalator, patrolInterval)
+	patrol := NewPatrolAgent(collector, escalator, patrolInterval)
 	runner := NewRunner([]Agent{patrol})
 
 	mux := http.NewServeMux()
