@@ -6,15 +6,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 import pytest_asyncio
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from fastapi.websockets import WebSocket
 
+import services.trips_api.main as trips_main
 from services.trips_api.main import (
     ConnectionManager,
     TripPoint,
     TripsState,
     app,
     is_valid_coordinates,
+    require_api_key,
 )
 
 
@@ -389,3 +392,319 @@ class TestAPIEndpoints:
             data = response.json()
             assert data["total_points"] == 100
             assert data["connected_clients"] == 5
+
+
+class TestAPIKeyAuth:
+    """Tests for API key authentication middleware."""
+
+    def _make_client(self) -> TestClient:
+        """Return a TestClient with a mocked global state."""
+        return TestClient(app, raise_server_exceptions=False)
+
+    def test_valid_key_accepted(self):
+        """Requests with the correct API key should be accepted."""
+        point = TripPoint(
+            id="p1", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+        )
+        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.get_points.return_value = [point]
+            mock_state.points = {"p1": point}
+
+            client = self._make_client()
+            response = client.get(
+                "/api/points", headers={"X-API-Key": "secret-key"}
+            )
+
+        assert response.status_code == 200
+
+    def test_missing_key_rejected(self):
+        """Requests without the X-API-Key header should receive 401."""
+        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.get_points.return_value = []
+            mock_state.points = {}
+
+            client = self._make_client()
+            response = client.get("/api/points")
+
+        assert response.status_code == 401
+
+    def test_wrong_key_rejected(self):
+        """Requests with an incorrect API key should receive 401."""
+        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.get_points.return_value = []
+            mock_state.points = {}
+
+            client = self._make_client()
+            response = client.get(
+                "/api/points", headers={"X-API-Key": "wrong-key"}
+            )
+
+        assert response.status_code == 401
+
+    def test_auth_disabled_when_key_empty(self):
+        """When TRIP_API_KEY is empty, all requests are allowed (dev mode)."""
+        point = TripPoint(
+            id="p1", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+        )
+        with patch.object(trips_main, "TRIP_API_KEY", ""), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.get_points.return_value = [point]
+            mock_state.points = {"p1": point}
+
+            client = self._make_client()
+            # No X-API-Key header — should still work when key is unconfigured
+            response = client.get("/api/points")
+
+        assert response.status_code == 200
+
+    def test_stats_endpoint_requires_auth(self):
+        """The /api/stats endpoint also enforces API key auth."""
+        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.get_stats.return_value = {"total_points": 0, "connected_clients": 0}
+
+            client = self._make_client()
+            # Missing key
+            response = client.get("/api/stats")
+
+        assert response.status_code == 401
+
+    def test_single_point_endpoint_requires_auth(self):
+        """The /api/points/{id} endpoint also enforces API key auth."""
+        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.get_point.return_value = None
+
+            client = self._make_client()
+            response = client.get("/api/points/nonexistent")
+
+        assert response.status_code == 401
+
+    def test_health_endpoint_always_public(self):
+        """The /health endpoint is never gated by API key."""
+        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
+            trips_main, "state"
+        ) as mock_state:
+            mock_state.ready = True
+            mock_state.points = {}
+            mock_state.manager.active_connections = []
+
+            client = self._make_client()
+            # No X-API-Key — health check must always be reachable
+            response = client.get("/health")
+
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_require_api_key_returns_empty_when_unconfigured(self):
+        """require_api_key returns '' when TRIP_API_KEY is not set."""
+        with patch.object(trips_main, "TRIP_API_KEY", ""):
+            result = await require_api_key(api_key=None)
+        assert result == ""
+
+    @pytest.mark.asyncio
+    async def test_require_api_key_raises_when_key_wrong(self):
+        """require_api_key raises 401 when key doesn't match."""
+        with patch.object(trips_main, "TRIP_API_KEY", "secret"):
+            with pytest.raises(HTTPException) as exc_info:
+                await require_api_key(api_key="bad")
+        assert exc_info.value.status_code == 401
+
+
+class TestJetStreamReplay:
+    """Tests for TripsState.replay_stream() and subscribe_live() methods."""
+
+    @pytest.fixture
+    def state(self):
+        return TripsState()
+
+    def _make_msg(self, data: dict):
+        """Build a mock NATS message with .data bytes."""
+        msg = MagicMock()
+        msg.data = json.dumps(data).encode()
+        msg.ack = AsyncMock()
+        return msg
+
+    @pytest.mark.asyncio
+    async def test_replay_stream_builds_cache(self, state):
+        """replay_stream should populate self.points from NATS messages."""
+        point_data = {
+            "id": "abc123",
+            "lat": 45.0,
+            "lng": -122.0,
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
+        msg = self._make_msg(point_data)
+
+        mock_consumer = AsyncMock()
+        # First fetch returns one message; second raises TimeoutError to end the loop.
+        mock_consumer.fetch = AsyncMock(
+            side_effect=[[msg], __import__("nats").errors.TimeoutError()]
+        )
+        mock_consumer.unsubscribe = AsyncMock()
+
+        state.js = AsyncMock()
+        state.js.pull_subscribe = AsyncMock(return_value=mock_consumer)
+
+        await state.replay_stream()
+
+        assert "abc123" in state.points
+        assert state.points["abc123"].lat == 45.0
+
+    @pytest.mark.asyncio
+    async def test_replay_stream_handles_stream_not_found(self, state):
+        """replay_stream should handle StreamNotFoundError gracefully."""
+        import nats
+
+        state.js = AsyncMock()
+        state.js.pull_subscribe = AsyncMock(
+            side_effect=nats.js.errors.StreamNotFoundError()
+        )
+
+        # Should not raise; state should remain empty.
+        await state.replay_stream()
+
+        assert state.points == {}
+
+    @pytest.mark.asyncio
+    async def test_replay_stream_processes_multiple_messages(self, state):
+        """replay_stream should process all messages fetched before TimeoutError."""
+        msgs = [
+            self._make_msg(
+                {"id": f"p{i}", "lat": 45.0 + i, "lng": -122.0, "timestamp": f"2024-01-15T{10 + i:02d}:00:00Z"}
+            )
+            for i in range(3)
+        ]
+
+        mock_consumer = AsyncMock()
+        mock_consumer.fetch = AsyncMock(
+            side_effect=[msgs, __import__("nats").errors.TimeoutError()]
+        )
+        mock_consumer.unsubscribe = AsyncMock()
+
+        state.js = AsyncMock()
+        state.js.pull_subscribe = AsyncMock(return_value=mock_consumer)
+
+        await state.replay_stream()
+
+        assert len(state.points) == 3
+        for i in range(3):
+            assert f"p{i}" in state.points
+
+    @pytest.mark.asyncio
+    async def test_subscribe_live_sets_subscription(self, state):
+        """subscribe_live should set self.subscription via js.subscribe."""
+        mock_sub = MagicMock()
+        mock_sub.messages = AsyncMock()
+
+        state.js = AsyncMock()
+        state.js.subscribe = AsyncMock(return_value=mock_sub)
+
+        await state.subscribe_live()
+
+        state.js.subscribe.assert_called_once()
+        call_kwargs = state.js.subscribe.call_args
+        # Subject should be trips.>
+        assert call_kwargs[0][0] == "trips.>"
+        assert state.subscription is mock_sub
+
+    @pytest.mark.asyncio
+    async def test_subscribe_live_uses_deliver_new_policy(self, state):
+        """subscribe_live should use DeliverPolicy.NEW for live subscription."""
+        import nats
+
+        mock_sub = MagicMock()
+        state.js = AsyncMock()
+        state.js.subscribe = AsyncMock(return_value=mock_sub)
+
+        await state.subscribe_live()
+
+        call_kwargs = state.js.subscribe.call_args[1]
+        config = call_kwargs.get("config")
+        assert config is not None
+        assert config.deliver_policy == nats.js.api.DeliverPolicy.NEW
+
+    @pytest.mark.asyncio
+    async def test_process_subscription_broadcasts_new_point(self, state):
+        """_process_subscription should broadcast new_point events to WebSocket clients."""
+        point_data = {
+            "id": "ws_test",
+            "lat": 48.0,
+            "lng": -120.0,
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
+        msg = self._make_msg(point_data)
+
+        # Build an async generator that yields one message then stops.
+        async def one_message():
+            yield msg
+
+        mock_sub = MagicMock()
+        mock_sub.messages = one_message()
+        state.subscription = mock_sub
+
+        state.manager.broadcast = AsyncMock()
+
+        await state._process_subscription()
+
+        msg.ack.assert_called_once()
+        state.manager.broadcast.assert_called_once()
+        broadcast_call = state.manager.broadcast.call_args[0][0]
+        assert broadcast_call["type"] == "new_point"
+        assert broadcast_call["point"]["id"] == "ws_test"
+
+    @pytest.mark.asyncio
+    async def test_process_subscription_broadcasts_delete_for_tombstone(self, state):
+        """_process_subscription should broadcast delete_point for tombstone messages."""
+        # Pre-populate cache
+        state.points["to_delete"] = TripPoint(
+            id="to_delete", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+        )
+
+        tombstone_msg = self._make_msg({"id": "to_delete", "deleted": True})
+
+        async def one_message():
+            yield tombstone_msg
+
+        mock_sub = MagicMock()
+        mock_sub.messages = one_message()
+        state.subscription = mock_sub
+
+        state.manager.broadcast = AsyncMock()
+
+        await state._process_subscription()
+
+        tombstone_msg.ack.assert_called_once()
+        assert "to_delete" not in state.points
+        broadcast_call = state.manager.broadcast.call_args[0][0]
+        assert broadcast_call["type"] == "delete_point"
+        assert broadcast_call["id"] == "to_delete"
+
+    @pytest.mark.asyncio
+    async def test_replay_stream_skips_invalid_coordinates(self, state):
+        """replay_stream should skip messages with null island coordinates."""
+        msg = self._make_msg(
+            {"id": "null_island", "lat": 0.0, "lng": 0.0, "timestamp": "2024-01-15T10:00:00Z"}
+        )
+
+        mock_consumer = AsyncMock()
+        mock_consumer.fetch = AsyncMock(
+            side_effect=[[msg], __import__("nats").errors.TimeoutError()]
+        )
+        mock_consumer.unsubscribe = AsyncMock()
+
+        state.js = AsyncMock()
+        state.js.pull_subscribe = AsyncMock(return_value=mock_consumer)
+
+        await state.replay_stream()
+
+        assert "null_island" not in state.points
