@@ -21,8 +21,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/gguf"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/gguf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
 )
 
 func TestCopySafetensors(t *testing.T) {

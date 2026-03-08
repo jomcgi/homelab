@@ -11,7 +11,7 @@ import (
 	"path"
 	"strings"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
 )
 
 // DeriveTag returns the OCI tag to use. If tag is non-empty it is returned as-is;

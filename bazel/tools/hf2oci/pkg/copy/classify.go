@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
 )
 
 // ModelFormat represents the format of model weight files.

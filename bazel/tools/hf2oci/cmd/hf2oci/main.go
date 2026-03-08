@@ -4,8 +4,8 @@ package main
 import (
 	"os"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/cmd/hf2oci/cmd"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/copy"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/cmd/hf2oci/cmd"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/copy"
 )
 
 func main() {

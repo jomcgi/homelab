@@ -6,8 +6,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/copy"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/copy"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
 )
 
 var (
