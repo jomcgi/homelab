@@ -43,7 +43,7 @@ func (m *memStore) Get(_ context.Context, id string) (*JobRecord, error) {
 	return job, nil
 }
 
-func (m *memStore) List(_ context.Context, statusFilter []string, limit, offset int) ([]JobRecord, int, error) {
+func (m *memStore) List(_ context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error) {
 	filterSet := make(map[string]bool)
 	for _, f := range statusFilter {
 		filterSet[strings.ToUpper(f)] = true
@@ -59,6 +59,9 @@ func (m *memStore) List(_ context.Context, statusFilter []string, limit, offset 
 	for _, k := range keys {
 		job := m.jobs[k]
 		if len(filterSet) > 0 && !filterSet[string(job.Status)] {
+			continue
+		}
+		if len(tagFilter) > 0 && !hasAllTags(job.Tags, tagFilter) {
 			continue
 		}
 		all = append(all, *job)
