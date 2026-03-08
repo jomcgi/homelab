@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/copy"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/copy"
 )
 
 // outputFormat is the CLI output mode.

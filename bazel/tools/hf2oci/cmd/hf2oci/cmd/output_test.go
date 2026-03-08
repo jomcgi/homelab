@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/copy"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/copy"
 )
 
 func TestPrintJSONResultStructure(t *testing.T) {

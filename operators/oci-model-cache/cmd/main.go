@@ -38,14 +38,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/webhook"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/copy"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
 	v1alpha1 "github.com/jomcgi/homelab/operators/oci-model-cache/api/v1alpha1"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/config"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/controller"
 	sm "github.com/jomcgi/homelab/operators/oci-model-cache/internal/statemachine"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/telemetry"
 	webhookpkg "github.com/jomcgi/homelab/operators/oci-model-cache/internal/webhook"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/copy"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
 )
 
 var (

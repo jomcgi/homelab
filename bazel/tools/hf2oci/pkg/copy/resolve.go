@@ -12,9 +12,9 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"github.com/google/go-containerregistry/pkg/v1/remote/transport"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/oci"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/ociref"
 )
 
 // ResolveOptions configures the resolve operation.

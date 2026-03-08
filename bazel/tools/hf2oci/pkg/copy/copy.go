@@ -14,10 +14,10 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/remote"
 	"golang.org/x/sync/errgroup"
 
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/gguf"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/oci"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/gguf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/oci"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/ociref"
 )
 
 const (

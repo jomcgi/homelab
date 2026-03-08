@@ -13,13 +13,13 @@ import (
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/webhook/admission"
 
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/hf"
+	"github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/ociref"
 	v1alpha1 "github.com/jomcgi/homelab/operators/oci-model-cache/api/v1alpha1"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/controller"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/hfref"
 	"github.com/jomcgi/homelab/operators/oci-model-cache/internal/naming"
 	sm "github.com/jomcgi/homelab/operators/oci-model-cache/internal/statemachine"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/hf"
-	"github.com/jomcgi/homelab/tools/hf2oci/pkg/ociref"
 )
 
 // PodMutator handles mutating admission requests for Pods.
