@@ -5,7 +5,7 @@ go_library(
     srcs = ["ociref.go"],
     importpath = "github.com/jomcgi/homelab/bazel/tools/hf2oci/pkg/ociref",
     visibility = ["//visibility:public"],
-    deps = ["@com_github_jomcgi_homelab//tools/hf2oci/pkg/hf:go_default_library"],
+    deps = ["//bazel/tools/hf2oci/pkg/hf"],
 )
 
 go_test(
@@ -13,7 +13,7 @@ go_test(
     srcs = ["ociref_test.go"],
     embed = [":ociref"],
     deps = [
-        "@com_github_jomcgi_homelab//tools/hf2oci/pkg/hf:go_default_library",
+        "//bazel/tools/hf2oci/pkg/hf",
         "@com_github_stretchr_testify//assert",
     ],
 )
