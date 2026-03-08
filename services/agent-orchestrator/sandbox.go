@@ -2,9 +2,13 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
+	"net/http"
+	"strconv"
+	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -13,10 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/remotecommand"
-	executil "k8s.io/client-go/util/exec"
 )
 
 var sandboxClaimGVR = schema.GroupVersionResource{
@@ -40,6 +41,7 @@ type SandboxExecutor struct {
 	template          string
 	inactivityTimeout time.Duration
 	logger            *slog.Logger
+	httpClient        *http.Client
 }
 
 // ExecResult holds the outcome of a sandbox execution.
@@ -67,15 +69,15 @@ func NewSandboxExecutor(config *rest.Config, namespace, template string, inactiv
 		template:          template,
 		inactivityTimeout: inactivityTimeout,
 		logger:            logger,
+		httpClient:        &http.Client{Timeout: 30 * time.Second},
 	}, nil
 }
 
-// Run creates a SandboxClaim, waits for the pod, refreshes the workspace,
-// executes goose with the task, captures output, and cleans up.
-// The cancelFn is checked before each phase to support cooperative cancellation.
+// Run creates a SandboxClaim, waits for the pod, dispatches the task via HTTP,
+// and polls for completion. The cancelFn is checked before each phase to
+// support cooperative cancellation.
 func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, profile string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
 	s.logger.Info("creating sandbox claim", "claim", claimName, "namespace", s.namespace)
-
 	if err := s.createClaim(ctx, claimName); err != nil {
 		return nil, fmt.Errorf("creating claim: %w", err)
 	}
@@ -85,11 +87,11 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, profile stri
 		return nil, fmt.Errorf("cancelled before pod allocation")
 	}
 
-	podName, err := s.waitForPod(ctx, claimName)
+	podName, sandboxName, err := s.waitForPodAndSandbox(ctx, claimName)
 	if err != nil {
 		return nil, fmt.Errorf("waiting for pod: %w", err)
 	}
-	s.logger.Info("sandbox pod allocated", "pod", podName)
+	s.logger.Info("sandbox pod allocated", "pod", podName, "sandbox", sandboxName)
 
 	if cancelFn() {
 		return nil, fmt.Errorf("cancelled before pod ready")
@@ -100,28 +102,21 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, profile stri
 	}
 
 	if cancelFn() {
-		return nil, fmt.Errorf("cancelled before workspace refresh")
+		return nil, fmt.Errorf("cancelled before dispatch")
 	}
 
-	s.refreshWorkspace(ctx, podName)
-
-	if cancelFn() {
-		return nil, fmt.Errorf("cancelled before exec")
-	}
-
-	s.logger.Info("running goose task", "pod", podName, "profile", profile)
-	cmd := buildGooseCommand(task, profile)
-	exitCode, err := s.execGoose(ctx, podName, cmd, outputBuf)
+	fqdn, err := s.resolveSandboxServiceFQDN(ctx, sandboxName)
 	if err != nil {
-		return nil, fmt.Errorf("exec goose: %w", err)
+		return nil, fmt.Errorf("resolving service FQDN: %w", err)
+	}
+	baseURL := fmt.Sprintf("http://%s:8081", fqdn)
+	s.logger.Info("resolved runner URL", "url", baseURL)
+
+	if err := s.dispatchTask(ctx, baseURL, task, profile); err != nil {
+		return nil, fmt.Errorf("dispatching task: %w", err)
 	}
 
-	s.logger.Info("goose completed", "pod", podName, "exitCode", exitCode)
-	return &ExecResult{
-		ClaimName: claimName,
-		ExitCode:  exitCode,
-		Output:    outputBuf.String(),
-	}, nil
+	return s.pollUntilDone(ctx, baseURL, claimName, cancelFn, outputBuf)
 }
 
 func (s *SandboxExecutor) createClaim(ctx context.Context, claimName string) error {
@@ -158,32 +153,33 @@ func (s *SandboxExecutor) deleteClaim(claimName string) {
 	}
 }
 
-// waitForPod polls the SandboxClaim status until a sandbox name appears,
+// waitForPodAndSandbox polls the SandboxClaim status until a sandbox name appears,
 // then resolves the actual pod name via the Sandbox resource.
-func (s *SandboxExecutor) waitForPod(ctx context.Context, claimName string) (string, error) {
+func (s *SandboxExecutor) waitForPodAndSandbox(ctx context.Context, claimName string) (podName, sandboxName string, err error) {
 	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
 	defer cancel()
-
 	for {
 		claim, err := s.dynClient.Resource(sandboxClaimGVR).Namespace(s.namespace).Get(ctx, claimName, metav1.GetOptions{})
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
-
 		status, ok := claim.Object["status"].(map[string]interface{})
 		if ok {
 			sandbox, _ := status["sandbox"].(map[string]interface{})
 			if sandbox != nil {
-				sandboxName, _ := sandbox["Name"].(string)
-				if sandboxName != "" {
-					return s.resolvePodName(ctx, sandboxName)
+				name, _ := sandbox["Name"].(string)
+				if name != "" {
+					pod, err := s.resolvePodName(ctx, name)
+					if err != nil {
+						return "", "", err
+					}
+					return pod, name, nil
 				}
 			}
 		}
-
 		select {
 		case <-ctx.Done():
-			return "", fmt.Errorf("timed out waiting for sandbox allocation")
+			return "", "", fmt.Errorf("timed out waiting for sandbox allocation")
 		case <-time.After(2 * time.Second):
 		}
 	}
@@ -260,105 +256,122 @@ func (s *SandboxExecutor) waitPodRunning(ctx context.Context, podName string) er
 	}
 }
 
-// refreshWorkspace execs a git pull in the sandbox pod to get latest code.
-// Errors are logged but not propagated since the workspace may already be current.
-func (s *SandboxExecutor) refreshWorkspace(ctx context.Context, podName string) {
-	req := s.clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(s.namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: "goose",
-			Command:   []string{"git", "-C", "/workspace/homelab", "pull", "--ff-only", "origin", "main"},
-			Stdout:    true,
-			Stderr:    true,
-		}, scheme.ParameterCodec)
-
-	exec, err := remotecommand.NewSPDYExecutor(s.config, "POST", req.URL())
+func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, profile string) error {
+	reqBody := fmt.Sprintf(`{"task":%q,"profile":%q,"inactivity_timeout":%d}`,
+		task, profile, int(s.inactivityTimeout.Seconds()))
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/run", strings.NewReader(reqBody))
 	if err != nil {
-		s.logger.Warn("failed to create workspace refresh executor", "error", err)
-		return
+		return err
 	}
-
-	if err := exec.StreamWithContext(ctx, remotecommand.StreamOptions{
-		Stdout: io.Discard,
-		Stderr: io.Discard,
-	}); err != nil {
-		s.logger.Warn("workspace refresh failed", "error", err)
-	}
-}
-
-// logWriter adapts slog.Logger to an io.Writer, emitting each written chunk as a debug log.
-type logWriter struct {
-	logger *slog.Logger
-}
-
-func (w *logWriter) Write(p []byte) (int, error) {
-	if w.logger.Enabled(context.Background(), slog.LevelDebug) {
-		w.logger.Debug("sandbox output", "data", string(p))
-	}
-	return len(p), nil
-}
-
-// buildGooseCommand constructs the goose CLI arguments for the given task and profile.
-// When profile is empty, it uses the default behavior (all tools via config.yaml).
-// When profile is set, it uses the corresponding recipe with --no-profile to avoid
-// loading default extensions.
-func buildGooseCommand(task, profile string) []string {
-	if profile == "" {
-		return []string{"goose", "run", "--text", task}
-	}
-	recipePath := ValidProfiles[profile]
-	return []string{
-		"goose", "run",
-		"--recipe", recipePath,
-		"--no-profile",
-		"--params", fmt.Sprintf("task_description=%s", task),
-	}
-}
-
-// execGoose runs goose inside the sandbox pod and captures stdout+stderr.
-func (s *SandboxExecutor) execGoose(ctx context.Context, podName string, cmd []string, outputBuf *syncBuffer) (int, error) {
-	req := s.clientset.CoreV1().RESTClient().Post().
-		Resource("pods").
-		Name(podName).
-		Namespace(s.namespace).
-		SubResource("exec").
-		VersionedParams(&corev1.PodExecOptions{
-			Container: "goose",
-			Command:   cmd,
-			Stdout:    true,
-			Stderr:    true,
-		}, scheme.ParameterCodec)
-
-	executor, err := remotecommand.NewSPDYExecutor(s.config, "POST", req.URL())
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := s.httpClient.Do(req)
 	if err != nil {
-		return -1, fmt.Errorf("creating executor: %w", err)
+		return fmt.Errorf("POST /run: %w", err)
 	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusAccepted {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("POST /run returned %d: %s", resp.StatusCode, string(body))
+	}
+	return nil
+}
 
-	execCtx, execCancel := context.WithCancel(ctx)
-	defer execCancel()
-
-	watchdog := newActivityWatchdog(s.inactivityTimeout, func() {
-		s.logger.Warn("agent silent, killing execution", "threshold", s.inactivityTimeout, "pod", podName)
-		execCancel()
-	})
-	defer watchdog.Stop()
-
-	lw := &logWriter{logger: s.logger}
-	w := io.MultiWriter(outputBuf, lw, watchdog)
-
-	err = executor.StreamWithContext(execCtx, remotecommand.StreamOptions{
-		Stdout: w,
-		Stderr: w,
-	})
-	if err != nil {
-		if exitErr, ok := err.(executil.ExitError); ok {
-			return exitErr.ExitStatus(), nil
+func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
+	offset := 0
+	ticker := time.NewTicker(30 * time.Second)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-ticker.C:
 		}
-		return -1, err
+		if cancelFn() {
+			return nil, fmt.Errorf("cancelled during execution")
+		}
+		// Poll output
+		newOffset, err := s.pollOutput(ctx, baseURL, offset, outputBuf)
+		if err != nil {
+			s.logger.Warn("poll output error", "error", err)
+		} else {
+			offset = newOffset
+		}
+		// Check status
+		state, exitCode, err := s.pollStatus(ctx, baseURL)
+		if err != nil {
+			s.logger.Warn("poll status error", "error", err)
+			continue
+		}
+		if state == "done" || state == "failed" {
+			// Final output drain
+			if o, err := s.pollOutput(ctx, baseURL, offset, outputBuf); err == nil {
+				offset = o
+			}
+			return &ExecResult{
+				ClaimName: claimName,
+				ExitCode:  exitCode,
+				Output:    outputBuf.String(),
+			}, nil
+		}
 	}
+}
 
-	return 0, nil
+func (s *SandboxExecutor) pollOutput(ctx context.Context, baseURL string, offset int, outputBuf *syncBuffer) (int, error) {
+	url := fmt.Sprintf("%s/output?offset=%d", baseURL, offset)
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
+	if err != nil {
+		return offset, err
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return offset, err
+	}
+	defer resp.Body.Close()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return offset, err
+	}
+	if len(body) > 0 {
+		outputBuf.Write(body)
+	}
+	newOffset := offset
+	if hdr := resp.Header.Get("X-Output-Offset"); hdr != "" {
+		if v, err := strconv.Atoi(hdr); err == nil {
+			newOffset = v
+		}
+	}
+	return newOffset, nil
+}
+
+// pollStatus checks the runner's current state. Used by both the Run loop
+// and reconciliation (via PollRunnerStatus).
+func (s *SandboxExecutor) pollStatus(ctx context.Context, baseURL string) (state string, exitCode int, err error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", baseURL+"/status", nil)
+	if err != nil {
+		return "", -1, err
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", -1, err
+	}
+	defer resp.Body.Close()
+	var status struct {
+		State    string `json:"state"`
+		ExitCode *int   `json:"exit_code"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return "", -1, err
+	}
+	exitCode = -1
+	if status.ExitCode != nil {
+		exitCode = *status.ExitCode
+	}
+	return status.State, exitCode, nil
+}
+
+// PollRunnerStatus checks a runner's HTTP status at the given service FQDN.
+// Used by reconciliation to determine if a running job's goose is still alive.
+func (s *SandboxExecutor) PollRunnerStatus(ctx context.Context, serviceFQDN string) (state string, exitCode int, err error) {
+	baseURL := fmt.Sprintf("http://%s:8081", serviceFQDN)
+	return s.pollStatus(ctx, baseURL)
 }
