@@ -164,8 +164,8 @@ bazel run //charts/goose-agent/image:push
 The `agent-orchestrator` Go binary follows the same pattern:
 
 ```
-services/agent-orchestrator/ → go_binary → go_image (apko base)
-    → ghcr.io/jomcgi/homelab/services/agent-orchestrator
+services/agent-orchestrator/ -> go_binary -> go_image (apko base)
+    -> ghcr.io/jomcgi/homelab/services/agent-orchestrator
 ```
 
 No Dockerfiles. All images: apko-based, dual-arch, non-root (uid 65532), `capabilities.drop: [ALL]`.
@@ -234,7 +234,7 @@ State is persisted in NATS KV, keyed by ULID (lexicographically sortable = free 
 ```
 1. Pull job ID from JetStream
 2. Read JobRecord from NATS KV
-3. If CANCELLED → ACK and skip
+3. If CANCELLED -> ACK and skip
 4. Create SandboxClaim:
        apiVersion: extensions.agents.x-k8s.io/v1alpha1
        kind: SandboxClaim
@@ -246,10 +246,10 @@ State is persisted in NATS KV, keyed by ULID (lexicographically sortable = free 
 8. Exec (refresh): git -C /workspace/homelab pull --ff-only origin main
 9. Exec (run):     goose run --text <task>
        (profile):  goose run --recipe <path> --no-profile --params task_description=<task>
-10. Capture stdout+stderr → syncBuffer (last 32KB)
+10. Capture stdout+stderr -> syncBuffer (last 32KB)
 11. Flush output to KV every 30s (live progress visible via GET /jobs/{id}/output)
-12. On exit: KV → SUCCEEDED | FAILED | CANCELLED
-13. Delete SandboxClaim → controller cleans up pod
+12. On exit: KV -> SUCCEEDED | FAILED | CANCELLED
+13. Delete SandboxClaim -> controller cleans up pod
 ```
 
 Step 8 ensures agents always work from the latest `main`.
@@ -258,7 +258,7 @@ Step 8 ensures agents always work from the latest `main`.
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `POST` | `/jobs` | Submit job → 202 Accepted |
+| `POST` | `/jobs` | Submit job -> 202 Accepted |
 | `GET` | `/jobs` | List jobs (`?status=RUNNING,PENDING`, `?limit=`, `?offset=`) |
 | `GET` | `/jobs/{id}` | Job detail + all attempt records |
 | `POST` | `/jobs/{id}/cancel` | Cancel PENDING or RUNNING job |
@@ -313,7 +313,7 @@ The orchestrator's `ServiceAccount` has the minimum permissions needed to drive 
 
 ---
 
-## 4. Claude Chat → Agent Orchestrator MCP
+## 4. Claude Chat -> Agent Orchestrator MCP
 
 **Source:** `services/agent_orchestrator_mcp/` (Python, FastMCP + httpx)
 **Transport:** `STREAMABLEHTTP`
@@ -332,7 +332,7 @@ A thin FastMCP wrapper around the orchestrator REST API. Registered with Context
 | `cancel_job` | `POST /jobs/{id}/cancel` | Cancel a pending or running job |
 | `get_job_output` | `GET /jobs/{id}/output` | Latest attempt output (last 32KB) |
 
-### Full Request Path: Claude Chat → Running Agent
+### Full Request Path: Claude Chat -> Running Agent
 
 ```mermaid
 sequenceDiagram
@@ -384,7 +384,7 @@ sequenceDiagram
 **Chart:** `charts/context-forge/` (wraps upstream IBM `mcp-stack` Helm chart)
 **Overlay:** `overlays/prod/context-forge/`
 **Namespace:** `mcp-gateway`
-**External:** `https://mcp.jomcgi.dev/mcp/` (Cloudflare tunnel → MCP OAuth Proxy → Context Forge)
+**External:** `https://mcp.jomcgi.dev/mcp/` (Cloudflare tunnel -> MCP OAuth Proxy -> Context Forge)
 **In-cluster:** `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`
 
 IBM's [`mcp-context-forge`](https://github.com/ibm/mcp-context-forge) aggregates multiple upstream MCP servers behind a single endpoint with RBAC-based tool distribution.
