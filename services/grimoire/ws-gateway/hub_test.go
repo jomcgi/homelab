@@ -102,10 +102,17 @@ func TestHubUnregisterClosesSendChannel(t *testing.T) {
 	h.register <- c
 	time.Sleep(20 * time.Millisecond)
 
+	// Drain buffered presence events from registration so the send channel is
+	// empty before unregistering; otherwise the closed-channel check below
+	// would dequeue a presence message (ok=true) and incorrectly fail.
+	for len(c.send) > 0 {
+		<-c.send
+	}
+
 	h.unregister <- c
 	time.Sleep(20 * time.Millisecond)
 
-	// Reading from a closed channel returns the zero value immediately.
+	// Reading from a closed, empty channel returns the zero value immediately.
 	select {
 	case _, ok := <-c.send:
 		if ok {
@@ -127,6 +134,14 @@ func TestHubBroadcastDeliverToAllClients(t *testing.T) {
 	h.register <- c1
 	h.register <- c2
 	time.Sleep(20 * time.Millisecond)
+
+	// Drain presence events buffered during registration so only the broadcast
+	// message below appears in the send channels when we assert.
+	for _, c := range []*Client{c1, c2} {
+		for len(c.send) > 0 {
+			<-c.send
+		}
+	}
 
 	msg := []byte(`{"type":"roll_result","data":{}}`)
 	h.broadcast <- msg
