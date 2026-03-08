@@ -71,3 +71,20 @@ semgrep_test(
     srcs = ["database_test.py"],
     rules = ["//semgrep_rules:python_rules"],
 )
+
+semgrep_test(
+    name = "ships_api_test_semgrep_test",
+    srcs = ["ships_api_test.py"],
+    rules = ["//semgrep_rules:python_rules"],
+)
+
+py_test(
+    name = "ships_api_test",
+    srcs = ["ships_api_test.py"],
+    deps = [
+        ":conftest",
+        "//services/ships_api:ships-api",
+        "@pip//fastapi",
+        "@pip//pytest",
+    ],
+)
