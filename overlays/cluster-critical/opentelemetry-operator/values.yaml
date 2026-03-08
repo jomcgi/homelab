@@ -17,6 +17,7 @@ instrumentation:
     - mcp-servers
     - todo
     - agent-orchestrator
+    - cluster-agents
     # Development
     - grimoire
     - marine
