@@ -51,7 +51,46 @@ use_repo(buildbuddy, "buildbuddy_toolchain")
 
 multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
 multitool.hub(lockfile = "//tools:tools.lock.json")
-use_repo(multitool, "multitool")
+use_repo(
+    multitool,
+    "multitool",
+    # Per-platform repos for tools packaged into the OCI tools image.
+    # These are internal repos created by rules_multitool for each tool+platform
+    # combination, needed by multitool_tar.bzl to package platform-specific binaries.
+    "multitool.argocd.linux_arm64",
+    "multitool.argocd.linux_x86_64",
+    "multitool.argocd.macos_arm64",
+    "multitool.buildozer.linux_arm64",
+    "multitool.buildozer.linux_x86_64",
+    "multitool.buildozer.macos_arm64",
+    "multitool.crane.linux_arm64",
+    "multitool.crane.linux_x86_64",
+    "multitool.crane.macos_arm64",
+    "multitool.gazelle.linux_arm64",
+    "multitool.gazelle.linux_x86_64",
+    "multitool.gazelle.macos_arm64",
+    "multitool.gh.linux_arm64",
+    "multitool.gh.linux_x86_64",
+    "multitool.gh.macos_arm64",
+    "multitool.gofumpt.linux_arm64",
+    "multitool.gofumpt.linux_x86_64",
+    "multitool.gofumpt.macos_arm64",
+    "multitool.helm.linux_arm64",
+    "multitool.helm.linux_x86_64",
+    "multitool.helm.macos_arm64",
+    "multitool.kind.linux_arm64",
+    "multitool.kind.linux_x86_64",
+    "multitool.kind.macos_arm64",
+    "multitool.op.linux_arm64",
+    "multitool.op.linux_x86_64",
+    "multitool.op.macos_arm64",
+    "multitool.ruff.linux_arm64",
+    "multitool.ruff.linux_x86_64",
+    "multitool.ruff.macos_arm64",
+    "multitool.shfmt.linux_arm64",
+    "multitool.shfmt.linux_x86_64",
+    "multitool.shfmt.macos_arm64",
+)
 
 #########################
 # Go
