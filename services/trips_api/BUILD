@@ -45,6 +45,7 @@ py_test(
         ":trips_api",
         "@pip//fastapi",
         "@pip//httpx",
+        "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],

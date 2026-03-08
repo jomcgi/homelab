@@ -25,18 +25,18 @@ type fakeMsg struct {
 
 func newFakeMsg(data []byte) *fakeMsg { return &fakeMsg{data: data} }
 
-func (m *fakeMsg) Data() []byte              { return m.data }
+func (m *fakeMsg) Data() []byte               { return m.data }
 func (m *fakeMsg) Headers() jetstream.Headers { return m.headers }
-func (m *fakeMsg) Ack() error                { m.acked.Store(true); return nil }
-func (m *fakeMsg) Nak() error                { m.nacked.Store(true); return nil }
+func (m *fakeMsg) Ack() error                 { m.acked.Store(true); return nil }
+func (m *fakeMsg) Nak() error                 { m.nacked.Store(true); return nil }
 func (m *fakeMsg) NakWithDelay(_ time.Duration) error {
 	m.nacked.Store(true)
 	return nil
 }
-func (m *fakeMsg) Term() error                         { return nil }
-func (m *fakeMsg) TermWithReason(_ string) error       { return nil }
-func (m *fakeMsg) InProgress() error                   { return nil }
-func (m *fakeMsg) DoubleAck(_ context.Context) error   { m.acked.Store(true); return nil }
+func (m *fakeMsg) Term() error                       { return nil }
+func (m *fakeMsg) TermWithReason(_ string) error     { return nil }
+func (m *fakeMsg) InProgress() error                 { return nil }
+func (m *fakeMsg) DoubleAck(_ context.Context) error { m.acked.Store(true); return nil }
 func (m *fakeMsg) Metadata() (*jetstream.MsgMetadata, error) {
 	return &jetstream.MsgMetadata{}, nil
 }
@@ -309,9 +309,9 @@ func TestProcessJob_StoreUpdateFailureOnStart_Nacks(t *testing.T) {
 	// errStore wraps memStore but fails on every Put after the initial seed.
 	callCount := 0
 	errStore := &errOnPutStore{
-		inner:      store,
-		failAfter:  1,
-		callCount:  &callCount,
+		inner:     store,
+		failAfter: 1,
+		callCount: &callCount,
 	}
 
 	sandbox := &fakeSandbox{}

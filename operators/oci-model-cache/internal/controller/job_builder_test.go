@@ -220,8 +220,8 @@ func TestBuildCopyJob_NodeSelector(t *testing.T) {
 	mc := minimalModelCache()
 	cfg := minimalConfig()
 	cfg.SyncNodeSelector = map[string]string{
-		"kubernetes.io/arch":  "amd64",
-		"workload-type":       "gpu",
+		"kubernetes.io/arch": "amd64",
+		"workload-type":      "gpu",
 	}
 
 	job := buildCopyJob(mc, cfg)

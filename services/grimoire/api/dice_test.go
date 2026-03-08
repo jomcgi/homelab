@@ -130,11 +130,11 @@ func TestParseAndRollInvalidFormula(t *testing.T) {
 	cases := []string{
 		"",
 		"notdice",
-		"d20",      // missing count
-		"2d",       // missing sides
+		"d20", // missing count
+		"2d",  // missing sides
 		"abc",
 		"1d1000000", // sides > 1000
-		"101d6",    // count > 100
+		"101d6",     // count > 100
 	}
 	for _, formula := range cases {
 		_, _, err := parseAndRoll(formula)

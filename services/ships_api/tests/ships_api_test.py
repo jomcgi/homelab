@@ -138,7 +138,9 @@ class TestDatabaseDeduplication:
         db._position_cache = {}
         return db
 
-    def _make_cached(self, lat, lon, speed=None, timestamp="2024-01-15T10:00:00Z", first_seen=None):
+    def _make_cached(
+        self, lat, lon, speed=None, timestamp="2024-01-15T10:00:00Z", first_seen=None
+    ):
         return CachedPosition(
             lat=lat,
             lon=lon,
@@ -149,7 +151,12 @@ class TestDatabaseDeduplication:
 
     def test_first_position_for_vessel_always_inserted(self):
         db = self._make_db()
-        data = {"mmsi": "123456789", "lat": 48.5, "lon": -123.4, "timestamp": "2024-01-15T10:00:00Z"}
+        data = {
+            "mmsi": "123456789",
+            "lat": 48.5,
+            "lon": -123.4,
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
         should_insert, first_seen = db.should_insert_position(data)
         assert should_insert is True
         assert first_seen == "2024-01-15T10:00:00Z"
@@ -229,7 +236,12 @@ class TestDatabaseDeduplication:
 
     def test_update_cache_stores_position(self):
         db = self._make_db()
-        data = {"lat": 48.5, "lon": -123.4, "speed": 2.0, "timestamp": "2024-01-15T10:00:00Z"}
+        data = {
+            "lat": 48.5,
+            "lon": -123.4,
+            "speed": 2.0,
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
         db.update_cache("123456789", data, "2024-01-15T09:00:00Z")
 
         cached = db._position_cache["123456789"]

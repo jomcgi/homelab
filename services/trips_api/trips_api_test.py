@@ -406,24 +406,24 @@ class TestAPIKeyAuth:
         point = TripPoint(
             id="p1", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
         )
-        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
-            trips_main, "state"
-        ) as mock_state:
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", "secret-key"),
+            patch.object(trips_main, "state") as mock_state,
+        ):
             mock_state.get_points.return_value = [point]
             mock_state.points = {"p1": point}
 
             client = self._make_client()
-            response = client.get(
-                "/api/points", headers={"X-API-Key": "secret-key"}
-            )
+            response = client.get("/api/points", headers={"X-API-Key": "secret-key"})
 
         assert response.status_code == 200
 
     def test_missing_key_rejected(self):
         """Requests without the X-API-Key header should receive 401."""
-        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
-            trips_main, "state"
-        ) as mock_state:
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", "secret-key"),
+            patch.object(trips_main, "state") as mock_state,
+        ):
             mock_state.get_points.return_value = []
             mock_state.points = {}
 
@@ -434,16 +434,15 @@ class TestAPIKeyAuth:
 
     def test_wrong_key_rejected(self):
         """Requests with an incorrect API key should receive 401."""
-        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
-            trips_main, "state"
-        ) as mock_state:
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", "secret-key"),
+            patch.object(trips_main, "state") as mock_state,
+        ):
             mock_state.get_points.return_value = []
             mock_state.points = {}
 
             client = self._make_client()
-            response = client.get(
-                "/api/points", headers={"X-API-Key": "wrong-key"}
-            )
+            response = client.get("/api/points", headers={"X-API-Key": "wrong-key"})
 
         assert response.status_code == 401
 
@@ -452,9 +451,10 @@ class TestAPIKeyAuth:
         point = TripPoint(
             id="p1", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
         )
-        with patch.object(trips_main, "TRIP_API_KEY", ""), patch.object(
-            trips_main, "state"
-        ) as mock_state:
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", ""),
+            patch.object(trips_main, "state") as mock_state,
+        ):
             mock_state.get_points.return_value = [point]
             mock_state.points = {"p1": point}
 
@@ -466,10 +466,14 @@ class TestAPIKeyAuth:
 
     def test_stats_endpoint_requires_auth(self):
         """The /api/stats endpoint also enforces API key auth."""
-        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
-            trips_main, "state"
-        ) as mock_state:
-            mock_state.get_stats.return_value = {"total_points": 0, "connected_clients": 0}
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", "secret-key"),
+            patch.object(trips_main, "state") as mock_state,
+        ):
+            mock_state.get_stats.return_value = {
+                "total_points": 0,
+                "connected_clients": 0,
+            }
 
             client = self._make_client()
             # Missing key
@@ -479,9 +483,10 @@ class TestAPIKeyAuth:
 
     def test_single_point_endpoint_requires_auth(self):
         """The /api/points/{id} endpoint also enforces API key auth."""
-        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
-            trips_main, "state"
-        ) as mock_state:
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", "secret-key"),
+            patch.object(trips_main, "state") as mock_state,
+        ):
             mock_state.get_point.return_value = None
 
             client = self._make_client()
@@ -491,9 +496,10 @@ class TestAPIKeyAuth:
 
     def test_health_endpoint_always_public(self):
         """The /health endpoint is never gated by API key."""
-        with patch.object(trips_main, "TRIP_API_KEY", "secret-key"), patch.object(
-            trips_main, "state"
-        ) as mock_state:
+        with (
+            patch.object(trips_main, "TRIP_API_KEY", "secret-key"),
+            patch.object(trips_main, "state") as mock_state,
+        ):
             mock_state.ready = True
             mock_state.points = {}
             mock_state.manager.active_connections = []
@@ -580,7 +586,12 @@ class TestJetStreamReplay:
         """replay_stream should process all messages fetched before TimeoutError."""
         msgs = [
             self._make_msg(
-                {"id": f"p{i}", "lat": 45.0 + i, "lng": -122.0, "timestamp": f"2024-01-15T{10 + i:02d}:00:00Z"}
+                {
+                    "id": f"p{i}",
+                    "lat": 45.0 + i,
+                    "lng": -122.0,
+                    "timestamp": f"2024-01-15T{10 + i:02d}:00:00Z",
+                }
             )
             for i in range(3)
         ]
@@ -693,7 +704,12 @@ class TestJetStreamReplay:
     async def test_replay_stream_skips_invalid_coordinates(self, state):
         """replay_stream should skip messages with null island coordinates."""
         msg = self._make_msg(
-            {"id": "null_island", "lat": 0.0, "lng": 0.0, "timestamp": "2024-01-15T10:00:00Z"}
+            {
+                "id": "null_island",
+                "lat": 0.0,
+                "lng": 0.0,
+                "timestamp": "2024-01-15T10:00:00Z",
+            }
         )
 
         mock_consumer = AsyncMock()
