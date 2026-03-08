@@ -6,6 +6,7 @@ namePrefix: prod-
 resources:
   - ./agent-orchestrator
   - ./api-gateway
+  - ./cloudflare-ingress
   - ./cloudflare-tunnel
   - ./context-forge
   - ./goose-sandboxes
