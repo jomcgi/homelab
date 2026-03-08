@@ -13,7 +13,7 @@ def argocd_app(
         generate_manifests = True,
         generate_diff = False,
         generate_semgrep = True,
-        semgrep_rules = ["//semgrep_rules:kubernetes_rules"],
+        semgrep_rules = ["//bazel/semgrep/rules:kubernetes_rules"],
         semgrep_exclude_rules = [],
         tags = []):
     """Declares an ArgoCD application overlay with template testing and manifest rendering.
