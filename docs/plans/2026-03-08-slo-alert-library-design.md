@@ -23,8 +23,6 @@ slos:
   - name: api-gateway
     metric: httpcheck.status
     filter: "http.url = 'https://api.jomcgi.dev/status.json'"
-    target: 99.9        # availability percent
-    window: 7d          # SLO period (default: 7d)
     op: "2"             # comparison operator: "2" = less than (default)
     threshold: 1        # value to compare against
     severity: critical  # optional (default: critical)
@@ -56,9 +54,8 @@ The burn rate determines whether the metric violates the threshold — it doesn'
 charts/signoz-alerts/
 ├── Chart.yaml          # type: library, version: 0.1.0
 ├── templates/
-│   ├── _slo.tpl        # {{- define "signoz-alerts.slo" }} — main entry point
-│   └── _helpers.tpl    # burn-rate window calculations, JSON generation
-└── values.yaml         # defaults: window=7d, severity=critical, channels=[incidentio]
+│   └── _slo.tpl        # {{- define "signoz-alerts.slo" }} — generates burn-fast + budget-exhausted alerts
+└── values.yaml         # defaults: severity=critical, channels=[incidentio]
 ```
 
 ### Alert ConfigMap Format
