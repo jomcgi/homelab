@@ -40,11 +40,11 @@ compare_targets() {
 
 echo "Validating generate-push-all.sh ..."
 
-# Run the grep-based script (it writes images/BUILD)
+# Run the grep-based script (it writes bazel/images/BUILD)
 bash scripts/generate-push-all.sh
 
 # Extract targets from the generated BUILD file
-extract_targets_from_build images/BUILD >"$TMPDIR_VALIDATE/push_all_grep.txt"
+extract_targets_from_build bazel/images/BUILD >"$TMPDIR_VALIDATE/push_all_grep.txt"
 
 # Run equivalent bazel queries
 {
@@ -74,11 +74,11 @@ compare_targets "push-all-pages" "$TMPDIR_VALIDATE/push_pages_grep.txt" "$TMPDIR
 
 echo "Validating generate-render-all.sh ..."
 
-# Run the grep-based script (it writes tools/argocd-parallel/BUILD)
+# Run the grep-based script (it writes bazel/tools/argocd-parallel/BUILD)
 bash scripts/generate-render-all.sh
 
 # Extract targets from the generated BUILD file
-extract_targets_from_build tools/argocd-parallel/BUILD >"$TMPDIR_VALIDATE/render_grep.txt"
+extract_targets_from_build bazel/tools/argocd-parallel/BUILD >"$TMPDIR_VALIDATE/render_grep.txt"
 
 # Run equivalent bazel query
 bazel query 'kind("genrule", //overlays/...) intersect attr("name", "render_manifests", //overlays/...)' 2>/dev/null |

@@ -13,6 +13,7 @@
 **Design doc:** `docs/plans/2026-03-08-alert-driven-patrol-design.md`
 
 **Important context:**
+
 - Tests run in CI via Bazel, not locally. Use `bazel test //services/cluster-agents/...` to run tests.
 - BUILD file will need updating when files are added/removed — run `format` to regenerate.
 - The `Agent` interface lives in `model.go` — `Collect`, `Analyze`, `Execute`, `Name`, `Interval`.
@@ -25,6 +26,7 @@
 Remove files that are being replaced by the new alert-driven approach.
 
 **Files:**
+
 - Delete: `services/cluster-agents/collector_k8s.go`
 - Delete: `services/cluster-agents/collector_k8s_test.go`
 - Delete: `services/cluster-agents/collector_argocd.go`
@@ -64,6 +66,7 @@ git commit -m "refactor: remove obsolete collectors, LLM client, and NATS store"
 Remove `FindingsStore` interface and unused action types. Keep `Agent`, `Finding`, `Action`, severity/action constants.
 
 **Files:**
+
 - Modify: `services/cluster-agents/model.go`
 
 **Step 1: Update model.go**
@@ -132,6 +135,7 @@ git commit -m "refactor: simplify model, remove FindingsStore and GitHubIssue ac
 Write tests for the SigNoz alert collector. Use httptest to mock the SigNoz API.
 
 **Files:**
+
 - Create: `services/cluster-agents/collector_alerts_test.go`
 
 **Step 1: Write the tests**
@@ -260,6 +264,7 @@ git commit -m "test: add alert collector tests"
 Implement the SigNoz alert collector that polls `/api/v1/rules` for firing alerts.
 
 **Files:**
+
 - Create: `services/cluster-agents/collector_alerts.go`
 
 **Step 1: Write the implementation**
@@ -395,6 +400,7 @@ git commit -m "feat: add SigNoz alert collector"
 Write tests for the GitHub PR label checker used for deduplication.
 
 **Files:**
+
 - Create: `services/cluster-agents/github_test.go`
 
 **Step 1: Write the tests**
@@ -491,6 +497,7 @@ git commit -m "test: add GitHub PR dedup checker tests"
 Implement the GitHub REST API client that checks for open/recently-merged PRs by label.
 
 **Files:**
+
 - Create: `services/cluster-agents/github.go`
 
 **Step 1: Write the implementation**
@@ -600,6 +607,7 @@ git commit -m "feat: add GitHub PR dedup checker"
 Replace the escalator tests to use GitHub PR dedup + orchestrator job status instead of NATS.
 
 **Files:**
+
 - Modify: `services/cluster-agents/escalator_test.go`
 
 **Step 1: Rewrite escalator tests**
@@ -728,6 +736,7 @@ git commit -m "test: rewrite escalator tests for GitHub PR dedup"
 Replace the escalator to use GitHub PR label dedup instead of NATS KV.
 
 **Files:**
+
 - Modify: `services/cluster-agents/escalator.go`
 
 **Step 1: Rewrite escalator**
@@ -888,6 +897,7 @@ git commit -m "feat: rewrite escalator with GitHub PR label dedup"
 Replace patrol tests to verify the deterministic analyze step (no LLM).
 
 **Files:**
+
 - Modify: `services/cluster-agents/patrol_test.go`
 
 **Step 1: Rewrite patrol tests**
@@ -990,6 +1000,7 @@ git commit -m "test: rewrite patrol tests for deterministic analyze"
 Simplify the patrol agent: remove LLM, use alert collector, deterministic analyze.
 
 **Files:**
+
 - Modify: `services/cluster-agents/patrol.go`
 
 **Step 1: Rewrite patrol**
@@ -1075,6 +1086,7 @@ git commit -m "feat: simplify patrol agent to alert-driven with deterministic an
 Update main to wire up SigNoz + GitHub instead of NATS + K8s + LLM.
 
 **Files:**
+
 - Modify: `services/cluster-agents/main.go`
 
 **Step 1: Rewrite main**
@@ -1183,6 +1195,7 @@ git commit -m "feat: rewire main for alert-driven patrol (SigNoz + GitHub, no NA
 Regenerate the BUILD file to reflect new/removed source files and dependencies.
 
 **Files:**
+
 - Modify: `services/cluster-agents/BUILD`
 
 **Step 1: Run format to regenerate BUILD**
@@ -1192,6 +1205,7 @@ format
 ```
 
 Gazelle should update the BUILD file to:
+
 - Remove `collector_k8s.go`, `collector_argocd.go`, `llm.go`, `store.go`, `store_nats.go` from srcs
 - Add `collector_alerts.go`, `github.go`
 - Remove NATS, k8s deps
@@ -1200,6 +1214,7 @@ Gazelle should update the BUILD file to:
 **Step 2: Verify the BUILD file looks correct**
 
 Read `services/cluster-agents/BUILD` and verify:
+
 - `go_library` srcs: `collector_alerts.go`, `escalator.go`, `github.go`, `main.go`, `model.go`, `patrol.go`, `runner.go`
 - `go_library` deps: no NATS, no k8s
 - `go_test` srcs: `collector_alerts_test.go`, `escalator_test.go`, `github_test.go`, `patrol_test.go`, `runner_test.go`
@@ -1225,6 +1240,7 @@ git commit -m "build: update BUILD for alert-driven patrol"
 Update the Helm values to reflect new environment variables (SigNoz instead of NATS/LLM).
 
 **Files:**
+
 - Modify: `overlays/prod/cluster-agents/values.yaml`
 - Modify: `charts/cluster-agents/values.yaml` (if env vars are templated there)
 
