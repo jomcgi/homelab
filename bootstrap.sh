@@ -9,10 +9,13 @@ TOOLS_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/homelab-tools"
 
 # Detect platform for multi-platform image
 case "$(uname -s)-$(uname -m)" in
-	Darwin-arm64)  PLATFORM="darwin/arm64" ;;
-	Linux-x86_64)  PLATFORM="linux/amd64" ;;
-	Linux-aarch64) PLATFORM="linux/arm64" ;;
-	*) echo "ERROR: Unsupported platform: $(uname -s)-$(uname -m)"; exit 1 ;;
+Darwin-arm64) PLATFORM="darwin/arm64" ;;
+Linux-x86_64) PLATFORM="linux/amd64" ;;
+Linux-aarch64) PLATFORM="linux/arm64" ;;
+*)
+	echo "ERROR: Unsupported platform: $(uname -s)-$(uname -m)"
+	exit 1
+	;;
 esac
 
 # Install crane if missing (macOS only — Linux CI should have it)
@@ -42,8 +45,8 @@ fi
 echo "Pulling developer tools ($PLATFORM) from $TOOLS_IMAGE..."
 rm -rf "$TOOLS_DIR"
 mkdir -p "$TOOLS_DIR"
-crane export --platform "$PLATFORM" "$TOOLS_IMAGE" - \
-	| tar --no-same-owner -xf - -C "$TOOLS_DIR"
+crane export --platform "$PLATFORM" "$TOOLS_IMAGE" - |
+	tar --no-same-owner -xf - -C "$TOOLS_DIR"
 echo "$REMOTE_DIGEST" >"$TOOLS_DIR/.digest"
 
 echo "Done. Run 'direnv allow' to add tools to PATH."
