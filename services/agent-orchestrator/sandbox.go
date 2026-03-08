@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -8,7 +9,6 @@ import (
 	"log/slog"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
@@ -257,9 +257,20 @@ func (s *SandboxExecutor) waitPodRunning(ctx context.Context, podName string) er
 }
 
 func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, profile string) error {
-	reqBody := fmt.Sprintf(`{"task":%q,"profile":%q,"inactivity_timeout":%d}`,
-		task, profile, int(s.inactivityTimeout.Seconds()))
-	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/run", strings.NewReader(reqBody))
+	payload := struct {
+		Task              string `json:"task"`
+		Profile           string `json:"profile,omitempty"`
+		InactivityTimeout int    `json:"inactivity_timeout,omitempty"`
+	}{
+		Task:              task,
+		Profile:           profile,
+		InactivityTimeout: int(s.inactivityTimeout.Seconds()),
+	}
+	body, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("marshaling request: %w", err)
+	}
+	req, err := http.NewRequestWithContext(ctx, "POST", baseURL+"/run", bytes.NewReader(body))
 	if err != nil {
 		return err
 	}
@@ -278,12 +289,16 @@ func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, profi
 
 func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
 	offset := 0
+	// Short initial wait, then poll every 30 seconds.
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
+		case <-timer.C:
 		case <-ticker.C:
 		}
 		if cancelFn() {
@@ -374,4 +389,35 @@ func (s *SandboxExecutor) pollStatus(ctx context.Context, baseURL string) (state
 func (s *SandboxExecutor) PollRunnerStatus(ctx context.Context, serviceFQDN string) (state string, exitCode int, err error) {
 	baseURL := fmt.Sprintf("http://%s:8081", serviceFQDN)
 	return s.pollStatus(ctx, baseURL)
+}
+
+// CheckRunnerForClaim resolves the runner status for a sandbox claim by walking
+// the chain: claim → sandbox name → service FQDN → HTTP status check.
+// Returns a RunnerStatusFunc-compatible signature.
+func (s *SandboxExecutor) CheckRunnerForClaim(ctx context.Context, claimName string) (state string, exitCode int, err error) {
+	// Get the sandbox name from the claim's status.
+	claim, err := s.dynClient.Resource(sandboxClaimGVR).Namespace(s.namespace).Get(ctx, claimName, metav1.GetOptions{})
+	if err != nil {
+		return "", -1, fmt.Errorf("getting claim %s: %w", claimName, err)
+	}
+	status, ok := claim.Object["status"].(map[string]interface{})
+	if !ok {
+		return "", -1, fmt.Errorf("claim %s has no status", claimName)
+	}
+	sandboxMap, _ := status["sandbox"].(map[string]interface{})
+	if sandboxMap == nil {
+		return "", -1, fmt.Errorf("claim %s has no sandbox ref", claimName)
+	}
+	sandboxName, _ := sandboxMap["Name"].(string)
+	if sandboxName == "" {
+		return "", -1, fmt.Errorf("claim %s has empty sandbox name", claimName)
+	}
+
+	// Get the service FQDN from the sandbox.
+	fqdn, err := s.resolveSandboxServiceFQDN(ctx, sandboxName)
+	if err != nil {
+		return "", -1, fmt.Errorf("resolving FQDN for sandbox %s: %w", sandboxName, err)
+	}
+
+	return s.PollRunnerStatus(ctx, fqdn)
 }

@@ -141,7 +141,7 @@ func main() {
 	// runners (HTTP) or may be truly orphaned. Check runner status first,
 	// then reset stale jobs for retry.
 	if sandbox != nil {
-		reconcileOrphanedJobs(ctx, store, publish, sandbox.dynClient, sandboxNamespace, nil, logger)
+		reconcileOrphanedJobs(ctx, store, publish, sandbox.dynClient, sandboxNamespace, sandbox.CheckRunnerForClaim, logger)
 	}
 
 	// Start consumer if sandbox is available.
