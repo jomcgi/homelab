@@ -9,7 +9,6 @@ resources:
   - ./cloudflare-tunnel
   - ./context-forge
   - ./goose-sandboxes
-  - ./knowledge-graph
   - ./nats
   - ./seaweedfs
   - ./mcp-oauth-proxy
