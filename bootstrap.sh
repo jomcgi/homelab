@@ -21,7 +21,7 @@ fi
 
 # Pull tools from OCI image
 TOOLS_IMAGE="ghcr.io/jomcgi/homelab-tools:main"
-TOOLS_DIR="$PWD/.tools"
+TOOLS_DIR="${XDG_CACHE_HOME:-$HOME/.cache}/homelab-tools"
 
 # Check remote digest
 REMOTE_DIGEST=$(crane digest "$TOOLS_IMAGE" 2>/dev/null) || {
@@ -39,7 +39,7 @@ fi
 echo "Pulling developer tools from $TOOLS_IMAGE..."
 rm -rf "$TOOLS_DIR"
 mkdir -p "$TOOLS_DIR"
-crane export "$TOOLS_IMAGE" - | tar -xf - -C "$TOOLS_DIR"
+crane export "$TOOLS_IMAGE" - | tar --no-same-owner -xf - -C "$TOOLS_DIR"
 echo "$REMOTE_DIGEST" >"$TOOLS_DIR/.digest"
 
 echo "Done. Run 'direnv allow' to add tools to your PATH."
