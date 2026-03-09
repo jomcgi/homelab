@@ -53,6 +53,10 @@ agent-platform-mcp-servers:
   enabled: true
   servers: {}  # Add MCP server definitions here
 
+# ── Subchart: agent-sandbox ───────────────────────────────────────────────
+agent-sandbox:
+  enabled: true
+
 # ── Subchart: goose-sandboxes ──────────────────────────────────────────────
 # These values are passed directly to the goose-sandboxes chart.
 # Mirror your goose.* settings here — Helm does not auto-propagate top-level
