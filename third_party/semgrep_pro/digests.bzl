@@ -10,10 +10,10 @@ SEMGREP_PRO_DIGESTS = {
     "engine_osx_arm64": "sha256:66b91e667f06b65c5612e468d944ca34b759bf7899d47a39bc38a3487d68c053",
     "engine_osx_x86_64": "sha256:e78c9c3338a930fd042ef4394a492f22b93bf7d10fb1d825b0ece4c4883ac205",
     "rules_golang": "sha256:30ea669247fb6cf1b46730ea4442ecc80a4e8437506621dfcbe3dadd79c24ee7",
-    "rules_python": "sha256:0c9744918e82a5f03e94a51a0ba3d7102b85b4e49760eca674ec5aa36c24f824",
+    "rules_python": "sha256:a1170c43c57c2d20277c4fab4218a22c46d0de546fd73e15fa4f475e90379387",
     "rules_javascript": "sha256:6e2afb768bec6b7712d35b8c03bae31c1d1c3af23faa53132821588e8ee904ee",
     "rules_kubernetes": "sha256:eaeeeff194bad2f8ab7433a172e6968b853a2cf3be358563b1134f0b4a447602",
     "rules_sca_golang": "sha256:93b0869fbcef3c88b2c40f591f6f5d8286af7455e35c3fdb2f782d34e19918d0",
-    "rules_sca_python": "sha256:1e8dfcb161aa3eab4ff2f4efca1822d6230a03d0eeba4d7d6e49abc8af4c7ea5",
+    "rules_sca_python": "sha256:9757a49217acba4579a7c2741f448032c28a6401730204fdcba782da0bc0134b",
     "rules_sca_javascript": "sha256:46ea40843ecb75053e2bfbb87b27f8a861a1180553f2730b4634fd0571cd3846",
 }
