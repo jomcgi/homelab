@@ -107,3 +107,13 @@ apko_image(
         ":recipes_tar",
     ],
 )
+
+go_test(
+    name = "image_test",
+    srcs = ["recipe_validate_test.go"],
+    embedsrcs = [
+        "recipes/ci-debug.yaml",
+        "recipes/code-fix.yaml",
+    ],
+    deps = ["@in_gopkg_yaml_v3//:yaml_v3"],
+)
