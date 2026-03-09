@@ -81,3 +81,44 @@ goose-sandboxes:
     mcpTokens:
       secretName: "goose-mcp-tokens"
       key: "CI_DEBUG_MCP_TOKEN"
+
+# ── Subchart: agent-orchestrator ──────────────────────────────────────────
+# Core component — enabled by default. Orchestrates Goose agent jobs via REST
+# API backed by NATS JetStream.
+#
+# natsUrl and sandboxNamespace are auto-wired from release metadata:
+#   natsUrl           → nats://<release-name>-nats:4222
+#   sandboxNamespace  → <release-namespace>
+# Override these only if you deploy NATS outside this release.
+agent-orchestrator:
+  enabled: true
+  config:
+    # Leave blank to auto-derive from release metadata (recommended).
+    # Set explicitly only when NATS is deployed separately.
+    natsUrl: ""
+    sandboxNamespace: ""
+
+# ── Subchart: nats ─────────────────────────────────────────────────────────
+# NATS JetStream — required by agent-orchestrator for job queuing.
+# Deployed as part of this release so orchestrator can discover it via
+# service name <release-name>-nats:4222.
+#
+# storageClassName defaults to cluster default storage class (empty string).
+# Override per-environment, e.g.:
+#   nats.config.jetstream.fileStore.pvc.storageClassName: ebs-gp3
+nats:
+  enabled: true
+  config:
+    cluster:
+      enabled: false
+    jetstream:
+      enabled: true
+      fileStore:
+        enabled: true
+        dir: /data
+        pvc:
+          enabled: true
+          size: 10Gi
+          storageClassName: ""  # uses cluster default; override per environment
+  statefulSet:
+    replicas: 1

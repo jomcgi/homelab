@@ -47,8 +47,13 @@ resources:
     memory: 128Mi
 
 config:
-  natsUrl: "nats://nats.nats.svc.cluster.local:4222"
-  sandboxNamespace: "goose-sandboxes"
+  # natsUrl and sandboxNamespace are auto-derived from Helm release metadata
+  # when left empty (the default). Only set these explicitly when deploying
+  # NATS or sandboxes outside this Helm release.
+  #   natsUrl          → nats://<release-name>-nats:4222
+  #   sandboxNamespace → <release-namespace>
+  natsUrl: ""
+  sandboxNamespace: ""
   sandboxTemplate: "goose-agent"
   maxRetries: "2"
   maxConcurrent: "5"
