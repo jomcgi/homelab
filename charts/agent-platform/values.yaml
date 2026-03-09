@@ -122,3 +122,9 @@ nats:
           storageClassName: ""  # uses cluster default; override per environment
   statefulSet:
     replicas: 1
+
+# ── Subchart: agent-sandbox ────────────────────────────────────────────────
+# agent-sandbox controller — manages the warm pool of sandbox pods used by
+# the orchestrator. Required for SandboxWarmPool / SandboxClaim CRDs to work.
+agent-sandbox:
+  enabled: true
