@@ -1,3 +1,83 @@
+# ── Goose agent configuration ──────────────────────────────────────────────
+# Top-level convenience block — configure Goose behaviour from here.
+# These values mirror goose-sandboxes.sandboxTemplate.* below; set them here
+# and replicate into goose-sandboxes: (Helm does not auto-propagate top-level
+# keys to subcharts, so both sections must be kept in sync).
+goose:
+  image:
+    repository: ghcr.io/jomcgi/homelab/goose-agent
+    tag: main
+  # Recipe/profile overrides — map of recipe name to content or URL
+  recipes: {}
+  model: claude-sonnet-4-6
+  provider: claude-code
+  repo:
+    owner: ""   # REQUIRED
+    name: ""    # REQUIRED
+  workspace:
+    storageClassName: ""  # REQUIRED
+    size: 10Gi
+
+# ── Component enable/disable flags ─────────────────────────────────────────
+components:
+  grafana:
+    enabled: false   # placeholder — Grafana not yet wired, just the flag
+  argocd:
+    enabled: false   # whether to deploy ArgoCD as part of this chart (default: assume pre-installed)
+  mcpServers:
+    enabled: true
+
+# ── Secret management ──────────────────────────────────────────────────────
+# Set useOnePassword: true for homelab (requires 1Password Operator).
+# When useOnePassword: false, create the K8s Secrets referenced below manually:
+#   kubectl create secret generic claude-auth --from-literal=CLAUDE_AUTH_TOKEN=<token>
+#   kubectl create secret generic agent-secrets --from-literal=GITHUB_TOKEN=<tok> \
+#     --from-literal=BUILDBUDDY_API_KEY=<key>
+#   kubectl create secret generic goose-mcp-tokens --from-literal=CI_DEBUG_MCP_TOKEN=<tok>
+secrets:
+  useOnePassword: false
+  claudeAuth:
+    secretName: "claude-auth"
+    key: "CLAUDE_AUTH_TOKEN"
+  agentSecrets:
+    secretName: "agent-secrets"
+    keys:
+      - GITHUB_TOKEN
+      - BUILDBUDDY_API_KEY
+  mcpTokens:
+    secretName: "goose-mcp-tokens"
+    key: "CI_DEBUG_MCP_TOKEN"
+
+# ── Subchart: agent-platform-mcp-servers ──────────────────────────────────
 agent-platform-mcp-servers:
   enabled: true
   servers: {}  # Add MCP server definitions here
+
+# ── Subchart: goose-sandboxes ──────────────────────────────────────────────
+# These values are passed directly to the goose-sandboxes chart.
+# Mirror your goose.* settings here — Helm does not auto-propagate top-level
+# keys to subcharts, so both sections must be kept in sync.
+goose-sandboxes:
+  enabled: false  # disabled by default; enable in environment-specific values
+  sandboxTemplate:
+    image:
+      repository: ghcr.io/jomcgi/homelab/goose-agent  # = goose.image.repository
+      tag: main                                          # = goose.image.tag
+    env:
+      gooseProvider: claude-code    # = goose.provider
+      gooseModel: claude-sonnet-4-6 # = goose.model
+      repoOwner: ""                 # = goose.repo.owner (REQUIRED)
+      repoName: ""                  # = goose.repo.name (REQUIRED)
+    workspace:
+      storageClassName: ""          # = goose.workspace.storageClassName (REQUIRED)
+      size: 10Gi                    # = goose.workspace.size
+  secrets:
+    useOnePassword: false
+    claudeAuth:
+      secretName: "claude-auth"
+      key: "CLAUDE_AUTH_TOKEN"
+    agentSecrets:
+      secretName: "agent-secrets"
+    mcpTokens:
+      secretName: "goose-mcp-tokens"
+      key: "CI_DEBUG_MCP_TOKEN"

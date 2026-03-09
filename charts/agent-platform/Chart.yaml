@@ -1,6 +1,6 @@
 apiVersion: v2
 name: agent-platform
-description: Agent platform — umbrella chart bundling MCP servers and supporting components
+description: Agent platform — umbrella chart bundling goose sandboxes, MCP servers, and supporting components
 type: application
 version: 0.1.0
 appVersion: "0.1.0"
@@ -12,3 +12,7 @@ dependencies:
     version: "0.1.0"
     repository: "file://../agent-platform-mcp-servers"
     condition: agent-platform-mcp-servers.enabled
+  - name: goose-sandboxes
+    version: "0.1.0"
+    repository: "file://../goose-sandboxes"
+    condition: goose-sandboxes.enabled

@@ -30,7 +30,7 @@ spec:
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: agent-secrets
+                  name: {{ .Values.secrets.agentSecrets.secretName }}
                   key: GITHUB_TOKEN
           volumeMounts:
             - name: workspace
@@ -72,25 +72,25 @@ spec:
             - name: CLAUDE_CODE_OAUTH_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: claude-auth
-                  key: CLAUDE_AUTH_TOKEN
+                  name: {{ .Values.secrets.claudeAuth.secretName }}
+                  key: {{ .Values.secrets.claudeAuth.key }}
             - name: CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS
               value: "1"
             - name: GITHUB_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: agent-secrets
+                  name: {{ .Values.secrets.agentSecrets.secretName }}
                   key: GITHUB_TOKEN
             - name: BUILDBUDDY_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: agent-secrets
+                  name: {{ .Values.secrets.agentSecrets.secretName }}
                   key: BUILDBUDDY_API_KEY
             - name: CI_DEBUG_MCP_TOKEN
               valueFrom:
                 secretKeyRef:
-                  name: goose-mcp-tokens
-                  key: CI_DEBUG_MCP_TOKEN
+                  name: {{ .Values.secrets.mcpTokens.secretName }}
+                  key: {{ .Values.secrets.mcpTokens.key }}
                   optional: true
             {{- if .Values.sandboxTemplate.extraEnv }}
             {{- toYaml .Values.sandboxTemplate.extraEnv | nindent 12 }}

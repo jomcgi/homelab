@@ -1,22 +1,30 @@
-# ── Homelab environment values for agent-platform ─────────────────────────
+# ── Work cluster values for agent-platform (Semgrep) ─────────────────────
+# Fill in the REQUIRED fields below before deploying.
+# Create K8s Secrets manually (no 1Password Operator at work cluster):
+#   kubectl create secret generic claude-auth --from-literal=CLAUDE_AUTH_TOKEN=<token>
+#   kubectl create secret generic agent-secrets \
+#     --from-literal=GITHUB_TOKEN=<token> \
+#     --from-literal=BUILDBUDDY_API_KEY=<key>
+#   kubectl create secret generic goose-mcp-tokens \
+#     --from-literal=CI_DEBUG_MCP_TOKEN=""
+# ──────────────────────────────────────────────────────────────────────────
 
 # Top-level goose configuration (mirror into goose-sandboxes: below)
 goose:
   image:
-    repository: ghcr.io/jomcgi/homelab/goose-agent
+    repository: ghcr.io/jomcgi/homelab/goose-agent  # public GHCR image, fine for work cluster
     tag: main
   model: claude-sonnet-4-6
   provider: claude-code
   repo:
-    owner: jomcgi
-    name: homelab
+    owner: ""   # REQUIRED: fill in your GitHub org/user
+    name: ""    # REQUIRED: fill in your repository name
   workspace:
-    storageClassName: longhorn
-    size: 20Gi
+    storageClassName: ""  # REQUIRED: fill in your cluster's storage class
 
-# Homelab uses 1Password Operator for secret management
+# No 1Password Operator at work — use pre-existing K8s Secrets
 secrets:
-  useOnePassword: true
+  useOnePassword: false
   claudeAuth:
     secretName: "claude-auth"
     key: "CLAUDE_AUTH_TOKEN"
@@ -29,7 +37,7 @@ secrets:
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"
 
-# ── MCP servers ────────────────────────────────────────────────────────────
+# ── MCP servers — kubernetes-mcp and argocd-mcp are universal ─────────────
 agent-platform-mcp-servers:
   enabled: true
   servers:
@@ -86,46 +94,25 @@ goose-sandboxes:
   enabled: true
   sandboxTemplate:
     image:
-      repository: ghcr.io/jomcgi/homelab/goose-agent
+      repository: ghcr.io/jomcgi/homelab/goose-agent  # public GHCR image
       tag: main
     env:
       gooseProvider: claude-code
       gooseModel: claude-sonnet-4-6
-      repoOwner: jomcgi
-      repoName: homelab
+      repoOwner: ""    # REQUIRED: fill in your GitHub org/user
+      repoName: ""     # REQUIRED: fill in your repository name
     workspace:
-      storageClassName: longhorn
-      size: 20Gi
-    extraEnv:
-      - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-        value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-      - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-        value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-      - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
-        value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-      - name: OTEL_TRACES_EXPORTER
-        value: "otlp"
-      - name: OTEL_METRICS_EXPORTER
-        value: "otlp"
-      - name: OTEL_LOGS_EXPORTER
-        value: "otlp"
-      - name: OTEL_SERVICE_NAME
-        value: "goose-agent"
-      - name: OTEL_RESOURCE_ATTRIBUTES
-        value: "service.namespace=goose-sandboxes,deployment.environment=prod"
+      storageClassName: ""  # REQUIRED: fill in your cluster's storage class
+      size: 10Gi
+    # No BuildBuddy, no homelab-specific OTel annotations
+    extraEnv: []
   secrets:
-    useOnePassword: true
+    useOnePassword: false
     claudeAuth:
-      onePasswordItem: litellm-claude-auth
-      vault: k8s-homelab
       secretName: "claude-auth"
       key: "CLAUDE_AUTH_TOKEN"
     agentSecrets:
-      onePasswordItem: agent-secrets
-      vault: k8s-homelab
       secretName: "agent-secrets"
     mcpTokens:
-      onePasswordItem: goose-mcp-tokens
-      vault: k8s-homelab
       secretName: "goose-mcp-tokens"
       key: "CI_DEBUG_MCP_TOKEN"
