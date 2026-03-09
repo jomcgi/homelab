@@ -1,0 +1,52 @@
+# Homelab environment overrides for agent-platform
+# Usage:
+#   helm upgrade --install agent-platform charts/agent-platform/ \
+#     -f charts/agent-platform/values-homelab.yaml \
+#     -n agent-platform --create-namespace
+
+nats:
+  nats:
+    config:
+      jetstream:
+        fileStore:
+          pvc:
+            storageClassName: longhorn
+            size: 50Gi
+            annotations:
+              numberOfReplicas: "1"
+
+agent-orchestrator:
+  config:
+    natsUrl: "nats://agent-platform-nats:4222"
+    sandboxNamespace: "agent-platform"
+    jobMaxDuration: "168h"
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-go: "go"
+    instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
+
+goose-sandboxes:
+  namespace:
+    resourceQuota:
+      pods: "15"
+      requestsCpu: "16"
+      requestsMemory: 32Gi
+  sandboxTemplate:
+    env:
+      repoOwner: jomcgi
+      repoName: homelab
+    workspace:
+      storageClassName: longhorn
+      size: 20Gi
+  warmPool:
+    size: 1
+  secrets:
+    useOnePassword: true
+    claudeAuth:
+      onePasswordItem: litellm-claude-auth
+      vault: k8s-homelab
+    agentSecrets:
+      onePasswordItem: agent-secrets
+      vault: k8s-homelab
+    mcpTokens:
+      onePasswordItem: goose-mcp-tokens
+      vault: k8s-homelab

@@ -1,0 +1,20 @@
+apiVersion: v2
+name: agent-platform
+description: MVP agent platform — orchestrator, sandboxes, and messaging.
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: nats
+    version: "1.0.0"
+    repository: "file://../nats"
+  - name: agent-orchestrator
+    version: "0.1.0"
+    repository: "file://../agent-orchestrator"
+  - name: goose-sandboxes
+    version: "0.1.0"
+    repository: "file://../goose-sandboxes"
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

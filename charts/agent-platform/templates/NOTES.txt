@@ -1,0 +1,70 @@
+Thank you for installing {{ .Chart.Name }} v{{ .Chart.Version }}.
+
+=============================================================================
+PREREQUISITES
+=============================================================================
+
+The agent-sandbox controller (CRDs + ClusterRoles) must be installed BEFORE
+this chart. It manages SandboxTemplate and WarmPool custom resources and runs
+in its own namespace:
+
+  helm install agent-sandbox charts/agent-sandbox/ \
+    -n agent-sandbox-system --create-namespace
+
+=============================================================================
+SECRETS (non-1Password environments)
+=============================================================================
+
+If goose-sandboxes.secrets.useOnePassword is false (the default), you must
+create the following secrets manually in the release namespace BEFORE agents
+can run:
+
+  kubectl create secret generic claude-auth \
+    --from-literal=CLAUDE_AUTH_TOKEN=<your-claude-oauth-token> \
+    -n {{ .Release.Namespace }}
+
+  kubectl create secret generic agent-secrets \
+    --from-literal=GITHUB_TOKEN=<your-github-token> \
+    -n {{ .Release.Namespace }}
+
+  kubectl create secret generic goose-mcp-tokens \
+    --from-literal=CI_DEBUG_MCP_TOKEN="" \
+    -n {{ .Release.Namespace }}
+
+=============================================================================
+ACCESSING THE ORCHESTRATOR API
+=============================================================================
+
+Port-forward the orchestrator service:
+
+  kubectl port-forward -n {{ .Release.Namespace }} \
+    svc/{{ .Release.Name }}-agent-orchestrator 8080:8080
+
+Test the API:
+
+  # Health check
+  curl http://localhost:8080/healthz
+
+  # Submit a job
+  curl -X POST http://localhost:8080/jobs \
+    -H 'Content-Type: application/json' \
+    -d '{"task": "Hello from agent-platform!"}'
+
+  # List jobs
+  curl http://localhost:8080/jobs
+
+=============================================================================
+REQUIRED VALUES
+=============================================================================
+
+If you installed without an environment values file, the following MUST be
+set for the platform to function correctly:
+
+  nats.nats.config.jetstream.fileStore.pvc.storageClassName
+  agent-orchestrator.config.natsUrl
+  agent-orchestrator.config.sandboxNamespace
+  goose-sandboxes.sandboxTemplate.env.repoOwner
+  goose-sandboxes.sandboxTemplate.env.repoName
+  goose-sandboxes.sandboxTemplate.workspace.storageClassName
+
+See charts/agent-platform/values-homelab.yaml for a complete example.

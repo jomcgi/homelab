@@ -1,0 +1,118 @@
+# =============================================================================
+# agent-platform base values
+# Required values (marked below) MUST be set in an environment values file.
+# =============================================================================
+
+nats:
+  nats:
+    podTemplate:
+      merge:
+        spec:
+          nodeSelector: {}
+    config:
+      cluster:
+        enabled: false
+      jetstream:
+        enabled: true
+        fileStore:
+          enabled: true
+          dir: /data
+          pvc:
+            enabled: true
+            size: 10Gi
+            storageClassName: ""  # REQUIRED
+            annotations: {}
+      monitor:
+        enabled: true
+        port: 8222
+    promExporter:
+      enabled: false
+    container:
+      image:
+        repository: nats
+        tag: "2.10.24-alpine"
+        pullPolicy: IfNotPresent
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+    statefulSet:
+      replicas: 1
+
+agent-orchestrator:
+  replicaCount: 1
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
+    tag: main
+    pullPolicy: IfNotPresent
+  imagePullSecret:
+    enabled: false
+    useOnePassword: false
+  podAnnotations: {}
+  config:
+    natsUrl: ""        # REQUIRED — e.g. "nats://agent-platform-nats:4222"
+    sandboxNamespace: ""  # REQUIRED — set to the release namespace
+    sandboxTemplate: "goose-agent"
+    maxRetries: "2"
+    maxConcurrent: "3"
+    httpPort: "8080"
+    jobInactivityTimeout: "10m"
+    jobMaxDuration: "24h"
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+goose-sandboxes:
+  namespace:
+    limitRange:
+      cpu:
+        request: "1"
+        limit: "4"
+      memory:
+        request: 2Gi
+        limit: 8Gi
+    resourceQuota:
+      pods: "5"
+      requestsCpu: "8"
+      requestsMemory: 16Gi
+  sandboxTemplate:
+    name: goose-agent
+    image:
+      repository: ghcr.io/jomcgi/homelab/goose-agent
+      tag: main
+    env:
+      gooseProvider: claude-code
+      gooseModel: claude-sonnet-4-6
+      contextForgeUrl: ""
+      repoOwner: ""   # REQUIRED
+      repoName: ""    # REQUIRED
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    workspace:
+      storageClassName: ""  # REQUIRED
+      size: 10Gi
+  warmPool:
+    name: goose-pool
+    size: 1
+  secrets:
+    useOnePassword: false
+    # Without 1Password, pre-create these secrets manually before installing:
+    #   kubectl create secret generic claude-auth \
+    #     --from-literal=CLAUDE_AUTH_TOKEN=<token> -n <namespace>
+    #   kubectl create secret generic agent-secrets \
+    #     --from-literal=GITHUB_TOKEN=<token> -n <namespace>
+    #   kubectl create secret generic goose-mcp-tokens \
+    #     --from-literal=CI_DEBUG_MCP_TOKEN="" -n <namespace>
+  agents: {}

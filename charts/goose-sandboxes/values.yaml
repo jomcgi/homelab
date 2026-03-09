@@ -48,6 +48,7 @@ warmPool:
   size: 1
 
 secrets:
+  useOnePassword: true
   claudeAuth:
     onePasswordItem: litellm-claude-auth
     vault: k8s-homelab

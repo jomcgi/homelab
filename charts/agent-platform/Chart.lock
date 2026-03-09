@@ -1,0 +1,12 @@
+dependencies:
+- name: nats
+  repository: file://../nats
+  version: 1.0.0
+- name: agent-orchestrator
+  repository: file://../agent-orchestrator
+  version: 0.1.0
+- name: goose-sandboxes
+  repository: file://../goose-sandboxes
+  version: 0.1.0
+digest: sha256:89b4b5e338c9a0096ee7ce429affc5f5455d5fecf4f3d5bda7c07e0e805134ba
+generated: "2026-03-09T13:13:12.467124526Z"

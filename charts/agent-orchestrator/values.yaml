@@ -8,6 +8,7 @@ image:
 imagePullSecret:
   enabled: false
   create: true
+  useOnePassword: true
   onepassword:
     itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
 
