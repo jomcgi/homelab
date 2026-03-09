@@ -1,6 +1,7 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools/oci:apko_image.bzl", "apko_image")
 
 # Package the Goose config into the image at ~/.config/goose/config.yaml
@@ -19,6 +20,19 @@ pkg_tar(
     mode = "0644",
     owner = "65532.65532",
     package_dir = "/home/goose-agent/recipes",
+)
+
+# Validate recipe YAML files on every PR.
+# Checks required fields and guards against the double-quoted template-variable
+# anti-pattern that produces invalid YAML after MiniJinja rendering.
+sh_test(
+    name = "recipe_yaml_test",
+    srcs = ["validate-recipes.sh"],
+    args = [
+        "$(rootpath recipes/ci-debug.yaml)",
+        "$(rootpath recipes/code-fix.yaml)",
+    ],
+    data = glob(["recipes/*.yaml"]),
 )
 
 # Package Claude Code CLI from the pnpm lockfile-managed npm package.

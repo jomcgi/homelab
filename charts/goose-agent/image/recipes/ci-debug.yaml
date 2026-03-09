@@ -7,7 +7,8 @@ instructions: |
   Fix the issue, verify with bazel test, commit using conventional commits
   format, and create a PR.
   DO NOT use kubectl or argocd CLI commands.
-prompt: "{{ task_description }}"
+prompt: |-
+  {{ task_description }}
 parameters:
   - key: task_description
     description: "The task to perform"
