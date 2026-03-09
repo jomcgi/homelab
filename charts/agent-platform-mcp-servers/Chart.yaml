@@ -1,0 +1,9 @@
+apiVersion: v2
+name: agent-platform-mcp-servers
+description: Deploys MCP servers as individual Deployments and Services into the agent-platform namespace
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+annotations:
+  org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
+  org.opencontainers.image.licenses: "MPL-2.0"

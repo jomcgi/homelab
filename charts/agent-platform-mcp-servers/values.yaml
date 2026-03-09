@@ -1,0 +1,23 @@
+# MCP servers to deploy.
+# Each key is the server name; the value configures the Deployment + Service.
+#
+# Example entry:
+#
+#   servers:
+#     my-mcp-server:
+#       image:
+#         repository: ghcr.io/example/my-mcp-server
+#         tag: "v1.0.0"
+#         pullPolicy: IfNotPresent
+#       port: 8080
+#       args: []           # optional CLI args
+#       env: []            # optional env vars (name/value pairs)
+#       secret:            # optional: mount a k8s Secret as envFrom
+#         name: my-secret
+#       writableTmp: false # set true if the container needs a writable /tmp
+#       rbac:              # optional RBAC
+#         clusterRoleRules: []   # creates a ClusterRole + ClusterRoleBinding
+#         clusterRole: ""        # binds to an existing ClusterRole
+#       resources: {}      # optional resource requests/limits
+#       podAnnotations: {} # optional pod annotations
+servers: {}
