@@ -1,7 +1,18 @@
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
+load("@rules_go//go:def.bzl", "go_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//tools/oci:apko_image.bzl", "apko_image")
+
+# Validate that Goose recipe YAML files are well-formed and use safe template patterns.
+# Run locally: bazel test //charts/goose-agent/image:recipe_validate_test
+go_test(
+    name = "recipe_validate_test",
+    srcs = ["recipe_validate_test.go"],
+    embedsrcs = glob(["recipes/*.yaml"]),
+    importpath = "github.com/jomcgi/homelab/charts/goose-agent/image",
+    deps = ["@in_gopkg_yaml_v3//:yaml_v3"],
+)
 
 # Package the Goose config into the image at ~/.config/goose/config.yaml
 pkg_tar(
