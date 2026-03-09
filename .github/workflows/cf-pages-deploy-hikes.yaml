@@ -17,7 +17,7 @@ concurrency:
 
 jobs:
   update-data:
-    runs-on: homelab-runners # Needs Docker-in-Docker to pull and run images
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     name: Update Hike Data
 
