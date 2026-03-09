@@ -1,0 +1,25 @@
+agent-platform {{ .Chart.Version }} deployed successfully.
+
+## CRDs
+
+The following CRDs from extensions.agents.x-k8s.io are bundled in charts/agent-platform/crds/
+and are installed automatically by Helm before templates are rendered:
+
+  - sandboxes.agents.x-k8s.io
+  - sandboxclaims.extensions.agents.x-k8s.io
+  - sandboxtemplates.extensions.agents.x-k8s.io
+  - sandboxwarmpools.extensions.agents.x-k8s.io
+
+No separate CRD install step is required.
+
+## agent-sandbox controller
+
+The CRDs being present does NOT mean sandbox execution will work on its own.
+The agent-sandbox controller must be running in the agent-sandbox-system namespace
+to reconcile Sandbox, SandboxClaim, SandboxTemplate, and SandboxWarmPool objects.
+
+Install it separately:
+
+  helm install agent-sandbox charts/agent-sandbox/ -n agent-sandbox-system --create-namespace
+
+or deploy via GitOps using the agent-sandbox overlay.
