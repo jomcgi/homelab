@@ -6,7 +6,7 @@
 sandboxTemplate:
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: main@sha256:34a3051a646b861ee9a8b6b8ecec797642470fe0f2d456205267f4f219b87229
+    tag: main@sha256:0cdcf75e6d66513a02103127c560c49cf87cb971d9a76d1d02588c23c77b8d45
   # OpenTelemetry configuration for Goose agent observability.
   #
   # Goose (block/goose) has native OTEL support using the Rust opentelemetry SDK.
