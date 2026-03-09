@@ -39,9 +39,11 @@ spec:
           protocol: TCP
         env:
         - name: NATS_URL
-          value: {{ .Values.config.natsUrl | quote }}
+          {{- $natsUrl := .Values.config.natsUrl | default (printf "nats://%s-nats:4222" .Release.Name) }}
+          value: {{ $natsUrl | quote }}
         - name: SANDBOX_NAMESPACE
-          value: {{ .Values.config.sandboxNamespace | quote }}
+          {{- $sandboxNs := .Values.config.sandboxNamespace | default .Release.Namespace }}
+          value: {{ $sandboxNs | quote }}
         - name: SANDBOX_TEMPLATE
           value: {{ .Values.config.sandboxTemplate | quote }}
         - name: MAX_RETRIES

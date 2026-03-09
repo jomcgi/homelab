@@ -2,7 +2,7 @@ apiVersion: v2
 name: agent-platform
 description: Agent platform — umbrella chart bundling goose sandboxes, MCP servers, and supporting components
 type: application
-version: 0.2.0
+version: 0.3.0
 appVersion: "0.1.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
@@ -16,3 +16,11 @@ dependencies:
     version: "0.1.0"
     repository: "file://../goose-sandboxes"
     condition: goose-sandboxes.enabled
+  - name: agent-orchestrator
+    version: "0.1.0"
+    repository: "file://../agent-orchestrator"
+    condition: agent-orchestrator.enabled
+  - name: nats
+    version: "2.12.3"
+    repository: "https://nats-io.github.io/k8s/helm/charts/"
+    condition: nats.enabled

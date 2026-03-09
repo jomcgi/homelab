@@ -5,5 +5,11 @@ dependencies:
 - name: goose-sandboxes
   repository: file://../goose-sandboxes
   version: 0.1.0
-digest: sha256:3faa5f5b3005a9a1188e7596735dff1664b215f818597e8cc8f1a2aa9a3df166
-generated: "2026-03-09T16:28:47.194985886Z"
+- name: agent-orchestrator
+  repository: file://../agent-orchestrator
+  version: 0.1.0
+- name: nats
+  repository: https://nats-io.github.io/k8s/helm/charts/
+  version: 2.12.3
+digest: sha256:e1c7f14b50f23e8e812fe01b12848fa74f8279c5e1a7e147c2f9821a706092b0
+generated: "2026-03-09T21:31:39.733565874Z"
