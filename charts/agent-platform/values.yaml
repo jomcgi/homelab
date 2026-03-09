@@ -1,0 +1,3 @@
+agent-platform-mcp-servers:
+  enabled: true
+  servers: {}  # Add MCP server definitions here

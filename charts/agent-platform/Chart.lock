@@ -1,0 +1,6 @@
+dependencies:
+- name: agent-platform-mcp-servers
+  repository: file://../agent-platform-mcp-servers
+  version: 0.1.0
+digest: sha256:7b881db47e4a26afdfd1c2c9a6e35f1f41026eaea90191d723b2a6fd57fa1b6a
+generated: "2026-03-09T13:36:45.992636477Z"

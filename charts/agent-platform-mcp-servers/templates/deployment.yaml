@@ -1,0 +1,89 @@
+{{- range $name, $server := .Values.servers }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}
+  labels:
+    {{- include "agent-platform-mcp-servers.labels" (dict "name" $name "Chart" $.Chart "Release" $.Release) | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" $name "Release" $.Release) | nindent 6 }}
+  template:
+    metadata:
+      {{- if $server.podAnnotations }}
+      annotations:
+        {{- toYaml $server.podAnnotations | nindent 8 }}
+      {{- else }}
+      annotations: {}
+      {{- end }}
+      labels:
+        {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" $name "Release" $.Release) | nindent 8 }}
+    spec:
+      serviceAccountName: {{ $name }}
+      securityContext:
+        {{- if not $server.writableTmp }}
+        runAsNonRoot: true
+        runAsUser: 65532
+        {{- end }}
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: server
+          image: "{{ required (printf "servers.%s.image.repository is required" $name) $server.image.repository }}:{{ required (printf "servers.%s.image.tag is required" $name) $server.image.tag }}"
+          imagePullPolicy: {{ $server.image.pullPolicy | default "IfNotPresent" }}
+          {{- with $server.args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: mcp
+              containerPort: {{ required (printf "servers.%s.port is required" $name) $server.port }}
+              protocol: TCP
+          {{- if or $server.writableTmp $server.env }}
+          env:
+            {{- if $server.writableTmp }}
+            - name: HOME
+              value: /tmp
+            {{- end }}
+            {{- with $server.env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- end }}
+          {{- if $server.secret }}
+          envFrom:
+            - secretRef:
+                name: {{ $server.secret.name }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ not $server.writableTmp }}
+            capabilities:
+              drop: ["ALL"]
+          {{- if $server.writableTmp }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- end }}
+          {{- if $server.resources }}
+          resources:
+            {{- toYaml $server.resources | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: mcp
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      {{- if $server.writableTmp }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+      {{- end }}
+{{- end }}
