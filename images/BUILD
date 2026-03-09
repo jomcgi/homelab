@@ -7,6 +7,7 @@ load("@rules_multirun//:defs.bzl", "multirun")
 multirun(
     name = "push_all",
     commands = [
+        "//charts/agent-platform:chart.push",
         "//charts/goose-agent/image:image.push",
         "//charts/signoz-dashboard-sidecar/cmd:image.push",
         "//charts/todo/image:image.push",
