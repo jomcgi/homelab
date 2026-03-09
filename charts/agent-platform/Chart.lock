@@ -5,5 +5,11 @@ dependencies:
 - name: goose-sandboxes
   repository: file://../goose-sandboxes
   version: 0.1.0
-digest: sha256:3faa5f5b3005a9a1188e7596735dff1664b215f818597e8cc8f1a2aa9a3df166
-generated: "2026-03-09T16:28:47.194985886Z"
+- name: agent-orchestrator
+  repository: file://../agent-orchestrator
+  version: 0.1.0
+- name: nats
+  repository: file://../nats
+  version: 1.0.0
+digest: sha256:e4f920b6c2a568ef82917fe57f23aacc9650df31cec3c66042a1978bf3af71fd
+generated: "2026-03-09T21:42:05.87221803Z"

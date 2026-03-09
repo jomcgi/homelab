@@ -38,10 +38,12 @@ spec:
           containerPort: {{ .Values.config.httpPort }}
           protocol: TCP
         env:
+        {{- $natsUrl := .Values.config.natsUrl | default (printf "nats://%s-nats:4222" .Release.Name) }}
+        {{- $sandboxNamespace := .Values.config.sandboxNamespace | default .Release.Namespace }}
         - name: NATS_URL
-          value: {{ .Values.config.natsUrl | quote }}
+          value: {{ $natsUrl | quote }}
         - name: SANDBOX_NAMESPACE
-          value: {{ .Values.config.sandboxNamespace | quote }}
+          value: {{ $sandboxNamespace | quote }}
         - name: SANDBOX_TEMPLATE
           value: {{ .Values.config.sandboxTemplate | quote }}
         - name: MAX_RETRIES

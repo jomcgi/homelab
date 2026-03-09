@@ -81,3 +81,19 @@ goose-sandboxes:
     mcpTokens:
       secretName: "goose-mcp-tokens"
       key: "CI_DEBUG_MCP_TOKEN"
+
+# ── Subchart: agent-orchestrator ───────────────────────────────────────────
+# The orchestrator is a core component — enabled by default.
+# natsUrl and sandboxNamespace are auto-derived from the release name/namespace
+# when left empty; override here only if you need a custom NATS endpoint.
+agent-orchestrator:
+  enabled: true
+  config:
+    natsUrl: ""          # auto-derived: nats://<release-name>-nats:4222
+    sandboxNamespace: "" # auto-derived: the release namespace
+
+# ── Subchart: nats ─────────────────────────────────────────────────────────
+# NATS JetStream — required by agent-orchestrator for job queuing.
+# Enabled by default alongside the orchestrator.
+nats:
+  enabled: true

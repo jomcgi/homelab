@@ -47,8 +47,8 @@ resources:
     memory: 128Mi
 
 config:
-  natsUrl: "nats://nats.nats.svc.cluster.local:4222"
-  sandboxNamespace: "goose-sandboxes"
+  natsUrl: ""          # auto-derived from release name: nats://<release-name>-nats:4222
+  sandboxNamespace: "" # auto-derived from release namespace
   sandboxTemplate: "goose-agent"
   maxRetries: "2"
   maxConcurrent: "5"
