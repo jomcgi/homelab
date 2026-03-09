@@ -6,7 +6,8 @@ instructions: |
   Run bazel test //... to verify your changes.
   Commit using conventional commits format and create a PR.
   You do NOT have access to cluster tools.
-prompt: "{{ task_description }}"
+prompt: |
+  {{ task_description }}
 parameters:
   - key: task_description
     description: "The task to perform"
