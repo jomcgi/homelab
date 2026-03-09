@@ -24,10 +24,8 @@ spec:
     spec:
       serviceAccountName: {{ $name }}
       securityContext:
-        {{- if not $server.writableTmp }}
         runAsNonRoot: true
         runAsUser: 65532
-        {{- end }}
         seccompProfile:
           type: RuntimeDefault
       containers:
@@ -55,11 +53,11 @@ spec:
           {{- if $server.secret }}
           envFrom:
             - secretRef:
-                name: {{ $server.secret.name }}
+                name: {{ required (printf "servers.%s.secret.name is required" $name) $server.secret.name }}
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: {{ not $server.writableTmp }}
+            readOnlyRootFilesystem: true
             capabilities:
               drop: ["ALL"]
           {{- if $server.writableTmp }}
