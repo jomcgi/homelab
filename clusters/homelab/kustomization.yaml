@@ -7,3 +7,5 @@ resources:
   - ../../overlays/prod
   # Platform infrastructure (migrated from overlays/cluster-critical)
   - ../../projects/platform
+  # Agent platform services
+  - ../../projects/agent-platform
