@@ -5,7 +5,7 @@ helm_chart(
     images = {
         "image": "//projects/todo_app/image:image.info",
     },
-    visibility = ["//overlays:__subpackages__"],
+    visibility = ["//projects:__subpackages__"],
 )
 
 argocd_app(
