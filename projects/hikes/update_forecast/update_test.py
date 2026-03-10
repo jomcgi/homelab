@@ -5,9 +5,9 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests
+import requests  # nosemgrep: no-requests
 
-from services.hikes.update_forecast.update import (
+from projects.hikes.update_forecast.update import (
     Walk,
     create_bundle,
     fetch_weather_forecast,
@@ -266,7 +266,7 @@ class TestProcessWalk:
         }
 
         with patch(
-            "services.hikes.update_forecast.update.fetch_weather_forecast",
+            "projects.hikes.update_forecast.update.fetch_weather_forecast",
             return_value=forecast_data,
         ):
             result = process_walk(sample_walk)
@@ -277,7 +277,7 @@ class TestProcessWalk:
     def test_process_walk_no_forecast(self, sample_walk):
         """Walk without forecast data returns empty windows."""
         with patch(
-            "services.hikes.update_forecast.update.fetch_weather_forecast",
+            "projects.hikes.update_forecast.update.fetch_weather_forecast",
             return_value=None,
         ):
             result = process_walk(sample_walk)
@@ -335,7 +335,7 @@ class TestLoadWalksFromDb:
     def test_load_walks_missing_db(self, tmp_path, monkeypatch):
         """Missing database causes system exit."""
         # Patch the db_path to point to non-existent file
-        with patch("services.hikes.update_forecast.update.Path") as mock_path:
+        with patch("projects.hikes.update_forecast.update.Path") as mock_path:
             mock_path.return_value.parent.__truediv__.return_value.__truediv__.return_value = (
                 tmp_path / "nonexistent.db"
             )

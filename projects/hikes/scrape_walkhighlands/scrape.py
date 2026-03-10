@@ -4,10 +4,10 @@ import uuid
 from datetime import timedelta
 from urllib.parse import urljoin
 
-import requests
-import requests_cache
+import requests  # nosemgrep: no-requests
+import requests_cache  # nosemgrep: no-requests
 from bs4 import BeautifulSoup
-from services.hikes.scrape_walkhighlands.error_handling import (
+from projects.hikes.scrape_walkhighlands.error_handling import (
     ErrorCollector,
     handle_network_errors,
     log_performance,

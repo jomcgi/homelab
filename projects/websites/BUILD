@@ -7,10 +7,10 @@ load("@rules_multirun//:defs.bzl", "multirun")
 multirun(
     name = "push_all_pages",
     commands = [
+        "//projects/hikes/frontend:hikes.push",
+        "//projects/trips/frontend:trips.push",
         "//projects/websites/docs.jomcgi.dev:docs.push",
-        "//projects/websites/hikes.jomcgi.dev:hikes.push",
         "//projects/websites/jomcgi.dev:jomcgi.push",
-        "//projects/websites/trips.jomcgi.dev:trips.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],

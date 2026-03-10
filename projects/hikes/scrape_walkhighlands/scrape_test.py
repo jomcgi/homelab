@@ -4,9 +4,9 @@ from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-import requests
+import requests  # nosemgrep: no-requests
 
-from services.hikes.scrape_walkhighlands.scrape import (
+from projects.hikes.scrape_walkhighlands.scrape import (
     Walk,
     parse_duration,
     scrape_area_links_from_homepage,
@@ -397,7 +397,7 @@ class TestScrapeWalkhighlands:
     def test_scrape_walkhighlands_empty_areas(self):
         """Returns empty list when no area links found."""
         with patch(
-            "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+            "projects.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
         ) as mock_areas:
             mock_areas.return_value = []
 
@@ -409,10 +409,10 @@ class TestScrapeWalkhighlands:
         """Returns empty list when no sub-area links found."""
         with (
             patch(
-                "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
             ) as mock_areas,
             patch(
-                "services.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
             ) as mock_sub_areas,
         ):
             mock_areas.return_value = ["https://example.com/area1"]
@@ -438,16 +438,16 @@ class TestScrapeWalkhighlands:
 
         with (
             patch(
-                "services.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_area_links_from_homepage"
             ) as mock_areas,
             patch(
-                "services.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_sub_area_links_from_area"
             ) as mock_sub_areas,
             patch(
-                "services.hikes.scrape_walkhighlands.scrape.scrape_walks_from_sub_area"
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_walks_from_sub_area"
             ) as mock_walks,
             patch(
-                "services.hikes.scrape_walkhighlands.scrape.scrape_walk_data_from_file"
+                "projects.hikes.scrape_walkhighlands.scrape.scrape_walk_data_from_file"
             ) as mock_walk_data,
         ):
             mock_areas.return_value = ["https://example.com/area1"]

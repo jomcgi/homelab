@@ -7,7 +7,7 @@ on:
     branches:
       - main
     paths:
-      - "services/hikes/**"
+      - "projects/hikes/**"
       - ".github/workflows/cf-pages-deploy-hikes.yaml"
   workflow_dispatch:
 
