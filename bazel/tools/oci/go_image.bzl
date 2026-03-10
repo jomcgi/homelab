@@ -168,5 +168,5 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
     oci_image_info(
         name = name + ".info",
         repository = _repository,
-        tags = name + "_stamped_ci.tags.txt",
+        image_tags = name + "_stamped_ci.tags.txt",
     )

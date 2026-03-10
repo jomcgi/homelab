@@ -4,7 +4,7 @@ OciImageInfo = provider(
     doc = "Provides OCI image repository and tag information for use by helm_chart.",
     fields = {
         "repository": "File containing the OCI repository URL (plain text, no trailing newline)",
-        "tags": "File containing the image tags (one per line; first line is primary tag)",
+        "image_tags": "File containing the image tags (one per line; first line is primary tag)",
     },
 )
 
@@ -16,7 +16,7 @@ def _oci_image_info_impl(ctx):
         DefaultInfo(files = depset([repo_file])),
         OciImageInfo(
             repository = repo_file,
-            tags = ctx.file.tags,
+            image_tags = ctx.file.image_tags,
         ),
     ]
 
@@ -27,7 +27,7 @@ oci_image_info = rule(
             mandatory = True,
             doc = "OCI repository URL (e.g. ghcr.io/jomcgi/homelab/my-app)",
         ),
-        "tags": attr.label(
+        "image_tags": attr.label(
             mandatory = True,
             allow_single_file = True,
             doc = "Tags file produced by the CI stamp step (first line is the primary tag)",

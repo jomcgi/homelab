@@ -206,5 +206,5 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
     oci_image_info(
         name = name + ".info",
         repository = _repository,
-        tags = name + "_stamped_ci.tags.txt",
+        image_tags = name + "_stamped_ci.tags.txt",
     )

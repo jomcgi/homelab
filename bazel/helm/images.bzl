@@ -35,7 +35,7 @@ def _helm_images_values_impl(ctx):
     for target, yaml_path in ctx.attr.images.items():
         info = target[OciImageInfo]
         all_inputs.append(info.repository)
-        all_inputs.append(info.tags)
+        all_inputs.append(info.image_tags)
 
         # Expand dot-notation into nested YAML keys.
         # e.g. "image" → ["image"]
@@ -70,7 +70,7 @@ def _helm_images_values_impl(ctx):
         cmd_lines.append(
             "echo '{leaf_indent}tag: '\"$(head -1 {tags})\" >> {out}".format(
                 leaf_indent = leaf_indent,
-                tags = info.tags.path,
+                tags = info.image_tags.path,
                 out = output.path,
             ),
         )
