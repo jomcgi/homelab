@@ -2,8 +2,8 @@ load("//bazel/helm:defs.bzl", "argocd_app")
 
 argocd_app(
     name = "oci-model-cache-operator",
-    chart = "operators/oci-model-cache/helm/oci-model-cache-operator",
-    chart_files = "//operators/oci-model-cache/helm/oci-model-cache-operator:chart",
+    chart = "projects/operators/oci-model-cache/helm/oci-model-cache-operator",
+    chart_files = "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart",
     namespace = "oci-model-cache",
     release_name = "oci-model-cache-operator",
     tags = [
@@ -11,7 +11,7 @@ argocd_app(
         "template",
     ],
     values_files = [
-        "//operators/oci-model-cache/helm/oci-model-cache-operator:values.yaml",
+        "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:values.yaml",
         "values.yaml",
     ],
 )

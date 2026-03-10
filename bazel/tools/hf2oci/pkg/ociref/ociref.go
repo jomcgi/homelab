@@ -105,7 +105,7 @@ func DeriveFileTag(info *hf.ModelInfo, format, file string) string {
 
 // base36Hash returns a deterministic, DNS-safe base36 encoding of the SHA-256
 // hash of s. The result is ~50 chars, always valid as an OCI tag or DNS label.
-// NOTE: duplicated in operators/oci-model-cache/internal/naming/naming.go —
+// NOTE: duplicated in projects/operators/oci-model-cache/internal/naming/naming.go —
 // kept separate to avoid a cross-module dependency between tool and operator.
 func base36Hash(s string) string {
 	h := sha256.Sum256([]byte(s))
