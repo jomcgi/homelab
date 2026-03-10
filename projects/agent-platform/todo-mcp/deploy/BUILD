@@ -5,7 +5,7 @@ helm_chart(
     images = {
         "image": "//projects/agent-platform/todo-mcp/image:image.info",
     },
-    visibility = [":__pkg__"],
+    visibility = ["//overlays:__subpackages__"],
 )
 
 argocd_app(

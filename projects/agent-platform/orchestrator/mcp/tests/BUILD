@@ -15,7 +15,7 @@ py_test(
     srcs = ["main_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/orchestrator/mcp/app",
+        "//services",
         "@pip//pytest",
     ],
 )
