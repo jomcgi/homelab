@@ -8,4 +8,7 @@ resources:
   # Platform infrastructure (migrated from overlays/cluster-critical)
   - ../../projects/platform
   # Agent platform services
-  - ../../projects/agent-platform
+  - ../../projects/agent_platform
+  # Standalone projects (extracted from agent-platform)
+  - ../../projects/todo_app
+  - ../../projects/blog_knowledge_graph

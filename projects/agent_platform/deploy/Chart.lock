@@ -1,0 +1,24 @@
+dependencies:
+- name: context-forge
+  repository: file://../context_forge/deploy
+  version: 2.0.0
+- name: mcp-oauth-proxy
+  repository: file://../mcp_oauth_proxy/deploy
+  version: 0.1.0
+- name: agent-platform-mcp-servers
+  repository: file://../mcp_servers_chart/deploy
+  version: 0.1.0
+- name: goose-sandboxes
+  repository: file://../sandboxes/deploy
+  version: 0.1.0
+- name: agent-orchestrator
+  repository: file://../orchestrator/deploy
+  version: 0.1.0
+- name: nats
+  repository: https://nats-io.github.io/k8s/helm/charts/
+  version: 2.12.3
+- name: agent-sandbox
+  repository: file://../agent-sandbox
+  version: 0.1.0
+digest: sha256:3da2572e319306aad8c19b6326b529a9c142b9a50f1fc405d7fc98df1045b29a
+generated: "2026-03-10T04:41:57.87882527Z"

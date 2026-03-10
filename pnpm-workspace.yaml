@@ -8,4 +8,4 @@ packages:
   - websites/docs.jomcgi.dev
   - websites/hikes.jomcgi.dev
   - services/grimoire/frontend
-  - projects/agent-platform/orchestrator/ui
+  - projects/agent_platform/orchestrator/ui
