@@ -31,9 +31,10 @@ components:
 # Set useOnePassword: true for homelab (requires 1Password Operator).
 # When useOnePassword: false, create the K8s Secrets referenced below manually:
 #   kubectl create secret generic claude-auth --from-literal=CLAUDE_AUTH_TOKEN=<token>
-#   kubectl create secret generic agent-secrets --from-literal=GITHUB_TOKEN=<tok> \
-#     --from-literal=BUILDBUDDY_API_KEY=<key>
+#   kubectl create secret generic agent-secrets --from-literal=GITHUB_TOKEN=<tok>
 #   kubectl create secret generic goose-mcp-tokens --from-literal=CI_DEBUG_MCP_TOKEN=<tok>
+# Note: BUILDBUDDY_API_KEY is homelab-specific and optional — containers start without it.
+# Add it to agent-secrets only when deploying to the homelab cluster.
 secrets:
   useOnePassword: false
   claudeAuth:
@@ -43,7 +44,6 @@ secrets:
     secretName: "agent-secrets"
     keys:
       - GITHUB_TOKEN
-      - BUILDBUDDY_API_KEY
   mcpTokens:
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"

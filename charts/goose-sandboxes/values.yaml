@@ -64,9 +64,8 @@ secrets:
     vault: k8s-homelab
     # Pre-existing K8s Secret reference (used when useOnePassword: false):
     secretName: "agent-secrets"
-    keys:
-      - GITHUB_TOKEN
-      - BUILDBUDDY_API_KEY
+    # GITHUB_TOKEN is required. BUILDBUDDY_API_KEY is homelab-specific and optional
+    # (secretKeyRef.optional: true in the template — sandbox starts without it).
   mcpTokens:
     # 1Password settings (used when useOnePassword: true):
     onePasswordItem: goose-mcp-tokens

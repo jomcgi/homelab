@@ -2,11 +2,9 @@
 # Fill in the REQUIRED fields below before deploying.
 # Create K8s Secrets manually (no 1Password Operator at work cluster):
 #   kubectl create secret generic claude-auth --from-literal=CLAUDE_AUTH_TOKEN=<token>
-#   kubectl create secret generic agent-secrets \
-#     --from-literal=GITHUB_TOKEN=<token> \
-#     --from-literal=BUILDBUDDY_API_KEY=<key>
-#   kubectl create secret generic goose-mcp-tokens \
-#     --from-literal=CI_DEBUG_MCP_TOKEN=""
+#   kubectl create secret generic agent-secrets --from-literal=GITHUB_TOKEN=<token>
+#   kubectl create secret generic goose-mcp-tokens --from-literal=CI_DEBUG_MCP_TOKEN=""
+# Note: BUILDBUDDY_API_KEY is not needed on the work cluster — it is optional in the chart.
 # ──────────────────────────────────────────────────────────────────────────
 
 # Top-level goose configuration (mirror into goose-sandboxes: below)
@@ -32,7 +30,6 @@ secrets:
     secretName: "agent-secrets"
     keys:
       - GITHUB_TOKEN
-      - BUILDBUDDY_API_KEY
   mcpTokens:
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"
