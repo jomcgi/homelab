@@ -35,14 +35,13 @@ vite_build(
     ],
 )
 
-# Go library that embeds the committed Vite build output (dist/).
-# The dist/ directory is committed to the repo (gitignore exception) so that
-# go:embed works in both standard go build and Bazel without needing the Vite
-# build to complete first.
+# Go library that embeds the Bazel-built Vite output.
+# The :build target (vite_build) produces a dist/ TreeArtifact that matches
+# the go:embed dist directive in static.go.
 go_library(
     name = "ui",
     srcs = ["static.go"],
-    embedsrcs = glob(["dist/**"]),
+    embedsrcs = [":build"],
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator/ui",
     visibility = ["//services/agent-orchestrator:__pkg__"],
 )
