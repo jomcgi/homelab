@@ -7,7 +7,7 @@ helm_chart(
 
 argocd_app(
     name = "cluster-ingress",
-    chart = "projects/platform/cloudflare/tunnel/deploy",
+    chart = "projects/platform/cloudflare/tunnel",
     chart_files = ":chart",
     namespace = "ingress",
     release_name = "cluster-ingress",

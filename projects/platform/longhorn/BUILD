@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "longhorn",
-    chart = "projects/platform/longhorn/deploy",
+    chart = "projects/platform/longhorn",
     chart_files = ":chart",
     namespace = "longhorn",
     release_name = "longhorn",

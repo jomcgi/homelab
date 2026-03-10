@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "linkerd",
-    chart = "projects/platform/linkerd/deploy",
+    chart = "projects/platform/linkerd",
     chart_files = ":chart",
     namespace = "linkerd",
     release_name = "linkerd",

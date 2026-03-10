@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "cert-manager",
-    chart = "projects/platform/cert-manager/deploy",
+    chart = "projects/platform/cert-manager",
     chart_files = ":chart",
     namespace = "cert-manager",
     release_name = "cert-manager",
