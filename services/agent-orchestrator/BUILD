@@ -13,6 +13,7 @@ go_library(
         "store.go",
         "watchdog.go",
     ],
+    embedsrcs = ["//services/agent-orchestrator/ui:build"],
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator",
     visibility = ["//visibility:private"],
     deps = [

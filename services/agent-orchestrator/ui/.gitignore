@@ -1,0 +1,4 @@
+node_modules/
+# dist/ is intentionally NOT gitignored — it is committed so that
+# go:embed works outside of Bazel (e.g. plain `go build`).
+# In CI, Bazel builds the UI first via the vite_build target.

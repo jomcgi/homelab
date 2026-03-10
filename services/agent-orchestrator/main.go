@@ -2,11 +2,14 @@ package main
 
 import (
 	"context"
+	"embed"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -14,6 +17,9 @@ import (
 	"github.com/nats-io/nats.go/jetstream"
 	"k8s.io/client-go/rest"
 )
+
+//go:embed ui/dist
+var uiFS embed.FS
 
 const (
 	streamName = "agent-jobs"
@@ -128,7 +134,34 @@ func main() {
 
 	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
 	mux := http.NewServeMux()
+
+	// Register API routes first — these take priority over the UI catch-all.
 	api.RegisterRoutes(mux)
+
+	// Serve embedded UI. All non-API paths fall back to index.html for SPA routing.
+	uiContent, err := fs.Sub(uiFS, "ui/dist")
+	if err != nil {
+		logger.Error("failed to sub ui/dist from embedded FS", "error", err)
+		os.Exit(1)
+	}
+	fileServer := http.FileServer(http.FS(uiContent))
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		path := strings.TrimPrefix(r.URL.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		// Try to serve the static file; if not found fall back to index.html
+		// so that client-side routing works for all non-API paths.
+		f, err := uiContent.Open(path)
+		if err != nil {
+			r2 := r.Clone(r.Context())
+			r2.URL.Path = "/"
+			fileServer.ServeHTTP(w, r2)
+			return
+		}
+		f.Close()
+		fileServer.ServeHTTP(w, r)
+	})
 
 	srv := &http.Server{
 		Addr:              ":" + httpPort,
