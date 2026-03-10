@@ -157,7 +157,7 @@ Runs on every push/PR:
 
 Debug CI failures: use `/buildbuddy` skill or reproduce locally with `bazel test //... --config=ci`
 
-Static sites deploy via `bazel run //websites:push_all_pages` on main branch (BuildBuddy CI).
+Static sites deploy via `bazel run //projects/websites:push_all_pages` on main branch (BuildBuddy CI).
 
 ## Anti-Patterns
 

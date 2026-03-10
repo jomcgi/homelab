@@ -1,18 +1,17 @@
-# jomcgi.dev website - Astro-based site with React components
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@npm//websites/jomcgi.dev:astro/package_json.bzl", astro_bin = "bin")
-load("@npm//websites/jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
-load("@npm//websites/jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("@npm//projects/websites/trips.jomcgi.dev:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//projects/websites/trips.jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
+load("@npm//projects/websites/trips.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//bazel/tools/js:vite_build.bzl", "vite_build")
 load("//bazel/wrangler:defs.bzl", "wrangler_pages")
 
-# Astro binary for building (Astro uses Vite internally)
-astro_bin.astro_binary(name = "astro")
+# Vite binary for building (required by vite_build macro)
+vite_bin.vite_binary(name = "vite")
 
 # Wrangler binary for Cloudflare Pages deployment
 wrangler_bin.wrangler_binary(name = "wrangler")
 
-# Build frontend using unified Vite macro (Astro mode)
+# Build frontend using unified Vite macro
 vite_build(
     name = "build",
     srcs = glob(
@@ -28,32 +27,35 @@ vite_build(
             "src/**/*.test.tsx",
         ],
     ) + [
+        "index.html",
         "package.json",
-        "tailwind.config.mjs",
+        "postcss.config.js",
     ],
-    bazel_deps = ["//websites/shared:css"],
-    config = "astro.config.mjs",
-    tool = ":astro",
+    tool = ":vite",
     visibility = ["//visibility:public"],
     deps = [
-        "astro",
-        "astro-remote",
-        "mermaid",
+        "autoprefixer",
+        "js-yaml",
+        "lucide-react",
+        "maplibre-gl",
+        "postcss",
         "react",
         "react-dom",
-        "reveal.js",
+        "suncalc",
         "tailwindcss",
-        "@astrojs/react",
-        "@astrojs/tailwind",
+        "vite",
+        "wouter",
+        "@tailwindcss/postcss",
+        "@vitejs/plugin-react",
     ],
 )
 
 # Cloudflare Pages deployment
 wrangler_pages(
-    name = "jomcgi",
+    name = "trips",
     dist = ":build_dist",
-    project_name = "jomcgi-dev",
-    visibility = ["//websites:__pkg__"],
+    project_name = "trips-jomcgi-dev",
+    visibility = ["//projects/websites:__pkg__"],
     wrangler = ":wrangler",
 )
 
@@ -70,7 +72,7 @@ js_library(
         allow_empty = True,
     ) + [
         "src/test/setup.js",
-        "vitest.config.mjs",
+        "vitest.config.js",
     ],
     deps = [
         ":node_modules/@testing-library/jest-dom",

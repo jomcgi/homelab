@@ -196,6 +196,6 @@ def vitepress_site(
         name = name,
         dist = ":build_dist",
         project_name = wrangler_project,
-        visibility = visibility or ["//websites:__pkg__"],
+        visibility = visibility or ["//projects/websites:__pkg__"],
         wrangler = ":wrangler",
     )

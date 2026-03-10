@@ -183,7 +183,7 @@ frontend:
   replicas: 1
 
   # Directory containing built frontend assets
-  publicDir: /app/public/websites/ships.jomcgi.dev/dist
+  publicDir: /app/public/projects/websites/ships.jomcgi.dev/dist
 
   # Service configuration
   service:
