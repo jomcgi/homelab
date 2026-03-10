@@ -8,7 +8,7 @@ imagePullSecret:
 
 modelVolume:
   enabled: true
-  reference: "hf.co/bartowski/NousResearch_Hermes-4-14B-GGUF:NousResearch_Hermes-4-14B-Q6_K"
+  reference: "hf.co/unsloth/Qwen3.5-35B-A3B-GGUF:Qwen3.5-35B-A3B-Q3_K_M"
   mountPath: "/model-image"
 
 server:
@@ -28,7 +28,7 @@ server:
     - "1"
     - "--metrics"
     - "--alias"
-    - "hermes-4-14b"
+    - "qwen3.5-35b-a3b"
 
 nodeSelector:
   kubernetes.io/hostname: node-4
