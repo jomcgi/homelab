@@ -28,10 +28,10 @@ vite_build(
     config = "vite.config.js",
     tool = ":vite",
     deps = [
-        "@vitejs/plugin-react",
         "react",
         "react-dom",
         "vite",
+        "@vitejs/plugin-react",
     ],
 )
 
