@@ -1,9 +1,11 @@
 #!/bin/bash
-# commit-msg hook: reject commit messages containing non-ASCII characters.
+# commit-msg hook: reject non-ASCII characters in commit titles (first line).
 #
-# Wrangler Pages deployments fail with error 8000111 when commit messages
-# contain non-ASCII characters (smart quotes, em-dashes, arrows, box-drawing
-# characters, etc.).  This hook catches those at commit time.
+# Wrangler Pages deployments fail with error 8000111 when the commit *title*
+# (first line / subject) contains non-ASCII characters such as smart quotes,
+# em-dashes, arrows, or box-drawing characters.  Only the title is checked
+# because wrangler reads the subject line from git history; the body is not
+# ingested and may contain arbitrary Unicode freely.
 #
 # Requires only POSIX tools (awk, od, grep) — no Python/Perl/PCRE needed.
 # If python3 is available it is used for richer per-character diagnostics.
@@ -12,7 +14,7 @@
 # Usage (CI, all commits):  check-commit-msg-ascii.sh --all [base-ref]
 #
 # Exit 0: all clear
-# Exit 1: non-ASCII characters detected
+# Exit 1: non-ASCII characters detected in a commit title
 
 set -euo pipefail
 
@@ -88,12 +90,12 @@ explain_chars() {
 }
 
 # --------------------------------------------------------------------------- #
-# check_message <msg> <label>
-#   Prints diagnostics and returns 1 if the commit message contains non-ASCII.
+# check_message <title> <label>
+#   Prints diagnostics and returns 1 if the commit title contains non-ASCII.
 # --------------------------------------------------------------------------- #
 check_message() {
 	local msg="$1"
-	local label="${2:-commit message}"
+	local label="${2:-commit title}"
 
 	if ! has_non_ascii "$msg"; then
 		return 0
@@ -102,10 +104,10 @@ check_message() {
 	echo ""
 	echo "ERROR: Non-ASCII characters found in ${label}"
 	echo "-------------------------------------------------------"
-	echo "Wrangler Pages rejects commits with non-ASCII characters"
-	echo "(Cloudflare error 8000111)."
+	echo "Wrangler Pages rejects commits whose title (first line)"
+	echo "contains non-ASCII characters (Cloudflare error 8000111)."
 	echo ""
-	echo "Problematic lines:"
+	echo "Problematic title:"
 	bad_lines "$msg" | sed 's/^/  /'
 
 	local chars_detail
@@ -161,7 +163,7 @@ if [[ "${1-}" == "--all" ]]; then
 	_range="${_merge_base:-${BASE_REF}}..HEAD"
 	unset _merge_base
 
-	echo "Checking commit messages for non-ASCII characters (commits since ${BASE_REF})..."
+	echo "Checking commit titles for non-ASCII characters (commits since ${BASE_REF})..."
 
 	COMMITS=$(git log --format="%H" "$_range")
 	unset _range
@@ -171,16 +173,15 @@ if [[ "${1-}" == "--all" ]]; then
 	fi
 
 	while IFS= read -r hash; do
-		msg=$(git log -1 --format="%B" "$hash")
 		subject=$(git log -1 --format="%s" "$hash")
 		short="${hash:0:8}"
-		if ! check_message "$msg" "commit ${short} (\"${subject}\")"; then
+		if ! check_message "$subject" "commit ${short} title"; then
 			FAILED=1
 		fi
 	done <<<"$COMMITS"
 
 	if [ "$FAILED" -eq 0 ]; then
-		echo "All commit messages contain only ASCII characters."
+		echo "All commit titles contain only ASCII characters."
 	fi
 	exit "$FAILED"
 
@@ -193,6 +194,9 @@ else
 		exit 1
 	fi
 
-	MSG=$(cat "$MSG_FILE")
-	check_message "$MSG" "commit message"
+	# Only check the commit title (first non-empty line).
+	# The body may contain typographic characters freely — wrangler only
+	# reads the subject when recording the deployment in Cloudflare Pages.
+	MSG=$(head -1 "$MSG_FILE")
+	check_message "$MSG" "commit title"
 fi
