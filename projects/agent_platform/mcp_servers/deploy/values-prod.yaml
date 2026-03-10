@@ -130,7 +130,7 @@ servers:
 - name: todo-mcp
   image:
     repository: ghcr.io/jomcgi/homelab/services/todo-mcp
-    tag: "main@sha256:fba154fdb03848f15ba3128e5c56ef9a30d9a7808ef7ce35b1ff235eacc28f9d"
+    tag: "main@sha256:a459146434b6f3a0f81a7b0ad02480c58a6e44e56b5083a4357e4c8de31c8d25"
   port: 8000
   podAnnotations:
     instrumentation.opentelemetry.io/inject-python: "python"
