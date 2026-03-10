@@ -11,7 +11,7 @@ go_library(
         "main.go",
         "redis.go",
     ],
-    importpath = "github.com/jomcgi/homelab/services/grimoire/ws-gateway",
+    importpath = "github.com/jomcgi/homelab/projects/grimoire/ws-gateway",
     visibility = ["//visibility:private"],
     deps = [
         "@com_github_redis_go_redis_v9//:go-redis",
