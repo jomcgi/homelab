@@ -86,8 +86,9 @@ actions:
           git push origin HEAD:"$current_branch"
           echo "Formatting fixes pushed to $current_branch"
 
-  # Test and push - runs test suite, pushes images on main branch
-  - name: "Test and push"
+  # Test - runs full test suite on every push and PR
+  # "Push images" and "Push pages" both depend on this and run in parallel after it succeeds
+  - name: "Test"
     container_image: "ubuntu-24.04"
     resource_requests:
       cpu: "8"
@@ -111,16 +112,24 @@ actions:
           fi
           bazel test //... --config=ci --deleted_packages=tools/python --test_tag_filters=-external
 
-      # Push images on main branch only
+  # Push images — runs on main only, parallel with "Push pages", after "Test" passes
+  - name: "Push images"
+    container_image: "ubuntu-24.04"
+    resource_requests:
+      cpu: "8"
+      memory: "12GB"
+      disk: "75GB"
+    depends_on: ["Test"]
+    triggers:
+      push:
+        branches:
+          - "main"
+    steps:
       - run: |
+          # Skip image-updater commits (digest-only bumps, nothing to push)
           AUTHOR="$(git log -1 --format='%an')"
           if [ "$AUTHOR" = "argocd-image-updater" ]; then
-            exit 0
-          fi
-
-          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-          if [ "$current_branch" != "main" ]; then
-            echo "Skipping image push on non-main branch: $current_branch"
+            echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
 
@@ -128,18 +137,25 @@ actions:
           echo "$GHCR_TOKEN" | docker login ghcr.io -u jomcgi --password-stdin
           bazel run //images:push_all --config=ci --stamp
 
-      # Deploy CF Pages on main branch only
-      # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
+  # Push pages — runs on main only, parallel with "Push images", after "Test" passes
+  # No dependency on "Push images" — static site deploys are independent of container images
+  - name: "Push pages"
+    container_image: "ubuntu-24.04"
+    resource_requests:
+      disk: "30GB"
+    depends_on: ["Test"]
+    triggers:
+      push:
+        branches:
+          - "main"
+    steps:
       - run: |
+          # Skip image-updater commits (digest-only bumps, no pages to deploy)
           AUTHOR="$(git log -1 --format='%an')"
           if [ "$AUTHOR" = "argocd-image-updater" ]; then
+            echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
 
-          current_branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-          if [ "$current_branch" != "main" ]; then
-            echo "Skipping pages deploy on non-main branch: $current_branch"
-            exit 0
-          fi
-
+          # CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID set in BuildBuddy Settings → Secrets
           bazel run //websites:push_all_pages --config=ci
