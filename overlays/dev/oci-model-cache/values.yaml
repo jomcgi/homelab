@@ -17,6 +17,7 @@ controllerManager:
     kubernetes.io/hostname: node-4
   syncMemoryRequest: "4Gi"
   syncMemoryLimit: "8Gi"
+  syncGOMAXPROCS: "8"
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
 registryPushSecret: "oci-model-cache-operator-hf-token"
