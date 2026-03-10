@@ -21,6 +21,7 @@ multirun(
         "//projects/grimoire/api:image.push",
         "//projects/grimoire/frontend:image.push",
         "//projects/grimoire/ws-gateway:image.push",
+        "//projects/hikes/update_forecast:update_image.push",
         "//projects/operators/cloudflare:image.push",
         "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
         "//projects/operators/oci-model-cache:image.push",
@@ -32,7 +33,6 @@ multirun(
         "//projects/todo_app/image:image.push",
         "//projects/todo_app:py_image.push",
         "//projects/trips/backend:image.push",
-        "//services/hikes/update_forecast:update_image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],

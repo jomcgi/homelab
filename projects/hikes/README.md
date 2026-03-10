@@ -33,10 +33,10 @@ flowchart LR
 
 ```bash
 # Scrape walk data
-bazel run //services/hikes/scrape_walkhighlands
+bazel run //projects/hikes/scrape_walkhighlands
 
 # Update weather forecasts
-bazel run //services/hikes/update_forecast
+bazel run //projects/hikes/update_forecast
 ```
 
 ## Configuration

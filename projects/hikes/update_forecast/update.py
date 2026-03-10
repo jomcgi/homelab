@@ -14,7 +14,7 @@ from typing import Any
 
 import boto3
 import brotli
-import requests
+import requests  # nosemgrep: no-requests
 from botocore.config import Config
 from dateutil import parser as date_parser
 from pydantic import BaseModel

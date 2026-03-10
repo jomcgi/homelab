@@ -1,7 +1,7 @@
 load("@aspect_rules_js//js:defs.bzl", "js_library")
-load("@npm//projects/websites/trips.jomcgi.dev:vite/package_json.bzl", vite_bin = "bin")
-load("@npm//projects/websites/trips.jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
-load("@npm//projects/websites/trips.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("@npm//projects/trips/frontend:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//projects/trips/frontend:vitest/package_json.bzl", vitest_bin = "bin")
+load("@npm//projects/trips/frontend:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//bazel/tools/js:vite_build.bzl", "vite_build")
 load("//bazel/wrangler:defs.bzl", "wrangler_pages")
 
@@ -55,7 +55,7 @@ wrangler_pages(
     name = "trips",
     dist = ":build_dist",
     project_name = "trips-jomcgi-dev",
-    visibility = ["//projects/websites:__pkg__"],
+    visibility = ["//projects/websites:__pkg__"],  # keep
     wrangler = ":wrangler",
 )
 

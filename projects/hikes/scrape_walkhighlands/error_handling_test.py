@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from services.hikes.scrape_walkhighlands.error_handling import (
+from projects.hikes.scrape_walkhighlands.error_handling import (
     AppError,
     ConfigurationError,
     DatabaseError,
