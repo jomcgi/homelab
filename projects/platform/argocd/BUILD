@@ -3,7 +3,7 @@ load("//bazel/helm:defs.bzl", "argocd_app", "helm_chart")
 helm_chart(
     name = "chart",
     lint = False,
-    visibility = ["//overlays:__subpackages__"],
+    visibility = ["//projects:__subpackages__"],
 )
 
 argocd_app(
@@ -18,6 +18,6 @@ argocd_app(
     ],
     values_files = [
         "values.yaml",
-        "//clusters/homelab/argocd:values.yaml",
+        "values-cluster.yaml",
     ],
 )

@@ -2,5 +2,5 @@ load("//bazel/helm:defs.bzl", "helm_chart")
 
 helm_chart(
     name = "chart",
-    visibility = ["//overlays:__subpackages__"],
+    visibility = ["//projects/stargazer/deploy:__pkg__"],
 )
