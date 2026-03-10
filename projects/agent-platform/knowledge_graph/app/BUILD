@@ -2,6 +2,23 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 
+# gazelle:resolve py knowledge_graph.app //projects/agent-platform/knowledge_graph/app:app
+# gazelle:resolve py knowledge_graph.app.models //projects/agent-platform/knowledge_graph/app:models
+# gazelle:resolve py knowledge_graph.app.config //projects/agent-platform/knowledge_graph/app:config
+# gazelle:resolve py knowledge_graph.app.telemetry //projects/agent-platform/knowledge_graph/app:telemetry
+# gazelle:resolve py knowledge_graph.app.storage //projects/agent-platform/knowledge_graph/app:storage
+# gazelle:resolve py knowledge_graph.app.notifications //projects/agent-platform/knowledge_graph/app:notifications
+# gazelle:resolve py knowledge_graph.app.chunker //projects/agent-platform/knowledge_graph/app:chunker
+# gazelle:resolve py knowledge_graph.app.qdrant_client //projects/agent-platform/knowledge_graph/app:qdrant_client
+# gazelle:resolve py knowledge_graph.app.extractors //projects/agent-platform/knowledge_graph/app/extractors
+# gazelle:resolve py knowledge_graph.app.extractors.base //projects/agent-platform/knowledge_graph/app/extractors:base
+# gazelle:resolve py knowledge_graph.app.extractors.feed_extractor //projects/agent-platform/knowledge_graph/app/extractors:feed_extractor
+# gazelle:resolve py knowledge_graph.app.extractors.html_extractor //projects/agent-platform/knowledge_graph/app/extractors:html_extractor
+# gazelle:resolve py knowledge_graph.app.embedders //projects/agent-platform/knowledge_graph/app/embedders
+# gazelle:resolve py knowledge_graph.app.embedders.gemini //projects/agent-platform/knowledge_graph/app/embedders:gemini
+# gazelle:resolve py knowledge_graph.app.embedders.ollama //projects/agent-platform/knowledge_graph/app/embedders:ollama
+# gazelle:resolve py knowledge_graph //projects/agent-platform/knowledge_graph:knowledge_graph
+
 py_library(
     name = "models",
     srcs = ["models.py"],

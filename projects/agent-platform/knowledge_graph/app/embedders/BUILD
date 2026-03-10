@@ -1,6 +1,9 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
+# gazelle:resolve py knowledge_graph.app.embedders.ollama //projects/agent-platform/knowledge_graph/app/embedders:ollama
+# gazelle:resolve py knowledge_graph.app.embedders.gemini //projects/agent-platform/knowledge_graph/app/embedders:gemini
+
 py_library(
     name = "embedders",
     srcs = [

@@ -2,6 +2,10 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 
+# gazelle:resolve py buildbuddy_mcp.app.composite //projects/agent-platform/buildbuddy_mcp/app:app
+# gazelle:resolve py buildbuddy_mcp.app //projects/agent-platform/buildbuddy_mcp/app:app
+# gazelle:resolve py buildbuddy_mcp //projects/agent-platform/buildbuddy_mcp:buildbuddy_mcp
+
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],

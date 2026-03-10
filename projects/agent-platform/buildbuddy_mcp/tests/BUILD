@@ -3,6 +3,7 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 # gazelle:resolve py buildbuddy_mcp.app.main //projects/agent-platform/buildbuddy_mcp/app:app
+# gazelle:resolve py buildbuddy_mcp.app.composite //projects/agent-platform/buildbuddy_mcp/app:app
 
 py_library(
     name = "tests",
@@ -17,6 +18,7 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/buildbuddy_mcp/app",
         "@pip//pytest",
     ],
 )
@@ -36,6 +38,7 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/buildbuddy_mcp/app",
         "@pip//pytest",
     ],
 )
@@ -48,6 +51,7 @@ py_test(
     tags = ["external"],
     deps = [
         ":conftest",
+        "//projects/agent-platform/buildbuddy_mcp/app",
         "@pip//httpx",
         "@pip//pytest",
     ],
