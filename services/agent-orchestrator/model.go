@@ -18,6 +18,8 @@ const (
 var ValidProfiles = map[string]string{
 	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
 	"code-fix": "/home/goose-agent/recipes/code-fix.yaml",
+	"research": "/home/goose-agent/recipes/research.yaml",
+	"bazel":    "/home/goose-agent/recipes/bazel.yaml",
 }
 
 // JobRecord is the primary data model persisted in the NATS KV store.

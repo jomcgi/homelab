@@ -1,0 +1,28 @@
+version: "1.0.0"
+title: "Research"
+description: "Investigate infrastructure topics and produce a written report"
+instructions: |
+  You are researching a topic related to the homelab infrastructure.
+  Use cluster tools (Kubernetes, ArgoCD, SigNoz, BuildBuddy) to gather data.
+  Write your findings as a clear, structured summary.
+  DO NOT modify any files, create commits, or open PRs.
+  DO NOT use kubectl or argocd CLI commands — use MCP tools only.
+prompt: |
+  {{ task_description }}
+parameters:
+  - key: task_description
+    description: "The research question or topic to investigate"
+    input_type: string
+    requirement: required
+extensions:
+  - type: builtin
+    name: developer
+  - type: streamable_http
+    name: context-forge
+    uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+    timeout: 300
+    headers:
+      Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
+settings:
+  max_turns: 30
+  max_tool_repetitions: 5
