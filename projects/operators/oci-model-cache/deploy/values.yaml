@@ -38,7 +38,7 @@ imageUpdater:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
     branch: main
-    target: helmvalues:../../../../overlays/dev/oci-model-cache/values.yaml
+    target: helmvalues:projects/operators/oci-model-cache/deploy/values.yaml
 extraResources:
   - apiVersion: onepassword.com/v1
     kind: OnePasswordItem
