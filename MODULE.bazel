@@ -131,13 +131,6 @@ npm.npm_translate_lock(
     name = "npm",
     npmrc = "//:.npmrc",
     pnpm_lock = "//:pnpm-lock.yaml",
-    # Rollup 4 requires platform-specific native binaries but rules_js only
-    # links optional deps matching the host OS. Hoist the Linux binaries so
-    # they're resolvable from rollup's virtual store in CI (Linux x64).
-    public_hoist_packages = {
-        "@rollup/rollup-linux-x64-gnu": ["services/agent-orchestrator/ui"],
-        "@rollup/rollup-linux-x64-musl": ["services/agent-orchestrator/ui"],
-    },
 )
 use_repo(npm, "npm")
 
