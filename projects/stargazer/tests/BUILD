@@ -8,7 +8,7 @@ py_library(
     srcs = ["conftest.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//pytest",
         "@pip//shapely",
     ],
@@ -19,7 +19,7 @@ py_test(
     srcs = ["acquisition_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//httpx",
         "@pip//pytest",
     ],
@@ -30,7 +30,7 @@ py_test(
     srcs = ["api_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//pytest",
     ],
 )
@@ -40,7 +40,7 @@ py_test(
     srcs = ["config_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//pytest",
     ],
 )
@@ -50,7 +50,7 @@ py_test(
     srcs = ["preprocessing_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//pillow",
         "@pip//pytest",
     ],
@@ -61,7 +61,7 @@ py_test(
     srcs = ["scoring_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//pytest",
     ],
 )
@@ -71,7 +71,7 @@ py_test(
     srcs = ["spatial_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//geopandas",
         "@pip//numpy",
         "@pip//pytest",
@@ -84,7 +84,7 @@ py_test(
     srcs = ["weather_test.py"],
     deps = [
         ":conftest",
-        "//projects/stargazer/backend:app",
+        "//projects/stargazer/backend",
         "@pip//geopandas",
         "@pip//httpx",
         "@pip//pytest",
