@@ -22,7 +22,7 @@ multirun(
         "//projects/agent-platform/orchestrator/mcp:image.push",
         "//projects/agent-platform/orchestrator:image.push",
         "//projects/agent-platform/todo-mcp/image:image.push",
-        "//projects/agent-platform/todo-mcp:image.push",
+        "//projects/agent-platform/todo-mcp:py_image.push",
         "//projects/platform/signoz/dashboard-sidecar/deploy/cmd:image.push",
         "//services/ais_ingest:image.push",
         "//services/grimoire/api:image.push",
