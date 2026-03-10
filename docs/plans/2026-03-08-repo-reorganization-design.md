@@ -164,58 +164,58 @@ Every subproject uses a standardized set of subdirectories. Not every project ne
 
 ## Migration mapping
 
-| Current location                  | New location                                      |
-| --------------------------------- | ------------------------------------------------- |
-| `services/agent-orchestrator`     | `projects/agent-platform/orchestrator/backend/`   |
-| `services/agent_orchestrator_mcp` | `projects/agent-platform/orchestrator/backend/`   |
-| `services/cluster-agents`         | `projects/agent-platform/cluster-agents/backend/` |
-| `services/todo_mcp`               | `projects/agent-platform/todo-mcp/backend/`       |
-| `services/buildbuddy_mcp`         | `projects/agent-platform/buildbuddy-mcp/backend/` |
-| `services/knowledge_graph`        | `projects/agent-platform/knowledge-graph/backend/`|
-| `services/grimoire`               | `projects/websites/grimoire/backend/`             |
-| `services/trips_api`              | `projects/websites/trips/backend/`                |
-| `services/hikes`                  | `projects/websites/hikes/backend/`                |
-| `services/ships_api`              | `projects/websites/ships/backend/`                |
-| `services/ships_frontend`         | `projects/websites/ships/frontend/`               |
-| `services/ais_ingest`             | `projects/websites/ships/ingest/`                 |
-| `services/stargazer`              | `projects/websites/stars/backend/`                |
-| `websites/jomcgi.dev`             | `projects/websites/home/frontend/`                |
-| `websites/trips.jomcgi.dev`       | `projects/websites/trips/frontend/`               |
-| `websites/ships.jomcgi.dev`       | `projects/websites/ships/frontend/`               |
-| `websites/hikes.jomcgi.dev`       | `projects/websites/hikes/frontend/`               |
-| `websites/docs.jomcgi.dev`        | `projects/websites/docs/frontend/`                |
-| `charts/*`                        | `projects/**/deploy/` (colocated)                 |
-| `overlays/prod/*`                 | `projects/**/deploy/` (values merged)             |
-| `overlays/dev/*`                  | `projects/**/deploy/` (values merged)             |
-| `overlays/cluster-critical/*`     | `projects/platform/*/deploy/`                     |
-| `argo-cd/`                        | `projects/platform/argocd/`                       |
-| `rules_semgrep/`                  | `bazel/semgrep/defs/`                             |
-| `semgrep_rules/`                  | `bazel/semgrep/rules/`                            |
-| `third_party/semgrep*`            | `bazel/semgrep/third_party/`                      |
-| `rules_helm/`                     | `bazel/helm/`                                     |
-| `rules_vitepress/`                | `bazel/vitepress/`                                |
-| `rules_wrangler/`                 | `bazel/wrangler/`                                 |
-| `tools/`                          | `bazel/tools/`                                    |
-| `images/`                         | `bazel/images/`                                   |
-| `poc/cdk8s`                       | `bazel/tools/cdk8s/`                              |
-| `scripts/publish-trip-images`     | `projects/websites/trips/tools/`                  |
-| `scripts/backfill-elevation`      | `projects/websites/trips/tools/`                  |
-| `scripts/detect-wildlife`         | `projects/websites/trips/tools/`                  |
-| `scripts/delete-trip-points`      | `projects/websites/trips/tools/`                  |
-| `scripts/elevation`               | `projects/websites/trips/tools/`                  |
-| `scripts/publish-gap-route`       | `projects/websites/trips/tools/`                  |
-| `architecture/`                   | `docs/`                                           |
-| `operators/cloudflare`            | `projects/operators/cloudflare/`                  |
-| `operators/oci-model-cache`       | `projects/operators/oci-model-cache/`             |
-| `sextant/`                        | `projects/operators/sextant/`                     |
-| `seaweedfs/`                      | `projects/platform/seaweedfs/` (merge templates)  |
+| Current location                  | New location                                       |
+| --------------------------------- | -------------------------------------------------- |
+| `services/agent-orchestrator`     | `projects/agent-platform/orchestrator/backend/`    |
+| `services/agent_orchestrator_mcp` | `projects/agent-platform/orchestrator/backend/`    |
+| `services/cluster-agents`         | `projects/agent-platform/cluster-agents/backend/`  |
+| `services/todo_mcp`               | `projects/agent-platform/todo-mcp/backend/`        |
+| `services/buildbuddy_mcp`         | `projects/agent-platform/buildbuddy-mcp/backend/`  |
+| `services/knowledge_graph`        | `projects/agent-platform/knowledge-graph/backend/` |
+| `services/grimoire`               | `projects/websites/grimoire/backend/`              |
+| `services/trips_api`              | `projects/websites/trips/backend/`                 |
+| `services/hikes`                  | `projects/websites/hikes/backend/`                 |
+| `services/ships_api`              | `projects/websites/ships/backend/`                 |
+| `services/ships_frontend`         | `projects/websites/ships/frontend/`                |
+| `services/ais_ingest`             | `projects/websites/ships/ingest/`                  |
+| `services/stargazer`              | `projects/websites/stars/backend/`                 |
+| `websites/jomcgi.dev`             | `projects/websites/home/frontend/`                 |
+| `websites/trips.jomcgi.dev`       | `projects/websites/trips/frontend/`                |
+| `websites/ships.jomcgi.dev`       | `projects/websites/ships/frontend/`                |
+| `websites/hikes.jomcgi.dev`       | `projects/websites/hikes/frontend/`                |
+| `websites/docs.jomcgi.dev`        | `projects/websites/docs/frontend/`                 |
+| `charts/*`                        | `projects/**/deploy/` (colocated)                  |
+| `overlays/prod/*`                 | `projects/**/deploy/` (values merged)              |
+| `overlays/dev/*`                  | `projects/**/deploy/` (values merged)              |
+| `overlays/cluster-critical/*`     | `projects/platform/*/deploy/`                      |
+| `argo-cd/`                        | `projects/platform/argocd/`                        |
+| `rules_semgrep/`                  | `bazel/semgrep/defs/`                              |
+| `semgrep_rules/`                  | `bazel/semgrep/rules/`                             |
+| `third_party/semgrep*`            | `bazel/semgrep/third_party/`                       |
+| `rules_helm/`                     | `bazel/helm/`                                      |
+| `rules_vitepress/`                | `bazel/vitepress/`                                 |
+| `rules_wrangler/`                 | `bazel/wrangler/`                                  |
+| `tools/`                          | `bazel/tools/`                                     |
+| `images/`                         | `bazel/images/`                                    |
+| `poc/cdk8s`                       | `bazel/tools/cdk8s/`                               |
+| `scripts/publish-trip-images`     | `projects/websites/trips/tools/`                   |
+| `scripts/backfill-elevation`      | `projects/websites/trips/tools/`                   |
+| `scripts/detect-wildlife`         | `projects/websites/trips/tools/`                   |
+| `scripts/delete-trip-points`      | `projects/websites/trips/tools/`                   |
+| `scripts/elevation`               | `projects/websites/trips/tools/`                   |
+| `scripts/publish-gap-route`       | `projects/websites/trips/tools/`                   |
+| `architecture/`                   | `docs/`                                            |
+| `operators/cloudflare`            | `projects/operators/cloudflare/`                   |
+| `operators/oci-model-cache`       | `projects/operators/oci-model-cache/`              |
+| `sextant/`                        | `projects/operators/sextant/`                      |
+| `seaweedfs/`                      | `projects/platform/seaweedfs/` (merge templates)   |
 
 Note: `services/trips-api/` exists but only contains `__pycache__` — delete, don't migrate.
 
 ### Scripts not specific to a domain
 
-| Script                                 | Disposition  |
-| -------------------------------------- | ------------ |
+| Script                                 | Disposition    |
+| -------------------------------------- | -------------- |
 | `scripts/setup-mcp-profiles.sh`        | `bazel/tools/` |
 | `scripts/signoz-mcp-wrapper.sh`        | `bazel/tools/` |
 | `scripts/test-charts.sh`               | `bazel/tools/` |

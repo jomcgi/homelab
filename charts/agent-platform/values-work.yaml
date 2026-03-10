@@ -10,15 +10,15 @@
 # Top-level goose configuration (mirror into goose-sandboxes: below)
 goose:
   image:
-    repository: ghcr.io/jomcgi/homelab/goose-agent  # public GHCR image, fine for work cluster
+    repository: ghcr.io/jomcgi/homelab/goose-agent # public GHCR image, fine for work cluster
     tag: main
   model: claude-sonnet-4-6
   provider: claude-code
   repo:
-    owner: ""   # REQUIRED: fill in your GitHub org/user
-    name: ""    # REQUIRED: fill in your repository name
+    owner: "" # REQUIRED: fill in your GitHub org/user
+    name: "" # REQUIRED: fill in your repository name
   workspace:
-    storageClassName: ""  # REQUIRED: fill in your cluster's storage class
+    storageClassName: "" # REQUIRED: fill in your cluster's storage class
 
 # No 1Password Operator at work — use pre-existing K8s Secrets
 secrets:
@@ -57,7 +57,13 @@ agent-platform-mcp-servers:
       rbac:
         clusterRoleRules:
           - apiGroups:
-              ["", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io"]
+              [
+                "",
+                "apps",
+                "batch",
+                "networking.k8s.io",
+                "rbac.authorization.k8s.io",
+              ]
             resources: ["*"]
             verbs: ["get", "list", "watch"]
           - apiGroups: [""]
@@ -91,15 +97,15 @@ goose-sandboxes:
   enabled: true
   sandboxTemplate:
     image:
-      repository: ghcr.io/jomcgi/homelab/goose-agent  # public GHCR image
+      repository: ghcr.io/jomcgi/homelab/goose-agent # public GHCR image
       tag: main
     env:
       gooseProvider: claude-code
       gooseModel: claude-sonnet-4-6
-      repoOwner: ""    # REQUIRED: fill in your GitHub org/user
-      repoName: ""     # REQUIRED: fill in your repository name
+      repoOwner: "" # REQUIRED: fill in your GitHub org/user
+      repoName: "" # REQUIRED: fill in your repository name
     workspace:
-      storageClassName: ""  # REQUIRED: fill in your cluster's storage class
+      storageClassName: "" # REQUIRED: fill in your cluster's storage class
       size: 10Gi
     # No BuildBuddy, no homelab-specific OTel annotations
     extraEnv: []

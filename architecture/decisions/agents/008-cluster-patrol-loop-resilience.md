@@ -17,13 +17,13 @@ passing) but no patrol activity occurred for several hours.
 
 **Timeline:**
 
-| Time (UTC) | Event |
-|------------|-------|
-| 23:07 | Sweep 1 — completed successfully |
-| 00:07 | Sweep 2 — completed successfully |
-| 01:07:00 | Sweep 3 — started |
-| 01:07:40 | Sweep 3 — "sweep complete" logged (last log entry ever) |
-| 02:07+ | **No sweep scheduled. No logs. No errors. No restarts.** |
+| Time (UTC) | Event                                                    |
+| ---------- | -------------------------------------------------------- |
+| 23:07      | Sweep 1 — completed successfully                         |
+| 00:07      | Sweep 2 — completed successfully                         |
+| 01:07:00   | Sweep 3 — started                                        |
+| 01:07:40   | Sweep 3 — "sweep complete" logged (last log entry ever)  |
+| 02:07+     | **No sweep scheduled. No logs. No errors. No restarts.** |
 
 ### Observed Symptoms
 
@@ -120,6 +120,7 @@ out, `Collect` returns `context.DeadlineExceeded`, `sweep` logs "collect failed"
 and **returns**. The goroutine is free to pick up the next ticker event.
 
 The 5-minute timeout is chosen to be:
+
 - Long enough for a sweep with dozens of firing alerts and many orchestrator
   HTTP round-trips to complete comfortably
 - Short enough that the patrol loop misses at most one interval (1 hour) before
@@ -174,9 +175,9 @@ against future code changes that might inadvertently add early returns to `runAg
 
 Two regression tests added to `runner_test.go`:
 
-| Test | What it verifies |
-|------|-----------------|
-| `TestRunnerContinuesAfterSweepPanic` | A panic in `Collect` is recovered; subsequent sweeps continue |
+| Test                                   | What it verifies                                                                                                   |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `TestRunnerContinuesAfterSweepPanic`   | A panic in `Collect` is recovered; subsequent sweeps continue                                                      |
 | `TestRunnerContinuesAfterSweepTimeout` | A blocking `Collect` (simulating a hung HTTP call) is bounded by `sweepTimeout`; the loop resumes on the next tick |
 
 The second test directly reproduces the production failure: the `blockingAgent`
@@ -188,12 +189,14 @@ never times out.
 ## Prevention Strategy
 
 **For this service specifically:**
+
 - All HTTP calls in agent implementations must use the context passed to them
   (already done). Do not make new `http.Client` calls without a context.
 - Agent `Collect`/`Execute` implementations should not block on channels, locks,
   or non-contextual I/O.
 
 **For future agents added to `cluster-agents`:**
+
 - The `Runner.sweep` timeout is the last line of defence — do not rely solely on
   it. Agent implementations should set appropriate deadlines on their own I/O
   operations.
@@ -201,6 +204,7 @@ never times out.
   pattern: write a test that blocks the agent and verify the loop recovers.
 
 **For any long-running goroutine loop:**
+
 - Always wrap blocking operations with a bounded context.
 - Always add panic recovery to goroutines that must stay alive.
 - Consider a supervision/restart pattern for critical background loops.
@@ -209,9 +213,9 @@ never times out.
 
 ## Alternatives Considered
 
-| Alternative | Why not chosen |
-|-------------|---------------|
-| Increase `http.Client.Timeout` | Does not help with half-open TCP connections; the OS may not surface the broken connection for minutes |
-| Add TCP keepalive to HTTP transport | Helps but adds complexity; does not protect against all network-layer hangs |
-| Restart the pod on schedule (liveness probe) | Blunt instrument; loses in-flight state and adds unnecessary pod churn |
-| Per-agent configurable sweep timeout | Over-engineering for now; `defaultSweepTimeout = 5m` suits all current and foreseeable agents |
+| Alternative                                  | Why not chosen                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| Increase `http.Client.Timeout`               | Does not help with half-open TCP connections; the OS may not surface the broken connection for minutes |
+| Add TCP keepalive to HTTP transport          | Helps but adds complexity; does not protect against all network-layer hangs                            |
+| Restart the pod on schedule (liveness probe) | Blunt instrument; loses in-flight state and adds unnecessary pod churn                                 |
+| Per-agent configurable sweep timeout         | Over-engineering for now; `defaultSweepTimeout = 5m` suits all current and foreseeable agents          |

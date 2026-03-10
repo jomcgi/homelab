@@ -52,7 +52,13 @@ agent-platform-mcp-servers:
       rbac:
         clusterRoleRules:
           - apiGroups:
-              ["", "apps", "batch", "networking.k8s.io", "rbac.authorization.k8s.io"]
+              [
+                "",
+                "apps",
+                "batch",
+                "networking.k8s.io",
+                "rbac.authorization.k8s.io",
+              ]
             resources: ["*"]
             verbs: ["get", "list", "watch"]
           - apiGroups: [""]

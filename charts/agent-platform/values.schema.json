@@ -99,7 +99,10 @@
     "nats": { "type": "object", "additionalProperties": true },
     "agent-orchestrator": { "type": "object", "additionalProperties": true },
     "goose-sandboxes": { "type": "object", "additionalProperties": true },
-    "agent-platform-mcp-servers": { "type": "object", "additionalProperties": true }
+    "agent-platform-mcp-servers": {
+      "type": "object",
+      "additionalProperties": true
+    }
   },
   "additionalProperties": true
 }

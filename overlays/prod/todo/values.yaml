@@ -20,10 +20,10 @@ podAnnotations:
 affinity:
   podAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
-    - weight: 100
-      podAffinityTerm:
-        labelSelector:
-          matchLabels:
-            app.kubernetes.io/name: todo
-            app.kubernetes.io/instance: todo
-        topologyKey: kubernetes.io/hostname
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: todo
+              app.kubernetes.io/instance: todo
+          topologyKey: kubernetes.io/hostname
