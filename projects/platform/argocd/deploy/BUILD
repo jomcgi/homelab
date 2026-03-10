@@ -1,0 +1,23 @@
+load("//bazel/helm:defs.bzl", "argocd_app", "helm_chart")
+
+helm_chart(
+    name = "chart",
+    lint = False,
+    visibility = [":__pkg__"],
+)
+
+argocd_app(
+    name = "argocd",
+    chart = "projects/platform/argocd/deploy",
+    chart_files = ":chart",
+    namespace = "argocd",
+    release_name = "argocd",
+    tags = [
+        "helm",
+        "template",
+    ],
+    values_files = [
+        "values.yaml",
+        "//clusters/homelab/argocd:values.yaml",
+    ],
+)
