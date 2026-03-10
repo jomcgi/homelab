@@ -1,21 +1,19 @@
 package main
 
 import (
-	"embed"
 	"io/fs"
 	"net/http"
 	"strings"
-)
 
-//go:embed ui/dist
-var uiFS embed.FS
+	orchestratorui "github.com/jomcgi/homelab/services/agent-orchestrator/ui"
+)
 
 // registerUI mounts the embedded Vite build at "/" on the given mux.
 // API routes must be registered before calling this function.
 func registerUI(mux *http.ServeMux) {
-	uiContent, err := fs.Sub(uiFS, "ui/dist")
+	uiContent, err := fs.Sub(orchestratorui.FS, "dist")
 	if err != nil {
-		panic("failed to sub ui/dist from embedded FS: " + err.Error())
+		panic("failed to sub dist from embedded UI FS: " + err.Error())
 	}
 	fileServer := http.FileServer(http.FS(uiContent))
 
