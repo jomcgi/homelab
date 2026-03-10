@@ -12,7 +12,6 @@ py_library(
         "gemini.py",
         "ollama.py",
     ],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
@@ -24,14 +23,12 @@ py_library(
 py_library(
     name = "base",
     srcs = ["base.py"],
-
     visibility = ["//:__subpackages__"],
 )
 
 py_library(
     name = "ollama",
     srcs = ["ollama.py"],
-
     visibility = ["//:__subpackages__"],
     deps = ["@pip//httpx"],
 )
@@ -39,7 +36,6 @@ py_library(
 py_library(
     name = "gemini",
     srcs = ["gemini.py"],
-
     visibility = ["//:__subpackages__"],
     deps = ["@pip//httpx"],
 )

@@ -22,14 +22,12 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 py_library(
     name = "models",
     srcs = ["models.py"],
-
     visibility = ["//:__subpackages__"],
 )
 
 py_library(
     name = "config",
     srcs = ["config.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//pydantic",
@@ -40,7 +38,6 @@ py_library(
 py_library(
     name = "telemetry",
     srcs = ["telemetry.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//opentelemetry_api",
@@ -52,7 +49,6 @@ py_library(
 py_library(
     name = "storage",
     srcs = ["storage.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":models",
@@ -63,7 +59,6 @@ py_library(
 py_library(
     name = "notifications",
     srcs = ["notifications.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":models",
@@ -74,7 +69,6 @@ py_library(
 py_library(
     name = "chunker",
     srcs = ["chunker.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [":models"],
 )
@@ -82,7 +76,6 @@ py_library(
 py_library(
     name = "qdrant_client",
     srcs = ["qdrant_client.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":models",
@@ -105,7 +98,6 @@ py_library(
         "storage.py",
         "telemetry.py",
     ],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
@@ -137,7 +129,6 @@ py_library(
 py_library(
     name = "scraper_main",
     srcs = ["scraper_main.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":config",
@@ -162,7 +153,6 @@ py_venv_binary(
 py_library(
     name = "embedder_main",
     srcs = ["embedder_main.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":chunker",
@@ -183,7 +173,6 @@ py_venv_binary(
 py_library(
     name = "mcp_main",
     srcs = ["mcp_main.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":config",

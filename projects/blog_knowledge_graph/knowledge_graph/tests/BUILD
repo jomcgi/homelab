@@ -18,7 +18,6 @@ py_library(
     name = "conftest",
     testonly = True,
     srcs = ["conftest.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:config",
@@ -30,7 +29,6 @@ py_library(
 py_test(
     name = "models_test",
     srcs = ["models_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -40,7 +38,6 @@ py_test(
 py_test(
     name = "chunker_test",
     srcs = ["chunker_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
@@ -50,7 +47,6 @@ py_test(
 py_test(
     name = "storage_test",
     srcs = ["storage_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -63,7 +59,6 @@ py_test(
 py_test(
     name = "extractors_test",
     srcs = ["extractors_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app/extractors:base",
@@ -77,7 +72,6 @@ py_test(
 py_test(
     name = "notifications_test",
     srcs = ["notifications_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -89,7 +83,6 @@ py_test(
 py_test(
     name = "qdrant_client_test",
     srcs = ["qdrant_client_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -101,7 +94,6 @@ py_test(
 py_test(
     name = "scraper_main_test",
     srcs = ["scraper_main_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:scraper_main",  # keep
@@ -114,7 +106,6 @@ py_test(
 py_test(
     name = "mcp_main_test",
     srcs = ["mcp_main_test.py"],
-
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:mcp_main",  # keep
@@ -126,7 +117,6 @@ py_test(
 py_library(
     name = "tests",
     srcs = ["__init__.py"],
-
     visibility = ["//:__subpackages__"],
 )
 

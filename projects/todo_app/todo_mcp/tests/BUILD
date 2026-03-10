@@ -7,14 +7,12 @@ load("//bazel/tools/pytest:defs.bzl", "py_test")
 py_library(
     name = "tests",
     srcs = ["__init__.py"],
-
     visibility = ["//:__subpackages__"],
 )
 
 py_test(
     name = "main_test",
     srcs = ["main_test.py"],
-
     deps = [
         ":conftest",
         "//projects/todo_app/todo_mcp/app",
@@ -26,7 +24,6 @@ py_library(
     name = "conftest",
     testonly = True,
     srcs = ["conftest.py"],
-
     visibility = ["//:__subpackages__"],
     deps = ["@pip//pytest_asyncio"],
 )

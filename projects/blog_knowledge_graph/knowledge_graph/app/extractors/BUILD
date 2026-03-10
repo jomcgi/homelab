@@ -14,7 +14,6 @@ py_library(
         "feed_extractor.py",
         "html_extractor.py",
     ],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -30,7 +29,6 @@ py_library(
 py_library(
     name = "base",
     srcs = ["base.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -41,7 +39,6 @@ py_library(
 py_library(
     name = "html_extractor",
     srcs = ["html_extractor.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":base",
@@ -55,7 +52,6 @@ py_library(
 py_library(
     name = "feed_extractor",
     srcs = ["feed_extractor.py"],
-
     visibility = ["//:__subpackages__"],
     deps = [
         ":base",
