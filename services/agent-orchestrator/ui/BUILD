@@ -41,7 +41,6 @@ vite_build(
 go_library(
     name = "ui",
     srcs = ["static.go"],
-    embedsrcs = [":build"],
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator/ui",
     visibility = ["//services/agent-orchestrator:__pkg__"],
 )
