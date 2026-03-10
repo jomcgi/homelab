@@ -121,7 +121,7 @@ kubectl top pods -n [namespace] -l app=[service-name]
 **Note**: Remember this cluster is GitOps-managed. All fixes must be applied via Git commits, not kubectl commands.
 
 1. **Change Required**: [Description]
-   - File: `overlays/[env]/[service]/values.yaml`
+   - File: `projects/[service]/deploy/values.yaml`
    - Modification: [What needs to be changed]
 
 2. **Verification**:

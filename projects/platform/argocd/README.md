@@ -27,12 +27,12 @@ flowchart LR
 
 ## Application Discovery Pattern
 
-ArgoCD discovers applications through the overlay structure:
+ArgoCD discovers applications through the `projects/home-cluster/` auto-discovery pattern:
 
 ```
-clusters/homelab/kustomization.yaml
-  → overlays/cluster-critical/kustomization.yaml
-    → overlays/cluster-critical/<service>/application.yaml
+clusters/homelab/kustomization.yaml (redirect)
+  → projects/home-cluster/kustomization.yaml (auto-generated)
+    → projects/{service}/deploy/application.yaml
 ```
 
-Each `application.yaml` points to a Helm chart in `charts/`.
+Each `application.yaml` points to its colocated Helm chart in `projects/{service}/chart/`.

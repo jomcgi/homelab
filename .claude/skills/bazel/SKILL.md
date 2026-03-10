@@ -19,7 +19,7 @@ Locally, use:
 
 ```bash
 format                        # Format code + update BUILD files (standalone)
-helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml  # Render templates
+helm template <release> projects/<service>/chart/ -f projects/<service>/deploy/values.yaml  # Render templates
 ```
 
 `format` runs standalone binaries in parallel:
