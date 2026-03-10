@@ -46,15 +46,10 @@ func TestReconcileOrphanedJobs_ResetsRunningJobs(t *testing.T) {
 		CreatedAt: time.Now(),
 	})
 
-	var republished []string
-	publish := func(jobID string) error {
-		republished = append(republished, jobID)
-		return nil
-	}
-
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, slog.Default())
 
 	// Both orphaned jobs should be reset to PENDING.
+	// NATS will redeliver the messages automatically after AckWait expires.
 	for _, id := range []string{"job-orphan-1", "job-orphan-2"} {
 		job, err := store.Get(ctx, id)
 		if err != nil {
@@ -71,11 +66,6 @@ func TestReconcileOrphanedJobs_ResetsRunningJobs(t *testing.T) {
 		if last.FinishedAt == nil {
 			t.Errorf("%s: last attempt FinishedAt should be set", id)
 		}
-	}
-
-	// Both should be re-published to NATS.
-	if len(republished) != 2 {
-		t.Fatalf("republished count = %d, want 2", len(republished))
 	}
 
 	// PENDING job should be untouched.
@@ -101,22 +91,11 @@ func TestReconcileOrphanedJobs_ExhaustedRetriesMarksFailed(t *testing.T) {
 		},
 	})
 
-	var republished []string
-	publish := func(jobID string) error {
-		republished = append(republished, jobID)
-		return nil
-	}
-
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, slog.Default())
 
 	job, _ := store.Get(ctx, "job-exhausted")
 	if job.Status != JobFailed {
 		t.Errorf("status = %s, want FAILED", job.Status)
-	}
-
-	// Should NOT be re-published since retries are exhausted.
-	if len(republished) != 0 {
-		t.Errorf("republished count = %d, want 0", len(republished))
 	}
 }
 
@@ -130,18 +109,8 @@ func TestReconcileOrphanedJobs_NoRunningJobs(t *testing.T) {
 		Status: JobSucceeded,
 	})
 
-	published := false
-	publish := func(string) error {
-		published = true
-		return nil
-	}
-
 	// Should be a no-op.
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", nil, slog.Default())
-
-	if published {
-		t.Error("should not have published anything")
-	}
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, slog.Default())
 }
 
 func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
@@ -161,18 +130,12 @@ func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
 		}},
 	})
 
-	var republished []string
-	publish := func(jobID string) error {
-		republished = append(republished, jobID)
-		return nil
-	}
-
 	// Mock runner that reports goose is still running.
 	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
 		return "running", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
 
 	job, err := store.Get(ctx, "job-still-running")
 	if err != nil {
@@ -185,10 +148,6 @@ func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
 	last := job.Attempts[len(job.Attempts)-1]
 	if last.FinishedAt != nil {
 		t.Errorf("FinishedAt should be nil for still-running job")
-	}
-	// Should NOT be re-published.
-	if len(republished) != 0 {
-		t.Errorf("republished count = %d, want 0", len(republished))
 	}
 }
 
@@ -209,18 +168,12 @@ func TestReconcileOrphanedJobs_CollectsDone(t *testing.T) {
 		}},
 	})
 
-	var republished []string
-	publish := func(jobID string) error {
-		republished = append(republished, jobID)
-		return nil
-	}
-
 	// Mock runner that reports goose finished successfully.
 	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
 		return "done", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
 
 	job, err := store.Get(ctx, "job-done-unnoticed")
 	if err != nil {
@@ -235,10 +188,6 @@ func TestReconcileOrphanedJobs_CollectsDone(t *testing.T) {
 	}
 	if last.ExitCode == nil || *last.ExitCode != 0 {
 		t.Errorf("exit code = %v, want 0", last.ExitCode)
-	}
-	// Should NOT be re-published.
-	if len(republished) != 0 {
-		t.Errorf("republished count = %d, want 0", len(republished))
 	}
 }
 
@@ -259,24 +208,19 @@ func TestReconcileOrphanedJobs_FailedRunnerRetries(t *testing.T) {
 		}},
 	})
 
-	var republished []string
-	publish := func(jobID string) error {
-		republished = append(republished, jobID)
-		return nil
-	}
-
 	// Mock runner that reports goose failed.
 	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
 		return "failed", 1, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
 
 	job, err := store.Get(ctx, "job-failed-runner")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
 	// Should be reset to PENDING for retry (has retries remaining).
+	// NATS will redeliver the message automatically after AckWait expires.
 	if job.Status != JobPending {
 		t.Errorf("status = %s, want PENDING", job.Status)
 	}
@@ -286,10 +230,6 @@ func TestReconcileOrphanedJobs_FailedRunnerRetries(t *testing.T) {
 	}
 	if last.FinishedAt == nil {
 		t.Error("FinishedAt should be set")
-	}
-	// Should be re-published for retry.
-	if len(republished) != 1 {
-		t.Errorf("republished count = %d, want 1", len(republished))
 	}
 }
 
@@ -310,33 +250,24 @@ func TestReconcileOrphanedJobs_RunnerUnreachableFallsBack(t *testing.T) {
 		}},
 	})
 
-	var republished []string
-	publish := func(jobID string) error {
-		republished = append(republished, jobID)
-		return nil
-	}
-
 	// Mock runner that is unreachable.
 	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
 		return "", -1, fmt.Errorf("connection refused")
 	}
 
-	reconcileOrphanedJobs(ctx, store, publish, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
 
 	job, err := store.Get(ctx, "job-unreachable")
 	if err != nil {
 		t.Fatalf("Get: %v", err)
 	}
 	// Should fall back to existing behavior: reset to PENDING.
+	// NATS will redeliver the message automatically after AckWait expires.
 	if job.Status != JobPending {
 		t.Errorf("status = %s, want PENDING", job.Status)
 	}
 	last := job.Attempts[len(job.Attempts)-1]
 	if last.ExitCode == nil || *last.ExitCode != -1 {
 		t.Errorf("exit code = %v, want -1", last.ExitCode)
-	}
-	// Should be re-published.
-	if len(republished) != 1 {
-		t.Errorf("republished count = %d, want 1", len(republished))
 	}
 }

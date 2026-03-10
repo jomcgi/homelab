@@ -89,8 +89,11 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 		return
 	}
 
-	if job.Status == JobCancelled {
-		logger.Info("skipping cancelled job")
+	// Only process jobs in PENDING state. RUNNING means another attempt is
+	// active (e.g. NATS redelivery after restart); SUCCEEDED/FAILED are terminal.
+	// This prevents duplicate long-running jobs after orchestrator restarts.
+	if job.Status != JobPending {
+		logger.Info("skipping job, not in pending state", "status", job.Status)
 		_ = msg.Ack()
 		return
 	}
@@ -137,7 +140,9 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 		resultCh <- sandboxResult{r, err}
 	}()
 
-	// Periodic output flush.
+	// Periodic output flush and NATS ack deadline extension.
+	// InProgress() resets the AckWait timer so NATS doesn't redeliver the
+	// message while the job is still actively running.
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
@@ -148,6 +153,7 @@ loop:
 		case res = <-resultCh:
 			break loop
 		case <-ticker.C:
+			_ = msg.InProgress()
 			c.flushOutput(jobCtx, jobID, outputBuf)
 		}
 	}

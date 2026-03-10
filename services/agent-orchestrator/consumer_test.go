@@ -224,6 +224,58 @@ func TestProcessJob_SkipsCancelledJob(t *testing.T) {
 	}
 }
 
+func TestProcessJob_SkipsRunningJob(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-ALREADY-RUNNING")
+	job.Status = JobRunning
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	executed := false
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+			executed = true
+			return &ExecResult{ExitCode: 0}, nil
+		},
+	}
+
+	c := newTestConsumer(store, sandbox)
+	c.processJob(context.Background(), msg)
+
+	if executed {
+		t.Fatal("sandbox should not execute for an already-running job")
+	}
+	if !msg.acked.Load() {
+		t.Fatal("expected ACK for already-running job")
+	}
+}
+
+func TestProcessJob_SkipsSucceededJob(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-ALREADY-DONE")
+	job.Status = JobSucceeded
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	executed := false
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+			executed = true
+			return &ExecResult{ExitCode: 0}, nil
+		},
+	}
+
+	c := newTestConsumer(store, sandbox)
+	c.processJob(context.Background(), msg)
+
+	if executed {
+		t.Fatal("sandbox should not execute for a succeeded job")
+	}
+	if !msg.acked.Load() {
+		t.Fatal("expected ACK for succeeded job")
+	}
+}
+
 func TestProcessJob_CancelledDuringExecution(t *testing.T) {
 	store := newMemStore()
 	job := pendingJob("JOB-CANCEL-MID")

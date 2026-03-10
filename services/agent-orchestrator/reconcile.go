@@ -29,8 +29,8 @@ type RunnerStatusFunc func(ctx context.Context, sandboxClaimName string) (state 
 //  2. If checkRunner is nil, returns error, or returns "idle":
 //     - Clean up stale SandboxClaim
 //     - Reset to PENDING for retry (or FAILED if retries exhausted)
-//     - Re-publish to NATS stream
-func reconcileOrphanedJobs(ctx context.Context, store Store, publish func(string) error, dynClient dynamic.Interface, namespace string, checkRunner RunnerStatusFunc, logger *slog.Logger) {
+//     - NATS redelivers the message automatically after AckWait expires
+func reconcileOrphanedJobs(ctx context.Context, store Store, dynClient dynamic.Interface, namespace string, checkRunner RunnerStatusFunc, logger *slog.Logger) {
 	jobs, _, err := store.List(ctx, []string{string(JobRunning)}, nil, 100, 0)
 	if err != nil {
 		logger.Error("reconcile: failed to list running jobs", "error", err)
@@ -118,15 +118,14 @@ func reconcileOrphanedJobs(ctx context.Context, store Store, publish func(string
 			continue
 		}
 
+		// Reset to PENDING so the consumer retries when NATS redelivers the
+		// message after AckWait expires. No need to re-publish — NATS handles
+		// redelivery natively, and re-publishing would create duplicates.
 		jlog.Info("reconcile: resetting to pending for retry", "retriesRemaining", retriesRemaining)
 		job.Status = JobPending
 		if err := store.Put(ctx, &job); err != nil {
 			jlog.Error("reconcile: failed to reset job", "error", err)
 			continue
-		}
-
-		if err := publish(job.ID); err != nil {
-			jlog.Error("reconcile: failed to re-publish job", "error", err)
 		}
 	}
 }

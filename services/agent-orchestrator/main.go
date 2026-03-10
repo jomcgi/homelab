@@ -90,7 +90,7 @@ func main() {
 		Durable:       "orchestrator",
 		AckPolicy:     jetstream.AckExplicitPolicy,
 		MaxAckPending: maxConcurrent,
-		AckWait:       maxDuration + time.Minute,
+		AckWait:       2 * time.Minute,
 	})
 	if err != nil {
 		logger.Error("failed to create consumer", "error", err)
@@ -141,7 +141,7 @@ func main() {
 	// runners (HTTP) or may be truly orphaned. Check runner status first,
 	// then reset stale jobs for retry.
 	if sandbox != nil {
-		reconcileOrphanedJobs(ctx, store, publish, sandbox.dynClient, sandboxNamespace, sandbox.CheckRunnerForClaim, logger)
+		reconcileOrphanedJobs(ctx, store, sandbox.dynClient, sandboxNamespace, sandbox.CheckRunnerForClaim, logger)
 	}
 
 	// Start consumer if sandbox is available.
