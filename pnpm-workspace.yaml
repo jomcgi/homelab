@@ -7,5 +7,5 @@ packages:
   - projects/websites/jomcgi.dev
   - projects/websites/docs.jomcgi.dev
   - projects/websites/hikes.jomcgi.dev
-  - services/grimoire/frontend
+  - projects/grimoire/frontend
   - projects/agent_platform/orchestrator/ui

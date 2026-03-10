@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "config": {
-    "name": "./services/grimoire/frontend/apko.yaml",
+    "name": "./projects/grimoire/frontend/apko.yaml",
     "checksum": "sha256-aUXGE5aQFZ2DpshVmynNh7/wOsY3woFK9d9vX6VnrZQ="
   },
   "contents": {

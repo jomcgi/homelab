@@ -14,7 +14,7 @@ go_library(
         "middleware.go",
         "session.go",
     ],
-    importpath = "github.com/jomcgi/homelab/services/grimoire/api",
+    importpath = "github.com/jomcgi/homelab/projects/grimoire/api",
     visibility = ["//visibility:private"],
     deps = [
         "@com_google_cloud_go_firestore//:firestore",

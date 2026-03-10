@@ -2,8 +2,8 @@ load("//bazel/helm:defs.bzl", "argocd_app")
 
 argocd_app(
     name = "grimoire",
-    chart = "charts/grimoire",
-    chart_files = "//charts/grimoire:chart",
+    chart = "projects/grimoire/deploy",
+    chart_files = "//projects/grimoire/deploy:chart",
     namespace = "grimoire",
     release_name = "grimoire",
     tags = [
@@ -11,7 +11,7 @@ argocd_app(
         "template",
     ],
     values_files = [
-        "//charts/grimoire:values.yaml",
+        "//projects/grimoire/deploy:values.yaml",
         "values.yaml",
     ],
 )

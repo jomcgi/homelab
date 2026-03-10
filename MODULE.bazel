@@ -286,7 +286,7 @@ apko.translate_lock(
 )
 apko.translate_lock(
     name = "grimoire_frontend_lock",
-    lock = "//services/grimoire/frontend:apko.lock.json",
+    lock = "//projects/grimoire/frontend:apko.lock.json",
 )
 apko.translate_lock(
     name = "todo_lock",
