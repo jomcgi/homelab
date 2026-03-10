@@ -4,7 +4,7 @@ load("//bazel/tools/oci:go_image.bzl", "go_image")
 # gazelle:map_kind go_test go_test @rules_go//go:def.bzl
 
 go_library(
-    name = "agent-orchestrator_lib",
+    name = "orchestrator_lib",
     srcs = [
         "api.go",
         "consumer.go",
@@ -36,12 +36,12 @@ go_library(
 
 go_binary(
     name = "agent-orchestrator",
-    embed = [":agent-orchestrator_lib"],
+    embed = [":orchestrator_lib"],
     visibility = ["//visibility:public"],
 )
 
 go_test(
-    name = "agent-orchestrator_unit_test",
+    name = "orchestrator_unit_test",
     srcs = [
         "api_test.go",
         "consumer_test.go",
@@ -49,41 +49,12 @@ go_test(
         "sandbox_test.go",
         "watchdog_test.go",
     ],
-    embed = [":agent-orchestrator_lib"],
+    embed = [":orchestrator_lib"],
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
     ],
 )
-
-go_test(
-    name = "agent-orchestrator_test",
-    srcs = [
-        "api_test.go",
-        "consumer_test.go",
-        "reconcile_test.go",
-        "sandbox_test.go",
-        "store_test.go",
-        "watchdog_test.go",
-    ],
-    embed = [":agent-orchestrator_lib"],
-    tags = ["manual"],
-    deps = [
-        "@com_github_nats_io_nats_go//:nats_go",
-        "@com_github_nats_io_nats_go//jetstream",
-    ],
-)
-
-go_image(
-    name = "image",
-    binary = ":agent-orchestrator",
-    repository = "ghcr.io/jomcgi/homelab/services/agent-orchestrator",
-)
-
-# NOTE: Do not add an orchestrator_test target here — gazelle incorrectly
-# generates one referencing :orchestrator_lib (which doesn't exist).
-# The correct test targets are agent-orchestrator_unit_test and
-# agent-orchestrator_test above.
 
 go_test(
     name = "orchestrator_test",
@@ -96,8 +67,15 @@ go_test(
         "watchdog_test.go",
     ],
     embed = [":orchestrator_lib"],
+    tags = ["manual"],
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
     ],
+)
+
+go_image(
+    name = "image",
+    binary = ":agent-orchestrator",
+    repository = "ghcr.io/jomcgi/homelab/services/agent-orchestrator",
 )
