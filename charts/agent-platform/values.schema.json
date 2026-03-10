@@ -134,7 +134,10 @@
       "additionalProperties": true
     },
     "goose-sandboxes": { "type": "object", "additionalProperties": true },
-    "agent-platform-mcp-servers": { "type": "object", "additionalProperties": true },
+    "agent-platform-mcp-servers": {
+      "type": "object",
+      "additionalProperties": true
+    },
     "context-forge": { "type": "object", "additionalProperties": true },
     "mcp-oauth-proxy": { "type": "object", "additionalProperties": true }
   },
