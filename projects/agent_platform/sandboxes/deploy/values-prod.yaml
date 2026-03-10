@@ -6,7 +6,7 @@
 sandboxTemplate:
   image:
     repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: main@sha256:051d0d4a08307bd775fcf0f951df62744ecb4792a5d63e86d1c5c09d64e036ed
+    tag: main@sha256:4855e3ebdff1940236e4f6433a11bb997da4754ac392fa640898a5ea7efc7583
   # OpenTelemetry configuration for Goose agent observability.
   #
   # Goose (block/goose) has native OTEL support using the Rust opentelemetry SDK.
@@ -25,22 +25,22 @@ sandboxTemplate:
   # see the LiteLLM overlay — LiteLLM emits these via its OTEL callback when
   # requests are routed through it.
   extraEnv:
-    # Signal-specific HTTP endpoints override Kyverno's generic gRPC endpoint.
-    - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
-      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-    - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
-      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-    - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
-      value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
-    # Explicitly enable OTLP export for all three signals.
-    - name: OTEL_TRACES_EXPORTER
-      value: "otlp"
-    - name: OTEL_METRICS_EXPORTER
-      value: "otlp"
-    - name: OTEL_LOGS_EXPORTER
-      value: "otlp"
-    # Service identity in SigNoz.
-    - name: OTEL_SERVICE_NAME
-      value: "goose-agent"
-    - name: OTEL_RESOURCE_ATTRIBUTES
-      value: "service.namespace=goose-sandboxes,deployment.environment=prod"
+  # Signal-specific HTTP endpoints override Kyverno's generic gRPC endpoint.
+  - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+  - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+    value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+  - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+    value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+  # Explicitly enable OTLP export for all three signals.
+  - name: OTEL_TRACES_EXPORTER
+    value: "otlp"
+  - name: OTEL_METRICS_EXPORTER
+    value: "otlp"
+  - name: OTEL_LOGS_EXPORTER
+    value: "otlp"
+  # Service identity in SigNoz.
+  - name: OTEL_SERVICE_NAME
+    value: "goose-agent"
+  - name: OTEL_RESOURCE_ATTRIBUTES
+    value: "service.namespace=goose-sandboxes,deployment.environment=prod"
