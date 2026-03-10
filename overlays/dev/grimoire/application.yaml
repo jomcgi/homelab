@@ -13,7 +13,7 @@ spec:
       releaseName: grimoire
       valueFiles:
         - values.yaml
-        - ../../../../overlays/dev/grimoire/values.yaml
+        - ../../../overlays/dev/grimoire/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: grimoire
