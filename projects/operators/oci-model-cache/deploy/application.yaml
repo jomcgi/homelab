@@ -11,7 +11,8 @@ spec:
     path: projects/operators/oci-model-cache/helm/oci-model-cache-operator
     helm:
       valueFiles:
-        - ../../../../../overlays/dev/oci-model-cache/values.yaml
+        - values.yaml
+        - ../../deploy/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: oci-model-cache
