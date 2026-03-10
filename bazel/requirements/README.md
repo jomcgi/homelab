@@ -112,7 +112,7 @@ copier>=9.11.2
 2. Recompile lock files:
 
    ```bash
-   bazel run //requirements:update
+   bazel run //bazel/requirements:update
    ```
 
 3. Update Bazel repository:
@@ -159,7 +159,7 @@ copier>=9.11.2
 #### Update All Dependencies
 
 ```bash
-bazel run //requirements:update
+bazel run //bazel/requirements:update
 ```
 
 This runs `uv pip compile` on all `.in` files and regenerates lock files.
@@ -167,14 +167,14 @@ This runs `uv pip compile` on all `.in` files and regenerates lock files.
 #### Update Single Dependency
 
 1. Modify version constraint in source file (pyproject.toml, test.in, or tools.in)
-2. Run `bazel run //requirements:update`
+2. Run `bazel run //bazel/requirements:update`
 
 #### Upgrade to Latest Versions
 
 ```bash
 # Remove lock files to force fresh resolution
-rm requirements/*.txt
-bazel run //requirements:update
+rm bazel/requirements/*.txt
+bazel run //bazel/requirements:update
 ```
 
 ⚠️ **Warning:** This may introduce breaking changes. Always test thoroughly after upgrading.
@@ -215,7 +215,7 @@ ERROR: Cannot install package-a and package-b because these package versions hav
 
 3. Recompile:
    ```bash
-   bazel run //requirements:update
+   bazel run //bazel/requirements:update
    ```
 
 #### Bazel Can't Find Package
@@ -231,7 +231,7 @@ ERROR: no such package '@pip//missing_package'
 1. Verify package is in `all.txt`:
 
    ```bash
-   grep missing-package requirements/all.txt
+   grep missing-package bazel/requirements/all.txt
    ```
 
 2. If missing, add to appropriate `.in` file and recompile.
@@ -248,15 +248,15 @@ ERROR: no such package '@pip//missing_package'
 **Symptom:**
 
 ```
-ERROR: Failed to resolve dependencies. Try running 'bazel run //requirements:update'
+ERROR: Failed to resolve dependencies. Try running 'bazel run //bazel/requirements:update'
 ```
 
 **Solution:**
 
 ```bash
-bazel run //requirements:update
+bazel run //bazel/requirements:update
 bazel clean --expunge  # If update doesn't fix it
-bazel run //requirements:update
+bazel run //bazel/requirements:update
 ```
 
 #### uv Command Not Found
@@ -305,7 +305,7 @@ Dependencies are referenced by `MODULE.bazel` via `pip.parse`:
 pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
 pip.parse(
     hub_name = "pip",
-    requirements_lock = "//requirements:all.txt",
+    requirements_lock = "//bazel/requirements:all.txt",
 )
 ```
 
@@ -352,7 +352,7 @@ py_library(
 echo 'fastapi~=0.109.0' >> pyproject.toml
 
 # 2. Recompile
-bazel run //requirements:update
+bazel run //bazel/requirements:update
 
 # 3. Use in BUILD file
 # py_library(..., deps = ["@pip//fastapi"])
@@ -362,14 +362,14 @@ bazel run //requirements:update
 
 ```bash
 # 1. Edit test.in
-cat >> requirements/test.in <<EOF
+cat >> bazel/requirements/test.in <<EOF
 -c runtime.txt
 pytest
 pytest-asyncio~=0.21
 EOF
 
 # 2. Recompile
-bazel run //requirements:update
+bazel run //bazel/requirements:update
 ```
 
 ### Checking Dependency Tree

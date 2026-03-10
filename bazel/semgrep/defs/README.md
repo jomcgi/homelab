@@ -79,7 +79,7 @@ semgrep_target_test(
     name = "semgrep_test",
     target = ":api_server",
     rules = ["//semgrep_rules:python_rules"],
-    lockfiles = ["//requirements:all.txt"],
+    lockfiles = ["//bazel/requirements:all.txt"],
     # Gazelle auto-selects per-ecosystem SCA rules from deps:
     sca_rules = ["//semgrep_rules:sca_python_rules"],
 )
@@ -110,13 +110,13 @@ When `lockfiles` is empty (the default), behavior is identical to pure SAST scan
 
 The Gazelle extension auto-detects lockfiles by inspecting target deps for known external repo prefixes:
 
-| Dep Prefix   | Ecosystem | Default Lockfile         |
-| ------------ | --------- | ------------------------ |
-| `@pip//`     | pip       | `//requirements:all.txt` |
-| `@npm//`     | pnpm      | `//:pnpm-lock.yaml`      |
-| `@go_deps//` | gomod     | `//:go.sum`              |
+| Dep Prefix   | Ecosystem | Default Lockfile               |
+| ------------ | --------- | ------------------------------ |
+| `@pip//`     | pip       | `//bazel/requirements:all.txt` |
+| `@npm//`     | pnpm      | `//:pnpm-lock.yaml`            |
+| `@go_deps//` | gomod     | `//:go.sum`                    |
 
-No configuration needed for the common case — targets with `@pip//` deps automatically get `lockfiles = ["//requirements:all.txt"]`.
+No configuration needed for the common case — targets with `@pip//` deps automatically get `lockfiles = ["//bazel/requirements:all.txt"]`.
 
 ## Common Attributes
 
@@ -132,15 +132,15 @@ No configuration needed for the common case — targets with `@pip//` deps autom
 
 The Gazelle extension auto-generates `semgrep_test` and `semgrep_target_test` targets when you run `bazel run gazelle`.
 
-| Directive                         | Example                           | Effect                                                      |
-| --------------------------------- | --------------------------------- | ----------------------------------------------------------- |
-| `# gazelle:semgrep disabled`      |                                   | Stop generating semgrep targets in this directory tree      |
-| `# gazelle:semgrep_exclude_rules` | `no-requests,no-eval`             | Set `exclude_rules` on all generated targets                |
-| `# gazelle:semgrep_target_kinds`  | `py_venv_binary,py3_image=binary` | Which rule kinds trigger `semgrep_target_test`              |
-| `# gazelle:semgrep_languages`     | `py,go`                           | Which language rule configs to apply                        |
-| `# gazelle:semgrep_sca disabled`  |                                   | Disable SCA lockfile generation                             |
-| `# gazelle:semgrep_sca_rules`     | `pip //custom:sca_rules`          | Override SCA rules for one ecosystem (or `//label` for all) |
-| `# gazelle:semgrep_lockfile`      | `pip //requirements:custom.txt`   | Override lockfile for an ecosystem                          |
+| Directive                         | Example                               | Effect                                                      |
+| --------------------------------- | ------------------------------------- | ----------------------------------------------------------- |
+| `# gazelle:semgrep disabled`      |                                       | Stop generating semgrep targets in this directory tree      |
+| `# gazelle:semgrep_exclude_rules` | `no-requests,no-eval`                 | Set `exclude_rules` on all generated targets                |
+| `# gazelle:semgrep_target_kinds`  | `py_venv_binary,py3_image=binary`     | Which rule kinds trigger `semgrep_target_test`              |
+| `# gazelle:semgrep_languages`     | `py,go`                               | Which language rule configs to apply                        |
+| `# gazelle:semgrep_sca disabled`  |                                       | Disable SCA lockfile generation                             |
+| `# gazelle:semgrep_sca_rules`     | `pip //custom:sca_rules`              | Override SCA rules for one ecosystem (or `//label` for all) |
+| `# gazelle:semgrep_lockfile`      | `pip //bazel/requirements:custom.txt` | Override lockfile for an ecosystem                          |
 
 All directives inherit from parent directories.
 
