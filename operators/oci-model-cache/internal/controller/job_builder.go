@@ -39,6 +39,9 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 	if mc.Spec.ModelDir != "" {
 		args = append(args, "--model-dir", mc.Spec.ModelDir)
 	}
+	if cfg.SyncMaxParallel != "" {
+		args = append(args, "--max-parallel", cfg.SyncMaxParallel)
+	}
 
 	job := &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,13 +116,6 @@ func buildCopyJob(mc *v1alpha1.ModelCache, cfg config.Config) *batchv1.Job {
 			)
 		}
 		job.Spec.Template.Spec.Containers[0].Resources = resources
-	}
-
-	if cfg.SyncGOMAXPROCS != "" {
-		job.Spec.Template.Spec.Containers[0].Env = append(
-			job.Spec.Template.Spec.Containers[0].Env,
-			corev1.EnvVar{Name: "GOMAXPROCS", Value: cfg.SyncGOMAXPROCS},
-		)
 	}
 
 	if cfg.SyncServiceAccount != "" {

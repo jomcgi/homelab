@@ -42,9 +42,9 @@ type Config struct {
 	// SyncMemoryLimit is the Kubernetes memory limit for sync Job containers (e.g. "2Gi").
 	SyncMemoryLimit string
 
-	// SyncGOMAXPROCS overrides GOMAXPROCS for sync Job containers, capping
-	// OS-thread parallelism to limit concurrent network connections.
-	SyncGOMAXPROCS string
+	// SyncMaxParallel caps concurrent layer uploads/downloads in sync Job
+	// containers via the hf2oci --max-parallel flag (0 = auto from GOMEMLIMIT).
+	SyncMaxParallel string
 }
 
 // BindFlags registers config flags on the given FlagSet.
@@ -66,7 +66,7 @@ func (c *Config) BindFlags(fs *flag.FlagSet) {
 	}
 	c.SyncMemoryRequest = envOrDefault("SYNC_MEMORY_REQUEST", "")
 	c.SyncMemoryLimit = envOrDefault("SYNC_MEMORY_LIMIT", "")
-	c.SyncGOMAXPROCS = envOrDefault("SYNC_GOMAXPROCS", "")
+	c.SyncMaxParallel = envOrDefault("SYNC_MAX_PARALLEL", "")
 }
 
 func envOrDefault(key, fallback string) string {

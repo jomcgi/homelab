@@ -82,8 +82,8 @@ spec:
         - name: SYNC_MEMORY_LIMIT
           value: {{ . | quote }}
         {{- end }}
-        {{- with .Values.controllerManager.syncGOMAXPROCS }}
-        - name: SYNC_GOMAXPROCS
+        {{- with .Values.controllerManager.syncMaxParallel }}
+        - name: SYNC_MAX_PARALLEL
           value: {{ . | quote }}
         {{- end }}
         {{- if .Values.controllerManager.tracing.endpoint }}

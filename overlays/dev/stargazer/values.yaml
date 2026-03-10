@@ -4,11 +4,11 @@
 imageUpdater:
   enabled: true
   images:
-  - alias: stargazer
-    imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
-    helm:
-      name: image.repository
-      tag: image.tag
+    - alias: stargazer
+      imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
+      helm:
+        name: image.repository
+        tag: image.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
@@ -64,7 +64,7 @@ imagePullSecret:
   enabled: true
 # Configure pods to use the image pull secret
 imagePullSecrets:
-- name: ghcr-imagepull-secret
+  - name: ghcr-imagepull-secret
 # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
 podAnnotations:
   otel.injected-by: kyverno/inject-otel-env-vars
