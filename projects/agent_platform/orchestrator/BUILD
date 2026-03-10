@@ -1,5 +1,13 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//bazel/tools/oci:go_image.bzl", "go_image")
+
+py_library(
+    name = "orchestrator_py",
+    srcs = ["__init__.py"],
+    visibility = ["//:__subpackages__"],
+    deps = ["//projects/agent_platform"],
+)
 
 # gazelle:map_kind go_test go_test @rules_go//go:def.bzl
 
