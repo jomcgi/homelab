@@ -6,13 +6,16 @@ import asyncio
 import logging
 import sys
 
-from services.knowledge_graph.app.chunker import chunk_markdown
-from services.knowledge_graph.app.config import EmbedderSettings
-from services.knowledge_graph.app.embedders.gemini import GeminiEmbedder
-from services.knowledge_graph.app.embedders.ollama import OllamaEmbedder
-from services.knowledge_graph.app.qdrant_client import QdrantClient
-from services.knowledge_graph.app.storage import S3Storage
-from services.knowledge_graph.app.telemetry import setup_telemetry, trace_span
+from projects.agent_platform.knowledge_graph.app.chunker import chunk_markdown
+from projects.agent_platform.knowledge_graph.app.config import EmbedderSettings
+from projects.agent_platform.knowledge_graph.app.embedders.gemini import GeminiEmbedder
+from projects.agent_platform.knowledge_graph.app.embedders.ollama import OllamaEmbedder
+from projects.agent_platform.knowledge_graph.app.qdrant_client import QdrantClient
+from projects.agent_platform.knowledge_graph.app.storage import S3Storage
+from projects.agent_platform.knowledge_graph.app.telemetry import (
+    setup_telemetry,
+    trace_span,
+)
 
 logging.basicConfig(
     level=logging.INFO,

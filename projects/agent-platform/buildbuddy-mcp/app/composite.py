@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from services.buildbuddy_mcp.app.main import (
+from projects.agent_platform.buildbuddy_mcp.app.main import (
     get_action,
     get_file,
     get_invocation,

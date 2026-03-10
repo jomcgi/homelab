@@ -3,7 +3,11 @@
 import pytest
 import yaml
 
-from services.knowledge_graph.app.scraper_main import _load_sources, _validate_url, app
+from projects.agent_platform.knowledge_graph.app.scraper_main import (
+    _load_sources,
+    _validate_url,
+    app,
+)
 
 
 class TestLoadSources:
