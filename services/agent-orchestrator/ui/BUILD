@@ -42,7 +42,7 @@ js_run_binary(
     name = "build",
     srcs = [":src"],
     args = ["build"],
-    chdir = native.package_name(),
+    chdir = "services/agent-orchestrator/ui",
     outs = [
         "dist/index.html",
         "dist/assets/index.js",
