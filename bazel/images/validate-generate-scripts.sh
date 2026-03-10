@@ -16,7 +16,7 @@ trap 'rm -rf "$TMPDIR_VALIDATE"' EXIT
 extract_targets_from_build() {
 	# Extract "//..." target labels from a generated BUILD file
 	local build_file="$1"
-	grep -o '"//[^"]*"' "$build_file" | tr -d '"' | grep -v '//visibility:' | LC_ALL=C sort
+	grep -o '"//[^"]*"' "$build_file" | tr -d '"' | grep -v '//visibility:\|//:__subpackages__\|//:__pkg__' | LC_ALL=C sort
 }
 
 compare_targets() {
