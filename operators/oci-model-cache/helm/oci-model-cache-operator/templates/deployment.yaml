@@ -82,6 +82,10 @@ spec:
         - name: SYNC_MEMORY_LIMIT
           value: {{ . | quote }}
         {{- end }}
+        {{- with .Values.controllerManager.syncGOMAXPROCS }}
+        - name: SYNC_GOMAXPROCS
+          value: {{ . | quote }}
+        {{- end }}
         {{- if .Values.controllerManager.tracing.endpoint }}
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: {{ .Values.controllerManager.tracing.endpoint | quote }}
