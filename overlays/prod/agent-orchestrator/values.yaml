@@ -1,7 +1,7 @@
 imagePullSecret:
   enabled: true
 image:
-  tag: main@sha256:cf39d9334b39eb0bf505910f1ad6f289ab2fca75a2a8587afe64fa2544108d90
+  tag: main@sha256:060c1fafa05914587a240a2dc278daa70f4892797173d4187f43af68291c63da
   repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
 podAnnotations:
   instrumentation.opentelemetry.io/inject-go: "go"
