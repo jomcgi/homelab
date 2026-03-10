@@ -18,6 +18,14 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: linkerd
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.metadata.annotations
+        - .spec.template.spec.containers
+        - .spec.template.spec.initContainers
+        - .spec.template.spec.volumes
   syncPolicy:
     automated:
       prune: true
