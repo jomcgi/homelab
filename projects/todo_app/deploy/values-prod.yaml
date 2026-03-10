@@ -11,7 +11,7 @@ persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
 image:
-  tag: main@sha256:c22fa8b0520ef3672f060796ad375b901b41d0cf4758c3e94caba518a5045a41
+  tag: main@sha256:de4fb2e6bafe71a7bee4c68b62d41d336a328ed4d0a62ec30cbe879ab61bb98e
   repository: ghcr.io/jomcgi/homelab/charts/todo
 podAnnotations:
   instrumentation.opentelemetry.io/inject-go: "go"
@@ -20,10 +20,10 @@ podAnnotations:
 affinity:
   podAffinity:
     preferredDuringSchedulingIgnoredDuringExecution:
-      - weight: 100
-        podAffinityTerm:
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: todo
-              app.kubernetes.io/instance: todo
-          topologyKey: kubernetes.io/hostname
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchLabels:
+            app.kubernetes.io/name: todo
+            app.kubernetes.io/instance: todo
+        topologyKey: kubernetes.io/hostname
