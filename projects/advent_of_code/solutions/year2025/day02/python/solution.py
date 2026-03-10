@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Advent of Code 2025 Day 2"""
 
-from advent_of_code.python.aoc import read_file
+from projects.advent_of_code.python.aoc import read_file
 
 
 def parse_ranges(input_text: str) -> list[tuple[int, int]]:

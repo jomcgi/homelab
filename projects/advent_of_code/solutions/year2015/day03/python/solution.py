@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Advent of Code 2015 Day 3"""
 
-from advent_of_code.python.aoc import read_file, Point, UP, DOWN, LEFT, RIGHT
+from projects.advent_of_code.python.aoc import read_file, Point, UP, DOWN, LEFT, RIGHT
 
 
 def part1(input_text: str) -> int:

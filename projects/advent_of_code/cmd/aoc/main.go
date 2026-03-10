@@ -594,7 +594,7 @@ func createPythonTemplate(dayDir string, year, day int) error {
 	template := fmt.Sprintf(`#!/usr/bin/env python3
 """Advent of Code %d Day %d"""
 
-from advent_of_code.python.aoc import lines, ints, read_file
+from projects.advent_of_code.python.aoc import lines, ints, read_file
 
 
 def part1(input_text: str) -> int:
@@ -710,7 +710,7 @@ from pathlib import Path
 
 import pytest
 
-from advent_of_code.solutions.year%d.day%02d.python.solution import part1, part2
+from projects.advent_of_code.solutions.year%d.day%02d.python.solution import part1, part2
 
 
 @pytest.fixture

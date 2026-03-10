@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Advent of Code 2025 Day 3"""
 
-from advent_of_code.python.aoc import lines, ints, read_file
+from projects.advent_of_code.python.aoc import lines, ints, read_file
 
 
 def max_joltage(line: str) -> int:

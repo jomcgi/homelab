@@ -6,7 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from advent_of_code.solutions.year2025.day01.python.solution import part1, part2
+from projects.advent_of_code.solutions.year2025.day01.python.solution import (
+    part1,
+    part2,
+)
 
 
 @pytest.fixture
