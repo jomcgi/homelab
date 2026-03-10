@@ -3,7 +3,7 @@
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//services/agent-orchestrator/ui:vite/package_json.bzl", vite_bin = "bin")
 load("@rules_go//go:def.bzl", "go_library")
-load("//tools/js:vite_build.bzl", "vite_build")
+load("//bazel/tools/js:vite_build.bzl", "vite_build")
 
 npm_link_all_packages(name = "node_modules")
 
