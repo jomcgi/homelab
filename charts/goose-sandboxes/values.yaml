@@ -76,6 +76,11 @@ secrets:
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"
 
+# Namespace that agent-orchestrator runs in — used in NetworkPolicy ingress rule.
+# Defaults to the release namespace; override when deploying the orchestrator in
+# a different namespace (e.g., the cluster-critical namespace).
+orchestratorNamespace: ""
+
 # Long-lived agents — each entry generates a ConfigMap + Deployment.
 # Prompt changes trigger pod restart via checksum annotation.
 agents: {}

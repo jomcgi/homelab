@@ -17,3 +17,15 @@ Usage: {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" $nam
 app.kubernetes.io/name: {{ .name }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Effective port for a server — translate port when enabled, otherwise server port.
+Call with the server object directly: {{ include "agent-platform-mcp-servers.port" $server }}
+*/}}
+{{- define "agent-platform-mcp-servers.port" -}}
+{{- if and .translate .translate.enabled -}}
+{{- .translate.port | default 8080 -}}
+{{- else -}}
+{{- .port -}}
+{{- end -}}
+{{- end }}

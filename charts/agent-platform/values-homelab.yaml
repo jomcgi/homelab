@@ -29,14 +29,36 @@ secrets:
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"
 
+# ── Context Forge (MCP gateway) ────────────────────────────────────────────
+# Enable when deploying agent-platform without an existing context-forge release.
+contextForge:
+  enabled: false  # set true when running agent-platform as a standalone stack
+
+context-forge:
+  mcp-stack:
+    postgres:
+      persistence:
+        storageClassName: longhorn
+        size: 1Gi
+
+# ── MCP OAuth Proxy ─────────────────────────────────────────────────────────
+# Enable alongside contextForge for Google OIDC authentication (ADR 006).
+mcpOAuthProxy:
+  enabled: false  # set true when contextForge.enabled: true
+
 # ── MCP servers ────────────────────────────────────────────────────────────
+# servers uses a LIST (not a map) so Image Updater write-back can target
+# entries by index: agent-platform-mcp-servers.servers[N].image.tag
 agent-platform-mcp-servers:
   enabled: true
+  imageUpdater:
+    applicationName: "homelab-agent-platform"
+    writeBackTarget: "helmvalues:../../charts/agent-platform/values-homelab.yaml"
   servers:
-    kubernetes-mcp:
+    - name: kubernetes-mcp
       image:
         repository: ghcr.io/containers/kubernetes-mcp-server
-        tag: "latest"
+        tag: "latest@sha256:5a8b3f2e9c7d4b6a1f0e2c8d3a7b5f9e4d6a2c8b3f7a5e9d4b6c2a8f3e7b5d9"
       port: 8080
       args:
         - "--port"
@@ -67,8 +89,11 @@ agent-platform-mcp-servers:
           - apiGroups: ["metrics.k8s.io"]
             resources: ["pods", "nodes"]
             verbs: ["get", "list"]
+      imageUpdater:
+        enabled: true
+        strategy: digest
 
-    argocd-mcp:
+    - name: argocd-mcp
       image:
         repository: ghcr.io/argoproj-labs/mcp-for-argocd
         tag: "v0.5.0"
@@ -79,6 +104,7 @@ agent-platform-mcp-servers:
           value: "http://argocd-server.argocd.svc.cluster.local:80"
       secret:
         name: argocd-mcp
+        itemPath: "vaults/k8s-homelab/items/argocd-mcp"
       resources:
         requests:
           cpu: 10m
@@ -135,3 +161,5 @@ goose-sandboxes:
       vault: k8s-homelab
       secretName: "goose-mcp-tokens"
       key: "CI_DEBUG_MCP_TOKEN"
+  # agent-orchestrator runs in this release namespace
+  orchestratorNamespace: ""  # defaults to .Release.Namespace
