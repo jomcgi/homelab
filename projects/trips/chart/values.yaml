@@ -1,0 +1,84 @@
+# Trips application stack
+# Includes: imgproxy, nginx routing, API server
+
+# Image pull secret for private GHCR registry
+imagePullSecret:
+  enabled: false
+  create: true
+  onepassword:
+    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+
+# Cross-namespace service URLs
+seaweedfs:
+  endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
+
+nats:
+  url: nats://nats.nats.svc.cluster.local:4222
+
+# imgproxy configuration
+imgproxy:
+  enabled: true
+  replicas: 2
+  image:
+    repository: darthsim/imgproxy
+    tag: "v3.25.0"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 75Mi
+    limits:
+      cpu: 10m
+      memory: 75Mi
+
+  config:
+    quality: "90"
+    formatQuality: "webp=92,avif=90,jpeg=90"
+    concurrency: "4"
+    maxSrcResolution: "50"
+
+# nginx routing configuration
+nginx:
+  enabled: true
+  replicas: 1
+  image:
+    repository: nginx
+    tag: "1.27-alpine"
+    pullPolicy: IfNotPresent
+
+  resources:
+    requests:
+      cpu: 5m
+      memory: 16Mi
+    limits:
+      cpu: 5m
+      memory: 16Mi
+
+# API server configuration
+api:
+  enabled: true
+  # Number of replicas (2+ enables anti-affinity and PDB)
+  replicas: 1
+  # CORS allowed origins (comma-separated)
+  corsOrigins: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
+  image:
+    repository: ghcr.io/jomcgi/trips-api
+    tag: "latest"
+    pullPolicy: Always
+
+  resources:
+    requests:
+      cpu: 10m
+      memory: 256Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  # Upload API authentication (from 1Password secret)
+  auth:
+    secretName: trips-api-key
+    secretKey: credential
+
+# S3 bucket for images
+bucket: trips

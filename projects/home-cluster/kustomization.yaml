@@ -10,3 +10,4 @@ resources:
   - ../../projects/ships/deploy
   - ../../projects/stargazer/deploy
   - ../../projects/todo_app
+  - ../../projects/trips/deploy
