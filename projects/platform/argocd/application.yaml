@@ -15,7 +15,7 @@ spec:
       releaseName: argocd
       valueFiles:
         - values.yaml
-        - ../../../clusters/homelab/argocd/values.yaml
+        - values-cluster.yaml
       ignoreMissingValueFiles: true
   destination:
     server: https://kubernetes.default.svc
