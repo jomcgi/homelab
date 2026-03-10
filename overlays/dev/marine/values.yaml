@@ -4,21 +4,21 @@
 imageUpdater:
   enabled: true
   images:
-    - alias: ingest
-      imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
-      helm:
-        name: ingest.image.repository
-        tag: ingest.image.tag
-    - alias: api
-      imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
-      helm:
-        name: api.image.repository
-        tag: api.image.tag
-    - alias: frontend
-      imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
-      helm:
-        name: frontend.image.repository
-        tag: frontend.image.tag
+  - alias: ingest
+    imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
+    helm:
+      name: ingest.image.repository
+      tag: ingest.image.tag
+  - alias: api
+    imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
+    helm:
+      name: api.image.repository
+      tag: api.image.tag
+  - alias: frontend
+    imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
+    helm:
+      name: frontend.image.repository
+      tag: frontend.image.tag
   writeBack:
     method: git:secret:argocd/argocd-image-updater-token
     repository: https://github.com/jomcgi/homelab.git
@@ -29,12 +29,12 @@ imagePullSecret:
   enabled: true
 # Configure pods to use the image pull secret
 imagePullSecrets:
-  - name: ghcr-imagepull-secret
+- name: ghcr-imagepull-secret
 # AIS Ingest component
 ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
-    tag: main@sha256:8fb3ff284852f4e6441df5ddc5557443442cbe7185e8afe32057353264e6b3b7
+    tag: main@sha256:673909e9be434f58ccece06efb988e2654bffbbe83ef36a420ebd845778bb2e4
     pullPolicy: Always
     digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
   # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
@@ -45,7 +45,7 @@ ingest:
 api:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
-    tag: main@sha256:c6098069c0d686667e5c8dd85ea64674b215259318b4d8038fb9fcd216742232
+    tag: main@sha256:0aaa8ced8b83f0c61becb6143be7543927fe81d716c37d71b9825306b6bc91ef
     pullPolicy: Always
     digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
   resources:
