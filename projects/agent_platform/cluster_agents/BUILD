@@ -2,7 +2,7 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//bazel/tools/oci:go_image.bzl", "go_image")
 
 go_library(
-    name = "cluster-agents_lib",
+    name = "cluster_agents_lib",
     srcs = [
         "collector_alerts.go",
         "escalator.go",
@@ -17,25 +17,8 @@ go_library(
 
 go_binary(
     name = "cluster-agents",
-    embed = [":cluster-agents_lib"],
+    embed = [":cluster_agents_lib"],
     visibility = ["//visibility:public"],
-)
-
-go_test(
-    name = "cluster-agents_test",
-    srcs = [
-        "collector_alerts_test.go",
-        "escalator_test.go",
-        "patrol_test.go",
-        "runner_test.go",
-    ],
-    embed = [":cluster-agents_lib"],
-)
-
-go_image(
-    name = "image",
-    binary = ":cluster-agents",
-    repository = "ghcr.io/jomcgi/homelab/services/cluster-agents",
 )
 
 go_test(
@@ -47,4 +30,10 @@ go_test(
         "runner_test.go",
     ],
     embed = [":cluster_agents_lib"],
+)
+
+go_image(
+    name = "image",
+    binary = ":cluster-agents",
+    repository = "ghcr.io/jomcgi/homelab/services/cluster-agents",
 )
