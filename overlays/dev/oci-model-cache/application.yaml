@@ -8,10 +8,10 @@ spec:
   source:
     repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: main
-    path: operators/oci-model-cache/helm/oci-model-cache-operator
+    path: projects/operators/oci-model-cache/helm/oci-model-cache-operator
     helm:
       valueFiles:
-        - ../../../../overlays/dev/oci-model-cache/values.yaml
+        - ../../../../../overlays/dev/oci-model-cache/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: oci-model-cache

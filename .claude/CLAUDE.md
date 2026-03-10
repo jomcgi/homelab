@@ -85,7 +85,7 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 - **New services**: Read `docs/contributing.md` + `docs/services.md`
 - **Observability work**: Read `docs/observability.md`
 - **Alerting work**: Read `docs/observability-alerting.md`
-- **Operator changes**: Read `operators/best-practices.md`
+- **Operator changes**: Read `projects/operators/best-practices.md`
 - **Design proposals**: Check `docs/decisions/` for ADRs (numbered per category)
 
 ## Key Patterns
