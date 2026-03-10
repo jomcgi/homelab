@@ -109,6 +109,10 @@ if $STAGED; then
 		PIDS+=($!)
 	fi
 
+	# Home-cluster generator (always run — it scans kustomization.yaml files, not BUILD)
+	./bazel/images/generate-home-cluster.sh 2>/dev/null &
+	PIDS+=($!)
+
 	for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
 
 	# Gazelle only if Go or Python files changed
@@ -160,6 +164,8 @@ PIDS+=($!)
 ./bazel/images/generate-push-all.sh 2>/dev/null &
 PIDS+=($!)
 ./bazel/images/generate-push-all-pages.sh 2>/dev/null &
+PIDS+=($!)
+./bazel/images/generate-home-cluster.sh 2>/dev/null &
 PIDS+=($!)
 
 # Wait for all parallel tasks

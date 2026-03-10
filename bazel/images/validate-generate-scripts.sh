@@ -70,6 +70,28 @@ bazel query 'kind("wrangler_pages_push", //...)' 2>/dev/null |
 
 compare_targets "push-all-pages" "$TMPDIR_VALIDATE/push_pages_grep.txt" "$TMPDIR_VALIDATE/push_pages_query.txt"
 
+# --- Validation 3: generate-home-cluster.sh ---
+
+echo "Validating generate-home-cluster.sh ..."
+
+# Run the script and verify it produces non-empty output
+bash bazel/images/generate-home-cluster.sh
+
+if [ ! -s projects/home-cluster/kustomization.yaml ]; then
+	echo "  generate-home-cluster: FAIL"
+	echo "    Script produced empty or missing projects/home-cluster/kustomization.yaml"
+	FAILED=1
+else
+	# Verify the output contains at least one resource path
+	if grep -q '^\s*- ../../projects/' projects/home-cluster/kustomization.yaml; then
+		echo "  generate-home-cluster: PASS"
+	else
+		echo "  generate-home-cluster: FAIL"
+		echo "    Generated kustomization.yaml contains no resource paths"
+		FAILED=1
+	fi
+fi
+
 # --- Summary ---
 
 echo ""
