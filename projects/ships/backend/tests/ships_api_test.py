@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from fastapi.websockets import WebSocket
 
-from services.ships_api.main import (
+from projects.ships.backend.main import (
     CachedPosition,
     Database,
     WebSocketManager,

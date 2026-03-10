@@ -1,7 +1,7 @@
 {
   "version": "v1",
   "config": {
-    "name": "./services/ships_frontend/apko.yaml",
+    "name": "./projects/ships/frontend/apko.yaml",
     "checksum": "sha256-hnxc2KolbT8M3L4fdmA3c8LvSNuk1y1nOjn1/A4ZAXs="
   },
   "contents": {
@@ -47,22 +47,22 @@
       },
       {
         "name": "ca-certificates-bundle",
-        "url": "https://packages.wolfi.dev/os/x86_64/ca-certificates-bundle-20251003-r3.apk",
-        "version": "20251003-r3",
+        "url": "https://packages.wolfi.dev/os/x86_64/ca-certificates-bundle-20251003-r4.apk",
+        "version": "20251003-r4",
         "architecture": "x86_64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7276",
-          "checksum": "sha1-uPsF66i1LFuOOuRIyW7EIY4rxEc="
+          "range": "bytes=0-7812",
+          "checksum": "sha1-CXd/XR9bBpc6r9Gs0mGjyQDU/H8="
         },
         "data": {
-          "range": "bytes=7277-139287",
-          "checksum": "sha256-OetqqaiETG2RtAPDyb2mQv4HBSYd/0y8mbsukojGfKI="
+          "range": "bytes=7813-139848",
+          "checksum": "sha256-lIuzB1FjFkXPCAZoYM3RAq44C8uYEuOGcSW2nKmVC9M="
         },
-        "checksum": "Q1uPsF66i1LFuOOuRIyW7EIY4rxEc="
+        "checksum": "Q1CXd/XR9bBpc6r9Gs0mGjyQDU/H8="
       },
       {
         "name": "libgcc",
@@ -180,22 +180,22 @@
       },
       {
         "name": "ca-certificates-bundle",
-        "url": "https://packages.wolfi.dev/os/aarch64/ca-certificates-bundle-20251003-r3.apk",
-        "version": "20251003-r3",
+        "url": "https://packages.wolfi.dev/os/aarch64/ca-certificates-bundle-20251003-r4.apk",
+        "version": "20251003-r4",
         "architecture": "aarch64",
         "signature": {
           "range": "",
           "checksum": ""
         },
         "control": {
-          "range": "bytes=0-7313",
-          "checksum": "sha1-vy8pnQXAheVK8I4eNp+cgeJWzx0="
+          "range": "bytes=0-7846",
+          "checksum": "sha1-ec6WTNgAxNG6j+aX24u0pwe17Qw="
         },
         "data": {
-          "range": "bytes=7314-139324",
-          "checksum": "sha256-Usxt3c5CrsfHpkAf4uPnQgsNWo56z/X7sNIRS5OSoxA="
+          "range": "bytes=7847-139882",
+          "checksum": "sha256-S/cpu7ZulQhpDcC90pq0e7Iw0kgzCIIlOLlHb98PWOs="
         },
-        "checksum": "Q1vy8pnQXAheVK8I4eNp+cgeJWzx0="
+        "checksum": "Q1ec6WTNgAxNG6j+aX24u0pwe17Qw="
       },
       {
         "name": "libgcc",

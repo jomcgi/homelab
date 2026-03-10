@@ -13,14 +13,14 @@ pkg_tar(
 )
 
 # Package the pre-built website dist
-# Built during CI by //projects/websites/ships.jomcgi.dev:build (vite build)
+# Built during CI by //projects/ships/frontend/web:build (vite build)
 pkg_tar(
     name = "dist_tar",
-    srcs = ["//projects/websites/ships.jomcgi.dev:dist"],
+    srcs = ["//projects/ships/frontend/web:dist"],
     mode = "0644",
     owner = "65532.65532",
     package_dir = "app/public",
-    strip_prefix = "projects/websites/ships.jomcgi.dev/dist",
+    strip_prefix = "projects/ships/frontend/web/dist",
 )
 
 apko_image(

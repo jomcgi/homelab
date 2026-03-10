@@ -10,7 +10,7 @@ import pytest
 import pytest_asyncio
 from fastapi.testclient import TestClient
 
-from services.ais_ingest.main import (
+from projects.ships.ingest.main import (
     AISIngestService,
     app,
     format_eta,
@@ -317,7 +317,7 @@ class TestHealthEndpoint:
     """Tests for health check endpoint."""
 
     def test_health_ready(self):
-        import services.ais_ingest.main as main
+        import projects.ships.ingest.main as main
 
         with patch.object(main, "service") as mock_service:
             mock_service.ready = True
@@ -337,7 +337,7 @@ class TestHealthEndpoint:
             assert data["messages_published"] == 100
 
     def test_health_not_ready(self):
-        import services.ais_ingest.main as main
+        import projects.ships.ingest.main as main
 
         with patch.object(main, "service") as mock_service:
             mock_service.ready = False
@@ -357,22 +357,22 @@ class TestWebSocketReconnection:
     """Tests for WebSocket reconnection backoff logic."""
 
     def test_initial_delay_is_constant(self):
-        from services.ais_ingest.main import INITIAL_RECONNECT_DELAY
+        from projects.ships.ingest.main import INITIAL_RECONNECT_DELAY
 
         assert INITIAL_RECONNECT_DELAY == 1.0
 
     def test_max_delay_is_constant(self):
-        from services.ais_ingest.main import MAX_RECONNECT_DELAY
+        from projects.ships.ingest.main import MAX_RECONNECT_DELAY
 
         assert MAX_RECONNECT_DELAY == 60.0
 
     def test_backoff_factor_is_constant(self):
-        from services.ais_ingest.main import RECONNECT_BACKOFF_FACTOR
+        from projects.ships.ingest.main import RECONNECT_BACKOFF_FACTOR
 
         assert RECONNECT_BACKOFF_FACTOR == 2.0
 
     def test_backoff_doubles_each_attempt(self):
-        from services.ais_ingest.main import (
+        from projects.ships.ingest.main import (
             INITIAL_RECONNECT_DELAY,
             MAX_RECONNECT_DELAY,
             RECONNECT_BACKOFF_FACTOR,
@@ -386,7 +386,7 @@ class TestWebSocketReconnection:
             delay = min(delay * RECONNECT_BACKOFF_FACTOR, MAX_RECONNECT_DELAY)
 
     def test_backoff_never_exceeds_max(self):
-        from services.ais_ingest.main import (
+        from projects.ships.ingest.main import (
             INITIAL_RECONNECT_DELAY,
             MAX_RECONNECT_DELAY,
             RECONNECT_BACKOFF_FACTOR,
@@ -398,7 +398,7 @@ class TestWebSocketReconnection:
             assert delay <= MAX_RECONNECT_DELAY
 
     def test_backoff_caps_at_max(self):
-        from services.ais_ingest.main import (
+        from projects.ships.ingest.main import (
             MAX_RECONNECT_DELAY,
             RECONNECT_BACKOFF_FACTOR,
         )
@@ -409,7 +409,7 @@ class TestWebSocketReconnection:
         assert next_delay == MAX_RECONNECT_DELAY
 
     def test_first_attempt_uses_initial_delay(self):
-        from services.ais_ingest.main import INITIAL_RECONNECT_DELAY
+        from projects.ships.ingest.main import INITIAL_RECONNECT_DELAY
 
         # The reconnect loop starts with INITIAL_RECONNECT_DELAY before the first
         # retry, so the initial value must equal the constant.
@@ -422,7 +422,7 @@ class TestAISIngestServiceState:
 
     @pytest.fixture
     def service(self):
-        from services.ais_ingest.main import AISIngestService
+        from projects.ships.ingest.main import AISIngestService
 
         return AISIngestService()
 
@@ -496,7 +496,7 @@ class TestMetricsEndpoint:
     """Tests for metrics endpoint."""
 
     def test_metrics(self):
-        import services.ais_ingest.main as main
+        import projects.ships.ingest.main as main
 
         with patch.object(main, "service") as mock_service:
             mock_service.messages_published = 500

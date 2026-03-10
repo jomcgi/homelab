@@ -2,8 +2,8 @@ load("//bazel/helm:defs.bzl", "argocd_app")
 
 argocd_app(
     name = "marine",
-    chart = "charts/marine",
-    chart_files = "//charts/marine:chart",
+    chart = "projects/ships/deploy",
+    chart_files = "//projects/ships/deploy:chart",
     namespace = "marine",
     release_name = "marine",
     # Uses aspect_rules_py which needs writable FS and runs as root
@@ -16,7 +16,7 @@ argocd_app(
         "template",
     ],
     values_files = [
-        "//charts/marine:values.yaml",
+        "//projects/ships/deploy:values.yaml",
         "values.yaml",
     ],
 )

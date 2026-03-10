@@ -2,7 +2,7 @@
 packages:
   - packages/*
   - bazel/tools
-  - projects/websites/ships.jomcgi.dev
+  - projects/ships/frontend/web
   - projects/websites/trips.jomcgi.dev
   - projects/websites/jomcgi.dev
   - projects/websites/docs.jomcgi.dev

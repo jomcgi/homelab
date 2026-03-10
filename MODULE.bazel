@@ -282,7 +282,7 @@ use_repo(
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(
     name = "ships_frontend_lock",
-    lock = "//services/ships_frontend:apko.lock.json",
+    lock = "//projects/ships/frontend:apko.lock.json",
 )
 apko.translate_lock(
     name = "grimoire_frontend_lock",
