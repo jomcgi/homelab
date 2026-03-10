@@ -49,14 +49,17 @@ else
 	branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 fi
 
-# Safety check: if env says "main" but HEAD isn't actually origin/main,
+# Safety check: if env says "main" but HEAD isn't actually on the main branch,
 # we're in a PR build where the CI set GIT_BRANCH to the target branch.
 # Fall back to a commit-derived tag to avoid overwriting the "main" image.
+#
+# Uses ancestor check instead of exact SHA comparison because origin/main may
+# advance (e.g. image-updater auto-commits) while CI is running, causing the
+# exact check to falsely reject legitimate main builds.
 if [ "${branch}" = "main" ]; then
-	main_sha=$(git rev-parse origin/main 2>/dev/null || echo "")
-	if [ -n "$main_sha" ] && [ "$git_commit" != "$main_sha" ]; then
+	if ! git merge-base --is-ancestor "$git_commit" origin/main 2>/dev/null; then
 		branch="pr-${git_short_sha}"
-		>&2 echo "workspace_status.sh: HEAD (${git_short_sha}) != origin/main, using branch='${branch}'"
+		>&2 echo "workspace_status.sh: HEAD (${git_short_sha}) is not an ancestor of origin/main, using branch='${branch}'"
 	fi
 fi
 
