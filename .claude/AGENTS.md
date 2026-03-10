@@ -340,7 +340,7 @@ Load with: `ToolSearch` query `+argocd`
 
 ### Application.yaml Pattern
 
-Use the `/add-service` skill to scaffold new applications. For the full template, see `overlays/<env>/<service>/application.yaml` in any existing service.
+Use the `/add-service` skill to scaffold new applications. For the full template, see `projects/<service>/deploy/application.yaml` in any existing service.
 
 ### Sync Strategies
 
@@ -357,7 +357,7 @@ Use the `/add-service` skill to scaffold new applications. For the full template
 - **Missing sync waves for dependencies** — CRDs must deploy before resources using them
 - **Forgetting ServerSideApply for CRDs** — required for large or complex resources
 - **No retry policy** — transient failures cause OutOfSync
-- **Wrong valueFiles path** — use `../../overlays/<env>/<service>/values.yaml`
+- **Wrong valueFiles path** — ensure path correctly references `projects/<service>/deploy/values.yaml`
 
 ---
 
@@ -580,7 +580,7 @@ Linkerd service mesh specialist for the mesh running in `cluster-critical`.
 
 ### Key Configuration (This Repo)
 
-- **Overlay:** `overlays/cluster-critical/linkerd/`
+- **Deploy config:** `projects/linkerd/deploy/`
 - **Chart:** `charts/linkerd/`
 - **Injection:** Kyverno policy `inject-linkerd-namespace-annotation` auto-injects namespaces
 - **Priority:** Control plane runs with `system-cluster-critical` priority class

@@ -1,6 +1,6 @@
 ---
 name: add-service
-description: Use when adding a new service to the homelab GitOps repository. Creates ArgoCD Application, Kustomization, and values.yaml boilerplate in overlays/{env}/{service}/.
+description: Use when adding a new service to the homelab GitOps repository. Creates ArgoCD Application, Kustomization, and values.yaml boilerplate in projects/{service}/deploy/.
 ---
 
 # Add Service to Homelab
@@ -10,32 +10,31 @@ This skill scaffolds the GitOps boilerplate for deploying a new service via Argo
 ## Usage
 
 ```
-/add-service <service-name> <environment>
+/add-service <service-name>
 ```
 
 Arguments:
 
 - `<service-name>`: Name of the service (e.g., `myapp`, `api-gateway`)
-- `<environment>`: Target environment - one of `prod`, `dev`, or `cluster-critical`
 
 Examples:
 
 ```
-/add-service myapp prod
-/add-service test-service dev
-/add-service monitoring-agent cluster-critical
+/add-service myapp
+/add-service test-service
+/add-service monitoring-agent
 ```
 
 ## What This Skill Creates
 
-The skill generates three files in `overlays/{env}/{service}/`:
+The skill generates three files in `projects/{service}/deploy/`:
 
 ### 1. application.yaml
 
 ArgoCD Application manifest that:
 
 - Points to `charts/{service}` in the homelab repo
-- References both chart defaults and overlay values
+- References both chart defaults and deploy values
 - Enables automated sync with prune and self-heal
 - Creates namespace automatically
 
@@ -51,7 +50,7 @@ Kustomize manifest that:
 
 Helm values override file with:
 
-- Comment header indicating the environment
+- Comment header indicating the service
 - Placeholder sections for common configurations
 - Ready for customization
 
@@ -75,7 +74,7 @@ spec:
       releaseName: { service }
       valueFiles:
         - values.yaml
-        - ../../overlays/{env}/{service}/values.yaml
+        - ../../projects/{service}/deploy/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: { service }
@@ -102,7 +101,7 @@ resources:
 **Important:** If you plan to add an image updater (via `/add-image-updater`), the `image` keys must be **uncommented** — not just present as comments. The image updater's git write-back fails on empty YAML files. Always seed the values with the actual image config.
 
 ```yaml
-# {Environment} values for {service}
+# Cluster values for {service}
 # Override chart defaults here
 
 # Image configuration — uncomment if using /add-image-updater
@@ -141,49 +140,26 @@ The user needs to:
    └── CLAUDE.md (optional)
    ```
 
-2. **Customize values.yaml** with environment-specific overrides
+2. **Customize values.yaml** with service-specific overrides
 
-3. **Add to environment kustomization** (if not auto-discovered):
-   - Edit `overlays/{env}/kustomization.yaml`
-   - Add `- {service}` to the resources list
+3. **Run `format`** to regenerate `projects/home-cluster/kustomization.yaml`
 
 4. **Optional: Add supporting resources**:
    - Image updater: `imageupdater.yaml` for automatic image updates
    - HTTP checks: `{service}-httpcheck-alert.yaml` for monitoring
    - Update `kustomization.yaml` to include new resources
 
-## Environment-Specific Notes
-
-### prod
-
-- Services accessible to users
-- Typically exposed via Cloudflare tunnel
-- Should have production-grade resource limits
-
-### dev
-
-- Testing and development services
-- May have relaxed security or resource limits
-- Good for iterating on new features
-
-### cluster-critical
-
-- Infrastructure services (cert-manager, argocd, longhorn, etc.)
-- Often has finalizers to prevent accidental deletion
-- May need `ServerSideApply=true` for CRDs
-- Consider adding retry policies for stability
-
-## Example: Adding a Production Service
+## Example: Adding a Service
 
 ```
-/add-service blog prod
+/add-service blog
 ```
 
 Creates:
 
-- `overlays/prod/blog/application.yaml`
-- `overlays/prod/blog/kustomization.yaml`
-- `overlays/prod/blog/values.yaml`
+- `projects/blog/deploy/application.yaml`
+- `projects/blog/deploy/kustomization.yaml`
+- `projects/blog/deploy/values.yaml`
 
 Then customize `values.yaml`:
 
@@ -214,8 +190,8 @@ After creating the base service, use these skills to add supporting resources:
 
 ## Workflow Summary
 
-1. Run `/add-service {name} {env}` to create boilerplate
+1. Run `/add-service {name}` to create boilerplate
 2. Create Helm chart at `charts/{name}/`
-3. Customize `overlays/{env}/{name}/values.yaml`
+3. Customize `projects/{name}/deploy/values.yaml`
 4. Commit and push - ArgoCD syncs automatically
 5. Optionally add image updater, alerts, etc.
