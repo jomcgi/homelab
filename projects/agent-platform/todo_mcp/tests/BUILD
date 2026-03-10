@@ -17,6 +17,7 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/todo_mcp/app",
         "@pip//pytest",
     ],
 )

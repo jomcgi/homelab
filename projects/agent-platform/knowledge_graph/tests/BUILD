@@ -11,6 +11,8 @@ load("//bazel/tools/pytest:defs.bzl", "py_test")
 # gazelle:resolve py knowledge_graph.app.extractors.base //projects/agent-platform/knowledge_graph/app/extractors:base
 # gazelle:resolve py knowledge_graph.app.extractors.html_extractor //projects/agent-platform/knowledge_graph/app/extractors:html_extractor
 # gazelle:resolve py knowledge_graph.app.extractors.feed_extractor //projects/agent-platform/knowledge_graph/app/extractors:feed_extractor
+# gazelle:resolve py knowledge_graph.app.mcp_main //projects/agent-platform/knowledge_graph/app:mcp_main
+# gazelle:resolve py knowledge_graph.app.scraper_main //projects/agent-platform/knowledge_graph/app:scraper_main
 
 py_library(
     name = "conftest",
@@ -19,6 +21,8 @@ py_library(
     imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//projects/agent-platform/knowledge_graph/app:config",
+        "//projects/agent-platform/knowledge_graph/app:models",
         "@pip//pytest",
     ],
 )
@@ -29,6 +33,7 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/knowledge_graph/app:models",
     ],
 )
 
@@ -38,6 +43,7 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/knowledge_graph/app:chunker",
     ],
 )
 
@@ -47,6 +53,8 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/knowledge_graph/app:models",
+        "//projects/agent-platform/knowledge_graph/app:storage",
         "@pip//botocore",
         "@pip//pytest",
     ],
@@ -58,6 +66,8 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/knowledge_graph/app/extractors:base",
+        "//projects/agent-platform/knowledge_graph/app/extractors:feed_extractor",
         "@pip//httpx",
         "@pip//pytest",
     ],
@@ -69,6 +79,8 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/knowledge_graph/app:models",
+        "//projects/agent-platform/knowledge_graph/app:notifications",
         "@pip//pytest",
     ],
 )
@@ -79,6 +91,8 @@ py_test(
     imports = ["../.."],
     deps = [
         ":conftest",
+        "//projects/agent-platform/knowledge_graph/app:models",
+        "//projects/agent-platform/knowledge_graph/app:qdrant_client",
         "@pip//pytest",
     ],
 )
