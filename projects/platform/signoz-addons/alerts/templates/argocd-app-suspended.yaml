@@ -1,33 +1,32 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: pod-restart-rate-alert
-  namespace: signoz
+  name: argocd-app-suspended-alert
   labels:
     signoz.io/alert: "true"
   annotations:
-    signoz.io/alert-name: "Pod High Restart Rate"
-    signoz.io/severity: "warning"
+    signoz.io/alert-name: "ArgoCD App Suspended"
+    signoz.io/severity: "info"
     signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
-      "alert": "Pod High Restart Rate",
+      "alert": "ArgoCD App Suspended",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
       "version": "v5",
       "broadcastToAll": false,
       "disabled": false,
-      "evalWindow": "15m0s",
+      "evalWindow": "10m0s",
       "frequency": "1m0s",
-      "severity": "warning",
+      "severity": "info",
       "labels": {
-        "category": "pod-health",
-        "environment": "production"
+        "service": "argocd",
+        "category": "gitops"
       },
       "annotations": {
-        "summary": "Pod {{ $labels.k8s_pod_name }} has high restart rate",
-        "description": "Pod {{ $labels.k8s_pod_name }} in namespace {{ $labels.k8s_namespace_name }} has restarted more than 3 times in 15 minutes"
+        "summary": "ArgoCD application is suspended",
+        "description": "ArgoCD application {{ "{{" }} $labels.name {{ "}}" }} has been Suspended for more than 10 minutes"
       },
       "condition": {
         "compositeQuery": {
@@ -40,21 +39,24 @@ data:
                 "stepInterval": 60,
                 "aggregations": [
                   {
-                    "timeAggregation": "increase",
+                    "timeAggregation": "count",
                     "spaceAggregation": "sum",
-                    "metricName": "k8s.container.restarts"
+                    "metricName": "argocd_app_info"
                   }
                 ],
+                "filter": {
+                  "expression": "health_status = 'Suspended'"
+                },
                 "groupBy": [
                   {
-                    "name": "k8s.namespace.name",
+                    "name": "name",
                     "fieldDataType": "string",
-                    "fieldContext": "resource"
+                    "fieldContext": "tag"
                   },
                   {
-                    "name": "k8s.pod.name",
+                    "name": "namespace",
                     "fieldDataType": "string",
-                    "fieldContext": "resource"
+                    "fieldContext": "tag"
                   }
                 ],
                 "order": [],
@@ -67,15 +69,15 @@ data:
         },
         "selectedQueryName": "A",
         "op": "1",
-        "target": 3,
+        "target": 0,
         "matchType": "1",
         "targetUnit": "",
         "thresholds": {
           "kind": "basic",
           "spec": [
             {
-              "name": "warning",
-              "target": 3,
+              "name": "info",
+              "target": 0,
               "targetUnit": "",
               "matchType": "1",
               "op": "1",

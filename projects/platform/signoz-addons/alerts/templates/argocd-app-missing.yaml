@@ -1,18 +1,17 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: node-memory-pressure-alert
-  namespace: signoz
+  name: argocd-app-missing-alert
   labels:
     signoz.io/alert: "true"
   annotations:
-    signoz.io/alert-name: "Node Memory Pressure"
-    signoz.io/severity: "warning"
+    signoz.io/alert-name: "ArgoCD App Missing"
+    signoz.io/severity: "critical"
     signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
-      "alert": "Node Memory Pressure",
+      "alert": "ArgoCD App Missing",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
       "version": "v5",
@@ -20,14 +19,14 @@ data:
       "disabled": false,
       "evalWindow": "5m0s",
       "frequency": "1m0s",
-      "severity": "warning",
+      "severity": "critical",
       "labels": {
-        "category": "node-health",
-        "environment": "production"
+        "service": "argocd",
+        "category": "gitops"
       },
       "annotations": {
-        "summary": "Node {{ $labels.k8s_node_name }} has memory pressure",
-        "description": "Kubernetes node {{ $labels.k8s_node_name }} is under memory pressure condition"
+        "summary": "ArgoCD application resources are missing",
+        "description": "ArgoCD application {{ "{{" }} $labels.name {{ "}}" }} has health status Missing - resources may have been deleted"
       },
       "condition": {
         "compositeQuery": {
@@ -40,16 +39,24 @@ data:
                 "stepInterval": 60,
                 "aggregations": [
                   {
-                    "timeAggregation": "max",
-                    "spaceAggregation": "max",
-                    "metricName": "k8s.node.condition_memory_pressure"
+                    "timeAggregation": "count",
+                    "spaceAggregation": "sum",
+                    "metricName": "argocd_app_info"
                   }
                 ],
+                "filter": {
+                  "expression": "health_status = 'Missing'"
+                },
                 "groupBy": [
                   {
-                    "name": "k8s.node.name",
+                    "name": "name",
                     "fieldDataType": "string",
-                    "fieldContext": "resource"
+                    "fieldContext": "tag"
+                  },
+                  {
+                    "name": "namespace",
+                    "fieldDataType": "string",
+                    "fieldContext": "tag"
                   }
                 ],
                 "order": [],
@@ -63,16 +70,16 @@ data:
         "selectedQueryName": "A",
         "op": "1",
         "target": 0,
-        "matchType": "3",
+        "matchType": "1",
         "targetUnit": "",
         "thresholds": {
           "kind": "basic",
           "spec": [
             {
-              "name": "warning",
+              "name": "critical",
               "target": 0,
               "targetUnit": "",
-              "matchType": "3",
+              "matchType": "1",
               "op": "1",
               "channels": ["incidentio"]
             }

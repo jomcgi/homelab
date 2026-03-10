@@ -9,4 +9,3 @@ resources:
   - jomcgi-dev-httpcheck-alert.yaml
   - hikes-httpcheck-alert.yaml
   - trips-pages-httpcheck-alert.yaml
-  - alerts/

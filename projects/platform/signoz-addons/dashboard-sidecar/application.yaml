@@ -1,16 +1,16 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: signoz
+  name: signoz-dashboard-sidecar
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: HEAD
-    path: projects/platform/signoz/deploy
+    path: projects/platform/signoz-addons/dashboard-sidecar
     helm:
-      releaseName: signoz
+      releaseName: signoz-dashboard-sidecar
       valueFiles:
         - values.yaml
         - values-prod.yaml

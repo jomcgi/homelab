@@ -1,7 +1,7 @@
 apiVersion: v2
 name: signoz-alerts
 description: Library chart for generating SigNoz SLO alert ConfigMaps
-type: library
+type: application
 version: 0.1.0
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
