@@ -2,7 +2,7 @@
 
 import pytest
 
-from services.stargazer.app.scoring import (
+from projects.stargazer.backend.scoring import (
     WeatherData,
     calculate_astronomy_score,
     is_dark_enough,

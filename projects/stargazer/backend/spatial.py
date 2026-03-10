@@ -10,7 +10,7 @@ import rasterio
 from rasterio import features
 from shapely.geometry import Point, box
 
-from services.stargazer.app.config import Settings
+from projects.stargazer.backend.config import Settings
 
 logger = logging.getLogger(__name__)
 

@@ -8,8 +8,8 @@ from unittest.mock import MagicMock, call, patch
 import pytest
 from PIL import Image
 
-from services.stargazer.app.config import Settings
-from services.stargazer.app.preprocessing import (
+from projects.stargazer.backend.config import Settings
+from projects.stargazer.backend.preprocessing import (
     ROAD_HIGHWAY_TYPES,
     clip_dem,
     extract_palette,
@@ -228,7 +228,7 @@ class TestClipDem:
 
     def test_logs_warning(self, settings: Settings):
         """Test that clip_dem logs a warning about not being implemented."""
-        with patch("services.stargazer.app.preprocessing.logger") as mock_logger:
+        with patch("projects.stargazer.backend.preprocessing.logger") as mock_logger:
             clip_dem(settings)
 
         mock_logger.warning.assert_called_once()

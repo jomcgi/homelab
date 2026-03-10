@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from shapely.geometry import Point, Polygon
 
-from services.stargazer.app.config import Settings, BoundsConfig, EuropeBoundsConfig
-from services.stargazer.app.scoring import WeatherData
+from projects.stargazer.backend.config import Settings, BoundsConfig, EuropeBoundsConfig
+from projects.stargazer.backend.scoring import WeatherData
 
 
 @pytest.fixture

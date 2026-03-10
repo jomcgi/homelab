@@ -2,8 +2,8 @@ load("//bazel/helm:defs.bzl", "argocd_app")
 
 argocd_app(
     name = "stargazer",
-    chart = "charts/stargazer",
-    chart_files = "//charts/stargazer:chart",
+    chart = "projects/stargazer/deploy",
+    chart_files = "//projects/stargazer/deploy:chart",
     namespace = "stargazer",
     release_name = "stargazer",
     # CronJob uses aspect_rules_py which needs writable FS and runs as root
@@ -16,7 +16,7 @@ argocd_app(
         "template",
     ],
     values_files = [
-        "//charts/stargazer:values.yaml",
+        "//projects/stargazer/deploy:values.yaml",
         "values.yaml",
     ],
 )

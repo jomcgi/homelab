@@ -11,8 +11,8 @@ import httpx
 from astral import LocationInfo
 from astral.sun import elevation
 
-from services.stargazer.app.config import Settings
-from services.stargazer.app.scoring import (
+from projects.stargazer.backend.config import Settings
+from projects.stargazer.backend.scoring import (
     WeatherData,
     calculate_astronomy_score,
 )

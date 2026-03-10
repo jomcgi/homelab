@@ -31,7 +31,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//services/stargazer",
+        "//projects/stargazer",
         "@pip//astral",
         "@pip//geopandas",
         "@pip//httpx",

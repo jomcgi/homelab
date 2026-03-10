@@ -9,8 +9,8 @@ from typing import Generator
 
 import httpx
 
-from services.stargazer.app import acquisition, preprocessing, spatial, weather
-from services.stargazer.app.config import Settings
+from projects.stargazer.backend import acquisition, preprocessing, spatial, weather
+from projects.stargazer.backend.config import Settings
 
 # Configure logging
 logging.basicConfig(

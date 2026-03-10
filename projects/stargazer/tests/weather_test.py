@@ -10,8 +10,8 @@ import httpx
 import pytest
 from shapely.geometry import Point
 
-from services.stargazer.app.config import Settings
-from services.stargazer.app.weather import (
+from projects.stargazer.backend.config import Settings
+from projects.stargazer.backend.weather import (
     fetch_all_forecasts,
     fetch_forecast,
     output_best_locations,
@@ -144,7 +144,7 @@ class TestFetchAllForecasts:
             json.dump(sample_geojson_points, f)
 
         with patch(
-            "services.stargazer.app.weather.fetch_forecast",
+            "projects.stargazer.backend.weather.fetch_forecast",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.return_value = sample_forecast_response
@@ -170,7 +170,7 @@ class TestFetchAllForecasts:
             json.dump(sample_geojson_points, f)
 
         with patch(
-            "services.stargazer.app.weather.fetch_forecast",
+            "projects.stargazer.backend.weather.fetch_forecast",
             new_callable=AsyncMock,
         ) as mock_fetch:
             mock_fetch.return_value = sample_forecast_response

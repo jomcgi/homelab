@@ -9,8 +9,8 @@ import numpy as np
 import pytest
 from shapely.geometry import Point, Polygon, box
 
-from services.stargazer.app.config import Settings
-from services.stargazer.app.spatial import (
+from projects.stargazer.backend.config import Settings
+from projects.stargazer.backend.spatial import (
     METRIC_CRS,
     WGS84_CRS,
     buffer_roads,
@@ -62,7 +62,9 @@ class TestExtractDarkRegions:
         }
 
         with patch("rasterio.open", return_value=mock_raster):
-            with patch("services.stargazer.app.spatial.features.shapes") as mock_shapes:
+            with patch(
+                "projects.stargazer.backend.spatial.features.shapes"
+            ) as mock_shapes:
                 # Return a shape with geometry
                 mock_shapes.return_value = [(sample_geom, 1)]
 
