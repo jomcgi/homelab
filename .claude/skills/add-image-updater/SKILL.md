@@ -28,7 +28,7 @@ This skill creates an ImageUpdater resource that enables automatic container ima
 ┌─────────────────────────────────────────────────────────────────┐
 │  Step 3: Image Updater Modifies Git                             │
 │  - Clones homelab repo                                          │
-│  - Updates overlays/<env>/<service>/values.yaml:                │
+│  - Updates projects/<service>/deploy/values.yaml:                │
 │      image:                                                      │
 │        repository: ghcr.io/jomcgi/homelab/charts/myapp          │
 │        tag: main@sha256:abc123...  ← new digest                 │
@@ -75,7 +75,7 @@ This skill creates an ImageUpdater resource that enables automatic container ima
 
 ## What This Creates
 
-An `imageupdater.yaml` file in `overlays/<env>/<service>/` that:
+An `imageupdater.yaml` file in `projects/<service>/deploy/` that:
 
 1. Monitors a container image registry for digest changes
 2. Updates the service's `values.yaml` when new images are pushed
@@ -127,10 +127,10 @@ spec:
 
 ### Step 1: Determine the Service Location
 
-Identify where the service overlay lives:
+Identify where the service deploy config lives:
 
 ```
-overlays/<env>/<service>/
+projects/<service>/deploy/
   - application.yaml    # ArgoCD Application
   - kustomization.yaml  # Includes imageupdater.yaml
   - values.yaml         # Helm values (target for write-back)
@@ -163,21 +163,13 @@ The `writeBackTarget` path is relative from where ArgoCD renders manifests (typi
 
 Common patterns:
 
-| Service Location                       | Relative Path                                           |
-| -------------------------------------- | ------------------------------------------------------- |
-| `overlays/prod/<service>/`             | `../../overlays/prod/<service>/values.yaml`             |
-| `overlays/dev/<service>/`              | `../../overlays/dev/<service>/values.yaml`              |
-| `overlays/cluster-critical/<service>/` | `../../overlays/cluster-critical/<service>/values.yaml` |
-
-For operators with nested charts:
-
-| Service Location           | Relative Path                                     |
-| -------------------------- | ------------------------------------------------- |
-| `overlays/dev/<operator>/` | `../../../../overlays/dev/<operator>/values.yaml` |
+| Service Location             | Relative Path                                 |
+| ---------------------------- | --------------------------------------------- |
+| `projects/<service>/deploy/` | `../../projects/<service>/deploy/values.yaml` |
 
 ### Step 5: Create the ImageUpdater File
 
-Create `overlays/<env>/<service>/imageupdater.yaml`:
+Create `projects/<service>/deploy/imageupdater.yaml`:
 
 ```yaml
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
@@ -204,12 +196,12 @@ spec:
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:../../overlays/<env>/<service>/values.yaml
+      writeBackTarget: helmvalues:../../projects/<service>/deploy/values.yaml
 ```
 
 ### Step 6: Add to Kustomization
 
-Update `overlays/<env>/<service>/kustomization.yaml` to include the new file:
+Update `projects/<service>/deploy/kustomization.yaml` to include the new file:
 
 ```yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
@@ -283,13 +275,13 @@ After creating the ImageUpdater:
 
 ## Critical: Seed the Write-Back Target
 
-The overlay `values.yaml` **must contain a valid YAML mapping** with the image keys before the image updater can write to it. If the file is empty or contains only comments, the updater will fail with:
+The deploy `values.yaml` **must contain a valid YAML mapping** with the image keys before the image updater can write to it. If the file is empty or contains only comments, the updater will fail with:
 
 ```
 failed to set image parameter version value: unexpected type  for root
 ```
 
-When creating an image updater, always ensure the overlay `values.yaml` includes the image structure that matches the `manifestTargets.helm` paths:
+When creating an image updater, always ensure the deploy `values.yaml` includes the image structure that matches the `manifestTargets.helm` paths:
 
 ```yaml
 # Example: for helm.name=image.repository and helm.tag=image.tag

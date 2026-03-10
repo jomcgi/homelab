@@ -22,7 +22,7 @@ This skill creates a SigNoz HTTP health check alert that monitors service availa
                          ▼
 ┌──────────────────────────────────────────────────────────┐
 │  Step 2: Add to Kustomization                            │
-│  overlays/prod/todo/kustomization.yaml:                  │
+│  projects/todo/deploy/kustomization.yaml:                  │
 │    resources:                                             │
 │      - todo-httpcheck-alert.yaml                         │
 └────────────────────────┬─────────────────────────────────┘
@@ -65,7 +65,7 @@ This skill creates a SigNoz HTTP health check alert that monitors service availa
 Create the alert ConfigMap in the service's overlay directory:
 
 ```
-overlays/<env>/<service>/<service>-httpcheck-alert.yaml
+projects/<service>/deploy/<service>-httpcheck-alert.yaml
 ```
 
 ## ConfigMap Structure
@@ -217,7 +217,7 @@ evaluation panics with a nil pointer dereference (`BasicRuleThreshold.TargetValu
 /add-httpcheck-alert todo https://todo.jomcgi.dev
 ```
 
-Creates: `overlays/prod/todo/todo-httpcheck-alert.yaml`
+Creates: `projects/todo/deploy/todo-httpcheck-alert.yaml`
 
 ### Example 2: Service with Custom Namespace
 
@@ -225,7 +225,7 @@ Creates: `overlays/prod/todo/todo-httpcheck-alert.yaml`
 /add-httpcheck-alert signoz https://signoz.jomcgi.dev signoz
 ```
 
-Creates: `overlays/cluster-critical/signoz/signoz-httpcheck-alert.yaml`
+Creates: `projects/signoz/deploy/signoz-httpcheck-alert.yaml`
 
 ### Example 3: Service with Health Check Endpoint
 
@@ -233,7 +233,7 @@ Creates: `overlays/cluster-critical/signoz/signoz-httpcheck-alert.yaml`
 /add-httpcheck-alert api-gateway https://api.jomcgi.dev/status.json
 ```
 
-Creates: `overlays/prod/api-gateway/api-gateway-httpcheck-alert.yaml`
+Creates: `projects/api-gateway/deploy/api-gateway-httpcheck-alert.yaml`
 
 ## Post-Creation Steps
 

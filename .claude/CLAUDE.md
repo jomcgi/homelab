@@ -8,18 +8,15 @@ Hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated.
 
 ```
 homelab/
-├── charts/              # Helm charts — ls to discover available charts
-├── overlays/            # Environment-specific overrides — ls overlays/<env>/ for services
-│   ├── cluster-critical/  # Core infra (networking, storage, observability, policy)
-│   ├── dev/               # Development services
-│   └── prod/              # Production services
-├── operators/           # Custom Kubernetes operators (Go, controller-runtime)
-├── services/            # Application source code (Go, Python)
-├── websites/            # Frontend apps (Vite + React, Astro) — JS, not TypeScript
+├── projects/            # All services, operators, websites — colocated with deploy configs
+│   ├── {service}/         # Each service has chart/, deploy/, src/ as needed
+│   │   ├── chart/         # Helm chart (if custom)
+│   │   └── deploy/        # ArgoCD Application, values, kustomization
+│   └── home-cluster/      # Auto-generated ArgoCD root kustomization
+├── charts/              # Shared/upstream Helm charts — ls to discover available charts
 ├── bazel/               # All Bazel build infrastructure (rules, tools, images, semgrep)
 ├── docs/               # Design docs, ADRs, and plans — ls to discover available docs
 │   └── decisions/       # Architecture Decision Records — ls decisions/<category>/
-├── clusters/            # Kustomization entry point for ArgoCD
 ├── MODULE.bazel         # Bazel dependency management (bzlmod, not WORKSPACE)
 └── buildbuddy.yaml      # CI pipeline definition
 ```
@@ -31,7 +28,7 @@ homelab/
 ```bash
 # Local development (no Bazel needed)
 format                        # Format code + update BUILD files (standalone)
-helm template <release> charts/<chart>/ -f overlays/<env>/<service>/values.yaml  # Render Helm templates (NEVER helm install)
+helm template <release> charts/<chart>/ -f projects/<service>/deploy/values.yaml  # Render Helm templates (NEVER helm install)
 
 # CI-only (runs remotely via BuildBuddy)
 bazel test //...              # Test everything
@@ -90,14 +87,14 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Key Patterns
 
-| Pattern                   | Implementation                                                            |
-| ------------------------- | ------------------------------------------------------------------------- |
-| **Secrets**               | 1Password Operator (`OnePasswordItem` CRD) — never hardcode               |
-| **Container images**      | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64) |
-| **Auto image updates**    | ArgoCD Image Updater (`imageupdater.yaml` in overlay)                     |
-| **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`)                 |
-| **Package deps (JS)**     | pnpm + rules_js                                                           |
-| **Non-root containers**   | uid 65532 convention, `runAsNonRoot: true`                                |
+| Pattern                   | Implementation                                                             |
+| ------------------------- | -------------------------------------------------------------------------- |
+| **Secrets**               | 1Password Operator (`OnePasswordItem` CRD) — never hardcode                |
+| **Container images**      | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64)  |
+| **Auto image updates**    | ArgoCD Image Updater (`imageupdater.yaml` in `projects/{service}/deploy/`) |
+| **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`)                  |
+| **Package deps (JS)**     | pnpm + rules_js                                                            |
+| **Non-root containers**   | uid 65532 convention, `runAsNonRoot: true`                                 |
 
 ## Cluster Investigation
 
@@ -129,20 +126,20 @@ Allowed kubectl commands (not covered by MCP): `explain`, `api-resources`, `port
 
 **Redirected to MCP** — hooks block these: `get`, `describe`, `logs`, `top`
 
-To make changes: edit `overlays/<env>/<service>/values.yaml` → commit → push → ArgoCD auto-syncs (~5-10s).
+To make changes: edit `projects/<service>/deploy/values.yaml` → commit → push → ArgoCD auto-syncs (~5-10s).
 
 ## GitOps Application Structure
 
-Services live in `overlays/<env>/<service>/`:
+Services are colocated in `projects/{service}/deploy/`:
 
-- `application.yaml` — ArgoCD Application pointing to `charts/<chart>` with Helm values
+- `application.yaml` — ArgoCD Application pointing to the service's chart with Helm values
 - `kustomization.yaml` — Makes app discoverable (`resources: [application.yaml]`)
-- `values.yaml` — Environment-specific Helm value overrides
+- `values.yaml` — Cluster-specific Helm value overrides
 - `imageupdater.yaml` — (optional) ArgoCD Image Updater config
 
-ArgoCD syncs from `clusters/homelab/kustomization.yaml` → environment overlays.
+ArgoCD root is `projects/home-cluster/kustomization.yaml` (auto-generated by `bazel/images/generate-home-cluster.sh`).
 
-**Environments:** `cluster-critical` (infra), `dev` (development), `prod` (production)
+**Adding a new service:** create `projects/{service}/deploy/application.yaml` + `kustomization.yaml`, run `format`, commit.
 
 ## Continuous Integration
 
