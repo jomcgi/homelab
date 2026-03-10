@@ -15,7 +15,7 @@ filegroup(
 )
 
 py3_image(
-    name = "image",
+    name = "py_image",
     binary = "//projects/agent-platform/todo-mcp/app:main",
     repository = "ghcr.io/jomcgi/homelab/services/todo-mcp",
 )
