@@ -18,10 +18,17 @@ exports_files(
 )
 
 bzl_library(
+    name = "providers",
+    srcs = ["providers.bzl"],
+    visibility = ["//visibility:public"],
+)
+
+bzl_library(
     name = "go_image",
     srcs = ["go_image.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        ":providers",
         "@aspect_bazel_lib//lib:tar",
         "@aspect_bazel_lib//lib:transitions",
         "@rules_oci//oci:defs",
@@ -33,6 +40,7 @@ bzl_library(
     srcs = ["py3_image.bzl"],
     visibility = ["//visibility:public"],
     deps = [
+        ":providers",
         "@aspect_bazel_lib//lib:expand_template",
         "@aspect_bazel_lib//lib:tar",
         "@aspect_bazel_lib//lib:transitions",
@@ -49,6 +57,7 @@ bzl_library(
     deps = [
         ":apko_push",
         ":oci_run",
+        ":providers",
         "@aspect_bazel_lib//lib:expand_template",
         "@aspect_bazel_lib//lib:transitions",
         "@rules_apko//apko:defs",

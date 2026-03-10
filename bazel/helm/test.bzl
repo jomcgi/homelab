@@ -34,7 +34,7 @@ def helm_template_test(name, chart, release_name, namespace, values_files, chart
         **kwargs
     )
 
-def helm_lint_test(name, chart_path = None, **kwargs):
+def helm_lint_test(name, chart_path = None, extra_values = [], **kwargs):
     """Creates a test that runs helm lint on a chart.
 
     The test runs helm lint with --strict mode to catch any issues.
@@ -42,13 +42,16 @@ def helm_lint_test(name, chart_path = None, **kwargs):
     Args:
         name: Name of the test target
         chart_path: Path to chart directory (default: current package)
+        extra_values: Optional list of additional values file labels to pass
+                      to helm lint via -f flags (e.g. generated image values).
         **kwargs: Additional arguments passed to sh_test
     """
     if chart_path == None:
         chart_path = native.package_name()
 
-    # Create an inline script that runs helm lint
-    # The script finds the chart in runfiles and lints it
+    # Create an inline script that runs helm lint.
+    # Args: HELM CHART_YAML [EXTRA_VALUES_FILE ...]
+    # Any arguments beyond the first two are passed as -f <file> to helm lint.
     native.genrule(
         name = name + "_script",
         outs = [name + ".sh"],
@@ -68,8 +71,15 @@ if [[ ! -f "$$CHART_YAML" ]]; then
     exit 1
 fi
 
+# Build extra -f flags from remaining arguments
+EXTRA_VALUES=()
+shift 2
+for f in "$$@"; do
+    EXTRA_VALUES+=(-f "$$f")
+done
+
 echo "Linting chart: $$CHART_DIR"
-"$$HELM" lint "$$CHART_DIR" --strict
+"$$HELM" lint "$$CHART_DIR" --strict "$${EXTRA_VALUES[@]+"$${EXTRA_VALUES[@]}"}"
 echo "PASSED"
 EOF
 """,
@@ -81,11 +91,11 @@ EOF
         args = [
             "$(rootpath @multitool//tools/helm)",
             "$(rootpath :Chart.yaml)",
-        ],
+        ] + ["$(rootpath {})".format(f) for f in extra_values],
         data = [
             "@multitool//tools/helm",
             ":Chart.yaml",
             ":values.yaml",
-        ] + native.glob(["templates/**"], allow_empty = True),
+        ] + native.glob(["templates/**"], allow_empty = True) + extra_values,
         **kwargs
     )

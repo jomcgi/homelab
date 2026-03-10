@@ -9,4 +9,7 @@ filegroup(
 helm_chart(
     name = "chart",
     visibility = ["//overlays/prod/todo:__pkg__"],
+    images = {
+        "image": "//charts/todo/image:image.info",
+    },
 )

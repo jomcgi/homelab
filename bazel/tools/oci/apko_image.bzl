@@ -7,6 +7,7 @@ load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_push")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//bazel/tools/oci:apko_push.bzl", "apko_push")
 load("//bazel/tools/oci:oci_run.bzl", "oci_run")
+load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
 def apko_image(
         name,
@@ -190,11 +191,12 @@ def apko_image(
     )
 
     # Push target - uses oci_push when layering tars, apko_push for native apko images
+    _repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name()
     if use_oci_push:
         oci_push(
             name = name + ".push",
             image = ":" + push_image,
-            repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
+            repository = _repository,
             remote_tags = select({
                 "//bazel/tools/oci:ci_build": name + "_stamped_tags_ci",
                 "//conditions:default": name + "_stamped_tags_local",
@@ -205,13 +207,20 @@ def apko_image(
         apko_push(
             name = name + ".push",
             image = push_image,
-            repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
+            repository = _repository,
             remote_tags = select({
                 "//bazel/tools/oci:ci_build": name + "_stamped_tags_ci",
                 "//conditions:default": name + "_stamped_tags_local",
             }),
             visibility = visibility,
         )
+
+    # Expose OciImageInfo provider for use by helm_chart(images = {...})
+    oci_image_info(
+        name = name + ".info",
+        repository = _repository,
+        tags = name + "_stamped_ci.tags.txt",
+    )
 
     # Create .run target for local testing
     oci_run(
