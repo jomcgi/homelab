@@ -5,7 +5,7 @@ load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 # Validate that Goose recipe YAML files are well-formed and use safe template patterns.
-# Run locally: bazel test //charts/goose-agent/image:recipe_validate_test
+# Run locally: bazel test //projects/agent-platform/goose-agent/image:recipe_validate_test
 go_test(
     name = "recipe_validate_test",
     srcs = ["recipe_validate_test.go"],

@@ -1,7 +1,7 @@
 """Proto conformance tests — validates our tool parameters match BuildBuddy's API.
 
 Tagged 'external' because it fetches proto files from GitHub at test time.
-Run manually: bazel test //services/buildbuddy_mcp/tests:proto_conformance_test
+Run manually: bazel test //projects/agent-platform/buildbuddy-mcp/tests:proto_conformance_test
 Excluded from CI via --test_tag_filters=-external.
 """
 

@@ -1,5 +1,5 @@
 // Package image_test validates that Goose recipe YAML files are well-formed and
-// use safe template patterns. Run via `bazel test //charts/goose-agent/image:recipe_validate_test`.
+// use safe template patterns. Run via `bazel test //projects/agent-platform/goose-agent/image:recipe_validate_test`.
 package image_test
 
 import (
