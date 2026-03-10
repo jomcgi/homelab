@@ -1,8 +1,8 @@
 """Agent Orchestrator UI - Vite + React dashboard + embedded Go library"""
 
-load("@rules_go//go:def.bzl", "go_library")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//services/agent-orchestrator/ui:vite/package_json.bzl", vite_bin = "bin")
+load("@rules_go//go:def.bzl", "go_library")
 load("//tools/js:vite_build.bzl", "vite_build")
 
 npm_link_all_packages(name = "node_modules")
@@ -28,9 +28,9 @@ vite_build(
     config = "vite.config.js",
     tool = ":vite",
     deps = [
-        "@vitejs/plugin-react",
         "react",
         "react-dom",
+        "@vitejs/plugin-react",
     ],
 )
 
