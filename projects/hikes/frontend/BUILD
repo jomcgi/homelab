@@ -26,3 +26,11 @@ wrangler_pages(
     visibility = ["//projects/websites:__pkg__"],  # keep
     wrangler = ":wrangler",
 )
+
+wrangler_pages(
+    name = "frontend",
+    dist = ":public",
+    project_name = "jomcgi-hikes",
+    visibility = ["//projects/websites:__pkg__"],
+    wrangler = ":wrangler",
+)

@@ -94,3 +94,11 @@ vitest_bin.vitest_test(
         ":test_lib",
     ],
 )
+
+wrangler_pages(
+    name = "frontend",
+    dist = ":build_dist",
+    project_name = "trips-jomcgi-dev",
+    visibility = ["//projects/websites:__pkg__"],
+    wrangler = ":wrangler",
+)
