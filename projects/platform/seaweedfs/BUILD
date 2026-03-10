@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "seaweedfs",
-    chart = "projects/platform/seaweedfs/deploy",
+    chart = "projects/platform/seaweedfs",
     chart_files = ":chart",
     namespace = "seaweedfs",
     release_name = "seaweedfs",

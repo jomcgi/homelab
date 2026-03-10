@@ -7,7 +7,7 @@ helm_chart(
 
 argocd_app(
     name = "agent-sandbox",
-    chart = "projects/platform/agent-sandbox/deploy",
+    chart = "projects/platform/agent-sandbox",
     chart_files = ":chart",
     namespace = "agent-sandbox-system",
     release_name = "agent-sandbox",

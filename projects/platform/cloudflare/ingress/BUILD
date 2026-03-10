@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "cloudflare-ingress",
-    chart = "projects/platform/cloudflare/ingress/deploy",
+    chart = "projects/platform/cloudflare/ingress",
     chart_files = ":chart",
     namespace = "envoy-gateway-system",
     release_name = "cloudflare-ingress",

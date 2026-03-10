@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "argocd-image-updater",
-    chart = "projects/platform/argocd-image-updater/deploy",
+    chart = "projects/platform/argocd-image-updater",
     chart_files = ":chart",
     namespace = "argocd",
     release_name = "argocd-image-updater",

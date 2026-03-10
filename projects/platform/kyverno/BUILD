@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "kyverno",
-    chart = "projects/platform/kyverno/deploy",
+    chart = "projects/platform/kyverno",
     chart_files = ":chart",
     namespace = "kyverno",
     release_name = "kyverno",

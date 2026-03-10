@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "argocd",
-    chart = "projects/platform/argocd/deploy",
+    chart = "projects/platform/argocd",
     chart_files = ":chart",
     namespace = "argocd",
     release_name = "argocd",

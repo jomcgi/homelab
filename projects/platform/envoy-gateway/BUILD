@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "envoy-gateway",
-    chart = "projects/platform/envoy-gateway/deploy",
+    chart = "projects/platform/envoy-gateway",
     chart_files = ":chart",
     namespace = "envoy-gateway-system",
     release_name = "envoy-gateway",

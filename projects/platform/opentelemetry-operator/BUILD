@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "opentelemetry-operator",
-    chart = "projects/platform/opentelemetry-operator/deploy",
+    chart = "projects/platform/opentelemetry-operator",
     chart_files = ":chart",
     namespace = "opentelemetry-operator",
     release_name = "opentelemetry-operator",

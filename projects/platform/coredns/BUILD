@@ -7,7 +7,7 @@ helm_chart(
 
 argocd_app(
     name = "coredns-config",
-    chart = "projects/platform/coredns/deploy",
+    chart = "projects/platform/coredns",
     chart_files = ":chart",
     namespace = "kube-system",
     release_name = "coredns",

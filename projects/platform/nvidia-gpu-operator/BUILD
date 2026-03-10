@@ -8,7 +8,7 @@ helm_chart(
 
 argocd_app(
     name = "nvidia-gpu-operator",
-    chart = "projects/platform/nvidia-gpu-operator/deploy",
+    chart = "projects/platform/nvidia-gpu-operator",
     chart_files = ":chart",
     namespace = "gpu-operator",
     release_name = "nvidia-gpu-operator",
