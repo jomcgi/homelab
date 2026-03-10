@@ -1,7 +1,7 @@
 imagePullSecret:
   enabled: true
 image:
-  tag: main@sha256:451d49ca859731e63a7defd25da59df44a662e1983997aed1ee8124996602ffc
+  tag: main@sha256:7724bd0b50026e3241c8d898cca56a36c869defba3225c8dee21a4ae779606d7
   repository: ghcr.io/jomcgi/homelab/services/cluster-agents
 podAnnotations:
   instrumentation.opentelemetry.io/inject-go: "go"
