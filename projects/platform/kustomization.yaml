@@ -2,20 +2,20 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  - ./agent-sandbox/deploy
-  - ./argocd/deploy
-  - ./argocd-image-updater/deploy
-  - ./cert-manager/deploy # Must be before linkerd
-  - ./cloudflare/ingress/deploy
-  - ./cloudflare/tunnel/deploy
-  - ./coredns/deploy
-  - ./envoy-gateway/deploy # Installs Gateway API CRDs; must be before linkerd
-  - ./kyverno/deploy
-  - ./linkerd/deploy
-  - ./longhorn/deploy
-  - ./nats/deploy
-  - ./nvidia-gpu-operator/deploy
-  - ./opentelemetry-operator/deploy
-  - ./seaweedfs/deploy
+  - ./agent-sandbox
+  - ./argocd
+  - ./argocd-image-updater
+  - ./cert-manager # Must be before linkerd
+  - ./cloudflare/ingress
+  - ./cloudflare/tunnel
+  - ./coredns
+  - ./envoy-gateway # Installs Gateway API CRDs; must be before linkerd
+  - ./kyverno
+  - ./linkerd
+  - ./longhorn
+  - ./nats
+  - ./nvidia-gpu-operator
+  - ./opentelemetry-operator
+  - ./seaweedfs
   - ./signoz/deploy
   - ./signoz/dashboard-sidecar/deploy # Must be after signoz
