@@ -10,11 +10,10 @@ repos:
         always_run: true
         pass_filenames: false
 
-      # Fast format - identical to CI's format check
-      # Runs all formatters, script generators, and gazelle
+      # Fast format - same formatters as CI, scoped to staged files
       - id: format-code
         name: Format code
-        entry: bazel/tools/format/fast-format.sh
+        entry: bazel/tools/format/fast-format.sh --staged
         language: script
         always_run: true
         pass_filenames: false
