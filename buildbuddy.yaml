@@ -112,10 +112,10 @@ actions:
           fi
           bazel test //... --config=ci --deleted_packages=bazel/tools/python --test_tag_filters=-external
 
-  # Push images — runs on main only, after "Test" passes
-  # Previously also ran on PRs, but BuildBuddy resolves GIT_BRANCH to the
-  # target branch ("main") for PR events, causing PR images to overwrite
-  # the "main" tag and deploy broken code via ArgoCD Image Updater.
+  # Push images — runs on PRs and main, after "Test" passes
+  # PR images are tagged with the source branch name (not "main"),
+  # so ArgoCD Image Updater ignores them. This ensures image builds are
+  # verified before merge.
   - name: "Push images"
     container_image: "ubuntu-24.04"
     resource_requests:
@@ -127,6 +127,10 @@ actions:
       push:
         branches:
           - "main"
+      pull_request:
+        branches:
+          - "*"
+        merge_with_base: false
     steps:
       - run: |
           # Skip image-updater commits (digest-only bumps, nothing to push)

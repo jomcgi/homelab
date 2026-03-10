@@ -49,6 +49,17 @@ else
 	branch=$(git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
 fi
 
+# Safety check: if env says "main" but HEAD isn't actually origin/main,
+# we're in a PR build where the CI set GIT_BRANCH to the target branch.
+# Fall back to a commit-derived tag to avoid overwriting the "main" image.
+if [ "${branch}" = "main" ]; then
+	main_sha=$(git rev-parse origin/main 2>/dev/null || echo "")
+	if [ -n "$main_sha" ] && [ "$git_commit" != "$main_sha" ]; then
+		branch="pr-${git_short_sha}"
+		>&2 echo "workspace_status.sh: HEAD (${git_short_sha}) != origin/main, using branch='${branch}'"
+	fi
+fi
+
 # Debug output when CI is set (only visible in build logs)
 if [ "${CI:-}" = "true" ] || [ "${CI:-}" = "1" ]; then
 	>&2 echo "workspace_status.sh: Detected branch '${branch}' from environment"
