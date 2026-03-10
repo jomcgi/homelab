@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Auto-generate websites/BUILD with push_all_pages multirun target
+# Auto-generate projects/websites/BUILD with push_all_pages multirun target
 set -euo pipefail
 
 cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
 
-BUILD_FILE="websites/BUILD"
+BUILD_FILE="projects/websites/BUILD"
 
 # Macros that generate wrangler_pages_push targets (wrangler_pages directly, vitepress_site wraps it)
 PAGES_MACROS="wrangler_pages\|vitepress_site"
@@ -36,8 +36,8 @@ if [ -z "$PUSH_TARGETS" ]; then
 	exit 0
 fi
 
-# Create websites directory if it doesn't exist
-mkdir -p websites
+# Create projects/websites directory if it doesn't exist
+mkdir -p projects/websites
 
 # Generate the complete BUILD file
 cat >"$BUILD_FILE" <<'HEADER'

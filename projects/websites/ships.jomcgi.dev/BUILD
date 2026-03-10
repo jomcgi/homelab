@@ -2,8 +2,8 @@
 load("@aspect_rules_esbuild//esbuild:defs.bzl", "esbuild")
 load("@aspect_rules_js//js:defs.bzl", "js_library", "js_run_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
-load("@npm//websites/ships.jomcgi.dev:vite/package_json.bzl", vite_bin = "bin")
-load("@npm//websites/ships.jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
+load("@npm//projects/websites/ships.jomcgi.dev:vite/package_json.bzl", vite_bin = "bin")
+load("@npm//projects/websites/ships.jomcgi.dev:vitest/package_json.bzl", vitest_bin = "bin")
 
 # Link npm packages for this workspace package
 npm_link_all_packages(name = "node_modules")

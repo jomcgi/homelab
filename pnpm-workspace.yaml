@@ -2,10 +2,10 @@
 packages:
   - packages/*
   - bazel/tools
-  - websites/ships.jomcgi.dev
-  - websites/trips.jomcgi.dev
-  - websites/jomcgi.dev
-  - websites/docs.jomcgi.dev
-  - websites/hikes.jomcgi.dev
+  - projects/websites/ships.jomcgi.dev
+  - projects/websites/trips.jomcgi.dev
+  - projects/websites/jomcgi.dev
+  - projects/websites/docs.jomcgi.dev
+  - projects/websites/hikes.jomcgi.dev
   - services/grimoire/frontend
   - projects/agent_platform/orchestrator/ui

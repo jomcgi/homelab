@@ -1,5 +1,5 @@
-load("@npm//websites/docs.jomcgi.dev:vitepress/package_json.bzl", vitepress_bin = "bin")
-load("@npm//websites/docs.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("@npm//projects/websites/docs.jomcgi.dev:vitepress/package_json.bzl", vitepress_bin = "bin")
+load("@npm//projects/websites/docs.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
 load("//bazel/vitepress:site.bzl", "vitepress_site")
 
 # VitePress binary for building

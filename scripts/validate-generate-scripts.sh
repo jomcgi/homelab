@@ -58,11 +58,11 @@ compare_targets "push-all" "$TMPDIR_VALIDATE/push_all_grep.txt" "$TMPDIR_VALIDAT
 
 echo "Validating generate-push-all-pages.sh ..."
 
-# Run the grep-based script (it writes websites/BUILD)
+# Run the grep-based script (it writes projects/websites/BUILD)
 bash scripts/generate-push-all-pages.sh
 
 # Extract targets from the generated BUILD file
-extract_targets_from_build websites/BUILD >"$TMPDIR_VALIDATE/push_pages_grep.txt"
+extract_targets_from_build projects/websites/BUILD >"$TMPDIR_VALIDATE/push_pages_grep.txt"
 
 # Run equivalent bazel query
 bazel query 'kind("wrangler_pages_push", //...)' 2>/dev/null |
