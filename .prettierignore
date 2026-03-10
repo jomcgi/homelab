@@ -6,5 +6,8 @@ projects/**/deploy/templates/
 charts/*/crds/
 projects/**/deploy/crds/
 
+# Minified/bundled assets should not be reformatted
+**/dist/
+
 # Git worktrees have their own formatting
 .claude/worktrees/
