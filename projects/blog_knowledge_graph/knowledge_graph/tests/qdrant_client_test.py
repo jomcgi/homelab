@@ -5,8 +5,8 @@ from unittest.mock import AsyncMock, patch, MagicMock
 
 import pytest
 
-from knowledge_graph.app.models import ChunkPayload
-from knowledge_graph.app.qdrant_client import QdrantClient
+from projects.blog_knowledge_graph.knowledge_graph.app.models import ChunkPayload
+from projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client import QdrantClient
 
 
 @pytest.fixture
@@ -17,7 +17,9 @@ def qdrant():
 class TestEnsureCollection:
     @pytest.mark.asyncio
     async def test_creates_collection_when_missing(self, qdrant):
-        with patch("knowledge_graph.app.qdrant_client.httpx.AsyncClient") as mock_cls:
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client.httpx.AsyncClient"
+        ) as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -36,7 +38,9 @@ class TestEnsureCollection:
 
     @pytest.mark.asyncio
     async def test_skips_when_exists(self, qdrant):
-        with patch("knowledge_graph.app.qdrant_client.httpx.AsyncClient") as mock_cls:
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client.httpx.AsyncClient"
+        ) as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -52,7 +56,9 @@ class TestEnsureCollection:
 class TestUpsertChunks:
     @pytest.mark.asyncio
     async def test_upserts_points(self, qdrant):
-        with patch("knowledge_graph.app.qdrant_client.httpx.AsyncClient") as mock_cls:
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client.httpx.AsyncClient"
+        ) as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -89,7 +95,9 @@ class TestUpsertChunks:
 class TestSearch:
     @pytest.mark.asyncio
     async def test_returns_results(self, qdrant):
-        with patch("knowledge_graph.app.qdrant_client.httpx.AsyncClient") as mock_cls:
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client.httpx.AsyncClient"
+        ) as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -122,7 +130,9 @@ class TestSearch:
 class TestHasContentHash:
     @pytest.mark.asyncio
     async def test_returns_true_when_exists(self, qdrant):
-        with patch("knowledge_graph.app.qdrant_client.httpx.AsyncClient") as mock_cls:
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client.httpx.AsyncClient"
+        ) as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)
@@ -136,7 +146,9 @@ class TestHasContentHash:
 
     @pytest.mark.asyncio
     async def test_returns_false_when_missing(self, qdrant):
-        with patch("knowledge_graph.app.qdrant_client.httpx.AsyncClient") as mock_cls:
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client.httpx.AsyncClient"
+        ) as mock_cls:
             mock_client = AsyncMock()
             mock_cls.return_value.__aenter__ = AsyncMock(return_value=mock_client)
             mock_cls.return_value.__aexit__ = AsyncMock(return_value=False)

@@ -2,23 +2,23 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py knowledge_graph.app.config //projects/blog_knowledge_graph/knowledge_graph/app:config
-# gazelle:resolve py knowledge_graph.app.models //projects/blog_knowledge_graph/knowledge_graph/app:models
-# gazelle:resolve py knowledge_graph.app.chunker //projects/blog_knowledge_graph/knowledge_graph/app:chunker
-# gazelle:resolve py knowledge_graph.app.storage //projects/blog_knowledge_graph/knowledge_graph/app:storage
-# gazelle:resolve py knowledge_graph.app.notifications //projects/blog_knowledge_graph/knowledge_graph/app:notifications
-# gazelle:resolve py knowledge_graph.app.qdrant_client //projects/blog_knowledge_graph/knowledge_graph/app:qdrant_client
-# gazelle:resolve py knowledge_graph.app.extractors.base //projects/blog_knowledge_graph/knowledge_graph/app/extractors:base
-# gazelle:resolve py knowledge_graph.app.extractors.html_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:html_extractor
-# gazelle:resolve py knowledge_graph.app.extractors.feed_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:feed_extractor
-# gazelle:resolve py knowledge_graph.app.mcp_main //projects/blog_knowledge_graph/knowledge_graph/app:mcp_main
-# gazelle:resolve py knowledge_graph.app.scraper_main //projects/blog_knowledge_graph/knowledge_graph/app:scraper_main
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.config //projects/blog_knowledge_graph/knowledge_graph/app:config
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.models //projects/blog_knowledge_graph/knowledge_graph/app:models
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.chunker //projects/blog_knowledge_graph/knowledge_graph/app:chunker
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.storage //projects/blog_knowledge_graph/knowledge_graph/app:storage
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.notifications //projects/blog_knowledge_graph/knowledge_graph/app:notifications
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client //projects/blog_knowledge_graph/knowledge_graph/app:qdrant_client
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.base //projects/blog_knowledge_graph/knowledge_graph/app/extractors:base
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:html_extractor
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:feed_extractor
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.mcp_main //projects/blog_knowledge_graph/knowledge_graph/app:mcp_main
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.scraper_main //projects/blog_knowledge_graph/knowledge_graph/app:scraper_main
 
 py_library(
     name = "conftest",
     testonly = True,
     srcs = ["conftest.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:config",
@@ -30,7 +30,7 @@ py_library(
 py_test(
     name = "models_test",
     srcs = ["models_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -40,7 +40,7 @@ py_test(
 py_test(
     name = "chunker_test",
     srcs = ["chunker_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
@@ -50,7 +50,7 @@ py_test(
 py_test(
     name = "storage_test",
     srcs = ["storage_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -63,7 +63,7 @@ py_test(
 py_test(
     name = "extractors_test",
     srcs = ["extractors_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app/extractors:base",
@@ -77,7 +77,7 @@ py_test(
 py_test(
     name = "notifications_test",
     srcs = ["notifications_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -89,7 +89,7 @@ py_test(
 py_test(
     name = "qdrant_client_test",
     srcs = ["qdrant_client_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
@@ -101,7 +101,7 @@ py_test(
 py_test(
     name = "scraper_main_test",
     srcs = ["scraper_main_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:scraper_main",  # keep
@@ -114,7 +114,7 @@ py_test(
 py_test(
     name = "mcp_main_test",
     srcs = ["mcp_main_test.py"],
-    imports = ["../.."],
+
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:mcp_main",  # keep
@@ -126,7 +126,7 @@ py_test(
 py_library(
     name = "tests",
     srcs = ["__init__.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
 )
 

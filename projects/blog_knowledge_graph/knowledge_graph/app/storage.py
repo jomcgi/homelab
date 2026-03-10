@@ -11,7 +11,10 @@ from botocore import UNSIGNED
 from botocore.config import Config
 from botocore.exceptions import ClientError
 
-from knowledge_graph.app.models import Document, content_hash
+from projects.blog_knowledge_graph.knowledge_graph.app.models import (
+    Document,
+    content_hash,
+)
 
 logger = logging.getLogger(__name__)
 

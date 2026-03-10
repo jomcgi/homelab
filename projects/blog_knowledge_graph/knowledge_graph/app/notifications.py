@@ -6,7 +6,7 @@ import logging
 
 import httpx
 
-from knowledge_graph.app.models import ScrapeResult
+from projects.blog_knowledge_graph.knowledge_graph.app.models import ScrapeResult
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ import uuid
 
 import httpx
 
-from knowledge_graph.app.models import ChunkPayload
+from projects.blog_knowledge_graph.knowledge_graph.app.models import ChunkPayload
 
 logger = logging.getLogger(__name__)
 

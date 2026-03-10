@@ -3,7 +3,7 @@
 import pytest
 import yaml
 
-from knowledge_graph.app.scraper_main import (
+from projects.blog_knowledge_graph.knowledge_graph.app.scraper_main import (
     _load_sources,
     _validate_url,
     app,

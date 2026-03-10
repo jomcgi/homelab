@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from orchestrator.mcp.app.main import (
+from projects.agent_platform.orchestrator.mcp.app.main import (
     Settings,
     cancel_job,
     configure,
@@ -16,7 +16,7 @@ from orchestrator.mcp.app.main import (
     submit_job,
 )
 
-_PATCH = "orchestrator.mcp.app.main._request"
+_PATCH = "projects.agent_platform.orchestrator.mcp.app.main._request"
 
 
 @pytest.fixture(autouse=True)
