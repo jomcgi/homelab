@@ -31,6 +31,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
+        ":app",
         "@pip//astral",
         "@pip//geopandas",
         "@pip//httpx",
