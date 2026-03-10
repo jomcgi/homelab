@@ -1,13 +1,13 @@
 # Profile definitions for Goose sandbox agents.
 # This file documents available profiles and their tool scoping.
 # It is not consumed by Helm — it serves as reference for the setup script
-# (scripts/setup-mcp-profiles.sh) and for humans.
+# (projects/agent_platform/sandboxes/setup-mcp-profiles.sh) and for humans.
 #
 # To add a new profile:
 #   1. Add entry here
 #   2. Create recipe in charts/goose-agent/image/recipes/<name>.yaml
 #   3. Add token_env to values.yaml profileTokens section
-#   4. Run scripts/setup-mcp-profiles.sh to provision team + token
+#   4. Run projects/agent_platform/sandboxes/setup-mcp-profiles.sh to provision team + token
 #   5. Add profile name to validProfiles in bazel/tools/agent-run/main.go
 
 profiles:

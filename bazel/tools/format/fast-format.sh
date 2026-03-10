@@ -103,9 +103,9 @@ if $STAGED; then
 
 	# Script generators only if BUILD files changed
 	if [ ${#BUILD_FILES[@]} -gt 0 ]; then
-		./scripts/generate-push-all.sh 2>/dev/null &
+		./bazel/images/generate-push-all.sh 2>/dev/null &
 		PIDS+=($!)
-		./scripts/generate-push-all-pages.sh 2>/dev/null &
+		./bazel/images/generate-push-all-pages.sh 2>/dev/null &
 		PIDS+=($!)
 	fi
 
@@ -157,9 +157,9 @@ prettier --write . 2>/dev/null &
 PIDS+=($!)
 
 # Script generators (run in parallel with formatters)
-./scripts/generate-push-all.sh 2>/dev/null &
+./bazel/images/generate-push-all.sh 2>/dev/null &
 PIDS+=($!)
-./scripts/generate-push-all-pages.sh 2>/dev/null &
+./bazel/images/generate-push-all-pages.sh 2>/dev/null &
 PIDS+=($!)
 
 # Wait for all parallel tasks

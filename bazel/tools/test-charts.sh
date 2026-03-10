@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # test-charts.sh - Validate all Helm charts with helm lint
 #
-# Usage: ./scripts/test-charts.sh [chart-name]
+# Usage: ./bazel/tools/test-charts.sh [chart-name]
 #   If chart-name is provided, only that chart is tested
 #   Otherwise, all charts in charts/ are tested
 #

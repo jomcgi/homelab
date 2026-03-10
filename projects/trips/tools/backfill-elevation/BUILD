@@ -8,7 +8,7 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
-        "//scripts/elevation",
+        "//projects/trips/tools/elevation",
         "@pip//nats_py",
         "@pip//rich",
         "@pip//typer",
@@ -23,7 +23,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//scripts/elevation",
+        "//projects/trips/tools/elevation",
         "@pip//nats_py",
         "@pip//rich",
         "@pip//typer",

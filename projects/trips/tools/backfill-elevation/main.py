@@ -37,7 +37,7 @@ from rich.progress import (
 )
 from rich.console import Console
 
-from scripts.elevation import ElevationClient, ElevationCache
+from projects.trips.tools.elevation import ElevationClient, ElevationCache
 
 # Configuration
 NATS_URL = os.getenv("NATS_URL", "nats://localhost:4222")

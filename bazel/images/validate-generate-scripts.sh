@@ -41,7 +41,7 @@ compare_targets() {
 echo "Validating generate-push-all.sh ..."
 
 # Run the grep-based script (it writes bazel/images/BUILD)
-bash scripts/generate-push-all.sh
+bash bazel/images/generate-push-all.sh
 
 # Extract targets from the generated BUILD file
 extract_targets_from_build bazel/images/BUILD >"$TMPDIR_VALIDATE/push_all_grep.txt"
@@ -59,7 +59,7 @@ compare_targets "push-all" "$TMPDIR_VALIDATE/push_all_grep.txt" "$TMPDIR_VALIDAT
 echo "Validating generate-push-all-pages.sh ..."
 
 # Run the grep-based script (it writes projects/websites/BUILD)
-bash scripts/generate-push-all-pages.sh
+bash bazel/images/generate-push-all-pages.sh
 
 # Extract targets from the generated BUILD file
 extract_targets_from_build projects/websites/BUILD >"$TMPDIR_VALIDATE/push_pages_grep.txt"
@@ -81,9 +81,9 @@ if [ "$FAILED" -ne 0 ]; then
 	echo ""
 	echo "To fix:"
 	echo "  1. Check which BUILD files changed (new targets added/removed/renamed)"
-	echo "  2. Update the corresponding generate script in scripts/ to match"
+	echo "  2. Update the corresponding generate script in bazel/images/ to match"
 	echo "  3. Re-run 'format' to regenerate the BUILD files"
-	echo "  4. Verify locally with: bash scripts/validate-generate-scripts.sh"
+	echo "  4. Verify locally with: bash bazel/images/validate-generate-scripts.sh"
 	exit 1
 fi
 
