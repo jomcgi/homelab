@@ -8,7 +8,7 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
-        ":app",
+        ":backend",
         "@pip//httpx",
         "@pip//opentelemetry_api",
         "@pip//opentelemetry_exporter_otlp_proto_grpc",
@@ -17,7 +17,7 @@ py_venv_binary(
 )
 
 py_library(
-    name = "app",
+    name = "backend",  # keep
     srcs = [
         "__init__.py",
         "acquisition.py",
@@ -31,7 +31,6 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        ":app",
         "@pip//astral",
         "@pip//geopandas",
         "@pip//httpx",
