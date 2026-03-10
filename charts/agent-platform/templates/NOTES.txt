@@ -2,8 +2,10 @@ agent-platform {{ .Chart.Version }} deployed successfully.
 
 ## CRDs
 
-The following CRDs are installed by the agent-sandbox subchart (controlled by
-agent-sandbox.installCRDs, default: true):
+The following CRDs are installed by the agent-sandbox subchart.
+CRDs live in the chart's crds/ directory; use --skip-crds (helm) or
+spec.helm.skipCrds (ArgoCD) to skip installation when agent-sandbox.installCRDs
+is false:
 
   - sandboxes.agents.x-k8s.io
   - sandboxclaims.extensions.agents.x-k8s.io
@@ -43,8 +45,12 @@ If using helm install (not ArgoCD), also pass --skip-crds:
     -f overlays/dev/agent-platform/values.yaml \
     --skip-crds
 
-With ArgoCD, setting the flags above is sufficient — ArgoCD applies resource
-ordering automatically and respects the conditional templates.
+With ArgoCD, also add to the Application spec:
+
+  spec:
+    source:
+      helm:
+        skipCrds: true
 
 ## Context Forge & MCP OAuth Proxy
 
