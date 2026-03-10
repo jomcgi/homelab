@@ -68,6 +68,7 @@ py_test(
         ":conftest",
         "//projects/agent-platform/knowledge_graph/app/extractors:base",
         "//projects/agent-platform/knowledge_graph/app/extractors:feed_extractor",
+        "//projects/agent-platform/knowledge_graph/app/extractors:html_extractor",
         "@pip//httpx",
         "@pip//pytest",
     ],

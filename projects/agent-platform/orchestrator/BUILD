@@ -84,3 +84,20 @@ go_image(
 # generates one referencing :orchestrator_lib (which doesn't exist).
 # The correct test targets are agent-orchestrator_unit_test and
 # agent-orchestrator_test above.
+
+go_test(
+    name = "orchestrator_test",
+    srcs = [
+        "api_test.go",
+        "consumer_test.go",
+        "reconcile_test.go",
+        "sandbox_test.go",
+        "store_test.go",
+        "watchdog_test.go",
+    ],
+    embed = [":orchestrator_lib"],
+    deps = [
+        "@com_github_nats_io_nats_go//:nats_go",
+        "@com_github_nats_io_nats_go//jetstream",
+    ],
+)

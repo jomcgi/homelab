@@ -108,6 +108,18 @@ py_library(
     imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//projects/agent-platform/knowledge_graph/app:chunker",
+        "//projects/agent-platform/knowledge_graph/app:config",
+        "//projects/agent-platform/knowledge_graph/app:models",
+        "//projects/agent-platform/knowledge_graph/app:notifications",
+        "//projects/agent-platform/knowledge_graph/app:qdrant_client",
+        "//projects/agent-platform/knowledge_graph/app:storage",
+        "//projects/agent-platform/knowledge_graph/app:telemetry",
+        "//projects/agent-platform/knowledge_graph/app/embedders:gemini",
+        "//projects/agent-platform/knowledge_graph/app/embedders:ollama",
+        "//projects/agent-platform/knowledge_graph/app/extractors:base",
+        "//projects/agent-platform/knowledge_graph/app/extractors:feed_extractor",
+        "//projects/agent-platform/knowledge_graph/app/extractors:html_extractor",
         "@pip//boto3",
         "@pip//botocore",
         "@pip//fastapi",
@@ -143,7 +155,6 @@ py_library(
 
 py_venv_binary(
     name = "scraper",
-    imports = ["../.."],
     main = "scraper_main.py",
     visibility = ["//:__subpackages__"],
 )
@@ -165,7 +176,6 @@ py_library(
 
 py_venv_binary(
     name = "embedder",
-    imports = ["../.."],
     main = "embedder_main.py",
     visibility = ["//:__subpackages__"],
 )
@@ -188,7 +198,6 @@ py_library(
 
 py_venv_binary(
     name = "mcp",
-    imports = ["../.."],
     main = "mcp_main.py",
     visibility = ["//:__subpackages__"],
 )
