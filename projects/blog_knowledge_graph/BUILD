@@ -1,4 +1,12 @@
+load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/tools/oci:py3_image.bzl", "py3_image")
+
+py_library(
+    name = "blog_knowledge_graph",
+    srcs = ["__init__.py"],
+    visibility = ["//:__subpackages__"],
+    deps = ["//projects"],
+)
 
 py3_image(
     name = "scraper-image",
