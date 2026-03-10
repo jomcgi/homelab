@@ -10,11 +10,11 @@ embedder:
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder
 mcp:
   image:
-    tag: main@sha256:e711fedbe73ce35d7966238e36abe5e89c7652b290bcee6ac0ba683e70b20a7d
+    tag: main@sha256:b287c815cccf1462d59d5523c117a5116b85e4317899ddfdf97d19dab81ddf8a
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp
 seaweedfs:
   endpoint: http://seaweedfs-s3.seaweedfs.svc.cluster.local:8333
 sources:
-  - url: "https://example.com/feed.xml"
-    type: "rss"
-    name: "Example Blog"
+- url: "https://example.com/feed.xml"
+  type: "rss"
+  name: "Example Blog"
