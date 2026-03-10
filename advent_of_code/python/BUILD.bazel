@@ -1,8 +1,0 @@
-load("@aspect_rules_py//py:defs.bzl", "py_library")
-
-py_library(
-    name = "python",
-    srcs = ["__init__.py"],
-    visibility = ["//visibility:public"],
-    deps = ["//advent_of_code/python/aoc"],
-)

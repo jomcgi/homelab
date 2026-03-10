@@ -565,18 +565,18 @@ The Service controller watches Services with `cloudflare.ingress.hostname` annot
           "internal/statemachine/cloudflare_access_policy_status.go",
       ],
       cmd = """
-          $(location //sextant/cmd/sextant) generate $(location statemachines/cloudflaretunnel.sextant.yaml) \
+          $(location //projects/sextant/cmd/sextant) generate $(location statemachines/cloudflaretunnel.sextant.yaml) \
             -o $(@D)/internal/statemachine \
             -p statemachine \
             --module github.com/jomcgi/homelab/operators/cloudflare \
             --api github.com/jomcgi/homelab/operators/cloudflare/api/v1
-          $(location //sextant/cmd/sextant) generate $(location statemachines/cloudflareaccesspolicy.sextant.yaml) \
+          $(location //projects/sextant/cmd/sextant) generate $(location statemachines/cloudflareaccesspolicy.sextant.yaml) \
             -o $(@D)/internal/statemachine \
             -p statemachine \
             --module github.com/jomcgi/homelab/operators/cloudflare \
             --api github.com/jomcgi/homelab/operators/cloudflare/api/v1
       """,
-      tools = ["//sextant/cmd/sextant"],
+      tools = ["//projects/sextant/cmd/sextant"],
   )
   ```
 
