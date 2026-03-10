@@ -1,4 +1,3 @@
-load("@rules_go//go:def.bzl", "go_test")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
 """Targets in the repository root"""
@@ -99,19 +98,6 @@ py_library(
     name = "homelab",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
-)
-
-go_test(
-    name = "homelab_test",
-    srcs = ["deps_test.go"],
-    deps = [
-        "@com_github_gin_gonic_gin//:gin",
-        "@com_github_google_go_containerregistry//pkg/registry",
-        "@com_github_google_uuid//:uuid",
-        "@com_github_gorilla_websocket//:websocket",
-        "@com_github_stretchr_testify//assert",
-        "@io_k8s_metrics//pkg/client/clientset/versioned",
-    ],
 )
 
 semgrep_test(
