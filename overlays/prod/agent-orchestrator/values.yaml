@@ -9,3 +9,9 @@ podAnnotations:
 config:
   natsUrl: "nats://nats.nats.svc.cluster.local:4222"
   sandboxNamespace: "goose-sandboxes"
+httpRoute:
+  enabled: true
+  hostname: agents.jomcgi.dev
+  gatewayRef:
+    name: cloudflare-ingress
+    namespace: envoy-gateway-system

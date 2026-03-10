@@ -61,6 +61,13 @@ config:
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
 
+httpRoute:
+  enabled: false
+  hostname: ""
+  gatewayRef:
+    name: ""
+    namespace: ""
+
 nodeSelector: {}
 tolerations: []
 affinity: {}
