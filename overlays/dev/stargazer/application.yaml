@@ -8,13 +8,13 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: charts/stargazer
+    path: projects/stargazer/deploy
     targetRevision: HEAD
     helm:
       releaseName: stargazer
       valueFiles:
         - values.yaml
-        - ../../overlays/dev/stargazer/values.yaml
+        - ../../../overlays/dev/stargazer/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: stargazer

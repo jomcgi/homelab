@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from services.stargazer.app.api import StargazerAPIHandler
+from projects.stargazer.backend.api import StargazerAPIHandler
 
 
 class MockRequest:
@@ -73,7 +73,7 @@ def create_handler(
 
     # Patch DATA_DIR if provided
     if data_dir is not None:
-        with patch("services.stargazer.app.api.DATA_DIR", data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", data_dir):
             return handler, wfile
 
     return handler, wfile
@@ -118,7 +118,7 @@ class TestLocationsEndpoint:
         test_data = [{"id": "test1", "score": 85}]
         (output_dir / "forecasts_scored.json").write_text(json.dumps(test_data))
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/locations")
             handler.send_locations()
 
@@ -128,7 +128,7 @@ class TestLocationsEndpoint:
 
     def test_locations_returns_empty_when_file_missing(self, temp_data_dir: Path):
         """Test locations returns empty response when file doesn't exist."""
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/locations")
             handler.send_empty_response = MagicMock()
             handler.send_locations()
@@ -152,7 +152,7 @@ class TestBestLocationsEndpoint:
             json.dumps(sample_best_locations)
         )
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 
@@ -192,7 +192,7 @@ class TestBestLocationsEndpoint:
         ]
         (output_dir / "forecasts_scored.json").write_text(json.dumps(scored_list))
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 
@@ -206,7 +206,7 @@ class TestBestLocationsEndpoint:
         output_dir = temp_data_dir / "output"
         output_dir.mkdir(parents=True, exist_ok=True)
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_empty_response()
 
@@ -230,7 +230,7 @@ class TestBestLocationsEndpoint:
             json.dumps(sample_best_locations)
         )
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 
@@ -334,7 +334,7 @@ class TestDataTransformation:
         ]
         (output_dir / "best_locations.json").write_text(json.dumps(test_data))
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 
@@ -362,7 +362,7 @@ class TestDataTransformation:
         ]
         (output_dir / "best_locations.json").write_text(json.dumps(test_data))
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 
@@ -387,7 +387,7 @@ class TestDataTransformation:
         ]
         (output_dir / "best_locations.json").write_text(json.dumps(test_data))
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 
@@ -414,7 +414,7 @@ class TestDataTransformation:
         ]
         (output_dir / "best_locations.json").write_text(json.dumps(test_data))
 
-        with patch("services.stargazer.app.api.DATA_DIR", temp_data_dir):
+        with patch("projects.stargazer.backend.api.DATA_DIR", temp_data_dir):
             handler, wfile = create_handler("/api/best")
             handler.send_best_locations()
 

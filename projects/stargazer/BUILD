@@ -6,7 +6,7 @@ py_library(
     name = "stargazer",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
-    deps = ["//services"],
+    deps = ["//projects"],
 )
 
 # Container image for stargazer with GDAL tools
@@ -16,7 +16,7 @@ py_library(
 py3_image(
     name = "image",
     base = "@gdal_python_base",
-    binary = "//services/stargazer/app:main",
+    binary = "//projects/stargazer/backend:main",
     env = {
         "GDAL_DATA": "/usr/share/gdal",
         "PROJ_DATA": "/usr/share/proj",

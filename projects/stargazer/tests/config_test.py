@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 import pytest
 
-from services.stargazer.app.config import BoundsConfig, EuropeBoundsConfig, Settings
+from projects.stargazer.backend.config import BoundsConfig, EuropeBoundsConfig, Settings
 
 
 class TestBoundsConfig:

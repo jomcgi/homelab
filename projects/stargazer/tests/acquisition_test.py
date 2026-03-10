@@ -7,14 +7,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from services.stargazer.app.acquisition import (
+from projects.stargazer.backend.acquisition import (
     download_colorbar,
     download_dem,
     download_file,
     download_lp_atlas,
     download_osm_roads,
 )
-from services.stargazer.app.config import Settings
+from projects.stargazer.backend.config import Settings
 
 
 def create_mock_stream_response(
@@ -203,7 +203,7 @@ class TestDownloadDem:
     @pytest.mark.asyncio
     async def test_logs_warning(self, settings: Settings):
         """Test that warning is logged for unimplemented feature."""
-        with patch("services.stargazer.app.acquisition.logger") as mock_logger:
+        with patch("projects.stargazer.backend.acquisition.logger") as mock_logger:
             await download_dem(settings)
 
         mock_logger.warning.assert_called_once()

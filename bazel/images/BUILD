@@ -22,6 +22,7 @@ multirun(
         "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
         "//projects/operators/oci-model-cache:image.push",
         "//projects/platform/signoz-addons/dashboard-sidecar/cmd:image.push",
+        "//projects/stargazer:image.push",
         "//projects/todo_app/image:image.push",
         "//projects/todo_app:py_image.push",
         "//services/ais_ingest:image.push",
@@ -31,7 +32,6 @@ multirun(
         "//services/hikes/update_forecast:update_image.push",
         "//services/ships_api:image.push",
         "//services/ships_frontend:image.push",
-        "//services/stargazer:image.push",
         "//services/trips_api:image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism

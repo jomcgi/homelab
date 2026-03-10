@@ -8,7 +8,7 @@ from pathlib import Path
 import osmium
 from PIL import Image
 
-from services.stargazer.app.config import Settings
+from projects.stargazer.backend.config import Settings
 
 logger = logging.getLogger(__name__)
 
