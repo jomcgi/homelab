@@ -14,10 +14,10 @@ go_library(
         "ui.go",
         "watchdog.go",
     ],
-    embedsrcs = ["//services/agent-orchestrator/ui:build_dist"],  # keep
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator",
     visibility = ["//visibility:private"],
     deps = [
+        "//services/agent-orchestrator/ui",
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
         "@com_github_oklog_ulid_v2//:ulid",
