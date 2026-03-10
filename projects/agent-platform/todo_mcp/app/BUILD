@@ -5,7 +5,7 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],
-    imports = ["../../.."],
+    imports = ["../.."],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
@@ -21,7 +21,7 @@ py_library(
         "__init__.py",
         "main.py",
     ],
-    imports = ["../../.."],
+    imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//fastmcp",

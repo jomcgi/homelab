@@ -7,10 +7,10 @@ resources:
   - ./api-gateway/deploy
   - ./cluster-agents/deploy
   - ./context-forge/deploy
-  - ./knowledge-graph/deploy
+  - ./knowledge_graph/deploy
   - ./llama-cpp/deploy
   - ./mcp-oauth-proxy/deploy
   - ./mcp-servers/deploy
   - ./orchestrator/deploy
   - ./sandboxes/deploy
-  - ./todo-mcp/deploy
+  - ./todo_mcp/deploy
