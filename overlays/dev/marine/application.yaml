@@ -13,7 +13,7 @@ spec:
       releaseName: marine
       valueFiles:
         - values.yaml
-        - ../../../../overlays/dev/marine/values.yaml
+        - ../../../overlays/dev/marine/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: marine
