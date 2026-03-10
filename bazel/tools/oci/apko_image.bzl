@@ -219,7 +219,7 @@ def apko_image(
     oci_image_info(
         name = name + ".info",
         repository = _repository,
-        tags = name + "_stamped_ci.tags.txt",
+        image_tags = name + "_stamped_ci.tags.txt",
     )
 
     # Create .run target for local testing
