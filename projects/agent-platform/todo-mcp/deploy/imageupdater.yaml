@@ -1,0 +1,25 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: todo
+  namespace: argocd
+spec:
+  applicationRefs:
+    - images:
+        - alias: todo
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/charts/todo:main
+          manifestTargets:
+            helm:
+              name: image.repository
+              tag: image.tag
+      namePattern: prod-todo
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:values-prod.yaml

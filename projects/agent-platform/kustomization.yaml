@@ -1,0 +1,16 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namePrefix: prod-
+
+resources:
+  - ./api-gateway/deploy
+  - ./cluster-agents/deploy
+  - ./context-forge/deploy
+  - ./knowledge-graph/deploy
+  - ./llama-cpp/deploy
+  - ./mcp-oauth-proxy/deploy
+  - ./mcp-servers/deploy
+  - ./orchestrator/deploy
+  - ./sandboxes/deploy
+  - ./todo-mcp/deploy

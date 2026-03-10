@@ -1,0 +1,77 @@
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: knowledge-graph-scraper
+  namespace: argocd
+spec:
+  applicationRefs:
+    - images:
+        - alias: scraper
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper:main
+          manifestTargets:
+            helm:
+              name: scraper.image.repository
+              tag: scraper.image.tag
+      namePattern: prod-knowledge-graph
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:values-prod.yaml
+---
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: knowledge-graph-embedder
+  namespace: argocd
+spec:
+  applicationRefs:
+    - images:
+        - alias: embedder
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder:main
+          manifestTargets:
+            helm:
+              name: embedder.image.repository
+              tag: embedder.image.tag
+      namePattern: prod-knowledge-graph
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:values-prod.yaml
+---
+apiVersion: argocd-image-updater.argoproj.io/v1alpha1
+kind: ImageUpdater
+metadata:
+  name: knowledge-graph-mcp
+  namespace: argocd
+spec:
+  applicationRefs:
+    - images:
+        - alias: mcp
+          commonUpdateSettings:
+            updateStrategy: digest
+            forceUpdate: false
+          imageName: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp:main
+          manifestTargets:
+            helm:
+              name: mcp.image.repository
+              tag: mcp.image.tag
+      namePattern: prod-knowledge-graph
+  namespace: argocd
+  writeBackConfig:
+    method: git:secret:argocd/argocd-image-updater-token
+    gitConfig:
+      repository: https://github.com/jomcgi/homelab.git
+      branch: main
+      writeBackTarget: helmvalues:values-prod.yaml
