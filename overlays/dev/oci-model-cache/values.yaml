@@ -3,7 +3,7 @@ imagePullSecrets:
 controllerManager:
   image:
     repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
-    tag: main@sha256:79a82bea53c24889718160a14afe461ecaa1e782beab70849c913bccd264ba18
+    tag: main@sha256:26cf15cad751523b4a3d525eb175bbe9df88eba2f9518c7613be7958044a667c
     pullPolicy: Always
   tracing:
     serviceName: "oci-model-cache-operator"
