@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 # Fast format script - runs all formatters in parallel using standalone binaries
 # Used by both pre-commit and CI for identical formatting
+#
+# Usage:
+#   fast-format.sh          # Format entire repo (CI mode)
+#   fast-format.sh --staged # Format only staged files (pre-commit mode)
 set -euo pipefail
 
 cd "${BUILD_WORKSPACE_DIRECTORY:-$(git rev-parse --show-toplevel)}"
@@ -18,6 +22,12 @@ NC='\033[0m'
 log() { echo -e "${GREEN}▶${NC} $1"; }
 err() { echo -e "${RED}✗${NC} $1" >&2; }
 
+# Parse flags
+STAGED=false
+if [[ "${1:-}" == "--staged" ]]; then
+	STAGED=true
+fi
+
 # Verify required tools exist
 # buildifier and gazelle are CI-only (run via Bazel)
 MISSING=()
@@ -33,7 +43,90 @@ if [ ${#MISSING[@]} -gt 0 ]; then
 	exit 1
 fi
 
-# Run formatters and script generators in parallel
+# In --staged mode, collect staged files by extension and only format those
+if $STAGED; then
+	mapfile -t STAGED_FILES < <(git diff --cached --name-only --diff-filter=ACMR)
+	if [ ${#STAGED_FILES[@]} -eq 0 ]; then
+		log "No staged files to format"
+		exit 0
+	fi
+
+	# Partition staged files by type
+	PY_FILES=()
+	SH_FILES=()
+	GO_FILES=()
+	STARLARK_FILES=()
+	PRETTIER_FILES=()
+	BUILD_FILES=()
+	for f in "${STAGED_FILES[@]}"; do
+		case "$f" in
+		*.py) PY_FILES+=("$f") ;;
+		*.sh) SH_FILES+=("$f") ;;
+		*.go) GO_FILES+=("$f") ;;
+		BUILD | BUILD.bazel | *.bzl | WORKSPACE | WORKSPACE.bazel)
+			STARLARK_FILES+=("$f")
+			BUILD_FILES+=("$f")
+			;;
+		*/BUILD | */BUILD.bazel)
+			STARLARK_FILES+=("$f")
+			BUILD_FILES+=("$f")
+			;;
+		*.js | *.jsx | *.ts | *.tsx | *.json | *.yaml | *.yml | *.md | *.css | *.html)
+			PRETTIER_FILES+=("$f")
+			;;
+		esac
+	done
+
+	log "Formatting ${#STAGED_FILES[@]} staged files..."
+	PIDS=()
+
+	if [ ${#PY_FILES[@]} -gt 0 ]; then
+		ruff format "${PY_FILES[@]}" 2>/dev/null &
+		PIDS+=($!)
+	fi
+	if [ ${#SH_FILES[@]} -gt 0 ]; then
+		(shfmt -w "${SH_FILES[@]}" 2>/dev/null || true) &
+		PIDS+=($!)
+	fi
+	if [ ${#STARLARK_FILES[@]} -gt 0 ] && command -v buildifier &>/dev/null; then
+		(buildifier "${STARLARK_FILES[@]}" 2>/dev/null || true) &
+		PIDS+=($!)
+	fi
+	if [ ${#GO_FILES[@]} -gt 0 ]; then
+		(gofumpt -w "${GO_FILES[@]}" 2>/dev/null || true) &
+		PIDS+=($!)
+	fi
+	if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
+		(prettier --write "${PRETTIER_FILES[@]}" 2>/dev/null || true) &
+		PIDS+=($!)
+	fi
+
+	# Script generators only if BUILD files changed
+	if [ ${#BUILD_FILES[@]} -gt 0 ]; then
+		./scripts/generate-push-all.sh 2>/dev/null &
+		PIDS+=($!)
+		./scripts/generate-push-all-pages.sh 2>/dev/null &
+		PIDS+=($!)
+	fi
+
+	for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
+
+	# Gazelle only if Go or Python files changed
+	if [ "${SKIP_GAZELLE:-0}" != "1" ]; then
+		if [ ${#GO_FILES[@]} -gt 0 ] || [ ${#PY_FILES[@]} -gt 0 ] || [ ${#BUILD_FILES[@]} -gt 0 ]; then
+			log "Running gazelle..."
+			gazelle 2>/dev/null || true
+		fi
+	fi
+
+	# Re-stage any files that were modified by formatting
+	git add "${STAGED_FILES[@]}" 2>/dev/null || true
+
+	log "Done!"
+	exit 0
+fi
+
+# Full repo mode (CI and manual runs)
 log "Formatting..."
 PIDS=()
 
