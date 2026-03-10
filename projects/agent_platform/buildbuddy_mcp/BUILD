@@ -6,7 +6,6 @@ py_library(
     name = "buildbuddy_mcp",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
-    deps = ["//projects/agent_platform"],
 )
 
 py3_image(

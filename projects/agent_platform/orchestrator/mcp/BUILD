@@ -6,7 +6,6 @@ py_library(
     name = "agent_orchestrator_mcp",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
-    deps = ["//projects/agent_platform/orchestrator:orchestrator_py"],
 )
 
 py3_image(
