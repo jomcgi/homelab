@@ -220,6 +220,7 @@ def apko_image(
         name = name + ".info",
         repository = _repository,
         image_tags = name + "_stamped_ci.tags.txt",
+        visibility = ["//visibility:public"],
     )
 
     # Create .run target for local testing
