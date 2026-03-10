@@ -5,19 +5,17 @@ metadata:
   namespace: argocd
   labels:
     app.kubernetes.io/part-of: yukon-tracker
-  annotations:
-    argocd.argoproj.io/sync-wave: "2"
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: projects/trips/deploy
+    path: projects/trips/chart
     targetRevision: HEAD
     helm:
       releaseName: trips
       valueFiles:
         - values.yaml
-        - ../../../overlays/prod/trips/values.yaml
+        - ../deploy/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: trips
