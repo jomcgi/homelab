@@ -336,7 +336,7 @@ async def run(
     return await _post("/Run", body)
 
 
-import buildbuddy_mcp.app.composite as _composite  # noqa: F401, E402
+import projects.agent_platform.buildbuddy_mcp.app.composite as _composite  # noqa: F401, E402
 
 
 def main():

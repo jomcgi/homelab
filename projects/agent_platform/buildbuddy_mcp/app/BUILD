@@ -2,9 +2,9 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 
-# gazelle:resolve py buildbuddy_mcp.app.composite //projects/agent_platform/buildbuddy_mcp/app:app
-# gazelle:resolve py buildbuddy_mcp.app //projects/agent_platform/buildbuddy_mcp/app:app
-# gazelle:resolve py buildbuddy_mcp //projects/agent_platform/buildbuddy_mcp:buildbuddy_mcp
+# gazelle:resolve py projects.agent_platform.buildbuddy_mcp.app.composite //projects/agent_platform/buildbuddy_mcp/app:app
+# gazelle:resolve py projects.agent_platform.buildbuddy_mcp.app //projects/agent_platform/buildbuddy_mcp/app:app
+# gazelle:resolve py projects.agent_platform.buildbuddy_mcp //projects/agent_platform/buildbuddy_mcp:buildbuddy_mcp
 
 py_venv_binary(
     name = "main",
@@ -26,7 +26,6 @@ py_library(
         "composite.py",
         "main.py",
     ],
-    imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/agent_platform/buildbuddy_mcp",

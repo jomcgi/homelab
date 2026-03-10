@@ -2,20 +2,18 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py buildbuddy_mcp.app.main //projects/agent_platform/buildbuddy_mcp/app:app
-# gazelle:resolve py buildbuddy_mcp.app.composite //projects/agent_platform/buildbuddy_mcp/app:app
+# gazelle:resolve py projects.agent_platform.buildbuddy_mcp.app.main //projects/agent_platform/buildbuddy_mcp/app:app
+# gazelle:resolve py projects.agent_platform.buildbuddy_mcp.app.composite //projects/agent_platform/buildbuddy_mcp/app:app
 
 py_library(
     name = "tests",
     srcs = ["__init__.py"],
-    imports = ["../.."],
     visibility = ["//:__subpackages__"],
 )
 
 py_test(
     name = "main_test",
     srcs = ["main_test.py"],
-    imports = ["../.."],
     deps = [
         ":conftest",
         "//projects/agent_platform/buildbuddy_mcp/app",
@@ -27,7 +25,6 @@ py_library(
     name = "conftest",
     testonly = True,
     srcs = ["conftest.py"],
-    imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = ["@pip//pytest_asyncio"],
 )
@@ -35,7 +32,6 @@ py_library(
 py_test(
     name = "composite_test",
     srcs = ["composite_test.py"],
-    imports = ["../.."],
     deps = [
         ":conftest",
         "//projects/agent_platform/buildbuddy_mcp/app",
@@ -46,7 +42,6 @@ py_test(
 py_test(
     name = "proto_conformance_test",
     srcs = ["proto_conformance_test.py"],
-    imports = ["../.."],
     local = True,
     tags = ["external"],
     deps = [

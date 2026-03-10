@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from buildbuddy_mcp.app.main import Settings, configure
+from projects.agent_platform.buildbuddy_mcp.app.main import Settings, configure
 
 
 @pytest.fixture(autouse=True)
@@ -19,7 +19,7 @@ class TestDiagnoseFailure:
     async def test_returns_failed_targets_with_logs(self):
         import base64
 
-        from buildbuddy_mcp.app.composite import (
+        from projects.agent_platform.buildbuddy_mcp.app.composite import (
             diagnose_failure,
         )
 
@@ -74,7 +74,7 @@ class TestDiagnoseFailure:
             return {}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             side_effect=mock_post,
         ):
             result = await diagnose_failure(invocation_id="wf-1")
@@ -87,7 +87,7 @@ class TestDiagnoseFailure:
 
     @pytest.mark.asyncio
     async def test_returns_success_when_no_failures(self):
-        from buildbuddy_mcp.app.composite import (
+        from projects.agent_platform.buildbuddy_mcp.app.composite import (
             diagnose_failure,
         )
 
@@ -116,7 +116,7 @@ class TestDiagnoseFailure:
             return {}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             side_effect=mock_post,
         ):
             result = await diagnose_failure(invocation_id="wf-1")
