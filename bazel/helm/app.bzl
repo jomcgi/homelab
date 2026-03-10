@@ -86,12 +86,20 @@ def argocd_app(
         chart_label = "//" + chart
         srcs_list = ["application.yaml", chart_files, chart_label + ":Chart.yaml", chart_label + ":values.yaml"] + values_files
 
-        # Deduplicate while preserving order (values_files often includes chart values.yaml)
+        # Deduplicate while preserving order, normalizing labels to absolute
+        # form so that "values.yaml" and "//pkg:values.yaml" are recognized as
+        # the same file when chart and overlay are colocated.
+        pkg = native.package_name()
         seen = {}
         srcs = []
         for s in srcs_list:
-            if s not in seen:
-                seen[s] = True
+            key = s
+            if not s.startswith("//") and not s.startswith("@") and not s.startswith(":"):
+                key = "//" + pkg + ":" + s
+            elif s.startswith(":"):
+                key = "//" + pkg + s
+            if key not in seen:
+                seen[key] = True
                 srcs.append(s)
 
         native.genrule(
@@ -123,14 +131,29 @@ def argocd_app(
 
     if generate_diff:
         # Live ArgoCD diff (opt-in)
+        # Deduplicate data entries (same colocated label issue as render_manifests)
+        diff_data_list = [
+            "application.yaml",
+            "//" + chart + ":Chart.yaml",
+            "//" + chart + ":values.yaml",
+            "@multitool//tools/argocd",
+            "@multitool//tools/op",
+        ] + values_files
+        diff_pkg = native.package_name()
+        diff_seen = {}
+        diff_data = []
+        for d in diff_data_list:
+            key = d
+            if not d.startswith("//") and not d.startswith("@") and not d.startswith(":"):
+                key = "//" + diff_pkg + ":" + d
+            elif d.startswith(":"):
+                key = "//" + diff_pkg + d
+            if key not in diff_seen:
+                diff_seen[key] = True
+                diff_data.append(d)
+
         native.sh_binary(
             name = "diff",
             srcs = ["//bazel/helm:argocd-live-diff.sh"],
-            data = [
-                "application.yaml",
-                "//" + chart + ":Chart.yaml",
-                "//" + chart + ":values.yaml",
-                "@multitool//tools/argocd",
-                "@multitool//tools/op",
-            ] + values_files,
+            data = diff_data,
         )
