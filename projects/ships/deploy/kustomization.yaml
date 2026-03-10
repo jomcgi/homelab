@@ -3,4 +3,4 @@ kind: Kustomization
 
 resources:
   - application.yaml
-  - ./marine-httpcheck-alert.yaml
+  - marine-httpcheck-alert.yaml

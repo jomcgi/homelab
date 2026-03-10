@@ -7,13 +7,13 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: projects/ships/deploy
+    path: projects/ships/chart
     targetRevision: HEAD
     helm:
       releaseName: marine
       valueFiles:
         - values.yaml
-        - ../../../overlays/dev/marine/values.yaml
+        - ../deploy/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: marine
