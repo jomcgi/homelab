@@ -70,7 +70,7 @@ bazel_env(
         "ruff": MULTITOOL_TOOLS["ruff"],
         "shfmt": MULTITOOL_TOOLS["shfmt"],
         # Advent of Code CLI
-        "advent": "//advent_of_code/cmd/aoc",
+        "advent": "//projects/advent_of_code/cmd/aoc",
         # HuggingFace model tools
         "hf_lock": ":hf_lock",
         # Agent tools
