@@ -27,10 +27,10 @@ js_library(
         "vite.config.js",
     ],
     deps = [
+        ":node_modules/@vitejs/plugin-react",
         ":node_modules/react",
         ":node_modules/react-dom",
         ":node_modules/vite",
-        ":node_modules/@vitejs/plugin-react",
     ],
 )
 
@@ -41,12 +41,12 @@ js_library(
 js_run_binary(
     name = "build",
     srcs = [":src"],
+    outs = [
+        "dist/assets/index.js",
+        "dist/index.html",
+    ],
     args = ["build"],
     chdir = "services/agent-orchestrator/ui",
-    outs = [
-        "dist/index.html",
-        "dist/assets/index.js",
-    ],
     tool = ":vite",
 )
 
