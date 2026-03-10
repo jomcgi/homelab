@@ -34,11 +34,19 @@ secrets:
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"
 
+# ── Context Forge and OAuth Proxy — disabled at work cluster by default ────
+contextForge:
+  enabled: false
+mcpOAuthProxy:
+  enabled: false
+
 # ── MCP servers — kubernetes-mcp and argocd-mcp are universal ─────────────
+# servers uses a LIST (not a map) so Image Updater write-back can target
+# entries by index: agent-platform-mcp-servers.servers[N].image.tag
 agent-platform-mcp-servers:
   enabled: true
   servers:
-    kubernetes-mcp:
+    - name: kubernetes-mcp
       image:
         repository: ghcr.io/containers/kubernetes-mcp-server
         tag: "latest"
@@ -73,7 +81,7 @@ agent-platform-mcp-servers:
             resources: ["pods", "nodes"]
             verbs: ["get", "list"]
 
-    argocd-mcp:
+    - name: argocd-mcp
       image:
         repository: ghcr.io/argoproj-labs/mcp-for-argocd
         tag: "v0.5.0"

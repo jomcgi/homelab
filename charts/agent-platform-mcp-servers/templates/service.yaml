@@ -1,18 +1,18 @@
-{{- range $name, $server := .Values.servers }}
+{{- range .Values.servers }}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ $name }}
+  name: {{ .name }}
   labels:
-    {{- include "agent-platform-mcp-servers.labels" (dict "name" $name "Chart" $.Chart "Release" $.Release) | nindent 4 }}
+    {{- include "agent-platform-mcp-servers.labels" (dict "name" .name "Chart" $.Chart "Release" $.Release) | nindent 4 }}
 spec:
   type: ClusterIP
   ports:
-    - port: {{ required (printf "servers.%s.port is required" $name) $server.port }}
+    - port: {{ include "agent-platform-mcp-servers.port" . }}
       targetPort: mcp
       protocol: TCP
       name: mcp
   selector:
-    {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" $name "Release" $.Release) | nindent 4 }}
+    {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" .name "Release" $.Release) | nindent 4 }}
 {{- end }}

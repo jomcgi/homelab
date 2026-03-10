@@ -1,73 +1,84 @@
-{{- range $name, $server := .Values.servers }}
+{{- range .Values.servers }}
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ $name }}
+  name: {{ .name }}
   labels:
-    {{- include "agent-platform-mcp-servers.labels" (dict "name" $name "Chart" $.Chart "Release" $.Release) | nindent 4 }}
+    {{- include "agent-platform-mcp-servers.labels" (dict "name" .name "Chart" $.Chart "Release" $.Release) | nindent 4 }}
 spec:
   replicas: 1
   selector:
     matchLabels:
-      {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" $name "Release" $.Release) | nindent 6 }}
+      {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" .name "Release" $.Release) | nindent 6 }}
   template:
     metadata:
-      {{- if $server.podAnnotations }}
+      {{- if .podAnnotations }}
       annotations:
-        {{- toYaml $server.podAnnotations | nindent 8 }}
+        {{- toYaml .podAnnotations | nindent 8 }}
       {{- else }}
       annotations: {}
       {{- end }}
       labels:
-        {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" $name "Release" $.Release) | nindent 8 }}
+        {{- include "agent-platform-mcp-servers.selectorLabels" (dict "name" .name "Release" $.Release) | nindent 8 }}
     spec:
-      serviceAccountName: {{ $name }}
+      serviceAccountName: {{ .name }}
       securityContext:
+        {{- if not .writableTmp }}
         runAsNonRoot: true
         runAsUser: 65532
+        {{- end }}
         seccompProfile:
           type: RuntimeDefault
       containers:
-        - name: server
-          image: "{{ required (printf "servers.%s.image.repository is required" $name) $server.image.repository }}:{{ required (printf "servers.%s.image.tag is required" $name) $server.image.tag }}"
-          imagePullPolicy: {{ $server.image.pullPolicy | default "IfNotPresent" }}
-          {{- with $server.args }}
+        {{- if and .translate .translate.enabled }}
+        {{- /*
+          Translate mode: runs mcpgateway.translate which spawns the MCP server
+          as a subprocess via --stdio <command>, then exposes streamable-HTTP on
+          the translate port. All env vars / secrets are inherited by the subprocess.
+        */ -}}
+        - name: translate
+          image: "{{ $.Values.translate.image.repository }}:{{ $.Values.translate.image.tag }}"
+          imagePullPolicy: {{ $.Values.translate.image.pullPolicy }}
+          command: ["python3", "-m", "mcpgateway.translate"]
           args:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
+            - "--stdio"
+            - {{ required (printf "translate.command is required when translate is enabled (server: %s)" .name) .translate.command | quote }}
+            - "--expose-streamable-http"
+            - "--port"
+            - {{ .translate.port | default 8080 | quote }}
           ports:
             - name: mcp
-              containerPort: {{ required (printf "servers.%s.port is required" $name) $server.port }}
+              containerPort: {{ .translate.port | default 8080 }}
               protocol: TCP
-          {{- if or $server.writableTmp $server.env }}
           env:
-            {{- if $server.writableTmp }}
+            {{- if .writableTmp }}
             - name: HOME
               value: /tmp
+            - name: UV_CACHE_DIR
+              value: /tmp/.uv-cache
             {{- end }}
-            {{- with $server.env }}
+            {{- with .env }}
             {{- toYaml . | nindent 12 }}
             {{- end }}
-          {{- end }}
-          {{- if $server.secret }}
+          {{- if .secret }}
           envFrom:
             - secretRef:
-                name: {{ required (printf "servers.%s.secret.name is required" $name) $server.secret.name }}
+                name: {{ .secret.name }}
           {{- end }}
           securityContext:
             allowPrivilegeEscalation: false
-            readOnlyRootFilesystem: true
+            readOnlyRootFilesystem: {{ not .writableTmp }}
             capabilities:
               drop: ["ALL"]
-          {{- if $server.writableTmp }}
+          {{- if .writableTmp }}
           volumeMounts:
             - name: tmp
               mountPath: /tmp
           {{- end }}
-          {{- if $server.resources }}
+          {{- with (.translate.resources | default (dict "requests" (dict "cpu" "10m" "memory" "64Mi") "limits" (dict "cpu" "100m" "memory" "128Mi"))) }}
           resources:
-            {{- toYaml $server.resources | nindent 12 }}
+            {{- toYaml . | nindent 12 }}
           {{- end }}
           livenessProbe:
             tcpSocket:
@@ -79,7 +90,59 @@ spec:
               port: mcp
             initialDelaySeconds: 5
             periodSeconds: 10
-      {{- if $server.writableTmp }}
+        {{- else }}
+        - name: server
+          image: "{{ required (printf "image.repository is required (server: %s)" .name) .image.repository }}:{{ required (printf "image.tag is required (server: %s)" .name) .image.tag }}"
+          imagePullPolicy: {{ .image.pullPolicy | default "IfNotPresent" }}
+          {{- with .args }}
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          ports:
+            - name: mcp
+              containerPort: {{ required (printf "port is required when translate is disabled (server: %s)" .name) .port }}
+              protocol: TCP
+          env:
+            {{- if .writableTmp }}
+            - name: HOME
+              value: /tmp
+            - name: UV_CACHE_DIR
+              value: /tmp/.uv-cache
+            {{- end }}
+            {{- with .env }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          {{- if .secret }}
+          envFrom:
+            - secretRef:
+                name: {{ .secret.name }}
+          {{- end }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: {{ not .writableTmp }}
+            capabilities:
+              drop: ["ALL"]
+          {{- if .writableTmp }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+          {{- end }}
+          {{- if .resources }}
+          resources:
+            {{- toYaml .resources | nindent 12 }}
+          {{- end }}
+          livenessProbe:
+            tcpSocket:
+              port: mcp
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            tcpSocket:
+              port: mcp
+            initialDelaySeconds: 5
+            periodSeconds: 10
+        {{- end }}
+      {{- if .writableTmp }}
       volumes:
         - name: tmp
           emptyDir: {}

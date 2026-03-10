@@ -96,13 +96,47 @@
       },
       "additionalProperties": true
     },
+    "contextForge": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Deploy the Context Forge MCP gateway as part of this release"
+        }
+      },
+      "additionalProperties": true
+    },
+    "mcpOAuthProxy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Deploy the MCP OAuth Proxy (Google OIDC, ADR 006) as part of this release"
+        }
+      },
+      "additionalProperties": true
+    },
     "nats": { "type": "object", "additionalProperties": true },
     "agent-orchestrator": { "type": "object", "additionalProperties": true },
-    "goose-sandboxes": { "type": "object", "additionalProperties": true },
-    "agent-platform-mcp-servers": {
+    "agent-sandbox": {
       "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "installCRDs": {
+          "type": "boolean",
+          "description": "Install agent-sandbox CRDs. Set false for parallel installs where CRDs already exist."
+        },
+        "deployController": {
+          "type": "boolean",
+          "description": "Deploy the agent-sandbox controller StatefulSet. Set false when another release already runs it."
+        }
+      },
       "additionalProperties": true
-    }
+    },
+    "goose-sandboxes": { "type": "object", "additionalProperties": true },
+    "agent-platform-mcp-servers": { "type": "object", "additionalProperties": true },
+    "context-forge": { "type": "object", "additionalProperties": true },
+    "mcp-oauth-proxy": { "type": "object", "additionalProperties": true }
   },
   "additionalProperties": true
 }

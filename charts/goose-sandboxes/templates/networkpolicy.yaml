@@ -13,7 +13,7 @@ spec:
     - from:
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: agent-orchestrator
+              kubernetes.io/metadata.name: {{ .Values.orchestratorNamespace | default .Release.Namespace }}
       ports:
         - protocol: TCP
           port: 8081

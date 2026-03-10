@@ -2,18 +2,65 @@ agent-platform {{ .Chart.Version }} deployed successfully.
 
 ## CRDs
 
-The following CRDs from extensions.agents.x-k8s.io are bundled in the agent-sandbox subchart
-(charts/agent-sandbox/crds/) and are installed automatically by Helm before templates are rendered:
+The following CRDs are installed by the agent-sandbox subchart (controlled by
+agent-sandbox.installCRDs, default: true):
 
   - sandboxes.agents.x-k8s.io
   - sandboxclaims.extensions.agents.x-k8s.io
   - sandboxtemplates.extensions.agents.x-k8s.io
   - sandboxwarmpools.extensions.agents.x-k8s.io
 
-No separate CRD install step is required.
-
+{{ if (index .Values "agent-sandbox" "installCRDs") -}}
+CRD installation is ENABLED for this release.
+{{ else -}}
+CRD installation is DISABLED (agent-sandbox.installCRDs: false).
+Ensure these CRDs are already present in the cluster (e.g. installed by
+the cluster-critical release) before sandboxes can be created.
+{{ end }}
 ## agent-sandbox controller
 
-The agent-sandbox controller is deployed as part of this release (agent-sandbox subchart).
-It runs in the release namespace and reconciles Sandbox, SandboxClaim, SandboxTemplate,
-and SandboxWarmPool objects.
+{{ if (index .Values "agent-sandbox" "deployController") -}}
+The agent-sandbox controller is deployed by this release. It reconciles
+Sandbox, SandboxClaim, SandboxTemplate, and SandboxWarmPool objects in the
+release namespace: {{ .Release.Namespace }}
+{{ else -}}
+The agent-sandbox controller is NOT deployed by this release
+(agent-sandbox.deployController: false). An existing controller is expected
+to be running in the cluster (e.g. from the cluster-critical release).
+{{ end }}
+## Parallel deployment alongside cluster-critical
+
+To deploy agent-platform alongside an existing cluster-critical release that
+already owns the agent-sandbox CRDs and controller, set in your values file:
+
+  agent-sandbox:
+    installCRDs: false
+    deployController: false
+
+If using helm install (not ArgoCD), also pass --skip-crds:
+
+  helm install agent-platform-dev charts/agent-platform/ \
+    -f overlays/dev/agent-platform/values.yaml \
+    --skip-crds
+
+With ArgoCD, setting the flags above is sufficient — ArgoCD applies resource
+ordering automatically and respects the conditional templates.
+
+## Context Forge & MCP OAuth Proxy
+
+{{ if .Values.contextForge.enabled -}}
+Context Forge (MCP gateway) is ENABLED in this release.
+{{ else -}}
+Context Forge is DISABLED. Enable with:
+  contextForge:
+    enabled: true
+{{ end -}}
+{{ if .Values.mcpOAuthProxy.enabled -}}
+MCP OAuth Proxy is ENABLED in this release (Google OIDC auth, ADR 006).
+{{ else -}}
+MCP OAuth Proxy is DISABLED. Enable with:
+  mcpOAuthProxy:
+    enabled: true
+Requires a Context Forge instance (contextForge.enabled: true or external URL
+configured in mcp-oauth-proxy.config.MCP_SERVER_URL).
+{{ end -}}
