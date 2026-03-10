@@ -2,7 +2,7 @@ imagePullSecret:
   enabled: true
 scraper:
   image:
-    tag: main@sha256:ce9d18b355bccd73bd212caeedd5cec8b20e252ca7122c9b1b0b756c8d65c17a
+    tag: main@sha256:203a91b1475d43ed152fc349168b5de67dff492ed6e74354b592f42e42c11854
     repository: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper
 embedder:
   image:
