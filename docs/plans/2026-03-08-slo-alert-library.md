@@ -498,7 +498,7 @@ Expected: shows the `chart` filegroup and `lint_test` targets.
 
 **Files:**
 
-- Modify: `architecture/observability-alerting.md`
+- Modify: `docs/observability-alerting.md`
 
 **Step 1: Add SLO Alerts section**
 
@@ -539,7 +539,7 @@ To add SLO alerts to a chart:
 **Step 2: Commit**
 
 ```bash
-git add architecture/observability-alerting.md
+git add docs/observability-alerting.md
 git commit -m "docs: add SLO-based alerts section to observability-alerting guide"
 ````
 

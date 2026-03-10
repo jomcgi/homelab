@@ -10,8 +10,8 @@ export default defineConfig({
 
   themeConfig: {
     nav: [
-      { text: "Architecture", link: "/architecture/services" },
-      { text: "ADRs", link: "/architecture/decisions/" },
+      { text: "Architecture", link: "/docs/services" },
+      { text: "ADRs", link: "/docs/decisions/" },
       { text: "GitHub", link: "https://github.com/jomcgi/homelab" },
     ],
 
@@ -19,46 +19,46 @@ export default defineConfig({
       {
         text: "Architecture",
         items: [
-          { text: "Services", link: "/architecture/services" },
-          { text: "Security", link: "/architecture/security" },
-          { text: "Observability", link: "/architecture/observability" },
-          { text: "Alerting", link: "/architecture/observability-alerting" },
-          { text: "Contributing", link: "/architecture/contributing" },
-          { text: "Agent Platform", link: "/architecture/agents" },
+          { text: "Services", link: "/docs/services" },
+          { text: "Security", link: "/docs/security" },
+          { text: "Observability", link: "/docs/observability" },
+          { text: "Alerting", link: "/docs/observability-alerting" },
+          { text: "Contributing", link: "/docs/contributing" },
+          { text: "Agent Platform", link: "/docs/agents" },
         ],
       },
       {
         text: "ADRs",
         collapsed: false,
         items: [
-          { text: "Overview", link: "/architecture/decisions/" },
+          { text: "Overview", link: "/docs/decisions/" },
           {
             text: "Agents",
             collapsed: true,
             items: [
               {
                 text: "001 - Background Agents",
-                link: "/architecture/decisions/agents/001-background-agents",
+                link: "/docs/decisions/agents/001-background-agents",
               },
               {
                 text: "002 - OpenHands Sandbox",
-                link: "/architecture/decisions/agents/002-openhands-agent-sandbox",
+                link: "/docs/decisions/agents/002-openhands-agent-sandbox",
               },
               {
                 text: "003 - Context Forge",
-                link: "/architecture/decisions/agents/003-context-forge",
+                link: "/docs/decisions/agents/003-context-forge",
               },
               {
                 text: "004 - Autonomous Agents",
-                link: "/architecture/decisions/agents/004-autonomous-agents",
+                link: "/docs/decisions/agents/004-autonomous-agents",
               },
               {
                 text: "005 - Role-Based MCP Access",
-                link: "/architecture/decisions/agents/005-role-based-mcp-access",
+                link: "/docs/decisions/agents/005-role-based-mcp-access",
               },
               {
                 text: "006 - OIDC Auth MCP Gateway",
-                link: "/architecture/decisions/agents/006-oidc-auth-mcp-gateway",
+                link: "/docs/decisions/agents/006-oidc-auth-mcp-gateway",
               },
             ],
           },
@@ -68,7 +68,7 @@ export default defineConfig({
             items: [
               {
                 text: "001 - Static Docs Site",
-                link: "/architecture/decisions/docs/001-static-docs-site",
+                link: "/docs/decisions/docs/001-static-docs-site",
               },
             ],
           },
@@ -78,7 +78,7 @@ export default defineConfig({
             items: [
               {
                 text: "001 - Cloudflare Envoy Gateway",
-                link: "/architecture/decisions/networking/001-cloudflare-envoy-gateway",
+                link: "/docs/decisions/networking/001-cloudflare-envoy-gateway",
               },
             ],
           },
@@ -88,7 +88,7 @@ export default defineConfig({
             items: [
               {
                 text: "001 - Bazel Semgrep",
-                link: "/architecture/decisions/security/001-bazel-semgrep",
+                link: "/docs/decisions/security/001-bazel-semgrep",
               },
             ],
           },

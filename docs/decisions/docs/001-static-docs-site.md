@@ -136,8 +136,8 @@ vitepress_filegroup(
     vitepress_path = "architecture",
     visibility = ["//websites/docs.jomcgi.dev:__pkg__"],
 )
-# architecture/security.md              → architecture/security.md
-# architecture/decisions/docs/001-*.md  → architecture/decisions/docs/001-*.md
+# docs/security.md              → docs/security.md
+# docs/decisions/docs/001-*.md  → docs/decisions/docs/001-*.md
 ```
 
 ```python
@@ -246,7 +246,7 @@ in the assembled tree through a three-step pipeline:
 
 **Resolve**: Uses the file's `repo_path` (from `VitePressContentInfo`) to resolve
 relative links. A link `../services/ships_api/README.md` in a file at repo path
-`architecture/services.md` resolves to `services/ships_api/README.md`.
+`docs/services.md` resolves to `services/ships_api/README.md`.
 
 **Remap**: Looks up the resolved repo path in the path map. If
 `services/ships_api` maps to `services/ships-api`, the link becomes
@@ -259,7 +259,7 @@ the link is stripped — the display text is preserved but the link markup is re
 Example transformations:
 
 ```markdown
-# In architecture/services.md (repo source)
+# In docs/services.md (repo source)
 
 See the [Ships API](../services/ships_api/README.md) for details.
 
@@ -276,7 +276,7 @@ Stripped links produce build warnings (not errors) so the build does not block
 on references to unpublished content:
 
 ```
-WARNING: architecture/services.md:42 — link to .claude/AGENTS.md stripped (not in docs site)
+WARNING: docs/services.md:42 — link to .claude/AGENTS.md stripped (not in docs site)
 ```
 
 ### Deployment
@@ -321,7 +321,7 @@ Same pattern as all other websites in this repo:
 ### Phase 3: Polish
 
 - [ ] Custom theme / branding alignment with jomcgi.dev
-- [ ] ADR index page (auto-generated from `architecture/decisions/`)
+- [ ] ADR index page (auto-generated from `docs/decisions/`)
 - [ ] Add to CLAUDE.md as documentation reference
 - [ ] Gazelle extension for auto-discovering `vitepress_filegroup` targets
       (replaces manual `content` list in `vitepress_site`)

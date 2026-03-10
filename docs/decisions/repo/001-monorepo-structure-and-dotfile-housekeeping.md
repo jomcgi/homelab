@@ -134,4 +134,4 @@ Most of `scripts/` (`publish-trip-images`, `backfill-elevation`, `detect-wildlif
 | Resource                                                         | Relevance                          |
 | ---------------------------------------------------------------- | ---------------------------------- |
 | [Bazel bzlmod migration](https://bazel.build/external/migration) | Context for rules directory layout |
-| `architecture/contributing.md`                                   | Will need path updates in Phase 2  |
+| `docs/contributing.md`                                           | Will need path updates in Phase 2  |

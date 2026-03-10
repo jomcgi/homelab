@@ -4,7 +4,7 @@
 
 **Goal:** Create two concise, diagram-rich documents: an ADR explaining why rules_semgrep exists, and a README documenting the API.
 
-**Architecture:** Documentation-only — two markdown files with mermaid diagrams. ADR follows the convention in `architecture/decisions/` (see `004-autonomous-agents.md`). README lives in `rules_semgrep/`.
+**Architecture:** Documentation-only — two markdown files with mermaid diagrams. ADR follows the convention in `docs/decisions/` (see `004-autonomous-agents.md`). README lives in `rules_semgrep/`.
 
 **Tech Stack:** Markdown, Mermaid diagrams, Conventional Commits
 
@@ -12,16 +12,16 @@
 
 ---
 
-### Task 1: Create ADR — `architecture/decisions/security/001-bazel-semgrep.md`
+### Task 1: Create ADR — `docs/decisions/security/001-bazel-semgrep.md`
 
 **Files:**
 
-- Create: `architecture/decisions/security/001-bazel-semgrep.md`
+- Create: `docs/decisions/security/001-bazel-semgrep.md`
 
 **Step 1: Create the security decisions directory**
 
 ```bash
-mkdir -p architecture/decisions/security
+mkdir -p docs/decisions/security
 ```
 
 **Step 2: Write the ADR**
@@ -107,7 +107,7 @@ graph TD
 **Step 3: Commit**
 
 ```bash
-git add architecture/decisions/security/001-bazel-semgrep.md
+git add docs/decisions/security/001-bazel-semgrep.md
 git commit -m "docs(semgrep): add ADR for hermetic Bazel Semgrep integration"
 ```
 
@@ -281,7 +281,7 @@ gh pr create \
   --body "$(cat <<'EOF'
 ## Summary
 
-- Add `architecture/decisions/security/001-bazel-semgrep.md` — ADR explaining the motivation (CI speed + determinism for agentic workflows) and key design decisions
+- Add `docs/decisions/security/001-bazel-semgrep.md` — ADR explaining the motivation (CI speed + determinism for agentic workflows) and key design decisions
 - Add `rules_semgrep/README.md` — API reference with usage examples, Gazelle directives, rule file inventory, and graceful degradation flow
 - Both include mermaid diagrams showing the architecture pipeline and scan flow
 

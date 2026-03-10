@@ -17,7 +17,7 @@ homelab/
 ├── services/            # Application source code (Go, Python)
 ├── websites/            # Frontend apps (Vite + React, Astro) — JS, not TypeScript
 ├── bazel/               # All Bazel build infrastructure (rules, tools, images, semgrep)
-├── architecture/        # Design docs and ADRs — ls to discover available docs
+├── docs/               # Design docs, ADRs, and plans — ls to discover available docs
 │   └── decisions/       # Architecture Decision Records — ls decisions/<category>/
 ├── clusters/            # Kustomization entry point for ArgoCD
 ├── MODULE.bazel         # Bazel dependency management (bzlmod, not WORKSPACE)
@@ -81,12 +81,12 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Context Loading Rules
 
-- **Security changes**: Read `architecture/security.md` FIRST
-- **New services**: Read `architecture/contributing.md` + `architecture/services.md`
-- **Observability work**: Read `architecture/observability.md`
-- **Alerting work**: Read `architecture/observability-alerting.md`
+- **Security changes**: Read `docs/security.md` FIRST
+- **New services**: Read `docs/contributing.md` + `docs/services.md`
+- **Observability work**: Read `docs/observability.md`
+- **Alerting work**: Read `docs/observability-alerting.md`
 - **Operator changes**: Read `operators/best-practices.md`
-- **Design proposals**: Check `architecture/decisions/` for ADRs (numbered per category)
+- **Design proposals**: Check `docs/decisions/` for ADRs (numbered per category)
 
 ## Key Patterns
 

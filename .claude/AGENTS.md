@@ -226,7 +226,7 @@ Kubernetes and cloud-native security specialist.
 
 ### Pre-requisite Reading
 
-**Always read first:** `architecture/security.md`
+**Always read first:** `docs/security.md`
 
 ### When to Use
 
@@ -456,7 +456,7 @@ Observability specialist. Uses **SigNoz via Context Forge MCP** as the primary i
 
 ### Pre-requisite Reading
 
-**Always read first:** `architecture/observability.md`
+**Always read first:** `docs/observability.md`
 
 ### Investigation Workflow
 

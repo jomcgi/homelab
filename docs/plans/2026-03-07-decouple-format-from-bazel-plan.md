@@ -8,7 +8,7 @@
 
 **Tech Stack:** apko (OCI image), shell scripts, direnv, pre-commit, BuildBuddy CI
 
-**Related:** ADR `architecture/decisions/tooling/001-oci-tool-distribution.md` (this plan implements the formatting subset of that ADR)
+**Related:** ADR `docs/decisions/tooling/001-oci-tool-distribution.md` (this plan implements the formatting subset of that ADR)
 
 ---
 

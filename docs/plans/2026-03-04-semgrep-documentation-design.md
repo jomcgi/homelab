@@ -9,7 +9,7 @@
 
 Two concise, diagram-rich documents that explain `rules_semgrep` to Bazel power users:
 
-1. **ADR** (`architecture/decisions/security/001-bazel-semgrep.md`) — the _why_: reproducible build chain + CI speed for agentic workflows
+1. **ADR** (`docs/decisions/security/001-bazel-semgrep.md`) — the _why_: reproducible build chain + CI speed for agentic workflows
 2. **README** (`rules_semgrep/README.md`) — the _what/how_: API reference + scanning methodology
 
 Both target Bazel-literate developers. Tone is punchy/technical, not marketing.
@@ -22,7 +22,7 @@ Semgrep Pro rules on your own infrastructure. Cache invalidation on your own ter
 
 ---
 
-## Document 1: ADR — `architecture/decisions/security/001-bazel-semgrep.md`
+## Document 1: ADR — `docs/decisions/security/001-bazel-semgrep.md`
 
 New `security/` category alongside `agents/`, `docs/`, `networking/`.
 

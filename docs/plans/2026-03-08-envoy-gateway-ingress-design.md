@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-08
 **Status:** Approved
-**Relates to:** [ADR 001: Reduce Cloudflare Operator Scope via Envoy Gateway](../../architecture/decisions/networking/001-cloudflare-envoy-gateway.md)
+**Relates to:** [ADR 001: Reduce Cloudflare Operator Scope via Envoy Gateway](../../docs/decisions/networking/001-cloudflare-envoy-gateway.md)
 
 ## Problem
 

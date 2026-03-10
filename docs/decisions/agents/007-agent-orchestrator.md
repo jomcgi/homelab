@@ -144,7 +144,7 @@ JobRecord
 - **No secrets in config** — all secrets via 1Password Operator (existing `agent-secrets`, `claude-auth`)
 - **Sandbox isolation** — each attempt gets a fresh SandboxClaim; workspace data is ephemeral
 
-See `architecture/security.md` for baseline. No deviations.
+See `docs/security.md` for baseline. No deviations.
 
 ---
 

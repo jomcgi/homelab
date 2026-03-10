@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-07
 **Status:** Approved
-**ADR:** architecture/decisions/agents/ (agent-run orchestration)
+**ADR:** docs/decisions/agents/ (agent-run orchestration)
 
 ## Summary
 

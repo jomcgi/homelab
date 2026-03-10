@@ -16,7 +16,7 @@
 
 **Files:**
 
-- Modify: `architecture/services.md`
+- Modify: `docs/services.md`
 
 **Step 1: Edit the Core Infrastructure table**
 
@@ -80,7 +80,7 @@ Expected: `Build completed successfully`
 **Step 7: Commit**
 
 ```bash
-git add architecture/services.md
+git add docs/services.md
 git commit -m "docs(services): add 8 missing services and fix wording"
 ```
 
@@ -90,7 +90,7 @@ git commit -m "docs(services): add 8 missing services and fix wording"
 
 **Files:**
 
-- Modify: `architecture/observability.md`
+- Modify: `docs/observability.md`
 
 **Step 1: Update the overview section (lines 7-10)**
 
@@ -214,7 +214,7 @@ Expected: `Build completed successfully`
 **Step 6: Commit**
 
 ```bash
-git add architecture/observability.md
+git add docs/observability.md
 git commit -m "docs(observability): add OTel Operator auto-instrumentation layer"
 ```
 
@@ -224,8 +224,8 @@ git commit -m "docs(observability): add OTel Operator auto-instrumentation layer
 
 **Files:**
 
-- Modify: `architecture/security.md`
-- Modify: `architecture/contributing.md`
+- Modify: `docs/security.md`
+- Modify: `docs/contributing.md`
 
 **Step 1: Add 1Password note in security.md**
 
@@ -252,21 +252,21 @@ Expected: `Build completed successfully`
 **Step 4: Commit**
 
 ```bash
-git add architecture/security.md architecture/contributing.md
+git add docs/security.md docs/contributing.md
 git commit -m "docs: add 1Password deployment note and root app-of-apps reference"
 ```
 
 ---
 
-### Task 4: Create architecture/agents.md
+### Task 4: Create docs/agents.md
 
 **Files:**
 
-- Create: `architecture/agents.md`
+- Create: `docs/agents.md`
 
 **Step 1: Write the agent platform architecture doc**
 
-Create `architecture/agents.md` with:
+Create `docs/agents.md` with:
 
 ```markdown
 # Agent Platform
@@ -360,21 +360,21 @@ Expected: `Build completed successfully`
 **Step 3: Commit**
 
 ```bash
-git add architecture/agents.md
+git add docs/agents.md
 git commit -m "docs: add agent platform architecture overview"
 ```
 
 ---
 
-### Task 5: Create architecture/decisions/index.md
+### Task 5: Create docs/decisions/index.md
 
 **Files:**
 
-- Create: `architecture/decisions/index.md`
+- Create: `docs/decisions/index.md`
 
 **Step 1: Write the ADR index page**
 
-Create `architecture/decisions/index.md`:
+Create `docs/decisions/index.md`:
 
 ```markdown
 # Architecture Decision Records
@@ -421,7 +421,7 @@ Expected: `Build completed successfully`
 **Step 3: Commit**
 
 ```bash
-git add architecture/decisions/index.md
+git add docs/decisions/index.md
 git commit -m "docs: add ADR index page"
 ```
 
@@ -439,7 +439,7 @@ git commit -m "docs: add ADR index page"
 In the `nav` array, add back the ADRs link (after Architecture, before GitHub):
 
 ```javascript
-{ text: 'ADRs', link: '/architecture/decisions/' },
+{ text: 'ADRs', link: '/docs/decisions/' },
 ```
 
 **Step 2: Add Agent Platform to sidebar in config.js**
@@ -447,7 +447,7 @@ In the `nav` array, add back the ADRs link (after Architecture, before GitHub):
 In the sidebar Architecture items array, add after Contributing:
 
 ```javascript
-{ text: 'Agent Platform', link: '/architecture/agents' },
+{ text: 'Agent Platform', link: '/docs/agents' },
 ```
 
 **Step 3: Re-add ADRs hero action in index.md**
@@ -457,7 +457,7 @@ In the hero actions array, add back between Architecture and GitHub:
 ```yaml
 - theme: alt
   text: ADRs
-  link: /architecture/decisions/
+  link: /docs/decisions/
 ```
 
 **Step 4: Verify build (critical — checks for dead links)**

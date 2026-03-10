@@ -12,7 +12,7 @@ wrangler_bin.wrangler_binary(name = "wrangler")
 vitepress_site(
     name = "docs",
     content = [
-        "//architecture:docs",
+        "//docs:docs",
     ],
     extra_srcs = [
         "index.md",

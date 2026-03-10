@@ -121,7 +121,7 @@ Merged from `architecture/` + `docs/`.
 
 ```
 docs/
-├── decisions/              # ADRs (currently architecture/decisions/)
+├── decisions/              # ADRs (currently docs/decisions/)
 ├── plans/                  # Design docs and implementation plans
 ├── security.md
 ├── contributing.md

@@ -407,7 +407,7 @@ Note that backend credentials (SigNoz, ArgoCD) live in the Context Forge namespa
 
 ## Security
 
-### Deviations from `architecture/security.md`
+### Deviations from `docs/security.md`
 
 This deployment has **fewer security deviations** than the OpenHands design:
 
@@ -538,6 +538,6 @@ The `goose-sandboxes` namespace gets both a LimitRange and ResourceQuota (see [N
 
 | Resource                                                                                                                          | Relevance                                                     |
 | --------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
-| [architecture/security.md](../../security.md)                                                                                     | Cluster security model                                        |
+| [docs/security.md](../../security.md)                                                                                             | Cluster security model                                        |
 | [`claude setup-token`](https://docs.anthropic.com/en/docs/claude-code/cli-usage)                                                  | Headless Claude auth token generation                         |
 | [Cloudflare Service Tokens](https://developers.cloudflare.com/cloudflare-one/access-controls/service-credentials/service-tokens/) | Service token auth for external agent access to Context Forge |

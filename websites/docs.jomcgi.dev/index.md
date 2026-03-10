@@ -8,10 +8,10 @@ hero:
   actions:
     - theme: brand
       text: Architecture
-      link: /architecture/services
+      link: /docs/services
     - theme: alt
       text: ADRs
-      link: /architecture/decisions/
+      link: /docs/decisions/
     - theme: alt
       text: GitHub
       link: https://github.com/jomcgi/homelab

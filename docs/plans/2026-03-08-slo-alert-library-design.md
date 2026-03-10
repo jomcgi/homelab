@@ -60,7 +60,7 @@ charts/signoz-alerts/
 
 ### Alert ConfigMap Format
 
-Follows the SigNoz v0.113 v5 query builder format documented in `architecture/observability-alerting.md`. Key details:
+Follows the SigNoz v0.113 v5 query builder format documented in `docs/observability-alerting.md`. Key details:
 
 - `spaceAggregation: "max"` — resilient to stale metric series from previous collector pod incarnations
 - Thresholds defined in both legacy condition-level fields and `thresholds` block (both required per v0.113 behavior)
