@@ -1,5 +1,5 @@
 # Cloudflare ingress Gateway API configuration
-# Environment-specific overrides live in overlays/<env>/cloudflare-ingress/values.yaml
+# Environment-specific overrides live in the colocated deploy/ directory for each service
 
 gatewayClass:
   name: cloudflare-ingress

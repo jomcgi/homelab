@@ -5,7 +5,7 @@ rules:
     message: >-
       This cluster is managed via GitOps — kubectl is read-only. Do not use
       'kubectl $VERB' directly. Instead, edit the appropriate
-      overlays/<env>/<service>/values.yaml and let ArgoCD sync the change.
+      projects/<project>/<service>/deploy/values.yaml and let ArgoCD sync the change.
     metadata:
       category: best-practices
     patterns:

@@ -2,13 +2,4 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-  # Overlays
-  - ../../overlays/dev
-  - ../../overlays/prod
-  # Platform infrastructure (migrated from overlays/cluster-critical)
-  - ../../projects/platform
-  # Agent platform services
-  - ../../projects/agent_platform
-  # Standalone projects (extracted from agent-platform)
-  - ../../projects/todo_app
-  - ../../projects/blog_knowledge_graph
+  - ../../projects/home-cluster

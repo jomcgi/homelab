@@ -1,5 +1,5 @@
 # Default values for vLLM wrapper chart
-# These are minimal defaults; override in overlays/prod/vllm/values.yaml
+# These are minimal defaults; override in projects/agent_platform/vllm/deploy/values.yaml
 
 # Secret configuration for HuggingFace token
 secret:

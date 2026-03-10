@@ -124,7 +124,7 @@ Profile definitions are documented in `charts/goose-sandboxes/profiles.yaml`. Re
 `charts/goose-sandboxes` also supports persistent agents as Kubernetes Deployments. Each entry under `agents:` in `values.yaml` generates a `ConfigMap` (prompt) + `Deployment` (Goose runner). A `checksum/prompt` annotation on the pod template triggers rollouts when the prompt changes.
 
 ```yaml
-# overlays/prod/goose-sandboxes/values.yaml
+# projects/agent_platform/goose-sandboxes/deploy/values.yaml
 agents:
   ci-watcher:
     enabled: true
@@ -159,7 +159,7 @@ bazel run //charts/goose-agent/image:push
     └─ Push: ghcr.io/jomcgi/homelab/goose-agent:<tag>
            │
            └─ ArgoCD Image Updater detects new digest
-              └─ Writes back to overlays/prod/goose-sandboxes/values.yaml
+              └─ Writes back to projects/agent_platform/goose-sandboxes/deploy/values.yaml
 ```
 
 The `agent-orchestrator` Go binary follows the same pattern:
@@ -177,7 +177,7 @@ No Dockerfiles. All images: apko-based, dual-arch, non-root (uid 65532), `capabi
 
 **Source:** `services/agent-orchestrator/` (Go)
 **Chart:** `charts/agent-orchestrator/`
-**Overlay:** `overlays/prod/agent-orchestrator/`
+**Deploy:** `projects/agent_platform/agent-orchestrator/deploy/`
 **In-cluster:** `http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080` (ClusterIP only)
 
 A single Go binary combining an HTTP API and a NATS JetStream consumer. Accepts job submissions, queues them durably, and executes them in isolated Goose sandbox pods.
@@ -319,7 +319,7 @@ The orchestrator's `ServiceAccount` has the minimum permissions needed to drive 
 
 **Source:** `services/agent_orchestrator_mcp/` (Python, FastMCP + httpx)
 **Transport:** `STREAMABLEHTTP`
-**Deployed via:** `charts/mcp-servers/` (entry in `overlays/prod/mcp-servers/values.yaml`)
+**Deployed via:** `charts/mcp-servers/` (entry in `projects/agent_platform/mcp-servers/deploy/values.yaml`)
 **In-cluster:** `http://agent-orchestrator-mcp.mcp-servers.svc.cluster.local:8000`
 
 A thin FastMCP wrapper around the orchestrator REST API. Registered with Context Forge at deploy time by `charts/mcp-servers/templates/registration-job.yaml`.
@@ -384,7 +384,7 @@ sequenceDiagram
 ## 5. Context Forge
 
 **Chart:** `charts/context-forge/` (wraps upstream IBM `mcp-stack` Helm chart)
-**Overlay:** `overlays/prod/context-forge/`
+**Deploy:** `projects/agent_platform/context-forge/deploy/`
 **Namespace:** `mcp-gateway`
 **External:** `https://mcp.jomcgi.dev/mcp/` (Cloudflare tunnel -> MCP OAuth Proxy -> Context Forge)
 **In-cluster:** `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`
@@ -452,7 +452,7 @@ All servers run in `mcp-servers` namespace. Registration happens once at deploy 
 | `todo-mcp`               | homelab Python service                     | STREAMABLEHTTP | Todo CRUD                                 |
 | `agent-orchestrator-mcp` | homelab Python service                     | STREAMABLEHTTP | Job submit/list/cancel/output             |
 
-All server definitions live in `overlays/prod/mcp-servers/values.yaml`. ArgoCD Image Updater maintains digest-pinned image tags automatically.
+All server definitions live in `projects/agent_platform/mcp-servers/deploy/values.yaml`. ArgoCD Image Updater maintains digest-pinned image tags automatically.
 
 ---
 
@@ -468,7 +468,7 @@ The orchestrator uses **NATS JetStream** as both job queue and state store.
 | `job-records` KV bucket | KeyValue     | keyed by ULID, TTL 7 days                    |
 | `orchestrator` consumer | Durable pull | MaxAckPending=3, AckWait=JOB_MAX_DURATION+1m |
 
-All three are self-provisioned on orchestrator startup. Single-node NATS at `nats://nats.nats.svc.cluster.local:4222` (`charts/nats/`, `overlays/prod/nats/`).
+All three are self-provisioned on orchestrator startup. Single-node NATS at `nats://nats.nats.svc.cluster.local:4222` (`charts/nats/`, `projects/agent_platform/nats/deploy/`).
 
 ### Event Flow
 
@@ -528,8 +528,8 @@ ls services/agent_orchestrator_mcp/  # Python MCP wrapper (app/main.py)
 ls charts/agent-orchestrator/        # Helm chart
 ls charts/context-forge/             # MCP gateway chart (wraps IBM mcp-stack)
 ls charts/mcp-servers/               # All MCP server pods + registration jobs
-ls overlays/prod/goose-sandboxes/    # Prod sandbox values + image tags
-ls overlays/prod/agent-orchestrator/ # Prod orchestrator values
-ls overlays/prod/context-forge/      # Prod gateway resource overrides
-ls overlays/prod/mcp-servers/        # Prod MCP servers (values.yaml has all definitions)
+ls projects/agent_platform/goose-sandboxes/deploy/    # Prod sandbox values + image tags
+ls projects/agent_platform/agent-orchestrator/deploy/ # Prod orchestrator values
+ls projects/agent_platform/context-forge/deploy/      # Prod gateway resource overrides
+ls projects/agent_platform/mcp-servers/deploy/        # Prod MCP servers (values.yaml has all definitions)
 ```
