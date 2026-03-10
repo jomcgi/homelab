@@ -2,7 +2,7 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py main //services/ships_api:ships-api
+# gazelle:resolve py main //projects/ships/backend:ships-api
 
 py_library(
     name = "tests",
@@ -17,7 +17,7 @@ py_library(
     imports = [".."],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//services/ships_api:ships-api",
+        "//projects/ships/backend:ships-api",
         "@pip//httpx",
         "@pip//pytest",
         "@pip//pytest_asyncio",
@@ -30,7 +30,7 @@ py_test(
     imports = [".."],
     deps = [
         ":conftest",
-        "//services/ships_api:ships-api",
+        "//projects/ships/backend:ships-api",
         "@pip//httpx",
         "@pip//pytest",
     ],
@@ -42,7 +42,7 @@ py_test(
     imports = [".."],
     deps = [
         ":conftest",
-        "//services/ships_api:ships-api",
+        "//projects/ships/backend:ships-api",
         "@pip//pytest",
         "@pip//pytest_asyncio",
     ],
@@ -84,7 +84,7 @@ py_test(
     imports = [".."],
     deps = [
         ":conftest",
-        "//services/ships_api:ships-api",
+        "//projects/ships/backend:ships-api",
         "@pip//fastapi",
         "@pip//pytest",
         "@pip//pytest_asyncio",  # keep

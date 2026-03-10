@@ -86,7 +86,7 @@ importers:
         version: 10.4.23(postcss@8.5.6)
       eslint:
         specifier: ^9.39.2
-        version: 9.39.2(jiti@1.21.7)
+        version: 9.39.2(jiti@2.6.1)
       happy-dom:
         specifier: ^20.4.0
         version: 20.4.0
@@ -104,13 +104,13 @@ importers:
         version: 5.9.3
       typescript-eslint:
         specifier: ^8.53.1
-        version: 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
+        version: 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       vite:
         specifier: ^5.4.21
         version: 5.4.21(@types/node@22.19.7)(lightningcss@1.30.2)
       vitest:
         specifier: ^4.0.18
-        version: 4.0.18(@types/node@22.19.7)(happy-dom@20.4.0)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
+        version: 4.0.18(@types/node@22.19.7)(happy-dom@20.4.0)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
 
   bazel/tools:
     devDependencies:
@@ -137,78 +137,7 @@ importers:
         specifier: ^6.0.0
         version: 6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
 
-  projects/websites/docs.jomcgi.dev:
-    dependencies:
-      vitepress:
-        specifier: ^1.6.3
-        version: 1.6.4(@algolia/client-search@5.49.1)(@types/node@25.0.10)(@types/react@18.3.27)(lightningcss@1.30.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.9.3)
-      vue:
-        specifier: ^3.5.13
-        version: 3.5.29(typescript@5.9.3)
-    devDependencies:
-      wrangler:
-        specifier: ^4.0.0
-        version: 4.61.1
-
-  projects/websites/hikes.jomcgi.dev:
-    devDependencies:
-      "@playwright/test":
-        specifier: ^1.58.2
-        version: 1.58.2
-      wrangler:
-        specifier: ^4.0.0
-        version: 4.61.1
-
-  projects/websites/jomcgi.dev:
-    dependencies:
-      "@astrojs/react":
-        specifier: ^4.4.2
-        version: 4.4.2(@types/node@25.0.10)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(jiti@2.6.1)(lightningcss@1.30.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yaml@2.8.2)
-      "@astrojs/tailwind":
-        specifier: ^6.0.2
-        version: 6.0.2(astro@5.17.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(yaml@2.8.2))
-      astro:
-        specifier: ^5.4.1
-        version: 5.17.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2)
-      astro-remote:
-        specifier: ^0.3.3
-        version: 0.3.4
-      mermaid:
-        specifier: ^11.4.0
-        version: 11.12.2
-      react:
-        specifier: ^19.2.3
-        version: 19.2.3
-      react-dom:
-        specifier: ^19.2.3
-        version: 19.2.3(react@19.2.3)
-      reveal.js:
-        specifier: ^5.1.0
-        version: 5.2.1
-      tailwindcss:
-        specifier: ^3.4.19
-        version: 3.4.19(yaml@2.8.2)
-    devDependencies:
-      "@testing-library/jest-dom":
-        specifier: ^6.9.1
-        version: 6.9.1
-      "@testing-library/react":
-        specifier: ^16.3.2
-        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
-      "@testing-library/user-event":
-        specifier: ^14.6.1
-        version: 14.6.1(@testing-library/dom@10.4.1)
-      happy-dom:
-        specifier: ^20.4.0
-        version: 20.4.0
-      vitest:
-        specifier: ^4.0.18
-        version: 4.0.18(@types/node@25.0.10)(happy-dom@20.4.0)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
-      wrangler:
-        specifier: ^4.0.0
-        version: 4.61.1
-
-  projects/websites/ships.jomcgi.dev:
+  projects/ships/frontend/web:
     dependencies:
       maplibre-gl:
         specifier: ^5.15.0
@@ -247,6 +176,77 @@ importers:
       vitest:
         specifier: ^4.0.18
         version: 4.0.18(@types/node@25.0.10)(happy-dom@20.4.0)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+
+  projects/websites/docs.jomcgi.dev:
+    dependencies:
+      vitepress:
+        specifier: ^1.6.3
+        version: 1.6.4(@algolia/client-search@5.49.1)(@types/node@25.0.10)(@types/react@18.3.27)(lightningcss@1.30.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.9.3)
+      vue:
+        specifier: ^3.5.13
+        version: 3.5.29(typescript@5.9.3)
+    devDependencies:
+      wrangler:
+        specifier: ^4.0.0
+        version: 4.61.1
+
+  projects/websites/hikes.jomcgi.dev:
+    devDependencies:
+      "@playwright/test":
+        specifier: ^1.58.2
+        version: 1.58.2
+      wrangler:
+        specifier: ^4.0.0
+        version: 4.61.1
+
+  projects/websites/jomcgi.dev:
+    dependencies:
+      "@astrojs/react":
+        specifier: ^4.4.2
+        version: 4.4.2(@types/node@25.0.10)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(jiti@1.21.7)(lightningcss@1.30.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yaml@2.8.2)
+      "@astrojs/tailwind":
+        specifier: ^6.0.2
+        version: 6.0.2(astro@5.17.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(yaml@2.8.2))
+      astro:
+        specifier: ^5.4.1
+        version: 5.17.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2)
+      astro-remote:
+        specifier: ^0.3.3
+        version: 0.3.4
+      mermaid:
+        specifier: ^11.4.0
+        version: 11.12.2
+      react:
+        specifier: ^19.2.3
+        version: 19.2.3
+      react-dom:
+        specifier: ^19.2.3
+        version: 19.2.3(react@19.2.3)
+      reveal.js:
+        specifier: ^5.1.0
+        version: 5.2.1
+      tailwindcss:
+        specifier: ^3.4.19
+        version: 3.4.19(yaml@2.8.2)
+    devDependencies:
+      "@testing-library/jest-dom":
+        specifier: ^6.9.1
+        version: 6.9.1
+      "@testing-library/react":
+        specifier: ^16.3.2
+        version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      "@testing-library/user-event":
+        specifier: ^14.6.1
+        version: 14.6.1(@testing-library/dom@10.4.1)
+      happy-dom:
+        specifier: ^20.4.0
+        version: 20.4.0
+      vitest:
+        specifier: ^4.0.18
+        version: 4.0.18(@types/node@25.0.10)(happy-dom@20.4.0)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
+      wrangler:
+        specifier: ^4.0.0
+        version: 4.61.1
 
   projects/websites/trips.jomcgi.dev:
     dependencies:
@@ -11521,15 +11521,15 @@ snapshots:
     dependencies:
       prismjs: 1.30.0
 
-  "@astrojs/react@4.4.2(@types/node@25.0.10)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(jiti@2.6.1)(lightningcss@1.30.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yaml@2.8.2)":
+  "@astrojs/react@4.4.2(@types/node@25.0.10)(@types/react-dom@19.2.3(@types/react@19.2.8))(@types/react@19.2.8)(jiti@1.21.7)(lightningcss@1.30.2)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(yaml@2.8.2)":
     dependencies:
       "@types/react": 19.2.8
       "@types/react-dom": 19.2.3(@types/react@19.2.8)
-      "@vitejs/plugin-react": 4.7.0(vite@6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))
+      "@vitejs/plugin-react": 4.7.0(vite@6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))
       react: 19.2.3
       react-dom: 19.2.3(react@19.2.3)
       ultrahtml: 1.6.0
-      vite: 6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+      vite: 6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
     transitivePeerDependencies:
       - "@types/node"
       - jiti
@@ -11544,9 +11544,9 @@ snapshots:
       - tsx
       - yaml
 
-  "@astrojs/tailwind@6.0.2(astro@5.17.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(yaml@2.8.2))":
+  "@astrojs/tailwind@6.0.2(astro@5.17.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2))(tailwindcss@3.4.19(yaml@2.8.2))":
     dependencies:
-      astro: 5.17.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2)
+      astro: 5.17.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2)
       autoprefixer: 10.4.23(postcss@8.5.6)
       postcss: 8.5.6
       postcss-load-config: 4.0.2(postcss@8.5.6)
@@ -11841,11 +11841,6 @@ snapshots:
 
   "@esbuild/win32-x64@0.27.2":
     optional: true
-
-  "@eslint-community/eslint-utils@4.9.1(eslint@9.39.2(jiti@1.21.7))":
-    dependencies:
-      eslint: 9.39.2(jiti@1.21.7)
-      eslint-visitor-keys: 3.4.3
 
   "@eslint-community/eslint-utils@4.9.1(eslint@9.39.2(jiti@2.6.1))":
     dependencies:
@@ -12953,15 +12948,15 @@ snapshots:
     dependencies:
       "@types/node": 22.19.7
 
-  "@typescript-eslint/eslint-plugin@8.53.1(@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)":
+  "@typescript-eslint/eslint-plugin@8.53.1(@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)":
     dependencies:
       "@eslint-community/regexpp": 4.12.2
-      "@typescript-eslint/parser": 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
+      "@typescript-eslint/parser": 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       "@typescript-eslint/scope-manager": 8.53.1
-      "@typescript-eslint/type-utils": 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
-      "@typescript-eslint/utils": 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
+      "@typescript-eslint/type-utils": 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+      "@typescript-eslint/utils": 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       "@typescript-eslint/visitor-keys": 8.53.1
-      eslint: 9.39.2(jiti@1.21.7)
+      eslint: 9.39.2(jiti@2.6.1)
       ignore: 7.0.5
       natural-compare: 1.4.0
       ts-api-utils: 2.4.0(typescript@5.9.3)
@@ -12969,14 +12964,14 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  "@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)":
+  "@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)":
     dependencies:
       "@typescript-eslint/scope-manager": 8.53.1
       "@typescript-eslint/types": 8.53.1
       "@typescript-eslint/typescript-estree": 8.53.1(typescript@5.9.3)
       "@typescript-eslint/visitor-keys": 8.53.1
       debug: 4.4.3
-      eslint: 9.39.2(jiti@1.21.7)
+      eslint: 9.39.2(jiti@2.6.1)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -12999,13 +12994,13 @@ snapshots:
     dependencies:
       typescript: 5.9.3
 
-  "@typescript-eslint/type-utils@8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)":
+  "@typescript-eslint/type-utils@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)":
     dependencies:
       "@typescript-eslint/types": 8.53.1
       "@typescript-eslint/typescript-estree": 8.53.1(typescript@5.9.3)
-      "@typescript-eslint/utils": 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
+      "@typescript-eslint/utils": 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       debug: 4.4.3
-      eslint: 9.39.2(jiti@1.21.7)
+      eslint: 9.39.2(jiti@2.6.1)
       ts-api-utils: 2.4.0(typescript@5.9.3)
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -13028,13 +13023,13 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  "@typescript-eslint/utils@8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)":
+  "@typescript-eslint/utils@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)":
     dependencies:
-      "@eslint-community/eslint-utils": 4.9.1(eslint@9.39.2(jiti@1.21.7))
+      "@eslint-community/eslint-utils": 4.9.1(eslint@9.39.2(jiti@2.6.1))
       "@typescript-eslint/scope-manager": 8.53.1
       "@typescript-eslint/types": 8.53.1
       "@typescript-eslint/typescript-estree": 8.53.1(typescript@5.9.3)
-      eslint: 9.39.2(jiti@1.21.7)
+      eslint: 9.39.2(jiti@2.6.1)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -13055,6 +13050,18 @@ snapshots:
       "@types/babel__core": 7.20.5
       react-refresh: 0.17.0
       vite: 5.4.21(@types/node@22.19.7)(lightningcss@1.30.2)
+    transitivePeerDependencies:
+      - supports-color
+
+  "@vitejs/plugin-react@4.7.0(vite@6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))":
+    dependencies:
+      "@babel/core": 7.28.6
+      "@babel/plugin-transform-react-jsx-self": 7.27.1(@babel/core@7.28.6)
+      "@babel/plugin-transform-react-jsx-source": 7.27.1(@babel/core@7.28.6)
+      "@rolldown/pluginutils": 1.0.0-beta.27
+      "@types/babel__core": 7.20.5
+      react-refresh: 0.17.0
+      vite: 6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
     transitivePeerDependencies:
       - supports-color
 
@@ -13096,13 +13103,21 @@ snapshots:
       chai: 6.2.2
       tinyrainbow: 3.0.3
 
-  "@vitest/mocker@4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))":
+  "@vitest/mocker@4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))":
     dependencies:
       "@vitest/spy": 4.0.18
       estree-walker: 3.0.3
       magic-string: 0.30.21
     optionalDependencies:
-      vite: 7.3.1(@types/node@22.19.7)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.19.7)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+
+  "@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))":
+    dependencies:
+      "@vitest/spy": 4.0.18
+      estree-walker: 3.0.3
+      magic-string: 0.30.21
+    optionalDependencies:
+      vite: 7.3.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
 
   "@vitest/mocker@4.0.18(vite@7.3.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))":
     dependencies:
@@ -13409,7 +13424,7 @@ snapshots:
       marked-smartypants: 1.1.11(marked@12.0.2)
       ultrahtml: 1.6.0
 
-  astro@5.17.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2):
+  astro@5.17.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(rollup@4.59.0)(typescript@5.9.3)(yaml@2.8.2):
     dependencies:
       "@astrojs/compiler": 2.13.0
       "@astrojs/internal-helpers": 0.7.5
@@ -13466,8 +13481,8 @@ snapshots:
       unist-util-visit: 5.1.0
       unstorage: 1.17.4
       vfile: 6.0.3
-      vite: 6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
-      vitefu: 1.1.1(vite@6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))
+      vite: 6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
+      vitefu: 1.1.1(vite@6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))
       xxhash-wasm: 1.1.0
       yargs-parser: 21.1.1
       yocto-spinner: 0.2.3
@@ -14420,47 +14435,6 @@ snapshots:
   eslint-visitor-keys@3.4.3: {}
 
   eslint-visitor-keys@4.2.1: {}
-
-  eslint@9.39.2(jiti@1.21.7):
-    dependencies:
-      "@eslint-community/eslint-utils": 4.9.1(eslint@9.39.2(jiti@1.21.7))
-      "@eslint-community/regexpp": 4.12.2
-      "@eslint/config-array": 0.21.1
-      "@eslint/config-helpers": 0.4.2
-      "@eslint/core": 0.17.0
-      "@eslint/eslintrc": 3.3.3
-      "@eslint/js": 9.39.2
-      "@eslint/plugin-kit": 0.4.1
-      "@humanfs/node": 0.16.7
-      "@humanwhocodes/module-importer": 1.0.1
-      "@humanwhocodes/retry": 0.4.3
-      "@types/estree": 1.0.8
-      ajv: 8.18.0
-      chalk: 4.1.2
-      cross-spawn: 7.0.6
-      debug: 4.4.3
-      escape-string-regexp: 4.0.0
-      eslint-scope: 8.4.0
-      eslint-visitor-keys: 4.2.1
-      espree: 10.4.0
-      esquery: 1.7.0
-      esutils: 2.0.3
-      fast-deep-equal: 3.1.3
-      file-entry-cache: 8.0.0
-      find-up: 5.0.0
-      glob-parent: 6.0.2
-      ignore: 5.3.2
-      imurmurhash: 0.1.4
-      is-glob: 4.0.3
-      json-stable-stringify-without-jsonify: 1.0.1
-      lodash.merge: 4.6.2
-      minimatch: 10.2.4
-      natural-compare: 1.4.0
-      optionator: 0.9.4
-    optionalDependencies:
-      jiti: 1.21.7
-    transitivePeerDependencies:
-      - supports-color
 
   eslint@9.39.2(jiti@2.6.1):
     dependencies:
@@ -17826,13 +17800,13 @@ snapshots:
 
   typedarray@0.0.6: {}
 
-  typescript-eslint@8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3):
+  typescript-eslint@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3):
     dependencies:
-      "@typescript-eslint/eslint-plugin": 8.53.1(@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3))(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
-      "@typescript-eslint/parser": 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
+      "@typescript-eslint/eslint-plugin": 8.53.1(@typescript-eslint/parser@8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3))(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+      "@typescript-eslint/parser": 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
       "@typescript-eslint/typescript-estree": 8.53.1(typescript@5.9.3)
-      "@typescript-eslint/utils": 8.53.1(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
-      eslint: 9.39.2(jiti@1.21.7)
+      "@typescript-eslint/utils": 8.53.1(eslint@9.39.2(jiti@2.6.1))(typescript@5.9.3)
+      eslint: 9.39.2(jiti@2.6.1)
       typescript: 5.9.3
     transitivePeerDependencies:
       - supports-color
@@ -18055,6 +18029,21 @@ snapshots:
       fsevents: 2.3.3
       lightningcss: 1.30.2
 
+  vite@6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2):
+    dependencies:
+      esbuild: 0.27.2
+      fdir: 6.5.0(picomatch@4.0.3)
+      picomatch: 4.0.3
+      postcss: 8.5.6
+      rollup: 4.59.0
+      tinyglobby: 0.2.15
+    optionalDependencies:
+      "@types/node": 25.0.10
+      fsevents: 2.3.3
+      jiti: 1.21.7
+      lightningcss: 1.30.2
+      yaml: 2.8.2
+
   vite@6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2):
     dependencies:
       esbuild: 0.27.2
@@ -18070,7 +18059,7 @@ snapshots:
       lightningcss: 1.30.2
       yaml: 2.8.2
 
-  vite@7.3.1(@types/node@22.19.7)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2):
+  vite@7.3.1(@types/node@22.19.7)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2):
     dependencies:
       esbuild: 0.27.2
       fdir: 6.5.0(picomatch@4.0.3)
@@ -18080,6 +18069,21 @@ snapshots:
       tinyglobby: 0.2.15
     optionalDependencies:
       "@types/node": 22.19.7
+      fsevents: 2.3.3
+      jiti: 2.6.1
+      lightningcss: 1.30.2
+      yaml: 2.8.2
+
+  vite@7.3.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2):
+    dependencies:
+      esbuild: 0.27.2
+      fdir: 6.5.0(picomatch@4.0.3)
+      picomatch: 4.0.3
+      postcss: 8.5.6
+      rollup: 4.59.0
+      tinyglobby: 0.2.15
+    optionalDependencies:
+      "@types/node": 25.0.10
       fsevents: 2.3.3
       jiti: 1.21.7
       lightningcss: 1.30.2
@@ -18100,9 +18104,9 @@ snapshots:
       lightningcss: 1.30.2
       yaml: 2.8.2
 
-  vitefu@1.1.1(vite@6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)):
+  vitefu@1.1.1(vite@6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)):
     optionalDependencies:
-      vite: 6.4.1(@types/node@25.0.10)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
+      vite: 6.4.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
 
   vitepress@1.6.4(@algolia/client-search@5.49.1)(@types/node@25.0.10)(@types/react@18.3.27)(lightningcss@1.30.2)(postcss@8.5.6)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)(search-insights@2.17.3)(typescript@5.9.3):
     dependencies:
@@ -18153,10 +18157,10 @@ snapshots:
       - typescript
       - universal-cookie
 
-  vitest@4.0.18(@types/node@22.19.7)(happy-dom@20.4.0)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2):
+  vitest@4.0.18(@types/node@22.19.7)(happy-dom@20.4.0)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2):
     dependencies:
       "@vitest/expect": 4.0.18
-      "@vitest/mocker": 4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))
+      "@vitest/mocker": 4.0.18(vite@7.3.1(@types/node@22.19.7)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2))
       "@vitest/pretty-format": 4.0.18
       "@vitest/runner": 4.0.18
       "@vitest/snapshot": 4.0.18
@@ -18173,10 +18177,48 @@ snapshots:
       tinyexec: 1.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 3.0.3
-      vite: 7.3.1(@types/node@22.19.7)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
+      vite: 7.3.1(@types/node@22.19.7)(jiti@2.6.1)(lightningcss@1.30.2)(yaml@2.8.2)
       why-is-node-running: 2.3.0
     optionalDependencies:
       "@types/node": 22.19.7
+      happy-dom: 20.4.0
+    transitivePeerDependencies:
+      - jiti
+      - less
+      - lightningcss
+      - msw
+      - sass
+      - sass-embedded
+      - stylus
+      - sugarss
+      - terser
+      - tsx
+      - yaml
+
+  vitest@4.0.18(@types/node@25.0.10)(happy-dom@20.4.0)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2):
+    dependencies:
+      "@vitest/expect": 4.0.18
+      "@vitest/mocker": 4.0.18(vite@7.3.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2))
+      "@vitest/pretty-format": 4.0.18
+      "@vitest/runner": 4.0.18
+      "@vitest/snapshot": 4.0.18
+      "@vitest/spy": 4.0.18
+      "@vitest/utils": 4.0.18
+      es-module-lexer: 1.7.0
+      expect-type: 1.3.0
+      magic-string: 0.30.21
+      obug: 2.1.1
+      pathe: 2.0.3
+      picomatch: 4.0.3
+      std-env: 3.10.0
+      tinybench: 2.9.0
+      tinyexec: 1.0.2
+      tinyglobby: 0.2.15
+      tinyrainbow: 3.0.3
+      vite: 7.3.1(@types/node@25.0.10)(jiti@1.21.7)(lightningcss@1.30.2)(yaml@2.8.2)
+      why-is-node-running: 2.3.0
+    optionalDependencies:
+      "@types/node": 25.0.10
       happy-dom: 20.4.0
     transitivePeerDependencies:
       - jiti

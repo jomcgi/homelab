@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 import pytest_asyncio
 
-from services.ships_api.main import (
+from projects.ships.backend.main import (
     CachedPosition,
     Database,
     DEDUP_DISTANCE_METERS,

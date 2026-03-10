@@ -199,7 +199,7 @@ def mock_nats_subscription():
 @pytest_asyncio.fixture
 async def test_db():
     """Create a test database instance with in-memory SQLite."""
-    from services.ships_api.main import Database
+    from projects.ships.backend.main import Database
 
     db = Database(":memory:")
     await db.connect()
@@ -216,7 +216,7 @@ async def test_client() -> AsyncGenerator[AsyncClient, None]:
         mock_connect.return_value = mock_nc
 
         # Import app after patching
-        from services.ships_api.main import app, service
+        from projects.ships.backend.main import app, service
 
         # Manually initialize for testing without NATS subscription loop
         service.running = True
@@ -243,7 +243,7 @@ async def test_client_with_data(
     test_client: AsyncClient, multiple_vessels_data: list[dict]
 ) -> AsyncClient:
     """Test client with pre-populated vessel data."""
-    from services.ships_api.main import service
+    from projects.ships.backend.main import service
 
     # Insert test data
     positions = [(v, v["timestamp"]) for v in multiple_vessels_data]

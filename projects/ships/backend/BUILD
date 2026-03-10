@@ -33,7 +33,7 @@ py_library(
 
 py3_image(
     name = "image",
-    binary = "//services/ships_api:main",
+    binary = "//projects/ships/backend:main",
     repository = "ghcr.io/jomcgi/homelab/services/ships_api",
 )
 
