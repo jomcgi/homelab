@@ -129,6 +129,7 @@ func main() {
 	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
+	registerUI(mux)
 
 	srv := &http.Server{
 		Addr:              ":" + httpPort,
