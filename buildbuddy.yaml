@@ -112,7 +112,10 @@ actions:
           fi
           bazel test //... --config=ci --deleted_packages=bazel/tools/python --test_tag_filters=-external
 
-  # Push images — runs on main only, parallel with "Push pages", after "Test" passes
+  # Push images — runs on PRs and main, after "Test" passes
+  # PR images are tagged with the branch name (via --stamp), not "main",
+  # so ArgoCD Image Updater ignores them. This ensures image builds are
+  # verified before merge — previously only ran on main.
   - name: "Push images"
     container_image: "ubuntu-24.04"
     resource_requests:
@@ -124,6 +127,10 @@ actions:
       push:
         branches:
           - "main"
+      pull_request:
+        branches:
+          - "*"
+        merge_with_base: false
     steps:
       - run: |
           # Skip image-updater commits (digest-only bumps, nothing to push)
