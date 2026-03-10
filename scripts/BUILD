@@ -21,12 +21,6 @@ sh_binary(
     visibility = ["//:__subpackages__"],
 )
 
-sh_binary(
-    name = "generate-render-all",
-    srcs = ["generate-render-all.sh"],
-    visibility = ["//:__subpackages__"],
-)
-
 py_library(
     name = "scripts",
     srcs = ["__init__.py"],

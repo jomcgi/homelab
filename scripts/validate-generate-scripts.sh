@@ -70,22 +70,6 @@ bazel query 'kind("wrangler_pages_push", //...)' 2>/dev/null |
 
 compare_targets "push-all-pages" "$TMPDIR_VALIDATE/push_pages_grep.txt" "$TMPDIR_VALIDATE/push_pages_query.txt"
 
-# --- Validation 3: generate-render-all.sh ---
-
-echo "Validating generate-render-all.sh ..."
-
-# Run the grep-based script (it writes bazel/tools/argocd-parallel/BUILD)
-bash scripts/generate-render-all.sh
-
-# Extract targets from the generated BUILD file
-extract_targets_from_build bazel/tools/argocd-parallel/BUILD >"$TMPDIR_VALIDATE/render_grep.txt"
-
-# Run equivalent bazel query
-bazel query 'kind("genrule", //overlays/...) intersect attr("name", "render_manifests", //overlays/...)' 2>/dev/null |
-	LC_ALL=C sort >"$TMPDIR_VALIDATE/render_query.txt"
-
-compare_targets "render-all" "$TMPDIR_VALIDATE/render_grep.txt" "$TMPDIR_VALIDATE/render_query.txt"
-
 # --- Summary ---
 
 echo ""

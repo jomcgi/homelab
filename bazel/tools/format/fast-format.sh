@@ -68,8 +68,6 @@ PIDS+=($!)
 PIDS+=($!)
 ./scripts/generate-push-all-pages.sh 2>/dev/null &
 PIDS+=($!)
-./scripts/generate-render-all.sh &
-PIDS+=($!)
 
 # Wait for all parallel tasks
 for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
