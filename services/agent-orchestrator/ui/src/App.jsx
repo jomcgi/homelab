@@ -1170,9 +1170,7 @@ export default function Dashboard() {
             }}
           >
             {tab.label}
-            <span style={{ marginLeft: 4, fontSize: 11, color: "#9ca3af" }}>
-              {i + 1}
-            </span>
+            <Kbd>{i + 1}</Kbd>
           </button>
         ))}
         <div style={{ marginLeft: "auto" }}>
