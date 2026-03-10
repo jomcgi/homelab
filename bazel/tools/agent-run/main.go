@@ -50,6 +50,8 @@ var (
 var validProfiles = map[string]string{
 	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
 	"code-fix": "/home/goose-agent/recipes/code-fix.yaml",
+	"research": "/home/goose-agent/recipes/research.yaml",
+	"bazel":    "/home/goose-agent/recipes/bazel.yaml",
 }
 
 var rootCmd = &cobra.Command{
@@ -66,7 +68,7 @@ The SandboxClaim is cleaned up on exit, recycling the pod.`,
 
 func init() {
 	rootCmd.Flags().IntVar(&issueFlag, "issue", 0, "GitHub issue number to use as task description")
-	rootCmd.Flags().StringVar(&profileFlag, "profile", "", "Goose profile to use (ci-debug, code-fix)")
+	rootCmd.Flags().StringVar(&profileFlag, "profile", "", "Goose profile to use (ci-debug, code-fix, research, bazel)")
 }
 
 func main() {
@@ -86,7 +88,7 @@ func run(cmd *cobra.Command, args []string) error {
 
 	if profileFlag != "" {
 		if _, ok := validProfiles[profileFlag]; !ok {
-			return fmt.Errorf("unknown profile %q, valid profiles: ci-debug, code-fix", profileFlag)
+			return fmt.Errorf("unknown profile %q, valid profiles: ci-debug, code-fix, research, bazel", profileFlag)
 		}
 	}
 

@@ -24,3 +24,19 @@ profiles:
     tools: []
     token_env: null
     recipe: code-fix.yaml
+
+  research:
+    description: "Read-only cluster investigation — no code changes"
+    teams: ["ci-debug"]
+    tools: ["buildbuddy-mcp"]
+    token_env: CI_DEBUG_MCP_TOKEN
+    recipe: research.yaml
+    # TODO: Provision a broader-scoped token (K8s, ArgoCD, SigNoz, BuildBuddy)
+    # once a "research" team is created in Context Forge.
+
+  bazel:
+    description: "BuildBuddy tools — for build system fixes"
+    teams: ["ci-debug"]
+    tools: ["buildbuddy-mcp"]
+    token_env: CI_DEBUG_MCP_TOKEN
+    recipe: bazel.yaml

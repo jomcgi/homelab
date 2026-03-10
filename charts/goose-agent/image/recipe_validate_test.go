@@ -18,6 +18,12 @@ var codeFix []byte
 //go:embed recipes/ci-debug.yaml
 var ciDebug []byte
 
+//go:embed recipes/research.yaml
+var research []byte
+
+//go:embed recipes/bazel.yaml
+var bazel []byte
+
 // recipeFile mirrors the fields we care about for validation.
 type recipeFile struct {
 	Version      string `yaml:"version"`
@@ -50,6 +56,8 @@ func TestRecipeYAML(t *testing.T) {
 	}{
 		{"code-fix", codeFix},
 		{"ci-debug", ciDebug},
+		{"research", research},
+		{"bazel", bazel},
 	}
 
 	for _, tc := range cases {
