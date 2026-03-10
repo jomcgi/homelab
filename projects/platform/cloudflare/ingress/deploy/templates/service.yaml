@@ -9,7 +9,7 @@ spec:
   type: ClusterIP
   ports:
     - port: {{ .Values.service.port }}
-      targetPort: {{ .Values.gateway.listener.port }}
+      targetPort: {{ add .Values.gateway.listener.port 10000 }}
       protocol: TCP
       name: http
   selector:
