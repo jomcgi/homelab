@@ -9,12 +9,16 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from knowledge_graph.app.config import McpSettings
-from knowledge_graph.app.embedders.gemini import GeminiEmbedder
-from knowledge_graph.app.embedders.ollama import OllamaEmbedder
-from knowledge_graph.app.qdrant_client import QdrantClient
-from knowledge_graph.app.storage import S3Storage
-from knowledge_graph.app.telemetry import setup_telemetry
+from projects.blog_knowledge_graph.knowledge_graph.app.config import McpSettings
+from projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini import (
+    GeminiEmbedder,
+)
+from projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama import (
+    OllamaEmbedder,
+)
+from projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client import QdrantClient
+from projects.blog_knowledge_graph.knowledge_graph.app.storage import S3Storage
+from projects.blog_knowledge_graph.knowledge_graph.app.telemetry import setup_telemetry
 
 logging.basicConfig(
     level=logging.INFO,

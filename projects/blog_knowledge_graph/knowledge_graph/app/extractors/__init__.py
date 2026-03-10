@@ -1,7 +1,7 @@
-from knowledge_graph.app.extractors.html_extractor import (
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor import (
     HTMLExtractor,
 )
-from knowledge_graph.app.extractors.feed_extractor import (
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor import (
     FeedExtractor,
 )
 

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from knowledge_graph.app.models import ChunkPayload
+from projects.blog_knowledge_graph.knowledge_graph.app.models import ChunkPayload
 
 
 def _estimate_tokens(text: str) -> int:

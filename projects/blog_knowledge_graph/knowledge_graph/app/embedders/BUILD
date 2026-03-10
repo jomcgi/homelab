@@ -1,8 +1,8 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
-# gazelle:resolve py knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
-# gazelle:resolve py knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
 
 py_library(
     name = "embedders",
@@ -12,7 +12,7 @@ py_library(
         "gemini.py",
         "ollama.py",
     ],
-    imports = ["../../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
@@ -24,14 +24,14 @@ py_library(
 py_library(
     name = "base",
     srcs = ["base.py"],
-    imports = ["../../.."],
+
     visibility = ["//:__subpackages__"],
 )
 
 py_library(
     name = "ollama",
     srcs = ["ollama.py"],
-    imports = ["../../.."],
+
     visibility = ["//:__subpackages__"],
     deps = ["@pip//httpx"],
 )
@@ -39,7 +39,7 @@ py_library(
 py_library(
     name = "gemini",
     srcs = ["gemini.py"],
-    imports = ["../../.."],
+
     visibility = ["//:__subpackages__"],
     deps = ["@pip//httpx"],
 )

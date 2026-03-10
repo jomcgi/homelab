@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from todo_mcp.app.main import (
+from projects.todo_app.todo_mcp.app.main import (
     Settings,
     configure,
     get_tasks,
@@ -33,7 +33,7 @@ class TestGetTasks:
         }
 
         with patch(
-            "todo_mcp.app.main._request",
+            "projects.todo_app.todo_mcp.app.main._request",
             new_callable=AsyncMock,
             return_value=expected,
         ) as mock_req:
@@ -44,7 +44,7 @@ class TestGetTasks:
 
     async def test_http_error_returns_error_dict(self):
         with patch(
-            "todo_mcp.app.main._request",
+            "projects.todo_app.todo_mcp.app.main._request",
             new_callable=AsyncMock,
             return_value={"error": "Todo API error: 500 Internal Server Error"},
         ):
@@ -64,7 +64,7 @@ class TestSetTasks:
         }
 
         with patch(
-            "todo_mcp.app.main._request",
+            "projects.todo_app.todo_mcp.app.main._request",
             new_callable=AsyncMock,
             return_value={"status": "ok"},
         ) as mock_req:
@@ -85,7 +85,7 @@ class TestSetTasks:
 class TestResetDaily:
     async def test_posts_to_reset_endpoint(self):
         with patch(
-            "todo_mcp.app.main._request",
+            "projects.todo_app.todo_mcp.app.main._request",
             new_callable=AsyncMock,
             return_value={"status": "ok"},
         ) as mock_req:
@@ -97,7 +97,7 @@ class TestResetDaily:
 class TestResetWeekly:
     async def test_posts_to_reset_endpoint(self):
         with patch(
-            "todo_mcp.app.main._request",
+            "projects.todo_app.todo_mcp.app.main._request",
             new_callable=AsyncMock,
             return_value={"status": "ok"},
         ) as mock_req:

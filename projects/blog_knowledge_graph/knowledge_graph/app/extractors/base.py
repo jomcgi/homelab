@@ -11,7 +11,7 @@ from urllib.parse import urlparse
 
 import httpx
 
-from knowledge_graph.app.models import Document
+from projects.blog_knowledge_graph.knowledge_graph.app.models import Document
 
 logger = logging.getLogger(__name__)
 

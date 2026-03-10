@@ -2,34 +2,34 @@ load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 
-# gazelle:resolve py knowledge_graph.app //projects/blog_knowledge_graph/knowledge_graph/app:app
-# gazelle:resolve py knowledge_graph.app.models //projects/blog_knowledge_graph/knowledge_graph/app:models
-# gazelle:resolve py knowledge_graph.app.config //projects/blog_knowledge_graph/knowledge_graph/app:config
-# gazelle:resolve py knowledge_graph.app.telemetry //projects/blog_knowledge_graph/knowledge_graph/app:telemetry
-# gazelle:resolve py knowledge_graph.app.storage //projects/blog_knowledge_graph/knowledge_graph/app:storage
-# gazelle:resolve py knowledge_graph.app.notifications //projects/blog_knowledge_graph/knowledge_graph/app:notifications
-# gazelle:resolve py knowledge_graph.app.chunker //projects/blog_knowledge_graph/knowledge_graph/app:chunker
-# gazelle:resolve py knowledge_graph.app.qdrant_client //projects/blog_knowledge_graph/knowledge_graph/app:qdrant_client
-# gazelle:resolve py knowledge_graph.app.extractors //projects/blog_knowledge_graph/knowledge_graph/app/extractors
-# gazelle:resolve py knowledge_graph.app.extractors.base //projects/blog_knowledge_graph/knowledge_graph/app/extractors:base
-# gazelle:resolve py knowledge_graph.app.extractors.feed_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:feed_extractor
-# gazelle:resolve py knowledge_graph.app.extractors.html_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:html_extractor
-# gazelle:resolve py knowledge_graph.app.embedders //projects/blog_knowledge_graph/knowledge_graph/app/embedders
-# gazelle:resolve py knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
-# gazelle:resolve py knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
-# gazelle:resolve py knowledge_graph //projects/blog_knowledge_graph/knowledge_graph:knowledge_graph
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app //projects/blog_knowledge_graph/knowledge_graph/app:app
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.models //projects/blog_knowledge_graph/knowledge_graph/app:models
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.config //projects/blog_knowledge_graph/knowledge_graph/app:config
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.telemetry //projects/blog_knowledge_graph/knowledge_graph/app:telemetry
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.storage //projects/blog_knowledge_graph/knowledge_graph/app:storage
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.notifications //projects/blog_knowledge_graph/knowledge_graph/app:notifications
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.chunker //projects/blog_knowledge_graph/knowledge_graph/app:chunker
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.qdrant_client //projects/blog_knowledge_graph/knowledge_graph/app:qdrant_client
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors //projects/blog_knowledge_graph/knowledge_graph/app/extractors
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.base //projects/blog_knowledge_graph/knowledge_graph/app/extractors:base
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:feed_extractor
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:html_extractor
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders //projects/blog_knowledge_graph/knowledge_graph/app/embedders
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph//projects/blog_knowledge_graph/knowledge_graph:knowledge_graph
 
 py_library(
     name = "models",
     srcs = ["models.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
 )
 
 py_library(
     name = "config",
     srcs = ["config.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//pydantic",
@@ -40,7 +40,7 @@ py_library(
 py_library(
     name = "telemetry",
     srcs = ["telemetry.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//opentelemetry_api",
@@ -52,7 +52,7 @@ py_library(
 py_library(
     name = "storage",
     srcs = ["storage.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         ":models",
@@ -63,7 +63,7 @@ py_library(
 py_library(
     name = "notifications",
     srcs = ["notifications.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         ":models",
@@ -74,7 +74,7 @@ py_library(
 py_library(
     name = "chunker",
     srcs = ["chunker.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [":models"],
 )
@@ -82,7 +82,7 @@ py_library(
 py_library(
     name = "qdrant_client",
     srcs = ["qdrant_client.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         ":models",
@@ -105,7 +105,7 @@ py_library(
         "storage.py",
         "telemetry.py",
     ],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
@@ -137,7 +137,7 @@ py_library(
 py_library(
     name = "scraper_main",
     srcs = ["scraper_main.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         ":config",
@@ -162,7 +162,7 @@ py_venv_binary(
 py_library(
     name = "embedder_main",
     srcs = ["embedder_main.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         ":chunker",
@@ -183,7 +183,7 @@ py_venv_binary(
 py_library(
     name = "mcp_main",
     srcs = ["mcp_main.py"],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         ":config",

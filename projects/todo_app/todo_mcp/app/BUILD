@@ -20,7 +20,7 @@ py_library(
         "__init__.py",
         "main.py",
     ],
-    imports = ["../.."],
+
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//fastmcp",

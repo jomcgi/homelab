@@ -16,22 +16,26 @@ import yaml
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from knowledge_graph.app.config import ScraperSettings
-from knowledge_graph.app.extractors.base import RateLimiter
-from knowledge_graph.app.extractors.feed_extractor import (
+from projects.blog_knowledge_graph.knowledge_graph.app.config import ScraperSettings
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.base import (
+    RateLimiter,
+)
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor import (
     FeedExtractor,
 )
-from knowledge_graph.app.extractors.html_extractor import (
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor import (
     HTMLExtractor,
 )
-from knowledge_graph.app.models import (
+from projects.blog_knowledge_graph.knowledge_graph.app.models import (
     SourceConfig,
     ScrapeResult,
     content_hash,
 )
-from knowledge_graph.app.notifications import SlackNotifier
-from knowledge_graph.app.storage import S3Storage
-from knowledge_graph.app.telemetry import (
+from projects.blog_knowledge_graph.knowledge_graph.app.notifications import (
+    SlackNotifier,
+)
+from projects.blog_knowledge_graph.knowledge_graph.app.storage import S3Storage
+from projects.blog_knowledge_graph.knowledge_graph.app.telemetry import (
     setup_telemetry,
     trace_span,
 )

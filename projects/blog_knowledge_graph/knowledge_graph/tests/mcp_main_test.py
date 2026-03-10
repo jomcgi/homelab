@@ -2,7 +2,7 @@
 
 import pytest
 
-from knowledge_graph.app.mcp_main import app
+from projects.blog_knowledge_graph.knowledge_graph.app.mcp_main import app
 
 
 class TestHealthEndpoint:

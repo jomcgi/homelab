@@ -6,14 +6,14 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from knowledge_graph.app.extractors.base import (
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.base import (
     RateLimiter,
     fetch_with_retry,
 )
-from knowledge_graph.app.extractors.html_extractor import (
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor import (
     HTMLExtractor,
 )
-from knowledge_graph.app.extractors.feed_extractor import (
+from projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor import (
     FeedExtractor,
 )
 

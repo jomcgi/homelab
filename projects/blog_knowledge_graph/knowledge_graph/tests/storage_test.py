@@ -6,13 +6,18 @@ from unittest.mock import MagicMock, patch
 import pytest
 from botocore.exceptions import ClientError
 
-from knowledge_graph.app.models import Document, content_hash
-from knowledge_graph.app.storage import S3Storage
+from projects.blog_knowledge_graph.knowledge_graph.app.models import (
+    Document,
+    content_hash,
+)
+from projects.blog_knowledge_graph.knowledge_graph.app.storage import S3Storage
 
 
 @pytest.fixture
 def mock_boto3():
-    with patch("knowledge_graph.app.storage.boto3") as mock:
+    with patch(
+        "projects.blog_knowledge_graph.knowledge_graph.app.storage.boto3"
+    ) as mock:
         client = MagicMock()
         mock.client.return_value = client
         # head_bucket succeeds (bucket exists)
