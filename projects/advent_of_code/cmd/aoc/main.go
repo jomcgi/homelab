@@ -526,7 +526,7 @@ func createGoTemplate(dayDir string, year, day int) error {
 	}
 
 	// Data path for Bazel runfiles (relative to workspace root)
-	dataPath := fmt.Sprintf("advent_of_code/solutions/year%d/day%02d", year, day)
+	dataPath := fmt.Sprintf("projects/advent_of_code/solutions/year%d/day%02d", year, day)
 
 	template := fmt.Sprintf(`package main
 
@@ -589,7 +589,7 @@ func createPythonTemplate(dayDir string, year, day int) error {
 	}
 
 	// Data path for Bazel runfiles (relative to workspace root)
-	dataPath := fmt.Sprintf("advent_of_code/solutions/year%d/day%02d", year, day)
+	dataPath := fmt.Sprintf("projects/advent_of_code/solutions/year%d/day%02d", year, day)
 
 	template := fmt.Sprintf(`#!/usr/bin/env python3
 """Advent of Code %d Day %d"""
@@ -625,7 +625,7 @@ func generateGoTest(dayDir string, year, day int) error {
 	testPath := filepath.Join(goDir, "solution_test.go")
 
 	// Data path for Bazel runfiles (relative to workspace root)
-	dataPath := fmt.Sprintf("advent_of_code/solutions/year%d/day%02d", year, day)
+	dataPath := fmt.Sprintf("projects/advent_of_code/solutions/year%d/day%02d", year, day)
 
 	template := fmt.Sprintf(`package main
 
@@ -700,7 +700,7 @@ func generatePythonTest(dayDir string, year, day int) error {
 	testPath := filepath.Join(pyDir, "solution_test.py")
 
 	// Data path for Bazel runfiles (relative to workspace root)
-	dataPath := fmt.Sprintf("advent_of_code/solutions/year%d/day%02d", year, day)
+	dataPath := fmt.Sprintf("projects/advent_of_code/solutions/year%d/day%02d", year, day)
 
 	template := fmt.Sprintf(`#!/usr/bin/env python3
 """Tests for Advent of Code %d Day %d"""

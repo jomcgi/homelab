@@ -37,7 +37,7 @@ def part2(input_text: str) -> int:
 
 
 if __name__ == "__main__":
-    input_text = read_file("advent_of_code/solutions/year2025/day01/input.txt")
+    input_text = read_file("projects/advent_of_code/solutions/year2025/day01/input.txt")
 
     print(f"Part 1: {part1(input_text)}")
     print(f"Part 2: {part2(input_text)}")

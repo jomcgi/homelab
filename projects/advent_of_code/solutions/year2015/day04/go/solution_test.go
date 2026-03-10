@@ -14,7 +14,7 @@ type Answers struct {
 }
 
 func loadAnswers(t *testing.T) *Answers {
-	data, err := os.ReadFile("advent_of_code/solutions/year2015/day04/answers.json")
+	data, err := os.ReadFile("projects/advent_of_code/solutions/year2015/day04/answers.json")
 	if err != nil {
 		t.Skipf("answers.json not found: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestPart1(t *testing.T) {
 		t.Skip("part1 answer not yet verified")
 	}
 
-	input, err := aoc.ReadFile("advent_of_code/solutions/year2015/day04/input.txt")
+	input, err := aoc.ReadFile("projects/advent_of_code/solutions/year2015/day04/input.txt")
 	if err != nil {
 		t.Fatalf("failed to read input: %v", err)
 	}
@@ -49,7 +49,7 @@ func TestPart2(t *testing.T) {
 		t.Skip("part2 answer not yet verified")
 	}
 
-	input, err := aoc.ReadFile("advent_of_code/solutions/year2015/day04/input.txt")
+	input, err := aoc.ReadFile("projects/advent_of_code/solutions/year2015/day04/input.txt")
 	if err != nil {
 		t.Fatalf("failed to read input: %v", err)
 	}

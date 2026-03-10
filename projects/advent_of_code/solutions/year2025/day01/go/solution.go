@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	input, err := aoc.ReadFile("advent_of_code/solutions/year2025/day01/input.txt")
+	input, err := aoc.ReadFile("projects/advent_of_code/solutions/year2025/day01/input.txt")
 	if err != nil {
 		panic(err)
 	}
