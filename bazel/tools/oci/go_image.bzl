@@ -4,6 +4,7 @@ load("@aspect_bazel_lib//lib:expand_template.bzl", "expand_template")
 load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
+load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
 def go_image(name, binary, base = "@distroless_base", repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
     """Create a multi-platform Go OCI image from a Go binary.
@@ -151,13 +152,21 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
     )
 
     # Push uses the index for multi-platform, or platform-specific for single platform
+    _repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name()
     oci_push(
         name = name + ".push",
         image = name if multi_platform else name + "_platform",
-        repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
+        repository = _repository,
         remote_tags = select({
             "//bazel/tools/oci:ci_build": name + "_stamped_tags_ci",
             "//conditions:default": name + "_stamped_tags_local",
         }),
         visibility = visibility,
+    )
+
+    # Expose OciImageInfo provider for use by helm_chart(images = {...})
+    oci_image_info(
+        name = name + ".info",
+        repository = _repository,
+        tags = name + "_stamped_ci.tags.txt",
     )

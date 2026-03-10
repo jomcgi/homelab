@@ -35,6 +35,7 @@ bzl_library(
         "app.bzl",  # keep
         "chart.bzl",  # keep
         "defs.bzl",  # keep
+        "images.bzl",  # keep
         "push.bzl",  # keep
         "render.bzl",  # keep
         "test.bzl",  # keep
@@ -42,6 +43,7 @@ bzl_library(
     visibility = ["//visibility:public"],
     deps = [
         "//bazel/semgrep/defs",  # keep
+        "//bazel/tools/oci:providers",  # keep
         "@bazel_skylib//lib:paths",  # keep
         "@rules_shell//shell:rules_bzl",  # keep
     ],

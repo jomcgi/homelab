@@ -6,6 +6,7 @@ load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@aspect_rules_py//py:defs.bzl", "py_image_layer")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
 def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}, workdir = None, base = "@python_base", repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
     """Create a multi-platform Python 3 image from a Python binary.
@@ -189,13 +190,21 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
     )
 
     # Push uses the index for multi-platform, or platform-specific for single platform
+    _repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name()
     oci_push(
         name = name + ".push",
         image = name if multi_platform else name,
-        repository = repository if repository else "ghcr.io/jomcgi/homelab/" + native.package_name(),
+        repository = _repository,
         remote_tags = select({
             "//bazel/tools/oci:ci_build": name + "_stamped_tags_ci",
             "//conditions:default": name + "_stamped_tags_local",
         }),
         visibility = visibility,
+    )
+
+    # Expose OciImageInfo provider for use by helm_chart(images = {...})
+    oci_image_info(
+        name = name + ".info",
+        repository = _repository,
+        tags = name + "_stamped_ci.tags.txt",
     )
