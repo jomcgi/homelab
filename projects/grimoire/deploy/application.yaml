@@ -7,13 +7,13 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: projects/grimoire/deploy
+    path: projects/grimoire/chart
     targetRevision: HEAD
     helm:
       releaseName: grimoire
       valueFiles:
         - values.yaml
-        - ../../../overlays/dev/grimoire/values.yaml
+        - ../deploy/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: grimoire

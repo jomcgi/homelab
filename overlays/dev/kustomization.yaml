@@ -3,6 +3,5 @@ kind: Kustomization
 
 resources:
   - ./marine
-  - ./grimoire
   - ./oci-model-cache
   - ./stargazer
