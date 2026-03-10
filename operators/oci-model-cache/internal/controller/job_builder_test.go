@@ -217,29 +217,27 @@ func TestBuildCopyJob_NoResourcesWhenUnset(t *testing.T) {
 	assert.Empty(t, resources.Limits)
 }
 
-// TestBuildCopyJob_GOMAXPROCSEnv verifies GOMAXPROCS is set when SyncGOMAXPROCS is configured.
-func TestBuildCopyJob_GOMAXPROCSEnv(t *testing.T) {
+// TestBuildCopyJob_MaxParallelArg verifies --max-parallel is added to args when configured.
+func TestBuildCopyJob_MaxParallelArg(t *testing.T) {
 	mc := minimalModelCache()
 	cfg := minimalConfig()
-	cfg.SyncGOMAXPROCS = "8"
+	cfg.SyncMaxParallel = "8"
 
 	job := buildCopyJob(mc, cfg)
-	envVars := job.Spec.Template.Spec.Containers[0].Env
+	args := job.Spec.Template.Spec.Containers[0].Args
 
-	goMaxProcs := findEnv(envVars, "GOMAXPROCS")
-	assert.Equal(t, "8", goMaxProcs)
+	assertConsecutive(t, args, "--max-parallel", "8")
 }
 
-// TestBuildCopyJob_NoGOMAXPROCSWhenEmpty verifies GOMAXPROCS is not set when unconfigured.
-func TestBuildCopyJob_NoGOMAXPROCSWhenEmpty(t *testing.T) {
+// TestBuildCopyJob_NoMaxParallelWhenEmpty verifies --max-parallel is not added when unconfigured.
+func TestBuildCopyJob_NoMaxParallelWhenEmpty(t *testing.T) {
 	mc := minimalModelCache()
 	cfg := minimalConfig()
 
 	job := buildCopyJob(mc, cfg)
-	envVars := job.Spec.Template.Spec.Containers[0].Env
+	args := job.Spec.Template.Spec.Containers[0].Args
 
-	goMaxProcs := findEnv(envVars, "GOMAXPROCS")
-	assert.Empty(t, goMaxProcs)
+	assert.NotContains(t, args, "--max-parallel")
 }
 
 // TestBuildCopyJob_NodeSelector verifies node selectors are applied when configured.

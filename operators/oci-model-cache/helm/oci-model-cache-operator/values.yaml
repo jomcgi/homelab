@@ -53,9 +53,9 @@ controllerManager:
   syncMemoryRequest: ""
   syncMemoryLimit: ""
 
-  # -- GOMAXPROCS override for sync Job containers.
-  # Limits OS-thread parallelism to cap concurrent network connections during model upload.
-  syncGOMAXPROCS: ""
+  # -- Max concurrent layer uploads/downloads for sync Job containers.
+  # Passed as --max-parallel to hf2oci (0 or empty = auto from GOMEMLIMIT, fallback 100).
+  syncMaxParallel: ""
 
   env:
     ociRegistry: "ghcr.io/jomcgi/models"
