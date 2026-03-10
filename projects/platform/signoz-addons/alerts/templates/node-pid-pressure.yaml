@@ -1,18 +1,17 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-app-degraded-alert
-  namespace: signoz
+  name: node-pid-pressure-alert
   labels:
     signoz.io/alert: "true"
   annotations:
-    signoz.io/alert-name: "ArgoCD App Degraded"
+    signoz.io/alert-name: "Node PID Pressure"
     signoz.io/severity: "warning"
     signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
-      "alert": "ArgoCD App Degraded",
+      "alert": "Node PID Pressure",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
       "version": "v5",
@@ -22,12 +21,12 @@ data:
       "frequency": "1m0s",
       "severity": "warning",
       "labels": {
-        "service": "argocd",
-        "category": "gitops"
+        "category": "node-health",
+        "environment": "production"
       },
       "annotations": {
-        "summary": "ArgoCD application is degraded",
-        "description": "ArgoCD application {{ $labels.name }} has health status Degraded"
+        "summary": "Node {{ "{{" }} $labels.k8s_node_name {{ "}}" }} has PID pressure",
+        "description": "Kubernetes node {{ "{{" }} $labels.k8s_node_name {{ "}}" }} is under PID pressure condition"
       },
       "condition": {
         "compositeQuery": {
@@ -40,24 +39,16 @@ data:
                 "stepInterval": 60,
                 "aggregations": [
                   {
-                    "timeAggregation": "count",
-                    "spaceAggregation": "sum",
-                    "metricName": "argocd_app_info"
+                    "timeAggregation": "max",
+                    "spaceAggregation": "max",
+                    "metricName": "k8s.node.condition_pid_pressure"
                   }
                 ],
-                "filter": {
-                  "expression": "health_status = 'Degraded'"
-                },
                 "groupBy": [
                   {
-                    "name": "name",
+                    "name": "k8s.node.name",
                     "fieldDataType": "string",
-                    "fieldContext": "tag"
-                  },
-                  {
-                    "name": "namespace",
-                    "fieldDataType": "string",
-                    "fieldContext": "tag"
+                    "fieldContext": "resource"
                   }
                 ],
                 "order": [],
@@ -71,7 +62,7 @@ data:
         "selectedQueryName": "A",
         "op": "1",
         "target": 0,
-        "matchType": "1",
+        "matchType": "3",
         "targetUnit": "",
         "thresholds": {
           "kind": "basic",
@@ -80,7 +71,7 @@ data:
               "name": "warning",
               "target": 0,
               "targetUnit": "",
-              "matchType": "1",
+              "matchType": "3",
               "op": "1",
               "channels": ["incidentio"]
             }

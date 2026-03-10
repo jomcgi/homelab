@@ -1,18 +1,17 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: argocd-app-outofsync-alert
-  namespace: signoz
+  name: argocd-app-degraded-alert
   labels:
     signoz.io/alert: "true"
   annotations:
-    signoz.io/alert-name: "ArgoCD App OutOfSync"
+    signoz.io/alert-name: "ArgoCD App Degraded"
     signoz.io/severity: "warning"
     signoz.io/notification-channels: "incidentio"
 data:
   alert.json: |
     {
-      "alert": "ArgoCD App OutOfSync",
+      "alert": "ArgoCD App Degraded",
       "alertType": "METRICS_BASED_ALERT",
       "ruleType": "threshold_rule",
       "version": "v5",
@@ -26,8 +25,8 @@ data:
         "category": "gitops"
       },
       "annotations": {
-        "summary": "ArgoCD application is out of sync",
-        "description": "ArgoCD application {{ $labels.name }} is OutOfSync for more than 5 minutes"
+        "summary": "ArgoCD application is degraded",
+        "description": "ArgoCD application {{ "{{" }} $labels.name {{ "}}" }} has health status Degraded"
       },
       "condition": {
         "compositeQuery": {
@@ -46,7 +45,7 @@ data:
                   }
                 ],
                 "filter": {
-                  "expression": "sync_status = 'OutOfSync'"
+                  "expression": "health_status = 'Degraded'"
                 },
                 "groupBy": [
                   {

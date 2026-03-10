@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: signoz
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    targetRevision: HEAD
+    path: projects/platform/signoz
+    helm:
+      releaseName: signoz
+      valueFiles:
+        - values.yaml
+        - values-prod.yaml
+      ignoreMissingValueFiles: true
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: signoz
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

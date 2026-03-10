@@ -21,7 +21,7 @@ multirun(
         "//projects/blog_knowledge_graph:embedder-image.push",
         "//projects/blog_knowledge_graph:mcp-image.push",
         "//projects/blog_knowledge_graph:scraper-image.push",
-        "//projects/platform/signoz/dashboard-sidecar/deploy/cmd:image.push",
+        "//projects/platform/signoz-addons/dashboard-sidecar/cmd:image.push",
         "//projects/todo_app/image:image.push",
         "//projects/todo_app:py_image.push",
         "//services/ais_ingest:image.push",

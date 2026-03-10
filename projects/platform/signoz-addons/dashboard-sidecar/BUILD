@@ -7,7 +7,7 @@ helm_chart(
 
 argocd_app(
     name = "signoz-dashboard-sidecar",
-    chart = "projects/platform/signoz/dashboard-sidecar/deploy",
+    chart = "projects/platform/signoz-addons/dashboard-sidecar",
     chart_files = ":chart",
     namespace = "signoz",
     release_name = "signoz-dashboard-sidecar",

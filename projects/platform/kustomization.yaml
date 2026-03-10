@@ -17,5 +17,5 @@ resources:
   - ./nvidia-gpu-operator
   - ./opentelemetry-operator
   - ./seaweedfs
-  - ./signoz/deploy
-  - ./signoz/dashboard-sidecar/deploy # Must be after signoz
+  - ./signoz
+  - ./signoz-addons # Must be after signoz
