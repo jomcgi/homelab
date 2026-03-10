@@ -11,8 +11,10 @@ go_library(
         "reconcile.go",
         "sandbox.go",
         "store.go",
+        "ui.go",
         "watchdog.go",
     ],
+    embedsrcs = ["//services/agent-orchestrator/ui:build_dist"],  # keep
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator",
     visibility = ["//visibility:private"],
     deps = [
