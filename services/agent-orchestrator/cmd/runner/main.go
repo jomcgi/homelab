@@ -40,7 +40,15 @@ const defaultPort = "8081"
 const defaultInactivityTimeout = 30 * time.Minute
 
 // workDir is the working directory for goose processes.
-const workDir = "/workspace/homelab"
+// It is read from the GOOSE_WORKSPACE env var injected by the SandboxTemplate
+// (set to /workspace/<repoName>). Falls back to /workspace/homelab for
+// backwards compatibility with existing deployments that pre-date this env var.
+var workDir = func() string {
+	if ws := os.Getenv("GOOSE_WORKSPACE"); ws != "" {
+		return ws
+	}
+	return "/workspace/homelab"
+}()
 
 // maxOutputBytes caps the in-memory output buffer. When exceeded, the buffer
 // is truncated to the last maxOutputBytes bytes (keeping the tail).

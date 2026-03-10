@@ -86,6 +86,9 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.secrets.agentSecrets.secretName }}
                   key: BUILDBUDDY_API_KEY
+                  optional: true
+            - name: GOOSE_WORKSPACE
+              value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}
             - name: CI_DEBUG_MCP_TOKEN
               valueFrom:
                 secretKeyRef:

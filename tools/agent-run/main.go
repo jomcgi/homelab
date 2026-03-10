@@ -284,7 +284,7 @@ func refreshWorkspace(ctx context.Context, config *rest.Config, clientset kubern
 		SubResource("exec").
 		VersionedParams(&corev1.PodExecOptions{
 			Container: "goose",
-			Command:   []string{"git", "-C", "/workspace/homelab", "pull", "--ff-only", "origin", "main"},
+			Command:   []string{"sh", "-c", "git -C \"${GOOSE_WORKSPACE:-/workspace/homelab}\" pull --ff-only origin main"},
 			Stdout:    true,
 			Stderr:    true,
 		}, scheme.ParameterCodec)

@@ -101,6 +101,9 @@ spec:
                 secretKeyRef:
                   name: agent-secrets
                   key: BUILDBUDDY_API_KEY
+                  optional: true
+            - name: GOOSE_WORKSPACE
+              value: /workspace/{{ $.Values.sandboxTemplate.env.repoName }}
             {{- if $.Values.sandboxTemplate.extraEnv }}
             {{- toYaml $.Values.sandboxTemplate.extraEnv | nindent 12 }}
             {{- end }}
