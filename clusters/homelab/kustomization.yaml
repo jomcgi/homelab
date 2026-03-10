@@ -5,4 +5,5 @@ resources:
   # Overlays
   - ../../overlays/dev
   - ../../overlays/prod
-  - ../../overlays/cluster-critical
+  # Platform infrastructure (migrated from overlays/cluster-critical)
+  - ../../projects/platform

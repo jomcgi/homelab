@@ -6,15 +6,11 @@ namePrefix: prod-
 resources:
   - ./agent-orchestrator
   - ./api-gateway
-  - ./cloudflare-ingress
-  - ./cloudflare-tunnel
   - ./cluster-agents
   - ./context-forge
   - ./goose-sandboxes
-  - ./nats
-  - ./seaweedfs
+  - ./llama-cpp
   - ./mcp-oauth-proxy
   - ./mcp-servers
   - ./todo
   - ./trips
-  - ./llama-cpp
