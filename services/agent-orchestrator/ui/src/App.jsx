@@ -18,8 +18,8 @@ const TABS = [
   { label: "Succeeded", key: "SUCCEEDED" },
   { label: "Failed", key: "FAILED" },
 ];
-const SIDEBAR_MIN = 300;
-const SIDEBAR_MAX = 660;
+const SIDEBAR_MIN = 200;
+const SIDEBAR_MAX = 1200;
 const POLL_INTERVAL = 5000;
 
 // ─── utilities ────────────────────────────────────────────────────────────────
