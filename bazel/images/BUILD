@@ -31,8 +31,8 @@ multirun(
         "//projects/stargazer:image.push",
         "//projects/todo_app/image:image.push",
         "//projects/todo_app:py_image.push",
+        "//projects/trips/backend:image.push",
         "//services/hikes/update_forecast:update_image.push",
-        "//services/trips_api:image.push",
     ],
     jobs = 0,  # 0 means unlimited parallelism
     visibility = ["//visibility:public"],

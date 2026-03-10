@@ -11,13 +11,13 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: charts/trips
+    path: projects/trips/deploy
     targetRevision: HEAD
     helm:
       releaseName: trips
       valueFiles:
         - values.yaml
-        - ../../overlays/prod/trips/values.yaml
+        - ../../../../overlays/prod/trips/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: trips
