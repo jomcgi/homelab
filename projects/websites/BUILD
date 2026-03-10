@@ -7,7 +7,9 @@ load("@rules_multirun//:defs.bzl", "multirun")
 multirun(
     name = "push_all_pages",
     commands = [
+        "//projects/hikes/frontend:frontend.push",
         "//projects/hikes/frontend:hikes.push",
+        "//projects/trips/frontend:frontend.push",
         "//projects/trips/frontend:trips.push",
         "//projects/websites/docs.jomcgi.dev:docs.push",
         "//projects/websites/jomcgi.dev:jomcgi.push",
