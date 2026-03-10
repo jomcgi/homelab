@@ -5,7 +5,6 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],
-    imports = ["../../.."],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [

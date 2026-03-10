@@ -17,6 +17,10 @@ py_library(
     imports = ["../../.."],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//projects/agent-platform/knowledge_graph/app:models",
+        "//projects/agent-platform/knowledge_graph/app/extractors:base",
+        "//projects/agent-platform/knowledge_graph/app/extractors:feed_extractor",
+        "//projects/agent-platform/knowledge_graph/app/extractors:html_extractor",
         "@pip//feedparser",
         "@pip//httpx",
         "@pip//trafilatura",

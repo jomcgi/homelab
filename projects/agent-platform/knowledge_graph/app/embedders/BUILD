@@ -15,6 +15,8 @@ py_library(
     imports = ["../../.."],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//projects/agent-platform/knowledge_graph/app/embedders:gemini",
+        "//projects/agent-platform/knowledge_graph/app/embedders:ollama",
         "@pip//httpx",
     ],
 )

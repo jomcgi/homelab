@@ -9,10 +9,10 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],
-    imports = ["../.."],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
+        "//projects/agent-platform/buildbuddy_mcp/app",
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
@@ -29,6 +29,7 @@ py_library(
     imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//projects/agent-platform/buildbuddy_mcp",
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
