@@ -24,9 +24,6 @@ MODULE.bazel.lock
 
 node_modules/
 dist/
-# Un-ignore the agent-orchestrator UI dist — committed for go:embed
-!services/agent-orchestrator/ui/dist/
-!services/agent-orchestrator/ui/dist/**
 .wrangler/
 
 
