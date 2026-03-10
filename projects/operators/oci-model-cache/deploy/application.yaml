@@ -7,7 +7,7 @@ spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    targetRevision: main
+    targetRevision: HEAD
     path: projects/operators/oci-model-cache/helm/oci-model-cache-operator
     helm:
       valueFiles:
