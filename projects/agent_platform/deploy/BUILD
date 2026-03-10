@@ -4,5 +4,5 @@ helm_chart(
     name = "chart",
     lint = False,
     publish = True,
-    visibility = ["//projects:__subpackages__"],
+    visibility = ["//overlays:__subpackages__"],
 )
