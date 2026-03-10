@@ -308,7 +308,7 @@ class TestRunRebuild:
 
     def _mock_elevation_client(self):
         """Build mock ElevationClient async context manager."""
-        from scripts.elevation.client import ElevationResult
+        from projects.trips.tools.elevation.client import ElevationResult
 
         elev_client = AsyncMock()
         elev_client.__aenter__ = AsyncMock(return_value=elev_client)

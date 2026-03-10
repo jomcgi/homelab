@@ -53,7 +53,7 @@ actions:
           bazel run //:gazelle 2>&1 | grep -v "^INFO:"
 
           # Validate grep-based generate scripts against bazel query
-          ./scripts/validate-generate-scripts.sh
+          ./bazel/images/validate-generate-scripts.sh
 
           # Reject non-ASCII characters in commit messages.
           # Wrangler Pages (Cloudflare) fails with error 8000111 when commits

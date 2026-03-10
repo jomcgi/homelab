@@ -3,7 +3,7 @@ load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 
-# gazelle:resolve py main //scripts/publish-trip-images:publish-trip-images
+# gazelle:resolve py main //projects/trips/tools/publish-trip-images:publish-trip-images
 
 py_library(
     name = "publish-trip-images",
@@ -13,7 +13,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//scripts/elevation",
+        "//projects/trips/tools/elevation",
         "@pip//boto3",
         "@pip//botocore",
         "@pip//nats_py",
@@ -29,7 +29,7 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
-        "//scripts/elevation",
+        "//projects/trips/tools/elevation",
         "@pip//boto3",
         "@pip//botocore",
         "@pip//nats_py",
@@ -58,8 +58,8 @@ py_test(
     srcs = ["rebuild_test.py"],
     imports = ["."],
     deps = [
-        "//scripts/elevation",
-        "//scripts/publish-trip-images",
+        "//projects/trips/tools/elevation",
+        "//projects/trips/tools/publish-trip-images",
         "@pip//pytest",
     ],
 )

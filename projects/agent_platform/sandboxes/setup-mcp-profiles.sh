@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# scripts/setup-mcp-profiles.sh
+# projects/agent_platform/sandboxes/setup-mcp-profiles.sh
 #
 # Provisions Context Forge teams and scoped JWT tokens for Goose sandbox profiles.
 # Stores tokens in 1Password; the 1Password Operator syncs them to Kubernetes.
@@ -11,7 +11,7 @@
 #   - kubectl access to cluster (for port-forward, or use GATEWAY_URL env var)
 #
 # Usage:
-#   ./scripts/setup-mcp-profiles.sh
+#   ./projects/agent_platform/sandboxes/setup-mcp-profiles.sh
 #
 # To rotate tokens, re-run the script.
 set -euo pipefail

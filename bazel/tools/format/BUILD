@@ -42,8 +42,8 @@ format_multirun(
 multirun(
     name = "format",
     commands = [
-        "//scripts:generate-push-all",
-        "//scripts:generate-push-all-pages",
+        "//bazel/images:generate-push-all",
+        "//bazel/images:generate-push-all-pages",
         ":update_apko_locks",
         ":update_python_requirements",
         ":validate_apko_configs",
