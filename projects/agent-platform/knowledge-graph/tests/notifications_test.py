@@ -4,15 +4,15 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from services.knowledge_graph.app.models import ScrapeResult
-from services.knowledge_graph.app.notifications import SlackNotifier
+from projects.agent_platform.knowledge_graph.app.models import ScrapeResult
+from projects.agent_platform.knowledge_graph.app.notifications import SlackNotifier
 
 
 class TestSlackNotifier:
     @pytest.mark.asyncio
     async def test_batch_notify_sends_webhook(self):
         with patch(
-            "services.knowledge_graph.app.notifications.httpx.AsyncClient"
+            "projects.agent_platform.knowledge_graph.app.notifications.httpx.AsyncClient"
         ) as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__ = AsyncMock(
@@ -57,7 +57,7 @@ class TestSlackNotifier:
     @pytest.mark.asyncio
     async def test_single_notify(self):
         with patch(
-            "services.knowledge_graph.app.notifications.httpx.AsyncClient"
+            "projects.agent_platform.knowledge_graph.app.notifications.httpx.AsyncClient"
         ) as mock_client_cls:
             mock_client = AsyncMock()
             mock_client_cls.return_value.__aenter__ = AsyncMock(

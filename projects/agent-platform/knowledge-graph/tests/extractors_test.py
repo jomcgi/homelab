@@ -6,9 +6,16 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import httpx
 import pytest
 
-from services.knowledge_graph.app.extractors.base import RateLimiter, fetch_with_retry
-from services.knowledge_graph.app.extractors.html_extractor import HTMLExtractor
-from services.knowledge_graph.app.extractors.feed_extractor import FeedExtractor
+from projects.agent_platform.knowledge_graph.app.extractors.base import (
+    RateLimiter,
+    fetch_with_retry,
+)
+from projects.agent_platform.knowledge_graph.app.extractors.html_extractor import (
+    HTMLExtractor,
+)
+from projects.agent_platform.knowledge_graph.app.extractors.feed_extractor import (
+    FeedExtractor,
+)
 
 
 class TestRateLimiter:

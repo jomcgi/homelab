@@ -1,6 +1,6 @@
 """Tests for shared models and content_hash."""
 
-from services.knowledge_graph.app.models import content_hash
+from projects.agent_platform.knowledge_graph.app.models import content_hash
 
 
 class TestContentHash:

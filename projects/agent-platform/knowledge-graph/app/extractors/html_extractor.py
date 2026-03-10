@@ -8,8 +8,8 @@ from datetime import datetime
 import httpx
 import trafilatura
 
-from services.knowledge_graph.app.extractors.base import fetch_with_retry
-from services.knowledge_graph.app.models import Document
+from projects.agent_platform.knowledge_graph.app.extractors.base import fetch_with_retry
+from projects.agent_platform.knowledge_graph.app.models import Document
 
 logger = logging.getLogger(__name__)
 

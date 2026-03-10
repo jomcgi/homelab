@@ -7,12 +7,12 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from services.knowledge_graph.app.config import (
+from projects.agent_platform.knowledge_graph.app.config import (
     EmbedderSettings,
     McpSettings,
     ScraperSettings,
 )
-from services.knowledge_graph.app.models import Document
+from projects.agent_platform.knowledge_graph.app.models import Document
 
 
 @pytest.fixture

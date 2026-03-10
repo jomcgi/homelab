@@ -13,7 +13,7 @@ import re
 import httpx
 import pytest
 
-from services.buildbuddy_mcp.app.main import (
+from projects.agent_platform.buildbuddy_mcp.app.main import (
     execute_workflow,
     get_action,
     get_file,

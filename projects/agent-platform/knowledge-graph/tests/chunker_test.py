@@ -1,6 +1,6 @@
 """Tests for markdown-aware chunking."""
 
-from services.knowledge_graph.app.chunker import (
+from projects.agent_platform.knowledge_graph.app.chunker import (
     chunk_markdown,
     _estimate_tokens,
     _split_by_headers,
