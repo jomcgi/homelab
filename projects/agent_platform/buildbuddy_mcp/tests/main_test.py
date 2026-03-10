@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from buildbuddy_mcp.app.main import (
+from projects.agent_platform.buildbuddy_mcp.app.main import (
     Settings,
     configure,
     execute_workflow,
@@ -32,7 +32,7 @@ class TestGetInvocation:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ):
@@ -48,7 +48,7 @@ class TestGetInvocation:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ):
@@ -70,7 +70,7 @@ class TestGetInvocation:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ) as mock_post:
@@ -90,7 +90,7 @@ class TestGetLog:
         expected = {"log": {"contents": "Building //...\nERROR: compilation failed"}}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ):
@@ -111,7 +111,7 @@ class TestGetLog:
         api_response = {"log": {"contents": log_text}}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=api_response,
         ):
@@ -141,7 +141,7 @@ class TestGetLog:
             return page1 if call_count == 1 else page2
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             side_effect=mock_post,
         ):
             result = await get_log(invocation_id="abc-123", errors_only=True)
@@ -155,7 +155,7 @@ class TestGetLog:
         api_response = {"log": {"contents": log_text}}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=api_response,
         ):
@@ -171,7 +171,7 @@ class TestGetTarget:
         expected = {"target": [{"label": "//pkg:test", "status": "PASSED"}]}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ):
@@ -190,7 +190,7 @@ class TestGetTarget:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=api_response,
         ):
@@ -216,7 +216,7 @@ class TestGetTarget:
             return page1 if call_count == 1 else page2
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             side_effect=mock_post,
         ):
             result = await get_target(invocation_id="abc-123", status="FAILED")
@@ -234,7 +234,7 @@ class TestGetAction:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ):
@@ -251,7 +251,7 @@ class TestGetFile:
         b64 = base64.b64encode(text.encode()).decode()
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value={"data": b64},
         ):
@@ -266,7 +266,7 @@ class TestGetFile:
         b64 = base64.b64encode(binary_data).decode()
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value={"data": b64},
         ):
@@ -285,7 +285,7 @@ class TestExecuteWorkflow:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ):
@@ -302,7 +302,7 @@ class TestExecuteWorkflow:
         }
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ) as mock_post:
@@ -323,7 +323,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_http_error_returns_error_dict(self):
         with patch(
-            "buildbuddy_mcp.app.main._client",
+            "projects.agent_platform.buildbuddy_mcp.app.main._client",
         ) as mock_client:
             mock_resp = AsyncMock()
             mock_resp.status_code = 404
@@ -337,7 +337,7 @@ class TestErrorHandling:
     @pytest.mark.asyncio
     async def test_empty_response_returns_error_dict(self):
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value={},
         ):
@@ -351,7 +351,7 @@ class TestRun:
         expected = {"invocation_id": "run-inv-1"}
 
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value=expected,
         ) as mock_post:
@@ -374,7 +374,7 @@ class TestRun:
     @pytest.mark.asyncio
     async def test_passes_env_and_wait_until(self):
         with patch(
-            "buildbuddy_mcp.app.main._post",
+            "projects.agent_platform.buildbuddy_mcp.app.main._post",
             new_callable=AsyncMock,
             return_value={"invocation_id": "x"},
         ) as mock_post:
