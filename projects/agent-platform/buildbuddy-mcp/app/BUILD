@@ -8,7 +8,7 @@ py_venv_binary(
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
-        ":app",
+        "//services",
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",
@@ -24,6 +24,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
+        "//services",
         "@pip//fastmcp",
         "@pip//httpx",
         "@pip//pydantic_settings",

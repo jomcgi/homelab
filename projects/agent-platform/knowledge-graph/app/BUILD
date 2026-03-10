@@ -83,8 +83,7 @@ py_library(
     ],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//projects/agent-platform/knowledge-graph/app/embedders",
-        "//projects/agent-platform/knowledge-graph/app/extractors",
+        "//services",
         "@pip//boto3",
         "@pip//botocore",
         "@pip//fastapi",

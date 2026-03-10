@@ -15,7 +15,7 @@ py_test(
     srcs = ["main_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/buildbuddy-mcp/app",
+        "//services",
         "@pip//pytest",
     ],
 )
@@ -33,7 +33,7 @@ py_test(
     srcs = ["composite_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/buildbuddy-mcp/app",
+        "//services",
         "@pip//pytest",
     ],
 )
@@ -45,7 +45,7 @@ py_test(
     tags = ["external"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/buildbuddy-mcp/app",
+        "//services",
         "@pip//httpx",
         "@pip//pytest",
     ],

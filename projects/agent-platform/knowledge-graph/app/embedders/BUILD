@@ -10,7 +10,10 @@ py_library(
         "ollama.py",
     ],
     visibility = ["//:__subpackages__"],
-    deps = ["@pip//httpx"],
+    deps = [
+        "//services",
+        "@pip//httpx",
+    ],
 )
 
 py_library(

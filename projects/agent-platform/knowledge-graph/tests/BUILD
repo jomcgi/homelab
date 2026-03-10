@@ -18,8 +18,7 @@ py_library(
     srcs = ["conftest.py"],
     visibility = ["//:__subpackages__"],
     deps = [
-        "//projects/agent-platform/knowledge-graph/app:config",
-        "//projects/agent-platform/knowledge-graph/app:models",
+        "//services",
         "@pip//pytest",
     ],
 )
@@ -29,7 +28,7 @@ py_test(
     srcs = ["models_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app:models",
+        "//services",
     ],
 )
 
@@ -38,7 +37,7 @@ py_test(
     srcs = ["chunker_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app:chunker",
+        "//services",
     ],
 )
 
@@ -47,8 +46,7 @@ py_test(
     srcs = ["storage_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app:models",
-        "//projects/agent-platform/knowledge-graph/app:storage",
+        "//services",
         "@pip//botocore",
         "@pip//pytest",
     ],
@@ -59,9 +57,7 @@ py_test(
     srcs = ["extractors_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app/extractors:base",
-        "//projects/agent-platform/knowledge-graph/app/extractors:feed_extractor",
-        "//projects/agent-platform/knowledge-graph/app/extractors:html_extractor",
+        "//services",
         "@pip//httpx",
         "@pip//pytest",
     ],
@@ -72,8 +68,7 @@ py_test(
     srcs = ["notifications_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app:models",
-        "//projects/agent-platform/knowledge-graph/app:notifications",
+        "//services",
         "@pip//pytest",
     ],
 )
@@ -83,8 +78,7 @@ py_test(
     srcs = ["qdrant_client_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app:models",
-        "//projects/agent-platform/knowledge-graph/app:qdrant_client",
+        "//services",
         "@pip//pytest",
     ],
 )
@@ -94,8 +88,8 @@ py_test(
     srcs = ["scraper_main_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app",
         "//projects/agent-platform/knowledge-graph/app:scraper_main",  # keep
+        "//services",
         "@pip//httpx",
         "@pip//pytest",
         "@pip//pyyaml",
@@ -107,8 +101,8 @@ py_test(
     srcs = ["mcp_main_test.py"],
     deps = [
         ":conftest",
-        "//projects/agent-platform/knowledge-graph/app",
         "//projects/agent-platform/knowledge-graph/app:mcp_main",  # keep
+        "//services",
         "@pip//httpx",
         "@pip//pytest",
     ],
