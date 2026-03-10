@@ -25,7 +25,7 @@ Personal monorepo. The goal is to make shipping a new service as low-friction as
 
 ## Projects
 
-See [architecture/services.md](architecture/services.md) for everything running in the cluster.
+See [docs/services.md](docs/services.md) for everything running in the cluster.
 
 ### Marine tracking
 
@@ -70,7 +70,7 @@ Scottish route finder with weather-aware surfacing.
 
 ## Infrastructure patterns
 
-See [architecture/security.md](architecture/security.md) for the defense-in-depth model and [architecture/observability.md](architecture/observability.md) for how automatic instrumentation works.
+See [docs/security.md](docs/security.md) for the defense-in-depth model and [docs/observability.md](docs/observability.md) for how automatic instrumentation works.
 
 | Area          | Approach                                                                        |
 | ------------- | ------------------------------------------------------------------------------- |
@@ -98,10 +98,10 @@ sextant/              # State machine code generator
 tools/                # Build helpers (hf2oci, formatting, hooks)
 rules_helm/           # Custom Bazel rules for Helm
 rules_wrangler/       # Custom Bazel rules for Cloudflare Pages
-architecture/         # Design docs and ADRs
+docs/         # Design docs and ADRs
 ```
 
-See [architecture/contributing.md](architecture/contributing.md) for the full structure and how to add a new service. Architecture decisions are tracked in [architecture/decisions/](architecture/decisions/).
+See [docs/contributing.md](docs/contributing.md) for the full structure and how to add a new service. Architecture decisions are tracked in [docs/decisions/](docs/decisions/).
 
 ## License
 

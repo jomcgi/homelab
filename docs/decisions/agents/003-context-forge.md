@@ -113,7 +113,7 @@ The `${VAR}` syntax expands environment variables at runtime — secrets stay in
 
 This reuses the same service token pattern the cluster's OTel deployment already uses for synthetic health checks (the `synthetic-tests` 1Password item). A dedicated service token scoped to `mcp.jomcgi.dev` can be created for tighter access control.
 
-**In-cluster agents** (OpenHands sandboxes) access the gateway via ClusterIP: `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`. No Cloudflare auth needed — ClusterIP is not externally reachable, and sandboxes are already scoped to an isolated namespace with ResourceQuota (see `architecture/decisions/agents/002-openhands-agent-sandbox.md`).
+**In-cluster agents** (OpenHands sandboxes) access the gateway via ClusterIP: `http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp`. No Cloudflare auth needed — ClusterIP is not externally reachable, and sandboxes are already scoped to an isolated namespace with ResourceQuota (see `docs/decisions/agents/002-openhands-agent-sandbox.md`).
 
 ### Full Request Flow
 
@@ -231,7 +231,7 @@ Internet ──[Cloudflare Zero Trust]──▶ mcp.jomcgi.dev ──▶ Context
 ```
 
 - **External agents** (local Claude Code, Cursor): authenticated by Cloudflare Zero Trust via service token before traffic reaches the cluster. Same trust model as `signoz.jomcgi.dev`, `argocd.jomcgi.dev` — nothing is exposed outside of Zero Trust.
-- **In-cluster agents** (OpenHands sandboxes): access via ClusterIP. No Cloudflare auth needed — but sandboxes are already scoped to an isolated namespace with ResourceQuota (see `architecture/decisions/agents/002-openhands-agent-sandbox.md`).
+- **In-cluster agents** (OpenHands sandboxes): access via ClusterIP. No Cloudflare auth needed — but sandboxes are already scoped to an isolated namespace with ResourceQuota (see `docs/decisions/agents/002-openhands-agent-sandbox.md`).
 - **Gateway → backends**: uses service-specific read-only credentials. The gateway pod holds these secrets; agents never see raw API keys.
 
 ### What the Gateway Does NOT Do
@@ -242,7 +242,7 @@ Internet ──[Cloudflare Zero Trust]──▶ mcp.jomcgi.dev ──▶ Context
 
 ### Deviations from Security Model
 
-None. This deployment follows all five layers from `architecture/security.md`:
+None. This deployment follows all five layers from `docs/security.md`:
 
 - Non-root, read-only filesystem, drop all capabilities
 - Linkerd-meshed (mTLS to backends)
@@ -310,5 +310,5 @@ None. This deployment follows all five layers from `architecture/security.md`:
 | [Claude Code MCP Configuration](https://docs.anthropic.com/en/docs/claude-code/mcp)                                               | `.mcp.json` format, `headers` field, env var expansion                     |
 | [SigNoz API docs](https://signoz.io/docs/developers/query-service/)                                                               | Backend API surface for virtual tool registration                          |
 | [ArgoCD API docs](https://cd.apps.argoproj.io/swagger-ui)                                                                         | Backend API surface for virtual tool registration                          |
-| [architecture/security.md](../../security.md)                                                                                     | Cluster security model (this RFC is fully compliant)                       |
+| [docs/security.md](../../security.md)                                                                                             | Cluster security model (this RFC is fully compliant)                       |
 | [architecture/rfcs/openhands-agent-sandbox.md](openhands-agent-sandbox.md)                                                        | OpenHands sandbox architecture (in-cluster agent consumer of this gateway) |

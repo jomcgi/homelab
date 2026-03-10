@@ -6,7 +6,7 @@ The docs site launched with content gaps: 8 deployed services are undocumented, 
 
 ## Approach
 
-Hybrid: add missing services to existing tiers in `services.md`, fix wording across pages, and create a new `architecture/agents.md` for the agent platform story. Create an ADR index page for navigation.
+Hybrid: add missing services to existing tiers in `services.md`, fix wording across pages, and create a new `docs/agents.md` for the agent platform story. Create an ADR index page for navigation.
 
 ## Changes
 
@@ -64,7 +64,7 @@ Add to Layer 5: "Installed via Helm outside ArgoCD — the only cluster componen
 
 Add sentence to ArgoCD Discovery Flow: "The `canada` Application is the root app-of-apps that bootstraps all three environments."
 
-### 6. New File: architecture/agents.md
+### 6. New File: docs/agents.md
 
 Agent platform overview covering:
 
@@ -72,24 +72,24 @@ Agent platform overview covering:
 - Data flow diagram showing agent request traversal
 - How the pieces compose (controller, runtime, LLM, tools, auth)
 
-### 7. New File: architecture/decisions/index.md
+### 7. New File: docs/decisions/index.md
 
 ADR index page listing all categories and linking to individual ADRs.
 
 ### 8. VitePress Config + Homepage
 
-- Re-add "ADRs" to top nav linking to `/architecture/decisions/`
+- Re-add "ADRs" to top nav linking to `/docs/decisions/`
 - Re-add "ADRs" hero action on homepage
 - Add "Agent Platform" to sidebar under Architecture
 - Ensure `decisions/index.md` is captured by the architecture BUILD glob
 
 ## Files Modified
 
-- `architecture/services.md`
-- `architecture/observability.md`
-- `architecture/security.md`
-- `architecture/contributing.md`
-- `architecture/agents.md` (new)
-- `architecture/decisions/index.md` (new)
+- `docs/services.md`
+- `docs/observability.md`
+- `docs/security.md`
+- `docs/contributing.md`
+- `docs/agents.md` (new)
+- `docs/decisions/index.md` (new)
 - `websites/docs.jomcgi.dev/.vitepress/config.js`
 - `websites/docs.jomcgi.dev/index.md`

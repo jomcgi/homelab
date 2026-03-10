@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-07
 **Status:** Approved
-**Relates to:** [ADR 005 — Role-Based MCP Access](../../architecture/decisions/agents/005-role-based-mcp-access.md)
+**Relates to:** [ADR 005 — Role-Based MCP Access](../../docs/decisions/agents/005-role-based-mcp-access.md)
 
 ---
 

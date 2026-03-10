@@ -228,7 +228,7 @@ The OCI tools image is an opportunity to close gaps in the current `bazel_env` s
 
 ## Security
 
-No deviations from `architecture/security.md`:
+No deviations from `docs/security.md`:
 
 - **OCI image** — Built with apko (non-root uid 65532, minimal base, no shell in final image unless needed)
 - **GHCR auth** — Uses existing `GHCR_TOKEN` in BuildBuddy secrets for push; pull is public (homelab repo is public)
@@ -275,4 +275,4 @@ No deviations from `architecture/security.md`:
 | [rules_apko](https://github.com/chainguard-dev/rules_apko)              | Bazel rules for apko image builds                    |
 | [`tools/BUILD` bazel_env rule](../../../tools/BUILD)                    | Current tool distribution mechanism being replaced   |
 | [BuildBuddy Workflows](https://www.buildbuddy.io/docs/workflows-setup/) | CI pipeline definition in `buildbuddy.yaml`          |
-| [architecture/security.md](../../security.md)                           | Cluster security model (this ADR is fully compliant) |
+| [docs/security.md](../../security.md)                                   | Cluster security model (this ADR is fully compliant) |

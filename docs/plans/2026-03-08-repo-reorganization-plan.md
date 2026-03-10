@@ -128,7 +128,7 @@ git commit -m "refactor: move build infrastructure under bazel/"
 
 **Files:**
 
-- Move: `architecture/decisions/` → `docs/decisions/`
+- Move: `docs/decisions/` → `docs/decisions/`
 - Move: `architecture/*.md` → `docs/`
 - Keep: `docs/plans/` (already exists)
 
@@ -136,12 +136,12 @@ git commit -m "refactor: move build infrastructure under bazel/"
 
 ```bash
 git mv architecture/decisions docs/decisions
-git mv architecture/contributing.md docs/
-git mv architecture/security.md docs/
-git mv architecture/services.md docs/
-git mv architecture/observability.md docs/
-git mv architecture/observability-alerting.md docs/
-git mv architecture/agents.md docs/
+git mv docs/contributing.md docs/
+git mv docs/security.md docs/
+git mv docs/services.md docs/
+git mv docs/observability.md docs/
+git mv docs/observability-alerting.md docs/
+git mv docs/agents.md docs/
 # Move any remaining architecture files
 for f in architecture/*.md; do
   [ -f "$f" ] && git mv "$f" docs/
@@ -154,7 +154,7 @@ done
 
 Key files:
 
-- `.claude/CLAUDE.md` — context loading rules reference `architecture/security.md`, etc.
+- `.claude/CLAUDE.md` — context loading rules reference `docs/security.md`, etc.
 - `.claude/skills/*/SKILL.md` — may reference architecture docs
 - `docs/` internal cross-references
 - Any BUILD files referencing `//architecture:`

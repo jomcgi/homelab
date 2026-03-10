@@ -183,4 +183,4 @@ In-cluster agents (OpenHands sandboxes, Goose pods) continue to access Context F
 | [Claude.ai remote MCP connectors](https://support.claude.com/en/articles/11503834-building-custom-connectors-via-remote-mcp-servers) | Claude.ai OAuth requirements (DCR, PKCE, callback URL)      |
 | [ADR 003 — Context Forge](003-context-forge.md)                                                                                      | Current service-token auth model (being replaced)           |
 | [ADR 005 — Role-Based MCP Access](005-role-based-mcp-access.md)                                                                      | Authorization layer that consumes this ADR's authentication |
-| [architecture/security.md](../../security.md)                                                                                        | Cluster security model — one deviation documented above     |
+| [docs/security.md](../../security.md)                                                                                                | Cluster security model — one deviation documented above     |

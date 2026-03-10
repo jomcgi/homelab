@@ -1,6 +1,6 @@
 ---
 name: adr
-description: Use when creating, reviewing, or working with ADRs (Architecture Decision Records). Creates structured decision documents in architecture/decisions/<category>/ for tracking architectural decisions and their evolution.
+description: Use when creating, reviewing, or working with ADRs (Architecture Decision Records). Creates structured decision documents in docs/decisions/<category>/ for tracking architectural decisions and their evolution.
 ---
 
 # ADR — Architecture Decision Records
@@ -9,7 +9,7 @@ ADRs are the primary mechanism for proposing, tracking, and recording architectu
 
 ## Location
 
-ADRs live in `architecture/decisions/<category>/` as numbered Markdown files.
+ADRs live in `docs/decisions/<category>/` as numbered Markdown files.
 
 Current categories:
 
@@ -32,12 +32,12 @@ New categories are created as needed. Keep them broad enough to be useful.
 Look at the highest-numbered file in the target category and increment by one. If the category doesn't exist yet, start at 001.
 
 ```bash
-ls architecture/decisions/<category>/
+ls docs/decisions/<category>/
 ```
 
 ### Step 2: Create the file
 
-Create `architecture/decisions/<category>/NNN-<slug>.md` using this template:
+Create `docs/decisions/<category>/NNN-<slug>.md` using this template:
 
 ````markdown
 # ADR NNN: <Title>
@@ -91,7 +91,7 @@ Break work into phases with a checklist. This is the canonical task list — no 
 
 ## Security
 
-Reference `architecture/security.md` for baseline. Document any deviations.
+Reference `docs/security.md` for baseline. Document any deviations.
 
 ## Risks
 
@@ -152,7 +152,7 @@ ADRs track their own work via markdown checklists in the Implementation section.
 
 ## Conventions
 
-- **File naming**: `architecture/decisions/<category>/NNN-<kebab-case-slug>.md`
+- **File naming**: `docs/decisions/<category>/NNN-<kebab-case-slug>.md`
 - **Numbering**: Sequential within each category (001, 002, ...). Numbers are never reused.
 - **Commit prefix**: `docs(adr):` for new ADRs and updates
 - **Diagrams**: Mermaid for all architecture and flow diagrams (renders natively on GitHub)

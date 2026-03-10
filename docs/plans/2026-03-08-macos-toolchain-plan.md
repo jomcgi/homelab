@@ -8,7 +8,7 @@
 
 **Tech Stack:** rules_oci, rules_multitool, rules_pkg, rules_python, rules_nodejs, Bazel bzlmod
 
-**Related:** Design doc `docs/plans/2026-03-08-macos-toolchain-design.md`, ADR `architecture/decisions/tooling/001-oci-tool-distribution.md`
+**Related:** Design doc `docs/plans/2026-03-08-macos-toolchain-design.md`, ADR `docs/decisions/tooling/001-oci-tool-distribution.md`
 
 ---
 

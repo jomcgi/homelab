@@ -235,7 +235,7 @@ fi
 
 ## References
 
-- ADR `architecture/decisions/tooling/001-oci-tool-distribution.md` — parent design
+- ADR `docs/decisions/tooling/001-oci-tool-distribution.md` — parent design
 - `docs/plans/2026-03-07-decouple-format-from-bazel-design.md` — formatting subset (updated by this design)
 - `tools/tools.lock.json` — existing multitool lockfile
 - `tools/image/BUILD` — current image build targets

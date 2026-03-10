@@ -197,7 +197,7 @@ Three tools exist in the `bazel_env` (available via `tools/BUILD`) but are **not
 | `scaffold` | `@com_github_hay_kot_scaffold//:scaffold` | Available, no templates defined  |
 | `yo`       | `@npm//tools:yo`                          | Available, no generators defined |
 
-No `scripts/` directory, no `Makefile` new-service target, no cookiecutter templates, no documented step-by-step "how to add a service" guide beyond `architecture/contributing.md` (which covers contribution workflow, not service creation specifics).
+No `scripts/` directory, no `Makefile` new-service target, no cookiecutter templates, no documented step-by-step "how to add a service" guide beyond `docs/contributing.md` (which covers contribution workflow, not service creation specifics).
 
 The Bazel macros in `tools/oci/` (`go_image`, `py3_image`, `apko_image`) abstract the image build step well but do not help with the directory layout, chart boilerplate, or overlay registration — the highest-friction parts of service creation.
 
@@ -292,7 +292,7 @@ Copier is idempotent on re-run: it only updates files that have drifted from the
 
 Conventions discovered during this investigation are currently implicit. Make them explicit and enforceable:
 
-**2a. Service creation guide** — Add `architecture/services.md` section "Adding a New Service" with:
+**2a. Service creation guide** — Add `docs/services.md` section "Adding a New Service" with:
 
 - When to use `go_image` vs `py3_image` vs `apko_image`
 - The 7 files every service needs and what goes in each
@@ -346,8 +346,8 @@ The status quo continues: each service added by hand, conventions erode over tim
 | [Copier documentation](https://copier.readthedocs.io/)                | Template engine used in this proposal                                   |
 | [`tools/oci/py3_image.bzl`](../../../tools/oci/py3_image.bzl)         | Python image macro — template generates invocations of this             |
 | [`tools/oci/go_image.bzl`](../../../tools/oci/go_image.bzl)           | Go image macro — template generates invocations of this                 |
-| [`architecture/contributing.md`](../../contributing.md)               | Existing contribution guide (Phase 2 extends this)                      |
-| [`architecture/services.md`](../../services.md)                       | Existing service architecture doc (Phase 2 adds "Adding a New Service") |
+| [`docs/contributing.md`](../../contributing.md)                       | Existing contribution guide (Phase 2 extends this)                      |
+| [`docs/services.md`](../../services.md)                               | Existing service architecture doc (Phase 2 adds "Adding a New Service") |
 | [`operators/best-practices.md`](../../../operators/best-practices.md) | Operator-specific patterns (inform Go operator variant of template)     |
 | [`charts/mcp-servers/`](../../../charts/mcp-servers/)                 | MCP meta-chart — reference for MCP server onboarding path               |
 | [ADR 001: OCI Tool Distribution](./001-oci-tool-distribution.md)      | Establishes `copier` as an available tool in the developer environment  |
