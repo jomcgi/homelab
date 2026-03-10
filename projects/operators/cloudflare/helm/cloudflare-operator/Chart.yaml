@@ -17,7 +17,7 @@ maintainers:
 sources:
   - https://github.com/jomcgi/homelab/tree/main/operators/cloudflare
 
-# Gateway API CRDs are installed separately via envoy-gateway in overlays/cluster-critical/envoy/
+# Gateway API CRDs are installed separately via envoy-gateway in projects/platform/envoy/
 # No Helm dependency needed - the operator expects Gateway API to be pre-installed
 
 annotations:

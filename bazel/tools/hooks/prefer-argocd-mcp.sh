@@ -34,6 +34,6 @@ cat >&2 <<-'EOF'
 	  - argocd-mcp-sync-application                Sync an application
 
 	For write operations (create/update/delete), prefer GitOps:
-	  Edit overlays/<env>/<service>/values.yaml -> commit -> push -> ArgoCD auto-syncs.
+	  Edit projects/<project>/<service>/deploy/values.yaml -> commit -> push -> ArgoCD auto-syncs.
 EOF
 exit 2

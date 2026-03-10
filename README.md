@@ -72,18 +72,18 @@ Scottish route finder with weather-aware surfacing.
 
 See [docs/security.md](docs/security.md) for the defense-in-depth model and [docs/observability.md](docs/observability.md) for how automatic instrumentation works.
 
-| Area          | Approach                                                                        |
-| ------------- | ------------------------------------------------------------------------------- |
-| Ingress       | Cloudflare Tunnel only - nothing exposed directly                               |
-| Service mesh  | Linkerd - automatic mTLS and distributed tracing, no code changes               |
-| Observability | SigNoz - unified metrics, logs, traces. Kyverno auto-injects OTEL env vars      |
-| Policy        | Kyverno - enforces non-root (uid 65532), read-only filesystems                  |
-| Secrets       | 1Password Operator - OnePasswordItem CRDs, nothing in Git                       |
-| Storage       | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage     |
-| Messaging     | NATS JetStream - pub/sub backbone for AIS data, trip points, events             |
-| Images        | apko + rules_apko - no Dockerfiles, dual-arch (x86_64 + aarch64), non-root      |
-| CI            | BuildBuddy Workflows - format check + `bazel test //...` + image push on main   |
-| GitOps        | ArgoCD syncs from `clusters/` → `overlays/` → `charts/`. `kubectl` is read-only |
+| Area          | Approach                                                                                     |
+| ------------- | -------------------------------------------------------------------------------------------- |
+| Ingress       | Cloudflare Tunnel only - nothing exposed directly                                            |
+| Service mesh  | Linkerd - automatic mTLS and distributed tracing, no code changes                            |
+| Observability | SigNoz - unified metrics, logs, traces. Kyverno auto-injects OTEL env vars                   |
+| Policy        | Kyverno - enforces non-root (uid 65532), read-only filesystems                               |
+| Secrets       | 1Password Operator - OnePasswordItem CRDs, nothing in Git                                    |
+| Storage       | Longhorn for persistent volumes, SeaweedFS for S3-compatible object storage                  |
+| Messaging     | NATS JetStream - pub/sub backbone for AIS data, trip points, events                          |
+| Images        | apko + rules_apko - no Dockerfiles, dual-arch (x86_64 + aarch64), non-root                   |
+| CI            | BuildBuddy Workflows - format check + `bazel test //...` + image push on main                |
+| GitOps        | ArgoCD syncs from `projects/home-cluster` → colocated `deploy/` dirs. `kubectl` is read-only |
 
 ## Repo layout
 
@@ -92,8 +92,8 @@ services/             # Go, Python backends
 websites/             # Vite + React, Astro frontends
 operators/            # Kubernetes controllers (Go, controller-runtime)
 charts/               # Helm charts (custom + upstream wrappers)
-overlays/             # Environment values (cluster-critical, dev, prod)
-clusters/             # ArgoCD kustomization entry points
+projects/             # Service code + colocated deploy/ dirs (ArgoCD Applications)
+clusters/             # ArgoCD root entry point (redirects to projects/home-cluster)
 sextant/              # State machine code generator
 tools/                # Build helpers (hf2oci, formatting, hooks)
 rules_helm/           # Custom Bazel rules for Helm

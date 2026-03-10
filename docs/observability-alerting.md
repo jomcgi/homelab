@@ -137,25 +137,25 @@ The `thresholds` block is still needed for the SigNoz UI to render threshold con
 
 Monitor service availability via the OTel httpcheck receiver. Pattern: `max(httpcheck.status)` (space aggregation) where `http.url = '<url>'`, alert when `< 1` for 5 consecutive checks. Uses `max` space aggregation to avoid false positives from stale metric series left by previous collector pod incarnations.
 
-| Service          | URL                                       | Location                              |
-| ---------------- | ----------------------------------------- | ------------------------------------- |
-| ArgoCD           | `https://argocd.jomcgi.dev/healthz`       | `overlays/cluster-critical/argocd/`   |
-| Longhorn         | `https://longhorn.jomcgi.dev`             | `overlays/cluster-critical/longhorn/` |
-| SigNoz           | `https://signoz.jomcgi.dev/api/v1/health` | `overlays/cluster-critical/signoz/`   |
-| hikes.jomcgi.dev | `https://hikes.jomcgi.dev`                | `overlays/cluster-critical/signoz/`   |
-| jomcgi.dev       | `https://jomcgi.dev`                      | `overlays/cluster-critical/signoz/`   |
-| trips pages      | `https://trips.jomcgi.dev`                | `overlays/cluster-critical/signoz/`   |
-| marine           | `https://marine.jomcgi.dev/health`        | `overlays/dev/marine/`                |
-| api-gateway      | `https://api.jomcgi.dev/status.json`      | `overlays/prod/api-gateway/`          |
-| todo             | `https://todo.jomcgi.dev`                 | `overlays/prod/todo/`                 |
-| todo-admin       | `https://todo-admin.jomcgi.dev/health`    | `overlays/prod/todo/`                 |
-| img              | `https://img.jomcgi.dev/health`           | `overlays/prod/trips/`                |
+| Service          | URL                                       | Location                                      |
+| ---------------- | ----------------------------------------- | --------------------------------------------- |
+| ArgoCD           | `https://argocd.jomcgi.dev/healthz`       | `projects/platform/argocd/`                   |
+| Longhorn         | `https://longhorn.jomcgi.dev`             | `projects/platform/longhorn/`                 |
+| SigNoz           | `https://signoz.jomcgi.dev/api/v1/health` | `projects/platform/signoz/`                   |
+| hikes.jomcgi.dev | `https://hikes.jomcgi.dev`                | `projects/platform/signoz/`                   |
+| jomcgi.dev       | `https://jomcgi.dev`                      | `projects/platform/signoz/`                   |
+| trips pages      | `https://trips.jomcgi.dev`                | `projects/platform/signoz/`                   |
+| marine           | `https://marine.jomcgi.dev/health`        | `projects/ships/deploy/`                      |
+| api-gateway      | `https://api.jomcgi.dev/status.json`      | `projects/agent_platform/api-gateway/deploy/` |
+| todo             | `https://todo.jomcgi.dev`                 | `projects/todo_app/deploy/`                   |
+| todo-admin       | `https://todo-admin.jomcgi.dev/health`    | `projects/todo_app/deploy/`                   |
+| img              | `https://img.jomcgi.dev/health`           | `projects/trips/deploy/`                      |
 
 ### ArgoCD App State Alerts
 
 Monitor GitOps application health via the `argocd_app_info` metric. Pattern: `count(argocd_app_info)` where `health_status = '<state>'`, grouped by app name and namespace.
 
-Located in `overlays/cluster-critical/signoz/alerts/`:
+Located in `projects/platform/signoz-addons/alerts/`:
 
 - `argocd-app-degraded.yaml` — health_status = Degraded (warning)
 - `argocd-app-missing.yaml` — health_status = Missing (critical)
@@ -166,7 +166,7 @@ Located in `overlays/cluster-critical/signoz/alerts/`:
 
 Monitor node and pod health via k8s receiver metrics.
 
-Located in `overlays/cluster-critical/signoz/alerts/`:
+Located in `projects/platform/signoz-addons/alerts/`:
 
 - `node-disk-pressure.yaml` — `k8s.node.condition_disk_pressure` > 0 always (warning)
 - `node-memory-pressure.yaml` — `k8s.node.condition_memory_pressure` > 0 always (warning)

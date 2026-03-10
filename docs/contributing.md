@@ -6,15 +6,16 @@ This document covers common tasks and workflows for contributing to the homelab.
 
 This is a GitOps monorepo where related code and deployment configuration live together.
 
-| Directory           | Purpose                                                                           |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `charts/<service>/` | Helm charts with templates, values, and source code for service-specific binaries |
-| `overlays/<env>/`   | Environment-specific configuration (ArgoCD Applications, value overrides)         |
-| `operators/`        | Custom Kubernetes operators                                                       |
-| `services/`         | Standalone services not deployed via Helm                                         |
-| `images/`           | Container image definitions (apko)                                                |
+| Directory                | Purpose                                                                           |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `projects/<project>/`    | Project groups containing services, operators, and their deployment configs       |
+| `charts/<service>/`      | Helm charts with templates, values, and source code for service-specific binaries |
+| `projects/home-cluster/` | Auto-generated root kustomization that discovers all deploy/ directories          |
+| `operators/`             | Custom Kubernetes operators                                                       |
+| `services/`              | Standalone services not deployed via Helm                                         |
+| `images/`                | Container image definitions (apko)                                                |
 
-**Colocation principle:** Service-specific code (binaries, images) lives inside its chart, not in a separate `cmd/` or `pkg/` directory. This makes it easy to understand what belongs together.
+**Colocation principle:** Each service's deployment configuration (ArgoCD Application, Helm values) lives in a `deploy/` directory next to its source code, not in a separate overlays directory. This makes it easy to understand what belongs together.
 
 ## Adding a New Service
 
@@ -22,7 +23,7 @@ This is a GitOps monorepo where related code and deployment configuration live t
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Step 1: Create Helm Chart                                          │
+│  Step 1: Create Helm Chart (if needed)                              │
 │  charts/<service>/                                                   │
 │    ├── Chart.yaml                                                    │
 │    ├── values.yaml (defaults)                                        │
@@ -31,34 +32,31 @@ This is a GitOps monorepo where related code and deployment configuration live t
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Step 2: Create Overlay Configuration                               │
-│  overlays/<env>/<service>/                                           │
+│  Step 2: Create Colocated deploy/ Directory                         │
+│  projects/<project>/<service>/deploy/                                │
 │    ├── application.yaml    (ArgoCD Application manifest)             │
 │    ├── kustomization.yaml  (makes app discoverable)                  │
-│    └── values.yaml         (environment-specific overrides)          │
+│    └── values.yaml         (Helm value overrides)                    │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│  Step 3: Add to Environment Kustomization                           │
-│  overlays/<env>/kustomization.yaml                                   │
-│  resources:                                                          │
-│    - <service>/  ← Add this line                                     │
+│  Step 3: Auto-Discovery                                             │
+│  Run: bazel/images/generate-home-cluster.sh                         │
+│  This scans projects/ for deploy/ dirs containing                    │
+│  application.yaml and regenerates                                    │
+│  projects/home-cluster/kustomization.yaml                            │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Step 4: ArgoCD Auto-Discovery                                      │
-│  clusters/homelab/kustomization.yaml references:                     │
-│    - ../../overlays/cluster-critical                                 │
-│    - ../../overlays/prod                                             │
-│    - ../../overlays/dev                                              │
+│  clusters/homelab/kustomization.yaml redirects to                    │
+│  projects/home-cluster/ which lists all deploy/ dirs.                │
 │                                                                      │
 │  The "canada" Application is the root app-of-apps.                   │
-│  It references all three environment overlays:                       │
-│                                                                      │
-│  ArgoCD runs "kustomize build" on these paths and discovers          │
-│  all Application manifests                                           │
+│  ArgoCD runs "kustomize build" and discovers all                     │
+│  Application manifests automatically.                                │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
@@ -73,50 +71,42 @@ This is a GitOps monorepo where related code and deployment configuration live t
 ### Service Directory Structure
 
 ```
-overlays/
-├── cluster-critical/     # Core infrastructure
+projects/
+├── platform/              # Core infrastructure
 │   ├── argocd/
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   ├── linkerd/
+│   ├── envoy/
 │   ├── kyverno/
-│   └── kustomization.yaml  ← references all services
+│   └── kustomization.yaml  ← references all platform services
 │
-├── prod/                 # Production services
-│   ├── api-gateway/
+├── agent_platform/        # Agent services
+│   ├── agent-orchestrator/deploy/
+│   ├── context-forge/deploy/
+│   └── kustomization.yaml  ← references all agent services
+│
+├── grimoire/              # Individual project with colocated deploy/
+│   ├── deploy/
 │   │   ├── application.yaml
 │   │   ├── kustomization.yaml
 │   │   └── values.yaml
-│   ├── nats/
-│   ├── todo/
-│   └── kustomization.yaml  ← references all services
+│   └── src/               # Source code lives alongside deploy/
 │
-└── dev/                  # Development services
-    ├── claude/
-    ├── marine/
-    └── kustomization.yaml  ← references all services
+└── home-cluster/          # Auto-generated root (DO NOT EDIT)
+    └── kustomization.yaml  ← lists all deploy/ dirs
 ```
 
 ### Steps
 
-1. Create Helm chart in `charts/<name>/` with default values
-2. Choose the appropriate overlay environment:
-   - `overlays/cluster-critical/` - Core infrastructure (argocd, longhorn, monitoring)
-   - `overlays/prod/` - Production services
-   - `overlays/dev/` - Development/experimental services
-3. Create service directory in `overlays/<env>/<name>/` with:
-   - `application.yaml` - ArgoCD Application pointing to your chart
-     ```yaml
-     valueFiles:
-       - values.yaml # Chart defaults
-       - ../../overlays/<env>/<name>/values.yaml # Environment overrides
-     ```
-   - `kustomization.yaml` - Reference to application.yaml
-   - `values.yaml` - Environment-specific Helm value overrides
-4. Add the service to `overlays/<env>/kustomization.yaml` resources list
-5. Add health checks and observability to the chart
-6. Test the complete deployment path:
+1. Create Helm chart in `charts/<name>/` with default values (or use an upstream chart)
+2. Create a `deploy/` directory colocated with your service source:
+   - `projects/<project>/<service>/deploy/application.yaml` - ArgoCD Application pointing to your chart
+   - `projects/<project>/<service>/deploy/kustomization.yaml` - Reference to application.yaml
+   - `projects/<project>/<service>/deploy/values.yaml` - Helm value overrides
+3. Run `bazel/images/generate-home-cluster.sh` to regenerate the root kustomization
+4. Add health checks and observability to the chart
+5. Test the complete deployment path:
    - `helm template <service> charts/<service>/ --namespace <namespace>` to verify rendering
    - Commit and push to Git
    - ArgoCD automatically discovers and syncs the new application to the cluster

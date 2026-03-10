@@ -19,7 +19,7 @@ CLUSTER INSPECTION (read-only):
   bazel run //bazel/tools/cluster:argocd           ArgoCD sync status
 
 MANIFEST RENDERING:
-  bazel run //overlays/<env>/<svc>:render_manifests   Render Helm manifests for a service
+  bazel run //projects/<project>/<svc>/deploy:render_manifests   Render Helm manifests for a service
 
 CONTAINER IMAGES:
   bazel run //charts/<svc>/image:push             Push specific container image
@@ -30,6 +30,6 @@ TOOLS:
 
 QUERYING:
   bazel query //bazel/tools/cluster/...                 List all cluster targets
-  bazel query //overlays/<env>/<svc>:*            List all targets for a service
+  bazel query //projects/<project>/<svc>/deploy:*  List all targets for a service
   bazel query //charts/<svc>/...                  List all targets for a chart
 HELP
