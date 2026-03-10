@@ -14,12 +14,14 @@ from projects.advent_of_code.solutions.year2015.day01.python.solution import (
 
 @pytest.fixture
 def input_text():
-    return Path("advent_of_code/solutions/year2015/day01/input.txt").read_text()
+    return Path(
+        "projects/advent_of_code/solutions/year2015/day01/input.txt"
+    ).read_text()
 
 
 @pytest.fixture
 def answers():
-    answers_path = Path("advent_of_code/solutions/year2015/day01/answers.json")
+    answers_path = Path("projects/advent_of_code/solutions/year2015/day01/answers.json")
     if not answers_path.exists():
         pytest.skip("answers.json not found")
     return json.loads(answers_path.read_text())
