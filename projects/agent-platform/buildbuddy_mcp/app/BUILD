@@ -5,7 +5,7 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 py_venv_binary(
     name = "main",
     srcs = ["main.py"],
-    imports = ["../../.."],
+    imports = ["../.."],
     main = "main.py",
     visibility = ["//:__subpackages__"],
     deps = [
@@ -19,9 +19,10 @@ py_library(
     name = "app",
     srcs = [
         "__init__.py",
+        "composite.py",
         "main.py",
     ],
-    imports = ["../../.."],
+    imports = ["../.."],
     visibility = ["//:__subpackages__"],
     deps = [
         "@pip//fastmcp",
@@ -41,5 +42,11 @@ semgrep_target_test(
 semgrep_test(
     name = "__init___semgrep_test",
     srcs = ["__init__.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "composite_semgrep_test",
+    srcs = ["composite.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )

@@ -290,7 +290,7 @@ apko.translate_lock(
 )
 apko.translate_lock(
     name = "todo_lock",
-    lock = "//projects/agent-platform/todo-mcp/image:apko.lock.json",
+    lock = "//projects/agent-platform/todo_mcp/image:apko.lock.json",
 )
 apko.translate_lock(
     name = "goose_agent_lock",
