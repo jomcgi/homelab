@@ -1007,7 +1007,7 @@ func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
 				enabled:     true,
 				scaEnabled:  true,
 				scaRules:    map[string]string{"pip": "//bazel/semgrep/rules:sca_python_rules"},
-				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
+				lockfiles:   map[string]string{"pip": "//bazel/requirements:all.txt"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
 			},
@@ -1037,7 +1037,7 @@ func TestGenerateRules_WithBinaryAndPipDeps(t *testing.T) {
 	}
 
 	lockfiles := targetRule.AttrStrings("lockfiles")
-	if len(lockfiles) != 1 || lockfiles[0] != "//requirements:all.txt" {
+	if len(lockfiles) != 1 || lockfiles[0] != "//bazel/requirements:all.txt" {
 		t.Errorf("lockfiles = %v, want [//requirements:all.txt]", lockfiles)
 	}
 
@@ -1053,7 +1053,7 @@ func TestGenerateRules_SCADisabled(t *testing.T) {
 			semgrepConfigKey: &semgrepConfig{
 				enabled:     true,
 				scaEnabled:  false,
-				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
+				lockfiles:   map[string]string{"pip": "//bazel/requirements:all.txt"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
 			},
@@ -1087,7 +1087,7 @@ func TestGenerateRules_MultipleDepsMultipleEcosystems(t *testing.T) {
 				enabled:     true,
 				scaEnabled:  true,
 				scaRules:    copyScaRules(defaultScaRules),
-				lockfiles:   map[string]string{"pip": "//requirements:all.txt", "gomod": "//:go.sum"},
+				lockfiles:   map[string]string{"pip": "//bazel/requirements:all.txt", "gomod": "//:go.sum"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
 			},
@@ -1116,7 +1116,7 @@ func TestGenerateRules_MultipleDepsMultipleEcosystems(t *testing.T) {
 	if lockfiles[0] != "//:go.sum" {
 		t.Errorf("lockfiles[0] = %q, want //:go.sum", lockfiles[0])
 	}
-	if lockfiles[1] != "//requirements:all.txt" {
+	if lockfiles[1] != "//bazel/requirements:all.txt" {
 		t.Errorf("lockfiles[1] = %q, want //requirements:all.txt", lockfiles[1])
 	}
 
@@ -1140,7 +1140,7 @@ func TestGenerateRules_NoDepsNoLockfiles(t *testing.T) {
 				enabled:     true,
 				scaEnabled:  true,
 				scaRules:    copyScaRules(defaultScaRules),
-				lockfiles:   map[string]string{"pip": "//requirements:all.txt"},
+				lockfiles:   map[string]string{"pip": "//bazel/requirements:all.txt"},
 				targetKinds: map[string]string{"py_venv_binary": ""},
 				languages:   []string{"py"},
 			},
@@ -1179,8 +1179,8 @@ func TestDetectLockfiles(t *testing.T) {
 			name:       "pip deps detected",
 			deps:       []string{"@pip//requests", "@pip//flask"},
 			scaEnabled: true,
-			lockfiles:  map[string]string{"pip": "//requirements:all.txt"},
-			want:       []string{"//requirements:all.txt"},
+			lockfiles:  map[string]string{"pip": "//bazel/requirements:all.txt"},
+			want:       []string{"//bazel/requirements:all.txt"},
 		},
 		{
 			name:       "go deps detected",
@@ -1200,22 +1200,22 @@ func TestDetectLockfiles(t *testing.T) {
 			name:       "no external deps",
 			deps:       []string{":local_lib", "//other:target"},
 			scaEnabled: true,
-			lockfiles:  map[string]string{"pip": "//requirements:all.txt"},
+			lockfiles:  map[string]string{"pip": "//bazel/requirements:all.txt"},
 			want:       nil,
 		},
 		{
 			name:       "sca disabled",
 			deps:       []string{"@pip//requests"},
 			scaEnabled: false,
-			lockfiles:  map[string]string{"pip": "//requirements:all.txt"},
+			lockfiles:  map[string]string{"pip": "//bazel/requirements:all.txt"},
 			want:       nil,
 		},
 		{
 			name:       "multiple ecosystems sorted",
 			deps:       []string{"@pip//requests", "@go_deps//example.com/pkg"},
 			scaEnabled: true,
-			lockfiles:  map[string]string{"pip": "//requirements:all.txt", "gomod": "//:go.sum"},
-			want:       []string{"//:go.sum", "//requirements:all.txt"},
+			lockfiles:  map[string]string{"pip": "//bazel/requirements:all.txt", "gomod": "//:go.sum"},
+			want:       []string{"//:go.sum", "//bazel/requirements:all.txt"},
 		},
 		{
 			name:       "ecosystem without lockfile config",

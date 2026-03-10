@@ -16,7 +16,7 @@ var depPrefixToEcosystem = map[string]string{
 
 // defaultLockfiles maps ecosystem keys to their default lockfile labels.
 var defaultLockfiles = map[string]string{
-	"pip":   "//requirements:all.txt",
+	"pip":   "//bazel/requirements:all.txt",
 	"pnpm":  "//:pnpm-lock.yaml",
 	"gomod": "//:go.sum",
 }

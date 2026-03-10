@@ -6,9 +6,9 @@ set -euo pipefail
 echo "Updating Python requirements..."
 
 # Regenerate runtime.txt from pyproject.toml
-bazel run //requirements:runtime
+bazel run //bazel/requirements:runtime
 
 # Regenerate all.txt (includes test/tools dependencies)
-bazel run //requirements:requirements.all
+bazel run //bazel/requirements:requirements.all
 
 echo "✅ Python requirements updated"

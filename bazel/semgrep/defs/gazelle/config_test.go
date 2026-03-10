@@ -592,7 +592,7 @@ func TestConfigure_SCALockfileDirective(t *testing.T) {
 	configure(c, "", f)
 	cfg := c.Exts[semgrepConfigKey].(*semgrepConfig)
 
-	if cfg.lockfiles["pip"] != "//requirements:custom.txt" {
+	if cfg.lockfiles["pip"] != "//bazel/requirements:custom.txt" {
 		t.Errorf("expected pip lockfile override, got %q", cfg.lockfiles["pip"])
 	}
 }

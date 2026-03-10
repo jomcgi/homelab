@@ -171,7 +171,7 @@ python.toolchain(
 pip.parse(
     hub_name = "pip",
     python_version = "3.13",
-    requirements_lock = "//requirements:all.txt",
+    requirements_lock = "//bazel/requirements:all.txt",
 )
 use_repo(pip, "pip")
 

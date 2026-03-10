@@ -80,7 +80,7 @@ semgrep_test(
 semgrep_target_test(
     name = "scrape_semgrep_test",
     exclude_rules = ["no-requests"],
-    lockfiles = ["//requirements:all.txt"],
+    lockfiles = ["//bazel/requirements:all.txt"],
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":scrape",
