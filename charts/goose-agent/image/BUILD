@@ -114,6 +114,8 @@ go_test(
     embedsrcs = [
         "recipes/ci-debug.yaml",
         "recipes/code-fix.yaml",
+        "recipes/bazel.yaml",
+        "recipes/research.yaml",
     ],
     deps = ["@in_gopkg_yaml_v3//:yaml_v3"],
 )
