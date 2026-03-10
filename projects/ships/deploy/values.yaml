@@ -1,145 +1,53 @@
-# Marine Services Chart
-# Combined AIS ingestion and Ships API services
+# Development overrides for marine services
 
-# Shared settings
-nameOverride: ""
-fullnameOverride: ""
-
-# ArgoCD Image Updater (automatic digest-based image updates)
+# ArgoCD Image Updater
 imageUpdater:
-  enabled: false
-  images: []
-  writeBack:
-    method: ""
-    repository: ""
-    branch: main
-    target: ""
-
-# Image pull secrets (shared by all components)
-imagePullSecrets: []
-
-# Image pull secret configuration (OnePassword)
-imagePullSecret:
-  enabled: false
-  create: true
-  onepassword:
-    itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
-
-# Secret configuration for AISStream API key
-secret:
-  type: onepassword
-  onepassword:
-    itemPath: "vaults/k8s-homelab/items/marine"
-  manual:
-    apiKey: ""
-
-# Service account (shared)
-serviceAccount:
-  create: true
-  annotations: {}
-  name: ""
-
-# NATS configuration (shared)
-nats:
-  url: nats://nats.nats.svc.cluster.local:4222
-
-# AISStream configuration (for ingest)
-aisstream:
-  url: wss://stream.aisstream.io/v0/stream
-  # Americas coverage - Pacific to Atlantic, equator to Arctic
-  # Format: [[[lat_min, lon_min], [lat_max, lon_max]]]
-  # South: -2.5, West: -173, North: 71.4, East: -32
-  boundingBox: "[[[-2.455379, -173.009262], [71.414709, -32.0327]]]"
-
-# Pod security context (shared)
-# Known limitation: runs as root because aspect_rules_py venv writes
-# to the installation directory at runtime
-podSecurityContext:
-  seccompProfile:
-    type: RuntimeDefault
-
-# Container security context (shared)
-securityContext:
-  # Note: readOnlyRootFilesystem disabled because aspect_rules_py
-  # creates a virtualenv at runtime (by design)
-  readOnlyRootFilesystem: false
-  allowPrivilegeEscalation: false
-  capabilities:
-    drop:
-      - ALL
-
-nodeSelector: {}
-tolerations: []
-affinity: {}
-
-# =============================================================================
-# AIS Ingest Component
-# Streams vessel position reports from AISStream.io to NATS
-# =============================================================================
-ingest:
   enabled: true
-
+  images:
+    - alias: ingest
+      imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
+      helm:
+        name: ingest.image.repository
+        tag: ingest.image.tag
+    - alias: api
+      imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
+      helm:
+        name: api.image.repository
+        tag: api.image.tag
+    - alias: frontend
+      imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
+      helm:
+        name: frontend.image.repository
+        tag: frontend.image.tag
+  writeBack:
+    method: git:secret:argocd/argocd-image-updater-token
+    repository: https://github.com/jomcgi/homelab.git
+    branch: main
+    target: helmvalues:projects/ships/deploy/values.yaml
+# Enable image pull secret for GHCR
+imagePullSecret:
+  enabled: true
+# Configure pods to use the image pull secret
+imagePullSecrets:
+  - name: ghcr-imagepull-secret
+# AIS Ingest component
+ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
-    tag: "main"
-    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
-    pullPolicy: IfNotPresent
-
-  # Single replica - no need for HA for data ingestion
-  replicas: 1
-
-  # Service configuration for health endpoint
-  service:
-    type: ClusterIP
-    port: 8000
-
-  # Resource limits
-  # Increased for global AIS coverage (~300 msg/sec)
-  resources:
-    requests:
-      cpu: 20m
-      memory: 100Mi
-    limits:
-      cpu: 20m
-      memory: 100Mi
-
-  # Pod annotations
-  podAnnotations: {}
-
-# =============================================================================
-# Ships API Component
-# REST API + WebSocket for real-time vessel data
-# =============================================================================
+    tag: main@sha256:673909e9be434f58ccece06efb988e2654bffbbe83ef36a420ebd845778bb2e4
+    pullPolicy: Always
+    digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
+  # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+  podAnnotations:
+    otel.injected-by: kyverno/inject-otel-env-vars
+    instrumentation.opentelemetry.io/inject-python: "python"
+# Ships API component
 api:
-  enabled: true
-
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_api
-    tag: "main"
-    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
-    pullPolicy: IfNotPresent
-
-  # Single replica required for SQLite (single-writer lock)
-  replicas: 1
-
-  # Persistent storage for SQLite database
-  persistence:
-    enabled: true
-    size: 20Gi
-    storageClassName: longhorn
-    # Path where the database is stored
-    mountPath: /data
-
-  # Service configuration
-  service:
-    type: ClusterIP
-    port: 8000
-
-  # CORS configuration
-  cors:
-    origins: "http://localhost:3000"
-
-  # Resource limits
+    tag: main@sha256:0aaa8ced8b83f0c61becb6143be7543927fe81d716c37d71b9825306b6bc91ef
+    pullPolicy: Always
+    digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
   resources:
     requests:
       cpu: 100m
@@ -147,51 +55,27 @@ api:
     limits:
       cpu: 100m
       memory: 900Mi
-
-  # Liveness probe - checks if container should be restarted
-  # During catchup, the API may be unresponsive; increase tolerance
+  # Increased tolerance for liveness probe during NATS message catchup
+  # The API may be unresponsive while processing large backlogs
   livenessProbe:
-    initialDelaySeconds: 10
+    initialDelaySeconds: 120
     periodSeconds: 15
-    timeoutSeconds: 10
-    failureThreshold: 6
-
-  # Readiness probe - checks if container can receive traffic
+    timeoutSeconds: 30
+    failureThreshold: 10
   readinessProbe:
     initialDelaySeconds: 10
     periodSeconds: 10
-    timeoutSeconds: 10
+    timeoutSeconds: 30
     failureThreshold: 360
-
-  # Pod annotations
-  podAnnotations: {}
-
-# =============================================================================
-# Frontend Component
-# Bun-based server serving MapLibre UI + proxying to API
-# =============================================================================
+  # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+  podAnnotations:
+    otel.injected-by: kyverno/inject-otel-env-vars
+    instrumentation.opentelemetry.io/inject-python: "python"
 frontend:
-  enabled: true
-
   image:
     repository: ghcr.io/jomcgi/homelab/services/ships_frontend
-    tag: "main"
-    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
-    pullPolicy: IfNotPresent
-
-  # Single replica
-  replicas: 1
-
-  # Directory containing built frontend assets
-  publicDir: /app/public/projects/ships/frontend/web/dist
-
-  # Service configuration
-  service:
-    type: ClusterIP
-    port: 80
-
-  # Resource limits
-  # Note: Low memory since build happens during CI, not at runtime
+    tag: main@sha256:592a23a04f37858357f92217172f9d7daf5484592901e05112a727b5e332eeaa
+    digest: sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   resources:
     requests:
       cpu: 10m
@@ -199,6 +83,7 @@ frontend:
     limits:
       cpu: 10m
       memory: 100Mi
-
-  # Pod annotations
-  podAnnotations: {}
+  # Pre-populate OTEL annotation to match Kyverno injection (prevents ArgoCD drift)
+  podAnnotations:
+    otel.injected-by: kyverno/inject-otel-env-vars
+    instrumentation.opentelemetry.io/inject-nodejs: "nodejs"

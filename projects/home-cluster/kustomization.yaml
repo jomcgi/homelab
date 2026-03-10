@@ -7,4 +7,5 @@ resources:
   - ../../projects/blog_knowledge_graph
   - ../../projects/grimoire/deploy
   - ../../projects/platform
+  - ../../projects/ships/deploy
   - ../../projects/todo_app
