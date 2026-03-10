@@ -34,12 +34,14 @@ vite_build(
     ],
 )
 
-# Go library that embeds the Vite build output.
-# embedsrcs must be in the same Bazel package as the go_library.
+# Go library that embeds the committed Vite build output (dist/).
+# The dist/ directory is committed to the repo (gitignore exception) so that
+# go:embed works in both standard go build and Bazel without needing the Vite
+# build to complete first.
 go_library(
     name = "ui",
     srcs = ["static.go"],
-    embedsrcs = [":build_dist"],  # keep
+    embedsrcs = glob(["dist/**"]),
     importpath = "github.com/jomcgi/homelab/services/agent-orchestrator/ui",
     visibility = ["//services/agent-orchestrator:__pkg__"],
 )
