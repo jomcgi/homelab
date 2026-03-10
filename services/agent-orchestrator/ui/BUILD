@@ -27,6 +27,8 @@ js_library(
         "vite.config.js",
     ],
     deps = [
+        ":node_modules/@rollup/rollup-linux-x64-gnu",
+        ":node_modules/@rollup/rollup-linux-x64-musl",
         ":node_modules/@vitejs/plugin-react",
         ":node_modules/react",
         ":node_modules/react-dom",
