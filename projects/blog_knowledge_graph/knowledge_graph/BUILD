@@ -5,7 +5,6 @@ py_library(
     name = "knowledge_graph",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
-    deps = ["//projects/blog_knowledge_graph"],
 )
 
 semgrep_test(

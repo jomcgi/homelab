@@ -5,7 +5,6 @@ py_library(
     name = "todo_mcp",
     srcs = ["__init__.py"],
     visibility = ["//:__subpackages__"],
-    deps = ["//projects/todo_app"],
 )
 
 semgrep_test(
