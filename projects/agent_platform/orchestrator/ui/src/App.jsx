@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import ReactMarkdown from "react-markdown";
 import { listJobs, submitJob, cancelJob, getJobOutput } from "./api.js";
 
 // ─── constants ────────────────────────────────────────────────────────────────
@@ -39,6 +40,14 @@ function duration(start, end) {
   if (s < 60) return `${s}s`;
   if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
   return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+
+// Extract the first line of a task prompt as a display title,
+// stripping leading '#' characters and surrounding whitespace.
+function jobTitle(task) {
+  if (!task) return "";
+  const firstLine = task.split("\n")[0];
+  return firstLine.replace(/^#+\s*/, "").trim();
 }
 
 // Auto-link URLs in text, shorten github PR URLs
@@ -286,7 +295,7 @@ function JobRow({ job, selected, dismissed, onSelect }) {
           }}
           title={job.task}
         >
-          {job.task}
+          {jobTitle(job.task)}
         </span>
         <span style={{ fontSize: 11, color: "#9ca3af", flexShrink: 0 }}>
           {age(job.created_at)}
@@ -376,14 +385,32 @@ function Detail({ job, output, onCancel, onFollowOn, onDismiss }) {
         </div>
         <div
           style={{
-            fontSize: 14,
+            fontSize: 15,
+            fontWeight: 600,
             color: "#111827",
-            marginBottom: 10,
-            lineHeight: 1.5,
+            marginBottom: 4,
+            lineHeight: 1.4,
           }}
         >
-          {job.task}
+          {jobTitle(job.task)}
         </div>
+        {job.task.includes("\n") && (
+          <div
+            style={{
+              fontSize: 12,
+              color: "#6b7280",
+              marginBottom: 10,
+              lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+              maxHeight: 80,
+              overflow: "hidden",
+              maskImage:
+                "linear-gradient(to bottom, black 60%, transparent 100%)",
+            }}
+          >
+            {job.task.slice(job.task.indexOf("\n") + 1).trim()}
+          </div>
+        )}
         <div
           style={{
             display: "flex",
@@ -494,19 +521,9 @@ function Detail({ job, output, onCancel, onFollowOn, onDismiss }) {
                 Output truncated — showing tail only
               </div>
             )}
-            <pre
-              style={{
-                margin: 0,
-                fontFamily: "monospace",
-                fontSize: 12,
-                lineHeight: 1.6,
-                whiteSpace: "pre-wrap",
-                wordBreak: "break-all",
-                color: "#1f2937",
-              }}
-            >
-              <Linkified text={output.output} />
-            </pre>
+            <div className="md-output">
+              <ReactMarkdown>{output.output}</ReactMarkdown>
+            </div>
           </>
         ) : attempt ? (
           <div style={{ color: "#9ca3af", fontSize: 13 }}>Loading output…</div>
@@ -1068,6 +1085,42 @@ export default function Dashboard() {
         }
         * { box-sizing: border-box; }
         body { margin: 0; }
+
+        /* Markdown output pane */
+        .md-output { font-size: 13px; line-height: 1.65; color: #1f2937; }
+        .md-output p { margin: 0 0 10px; }
+        .md-output p:last-child { margin-bottom: 0; }
+        .md-output h1, .md-output h2, .md-output h3,
+        .md-output h4, .md-output h5, .md-output h6 {
+          margin: 16px 0 6px; font-weight: 600; line-height: 1.3;
+        }
+        .md-output h1 { font-size: 18px; }
+        .md-output h2 { font-size: 16px; }
+        .md-output h3 { font-size: 14px; }
+        .md-output ul, .md-output ol { margin: 0 0 10px; padding-left: 22px; }
+        .md-output li { margin-bottom: 3px; }
+        .md-output li input[type="checkbox"] { margin-right: 5px; }
+        .md-output code {
+          font-family: monospace; font-size: 12px;
+          background: #f1f5f9; border-radius: 3px; padding: 1px 4px;
+        }
+        .md-output pre {
+          background: #1e293b; border-radius: 6px;
+          padding: 12px 14px; overflow-x: auto; margin: 0 0 12px;
+        }
+        .md-output pre code {
+          background: none; padding: 0; color: #e2e8f0;
+          font-size: 12px; line-height: 1.6;
+        }
+        .md-output blockquote {
+          border-left: 3px solid #d1d5db; margin: 0 0 10px;
+          padding: 4px 12px; color: #6b7280;
+        }
+        .md-output a { color: #2563eb; text-decoration: underline; }
+        .md-output hr { border: none; border-top: 1px solid #e5e7eb; margin: 12px 0; }
+        .md-output table { border-collapse: collapse; width: 100%; margin-bottom: 10px; font-size: 12px; }
+        .md-output th, .md-output td { border: 1px solid #e5e7eb; padding: 5px 10px; text-align: left; }
+        .md-output th { background: #f8fafc; font-weight: 600; }
       `}</style>
 
       {/* Top bar */}

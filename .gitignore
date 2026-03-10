@@ -27,6 +27,8 @@ dist/
 # Un-ignore the agent-orchestrator UI dist — committed for go:embed
 !services/agent-orchestrator/ui/dist/
 !services/agent-orchestrator/ui/dist/**
+!projects/agent_platform/orchestrator/ui/dist/
+!projects/agent_platform/orchestrator/ui/dist/**
 .wrangler/
 
 
