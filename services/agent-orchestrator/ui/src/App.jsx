@@ -816,6 +816,8 @@ export default function Dashboard() {
   const dragging = useRef(false);
   const dragStart = useRef(0);
   const dragInitial = useRef(0);
+  const [windowWidth, setWindowWidth] = useState(window.innerWidth);
+  const isMobile = windowWidth < 768;
 
   // Fetch jobs
   const fetchJobs = useCallback(async () => {
@@ -841,6 +843,13 @@ export default function Dashboard() {
     const id = setInterval(fetchJobs, POLL_INTERVAL);
     return () => clearInterval(id);
   }, [fetchJobs]);
+
+  // Track window width for responsive layout
+  useEffect(() => {
+    const onResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
 
   // Fetch output for selected running/completed job
   const selectedJob = useMemo(
@@ -1064,62 +1073,69 @@ export default function Dashboard() {
       {/* Top bar */}
       <div
         style={{
-          height: 52,
+          minHeight: 52,
           background: "#fff",
           borderBottom: "1px solid #e5e7eb",
           display: "flex",
           alignItems: "center",
-          padding: "0 20px",
-          gap: 20,
+          padding: "0 16px",
+          gap: isMobile ? 8 : 20,
           flexShrink: 0,
+          flexWrap: isMobile ? "wrap" : "nowrap",
+          paddingTop: isMobile ? 8 : 0,
+          paddingBottom: isMobile ? 8 : 0,
         }}
       >
         <span style={{ fontWeight: 700, fontSize: 16, color: "#111827" }}>
           🦆 Agent Orchestrator
         </span>
-        <div
-          style={{ display: "flex", gap: 16, fontSize: 12, color: "#6b7280" }}
-        >
-          <span>
-            <span style={{ color: "#2563eb", fontWeight: 600 }}>
-              {stats.running}
-            </span>{" "}
-            running
-          </span>
-          <span>
-            <span style={{ color: "#6b7280", fontWeight: 600 }}>
-              {stats.pending}
-            </span>{" "}
-            pending
-          </span>
-          <span>
-            <span style={{ color: "#16a34a", fontWeight: 600 }}>
-              {stats.succeeded}
-            </span>{" "}
-            succeeded
-          </span>
-          <span>
-            <span style={{ color: "#dc2626", fontWeight: 600 }}>
-              {stats.failed}
-            </span>{" "}
-            failed
-          </span>
-        </div>
-        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
-          <button
-            onClick={() => setShowHelp(true)}
-            style={{
-              padding: "5px 12px",
-              borderRadius: 6,
-              border: "1px solid #d1d5db",
-              background: "#fff",
-              cursor: "pointer",
-              fontSize: 13,
-              color: "#374151",
-            }}
+        {!isMobile && (
+          <div
+            style={{ display: "flex", gap: 16, fontSize: 12, color: "#6b7280" }}
           >
-            ? Help
-          </button>
+            <span>
+              <span style={{ color: "#2563eb", fontWeight: 600 }}>
+                {stats.running}
+              </span>{" "}
+              running
+            </span>
+            <span>
+              <span style={{ color: "#6b7280", fontWeight: 600 }}>
+                {stats.pending}
+              </span>{" "}
+              pending
+            </span>
+            <span>
+              <span style={{ color: "#16a34a", fontWeight: 600 }}>
+                {stats.succeeded}
+              </span>{" "}
+              succeeded
+            </span>
+            <span>
+              <span style={{ color: "#dc2626", fontWeight: 600 }}>
+                {stats.failed}
+              </span>{" "}
+              failed
+            </span>
+          </div>
+        )}
+        <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          {!isMobile && (
+            <button
+              onClick={() => setShowHelp(true)}
+              style={{
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1px solid #d1d5db",
+                background: "#fff",
+                cursor: "pointer",
+                fontSize: 13,
+                color: "#374151",
+              }}
+            >
+              ? Help
+            </button>
+          )}
           <button
             onClick={() => {
               setSubmitPrefill(null);
@@ -1152,9 +1168,11 @@ export default function Dashboard() {
           padding: "0 16px",
           gap: 4,
           flexShrink: 0,
+          overflowX: isMobile ? "auto" : "visible",
+          WebkitOverflowScrolling: "touch",
         }}
       >
-        {TABS.map((tab, i) => (
+        {TABS.map((tab) => (
           <button
             key={tab.label}
             onClick={() => setTabKey(tab.key)}
@@ -1167,10 +1185,10 @@ export default function Dashboard() {
               fontWeight: tabKey === tab.key ? 600 : 400,
               cursor: "pointer",
               fontSize: 13,
+              flexShrink: 0,
             }}
           >
             {tab.label}
-            <Kbd>{i + 1}</Kbd>
           </button>
         ))}
         <div style={{ marginLeft: "auto" }}>
@@ -1187,13 +1205,14 @@ export default function Dashboard() {
 
       {/* Content area */}
       <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-        {/* Job list */}
+        {/* Job list — hidden on mobile when a job is selected */}
         <div
           style={{
             flex: 1,
             overflowY: "auto",
             background: "#fff",
             borderRight: "1px solid #e5e7eb",
+            display: isMobile && selectedJob ? "none" : "block",
           }}
         >
           {loading && (
@@ -1251,31 +1270,60 @@ export default function Dashboard() {
         {/* Detail pane (shown when a job is selected) */}
         {selectedJob && (
           <>
-            {/* Drag handle */}
+            {/* Drag handle — desktop only */}
+            {!isMobile && (
+              <div
+                onMouseDown={onDragStart}
+                style={{
+                  width: 4,
+                  cursor: "col-resize",
+                  background: "#e5e7eb",
+                  flexShrink: 0,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#93c5fd")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "#e5e7eb")
+                }
+              />
+            )}
             <div
-              onMouseDown={onDragStart}
               style={{
-                width: 4,
-                cursor: "col-resize",
-                background: "#e5e7eb",
-                flexShrink: 0,
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#93c5fd")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "#e5e7eb")
-              }
-            />
-            <div
-              style={{
-                width: sidebarWidth,
+                width: isMobile ? "100%" : sidebarWidth,
                 flexShrink: 0,
                 overflowY: "auto",
                 background: "#fff",
               }}
             >
+              {/* Mobile back button */}
+              {isMobile && (
+                <div
+                  style={{
+                    padding: "10px 16px",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <button
+                    onClick={() => setSelectedId(null)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
+                      padding: "5px 10px",
+                      borderRadius: 6,
+                      border: "1px solid #d1d5db",
+                      background: "#fff",
+                      cursor: "pointer",
+                      fontSize: 13,
+                      color: "#374151",
+                    }}
+                  >
+                    ← Back
+                  </button>
+                </div>
+              )}
               <Detail
                 job={selectedJob}
                 output={output}
