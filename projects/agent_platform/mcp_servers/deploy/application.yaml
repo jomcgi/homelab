@@ -17,13 +17,15 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: mcp-servers
-  # Ignore fields injected by OTel operator and Kyverno policies
+  # Ignore fields mutated by OTel operator, Kyverno, and Linkerd proxy injector
   ignoreDifferences:
     - group: apps
       kind: Deployment
       jqPathExpressions:
-        - .spec.template.metadata.annotations."otel.injected-by"
-        - .spec.template.spec.containers[].env
+        - .spec.template.metadata.annotations
+        - .spec.template.spec.containers
+        - .spec.template.spec.initContainers
+        - .spec.template.spec.volumes
   syncPolicy:
     automated:
       prune: true
