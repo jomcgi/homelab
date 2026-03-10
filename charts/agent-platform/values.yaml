@@ -12,18 +12,18 @@ goose:
   model: claude-sonnet-4-6
   provider: claude-code
   repo:
-    owner: ""   # REQUIRED
-    name: ""    # REQUIRED
+    owner: "" # REQUIRED
+    name: "" # REQUIRED
   workspace:
-    storageClassName: ""  # REQUIRED
+    storageClassName: "" # REQUIRED
     size: 10Gi
 
 # ── Component enable/disable flags ─────────────────────────────────────────
 components:
   grafana:
-    enabled: false   # placeholder — Grafana not yet wired, just the flag
+    enabled: false # placeholder — Grafana not yet wired, just the flag
   argocd:
-    enabled: false   # whether to deploy ArgoCD as part of this chart (default: assume pre-installed)
+    enabled: false # whether to deploy ArgoCD as part of this chart (default: assume pre-installed)
   mcpServers:
     enabled: true
 
@@ -51,7 +51,7 @@ secrets:
 # ── Subchart: agent-platform-mcp-servers ──────────────────────────────────
 agent-platform-mcp-servers:
   enabled: true
-  servers: {}  # Add MCP server definitions here
+  servers: {} # Add MCP server definitions here
 
 # ── Subchart: agent-sandbox ───────────────────────────────────────────────
 agent-sandbox:
@@ -62,19 +62,19 @@ agent-sandbox:
 # Mirror your goose.* settings here — Helm does not auto-propagate top-level
 # keys to subcharts, so both sections must be kept in sync.
 goose-sandboxes:
-  enabled: false  # disabled by default; enable in environment-specific values
+  enabled: false # disabled by default; enable in environment-specific values
   sandboxTemplate:
     image:
-      repository: ghcr.io/jomcgi/homelab/goose-agent  # = goose.image.repository
-      tag: main                                          # = goose.image.tag
+      repository: ghcr.io/jomcgi/homelab/goose-agent # = goose.image.repository
+      tag: main # = goose.image.tag
     env:
-      gooseProvider: claude-code    # = goose.provider
+      gooseProvider: claude-code # = goose.provider
       gooseModel: claude-sonnet-4-6 # = goose.model
-      repoOwner: ""                 # = goose.repo.owner (REQUIRED)
-      repoName: ""                  # = goose.repo.name (REQUIRED)
+      repoOwner: "" # = goose.repo.owner (REQUIRED)
+      repoName: "" # = goose.repo.name (REQUIRED)
     workspace:
-      storageClassName: ""          # = goose.workspace.storageClassName (REQUIRED)
-      size: 10Gi                    # = goose.workspace.size
+      storageClassName: "" # = goose.workspace.storageClassName (REQUIRED)
+      size: 10Gi # = goose.workspace.size
   secrets:
     useOnePassword: false
     claudeAuth:
@@ -123,6 +123,6 @@ nats:
         pvc:
           enabled: true
           size: 10Gi
-          storageClassName: ""  # uses cluster default; override per environment
+          storageClassName: "" # uses cluster default; override per environment
   statefulSet:
     replicas: 1

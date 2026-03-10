@@ -38,6 +38,7 @@ Each task follows the same pattern:
 **Why first:** No cluster impact. Pure build tooling move. Validates the migration pattern on low-risk files.
 
 **Files:**
+
 - Move: `rules_semgrep/` → `bazel/semgrep/defs/`
 - Move: `semgrep_rules/` → `bazel/semgrep/rules/`
 - Move: `third_party/semgrep/` → `bazel/semgrep/third_party/semgrep/`
@@ -73,6 +74,7 @@ git mv poc/cdk8s bazel/tools/cdk8s
 **Step 2: Update all `load()` paths in BUILD and .bzl files**
 
 Search for all references to old paths and update:
+
 - `//rules_semgrep:` → `//bazel/semgrep/defs:`
 - `//semgrep_rules/` → `//bazel/semgrep/rules/`
 - `//third_party/semgrep` → `//bazel/semgrep/third_party/semgrep`
@@ -83,6 +85,7 @@ Search for all references to old paths and update:
 - `//images:` → `//bazel/images:`
 
 Key files to update:
+
 - `MODULE.bazel` — any `local_path_override` or toolchain refs
 - `buildbuddy.yaml` — CI step references
 - `.bazelrc` — any tool path references
@@ -124,6 +127,7 @@ git commit -m "refactor: move build infrastructure under bazel/"
 **Why second:** No cluster impact. Merges `architecture/` and `docs/` into unified `docs/`.
 
 **Files:**
+
 - Move: `architecture/decisions/` → `docs/decisions/`
 - Move: `architecture/*.md` → `docs/`
 - Keep: `docs/plans/` (already exists)
@@ -149,6 +153,7 @@ done
 **Step 2: Update all references to `architecture/` paths**
 
 Key files:
+
 - `.claude/CLAUDE.md` — context loading rules reference `architecture/security.md`, etc.
 - `.claude/skills/*/SKILL.md` — may reference architecture docs
 - `docs/` internal cross-references
@@ -168,6 +173,7 @@ git commit -m "refactor: merge architecture/ into docs/"
 ### Task 3: Move platform infrastructure (cluster-critical)
 
 **Files:**
+
 - Move: each `charts/<platform-service>/` → `projects/platform/<service>/deploy/`
 - Move: each `overlays/cluster-critical/<service>/` values → merge into `deploy/`
 - Move: `argo-cd/` → `projects/platform/argocd/` (merge with chart)
@@ -175,6 +181,7 @@ git commit -m "refactor: merge architecture/ into docs/"
 - Update: `clusters/homelab/kustomization.yaml`
 
 **Services to move:**
+
 - argocd, argocd-image-updater, cert-manager, cloudflare-tunnel, cloudflare-ingress (-> `cloudflare/`), coredns, envoy-gateway, kyverno, linkerd, longhorn, nats, nvidia-gpu-operator, opentelemetry-operator, signoz (+ alerts + dashboard-sidecar + operator), seaweedfs
 
 Note: NATS lives in `overlays/prod/nats/` (not `cluster-critical/`), but is platform infrastructure. Move it here alongside the other platform services.
@@ -201,6 +208,7 @@ git rm -r overlays/cluster-critical/cert-manager/
 ```
 
 For each service's `application.yaml`, update the `path:` field:
+
 ```yaml
 # Before
 path: charts/cert-manager
@@ -263,6 +271,7 @@ git commit -m "refactor: move platform infrastructure to projects/platform/"
 ### Task 4: Move agent-platform domain
 
 **Files:**
+
 - Move: `services/agent-orchestrator` + `services/agent_orchestrator_mcp` → `projects/agent-platform/orchestrator/`
 - Move: `services/cluster-agents` → `projects/agent-platform/cluster-agents/`
 - Move: `services/todo_mcp` → `projects/agent-platform/todo-mcp/`
@@ -342,6 +351,7 @@ git commit -m "refactor: move agent-platform services to projects/agent-platform
 ### Task 5: Move websites domain
 
 **Files:**
+
 - Move: `services/trips_api` + `services/trips-api` → `projects/websites/trips/api/`
 - Move: `websites/trips.jomcgi.dev` → `projects/websites/trips/site/`
 - Move: `services/ships_api` → `projects/websites/ships/api/`
@@ -427,6 +437,7 @@ git commit -m "refactor: move website services to projects/websites/"
 ### Task 6: Move operators
 
 **Files:**
+
 - Move: `operators/cloudflare` → `projects/operators/cloudflare/`
 - Move: `operators/oci-model-cache` → `projects/operators/oci-model-cache/`
 - Move: `sextant/` → `projects/operators/sextant/`
@@ -458,6 +469,7 @@ git commit -m "refactor: move operators to projects/operators/"
 ### Task 7: Move remaining scripts and clean up
 
 **Files:**
+
 - Move: `scripts/setup-mcp-profiles.sh` → `bazel/tools/`
 - Move: `scripts/signoz-mcp-wrapper.sh` → `bazel/tools/`
 - Move: `scripts/test-charts.sh` → `bazel/tools/`
@@ -548,16 +560,16 @@ git commit -m "feat: switch to ApplicationSet for automatic app discovery"
 
 Each task becomes its own PR:
 
-| PR | Task | Risk | Depends on |
-| -- | ---- | ---- | ---------- |
-| 1 | Bazel infrastructure | Low — build tooling only | None |
-| 2 | Docs merge | Low — no cluster impact | None |
-| 3 | Platform (cluster-critical) | **High** — infra services | 1 |
-| 4 | Agent platform | Medium — app services | 1 |
-| 5 | Websites | Medium — app services | 1 |
-| 6 | Operators | Low — operators rarely change | 1 |
-| 7 | Cleanup + docs update | Low — removing empties | 3, 4, 5, 6 |
-| 8 | ApplicationSet | Medium — ArgoCD config | 7 |
+| PR  | Task                        | Risk                          | Depends on |
+| --- | --------------------------- | ----------------------------- | ---------- |
+| 1   | Bazel infrastructure        | Low — build tooling only      | None       |
+| 2   | Docs merge                  | Low — no cluster impact       | None       |
+| 3   | Platform (cluster-critical) | **High** — infra services     | 1          |
+| 4   | Agent platform              | Medium — app services         | 1          |
+| 5   | Websites                    | Medium — app services         | 1          |
+| 6   | Operators                   | Low — operators rarely change | 1          |
+| 7   | Cleanup + docs update       | Low — removing empties        | 3, 4, 5, 6 |
+| 8   | ApplicationSet              | Medium — ArgoCD config        | 7          |
 
 PRs 1 and 2 can land in parallel. PRs 3-6 can land in parallel after PR 1. PR 7 waits for all domain moves. PR 8 is optional post-migration.
 
