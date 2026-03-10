@@ -3,22 +3,20 @@ kind: Application
 metadata:
   name: stargazer
   namespace: argocd
-  # Image updates are managed by the ImageUpdater CRD in imageupdater.yaml
 spec:
   project: default
   source:
     repoURL: https://github.com/jomcgi/homelab.git
-    path: projects/stargazer/deploy
+    path: projects/stargazer/chart
     targetRevision: HEAD
     helm:
       releaseName: stargazer
       valueFiles:
         - values.yaml
-        - ../../../overlays/dev/stargazer/values.yaml
+        - ../deploy/values.yaml
   destination:
     server: https://kubernetes.default.svc
     namespace: stargazer
-  # Ignore fields injected by Kyverno policies (OTEL env vars)
   ignoreDifferences:
     - group: apps
       kind: Deployment
