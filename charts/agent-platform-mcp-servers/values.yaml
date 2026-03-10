@@ -8,7 +8,7 @@ translate:
 
 # Context Forge gateway URL + credentials for post-install registration jobs.
 gateway:
-  url: ""  # REQUIRED when any server has registration.enabled: true
+  url: "" # REQUIRED when any server has registration.enabled: true
   secret:
     name: context-forge-gateway
     itemPath: "vaults/k8s-homelab/items/context-forge"
@@ -18,8 +18,8 @@ imageUpdater:
   gitRepository: "https://github.com/jomcgi/homelab.git"
   gitBranch: "main"
   gitSecret: "argocd/argocd-image-updater-token"
-  applicationName: ""  # ArgoCD Application name (defaults to release name)
-  writeBackTarget: ""  # required if any server has imageUpdater.enabled: true
+  applicationName: "" # ArgoCD Application name (defaults to release name)
+  writeBackTarget: "" # required if any server has imageUpdater.enabled: true
 
 # MCP servers to deploy.
 # Use a LIST (not a map/dict) so ArgoCD Image Updater write-back can address

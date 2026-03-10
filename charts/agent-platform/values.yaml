@@ -12,18 +12,18 @@ goose:
   model: claude-sonnet-4-6
   provider: claude-code
   repo:
-    owner: ""   # REQUIRED
-    name: ""    # REQUIRED
+    owner: "" # REQUIRED
+    name: "" # REQUIRED
   workspace:
-    storageClassName: ""  # REQUIRED
+    storageClassName: "" # REQUIRED
     size: 10Gi
 
 # ── Component enable/disable flags ─────────────────────────────────────────
 components:
   grafana:
-    enabled: false   # placeholder — Grafana not yet wired, just the flag
+    enabled: false # placeholder — Grafana not yet wired, just the flag
   argocd:
-    enabled: false   # whether to deploy ArgoCD as part of this chart (default: assume pre-installed)
+    enabled: false # whether to deploy ArgoCD as part of this chart (default: assume pre-installed)
   mcpServers:
     enabled: true
 
@@ -99,7 +99,7 @@ context-forge:
           memory: 512Mi
     postgres:
       persistence:
-        storageClassName: ""  # override per-environment
+        storageClassName: "" # override per-environment
         size: 1Gi
       resources:
         requests:
@@ -155,7 +155,7 @@ mcp-oauth-proxy:
     SCOPES_SUPPORTED: "openid,email,profile"
     # Point at the context-forge subchart service within this release.
     # Override if deploying context-forge separately.
-    MCP_SERVER_URL: ""  # auto-derive: http://<release-name>-context-forge-mcp-stack-mcpgateway:80
+    MCP_SERVER_URL: "" # auto-derive: http://<release-name>-context-forge-mcp-stack-mcpgateway:80
   # Google OIDC credentials — provide via 1Password or manual Secret
   secret:
     name: mcp-oauth-proxy
@@ -198,7 +198,7 @@ mcp-oauth-proxy:
 # enabled is driven by components.mcpServers.enabled above.
 agent-platform-mcp-servers:
   enabled: true
-  servers: []  # list of server definitions — see charts/agent-platform-mcp-servers/values.yaml
+  servers: [] # list of server definitions — see charts/agent-platform-mcp-servers/values.yaml
   # Shared translate sidecar image (mcpgateway.translate)
   translate:
     image:
@@ -207,7 +207,7 @@ agent-platform-mcp-servers:
       pullPolicy: IfNotPresent
   # Context Forge gateway for post-install registration jobs
   gateway:
-    url: ""  # defaults to http://<release-name>-context-forge-mcp-stack-mcpgateway:80
+    url: "" # defaults to http://<release-name>-context-forge-mcp-stack-mcpgateway:80
     secret:
       name: context-forge-gateway
       itemPath: "vaults/k8s-homelab/items/context-forge"
@@ -216,8 +216,8 @@ agent-platform-mcp-servers:
     gitRepository: "https://github.com/jomcgi/homelab.git"
     gitBranch: "main"
     gitSecret: "argocd/argocd-image-updater-token"
-    applicationName: ""  # defaults to release name
-    writeBackTarget: ""  # required if any server has imageUpdater.enabled: true
+    applicationName: "" # defaults to release name
+    writeBackTarget: "" # required if any server has imageUpdater.enabled: true
 
 # ── Subchart: agent-sandbox ───────────────────────────────────────────────
 # installCRDs and deployController enable parallel deployments alongside an
@@ -257,19 +257,19 @@ agent-sandbox:
 # Mirror your goose.* settings here — Helm does not auto-propagate top-level
 # keys to subcharts, so both sections must be kept in sync.
 goose-sandboxes:
-  enabled: false  # disabled by default; enable in environment-specific values
+  enabled: false # disabled by default; enable in environment-specific values
   sandboxTemplate:
     image:
-      repository: ghcr.io/jomcgi/homelab/goose-agent  # = goose.image.repository
-      tag: main                                          # = goose.image.tag
+      repository: ghcr.io/jomcgi/homelab/goose-agent # = goose.image.repository
+      tag: main # = goose.image.tag
     env:
-      gooseProvider: claude-code    # = goose.provider
+      gooseProvider: claude-code # = goose.provider
       gooseModel: claude-sonnet-4-6 # = goose.model
-      repoOwner: ""                 # = goose.repo.owner (REQUIRED)
-      repoName: ""                  # = goose.repo.name (REQUIRED)
+      repoOwner: "" # = goose.repo.owner (REQUIRED)
+      repoName: "" # = goose.repo.name (REQUIRED)
     workspace:
-      storageClassName: ""          # = goose.workspace.storageClassName (REQUIRED)
-      size: 10Gi                    # = goose.workspace.size
+      storageClassName: "" # = goose.workspace.storageClassName (REQUIRED)
+      size: 10Gi # = goose.workspace.size
   secrets:
     useOnePassword: false
     claudeAuth:
@@ -321,6 +321,6 @@ nats:
         pvc:
           enabled: true
           size: 10Gi
-          storageClassName: ""  # uses cluster default; override per environment
+          storageClassName: "" # uses cluster default; override per environment
   statefulSet:
     replicas: 1

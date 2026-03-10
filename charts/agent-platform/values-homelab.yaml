@@ -32,7 +32,7 @@ secrets:
 # ── Context Forge (MCP gateway) ────────────────────────────────────────────
 # Enable when deploying agent-platform without an existing context-forge release.
 contextForge:
-  enabled: false  # set true when running agent-platform as a standalone stack
+  enabled: false # set true when running agent-platform as a standalone stack
 
 context-forge:
   mcp-stack:
@@ -44,7 +44,7 @@ context-forge:
 # ── MCP OAuth Proxy ─────────────────────────────────────────────────────────
 # Enable alongside contextForge for Google OIDC authentication (ADR 006).
 mcpOAuthProxy:
-  enabled: false  # set true when contextForge.enabled: true
+  enabled: false # set true when contextForge.enabled: true
 
 # ── MCP servers ────────────────────────────────────────────────────────────
 # servers uses a LIST (not a map) so Image Updater write-back can target
@@ -162,4 +162,4 @@ goose-sandboxes:
       secretName: "goose-mcp-tokens"
       key: "CI_DEBUG_MCP_TOKEN"
   # agent-orchestrator runs in this release namespace
-  orchestratorNamespace: ""  # defaults to .Release.Namespace
+  orchestratorNamespace: "" # defaults to .Release.Namespace
