@@ -585,7 +585,7 @@ func TestConfigure_SCALockfileDirective(t *testing.T) {
 
 	f := &rule.File{
 		Directives: []rule.Directive{
-			{Key: "semgrep_lockfile", Value: "pip //requirements:custom.txt"},
+			{Key: "semgrep_lockfile", Value: "pip //bazel/requirements:custom.txt"},
 		},
 	}
 
