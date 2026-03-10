@@ -30,6 +30,7 @@ vite_build(
     deps = [
         "react",
         "react-dom",
+        "react-markdown",
         "vite",
         "@vitejs/plugin-react",
     ],
