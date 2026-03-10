@@ -10,5 +10,8 @@ argocd_app(
         "helm",
         "template",
     ],
-    values_files = ["//projects/grimoire/deploy:values.yaml"],
+    values_files = [
+        "//projects/grimoire/deploy:values.yaml",
+        "values.yaml",
+    ],
 )
