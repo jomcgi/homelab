@@ -17,7 +17,7 @@ spec:
     - Egress
   egress:
     {{- if (index .Values "context-forge" "enabled") }}
-    # Sandbox → Context Forge MCP gateway
+    # Sandbox → Context Forge MCP gateway (tool calls via gateway)
     - to:
         - podSelector:
             matchExpressions:
@@ -35,13 +35,21 @@ spec:
           port: 80
         - protocol: TCP
           port: 8000
-    {{- end }}
-    {{- if not (index .Values "context-forge" "enabled") }}
+    {{- else }}
     # Sandbox → MCP server pods directly (gateway disabled)
     - to:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: mcp-server
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8000
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000
     {{- end }}
     # Sandbox → orchestrator (job status callbacks)
     - to:
@@ -52,7 +60,6 @@ spec:
         - protocol: TCP
           port: {{ (index .Values "agent-orchestrator" "config" "httpPort") | default 8080 }}
     # Sandbox → internet (GitHub API, web search, npm, pip, etc.)
-    # Allow all egress to IPs outside the cluster (non-private ranges).
     - to:
         - ipBlock:
             cidr: 0.0.0.0/0
@@ -68,7 +75,7 @@ spec:
     # Sandbox → Kubernetes API server (for kubectl operations)
     - to:
         - ipBlock:
-            cidr: 0.0.0.0/0
+            cidr: {{ .Values.networkPolicy.apiServerCidr | default "0.0.0.0/0" | quote }}
       ports:
         - protocol: TCP
           port: 6443

@@ -1,6 +1,6 @@
 {{- if and .Values.networkPolicy.enabled (index .Values "agent-orchestrator" "enabled") }}
 # Orchestrator ingress: Envoy Gateway (HTTPRoute) + sandbox callbacks.
-# Orchestrator egress: NATS (job queue) + sandbox pods (job management).
+# Orchestrator egress: NATS (job queue) + K8s API (sandbox creation).
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -59,12 +59,10 @@ spec:
       ports:
         - protocol: TCP
           port: 4222
-    # Orchestrator → sandbox pods (create sandboxes via API server)
-    # This goes through the Kubernetes API, not direct pod-to-pod.
-    # Allow egress to the API server.
+    # Orchestrator → Kubernetes API server (create sandboxes, watch pods)
     - to:
         - ipBlock:
-            cidr: 0.0.0.0/0
+            cidr: {{ .Values.networkPolicy.apiServerCidr | default "0.0.0.0/0" | quote }}
       ports:
         - protocol: TCP
           port: 443
