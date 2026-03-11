@@ -1,9 +1,9 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: { { include "cloudflare-gateway.tunnel.fullname" . } }
-  namespace: { { .Release.Namespace } }
-  labels: { { - include "cloudflare-gateway.tunnel.labels" . | nindent 4 } }
+  name: {{ include "cloudflare-gateway.tunnel.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "cloudflare-gateway.tunnel.labels" . | nindent 4 }}
 data:
   config.yaml: |
     tunnel: {{ .Values.tunnel.name }}
