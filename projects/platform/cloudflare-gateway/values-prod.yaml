@@ -1,0 +1,80 @@
+# Production overrides for cloudflare-gateway
+
+# --- Envoy Gateway control plane ---
+gateway-helm:
+  deployment:
+    envoyGateway:
+      priorityClassName: system-cluster-critical
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      securityContext:
+        readOnlyRootFilesystem: true
+  config:
+    envoyGateway:
+      provider:
+        type: Kubernetes
+
+# --- Cloudflare Tunnel ---
+tunnel:
+  secret:
+    onepassword:
+      itemPath: "vaults/k8s-homelab/items/cluster-cloudflare-tunnel"
+
+  ingress:
+    routes:
+      - hostname: argocd.jomcgi.dev
+        service: http://argocd-server.argocd.svc.cluster.local:80
+      - hostname: longhorn.jomcgi.dev
+        service: http://longhorn-frontend.longhorn.svc.cluster.local:80
+      - hostname: mcp.jomcgi.dev
+        service: http://mcp-oauth-proxy.mcp-gateway.svc.cluster.local:8080
+      - hostname: n8n.jomcgi.dev
+        service: http://n8n.n8n.svc.cluster.local:80
+      - hostname: feeds.jomcgi.dev
+        service: http://freshrss.freshrss.svc.cluster.local:80
+      - hostname: signoz.jomcgi.dev
+        service: http://signoz.signoz.svc.cluster.local:8080
+      - hostname: img.jomcgi.dev
+        service: http://trips-nginx.trips.svc.cluster.local:80
+      - hostname: grimoire.jomcgi.dev
+        service: http://grimoire-frontend.grimoire.svc.cluster.local:8080
+      - hostname: ships.jomcgi.dev
+        service: http://marine-frontend.marine.svc.cluster.local:80
+      - hostname: todo.jomcgi.dev
+        service: http://todo-public.todo.svc.cluster.local:80
+      - hostname: todo-admin.jomcgi.dev
+        service: http://todo-admin.todo.svc.cluster.local:8080
+      - hostname: api.jomcgi.dev
+        service: http://api-gateway.api-gateway.svc.cluster.local:80
+        originRequest:
+          keepAliveConnections: 100
+          keepAliveTimeout: 90s
+          tcpKeepAlive: 30s
+    catchAll:
+      service: http://cloudflare-ingress.envoy-gateway-system.svc.cluster.local:80
+
+  priorityClassName: system-cluster-critical
+
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: kubernetes.io/hostname
+      whenUnsatisfiable: ScheduleAnyway
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/name: cloudflare-tunnel
+
+  resources:
+    requests:
+      cpu: 25m
+      memory: 64Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+  envoy:
+    enabled: false
