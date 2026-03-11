@@ -6,6 +6,11 @@ config:
   # Context Forge is now in the same mcp namespace
   MCP_SERVER_URL: "http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80"
 
+postgres:
+  persistence:
+    enabled: true
+    storageClassName: longhorn
+
 httpRoute:
   enabled: true
   hostname: mcp.jomcgi.dev
