@@ -61,3 +61,5 @@ securityContext:
 
 networkPolicy:
   enabled: true
+  gateway:
+    podLabel: context-forge-gateway-mcp-stack-mcpgateway
