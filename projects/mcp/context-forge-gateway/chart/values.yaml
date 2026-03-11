@@ -87,3 +87,11 @@ mcp-stack:
 secret:
   name: context-forge
   itemPath: ""
+
+# NetworkPolicies — default-deny + per-service allow rules.
+networkPolicy:
+  enabled: true
+  # Namespaces allowed to send ingress traffic to Context Forge.
+  # Typically the namespace where MCP servers and sandboxes run.
+  allowedNamespaces:
+    - agent-platform
