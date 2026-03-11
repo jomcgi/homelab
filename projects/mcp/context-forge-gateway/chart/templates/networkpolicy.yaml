@@ -57,51 +57,21 @@ metadata:
     {{- include "context-forge.labels" . | nindent 4 }}
 spec:
   podSelector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - mcpcontextforge
-          - mcp-stack-mcpcontextforge
-          - mcp-stack-postgres
-          - postgres
-          - mcp-stack-redis
-          - redis
-          - mcp-stack-migration
-          - agent-platform-mcp-stack
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
   policyTypes:
     - Ingress
     - Egress
   ingress:
     - from:
         - podSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - mcpcontextforge
-                  - mcp-stack-mcpcontextforge
-                  - mcp-stack-postgres
-                  - postgres
-                  - mcp-stack-redis
-                  - redis
-                  - mcp-stack-migration
-                  - agent-platform-mcp-stack
+            matchLabels:
+              app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
   egress:
     - to:
         - podSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - mcpcontextforge
-                  - mcp-stack-mcpcontextforge
-                  - mcp-stack-postgres
-                  - postgres
-                  - mcp-stack-redis
-                  - redis
-                  - mcp-stack-migration
-                  - agent-platform-mcp-stack
+            matchLabels:
+              app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
 
 # ── Context Forge ingress (cross-namespace) ─────────────────────────────────
 # MCP servers (registration + tool calls), sandbox pods, and OAuth proxy.
@@ -114,12 +84,8 @@ metadata:
     {{- include "context-forge.labels" . | nindent 4 }}
 spec:
   podSelector:
-    matchExpressions:
-      - key: app.kubernetes.io/name
-        operator: In
-        values:
-          - mcpcontextforge
-          - mcp-stack-mcpcontextforge
+    matchLabels:
+      app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
   policyTypes:
     - Ingress
   ingress:
