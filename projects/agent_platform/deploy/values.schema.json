@@ -2,6 +2,15 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
   "properties": {
+    "networkPolicy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Deploy default-deny baseline + per-service NetworkPolicies"
+        }
+      }
+    },
     "context-forge": {
       "type": "object",
       "properties": {

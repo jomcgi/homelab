@@ -4,6 +4,16 @@
 # self-contained. Environment-specific overrides (secrets, storage, domains)
 # belong in a separate values file alongside the ArgoCD Application.
 
+# ── Network Policy ───────────────────────────────────────────────────────────
+# When enabled, deploys a default-deny baseline + per-service allow rules.
+# Traffic flows:
+#   Internet → Envoy Gateway → Orchestrator (HTTPRoute)
+#   Orchestrator → NATS (job queue) + K8s API (sandbox creation)
+#   Sandbox → MCP Gateway/servers + internet (GitHub, npm, etc.)
+#   Context Forge internal: mcpgateway ↔ postgres ↔ redis
+networkPolicy:
+  enabled: true
+
 # ── Subchart: context-forge ──────────────────────────────────────────────────
 # MCP gateway aggregating observability and infrastructure tools.
 # Wraps the upstream IBM mcp-stack chart.
