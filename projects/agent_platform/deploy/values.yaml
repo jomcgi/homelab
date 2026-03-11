@@ -13,6 +13,10 @@
 #   Context Forge internal: mcpgateway ↔ postgres ↔ redis
 networkPolicy:
   enabled: true
+  # CIDR of the Kubernetes API server. Restricts API server egress rules to
+  # this range instead of 0.0.0.0/0. Leave empty to allow any destination on
+  # ports 443/6443 (less restrictive but works on any cluster).
+  apiServerCidr: ""
 
 # ── Subchart: context-forge ──────────────────────────────────────────────────
 # MCP gateway aggregating observability and infrastructure tools.

@@ -1,6 +1,5 @@
 {{- if and .Values.networkPolicy.enabled (index .Values "context-forge" "enabled") }}
 # Context Forge ingress: sandbox pods, MCP OAuth proxy, and registration jobs.
-# Context Forge internal traffic (postgres, redis) is allowed within the release.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -51,15 +50,15 @@ spec:
     - from:
         - podSelector:
             matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/component: mcp-server
       ports:
         - protocol: TCP
           port: 80
         - protocol: TCP
           port: 8000
 ---
-# Allow context-forge internal traffic (mcpgateway ↔ postgres ↔ redis).
-# All mcp-stack pods share the same release instance label.
+# Context Forge internal traffic: mcpgateway ↔ postgres ↔ redis ↔ migration.
+# These are sub-subcharts of mcp-stack; we match on known component names.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -70,21 +69,58 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 spec:
   podSelector:
-    matchLabels:
-      app.kubernetes.io/instance: {{ .Release.Name }}
+    matchExpressions:
+      - key: app.kubernetes.io/instance
+        operator: In
+        values:
+          - {{ .Release.Name }}
+      - key: app.kubernetes.io/name
+        operator: In
+        values:
+          - mcpcontextforge
+          - mcp-stack-mcpcontextforge
+          - mcp-stack-postgres
+          - postgres
+          - mcp-stack-redis
+          - redis
+          - mcp-stack-migration
   policyTypes:
     - Ingress
     - Egress
   ingress:
-    # Allow intra-release traffic (postgres, redis, mcpgateway)
     - from:
         - podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
+            matchExpressions:
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - {{ .Release.Name }}
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - mcpcontextforge
+                  - mcp-stack-mcpcontextforge
+                  - mcp-stack-postgres
+                  - postgres
+                  - mcp-stack-redis
+                  - redis
+                  - mcp-stack-migration
   egress:
-    # Allow intra-release traffic
     - to:
         - podSelector:
-            matchLabels:
-              app.kubernetes.io/instance: {{ .Release.Name }}
+            matchExpressions:
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - {{ .Release.Name }}
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - mcpcontextforge
+                  - mcp-stack-mcpcontextforge
+                  - mcp-stack-postgres
+                  - postgres
+                  - mcp-stack-redis
+                  - redis
+                  - mcp-stack-migration
 {{- end }}

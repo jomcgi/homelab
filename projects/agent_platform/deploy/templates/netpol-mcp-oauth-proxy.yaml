@@ -1,0 +1,73 @@
+{{- if and .Values.networkPolicy.enabled (index .Values "mcp-oauth-proxy" "enabled") }}
+# MCP OAuth Proxy ingress: Envoy Gateway (external MCP clients).
+# MCP OAuth Proxy egress: Google OIDC (token exchange) + Context Forge (proxied requests).
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-mcp-oauth-proxy-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-oauth-proxy
+  policyTypes:
+    - Ingress
+  ingress:
+    # Envoy Gateway → MCP OAuth Proxy (external MCP client traffic)
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: envoy-gateway-system
+      ports:
+        - protocol: TCP
+          port: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-mcp-oauth-proxy-egress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-oauth-proxy
+  policyTypes:
+    - Egress
+  egress:
+    # MCP OAuth Proxy → Google OIDC (token exchange, userinfo)
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except:
+              - 10.0.0.0/8
+              - 172.16.0.0/12
+              - 192.168.0.0/16
+      ports:
+        - protocol: TCP
+          port: 443
+    # MCP OAuth Proxy → Context Forge (proxied MCP requests)
+    - to:
+        - podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/instance
+                operator: In
+                values:
+                  - {{ .Release.Name }}
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - mcpcontextforge
+                  - mcp-stack-mcpcontextforge
+      ports:
+        - protocol: TCP
+          port: 80
+        - protocol: TCP
+          port: 8000
+{{- end }}
