@@ -9,11 +9,12 @@ Hosted at **https://github.com/jomcgi/homelab**. The `gh` CLI is authenticated.
 ```
 homelab/
 ├── projects/            # All services, operators, websites — colocated with deploy configs
-│   ├── {service}/         # Each service has chart/, deploy/, src/ as needed
+│   ├── platform/          # Cluster-critical infra (ArgoCD, Linkerd, SigNoz, etc.)
+│   ├── agent_platform/    # Agent services (Context Forge, MCP servers, orchestrator)
+│   ├── {service}/         # Each service has chart/, deploy/, backend/ as needed
 │   │   ├── chart/         # Helm chart (if custom)
 │   │   └── deploy/        # ArgoCD Application, values, kustomization
 │   └── home-cluster/      # Auto-generated ArgoCD root kustomization
-├── charts/              # Shared/upstream Helm charts — ls to discover available charts
 ├── bazel/               # All Bazel build infrastructure (rules, tools, images, semgrep)
 ├── docs/               # Design docs, ADRs, and plans — ls to discover available docs
 │   └── decisions/       # Architecture Decision Records — ls decisions/<category>/
@@ -28,11 +29,11 @@ homelab/
 ```bash
 # Local development (no Bazel needed)
 format                        # Format code + update BUILD files (standalone)
-helm template <release> charts/<chart>/ -f projects/<service>/deploy/values.yaml  # Render Helm templates (NEVER helm install)
+helm template <release> projects/<service>/chart/ -f projects/<service>/deploy/values.yaml  # Render Helm templates (NEVER helm install)
 
 # CI-only (runs remotely via BuildBuddy)
 bazel test //...              # Test everything
-bazel run //charts/<service>/image:push  # Push container images
+bazel run //projects/<service>/image:push  # Push container images
 ```
 
 Bazel runs **remotely via BuildBuddy CI** — not locally. Shell aliases route `bazel`/`bazelisk` to the BuildBuddy CLI (`bb`). Locally, use `format` for formatting + BUILD file generation, and push to let CI handle builds/tests.
@@ -98,7 +99,7 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 
 ## Cluster Investigation
 
-**MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools. Tool names below are shortened — actual IDs have the `mcp__context-forge__` prefix (e.g., `mcp__context-forge__kubernetes-mcp-resources-list`).
+**MCP-first.** PreToolUse hooks enforce using MCP tools (via Context Forge) instead of CLI commands. Use `ToolSearch` with `+kubernetes`, `+argocd`, `+buildbuddy`, or `+signoz` to load tools. Tool names below are shortened — actual IDs have the `mcp__claude_ai_Homelab__` prefix (e.g., `mcp__claude_ai_Homelab__kubernetes-mcp-resources-list`).
 
 | Need                 | Tool                                                                                                      |
 | -------------------- | --------------------------------------------------------------------------------------------------------- |
@@ -163,6 +164,6 @@ Static sites deploy via `bazel run //projects/websites:push_all_pages` on main b
 - **Direct internet exposure** — all traffic goes through Cloudflare
 - **Running tests locally** — tests run in CI via Bazel; no `pytest`, `go test`, `npm test` directly
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
-- **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating `charts/<service>/`
+- **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating a custom one
 - **Using kubectl/argocd CLI for cluster reads** — use MCP tools via Context Forge; PreToolUse hooks enforce this
 - **Over-engineering** simple services

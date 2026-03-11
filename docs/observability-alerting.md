@@ -178,7 +178,7 @@ Located in `projects/platform/signoz-addons/alerts/`:
 
 ### SLO-Based Alerts
 
-Services can define SLOs using the `signoz-alerts` library chart (`charts/signoz-alerts/`). Each SLO definition generates two alerts using multi-window multi-burn-rate principles:
+Services can define SLOs using the `signoz-alerts` library chart (`projects/platform/signoz-addons/alerts/`). Each SLO definition generates two alerts using multi-window multi-burn-rate principles:
 
 1. **Burn-fast** (`<name>-slo-burn-fast`) — Short eval window (5m), fires when the metric sustains a threshold violation. Detects active incidents that would rapidly consume the error budget.
 
@@ -203,11 +203,11 @@ To add SLO alerts to a chart:
 2. Add `sloDefaults` and `slos` to `values.yaml`
 3. Create `templates/slo-alerts.yaml` that ranges over `.Values.slos` and includes `signoz-alerts.slo`
 
-See `charts/api-gateway/` for a working example.
+See `projects/agent_platform/api_gateway/deploy/` for a working example.
 
 ## Sidecar Architecture
 
-The `signoz-dashboard-sidecar` (Go, in `charts/signoz-dashboard-sidecar/`) watches for ConfigMaps labeled `signoz.io/alert: "true"` across all namespaces. It:
+The `signoz-dashboard-sidecar` (Go, in `projects/platform/signoz-addons/dashboard-sidecar/`) watches for ConfigMaps labeled `signoz.io/alert: "true"` across all namespaces. It:
 
 1. **Watches** — Kubernetes watch on ConfigMaps with the alert label
 2. **Reconciles** — Every 5 minutes, force-updates all known alerts (drift correction)
