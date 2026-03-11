@@ -57,6 +57,7 @@ go_test(
         "sandbox_test.go",
         "watchdog_test.go",
     ],
+    data = ["//projects/agent_platform/goose_agent/image:recipe_files"],
     embed = [":orchestrator_lib"],
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
@@ -74,6 +75,7 @@ go_test(
         "store_test.go",
         "watchdog_test.go",
     ],
+    data = ["//projects/agent_platform/goose_agent/image:recipe_files"],
     embed = [":orchestrator_lib"],
     tags = ["manual"],
     deps = [

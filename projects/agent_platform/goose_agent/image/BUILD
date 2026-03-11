@@ -4,6 +4,12 @@ load("@rules_go//go:def.bzl", "go_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
+filegroup(
+    name = "recipe_files",
+    srcs = glob(["recipes/*.yaml"]),
+    visibility = ["//projects/agent_platform/orchestrator:__pkg__"],
+)
+
 # Validate that Goose recipe YAML files are well-formed and use safe template patterns.
 # Run locally: bazel test //projects/agent_platform/goose_agent/image:recipe_validate_test
 go_test(

@@ -396,11 +396,24 @@ func TestHandleHealth(t *testing.T) {
 	}
 }
 
+// recipesTestDir returns the path to the goose recipe files.
+// Under Bazel, data deps are in the runfiles tree; locally, use a relative path.
+func recipesTestDir() string {
+	if srcDir := os.Getenv("TEST_SRCDIR"); srcDir != "" {
+		ws := os.Getenv("TEST_WORKSPACE")
+		if ws == "" {
+			ws = "_main"
+		}
+		return filepath.Join(srcDir, ws, "projects", "agent_platform", "goose_agent", "image", "recipes")
+	}
+	return filepath.Join("..", "goose_agent", "image", "recipes")
+}
+
 // TestValidProfilesMatchRecipeFiles ensures the ValidProfiles map stays in sync
 // with the recipe YAML files baked into the goose-agent container image.
 // This test breaks the build if a recipe is added/removed without updating model.go.
 func TestValidProfilesMatchRecipeFiles(t *testing.T) {
-	recipesDir := filepath.Join("..", "goose_agent", "image", "recipes")
+	recipesDir := recipesTestDir()
 	entries, err := os.ReadDir(recipesDir)
 	if err != nil {
 		t.Fatalf("could not read recipes directory %s: %v", recipesDir, err)
