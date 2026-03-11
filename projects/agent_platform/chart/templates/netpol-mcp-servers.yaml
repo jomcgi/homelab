@@ -1,9 +1,7 @@
 {{- if and .Values.networkPolicy.enabled (index .Values "agent-platform-mcp-servers" "enabled") }}
-# Shared MCP server ingress: Context Forge (proxied tool calls + registration)
-# or sandbox pods (direct access when gateway disabled).
-# Per-server egress is defined in each server's networkPolicy field in the
-# agent-platform-mcp-servers subchart. This template only covers shared ingress
-# and the common Context Forge registration egress.
+{{- if .Values.networkPolicy.gateway }}
+# MCP servers shared ingress: Context Forge gateway (cross-namespace) proxies
+# tool calls to servers, and servers register with the gateway.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -20,46 +18,22 @@ spec:
   policyTypes:
     - Ingress
   ingress:
-    {{- if (index .Values "context-forge" "enabled") }}
-    # Context Forge → MCP servers (proxied tool calls + registration)
     - from:
-        - podSelector:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.gateway.namespace }}
+          podSelector:
             matchExpressions:
-              - key: app.kubernetes.io/instance
-                operator: In
-                values:
-                  - {{ .Release.Name }}
               - key: app.kubernetes.io/name
                 operator: In
-                values:
-                  - mcpcontextforge
-                  - mcp-stack-mcpcontextforge
+                values: {{ .Values.networkPolicy.gateway.podLabels | toYaml | nindent 18 }}
       ports:
+        {{- range .Values.networkPolicy.gateway.ports }}
         - protocol: TCP
-          port: 8000
-        - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 3000
-    {{- end }}
-    {{- if not (index .Values "context-forge" "enabled") }}
-    # Sandbox → MCP servers directly (gateway disabled)
-    - from:
-        - podSelector:
-            matchLabels:
-              agents.x-k8s.io/sandbox-template: {{ (index .Values "goose-sandboxes" "sandboxTemplate" "name") | default "goose-agent" }}
-      ports:
-        - protocol: TCP
-          port: 8000
-        - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 3000
-    {{- end }}
-{{- if (index .Values "context-forge" "enabled") }}
+          port: {{ . }}
+        {{- end }}
 ---
-# MCP servers → Context Forge (registration jobs).
-# Common to all servers that register with the gateway.
+# MCP servers → Context Forge registration egress (cross-namespace).
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -76,21 +50,47 @@ spec:
     - Egress
   egress:
     - to:
-        - podSelector:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.gateway.namespace }}
+          podSelector:
             matchExpressions:
-              - key: app.kubernetes.io/instance
-                operator: In
-                values:
-                  - {{ .Release.Name }}
               - key: app.kubernetes.io/name
                 operator: In
-                values:
-                  - mcpcontextforge
-                  - mcp-stack-mcpcontextforge
+                values: {{ .Values.networkPolicy.gateway.podLabels | toYaml | nindent 18 }}
+      ports:
+        {{- range .Values.networkPolicy.gateway.ports }}
+        - protocol: TCP
+          port: {{ . }}
+        {{- end }}
+{{- else }}
+# No gateway configured — allow sandbox pods direct access to MCP servers.
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-mcp-servers-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/component: mcp-server
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              agents.x-k8s.io/sandbox-template: {{ (index .Values "goose-sandboxes" "sandboxTemplate" "name") | default "goose-agent" }}
       ports:
         - protocol: TCP
-          port: 80
-        - protocol: TCP
           port: 8000
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 3000
 {{- end }}
 {{- end }}

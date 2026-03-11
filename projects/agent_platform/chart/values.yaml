@@ -17,135 +17,17 @@ networkPolicy:
   # this range instead of 0.0.0.0/0. Leave empty to allow any destination on
   # ports 443/6443 (less restrictive but works on any cluster).
   apiServerCidr: ""
-
-# ── Subchart: context-forge ──────────────────────────────────────────────────
-# MCP gateway aggregating observability and infrastructure tools.
-# Wraps the upstream IBM mcp-stack chart.
-context-forge:
-  enabled: true
-  mcp-stack:
-    mcpContextForge:
-      image:
-        repository: ghcr.io/ibm/mcp-context-forge
-        tag: "v1.0.0-RC1"
-        pullPolicy: IfNotPresent
-      replicaCount: 1
-      hpa:
-        enabled: false
-      ingress:
-        enabled: false
-      config:
-        GUNICORN_WORKERS: "2"
-        MCPGATEWAY_UI_ENABLED: "false"
-        MCPGATEWAY_A2A_ENABLED: "false"
-        LLMCHAT_ENABLED: "false"
-        MCPGATEWAY_CATALOG_ENABLED: "false"
-        MCPGATEWAY_DIRECT_PROXY_ENABLED: "false"
-        MCPGATEWAY_BULK_IMPORT_ENABLED: "false"
-      secret:
-        AUTH_REQUIRED: "true"
-        MCP_CLIENT_AUTH_ENABLED: "true"
-        MCP_REQUIRE_AUTH: "false"
-        TRUST_PROXY_AUTH: "true"
-        PROXY_USER_HEADER: "X-Forwarded-User"
-      extraEnvFrom:
-        - secretRef:
-            name: context-forge
-      metrics:
-        serviceMonitor:
-          enabled: false
-      resources:
-        requests:
-          cpu: 50m
-          memory: 256Mi
-        limits:
-          cpu: 200m
-          memory: 512Mi
-    postgres:
-      persistence:
-        storageClassName: ""
-        size: 1Gi
-      resources:
-        requests:
-          cpu: 50m
-          memory: 64Mi
-        limits:
-          cpu: 500m
-          memory: 512Mi
-    migration:
-      image:
-        repository: ghcr.io/ibm/mcp-context-forge
-        tag: "v1.0.0-RC1"
-        pullPolicy: IfNotPresent
-    redis:
-      enabled: true
-      resources:
-        requests:
-          cpu: 25m
-          memory: 16Mi
-        limits:
-          cpu: 100m
-          memory: 128Mi
-    pgadmin:
-      enabled: false
-    redisCommander:
-      enabled: false
-    minio:
-      enabled: false
-    mcpFastTimeServer:
-      enabled: false
-  secret:
-    name: context-forge
-    itemPath: ""
-
-# ── Subchart: mcp-oauth-proxy ────────────────────────────────────────────────
-# OAuth 2.1 proxy authenticating MCP clients via Google OIDC (ADR 006).
-mcp-oauth-proxy:
-  enabled: true
-  image:
-    repository: ghcr.io/obot-platform/mcp-oauth-proxy
-    tag: "latest"
-    pullPolicy: IfNotPresent
-  config:
-    OAUTH_AUTHORIZE_URL: "https://accounts.google.com"
-    SCOPES_SUPPORTED: "openid,email,profile"
-    MCP_SERVER_URL: ""
-  secret:
-    name: mcp-oauth-proxy
-    itemPath: ""
-  postgres:
-    image:
-      repository: docker.io/postgres
-      tag: "17-alpine"
-    user: "mcp"
-    database: "mcp_oauth"
-    dsn: "postgres://mcp@localhost:5432/mcp_oauth?sslmode=disable"
-    resources:
-      requests:
-        cpu: 10m
-        memory: 64Mi
-      limits:
-        cpu: 200m
-        memory: 256Mi
-  resources:
-    requests:
-      cpu: 10m
-      memory: 32Mi
-    limits:
-      cpu: 100m
-      memory: 128Mi
-  podSecurityContext:
-    runAsNonRoot: true
-    seccompProfile:
-      type: RuntimeDefault
-  securityContext:
-    runAsUser: 65532
-    runAsGroup: 65532
-    allowPrivilegeEscalation: false
-    readOnlyRootFilesystem: true
-    capabilities:
-      drop:
-        - ALL
+  # Context Forge gateway location — used by MCP server registration egress,
+  # MCP server ingress, and sandbox egress NetworkPolicies.
+  # Set to empty/null to disable gateway-related policies.
+  gateway:
+    namespace: mcp
+    podLabels:
+      - mcpcontextforge
+      - mcp-stack-mcpcontextforge
+    ports:
+      - 80
+      - 8000
 
 # ── Subchart: agent-platform-mcp-servers ─────────────────────────────────────
 # Deploys MCP servers with optional protocol translation and gateway registration.
