@@ -4,6 +4,7 @@ Prevents drift between the VitePress sidebar/nav configuration and the actual
 markdown files assembled into the docs site.
 """
 
+import json
 import re
 from pathlib import Path
 
@@ -12,18 +13,44 @@ import pytest
 # In Bazel's runfiles tree, __file__ mirrors the repo layout:
 # {workspace}/projects/websites/docs.jomcgi.dev/config_links_test.py
 WORKSPACE_ROOT = Path(__file__).resolve().parents[3]
-CONFIG_PATH = WORKSPACE_ROOT / "projects/websites/docs.jomcgi.dev/.vitepress/config.js"
+VITEPRESS_DIR = WORKSPACE_ROOT / "projects/websites/docs.jomcgi.dev/.vitepress"
+CONFIG_PATH = VITEPRESS_DIR / "config.js"
+ADR_SIDEBAR_PATH = VITEPRESS_DIR / "adr-sidebar.json"
 
 # Match link: "/some/path" in config.js (sidebar and nav links)
 LINK_PATTERN = re.compile(r'link:\s*"(/[^"]+)"')
 
 
+def _get_links_from_json(data):
+    """Recursively extract all 'link' values from a JSON structure."""
+    links = []
+    if isinstance(data, dict):
+        if "link" in data:
+            links.append(data["link"])
+        for value in data.values():
+            links.extend(_get_links_from_json(value))
+    elif isinstance(data, list):
+        for item in data:
+            links.extend(_get_links_from_json(item))
+    return links
+
+
 def _get_internal_links():
-    """Extract all internal links from the VitePress config."""
+    """Extract all internal links from config.js and generated sidebar JSON."""
+    links = []
+
+    # Links from config.js (Architecture sidebar, nav)
     content = CONFIG_PATH.read_text()
-    return [
+    links.extend(
         link for link in LINK_PATTERN.findall(content) if not link.startswith("http")
-    ]
+    )
+
+    # Links from generated ADR sidebar
+    if ADR_SIDEBAR_PATH.exists():
+        sidebar_data = json.loads(ADR_SIDEBAR_PATH.read_text())
+        links.extend(_get_links_from_json(sidebar_data))
+
+    return links
 
 
 def _link_to_source(link):

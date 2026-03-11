@@ -113,6 +113,10 @@ if $STAGED; then
 	./bazel/images/generate-home-cluster.sh 2>/dev/null &
 	PIDS+=($!)
 
+	# Docs sidebar generator (always run — it scans ADR markdown files, not BUILD)
+	./bazel/images/generate-docs-sidebar.sh 2>/dev/null &
+	PIDS+=($!)
+
 	for pid in "${PIDS[@]}"; do wait "$pid" 2>/dev/null || true; done
 
 	# Gazelle only if Go or Python files changed
@@ -166,6 +170,8 @@ PIDS+=($!)
 ./bazel/images/generate-push-all-pages.sh 2>/dev/null &
 PIDS+=($!)
 ./bazel/images/generate-home-cluster.sh 2>/dev/null &
+PIDS+=($!)
+./bazel/images/generate-docs-sidebar.sh 2>/dev/null &
 PIDS+=($!)
 
 # Wait for all parallel tasks
