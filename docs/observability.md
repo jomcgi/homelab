@@ -16,41 +16,41 @@ The following diagram shows how observability is automatically added to every po
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Pod Creation Request                         │
-│                     (kubectl apply / ArgoCD sync)                    │
+│                        Pod Creation Request                         │
+│                    (kubectl apply / ArgoCD sync)                    │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    Layer 1: Kyverno Policies                         │
+│                    Layer 1: Kyverno Policies                        │
 ├─────────────────────────────────────────────────────────────────────┤
-│  ┌──────────────────────────┐  ┌───────────────────────────────┐   │
-│  │  OTEL Injection Policy   │  │  Linkerd Injection Policy     │   │
-│  ├──────────────────────────┤  ├───────────────────────────────┤   │
-│  │ Adds env vars:           │  │ Adds namespace annotation:    │   │
-│  │ - OTEL_EXPORTER_         │  │   linkerd.io/inject=enabled   │   │
-│  │   OTLP_ENDPOINT          │  │                               │   │
-│  │ - OTEL_EXPORTER_         │  │ (applies to namespace,        │   │
-│  │   OTLP_PROTOCOL=grpc     │  │  affects all pods in it)      │   │
-│  └──────────────────────────┘  └───────────────────────────────┘   │
+│  ┌──────────────────────────┐  ┌───────────────────────────────┐    │
+│  │  OTEL Injection Policy   │  │  Linkerd Injection Policy     │    │
+│  ├──────────────────────────┤  ├───────────────────────────────┤    │
+│  │ Adds env vars:           │  │ Adds namespace annotation:    │    │
+│  │ - OTEL_EXPORTER_         │  │   linkerd.io/inject=enabled   │    │
+│  │   OTLP_ENDPOINT          │  │                               │    │
+│  │ - OTEL_EXPORTER_         │  │ (applies to namespace,        │    │
+│  │   OTLP_PROTOCOL=grpc     │  │  affects all pods in it)      │    │
+│  └──────────────────────────┘  └───────────────────────────────┘    │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│              Layer 2: OpenTelemetry Operator (opt-in)                │
+│             Layer 2: OpenTelemetry Operator (opt-in)                │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Per-namespace Instrumentation custom resources (CRs) inject:       │
 │  - Go: eBPF auto-instrumentation (autoinstrumentation-go)           │
 │  - Python: auto-instrument init container                           │
 │  - Node.js: require-hook init container                             │
-│                                                                      │
+│                                                                     │
 │  Currently enabled for: trips, knowledge-graph, api-gateway,        │
 │  mcp-servers, todo, grimoire                                        │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                   Layer 3: Linkerd Proxy Injection                   │
+│                   Layer 3: Linkerd Proxy Injection                  │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Linkerd webhook sees namespace annotation and injects:             │
 │  - linkerd-proxy sidecar container                                  │
@@ -60,17 +60,17 @@ The following diagram shows how observability is automatically added to every po
                                  │
                                  ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                          Running Pod                                 │
+│                         Running Pod                                 │
 ├─────────────────────────────────────────────────────────────────────┤
-│  ┌────────────────────┐          ┌──────────────────────────────┐  │
-│  │  Application       │          │  linkerd-proxy sidecar       │  │
-│  │  Container         │◄────────►│  (intercepts all traffic)    │  │
-│  ├────────────────────┤          ├──────────────────────────────┤  │
-│  │ OTEL env vars set  │          │ Sends traces to SigNoz       │  │
-│  │ OTel SDK injected  │          │ via control plane            │  │
-│  │ (if namespace opted│          │                              │  │
-│  │  into Operator)    │          │                              │  │
-│  └────────────────────┘          └──────────────────────────────┘  │
+│  ┌────────────────────┐          ┌──────────────────────────────┐   │
+│  │  Application       │          │  linkerd-proxy sidecar       │   │
+│  │  Container         │◄────────►│  (intercepts all traffic)    │   │
+│  ├────────────────────┤          ├──────────────────────────────┤   │
+│  │ OTEL env vars set  │          │ Sends traces to SigNoz       │   │
+│  │ OTel SDK injected  │          │ via control plane            │   │
+│  │ (if namespace opted│          │                              │   │
+│  │  into Operator)    │          │                              │   │
+│  └────────────────────┘          └──────────────────────────────┘   │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼

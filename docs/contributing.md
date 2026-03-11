@@ -50,10 +50,10 @@ This is a GitOps monorepo where related code and deployment configuration live t
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Step 4: ArgoCD Auto-Discovery                                      │
 │  projects/home-cluster/kustomization.yaml lists all deploy/ dirs.   │
-│                                                                      │
-│  The "canada" Application is the root app-of-apps.                   │
-│  ArgoCD runs "kustomize build" and discovers all                     │
-│  Application manifests automatically.                                │
+│                                                                     │
+│  The "canada" Application is the root app-of-apps.                  │
+│  ArgoCD runs "kustomize build" and discovers all                    │
+│  Application manifests automatically.                               │
 └────────────────────────────────┬────────────────────────────────────┘
                                  │
                                  ▼
