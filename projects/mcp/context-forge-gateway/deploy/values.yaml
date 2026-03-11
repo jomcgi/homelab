@@ -9,15 +9,15 @@ mcp-stack:
         command: ["sh", "-c", "sleep 10"]
         timeoutSeconds: 15
         periodSeconds: 10
-        failureThreshold: 6
+        failureThreshold: 18
       liveness:
         type: http
         path: /health
         port: 4444
-        initialDelaySeconds: 30
+        initialDelaySeconds: 60
         periodSeconds: 15
         timeoutSeconds: 5
-        failureThreshold: 3
+        failureThreshold: 5
     resources:
       requests:
         cpu: 50m
@@ -25,6 +25,8 @@ mcp-stack:
       limits:
         cpu: 200m
         memory: 1Gi
+  migration:
+    enabled: false
   postgres:
     persistence:
       storageClassName: longhorn
