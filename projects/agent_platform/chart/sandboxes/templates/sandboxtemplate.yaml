@@ -15,6 +15,7 @@ spec:
       initContainers:
         - name: clone-repo
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
+          imagePullPolicy: Always
           command: ["/bin/sh", "-c"]
           args:
             - |
@@ -38,6 +39,7 @@ spec:
       containers:
         - name: goose
           image: "{{ .Values.sandboxTemplate.image.repository }}:{{ .Values.sandboxTemplate.image.tag }}"
+          imagePullPolicy: Always
           command: ["agent-runner"]
           ports:
             - name: runner
