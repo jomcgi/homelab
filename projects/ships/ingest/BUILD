@@ -37,7 +37,6 @@ py_library(
 py3_image(
     name = "image",
     binary = "//projects/ships/ingest:main",
-    repository = "ghcr.io/jomcgi/homelab/services/ais_ingest",
 )
 
 py_test(

@@ -2,7 +2,7 @@ imagePullSecrets:
   - name: ghcr-pull-secret
 controllerManager:
   image:
-    repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
+    repository: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache
     tag: main@sha256:5daee534bd2dfd0fedc95df029a9a11122d09fa093f65a8b7823c3d64fdfa5a5
     pullPolicy: Always
   tracing:
@@ -11,7 +11,7 @@ controllerManager:
     sampler: "parentbased_traceidratio"
     samplerArg: "1.0"
   copyImage:
-    repository: ghcr.io/jomcgi/homelab/tools/hf2oci
+    repository: ghcr.io/jomcgi/homelab/bazel/tools/hf2oci
     tag: main
   syncNodeSelector:
     kubernetes.io/hostname: node-4
@@ -30,7 +30,7 @@ imageUpdater:
   enabled: true
   images:
     - alias: operator
-      imageName: ghcr.io/jomcgi/homelab/operators/oci-model-cache:main
+      imageName: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache:main
       helm:
         name: controllerManager.image.repository
         tag: controllerManager.image.tag

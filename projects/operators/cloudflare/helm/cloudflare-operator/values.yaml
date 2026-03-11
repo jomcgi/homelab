@@ -7,7 +7,7 @@ fullnameOverride: ""
 controllerManager:
   # Container image configuration
   image:
-    repository: ghcr.io/jomcgi/cloudflare-operator
+    repository: ghcr.io/jomcgi/homelab/projects/operators/cloudflare
     tag: sha-8687034 # Use SHA tags for precise version tracking
     pullPolicy: Always
 

@@ -56,12 +56,12 @@ tests:
 
   - it: should use correct image
     set:
-      image.repository: ghcr.io/jomcgi/homelab/services/stargazer
+      image.repository: ghcr.io/jomcgi/homelab/projects/stargazer
       image.tag: "v1.0.0"
     asserts:
       - equal:
           path: spec.jobTemplate.spec.template.spec.containers[0].image
-          value: ghcr.io/jomcgi/homelab/services/stargazer:v1.0.0
+          value: ghcr.io/jomcgi/homelab/projects/stargazer:v1.0.0
 
   - it: should have restart policy OnFailure
     asserts:

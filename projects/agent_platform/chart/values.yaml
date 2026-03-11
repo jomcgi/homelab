@@ -64,7 +64,7 @@ agent-orchestrator:
   enabled: true
   replicaCount: 1
   image:
-    repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
+    repository: ghcr.io/jomcgi/homelab/projects/agent_platform/orchestrator
     tag: main
     pullPolicy: IfNotPresent
   imagePullSecret:
@@ -136,7 +136,7 @@ goose-sandboxes:
   sandboxTemplate:
     name: goose-agent
     image:
-      repository: ghcr.io/jomcgi/homelab/goose-agent
+      repository: ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image
       tag: main
     env:
       gooseProvider: claude-code

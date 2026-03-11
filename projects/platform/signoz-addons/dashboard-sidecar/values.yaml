@@ -1,7 +1,7 @@
 # SigNoz Dashboard Sidecar configuration
 
 image:
-  repository: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar
+  repository: ghcr.io/jomcgi/homelab/projects/platform/signoz-addons/dashboard-sidecar/cmd
   tag: "" # Defaults to appVersion
   pullPolicy: IfNotPresent
 

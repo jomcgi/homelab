@@ -5,7 +5,7 @@ imageUpdater:
   enabled: true
   images:
     - alias: stargazer
-      imageName: ghcr.io/jomcgi/homelab/services/stargazer:main
+      imageName: ghcr.io/jomcgi/homelab/projects/stargazer:main
       helm:
         name: image.repository
         tag: image.tag
@@ -18,7 +18,7 @@ imageUpdater:
 schedule: "0,30 * * * *"
 # Stargazer service image
 image:
-  repository: ghcr.io/jomcgi/homelab/services/stargazer
+  repository: ghcr.io/jomcgi/homelab/projects/stargazer
   tag: "main@sha256:6831963f698e277c3220ff038bd28134879e1ca43d1c52804f8cefd8bca6730a"
   pullPolicy: IfNotPresent
 # Persistent storage

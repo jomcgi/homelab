@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/cluster-agents:main
+          imageName: ghcr.io/jomcgi/homelab/projects/agent_platform/cluster_agents:main
           manifestTargets:
             helm:
               name: image.repository

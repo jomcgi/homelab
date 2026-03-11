@@ -85,7 +85,7 @@ Installs:
 ### Goose Agent Image
 
 **Built with:** apko + rules_apko (`projects/agent_platform/goose_agent/image/apko.yaml`)
-**Registry:** `ghcr.io/jomcgi/homelab/goose-agent`
+**Registry:** `ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image`
 **Architectures:** x86_64 + aarch64 · **User:** uid/gid 65532
 
 Wolfi packages baked in:
@@ -156,7 +156,7 @@ bazel run //projects/agent_platform/goose_agent/image:push
     ├─ BuildBuddy RBE builds apko image (rules_apko)
     ├─ Hermetic: all deps from apko.lock.json SHAs
     ├─ Output: dual-arch OCI image
-    └─ Push: ghcr.io/jomcgi/homelab/goose-agent:<tag>
+    └─ Push: ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image:<tag>
            │
            └─ ArgoCD Image Updater detects new digest
               └─ Writes back to projects/agent_platform/goose-sandboxes/deploy/values.yaml

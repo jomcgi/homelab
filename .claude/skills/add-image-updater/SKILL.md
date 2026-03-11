@@ -30,7 +30,7 @@ This skill creates an ImageUpdater resource that enables automatic container ima
 │  - Clones homelab repo                                          │
 │  - Updates projects/<service>/deploy/values.yaml:                │
 │      image:                                                      │
-│        repository: ghcr.io/jomcgi/homelab/charts/myapp          │
+│        repository: ghcr.io/jomcgi/homelab/projects/myapp        │
 │        tag: main@sha256:abc123...  ← new digest                 │
 │  - Commits and pushes to main branch                            │
 └────────────────────────┬────────────────────────────────────────┘
@@ -63,7 +63,7 @@ This skill creates an ImageUpdater resource that enables automatic container ima
 **Arguments:**
 
 - `<service-name>` (required): Name of the service (must match ArgoCD Application namePattern)
-- `[image-pattern]` (optional): Custom image path. Defaults to `ghcr.io/jomcgi/homelab/charts/<service-name>:main`
+- `[image-pattern]` (optional): Custom image path. Defaults to `ghcr.io/jomcgi/homelab/projects/<service-name>:main`
 
 **Examples:**
 
@@ -151,11 +151,9 @@ metadata:
 
 Images follow these patterns:
 
-| Type                | Pattern                                        |
-| ------------------- | ---------------------------------------------- |
-| Chart-based service | `ghcr.io/jomcgi/homelab/charts/<name>:main`    |
-| Operator            | `ghcr.io/jomcgi/homelab/operators/<name>:main` |
-| Standalone image    | `ghcr.io/jomcgi/homelab/<name>:main`           |
+| Type        | Pattern                                       |
+| ----------- | --------------------------------------------- |
+| Any service | `ghcr.io/jomcgi/homelab/projects/<path>:main` |
 
 ### Step 4: Calculate the Relative Path
 
@@ -184,7 +182,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/charts/<service-name>:main
+          imageName: ghcr.io/jomcgi/homelab/projects/<service-name>:main
           manifestTargets:
             helm:
               name: image.repository
@@ -286,13 +284,13 @@ When creating an image updater, always ensure the deploy `values.yaml` includes 
 ```yaml
 # Example: for helm.name=image.repository and helm.tag=image.tag
 image:
-  repository: ghcr.io/jomcgi/homelab/charts/myapp
+  repository: ghcr.io/jomcgi/homelab/projects/myapp
   tag: main
 
 # Example: for helm.name=sandboxTemplate.image.repository
 sandboxTemplate:
   image:
-    repository: ghcr.io/jomcgi/homelab/goose-agent
+    repository: ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image
     tag: main
 ```
 

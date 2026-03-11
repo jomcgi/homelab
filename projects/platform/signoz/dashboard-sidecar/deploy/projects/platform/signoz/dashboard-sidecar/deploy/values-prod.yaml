@@ -2,4 +2,4 @@
 
 image:
   tag: main@sha256:7b5c22e3437d8ba510eeae99e85339172c2d742ce29b086167e5d33568d7fd30
-  repository: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar
+  repository: ghcr.io/jomcgi/homelab/projects/platform/signoz-addons/dashboard-sidecar/cmd

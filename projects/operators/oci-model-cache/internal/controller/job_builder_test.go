@@ -35,7 +35,7 @@ func minimalModelCache() *v1alpha1.ModelCache {
 func minimalConfig() config.Config {
 	return config.Config{
 		Namespace: "oci-model-cache",
-		CopyImage: "ghcr.io/jomcgi/homelab/tools/hf2oci:main",
+		CopyImage: "ghcr.io/jomcgi/homelab/bazel/tools/hf2oci:main",
 	}
 }
 

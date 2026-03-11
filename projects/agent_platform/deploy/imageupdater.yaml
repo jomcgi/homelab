@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/charts/agent-platform
+          imageName: ghcr.io/jomcgi/homelab/projects/agent_platform/chart
           manifestTargets:
             helm:
               name: ""

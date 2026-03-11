@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar:main
+          imageName: ghcr.io/jomcgi/homelab/projects/platform/signoz-addons/dashboard-sidecar/cmd:main
           manifestTargets:
             helm:
               name: image.repository

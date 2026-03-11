@@ -5,17 +5,17 @@ imageUpdater:
   enabled: true
   images:
     - alias: ingest
-      imageName: ghcr.io/jomcgi/homelab/services/ais_ingest:main
+      imageName: ghcr.io/jomcgi/homelab/projects/ships/ingest:main
       helm:
         name: ingest.image.repository
         tag: ingest.image.tag
     - alias: api
-      imageName: ghcr.io/jomcgi/homelab/services/ships_api:main
+      imageName: ghcr.io/jomcgi/homelab/projects/ships/backend:main
       helm:
         name: api.image.repository
         tag: api.image.tag
     - alias: frontend
-      imageName: ghcr.io/jomcgi/homelab/services/ships_frontend:main
+      imageName: ghcr.io/jomcgi/homelab/projects/ships/frontend:main
       helm:
         name: frontend.image.repository
         tag: frontend.image.tag
@@ -33,7 +33,7 @@ imagePullSecrets:
 # AIS Ingest component
 ingest:
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ais_ingest
+    repository: ghcr.io/jomcgi/homelab/projects/ships/ingest
     tag: main@sha256:673909e9be434f58ccece06efb988e2654bffbbe83ef36a420ebd845778bb2e4
     pullPolicy: Always
     digest: sha256:6c6a6bc57e6807f2c52a530dc2c1895679ae2511dcce819d70cc5da8102a5e13
@@ -44,7 +44,7 @@ ingest:
 # Ships API component
 api:
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ships_api
+    repository: ghcr.io/jomcgi/homelab/projects/ships/backend
     tag: main@sha256:0aaa8ced8b83f0c61becb6143be7543927fe81d716c37d71b9825306b6bc91ef
     pullPolicy: Always
     digest: sha256:af41b804e33ba2cf962bd3c2e169faed71e80f2f5ef73ea91ef99198dcb1d632
@@ -73,7 +73,7 @@ api:
     instrumentation.opentelemetry.io/inject-python: "python"
 frontend:
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ships_frontend
+    repository: ghcr.io/jomcgi/homelab/projects/ships/frontend
     tag: main@sha256:592a23a04f37858357f92217172f9d7daf5484592901e05112a727b5e332eeaa
     digest: sha256:18d74880ab5c094f2fbcf4963076c43be208bdc6e9298096c10596c78452f5f1
   resources:
