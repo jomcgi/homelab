@@ -51,6 +51,7 @@ resources:
 
 podSecurityContext:
   runAsNonRoot: true
+  fsGroup: 70
   seccompProfile:
     type: RuntimeDefault
 
