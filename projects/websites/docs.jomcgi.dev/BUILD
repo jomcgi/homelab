@@ -1,5 +1,6 @@
 load("@npm//projects/websites/docs.jomcgi.dev:vitepress/package_json.bzl", vitepress_bin = "bin")
 load("@npm//projects/websites/docs.jomcgi.dev:wrangler/package_json.bzl", wrangler_bin = "bin")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/pytest:defs.bzl", "py_test")
 load("//bazel/vitepress:site.bzl", "vitepress_site")
 
@@ -15,7 +16,7 @@ py_test(
     srcs = ["config_links_test.py"],
     data = [
         ".vitepress/config.js",
-        "//docs:docs",
+        "//docs",
     ],
     deps = [
         "@pip//pytest",
@@ -33,4 +34,10 @@ vitepress_site(
     ],
     vitepress_config = ".vitepress/config.js",
     wrangler_project = "docs-jomcgi-dev",
+)
+
+semgrep_test(
+    name = "config_links_test_semgrep_test",
+    srcs = ["config_links_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
