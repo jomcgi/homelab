@@ -1,2 +1,0 @@
-# Production cloudflare-ingress overrides
-# Base values in projects/platform/cloudflare/ingress/deploy/values.yaml are suitable for initial deployment.
