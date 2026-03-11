@@ -32,7 +32,7 @@ tunnel:
       - hostname: longhorn.jomcgi.dev
         service: http://longhorn-frontend.longhorn.svc.cluster.local:80
       - hostname: mcp.jomcgi.dev
-        service: http://mcp-oauth-proxy.mcp-gateway.svc.cluster.local:8080
+        service: http://mcp-oauth-proxy.mcp.svc.cluster.local:8080
       - hostname: n8n.jomcgi.dev
         service: http://n8n.n8n.svc.cluster.local:80
       - hostname: feeds.jomcgi.dev
