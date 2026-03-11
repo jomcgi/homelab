@@ -3,8 +3,9 @@ actions:
   # Runs in parallel with Test action
   - name: "Format check"
     container_image: "ubuntu-24.04"
+    max_retries: 1
     resource_requests:
-      disk: "30GB" # Slightly larger for format tools
+      disk: "20GB" # Slightly larger for format tools
     triggers:
       push:
         branches:
@@ -90,10 +91,11 @@ actions:
   # "Push images" and "Push pages" both depend on this and run in parallel after it succeeds
   - name: "Test"
     container_image: "ubuntu-24.04"
+    max_retries: 1
     resource_requests:
-      cpu: "8"
-      memory: "12GB"
-      disk: "75GB"
+      cpu: "6"
+      memory: "10GB"
+      disk: "60GB"
     triggers:
       push:
         branches:
@@ -118,10 +120,11 @@ actions:
   # verified before merge.
   - name: "Push images"
     container_image: "ubuntu-24.04"
+    max_retries: 1
     resource_requests:
-      cpu: "8"
-      memory: "12GB"
-      disk: "75GB"
+      cpu: "6"
+      memory: "10GB"
+      disk: "60GB"
     depends_on: ["Test"]
     triggers:
       push:
@@ -148,8 +151,9 @@ actions:
   # No dependency on "Push images" — static site deploys are independent of container images
   - name: "Push pages"
     container_image: "ubuntu-24.04"
+    max_retries: 1
     resource_requests:
-      disk: "30GB"
+      disk: "20GB"
     depends_on: ["Test"]
     triggers:
       push:
