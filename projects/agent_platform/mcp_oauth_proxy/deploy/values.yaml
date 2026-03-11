@@ -14,12 +14,12 @@ config:
   # OAuth scopes to request from Google
   SCOPES_SUPPORTED: "openid,email,profile"
   # Upstream MCP server URL (Context Forge ClusterIP)
-  MCP_SERVER_URL: "http://context-forge-mcp-stack-mcpgateway.mcp-gateway.svc.cluster.local:80"
+  MCP_SERVER_URL: ""
 
 # 1Password secret — provides OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, ENCRYPTION_KEY
 secret:
   name: mcp-oauth-proxy
-  itemPath: "vaults/k8s-homelab/items/mcp-oauth-proxy"
+  itemPath: ""
 
 # PostgreSQL sidecar — replaces SQLite (upstream binary lacks CGO)
 postgres:

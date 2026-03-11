@@ -7,10 +7,10 @@ translate:
 
 # Context Forge gateway for registration jobs
 gateway:
-  url: "http://context-forge-mcp-stack-mcpgateway.mcp-gateway.svc.cluster.local:80"
+  url: ""
   secret:
     name: context-forge-gateway
-    itemPath: "vaults/k8s-homelab/items/context-forge"
+    itemPath: ""
 
 # HTTPCheck alert defaults (overridable per server)
 alertDefaults:
@@ -18,8 +18,7 @@ alertDefaults:
   frequency: "2m0s"
   matchType: "5"
   severity: "critical"
-  channels:
-    - pagerduty-homelab
+  channels: []
 
 # ArgoCD Image Updater defaults (for in-repo images)
 imageUpdater:

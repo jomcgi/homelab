@@ -11,9 +11,15 @@ spec:
     - Ingress
   ingress:
     - from:
+        {{- if .Values.orchestratorNamespace }}
         - namespaceSelector:
             matchLabels:
-              kubernetes.io/metadata.name: {{ .Values.orchestratorNamespace | default .Release.Namespace }}
+              kubernetes.io/metadata.name: {{ .Values.orchestratorNamespace }}
+        {{- else }}
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: agent-orchestrator
+        {{- end }}
       ports:
         - protocol: TCP
           port: 8081

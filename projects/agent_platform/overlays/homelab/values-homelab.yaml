@@ -1,0 +1,292 @@
+# ── Homelab environment overrides for agent-platform ─────────────────────────
+# Only environment-specific config lives here. All defaults and image pins
+# are baked into the chart via values.yaml + Bazel images={} map.
+
+# ── Context Forge ────────────────────────────────────────────────────────────
+context-forge:
+  mcp-stack:
+    mcpContextForge:
+      config:
+        PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
+      resources:
+        requests:
+          cpu: 50m
+          memory: 1Gi
+        limits:
+          cpu: 200m
+          memory: 1Gi
+    postgres:
+      persistence:
+        storageClassName: longhorn
+  secret:
+    itemPath: "vaults/k8s-homelab/items/context-forge"
+
+# ── MCP OAuth Proxy ──────────────────────────────────────────────────────────
+mcp-oauth-proxy:
+  secret:
+    itemPath: "vaults/k8s-homelab/items/mcp-oauth-proxy"
+
+# ── MCP Servers ──────────────────────────────────────────────────────────────
+agent-platform-mcp-servers:
+  gateway:
+    secret:
+      itemPath: "vaults/k8s-homelab/items/context-forge"
+  alertDefaults:
+    channels:
+      - pagerduty-homelab
+  servers:
+    - name: signoz-mcp
+      image:
+        repository: docker.io/signoz/signoz-mcp-server
+        tag: "v0.0.5"
+      port: 8000
+      podAnnotations:
+        instrumentation.opentelemetry.io/inject-python: "python"
+      env:
+        - name: SIGNOZ_URL
+          value: "http://signoz.signoz.svc.cluster.local:8080"
+        - name: TRANSPORT_MODE
+          value: "http"
+        - name: MCP_SERVER_PORT
+          value: "8000"
+      secret:
+        name: signoz-mcp
+        itemPath: "vaults/k8s-homelab/items/signoz-mcp"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      translate:
+        enabled: false
+      registration:
+        enabled: true
+        transport: "STREAMABLEHTTP"
+      alert:
+        enabled: true
+        url: "http://signoz-mcp.agent-platform.svc.cluster.local:8000/health"
+
+    - name: buildbuddy-mcp
+      image:
+        repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
+        tag: main
+      port: 8000
+      podAnnotations:
+        instrumentation.opentelemetry.io/inject-python: "python"
+      writableTmp: true
+      env:
+        - name: BUILDBUDDY_URL
+          value: "https://app.buildbuddy.io"
+      secret:
+        name: buildbuddy-mcp
+        itemPath: "vaults/k8s-homelab/items/buildbuddy-mcp"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      translate:
+        enabled: false
+      registration:
+        enabled: true
+        transport: "STREAMABLEHTTP"
+      alert:
+        enabled: true
+        url: "http://buildbuddy-mcp.agent-platform.svc.cluster.local:8000/health"
+
+    - name: kubernetes-mcp
+      image:
+        repository: ghcr.io/containers/kubernetes-mcp-server
+        tag: "latest"
+      port: 8080
+      args:
+        - "--port"
+        - "8080"
+        - "--disable-destructive"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 256Mi
+      translate:
+        enabled: false
+      rbac:
+        clusterRoleRules:
+          - apiGroups:
+              [
+                "",
+                "apps",
+                "batch",
+                "networking.k8s.io",
+                "rbac.authorization.k8s.io",
+              ]
+            resources: ["*"]
+            verbs: ["get", "list", "watch"]
+          - apiGroups: [""]
+            resources: ["pods/exec", "pods/portforward", "pods/log"]
+            verbs: ["create", "get"]
+          - apiGroups: ["metrics.k8s.io"]
+            resources: ["pods", "nodes"]
+            verbs: ["get", "list"]
+      registration:
+        enabled: true
+        transport: "STREAMABLEHTTP"
+      alert:
+        enabled: true
+        url: "http://kubernetes-mcp.agent-platform.svc.cluster.local:8080/mcp"
+
+    - name: argocd-mcp
+      image:
+        repository: ghcr.io/argoproj-labs/mcp-for-argocd
+        tag: "v0.5.0"
+      port: 3000
+      writableTmp: true
+      env:
+        - name: ARGOCD_BASE_URL
+          value: "http://argocd-server.argocd.svc.cluster.local:80"
+      secret:
+        name: argocd-mcp
+        itemPath: "vaults/k8s-homelab/items/argocd-mcp"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      translate:
+        enabled: false
+      registration:
+        enabled: true
+        transport: "STREAMABLEHTTP"
+      alert:
+        enabled: true
+        url: "http://argocd-mcp.agent-platform.svc.cluster.local:3000/mcp"
+
+    - name: todo-mcp
+      image:
+        repository: ghcr.io/jomcgi/homelab/services/todo-mcp
+        tag: main
+      port: 8000
+      podAnnotations:
+        instrumentation.opentelemetry.io/inject-python: "python"
+      env:
+        - name: TODO_URL
+          value: "http://todo-admin.todo.svc.cluster.local:8080"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      translate:
+        enabled: false
+      registration:
+        enabled: true
+        transport: "STREAMABLEHTTP"
+      alert:
+        enabled: true
+        url: "http://todo-mcp.agent-platform.svc.cluster.local:8000/health"
+
+    - name: agent-orchestrator-mcp
+      image:
+        repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator-mcp
+        tag: main
+      port: 8000
+      podAnnotations:
+        instrumentation.opentelemetry.io/inject-python: "python"
+      env:
+        - name: ORCHESTRATOR_URL
+          value: "http://agent-platform-agent-orchestrator.agent-platform.svc.cluster.local:8080"
+      resources:
+        requests:
+          cpu: 10m
+          memory: 64Mi
+        limits:
+          cpu: 100m
+          memory: 128Mi
+      translate:
+        enabled: false
+      registration:
+        enabled: true
+        transport: "STREAMABLEHTTP"
+      alert:
+        enabled: true
+        url: "http://agent-orchestrator-mcp.agent-platform.svc.cluster.local:8000/health"
+
+# ── Agent Orchestrator ───────────────────────────────────────────────────────
+agent-orchestrator:
+  imagePullSecret:
+    enabled: true
+    onepassword:
+      itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+  podAnnotations:
+    instrumentation.opentelemetry.io/inject-go: "go"
+    instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
+  httpRoute:
+    enabled: true
+    hostname: agents.jomcgi.dev
+    gatewayRef:
+      name: cloudflare-ingress
+      namespace: envoy-gateway-system
+
+# ── Goose Sandboxes ─────────────────────────────────────────────────────────
+goose-sandboxes:
+  sandboxTemplate:
+    env:
+      contextForgeUrl: http://agent-platform-context-forge-mcp-stack-mcpgateway.agent-platform.svc.cluster.local:80/mcp
+      repoOwner: jomcgi
+      repoName: homelab
+    extraEnv:
+      - name: GOOSE_GLOBAL_HINTS
+        value: /workspace/homelab/projects/agent_platform/goose_agent/.goosehints
+      - name: GOOSE_CONTEXT_STRATEGY
+        value: summarize
+      - name: GOOSE_AUTO_COMPACT_THRESHOLD
+        value: "0.8"
+      - name: GOOSE_SUBAGENT_MAX_TURNS
+        value: "15"
+      - name: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+        value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+      - name: OTEL_EXPORTER_OTLP_METRICS_ENDPOINT
+        value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+      - name: OTEL_EXPORTER_OTLP_LOGS_ENDPOINT
+        value: "http://signoz-otel-collector.signoz.svc.cluster.local:4318"
+      - name: OTEL_TRACES_EXPORTER
+        value: "otlp"
+      - name: OTEL_METRICS_EXPORTER
+        value: "otlp"
+      - name: OTEL_LOGS_EXPORTER
+        value: "otlp"
+      - name: OTEL_SERVICE_NAME
+        value: "goose-agent"
+      - name: OTEL_RESOURCE_ATTRIBUTES
+        value: "service.namespace=agent-platform,deployment.environment=prod"
+    workspace:
+      storageClassName: longhorn
+  secrets:
+    useOnePassword: true
+    claudeAuth:
+      onePasswordItem: litellm-claude-auth
+      vault: k8s-homelab
+    agentSecrets:
+      onePasswordItem: agent-secrets
+      vault: k8s-homelab
+    mcpTokens:
+      onePasswordItem: goose-mcp-tokens
+      vault: k8s-homelab
+
+# ── NATS ─────────────────────────────────────────────────────────────────────
+nats:
+  config:
+    jetstream:
+      fileStore:
+        pvc:
+          storageClassName: longhorn
