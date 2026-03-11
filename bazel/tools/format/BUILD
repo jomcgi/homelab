@@ -4,8 +4,8 @@ This is in its own package because it has so many loading-time symbols,
 we don't want to trigger eager fetches of these for builds that don't want to run format.
 """
 
-load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@aspect_rules_js//js:defs.bzl", "js_library")
+load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
 load("@rules_multirun//:defs.bzl", "multirun")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
