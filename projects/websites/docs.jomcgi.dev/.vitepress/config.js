@@ -91,12 +91,36 @@ export default defineConfig({
             ],
           },
           {
+            text: "Repo",
+            collapsed: true,
+            items: [
+              {
+                text: "001 - Monorepo Structure & Dotfile Housekeeping",
+                link: "/docs/decisions/repo/001-monorepo-structure-and-dotfile-housekeeping",
+              },
+            ],
+          },
+          {
             text: "Security",
             collapsed: true,
             items: [
               {
                 text: "001 - Bazel Semgrep",
                 link: "/docs/decisions/security/001-bazel-semgrep",
+              },
+            ],
+          },
+          {
+            text: "Tooling",
+            collapsed: true,
+            items: [
+              {
+                text: "001 - OCI Tool Distribution",
+                link: "/docs/decisions/tooling/001-oci-tool-distribution",
+              },
+              {
+                text: "002 - Service Deployment Tooling",
+                link: "/docs/decisions/tooling/002-service-deployment-tooling",
               },
             ],
           },
