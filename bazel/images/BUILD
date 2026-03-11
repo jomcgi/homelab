@@ -19,6 +19,12 @@ sh_binary(
 )
 
 sh_binary(
+    name = "generate-docs-sidebar",
+    srcs = ["generate-docs-sidebar.sh"],
+    visibility = ["//:__subpackages__"],
+)
+
+sh_binary(
     name = "generate-home-cluster",
     srcs = ["generate-home-cluster.sh"],
     visibility = ["//:__subpackages__"],
