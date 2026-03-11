@@ -1,0 +1,18 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.gateway.service.name }}
+  namespace: {{ .Release.Namespace }}
+  labels: {{- include "cloudflare-gateway.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  ports:
+    - port: {{ .Values.gateway.service.port }}
+      targetPort: {{ add .Values.gateway.listener.port 10000 }}
+      protocol: TCP
+      name: http
+  selector:
+    gateway.envoyproxy.io/owning-gateway-name: {{ .Values.gateway.name }}
+    gateway.envoyproxy.io/owning-gateway-namespace: {{ .Release.Namespace }}
+{{- end }}

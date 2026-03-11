@@ -1,0 +1,14 @@
+{{- if .Values.gateway.enabled }}
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  name: {{ .Values.gateway.className }}
+  labels: {{- include "cloudflare-gateway.labels" . | nindent 4 }}
+spec:
+  controllerName: {{ .Values.gateway.controllerName }}
+  parametersRef:
+    group: gateway.envoyproxy.io
+    kind: EnvoyProxy
+    name: {{ .Values.gateway.envoyProxy.name }}
+    namespace: {{ .Release.Namespace }}
+{{- end }}
