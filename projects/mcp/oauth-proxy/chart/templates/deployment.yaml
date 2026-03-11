@@ -86,4 +86,9 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
       volumes:
         - name: pgdata
+          {{- if .Values.postgres.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "mcp-oauth-proxy.fullname" . }}-pgdata
+          {{- else }}
           emptyDir: {}
+          {{- end }}

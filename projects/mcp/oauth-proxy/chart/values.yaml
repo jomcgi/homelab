@@ -29,6 +29,10 @@ postgres:
   user: "mcp"
   database: "mcp_oauth"
   dsn: "postgres://mcp@localhost:5432/mcp_oauth?sslmode=disable"
+  persistence:
+    enabled: false
+    storageClassName: ""
+    size: 1Gi
   resources:
     requests:
       cpu: 10m
