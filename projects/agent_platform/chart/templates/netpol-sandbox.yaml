@@ -16,25 +16,22 @@ spec:
   policyTypes:
     - Egress
   egress:
-    {{- if (index .Values "context-forge" "enabled") }}
-    # Sandbox → Context Forge MCP gateway (tool calls via gateway)
+    {{- if .Values.networkPolicy.gateway }}
+    # Sandbox → Context Forge MCP gateway (cross-namespace)
     - to:
-        - podSelector:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.gateway.namespace }}
+          podSelector:
             matchExpressions:
-              - key: app.kubernetes.io/instance
-                operator: In
-                values:
-                  - {{ .Release.Name }}
               - key: app.kubernetes.io/name
                 operator: In
-                values:
-                  - mcpcontextforge
-                  - mcp-stack-mcpcontextforge
+                values: {{ .Values.networkPolicy.gateway.podLabels | toYaml | nindent 18 }}
       ports:
+        {{- range .Values.networkPolicy.gateway.ports }}
         - protocol: TCP
-          port: 80
-        - protocol: TCP
-          port: 8000
+          port: {{ . }}
+        {{- end }}
     {{- else }}
     # Sandbox → MCP server pods directly (gateway disabled)
     - to:

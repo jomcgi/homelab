@@ -2,33 +2,10 @@
 # Only environment-specific config lives here. All defaults and image pins
 # are baked into the chart via values.yaml + Bazel images={} map.
 
-# ── Context Forge ────────────────────────────────────────────────────────────
-context-forge:
-  mcp-stack:
-    mcpContextForge:
-      config:
-        PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
-      resources:
-        requests:
-          cpu: 50m
-          memory: 1Gi
-        limits:
-          cpu: 200m
-          memory: 1Gi
-    postgres:
-      persistence:
-        storageClassName: longhorn
-  secret:
-    itemPath: "vaults/k8s-homelab/items/context-forge"
-
-# ── MCP OAuth Proxy ──────────────────────────────────────────────────────────
-mcp-oauth-proxy:
-  secret:
-    itemPath: "vaults/k8s-homelab/items/mcp-oauth-proxy"
-
 # ── MCP Servers ──────────────────────────────────────────────────────────────
 agent-platform-mcp-servers:
   gateway:
+    url: "http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80"
     secret:
       itemPath: "vaults/k8s-homelab/items/context-forge"
   alertDefaults:
@@ -305,7 +282,7 @@ agent-orchestrator:
 goose-sandboxes:
   sandboxTemplate:
     env:
-      contextForgeUrl: http://agent-platform-context-forge-mcp-stack-mcpgateway.agent-platform.svc.cluster.local:80/mcp
+      contextForgeUrl: "http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp"
       repoOwner: jomcgi
       repoName: homelab
     extraEnv:
