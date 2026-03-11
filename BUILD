@@ -1,10 +1,7 @@
-load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
-
 """Targets in the repository root"""
 
 # We prefer BUILD instead of BUILD.bazel
 # gazelle:build_file_name BUILD
-load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@gazelle//:def.bzl", "gazelle", "gazelle_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 # Python gazelle config moved to //bazel/tools/python to avoid eager-fetching all pip packages during CI analysis
@@ -66,15 +63,3 @@ exports_files(
 # all pip packages during CI analysis phase. Use:
 # - bazel run //bazel/tools/python:gazelle_python_manifest.update
 # - bazel test //bazel/tools/python:gazelle_python_manifest.test
-
-py_library(
-    name = "homelab",
-    srcs = ["__init__.py"],
-    visibility = ["//:__subpackages__"],
-)
-
-semgrep_test(
-    name = "__init___semgrep_test",
-    srcs = ["__init__.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
