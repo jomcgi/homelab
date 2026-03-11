@@ -36,6 +36,26 @@ spec:
   policyTypes:
     - Egress
   egress:
+    # → DNS
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # → Linkerd control plane (identity + destination)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: linkerd
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8086
     # → Google OIDC (token exchange, userinfo)
     - to:
         - ipBlock:
@@ -47,15 +67,11 @@ spec:
       ports:
         - protocol: TCP
           port: 443
-    # → Context Forge (same namespace, proxied MCP requests)
+    # → Context Forge gateway (same namespace, proxied MCP requests)
     - to:
         - podSelector:
-            matchExpressions:
-              - key: app.kubernetes.io/name
-                operator: In
-                values:
-                  - mcpcontextforge
-                  - mcp-stack-mcpcontextforge
+            matchLabels:
+              app: {{ .Values.networkPolicy.gateway.podLabel }}
       ports:
         - protocol: TCP
           port: 80
