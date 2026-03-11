@@ -4,60 +4,61 @@ This document provides an overview of all services running in the cluster.
 
 ## Core Infrastructure (cluster-critical)
 
-| Service                      | Purpose                                                                        | Chart                                                                  |
-| ---------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------- |
-| **Agent Sandbox**            | Controller for isolated agent execution pods                                   | [charts/agent-sandbox](../charts/agent-sandbox/)                       |
-| **ArgoCD**                   | GitOps controller for declarative cluster management                           | [charts/argocd](../charts/argocd/)                                     |
-| **ArgoCD Image Updater**     | Automatic image updates for ArgoCD-managed applications                        | [charts/argocd-image-updater](../charts/argocd-image-updater/)         |
-| **cert-manager**             | X.509 certificate management; required by Linkerd for mTLS                     | [charts/cert-manager](../charts/cert-manager/)                         |
-| **CoreDNS**                  | Cluster DNS resolution for Kubernetes services                                 | [charts/coredns](../charts/coredns/)                                   |
-| **Kyverno**                  | Policy engine with auto OTEL/Linkerd injection                                 | [charts/kyverno](../charts/kyverno/)                                   |
-| **Linkerd**                  | Service mesh providing default mTLS and metrics; optional tracing when enabled | [charts/linkerd](../charts/linkerd/)                                   |
-| **Longhorn**                 | Distributed persistent storage with automated backups                          | [charts/longhorn](../charts/longhorn/)                                 |
-| **NVIDIA GPU Operator**      | GPU support for LLM inference workloads                                        | [charts/nvidia-gpu-operator](../charts/nvidia-gpu-operator/)           |
-| **OpenTelemetry Operator**   | Auto-instrumentation for Go, Python, Node.js                                   | [charts/opentelemetry-operator](../charts/opentelemetry-operator/)     |
-| **SigNoz**                   | Self-hosted observability (metrics, logs, traces)                              | [charts/signoz](../charts/signoz/)                                     |
-| **SigNoz Dashboard Sidecar** | GitOps sidecar for syncing SigNoz dashboards                                   | [charts/signoz-dashboard-sidecar](../charts/signoz-dashboard-sidecar/) |
-| **1Password Operator**       | Secret management via OnePasswordItem CRDs                                     | External chart (Helm install, outside ArgoCD)                          |
+| Service                      | Purpose                                                                        | Location                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------- |
+| **Agent Sandbox**            | Controller for isolated agent execution pods                                   | [projects/platform/agent-sandbox](../projects/platform/agent-sandbox/)                                     |
+| **ArgoCD**                   | GitOps controller for declarative cluster management                           | [projects/platform/argocd](../projects/platform/argocd/)                                                   |
+| **ArgoCD Image Updater**     | Automatic image updates for ArgoCD-managed applications                        | [projects/platform/argocd-image-updater](../projects/platform/argocd-image-updater/)                       |
+| **cert-manager**             | X.509 certificate management; required by Linkerd for mTLS                     | [projects/platform/cert-manager](../projects/platform/cert-manager/)                                       |
+| **CoreDNS**                  | Cluster DNS resolution for Kubernetes services                                 | [projects/platform/coredns](../projects/platform/coredns/)                                                 |
+| **Kyverno**                  | Policy engine with auto OTEL/Linkerd injection                                 | [projects/platform/kyverno](../projects/platform/kyverno/)                                                 |
+| **Linkerd**                  | Service mesh providing default mTLS and metrics; optional tracing when enabled | [projects/platform/linkerd](../projects/platform/linkerd/)                                                 |
+| **Longhorn**                 | Distributed persistent storage with automated backups                          | [projects/platform/longhorn](../projects/platform/longhorn/)                                               |
+| **NVIDIA GPU Operator**      | GPU support for LLM inference workloads                                        | [projects/platform/nvidia-gpu-operator](../projects/platform/nvidia-gpu-operator/)                         |
+| **OpenTelemetry Operator**   | Auto-instrumentation for Go, Python, Node.js                                   | [projects/platform/opentelemetry-operator](../projects/platform/opentelemetry-operator/)                   |
+| **SigNoz**                   | Self-hosted observability (metrics, logs, traces)                              | [projects/platform/signoz](../projects/platform/signoz/)                                                   |
+| **SigNoz Dashboard Sidecar** | GitOps sidecar for syncing SigNoz dashboards                                   | [projects/platform/signoz-addons/dashboard-sidecar](../projects/platform/signoz-addons/dashboard-sidecar/) |
+| **1Password Operator**       | Secret management via OnePasswordItem CRDs                                     | External chart (Helm install, outside ArgoCD)                                                              |
 
 ## Production Services (prod)
 
-| Service               | Purpose                                                             | Chart                                                    |
-| --------------------- | ------------------------------------------------------------------- | -------------------------------------------------------- |
-| **API Gateway**       | External service routing with rate limiting                         | [charts/api-gateway](../charts/api-gateway/)             |
-| **Cloudflare Tunnel** | Zero Trust ingress (no open firewall ports)                         | [charts/cloudflare-tunnel](../charts/cloudflare-tunnel/) |
-| **Context Forge**     | MCP gateway for aggregating tool servers                            | [charts/context-forge](../charts/context-forge/)         |
-| **Goose Sandboxes**   | Goose agent sandbox deployments                                     | [charts/goose-sandboxes](../charts/goose-sandboxes/)     |
-| **Knowledge Graph**   | RSS scraping, embedding, and MCP search                             | [charts/knowledge-graph](../charts/knowledge-graph/)     |
-| **llama-cpp**         | Local LLM inference (Hermes 4.3-36B)                                | [charts/llama-cpp](../charts/llama-cpp/)                 |
-| **MCP OAuth Proxy**   | OAuth 2.1 auth layer for remote MCP access                          | [charts/mcp-oauth-proxy](../charts/mcp-oauth-proxy/)     |
-| **MCP Servers**       | Consolidated ArgoCD, Kubernetes, BuildBuddy, and SigNoz MCP servers | [charts/mcp-servers](../charts/mcp-servers/)             |
-| **NATS**              | High-performance messaging with JetStream                           | [charts/nats](../charts/nats/)                           |
-| **SeaweedFS**         | Distributed S3-compatible object storage                            | [charts/seaweedfs](../charts/seaweedfs/)                 |
-| **Todo**              | Git-backed todo list with static UI                                 | [charts/todo](../charts/todo/)                           |
-| **Trips**             | Trip management service                                             | [charts/trips](../charts/trips/)                         |
+| Service                | Purpose                                                             | Location                                                                                   |
+| ---------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| **API Gateway**        | External service routing with rate limiting                         | [projects/agent_platform/api_gateway](../projects/agent_platform/api_gateway/)             |
+| **Cloudflare Gateway** | Zero Trust ingress (no open firewall ports)                         | [projects/platform/cloudflare-gateway](../projects/platform/cloudflare-gateway/)           |
+| **Context Forge**      | MCP gateway for aggregating tool servers                            | [projects/agent_platform/context_forge](../projects/agent_platform/context_forge/)         |
+| **Goose Sandboxes**    | Goose agent sandbox deployments                                     | [projects/agent_platform/sandboxes](../projects/agent_platform/sandboxes/)                 |
+| **Knowledge Graph**    | RSS scraping, embedding, and MCP search                             | [projects/blog_knowledge_graph](../projects/blog_knowledge_graph/)                         |
+| **llama-cpp**          | Local LLM inference                                                 | [projects/agent_platform/llama_cpp](../projects/agent_platform/llama_cpp/)                 |
+| **MCP OAuth Proxy**    | OAuth 2.1 auth layer for remote MCP access                          | [projects/agent_platform/mcp_oauth_proxy](../projects/agent_platform/mcp_oauth_proxy/)     |
+| **MCP Servers**        | Consolidated ArgoCD, Kubernetes, BuildBuddy, and SigNoz MCP servers | [projects/agent_platform/mcp_servers_chart](../projects/agent_platform/mcp_servers_chart/) |
+| **NATS**               | High-performance messaging with JetStream                           | [projects/platform/nats](../projects/platform/nats/)                                       |
+| **SeaweedFS**          | Distributed S3-compatible object storage                            | [projects/platform/seaweedfs](../projects/platform/seaweedfs/)                             |
+| **Todo**               | Git-backed todo list with static UI                                 | [projects/todo_app](../projects/todo_app/)                                                 |
+| **Trips**              | Trip management service                                             | [projects/trips](../projects/trips/)                                                       |
 
 ## Development Services (dev)
 
-| Service             | Purpose                                          | Chart                                                      |
-| ------------------- | ------------------------------------------------ | ---------------------------------------------------------- |
-| **Grimoire**        | D&D knowledge management with Redis              | [charts/grimoire](../charts/grimoire/)                     |
-| **Marine**          | Real-time AIS vessel tracking (ships.jomcgi.dev) | [charts/marine](../charts/marine/)                         |
-| **OCI Model Cache** | HuggingFace model caching operator               | [operators/oci-model-cache](../operators/oci-model-cache/) |
-| **Stargazer**       | Dark sky location finder with weather scoring    | [charts/stargazer](../charts/stargazer/)                   |
+| Service             | Purpose                                          | Location                                                                     |
+| ------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **Grimoire**        | D&D knowledge management with Redis              | [projects/grimoire](../projects/grimoire/)                                   |
+| **Marine**          | Real-time AIS vessel tracking (ships.jomcgi.dev) | [projects/ships](../projects/ships/)                                         |
+| **OCI Model Cache** | HuggingFace model caching operator               | [projects/operators/oci-model-cache](../projects/operators/oci-model-cache/) |
+| **Stargazer**       | Dark sky location finder with weather scoring    | [projects/stargazer](../projects/stargazer/)                                 |
 
 ## Static Websites
 
-| Site                 | Description                                                  |
-| -------------------- | ------------------------------------------------------------ |
-| **docs.jomcgi.dev**  | Architecture docs and ADRs (VitePress, Cloudflare Pages)     |
-| **hikes.jomcgi.dev** | Hiking route finder (static, Cloudflare R2)                  |
-| **jomcgi.dev**       | Personal website (Astro, Cloudflare Pages)                   |
-| **ships.jomcgi.dev** | Real-time vessel tracking UI (React/MapLibre)                |
-| **trips.jomcgi.dev** | Road trip tracker and photo viewer (Astro, Cloudflare Pages) |
+| Site                 | Description                                                  | Location                                                                     |
+| -------------------- | ------------------------------------------------------------ | ---------------------------------------------------------------------------- |
+| **docs.jomcgi.dev**  | Architecture docs and ADRs (VitePress, Cloudflare Pages)     | [projects/websites/docs.jomcgi.dev](../projects/websites/docs.jomcgi.dev/)   |
+| **hikes.jomcgi.dev** | Hiking route finder (static, Cloudflare R2)                  | [projects/hikes/frontend](../projects/hikes/frontend/)                       |
+| **jomcgi.dev**       | Personal website (Astro, Cloudflare Pages)                   | [projects/websites/jomcgi.dev](../projects/websites/jomcgi.dev/)             |
+| **ships.jomcgi.dev** | Real-time vessel tracking UI (React/MapLibre)                | [projects/ships/frontend](../projects/ships/frontend/)                       |
+| **trips.jomcgi.dev** | Road trip tracker and photo viewer (Astro, Cloudflare Pages) | [projects/websites/trips.jomcgi.dev](../projects/websites/trips.jomcgi.dev/) |
 
 ## Service Details
 
-For detailed information about specific services, see the README in each chart:
+For detailed information about specific services, see the README in each project directory:
 
-- `charts/<service>/README.md`
+- `projects/<service>/README.md`
+- `projects/platform/<service>/README.md`

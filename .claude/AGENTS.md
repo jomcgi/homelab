@@ -70,15 +70,15 @@ environment:
 
 ```bash
 # Update lock file after modifying apko.yaml
-bazel run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+bazel run @rules_apko//apko -- lock projects/<service>/image/apko.yaml
 
 # Or run format to update ALL apko locks
 format
 
 # Build / push / run
-bazel build //charts/<service>/image:image
-bazel run //charts/<service>/image:image.push
-bazel run //charts/<service>/image:image.run
+bazel build //projects/<service>/image:image
+bazel run //projects/<service>/image:image.push
+bazel run //projects/<service>/image:image.run
 ```
 
 ### BUILD.bazel Patterns
@@ -91,7 +91,7 @@ load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 pkg_tar(
     name = "static_tar",
-    srcs = ["//charts/myservice:static_files"],
+    srcs = ["//projects/myservice:static_files"],
     mode = "0644",
     owner = "65532.65532",
     package_dir = "/app/static",
@@ -101,7 +101,7 @@ apko_image(
     name = "image",
     config = "apko.yaml",
     contents = "@myservice_lock//:contents",
-    repository = "ghcr.io/jomcgi/homelab/charts/myservice",
+    repository = "ghcr.io/jomcgi/homelab/projects/myservice",
     tars = [":static_tar"],
     # multiarch_tars = [":binary_tar"],  # For arch-specific binaries
 )
@@ -115,7 +115,7 @@ load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 
 platform_transition_filegroup(
     name = "binary_amd64",
-    srcs = ["//charts/myservice/cmd"],
+    srcs = ["//projects/myservice/cmd"],
     target_platform = "@rules_go//go/toolchain:linux_amd64",
 )
 
@@ -132,7 +132,7 @@ apko_image(
     config = "apko.yaml",
     contents = "@myservice_lock//:contents",
     multiarch_tars = [":binary_tar"],  # Macro uses _amd64/_arm64 suffixes
-    repository = "ghcr.io/jomcgi/homelab/charts/myservice",
+    repository = "ghcr.io/jomcgi/homelab/projects/myservice",
 )
 ```
 
@@ -142,7 +142,7 @@ apko_image(
 apko = use_extension("@rules_apko//apko:extensions.bzl", "apko")
 apko.translate_lock(
     name = "myservice_lock",
-    lock = "//charts/myservice/image:apko.lock.json",
+    lock = "//projects/myservice/image:apko.lock.json",
 )
 use_repo(apko, "myservice_lock")
 ```
@@ -171,9 +171,9 @@ use_repo(apko, "myservice_lock")
 ### Debugging Image Issues
 
 ```bash
-crane manifest ghcr.io/jomcgi/homelab/charts/myservice:latest | jq
-crane export ghcr.io/jomcgi/homelab/charts/myservice:latest - | tar -tvf - | head -50
-jq '.contents.packages[] | {name, version}' charts/myservice/image/apko.lock.json
+crane manifest ghcr.io/jomcgi/homelab/projects/myservice:latest | jq
+crane export ghcr.io/jomcgi/homelab/projects/myservice:latest - | tar -tvf - | head -50
+jq '.contents.packages[] | {name, version}' projects/myservice/image/apko.lock.json
 ```
 
 ---
@@ -184,7 +184,7 @@ Go development specialist, especially for Kubernetes operators and controllers.
 
 ### Pre-requisite Reading
 
-**Always read first:** `operators/best-practices.md`
+**Always read first:** `projects/operators/best-practices.md`
 
 ### When to Use
 
@@ -196,10 +196,10 @@ Go development specialist, especially for Kubernetes operators and controllers.
 ### Key Commands
 
 ```bash
-bazel build //operators/...
-bazel test //operators/...
+bazel build //projects/operators/...
+bazel test //projects/operators/...
 bazel run //:gazelle          # Update BUILD files after adding imports
-bazel run //operators/<name>/cmd:cmd
+bazel run //projects/operators/<name>/cmd:cmd
 ```
 
 ### Reconcile Return Values
@@ -242,7 +242,7 @@ Kubernetes and cloud-native security specialist.
 ```bash
 trivy image --severity HIGH,CRITICAL <image:tag>     # CVE scanning
 trivy k8s --report summary cluster                   # Manifest scanning
-checkov -d charts/                                    # Policy scanning
+checkov -d projects/                                   # Policy scanning
 gitleaks detect --source .                            # Secret scanning
 cosign sign --key cosign.key <image:tag>              # Image signing
 ```
@@ -252,8 +252,8 @@ cosign sign --key cosign.key <image:tag>              # Image signing
 > **Note:** `kubectl get` and `kubectl describe` are redirected to Kubernetes MCP tools by PreToolUse hooks. Use `kubernetes-mcp-resources-list` and `kubernetes-mcp-resources-get` instead.
 
 ```bash
-helm template kyverno charts/kyverno/ -s templates/linkerd-injection-policy.yaml
-helm template kyverno charts/kyverno/ -s templates/otel-injection-policy.yaml
+helm template kyverno projects/platform/kyverno/ -s templates/linkerd-injection-policy.yaml
+helm template kyverno projects/platform/kyverno/ -s templates/otel-injection-policy.yaml
 ```
 
 ### Pod Security Standards
@@ -425,7 +425,7 @@ Pre-requisite reading is context-dependent — see "Context Loading Rules" in CL
 **Helm Chart Changes:**
 
 - [ ] `values.yaml` has sensible defaults
-- [ ] Templates render: `helm template <release> charts/<chart>/`
+- [ ] Templates render: `helm template <release> projects/<service>/chart/`
 - [ ] Resource limits set, health checks configured
 - [ ] NetworkPolicy in place
 
@@ -508,7 +508,7 @@ Kyverno policies automatically inject OpenTelemetry instrumentation:
 
 ## cloudflare
 
-Cloudflare operator specialist for the custom operator in `operators/cloudflare/`.
+Cloudflare operator specialist for the custom operator in `projects/operators/cloudflare/`.
 
 ### When to Use
 
@@ -519,7 +519,7 @@ Cloudflare operator specialist for the custom operator in `operators/cloudflare/
 
 ### Pre-requisite Reading
 
-**Always read first:** `operators/cloudflare/README.md` and `operators/best-practices.md`
+**Always read first:** `projects/operators/cloudflare/README.md` and `projects/operators/best-practices.md`
 
 ### Architecture
 
@@ -533,7 +533,7 @@ The operator manages cluster ingress via Cloudflare tunnels using a state machin
 ### Key Directories
 
 ```
-operators/cloudflare/
+projects/operators/cloudflare/
 ├── api/v1/                    # CRD type definitions
 ├── internal/
 │   ├── cloudflare/            # Cloudflare API client (dns, access, routes)
@@ -549,8 +549,8 @@ operators/cloudflare/
 > **Note:** `kubectl get` and `describe` are redirected to MCP tools by PreToolUse hooks. Use `kubernetes-mcp-resources-list` and `kubernetes-mcp-resources-get` instead.
 
 ```bash
-bazel build //operators/cloudflare/...
-bazel test //operators/cloudflare/...
+bazel build //projects/operators/cloudflare/...
+bazel test //projects/operators/cloudflare/...
 bazel run //:gazelle                    # After adding Go imports
 
 # Debug tunnel status (via MCP)
@@ -580,8 +580,8 @@ Linkerd service mesh specialist for the mesh running in `cluster-critical`.
 
 ### Key Configuration (This Repo)
 
-- **Deploy config:** `projects/linkerd/deploy/`
-- **Chart:** `charts/linkerd/`
+- **Deploy config:** `projects/platform/linkerd/`
+- **Chart:** `projects/platform/linkerd/`
 - **Injection:** Kyverno policy `inject-linkerd-namespace-annotation` auto-injects namespaces
 - **Priority:** Control plane runs with `system-cluster-critical` priority class
 - **Log level:** Set to `warn` to suppress benign connection-closed messages from health checks

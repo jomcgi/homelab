@@ -11,14 +11,14 @@ Claude.ai / Claude Code (external)
     ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  MCP OAuth Proxy  (prod / mcp-gateway namespace)                │
-│  charts/mcp-oauth-proxy                                         │
+│  projects/agent_platform/mcp_oauth_proxy                                         │
 │  OAuth 2.1 AS — Google OIDC — injects X-Forwarded-User         │
 └──────────────────────────┬──────────────────────────────────────┘
                            │ proxies to ClusterIP :8000
                            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Context Forge  (prod / mcp-gateway namespace)                  │
-│  charts/context-forge  ·  IBM mcp-context-forge v1.0.0-RC1      │
+│  projects/agent_platform/context_forge  ·  IBM mcp-context-forge v1.0.0-RC1      │
 │  MCP gateway — aggregates tool servers, RBAC by team            │
 │  Backends: Postgres (state) + Redis (sessions)                  │
 └───────┬──────────────────┬─────────────────┬────────────────────┘
@@ -26,27 +26,27 @@ Claude.ai / Claude Code (external)
         ▼                  ▼                 ▼
   signoz-mcp         buildbuddy-mcp    agent-orchestrator-mcp
   argocd-mcp         kubernetes-mcp    todo-mcp
-  (charts/mcp-servers — one pod per server, registered at startup)
+  (projects/agent_platform/mcp_servers_chart — one pod per server, registered at startup)
                                              │
                                              │ HTTP  ClusterIP :8080
                                              ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Agent Orchestrator  (prod / agent-orchestrator namespace)      │
-│  services/agent-orchestrator  ·  charts/agent-orchestrator      │
+│  projects/agent_platform/orchestrator  ·  projects/agent_platform/orchestrator/deploy      │
 │  Go service — HTTP API + NATS JetStream consumer                │
 └──────────┬──────────────────────────────────────────────────────┘
            │ SandboxClaim CRUD  +  pod/exec
            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Agent Sandbox Controller  (cluster-critical)                   │
-│  charts/agent-sandbox  ·  registry.k8s.io/agent-sandbox v0.1.1  │
+│  projects/platform/agent-sandbox  ·  registry.k8s.io/agent-sandbox v0.1.1  │
 │  CRDs: Sandbox · SandboxTemplate · SandboxClaim · SandboxWarmPool│
 └──────────┬──────────────────────────────────────────────────────┘
            │ allocates pod from warm pool / creates pod
            ▼
 ┌─────────────────────────────────────────────────────────────────┐
 │  Goose Sandbox Pod  (prod / goose-sandboxes namespace)          │
-│  charts/goose-sandboxes  +  charts/goose-agent (apko image)     │
+│  projects/agent_platform/sandboxes  +  projects/agent_platform/goose_agent (apko image)     │
 │  Runs: goose run --text <task>                                   │
 │  Tools: developer (builtin) · context-forge (MCP) · github      │
 │  LLM: Claude Max via LiteLLM proxy (claude-code provider)       │
@@ -57,7 +57,7 @@ Claude.ai / Claude Code (external)
 
 ## 1. Agent Provisioning
 
-**Controller:** `charts/agent-sandbox` — runs in `agent-sandbox-system` (cluster-critical)
+**Controller:** `projects/platform/agent-sandbox` — runs in `agent-sandbox-system` (cluster-critical)
 
 The [`kubernetes-sigs/agent-sandbox`](https://github.com/kubernetes-sigs/agent-sandbox) controller (SIG Apps, v0.1.1) manages isolated agent pod lifecycle via purpose-built CRDs. It fills the gap between Deployments and StatefulSets with a single stateful pod abstraction.
 
@@ -72,7 +72,7 @@ The [`kubernetes-sigs/agent-sandbox`](https://github.com/kubernetes-sigs/agent-s
 
 ### Goose Sandboxes
 
-**Chart:** `charts/goose-sandboxes/` — deployed to `goose-sandboxes` namespace
+**Chart:** `projects/agent_platform/sandboxes/` — deployed to `goose-sandboxes` namespace
 
 Installs:
 
@@ -84,7 +84,7 @@ Installs:
 
 ### Goose Agent Image
 
-**Built with:** apko + rules_apko (`charts/goose-agent/image/apko.yaml`)
+**Built with:** apko + rules_apko (`projects/agent_platform/goose_agent/image/apko.yaml`)
 **Registry:** `ghcr.io/jomcgi/homelab/goose-agent`
 **Architectures:** x86_64 + aarch64 · **User:** uid/gid 65532
 
@@ -117,11 +117,11 @@ Profiles narrow tool access for specific task types. Each maps to a Goose recipe
 | `ci-debug` | `buildbuddy-mcp` only | CI failure investigation                   |
 | `code-fix` | No cluster tools      | Pure code changes, no observability access |
 
-Profile definitions are documented in `charts/goose-sandboxes/profiles.yaml`. Recipes live in `charts/goose-agent/image/recipes/`.
+Profile definitions are documented in `projects/agent_platform/sandboxes/profiles.yaml`. Recipes live in `projects/agent_platform/goose_agent/image/recipes/`.
 
 ### Long-Lived Agents
 
-`charts/goose-sandboxes` also supports persistent agents as Kubernetes Deployments. Each entry under `agents:` in `values.yaml` generates a `ConfigMap` (prompt) + `Deployment` (Goose runner). A `checksum/prompt` annotation on the pod template triggers rollouts when the prompt changes.
+`projects/agent_platform/sandboxes` also supports persistent agents as Kubernetes Deployments. Each entry under `agents:` in `values.yaml` generates a `ConfigMap` (prompt) + `Deployment` (Goose runner). A `checksum/prompt` annotation on the pod template triggers rollouts when the prompt changes.
 
 ```yaml
 # projects/agent_platform/goose-sandboxes/deploy/values.yaml
@@ -139,7 +139,7 @@ agents:
 All container images are built **remotely and hermetically** via BuildBuddy RBE — never locally.
 
 ```
-charts/goose-agent/image/
+projects/agent_platform/goose_agent/image/
 ├── apko.yaml          # Wolfi packages, uid 65532, dual-arch declaration
 ├── apko.lock.json     # Pinned package SHAs — hermetic builds
 ├── config.yaml        # Goose extensions baked into image
@@ -151,7 +151,7 @@ charts/goose-agent/image/
 **Image pipeline for `goose-agent`:**
 
 ```
-bazel run //charts/goose-agent/image:push
+bazel run //projects/agent_platform/goose_agent/image:push
     │
     ├─ BuildBuddy RBE builds apko image (rules_apko)
     ├─ Hermetic: all deps from apko.lock.json SHAs
@@ -165,8 +165,8 @@ bazel run //charts/goose-agent/image:push
 The `agent-orchestrator` Go binary follows the same pattern:
 
 ```
-services/agent-orchestrator/ -> go_binary -> go_image (apko base)
-    -> ghcr.io/jomcgi/homelab/services/agent-orchestrator
+projects/agent_platform/orchestrator/ -> go_binary -> go_image (apko base)
+    -> ghcr.io/jomcgi/homelab/projects/agent_platform/orchestrator
 ```
 
 No Dockerfiles. All images: apko-based, dual-arch, non-root (uid 65532), `capabilities.drop: [ALL]`.
@@ -175,8 +175,8 @@ No Dockerfiles. All images: apko-based, dual-arch, non-root (uid 65532), `capabi
 
 ## 3. Agent Orchestrator
 
-**Source:** `services/agent-orchestrator/` (Go)
-**Chart:** `charts/agent-orchestrator/`
+**Source:** `projects/agent_platform/orchestrator/` (Go)
+**Chart:** `projects/agent_platform/orchestrator/deploy/`
 **Deploy:** `projects/agent_platform/agent-orchestrator/deploy/`
 **In-cluster:** `http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080` (ClusterIP only)
 
@@ -317,12 +317,12 @@ The orchestrator's `ServiceAccount` has the minimum permissions needed to drive 
 
 ## 4. Claude Chat -> Agent Orchestrator MCP
 
-**Source:** `services/agent_orchestrator_mcp/` (Python, FastMCP + httpx)
+**Source:** `projects/agent_platform/orchestrator/mcp/` (Python, FastMCP + httpx)
 **Transport:** `STREAMABLEHTTP`
-**Deployed via:** `charts/mcp-servers/` (entry in `projects/agent_platform/mcp-servers/deploy/values.yaml`)
+**Deployed via:** `projects/agent_platform/mcp_servers_chart/` (entry in `projects/agent_platform/mcp-servers/deploy/values.yaml`)
 **In-cluster:** `http://agent-orchestrator-mcp.mcp-servers.svc.cluster.local:8000`
 
-A thin FastMCP wrapper around the orchestrator REST API. Registered with Context Forge at deploy time by `charts/mcp-servers/templates/registration-job.yaml`.
+A thin FastMCP wrapper around the orchestrator REST API. Registered with Context Forge at deploy time by `projects/agent_platform/mcp_servers_chart/templates/registration-job.yaml`.
 
 ### MCP Tools
 
@@ -383,7 +383,7 @@ sequenceDiagram
 
 ## 5. Context Forge
 
-**Chart:** `charts/context-forge/` (wraps upstream IBM `mcp-stack` Helm chart)
+**Chart:** `projects/agent_platform/context_forge/` (wraps upstream IBM `mcp-stack` Helm chart)
 **Deploy:** `projects/agent_platform/context-forge/deploy/`
 **Namespace:** `mcp-gateway`
 **External:** `https://mcp.jomcgi.dev/mcp/` (Cloudflare tunnel -> MCP OAuth Proxy -> Context Forge)
@@ -468,7 +468,7 @@ The orchestrator uses **NATS JetStream** as both job queue and state store.
 | `job-records` KV bucket | KeyValue     | keyed by ULID, TTL 7 days                    |
 | `orchestrator` consumer | Durable pull | MaxAckPending=3, AckWait=JOB_MAX_DURATION+1m |
 
-All three are self-provisioned on orchestrator startup. Single-node NATS at `nats://nats.nats.svc.cluster.local:4222` (`charts/nats/`, `projects/agent_platform/nats/deploy/`).
+All three are self-provisioned on orchestrator startup. Single-node NATS at `nats://nats.nats.svc.cluster.local:4222` (`projects/platform/nats/`).
 
 ### Event Flow
 
@@ -520,16 +520,14 @@ This is the intended extension point for future webhook dispatch, DLQ handling, 
 
 ```bash
 # Explore the agent platform
-ls charts/agent-sandbox/             # Controller chart + CRDs
-ls charts/goose-sandboxes/           # SandboxTemplate, warm pool, namespace config
-ls charts/goose-agent/image/         # apko spec, Goose config, recipes
-ls services/agent-orchestrator/      # Go service source (api.go, consumer.go, sandbox.go)
-ls services/agent_orchestrator_mcp/  # Python MCP wrapper (app/main.py)
-ls charts/agent-orchestrator/        # Helm chart
-ls charts/context-forge/             # MCP gateway chart (wraps IBM mcp-stack)
-ls charts/mcp-servers/               # All MCP server pods + registration jobs
-ls projects/agent_platform/goose-sandboxes/deploy/    # Prod sandbox values + image tags
-ls projects/agent_platform/agent-orchestrator/deploy/ # Prod orchestrator values
-ls projects/agent_platform/context-forge/deploy/      # Prod gateway resource overrides
-ls projects/agent_platform/mcp-servers/deploy/        # Prod MCP servers (values.yaml has all definitions)
+ls projects/platform/agent-sandbox/              # Controller chart + CRDs
+ls projects/agent_platform/sandboxes/            # SandboxTemplate, warm pool, namespace config
+ls projects/agent_platform/goose_agent/image/    # apko spec, Goose config, recipes
+ls projects/agent_platform/orchestrator/         # Go service source (api.go, consumer.go, sandbox.go)
+ls projects/agent_platform/orchestrator/mcp/     # Python MCP wrapper
+ls projects/agent_platform/orchestrator/deploy/  # Orchestrator Helm chart + ArgoCD Application
+ls projects/agent_platform/context_forge/deploy/ # MCP gateway (wraps IBM mcp-stack)
+ls projects/agent_platform/mcp_servers_chart/deploy/  # All MCP server pods + registration jobs
+ls projects/agent_platform/sandboxes/deploy/     # Prod sandbox values + image tags
+ls projects/agent_platform/mcp_servers/deploy/   # MCP servers deploy config
 ```

@@ -92,7 +92,7 @@ The following diagram shows how observability is automatically added to every po
 - `OTEL_EXPORTER_OTLP_PROTOCOL=grpc`
 - Applications with OTEL SDKs get automatic instrumentation
 - Applications without OTEL SDKs ignore the vars (harmless)
-- **Policy:** `charts/kyverno/templates/otel-injection-policy.yaml`
+- **Policy:** `projects/platform/kyverno/templates/otel-injection-policy.yaml`
 
 ### 2. OTel Operator Auto-Instrumentation (Language-Level)
 
@@ -102,7 +102,7 @@ The following diagram shows how observability is automatically added to every po
 - **Python:** Injects `autoinstrumentation-python` init container that patches the runtime
 - **Node.js:** Injects `autoinstrumentation-nodejs` init container with require hooks
 - Kyverno sets the OTEL endpoint; the Operator provides the SDK — they complement each other
-- **Configuration:** `charts/opentelemetry-operator/` with namespace list in overlay values
+- **Configuration:** `projects/platform/opentelemetry-operator/` with namespace list in values
 
 ### 3. Linkerd Service Mesh (Infrastructure-Level)
 
@@ -110,7 +110,7 @@ The following diagram shows how observability is automatically added to every po
 - Linkerd webhook injects sidecars into all pods
 - Captures ALL HTTP/HTTPS traffic (no SDK needed!)
 - Automatic distributed tracing for everything
-- **Policy:** `charts/kyverno/templates/linkerd-injection-policy.yaml`
+- **Policy:** `projects/platform/kyverno/templates/linkerd-injection-policy.yaml`
 
 ## Observable by Default Philosophy
 
@@ -143,8 +143,8 @@ metadata:
 
 ## Configuration
 
-- OTEL: `charts/kyverno/values.yaml` (otelInjection section)
-- Linkerd: `charts/kyverno/values.yaml` (linkerdInjection section)
+- OTEL: `projects/platform/kyverno/values.yaml` (otelInjection section)
+- Linkerd: `projects/platform/kyverno/values.yaml` (linkerdInjection section)
 
 ## Excluded Namespaces (Kyverno policies)
 
