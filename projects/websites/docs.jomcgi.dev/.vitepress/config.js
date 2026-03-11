@@ -68,6 +68,10 @@ export default defineConfig({
                 text: "008 - Cluster Patrol Loop Resilience",
                 link: "/docs/decisions/agents/008-cluster-patrol-loop-resilience",
               },
+              {
+                text: "009 - Automated Test Generation",
+                link: "/docs/decisions/agents/009-automated-test-generation",
+              },
             ],
           },
           {
