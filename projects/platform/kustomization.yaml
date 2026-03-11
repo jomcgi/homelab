@@ -6,10 +6,8 @@ resources:
   - ./argocd
   - ./argocd-image-updater
   - ./cert-manager # Must be before linkerd
-  - ./cloudflare/ingress
-  - ./cloudflare/tunnel
+  - ./cloudflare-gateway # Envoy Gateway + Gateway API + Cloudflare Tunnel; CRDs must be before linkerd
   - ./coredns
-  - ./envoy-gateway # Installs Gateway API CRDs; must be before linkerd
   - ./kyverno
   - ./linkerd
   - ./longhorn
