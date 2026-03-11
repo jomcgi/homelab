@@ -60,6 +60,14 @@ export default defineConfig({
                 text: "006 - OIDC Auth MCP Gateway",
                 link: "/docs/decisions/agents/006-oidc-auth-mcp-gateway",
               },
+              {
+                text: "007 - Agent Run Orchestration",
+                link: "/docs/decisions/agents/007-agent-orchestrator",
+              },
+              {
+                text: "008 - Cluster Patrol Loop Resilience",
+                link: "/docs/decisions/agents/008-cluster-patrol-loop-resilience",
+              },
             ],
           },
           {
