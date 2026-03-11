@@ -15,6 +15,7 @@ py_test(
     name = "config_links_test",
     srcs = ["config_links_test.py"],
     data = [
+        ".vitepress/adr-sidebar.json",
         ".vitepress/config.js",
         "//docs",
     ],
