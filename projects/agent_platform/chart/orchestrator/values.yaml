@@ -3,7 +3,7 @@ replicaCount: 1
 image:
   repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
   tag: main
-  pullPolicy: IfNotPresent
+  pullPolicy: Always
 
 imagePullSecret:
   enabled: false
