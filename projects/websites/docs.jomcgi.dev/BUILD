@@ -31,6 +31,7 @@ vitepress_site(
         "//docs:docs",
     ],
     extra_srcs = [
+        ".vitepress/adr-sidebar.json",
         "index.md",
     ],
     vitepress_config = ".vitepress/config.js",
