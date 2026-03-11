@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: { { include "cloudflare-gateway.tunnel.fullname" . } }
+  namespace: { { .Release.Namespace } }
+  labels: { { - include "cloudflare-gateway.tunnel.labels" . | nindent 4 } }
+spec:
+  type: { { .Values.tunnel.service.type } }
+  ports:
+    - port: { { .Values.tunnel.service.port } }
+      targetPort: { { .Values.tunnel.service.port } }
+      protocol: TCP
+      name: cloudflared
+  selector:
+    { { - include "cloudflare-gateway.tunnel.selectorLabels" . | nindent 4 } }
