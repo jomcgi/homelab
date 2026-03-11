@@ -110,7 +110,7 @@ build:ci --bes_backend=grpcs://remote.buildbuddy.io
 # This allows easy toggling of RBE without modifying this file
 # Note: Authenticate locally with `bb login`. CI uses BuildBuddy runner auth.
 # For manual auth, set API key via --remote_header in user.bazelrc
-try-import %workspace%/.bazelrc.remote
+try-import %workspace%/bazel/remote.bazelrc
 
 # Load any settings & overrides specific to the current user from `.aspect/bazelrc/user.bazelrc`.
 # This file should appear in `.gitignore` so that settings are not shared with team members. This

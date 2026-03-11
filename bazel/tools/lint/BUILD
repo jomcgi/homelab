@@ -11,6 +11,21 @@ load("@rules_go//go:def.bzl", "TOOLS_NOGO", "nogo")
 
 package(default_visibility = ["//:__subpackages__"])
 
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+
+js_library(
+    name = "eslintrc",
+    srcs = ["eslint.config.mjs"],
+    deps = [
+        "//:node_modules/@eslint/js",
+        "//:node_modules/typescript-eslint",
+    ],
+)
+
+exports_files(
+    [".shellcheckrc"],
+)
+
 eslint_bin.eslint_binary(name = "eslint")
 
 nogo(

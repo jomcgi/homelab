@@ -10,7 +10,7 @@ eslint = lint_eslint_aspect(
     # We trust that eslint will locate the correct configuration file for a given source file.
     # See https://eslint.org/docs/latest/use/configure/configuration-files#cascading-and-hierarchy
     configs = [
-        Label("//:eslintrc"),
+        Label("//bazel/tools/lint:eslintrc"),
         # if the repository has nested eslintrc files, they must be added here as well
     ],
 )
@@ -28,7 +28,7 @@ ruff_test = lint_test(aspect = ruff)
 
 shellcheck = lint_shellcheck_aspect(
     binary = "@multitool//tools/shellcheck",
-    config = Label("//:.shellcheckrc"),
+    config = Label("//bazel/tools/lint:.shellcheckrc"),
 )
 
 shellcheck_test = lint_test(aspect = shellcheck)
