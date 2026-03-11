@@ -48,3 +48,9 @@ export async function getJobOutput(id) {
   if (!res.ok) throw new Error(await res.text());
   return res.json();
 }
+
+export async function listProfiles() {
+  const res = await fetch(`${API}/profiles`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json(); // string[]
+}
