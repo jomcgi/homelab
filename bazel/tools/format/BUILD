@@ -5,6 +5,7 @@ we don't want to trigger eager fetches of these for builds that don't want to ru
 """
 
 load("@aspect_rules_lint//format:defs.bzl", "format_multirun")
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@npm//:prettier/package_json.bzl", prettier = "bin")
 load("@rules_multirun//:defs.bzl", "multirun")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
@@ -12,17 +13,22 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 # gazelle:exclude
 package(default_visibility = ["//:__subpackages__"])
 
+js_library(
+    name = "prettierrc",
+    srcs = ["prettier.config.cjs"],
+)
+
 prettier.prettier_binary(
     name = "prettier",
     # Include this js_library and its dependencies in the runfiles (runtime dependencies)
-    data = ["//:prettierrc"],
+    data = [":prettierrc"],
     # Allow the binary to be run outside bazel
     env = {"BAZEL_BINDIR": "."},
     fixed_args = [
         # `require` statements in the config file will be resolved relative to its location
         # Therefore to make it hermetic, prettier must be pointed at the copy of the config file
         # in the runfiles folder rather than the one in the source folder.
-        "--config=\"$$JS_BINARY__RUNFILES\"/$(rlocationpath //:prettierrc)",
+        "--config=\"$$JS_BINARY__RUNFILES\"/$(rlocationpath :prettierrc)",
         # default log level is "log" which spams on success
         # https://prettier.io/docs/en/cli.html#--log-level
         "--log-level=warn",

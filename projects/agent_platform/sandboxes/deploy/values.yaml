@@ -34,6 +34,8 @@ sandboxTemplate:
   # Extra env vars injected into all goose containers (SandboxTemplate pods and long-lived agent Deployments).
   # Use this to pass additional configuration without modifying the chart templates.
   extraEnv:
+    - name: GOOSE_GLOBAL_HINTS
+      value: /workspace/homelab/projects/agent_platform/goose_agent/.goosehints
     - name: GOOSE_CONTEXT_STRATEGY
       value: summarize
     - name: GOOSE_AUTO_COMPACT_THRESHOLD
