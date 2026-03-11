@@ -3,6 +3,21 @@ mcp-stack:
   mcpContextForge:
     config:
       PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
+    probes:
+      startup:
+        type: exec
+        command: ["sh", "-c", "sleep 10"]
+        timeoutSeconds: 15
+        periodSeconds: 10
+        failureThreshold: 6
+      liveness:
+        type: http
+        path: /health
+        port: 4444
+        initialDelaySeconds: 30
+        periodSeconds: 15
+        timeoutSeconds: 5
+        failureThreshold: 3
     resources:
       requests:
         cpu: 50m
