@@ -4,7 +4,7 @@
 
 image:
   repository: ghcr.io/obot-platform/mcp-oauth-proxy
-  tag: "latest"
+  tag: "main-3745d9b"
   pullPolicy: IfNotPresent
 
 # Non-secret environment variables
