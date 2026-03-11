@@ -22,4 +22,4 @@ spec:
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:projects/agent_platform/overlays/homelab/application.yaml
+      writeBackTarget: helmvalues:projects/agent_platform/deploy/application.yaml

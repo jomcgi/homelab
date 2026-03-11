@@ -30,14 +30,14 @@ ArgoCD Image Updater watches the chart OCI artifact and bumps the version in the
 ArgoCD Application when a new chart is pushed.
 
 Environment-specific values (secrets, storage classes, domains) live in
-`overlays/<environment>/values-<environment>.yaml` alongside the ArgoCD Application.
+`deploy/values.yaml` alongside the ArgoCD Application.
 
 ## Local Rendering
 
 ```bash
-helm dependency update projects/agent_platform/deploy/
-helm template agent-platform projects/agent_platform/deploy/ \
+helm dependency update projects/agent_platform/chart/
+helm template agent-platform projects/agent_platform/chart/ \
+  -f projects/agent_platform/chart/values.yaml \
   -f projects/agent_platform/deploy/values.yaml \
-  -f projects/agent_platform/overlays/homelab/values-homelab.yaml \
   --namespace agent-platform
 ```
