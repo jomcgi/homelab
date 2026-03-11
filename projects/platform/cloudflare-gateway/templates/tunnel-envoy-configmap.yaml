@@ -1,0 +1,187 @@
+{{- if .Values.tunnel.envoy.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "cloudflare-gateway.tunnel.fullname" . }}-envoy
+  namespace: {{ .Release.Namespace }}
+  labels:
+    {{- include "cloudflare-gateway.tunnel.labels" . | nindent 4 }}
+data:
+  envoy.yaml: |
+    admin:
+      address:
+        socket_address:
+          address: 127.0.0.1
+          port_value: {{ .Values.tunnel.envoy.admin.port }}
+
+    static_resources:
+      listeners:
+      # Transparent proxy listener for intercepted traffic
+      {{- if .Values.tunnel.envoy.transparentProxy.enabled }}
+      - name: transparent_proxy_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: {{ .Values.tunnel.envoy.transparentProxy.port }}
+        listener_filters:
+        - name: envoy.filters.listener.original_dst
+          typed_config:
+            "@type": type.googleapis.com/envoy.extensions.filters.listener.original_dst.v3.OriginalDst
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: transparent_proxy_http
+              codec_type: AUTO
+              {{- if .Values.tunnel.envoy.tracing.enabled }}
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: {{ .Values.tunnel.envoy.tracing.serviceName }}
+                custom_tags:
+                - tag: destination.service
+                  metadata:
+                    kind:
+                      request: {}
+                    metadata_key:
+                      key: envoy.lb
+                      path:
+                      - key: destination_host
+                - tag: destination.path
+                  metadata:
+                    kind:
+                      request: {}
+                    metadata_key:
+                      key: envoy.lb
+                      path:
+                      - key: destination_path
+              {{- end }}
+              route_config:
+                name: transparent_route
+                virtual_hosts:
+                - name: passthrough
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: original_dst_cluster
+                      timeout: 0s  # WebSocket support - no timeout
+                      upgrade_configs:
+                      - upgrade_type: websocket
+              http_filters:
+              - name: envoy.filters.http.header_to_metadata
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.header_to_metadata.v3.Config
+                  request_rules:
+                  - header: ":authority"
+                    on_header_present:
+                      metadata_namespace: envoy.lb
+                      key: destination_host
+                      type: STRING
+                  - header: ":path"
+                    on_header_present:
+                      metadata_namespace: envoy.lb
+                      key: destination_path
+                      type: STRING
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+      {{- end }}
+      # Metrics listener (existing)
+      - name: cloudflare_metrics_listener
+        address:
+          socket_address:
+            address: 0.0.0.0
+            port_value: {{ .Values.tunnel.envoy.proxy.port }}
+        filter_chains:
+        - filters:
+          - name: envoy.filters.network.http_connection_manager
+            typed_config:
+              "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+              stat_prefix: ingress_http
+              codec_type: AUTO
+              {{- if .Values.tunnel.envoy.tracing.enabled }}
+              tracing:
+                provider:
+                  name: envoy.tracers.opentelemetry
+                  typed_config:
+                    "@type": type.googleapis.com/envoy.config.trace.v3.OpenTelemetryConfig
+                    grpc_service:
+                      envoy_grpc:
+                        cluster_name: otel_collector
+                      timeout: 0.250s
+                    service_name: {{ .Values.tunnel.envoy.tracing.serviceName }}
+              {{- end }}
+              route_config:
+                name: local_route
+                virtual_hosts:
+                - name: cloudflare_metrics
+                  domains: ["*"]
+                  routes:
+                  - match:
+                      prefix: "/"
+                    route:
+                      cluster: cloudflare_metrics
+                      timeout: 30s
+                    decorator:
+                      operation: proxy_to_cloudflared_metrics
+              http_filters:
+              - name: envoy.filters.http.router
+                typed_config:
+                  "@type": type.googleapis.com/envoy.extensions.filters.http.router.v3.Router
+
+      clusters:
+      {{- if .Values.tunnel.envoy.transparentProxy.enabled }}
+      # ORIGINAL_DST cluster for transparent proxy
+      - name: original_dst_cluster
+        type: ORIGINAL_DST
+        connect_timeout: 5s
+        lb_policy: CLUSTER_PROVIDED
+      {{- end }}
+      {{- $metricsParts := splitList ":" .Values.tunnel.metrics.address }}
+      {{- $metricsHost := index $metricsParts 0 }}
+      {{- $metricsPort := index $metricsParts 1 | default 2000 }}
+      - name: cloudflare_metrics
+        connect_timeout: 1s
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        load_assignment:
+          cluster_name: cloudflare_metrics
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: {{ $metricsHost }}
+                    port_value: {{ $metricsPort | int }}
+      {{- if .Values.tunnel.envoy.tracing.enabled }}
+      {{- $otlpParts := splitList ":" .Values.tunnel.envoy.tracing.otlpEndpoint }}
+      {{- $otlpHost := index $otlpParts 0 }}
+      {{- $otlpPort := index $otlpParts 1 | default 4317 }}
+      - name: otel_collector
+        type: STRICT_DNS
+        lb_policy: ROUND_ROBIN
+        typed_extension_protocol_options:
+          envoy.extensions.upstreams.http.v3.HttpProtocolOptions:
+            "@type": type.googleapis.com/envoy.extensions.upstreams.http.v3.HttpProtocolOptions
+            explicit_http_config:
+              http2_protocol_options: {}
+        load_assignment:
+          cluster_name: otel_collector
+          endpoints:
+          - lb_endpoints:
+            - endpoint:
+                address:
+                  socket_address:
+                    address: {{ $otlpHost }}
+                    port_value: {{ $otlpPort | int }}
+      {{- end }}
+{{- end }}
