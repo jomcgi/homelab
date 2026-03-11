@@ -35,6 +35,16 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
+    # Linkerd control plane (identity + destination)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: linkerd
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 8086
 
 # ── Context Forge internal traffic ──────────────────────────────────────────
 # mcpgateway ↔ postgres ↔ redis ↔ migration (all mcp-stack components).
