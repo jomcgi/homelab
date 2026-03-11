@@ -1,0 +1,18 @@
+# ── Context Forge Gateway ──────────────────────────────────────────────────
+mcp-stack:
+  mcpContextForge:
+    config:
+      PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 1Gi
+      limits:
+        cpu: 200m
+        memory: 1Gi
+  postgres:
+    persistence:
+      storageClassName: longhorn
+
+secret:
+  itemPath: "vaults/k8s-homelab/items/context-forge"

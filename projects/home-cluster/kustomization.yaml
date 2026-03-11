@@ -6,6 +6,7 @@ resources:
   - ../../projects/agent_platform
   - ../../projects/blog_knowledge_graph/deploy
   - ../../projects/grimoire/deploy
+  - ../../projects/mcp/context-forge-gateway/deploy
   - ../../projects/operators/oci-model-cache/deploy
   - ../../projects/platform
   - ../../projects/ships/deploy
