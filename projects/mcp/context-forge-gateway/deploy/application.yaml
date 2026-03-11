@@ -1,0 +1,26 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: context-forge-gateway
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/jomcgi/homelab.git
+    path: projects/mcp/context-forge-gateway/chart
+    targetRevision: HEAD
+    helm:
+      releaseName: context-forge-gateway
+      valueFiles:
+        - values.yaml
+        - ../deploy/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: mcp
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true

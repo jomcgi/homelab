@@ -1,0 +1,89 @@
+# Context Forge MCP Gateway
+# Wraps upstream IBM mcp-stack chart with environment-specific config.
+
+mcp-stack:
+  mcpContextForge:
+    image:
+      repository: ghcr.io/ibm/mcp-context-forge
+      tag: "v1.0.0-RC1"
+      pullPolicy: IfNotPresent
+    replicaCount: 1
+    hpa:
+      enabled: false
+    ingress:
+      enabled: false
+    config:
+      GUNICORN_WORKERS: "2"
+      PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
+      MCPGATEWAY_UI_ENABLED: "false"
+      MCPGATEWAY_A2A_ENABLED: "false"
+      LLMCHAT_ENABLED: "false"
+      MCPGATEWAY_CATALOG_ENABLED: "false"
+      MCPGATEWAY_DIRECT_PROXY_ENABLED: "false"
+      MCPGATEWAY_BULK_IMPORT_ENABLED: "false"
+    secret:
+      AUTH_REQUIRED: "true"
+      # JWT auth required for in-cluster registration jobs (charts/mcp-servers registration-job.yaml)
+      MCP_CLIENT_AUTH_ENABLED: "true"
+      MCP_REQUIRE_AUTH: "false"
+      # mcp-oauth-proxy handles auth and injects X-Forwarded-User — see ADR 006
+      TRUST_PROXY_AUTH: "true"
+      PROXY_USER_HEADER: "X-Forwarded-User"
+    extraEnvFrom:
+      - secretRef:
+          name: context-forge
+    metrics:
+      serviceMonitor:
+        enabled: false # Requires prometheus-operator CRDs
+    resources:
+      requests:
+        cpu: 50m
+        memory: 256Mi
+      limits:
+        cpu: 200m
+        memory: 512Mi
+
+  postgres:
+    persistence:
+      storageClassName: ""
+      size: 1Gi
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+  # Pin migration image to match the gateway — upstream defaults to :latest
+  # which can apply migrations the pinned gateway version doesn't understand.
+  migration:
+    image:
+      repository: ghcr.io/ibm/mcp-context-forge
+      tag: "v1.0.0-RC1"
+      pullPolicy: IfNotPresent
+
+  redis:
+    enabled: true
+    resources:
+      requests:
+        cpu: 25m
+        memory: 16Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+
+  # Disable components we don't need
+  pgadmin:
+    enabled: false
+  redisCommander:
+    enabled: false
+  minio:
+    enabled: false
+  mcpFastTimeServer:
+    enabled: false
+
+# 1Password secret — provides JWT_SECRET_KEY, AUTH_ENCRYPTION_SECRET
+secret:
+  name: context-forge
+  itemPath: ""
