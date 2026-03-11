@@ -1,0 +1,156 @@
+# --- Envoy Gateway control plane (subchart) ---
+envoyGateway:
+  enabled: true
+
+gateway-helm:
+  deployment:
+    envoyGateway:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+  config:
+    envoyGateway:
+      provider:
+        type: Kubernetes
+
+# --- Gateway API resources (GatewayClass, Gateway, EnvoyProxy) ---
+gateway:
+  enabled: true
+  name: cloudflare-ingress
+  className: cloudflare-ingress
+  controllerName: gateway.envoyproxy.io/gatewayclass-controller
+  listener:
+    port: 80
+  envoyProxy:
+    name: cloudflare-ingress-proxy
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
+  service:
+    name: cloudflare-ingress
+    port: 80
+
+# --- Cloudflare Tunnel ---
+tunnel:
+  replicaCount: 2
+  fullnameOverride: "cloudflared"
+
+  image:
+    repository: cloudflare/cloudflared
+    tag: "2025.4.0"
+    pullPolicy: IfNotPresent
+
+  # Tunnel identity (set from secret when using OnePassword)
+  id: ""
+  name: ""
+  protocol: ""
+  noAutoupdate: true
+
+  secret:
+    type: onepassword
+    onepassword:
+      itemPath: ""
+    manual:
+      credentialsJson: ""
+
+  ingress:
+    routes: []
+    catchAll:
+      service: http_status:404
+
+  service:
+    type: ClusterIP
+    port: 2000
+
+  resources: {}
+  priorityClassName: ""
+  topologySpreadConstraints: []
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+  podSecurityContext: {}
+
+  securityContext:
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    runAsNonRoot: true
+    runAsUser: 65532
+    capabilities:
+      drop:
+        - ALL
+    seccompProfile:
+      type: RuntimeDefault
+
+  livenessProbe:
+    exec:
+      command:
+        - cloudflared
+        - tunnel
+        - --metrics
+        - 127.0.0.1:2000
+        - ready
+    failureThreshold: 6
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+
+  readinessProbe:
+    exec:
+      command:
+        - cloudflared
+        - tunnel
+        - --metrics
+        - 127.0.0.1:2000
+        - ready
+    failureThreshold: 3
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 5
+
+  metrics:
+    enabled: true
+    address: "127.0.0.1:2000"
+
+  envoy:
+    enabled: false
+    image:
+      repository: envoyproxy/envoy
+      tag: "v1.31-latest"
+      pullPolicy: IfNotPresent
+    admin:
+      port: 9901
+    proxy:
+      port: 8000
+    transparentProxy:
+      enabled: false
+      port: 15001
+      iptablesImage: "docker.io/istio/proxyv2:1.20.0"
+    securityContext:
+      runAsUser: 65534
+      runAsNonRoot: true
+      readOnlyRootFilesystem: true
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+      seccompProfile:
+        type: RuntimeDefault
+    tracing:
+      enabled: true
+      otlpEndpoint: "signoz-otel-collector.signoz.svc.cluster.local:4317"
+      serviceName: "cloudflare-tunnel"
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 500m
+        memory: 256Mi
