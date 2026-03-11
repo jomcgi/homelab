@@ -6,7 +6,7 @@ version: 0.7.0
 appVersion: "0.2.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
-  org.opencontainers.image.url: "https://github.com/jomcgi/homelab/tree/main/projects/agent_platform/deploy"
+  org.opencontainers.image.url: "https://github.com/jomcgi/homelab/tree/main/projects/agent_platform/chart"
   org.opencontainers.image.licenses: "MPL-2.0"
 dependencies:
   - name: context-forge
