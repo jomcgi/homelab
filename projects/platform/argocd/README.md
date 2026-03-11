@@ -30,9 +30,8 @@ flowchart LR
 ArgoCD discovers applications through the `projects/home-cluster/` auto-discovery pattern:
 
 ```
-clusters/homelab/kustomization.yaml (redirect)
-  → projects/home-cluster/kustomization.yaml (auto-generated)
-    → projects/{service}/deploy/application.yaml
+projects/home-cluster/kustomization.yaml (auto-generated)
+  → projects/{service}/deploy/application.yaml
 ```
 
 Each `application.yaml` points to its colocated Helm chart in `projects/{service}/chart/`.
