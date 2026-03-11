@@ -97,8 +97,19 @@ if $STAGED; then
 		PIDS+=($!)
 	fi
 	if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
-		(prettier --write --ignore-path bazel/tools/format/.prettierignore "${PRETTIER_FILES[@]}" 2>/dev/null || true) &
-		PIDS+=($!)
+		# Filter out files matching .prettierignore patterns (--ignore-path is
+		# not applied when explicit file paths are passed to prettier)
+		FILTERED_PRETTIER=()
+		for f in "${PRETTIER_FILES[@]}"; do
+			case "$f" in
+			*/templates/* | */crds/* | */dist/*) continue ;;
+			esac
+			FILTERED_PRETTIER+=("$f")
+		done
+		if [ ${#FILTERED_PRETTIER[@]} -gt 0 ]; then
+			(prettier --write --ignore-path bazel/tools/format/.prettierignore "${FILTERED_PRETTIER[@]}" 2>/dev/null || true) &
+			PIDS+=($!)
+		fi
 	fi
 
 	# Script generators only if BUILD files changed
