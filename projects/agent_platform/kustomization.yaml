@@ -2,11 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
+  # Umbrella chart — single ArgoCD Application for the core agent platform
+  - ./overlays/homelab
+  # Independent services (not part of the umbrella)
   - ./api_gateway/deploy
   - ./cluster_agents/deploy
-  - ./context_forge/deploy
   - ./llama_cpp/deploy
-  - ./mcp_oauth_proxy/deploy
-  - ./mcp_servers/deploy
-  - ./orchestrator/deploy
-  - ./sandboxes/deploy

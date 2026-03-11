@@ -1,63 +1,14 @@
-# ── Goose agent configuration ──────────────────────────────────────────────
-# Top-level convenience block — configure Goose behaviour from here.
-# These values mirror goose-sandboxes.sandboxTemplate.* below; set them here
-# and replicate into goose-sandboxes: (Helm does not auto-propagate top-level
-# keys to subcharts, so both sections must be kept in sync).
-goose:
-  image:
-    repository: ghcr.io/jomcgi/homelab/goose-agent
-    tag: main
-  # Recipe/profile overrides — map of recipe name to content or URL
-  recipes: {}
-  model: claude-sonnet-4-6
-  provider: claude-code
-  repo:
-    owner: "" # REQUIRED
-    name: "" # REQUIRED
-  workspace:
-    storageClassName: "" # REQUIRED
-    size: 10Gi
+# ── Agent Platform Umbrella Chart ─────────────────────────────────────────────
+# Default values for the agent-platform umbrella chart.
+# All image references and config defaults live here so the packaged chart is
+# self-contained. Environment-specific overrides (secrets, storage, domains)
+# belong in a separate values file alongside the ArgoCD Application.
 
-# ── Component enable/disable flags ─────────────────────────────────────────
-components:
-  grafana:
-    enabled: false # placeholder — Grafana not yet wired, just the flag
-  argocd:
-    enabled: false # whether to deploy ArgoCD as part of this chart (default: assume pre-installed)
-  mcpServers:
-    enabled: true
-
-# ── Secret management ──────────────────────────────────────────────────────
-# Set useOnePassword: true for homelab (requires 1Password Operator).
-# When useOnePassword: false, create the K8s Secrets referenced below manually:
-#   kubectl create secret generic claude-auth --from-literal=CLAUDE_AUTH_TOKEN=<token>
-#   kubectl create secret generic agent-secrets --from-literal=GITHUB_TOKEN=<tok>
-#   kubectl create secret generic goose-mcp-tokens --from-literal=CI_DEBUG_MCP_TOKEN=<tok>
-# Note: BUILDBUDDY_API_KEY is homelab-specific and optional — containers start without it.
-# Add it to agent-secrets only when deploying to the homelab cluster.
-secrets:
-  useOnePassword: false
-  claudeAuth:
-    secretName: "claude-auth"
-    key: "CLAUDE_AUTH_TOKEN"
-  agentSecrets:
-    secretName: "agent-secrets"
-    keys:
-      - GITHUB_TOKEN
-  mcpTokens:
-    secretName: "goose-mcp-tokens"
-    key: "CI_DEBUG_MCP_TOKEN"
-
-# ── Subchart: context-forge ─────────────────────────────────────────────────
+# ── Subchart: context-forge ──────────────────────────────────────────────────
 # MCP gateway aggregating observability and infrastructure tools.
-# Wraps the IBM mcp-stack chart (same pattern as charts/context-forge).
-# Controlled by contextForge.enabled; default false so existing standalone
-# context-forge releases are not impacted on first deploy.
-contextForge:
-  enabled: false
-
+# Wraps the upstream IBM mcp-stack chart.
 context-forge:
-  # Passed verbatim to charts/context-forge — see that chart's values.yaml.
+  enabled: true
   mcp-stack:
     mcpContextForge:
       image:
@@ -81,7 +32,6 @@ context-forge:
         AUTH_REQUIRED: "true"
         MCP_CLIENT_AUTH_ENABLED: "true"
         MCP_REQUIRE_AUTH: "false"
-        # mcp-oauth-proxy injects X-Forwarded-User — see ADR 006
         TRUST_PROXY_AUTH: "true"
         PROXY_USER_HEADER: "X-Forwarded-User"
       extraEnvFrom:
@@ -99,7 +49,7 @@ context-forge:
           memory: 512Mi
     postgres:
       persistence:
-        storageClassName: "" # override per-environment
+        storageClassName: ""
         size: 1Gi
       resources:
         requests:
@@ -130,40 +80,29 @@ context-forge:
       enabled: false
     mcpFastTimeServer:
       enabled: false
-  # 1Password secret — provides JWT_SECRET_KEY, AUTH_ENCRYPTION_SECRET
-  # Only used when secrets.useOnePassword: true
   secret:
     name: context-forge
-    itemPath: "vaults/k8s-homelab/items/context-forge"
+    itemPath: ""
 
-# ── Subchart: mcp-oauth-proxy ───────────────────────────────────────────────
+# ── Subchart: mcp-oauth-proxy ────────────────────────────────────────────────
 # OAuth 2.1 proxy authenticating MCP clients via Google OIDC (ADR 006).
-# Deploys mcp-oauth-proxy + postgres:17-alpine sidecar for session state.
-# Controlled by mcpOAuthProxy.enabled; default false so existing standalone
-# mcp-oauth-proxy releases are not impacted on first deploy.
-mcpOAuthProxy:
-  enabled: false
-
 mcp-oauth-proxy:
+  enabled: true
   image:
     repository: ghcr.io/obot-platform/mcp-oauth-proxy
-    # Pin to digest for reproducibility; Image Updater keeps this current.
-    tag: "latest@sha256:44136fa355ba77b9ad7b2be5b96c76f5d69f66f518c9e38b5ed1f73b84b5f2d0"
+    tag: "latest"
     pullPolicy: IfNotPresent
   config:
     OAUTH_AUTHORIZE_URL: "https://accounts.google.com"
     SCOPES_SUPPORTED: "openid,email,profile"
-    # Point at the context-forge subchart service within this release.
-    # Override if deploying context-forge separately.
-    MCP_SERVER_URL: "" # auto-derive: http://<release-name>-context-forge-mcp-stack-mcpgateway:80
-  # Google OIDC credentials — provide via 1Password or manual Secret
+    MCP_SERVER_URL: ""
   secret:
     name: mcp-oauth-proxy
-    itemPath: "vaults/k8s-homelab/items/mcp-oauth-proxy"
+    itemPath: ""
   postgres:
     image:
       repository: docker.io/postgres
-      tag: "17-alpine@sha256:4d89c2e0ba8a29d1f04c7ddabff73a1fc3a3ebbee3ac21cf7f7e5eb5b320b0b2"
+      tag: "17-alpine"
     user: "mcp"
     database: "mcp_oauth"
     dsn: "postgres://mcp@localhost:5432/mcp_oauth?sslmode=disable"
@@ -194,42 +133,156 @@ mcp-oauth-proxy:
       drop:
         - ALL
 
-# ── Subchart: agent-platform-mcp-servers ──────────────────────────────────
-# enabled is driven by components.mcpServers.enabled above.
+# ── Subchart: agent-platform-mcp-servers ─────────────────────────────────────
+# Deploys MCP servers with optional protocol translation and gateway registration.
 agent-platform-mcp-servers:
   enabled: true
-  servers: [] # list of server definitions — see charts/agent-platform-mcp-servers/values.yaml
-  # Shared translate sidecar image (mcpgateway.translate)
   translate:
     image:
       repository: ghcr.io/ibm/mcp-context-forge
       tag: "v1.0.0-RC1"
       pullPolicy: IfNotPresent
-  # Context Forge gateway for post-install registration jobs
   gateway:
-    url: "" # defaults to http://<release-name>-context-forge-mcp-stack-mcpgateway:80
+    url: ""
     secret:
       name: context-forge-gateway
-      itemPath: "vaults/k8s-homelab/items/context-forge"
-  # ArgoCD Image Updater defaults for write-back
+      itemPath: ""
+  alertDefaults:
+    evalWindow: "10m0s"
+    frequency: "2m0s"
+    matchType: "5"
+    severity: "critical"
+    channels: []
   imageUpdater:
-    gitRepository: "https://github.com/jomcgi/homelab.git"
-    gitBranch: "main"
-    gitSecret: "argocd/argocd-image-updater-token"
-    applicationName: "" # defaults to release name
-    writeBackTarget: "" # required if any server has imageUpdater.enabled: true
+    gitRepository: ""
+    gitBranch: ""
+    gitSecret: ""
+    applicationName: ""
+    writeBackTarget: ""
+  servers: []
 
-# ── Subchart: agent-sandbox ───────────────────────────────────────────────
-# installCRDs and deployController enable parallel deployments alongside an
-# existing release (e.g. cluster-critical) that already owns CRDs/controller.
-#
-# Parallel install example:
-#   agent-sandbox:
-#     installCRDs: false      # skip CRD templates (CRDs already in cluster)
-#     deployController: false # skip controller StatefulSet (already running)
-#
-# When using helm (not ArgoCD), also pass --skip-crds on the first install
-# if installCRDs: false, to suppress Helm's CRD detection pass.
+# ── Subchart: agent-orchestrator ─────────────────────────────────────────────
+# Orchestrates Goose agent jobs via REST API backed by NATS JetStream.
+# natsUrl and sandboxNamespace are auto-wired from release metadata when empty.
+agent-orchestrator:
+  enabled: true
+  replicaCount: 1
+  image:
+    repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator
+    tag: main
+    pullPolicy: IfNotPresent
+  imagePullSecret:
+    enabled: false
+    create: true
+    onepassword:
+      itemPath: ""
+  serviceAccount:
+    create: true
+    annotations: {}
+    name: ""
+  podAnnotations: {}
+  podSecurityContext:
+    seccompProfile:
+      type: RuntimeDefault
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65532
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: true
+    capabilities:
+      drop:
+        - ALL
+  service:
+    type: ClusterIP
+    port: 8080
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+  config:
+    natsUrl: ""
+    sandboxNamespace: ""
+    sandboxTemplate: "goose-agent"
+    maxRetries: "2"
+    maxConcurrent: "5"
+    httpPort: "8080"
+    jobInactivityTimeout: "10m"
+    jobMaxDuration: "168h"
+  httpRoute:
+    enabled: false
+    hostname: ""
+    gatewayRef:
+      name: ""
+      namespace: ""
+  nodeSelector: {}
+  tolerations: []
+  affinity: {}
+
+# ── Subchart: goose-sandboxes ────────────────────────────────────────────────
+# SandboxTemplate + WarmPool for ephemeral Goose agent pods.
+goose-sandboxes:
+  enabled: true
+  namespace:
+    limitRange:
+      cpu:
+        request: "1"
+        limit: "4"
+      memory:
+        request: 2Gi
+        limit: 4Gi
+    resourceQuota:
+      pods: "15"
+      requestsCpu: "16"
+      requestsMemory: 32Gi
+  sandboxTemplate:
+    name: goose-agent
+    image:
+      repository: ghcr.io/jomcgi/homelab/goose-agent
+      tag: main
+    env:
+      gooseProvider: claude-code
+      gooseModel: claude-sonnet-4-6
+      contextForgeUrl: ""
+      repoOwner: ""
+      repoName: ""
+    resources:
+      requests:
+        cpu: "1"
+        memory: 2Gi
+      limits:
+        cpu: "4"
+        memory: 8Gi
+    extraEnv: []
+    workspace:
+      storageClassName: ""
+      size: 20Gi
+  warmPool:
+    name: goose-pool
+    size: 1
+  secrets:
+    useOnePassword: false
+    claudeAuth:
+      onePasswordItem: ""
+      vault: ""
+      secretName: "claude-auth"
+      key: "CLAUDE_AUTH_TOKEN"
+    agentSecrets:
+      onePasswordItem: ""
+      vault: ""
+      secretName: "agent-secrets"
+    mcpTokens:
+      onePasswordItem: ""
+      vault: ""
+      secretName: "goose-mcp-tokens"
+      key: "CI_DEBUG_MCP_TOKEN"
+  orchestratorNamespace: ""
+  agents: {}
+
+# ── Subchart: agent-sandbox ──────────────────────────────────────────────────
+# SandboxTemplate CRDs and controller.
 agent-sandbox:
   enabled: true
   installCRDs: true
@@ -237,8 +290,7 @@ agent-sandbox:
   controller:
     image:
       repository: registry.k8s.io/agent-sandbox/agent-sandbox-controller
-      # Digest-pinned; Image Updater keeps this current automatically.
-      tag: "v0.1.1@sha256:7b3a2f5c8e9d4b6a1f0e2c8d3a7b5f9e4d6a2c8b3f7a5e9d4b6c2a8f3e7b5d9"
+      tag: "v0.1.1"
     replicas: 1
     resources:
       requests:
@@ -252,62 +304,8 @@ agent-sandbox:
       runAsUser: 65532
       fsGroup: 65532
 
-# ── Subchart: goose-sandboxes ──────────────────────────────────────────────
-# These values are passed directly to the goose-sandboxes chart.
-# Mirror your goose.* settings here — Helm does not auto-propagate top-level
-# keys to subcharts, so both sections must be kept in sync.
-goose-sandboxes:
-  enabled: false # disabled by default; enable in environment-specific values
-  sandboxTemplate:
-    image:
-      repository: ghcr.io/jomcgi/homelab/goose-agent # = goose.image.repository
-      tag: main # = goose.image.tag
-    env:
-      gooseProvider: claude-code # = goose.provider
-      gooseModel: claude-sonnet-4-6 # = goose.model
-      repoOwner: "" # = goose.repo.owner (REQUIRED)
-      repoName: "" # = goose.repo.name (REQUIRED)
-    workspace:
-      storageClassName: "" # = goose.workspace.storageClassName (REQUIRED)
-      size: 10Gi # = goose.workspace.size
-  secrets:
-    useOnePassword: false
-    claudeAuth:
-      secretName: "claude-auth"
-      key: "CLAUDE_AUTH_TOKEN"
-    agentSecrets:
-      secretName: "agent-secrets"
-    mcpTokens:
-      secretName: "goose-mcp-tokens"
-      key: "CI_DEBUG_MCP_TOKEN"
-  # Namespace that agent-orchestrator runs in — used in NetworkPolicy ingress rule.
-  # Defaults to the release namespace; override when orchestrator is deployed separately.
-  orchestratorNamespace: ""
-
-# ── Subchart: agent-orchestrator ──────────────────────────────────────────
-# Core component — enabled by default. Orchestrates Goose agent jobs via REST
-# API backed by NATS JetStream.
-#
-# natsUrl and sandboxNamespace are auto-wired from release metadata:
-#   natsUrl           → nats://<release-name>-nats:4222
-#   sandboxNamespace  → <release-namespace>
-# Override these only if you deploy NATS outside this release.
-agent-orchestrator:
-  enabled: true
-  config:
-    # Leave blank to auto-derive from release metadata (recommended).
-    # Set explicitly only when NATS is deployed separately.
-    natsUrl: ""
-    sandboxNamespace: ""
-
-# ── Subchart: nats ─────────────────────────────────────────────────────────
+# ── Subchart: nats ───────────────────────────────────────────────────────────
 # NATS JetStream — required by agent-orchestrator for job queuing.
-# Deployed as part of this release so orchestrator can discover it via
-# service name <release-name>-nats:4222.
-#
-# storageClassName defaults to cluster default storage class (empty string).
-# Override per-environment, e.g.:
-#   nats.config.jetstream.fileStore.pvc.storageClassName: ebs-gp3
 nats:
   enabled: true
   config:
@@ -321,6 +319,6 @@ nats:
         pvc:
           enabled: true
           size: 10Gi
-          storageClassName: "" # uses cluster default; override per environment
+          storageClassName: ""
   statefulSet:
     replicas: 1

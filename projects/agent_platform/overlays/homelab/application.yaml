@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-platform
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    # Chart from OCI registry (pushed by CI via Bazel helm_push)
+    - repoURL: ghcr.io/jomcgi/homelab/charts
+      chart: agent-platform
+      targetRevision: 0.7.0
+      helm:
+        releaseName: agent-platform
+        valueFiles:
+          - $values/projects/agent_platform/overlays/homelab/values-homelab.yaml
+    # Git repo for environment-specific values
+    - repoURL: https://github.com/jomcgi/homelab.git
+      targetRevision: HEAD
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: agent-platform
+  # Merge ignoreDifferences from former mcp-servers app (OTel, Kyverno, Linkerd mutations)
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jqPathExpressions:
+        - .spec.template.metadata.annotations
+        - .spec.template.spec.containers
+        - .spec.template.spec.initContainers
+        - .spec.template.spec.volumes
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true

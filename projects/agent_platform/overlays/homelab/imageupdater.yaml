@@ -1,25 +1,25 @@
 apiVersion: argocd-image-updater.argoproj.io/v1alpha1
 kind: ImageUpdater
 metadata:
-  name: agent-orchestrator
+  name: agent-platform
   namespace: argocd
 spec:
   applicationRefs:
     - images:
-        - alias: agent-orchestrator
+        - alias: agent-platform-chart
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/agent-orchestrator:main
+          imageName: ghcr.io/jomcgi/homelab/charts/agent-platform
           manifestTargets:
             helm:
-              name: image.repository
-              tag: image.tag
-      namePattern: prod-agent-orchestrator
+              name: ""
+              tag: spec.sources[0].targetRevision
+      namePattern: agent-platform
   namespace: argocd
   writeBackConfig:
     method: git:secret:argocd/argocd-image-updater-token
     gitConfig:
       repository: https://github.com/jomcgi/homelab.git
       branch: main
-      writeBackTarget: helmvalues:values-prod.yaml
+      writeBackTarget: helmvalues:projects/agent_platform/overlays/homelab/application.yaml

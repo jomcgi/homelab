@@ -1,145 +1,201 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "type": "object",
-  "required": ["goose", "secrets"],
   "properties": {
-    "goose": {
+    "context-forge": {
       "type": "object",
-      "required": ["repo", "workspace"],
       "properties": {
-        "repo": {
-          "type": "object",
-          "required": ["owner", "name"],
-          "properties": {
-            "owner": {
-              "type": "string",
-              "description": "GitHub org or user owning the target repo"
-            },
-            "name": {
-              "type": "string",
-              "description": "GitHub repo name to clone into sandboxes"
-            }
-          },
-          "additionalProperties": false
+        "enabled": {
+          "type": "boolean",
+          "description": "Deploy the Context Forge MCP gateway"
         },
-        "workspace": {
+        "mcp-stack": { "type": "object" },
+        "secret": {
           "type": "object",
-          "required": ["storageClassName"],
           "properties": {
-            "storageClassName": {
-              "type": "string",
-              "description": "Kubernetes StorageClass for sandbox workspace PVCs"
-            },
-            "size": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
+            "name": { "type": "string" },
+            "itemPath": { "type": "string" }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "mcp-oauth-proxy": {
+      "type": "object",
+      "properties": {
+        "enabled": {
+          "type": "boolean",
+          "description": "Deploy the MCP OAuth Proxy (Google OIDC, ADR 006)"
         },
         "image": {
           "type": "object",
           "properties": {
             "repository": { "type": "string" },
-            "tag": { "type": "string" }
-          },
-          "additionalProperties": true
+            "tag": { "type": "string" },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
+          }
         },
-        "model": { "type": "string" },
-        "provider": { "type": "string" },
-        "recipes": { "type": "object", "additionalProperties": true }
-      },
-      "additionalProperties": true
-    },
-    "secrets": {
-      "type": "object",
-      "properties": {
-        "useOnePassword": { "type": "boolean" },
-        "claudeAuth": {
+        "config": { "type": "object" },
+        "secret": {
           "type": "object",
           "properties": {
-            "secretName": { "type": "string" },
-            "key": { "type": "string" },
-            "onePasswordItem": { "type": "string" },
-            "vault": { "type": "string" }
-          },
-          "additionalProperties": false
-        },
-        "agentSecrets": {
-          "type": "object",
-          "additionalProperties": true
-        },
-        "mcpTokens": {
-          "type": "object",
-          "additionalProperties": true
-        }
-      },
-      "additionalProperties": false
-    },
-    "components": {
-      "type": "object",
-      "properties": {
-        "grafana": {
-          "type": "object",
-          "properties": { "enabled": { "type": "boolean" } },
-          "additionalProperties": true
-        },
-        "argocd": {
-          "type": "object",
-          "properties": { "enabled": { "type": "boolean" } },
-          "additionalProperties": true
-        },
-        "mcpServers": {
-          "type": "object",
-          "properties": { "enabled": { "type": "boolean" } },
-          "additionalProperties": true
+            "name": { "type": "string" },
+            "itemPath": { "type": "string" }
+          }
         }
       },
       "additionalProperties": true
     },
-    "contextForge": {
+    "agent-platform-mcp-servers": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "Deploy the Context Forge MCP gateway as part of this release"
+        "enabled": { "type": "boolean" },
+        "servers": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "image", "port"],
+            "properties": {
+              "name": { "type": "string" },
+              "image": {
+                "type": "object",
+                "required": ["repository", "tag"],
+                "properties": {
+                  "repository": { "type": "string" },
+                  "tag": { "type": "string" }
+                }
+              },
+              "port": { "type": "integer" },
+              "args": { "type": "array", "items": { "type": "string" } },
+              "env": { "type": "array" },
+              "writableTmp": { "type": "boolean" },
+              "resources": { "type": "object" },
+              "registration": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "transport": {
+                    "type": "string",
+                    "enum": ["STREAMABLEHTTP", "SSE", "STDIO"]
+                  }
+                }
+              },
+              "alert": {
+                "type": "object",
+                "properties": {
+                  "enabled": { "type": "boolean" },
+                  "url": { "type": "string" }
+                }
+              }
+            }
+          }
         }
       },
       "additionalProperties": true
     },
-    "mcpOAuthProxy": {
+    "agent-orchestrator": {
       "type": "object",
       "properties": {
-        "enabled": {
-          "type": "boolean",
-          "description": "Deploy the MCP OAuth Proxy (Google OIDC, ADR 006) as part of this release"
+        "enabled": { "type": "boolean" },
+        "image": {
+          "type": "object",
+          "properties": {
+            "repository": { "type": "string" },
+            "tag": { "type": "string" },
+            "pullPolicy": {
+              "type": "string",
+              "enum": ["Always", "IfNotPresent", "Never"]
+            }
+          }
+        },
+        "config": {
+          "type": "object",
+          "properties": {
+            "natsUrl": { "type": "string" },
+            "sandboxNamespace": { "type": "string" },
+            "sandboxTemplate": { "type": "string" },
+            "maxRetries": { "type": "string" },
+            "maxConcurrent": { "type": "string" }
+          }
+        },
+        "httpRoute": {
+          "type": "object",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "hostname": { "type": "string" }
+          }
         }
       },
       "additionalProperties": true
     },
-    "nats": { "type": "object", "additionalProperties": true },
-    "agent-orchestrator": { "type": "object", "additionalProperties": true },
+    "goose-sandboxes": {
+      "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" },
+        "sandboxTemplate": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "image": {
+              "type": "object",
+              "properties": {
+                "repository": { "type": "string" },
+                "tag": { "type": "string" }
+              }
+            },
+            "env": {
+              "type": "object",
+              "properties": {
+                "gooseProvider": { "type": "string" },
+                "gooseModel": { "type": "string" },
+                "contextForgeUrl": { "type": "string" },
+                "repoOwner": { "type": "string" },
+                "repoName": { "type": "string" }
+              }
+            },
+            "workspace": {
+              "type": "object",
+              "properties": {
+                "storageClassName": { "type": "string" },
+                "size": { "type": "string" }
+              }
+            }
+          }
+        },
+        "secrets": {
+          "type": "object",
+          "properties": {
+            "useOnePassword": { "type": "boolean" }
+          }
+        }
+      },
+      "additionalProperties": true
+    },
     "agent-sandbox": {
       "type": "object",
       "properties": {
         "enabled": { "type": "boolean" },
         "installCRDs": {
           "type": "boolean",
-          "description": "Install agent-sandbox CRDs. Set false for parallel installs where CRDs already exist."
+          "description": "Install agent-sandbox CRDs. Set false for parallel installs."
         },
         "deployController": {
           "type": "boolean",
-          "description": "Deploy the agent-sandbox controller StatefulSet. Set false when another release already runs it."
+          "description": "Deploy the controller. Set false when another release already runs it."
         }
       },
       "additionalProperties": true
     },
-    "goose-sandboxes": { "type": "object", "additionalProperties": true },
-    "agent-platform-mcp-servers": {
+    "nats": {
       "type": "object",
+      "properties": {
+        "enabled": { "type": "boolean" }
+      },
       "additionalProperties": true
-    },
-    "context-forge": { "type": "object", "additionalProperties": true },
-    "mcp-oauth-proxy": { "type": "object", "additionalProperties": true }
+    }
   },
   "additionalProperties": true
 }

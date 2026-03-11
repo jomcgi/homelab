@@ -17,13 +17,11 @@ sandboxTemplate:
     repository: ghcr.io/jomcgi/homelab/goose-agent
     tag: main
   env:
-    # Goose uses Claude Code CLI as the LLM provider (no LiteLLM proxy needed).
-    # The claude binary is baked into the image and authenticates via OAuth token.
     gooseProvider: claude-code
     gooseModel: claude-sonnet-4-6
-    contextForgeUrl: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
-    repoOwner: jomcgi
-    repoName: homelab
+    contextForgeUrl: ""
+    repoOwner: ""
+    repoName: ""
   resources:
     requests:
       cpu: "1"
@@ -31,20 +29,9 @@ sandboxTemplate:
     limits:
       cpu: "4"
       memory: 8Gi
-  # Extra env vars injected into all goose containers (SandboxTemplate pods and long-lived agent Deployments).
-  # Use this to pass additional configuration without modifying the chart templates.
-  extraEnv:
-    - name: GOOSE_GLOBAL_HINTS
-      value: /workspace/homelab/projects/agent_platform/goose_agent/.goosehints
-    - name: GOOSE_CONTEXT_STRATEGY
-      value: summarize
-    - name: GOOSE_AUTO_COMPACT_THRESHOLD
-      value: "0.8"
-    - name: GOOSE_SUBAGENT_MAX_TURNS
-      value: "15"
-
+  extraEnv: []
   workspace:
-    storageClassName: longhorn
+    storageClassName: ""
     size: 20Gi
 
 warmPool:
@@ -52,37 +39,26 @@ warmPool:
   size: 1
 
 secrets:
-  # Set useOnePassword: true to create OnePasswordItem CRDs (requires 1Password Operator).
-  # Set useOnePassword: false to reference pre-existing K8s Secrets (user must create them manually).
-  useOnePassword: true
+  useOnePassword: false
   claudeAuth:
-    # 1Password settings (used when useOnePassword: true):
-    onePasswordItem: litellm-claude-auth
-    vault: k8s-homelab
-    # Pre-existing K8s Secret reference (used when useOnePassword: false):
+    onePasswordItem: ""
+    vault: ""
     secretName: "claude-auth"
     key: "CLAUDE_AUTH_TOKEN"
   agentSecrets:
-    # 1Password settings (used when useOnePassword: true):
-    onePasswordItem: agent-secrets
-    vault: k8s-homelab
-    # Pre-existing K8s Secret reference (used when useOnePassword: false):
+    onePasswordItem: ""
+    vault: ""
     secretName: "agent-secrets"
-    # GITHUB_TOKEN is required. BUILDBUDDY_API_KEY is homelab-specific and optional
-    # (secretKeyRef.optional: true in the template — sandbox starts without it).
   mcpTokens:
-    # 1Password settings (used when useOnePassword: true):
-    onePasswordItem: goose-mcp-tokens
-    vault: k8s-homelab
-    # Pre-existing K8s Secret reference (used when useOnePassword: false):
+    onePasswordItem: ""
+    vault: ""
     secretName: "goose-mcp-tokens"
     key: "CI_DEBUG_MCP_TOKEN"
 
 # Namespace that agent-orchestrator runs in — used in NetworkPolicy ingress rule.
-# Defaults to the release namespace; override when deploying the orchestrator in
-# a different namespace (e.g., the cluster-critical namespace).
+# When empty, uses podSelector (same namespace). Set when orchestrator is in a
+# different namespace.
 orchestratorNamespace: ""
 
 # Long-lived agents — each entry generates a ConfigMap + Deployment.
-# Prompt changes trigger pod restart via checksum annotation.
 agents: {}

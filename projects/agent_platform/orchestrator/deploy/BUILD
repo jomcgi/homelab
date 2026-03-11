@@ -1,22 +1,6 @@
-load("//bazel/helm:defs.bzl", "argocd_app", "helm_chart")
+load("//bazel/helm:defs.bzl", "helm_chart")
 
 helm_chart(
     name = "chart",
-    visibility = ["//overlays:__subpackages__"],
-)
-
-argocd_app(
-    name = "agent-orchestrator",
-    chart = "projects/agent_platform/orchestrator/deploy",
-    chart_files = ":chart",
-    namespace = "agent-orchestrator",
-    release_name = "agent-orchestrator",
-    tags = [
-        "helm",
-        "template",
-    ],
-    values_files = [
-        "values.yaml",
-        "values-prod.yaml",
-    ],
+    visibility = ["//projects/agent_platform/deploy:__pkg__"],
 )

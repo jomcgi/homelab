@@ -45,7 +45,7 @@ mcp-stack:
 
   postgres:
     persistence:
-      storageClassName: longhorn
+      storageClassName: ""
       size: 1Gi
     resources:
       requests:
@@ -86,4 +86,4 @@ mcp-stack:
 # 1Password secret — provides JWT_SECRET_KEY, AUTH_ENCRYPTION_SECRET
 secret:
   name: context-forge
-  itemPath: "vaults/k8s-homelab/items/context-forge"
+  itemPath: ""
