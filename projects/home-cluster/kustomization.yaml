@@ -7,6 +7,7 @@ resources:
   - ../../projects/blog_knowledge_graph/deploy
   - ../../projects/grimoire/deploy
   - ../../projects/mcp/context-forge-gateway/deploy
+  - ../../projects/mcp/oauth-proxy/deploy
   - ../../projects/operators/oci-model-cache/deploy
   - ../../projects/platform
   - ../../projects/ships/deploy
