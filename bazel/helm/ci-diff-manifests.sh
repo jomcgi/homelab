@@ -86,7 +86,7 @@ main() {
 				# Stop at next non-list-item line
 				if echo "$line" | grep -qE '^\s*-\s'; then
 					local vf
-					vf=$(echo "$line" | sed 's/^\s*-\s*//' | tr -d '"' | xargs)
+					vf=$(echo "$line" | sed 's/^[[:space:]]*-[[:space:]]*//' | tr -d '"' | xargs)
 					if [ -n "$values_csv" ]; then
 						values_csv="$values_csv,$vf"
 					else
@@ -153,20 +153,24 @@ main() {
 		fi
 
 		local output_file="$output_dir/${release_name}.yaml"
+		local helm_stderr
+		helm_stderr=$(mktemp)
 		if "$helm_bin" template "$release_name" "$chart_full_path" \
 			--namespace "$namespace" \
 			"${values_args[@]}" \
-			>"$output_file" 2>/dev/null; then
+			>"$output_file" 2>"$helm_stderr"; then
+			rm -f "$helm_stderr"
 			return 0
 		else
-			echo "  ERROR rendering $release_name"
-			rm -f "$output_file"
+			echo "  ERROR rendering $release_name:" >&2
+			cat "$helm_stderr" >&2
+			rm -f "$output_file" "$helm_stderr"
 			return 1
 		fi
 	}
 
 	# Reconstruct main tree using git show
-	# We only need chart dirs and values files referenced by the apps
+	# We need chart dirs and values files referenced by the apps (which may be outside the chart path)
 	reconstruct_main_tree() {
 		for app_spec in "${APPS[@]}"; do
 			IFS='|' read -r release_name chart_path namespace values_csv <<<"$app_spec"
@@ -180,6 +184,21 @@ main() {
 				mkdir -p "$(dirname "$dest")"
 				git show "$MAIN_REF:$file" >"$dest" 2>/dev/null || true
 			done <<<"$files"
+
+			# Also fetch values files that may be outside the chart path (e.g. ../deploy/values.yaml)
+			if [ -n "$values_csv" ]; then
+				IFS=',' read -ra vfiles <<<"$values_csv"
+				for vf in "${vfiles[@]}"; do
+					# Resolve relative path from chart_path
+					local resolved
+					resolved=$(cd "$REPO_ROOT" && realpath -m --relative-to=. "$chart_path/$vf" 2>/dev/null) || continue
+					local dest="$MAIN_TREE_DIR/$resolved"
+					if [ ! -f "$dest" ]; then
+						mkdir -p "$(dirname "$dest")"
+						git show "$MAIN_REF:$resolved" >"$dest" 2>/dev/null || true
+					fi
+				done
+			fi
 		done
 	}
 
@@ -190,9 +209,9 @@ main() {
 	for app_spec in "${APPS[@]}"; do
 		IFS='|' read -r release_name _ _ _ <<<"$app_spec"
 		if render_app "$HELM" "$MAIN_RENDER_DIR" "$MAIN_TREE_DIR" "$app_spec"; then
-			((main_ok++))
+			main_ok=$((main_ok + 1))
 		else
-			((main_fail++))
+			main_fail=$((main_fail + 1))
 		fi
 	done
 	echo "  Rendered: $main_ok ok, $main_fail failed/skipped"
@@ -206,9 +225,9 @@ main() {
 	for app_spec in "${APPS[@]}"; do
 		IFS='|' read -r release_name _ _ _ <<<"$app_spec"
 		if render_app "$HELM" "$PR_RENDER_DIR" "$REPO_ROOT" "$app_spec"; then
-			((pr_ok++))
+			pr_ok=$((pr_ok + 1))
 		else
-			((pr_fail++))
+			pr_fail=$((pr_fail + 1))
 		fi
 	done
 	echo "  Rendered: $pr_ok ok, $pr_fail failed/skipped"
@@ -232,10 +251,10 @@ main() {
 			continue
 		fi
 
-		((TOTAL_COUNT++))
+		TOTAL_COUNT=$((TOTAL_COUNT + 1))
 
 		if [ ! -f "$main_file" ]; then
-			((CHANGED_COUNT++))
+			CHANGED_COUNT=$((CHANGED_COUNT + 1))
 			DIFF_BODY+="<details>
 <summary><code>${release_name}</code> — new application</summary>
 
@@ -251,7 +270,7 @@ $(head -50 "$pr_file")
 		fi
 
 		if [ ! -f "$pr_file" ]; then
-			((CHANGED_COUNT++))
+			CHANGED_COUNT=$((CHANGED_COUNT + 1))
 			DIFF_BODY+="<details>
 <summary><code>${release_name}</code> — removed application</summary>
 
@@ -267,7 +286,7 @@ Application was removed or failed to render on the PR branch.
 		local_diff=$("$DYFF" between --omit-header "$main_file" "$pr_file" 2>/dev/null) || true
 
 		if [ -n "$local_diff" ]; then
-			((CHANGED_COUNT++))
+			CHANGED_COUNT=$((CHANGED_COUNT + 1))
 			echo "  CHANGED: $release_name"
 			DIFF_BODY+="<details>
 <summary><code>${release_name}</code></summary>
@@ -324,6 +343,7 @@ ${DIFF_BODY}"
 	# Find existing comment by marker
 	EXISTING_COMMENT_ID=$("$GH" api \
 		"repos/{owner}/{repo}/issues/${PR_NUMBER}/comments" \
+		--paginate \
 		--jq ".[] | select(.body | startswith(\"$COMMENT_MARKER\")) | .id" \
 		2>/dev/null | head -1) || true
 
