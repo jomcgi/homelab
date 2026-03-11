@@ -3,7 +3,6 @@
 Umbrella Helm chart bundling the core agent platform components into a single
 ArgoCD Application.
 
-- **Chart version:** 0.8.0
 - **OCI registry:** `oci://ghcr.io/jomcgi/homelab/charts/agent-platform`
 - **Namespace:** `agent-platform`
 - **Source:** [`projects/agent_platform/chart/`](.)
@@ -17,7 +16,7 @@ ArgoCD Application.
 - [Network Policy](#network-policy)
 - [CRDs](#crds)
 - [Secrets](#secrets)
-- [Values Reference](#values-reference)
+- [Configuration](#configuration)
 - [Deployment](#deployment)
 - [Local Rendering](#local-rendering)
 - [Image Strategy](#image-strategy)
@@ -48,14 +47,14 @@ Client → agent-orchestrator REST API
 
 ### Traffic flows
 
-| Source | Destination | Purpose |
-| ------------------------------------ | ----------------------------------- | ----------------------------------------- |
-| Envoy Gateway (Cloudflare) | `agent-orchestrator :8080` | External job submission via HTTPRoute |
-| `agent-orchestrator` | NATS `:4222` | Job queuing |
-| `agent-orchestrator` | Kubernetes API | Sandbox creation / status polling |
-| Goose sandbox pod | Context Forge gateway | MCP tool calls |
-| Goose sandbox pod | Internet | Code checkout, npm, pip, GitHub API, etc. |
-| MCP server registration jobs | Context Forge gateway | Self-registration on deploy |
+| Source                       | Destination                | Purpose                                   |
+| ---------------------------- | -------------------------- | ----------------------------------------- |
+| Envoy Gateway (Cloudflare)   | `agent-orchestrator :8080` | External job submission via HTTPRoute     |
+| `agent-orchestrator`         | NATS `:4222`               | Job queuing                               |
+| `agent-orchestrator`         | Kubernetes API             | Sandbox creation / status polling         |
+| Goose sandbox pod            | Context Forge gateway      | MCP tool calls                            |
+| Goose sandbox pod            | Internet                   | Code checkout, npm, pip, GitHub API, etc. |
+| MCP server registration jobs | Context Forge gateway      | Self-registration on deploy               |
 
 ### Component interactions
 
@@ -92,13 +91,13 @@ Client → agent-orchestrator REST API
 
 ## Components
 
-| Subchart | Description | Enabled |
-| ------------------------------ | ----------------------------------------------------------------- | ------- |
-| `agent-platform-mcp-servers` | MCP server deployments with optional Context Forge registration | ✅ |
-| `agent-orchestrator` | REST API + NATS-backed queue for Goose agent jobs | ✅ |
-| `goose-sandboxes` | SandboxTemplate + WarmPool for ephemeral Goose agent pods | ✅ |
-| `agent-sandbox` | SandboxTemplate CRDs (`sandboxes.agents.x-k8s.io`) + controller | ✅ |
-| `nats` | NATS JetStream (upstream chart) | ✅ |
+| Subchart                     | Description                                                     | Enabled |
+| ---------------------------- | --------------------------------------------------------------- | ------- |
+| `agent-platform-mcp-servers` | MCP server deployments with optional Context Forge registration | ✅      |
+| `agent-orchestrator`         | REST API + NATS-backed queue for Goose agent jobs               | ✅      |
+| `goose-sandboxes`            | SandboxTemplate + WarmPool for ephemeral Goose agent pods       | ✅      |
+| `agent-sandbox`              | SandboxTemplate CRDs (`sandboxes.agents.x-k8s.io`) + controller | ✅      |
+| `nats`                       | NATS JetStream (upstream chart)                                 | ✅      |
 
 > **Not in this chart:** Context Forge and MCP OAuth Proxy are deployed
 > separately in the `mcp` namespace. See `projects/mcp/` for their ArgoCD
@@ -115,14 +114,9 @@ Job.
 
 ### Servers deployed in homelab
 
-| Server | Image | Port | Registered |
-| ------------------------ | ------------------------------------------------- | ----- | ---------- |
-| `signoz-mcp` | `docker.io/signoz/signoz-mcp-server` | 8000 | ✅ |
-| `buildbuddy-mcp` | `ghcr.io/jomcgi/homelab/…/buildbuddy-mcp` | 8000 | ✅ |
-| `kubernetes-mcp` | `ghcr.io/containers/kubernetes-mcp-server` | 8080 | ✅ |
-| `argocd-mcp` | `ghcr.io/argoproj-labs/mcp-for-argocd` | 3000 | ✅ |
-| `todo-mcp` | `ghcr.io/jomcgi/homelab/…/todo-mcp` | 8000 | ✅ |
-| `agent-orchestrator-mcp` | `ghcr.io/jomcgi/homelab/…/agent-orchestrator-mcp` | 8000 | ✅ |
+See `deploy/values.yaml` for the full list of servers with their images, ports,
+and configuration. Currently deployed: `signoz-mcp`, `buildbuddy-mcp`,
+`kubernetes-mcp`, `argocd-mcp`, `todo-mcp`, `agent-orchestrator-mcp`.
 
 ### Adding a new MCP server
 
@@ -138,7 +132,7 @@ agent-platform-mcp-servers:
       port: 8080
       registration:
         enabled: true
-        transport: STREAMABLEHTTP   # STREAMABLEHTTP | SSE | STDIO
+        transport: STREAMABLEHTTP # STREAMABLEHTTP | SSE | STDIO
       alert:
         enabled: true
         url: "http://my-mcp-server.agent-platform.svc.cluster.local:8080/health"
@@ -170,14 +164,14 @@ agent-platform-mcp-servers:
 When `networkPolicy.enabled: true`, the chart deploys a **default-deny** baseline
 plus per-service allow rules:
 
-| Policy | Allows |
-| ---------------------------------- | -------------------------------------------------------- |
-| `netpol-default-deny` | Denies all ingress/egress by default |
-| `netpol-allow-dns` | Egress to kube-dns `:53` (UDP/TCP) |
+| Policy                | Allows                                                     |
+| --------------------- | ---------------------------------------------------------- |
+| `netpol-default-deny` | Denies all ingress/egress by default                       |
+| `netpol-allow-dns`    | Egress to kube-dns `:53` (UDP/TCP)                         |
 | `netpol-orchestrator` | Orchestrator → NATS, K8s API; Envoy Gateway → Orchestrator |
-| `netpol-nats` | NATS ingress from orchestrator only |
-| `netpol-mcp-servers` | MCP server ingress from Context Forge gateway |
-| `netpol-sandbox` | Sandbox egress to MCP servers + internet |
+| `netpol-nats`         | NATS ingress from orchestrator only                        |
+| `netpol-mcp-servers`  | MCP server ingress from Context Forge gateway              |
+| `netpol-sandbox`      | Sandbox egress to MCP servers + internet                   |
 
 > **Homelab note:** NetworkPolicies are **disabled** in the live cluster
 > (`networkPolicy.enabled: false` in `deploy/values.yaml`) because Linkerd
@@ -190,12 +184,12 @@ plus per-service allow rules:
 
 The `agent-sandbox` subchart installs four CRDs from its `crds/` directory:
 
-| CRD | Purpose |
-| --------------------------------------------- | ---------------------------------- |
-| `sandboxes.agents.x-k8s.io` | Individual sandbox pod lifecycle |
-| `sandboxclaims.extensions.agents.x-k8s.io` | Claim a sandbox from a pool |
-| `sandboxtemplates.extensions.agents.x-k8s.io` | Template for sandbox pods |
-| `sandboxwarmpools.extensions.agents.x-k8s.io` | Pre-warmed sandbox pool |
+| CRD                                           | Purpose                          |
+| --------------------------------------------- | -------------------------------- |
+| `sandboxes.agents.x-k8s.io`                   | Individual sandbox pod lifecycle |
+| `sandboxclaims.extensions.agents.x-k8s.io`    | Claim a sandbox from a pool      |
+| `sandboxtemplates.extensions.agents.x-k8s.io` | Template for sandbox pods        |
+| `sandboxwarmpools.extensions.agents.x-k8s.io` | Pre-warmed sandbox pool          |
 
 ### Parallel install (CRDs already present)
 
@@ -209,13 +203,16 @@ agent-sandbox:
   deployController: false
 ```
 
-With ArgoCD also add to the Application:
+With ArgoCD also add `skipCrds` to the chart source in the Application
+(this chart uses multi-source, so target the correct `sources[]` entry):
 
 ```yaml
 spec:
-  source:
-    helm:
-      skipCrds: true
+  sources:
+    - repoURL: ghcr.io/jomcgi/homelab/charts
+      chart: agent-platform
+      helm:
+        skipCrds: true
 ```
 
 ---
@@ -226,97 +223,24 @@ All secrets are managed via the **1Password Operator** (`OnePasswordItem` CRD).
 No secrets are hardcoded — never add plaintext credentials to `values.yaml` or
 `deploy/values.yaml`.
 
-| Secret | Purpose | 1Password item |
-| ----------------------- | ------------------------------------------ | ----------------------- |
-| `claude-auth` | Claude API token for Goose agents | `litellm-claude-auth` |
-| `agent-secrets` | Agent-level secrets (GitHub tokens, etc.) | `agent-secrets` |
-| `goose-mcp-tokens` | MCP bearer tokens for Goose | `goose-mcp-tokens` |
-| `context-forge-gateway` | Context Forge admin credentials | `context-forge` |
-| Per-server secrets | Injected as `envFrom` into MCP server pods | Defined per server in `servers[].secret` |
+| Secret                  | Purpose                                    | 1Password item                           |
+| ----------------------- | ------------------------------------------ | ---------------------------------------- |
+| `claude-auth`           | Claude API token for Goose agents          | `litellm-claude-auth`                    |
+| `agent-secrets`         | Agent-level secrets (GitHub tokens, etc.)  | `agent-secrets`                          |
+| `goose-mcp-tokens`      | MCP bearer tokens for Goose                | `goose-mcp-tokens`                       |
+| `context-forge-gateway` | Context Forge admin credentials            | `context-forge`                          |
+| Per-server secrets      | Injected as `envFrom` into MCP server pods | Defined per server in `servers[].secret` |
 
-To use 1Password-managed secrets for sandbox pods:
-
-```yaml
-goose-sandboxes:
-  secrets:
-    useOnePassword: true
-    claudeAuth:
-      onePasswordItem: litellm-claude-auth
-      vault: k8s-homelab
-    agentSecrets:
-      onePasswordItem: agent-secrets
-      vault: k8s-homelab
-    mcpTokens:
-      onePasswordItem: goose-mcp-tokens
-      vault: k8s-homelab
-```
+See the `goose-sandboxes.secrets` section in `values.yaml` for 1Password
+integration configuration.
 
 ---
 
-## Values Reference
+## Configuration
 
-### Top-level values
-
-| Key | Type | Default | Description |
-| ------------------------------------ | ------ | ------- | ----------------------------------------------- |
-| `networkPolicy.enabled` | bool | `true` | Deploy default-deny NetworkPolicies |
-| `networkPolicy.apiServerCidr` | string | `""` | Restrict K8s API egress to this CIDR |
-| `networkPolicy.gateway.namespace` | string | `mcp` | Namespace of the Context Forge gateway |
-
-### agent-platform-mcp-servers
-
-| Key | Type | Default | Description |
-| ------------------------------------------------ | ------ | ------------- | --------------------------------------------------------- |
-| `agent-platform-mcp-servers.enabled` | bool | `true` | Deploy MCP servers |
-| `agent-platform-mcp-servers.servers` | list | `[]` | List of MCP server definitions (see above) |
-| `agent-platform-mcp-servers.gateway.url` | string | `""` | Context Forge URL (required when any server registers) |
-| `agent-platform-mcp-servers.translate.image.tag` | string | `v1.0.0-RC1` | Shared stdio→HTTP translation sidecar image tag |
-
-### agent-orchestrator
-
-| Key | Type | Default | Description |
-| ------------------------------------------------- | ------ | ------------- | -------------------------------------------------- |
-| `agent-orchestrator.enabled` | bool | `true` | Deploy the orchestrator |
-| `agent-orchestrator.replicaCount` | int | `1` | Replica count |
-| `agent-orchestrator.config.sandboxTemplate` | string | `goose-agent` | SandboxTemplate name for agent jobs |
-| `agent-orchestrator.config.maxConcurrent` | string | `"5"` | Max concurrently running agent jobs |
-| `agent-orchestrator.config.maxRetries` | string | `"2"` | Max retries on job failure |
-| `agent-orchestrator.config.jobInactivityTimeout` | string | `"10m"` | Cancel job after this long with no agent activity |
-| `agent-orchestrator.config.jobMaxDuration` | string | `"168h"` | Hard cap on job duration (7 days) |
-| `agent-orchestrator.config.natsUrl` | string | `""` | Auto-derived from release name when empty |
-| `agent-orchestrator.config.sandboxNamespace` | string | `""` | Auto-derived from release namespace when empty |
-| `agent-orchestrator.httpRoute.enabled` | bool | `false` | Expose via Envoy Gateway HTTPRoute |
-| `agent-orchestrator.httpRoute.hostname` | string | `""` | Hostname (e.g. `agents.example.com`) |
-
-### goose-sandboxes
-
-| Key | Type | Default | Description |
-| ------------------------------------------------------------- | ------ | ------------------- | --------------------------------------------------------- |
-| `goose-sandboxes.enabled` | bool | `true` | Deploy the SandboxTemplate + WarmPool |
-| `goose-sandboxes.sandboxTemplate.name` | string | `goose-agent` | SandboxTemplate resource name |
-| `goose-sandboxes.sandboxTemplate.image.repository` | string | — | Goose agent container image |
-| `goose-sandboxes.sandboxTemplate.env.gooseProvider` | string | `claude-code` | LLM provider for Goose |
-| `goose-sandboxes.sandboxTemplate.env.gooseModel` | string | `claude-sonnet-4-6` | Model name |
-| `goose-sandboxes.sandboxTemplate.env.contextForgeUrl` | string | `""` | MCP gateway URL injected into agent pods |
-| `goose-sandboxes.sandboxTemplate.workspace.storageClassName` | string | `""` | StorageClass for the 20 Gi agent workspace PVC |
-| `goose-sandboxes.warmPool.size` | int | `1` | Number of pre-warmed sandbox pods |
-| `goose-sandboxes.secrets.useOnePassword` | bool | `false` | Source secrets from 1Password Operator |
-
-### agent-sandbox
-
-| Key | Type | Default | Description |
-| --------------------------------- | ---- | ------- | --------------------------------------------------------- |
-| `agent-sandbox.enabled` | bool | `true` | Deploy CRDs + controller |
-| `agent-sandbox.installCRDs` | bool | `true` | Install CRDs (set `false` for parallel installs) |
-| `agent-sandbox.deployController` | bool | `true` | Deploy the controller (set `false` for parallel installs) |
-
-### nats
-
-| Key | Type | Default | Description |
-| ------------------------------------------------------ | ------ | ------- | ----------------------------------------- |
-| `nats.enabled` | bool | `true` | Deploy NATS JetStream |
-| `nats.config.jetstream.fileStore.pvc.size` | string | `10Gi` | Persistent volume size for JetStream |
-| `nats.config.jetstream.fileStore.pvc.storageClassName` | string | `""` | StorageClass for NATS PVC |
+See [`values.yaml`](values.yaml) for the full schema with defaults and comments.
+Environment-specific overrides live in
+[`deploy/values.yaml`](../../../projects/agent_platform/deploy/values.yaml).
 
 ---
 
