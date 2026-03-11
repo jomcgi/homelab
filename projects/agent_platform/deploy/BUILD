@@ -11,5 +11,5 @@ helm_chart(
     },
     lint = False,
     publish = True,
-    visibility = ["//projects/agent_platform/overlays:__subpackages__"],
+    visibility = ["//overlays:__subpackages__"],
 )
