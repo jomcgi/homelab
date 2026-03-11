@@ -118,6 +118,34 @@
       }
     ]
   },
+  "dyff": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/homeport/dyff/releases/download/v1.11.2/dyff_1.11.2_linux_arm64.tar.gz",
+        "file": "dyff",
+        "sha256": "132cecbf4982628e8d47e30f5d25f987bb3f0a73a19fd1f1f23108559f1fb2f6",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/homeport/dyff/releases/download/v1.11.2/dyff_1.11.2_linux_amd64.tar.gz",
+        "file": "dyff",
+        "sha256": "84e952f8ac40c8824de83d81261f9f6c5b984b5ff367eb08b688e0c1450a4f85",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/homeport/dyff/releases/download/v1.11.2/dyff_1.11.2_darwin_arm64.tar.gz",
+        "file": "dyff",
+        "sha256": "1bdb0e5e26302d976ea4a0fdd19cb25b0b2f765c8dc63cdd6b4f243027be8775",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
   "gazelle": {
     "binaries": [
       {
