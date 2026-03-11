@@ -4,5 +4,5 @@ vitepress_filegroup(
     name = "docs",
     srcs = glob(["*.md"]) + glob(["decisions/**/*.md"]),
     visibility = ["//projects/websites/docs.jomcgi.dev:__pkg__"],
-    vitepress_path = "architecture",
+    vitepress_path = "docs",
 )
