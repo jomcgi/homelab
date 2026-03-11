@@ -23,7 +23,8 @@ data:
       "severity": "critical",
       "labels": {
         "service": "cluster-agents",
-        "environment": "production"
+        "environment": "production",
+        "severity": "critical"
       },
       "annotations": {
         "summary": "cluster-agents at http://cluster-agents.cluster-agents.svc.cluster.local:8080/health is unreachable",
