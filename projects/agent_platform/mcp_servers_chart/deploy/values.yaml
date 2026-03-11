@@ -43,6 +43,21 @@ imageUpdater:
 #         clusterRole: ""
 #       resources: {}
 #       podAnnotations: {}
+#       networkPolicy:        # optional: per-server NetworkPolicy rules
+#         ingress:            # raw K8s NetworkPolicyIngressRule list
+#           - from:
+#               - namespaceSelector:
+#                   matchLabels:
+#                     kubernetes.io/metadata.name: argocd
+#             ports:
+#               - { protocol: TCP, port: 8080 }
+#         egress:             # raw K8s NetworkPolicyEgressRule list
+#           - to:
+#               - namespaceSelector:
+#                   matchLabels:
+#                     kubernetes.io/metadata.name: argocd
+#             ports:
+#               - { protocol: TCP, port: 8080 }
 #       registration:         # optional: post-install Context Forge registration
 #         enabled: false
 #         transport: STREAMABLEHTTP

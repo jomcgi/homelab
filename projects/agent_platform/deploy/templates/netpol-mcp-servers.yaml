@@ -1,7 +1,9 @@
 {{- if and .Values.networkPolicy.enabled (index .Values "agent-platform-mcp-servers" "enabled") }}
-# MCP server pods ingress: context-forge (proxied tool calls + registration)
-# and sandbox pods (direct access when gateway disabled).
-# MCP server pods egress: upstream services they proxy (K8s API, ArgoCD, etc.)
+# Shared MCP server ingress: Context Forge (proxied tool calls + registration)
+# or sandbox pods (direct access when gateway disabled).
+# Per-server egress is defined in each server's networkPolicy field in the
+# agent-platform-mcp-servers subchart. This template only covers shared ingress
+# and the common Context Forge registration egress.
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -54,14 +56,14 @@ spec:
         - protocol: TCP
           port: 3000
     {{- end }}
+{{- if (index .Values "context-forge" "enabled") }}
 ---
-# MCP server egress: upstream services they call.
-# kubernetes-mcp → K8s API, argocd-mcp → argocd-server, signoz-mcp → signoz,
-# buildbuddy-mcp → BuildBuddy API, todo-mcp → todo service, etc.
+# MCP servers → Context Forge (registration jobs).
+# Common to all servers that register with the gateway.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
-  name: {{ .Release.Name }}-mcp-servers-egress
+  name: {{ .Release.Name }}-mcp-servers-registration-egress
   namespace: {{ .Release.Namespace }}
   labels:
     app.kubernetes.io/instance: {{ .Release.Name }}
@@ -73,38 +75,6 @@ spec:
   policyTypes:
     - Egress
   egress:
-    # MCP servers → Kubernetes API server (kubernetes-mcp)
-    - to:
-        - ipBlock:
-            cidr: {{ .Values.networkPolicy.apiServerCidr | default "0.0.0.0/0" | quote }}
-      ports:
-        - protocol: TCP
-          port: 443
-        - protocol: TCP
-          port: 6443
-    # MCP servers → in-cluster services (ArgoCD, SigNoz, todo, orchestrator)
-    - to:
-        - namespaceSelector: {}
-      ports:
-        - protocol: TCP
-          port: 80
-        - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 3000
-    # MCP servers → external APIs (BuildBuddy)
-    - to:
-        - ipBlock:
-            cidr: 0.0.0.0/0
-            except:
-              - 10.0.0.0/8
-              - 172.16.0.0/12
-              - 192.168.0.0/16
-      ports:
-        - protocol: TCP
-          port: 443
-    # MCP servers → Context Forge (registration jobs)
-    {{- if (index .Values "context-forge" "enabled") }}
     - to:
         - podSelector:
             matchExpressions:
@@ -122,5 +92,5 @@ spec:
           port: 80
         - protocol: TCP
           port: 8000
-    {{- end }}
+{{- end }}
 {{- end }}

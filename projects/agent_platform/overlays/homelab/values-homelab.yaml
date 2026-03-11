@@ -64,6 +64,16 @@ agent-platform-mcp-servers:
       registration:
         enabled: true
         transport: "STREAMABLEHTTP"
+      networkPolicy:
+        egress:
+          # signoz-mcp → SigNoz API (cross-namespace)
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: signoz
+            ports:
+              - protocol: TCP
+                port: 8080
       alert:
         enabled: true
         url: "http://signoz-mcp.agent-platform.svc.cluster.local:8000/health"
@@ -94,6 +104,19 @@ agent-platform-mcp-servers:
       registration:
         enabled: true
         transport: "STREAMABLEHTTP"
+      networkPolicy:
+        egress:
+          # buildbuddy-mcp → BuildBuddy API (external HTTPS)
+          - to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+                  except:
+                    - 10.0.0.0/8
+                    - 172.16.0.0/12
+                    - 192.168.0.0/16
+            ports:
+              - protocol: TCP
+                port: 443
       alert:
         enabled: true
         url: "http://buildbuddy-mcp.agent-platform.svc.cluster.local:8000/health"
@@ -137,6 +160,17 @@ agent-platform-mcp-servers:
       registration:
         enabled: true
         transport: "STREAMABLEHTTP"
+      networkPolicy:
+        egress:
+          # kubernetes-mcp → Kubernetes API server
+          - to:
+              - ipBlock:
+                  cidr: 0.0.0.0/0
+            ports:
+              - protocol: TCP
+                port: 443
+              - protocol: TCP
+                port: 6443
       alert:
         enabled: true
         url: "http://kubernetes-mcp.agent-platform.svc.cluster.local:8080/mcp"
@@ -165,6 +199,16 @@ agent-platform-mcp-servers:
       registration:
         enabled: true
         transport: "STREAMABLEHTTP"
+      networkPolicy:
+        egress:
+          # argocd-mcp → ArgoCD server (cross-namespace)
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: argocd
+            ports:
+              - protocol: TCP
+                port: 80
       alert:
         enabled: true
         url: "http://argocd-mcp.agent-platform.svc.cluster.local:3000/mcp"
@@ -191,6 +235,16 @@ agent-platform-mcp-servers:
       registration:
         enabled: true
         transport: "STREAMABLEHTTP"
+      networkPolicy:
+        egress:
+          # todo-mcp → todo admin service (cross-namespace)
+          - to:
+              - namespaceSelector:
+                  matchLabels:
+                    kubernetes.io/metadata.name: todo
+            ports:
+              - protocol: TCP
+                port: 8080
       alert:
         enabled: true
         url: "http://todo-mcp.agent-platform.svc.cluster.local:8000/health"
@@ -217,6 +271,16 @@ agent-platform-mcp-servers:
       registration:
         enabled: true
         transport: "STREAMABLEHTTP"
+      networkPolicy:
+        egress:
+          # agent-orchestrator-mcp → orchestrator HTTP API (same namespace)
+          - to:
+              - podSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: agent-orchestrator
+            ports:
+              - protocol: TCP
+                port: 8080
       alert:
         enabled: true
         url: "http://agent-orchestrator-mcp.agent-platform.svc.cluster.local:8000/health"
