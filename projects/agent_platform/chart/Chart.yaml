@@ -11,27 +11,27 @@ annotations:
 dependencies:
   - name: context-forge
     version: "2.0.0"
-    repository: "file://../context_forge/deploy"
+    repository: "file://./context-forge"
     condition: context-forge.enabled
 
   - name: mcp-oauth-proxy
     version: "0.1.0"
-    repository: "file://../mcp_oauth_proxy/deploy"
+    repository: "file://./mcp-oauth-proxy"
     condition: mcp-oauth-proxy.enabled
 
   - name: agent-platform-mcp-servers
     version: "0.1.0"
-    repository: "file://../mcp_servers_chart/deploy"
+    repository: "file://./mcp-servers"
     condition: agent-platform-mcp-servers.enabled
 
   - name: goose-sandboxes
     version: "0.1.0"
-    repository: "file://../sandboxes/deploy"
+    repository: "file://./sandboxes"
     condition: goose-sandboxes.enabled
 
   - name: agent-orchestrator
     version: "0.1.0"
-    repository: "file://../orchestrator/deploy"
+    repository: "file://./orchestrator"
     condition: agent-orchestrator.enabled
 
   - name: nats
@@ -41,5 +41,5 @@ dependencies:
 
   - name: agent-sandbox
     version: "0.1.0"
-    repository: "file://../agent-sandbox"
+    repository: "file://./agent-sandbox"
     condition: agent-sandbox.enabled
