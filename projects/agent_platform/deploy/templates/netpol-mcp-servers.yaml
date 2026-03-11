@@ -1,0 +1,31 @@
+{{- if and .Values.networkPolicy.enabled (index .Values "agent-platform-mcp-servers" "enabled") }}
+# MCP server pods ingress: sandbox pods (direct access when gateway disabled)
+# and context-forge (registration + proxied requests).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ .Release.Name }}-mcp-servers-ingress
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  policyTypes:
+    - Ingress
+  ingress:
+    # Context Forge → MCP servers (proxied tool calls + registration)
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+    {{- if not (index .Values "context-forge" "enabled") }}
+    # Sandbox → MCP servers directly (gateway disabled)
+    - from:
+        - podSelector:
+            matchLabels:
+              agents.x-k8s.io/sandbox-template: {{ (index .Values "goose-sandboxes" "sandboxTemplate" "name") | default "goose-agent" }}
+    {{- end }}
+{{- end }}
