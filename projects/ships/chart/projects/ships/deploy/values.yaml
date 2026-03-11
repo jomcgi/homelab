@@ -2,11 +2,11 @@
 
 ingest:
   image:
-    tag: main@sha256:a802c1d6701381fa17f7ab4be6bcdc5251b93213a924530e289f5fc6ee2d140e
+    tag: main@sha256:ebd84ad37527c7ceb987c7c230474f88df63f4f97111dfb449b80214cbf135ec
     repository: ghcr.io/jomcgi/homelab/services/ais_ingest
 api:
   image:
-    tag: main@sha256:8f5e5a87910aac431cf81c08a84d56c73d87161eee150c7e569c6404f13c5992
+    tag: main@sha256:509b933e6b59179016f0b6dfe83e8fd1c9e11c3a4b080cea3623532af9ea5758
     repository: ghcr.io/jomcgi/homelab/services/ships_api
 frontend:
   image:
