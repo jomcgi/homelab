@@ -20,6 +20,8 @@ spec:
               kubernetes.io/metadata.name: envoy-gateway-system
       ports:
         - protocol: TCP
+          port: 4143
+        - protocol: TCP
           port: 8080
 ---
 # OAuth Proxy egress: Google OIDC (external) + Context Forge (same namespace)
