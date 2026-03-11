@@ -3,7 +3,7 @@ actions:
   # Runs in parallel with Test action
   - name: "Format check"
     container_image: "ubuntu-24.04"
-    max_retries: 1
+    max_retries: 2
     resource_requests:
       disk: "20GB" # Slightly larger for format tools
     triggers:
@@ -23,35 +23,10 @@ actions:
             exit 0
           fi
 
-          # Build formatter tools and gazelle via Bazel and add to PATH
-          bazel build \
-            @aspect_rules_lint//format:ruff \
-            @aspect_rules_lint//format:shfmt \
-            @aspect_rules_lint//format:gofumpt \
-            @buildifier_prebuilt//:buildifier \
-            //bazel/tools/format:prettier \
-            //:gazelle
-          BAZEL_BIN=$(bazel info bazel-bin)
-          # Create a local bin dir with symlinks to Bazel-built tools
-          TOOLS_BIN="$PWD/.ci-tools/bin"
-          mkdir -p "$TOOLS_BIN"
-          for tool in ruff shfmt gofumpt buildifier prettier; do
-            bin=$(find -L "$BAZEL_BIN" -name "$tool" -type f -perm /111 2>/dev/null | head -1)
-            if [ -n "$bin" ]; then
-              ln -sf "$bin" "$TOOLS_BIN/$tool"
-            fi
-          done
-          ln -sf "$BAZEL_BIN/gazelle_binary_/gazelle_binary" "$TOOLS_BIN/gazelle"
-          export PATH="$TOOLS_BIN:$PATH"
-
-          # Run standalone format (formatters + generate scripts)
-          # Skip standalone gazelle in CI — bazel run handles it below
-          SKIP_GAZELLE=1 ./bazel/tools/format/fast-format.sh
-
-          # Run gazelle via Bazel for accurate Go dependency resolution.
-          # The standalone gazelle binary lacks Bazel module context needed to
-          # map Go imports to @com_github_* labels.
-          bazel run //:gazelle 2>&1 | grep -v "^INFO:"
+          # Run all formatters, generators, and gazelle in a single Bazel invocation.
+          # This replaces the previous 3-call approach (bazel build + fast-format.sh + bazel run gazelle)
+          # with one gRPC session, reducing transient connection failures.
+          bazel run //bazel/tools/format:format --config=ci
 
           # Validate grep-based generate scripts against bazel query
           ./bazel/images/validate-generate-scripts.sh

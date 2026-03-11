@@ -48,6 +48,7 @@ format_multirun(
 multirun(
     name = "format",
     commands = [
+        "//bazel/images:generate-docs-sidebar",
         "//bazel/images:generate-home-cluster",
         "//bazel/images:generate-push-all",
         "//bazel/images:generate-push-all-pages",
@@ -55,6 +56,7 @@ multirun(
         ":update_python_requirements",
         ":validate_apko_configs",
         ":format_code",
+        "//:gazelle",
     ],
     jobs = 10,
 )
