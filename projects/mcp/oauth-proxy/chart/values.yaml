@@ -9,6 +9,8 @@ image:
 
 # Non-secret environment variables
 config:
+  # Bind to all interfaces (default is localhost, which blocks pod traffic)
+  HOST: "0.0.0.0"
   # Google OIDC authorize endpoint
   OAUTH_AUTHORIZE_URL: "https://accounts.google.com"
   # OAuth scopes to request from Google
