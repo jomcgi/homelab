@@ -169,7 +169,7 @@ spec:
       runtimeClassName: kata-fc # Phase 2 — omit in Phase 1
       containers:
         - name: goose
-          image: ghcr.io/jomcgi/homelab/goose-agent:latest
+          image: ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image:latest
           command: ["/bin/sh", "-c"]
           args: ['goose run --text "$AGENT_TASK" --profile sandbox']
           env:

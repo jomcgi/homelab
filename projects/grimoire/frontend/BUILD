@@ -55,5 +55,4 @@ apko_nginx_frontend(
     config = "apko.yaml",
     contents = "@grimoire_frontend_lock//:contents",
     dist = ":build",
-    repository = "ghcr.io/jomcgi/homelab/services/grimoire-frontend",
 )

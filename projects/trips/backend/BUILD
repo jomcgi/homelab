@@ -34,7 +34,6 @@ py_library(
 py3_image(
     name = "image",
     binary = "//projects/trips/backend:main",
-    repository = "ghcr.io/jomcgi/homelab/services/trips_api",
 )
 
 py_test(

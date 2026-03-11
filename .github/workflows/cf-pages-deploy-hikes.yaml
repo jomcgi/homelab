@@ -30,7 +30,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Pull pre-built hikes update image
-        run: docker pull ghcr.io/jomcgi/homelab/services/hikes/update_forecast:main
+        run: docker pull ghcr.io/jomcgi/homelab/projects/hikes/update_forecast:main
 
       - name: Run update container
         run: |
@@ -39,4 +39,4 @@ jobs:
             -e CLOUDFLARE_S3_ACCESS_KEY_SECRET="${{ secrets.CLOUDFLARE_S3_ACCESS_KEY_SECRET }}" \
             -e CLOUDFLARE_S3_ENDPOINT="${{ secrets.CLOUDFLARE_S3_ENDPOINT }}" \
             -e R2_BUCKET_NAME="jomcgi-hikes" \
-            ghcr.io/jomcgi/homelab/services/hikes/update_forecast:main
+            ghcr.io/jomcgi/homelab/projects/hikes/update_forecast:main

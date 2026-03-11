@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/knowledge-graph-scraper:main
+          imageName: ghcr.io/jomcgi/homelab/projects/blog_knowledge_graph/scraper:main
           manifestTargets:
             helm:
               name: scraper.image.repository
@@ -36,7 +36,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/knowledge-graph-embedder:main
+          imageName: ghcr.io/jomcgi/homelab/projects/blog_knowledge_graph/embedder:main
           manifestTargets:
             helm:
               name: embedder.image.repository
@@ -62,7 +62,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/services/knowledge-graph-mcp:main
+          imageName: ghcr.io/jomcgi/homelab/projects/blog_knowledge_graph/mcp:main
           manifestTargets:
             helm:
               name: mcp.image.repository

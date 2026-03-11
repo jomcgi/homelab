@@ -3,7 +3,7 @@ fullnameOverride: ""
 
 controllerManager:
   image:
-    repository: ghcr.io/jomcgi/homelab/operators/oci-model-cache
+    repository: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache
     tag: latest
     pullPolicy: Always
 
@@ -40,7 +40,7 @@ controllerManager:
   affinity: {}
 
   copyImage:
-    repository: ghcr.io/jomcgi/homelab/tools/hf2oci
+    repository: ghcr.io/jomcgi/homelab/bazel/tools/hf2oci
     tag: main
 
   # -- nodeSelector applied to sync Job pods (model download/push).

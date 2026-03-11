@@ -17,7 +17,6 @@ filegroup(
 py3_image(
     name = "py_image",
     binary = "//projects/todo_app/todo_mcp/app:main",
-    repository = "ghcr.io/jomcgi/homelab/services/todo-mcp",
 )
 
 semgrep_test(

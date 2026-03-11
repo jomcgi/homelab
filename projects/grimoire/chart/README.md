@@ -40,7 +40,7 @@ Traffic is routed through Cloudflare Tunnel: static assets go to the frontend, `
 | Value                                 | Description                               | Default                                             |
 | ------------------------------------- | ----------------------------------------- | --------------------------------------------------- |
 | `frontend.replicaCount`               | Number of frontend replicas               | `1`                                                 |
-| `frontend.image.repository`           | Frontend container image                  | `ghcr.io/jomcgi/homelab/services/grimoire-frontend` |
+| `frontend.image.repository`           | Frontend container image                  | `ghcr.io/jomcgi/homelab/projects/grimoire/frontend` |
 | `wsGateway.replicaCount`              | Number of WebSocket gateway replicas      | `1`                                                 |
 | `wsGateway.cfAccessTeam`              | Cloudflare Access team name               | `""`                                                |
 | `redis.image.tag`                     | Redis image tag                           | `7-alpine`                                          |

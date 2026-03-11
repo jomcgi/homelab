@@ -106,7 +106,7 @@ resources:
 
 # Image configuration — uncomment if using /add-image-updater
 # image:
-#   repository: ghcr.io/jomcgi/homelab/services/{service}
+#   repository: ghcr.io/jomcgi/homelab/projects/{service}
 #   tag: main
 
 # Example: Resource limits
@@ -167,7 +167,7 @@ Then customize `values.yaml`:
 # Production values for blog
 
 image:
-  repository: ghcr.io/jomcgi/homelab/services/blog
+  repository: ghcr.io/jomcgi/homelab/projects/blog
   tag: v1.0.0
 
 cloudflare:

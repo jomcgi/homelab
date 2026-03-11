@@ -53,7 +53,7 @@ agent-platform-mcp-servers:
 
     - name: buildbuddy-mcp
       image:
-        repository: ghcr.io/jomcgi/homelab/services/buildbuddy-mcp
+        repository: ghcr.io/jomcgi/homelab/projects/agent_platform/buildbuddy_mcp
         tag: main
       port: 8000
       podAnnotations:
@@ -154,7 +154,7 @@ agent-platform-mcp-servers:
 
     - name: todo-mcp
       image:
-        repository: ghcr.io/jomcgi/homelab/services/todo-mcp
+        repository: ghcr.io/jomcgi/homelab/projects/todo_app
         tag: main
       port: 8000
       podAnnotations:
@@ -180,7 +180,7 @@ agent-platform-mcp-servers:
 
     - name: agent-orchestrator-mcp
       image:
-        repository: ghcr.io/jomcgi/homelab/services/agent-orchestrator-mcp
+        repository: ghcr.io/jomcgi/homelab/projects/agent_platform/orchestrator/mcp
         tag: main
       port: 8000
       podAnnotations:

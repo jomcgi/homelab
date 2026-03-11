@@ -80,7 +80,7 @@ ingest:
   enabled: true
 
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ais_ingest
+    repository: ghcr.io/jomcgi/homelab/projects/ships/ingest
     tag: "main"
     digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
@@ -114,7 +114,7 @@ api:
   enabled: true
 
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ships_api
+    repository: ghcr.io/jomcgi/homelab/projects/ships/backend
     tag: "main"
     digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
@@ -174,7 +174,7 @@ frontend:
   enabled: true
 
   image:
-    repository: ghcr.io/jomcgi/homelab/services/ships_frontend
+    repository: ghcr.io/jomcgi/homelab/projects/ships/frontend
     tag: "main"
     digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent

@@ -24,7 +24,7 @@ Add an entry to the `servers` array in `overlays/prod/mcp-servers/values.yaml`:
 ```yaml
 - name: my-mcp-server
   image:
-    repository: ghcr.io/jomcgi/homelab/services/my-mcp-server
+    repository: ghcr.io/jomcgi/homelab/projects/agent_platform/my_mcp_server
     tag: "main"
   port: 8000
   env:

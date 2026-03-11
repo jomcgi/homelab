@@ -106,7 +106,6 @@ apko_image(
         "@bb//:tar",
         ":runner_tar",
     ],
-    repository = "ghcr.io/jomcgi/homelab/goose-agent",
     tars = [
         ":config_tar",
         ":claude_code_tar",

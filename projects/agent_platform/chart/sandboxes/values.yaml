@@ -14,7 +14,7 @@ namespace:
 sandboxTemplate:
   name: goose-agent
   image:
-    repository: ghcr.io/jomcgi/homelab/goose-agent
+    repository: ghcr.io/jomcgi/homelab/projects/agent_platform/goose_agent/image
     tag: main
   env:
     gooseProvider: claude-code

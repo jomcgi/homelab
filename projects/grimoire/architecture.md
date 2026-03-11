@@ -1020,7 +1020,7 @@ services/grimoire/gcp/
 
 **Conventions followed:**
 
-- Images: `ghcr.io/jomcgi/homelab/services/grimoire-frontend`, `ghcr.io/jomcgi/homelab/services/grimoire-ws-gateway`
+- Images: `ghcr.io/jomcgi/homelab/projects/grimoire/frontend`, `ghcr.io/jomcgi/homelab/projects/grimoire/ws-gateway`
 - ArgoCD Application points to `charts/grimoire` with value layering: chart defaults + `overlays/dev/grimoire/values.yaml`
 - Bazel `py3_image` / `go_image` for container builds, `helm_chart` for chart packaging
 - `argocd_app` BUILD rule in overlay for template rendering/testing

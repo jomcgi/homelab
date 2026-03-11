@@ -32,7 +32,7 @@ def helm_chart(name, publish = False, repository = "oci://ghcr.io/jomcgi/homelab
 
                 Produces (in bazel-out):
                     image:
-                      repository: ghcr.io/jomcgi/homelab/charts/todo
+                      repository: ghcr.io/jomcgi/homelab/projects/todo_app/image
                       tag: main-abc1234
     """
     native.exports_files([

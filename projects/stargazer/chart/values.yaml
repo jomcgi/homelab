@@ -9,7 +9,7 @@ failedJobsHistoryLimit: 3
 concurrencyPolicy: Forbid # Don't run if previous job still running
 
 image:
-  repository: ghcr.io/jomcgi/homelab/services/stargazer
+  repository: ghcr.io/jomcgi/homelab/projects/stargazer
   pullPolicy: IfNotPresent
   tag: "latest"
 

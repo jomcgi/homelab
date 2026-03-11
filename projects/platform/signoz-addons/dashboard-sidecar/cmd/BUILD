@@ -29,5 +29,4 @@ go_binary(
 go_image(
     name = "image",
     binary = ":signoz-dashboard-sidecar",
-    repository = "ghcr.io/jomcgi/homelab/signoz-dashboard-sidecar",
 )

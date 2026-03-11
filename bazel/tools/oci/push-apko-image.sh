@@ -5,13 +5,13 @@
 # Usage: ./tools/oci/push-apko-image.sh <bazel-target> <repository:tag>
 #
 # Example:
-#   ./tools/oci/push-apko-image.sh //charts/ttyd-session-manager/backend:ttyd_image ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd:2025.01.01.00.00.00-abc1234
+#   ./tools/oci/push-apko-image.sh //charts/ttyd-session-manager/backend:ttyd_image ghcr.io/jomcgi/homelab/projects/ttyd-session-manager/ttyd:2025.01.01.00.00.00-abc1234
 
 set -euo pipefail
 
 if [ $# -ne 2 ]; then
 	echo "Usage: $0 <bazel-target> <repository:tag>"
-	echo "Example: $0 //charts/ttyd-session-manager/backend:ttyd_image ghcr.io/jomcgi/homelab/charts/ttyd-session-manager/ttyd:latest"
+	echo "Example: $0 //charts/ttyd-session-manager/backend:ttyd_image ghcr.io/jomcgi/homelab/projects/ttyd-session-manager/ttyd:latest"
 	exit 1
 fi
 

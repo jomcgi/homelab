@@ -63,7 +63,7 @@ api:
   # CORS allowed origins (comma-separated)
   corsOrigins: "https://trips.jomcgi.dev,http://localhost:5173,http://localhost:3000"
   image:
-    repository: ghcr.io/jomcgi/trips-api
+    repository: ghcr.io/jomcgi/homelab/projects/trips/backend
     tag: "latest"
     pullPolicy: Always
 

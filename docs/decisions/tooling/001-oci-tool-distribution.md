@@ -44,7 +44,7 @@ Eliminate local Bazel entirely. Distribute developer tools as a multi-arch OCI i
 A single multi-arch (x86_64 + aarch64) OCI image containing all developer tools. Wolfi packages install to standard paths (`/usr/bin/`, `/usr/lib/`), and the full image filesystem is extracted locally — no symlink indirection layer.
 
 ```
-ghcr.io/jomcgi/homelab-tools:latest
+ghcr.io/jomcgi/homelab/bazel/tools/image:latest
 
 /usr/bin/
 ├── helm              # Helm CLI (from multitool)

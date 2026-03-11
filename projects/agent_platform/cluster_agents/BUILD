@@ -35,5 +35,4 @@ go_test(
 go_image(
     name = "image",
     binary = ":cluster-agents",
-    repository = "ghcr.io/jomcgi/homelab/services/cluster-agents",
 )

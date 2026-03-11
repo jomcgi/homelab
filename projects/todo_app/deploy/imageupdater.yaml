@@ -10,7 +10,7 @@ spec:
           commonUpdateSettings:
             updateStrategy: digest
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/charts/todo:main
+          imageName: ghcr.io/jomcgi/homelab/projects/todo_app/image:main
           manifestTargets:
             helm:
               name: image.repository
