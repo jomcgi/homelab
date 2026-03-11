@@ -1,5 +1,7 @@
 # ── Context Forge Gateway ──────────────────────────────────────────────────
 mcp-stack:
+  migration:
+    enabled: false
   mcpContextForge:
     config:
       PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
