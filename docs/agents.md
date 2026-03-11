@@ -9,48 +9,48 @@ Claude.ai / Claude Code (external)
     │
     │  HTTPS  mcp.jomcgi.dev
     ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  MCP OAuth Proxy  (prod / mcp-gateway namespace)                │
-│  projects/agent_platform/mcp_oauth_proxy                                         │
-│  OAuth 2.1 AS — Google OIDC — injects X-Forwarded-User         │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ proxies to ClusterIP :8000
-                           ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Context Forge  (prod / mcp-gateway namespace)                  │
-│  projects/agent_platform/context_forge  ·  IBM mcp-context-forge v1.0.0-RC1      │
-│  MCP gateway — aggregates tool servers, RBAC by team            │
-│  Backends: Postgres (state) + Redis (sessions)                  │
-└───────┬──────────────────┬─────────────────┬────────────────────┘
-        │                  │                 │
-        ▼                  ▼                 ▼
-  signoz-mcp         buildbuddy-mcp    agent-orchestrator-mcp
-  argocd-mcp         kubernetes-mcp    todo-mcp
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│  MCP OAuth Proxy  (prod / mcp-gateway namespace)                                           │
+│  projects/agent_platform/mcp_oauth_proxy                                                   │
+│  OAuth 2.1 AS — Google OIDC — injects X-Forwarded-User                                     │
+└──────────────────────────────────────────┬─────────────────────────────────────────────────┘
+                                           │ proxies to ClusterIP :8000
+                                           ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Context Forge  (prod / mcp-gateway namespace)                                             │
+│  projects/agent_platform/context_forge  ·  IBM mcp-context-forge v1.0.0-RC1                │
+│  MCP gateway — aggregates tool servers, RBAC by team                                       │
+│  Backends: Postgres (state) + Redis (sessions)                                             │
+└───────┬──────────────────────────────────┬───────────────────────┬─────────────────────────┘
+        │                                  │                       │
+        ▼                                  ▼                       ▼
+  signoz-mcp                         buildbuddy-mcp          agent-orchestrator-mcp
+  argocd-mcp                         kubernetes-mcp          todo-mcp
   (projects/agent_platform/mcp_servers_chart — one pod per server, registered at startup)
-                                             │
-                                             │ HTTP  ClusterIP :8080
-                                             ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent Orchestrator  (prod / agent-orchestrator namespace)      │
+                                                                   │
+                                                                   │ HTTP  ClusterIP :8080
+                                                                   ▼
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Agent Orchestrator  (prod / agent-orchestrator namespace)                                 │
 │  projects/agent_platform/orchestrator  ·  projects/agent_platform/orchestrator/deploy      │
-│  Go service — HTTP API + NATS JetStream consumer                │
-└──────────┬──────────────────────────────────────────────────────┘
+│  Go service — HTTP API + NATS JetStream consumer                                           │
+└──────────┬─────────────────────────────────────────────────────────────────────────────────┘
            │ SandboxClaim CRUD  +  pod/exec
            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Agent Sandbox Controller  (cluster-critical)                   │
-│  projects/platform/agent-sandbox  ·  registry.k8s.io/agent-sandbox v0.1.1  │
-│  CRDs: Sandbox · SandboxTemplate · SandboxClaim · SandboxWarmPool│
-└──────────┬──────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Agent Sandbox Controller  (cluster-critical)                                              │
+│  projects/platform/agent-sandbox  ·  registry.k8s.io/agent-sandbox v0.1.1                  │
+│  CRDs: Sandbox · SandboxTemplate · SandboxClaim · SandboxWarmPool                          │
+└──────────┬─────────────────────────────────────────────────────────────────────────────────┘
            │ allocates pod from warm pool / creates pod
            ▼
-┌─────────────────────────────────────────────────────────────────┐
-│  Goose Sandbox Pod  (prod / goose-sandboxes namespace)          │
-│  projects/agent_platform/sandboxes  +  projects/agent_platform/goose_agent (apko image)     │
-│  Runs: goose run --text <task>                                   │
-│  Tools: developer (builtin) · context-forge (MCP) · github      │
-│  LLM: Claude Max via LiteLLM proxy (claude-code provider)       │
-└─────────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│  Goose Sandbox Pod  (prod / goose-sandboxes namespace)                                     │
+│  projects/agent_platform/sandboxes  +  projects/agent_platform/goose_agent (apko image)    │
+│  Runs: goose run --text <task>                                                             │
+│  Tools: developer (builtin) · context-forge (MCP) · github                                 │
+│  LLM: Claude Max via LiteLLM proxy (claude-code provider)                                  │
+└────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -185,27 +185,27 @@ A single Go binary combining an HTTP API and a NATS JetStream consumer. Accepts 
 ### Architecture
 
 ```
-┌───────────────────────────────────────────────────────┐
+┌────────────────────────────────────────────────────────┐
 │               agent-orchestrator                       │
 │                                                        │
 │  HTTP :8080                                            │
 │  ┌──────────┐    NATS JetStream                        │
-│  │ REST API ├──▶ stream: agent-jobs                   │
+│  │ REST API ├──▶ stream: agent-jobs                    │
 │  │          │    subject: agent.jobs                   │
 │  │          │    WorkQueue · max 1000 msgs             │
-│  └────┬─────┘         │                               │
+│  └────┬─────┘         │                                │
 │       │               │ pull (MaxAckPending=3)         │
-│       │               ▼                               │
-│       │    ┌────────────────────┐                     │
+│       │               ▼                                │
+│       │    ┌────────────────────┐                      │
 │       │    │ Consumer goroutine  │                     │
 │       │    │ (up to 3 concurrent)│                     │
-│       ▼    └─────────┬──────────┘                     │
-│  ┌──────────┐        │                                │
-│  │ NATS KV  │◀───────┘                                │
+│       ▼    └─────────┬──────────┘                      │
+│  ┌──────────┐        │                                 │
+│  │ NATS KV  │◀───────┘                                 │
 │  │ bucket:  │   job records (TTL 7 days)               │
 │  │job-records│                                         │
-│  └──────────┘                                         │
-└───────────────────────────────────────────────────────┘
+│  └──────────┘                                          │
+└────────────────────────────────────────────────────────┘
 ```
 
 Both the JetStream stream (`agent-jobs`) and KV bucket (`job-records`) are **self-provisioned** on startup via idempotent `CreateOrUpdate` calls — no manual NATS setup required.
