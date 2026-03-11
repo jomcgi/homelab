@@ -1,6 +1,12 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
-import { listJobs, submitJob, cancelJob, getJobOutput } from "./api.js";
+import {
+  listJobs,
+  submitJob,
+  cancelJob,
+  getJobOutput,
+  listProfiles,
+} from "./api.js";
 
 // ─── constants ────────────────────────────────────────────────────────────────
 
@@ -541,10 +547,14 @@ function SubmitModal({ onClose, onSubmit, prefill }) {
   const [tags, setTags] = useState(prefill?.tags || "");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+  const [profiles, setProfiles] = useState([]);
   const textareaRef = useRef(null);
 
   useEffect(() => {
     textareaRef.current?.focus();
+    listProfiles()
+      .then(setProfiles)
+      .catch(() => setProfiles([]));
   }, []);
 
   useEffect(() => {
@@ -650,8 +660,11 @@ function SubmitModal({ onClose, onSubmit, prefill }) {
                 }}
               >
                 <option value="">Default</option>
-                <option value="ci-debug">ci-debug</option>
-                <option value="code-fix">code-fix</option>
+                {profiles.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
               </select>
             </div>
             <div style={{ flex: 1 }}>

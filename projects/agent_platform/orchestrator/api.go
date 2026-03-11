@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -38,6 +39,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /jobs/{id}", a.handleGet)
 	mux.HandleFunc("POST /jobs/{id}/cancel", a.handleCancel)
 	mux.HandleFunc("GET /jobs/{id}/output", a.handleOutput)
+	mux.HandleFunc("GET /profiles", a.handleProfiles)
 	mux.HandleFunc("GET /health", a.handleHealth)
 }
 
@@ -218,6 +220,15 @@ func (a *API) handleOutput(w http.ResponseWriter, r *http.Request) {
 		Output:    latest.Output,
 		Truncated: latest.Truncated,
 	})
+}
+
+func (a *API) handleProfiles(w http.ResponseWriter, _ *http.Request) {
+	names := make([]string, 0, len(ValidProfiles))
+	for name := range ValidProfiles {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	a.writeJSON(w, http.StatusOK, names)
 }
 
 func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {

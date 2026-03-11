@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,10 +55,41 @@ var workDir = func() string {
 // is truncated to the last maxOutputBytes bytes (keeping the tail).
 const maxOutputBytes = 50 * 1024 * 1024 // 50MB
 
-// validProfiles maps profile names to recipe paths baked into the container.
-var validProfiles = map[string]string{
-	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
-	"code-fix": "/home/goose-agent/recipes/code-fix.yaml",
+// recipesDir is the directory containing goose recipe YAML files baked into the container.
+const recipesDir = "/home/goose-agent/recipes"
+
+// validProfiles maps profile names to recipe paths. Populated at startup by
+// discoverProfiles, which scans the recipes directory so new profiles only
+// require adding a recipe file — no code changes needed.
+var validProfiles map[string]string
+
+// discoverProfiles scans dir for .yaml files and returns a profile name → path map.
+// Profile names are derived from filenames (e.g. "ci-debug.yaml" → "ci-debug").
+func discoverProfiles(dir string) map[string]string {
+	profiles := make(map[string]string)
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		log.Printf("warning: could not read recipes directory %s: %v", dir, err)
+		return profiles
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".yaml") {
+			continue
+		}
+		name := strings.TrimSuffix(e.Name(), ".yaml")
+		profiles[name] = filepath.Join(dir, e.Name())
+	}
+	log.Printf("discovered %d profiles from %s: %v", len(profiles), dir, profileNames(profiles))
+	return profiles
+}
+
+// profileNames returns sorted profile names for logging.
+func profileNames(m map[string]string) []string {
+	names := make([]string, 0, len(m))
+	for k := range m {
+		names = append(names, k)
+	}
+	return names
 }
 
 // RunRequest is the JSON body for POST /run.
@@ -317,6 +349,8 @@ func main() {
 	if port == "" {
 		port = defaultPort
 	}
+
+	validProfiles = discoverProfiles(recipesDir)
 
 	r := newRunner()
 

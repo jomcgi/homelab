@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -231,6 +233,11 @@ func TestBuildGooseCmd_NoProfile(t *testing.T) {
 }
 
 func TestBuildGooseCmd_WithProfile(t *testing.T) {
+	validProfiles = map[string]string{
+		"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
+	}
+	t.Cleanup(func() { validProfiles = nil })
+
 	args := buildGooseCmd(RunRequest{Task: "debug CI", Profile: "ci-debug"})
 
 	expected := []string{
@@ -260,5 +267,37 @@ func TestBuildGooseCmd_UnknownProfile(t *testing.T) {
 		if args[i] != expected[i] {
 			t.Fatalf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
 		}
+	}
+}
+
+func TestDiscoverProfiles(t *testing.T) {
+	dir := t.TempDir()
+	// Create some recipe files.
+	for _, name := range []string{"alpha.yaml", "beta.yaml"} {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte("test"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// Create a non-yaml file and a directory that should be ignored.
+	os.WriteFile(filepath.Join(dir, "README.md"), []byte("ignore"), 0o644)
+	os.Mkdir(filepath.Join(dir, "subdir.yaml"), 0o755)
+
+	profiles := discoverProfiles(dir)
+
+	if len(profiles) != 2 {
+		t.Fatalf("expected 2 profiles, got %d: %v", len(profiles), profiles)
+	}
+	if profiles["alpha"] != filepath.Join(dir, "alpha.yaml") {
+		t.Errorf("unexpected alpha path: %s", profiles["alpha"])
+	}
+	if profiles["beta"] != filepath.Join(dir, "beta.yaml") {
+		t.Errorf("unexpected beta path: %s", profiles["beta"])
+	}
+}
+
+func TestDiscoverProfiles_MissingDir(t *testing.T) {
+	profiles := discoverProfiles("/nonexistent/path")
+	if len(profiles) != 0 {
+		t.Fatalf("expected empty map for missing dir, got %v", profiles)
 	}
 }

@@ -8,6 +8,8 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -355,6 +357,33 @@ func TestHandleOutput(t *testing.T) {
 	}
 }
 
+func TestHandleProfiles(t *testing.T) {
+	_, mux := newTestAPI(newMemStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/profiles", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var profiles []string
+	if err := json.NewDecoder(rec.Body).Decode(&profiles); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	// Should return sorted list of all valid profiles.
+	if len(profiles) != len(ValidProfiles) {
+		t.Fatalf("expected %d profiles, got %d: %v", len(ValidProfiles), len(profiles), profiles)
+	}
+	for i := 1; i < len(profiles); i++ {
+		if profiles[i] < profiles[i-1] {
+			t.Fatalf("profiles not sorted: %v", profiles)
+		}
+	}
+}
+
 func TestHandleHealth(t *testing.T) {
 	_, mux := newTestAPI(newMemStore())
 
@@ -364,5 +393,35 @@ func TestHandleHealth(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+// TestValidProfilesMatchRecipeFiles ensures the ValidProfiles map stays in sync
+// with the recipe YAML files baked into the goose-agent container image.
+// This test breaks the build if a recipe is added/removed without updating model.go.
+func TestValidProfilesMatchRecipeFiles(t *testing.T) {
+	recipesDir := filepath.Join("..", "goose_agent", "image", "recipes")
+	entries, err := os.ReadDir(recipesDir)
+	if err != nil {
+		t.Fatalf("could not read recipes directory %s: %v", recipesDir, err)
+	}
+
+	fileProfiles := make(map[string]bool)
+	for _, e := range entries {
+		if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
+			name := strings.TrimSuffix(e.Name(), ".yaml")
+			fileProfiles[name] = true
+		}
+	}
+
+	for name := range fileProfiles {
+		if _, ok := ValidProfiles[name]; !ok {
+			t.Errorf("recipe file %s.yaml exists but has no entry in ValidProfiles (model.go)", name)
+		}
+	}
+	for name := range ValidProfiles {
+		if !fileProfiles[name] {
+			t.Errorf("ValidProfiles entry %q has no matching recipe file in %s", name, recipesDir)
+		}
 	}
 }
