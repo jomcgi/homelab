@@ -46,7 +46,7 @@ spec:
           port: 53
         - protocol: TCP
           port: 53
-    # → Linkerd control plane (identity + destination)
+    # → Linkerd control plane (identity + destination + policy)
     - to:
         - namespaceSelector:
             matchLabels:
@@ -56,6 +56,8 @@ spec:
           port: 8080
         - protocol: TCP
           port: 8086
+        - protocol: TCP
+          port: 8090
     # → Google OIDC (token exchange, userinfo)
     - to:
         - ipBlock:
