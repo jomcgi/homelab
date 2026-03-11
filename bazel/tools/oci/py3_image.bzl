@@ -157,8 +157,8 @@ def py3_image(name, binary, main = None, root = "/", layer_groups = {}, env = {}
         name = name + "_stamped_tags_ci",
         out = name + "_stamped_ci.tags.txt",
         template = [
+            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha (primary — used by helm values via head -1)
             "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main", "feature-xyz")
-            "{STABLE_IMAGE_TAG}",  # Timestamp: YYYY.MM.DD.HH.MM.SS-shortsha
         ],
         stamp_substitutions = {
             "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",

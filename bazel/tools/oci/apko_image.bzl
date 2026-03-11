@@ -169,8 +169,8 @@ def apko_image(
         name = name + "_stamped_tags_ci",
         out = name + "_stamped_ci.tags.txt",
         template = [
-            "{STABLE_BRANCH_TAG}",
-            "{STABLE_IMAGE_TAG}",
+            "{STABLE_IMAGE_TAG}",  # Timestamp (primary — used by helm values via head -1)
+            "{STABLE_BRANCH_TAG}",  # Branch name (e.g., "main")
         ],
         stamp_substitutions = {
             "{STABLE_BRANCH_TAG}": "{{STABLE_BRANCH_TAG}}",
