@@ -59,6 +59,13 @@ securityContext:
     drop:
       - ALL
 
+httpRoute:
+  enabled: false
+  hostname: ""
+  gatewayRef:
+    name: cloudflare-ingress
+    namespace: envoy-gateway-system
+
 networkPolicy:
   enabled: true
   gateway:
