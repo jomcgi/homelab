@@ -65,8 +65,3 @@ httpRoute:
   gatewayRef:
     name: cloudflare-ingress
     namespace: envoy-gateway-system
-
-networkPolicy:
-  enabled: true
-  gateway:
-    podLabel: context-forge-gateway-mcp-stack-mcpgateway
