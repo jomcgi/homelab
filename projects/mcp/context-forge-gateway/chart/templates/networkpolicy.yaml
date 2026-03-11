@@ -1,80 +1,6 @@
 {{- if .Values.networkPolicy.enabled }}
-# ── Default deny ────────────────────────────────────────────────────────────
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: default-deny
-  labels:
-    {{- include "context-forge.labels" . | nindent 4 }}
-spec:
-  podSelector: {}
-  policyTypes:
-    - Ingress
-    - Egress
-
-# ── Allow DNS ───────────────────────────────────────────────────────────────
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: allow-dns
-  labels:
-    {{- include "context-forge.labels" . | nindent 4 }}
-spec:
-  podSelector: {}
-  policyTypes:
-    - Egress
-  egress:
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: kube-system
-      ports:
-        - protocol: UDP
-          port: 53
-        - protocol: TCP
-          port: 53
-    # Linkerd control plane (identity + destination)
-    - to:
-        - namespaceSelector:
-            matchLabels:
-              kubernetes.io/metadata.name: linkerd
-      ports:
-        - protocol: TCP
-          port: 8080
-        - protocol: TCP
-          port: 8086
-
-# ── Context Forge internal traffic ──────────────────────────────────────────
-# mcpgateway ↔ postgres ↔ redis ↔ migration (all mcp-stack components).
----
-apiVersion: networking.k8s.io/v1
-kind: NetworkPolicy
-metadata:
-  name: {{ .Release.Name }}-internal
-  labels:
-    {{- include "context-forge.labels" . | nindent 4 }}
-spec:
-  podSelector:
-    matchLabels:
-      app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
-  policyTypes:
-    - Ingress
-    - Egress
-  ingress:
-    - from:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
-  egress:
-    - to:
-        - podSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
-
 # ── Context Forge ingress (cross-namespace) ─────────────────────────────────
-# MCP servers (registration + tool calls), sandbox pods, and OAuth proxy.
+# Controls which namespaces can reach the gateway (MCP servers, sandboxes, OAuth proxy).
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -85,7 +11,7 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app.kubernetes.io/name: {{ .Release.Name }}-mcp-stack
+      app: {{ .Release.Name }}-mcp-stack-mcpgateway
   policyTypes:
     - Ingress
   ingress:
