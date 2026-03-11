@@ -60,13 +60,12 @@ exports_files(
 # We don't intend to plant BUILD files there.
 # gazelle:exclude **/*.venv
 #
+# gazelle:python_manifest_file_name bazel/tools/python/gazelle_python.yaml
+#
 # Python gazelle configuration moved to //bazel/tools/python to avoid eager-fetching
 # all pip packages during CI analysis phase. Use:
 # - bazel run //bazel/tools/python:gazelle_python_manifest.update
 # - bazel test //bazel/tools/python:gazelle_python_manifest.test
-#
-# Note: gazelle_python.yaml in workspace root is a symlink to bazel/tools/python/gazelle_python.yaml
-# because Gazelle expects the manifest file at the workspace root.
 
 py_library(
     name = "homelab",
