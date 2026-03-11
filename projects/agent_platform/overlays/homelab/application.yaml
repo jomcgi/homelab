@@ -13,7 +13,7 @@ spec:
       helm:
         releaseName: agent-platform
         valueFiles:
-          - $values/projects/agent_platform/overlays/homelab/values-homelab.yaml
+          - $values/projects/agent_platform/overlays/homelab/values.yaml
     # Git repo for environment-specific values
     - repoURL: https://github.com/jomcgi/homelab.git
       targetRevision: HEAD
