@@ -2,23 +2,13 @@ apiVersion: v2
 name: agent-platform
 description: Agent platform — umbrella chart bundling goose sandboxes, MCP servers, and supporting components
 type: application
-version: 0.7.0
+version: 0.8.0
 appVersion: "0.2.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.url: "https://github.com/jomcgi/homelab/tree/main/projects/agent_platform/chart"
   org.opencontainers.image.licenses: "MPL-2.0"
 dependencies:
-  - name: context-forge
-    version: "2.0.0"
-    repository: "file://./context-forge"
-    condition: context-forge.enabled
-
-  - name: mcp-oauth-proxy
-    version: "0.1.0"
-    repository: "file://./mcp-oauth-proxy"
-    condition: mcp-oauth-proxy.enabled
-
   - name: agent-platform-mcp-servers
     version: "0.1.0"
     repository: "file://./mcp-servers"

@@ -54,19 +54,5 @@ With ArgoCD, also add to the Application spec:
 
 ## Context Forge & MCP OAuth Proxy
 
-{{ if (index .Values "context-forge" "enabled") -}}
-Context Forge (MCP gateway) is ENABLED in this release.
-{{ else -}}
-Context Forge is DISABLED. Enable with:
-  context-forge:
-    enabled: true
-{{ end -}}
-{{ if (index .Values "mcp-oauth-proxy" "enabled") -}}
-MCP OAuth Proxy is ENABLED in this release (Google OIDC auth, ADR 006).
-{{ else -}}
-MCP OAuth Proxy is DISABLED. Enable with:
-  mcp-oauth-proxy:
-    enabled: true
-Requires a Context Forge instance (context-forge.enabled: true or external URL
-configured in mcp-oauth-proxy.config.MCP_SERVER_URL).
-{{ end -}}
+Context Forge and MCP OAuth Proxy are deployed separately in the `mcp` namespace.
+See projects/mcp/ for their ArgoCD applications.

@@ -1,10 +1,4 @@
 dependencies:
-- name: context-forge
-  repository: file://./context-forge
-  version: 2.0.0
-- name: mcp-oauth-proxy
-  repository: file://./mcp-oauth-proxy
-  version: 0.1.0
 - name: agent-platform-mcp-servers
   repository: file://./mcp-servers
   version: 0.1.0
@@ -20,5 +14,5 @@ dependencies:
 - name: agent-sandbox
   repository: file://./agent-sandbox
   version: 0.1.0
-digest: sha256:0000000000000000000000000000000000000000000000000000000000000000
-generated: "2026-03-11T00:00:00Z"
+digest: sha256:ea292a47ee531cbc472365c27c0ba11491e70e29ee2d6bebebfc93ce283d3f80
+generated: "2026-03-11T08:56:06.46828-07:00"
