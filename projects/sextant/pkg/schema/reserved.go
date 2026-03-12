@@ -1,6 +1,9 @@
 package schema
 
-import "fmt"
+import (
+	"fmt"
+	"strings"
+)
 
 // reservedFieldNames contains field names that cannot be used in state definitions
 // because they would collide with generated methods.
@@ -259,7 +262,7 @@ func CheckMetadataName(name string) error {
 		}
 	}
 
-	if goPredeclared[name] {
+	if goPredeclared[name] || goPredeclared[strings.ToLower(name)] {
 		return ReservedWordError{
 			Word:     name,
 			Location: "metadata.name",
