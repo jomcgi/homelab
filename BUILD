@@ -29,7 +29,6 @@ gazelle_binary(
 
 gazelle(
     name = "gazelle",
-    visibility = ["//bazel/tools/format:__pkg__"],
     env = {
         "ENABLE_LANGUAGES": ",".join([
             "argocd",
@@ -42,6 +41,7 @@ gazelle(
         ]),
     },
     gazelle = ":gazelle_binary",
+    visibility = ["//bazel/tools/format:__pkg__"],
 )
 
 exports_files(
