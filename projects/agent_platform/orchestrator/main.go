@@ -2,7 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"log/slog"
+	"math"
 	"net/http"
 	"os"
 	"os/signal"
@@ -62,38 +65,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Create or update stream.
-	_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-		Name:      streamName,
-		Subjects:  []string{subject},
-		Retention: jetstream.WorkQueuePolicy,
-		MaxMsgs:   1000,
-	})
+	// Set up JetStream resources with retry. During rolling deployments,
+	// NATS may not be fully ready when the orchestrator starts — retrying
+	// with backoff avoids a crash loop.
+	kv, cons, err := setupJetStream(ctx, js, maxConcurrent, logger)
 	if err != nil {
-		logger.Error("failed to create stream", "error", err)
-		os.Exit(1)
-	}
-
-	// Create or update KV bucket.
-	kv, err := js.CreateOrUpdateKeyValue(ctx, jetstream.KeyValueConfig{
-		Bucket: kvBucket,
-		TTL:    7 * 24 * time.Hour,
-	})
-	if err != nil {
-		logger.Error("failed to create KV bucket", "error", err)
-		os.Exit(1)
-	}
-
-	// Create durable pull consumer.
-	cons, err := js.CreateOrUpdateConsumer(ctx, streamName, jetstream.ConsumerConfig{
-		Name:          "orchestrator",
-		Durable:       "orchestrator",
-		AckPolicy:     jetstream.AckExplicitPolicy,
-		MaxAckPending: maxConcurrent,
-		AckWait:       2 * time.Minute,
-	})
-	if err != nil {
-		logger.Error("failed to create consumer", "error", err)
+		logger.Error("failed to set up JetStream resources", "error", err)
 		os.Exit(1)
 	}
 
@@ -169,6 +146,76 @@ func main() {
 		logger.Error("HTTP server error", "error", err)
 		os.Exit(1)
 	}
+}
+
+// jetStreamSetup is the subset of jetstream.JetStream needed for resource setup.
+type jetStreamSetup interface {
+	CreateOrUpdateStream(ctx context.Context, cfg jetstream.StreamConfig) (jetstream.Stream, error)
+	CreateOrUpdateKeyValue(ctx context.Context, cfg jetstream.KeyValueConfig) (jetstream.KeyValue, error)
+	CreateOrUpdateConsumer(ctx context.Context, stream string, cfg jetstream.ConsumerConfig) (jetstream.Consumer, error)
+}
+
+func setupJetStream(ctx context.Context, js jetStreamSetup, maxConcurrent int, logger *slog.Logger) (jetstream.KeyValue, jetstream.Consumer, error) {
+	const maxAttempts = 10
+
+	var (
+		kv   jetstream.KeyValue
+		cons jetstream.Consumer
+	)
+
+	for attempt := range maxAttempts {
+		if err := ctx.Err(); err != nil {
+			return nil, nil, err
+		}
+
+		setupCtx, cancel := context.WithTimeout(ctx, 10*time.Second)
+
+		_, err := js.CreateOrUpdateStream(setupCtx, jetstream.StreamConfig{
+			Name:      streamName,
+			Subjects:  []string{subject},
+			Retention: jetstream.WorkQueuePolicy,
+			MaxMsgs:   1000,
+		})
+		if err != nil {
+			cancel()
+			if errors.Is(err, context.Canceled) {
+				return nil, nil, err
+			}
+			backoff := time.Duration(math.Min(float64(time.Second)*math.Pow(2, float64(attempt)), float64(30*time.Second)))
+			logger.Warn("JetStream not ready, retrying", "attempt", attempt+1, "backoff", backoff, "error", err)
+			select {
+			case <-time.After(backoff):
+				continue
+			case <-ctx.Done():
+				return nil, nil, ctx.Err()
+			}
+		}
+
+		kv, err = js.CreateOrUpdateKeyValue(setupCtx, jetstream.KeyValueConfig{
+			Bucket: kvBucket,
+			TTL:    7 * 24 * time.Hour,
+		})
+		if err != nil {
+			cancel()
+			return nil, nil, fmt.Errorf("create KV bucket: %w", err)
+		}
+
+		cons, err = js.CreateOrUpdateConsumer(setupCtx, streamName, jetstream.ConsumerConfig{
+			Name:          "orchestrator",
+			Durable:       "orchestrator",
+			AckPolicy:     jetstream.AckExplicitPolicy,
+			MaxAckPending: maxConcurrent,
+			AckWait:       2 * time.Minute,
+		})
+		cancel()
+		if err != nil {
+			return nil, nil, fmt.Errorf("create consumer: %w", err)
+		}
+
+		return kv, cons, nil
+	}
+
+	return nil, nil, fmt.Errorf("JetStream setup failed after %d attempts", maxAttempts)
 }
 
 func envOr(key, fallback string) string {
