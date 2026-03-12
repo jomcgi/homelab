@@ -91,16 +91,21 @@ elif [[ "$CAN_VERSION" == "true" ]]; then
     git add "${CHART_DIR}/Chart.yaml"
 
     # Also update targetRevision in the ArgoCD Application so it deploys the new chart version.
-    # Convention: chart at projects/<svc>/chart → deploy at projects/<svc>/deploy/application.yaml
+    # Convention 1: chart at projects/<svc>/chart → deploy at projects/<svc>/deploy/application.yaml
+    # Convention 2: chart and application.yaml colocated in the same directory
     DEPLOY_APP_YAML="$(dirname "$ABS_CHART_DIR")/deploy/application.yaml"
+    if [[ ! -f "$DEPLOY_APP_YAML" ]] && [[ -f "${ABS_CHART_DIR}/application.yaml" ]]; then
+      DEPLOY_APP_YAML="${ABS_CHART_DIR}/application.yaml"
+    fi
     if [[ -f "$DEPLOY_APP_YAML" ]]; then
       CURRENT_TARGET=$(grep 'targetRevision:' "$DEPLOY_APP_YAML" | head -1 | awk '{print $2}' | tr -d '"')
       if [[ -n "$CURRENT_TARGET" ]] && [[ "$CURRENT_TARGET" != "$NEW_VERSION" ]]; then
         echo "Updating targetRevision: ${CURRENT_TARGET} -> ${NEW_VERSION}"
         sed "s/targetRevision: ${CURRENT_TARGET}/targetRevision: ${NEW_VERSION}/" "$DEPLOY_APP_YAML" > "${DEPLOY_APP_YAML}.tmp"
         mv "${DEPLOY_APP_YAML}.tmp" "$DEPLOY_APP_YAML"
-        DEPLOY_DIR="$(dirname "$CHART_DIR")/deploy"
-        git add "${DEPLOY_DIR}/application.yaml"
+        # git add using the path relative to workspace root
+        RELATIVE_APP_YAML="${DEPLOY_APP_YAML#${WORKSPACE}/}"
+        git add "$RELATIVE_APP_YAML"
       fi
     fi
 
