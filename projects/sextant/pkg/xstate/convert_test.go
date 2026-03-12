@@ -223,7 +223,6 @@ func TestConvert_StateTags(t *testing.T) {
 }
 
 func TestConvert_StateMetaRequeue(t *testing.T) {
-	sm := validSM()
 	// Parse the requeue duration from YAML via test helper
 	yamlStr := `
 apiVersion: controlflow.io/v1alpha1
