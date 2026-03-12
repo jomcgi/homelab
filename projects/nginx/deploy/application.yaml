@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: https://github.com/jomcgi/homelab.git
     targetRevision: HEAD
-    path: projects/agent_platform/api_gateway/deploy
+    path: projects/nginx/deploy
     helm:
       releaseName: api-gateway
       valueFiles:
