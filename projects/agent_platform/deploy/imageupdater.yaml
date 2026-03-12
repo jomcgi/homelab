@@ -8,9 +8,9 @@ spec:
     - images:
         - alias: agent-platform-chart
           commonUpdateSettings:
-            updateStrategy: digest
+            updateStrategy: semver
             forceUpdate: false
-          imageName: ghcr.io/jomcgi/homelab/projects/agent_platform/chart
+          imageName: ghcr.io/jomcgi/homelab/charts/agent-platform
           manifestTargets:
             helm:
               name: ""
