@@ -2,7 +2,7 @@
 
 image:
   repository: ghcr.io/jomcgi/homelab/projects/platform/signoz-addons/dashboard-sidecar/cmd
-  tag: "" # Defaults to appVersion
+  tag: "" # Pinned at build time by helm_images_values
   pullPolicy: IfNotPresent
 
 # Image pull secrets for private registries
