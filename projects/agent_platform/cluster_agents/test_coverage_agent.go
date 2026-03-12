@@ -70,7 +70,8 @@ test(<project>): add coverage for <description>`, commitRange)
 			Type:    ActionOrchestratorJob,
 			Finding: findings[0],
 			Payload: map[string]any{
-				"task": task,
+				"task":    task,
+				"profile": "code-fix",
 			},
 		},
 	}, nil

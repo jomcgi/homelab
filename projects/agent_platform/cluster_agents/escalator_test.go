@@ -90,6 +90,11 @@ func TestEscalator_SubmitsJobWhenNoActiveJob(t *testing.T) {
 	if !ok || len(tags) != 1 || tags[0] != "alert:42" {
 		t.Errorf("expected tags [alert:42], got %v", received["tags"])
 	}
+	// Patrol jobs should default to research profile.
+	profile, ok := received["profile"].(string)
+	if !ok || profile != "research" {
+		t.Errorf("expected profile research, got %v", received["profile"])
+	}
 }
 
 func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
@@ -117,7 +122,8 @@ func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
 			Title:       "New commits for test coverage review",
 		},
 		Payload: map[string]any{
-			"task": "Custom task prompt here",
+			"task":    "Custom task prompt here",
+			"profile": "code-fix",
 		},
 	}}
 
@@ -139,6 +145,11 @@ func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
 	source, ok := received["source"].(string)
 	if !ok || source != "improvement:test-coverage" {
 		t.Errorf("expected source improvement:test-coverage, got %v", received["source"])
+	}
+	// Profile should be passed through.
+	profile, ok := received["profile"].(string)
+	if !ok || profile != "code-fix" {
+		t.Errorf("expected profile code-fix, got %v", received["profile"])
 	}
 }
 
