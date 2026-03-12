@@ -43,6 +43,7 @@ multirun(
         "//bazel/tools/image:image.push",
         "//projects/agent_platform/buildbuddy_mcp:image.push",
         "//projects/agent_platform/chart:chart.push",
+        "//projects/agent_platform/cluster_agents/deploy:chart.push",
         "//projects/agent_platform/cluster_agents:image.push",
         "//projects/agent_platform/goose_agent/image:image.push",
         "//projects/agent_platform/orchestrator/mcp:image.push",

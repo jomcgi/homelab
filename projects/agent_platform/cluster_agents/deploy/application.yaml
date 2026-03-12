@@ -5,15 +5,20 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/jomcgi/homelab.git
-    path: projects/agent_platform/cluster_agents/deploy
-    targetRevision: HEAD
-    helm:
-      releaseName: cluster-agents
-      valueFiles:
-        - values.yaml
-        - values-prod.yaml
+  sources:
+    # Chart from OCI registry (pushed by CI via Bazel helm_push)
+    - repoURL: ghcr.io/jomcgi/homelab/charts
+      chart: cluster-agents
+      targetRevision: 0.2.0
+      helm:
+        releaseName: cluster-agents
+        valueFiles:
+          - $values/projects/agent_platform/cluster_agents/deploy/values.yaml
+          - $values/projects/agent_platform/cluster_agents/deploy/values-prod.yaml
+    # Git repo for environment-specific values
+    - repoURL: https://github.com/jomcgi/homelab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: cluster-agents
