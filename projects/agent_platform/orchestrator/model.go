@@ -13,36 +13,21 @@ const (
 	JobCancelled JobStatus = "CANCELLED"
 )
 
-// ValidProfiles maps profile names to their recipe paths inside the container.
-// An empty profile means default behavior (no recipe, all tools).
-var ValidProfiles = map[string]string{
-	"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
-	"code-fix": "/home/goose-agent/recipes/code-fix.yaml",
-	"research": "/home/goose-agent/recipes/research.yaml",
-	"bazel":    "/home/goose-agent/recipes/bazel.yaml",
-}
-
 // AgentInfo describes an available agent for the pipeline composer UI.
 type AgentInfo struct {
-	ID          string `json:"id"`
-	Label       string `json:"label"`
-	Icon        string `json:"icon"`
-	Background  string `json:"bg"`
-	Foreground  string `json:"fg"`
-	Description string `json:"desc"`
-	Category    string `json:"category"`
-}
-
-// ProfileInfo describes an execution profile for the pipeline composer UI.
-type ProfileInfo struct {
-	ID   string `json:"id"`
-	Meta string `json:"meta"`
+	ID          string         `json:"id"`
+	Label       string         `json:"label"`
+	Icon        string         `json:"icon"`
+	Background  string         `json:"bg"`
+	Foreground  string         `json:"fg"`
+	Description string         `json:"desc"`
+	Category    string         `json:"category"`
+	Recipe      map[string]any `json:"recipe,omitempty"`
 }
 
 // AgentsResponse is returned by GET /agents.
 type AgentsResponse struct {
-	Agents   []AgentInfo   `json:"agents"`
-	Profiles []ProfileInfo `json:"profiles"`
+	Agents []AgentInfo `json:"agents"`
 }
 
 // JobRecord is the primary data model persisted in the NATS KV store.
