@@ -21,7 +21,7 @@ func main() {
 
 	signozURL := envOr("SIGNOZ_URL", "http://signoz.signoz.svc.cluster.local:8080")
 	signozToken := os.Getenv("SIGNOZ_API_KEY")
-	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-orchestrator.agent-platform.svc.cluster.local:8080")
+	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-platform-agent-orchestrator.agent-platform.svc.cluster.local:8080")
 	httpPort := envOr("HTTP_PORT", "8080")
 	patrolInterval := envDurationOr("PATROL_INTERVAL", 1*time.Hour)
 
