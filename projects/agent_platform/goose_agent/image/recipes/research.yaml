@@ -29,6 +29,8 @@ instructions: |
   and use type: issue instead.
 prompt: |
   {{ task_description }}
+
+  REMINDER: When finished, create a GitHub gist with your findings and emit the goose-result block as the LAST thing you write.
 parameters:
   - key: task_description
     description: "The research question or topic to investigate"
