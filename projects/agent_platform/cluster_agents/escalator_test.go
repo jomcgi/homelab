@@ -92,6 +92,56 @@ func TestEscalator_SubmitsJobWhenNoActiveJob(t *testing.T) {
 	}
 }
 
+func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
+	var received map[string]any
+	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		json.NewDecoder(r.Body).Decode(&received)
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-1"})
+	}))
+	defer orchestrator.Close()
+
+	esc := &Escalator{
+		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
+	}
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:test-coverage",
+			Source:      "improvement:test-coverage",
+			Title:       "New commits for test coverage review",
+		},
+		Payload: map[string]any{
+			"task": "Custom task prompt here",
+		},
+	}}
+
+	esc.Execute(context.Background(), actions)
+
+	if received == nil {
+		t.Fatal("expected job to be submitted")
+	}
+	task, ok := received["task"].(string)
+	if !ok || task != "Custom task prompt here" {
+		t.Errorf("expected custom task, got %v", received["task"])
+	}
+	// Tag should be the fingerprint since no rule_id in Data.
+	tags, ok := received["tags"].([]any)
+	if !ok || len(tags) != 1 || tags[0] != "improvement:test-coverage" {
+		t.Errorf("expected tag improvement:test-coverage, got %v", received["tags"])
+	}
+	// Source should be Finding.Source.
+	source, ok := received["source"].(string)
+	if !ok || source != "improvement:test-coverage" {
+		t.Errorf("expected source improvement:test-coverage, got %v", received["source"])
+	}
+}
+
 func TestEscalator_LogActionSkipsDedup(t *testing.T) {
 	esc := &Escalator{}
 
