@@ -213,3 +213,71 @@ func TestEscalator_LogActionSkipsDedup(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// TestEscalator_IncludesSHATagWhenLatestSHASet verifies that when the finding
+// carries a "latest_sha" data field (set by gate-based agents) the escalator
+// appends a "sha:<value>" tag to the job so that GitActivityGate can look up
+// the processed commit on the next run.
+func TestEscalator_IncludesSHATagWhenLatestSHASet(t *testing.T) {
+	var received map[string]any
+	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		json.NewDecoder(r.Body).Decode(&received)
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-1"})
+	}))
+	defer orchestrator.Close()
+
+	esc := &Escalator{
+		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
+	}
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:test-coverage",
+			Source:      "improvement:test-coverage",
+			Title:       "Test coverage job",
+			Data: map[string]any{
+				"commit_range": "abc123..def456",
+				"latest_sha":   "def456",
+			},
+		},
+		Payload: map[string]any{
+			"task":    "Check test coverage",
+			"profile": "code-fix",
+		},
+	}}
+
+	esc.Execute(context.Background(), actions)
+
+	if received == nil {
+		t.Fatal("expected job to be submitted")
+	}
+
+	tags, ok := received["tags"].([]any)
+	if !ok {
+		t.Fatalf("expected tags array, got %T: %v", received["tags"], received["tags"])
+	}
+
+	foundFingerprint := false
+	foundSHA := false
+	for _, tag := range tags {
+		s, _ := tag.(string)
+		if s == "improvement:test-coverage" {
+			foundFingerprint = true
+		}
+		if s == "sha:def456" {
+			foundSHA = true
+		}
+	}
+	if !foundFingerprint {
+		t.Errorf("expected tag improvement:test-coverage in tags %v", tags)
+	}
+	if !foundSHA {
+		t.Errorf("expected tag sha:def456 in tags %v (needed for GitActivityGate dedup)", tags)
+	}
+}

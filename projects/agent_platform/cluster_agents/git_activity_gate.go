@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 )
 
 type GitActivityGate struct {
@@ -25,35 +26,37 @@ func NewGitActivityGate(github *GitHubClient, orchestrator *OrchestratorClient, 
 }
 
 // Check determines whether there are new non-bot commits on the branch since
-// the last orchestrator job with the given tag. It returns the commit range,
+// the last orchestrator job with the given tag. It returns the latest commit
+// SHA, the commit range (e.g. "sha1..sha2" or just "sha" on first run),
 // whether there is new activity, and any error.
-func (g *GitActivityGate) Check(ctx context.Context, tag string) (commitRange string, hasActivity bool, err error) {
+func (g *GitActivityGate) Check(ctx context.Context, tag string) (latestSHA, commitRange string, hasActivity bool, err error) {
 	latest, err := g.github.LatestNonBotCommit(ctx, g.branch, g.botAuthors)
 	if err != nil {
-		return "", false, fmt.Errorf("fetching latest commit: %w", err)
+		return "", "", false, fmt.Errorf("fetching latest commit: %w", err)
 	}
 	if latest == nil {
-		return "", false, nil
+		return "", "", false, nil
 	}
 
 	lastSHA, err := g.lastProcessedCommit(ctx, tag)
 	if err != nil {
-		return "", false, fmt.Errorf("fetching last processed commit: %w", err)
+		return "", "", false, fmt.Errorf("fetching last processed commit: %w", err)
 	}
 
 	if lastSHA == latest.SHA {
-		return "", false, nil
+		return "", "", false, nil
 	}
 
 	if lastSHA == "" {
-		return latest.SHA, true, nil
+		return latest.SHA, latest.SHA, true, nil
 	}
 
-	return fmt.Sprintf("%s..%s", lastSHA, latest.SHA), true, nil
+	return latest.SHA, fmt.Sprintf("%s..%s", lastSHA, latest.SHA), true, nil
 }
 
 // lastProcessedCommit queries the orchestrator for the last SUCCEEDED job with
-// the given tag and returns its commit SHA. Returns empty string if no jobs exist.
+// the given tag and returns the git commit SHA stored in its "sha:<sha>" tag.
+// Returns empty string if no jobs exist or no SHA tag is found.
 func (g *GitActivityGate) lastProcessedCommit(ctx context.Context, tag string) (string, error) {
 	u := fmt.Sprintf("%s/jobs?status=%s&tags=%s&limit=1",
 		g.orchestrator.baseURL,
@@ -85,5 +88,12 @@ func (g *GitActivityGate) lastProcessedCommit(ctx context.Context, tag string) (
 		return "", nil
 	}
 
-	return result.Jobs[0].CommitSHA, nil
+	for _, t := range result.Jobs[0].Tags {
+		if strings.HasPrefix(t, "sha:") {
+			return strings.TrimPrefix(t, "sha:"), nil
+		}
+	}
+
+	// No sha: tag found — treat as if no prior run (will re-process latest).
+	return "", nil
 }

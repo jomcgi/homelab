@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -52,6 +53,11 @@ func TestTestCoverageAgent_CollectWithActivity(t *testing.T) {
 	if findings[0].Source != "improvement:test-coverage" {
 		t.Errorf("expected source=improvement:test-coverage, got %s", findings[0].Source)
 	}
+	// latest_sha must be set so the escalator can store it as a sha: tag.
+	latestSHA, ok := findings[0].Data["latest_sha"].(string)
+	if !ok || latestSHA == "" {
+		t.Errorf("expected findings[0].Data[latest_sha] to be set, got %v", findings[0].Data["latest_sha"])
+	}
 }
 
 func TestTestCoverageAgent_CollectNoActivity(t *testing.T) {
@@ -98,6 +104,7 @@ func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
 			Title:       "Test coverage improvement opportunity",
 			Data: map[string]any{
 				"commit_range": "abc123..def456",
+				"latest_sha":   "def456",
 			},
 			Timestamp: time.Now(),
 		},
@@ -123,6 +130,10 @@ func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
 	}
 	if taskStr == "" {
 		t.Error("expected non-empty task string")
+	}
+	// The task must include the commit range, not a ULID.
+	if !strings.Contains(taskStr, "abc123..def456") {
+		t.Errorf("expected task to contain commit range abc123..def456, got: %s", taskStr)
 	}
 	profile, ok := actions[0].Payload["profile"].(string)
 	if !ok || profile != "code-fix" {
