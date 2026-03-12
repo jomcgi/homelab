@@ -85,6 +85,7 @@ go_test(
     srcs = [
         "api_test.go",
         "consumer_test.go",
+        "main_test.go",
         "reconcile_test.go",
         "result_test.go",
         "sandbox_test.go",
