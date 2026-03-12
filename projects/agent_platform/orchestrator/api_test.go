@@ -8,8 +8,6 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"path/filepath"
 	"sort"
 	"strings"
 	"testing"
@@ -118,7 +116,11 @@ func TestHandleSubmit(t *testing.T) {
 
 func TestHandleSubmit_WithProfile(t *testing.T) {
 	store := newMemStore()
-	_, mux := newTestAPI(store)
+	logger := slog.Default()
+	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
+	api := NewAPI(store, nil, nil, 2, nil, recipes, logger)
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
 
 	body := `{"task":"fix the build","profile":"ci-debug"}`
 	req := httptest.NewRequest(http.MethodPost, "/jobs", bytes.NewBufferString(body))
@@ -357,43 +359,14 @@ func TestHandleOutput(t *testing.T) {
 	}
 }
 
-func TestHandleProfiles(t *testing.T) {
-	_, mux := newTestAPI(newMemStore())
-
-	req := httptest.NewRequest(http.MethodGet, "/profiles", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var profiles []string
-	if err := json.NewDecoder(rec.Body).Decode(&profiles); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-
-	// Should return sorted list of all valid profiles.
-	if len(profiles) != len(ValidProfiles) {
-		t.Fatalf("expected %d profiles, got %d: %v", len(ValidProfiles), len(profiles), profiles)
-	}
-	for i := 1; i < len(profiles); i++ {
-		if profiles[i] < profiles[i-1] {
-			t.Fatalf("profiles not sorted: %v", profiles)
-		}
-	}
-}
-
 func TestHandleAgents(t *testing.T) {
 	logger := slog.Default()
 	agents := []AgentInfo{
-		{ID: "ci-debug", Label: "ci-debug", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Debug CI failures", Category: "tool"},
-		{ID: "code-fix", Label: "code-fix", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Fix code", Category: "tool"},
+		{ID: "ci-debug", Label: "CI Debug", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Debug CI", Category: "analyse", Recipe: map[string]any{"version": "1.0.0"}},
+		{ID: "code-fix", Label: "Code Fix", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Fix code", Category: "action"},
 	}
-	profiles := []ProfileInfo{
-		{ID: "homelab", Meta: "K3s"},
-	}
-	api := NewAPI(newMemStore(), nil, nil, 2, agents, profiles, logger)
+	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
+	api := NewAPI(newMemStore(), nil, nil, 2, agents, recipes, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
@@ -416,11 +389,9 @@ func TestHandleAgents(t *testing.T) {
 	if resp.Agents[0].ID != "ci-debug" {
 		t.Fatalf("expected first agent ci-debug, got %s", resp.Agents[0].ID)
 	}
-	if len(resp.Profiles) != 1 {
-		t.Fatalf("expected 1 profile, got %d", len(resp.Profiles))
-	}
-	if resp.Profiles[0].ID != "homelab" {
-		t.Fatalf("expected profile homelab, got %s", resp.Profiles[0].ID)
+	// Recipe should be stripped from response
+	if resp.Agents[0].Recipe != nil {
+		t.Fatal("expected recipe to be stripped from response")
 	}
 }
 
@@ -443,9 +414,6 @@ func TestHandleAgentsEmpty(t *testing.T) {
 	if resp.Agents == nil || len(resp.Agents) != 0 {
 		t.Fatalf("expected empty agents array, got %v", resp.Agents)
 	}
-	if resp.Profiles == nil || len(resp.Profiles) != 0 {
-		t.Fatalf("expected empty profiles array, got %v", resp.Profiles)
-	}
 }
 
 func TestHandleHealth(t *testing.T) {
@@ -457,48 +425,5 @@ func TestHandleHealth(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-// recipesTestDir returns the path to the goose recipe files.
-// Under Bazel, data deps are in the runfiles tree; locally, use a relative path.
-func recipesTestDir() string {
-	if srcDir := os.Getenv("TEST_SRCDIR"); srcDir != "" {
-		ws := os.Getenv("TEST_WORKSPACE")
-		if ws == "" {
-			ws = "_main"
-		}
-		return filepath.Join(srcDir, ws, "projects", "agent_platform", "goose_agent", "image", "recipes")
-	}
-	return filepath.Join("..", "goose_agent", "image", "recipes")
-}
-
-// TestValidProfilesMatchRecipeFiles ensures the ValidProfiles map stays in sync
-// with the recipe YAML files baked into the goose-agent container image.
-// This test breaks the build if a recipe is added/removed without updating model.go.
-func TestValidProfilesMatchRecipeFiles(t *testing.T) {
-	recipesDir := recipesTestDir()
-	entries, err := os.ReadDir(recipesDir)
-	if err != nil {
-		t.Fatalf("could not read recipes directory %s: %v", recipesDir, err)
-	}
-
-	fileProfiles := make(map[string]bool)
-	for _, e := range entries {
-		if !e.IsDir() && strings.HasSuffix(e.Name(), ".yaml") {
-			name := strings.TrimSuffix(e.Name(), ".yaml")
-			fileProfiles[name] = true
-		}
-	}
-
-	for name := range fileProfiles {
-		if _, ok := ValidProfiles[name]; !ok {
-			t.Errorf("recipe file %s.yaml exists but has no entry in ValidProfiles (model.go)", name)
-		}
-	}
-	for name := range ValidProfiles {
-		if !fileProfiles[name] {
-			t.Errorf("ValidProfiles entry %q has no matching recipe file in %s", name, recipesDir)
-		}
 	}
 }
