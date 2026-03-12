@@ -96,8 +96,8 @@ elif [[ "$CAN_VERSION" == "true" ]]; then
     echo "Chart version unchanged at ${CURRENT_VERSION}"
   fi
 
-  # Re-package chart with datestamp tag for OCI push (PRs use ephemeral tags)
-  DATESTAMP="$(date -u '+%Y.%m.%d.%H.%M.%S')-$(cd "$WORKSPACE" && git rev-parse --short HEAD)"
+  # Re-package chart with semver-compatible pre-release tag for OCI push (PRs use ephemeral tags)
+  DATESTAMP="0.0.0-dev.$(date -u '+%Y%m%d%H%M%S').$(cd "$WORKSPACE" && git rev-parse --short HEAD)"
   WORK_DIR=$(mktemp -d)
   tar -xzf "$CHART_TGZ" -C "$WORK_DIR"
   CHART_NAME=$(ls "$WORK_DIR")
