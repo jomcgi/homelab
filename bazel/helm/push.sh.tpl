@@ -46,33 +46,66 @@ while (( $# > 0 )); do
   esac
 done
 
-# --- Compute next version ---
+# --- Determine branch and workspace ---
 PUSH_TGZ="$CHART_TGZ"
-CURRENT_VERSION=""
-NEW_VERSION=""
 
-if [[ -n "$CHART_VERSION_SH" ]] && [[ -n "$CHART_DIR" ]] && [[ -x "$CHART_VERSION_SH" ]]; then
-  # Derive Bazel package from chart dir for dependency query
+# BUILD_WORKSPACE_DIRECTORY is set by `bazel run` and points to the repo root.
+# CHART_DIR is relative (e.g., "projects/agent_platform/chart"), so prefix it.
+WORKSPACE="${BUILD_WORKSPACE_DIRECTORY:-}"
+if [[ -n "$WORKSPACE" ]] && [[ -n "$CHART_DIR" ]]; then
+  ABS_CHART_DIR="${WORKSPACE}/${CHART_DIR}"
+  CURRENT_BRANCH=$(cd "$WORKSPACE" && git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+else
+  ABS_CHART_DIR=""
+  CURRENT_BRANCH="unknown"
+fi
+
+CAN_VERSION="false"
+if [[ -n "$CHART_VERSION_SH" ]] && [[ -n "$ABS_CHART_DIR" ]] && [[ -x "$CHART_VERSION_SH" ]] && [[ -d "$ABS_CHART_DIR" ]]; then
+  CAN_VERSION="true"
+fi
+
+if [[ "$CURRENT_BRANCH" == "main" ]]; then
+  # --- Main branch: push with semver from Chart.yaml (already bumped by PR) ---
+  echo "On main — pushing chart with semver from Chart.yaml"
+elif [[ "$CAN_VERSION" == "true" ]]; then
+  # --- PR branch: compute version bump, commit to PR, push with datestamp ---
   BAZEL_PKG="//${CHART_DIR}:chart.package"
-  CURRENT_VERSION=$(grep '^version:' "${CHART_DIR}/Chart.yaml" | head -1 | awk '{print $2}' | tr -d '"')
-  NEW_VERSION=$("$CHART_VERSION_SH" "$CHART_DIR" "$BAZEL_PKG")
+  CURRENT_VERSION=$(grep '^version:' "${ABS_CHART_DIR}/Chart.yaml" | head -1 | awk '{print $2}' | tr -d '"')
 
-  if [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
+  # Compute next semver version from conventional commits
+  NEW_VERSION=$(cd "$WORKSPACE" && "$CHART_VERSION_SH" "$CHART_DIR" "$BAZEL_PKG") || true
+
+  # Commit version bump to the PR branch if changed
+  if [[ -n "$NEW_VERSION" ]] && [[ "$NEW_VERSION" != "$CURRENT_VERSION" ]]; then
     echo "Chart version bump: ${CURRENT_VERSION} -> ${NEW_VERSION}"
+    ABS_CHART_YAML="${ABS_CHART_DIR}/Chart.yaml"
 
-    # Re-package with new version
-    WORK_DIR=$(mktemp -d)
-    tar -xzf "$CHART_TGZ" -C "$WORK_DIR"
-    CHART_NAME=$(ls "$WORK_DIR")
-    sed "s/^version:.*/version: ${NEW_VERSION}/" "$WORK_DIR/$CHART_NAME/Chart.yaml" > "$WORK_DIR/$CHART_NAME/Chart.yaml.tmp"
-    mv "$WORK_DIR/$CHART_NAME/Chart.yaml.tmp" "$WORK_DIR/$CHART_NAME/Chart.yaml"
-    PUSH_TGZ="$WORK_DIR/${CHART_NAME}-${NEW_VERSION}.tgz"
-    "$HELM" package "$WORK_DIR/$CHART_NAME" --destination "$WORK_DIR"
+    sed "s/^version:.*/version: ${NEW_VERSION}/" "$ABS_CHART_YAML" > "${ABS_CHART_YAML}.tmp"
+    mv "${ABS_CHART_YAML}.tmp" "$ABS_CHART_YAML"
 
-    trap "rm -rf '$WORK_DIR'" EXIT
+    CHART_NAME_LOWER=$(grep '^name:' "$ABS_CHART_YAML" | head -1 | awk '{print $2}' | tr -d '"')
+    cd "$WORKSPACE"
+    git config user.name "chart-version-bot"
+    git config user.email "chart-version-bot@users.noreply.github.com"
+    git add "${CHART_DIR}/Chart.yaml"
+    git commit -m "chore(${CHART_NAME_LOWER}): bump chart version to ${NEW_VERSION}"
+    git push origin HEAD:"${CURRENT_BRANCH}"
+    echo "Version bump committed and pushed to ${CURRENT_BRANCH}"
   else
     echo "Chart version unchanged at ${CURRENT_VERSION}"
   fi
+
+  # Re-package chart with datestamp tag for OCI push (PRs use ephemeral tags)
+  DATESTAMP="$(date -u '+%Y.%m.%d.%H.%M.%S')-$(cd "$WORKSPACE" && git rev-parse --short HEAD)"
+  WORK_DIR=$(mktemp -d)
+  tar -xzf "$CHART_TGZ" -C "$WORK_DIR"
+  CHART_NAME=$(ls "$WORK_DIR")
+  sed "s/^version:.*/version: ${DATESTAMP}/" "$WORK_DIR/$CHART_NAME/Chart.yaml" > "$WORK_DIR/$CHART_NAME/Chart.yaml.tmp"
+  mv "$WORK_DIR/$CHART_NAME/Chart.yaml.tmp" "$WORK_DIR/$CHART_NAME/Chart.yaml"
+  PUSH_TGZ="$WORK_DIR/${CHART_NAME}-${DATESTAMP}.tgz"
+  "$HELM" package "$WORK_DIR/$CHART_NAME" --destination "$WORK_DIR"
+  trap "rm -rf '$WORK_DIR'" EXIT
 fi
 
 echo "Pushing Helm chart: ${PUSH_TGZ}"
@@ -81,21 +114,3 @@ echo "  Repository: ${REPOSITORY}"
 "${HELM}" push "${PUSH_TGZ}" "${REPOSITORY}"
 
 echo "Successfully pushed chart to ${REPOSITORY}"
-
-# --- Commit version bump back to git ---
-if [[ -n "${NEW_VERSION}" ]] && [[ "${NEW_VERSION}" != "${CURRENT_VERSION}" ]]; then
-  CHART_YAML="${CHART_DIR}/Chart.yaml"
-  if [[ -f "$CHART_YAML" ]]; then
-    echo "Committing version bump to ${CHART_YAML}..."
-    sed "s/^version:.*/version: ${NEW_VERSION}/" "$CHART_YAML" > "${CHART_YAML}.tmp"
-    mv "${CHART_YAML}.tmp" "$CHART_YAML"
-
-    CHART_NAME_LOWER=$(grep '^name:' "$CHART_YAML" | head -1 | awk '{print $2}' | tr -d '"')
-    git config user.name "chart-version-bot"
-    git config user.email "chart-version-bot@users.noreply.github.com"
-    git add "$CHART_YAML"
-    git commit -m "chore(${CHART_NAME_LOWER}): bump chart version to ${NEW_VERSION}"
-    git push origin HEAD:main
-    echo "Version bump committed and pushed"
-  fi
-fi
