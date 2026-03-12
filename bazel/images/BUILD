@@ -63,6 +63,7 @@ multirun(
         "//projects/ships/frontend:image.push",
         "//projects/ships/ingest:image.push",
         "//projects/stargazer:image.push",
+        "//projects/todo_app/deploy:chart.push",
         "//projects/todo_app/image:image.push",
         "//projects/todo_app:py_image.push",
         "//projects/trips/backend:image.push",
