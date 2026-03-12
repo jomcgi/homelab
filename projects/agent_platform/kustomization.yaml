@@ -4,4 +4,3 @@ kind: Kustomization
 resources:
   - ./deploy
   - ./cluster_agents/deploy
-  - ./llama_cpp/deploy
