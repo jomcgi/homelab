@@ -29,6 +29,7 @@ go_library(
     name = "orchestrator_lib",
     srcs = [
         "api.go",
+        "clean.go",
         "consumer.go",
         "enrich.go",
         "main.go",
@@ -69,6 +70,7 @@ go_test(
     name = "orchestrator_unit_test",
     srcs = [
         "api_test.go",
+        "clean_test.go",
         "consumer_test.go",
         "recipe_test.go",
         "reconcile_test.go",
@@ -88,6 +90,7 @@ go_test(
     name = "orchestrator_test",
     srcs = [
         "api_test.go",
+        "clean_test.go",
         "consumer_test.go",
         "enrich_test.go",
         "main_test.go",
