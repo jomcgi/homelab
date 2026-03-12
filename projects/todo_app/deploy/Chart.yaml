@@ -2,7 +2,7 @@ apiVersion: v2
 name: todo
 description: Minimalist git-backed todo tracker with weekly focus and daily top 3
 type: application
-version: 0.3.0
+version: 0.3.1
 appVersion: "0.1.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
