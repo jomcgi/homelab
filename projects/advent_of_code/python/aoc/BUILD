@@ -1,5 +1,6 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_library(
     name = "aoc",
@@ -10,6 +11,33 @@ py_library(
         "parse.py",
     ],
     visibility = ["//:__subpackages__"],
+)
+
+py_test(
+    name = "algo_test",
+    srcs = ["algo_test.py"],
+    deps = [
+        ":aoc",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "grid_test",
+    srcs = ["grid_test.py"],
+    deps = [
+        ":aoc",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "parse_test",
+    srcs = ["parse_test.py"],
+    deps = [
+        ":aoc",
+        "@pip//pytest",
+    ],
 )
 
 semgrep_test(
