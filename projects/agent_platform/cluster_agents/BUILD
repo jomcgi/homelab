@@ -6,6 +6,8 @@ go_library(
     srcs = [
         "collector_alerts.go",
         "escalator.go",
+        "git_activity_gate.go",
+        "github_client.go",
         "main.go",
         "model.go",
         "patrol.go",
@@ -26,6 +28,8 @@ go_test(
     srcs = [
         "collector_alerts_test.go",
         "escalator_test.go",
+        "git_activity_gate_test.go",
+        "github_client_test.go",
         "patrol_test.go",
         "runner_test.go",
     ],
