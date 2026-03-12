@@ -8,3 +8,7 @@ annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.licenses: "MPL-2.0"
+dependencies:
+  - name: cf-ingress
+    version: "0.1.0"
+    repository: "file://../../platform/cf-ingress-library"
