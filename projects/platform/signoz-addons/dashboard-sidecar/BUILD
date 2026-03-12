@@ -2,6 +2,10 @@ load("//bazel/helm:defs.bzl", "argocd_app", "helm_chart")
 
 helm_chart(
     name = "chart",
+    images = {
+        "image": "//projects/platform/signoz-addons/dashboard-sidecar/cmd:image.info",
+    },
+    publish = True,
     visibility = ["//overlays:__subpackages__"],
 )
 

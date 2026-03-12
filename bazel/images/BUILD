@@ -58,6 +58,7 @@ multirun(
         "//projects/operators/oci-model-cache/helm/oci-model-cache-operator:chart.push",
         "//projects/operators/oci-model-cache:image.push",
         "//projects/platform/signoz-addons/dashboard-sidecar/cmd:image.push",
+        "//projects/platform/signoz-addons/dashboard-sidecar:chart.push",
         "//projects/ships/backend:image.push",
         "//projects/ships/chart:chart.push",
         "//projects/ships/frontend:image.push",
