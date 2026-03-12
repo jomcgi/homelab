@@ -36,14 +36,13 @@ vite_build(
     ],
 )
 
-# Go library that embeds the committed Vite build output (dist/).
-# The dist/ directory is committed to the repo (gitignore exception) so that
-# go:embed works in both standard go build and Bazel without needing the Vite
-# build to complete first.
+# Go library that embeds the Bazel-built Vite output (dist/).
+# The vite_build target builds the React dashboard; its tree artifact
+# is embedded at compile time via go:embed.
 go_library(
     name = "ui",
     srcs = ["static.go"],
-    embedsrcs = glob(["dist/**"]),
+    embedsrcs = [":build"],
     importpath = "github.com/jomcgi/homelab/projects/agent_platform/orchestrator/ui",
     visibility = ["//projects/agent_platform/orchestrator:__pkg__"],
 )
