@@ -196,6 +196,7 @@ loop:
 			output = output[len(output)-maxOutputBytes:]
 			job.Attempts[idx].Truncated = true
 		}
+		output = cleanOutput(output)
 		job.Attempts[idx].Output = output
 		job.Attempts[idx].Result = parseGooseResult(output)
 	} else if execErr != nil {
