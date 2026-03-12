@@ -56,6 +56,8 @@ spec:
           value: {{ .Values.config.jobInactivityTimeout | quote }}
         - name: JOB_MAX_DURATION
           value: {{ .Values.config.jobMaxDuration | quote }}
+        - name: AGENTS_CONFIG
+          value: {{ .Values.agentsConfig | toJson | quote }}
         livenessProbe:
           httpGet:
             path: /health

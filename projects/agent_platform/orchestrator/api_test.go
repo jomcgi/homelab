@@ -82,7 +82,7 @@ func (m *memStore) List(_ context.Context, statusFilter, tagFilter []string, lim
 
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, logger)
+	api := NewAPI(store, nil, nil, 2, nil, nil, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	return api, mux
@@ -381,6 +381,70 @@ func TestHandleProfiles(t *testing.T) {
 		if profiles[i] < profiles[i-1] {
 			t.Fatalf("profiles not sorted: %v", profiles)
 		}
+	}
+}
+
+func TestHandleAgents(t *testing.T) {
+	logger := slog.Default()
+	agents := []AgentInfo{
+		{ID: "ci-debug", Label: "ci-debug", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Debug CI failures", Category: "tool"},
+		{ID: "code-fix", Label: "code-fix", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Fix code", Category: "tool"},
+	}
+	profiles := []ProfileInfo{
+		{ID: "homelab", Meta: "K3s"},
+	}
+	api := NewAPI(newMemStore(), nil, nil, 2, agents, profiles, logger)
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+
+	req := httptest.NewRequest(http.MethodGet, "/agents", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp AgentsResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if len(resp.Agents) != 2 {
+		t.Fatalf("expected 2 agents, got %d", len(resp.Agents))
+	}
+	if resp.Agents[0].ID != "ci-debug" {
+		t.Fatalf("expected first agent ci-debug, got %s", resp.Agents[0].ID)
+	}
+	if len(resp.Profiles) != 1 {
+		t.Fatalf("expected 1 profile, got %d", len(resp.Profiles))
+	}
+	if resp.Profiles[0].ID != "homelab" {
+		t.Fatalf("expected profile homelab, got %s", resp.Profiles[0].ID)
+	}
+}
+
+func TestHandleAgentsEmpty(t *testing.T) {
+	_, mux := newTestAPI(newMemStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/agents", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp AgentsResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+
+	if resp.Agents == nil || len(resp.Agents) != 0 {
+		t.Fatalf("expected empty agents array, got %v", resp.Agents)
+	}
+	if resp.Profiles == nil || len(resp.Profiles) != 0 {
+		t.Fatalf("expected empty profiles array, got %v", resp.Profiles)
 	}
 }
 

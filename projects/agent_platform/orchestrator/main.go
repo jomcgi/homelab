@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -103,7 +104,9 @@ func main() {
 		return err
 	}
 
-	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
+	agents, profiles := parseAgentsConfig(envOr("AGENTS_CONFIG", ""), logger)
+
+	api := NewAPI(store, publish, healthCheck, maxRetries, agents, profiles, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)
@@ -216,6 +219,21 @@ func setupJetStream(ctx context.Context, js jetStreamSetup, maxConcurrent int, l
 	}
 
 	return nil, nil, fmt.Errorf("JetStream setup failed after %d attempts", maxAttempts)
+}
+
+// parseAgentsConfig decodes the AGENTS_CONFIG JSON env var into agent and
+// profile slices for the pipeline composer UI. Returns empty slices on error.
+func parseAgentsConfig(raw string, logger *slog.Logger) ([]AgentInfo, []ProfileInfo) {
+	if raw == "" {
+		return nil, nil
+	}
+	var cfg AgentsResponse
+	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
+		logger.Error("failed to parse AGENTS_CONFIG", "error", err)
+		return nil, nil
+	}
+	logger.Info("loaded agents config", "agents", len(cfg.Agents), "profiles", len(cfg.Profiles))
+	return cfg.Agents, cfg.Profiles
 }
 
 func envOr(key, fallback string) string {

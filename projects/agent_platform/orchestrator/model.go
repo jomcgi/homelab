@@ -22,6 +22,29 @@ var ValidProfiles = map[string]string{
 	"bazel":    "/home/goose-agent/recipes/bazel.yaml",
 }
 
+// AgentInfo describes an available agent for the pipeline composer UI.
+type AgentInfo struct {
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Icon        string `json:"icon"`
+	Background  string `json:"bg"`
+	Foreground  string `json:"fg"`
+	Description string `json:"desc"`
+	Category    string `json:"category"`
+}
+
+// ProfileInfo describes an execution profile for the pipeline composer UI.
+type ProfileInfo struct {
+	ID   string `json:"id"`
+	Meta string `json:"meta"`
+}
+
+// AgentsResponse is returned by GET /agents.
+type AgentsResponse struct {
+	Agents   []AgentInfo   `json:"agents"`
+	Profiles []ProfileInfo `json:"profiles"`
+}
+
 // JobRecord is the primary data model persisted in the NATS KV store.
 type JobRecord struct {
 	ID         string    `json:"id"`
