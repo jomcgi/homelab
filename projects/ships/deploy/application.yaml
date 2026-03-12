@@ -5,15 +5,19 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/jomcgi/homelab.git
-    path: projects/ships/chart
-    targetRevision: HEAD
-    helm:
-      releaseName: marine
-      valueFiles:
-        - values.yaml
-        - ../deploy/values.yaml
+  sources:
+    # Chart from OCI registry (pushed by CI via Bazel helm_push)
+    - repoURL: ghcr.io/jomcgi/homelab/charts
+      chart: marine
+      targetRevision: 0.1.0
+      helm:
+        releaseName: marine
+        valueFiles:
+          - $values/projects/ships/deploy/values.yaml
+    # Git repo for environment-specific values
+    - repoURL: https://github.com/jomcgi/homelab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: marine
