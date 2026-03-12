@@ -181,6 +181,7 @@ loop:
 			job.Attempts[idx].Truncated = true
 		}
 		job.Attempts[idx].Output = output
+		job.Attempts[idx].Result = parseGooseResult(output)
 	} else if execErr != nil {
 		job.Attempts[idx].Output = execErr.Error()
 	}

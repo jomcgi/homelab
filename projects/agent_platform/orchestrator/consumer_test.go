@@ -427,6 +427,61 @@ func TestBuildTaskPrompt_LongOutputTruncated(t *testing.T) {
 	}
 }
 
+func TestProcessJob_ParsesStructuredResult(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-RESULT")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+			output := "doing work...\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/42\nsummary: Fixed the thing. CI passes.\n```\n"
+			return &ExecResult{ExitCode: 0, Output: output}, nil
+		},
+	}
+
+	c := newTestConsumer(store, sandbox)
+	c.processJob(context.Background(), msg)
+
+	got, _ := store.Get(context.Background(), job.ID)
+	if got.Status != JobSucceeded {
+		t.Fatalf("expected SUCCEEDED, got %s", got.Status)
+	}
+	if len(got.Attempts) != 1 {
+		t.Fatalf("expected 1 attempt, got %d", len(got.Attempts))
+	}
+	result := got.Attempts[0].Result
+	if result == nil {
+		t.Fatal("expected parsed result, got nil")
+	}
+	if result.Type != "pr" {
+		t.Errorf("result.Type = %q, want %q", result.Type, "pr")
+	}
+	if result.URL != "https://github.com/jomcgi/homelab/pull/42" {
+		t.Errorf("result.URL = %q", result.URL)
+	}
+	if result.Summary != "Fixed the thing. CI passes." {
+		t.Errorf("result.Summary = %q", result.Summary)
+	}
+}
+
+func TestProcessJob_NoStructuredResult(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-NO-RESULT")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	sandbox := &fakeSandbox{} // default: exit 0, "success" (no result block)
+
+	c := newTestConsumer(store, sandbox)
+	c.processJob(context.Background(), msg)
+
+	got, _ := store.Get(context.Background(), job.ID)
+	if got.Attempts[0].Result != nil {
+		t.Errorf("expected nil result for output without goose-result block, got %+v", got.Attempts[0].Result)
+	}
+}
+
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
 }

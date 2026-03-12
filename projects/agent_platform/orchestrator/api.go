@@ -219,6 +219,7 @@ func (a *API) handleOutput(w http.ResponseWriter, r *http.Request) {
 		ExitCode:  latest.ExitCode,
 		Output:    latest.Output,
 		Truncated: latest.Truncated,
+		Result:    latest.Result,
 	})
 }
 
