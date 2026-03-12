@@ -120,6 +120,11 @@ def _helm_push_impl(ctx):
 
     workspace_name = ctx.workspace_name
 
+    # Resolve chart-version.sh path if provided
+    chart_version_sh_path = ""
+    if ctx.file._chart_version_sh:
+        chart_version_sh_path = _rlocationpath(ctx.file._chart_version_sh, workspace_name)
+
     ctx.actions.expand_template(
         template = ctx.file._push_template,
         output = push_script,
@@ -128,10 +133,16 @@ def _helm_push_impl(ctx):
             "{{HELM}}": _rlocationpath(ctx.executable._helm, workspace_name),
             "{{CHART_TGZ}}": _rlocationpath(ctx.file.chart, workspace_name),
             "{{REPOSITORY}}": ctx.attr.repository,
+            "{{CHART_VERSION_SH}}": chart_version_sh_path,
+            "{{CHART_DIR}}": ctx.attr.chart_dir,
         },
     )
 
-    runfiles = ctx.runfiles(files = [ctx.file.chart])
+    runfiles_files = [ctx.file.chart]
+    if ctx.file._chart_version_sh:
+        runfiles_files.append(ctx.file._chart_version_sh)
+
+    runfiles = ctx.runfiles(files = runfiles_files)
     runfiles = runfiles.merge(ctx.attr._helm[DefaultInfo].default_runfiles)
     runfiles = runfiles.merge(ctx.attr._runfiles[DefaultInfo].default_runfiles)
 
@@ -151,6 +162,14 @@ helm_push = rule(
         "repository": attr.string(
             mandatory = True,
             doc = "OCI repository URL (e.g., oci://ghcr.io/user/repo/charts)",
+        ),
+        "chart_dir": attr.string(
+            default = "",
+            doc = "Source chart directory path (for auto-versioning). Empty disables versioning.",
+        ),
+        "_chart_version_sh": attr.label(
+            default = "//bazel/helm:chart-version.sh",
+            allow_single_file = True,
         ),
         "_push_template": attr.label(
             default = "//bazel/helm:push.sh.tpl",
