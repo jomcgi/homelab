@@ -13,10 +13,11 @@ spec:
       {{- include "agent-orchestrator.selectorLabels" . | nindent 6 }}
   template:
     metadata:
-      {{- with .Values.podAnnotations }}
       annotations:
+        checksum/agents-config: {{ include (print $.Template.BasePath "/agents-configmap.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "agent-orchestrator.selectorLabels" . | nindent 8 }}
     spec:
@@ -56,8 +57,10 @@ spec:
           value: {{ .Values.config.jobInactivityTimeout | quote }}
         - name: JOB_MAX_DURATION
           value: {{ .Values.config.jobMaxDuration | quote }}
-        - name: AGENTS_CONFIG
-          value: {{ .Values.agentsConfig | toJson | quote }}
+        volumeMounts:
+        - name: agents-config
+          mountPath: /etc/orchestrator
+          readOnly: true
         livenessProbe:
           httpGet:
             path: /health
@@ -84,3 +87,7 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      volumes:
+      - name: agents-config
+        configMap:
+          name: {{ include "agent-orchestrator.fullname" . }}-agents

@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"log/slog"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -104,3 +106,51 @@ type fakeKV struct{ jetstream.KeyValue }
 
 // fakeConsumer satisfies jetstream.Consumer with minimal stubs.
 type fakeConsumer struct{ jetstream.Consumer }
+
+func TestLoadAgentsConfig(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agents.json")
+
+	data := `{"agents":[{"id":"ci-debug","label":"CI Debug","icon":"gear","bg":"#dbeafe","fg":"#1e40af","desc":"Debug CI","category":"tool"}],"profiles":[]}`
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	agents, profiles := loadAgentsConfig(path, slog.Default())
+	if len(agents) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(agents))
+	}
+	if agents[0].ID != "ci-debug" {
+		t.Fatalf("expected ci-debug, got %s", agents[0].ID)
+	}
+	if len(profiles) != 0 {
+		t.Fatalf("expected 0 profiles, got %d", len(profiles))
+	}
+}
+
+func TestLoadAgentsConfigMissing(t *testing.T) {
+	agents, profiles := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
+	if agents != nil {
+		t.Fatalf("expected nil agents, got %v", agents)
+	}
+	if profiles != nil {
+		t.Fatalf("expected nil profiles, got %v", profiles)
+	}
+}
+
+func TestLoadAgentsConfigInvalid(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agents.json")
+
+	if err := os.WriteFile(path, []byte("not json"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	agents, profiles := loadAgentsConfig(path, slog.Default())
+	if agents != nil {
+		t.Fatalf("expected nil agents on invalid JSON, got %v", agents)
+	}
+	if profiles != nil {
+		t.Fatalf("expected nil profiles on invalid JSON, got %v", profiles)
+	}
+}

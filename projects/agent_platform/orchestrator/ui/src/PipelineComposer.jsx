@@ -69,27 +69,50 @@ async function inferPipeline(prompt, agents) {
 
 // ─── @-mention categories (built from props) ────────────────────────────────
 
-function buildMentionCats(agents, profiles) {
-  return {
-    tool: {
-      label: "Tool",
-      icon: "⚙",
-      bg: "#dbeafe",
-      fg: "#1e40af",
-      pillCls: "pill-tool",
-      items: agents
-        .filter((a) => a.category === "tool")
-        .map((a) => ({ id: a.id, meta: "" })),
-    },
-    profile: {
-      label: "Profile",
-      icon: "◈",
-      bg: "#ede9fe",
-      fg: "#5b21b6",
-      pillCls: "pill-profile",
-      items: profiles,
-    },
-  };
+const CATEGORY_STYLES = {
+  analyse: {
+    label: "Analyse",
+    icon: "🔬",
+    bg: "#dbeafe",
+    fg: "#1e40af",
+    pillCls: "pill-analyse",
+  },
+  action: {
+    label: "Action",
+    icon: "🔧",
+    bg: "#fef3c7",
+    fg: "#92400e",
+    pillCls: "pill-action",
+  },
+  validate: {
+    label: "Validate",
+    icon: "✓",
+    bg: "#d1fae5",
+    fg: "#065f46",
+    pillCls: "pill-validate",
+  },
+  tool: {
+    label: "Tool",
+    icon: "⚙",
+    bg: "#f3e8ff",
+    fg: "#6b21a8",
+    pillCls: "pill-tool",
+  },
+};
+
+function buildMentionCats(agents) {
+  const grouped = {};
+  for (const a of agents) {
+    const cat = a.category || "action";
+    if (!grouped[cat]) grouped[cat] = [];
+    grouped[cat].push({ id: a.id, meta: a.desc || "" });
+  }
+  const cats = {};
+  for (const [key, items] of Object.entries(grouped)) {
+    const style = CATEGORY_STYLES[key] || CATEGORY_STYLES.action;
+    cats[key] = { ...style, items };
+  }
+  return cats;
 }
 
 // ─── Condition select ────────────────────────────────────────────────────────
@@ -667,10 +690,7 @@ export default function PipelineComposer({ agents, profiles, onSubmit }) {
   const [submitting, setSubmitting] = useState(false);
   const dragRef = useRef(null);
 
-  const mentionCats = useMemo(
-    () => buildMentionCats(agents, profiles),
-    [agents, profiles],
-  );
+  const mentionCats = useMemo(() => buildMentionCats(agents), [agents]);
 
   // ── Inference ────────────────────────────────────────────────────────────
   const handleInfer = useCallback(

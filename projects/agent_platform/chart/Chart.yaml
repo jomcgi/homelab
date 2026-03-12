@@ -20,7 +20,7 @@ dependencies:
     condition: goose-sandboxes.enabled
 
   - name: agent-orchestrator
-    version: "0.1.0"
+    version: "0.2.0"
     repository: "file://./orchestrator"
     condition: agent-orchestrator.enabled
 
