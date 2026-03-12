@@ -145,132 +145,17 @@ function ResultPill({ result }) {
   );
 }
 
-// ─── Inline output ────────────────────────────────────────────────────────────
-
-function InlineOutput({ job }) {
-  const attempt = job.attempts?.[job.attempts.length - 1];
-  if (!attempt && job.status === "PENDING") {
-    return (
-      <p
-        style={{
-          padding: "16px 20px",
-          fontSize: 12,
-          color: "#d1d5db",
-          fontStyle: "italic",
-          margin: 0,
-        }}
-      >
-        Waiting for sandbox...
-      </p>
-    );
-  }
-  if (!attempt) return null;
-
-  return (
-    <div style={{ borderTop: "1px solid #f3f4f6" }}>
-      {/* meta */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "8px 20px",
-          background: "#f9fafb",
-          borderBottom: "1px solid #f3f4f6",
-        }}
-      >
-        <span
-          style={{ fontSize: 11, fontFamily: "monospace", color: "#9ca3af" }}
-        >
-          attempt {attempt.number}
-        </span>
-        {attempt.exit_code != null && (
-          <span
-            style={{
-              fontSize: 11,
-              fontFamily: "monospace",
-              color: attempt.exit_code === 0 ? "#22c55e" : "#f87171",
-            }}
-          >
-            exit {attempt.exit_code}
-          </span>
-        )}
-        {job.status === "RUNNING" && (
-          <span
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11,
-              color: "#60a5fa",
-            }}
-          >
-            <span
-              style={{
-                display: "inline-flex",
-                width: 6,
-                height: 6,
-                borderRadius: "50%",
-                background: "#60a5fa",
-                animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite",
-              }}
-            />
-            live
-          </span>
-        )}
-        {attempt.truncated && (
-          <span style={{ fontSize: 11, color: "#fbbf24" }}>truncated</span>
-        )}
-        {job.failure_summary && (
-          <span style={{ fontSize: 11, color: "#f87171" }}>
-            {job.failure_summary}
-          </span>
-        )}
-        {attempt.started_at && (
-          <span
-            style={{
-              marginLeft: "auto",
-              fontSize: 11,
-              fontFamily: "monospace",
-              color: "#d1d5db",
-            }}
-          >
-            {elapsed(attempt.started_at, attempt.finished_at)}
-          </span>
-        )}
-      </div>
-      {/* output */}
-      <pre
-        style={{
-          padding: "16px 20px",
-          fontSize: 12,
-          fontFamily: "monospace",
-          lineHeight: 1.6,
-          color: "#374151",
-          whiteSpace: "pre-wrap",
-          overflow: "auto",
-          maxHeight: 260,
-          margin: 0,
-        }}
-      >
-        {attempt.output || (
-          <span style={{ color: "#d1d5db", fontStyle: "italic" }}>
-            No output
-          </span>
-        )}
-      </pre>
-    </div>
-  );
-}
-
 // ─── Job row ──────────────────────────────────────────────────────────────────
 
 function JobRow({ job, onCancel, isMobile }) {
   const [open, setOpen] = useState(false);
+  const [outputOpen, setOutputOpen] = useState(false);
   const canCancel = job.status === "PENDING" || job.status === "RUNNING";
   const result = getResult(job);
-  const hasRawOutput =
-    (job.attempts?.length > 0 || job.status === "PENDING") && !result;
+  const attempt = job.attempts?.[job.attempts.length - 1];
+  const summary = result?.summary || job.failure_summary;
+  const hasOutput = attempt?.output || job.status === "PENDING";
+  const isExpandable = summary || hasOutput;
 
   return (
     <div
@@ -280,7 +165,7 @@ function JobRow({ job, onCancel, isMobile }) {
         background: open ? "rgba(249,250,251,0.6)" : "transparent",
       }}
     >
-      {/* Single line */}
+      {/* Main row */}
       <div
         style={{
           display: "flex",
@@ -291,7 +176,7 @@ function JobRow({ job, onCancel, isMobile }) {
       >
         <Dot status={job.status} />
 
-        {/* Task + optional summary */}
+        {/* Task title only */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
             style={{
@@ -305,34 +190,6 @@ function JobRow({ job, onCancel, isMobile }) {
           >
             {job.task}
           </p>
-          {result?.summary && (
-            <p
-              style={{
-                fontSize: 11,
-                color: "#9ca3af",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                margin: "2px 0 0",
-              }}
-            >
-              {result.summary}
-            </p>
-          )}
-          {job.failure_summary && (
-            <p
-              style={{
-                fontSize: 11,
-                color: "#f87171",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                margin: "2px 0 0",
-              }}
-            >
-              {job.failure_summary}
-            </p>
-          )}
         </div>
 
         {/* Right-side metadata */}
@@ -370,7 +227,7 @@ function JobRow({ job, onCancel, isMobile }) {
             {timeAgo(job.updated_at)}
           </span>
 
-          {hasRawOutput && (
+          {isExpandable && (
             <button
               onClick={() => setOpen((o) => !o)}
               style={{
@@ -415,7 +272,135 @@ function JobRow({ job, onCancel, isMobile }) {
         </div>
       </div>
 
-      {open && <InlineOutput job={job} />}
+      {/* Level 1: Summary */}
+      {open && (
+        <div style={{ borderTop: "1px solid #f3f4f6" }}>
+          {summary && (
+            <p
+              style={{
+                padding: "10px 20px",
+                fontSize: 12,
+                color: job.failure_summary ? "#f87171" : "#6b7280",
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              {summary}
+            </p>
+          )}
+
+          {/* Level 2: Output toggle */}
+          {hasOutput && (
+            <>
+              <button
+                onClick={() => setOutputOpen((o) => !o)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  width: "100%",
+                  padding: "8px 20px",
+                  fontSize: 11,
+                  color: "#9ca3af",
+                  background: outputOpen ? "#f9fafb" : "transparent",
+                  border: "none",
+                  borderTop: summary ? "1px solid #f3f4f6" : "none",
+                  cursor: "pointer",
+                  outline: "none",
+                  transition: "color 0.15s, background 0.15s",
+                  fontFamily: "inherit",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#374151")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+              >
+                <ChevronDown size={10} open={outputOpen} />
+                Output
+                {attempt?.exit_code != null && (
+                  <span
+                    style={{
+                      fontFamily: "monospace",
+                      color: attempt.exit_code === 0 ? "#22c55e" : "#f87171",
+                    }}
+                  >
+                    exit {attempt.exit_code}
+                  </span>
+                )}
+                {job.status === "RUNNING" && (
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      color: "#60a5fa",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        width: 5,
+                        height: 5,
+                        borderRadius: "50%",
+                        background: "#60a5fa",
+                        animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite",
+                      }}
+                    />
+                    live
+                  </span>
+                )}
+                {attempt?.started_at && (
+                  <span
+                    style={{
+                      marginLeft: "auto",
+                      fontFamily: "monospace",
+                      color: "#d1d5db",
+                    }}
+                  >
+                    {elapsed(attempt.started_at, attempt.finished_at)}
+                  </span>
+                )}
+              </button>
+
+              {outputOpen && (
+                <pre
+                  style={{
+                    padding: "16px 20px",
+                    fontSize: 12,
+                    fontFamily: "monospace",
+                    lineHeight: 1.6,
+                    color: "#374151",
+                    whiteSpace: "pre-wrap",
+                    overflow: "auto",
+                    maxHeight: 260,
+                    margin: 0,
+                    borderTop: "1px solid #f3f4f6",
+                  }}
+                >
+                  {attempt?.output ||
+                    (job.status === "PENDING" ? (
+                      <span
+                        style={{
+                          color: "#d1d5db",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        Waiting for sandbox...
+                      </span>
+                    ) : (
+                      <span
+                        style={{
+                          color: "#d1d5db",
+                          fontStyle: "italic",
+                        }}
+                      >
+                        No output
+                      </span>
+                    ))}
+                </pre>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
