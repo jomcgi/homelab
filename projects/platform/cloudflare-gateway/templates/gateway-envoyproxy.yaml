@@ -9,6 +9,8 @@ spec:
   provider:
     type: Kubernetes
     kubernetes:
+      envoyService:
+        type: ClusterIP
       envoyDeployment:
         container:
           resources: {{- toYaml .Values.gateway.envoyProxy.resources | nindent 12 }}

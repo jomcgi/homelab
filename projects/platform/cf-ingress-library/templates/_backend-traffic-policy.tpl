@@ -21,8 +21,8 @@ spec:
       kind: HTTPRoute
       name: {{ .name }}
   rateLimit:
-    type: Global
-    global:
+    type: Local
+    local:
       rules:
         - limit:
             requests: {{ .rateLimit.requests | default 100 }}
