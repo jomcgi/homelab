@@ -86,7 +86,7 @@ func (e *Escalator) hasActiveJob(ctx context.Context, tag string) (bool, error) 
 
 	u := fmt.Sprintf("%s/jobs?status=%s&tags=%s&limit=1",
 		e.orchestrator.baseURL,
-		url.QueryEscape("PENDING,RUNNING,SUCCEEDED"),
+		url.QueryEscape("PENDING,RUNNING"),
 		url.QueryEscape(tag),
 	)
 

@@ -153,6 +153,49 @@ func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
 	}
 }
 
+func TestEscalator_ResubmitsAfterJobSucceeds(t *testing.T) {
+	var jobSubmitted bool
+	orchestrator := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodGet {
+			// Verify the query only checks PENDING,RUNNING (not SUCCEEDED).
+			status := r.URL.Query().Get("status")
+			if status != "PENDING,RUNNING" {
+				t.Errorf("expected status filter PENDING,RUNNING, got %q", status)
+			}
+			// No active jobs (previous job already succeeded).
+			json.NewEncoder(w).Encode(orchestratorListResponse{Total: 0})
+			return
+		}
+		jobSubmitted = true
+		w.WriteHeader(http.StatusAccepted)
+		json.NewEncoder(w).Encode(map[string]string{"id": "job-2"})
+	}))
+	defer orchestrator.Close()
+
+	esc := &Escalator{
+		orchestrator: &OrchestratorClient{baseURL: orchestrator.URL, client: &http.Client{}},
+	}
+
+	actions := []Action{{
+		Type: ActionOrchestratorJob,
+		Finding: Finding{
+			Fingerprint: "improvement:test-coverage",
+			Source:      "improvement:test-coverage",
+			Title:       "New sweep after previous job completed",
+		},
+		Payload: map[string]any{
+			"task":    "Re-run test coverage analysis",
+			"profile": "code-fix",
+		},
+	}}
+
+	esc.Execute(context.Background(), actions)
+
+	if !jobSubmitted {
+		t.Error("expected job to be resubmitted after previous job succeeded")
+	}
+}
+
 func TestEscalator_LogActionSkipsDedup(t *testing.T) {
 	esc := &Escalator{}
 
