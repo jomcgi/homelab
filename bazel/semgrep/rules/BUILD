@@ -1,4 +1,5 @@
 # gazelle:semgrep disabled
+# gazelle:exclude golang
 # gazelle:exclude python
 
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
