@@ -1,0 +1,17 @@
+{{- if .Values.cfIngress.admin.enabled }}
+{{- $params := dict
+  "name" (printf "%s-admin" (include "todo.fullname" .))
+  "tier" .Values.cfIngress.admin.tier
+  "hostname" .Values.cfIngress.admin.hostname
+  "serviceName" (printf "%s-admin" (include "todo.fullname" .))
+  "servicePort" (.Values.cfIngress.admin.servicePort | int)
+  "gateway" .Values.cfIngress.admin.gateway
+}}
+{{- include "cf-ingress.httproute" $params }}
+---
+{{- $spParams := dict
+  "name" (printf "%s-admin" (include "todo.fullname" .))
+  "team" .Values.cfIngress.admin.team
+}}
+{{- include "cf-ingress.security-policy" $spParams }}
+{{- end }}
