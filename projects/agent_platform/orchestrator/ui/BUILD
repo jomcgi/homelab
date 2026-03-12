@@ -26,6 +26,7 @@ vite_build(
     ],
     config = "vite.config.js",
     tool = ":vite",
+    visibility = ["//projects/agent_platform/orchestrator:__pkg__"],
     deps = [
         "react",
         "react-dom",
@@ -33,5 +34,4 @@ vite_build(
         "vite",
         "@vitejs/plugin-react",
     ],
-    visibility = ["//projects/agent_platform/orchestrator:__pkg__"],
 )
