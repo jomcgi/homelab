@@ -1,0 +1,17 @@
+{{- if .Values.cfIngress.public.enabled }}
+{{- $params := dict
+  "name" (printf "%s-public" (include "todo.fullname" .))
+  "tier" .Values.cfIngress.public.tier
+  "hostname" .Values.cfIngress.public.hostname
+  "serviceName" (printf "%s-public" (include "todo.fullname" .))
+  "servicePort" (.Values.cfIngress.public.servicePort | int)
+  "gateway" .Values.cfIngress.public.gateway
+}}
+{{- include "cf-ingress.httproute" $params }}
+---
+{{- $rlParams := dict
+  "name" (printf "%s-public" (include "todo.fullname" .))
+  "rateLimit" .Values.cfIngress.public.rateLimit
+}}
+{{- include "cf-ingress.rate-limit" $rlParams }}
+{{- end }}
