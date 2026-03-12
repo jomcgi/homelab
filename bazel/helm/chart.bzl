@@ -21,19 +21,14 @@ def helm_chart(name, publish = False, repository = "oci://ghcr.io/jomcgi/homelab
                 Each label must expose an OciImageInfo provider (produced automatically
                 by go_image, apko_image, and py3_image as the "{name}.info" target).
 
-                At build time a values YAML fragment is generated with separate
-                "repository" and "tag" fields per image, suitable for use with
-                ArgoCD Image Updater.
+                At build time the generated values are deep-merged into the
+                chart's values.yaml, overriding the default repository and tag
+                for each image path.
 
                 Example:
                     images = {
                         "image": "//charts/todo/image:image.info",
                     }
-
-                Produces (in bazel-out):
-                    image:
-                      repository: ghcr.io/jomcgi/homelab/projects/todo_app/image
-                      tag: main-abc1234
     """
     native.exports_files([
         "Chart.yaml",
@@ -60,7 +55,6 @@ def helm_chart(name, publish = False, repository = "oci://ghcr.io/jomcgi/homelab
     if lint:
         helm_lint_test(
             name = "lint_test",
-            extra_values = [images_values_target] if images_values_target else [],
             tags = ["chart", "lint"],
         )
 
