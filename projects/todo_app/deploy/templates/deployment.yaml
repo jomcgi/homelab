@@ -76,7 +76,7 @@ spec:
             - name: DATA_DIR
               value: /repo/{{ .Values.git.dataPath }}
             - name: STATIC_DIR
-              value: /app/static/charts/todo/static
+              value: /app/static
             - name: GIT_ROOT
               value: /repo
             - name: GIT_REPO
