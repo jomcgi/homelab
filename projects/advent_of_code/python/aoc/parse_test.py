@@ -14,6 +14,7 @@ from projects.advent_of_code.python.aoc.parse import (
 
 # --- lines ---
 
+
 def test_lines_basic():
     assert lines("a\nb\nc") == ["a", "b", "c"]
 
@@ -33,6 +34,7 @@ def test_lines_single():
 
 # --- paragraphs ---
 
+
 def test_paragraphs_basic():
     result = paragraphs("a\nb\n\nc\nd")
     assert result == ["a\nb", "c\nd"]
@@ -48,6 +50,7 @@ def test_paragraphs_single():
 
 
 # --- ints ---
+
 
 def test_ints_positives():
     assert ints("1 2 3") == [1, 2, 3]
@@ -75,6 +78,7 @@ def test_ints_in_sentence():
 
 # --- floats ---
 
+
 def test_floats_basic():
     result = floats("3.14 2.71")
     assert len(result) == 2
@@ -95,6 +99,7 @@ def test_floats_negative():
 
 # --- words ---
 
+
 def test_words_basic():
     assert words("hello world") == ["hello", "world"]
 
@@ -111,6 +116,7 @@ def test_words_empty():
 
 
 # --- chars ---
+
 
 def test_chars_basic():
     assert chars("abc") == ["a", "b", "c"]

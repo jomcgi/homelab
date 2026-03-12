@@ -63,3 +63,21 @@ semgrep_test(
     srcs = ["parse.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+semgrep_test(
+    name = "algo_test_semgrep_test",
+    srcs = ["algo_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "grid_test_semgrep_test",
+    srcs = ["grid_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "parse_test_semgrep_test",
+    srcs = ["parse_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
