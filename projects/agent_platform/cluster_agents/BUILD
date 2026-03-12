@@ -34,6 +34,7 @@ go_test(
         "escalator_test.go",
         "git_activity_gate_test.go",
         "github_client_test.go",
+        "main_test.go",
         "patrol_test.go",
         "pr_fix_agent_test.go",
         "readme_freshness_agent_test.go",
