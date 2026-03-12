@@ -114,7 +114,7 @@ func Fields(s string) []string {
 // Split splits by separator and trims each part
 func Split(s, sep string) []string {
 	parts := strings.Split(s, sep)
-	result := make([]string, 0, len(parts))
+	var result []string
 	for _, p := range parts {
 		p = strings.TrimSpace(p)
 		if p != "" {
