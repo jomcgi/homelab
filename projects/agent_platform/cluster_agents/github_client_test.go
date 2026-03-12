@@ -110,3 +110,94 @@ func TestGitHubClient_LatestNonBotCommit_APIError(t *testing.T) {
 		t.Fatal("expected error on 500 response")
 	}
 }
+
+func TestGitHubClient_OpenPRsWithFailingChecks(t *testing.T) {
+	now := time.Now()
+	stalePushedAt := now.Add(-2 * time.Hour)
+	freshPushedAt := now.Add(-10 * time.Minute)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/jomcgi/homelab/pulls":
+			prs := []ghPullRequest{
+				{
+					Number:    42,
+					Head:      ghHead{Ref: "fix/stale-branch", SHA: "sha42"},
+					PushedAt:  stalePushedAt,
+					UpdatedAt: stalePushedAt,
+				},
+				{
+					Number:    43,
+					Head:      ghHead{Ref: "feat/fresh-branch", SHA: "sha43"},
+					PushedAt:  freshPushedAt,
+					UpdatedAt: freshPushedAt,
+				},
+			}
+			json.NewEncoder(w).Encode(prs)
+		case "/repos/jomcgi/homelab/commits/sha42/check-suites":
+			resp := ghCheckSuitesResponse{
+				CheckSuites: []ghCheckSuite{{Conclusion: "failure"}},
+			}
+			json.NewEncoder(w).Encode(resp)
+		case "/repos/jomcgi/homelab/commits/sha43/check-suites":
+			resp := ghCheckSuitesResponse{
+				CheckSuites: []ghCheckSuite{{Conclusion: "failure"}},
+			}
+			json.NewEncoder(w).Encode(resp)
+		default:
+			t.Errorf("unexpected path: %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := NewGitHubClient(server.URL, "test-token", "jomcgi/homelab")
+	prs, err := client.OpenPRsWithFailingChecks(context.Background(), 1*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prs) != 1 {
+		t.Fatalf("expected 1 PR, got %d", len(prs))
+	}
+	if prs[0].Number != 42 {
+		t.Errorf("expected PR #42, got #%d", prs[0].Number)
+	}
+}
+
+func TestGitHubClient_OpenPRsWithFailingChecks_AllPassing(t *testing.T) {
+	now := time.Now()
+	stalePushedAt := now.Add(-2 * time.Hour)
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/repos/jomcgi/homelab/pulls":
+			prs := []ghPullRequest{
+				{
+					Number:    42,
+					Head:      ghHead{Ref: "fix/stale-branch", SHA: "sha42"},
+					PushedAt:  stalePushedAt,
+					UpdatedAt: stalePushedAt,
+				},
+			}
+			json.NewEncoder(w).Encode(prs)
+		case "/repos/jomcgi/homelab/commits/sha42/check-suites":
+			resp := ghCheckSuitesResponse{
+				CheckSuites: []ghCheckSuite{{Conclusion: "success"}},
+			}
+			json.NewEncoder(w).Encode(resp)
+		default:
+			t.Errorf("unexpected path: %s", r.URL.Path)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+
+	client := NewGitHubClient(server.URL, "test-token", "jomcgi/homelab")
+	prs, err := client.OpenPRsWithFailingChecks(context.Background(), 1*time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(prs) != 0 {
+		t.Errorf("expected 0 PRs, got %d", len(prs))
+	}
+}
