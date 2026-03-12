@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"log/slog"
 	"net/http"
-	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -25,13 +24,13 @@ type API struct {
 	healthCheck       func() error             // checks backing store connectivity
 	defaultMaxRetries int
 	agents            []AgentInfo
-	profiles          []ProfileInfo
+	recipes           map[string]map[string]any
 	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, profiles []ProfileInfo, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, profiles: profiles, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, recipes map[string]map[string]any, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, recipes: recipes, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -41,7 +40,6 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /jobs/{id}", a.handleGet)
 	mux.HandleFunc("POST /jobs/{id}/cancel", a.handleCancel)
 	mux.HandleFunc("GET /jobs/{id}/output", a.handleOutput)
-	mux.HandleFunc("GET /profiles", a.handleProfiles)
 	mux.HandleFunc("GET /agents", a.handleAgents)
 	mux.HandleFunc("GET /health", a.handleHealth)
 }
@@ -57,8 +55,8 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Profile != "" {
-		if _, ok := ValidProfiles[req.Profile]; !ok {
-			a.writeError(w, http.StatusBadRequest, "unknown profile: "+req.Profile)
+		if _, ok := a.recipes[req.Profile]; !ok {
+			a.writeError(w, http.StatusBadRequest, "unknown agent: "+req.Profile)
 			return
 		}
 	}
@@ -226,28 +224,18 @@ func (a *API) handleOutput(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *API) handleProfiles(w http.ResponseWriter, _ *http.Request) {
-	names := make([]string, 0, len(ValidProfiles))
-	for name := range ValidProfiles {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	a.writeJSON(w, http.StatusOK, names)
-}
-
 func (a *API) handleAgents(w http.ResponseWriter, _ *http.Request) {
 	agents := a.agents
 	if agents == nil {
 		agents = []AgentInfo{}
 	}
-	profiles := a.profiles
-	if profiles == nil {
-		profiles = []ProfileInfo{}
+	// Strip recipe content from response — frontend only needs UI metadata.
+	stripped := make([]AgentInfo, len(agents))
+	for i, ag := range agents {
+		stripped[i] = ag
+		stripped[i].Recipe = nil
 	}
-	a.writeJSON(w, http.StatusOK, AgentsResponse{
-		Agents:   agents,
-		Profiles: profiles,
-	})
+	a.writeJSON(w, http.StatusOK, AgentsResponse{Agents: stripped})
 }
 
 func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
