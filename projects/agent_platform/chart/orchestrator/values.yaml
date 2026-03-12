@@ -61,60 +61,45 @@ config:
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
 
-# Pipeline composer agent/profile registry. Served via GET /agents so the
-# frontend discovers available agents without hardcoding. Add new agents
-# here to make them appear in the pipeline composer UI.
+# Pipeline composer agent registry. Served via GET /agents so the frontend
+# discovers available agents without hardcoding. Each agent maps to a goose
+# recipe profile that the orchestrator can dispatch to a sandbox.
+#
+# Categories group agents by intent:
+#   analyse  — collect data, research, review, diagnose
+#   action   — fix, implement, deploy, modify
+#   validate — review PRs, write tests, verify changes
+#   tool     — run a specific tool or post to an external service
 agentsConfig:
   agents:
     - id: ci-debug
-      label: ci-debug
-      icon: "⚙"
+      label: CI Debug
+      icon: "🔬"
       bg: "#dbeafe"
       fg: "#1e40af"
-      desc: Analyse CI/build failures, read logs
-      category: tool
-    - id: code-fix
-      label: code-fix
-      icon: "⚙"
-      bg: "#dbeafe"
-      fg: "#1e40af"
-      desc: Fix code, open PRs, edit files
-      category: tool
-    - id: goose
-      label: goose
-      icon: "◈"
+      desc: Analyse CI/build failures using BuildBuddy logs
+      category: analyse
+    - id: research
+      label: Research
+      icon: "🔍"
       bg: "#ede9fe"
       fg: "#5b21b6"
-      desc: Autonomous coding sandbox
-      category: tool
-    - id: k8s-agent
-      label: k8s-agent
+      desc: Research topics across the codebase
+      category: analyse
+    - id: code-fix
+      label: Code Fix
+      icon: "🔧"
+      bg: "#fef3c7"
+      fg: "#92400e"
+      desc: Fix code issues, open PRs, edit files
+      category: action
+    - id: bazel
+      label: Bazel
       icon: "⚙"
-      bg: "#dbeafe"
-      fg: "#1e40af"
-      desc: Kubernetes cluster operations
-      category: tool
-    - id: notify
-      label: notify
-      icon: "⬡"
       bg: "#d1fae5"
       fg: "#065f46"
-      desc: Send slack/github notifications
-      category: utility
-    - id: grimoire
-      label: grimoire
-      icon: "⬡"
-      bg: "#d1fae5"
-      fg: "#065f46"
-      desc: Query D&D knowledge graph
-      category: utility
-  profiles:
-    - id: homelab
-      meta: K3s
-    - id: semgrep
-      meta: work
-    - id: gpu
-      meta: RTX 4090
+      desc: Bazel build and configuration tasks
+      category: action
 
 httpRoute:
   enabled: false

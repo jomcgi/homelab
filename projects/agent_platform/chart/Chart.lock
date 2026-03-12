@@ -7,12 +7,12 @@ dependencies:
   version: 0.1.0
 - name: agent-orchestrator
   repository: file://./orchestrator
-  version: 0.1.0
+  version: 0.2.0
 - name: nats
   repository: https://nats-io.github.io/k8s/helm/charts/
   version: 2.12.3
 - name: agent-sandbox
   repository: file://./agent-sandbox
   version: 0.1.0
-digest: sha256:ea292a47ee531cbc472365c27c0ba11491e70e29ee2d6bebebfc93ce283d3f80
-generated: "2026-03-11T08:56:06.46828-07:00"
+digest: sha256:8946fe02d4042b94fae622fe1870baebac4ba0ae2aeabc71a37dfdb451cc8288
+generated: "2026-03-12T16:24:07.074404-07:00"

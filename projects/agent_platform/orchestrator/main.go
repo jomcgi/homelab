@@ -104,7 +104,7 @@ func main() {
 		return err
 	}
 
-	agents, profiles := parseAgentsConfig(envOr("AGENTS_CONFIG", ""), logger)
+	agents, profiles := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
 
 	api := NewAPI(store, publish, healthCheck, maxRetries, agents, profiles, logger)
 	mux := http.NewServeMux()
@@ -221,18 +221,24 @@ func setupJetStream(ctx context.Context, js jetStreamSetup, maxConcurrent int, l
 	return nil, nil, fmt.Errorf("JetStream setup failed after %d attempts", maxAttempts)
 }
 
-// parseAgentsConfig decodes the AGENTS_CONFIG JSON env var into agent and
-// profile slices for the pipeline composer UI. Returns empty slices on error.
-func parseAgentsConfig(raw string, logger *slog.Logger) ([]AgentInfo, []ProfileInfo) {
-	if raw == "" {
+// loadAgentsConfig reads the agents JSON config file mounted from a ConfigMap.
+// Returns nil slices if the file doesn't exist or is empty.
+func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, []ProfileInfo) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			logger.Info("no agents config file, pipeline composer will show empty agent list", "path", path)
+			return nil, nil
+		}
+		logger.Error("failed to read agents config", "path", path, "error", err)
 		return nil, nil
 	}
 	var cfg AgentsResponse
-	if err := json.Unmarshal([]byte(raw), &cfg); err != nil {
-		logger.Error("failed to parse AGENTS_CONFIG", "error", err)
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		logger.Error("failed to parse agents config", "path", path, "error", err)
 		return nil, nil
 	}
-	logger.Info("loaded agents config", "agents", len(cfg.Agents), "profiles", len(cfg.Profiles))
+	logger.Info("loaded agents config", "path", path, "agents", len(cfg.Agents), "profiles", len(cfg.Profiles))
 	return cfg.Agents, cfg.Profiles
 }
 
