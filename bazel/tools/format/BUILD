@@ -48,7 +48,6 @@ format_multirun(
 multirun(
     name = "format",
     commands = [
-        "//bazel/images:generate-docs-sidebar",
         "//bazel/images:generate-home-cluster",
         "//bazel/images:generate-push-all",
         "//bazel/images:generate-push-all-pages",
