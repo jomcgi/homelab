@@ -18,7 +18,7 @@ actions:
       - run: |
           # Skip automated commits to avoid loops
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -83,7 +83,7 @@ actions:
       - run: |
           # Skip automated commits (no code to test)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -113,7 +113,7 @@ actions:
       - run: |
           # Skip automated commits (digest-only bumps, nothing to push)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -138,7 +138,7 @@ actions:
       - run: |
           # Skip automated commits (digest-only bumps, no pages to deploy)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
