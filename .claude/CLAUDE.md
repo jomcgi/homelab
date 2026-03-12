@@ -93,9 +93,11 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 | **Secrets**               | 1Password Operator (`OnePasswordItem` CRD) — never hardcode                |
 | **Container images**      | apko + rules_apko (not Dockerfiles) — always dual-arch (x86_64 + aarch64)  |
 | **Auto image updates**    | ArgoCD Image Updater (`imageupdater.yaml` in `projects/{service}/deploy/`) |
+| **Image pinning**         | Bazel `helm_images_values` deep-merges pinned tags into `values.yaml` at build time — never manually set `@sha256:` digests in deploy values files |
 | **Package deps (Python)** | `@pip//package` via aspect_rules_py (not `requirement()`)                  |
 | **Package deps (JS)**     | pnpm + rules_js                                                            |
 | **Non-root containers**   | uid 65532 convention, `runAsNonRoot: true`                                 |
+| **Helm service names**    | Helm prepends `<release-name>-` to service names. A service `agent-orchestrator` in release `agent-platform` is reachable at `agent-platform-agent-orchestrator.<namespace>.svc.cluster.local`. Never hardcode these URLs in Go application defaults — inject from `values.yaml` env vars. |
 
 ## Cluster Investigation
 
@@ -166,4 +168,6 @@ Static sites deploy via `bazel run //projects/websites:push_all_pages` on main b
 - **Using `@rules_python` syntax** — this repo uses `@aspect_rules_py`
 - **Building a custom Helm chart when upstream provides one** — always check the upstream project repo for an existing chart before creating a custom one
 - **Using kubectl/argocd CLI for cluster reads** — use MCP tools via Context Forge; PreToolUse hooks enforce this
+- **Hardcoding `.svc.cluster.local` URLs in Go defaults** — when a Helm release is renamed the service name prefix changes silently; set via `envOr("URL", "")` (no default) and configure in `values.yaml`; semgrep rule `no-hardcoded-k8s-service-url` catches this in CI
+- **Manually pinning `@sha256:` image digests in values files** — digests go stale after CI rebuilds, causing `ImagePullBackOff`; the Bazel pipeline manages pinning automatically; semgrep rule `no-hardcoded-image-digest` catches this in CI
 - **Over-engineering** simple services
