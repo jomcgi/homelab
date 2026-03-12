@@ -68,6 +68,29 @@ fi
 if [[ "$CURRENT_BRANCH" == "main" ]]; then
   # --- Main branch: push with semver from Chart.yaml (already bumped by PR) ---
   echo "On main — pushing chart with semver from Chart.yaml"
+
+  # Update targetRevision in the deploy application.yaml so ArgoCD picks up the new chart version.
+  # Convention: chart at projects/<svc>/chart → deploy at projects/<svc>/deploy/application.yaml
+  if [[ -n "$ABS_CHART_DIR" ]]; then
+    DEPLOY_APP_YAML="$(dirname "$ABS_CHART_DIR")/deploy/application.yaml"
+    if [[ -f "$DEPLOY_APP_YAML" ]]; then
+      CHART_VERSION=$(grep '^version:' "${ABS_CHART_DIR}/Chart.yaml" | head -1 | awk '{print $2}' | tr -d '"')
+      CURRENT_TARGET=$(grep 'targetRevision:' "$DEPLOY_APP_YAML" | head -1 | awk '{print $2}' | tr -d '"')
+      if [[ -n "$CHART_VERSION" ]] && [[ "$CHART_VERSION" != "$CURRENT_TARGET" ]]; then
+        echo "Updating targetRevision: ${CURRENT_TARGET} -> ${CHART_VERSION}"
+        DEPLOY_DIR="$(dirname "$CHART_DIR")/deploy"
+        sed "s/targetRevision: ${CURRENT_TARGET}/targetRevision: ${CHART_VERSION}/" "$DEPLOY_APP_YAML" > "${DEPLOY_APP_YAML}.tmp"
+        mv "${DEPLOY_APP_YAML}.tmp" "$DEPLOY_APP_YAML"
+        cd "$WORKSPACE"
+        git config user.name "chart-version-bot"
+        git config user.email "chart-version-bot@users.noreply.github.com"
+        git add "${DEPLOY_DIR}/application.yaml"
+        git commit -m "chore: update targetRevision to ${CHART_VERSION}"
+        git push origin HEAD:main
+        echo "targetRevision updated and pushed"
+      fi
+    fi
+  fi
 elif [[ "$CAN_VERSION" == "true" ]]; then
   # --- PR branch: compute version bump, commit to PR, push with datestamp ---
   BAZEL_PKG="//${CHART_DIR}:chart.package"
