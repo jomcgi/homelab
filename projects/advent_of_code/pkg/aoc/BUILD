@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_library")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "aoc",
@@ -10,4 +10,14 @@ go_library(
     ],
     importpath = "github.com/jomcgi/homelab/projects/advent_of_code/pkg/aoc",
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "aoc_test",
+    srcs = [
+        "algo_test.go",
+        "grid_test.go",
+        "parse_test.go",
+    ],
+    embed = [":aoc"],
 )
