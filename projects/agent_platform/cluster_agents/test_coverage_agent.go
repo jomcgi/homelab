@@ -9,14 +9,16 @@ import (
 const testCoverageTag = "improvement:test-coverage"
 
 type TestCoverageAgent struct {
-	gate     *GitActivityGate
-	interval time.Duration
+	gate      *GitActivityGate
+	escalator *Escalator
+	interval  time.Duration
 }
 
-func NewTestCoverageAgent(gate *GitActivityGate, interval time.Duration) *TestCoverageAgent {
+func NewTestCoverageAgent(gate *GitActivityGate, escalator *Escalator, interval time.Duration) *TestCoverageAgent {
 	return &TestCoverageAgent{
-		gate:     gate,
-		interval: interval,
+		gate:      gate,
+		escalator: escalator,
+		interval:  interval,
 	}
 }
 
@@ -74,6 +76,6 @@ test(<project>): add coverage for <description>`, commitRange)
 	}, nil
 }
 
-func (a *TestCoverageAgent) Execute(_ context.Context, _ []Action) error {
-	return nil
+func (a *TestCoverageAgent) Execute(ctx context.Context, actions []Action) error {
+	return a.escalator.Execute(ctx, actions)
 }

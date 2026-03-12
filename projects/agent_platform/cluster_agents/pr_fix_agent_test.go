@@ -47,6 +47,7 @@ func TestPRFixAgent_CollectFindsFailingPRs(t *testing.T) {
 	agent := NewPRFixAgent(
 		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
 		NewOrchestratorClient(orchestratorServer.URL),
+		nil,
 		1*time.Hour,
 		30*time.Minute,
 	)
@@ -116,6 +117,7 @@ func TestPRFixAgent_CollectSkipsPRWithActiveJob(t *testing.T) {
 	agent := NewPRFixAgent(
 		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
 		NewOrchestratorClient(orchestratorServer.URL),
+		nil,
 		1*time.Hour,
 		30*time.Minute,
 	)
@@ -130,7 +132,7 @@ func TestPRFixAgent_CollectSkipsPRWithActiveJob(t *testing.T) {
 }
 
 func TestPRFixAgent_AnalyzeCreatesPerPRActions(t *testing.T) {
-	agent := NewPRFixAgent(nil, nil, 1*time.Hour, 30*time.Minute)
+	agent := NewPRFixAgent(nil, nil, nil, 1*time.Hour, 30*time.Minute)
 
 	findings := []Finding{
 		{

@@ -40,7 +40,7 @@ func TestRulesAgent_CollectWithActivity(t *testing.T) {
 		"main",
 	)
 
-	agent := NewRulesAgent(gate, 1*time.Hour)
+	agent := NewRulesAgent(gate, nil, 1*time.Hour)
 
 	findings, err := agent.Collect(context.Background())
 	if err != nil {
@@ -55,7 +55,7 @@ func TestRulesAgent_CollectWithActivity(t *testing.T) {
 }
 
 func TestRulesAgent_AnalyzeCreatesJob(t *testing.T) {
-	agent := NewRulesAgent(nil, 1*time.Hour)
+	agent := NewRulesAgent(nil, nil, 1*time.Hour)
 
 	findings := []Finding{
 		{

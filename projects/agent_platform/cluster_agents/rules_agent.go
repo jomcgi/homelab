@@ -9,14 +9,16 @@ import (
 const rulesTag = "improvement:rules"
 
 type RulesAgent struct {
-	gate     *GitActivityGate
-	interval time.Duration
+	gate      *GitActivityGate
+	escalator *Escalator
+	interval  time.Duration
 }
 
-func NewRulesAgent(gate *GitActivityGate, interval time.Duration) *RulesAgent {
+func NewRulesAgent(gate *GitActivityGate, escalator *Escalator, interval time.Duration) *RulesAgent {
 	return &RulesAgent{
-		gate:     gate,
-		interval: interval,
+		gate:      gate,
+		escalator: escalator,
+		interval:  interval,
 	}
 }
 
@@ -82,6 +84,6 @@ Create one PR per rule/config change. Use conventional commit format:
 	}, nil
 }
 
-func (a *RulesAgent) Execute(_ context.Context, _ []Action) error {
-	return nil
+func (a *RulesAgent) Execute(ctx context.Context, actions []Action) error {
+	return a.escalator.Execute(ctx, actions)
 }
