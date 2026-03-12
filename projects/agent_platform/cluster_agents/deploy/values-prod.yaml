@@ -1,8 +1,5 @@
 imagePullSecret:
   enabled: true
-image:
-  tag: main@sha256:7724bd0b50026e3241c8d898cca56a36c869defba3225c8dee21a4ae779606d7
-  repository: ghcr.io/jomcgi/homelab/projects/agent_platform/cluster_agents
 podAnnotations:
   instrumentation.opentelemetry.io/inject-go: "go"
   instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
