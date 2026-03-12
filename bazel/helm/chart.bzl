@@ -76,5 +76,6 @@ def helm_chart(name, publish = False, repository = "oci://ghcr.io/jomcgi/homelab
             name = name + ".push",
             chart = name + ".package",
             repository = repository,
+            chart_dir = native.package_name(),
             visibility = ["//bazel/images:__pkg__"],
         )
