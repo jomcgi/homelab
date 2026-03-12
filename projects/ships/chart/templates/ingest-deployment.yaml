@@ -33,7 +33,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: ingest
-          image: "{{ .Values.ingest.image.repository }}{{ if .Values.ingest.image.digest }}@{{ .Values.ingest.image.digest }}{{ else }}:{{ .Values.ingest.image.tag }}{{ end }}"
+          image: "{{ .Values.ingest.image.repository }}:{{ .Values.ingest.image.tag }}"
           imagePullPolicy: {{ .Values.ingest.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}

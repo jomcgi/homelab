@@ -59,6 +59,7 @@ multirun(
         "//projects/operators/oci-model-cache:image.push",
         "//projects/platform/signoz-addons/dashboard-sidecar/cmd:image.push",
         "//projects/ships/backend:image.push",
+        "//projects/ships/chart:chart.push",
         "//projects/ships/frontend:image.push",
         "//projects/ships/ingest:image.push",
         "//projects/stargazer:image.push",

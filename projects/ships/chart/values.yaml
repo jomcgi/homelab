@@ -5,16 +5,6 @@
 nameOverride: ""
 fullnameOverride: ""
 
-# ArgoCD Image Updater (automatic digest-based image updates)
-imageUpdater:
-  enabled: false
-  images: []
-  writeBack:
-    method: ""
-    repository: ""
-    branch: main
-    target: ""
-
 # Image pull secrets (shared by all components)
 imagePullSecrets: []
 
@@ -82,7 +72,6 @@ ingest:
   image:
     repository: ghcr.io/jomcgi/homelab/projects/ships/ingest
     tag: "main"
-    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica - no need for HA for data ingestion
@@ -116,7 +105,6 @@ api:
   image:
     repository: ghcr.io/jomcgi/homelab/projects/ships/backend
     tag: "main"
-    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica required for SQLite (single-writer lock)
@@ -176,7 +164,6 @@ frontend:
   image:
     repository: ghcr.io/jomcgi/homelab/projects/ships/frontend
     tag: "main"
-    digest: "" # Set by ImageUpdater (e.g., sha256:abc123...)
     pullPolicy: IfNotPresent
 
   # Single replica

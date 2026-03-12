@@ -35,7 +35,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: api
-          image: "{{ .Values.api.image.repository }}{{ if .Values.api.image.digest }}@{{ .Values.api.image.digest }}{{ else }}:{{ .Values.api.image.tag }}{{ end }}"
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
@@ -141,7 +141,7 @@ spec:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
       containers:
         - name: api
-          image: "{{ .Values.api.image.repository }}{{ if .Values.api.image.digest }}@{{ .Values.api.image.digest }}{{ else }}:{{ .Values.api.image.tag }}{{ end }}"
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
