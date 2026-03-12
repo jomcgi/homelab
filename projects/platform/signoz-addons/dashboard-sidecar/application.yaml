@@ -5,16 +5,19 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/jomcgi/homelab.git
-    targetRevision: HEAD
-    path: projects/platform/signoz-addons/dashboard-sidecar
-    helm:
-      releaseName: signoz-dashboard-sidecar
-      valueFiles:
-        - values.yaml
-        - values-prod.yaml
-      ignoreMissingValueFiles: true
+  sources:
+    # Chart from OCI registry (pushed by CI via Bazel helm_push)
+    - repoURL: ghcr.io/jomcgi/homelab/charts
+      chart: signoz-dashboard-sidecar
+      targetRevision: 0.1.0
+      helm:
+        releaseName: signoz-dashboard-sidecar
+        valueFiles:
+          - $values/projects/platform/signoz-addons/dashboard-sidecar/values-prod.yaml
+    # Git repo for environment-specific values
+    - repoURL: https://github.com/jomcgi/homelab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: signoz
@@ -24,3 +27,4 @@ spec:
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true

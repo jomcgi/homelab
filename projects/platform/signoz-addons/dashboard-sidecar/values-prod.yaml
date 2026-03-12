@@ -1,10 +1,5 @@
 # Environment-specific overrides for signoz-dashboard-sidecar
 
-# Use the image from our container registry
-image:
-  repository: ghcr.io/jomcgi/homelab/projects/platform/signoz-addons/dashboard-sidecar/cmd
-  # tag will be updated by argocd-image-updater
-  tag: main@sha256:2b2d2230a9e5d67e4c7a486b43a537a4f079ecb8535a0a5c709bd0562047c67a
 # GHCR image pull authentication
 imagePullSecrets:
   - name: ghcr-imagepull-secret
