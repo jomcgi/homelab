@@ -111,30 +111,36 @@ func TestLoadAgentsConfig(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agents.json")
 
-	data := `{"agents":[{"id":"ci-debug","label":"CI Debug","icon":"gear","bg":"#dbeafe","fg":"#1e40af","desc":"Debug CI","category":"tool"}],"profiles":[]}`
+	data := `{"agents":[{"id":"ci-debug","label":"CI Debug","icon":"gear","bg":"#dbeafe","fg":"#1e40af","desc":"Debug CI","category":"tool","recipe":{"version":"1.0","steps":[{"name":"debug"}]}}]}`
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	agents, profiles := loadAgentsConfig(path, slog.Default())
+	agents, recipes := loadAgentsConfig(path, slog.Default())
 	if len(agents) != 1 {
 		t.Fatalf("expected 1 agent, got %d", len(agents))
 	}
 	if agents[0].ID != "ci-debug" {
 		t.Fatalf("expected ci-debug, got %s", agents[0].ID)
 	}
-	if len(profiles) != 0 {
-		t.Fatalf("expected 0 profiles, got %d", len(profiles))
+	if len(recipes) != 1 {
+		t.Fatalf("expected 1 recipe, got %d", len(recipes))
+	}
+	if _, ok := recipes["ci-debug"]; !ok {
+		t.Fatal("expected recipe for ci-debug")
+	}
+	if recipes["ci-debug"]["version"] != "1.0" {
+		t.Fatalf("expected recipe version 1.0, got %v", recipes["ci-debug"]["version"])
 	}
 }
 
 func TestLoadAgentsConfigMissing(t *testing.T) {
-	agents, profiles := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
+	agents, recipes := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
 	if agents != nil {
 		t.Fatalf("expected nil agents, got %v", agents)
 	}
-	if profiles != nil {
-		t.Fatalf("expected nil profiles, got %v", profiles)
+	if recipes != nil {
+		t.Fatalf("expected nil recipes, got %v", recipes)
 	}
 }
 
@@ -146,11 +152,11 @@ func TestLoadAgentsConfigInvalid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	agents, profiles := loadAgentsConfig(path, slog.Default())
+	agents, recipes := loadAgentsConfig(path, slog.Default())
 	if agents != nil {
 		t.Fatalf("expected nil agents on invalid JSON, got %v", agents)
 	}
-	if profiles != nil {
-		t.Fatalf("expected nil profiles on invalid JSON, got %v", profiles)
+	if recipes != nil {
+		t.Fatalf("expected nil recipes on invalid JSON, got %v", recipes)
 	}
 }

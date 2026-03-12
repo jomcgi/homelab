@@ -104,9 +104,9 @@ func main() {
 		return err
 	}
 
-	agents, profiles := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
+	agents, recipes := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
 
-	api := NewAPI(store, publish, healthCheck, maxRetries, agents, profiles, logger)
+	api := NewAPI(store, publish, healthCheck, maxRetries, agents, recipes, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)
@@ -222,8 +222,8 @@ func setupJetStream(ctx context.Context, js jetStreamSetup, maxConcurrent int, l
 }
 
 // loadAgentsConfig reads the agents JSON config file mounted from a ConfigMap.
-// Returns nil slices if the file doesn't exist or is empty.
-func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, []ProfileInfo) {
+// Returns nil values if the file doesn't exist or is invalid.
+func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, map[string]map[string]any) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -233,13 +233,21 @@ func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, []ProfileI
 		logger.Error("failed to read agents config", "path", path, "error", err)
 		return nil, nil
 	}
-	var cfg AgentsResponse
+	var cfg struct {
+		Agents []AgentInfo `json:"agents"`
+	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		logger.Error("failed to parse agents config", "path", path, "error", err)
 		return nil, nil
 	}
-	logger.Info("loaded agents config", "path", path, "agents", len(cfg.Agents), "profiles", len(cfg.Profiles))
-	return cfg.Agents, cfg.Profiles
+	recipes := make(map[string]map[string]any, len(cfg.Agents))
+	for _, a := range cfg.Agents {
+		if a.Recipe != nil {
+			recipes[a.ID] = a.Recipe
+		}
+	}
+	logger.Info("loaded agents config", "path", path, "agents", len(cfg.Agents), "recipes", len(recipes))
+	return cfg.Agents, recipes
 }
 
 func envOr(key, fallback string) string {
