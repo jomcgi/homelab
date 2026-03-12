@@ -77,8 +77,8 @@ Client → agent-orchestrator REST API
 │                                          ▼                      │
 │  ┌──────────────────────────────────────────────────────────┐   │
 │  │  MCP servers                                             │   │
-│  │  signoz-mcp · buildbuddy-mcp · kubernetes-mcp           │   │
-│  │  argocd-mcp · todo-mcp · agent-orchestrator-mcp         │   │
+│  │  signoz-mcp · buildbuddy-mcp · kubernetes-mcp            │   │
+│  │  argocd-mcp · todo-mcp · agent-orchestrator-mcp          │   │
 │  └──────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
          │ MCP gateway proxy
