@@ -39,4 +39,5 @@ go_binary(
 go_image(
     name = "image",
     binary = ":api",
+    repository = "ghcr.io/jomcgi/homelab/projects/grimoire/api",
 )

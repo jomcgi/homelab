@@ -45,5 +45,6 @@ apko_image(
     config = "apko.yaml",
     contents = "@todo_lock//:contents",
     multiarch_tars = [":binary_tar"],
+    repository = "ghcr.io/jomcgi/homelab/projects/todo_app/image",
     tars = [":static_tar"],
 )
