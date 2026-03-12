@@ -175,5 +175,9 @@ func TestPRFixAgent_AnalyzeCreatesPerPRActions(t *testing.T) {
 		if !ok || task == "" {
 			t.Errorf("action[%d]: expected non-empty task string", i)
 		}
+		profile, ok := action.Payload["profile"].(string)
+		if !ok || profile != "ci-debug" {
+			t.Errorf("action[%d]: expected profile=ci-debug, got %v", i, action.Payload["profile"])
+		}
 	}
 }
