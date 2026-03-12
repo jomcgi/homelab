@@ -22,6 +22,7 @@ py3_image(
         "DATA_DIR": "/data",
         "OTEL_ENABLED": "false",
     },
+    repository = "ghcr.io/jomcgi/homelab/projects/stargazer",
 )
 
 semgrep_test(

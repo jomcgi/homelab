@@ -11,6 +11,7 @@ py_library(
 py3_image(
     name = "image",
     binary = "//projects/agent_platform/buildbuddy_mcp/app:main",
+    repository = "ghcr.io/jomcgi/homelab/projects/agent_platform/buildbuddy_mcp",
 )
 
 semgrep_test(

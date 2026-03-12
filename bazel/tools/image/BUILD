@@ -179,6 +179,7 @@ oci_push(
         "//bazel/tools/oci:ci_build": "image_stamped_tags_ci",
         "//conditions:default": "image_stamped_tags_local",
     }),
+    repository = "ghcr.io/jomcgi/homelab/bazel/tools/image",
     visibility = ["//bazel/images:__pkg__"],
 )
 

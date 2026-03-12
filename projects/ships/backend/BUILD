@@ -34,6 +34,7 @@ py_library(
 py3_image(
     name = "image",
     binary = "//projects/ships/backend:main",
+    repository = "ghcr.io/jomcgi/homelab/projects/ships/backend",
 )
 
 semgrep_test(

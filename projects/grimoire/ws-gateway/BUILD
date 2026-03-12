@@ -34,4 +34,5 @@ go_binary(
 go_image(
     name = "image",
     binary = ":ws-gateway",
+    repository = "ghcr.io/jomcgi/homelab/projects/grimoire/ws-gateway",
 )

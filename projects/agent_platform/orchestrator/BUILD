@@ -87,6 +87,7 @@ go_test(
 go_image(
     name = "image",
     binary = ":agent-orchestrator",
+    repository = "ghcr.io/jomcgi/homelab/projects/agent_platform/orchestrator",
 )
 
 semgrep_test(

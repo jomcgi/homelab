@@ -27,6 +27,7 @@ apko_image(
     name = "image",
     config = "apko.yaml",
     contents = "@ships_frontend_lock//:contents",
+    repository = "ghcr.io/jomcgi/homelab/projects/ships/frontend",
     tars = [
         ":server_tar",
         ":dist_tar",
