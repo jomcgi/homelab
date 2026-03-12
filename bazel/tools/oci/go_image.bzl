@@ -15,7 +15,9 @@ def go_image(name, binary, base = "@distroless_base", repository = None, extra_t
         base: The base image to use. Defaults to distroless base.
         repository: The container registry repository (e.g., "ghcr.io/jomcgi/homelab/my-app").
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
-        extra_tars: Additional tar layers to include in the image (e.g., static assets). Defaults to [].
+        extra_tars: Platform-independent tar layers to include in the image (e.g., static
+                   assets). These are added AFTER the platform transition so they are not
+                   cross-compiled. Defaults to [].
         visibility: Visibility of the generated .push target. Defaults to ["//bazel/images:__pkg__"]
                    to allow access from the auto-generated //images:push_all multirun.
         multi_platform: Build for both amd64 and arm64. Defaults to True.
@@ -28,54 +30,52 @@ def go_image(name, binary, base = "@distroless_base", repository = None, extra_t
         :{name}.push - Target to push image to registry
     """
     if multi_platform:
-        # Build AMD64 image
-        tar(
-            name = name + "_app_layer_amd64",
-            srcs = [binary],
-            mtree = [
-                "./opt/app type=file content=$(execpath {})".format(binary),
-            ],
-        )
-        oci_image(
-            name = name + "_base_amd64",
-            base = base,
-            tars = [name + "_app_layer_amd64"] + extra_tars,
-            entrypoint = ["/opt/app"],
-            user = "65532",  # nonroot user in distroless
-        )
-        platform_transition_filegroup(
-            name = name + "_amd64",
-            srcs = [name + "_base_amd64"],
-            target_platform = "@rules_go//go/toolchain:linux_amd64",
-        )
+        for arch in ["amd64", "arm64"]:
+            # Package binary into a tar layer
+            tar(
+                name = name + "_app_layer_" + arch,
+                srcs = [binary],
+                mtree = [
+                    "./opt/app type=file content=$(execpath {})".format(binary),
+                ],
+            )
 
-        # Build ARM64 image
-        tar(
-            name = name + "_app_layer_arm64",
-            srcs = [binary],
-            mtree = [
-                "./opt/app type=file content=$(execpath {})".format(binary),
-            ],
-        )
-        oci_image(
-            name = name + "_base_arm64",
-            base = base,
-            tars = [name + "_app_layer_arm64"] + extra_tars,
-            entrypoint = ["/opt/app"],
-            user = "65532",  # nonroot user in distroless
-        )
-        platform_transition_filegroup(
-            name = name + "_arm64",
-            srcs = [name + "_base_arm64"],
-            target_platform = "@rules_go//go/toolchain:linux_arm64",
-        )
+            # Create image with binary layer
+            oci_image(
+                name = name + "_bin_" + arch,
+                base = base,
+                tars = [name + "_app_layer_" + arch],
+                entrypoint = ["/opt/app"],
+                user = "65532",  # nonroot user in distroless
+            )
+
+            # Cross-compile: transition to target platform
+            platform_transition_filegroup(
+                name = name + "_bin_transitioned_" + arch,
+                srcs = [name + "_bin_" + arch],
+                target_platform = "@rules_go//go/toolchain:linux_" + arch,
+            )
+
+            if extra_tars:
+                # Layer extra tars AFTER the platform transition so they are
+                # built on the host platform (not cross-compiled).
+                oci_image(
+                    name = name + "_base_" + arch,
+                    base = name + "_bin_transitioned_" + arch,
+                    tars = extra_tars,
+                )
+            else:
+                native.alias(
+                    name = name + "_base_" + arch,
+                    actual = name + "_bin_transitioned_" + arch,
+                )
 
         # Create multi-platform index
         oci_image_index(
             name = name,
             images = [
-                name + "_amd64",
-                name + "_arm64",
+                name + "_base_amd64",
+                name + "_base_arm64",
             ],
         )
 
@@ -106,19 +106,34 @@ def go_image(name, binary, base = "@distroless_base", repository = None, extra_t
             ],
         )
         oci_image(
-            name = name,
+            name = name + "_bin",
             base = base,
-            tars = [name + "_app_layer"] + extra_tars,
+            tars = [name + "_app_layer"],
             entrypoint = ["/opt/app"],
             user = "65532",  # nonroot user in distroless
         )
         platform_transition_filegroup(
-            name = name + "_platform",
-            srcs = [name],
+            name = name + "_bin_platform",
+            srcs = [name + "_bin"],
             target_platform = select({
                 "@platforms//cpu:arm64": "@rules_go//go/toolchain:linux_arm64",
                 "@platforms//cpu:x86_64": "@rules_go//go/toolchain:linux_amd64",
             }),
+        )
+        if extra_tars:
+            oci_image(
+                name = name,
+                base = name + "_bin_platform",
+                tars = extra_tars,
+            )
+        else:
+            native.alias(
+                name = name,
+                actual = name + "_bin_platform",
+            )
+        native.alias(
+            name = name + "_platform",
+            actual = name,
         )
         oci_load(
             name = name + ".load",

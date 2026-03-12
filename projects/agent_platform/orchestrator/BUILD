@@ -14,7 +14,6 @@ genrule(
         mkdir -p "$$DEST"
         cp -rL $(location //projects/agent_platform/orchestrator/ui:build_dist)/. "$$DEST/"
         tar -cf $@ -C "$$WORK" .
-        rm -rf "$$WORK"
     """,
 )
 
