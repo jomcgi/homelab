@@ -1,7 +1,7 @@
 replicaCount: 1
 
 image:
-  repository: ghcr.io/jomcgi/homelab/projects/agent_platform/cluster_agents
+  repository: ghcr.io/jomcgi/homelab/projects/cluster_agents
   tag: main
   pullPolicy: IfNotPresent
 

@@ -17,7 +17,7 @@ go_library(
         "runner.go",
         "test_coverage_agent.go",
     ],
-    importpath = "github.com/jomcgi/homelab/projects/agent_platform/cluster_agents",
+    importpath = "github.com/jomcgi/homelab/projects/cluster_agents",
     visibility = ["//visibility:private"],
 )
 
@@ -48,5 +48,5 @@ go_test(
 go_image(
     name = "image",
     binary = ":cluster-agents",
-    repository = "ghcr.io/jomcgi/homelab/projects/agent_platform/cluster_agents",
+    repository = "ghcr.io/jomcgi/homelab/projects/cluster_agents",
 )
