@@ -93,6 +93,9 @@ use_repo(
     "multitool.shfmt.linux_arm64",
     "multitool.shfmt.linux_x86_64",
     "multitool.shfmt.macos_arm64",
+    "multitool.yq.linux_arm64",
+    "multitool.yq.linux_x86_64",
+    "multitool.yq.macos_arm64",
 )
 
 #########################
