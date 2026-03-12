@@ -2,5 +2,5 @@
 
 controllerManager:
   image:
-    tag: main@sha256:aa2e4816eb0654f44aaa96d3d640748420057d16d5d79670eac3ada9f68c6b42
+    tag: main@sha256:4b30fad0a4bc01f65f652b142d775d5cc082f99aeac05c7126288e6a9fda1ac5
     repository: ghcr.io/jomcgi/homelab/projects/operators/oci-model-cache
