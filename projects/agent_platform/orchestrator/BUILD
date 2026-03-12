@@ -6,13 +6,13 @@ load("//bazel/tools/oci:go_image.bzl", "go_image")
 # Package UI dist into a container layer at /opt/ui/
 genrule(
     name = "ui_dist_tar",
-    srcs = ["//projects/agent_platform/orchestrator/ui:build"],
+    srcs = ["//projects/agent_platform/orchestrator/ui:build_dist"],
     outs = ["ui_dist.tar"],
     cmd = """
         WORK=$$(mktemp -d)
         DEST="$$WORK/opt/ui"
         mkdir -p "$$DEST"
-        cp -rL $(location //projects/agent_platform/orchestrator/ui:build)/. "$$DEST/"
+        cp -rL $(location //projects/agent_platform/orchestrator/ui:build_dist)/. "$$DEST/"
         tar -cf $@ -C "$$WORK" .
         rm -rf "$$WORK"
     """,
