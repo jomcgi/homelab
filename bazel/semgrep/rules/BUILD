@@ -35,7 +35,10 @@ filegroup(
 
 filegroup(
     name = "golang_rules",
-    srcs = ["@semgrep_pro_rules_golang//:rules"],
+    srcs = glob(
+        ["golang/*.yaml"],
+        allow_empty = True,
+    ) + ["@semgrep_pro_rules_golang//:rules"],
 )
 
 filegroup(
@@ -75,6 +78,14 @@ filegroup(
         "@semgrep_pro_rules_kubernetes//:rules",
         "@semgrep_pro_rules_python//:rules",
     ],
+)
+
+semgrep_test(
+    name = "golang_rules_test",
+    srcs = glob(["golang/*.go"]),
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":golang_rules"],
+    tags = ["semgrep"],
 )
 
 semgrep_test(
