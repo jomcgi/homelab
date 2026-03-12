@@ -26,7 +26,7 @@ func (a *ReadmeFreshnessAgent) Name() string            { return "readme-freshne
 func (a *ReadmeFreshnessAgent) Interval() time.Duration { return a.interval }
 
 func (a *ReadmeFreshnessAgent) Collect(ctx context.Context) ([]Finding, error) {
-	commitRange, hasActivity, err := a.gate.Check(ctx, readmeFreshnessTag)
+	latestSHA, commitRange, hasActivity, err := a.gate.Check(ctx, readmeFreshnessTag)
 	if err != nil {
 		return nil, fmt.Errorf("git activity check: %w", err)
 	}
@@ -42,6 +42,7 @@ func (a *ReadmeFreshnessAgent) Collect(ctx context.Context) ([]Finding, error) {
 			Title:       "README freshness check",
 			Data: map[string]any{
 				"commit_range": commitRange,
+				"latest_sha":   latestSHA,
 			},
 			Timestamp: time.Now(),
 		},

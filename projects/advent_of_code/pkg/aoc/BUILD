@@ -16,6 +16,7 @@ go_test(
     name = "aoc_test",
     srcs = [
         "algo_test.go",
+        "client_test.go",
         "grid_test.go",
         "parse_test.go",
     ],

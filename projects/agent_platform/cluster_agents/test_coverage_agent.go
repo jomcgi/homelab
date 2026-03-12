@@ -26,7 +26,7 @@ func (a *TestCoverageAgent) Name() string            { return "test-coverage" }
 func (a *TestCoverageAgent) Interval() time.Duration { return a.interval }
 
 func (a *TestCoverageAgent) Collect(ctx context.Context) ([]Finding, error) {
-	commitRange, hasActivity, err := a.gate.Check(ctx, testCoverageTag)
+	latestSHA, commitRange, hasActivity, err := a.gate.Check(ctx, testCoverageTag)
 	if err != nil {
 		return nil, fmt.Errorf("git activity check: %w", err)
 	}
@@ -42,6 +42,7 @@ func (a *TestCoverageAgent) Collect(ctx context.Context) ([]Finding, error) {
 			Title:       "Test coverage improvement opportunity",
 			Data: map[string]any{
 				"commit_range": commitRange,
+				"latest_sha":   latestSHA,
 			},
 			Timestamp: time.Now(),
 		},
