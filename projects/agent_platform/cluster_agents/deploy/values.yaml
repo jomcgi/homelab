@@ -51,6 +51,13 @@ config:
   orchestratorUrl: "http://agent-orchestrator.agent-orchestrator.svc.cluster.local:8080"
   httpPort: "8080"
   patrolInterval: "1h"
+  githubRepo: "jomcgi/homelab"
+  botAuthors: "ci-format-bot,argocd-image-updater,chart-version-bot"
+  testCoverageInterval: "1h"
+  readmeFreshnessInterval: "168h"
+  rulesInterval: "24h"
+  prFixInterval: "1h"
+  prFixStaleThreshold: "1h"
 
 secrets:
   agentSecrets:

@@ -40,7 +40,7 @@ func TestTestCoverageAgent_CollectWithActivity(t *testing.T) {
 		"main",
 	)
 
-	agent := NewTestCoverageAgent(gate, 1*time.Hour)
+	agent := NewTestCoverageAgent(gate, nil, 1*time.Hour)
 
 	findings, err := agent.Collect(context.Background())
 	if err != nil {
@@ -76,7 +76,7 @@ func TestTestCoverageAgent_CollectNoActivity(t *testing.T) {
 		"main",
 	)
 
-	agent := NewTestCoverageAgent(gate, 1*time.Hour)
+	agent := NewTestCoverageAgent(gate, nil, 1*time.Hour)
 
 	findings, err := agent.Collect(context.Background())
 	if err != nil {
@@ -88,7 +88,7 @@ func TestTestCoverageAgent_CollectNoActivity(t *testing.T) {
 }
 
 func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
-	agent := NewTestCoverageAgent(nil, 1*time.Hour)
+	agent := NewTestCoverageAgent(nil, nil, 1*time.Hour)
 
 	findings := []Finding{
 		{

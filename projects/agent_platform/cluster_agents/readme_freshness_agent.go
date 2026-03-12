@@ -9,14 +9,16 @@ import (
 const readmeFreshnessTag = "improvement:readme-freshness"
 
 type ReadmeFreshnessAgent struct {
-	gate     *GitActivityGate
-	interval time.Duration
+	gate      *GitActivityGate
+	escalator *Escalator
+	interval  time.Duration
 }
 
-func NewReadmeFreshnessAgent(gate *GitActivityGate, interval time.Duration) *ReadmeFreshnessAgent {
+func NewReadmeFreshnessAgent(gate *GitActivityGate, escalator *Escalator, interval time.Duration) *ReadmeFreshnessAgent {
 	return &ReadmeFreshnessAgent{
-		gate:     gate,
-		interval: interval,
+		gate:      gate,
+		escalator: escalator,
+		interval:  interval,
 	}
 }
 
@@ -78,6 +80,6 @@ docs(<project>): update README to match current structure`
 	}, nil
 }
 
-func (a *ReadmeFreshnessAgent) Execute(_ context.Context, _ []Action) error {
-	return nil
+func (a *ReadmeFreshnessAgent) Execute(ctx context.Context, actions []Action) error {
+	return a.escalator.Execute(ctx, actions)
 }

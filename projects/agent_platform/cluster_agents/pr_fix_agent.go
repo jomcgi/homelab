@@ -13,14 +13,16 @@ import (
 type PRFixAgent struct {
 	github         *GitHubClient
 	orchestrator   *OrchestratorClient
+	escalator      *Escalator
 	interval       time.Duration
 	staleThreshold time.Duration
 }
 
-func NewPRFixAgent(github *GitHubClient, orchestrator *OrchestratorClient, interval, staleThreshold time.Duration) *PRFixAgent {
+func NewPRFixAgent(github *GitHubClient, orchestrator *OrchestratorClient, escalator *Escalator, interval, staleThreshold time.Duration) *PRFixAgent {
 	return &PRFixAgent{
 		github:         github,
 		orchestrator:   orchestrator,
+		escalator:      escalator,
 		interval:       interval,
 		staleThreshold: staleThreshold,
 	}
@@ -134,6 +136,6 @@ fix(<scope>): resolve CI failure in PR #%d`, prNumber, branch, prNumber, prNumbe
 	return actions, nil
 }
 
-func (a *PRFixAgent) Execute(_ context.Context, _ []Action) error {
-	return nil
+func (a *PRFixAgent) Execute(ctx context.Context, actions []Action) error {
+	return a.escalator.Execute(ctx, actions)
 }

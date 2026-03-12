@@ -40,7 +40,7 @@ func TestReadmeFreshnessAgent_CollectWithActivity(t *testing.T) {
 		"main",
 	)
 
-	agent := NewReadmeFreshnessAgent(gate, 1*time.Hour)
+	agent := NewReadmeFreshnessAgent(gate, nil, 1*time.Hour)
 
 	findings, err := agent.Collect(context.Background())
 	if err != nil {
@@ -55,7 +55,7 @@ func TestReadmeFreshnessAgent_CollectWithActivity(t *testing.T) {
 }
 
 func TestReadmeFreshnessAgent_AnalyzeCreatesJob(t *testing.T) {
-	agent := NewReadmeFreshnessAgent(nil, 1*time.Hour)
+	agent := NewReadmeFreshnessAgent(nil, nil, 1*time.Hour)
 
 	findings := []Finding{
 		{

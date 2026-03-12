@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 )
@@ -29,7 +30,32 @@ func main() {
 	escalator := NewEscalator(orchestrator)
 
 	patrol := NewPatrolAgent(collector, escalator, patrolInterval)
-	runner := NewRunner([]Agent{patrol})
+
+	// GitHub config for improvement agents
+	githubToken := os.Getenv("GITHUB_TOKEN")
+	githubRepo := envOr("GITHUB_REPO", "jomcgi/homelab")
+	githubBranch := envOr("GITHUB_BRANCH", "main")
+	botAuthors := strings.Split(envOr("BOT_AUTHORS", "ci-format-bot,argocd-image-updater,chart-version-bot"), ",")
+
+	testCoverageInterval := envDurationOr("TEST_COVERAGE_INTERVAL", 1*time.Hour)
+	readmeFreshnessInterval := envDurationOr("README_FRESHNESS_INTERVAL", 168*time.Hour)
+	rulesInterval := envDurationOr("RULES_INTERVAL", 24*time.Hour)
+	prFixInterval := envDurationOr("PR_FIX_INTERVAL", 1*time.Hour)
+	prFixStaleThreshold := envDurationOr("PR_FIX_STALE_THRESHOLD", 1*time.Hour)
+
+	githubClient := NewGitHubClient("https://api.github.com", githubToken, githubRepo)
+
+	gate := NewGitActivityGate(githubClient, orchestrator, botAuthors, githubBranch)
+
+	agents := []Agent{
+		patrol,
+		NewTestCoverageAgent(gate, escalator, testCoverageInterval),
+		NewReadmeFreshnessAgent(gate, escalator, readmeFreshnessInterval),
+		NewRulesAgent(gate, escalator, rulesInterval),
+		NewPRFixAgent(githubClient, orchestrator, escalator, prFixInterval, prFixStaleThreshold),
+	}
+
+	runner := NewRunner(agents)
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -45,7 +71,15 @@ func main() {
 		}
 	}()
 
-	slog.Info("cluster-agents starting", "patrol_interval", patrolInterval)
+	slog.Info("cluster-agents starting",
+		"agent_count", len(agents),
+		"patrol_interval", patrolInterval,
+		"test_coverage_interval", testCoverageInterval,
+		"readme_freshness_interval", readmeFreshnessInterval,
+		"rules_interval", rulesInterval,
+		"pr_fix_interval", prFixInterval,
+		"pr_fix_stale_threshold", prFixStaleThreshold,
+	)
 	runner.Run(ctx)
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)

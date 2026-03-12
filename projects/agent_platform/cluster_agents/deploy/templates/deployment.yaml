@@ -54,6 +54,25 @@ spec:
           value: {{ .Values.config.httpPort | quote }}
         - name: PATROL_INTERVAL
           value: {{ .Values.config.patrolInterval | quote }}
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: agent-secrets
+              key: GITHUB_TOKEN
+        - name: GITHUB_REPO
+          value: {{ .Values.config.githubRepo | quote }}
+        - name: BOT_AUTHORS
+          value: {{ .Values.config.botAuthors | quote }}
+        - name: TEST_COVERAGE_INTERVAL
+          value: {{ .Values.config.testCoverageInterval | quote }}
+        - name: README_FRESHNESS_INTERVAL
+          value: {{ .Values.config.readmeFreshnessInterval | quote }}
+        - name: RULES_INTERVAL
+          value: {{ .Values.config.rulesInterval | quote }}
+        - name: PR_FIX_INTERVAL
+          value: {{ .Values.config.prFixInterval | quote }}
+        - name: PR_FIX_STALE_THRESHOLD
+          value: {{ .Values.config.prFixStaleThreshold | quote }}
         livenessProbe:
           httpGet:
             path: /health
