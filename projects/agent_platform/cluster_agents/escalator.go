@@ -55,21 +55,24 @@ func (e *Escalator) Execute(ctx context.Context, actions []Action) error {
 			continue
 		}
 
-		ruleID := ruleIDFromFinding(action.Finding)
-		tag := fmt.Sprintf("alert:%s", ruleID)
+		// Use fingerprint as tag for improvement agents, rule_id for patrol.
+		tag := action.Finding.Fingerprint
+		if ruleID, ok := action.Finding.Data["rule_id"]; ok {
+			tag = fmt.Sprintf("alert:%v", ruleID)
+		}
 
 		exists, err := e.hasActiveJob(ctx, tag)
 		if err != nil {
-			slog.Error("dedup check failed", "error", err, "rule_id", ruleID)
+			slog.Error("dedup check failed", "error", err, "tag", tag)
 			continue
 		}
 		if exists {
-			slog.Info("skipping alert, active job exists", "rule_id", ruleID)
+			slog.Info("skipping, active job exists", "tag", tag)
 			continue
 		}
 
-		if err := e.submitOrchestratorJob(ctx, action, ruleID, tag); err != nil {
-			slog.Error("orchestrator job failed", "error", err, "rule_id", ruleID)
+		if err := e.submitOrchestratorJob(ctx, action, tag); err != nil {
+			slog.Error("orchestrator job failed", "error", err, "tag", tag)
 			continue
 		}
 	}
@@ -110,25 +113,38 @@ func (e *Escalator) hasActiveJob(ctx context.Context, tag string) (bool, error) 
 	return result.Total > 0, nil
 }
 
-func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ruleID, tag string) error {
+func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, tag string) error {
 	if e.orchestrator == nil {
 		slog.Warn("orchestrator client not configured, skipping job submission")
 		return nil
 	}
 
-	task := fmt.Sprintf("SigNoz alert firing: %s\n\n"+
-		"Rule ID: %s\n"+
-		"Severity: %s\n\n"+
-		"Details: %s\n\n"+
-		"Investigate this alert using MCP tools. If a GitOps change can fix it, "+
-		"create a PR. If it requires manual intervention, "+
-		"create a GitHub issue summarizing your findings.",
-		action.Finding.Title, ruleID, action.Finding.Severity,
-		action.Finding.Detail)
+	var task string
+	if action.Payload != nil {
+		task, _ = action.Payload["task"].(string)
+	}
+	if task == "" {
+		// Patrol-style prompt (backwards compat).
+		ruleID := ruleIDFromFinding(action.Finding)
+		task = fmt.Sprintf("SigNoz alert firing: %s\n\n"+
+			"Rule ID: %s\n"+
+			"Severity: %s\n\n"+
+			"Details: %s\n\n"+
+			"Investigate this alert using MCP tools. If a GitOps change can fix it, "+
+			"create a PR. If it requires manual intervention, "+
+			"create a GitHub issue summarizing your findings.",
+			action.Finding.Title, ruleID, action.Finding.Severity,
+			action.Finding.Detail)
+	}
+
+	source := action.Finding.Source
+	if source == "" {
+		source = fmt.Sprintf("patrol:%s", ruleIDFromFinding(action.Finding))
+	}
 
 	body, _ := json.Marshal(map[string]any{
 		"task":   task,
-		"source": fmt.Sprintf("patrol:%s", ruleID),
+		"source": source,
 		"tags":   []string{tag},
 	})
 
@@ -149,7 +165,6 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ru
 	}
 
 	slog.Info("submitted orchestrator job",
-		"rule_id", ruleID,
 		"title", action.Finding.Title,
 		"tag", tag,
 	)
