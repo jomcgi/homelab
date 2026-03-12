@@ -26,10 +26,8 @@ spec:
     - group: apps
       kind: Deployment
       jqPathExpressions:
-        - .spec.template.metadata.annotations
-        - .spec.template.spec.containers
-        - .spec.template.spec.initContainers
-        - .spec.template.spec.volumes
+        - .spec.template.metadata.annotations."otel.injected-by"
+        - .spec.template.spec.containers[].env
   syncPolicy:
     automated:
       prune: true
