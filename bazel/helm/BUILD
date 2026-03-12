@@ -4,9 +4,10 @@ load("@multitool//:tools.bzl", MULTITOOL_TOOLS = "TOOLS")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 
 exports_files([
+    "chart-version.sh",
     "helm-template-test.sh",
-    "render-manifests.sh",
     "push.sh.tpl",
+    "render-manifests.sh",
 ])
 
 sh_binary(

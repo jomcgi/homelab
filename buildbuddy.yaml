@@ -18,7 +18,7 @@ actions:
       - run: |
           # Skip automated commits to avoid loops
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "ci-format-bot" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -81,9 +81,9 @@ actions:
         merge_with_base: false
     steps:
       - run: |
-          # Skip image-updater commits (digest-only bumps, no code to test)
+          # Skip automated commits (no code to test)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -111,9 +111,9 @@ actions:
         merge_with_base: false
     steps:
       - run: |
-          # Skip image-updater commits (digest-only bumps, nothing to push)
+          # Skip automated commits (digest-only bumps, nothing to push)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
@@ -136,9 +136,9 @@ actions:
           - "main"
     steps:
       - run: |
-          # Skip image-updater commits (digest-only bumps, no pages to deploy)
+          # Skip automated commits (digest-only bumps, no pages to deploy)
           AUTHOR="$(git log -1 --format='%an')"
-          if [ "$AUTHOR" = "argocd-image-updater" ]; then
+          if [ "$AUTHOR" = "argocd-image-updater" ] || [ "$AUTHOR" = "chart-version-bot" ]; then
             echo "Skipping automated commit from $AUTHOR"
             exit 0
           fi
