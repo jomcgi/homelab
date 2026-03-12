@@ -1,20 +1,26 @@
 package main
 
 import (
-	"io/fs"
 	"net/http"
+	"os"
 	"strings"
-
-	orchestratorui "github.com/jomcgi/homelab/projects/agent_platform/orchestrator/ui"
 )
 
-// registerUI mounts the embedded Vite build at "/" on the given mux.
+// uiDir is the directory containing the built UI assets.
+// Configurable via UI_DIR environment variable for flexibility.
+var uiDir = getUIDir()
+
+func getUIDir() string {
+	if dir := os.Getenv("UI_DIR"); dir != "" {
+		return dir
+	}
+	return "/opt/ui"
+}
+
+// registerUI mounts the UI assets at "/" on the given mux.
 // API routes must be registered before calling this function.
 func registerUI(mux *http.ServeMux) {
-	uiContent, err := fs.Sub(orchestratorui.FS, "dist")
-	if err != nil {
-		panic("failed to sub dist from embedded UI FS: " + err.Error())
-	}
+	uiContent := os.DirFS(uiDir)
 	fileServer := http.FileServer(http.FS(uiContent))
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

@@ -1,8 +1,7 @@
-"""Agent Orchestrator UI - Vite + React dashboard + embedded Go library"""
+"""Agent Orchestrator UI - Vite + React dashboard"""
 
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//projects/agent_platform/orchestrator/ui:vite/package_json.bzl", vite_bin = "bin")
-load("@rules_go//go:def.bzl", "go_library")
 load("//bazel/tools/js:vite_build.bzl", "vite_build")
 
 npm_link_all_packages(name = "node_modules")
@@ -34,14 +33,5 @@ vite_build(
         "vite",
         "@vitejs/plugin-react",
     ],
-)
-
-# Go library that embeds the Bazel-built Vite output (dist/).
-# The vite_build target builds the React dashboard; its tree artifact
-# is embedded at compile time via go:embed.
-go_library(
-    name = "ui",
-    srcs = ["static.go"],
-    importpath = "github.com/jomcgi/homelab/projects/agent_platform/orchestrator/ui",
     visibility = ["//projects/agent_platform/orchestrator:__pkg__"],
 )
