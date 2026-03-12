@@ -5,20 +5,18 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  sources:
-    # Chart from OCI registry (pushed by CI via Bazel helm_push)
-    - repoURL: ghcr.io/jomcgi/homelab/charts
-      chart: cluster-agents
-      targetRevision: 0.3.0
-      helm:
-        releaseName: cluster-agents
-        valueFiles:
-          - $values/projects/agent_platform/cluster_agents/deploy/values.yaml
-          - $values/projects/agent_platform/cluster_agents/deploy/values-prod.yaml
-    # Git repo for environment-specific values
-    - repoURL: https://github.com/jomcgi/homelab.git
-      targetRevision: HEAD
-      ref: values
+  source:
+    repoURL: ghcr.io/jomcgi/homelab/charts
+    chart: cluster-agents
+    targetRevision: 0.3.0
+    helm:
+      releaseName: cluster-agents
+      valuesObject:
+        imagePullSecret:
+          enabled: true
+        podAnnotations:
+          instrumentation.opentelemetry.io/inject-go: "go"
+          instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"
   destination:
     server: https://kubernetes.default.svc
     namespace: cluster-agents
