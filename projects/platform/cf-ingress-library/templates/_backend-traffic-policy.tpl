@@ -21,6 +21,7 @@ spec:
       kind: HTTPRoute
       name: {{ .name }}
   rateLimit:
+    type: Global
     global:
       rules:
         - limit:
