@@ -31,10 +31,6 @@ tunnel:
         service: http://argocd-server.argocd.svc.cluster.local:80
       - hostname: longhorn.jomcgi.dev
         service: http://longhorn-frontend.longhorn.svc.cluster.local:80
-      - hostname: n8n.jomcgi.dev
-        service: http://n8n.n8n.svc.cluster.local:80
-      - hostname: feeds.jomcgi.dev
-        service: http://freshrss.freshrss.svc.cluster.local:80
       - hostname: signoz.jomcgi.dev
         service: http://signoz.signoz.svc.cluster.local:8080
       - hostname: img.jomcgi.dev
@@ -43,10 +39,6 @@ tunnel:
         service: http://grimoire-frontend.grimoire.svc.cluster.local:8080
       - hostname: ships.jomcgi.dev
         service: http://marine-frontend.marine.svc.cluster.local:80
-      - hostname: todo.jomcgi.dev
-        service: http://todo-public.todo.svc.cluster.local:80
-      - hostname: todo-admin.jomcgi.dev
-        service: http://todo-admin.todo.svc.cluster.local:8080
       - hostname: api.jomcgi.dev
         service: http://api-gateway.api-gateway.svc.cluster.local:80
         originRequest:
