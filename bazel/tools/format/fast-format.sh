@@ -97,7 +97,7 @@ if $STAGED; then
 		PIDS+=($!)
 	fi
 	if [ ${#PRETTIER_FILES[@]} -gt 0 ]; then
-		(prettier --write --ignore-path bazel/tools/format/.prettierignore "${PRETTIER_FILES[@]}" 2>/dev/null || true) &
+		(prettier --write "${PRETTIER_FILES[@]}" 2>/dev/null || true) &
 		PIDS+=($!)
 	fi
 
@@ -161,7 +161,7 @@ fi
 PIDS+=($!)
 
 # Prettier (JS/TS/JSON/YAML/MD)
-prettier --write --ignore-path bazel/tools/format/.prettierignore . 2>/dev/null &
+prettier --write . 2>/dev/null &
 PIDS+=($!)
 
 # Script generators (run in parallel with formatters)
