@@ -44,13 +44,21 @@ type JobRecord struct {
 
 // Attempt records a single execution attempt of a job.
 type Attempt struct {
-	Number           int        `json:"number"`
-	SandboxClaimName string     `json:"sandbox_claim_name"`
-	ExitCode         *int       `json:"exit_code,omitempty"`
-	Output           string     `json:"output"`
-	Truncated        bool       `json:"truncated,omitempty"`
-	StartedAt        time.Time  `json:"started_at"`
-	FinishedAt       *time.Time `json:"finished_at,omitempty"`
+	Number           int          `json:"number"`
+	SandboxClaimName string       `json:"sandbox_claim_name"`
+	ExitCode         *int         `json:"exit_code,omitempty"`
+	Output           string       `json:"output"`
+	Truncated        bool         `json:"truncated,omitempty"`
+	Result           *GooseResult `json:"result,omitempty"`
+	StartedAt        time.Time    `json:"started_at"`
+	FinishedAt       *time.Time   `json:"finished_at,omitempty"`
+}
+
+// GooseResult is a structured result parsed from the agent's output.
+type GooseResult struct {
+	Type    string `json:"type"`
+	URL     string `json:"url"`
+	Summary string `json:"summary"`
 }
 
 // SubmitRequest is the JSON body for POST /jobs.
@@ -77,8 +85,9 @@ type ListResponse struct {
 
 // OutputResponse is returned by GET /jobs/{id}/output.
 type OutputResponse struct {
-	Attempt   int    `json:"attempt"`
-	ExitCode  *int   `json:"exit_code,omitempty"`
-	Output    string `json:"output"`
-	Truncated bool   `json:"truncated"`
+	Attempt   int          `json:"attempt"`
+	ExitCode  *int         `json:"exit_code,omitempty"`
+	Output    string       `json:"output"`
+	Truncated bool         `json:"truncated"`
+	Result    *GooseResult `json:"result,omitempty"`
 }
