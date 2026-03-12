@@ -38,21 +38,23 @@ def _helm_package_impl(ctx):
             "mv \"$WORK_DIR/Chart.yaml.tmp\" \"$WORK_DIR/Chart.yaml\""
         ).format(url = ctx.attr.url)
 
-    # Copy the values overlay into the chart working dir so it is included in
-    # the .tgz.  Stored as "values-generated.yaml" — a conventional name that
-    # ArgoCD / helm-template tests can pick up with -f.
-    values_overlay_copy = ""
+    values_overlay_merge = ""
     extra_inputs = list(ctx.files.srcs)
     if ctx.file.values_overlay:
-        values_overlay_copy = "cp \"{src}\" \"$WORK_DIR/values-generated.yaml\"".format(
-            src = ctx.file.values_overlay.path,
+        values_overlay_merge = (
+            "\"{yq}\" eval-all 'select(fileIndex == 0) * select(fileIndex == 1)' " +
+            "\"$WORK_DIR/values.yaml\" \"{overlay}\" > \"$WORK_DIR/values.yaml.tmp\"\n" +
+            "mv \"$WORK_DIR/values.yaml.tmp\" \"$WORK_DIR/values.yaml\""
+        ).format(
+            yq = ctx.executable._yq.path,
+            overlay = ctx.file.values_overlay.path,
         )
         extra_inputs.append(ctx.file.values_overlay)
 
     ctx.actions.run_shell(
         outputs = [output],
         inputs = extra_inputs,
-        tools = [ctx.executable._helm],
+        tools = [ctx.executable._helm] + ([ctx.executable._yq] if ctx.file.values_overlay else []),
         command = """\
 set -euo pipefail
 # Copy chart to writable directory for patching (sandbox inputs are read-only)
@@ -66,7 +68,7 @@ BUILD.bazel
 .git/
 HELMIGNORE
 {url_patch}
-{values_overlay_copy}
+{values_overlay_merge}
 "{helm}" package "$WORK_DIR" --destination "{out_dir}"
 # helm package outputs <name>-<version>.tgz, find and move it
 TGZ=$(ls "{out_dir}"/*.tgz)
@@ -78,7 +80,7 @@ rm -rf "$WORK_DIR"
             out_dir = output.dirname,
             output = output.path,
             url_patch = url_patch,
-            values_overlay_copy = values_overlay_copy,
+            values_overlay_merge = values_overlay_merge,
         ),
         mnemonic = "HelmPackage",
         progress_message = "Packaging Helm chart %s" % ctx.label.name,
@@ -100,11 +102,16 @@ helm_package = rule(
         ),
         "values_overlay": attr.label(
             allow_single_file = True,
-            doc = "Optional generated values file to embed in the chart .tgz as " +
-                  "values-generated.yaml (e.g. the output of helm_images_values).",
+            doc = "Optional generated values file to deep-merge into the chart's " +
+                  "values.yaml before packaging (e.g. the output of helm_images_values).",
         ),
         "_helm": attr.label(
             default = "@multitool//tools/helm",
+            executable = True,
+            cfg = "exec",
+        ),
+        "_yq": attr.label(
+            default = "@multitool//tools/yq",
             executable = True,
             cfg = "exec",
         ),
