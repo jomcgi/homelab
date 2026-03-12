@@ -10,9 +10,6 @@ git:
 persistence:
   storageClass: longhorn
   size: 5Gi # Larger since it contains the full repo
-image:
-  tag: main@sha256:12f95f75edefe5d3aea692868616234afc2885c80e5eae9fa505d15d323cb5f6
-  repository: ghcr.io/jomcgi/homelab/projects/todo_app/image
 podAnnotations:
   instrumentation.opentelemetry.io/inject-go: "go"
   instrumentation.opentelemetry.io/otel-go-auto-target-exe: "/opt/app"

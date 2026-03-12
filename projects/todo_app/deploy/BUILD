@@ -5,6 +5,7 @@ helm_chart(
     images = {
         "image": "//projects/todo_app/image:image.info",
     },
+    publish = True,
     visibility = ["//overlays:__subpackages__"],
 )
 

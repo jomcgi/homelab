@@ -5,15 +5,20 @@ metadata:
   namespace: argocd
 spec:
   project: default
-  source:
-    repoURL: https://github.com/jomcgi/homelab.git
-    targetRevision: HEAD
-    path: projects/todo_app/deploy
-    helm:
-      releaseName: todo
-      valueFiles:
-        - values.yaml
-        - values-prod.yaml
+  sources:
+    # Chart from OCI registry (pushed by CI via Bazel helm_push)
+    - repoURL: ghcr.io/jomcgi/homelab/charts
+      chart: todo
+      targetRevision: 0.1.0
+      helm:
+        releaseName: todo
+        valueFiles:
+          - $values/projects/todo_app/deploy/values.yaml
+          - $values/projects/todo_app/deploy/values-prod.yaml
+    # Git repo for environment-specific values
+    - repoURL: https://github.com/jomcgi/homelab.git
+      targetRevision: HEAD
+      ref: values
   destination:
     server: https://kubernetes.default.svc
     namespace: todo
