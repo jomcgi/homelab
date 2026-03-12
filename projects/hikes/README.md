@@ -8,44 +8,48 @@ Two components for collecting and enriching hiking route data:
 
 | Component                | Description                                         |
 | ------------------------ | --------------------------------------------------- |
-| **scrape_walkhighlands** | Scrapes route metadata, GPX files, and walk details |
+| **scrape_walkhighlands** | Scrapes route metadata and walk details             |
 | **update_forecast**      | Enriches routes with weather forecast data          |
 
 ## How It Works
 
 ```mermaid
 flowchart LR
-    Scraper[scrape_walkhighlands] --> DB[(SQLite)]
-    Forecast[update_forecast] --> DB
     WH[WalkHighlands.co.uk] --> Scraper
-    Weather[Weather API] --> Forecast
+    Scraper[scrape_walkhighlands] --> DB[(SQLite)]
+    DB --> Forecast[update_forecast]
+    Weather[met.no API] --> Forecast
+    Forecast --> R2[(Cloudflare R2)]
 ```
 
 ## Data Collected
 
 - Route names, descriptions, and difficulty ratings
-- GPS coordinates and GPX tracks
+- GPS coordinates
 - Distance, elevation gain, and estimated duration
-- Area/region classification
 - Weather forecasts for route locations
 
 ## Running Locally
 
 ```bash
 # Scrape walk data
-bazel run //projects/hikes/scrape_walkhighlands
+bazel run //projects/hikes/scrape_walkhighlands:scrape
 
 # Update weather forecasts
-bazel run //projects/hikes/update_forecast
+bazel run //projects/hikes/update_forecast:update
 ```
 
 ## Configuration
 
 Environment variables:
 
-| Variable    | Description       | Default |
-| ----------- | ----------------- | ------- |
-| `LOG_LEVEL` | Logging verbosity | `INFO`  |
+| Variable                          | Description                | Default                           |
+| --------------------------------- | -------------------------- | --------------------------------- |
+| `LOG_LEVEL`                       | Logging verbosity          | `INFO`                            |
+| `CLOUDFLARE_S3_ENDPOINT`          | Cloudflare R2 endpoint URL | *(required for update_forecast)*  |
+| `CLOUDFLARE_S3_ACCESS_KEY_ID`     | R2 access key ID           | *(required for update_forecast)*  |
+| `CLOUDFLARE_S3_ACCESS_KEY_SECRET` | R2 access key secret       | *(required for update_forecast)*  |
+| `R2_BUCKET_NAME`                  | R2 bucket name             | `jomcgi-hikes`                    |
 
 ## Architecture Notes
 
