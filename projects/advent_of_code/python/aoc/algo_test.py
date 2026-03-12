@@ -19,12 +19,19 @@ from projects.advent_of_code.python.aoc.grid import Point
 
 # --- bfs ---
 
+
 def test_bfs_simple_grid():
     """BFS finds correct distances in a small grid."""
     reachable = {(0, 0), (1, 0), (2, 0), (2, 1)}
+
     def neighbors(p):
         x, y = p
-        return [(nx, ny) for nx, ny in [(x+1,y),(x-1,y),(x,y+1),(x,y-1)] if (nx,ny) in reachable]
+        return [
+            (nx, ny)
+            for nx, ny in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+            if (nx, ny) in reachable
+        ]
+
     distances = bfs((0, 0), neighbors)
     assert distances[(0, 0)] == 0
     assert distances[(2, 0)] == 2
@@ -33,9 +40,11 @@ def test_bfs_simple_grid():
 
 def test_bfs_visit_stops_exploration():
     """BFS visit callback can stop exploring from a node."""
+
     def neighbors(p):
         x, y = p
-        return [(x+1, y), (x, y+1)]
+        return [(x + 1, y), (x, y + 1)]
+
     # Only explore from nodes at distance <= 1
     visited = bfs((0, 0), neighbors, visit=lambda p, d: d <= 1)
     assert (0, 0) in visited
@@ -45,9 +54,11 @@ def test_bfs_visit_stops_exploration():
 
 def test_bfs_no_visit_callback():
     """BFS works without a visit callback."""
+
     def neighbors(p):
         x, y = p
-        return [(x+1, y)] if x < 2 else []
+        return [(x + 1, y)] if x < 2 else []
+
     distances = bfs((0, 0), neighbors)
     assert distances[(1, 0)] == 1
     assert distances[(2, 0)] == 2
@@ -55,13 +66,20 @@ def test_bfs_no_visit_callback():
 
 # --- bfs_path ---
 
+
 def test_bfs_path_finds_shortest():
     """bfs_path returns shortest path."""
-    reachable = {(0,0),(1,0),(2,0),(2,1),(2,2)}
+    reachable = {(0, 0), (1, 0), (2, 0), (2, 1), (2, 2)}
+
     def neighbors(p):
         x, y = p
-        return [(nx, ny) for nx, ny in [(x+1,y),(x-1,y),(x,y+1),(x,y-1)] if (nx,ny) in reachable]
-    path = bfs_path((0,0), (2,2), neighbors)
+        return [
+            (nx, ny)
+            for nx, ny in [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]
+            if (nx, ny) in reachable
+        ]
+
+    path = bfs_path((0, 0), (2, 2), neighbors)
     assert path is not None
     assert path[0] == (0, 0)
     assert path[-1] == (2, 2)
@@ -82,37 +100,47 @@ def test_bfs_path_no_path():
 
 # --- dijkstra ---
 
+
 def test_dijkstra_weighted():
     """Dijkstra finds minimum-cost paths with weighted edges."""
     # A->B cost 1, B->C cost 2, A->C cost 5 (via B is cheaper: 3)
-    edges = {((0,0),(1,0)):1, ((1,0),(2,0)):2, ((0,0),(2,0)):5}
+    edges = {((0, 0), (1, 0)): 1, ((1, 0), (2, 0)): 2, ((0, 0), (2, 0)): 5}
+
     def neighbors(p):
         return [e[1] for e in edges if e[0] == p]
+
     def cost(a, b):
         return edges.get((a, b), 0)
-    dist = dijkstra((0,0), neighbors, cost)
-    assert dist[(0,0)] == 0
-    assert dist[(1,0)] == 1
-    assert dist[(2,0)] == 3  # via (1,0): 1+2=3
+
+    dist = dijkstra((0, 0), neighbors, cost)
+    assert dist[(0, 0)] == 0
+    assert dist[(1, 0)] == 1
+    assert dist[(2, 0)] == 3  # via (1,0): 1+2=3
 
 
 def test_dijkstra_skips_zero_cost_edges():
     """Dijkstra skips edges with cost <= 0."""
+
     def neighbors(p):
-        return [(p[0]+1, p[1])]
+        return [(p[0] + 1, p[1])]
+
     def cost(a, b):
         return 0  # no valid edges
-    dist = dijkstra((0,0), neighbors, cost)
+
+    dist = dijkstra((0, 0), neighbors, cost)
     assert (1, 0) not in dist
 
 
 # --- flood_fill ---
 
+
 def test_flood_fill_basic():
     """Flood fill visits all connected passable cells."""
     walls = {Point(1, 1)}
+
     def can_visit(p):
         return 0 <= p.x < 3 and 0 <= p.y < 3 and p not in walls
+
     filled = flood_fill(Point(0, 0), can_visit)
     assert Point(0, 0) in filled
     # {1,1} is a wall but {2,2} is reachable around it
@@ -128,6 +156,7 @@ def test_flood_fill_start_on_wall():
 
 # --- lcm ---
 
+
 def test_lcm():
     assert lcm(4, 6) == 12
     assert lcm(3, 5) == 15
@@ -142,6 +171,7 @@ def test_lcm_list():
 
 
 # --- permutations ---
+
 
 def test_permutations_count():
     assert len(permutations([1, 2, 3])) == 6
@@ -164,6 +194,7 @@ def test_permutations_no_aliasing():
 
 # --- combinations ---
 
+
 def test_combinations_count():
     assert len(combinations([1, 2, 3, 4], 2)) == 6
 
@@ -182,6 +213,7 @@ def test_combinations_k_larger_than_n():
 
 # --- sign ---
 
+
 def test_sign():
     assert sign(-10) == -1
     assert sign(0) == 0
@@ -189,6 +221,7 @@ def test_sign():
 
 
 # --- clamp ---
+
 
 def test_clamp():
     assert clamp(5, 0, 10) == 5

@@ -18,6 +18,7 @@ from projects.advent_of_code.python.aoc.grid import (
 
 # --- Point ---
 
+
 def test_point_add():
     assert Point(1, 2) + Point(3, 4) == Point(4, 6)
 
@@ -78,6 +79,7 @@ def test_point_hashable():
 
 # --- Direction constants ---
 
+
 def test_directions4_length():
     assert len(DIRECTIONS4) == 4
 
@@ -95,6 +97,7 @@ def test_up_down_left_right():
 
 # --- turn_left / turn_right ---
 
+
 def test_turn_left():
     assert turn_left(RIGHT) == UP
     assert turn_left(UP) == LEFT
@@ -110,6 +113,7 @@ def test_turn_right():
 
 
 # --- Grid ---
+
 
 def test_grid_from_string():
     g = Grid.from_string("abc\ndef")
