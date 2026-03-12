@@ -90,3 +90,17 @@ staticSecurityContext:
 affinity: {}
 
 adminUrl: https://todo-admin.jomcgi.dev
+
+# Cloudflare ingress routing
+cfIngress:
+  public:
+    enabled: true
+    tier: public
+    hostname: todo.jomcgi.dev
+    servicePort: 80
+    gateway:
+      name: cloudflare-ingress
+      namespace: envoy-gateway-system
+    rateLimit:
+      requests: 100
+      unit: Minute
