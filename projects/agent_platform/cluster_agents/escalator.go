@@ -135,6 +135,10 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ta
 			"create a GitHub issue summarizing your findings.",
 			action.Finding.Title, ruleID, action.Finding.Severity,
 			action.Finding.Detail)
+		// Ensure payload exists for profile extraction below.
+		if action.Payload == nil {
+			action.Payload = map[string]any{"profile": "research"}
+		}
 	}
 
 	source := action.Finding.Source
@@ -142,11 +146,16 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ta
 		source = fmt.Sprintf("patrol:%s", ruleIDFromFinding(action.Finding))
 	}
 
-	body, _ := json.Marshal(map[string]any{
+	jobReq := map[string]any{
 		"task":   task,
 		"source": source,
 		"tags":   []string{tag},
-	})
+	}
+	if profile, ok := action.Payload["profile"].(string); ok && profile != "" {
+		jobReq["profile"] = profile
+	}
+
+	body, _ := json.Marshal(jobReq)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, e.orchestrator.baseURL+"/jobs", bytes.NewReader(body))
 	if err != nil {

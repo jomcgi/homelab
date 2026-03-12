@@ -128,7 +128,8 @@ fix(<scope>): resolve CI failure in PR #%d`, prNumber, branch, prNumber, prNumbe
 			Type:    ActionOrchestratorJob,
 			Finding: f,
 			Payload: map[string]any{
-				"task": task,
+				"task":    task,
+				"profile": "ci-debug",
 			},
 		})
 	}

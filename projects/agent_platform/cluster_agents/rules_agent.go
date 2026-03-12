@@ -78,7 +78,8 @@ Create one PR per rule/config change. Use conventional commit format:
 			Type:    ActionOrchestratorJob,
 			Finding: findings[0],
 			Payload: map[string]any{
-				"task": task,
+				"task":    task,
+				"profile": "code-fix",
 			},
 		},
 	}, nil
