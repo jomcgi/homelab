@@ -39,8 +39,9 @@ type recipeFile struct {
 	} `yaml:"parameters"`
 }
 
-// templateVarRe extracts Jinja2-style {{ variable }} identifiers.
-var templateVarRe = regexp.MustCompile(`\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}`)
+// templateVarRe extracts Jinja2-style {{ variable }} identifiers, with or
+// without filters (e.g. {{ var }}, {{ var | indent(2) }}).
+var templateVarRe = regexp.MustCompile(`\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*(?:\|[^}]*)?\}\}`)
 
 // unsafePromptRe matches `prompt: "{{ ... }}"` — an inline double-quoted
 // YAML scalar containing a template variable. This format is unsafe because
@@ -48,6 +49,14 @@ var templateVarRe = regexp.MustCompile(`\{\{\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*\}\}`)
 // rendering and cause serde_yaml parse errors ("did not find expected key",
 // "found unexpected document indicator").
 var unsafePromptRe = regexp.MustCompile(`(?m)^\s*prompt:\s*"[^"]*\{\{[^"]*`)
+
+// bareTemplateVarInBlockRe matches an indented line that contains only a bare
+// template variable like `  {{ task_description }}` without an indent filter.
+// Inside a YAML block scalar (prompt: |), MiniJinja substitutes the variable
+// literally. Multi-line values break out of the block scalar because subsequent
+// lines lack indentation, producing multi-document YAML that serde_yaml rejects.
+// The fix is to use the indent filter: `{{ var | indent(2) }}`.
+var bareTemplateVarInBlockRe = regexp.MustCompile(`(?m)^\s+\{\{\s*[a-zA-Z_]\w*\s*\}\}\s*$`)
 
 func TestRecipeYAML(t *testing.T) {
 	cases := []struct {
@@ -88,6 +97,21 @@ func TestRecipeYAML(t *testing.T) {
 						"Use block scalar format instead:\n  prompt: |\n    {{ var }}",
 					tc.name,
 				)
+			}
+
+			// --- block scalar template variables must use indent filter ---
+			// A bare {{ var }} inside a block scalar produces multi-document
+			// YAML when the substituted value is multi-line, because MiniJinja
+			// doesn't auto-indent subsequent lines.
+			if matches := bareTemplateVarInBlockRe.FindAll(tc.raw, -1); len(matches) > 0 {
+				for _, m := range matches {
+					t.Errorf(
+						"recipe %s: bare template variable %q in block scalar will break "+
+							"YAML when the value is multi-line. Use the indent filter:\n"+
+							"  {{ var | indent(2) }}",
+						tc.name, strings.TrimSpace(string(m)),
+					)
+				}
 			}
 
 			// --- parameter definitions ---
