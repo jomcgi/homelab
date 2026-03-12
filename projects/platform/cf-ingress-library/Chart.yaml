@@ -1,0 +1,5 @@
+apiVersion: v2
+name: cf-ingress
+description: Library chart for Cloudflare ingress HTTPRoute tiers (trusted/public)
+type: library
+version: 0.1.0
