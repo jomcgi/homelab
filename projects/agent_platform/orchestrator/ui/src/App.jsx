@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { listJobs, submitJob, cancelJob, listProfiles } from "./api.js";
+import { listJobs, listAgents, submitPipeline, cancelJob } from "./api.js";
+import PipelineComposer from "./PipelineComposer.jsx";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -405,134 +406,6 @@ function JobRow({ job, onCancel, isMobile }) {
   );
 }
 
-// ─── Submit ───────────────────────────────────────────────────────────────────
-
-function SubmitForm({ onSubmit, profiles }) {
-  const [task, setTask] = useState("");
-  const [profile, setProfile] = useState("");
-  const [focused, setFocused] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    if (!task.trim() || submitting) return;
-    setSubmitting(true);
-    try {
-      await onSubmit({ task: task.trim(), profile: profile || undefined });
-      setTask("");
-      setProfile("");
-      setFocused(false);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <div
-      style={{
-        borderRadius: 16,
-        border: `1px solid ${focused ? "#d1d5db" : "#e5e7eb"}`,
-        background: "#fff",
-        boxShadow: focused
-          ? "0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)"
-          : "0 1px 2px 0 rgba(0,0,0,0.05)",
-        transition: "box-shadow 0.2s, border-color 0.2s",
-      }}
-    >
-      <textarea
-        value={task}
-        onChange={(e) => setTask(e.target.value)}
-        onFocus={() => setFocused(true)}
-        onBlur={() => setFocused(false)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) submit();
-        }}
-        placeholder="Describe a task for the agent..."
-        rows={focused || task ? 4 : 2}
-        style={{
-          width: "100%",
-          padding: "16px 20px 8px",
-          fontSize: 14,
-          color: "#1f2937",
-          border: "none",
-          resize: "none",
-          outline: "none",
-          borderRadius: "16px 16px 0 0",
-          display: "block",
-          lineHeight: 1.6,
-          fontFamily: "inherit",
-          boxSizing: "border-box",
-        }}
-      />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "12px 16px",
-          borderTop: "1px solid #f3f4f6",
-        }}
-      >
-        <select
-          value={profile}
-          onChange={(e) => setProfile(e.target.value)}
-          style={{
-            fontSize: 12,
-            color: "#9ca3af",
-            border: "none",
-            outline: "none",
-            background: "transparent",
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          <option value="">No profile</option>
-          {profiles.map((p) => (
-            <option key={p}>{p}</option>
-          ))}
-        </select>
-        <div
-          style={{
-            marginLeft: "auto",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <span style={{ fontSize: 11, color: "#d1d5db" }}>
-            {navigator.platform?.includes("Mac")
-              ? "\u2318\u21B5"
-              : "Ctrl+\u21B5"}
-          </span>
-          <button
-            onClick={submit}
-            disabled={!task.trim() || submitting}
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              padding: "6px 16px",
-              background: "#111827",
-              color: "#fff",
-              borderRadius: 8,
-              border: "none",
-              cursor: !task.trim() || submitting ? "not-allowed" : "pointer",
-              opacity: !task.trim() || submitting ? 0.2 : 1,
-              transition: "opacity 0.15s, background 0.15s",
-              fontFamily: "inherit",
-            }}
-            onMouseEnter={(e) => {
-              if (task.trim() && !submitting)
-                e.currentTarget.style.background = "#374151";
-            }}
-            onMouseLeave={(e) => (e.currentTarget.style.background = "#111827")}
-          >
-            {submitting ? "Submitting..." : "Submit"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // ─── Job list with filter + search ───────────────────────────────────────────
 
 function JobList({ jobs, onCancel, isMobile }) {
@@ -627,6 +500,7 @@ function JobList({ jobs, onCancel, isMobile }) {
 
 export default function App() {
   const [jobs, setJobs] = useState([]);
+  const [agents, setAgents] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [toast, setToast] = useState(null);
   const [windowWidth, setWindowWidth] = useState(
@@ -639,11 +513,17 @@ export default function App() {
     setTimeout(() => setToast(null), 2500);
   };
 
-  // Fetch profiles on mount
+  // Fetch agent registry on mount
   useEffect(() => {
-    listProfiles()
-      .then(setProfiles)
-      .catch(() => setProfiles([]));
+    listAgents()
+      .then((data) => {
+        setAgents(data.agents || []);
+        setProfiles(data.profiles || []);
+      })
+      .catch(() => {
+        setAgents([]);
+        setProfiles([]);
+      });
   }, []);
 
   // Track window width
@@ -669,15 +549,15 @@ export default function App() {
     return () => clearInterval(id);
   }, [fetchJobs]);
 
-  const handleSubmit = useCallback(
-    async (data) => {
-      await submitJob({
-        task: data.task,
-        profile: data.profile || "",
-        source: "dashboard",
-      });
-      notify("Job submitted");
-      fetchJobs();
+  const handlePipelineSubmit = useCallback(
+    async (spec) => {
+      try {
+        await submitPipeline(spec);
+        notify(`Pipeline submitted (${spec.steps.length} steps)`);
+        fetchJobs();
+      } catch (err) {
+        notify("Submit failed: " + err.message);
+      }
     },
     [fetchJobs],
   );
@@ -723,7 +603,11 @@ export default function App() {
           padding: isMobile ? "32px 16px 96px" : "64px 32px 96px",
         }}
       >
-        <SubmitForm onSubmit={handleSubmit} profiles={profiles} />
+        <PipelineComposer
+          agents={agents}
+          profiles={profiles}
+          onSubmit={handlePipelineSubmit}
+        />
 
         {jobs.length > 0 && (
           <div style={{ marginTop: 32 }}>

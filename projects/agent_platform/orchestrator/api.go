@@ -24,12 +24,14 @@ type API struct {
 	publish           func(jobID string) error // publishes job ID to JetStream, nil = no-op
 	healthCheck       func() error             // checks backing store connectivity
 	defaultMaxRetries int
+	agents            []AgentInfo
+	profiles          []ProfileInfo
 	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, profiles []ProfileInfo, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, profiles: profiles, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -40,6 +42,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /jobs/{id}/cancel", a.handleCancel)
 	mux.HandleFunc("GET /jobs/{id}/output", a.handleOutput)
 	mux.HandleFunc("GET /profiles", a.handleProfiles)
+	mux.HandleFunc("GET /agents", a.handleAgents)
 	mux.HandleFunc("GET /health", a.handleHealth)
 }
 
@@ -230,6 +233,21 @@ func (a *API) handleProfiles(w http.ResponseWriter, _ *http.Request) {
 	}
 	sort.Strings(names)
 	a.writeJSON(w, http.StatusOK, names)
+}
+
+func (a *API) handleAgents(w http.ResponseWriter, _ *http.Request) {
+	agents := a.agents
+	if agents == nil {
+		agents = []AgentInfo{}
+	}
+	profiles := a.profiles
+	if profiles == nil {
+		profiles = []ProfileInfo{}
+	}
+	a.writeJSON(w, http.StatusOK, AgentsResponse{
+		Agents:   agents,
+		Profiles: profiles,
+	})
 }
 
 func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {

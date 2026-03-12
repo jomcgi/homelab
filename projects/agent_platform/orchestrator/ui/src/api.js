@@ -54,3 +54,21 @@ export async function listProfiles() {
   if (!res.ok) throw new Error(await res.text());
   return res.json(); // string[]
 }
+
+export async function listAgents() {
+  const res = await fetch(`${API}/agents`);
+  if (!res.ok) throw new Error(await res.text());
+  return res.json(); // { agents, profiles }
+}
+
+export async function submitPipeline(spec) {
+  // The orchestrator agent receives the full pipeline spec as a
+  // structured job. It refines prompts for each step and dispatches
+  // the chain as linked jobs with parent/child relationships.
+  return submitJob({
+    task: JSON.stringify(spec),
+    profile: "",
+    source: "pipeline-composer",
+    metadata: { type: "pipeline", version: 1 },
+  });
+}
