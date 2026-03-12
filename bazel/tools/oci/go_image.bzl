@@ -6,7 +6,7 @@ load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_image_index", "oci_load", "oci_push")
 load("//bazel/tools/oci:providers.bzl", "oci_image_info")
 
-def go_image(name, binary, base = "@distroless_base", repository = None, visibility = ["//bazel/images:__pkg__"], multi_platform = True):
+def go_image(name, binary, base = "@distroless_base", repository = None, extra_tars = [], visibility = ["//bazel/images:__pkg__"], multi_platform = True):
     """Create a multi-platform Go OCI image from a Go binary.
 
     Args:
@@ -15,6 +15,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         base: The base image to use. Defaults to distroless base.
         repository: The container registry repository (e.g., "ghcr.io/jomcgi/homelab/my-app").
                    Defaults to "ghcr.io/jomcgi/homelab/{package_name}".
+        extra_tars: Additional tar layers to include in the image (e.g., static assets). Defaults to [].
         visibility: Visibility of the generated .push target. Defaults to ["//bazel/images:__pkg__"]
                    to allow access from the auto-generated //images:push_all multirun.
         multi_platform: Build for both amd64 and arm64. Defaults to True.
@@ -38,7 +39,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         oci_image(
             name = name + "_base_amd64",
             base = base,
-            tars = [name + "_app_layer_amd64"],
+            tars = [name + "_app_layer_amd64"] + extra_tars,
             entrypoint = ["/opt/app"],
             user = "65532",  # nonroot user in distroless
         )
@@ -59,7 +60,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         oci_image(
             name = name + "_base_arm64",
             base = base,
-            tars = [name + "_app_layer_arm64"],
+            tars = [name + "_app_layer_arm64"] + extra_tars,
             entrypoint = ["/opt/app"],
             user = "65532",  # nonroot user in distroless
         )
@@ -107,7 +108,7 @@ def go_image(name, binary, base = "@distroless_base", repository = None, visibil
         oci_image(
             name = name,
             base = base,
-            tars = [name + "_app_layer"],
+            tars = [name + "_app_layer"] + extra_tars,
             entrypoint = ["/opt/app"],
             user = "65532",  # nonroot user in distroless
         )

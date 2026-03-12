@@ -3,6 +3,21 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/oci:go_image.bzl", "go_image")
 
+# Package UI dist into a container layer at /opt/ui/
+genrule(
+    name = "ui_dist_tar",
+    srcs = ["//projects/agent_platform/orchestrator/ui:build"],
+    outs = ["ui_dist.tar"],
+    cmd = """
+        WORK=$$(mktemp -d)
+        DEST="$$WORK/opt/ui"
+        mkdir -p "$$DEST"
+        cp -rL $(location //projects/agent_platform/orchestrator/ui:build)/. "$$DEST/"
+        tar -cf $@ -C "$$WORK" .
+        rm -rf "$$WORK"
+    """,
+)
+
 py_library(
     name = "orchestrator_py",
     srcs = ["__init__.py"],
@@ -27,7 +42,6 @@ go_library(
     importpath = "github.com/jomcgi/homelab/projects/agent_platform/orchestrator",
     visibility = ["//visibility:private"],
     deps = [
-        "//projects/agent_platform/orchestrator/ui",
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
         "@com_github_oklog_ulid_v2//:ulid",
@@ -87,6 +101,7 @@ go_test(
 go_image(
     name = "image",
     binary = ":agent-orchestrator",
+    extra_tars = [":ui_dist_tar"],
     repository = "ghcr.io/jomcgi/homelab/projects/agent_platform/orchestrator",
 )
 
