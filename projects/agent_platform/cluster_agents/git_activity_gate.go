@@ -85,5 +85,5 @@ func (g *GitActivityGate) lastProcessedCommit(ctx context.Context, tag string) (
 		return "", nil
 	}
 
-	return result.Jobs[0].ID, nil
+	return result.Jobs[0].CommitSHA, nil
 }
