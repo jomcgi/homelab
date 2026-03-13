@@ -25,7 +25,7 @@ instructions: |
   If you created a PR, use type: pr. If you found a problem you cannot fix, create a
   GitHub issue and use type: issue.
 prompt: |
-  {{ task_description }}
+  {{ task_description | indent(2) }}
 parameters:
   - key: task_description
     description: "The build issue or change to make"
@@ -36,10 +36,8 @@ extensions:
     name: developer
   - type: streamable_http
     name: context-forge
-    uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+    uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
     timeout: 300
-    headers:
-      Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
   - type: stdio
     name: github
     cmd: pnpm
