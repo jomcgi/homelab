@@ -190,7 +190,7 @@ func (a *API) handleCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if job.Status != JobPending && job.Status != JobRunning {
+	if job.Status != JobPending && job.Status != JobRunning && job.Status != JobBlocked {
 		a.writeError(w, http.StatusConflict, "job cannot be cancelled in status "+string(job.Status))
 		return
 	}
@@ -200,6 +200,19 @@ func (a *API) handleCancel(w http.ResponseWriter, r *http.Request) {
 		a.logger.Error("failed to update job", "id", id, "error", err)
 		a.writeError(w, http.StatusInternalServerError, "failed to update job")
 		return
+	}
+
+	// Forward cascade: cancel all BLOCKED steps after this one in the pipeline.
+	if job.PipelineID != "" {
+		pipelineJobs, err := a.store.ListByPipeline(r.Context(), job.PipelineID)
+		if err == nil {
+			for i := range pipelineJobs {
+				if pipelineJobs[i].StepIndex > job.StepIndex && pipelineJobs[i].Status == JobBlocked {
+					pipelineJobs[i].Status = JobCancelled
+					_ = a.store.Put(r.Context(), &pipelineJobs[i])
+				}
+			}
+		}
 	}
 
 	a.writeJSON(w, http.StatusOK, job)
