@@ -26,7 +26,9 @@ func TestRenderRecipe_SimpleSubstitution(t *testing.T) {
 	}
 }
 
-func TestRenderRecipe_IndentFilter(t *testing.T) {
+func TestRenderRecipe_IndentFilterStripped(t *testing.T) {
+	// The indent filter is a MiniJinja directive — the orchestrator strips it
+	// during substitution and lets yaml.Marshal handle block scalar indentation.
 	recipe := map[string]any{
 		"prompt": "{{ task_description | indent(2) }}",
 	}
@@ -35,14 +37,17 @@ func TestRenderRecipe_IndentFilter(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	// Parse the rendered YAML and verify the prompt value has indented lines.
 	var parsed map[string]any
 	if err := yaml.Unmarshal([]byte(rendered), &parsed); err != nil {
 		t.Fatalf("rendered YAML is invalid:\n%s\nparse error: %v", rendered, err)
 	}
 	prompt, _ := parsed["prompt"].(string)
-	if !strings.Contains(prompt, "  line1\n  line2") {
-		t.Fatalf("expected indented lines in prompt value, got:\n%s", prompt)
+	// Task text should appear as-is (no extra indentation from the filter).
+	if !strings.Contains(prompt, "line1\nline2") {
+		t.Fatalf("expected unmodified task in prompt, got:\n%s", prompt)
+	}
+	if strings.Contains(prompt, "  line1") {
+		t.Fatal("indent filter should not be applied by the orchestrator")
 	}
 }
 
