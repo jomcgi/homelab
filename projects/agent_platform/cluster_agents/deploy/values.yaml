@@ -58,6 +58,7 @@ config:
   rulesInterval: "24h"
   prFixInterval: "1h"
   prFixStaleThreshold: "1h"
+  natsUrl: "nats://agent-platform-nats.agent-platform.svc.cluster.local:4222"
 
 secrets:
   agentSecrets:
