@@ -22,12 +22,11 @@ func TestPRFixAgent_CollectFindsFailingPRs(t *testing.T) {
 			return
 		}
 
-		// Return one open PR that is stale (pushed long ago)
+		// Return one open PR that is stale (updated long ago)
 		prs := []ghPullRequest{
 			{
 				Number:    42,
 				Head:      ghHead{Ref: "feat/broken", SHA: "deadbeef"},
-				PushedAt:  time.Now().Add(-2 * time.Hour),
 				UpdatedAt: time.Now().Add(-2 * time.Hour),
 			},
 		}
@@ -97,7 +96,6 @@ func TestPRFixAgent_CollectSkipsPRWithActiveJob(t *testing.T) {
 			{
 				Number:    42,
 				Head:      ghHead{Ref: "feat/broken", SHA: "deadbeef"},
-				PushedAt:  time.Now().Add(-2 * time.Hour),
 				UpdatedAt: time.Now().Add(-2 * time.Hour),
 			},
 		}
