@@ -13,6 +13,8 @@ const STATUS_META = {
   SUCCEEDED: { color: "#22c55e", label: "done" },
   FAILED: { color: "#ef4444", label: "failed" },
   CANCELLED: { color: "#d1d5db", label: "cancelled" },
+  BLOCKED: { color: "#9ca3af", label: "blocked" },
+  SKIPPED: { color: "#d1d5db", label: "skipped" },
 };
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
@@ -39,18 +41,6 @@ function getResult(job) {
   return job.attempts[job.attempts.length - 1].result || null;
 }
 
-/** Try to parse a job's task as a pipeline spec. */
-function parsePipeline(task) {
-  if (!task || !task.startsWith("{")) return null;
-  try {
-    const parsed = JSON.parse(task);
-    if (Array.isArray(parsed.steps) && parsed.steps.length > 0) return parsed;
-  } catch {
-    /* not pipeline JSON */
-  }
-  return null;
-}
-
 /** Resolve agent metadata, falling back to a neutral default. */
 function resolveAgent(agentId, agents) {
   return (
@@ -62,6 +52,44 @@ function resolveAgent(agentId, agents) {
       fg: "#6b7280",
     }
   );
+}
+
+/** Group jobs by pipeline_id. Non-pipeline jobs get their own group. */
+function groupJobs(jobs) {
+  const pipelines = new Map();
+  const singles = [];
+
+  for (const job of jobs) {
+    if (job.pipeline_id) {
+      if (!pipelines.has(job.pipeline_id)) {
+        pipelines.set(job.pipeline_id, []);
+      }
+      pipelines.get(job.pipeline_id).push(job);
+    } else {
+      singles.push({ type: "single", job });
+    }
+  }
+
+  const groups = [];
+  for (const [pipelineId, pipelineJobs] of pipelines) {
+    // Sort by step_index
+    pipelineJobs.sort((a, b) => a.step_index - b.step_index);
+    groups.push({ type: "pipeline", pipelineId, jobs: pipelineJobs });
+  }
+
+  // Add singles
+  groups.push(...singles);
+
+  // Sort groups by most recent activity (first job's updated_at)
+  groups.sort((a, b) => {
+    const aTime =
+      a.type === "pipeline" ? a.jobs[0].updated_at : a.job.updated_at;
+    const bTime =
+      b.type === "pipeline" ? b.jobs[0].updated_at : b.job.updated_at;
+    return new Date(bTime) - new Date(aTime);
+  });
+
+  return groups;
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -174,7 +202,22 @@ function ResultPill({ result }) {
 
 // ─── Pipeline flow (compact, inline) ─────────────────────────────────────────
 
-function PipelineFlow({ steps, agents }) {
+function PipelineFlow({ steps, jobs, agents }) {
+  // Use real jobs if available, otherwise fall back to parsed steps
+  const items = jobs
+    ? jobs.map((j) => ({
+        agent: j.profile,
+        task: j.title || j.task,
+        condition: j.step_condition || "always",
+        status: j.status,
+      }))
+    : steps.map((s) => ({
+        agent: s.agent,
+        task: s.task,
+        condition: s.condition || "always",
+        status: null,
+      }));
+
   return (
     <div
       style={{
@@ -185,12 +228,17 @@ function PipelineFlow({ steps, agents }) {
         minWidth: 0,
       }}
     >
-      {steps.map((step, i) => {
-        const ag = resolveAgent(step.agent, agents);
-        const cond = i > 0 ? step.condition || "always" : null;
+      {items.map((item, i) => {
+        const ag = resolveAgent(item.agent, agents);
+        const cond = i > 0 ? item.condition : null;
         const condStyle = cond
           ? CONDITION_STYLES[cond] || CONDITION_STYLES["always"]
           : null;
+        const isSkipped =
+          item.status === "SKIPPED" || item.status === "CANCELLED";
+        const isBlocked = item.status === "BLOCKED";
+        const isFailed = item.status === "FAILED";
+
         return (
           <div
             key={i}
@@ -199,10 +247,10 @@ function PipelineFlow({ steps, agents }) {
               alignItems: "center",
               gap: 0,
               minWidth: 0,
-              flexShrink: i === steps.length - 1 ? 1 : 0,
+              flexShrink: i === items.length - 1 ? 1 : 0,
             }}
           >
-            {/* Connector line + condition dot */}
+            {/* Connector */}
             {i > 0 && (
               <div
                 style={{
@@ -216,7 +264,9 @@ function PipelineFlow({ steps, agents }) {
                   style={{
                     width: 12,
                     height: 1,
-                    background: condStyle?.border || "#e5e7eb",
+                    background: isFailed
+                      ? "#ef4444"
+                      : condStyle?.border || "#e5e7eb",
                   }}
                 />
                 {cond !== "always" && (
@@ -235,36 +285,47 @@ function PipelineFlow({ steps, agents }) {
                   style={{
                     width: 8,
                     height: 1,
-                    background: condStyle?.border || "#e5e7eb",
+                    background: isFailed
+                      ? "#ef4444"
+                      : condStyle?.border || "#e5e7eb",
                   }}
                 />
               </div>
             )}
-            {/* Agent pill */}
+            {/* Agent pill with status dot */}
             <div
-              title={`${ag.label}: ${step.task}`}
+              title={`${ag.label}: ${item.task}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
                 padding: "3px 8px 3px 5px",
                 borderRadius: 6,
-                background: ag.bg,
+                background: isSkipped
+                  ? "transparent"
+                  : isBlocked
+                    ? "#f9fafb"
+                    : ag.bg,
+                border: isSkipped
+                  ? "1px dashed #d1d5db"
+                  : isBlocked
+                    ? "1px solid #e5e7eb"
+                    : "none",
+                opacity: isSkipped || isBlocked ? 0.6 : 1,
                 flexShrink: 0,
                 maxWidth: 120,
               }}
             >
-              <span style={{ fontSize: 10, lineHeight: 1, flexShrink: 0 }}>
-                {ag.icon}
-              </span>
+              {item.status && <Dot status={item.status} />}
               <span
                 style={{
                   fontSize: 11,
                   fontWeight: 500,
-                  color: ag.fg,
+                  color: isSkipped ? "#9ca3af" : ag.fg,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
+                  textDecoration: isSkipped ? "line-through" : "none",
                 }}
               >
                 {ag.label}
@@ -279,21 +340,43 @@ function PipelineFlow({ steps, agents }) {
 
 // ─── Pipeline detail (expanded view) ─────────────────────────────────────────
 
-function PipelineDetail({ steps, agents }) {
+function PipelineDetail({ steps, jobs, agents }) {
+  const items = jobs
+    ? jobs.map((j) => ({
+        agent: j.profile,
+        task: j.task,
+        title: j.title,
+        condition: j.step_condition || "always",
+        status: j.status,
+        summary: j.summary,
+        attempts: j.attempts,
+      }))
+    : steps.map((s) => ({
+        agent: s.agent,
+        task: s.task,
+        title: null,
+        condition: s.condition || "always",
+        status: null,
+        summary: null,
+        attempts: null,
+      }));
+
   return (
     <div
       style={{
         padding: "12px 20px 16px",
         display: "flex",
         flexDirection: "column",
-        alignItems: "stretch",
         gap: 0,
       }}
     >
-      {steps.map((step, i) => {
-        const ag = resolveAgent(step.agent, agents);
-        const cond = step.condition || "always";
+      {items.map((item, i) => {
+        const ag = resolveAgent(item.agent, agents);
+        const cond = item.condition;
         const condStyle = CONDITION_STYLES[cond] || CONDITION_STYLES["always"];
+        const isSkipped =
+          item.status === "SKIPPED" || item.status === "CANCELLED";
+
         return (
           <div key={i}>
             {/* Vertical connector */}
@@ -339,9 +422,10 @@ function PipelineDetail({ steps, agents }) {
                 alignItems: "flex-start",
                 gap: 10,
                 padding: "8px 12px",
-                background: "#fafafa",
+                background: isSkipped ? "transparent" : "#fafafa",
                 borderRadius: 8,
-                border: "1px solid #f0f0f0",
+                border: isSkipped ? "1px dashed #e5e7eb" : "1px solid #f0f0f0",
+                opacity: isSkipped ? 0.5 : 1,
               }}
             >
               <span
@@ -364,22 +448,39 @@ function PipelineDetail({ steps, agents }) {
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div
                   style={{
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: "#374151",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
                     marginBottom: 2,
                   }}
                 >
-                  {ag.label}
+                  {item.status && <Dot status={item.status} />}
+                  <span
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: "#374151",
+                      textDecoration: isSkipped ? "line-through" : "none",
+                    }}
+                  >
+                    {item.title || ag.label}
+                  </span>
+                  {isSkipped && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "#9ca3af",
+                        fontStyle: "italic",
+                      }}
+                    >
+                      {item.status === "SKIPPED" ? "Skipped" : "Cancelled"}
+                    </span>
+                  )}
                 </div>
                 <div
-                  style={{
-                    fontSize: 11.5,
-                    color: "#9ca3af",
-                    lineHeight: 1.5,
-                  }}
+                  style={{ fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}
                 >
-                  {step.task || "(no task)"}
+                  {item.summary || item.task || "(no task)"}
                 </div>
               </div>
               <span
@@ -411,8 +512,7 @@ function JobRow({ job, agents, onCancel, isMobile }) {
   const attempt = job.attempts?.[job.attempts.length - 1];
   const summary = result?.summary || job.failure_summary;
   const hasOutput = attempt?.output || job.status === "PENDING";
-  const pipeline = parsePipeline(job.task);
-  const isExpandable = pipeline || summary || hasOutput;
+  const isExpandable = summary || hasOutput;
 
   return (
     <div
@@ -435,24 +535,20 @@ function JobRow({ job, agents, onCancel, isMobile }) {
       >
         <Dot status={job.status} />
 
-        {/* Task title or pipeline flow */}
+        {/* Task title */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          {pipeline ? (
-            <PipelineFlow steps={pipeline.steps} agents={agents} />
-          ) : (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#374151",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-                margin: 0,
-              }}
-            >
-              {job.task}
-            </p>
-          )}
+          <p
+            style={{
+              fontSize: 13,
+              color: "#374151",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              margin: 0,
+            }}
+          >
+            {job.title || job.task}
+          </p>
         </div>
 
         {/* Right-side metadata */}
@@ -544,11 +640,6 @@ function JobRow({ job, agents, onCancel, isMobile }) {
       {/* Expanded content */}
       {open && (
         <div style={{ borderTop: "1px solid #f3f4f6" }}>
-          {/* Pipeline step detail */}
-          {pipeline && (
-            <PipelineDetail steps={pipeline.steps} agents={agents} />
-          )}
-
           {summary && (
             <p
               style={{
@@ -557,7 +648,6 @@ function JobRow({ job, agents, onCancel, isMobile }) {
                 color: job.failure_summary ? "#f87171" : "#6b7280",
                 lineHeight: 1.5,
                 margin: 0,
-                borderTop: pipeline ? "1px solid #f3f4f6" : "none",
               }}
             >
               {summary}
@@ -579,7 +669,7 @@ function JobRow({ job, agents, onCancel, isMobile }) {
                   color: "#9ca3af",
                   background: outputOpen ? "#f9fafb" : "transparent",
                   border: "none",
-                  borderTop: summary || pipeline ? "1px solid #f3f4f6" : "none",
+                  borderTop: summary ? "1px solid #f3f4f6" : "none",
                   cursor: "pointer",
                   outline: "none",
                   transition: "color 0.15s, background 0.15s",
@@ -680,6 +770,132 @@ function JobRow({ job, agents, onCancel, isMobile }) {
   );
 }
 
+// ─── Pipeline row (group of pipeline jobs) ───────────────────────────────────
+
+function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
+  const [open, setOpen] = useState(false);
+  const firstJob = pipelineJobs[0];
+  const hasRunning = pipelineJobs.some((j) => j.status === "RUNNING");
+  const hasFailed = pipelineJobs.some((j) => j.status === "FAILED");
+  const allDone = pipelineJobs.every((j) =>
+    ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"].includes(j.status),
+  );
+
+  // Overall pipeline status
+  const overallStatus = hasRunning
+    ? "RUNNING"
+    : hasFailed
+      ? "FAILED"
+      : allDone
+        ? pipelineJobs.every((j) => j.status === "SUCCEEDED")
+          ? "SUCCEEDED"
+          : "FAILED"
+        : "PENDING";
+
+  const canCancel = pipelineJobs.some(
+    (j) =>
+      j.status === "PENDING" ||
+      j.status === "RUNNING" ||
+      j.status === "BLOCKED",
+  );
+
+  return (
+    <div
+      style={{
+        borderBottom: "1px solid #f3f4f6",
+        transition: "background 0.15s",
+        background: open ? "rgba(249,250,251,0.6)" : "transparent",
+      }}
+    >
+      {/* Compact row */}
+      <div
+        onClick={() => setOpen((o) => !o)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 12,
+          padding: "10px 4px",
+          cursor: "pointer",
+        }}
+      >
+        <Dot status={overallStatus} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <PipelineFlow jobs={pipelineJobs} agents={agents} />
+        </div>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 11,
+              color: "#d1d5db",
+              fontVariantNumeric: "tabular-nums",
+              width: 24,
+              textAlign: "right",
+            }}
+          >
+            {timeAgo(firstJob.updated_at)}
+          </span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setOpen((o) => !o);
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              fontSize: 11,
+              color: "#9ca3af",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: "0 0 0 4px",
+              outline: "none",
+            }}
+          >
+            <ChevronDown size={11} open={open} />
+          </button>
+          {canCancel && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                // Cancel the first non-terminal job
+                const active = pipelineJobs.find((j) =>
+                  ["PENDING", "RUNNING", "BLOCKED"].includes(j.status),
+                );
+                if (active) onCancel(active.id);
+              }}
+              style={{
+                fontSize: 11,
+                color: "#f87171",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                padding: 0,
+                outline: "none",
+              }}
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Expanded: per-step detail */}
+      {open && (
+        <div style={{ borderTop: "1px solid #f3f4f6" }}>
+          <PipelineDetail jobs={pipelineJobs} agents={agents} />
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Job list with filter + search ───────────────────────────────────────────
 
 function JobList({ jobs, agents, onCancel, isMobile }) {
@@ -687,12 +903,17 @@ function JobList({ jobs, agents, onCancel, isMobile }) {
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
-  const visible = jobs.filter((j) => {
+  // Filter jobs first, then group
+  const filtered = jobs.filter((j) => {
     const matchStatus = status === "all" || j.status === status;
     const matchSearch =
-      !search || j.task.toLowerCase().includes(search.toLowerCase());
+      !search ||
+      (j.task || "").toLowerCase().includes(search.toLowerCase()) ||
+      (j.title || "").toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
+
+  const groups = groupJobs(filtered);
 
   return (
     <div>
@@ -722,11 +943,11 @@ function JobList({ jobs, agents, onCancel, isMobile }) {
           <option value="all">All</option>
           <option value="RUNNING">Running</option>
           <option value="PENDING">Pending</option>
+          <option value="BLOCKED">Blocked</option>
           <option value="SUCCEEDED">Done</option>
           <option value="FAILED">Failed</option>
           <option value="CANCELLED">Cancelled</option>
         </select>
-
         <input
           type="text"
           value={search}
@@ -749,22 +970,32 @@ function JobList({ jobs, agents, onCancel, isMobile }) {
         />
       </div>
 
-      {/* List */}
+      {/* Grouped list */}
       <div>
-        {visible.length === 0 ? (
+        {groups.length === 0 ? (
           <p style={{ fontSize: 12, color: "#d1d5db", padding: "16px 4px" }}>
             No jobs match
           </p>
         ) : (
-          visible.map((job) => (
-            <JobRow
-              key={job.id}
-              job={job}
-              agents={agents}
-              onCancel={onCancel}
-              isMobile={isMobile}
-            />
-          ))
+          groups.map((group) =>
+            group.type === "pipeline" ? (
+              <PipelineRow
+                key={group.pipelineId}
+                pipelineJobs={group.jobs}
+                agents={agents}
+                onCancel={onCancel}
+                isMobile={isMobile}
+              />
+            ) : (
+              <JobRow
+                key={group.job.id}
+                job={group.job}
+                agents={agents}
+                onCancel={onCancel}
+                isMobile={isMobile}
+              />
+            ),
+          )
         )}
       </div>
     </div>
