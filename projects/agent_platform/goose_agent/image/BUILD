@@ -29,15 +29,6 @@ pkg_tar(
     package_dir = "/home/goose-agent/.config/goose",
 )
 
-# Package Goose recipes into the image at ~/recipes/
-pkg_tar(
-    name = "recipes_tar",
-    srcs = glob(["recipes/*.yaml"]),
-    mode = "0644",
-    owner = "65532.65532",
-    package_dir = "/home/goose-agent/recipes",
-)
-
 # Package Claude Code CLI from the pnpm lockfile-managed npm package.
 # Places the package at /usr/local/lib/node_modules/@anthropic-ai/claude-code/
 # with a symlink at /usr/local/bin/claude for PATH discovery.
@@ -110,7 +101,6 @@ apko_image(
     tars = [
         ":config_tar",
         ":claude_code_tar",
-        ":recipes_tar",
     ],
 )
 
