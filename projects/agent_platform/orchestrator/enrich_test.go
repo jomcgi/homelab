@@ -9,7 +9,7 @@ import (
 )
 
 func TestEnrichPipeline(t *testing.T) {
-	// Mock LLM server returning structured JSON.
+	// Mock LLM server returning old array format (backward-compat).
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		resp := map[string]any{
 			"choices": []map[string]any{
@@ -27,25 +27,59 @@ func TestEnrichPipeline(t *testing.T) {
 		{Agent: "code-fix", Task: "Fix the issue", Condition: "on success"},
 	}
 
-	enrichments, err := enrichPipeline(context.Background(), server.URL, steps)
+	result, err := enrichPipeline(context.Background(), server.URL, steps)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(enrichments) != 2 {
-		t.Fatalf("expected 2 enrichments, got %d", len(enrichments))
+	if len(result.Steps) != 2 {
+		t.Fatalf("expected 2 enrichments, got %d", len(result.Steps))
 	}
-	if enrichments[0].Title != "Debug CI" {
-		t.Fatalf("expected 'Debug CI', got %q", enrichments[0].Title)
+	if result.Steps[0].Title != "Debug CI" {
+		t.Fatalf("expected 'Debug CI', got %q", result.Steps[0].Title)
+	}
+}
+
+func TestEnrichPipeline_NewFormat(t *testing.T) {
+	// Mock LLM server returning new object format with pipeline_summary.
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := map[string]any{
+			"choices": []map[string]any{
+				{"message": map[string]any{
+					"content": `{"steps":[{"title":"Debug CI","summary":"Investigate failures"},{"title":"Fix Code","summary":"Apply fixes"}],"pipeline_summary":"Debug and fix CI failures"}`,
+				}},
+			},
+		}
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	steps := []PipelineStep{
+		{Agent: "ci-debug", Task: "Debug the CI failure", Condition: "always"},
+		{Agent: "code-fix", Task: "Fix the issue", Condition: "on success"},
+	}
+
+	result, err := enrichPipeline(context.Background(), server.URL, steps)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result.Steps) != 2 {
+		t.Fatalf("expected 2 enrichments, got %d", len(result.Steps))
+	}
+	if result.Steps[0].Title != "Debug CI" {
+		t.Fatalf("expected 'Debug CI', got %q", result.Steps[0].Title)
+	}
+	if result.PipelineSummary != "Debug and fix CI failures" {
+		t.Fatalf("expected pipeline summary, got %q", result.PipelineSummary)
 	}
 }
 
 func TestEnrichPipeline_InferenceUnavailable(t *testing.T) {
-	// When inference URL is empty, return nil (graceful degradation).
-	enrichments, err := enrichPipeline(context.Background(), "", nil)
+	// When inference URL is empty, return zero value (graceful degradation).
+	result, err := enrichPipeline(context.Background(), "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
-	if enrichments != nil {
-		t.Fatalf("expected nil enrichments, got %v", enrichments)
+	if len(result.Steps) != 0 {
+		t.Fatalf("expected empty steps, got %v", result.Steps)
 	}
 }

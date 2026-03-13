@@ -322,7 +322,7 @@ func (a *API) handlePipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// LLM enrichment (best-effort).
-	enrichments, _ := enrichPipeline(r.Context(), a.inferenceURL, req.Steps)
+	enriched, _ := enrichPipeline(r.Context(), a.inferenceURL, req.Steps)
 
 	var jobs []SubmitResponse
 	for i, step := range req.Steps {
@@ -353,10 +353,11 @@ func (a *API) handlePipeline(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Apply enrichment if available.
-		if enrichments != nil && i < len(enrichments) {
-			job.Title = enrichments[i].Title
-			job.Summary = enrichments[i].Summary
+		if i < len(enriched.Steps) {
+			job.Title = enriched.Steps[i].Title
+			job.Summary = enriched.Steps[i].Summary
 		}
+		job.PipelineSummary = enriched.PipelineSummary
 
 		if err := a.store.Put(r.Context(), job); err != nil {
 			a.logger.Error("failed to store pipeline job", "step", i, "error", err)
