@@ -48,12 +48,12 @@ func (m *fakeMsg) Reply() string   { return "" }
 
 type fakeSandbox struct {
 	// runFn is called by Run; defaults to success with exit code 0.
-	runFn func(ctx context.Context, claimName, task, recipe string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error)
+	runFn func(ctx context.Context, claimName, task, recipe, model string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error)
 }
 
-func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipe string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error) {
+func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipe, model string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error) {
 	if f.runFn != nil {
-		return f.runFn(ctx, claimName, task, recipe, cancelFn, buf)
+		return f.runFn(ctx, claimName, task, recipe, model, cancelFn, buf)
 	}
 	return &ExecResult{ExitCode: 0, Output: "success"}, nil
 }
@@ -61,7 +61,7 @@ func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipe string, c
 // --- Helpers ---
 
 func newTestConsumer(store Store, sandbox Sandbox) *Consumer {
-	return NewConsumer(nil, store, sandbox, nil, 5*time.Minute, nil, slog.Default())
+	return NewConsumer(nil, store, sandbox, nil, 5*time.Minute, nil, nil, slog.Default())
 }
 
 func pendingJob(id string) *JobRecord {
@@ -121,7 +121,7 @@ func TestProcessJob_SandboxFailure_ExitCode(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			return &ExecResult{ExitCode: 1, Output: "tests failed"}, nil
 		},
 	}
@@ -147,7 +147,7 @@ func TestProcessJob_SandboxError(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			return nil, errors.New("sandbox exploded")
 		},
 	}
@@ -176,7 +176,7 @@ func TestProcessJob_RetryOnFailure(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			return &ExecResult{ExitCode: 1, Output: "flaky"}, nil
 		},
 	}
@@ -207,7 +207,7 @@ func TestProcessJob_SkipsCancelledJob(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	executed := false
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			executed = true
 			return &ExecResult{ExitCode: 0}, nil
 		},
@@ -233,7 +233,7 @@ func TestProcessJob_SkipsRunningJob(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	executed := false
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			executed = true
 			return &ExecResult{ExitCode: 0}, nil
 		},
@@ -259,7 +259,7 @@ func TestProcessJob_SkipsSucceededJob(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	executed := false
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			executed = true
 			return &ExecResult{ExitCode: 0}, nil
 		},
@@ -283,7 +283,7 @@ func TestProcessJob_CancelledDuringExecution(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(ctx context.Context, claimName, _, _ string, cancelFn func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(ctx context.Context, claimName, _, _, _ string, cancelFn func() bool, _ *syncBuffer) (*ExecResult, error) {
 			// Simulate the job being cancelled externally mid-execution.
 			// Read current record (which has the in-progress attempt) and flip status.
 			current, _ := store.Get(ctx, job.ID)
@@ -329,7 +329,7 @@ func TestProcessJob_ContextCancelledBeforeExec(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(ctx context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(ctx context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			return nil, ctx.Err()
 		},
 	}
@@ -434,7 +434,7 @@ func TestProcessJob_ParsesStructuredResult(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
 			output := "doing work...\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/42\nsummary: Fixed the thing. CI passes.\n```\n"
 			return &ExecResult{ExitCode: 0, Output: output}, nil
 		},
@@ -479,6 +479,30 @@ func TestProcessJob_NoStructuredResult(t *testing.T) {
 	got, _ := store.Get(context.Background(), job.ID)
 	if got.Attempts[0].Result != nil {
 		t.Errorf("expected nil result for output without goose-result block, got %+v", got.Attempts[0].Result)
+	}
+}
+
+func TestProcessJob_PassesModelToSandbox(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-MODEL")
+	job.Profile = "deep-plan"
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	var gotModel string
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _, model string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+			gotModel = model
+			return &ExecResult{ExitCode: 0, Output: "ok"}, nil
+		},
+	}
+
+	models := map[string]string{"deep-plan": "claude-opus-4-6"}
+	c := NewConsumer(nil, store, sandbox, nil, 5*time.Minute, nil, models, slog.Default())
+	c.processJob(context.Background(), msg)
+
+	if gotModel != "claude-opus-4-6" {
+		t.Errorf("model = %q, want %q", gotModel, "claude-opus-4-6")
 	}
 }
 
