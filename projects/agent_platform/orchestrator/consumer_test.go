@@ -48,12 +48,12 @@ func (m *fakeMsg) Reply() string   { return "" }
 
 type fakeSandbox struct {
 	// runFn is called by Run; defaults to success with exit code 0.
-	runFn func(ctx context.Context, claimName, task, profile string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error)
+	runFn func(ctx context.Context, claimName, task, recipe string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error)
 }
 
-func (f *fakeSandbox) Run(ctx context.Context, claimName, task, profile string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error) {
+func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipe string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error) {
 	if f.runFn != nil {
-		return f.runFn(ctx, claimName, task, profile, cancelFn, buf)
+		return f.runFn(ctx, claimName, task, recipe, cancelFn, buf)
 	}
 	return &ExecResult{ExitCode: 0, Output: "success"}, nil
 }
@@ -61,7 +61,7 @@ func (f *fakeSandbox) Run(ctx context.Context, claimName, task, profile string, 
 // --- Helpers ---
 
 func newTestConsumer(store Store, sandbox Sandbox) *Consumer {
-	return NewConsumer(nil, store, sandbox, 5*time.Minute, slog.Default())
+	return NewConsumer(nil, store, sandbox, 5*time.Minute, nil, slog.Default())
 }
 
 func pendingJob(id string) *JobRecord {
