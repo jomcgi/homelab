@@ -11,6 +11,8 @@ const (
 	JobSucceeded JobStatus = "SUCCEEDED"
 	JobFailed    JobStatus = "FAILED"
 	JobCancelled JobStatus = "CANCELLED"
+	JobBlocked   JobStatus = "BLOCKED"
+	JobSkipped   JobStatus = "SKIPPED"
 )
 
 // AgentInfo describes an available agent for the pipeline composer UI.
@@ -41,6 +43,13 @@ type JobRecord struct {
 	MaxRetries int       `json:"max_retries"`
 	Source     string    `json:"source"`
 	Tags       []string  `json:"tags,omitempty"`
+
+	// Pipeline execution fields.
+	PipelineID    string `json:"pipeline_id,omitempty"`    // shared ULID grouping linked jobs
+	StepIndex     int    `json:"step_index,omitempty"`     // 0-based position in pipeline
+	StepCondition string `json:"step_condition,omitempty"` // "always" | "on success" | "on failure"
+	Title         string `json:"title,omitempty"`          // LLM-generated short title
+	Summary       string `json:"summary,omitempty"`        // LLM-generated 1-2 sentence summary
 
 	// Reserved for webhook/DLQ integration.
 	GithubIssue    int    `json:"github_issue,omitempty"`
@@ -83,6 +92,24 @@ type SubmitResponse struct {
 	ID        string    `json:"id"`
 	Status    JobStatus `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// PipelineStep describes one step in a pipeline submission.
+type PipelineStep struct {
+	Agent     string `json:"agent"`
+	Task      string `json:"task"`
+	Condition string `json:"condition"` // "always" | "on success" | "on failure"
+}
+
+// PipelineRequest is the JSON body for POST /pipeline.
+type PipelineRequest struct {
+	Steps []PipelineStep `json:"steps"`
+}
+
+// PipelineResponse is returned after a pipeline is created.
+type PipelineResponse struct {
+	PipelineID string           `json:"pipeline_id"`
+	Jobs       []SubmitResponse `json:"jobs"`
 }
 
 // ListResponse is returned by GET /jobs.
