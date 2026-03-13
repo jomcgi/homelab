@@ -319,8 +319,10 @@ func CurrentDay() int {
 
 // IsPuzzleAvailable checks if a puzzle is available yet
 func IsPuzzleAvailable(year, day int) bool {
-	// AOC puzzles unlock at midnight EST (UTC-5)
-	est, _ := time.LoadLocation("America/New_York")
+	// AOC puzzles unlock at midnight EST (UTC-5).
+	// Use FixedZone instead of LoadLocation to avoid depending on tzdata,
+	// which is unavailable in some sandbox environments (e.g. Bazel RBE).
+	est := time.FixedZone("EST", -5*60*60)
 	unlockTime := time.Date(year, time.December, day, 0, 0, 0, 0, est)
 	return time.Now().After(unlockTime)
 }
