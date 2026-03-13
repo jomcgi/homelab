@@ -1280,6 +1280,30 @@ export default function App() {
     [fetchJobs],
   );
 
+  // Hydrate deep plan state from job list on load. If the user refreshes the
+  // page (or the deep plan was submitted from another tab), the in-memory
+  // deepPlanJobId is lost. Scan the already-fetched job list for the most
+  // recent successful deep-plan job and restore its result so the "Apply
+  // pipeline" button appears without re-running the plan.
+  useEffect(() => {
+    // Only hydrate when no deep plan is active (avoid overwriting in-flight state)
+    if (deepPlanStatus) return;
+    if (!jobs.length) return;
+
+    const recent = jobs.find(
+      (j) => j.profile === "deep-plan" && j.status === "SUCCEEDED",
+    );
+    if (!recent) return;
+
+    const result = getResult(recent);
+    if (result?.pipeline?.length > 0) {
+      setDeepPlanJobId(recent.id);
+      setDeepPlanResult(result.pipeline);
+      setDeepPlanStatus("done");
+      setAnalysisUrl(result.url || null);
+    }
+  }, [jobs, deepPlanStatus]);
+
   // ── Deep Plan ───────────────────────────────────────────────────────────
   const handleDeepPlan = useCallback(async (prompt, currentPipeline) => {
     // Reset state before the async gap to prevent polling the old job ID
