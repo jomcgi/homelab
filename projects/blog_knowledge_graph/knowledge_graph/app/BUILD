@@ -18,7 +18,6 @@ load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
 
-
 py_library(
     name = "models",
     srcs = ["models.py"],
