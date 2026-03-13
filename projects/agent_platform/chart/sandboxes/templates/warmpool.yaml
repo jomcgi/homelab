@@ -1,8 +1,12 @@
+{{- $imageTag := .Values.sandboxTemplate.image.tag | toString }}
+{{- $tagHash := $imageTag | sha256sum | trunc 8 }}
 apiVersion: extensions.agents.x-k8s.io/v1alpha1
 kind: SandboxWarmPool
 metadata:
-  name: {{ .Values.warmPool.name }}
+  name: {{ .Values.warmPool.name }}-{{ $tagHash }}
   namespace: {{ .Release.Namespace }}
+  annotations:
+    sandboxes.agents/image-tag: {{ $imageTag | quote }}
 spec:
   sandboxTemplateRef:
     name: {{ .Values.sandboxTemplate.name }}
