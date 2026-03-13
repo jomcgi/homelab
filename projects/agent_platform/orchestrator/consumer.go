@@ -24,17 +24,19 @@ type Consumer struct {
 	cons        jetstream.Consumer
 	store       Store
 	sandbox     Sandbox
+	publish     func(jobID string) error
 	maxDuration time.Duration
 	recipes     map[string]map[string]any
 	logger      *slog.Logger
 }
 
 // NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
-func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, maxDuration time.Duration, recipes map[string]map[string]any, logger *slog.Logger) *Consumer {
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, publish func(jobID string) error, maxDuration time.Duration, recipes map[string]map[string]any, logger *slog.Logger) *Consumer {
 	return &Consumer{
 		cons:        cons,
 		store:       store,
 		sandbox:     sandbox,
+		publish:     publish,
 		maxDuration: maxDuration,
 		recipes:     recipes,
 		logger:      logger,
@@ -206,6 +208,7 @@ loop:
 		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store cancelled job", "error", err)
 		}
+		c.advancePipeline(jobCtx, job)
 		_ = msg.Ack()
 		return
 	}
@@ -230,6 +233,7 @@ loop:
 		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store failed state", "error", err)
 		}
+		c.advancePipeline(jobCtx, job)
 		_ = msg.Ack()
 		return
 	}
@@ -239,6 +243,7 @@ loop:
 	if err := c.store.Put(jobCtx, job); err != nil {
 		logger.Error("failed to store succeeded state", "error", err)
 	}
+	c.advancePipeline(jobCtx, job)
 	_ = msg.Ack()
 }
 
@@ -287,4 +292,111 @@ func (c *Consumer) flushOutput(ctx context.Context, jobID string, buf *syncBuffe
 	if err := c.store.Put(ctx, current); err != nil {
 		c.logger.Warn("failed to flush output", "jobID", jobID, "error", err)
 	}
+}
+
+// advancePipeline evaluates the next step in a pipeline and either unblocks it,
+// skips it (and cascades), or does nothing if the pipeline is complete.
+func (c *Consumer) advancePipeline(ctx context.Context, completed *JobRecord) {
+	if completed.PipelineID == "" {
+		return
+	}
+
+	logger := c.logger.With("pipelineID", completed.PipelineID, "completedStep", completed.StepIndex)
+
+	pipelineJobs, err := c.store.ListByPipeline(ctx, completed.PipelineID)
+	if err != nil {
+		logger.Error("failed to list pipeline jobs", "error", err)
+		return
+	}
+
+	// Find the next step.
+	var next *JobRecord
+	for i := range pipelineJobs {
+		if pipelineJobs[i].StepIndex == completed.StepIndex+1 {
+			next = &pipelineJobs[i]
+			break
+		}
+	}
+	if next == nil {
+		logger.Info("pipeline complete, no more steps")
+		return
+	}
+
+	if next.Status != JobBlocked {
+		logger.Info("next step not blocked, skipping advance", "nextStatus", next.Status)
+		return
+	}
+
+	// Evaluate condition.
+	conditionMet := false
+	switch next.StepCondition {
+	case "always":
+		conditionMet = true
+	case "on success":
+		conditionMet = completed.Status == JobSucceeded
+	case "on failure":
+		conditionMet = completed.Status == JobFailed
+	default:
+		conditionMet = true // Default to always.
+	}
+
+	if !conditionMet {
+		logger.Info("condition not met, skipping step", "condition", next.StepCondition, "predecessorStatus", completed.Status)
+		next.Status = JobSkipped
+		if err := c.store.Put(ctx, next); err != nil {
+			logger.Error("failed to skip step", "error", err)
+		}
+		// Cascade: skip all remaining BLOCKED steps.
+		c.cascadeSkip(ctx, pipelineJobs, next.StepIndex)
+		return
+	}
+
+	// Prepend predecessor context to next step's task.
+	next.Task = c.buildStepContext(completed, next.Task)
+	next.Status = JobPending
+	if err := c.store.Put(ctx, next); err != nil {
+		logger.Error("failed to unblock step", "error", err)
+		return
+	}
+
+	// Publish to NATS for dispatch.
+	if c.publish != nil {
+		if err := c.publish(next.ID); err != nil {
+			logger.Error("failed to publish next step", "error", err)
+		}
+	}
+
+	logger.Info("advanced pipeline to next step", "nextStep", next.StepIndex, "nextAgent", next.Profile)
+}
+
+// cascadeSkip marks all BLOCKED steps after the given index as SKIPPED.
+func (c *Consumer) cascadeSkip(ctx context.Context, jobs []JobRecord, afterIndex int) {
+	for i := range jobs {
+		if jobs[i].StepIndex > afterIndex && jobs[i].Status == JobBlocked {
+			jobs[i].Status = JobSkipped
+			if err := c.store.Put(ctx, &jobs[i]); err != nil {
+				c.logger.Error("failed to cascade skip", "jobID", jobs[i].ID, "error", err)
+			}
+		}
+	}
+}
+
+// buildStepContext prepends predecessor output to the next step's task.
+func (c *Consumer) buildStepContext(pred *JobRecord, task string) string {
+	if len(pred.Attempts) == 0 {
+		return task
+	}
+
+	lastAttempt := pred.Attempts[len(pred.Attempts)-1]
+	output := lastAttempt.Output
+	if len(output) > 2000 {
+		output = output[len(output)-2000:]
+	}
+
+	var resultCtx string
+	if lastAttempt.Result != nil {
+		resultCtx = fmt.Sprintf("\nResult: type=%s url=%s summary=%s", lastAttempt.Result.Type, lastAttempt.Result.URL, lastAttempt.Result.Summary)
+	}
+
+	return fmt.Sprintf("Previous step (agent: %s, status: %s) output:\n---\n%s%s\n---\n\nYour task:\n%s", pred.Profile, string(pred.Status), output, resultCtx, task)
 }
