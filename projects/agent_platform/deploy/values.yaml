@@ -264,9 +264,6 @@ goose-sandboxes:
     agentSecrets:
       onePasswordItem: agent-secrets
       vault: k8s-homelab
-    mcpTokens:
-      onePasswordItem: goose-mcp-tokens
-      vault: k8s-homelab
 
 # ── NATS ─────────────────────────────────────────────────────────────────────
 nats:

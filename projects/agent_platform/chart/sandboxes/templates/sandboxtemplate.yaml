@@ -91,12 +91,6 @@ spec:
                   optional: true
             - name: GOOSE_WORKSPACE
               value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}
-            - name: CI_DEBUG_MCP_TOKEN
-              valueFrom:
-                secretKeyRef:
-                  name: {{ .Values.secrets.mcpTokens.secretName }}
-                  key: {{ .Values.secrets.mcpTokens.key }}
-                  optional: true
             {{- if .Values.sandboxTemplate.extraEnv }}
             {{- toYaml .Values.sandboxTemplate.extraEnv | nindent 12 }}
             {{- end }}
