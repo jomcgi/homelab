@@ -15,6 +15,9 @@ concurrency:
   group: hikes-update-data-${{ github.ref }}
   cancel-in-progress: false
 
+permissions:
+  packages: read
+
 jobs:
   update-data:
     runs-on: ubuntu-latest
