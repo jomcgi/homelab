@@ -546,6 +546,34 @@ func TestHandlePipeline_EmptySteps(t *testing.T) {
 	}
 }
 
+func TestHandleCancel_ForwardCascade(t *testing.T) {
+	store := newMemStore()
+	now := time.Now().UTC()
+	store.jobs["S0"] = &JobRecord{ID: "S0", Task: "a", Status: JobRunning, PipelineID: "P1", StepIndex: 0, CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["S1"] = &JobRecord{ID: "S1", Task: "b", Status: JobBlocked, PipelineID: "P1", StepIndex: 1, CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["S2"] = &JobRecord{ID: "S2", Task: "c", Status: JobBlocked, PipelineID: "P1", StepIndex: 2, CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+
+	_, mux := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodPost, "/jobs/S0/cancel", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	// S1 and S2 should be cancelled.
+	s1, _ := store.Get(context.Background(), "S1")
+	if s1.Status != JobCancelled {
+		t.Fatalf("S1: expected CANCELLED, got %s", s1.Status)
+	}
+	s2, _ := store.Get(context.Background(), "S2")
+	if s2.Status != JobCancelled {
+		t.Fatalf("S2: expected CANCELLED, got %s", s2.Status)
+	}
+}
+
 func TestHandlePipeline_InvalidAgent(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
