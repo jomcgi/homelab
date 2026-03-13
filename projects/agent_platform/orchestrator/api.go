@@ -322,7 +322,7 @@ func (a *API) handlePipeline(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// LLM enrichment (best-effort).
-	enriched, _ := enrichPipeline(r.Context(), a.inferenceURL, req.Steps)
+	enriched, _ := enrichPipeline(r.Context(), a.logger, a.inferenceURL, req.Steps)
 
 	var jobs []SubmitResponse
 	for i, step := range req.Steps {
