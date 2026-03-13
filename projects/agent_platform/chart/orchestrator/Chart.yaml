@@ -2,7 +2,7 @@ apiVersion: v2
 name: agent-orchestrator
 description: Orchestrates Goose agent tasks via REST API with NATS-backed queue and state
 type: application
-version: 0.3.0
+version: 0.4.0
 appVersion: "0.1.0"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
