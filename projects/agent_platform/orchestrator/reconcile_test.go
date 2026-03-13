@@ -283,7 +283,7 @@ func TestReconcileOrphanedJobs_FailedWithOutput(t *testing.T) {
 		t.Errorf("status = %s, want PENDING", job.Status)
 	}
 	last := job.Attempts[len(job.Attempts)-1]
-	if last.Output != "Error: something went wrong" {
+	if last.Output != "Error: something went wrong\n" {
 		t.Errorf("output = %q, want error message", last.Output)
 	}
 }
