@@ -950,6 +950,7 @@ function JobRow({ job, agents, onCancel, isMobile }) {
 function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
   const [open, setOpen] = useState(false);
   const firstJob = pipelineJobs[0];
+  const pipelineSummary = firstJob.pipeline_summary;
   const hasRunning = pipelineJobs.some((j) => j.status === "RUNNING");
   const hasFailed = pipelineJobs.some((j) => j.status === "FAILED");
   const allDone = pipelineJobs.every((j) =>
@@ -995,6 +996,20 @@ function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
       >
         <Dot status={overallStatus} />
         <div style={{ flex: 1, minWidth: 0 }}>
+          {pipelineSummary && (
+            <p
+              style={{
+                fontSize: 12,
+                color: "#6b7280",
+                margin: "0 0 4px",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {pipelineSummary}
+            </p>
+          )}
           <PipelineFlow jobs={pipelineJobs} agents={agents} />
         </div>
         <div

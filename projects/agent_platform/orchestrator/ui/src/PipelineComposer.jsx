@@ -427,7 +427,12 @@ function Composer({ onInfer, inferring, mentionCats }) {
       pill.appendChild(iconSpan);
       pill.appendChild(document.createTextNode(item.id));
 
-      const spacer = document.createTextNode("\u00A0");
+      // Wrap spacer in a span to create a clean style boundary — prevents
+      // the pill's background from bleeding into subsequently typed text.
+      const spacer = document.createElement("span");
+      spacer.style.cssText =
+        "background:none;color:inherit;font-weight:normal;";
+      spacer.textContent = "\u00A0";
       range.insertNode(spacer);
       range.insertNode(pill);
 
@@ -794,6 +799,7 @@ export default function PipelineComposer({ agents, onSubmit }) {
   const [inferring, setInferring] = useState(false);
   const [inferSource, setInferSource] = useState(null); // "inferred" | "manual" | null
   const [submitting, setSubmitting] = useState(false);
+  const [composerKey, setComposerKey] = useState(0);
   const dragRef = useRef(null);
 
   const mentionCats = useMemo(() => buildMentionCats(agents), [agents]);
@@ -880,6 +886,10 @@ export default function PipelineComposer({ agents, onSubmit }) {
         })),
       };
       await onSubmit?.(spec);
+      // Clear composer after successful submit.
+      setPipeline([]);
+      setInferSource(null);
+      setComposerKey((k) => k + 1);
     } finally {
       setSubmitting(false);
     }
@@ -891,6 +901,7 @@ export default function PipelineComposer({ agents, onSubmit }) {
       {/* Phase 1: Composer */}
       <Label>Task prompt</Label>
       <Composer
+        key={composerKey}
         onInfer={handleInfer}
         inferring={inferring}
         mentionCats={mentionCats}

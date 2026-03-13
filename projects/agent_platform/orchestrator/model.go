@@ -45,11 +45,12 @@ type JobRecord struct {
 	Tags       []string  `json:"tags,omitempty"`
 
 	// Pipeline execution fields.
-	PipelineID    string `json:"pipeline_id,omitempty"`    // shared ULID grouping linked jobs
-	StepIndex     int    `json:"step_index,omitempty"`     // 0-based position in pipeline
-	StepCondition string `json:"step_condition,omitempty"` // "always" | "on success" | "on failure"
-	Title         string `json:"title,omitempty"`          // LLM-generated short title
-	Summary       string `json:"summary,omitempty"`        // LLM-generated 1-2 sentence summary
+	PipelineID      string `json:"pipeline_id,omitempty"`      // shared ULID grouping linked jobs
+	StepIndex       int    `json:"step_index"`                 // 0-based position in pipeline
+	StepCondition   string `json:"step_condition,omitempty"`   // "always" | "on success" | "on failure"
+	Title           string `json:"title,omitempty"`            // LLM-generated short title
+	Summary         string `json:"summary,omitempty"`          // LLM-generated 1-2 sentence summary
+	PipelineSummary string `json:"pipeline_summary,omitempty"` // LLM-generated overall pipeline summary
 
 	// Reserved for webhook/DLQ integration.
 	GithubIssue    int    `json:"github_issue,omitempty"`
