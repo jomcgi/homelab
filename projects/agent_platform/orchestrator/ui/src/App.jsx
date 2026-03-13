@@ -341,6 +341,9 @@ function PipelineFlow({ steps, jobs, agents }) {
 // ─── Pipeline detail (expanded view) ─────────────────────────────────────────
 
 function PipelineDetail({ steps, jobs, agents }) {
+  const [openStep, setOpenStep] = useState(null);
+  const [outputOpen, setOutputOpen] = useState(false);
+
   const items = jobs
     ? jobs.map((j) => ({
         agent: j.profile,
@@ -350,6 +353,7 @@ function PipelineDetail({ steps, jobs, agents }) {
         status: j.status,
         summary: j.summary,
         attempts: j.attempts,
+        failure_summary: j.failure_summary,
       }))
     : steps.map((s) => ({
         agent: s.agent,
@@ -359,6 +363,7 @@ function PipelineDetail({ steps, jobs, agents }) {
         status: null,
         summary: null,
         attempts: null,
+        failure_summary: null,
       }));
 
   return (
@@ -376,6 +381,15 @@ function PipelineDetail({ steps, jobs, agents }) {
         const condStyle = CONDITION_STYLES[cond] || CONDITION_STYLES["always"];
         const isSkipped =
           item.status === "SKIPPED" || item.status === "CANCELLED";
+        const isOpen = openStep === i;
+        const hasStatus = !!item.status;
+        const result = getResult({ attempts: item.attempts });
+        const attempt = item.attempts?.[item.attempts.length - 1];
+        const stepSummary = result?.summary || item.failure_summary;
+        const hasOutput =
+          attempt?.output ||
+          item.status === "PENDING" ||
+          item.status === "RUNNING";
 
         return (
           <div key={i}>
@@ -417,15 +431,31 @@ function PipelineDetail({ steps, jobs, agents }) {
             )}
             {/* Step card */}
             <div
+              onClick={() => {
+                if (hasStatus) {
+                  if (isOpen) {
+                    setOpenStep(null);
+                  } else {
+                    setOpenStep(i);
+                    setOutputOpen(false);
+                  }
+                }
+              }}
               style={{
                 display: "flex",
                 alignItems: "flex-start",
                 gap: 10,
                 padding: "8px 12px",
-                background: isSkipped ? "transparent" : "#fafafa",
-                borderRadius: 8,
+                background: isSkipped
+                  ? "transparent"
+                  : isOpen
+                    ? "#f3f4f6"
+                    : "#fafafa",
+                borderRadius: isOpen ? "8px 8px 0 0" : 8,
                 border: isSkipped ? "1px dashed #e5e7eb" : "1px solid #f0f0f0",
                 opacity: isSkipped ? 0.5 : 1,
+                cursor: hasStatus ? "pointer" : "default",
+                transition: "background 0.15s",
               }}
             >
               <span
@@ -476,6 +506,7 @@ function PipelineDetail({ steps, jobs, agents }) {
                       {item.status === "SKIPPED" ? "Skipped" : "Cancelled"}
                     </span>
                   )}
+                  <ResultPill result={result} />
                 </div>
                 <div
                   style={{ fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}
@@ -483,18 +514,162 @@ function PipelineDetail({ steps, jobs, agents }) {
                   {item.summary || item.task || "(no task)"}
                 </div>
               </div>
-              <span
+              <div
                 style={{
-                  fontSize: 10,
-                  color: "#d1d5db",
-                  fontFamily: "monospace",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
                   flexShrink: 0,
                   marginTop: 2,
                 }}
               >
-                {i + 1}
-              </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    color: "#d1d5db",
+                    fontFamily: "monospace",
+                  }}
+                >
+                  {i + 1}
+                </span>
+                {hasStatus && <ChevronDown size={10} open={isOpen} />}
+              </div>
             </div>
+
+            {/* Expanded step content */}
+            {isOpen && (
+              <div
+                style={{
+                  border: "1px solid #f0f0f0",
+                  borderTop: "none",
+                  borderRadius: "0 0 8px 8px",
+                  overflow: "hidden",
+                }}
+              >
+                {stepSummary && (
+                  <p
+                    style={{
+                      padding: "8px 12px",
+                      fontSize: 11.5,
+                      color: item.failure_summary ? "#f87171" : "#6b7280",
+                      lineHeight: 1.5,
+                      margin: 0,
+                    }}
+                  >
+                    {stepSummary}
+                  </p>
+                )}
+
+                {hasOutput && (
+                  <>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOutputOpen((o) => !o);
+                      }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        width: "100%",
+                        padding: "6px 12px",
+                        fontSize: 11,
+                        color: "#9ca3af",
+                        background: outputOpen ? "#f9fafb" : "transparent",
+                        border: "none",
+                        borderTop: stepSummary ? "1px solid #f3f4f6" : "none",
+                        cursor: "pointer",
+                        outline: "none",
+                        fontFamily: "inherit",
+                        transition: "color 0.15s",
+                      }}
+                      onMouseEnter={(e) =>
+                        (e.currentTarget.style.color = "#374151")
+                      }
+                      onMouseLeave={(e) =>
+                        (e.currentTarget.style.color = "#9ca3af")
+                      }
+                    >
+                      <ChevronDown size={10} open={outputOpen} />
+                      Output
+                      {attempt?.exit_code != null && (
+                        <span
+                          style={{
+                            fontFamily: "monospace",
+                            color:
+                              attempt.exit_code === 0 ? "#22c55e" : "#f87171",
+                          }}
+                        >
+                          exit {attempt.exit_code}
+                        </span>
+                      )}
+                      {item.status === "RUNNING" && (
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 4,
+                            color: "#60a5fa",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              width: 5,
+                              height: 5,
+                              borderRadius: "50%",
+                              background: "#60a5fa",
+                              animation:
+                                "ping 1s cubic-bezier(0,0,0.2,1) infinite",
+                            }}
+                          />
+                          live
+                        </span>
+                      )}
+                      {attempt?.started_at && (
+                        <span
+                          style={{
+                            marginLeft: "auto",
+                            fontFamily: "monospace",
+                            color: "#d1d5db",
+                          }}
+                        >
+                          {elapsed(attempt.started_at, attempt.finished_at)}
+                        </span>
+                      )}
+                    </button>
+
+                    {outputOpen && (
+                      <pre
+                        style={{
+                          padding: "12px",
+                          fontSize: 11,
+                          fontFamily: "monospace",
+                          lineHeight: 1.6,
+                          color: "#374151",
+                          whiteSpace: "pre-wrap",
+                          overflow: "auto",
+                          maxHeight: 200,
+                          margin: 0,
+                          borderTop: "1px solid #f3f4f6",
+                        }}
+                      >
+                        {attempt?.output || (
+                          <span
+                            style={{ color: "#d1d5db", fontStyle: "italic" }}
+                          >
+                            {item.status === "PENDING" ||
+                            item.status === "RUNNING"
+                              ? "Waiting for output..."
+                              : "No output"}
+                          </span>
+                        )}
+                      </pre>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         );
       })}
