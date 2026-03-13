@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -218,8 +217,11 @@ func TestHandleRun_RejectsWhileRunning(t *testing.T) {
 	}
 }
 
-func TestBuildGooseCmd_NoProfile(t *testing.T) {
-	args := buildGooseCmd(RunRequest{Task: "fix the bug"})
+func TestBuildGooseCmd_NoRecipe(t *testing.T) {
+	args, cleanup := buildGooseCmd(RunRequest{Task: "fix the bug"})
+	if cleanup != nil {
+		t.Fatal("expected nil cleanup for no-recipe mode")
+	}
 
 	expected := []string{"goose", "run", "--text", "fix the bug"}
 	if len(args) != len(expected) {
@@ -232,72 +234,30 @@ func TestBuildGooseCmd_NoProfile(t *testing.T) {
 	}
 }
 
-func TestBuildGooseCmd_WithProfile(t *testing.T) {
-	validProfiles = map[string]string{
-		"ci-debug": "/home/goose-agent/recipes/ci-debug.yaml",
+func TestBuildGooseCmd_WithRecipe(t *testing.T) {
+	recipeYAML := "version: '1.0.0'\ntitle: Test\n"
+	args, cleanup := buildGooseCmd(RunRequest{Task: "do it", Recipe: recipeYAML})
+	if cleanup == nil {
+		t.Fatal("expected cleanup function for temp file")
 	}
-	t.Cleanup(func() { validProfiles = nil })
+	defer cleanup()
 
-	args := buildGooseCmd(RunRequest{Task: "debug CI", Profile: "ci-debug"})
-
-	expected := []string{
-		"goose", "run",
-		"--recipe", "/home/goose-agent/recipes/ci-debug.yaml",
-		"--no-profile",
-		"--params", "task_description=debug CI",
-	}
-	if len(args) != len(expected) {
-		t.Fatalf("expected %v, got %v", expected, args)
+	expected := []string{"goose", "run", "--recipe", args[3], "--no-profile"}
+	if len(args) != 5 {
+		t.Fatalf("expected 5 args, got %d: %v", len(args), args)
 	}
 	for i := range expected {
 		if args[i] != expected[i] {
 			t.Fatalf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
 		}
 	}
-}
 
-func TestBuildGooseCmd_UnknownProfile(t *testing.T) {
-	args := buildGooseCmd(RunRequest{Task: "do stuff", Profile: "nonexistent"})
-
-	expected := []string{"goose", "run", "--text", "do stuff"}
-	if len(args) != len(expected) {
-		t.Fatalf("expected %v, got %v", expected, args)
+	// Verify temp file exists and contains recipe content.
+	content, err := os.ReadFile(args[3])
+	if err != nil {
+		t.Fatalf("failed to read temp recipe: %v", err)
 	}
-	for i := range expected {
-		if args[i] != expected[i] {
-			t.Fatalf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
-		}
-	}
-}
-
-func TestDiscoverProfiles(t *testing.T) {
-	dir := t.TempDir()
-	// Create some recipe files.
-	for _, name := range []string{"alpha.yaml", "beta.yaml"} {
-		if err := os.WriteFile(filepath.Join(dir, name), []byte("test"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	// Create a non-yaml file and a directory that should be ignored.
-	os.WriteFile(filepath.Join(dir, "README.md"), []byte("ignore"), 0o644)
-	os.Mkdir(filepath.Join(dir, "subdir.yaml"), 0o755)
-
-	profiles := discoverProfiles(dir)
-
-	if len(profiles) != 2 {
-		t.Fatalf("expected 2 profiles, got %d: %v", len(profiles), profiles)
-	}
-	if profiles["alpha"] != filepath.Join(dir, "alpha.yaml") {
-		t.Errorf("unexpected alpha path: %s", profiles["alpha"])
-	}
-	if profiles["beta"] != filepath.Join(dir, "beta.yaml") {
-		t.Errorf("unexpected beta path: %s", profiles["beta"])
-	}
-}
-
-func TestDiscoverProfiles_MissingDir(t *testing.T) {
-	profiles := discoverProfiles("/nonexistent/path")
-	if len(profiles) != 0 {
-		t.Fatalf("expected empty map for missing dir, got %v", profiles)
+	if string(content) != recipeYAML {
+		t.Fatalf("expected recipe content %q, got %q", recipeYAML, string(content))
 	}
 }
