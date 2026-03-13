@@ -88,6 +88,45 @@ func TestParseGooseResult_GistType(t *testing.T) {
 	}
 }
 
+func TestParseGooseResult_PipelineType(t *testing.T) {
+	raw := "analysis complete\n```goose-result\ntype: pipeline\nurl: https://gist.github.com/jomcgi/abc123\nsummary: 3-step pipeline for trace debugging\npipeline: [{\"agent\":\"research\",\"task\":\"Investigate traces\",\"condition\":\"always\"},{\"agent\":\"code-fix\",\"task\":\"Fix sampling\",\"condition\":\"on success\"}]\n```\n"
+
+	r := parseGooseResult(raw)
+	if r == nil {
+		t.Fatal("expected non-nil result")
+	}
+	if r.Type != "pipeline" {
+		t.Errorf("type = %q, want %q", r.Type, "pipeline")
+	}
+	if r.URL != "https://gist.github.com/jomcgi/abc123" {
+		t.Errorf("url = %q", r.URL)
+	}
+	if len(r.Pipeline) != 2 {
+		t.Fatalf("expected 2 pipeline steps, got %d", len(r.Pipeline))
+	}
+	if r.Pipeline[0].Agent != "research" {
+		t.Errorf("step 0 agent = %q, want %q", r.Pipeline[0].Agent, "research")
+	}
+	if r.Pipeline[1].Condition != "on success" {
+		t.Errorf("step 1 condition = %q, want %q", r.Pipeline[1].Condition, "on success")
+	}
+}
+
+func TestParseGooseResult_PipelineInvalidJSON(t *testing.T) {
+	raw := "```goose-result\ntype: pipeline\npipeline: not valid json\nsummary: bad\n```\n"
+
+	r := parseGooseResult(raw)
+	if r == nil {
+		t.Fatal("expected non-nil result (pipeline field just ignored)")
+	}
+	if r.Type != "pipeline" {
+		t.Errorf("type = %q, want %q", r.Type, "pipeline")
+	}
+	if len(r.Pipeline) != 0 {
+		t.Errorf("expected empty pipeline for invalid JSON, got %d steps", len(r.Pipeline))
+	}
+}
+
 func TestParseGooseResult_IssueType(t *testing.T) {
 	raw := "found a problem\n```goose-result\ntype: issue\nurl: https://github.com/jomcgi/homelab/issues/99\nsummary: Discovered stale CronJob in monitoring namespace. Created issue to track cleanup.\n```\n"
 
