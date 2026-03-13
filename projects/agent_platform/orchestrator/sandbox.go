@@ -430,3 +430,37 @@ func (s *SandboxExecutor) CheckRunnerForClaim(ctx context.Context, claimName str
 
 	return s.PollRunnerStatus(ctx, fqdn)
 }
+
+// FetchOutputForClaim resolves the runner for a sandbox claim and fetches its
+// full output buffer. Used by the reconciler to capture output from runners
+// that finished while the orchestrator was down.
+func (s *SandboxExecutor) FetchOutputForClaim(ctx context.Context, claimName string) (string, error) {
+	claim, err := s.dynClient.Resource(sandboxClaimGVR).Namespace(s.namespace).Get(ctx, claimName, metav1.GetOptions{})
+	if err != nil {
+		return "", fmt.Errorf("getting claim %s: %w", claimName, err)
+	}
+	status, ok := claim.Object["status"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("claim %s has no status", claimName)
+	}
+	sandboxMap, _ := status["sandbox"].(map[string]interface{})
+	if sandboxMap == nil {
+		return "", fmt.Errorf("claim %s has no sandbox ref", claimName)
+	}
+	sandboxName, _ := sandboxMap["Name"].(string)
+	if sandboxName == "" {
+		return "", fmt.Errorf("claim %s has empty sandbox name", claimName)
+	}
+
+	fqdn, err := s.resolveSandboxServiceFQDN(ctx, sandboxName)
+	if err != nil {
+		return "", fmt.Errorf("resolving FQDN for sandbox %s: %w", sandboxName, err)
+	}
+
+	baseURL := fmt.Sprintf("http://%s:8081", fqdn)
+	buf := newSyncBuffer(0) // no cap — we truncate in the caller
+	if _, err := s.pollOutput(ctx, baseURL, 0, buf); err != nil {
+		return "", fmt.Errorf("fetching output: %w", err)
+	}
+	return buf.String(), nil
+}
