@@ -683,7 +683,7 @@ function Composer({ onInfer, inferring, mentionCats }) {
 
 // ─── PipelineComposer (main export) ──────────────────────────────────────────
 
-export default function PipelineComposer({ agents, profiles, onSubmit }) {
+export default function PipelineComposer({ agents, onSubmit }) {
   const [pipeline, setPipeline] = useState([]);
   const [inferring, setInferring] = useState(false);
   const [inferSource, setInferSource] = useState(null); // "inferred" | "manual" | null

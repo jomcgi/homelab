@@ -49,16 +49,10 @@ export async function getJobOutput(id) {
   return res.json();
 }
 
-export async function listProfiles() {
-  const res = await fetch(`${API}/profiles`);
-  if (!res.ok) throw new Error(await res.text());
-  return res.json(); // string[]
-}
-
 export async function listAgents() {
   const res = await fetch(`${API}/agents`);
   if (!res.ok) throw new Error(await res.text());
-  return res.json(); // { agents, profiles }
+  return res.json(); // { agents: AgentInfo[] }
 }
 
 export async function submitPipeline(spec) {

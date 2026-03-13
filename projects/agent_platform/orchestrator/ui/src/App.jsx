@@ -501,7 +501,6 @@ function JobList({ jobs, onCancel, isMobile }) {
 export default function App() {
   const [jobs, setJobs] = useState([]);
   const [agents, setAgents] = useState([]);
-  const [profiles, setProfiles] = useState([]);
   const [toast, setToast] = useState(null);
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024,
@@ -518,11 +517,9 @@ export default function App() {
     listAgents()
       .then((data) => {
         setAgents(data.agents || []);
-        setProfiles(data.profiles || []);
       })
       .catch(() => {
         setAgents([]);
-        setProfiles([]);
       });
   }, []);
 
@@ -603,11 +600,7 @@ export default function App() {
           padding: isMobile ? "32px 16px 96px" : "64px 32px 96px",
         }}
       >
-        <PipelineComposer
-          agents={agents}
-          profiles={profiles}
-          onSubmit={handlePipelineSubmit}
-        />
+        <PipelineComposer agents={agents} onSubmit={handlePipelineSubmit} />
 
         {jobs.length > 0 && (
           <div style={{ marginTop: 32 }}>
