@@ -138,7 +138,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	if job.Profile != "" && c.recipes != nil {
 		if recipe, ok := c.recipes[job.Profile]; ok {
 			var err error
-			recipeYAML, err = renderRecipeYAML(recipe, task)
+			recipeYAML, err = renderRecipeYAML(recipe)
 			if err != nil {
 				c.logger.Error("failed to render recipe", "agent", job.Profile, "error", err)
 			}

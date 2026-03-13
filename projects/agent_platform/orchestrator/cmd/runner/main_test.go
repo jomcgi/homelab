@@ -236,20 +236,32 @@ func TestBuildGooseCmd_NoRecipe(t *testing.T) {
 
 func TestBuildGooseCmd_WithRecipe(t *testing.T) {
 	recipeYAML := "version: '1.0.0'\ntitle: Test\n"
-	args, cleanup := buildGooseCmd(RunRequest{Task: "do it", Recipe: recipeYAML})
+	task := "do it"
+	args, cleanup := buildGooseCmd(RunRequest{Task: task, Recipe: recipeYAML})
 	if cleanup == nil {
 		t.Fatal("expected cleanup function for temp file")
 	}
 	defer cleanup()
 
-	expected := []string{"goose", "run", "--recipe", args[3], "--no-profile"}
-	if len(args) != 5 {
-		t.Fatalf("expected 5 args, got %d: %v", len(args), args)
+	// Expected: goose run --recipe <file> --params task_description=<task> --no-profile
+	if len(args) != 7 {
+		t.Fatalf("expected 7 args, got %d: %v", len(args), args)
 	}
-	for i := range expected {
-		if args[i] != expected[i] {
-			t.Fatalf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
-		}
+	if args[0] != "goose" || args[1] != "run" {
+		t.Fatalf("expected goose run, got %s %s", args[0], args[1])
+	}
+	if args[2] != "--recipe" {
+		t.Fatalf("expected --recipe at args[2], got %s", args[2])
+	}
+	if args[4] != "--params" {
+		t.Fatalf("expected --params at args[4], got %s", args[4])
+	}
+	expectedParams := "task_description=" + task
+	if args[5] != expectedParams {
+		t.Fatalf("expected params %q, got %q", expectedParams, args[5])
+	}
+	if args[6] != "--no-profile" {
+		t.Fatalf("expected --no-profile at args[6], got %s", args[6])
 	}
 
 	// Verify temp file exists and contains recipe content.
@@ -260,4 +272,49 @@ func TestBuildGooseCmd_WithRecipe(t *testing.T) {
 	if string(content) != recipeYAML {
 		t.Fatalf("expected recipe content %q, got %q", recipeYAML, string(content))
 	}
+}
+
+func TestBuildGooseCmd_RecipeTempFilePreservesTemplateVars(t *testing.T) {
+	recipeYAML := "prompt: '{{ task_description | indent(2) }}'\n"
+	args, cleanup := buildGooseCmd(RunRequest{
+		Task:   "fix the auth bug",
+		Recipe: recipeYAML,
+	})
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	// Read temp file and verify template variables are preserved (not substituted).
+	content, err := os.ReadFile(args[3])
+	if err != nil {
+		t.Fatalf("failed to read temp recipe: %v", err)
+	}
+	if !strings.Contains(string(content), "task_description") {
+		t.Fatal("template variable should be preserved in temp file for goose to handle")
+	}
+}
+
+func TestBuildGooseCmd_YAMLHostileTask(t *testing.T) {
+	// YAML-special characters in the task are safe because they're passed via
+	// --params (CLI arg), not embedded in the recipe YAML.
+	hostileTask := `Fix the "auth" bug. Check: key: value. Don't break it.`
+	args, cleanup := buildGooseCmd(RunRequest{
+		Task:   hostileTask,
+		Recipe: "version: '1.0.0'\ntitle: Test\n",
+	})
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	// Find --params value.
+	for i, arg := range args {
+		if arg == "--params" && i+1 < len(args) {
+			expected := "task_description=" + hostileTask
+			if args[i+1] != expected {
+				t.Fatalf("expected params %q, got %q", expected, args[i+1])
+			}
+			return
+		}
+	}
+	t.Fatal("--params flag not found")
 }

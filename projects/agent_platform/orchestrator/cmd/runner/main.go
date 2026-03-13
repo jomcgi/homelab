@@ -180,8 +180,9 @@ func (r *runner) handleRun(w http.ResponseWriter, req *http.Request) {
 }
 
 // buildGooseCmd constructs the goose command arguments.
-// When a recipe is provided, it writes it to a temp file and returns a cleanup
-// function that removes the file. The caller must call cleanup when done.
+// When a recipe is provided, it writes it to a temp file and passes the task
+// via --params so goose's MiniJinja engine handles template substitution.
+// The caller must call the returned cleanup function when done.
 func buildGooseCmd(body RunRequest) ([]string, func()) {
 	if body.Recipe != "" {
 		f, err := os.CreateTemp("", "goose-recipe-*.yaml")
@@ -195,6 +196,7 @@ func buildGooseCmd(body RunRequest) ([]string, func()) {
 		return []string{
 			"goose", "run",
 			"--recipe", f.Name(),
+			"--params", "task_description=" + body.Task,
 			"--no-profile",
 		}, cleanup
 	}
