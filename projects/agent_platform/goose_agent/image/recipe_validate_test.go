@@ -3,8 +3,9 @@
 package image_test
 
 import (
-	_ "embed"
+	"embed"
 	"fmt"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -12,17 +13,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed recipes/code-fix.yaml
-var codeFix []byte
-
-//go:embed recipes/ci-debug.yaml
-var ciDebug []byte
-
-//go:embed recipes/research.yaml
-var research []byte
-
-//go:embed recipes/bazel.yaml
-var bazel []byte
+//go:embed recipes/*.yaml
+var recipesFS embed.FS
 
 // recipeFile mirrors the fields we care about for validation.
 type recipeFile struct {
@@ -59,64 +51,68 @@ var unsafePromptRe = regexp.MustCompile(`(?m)^\s*prompt:\s*"[^"]*\{\{[^"]*`)
 var bareTemplateVarInBlockRe = regexp.MustCompile(`(?m)^\s+\{\{\s*[a-zA-Z_]\w*\s*\}\}\s*$`)
 
 func TestRecipeYAML(t *testing.T) {
-	cases := []struct {
-		name string
-		raw  []byte
-	}{
-		{"code-fix", codeFix},
-		{"ci-debug", ciDebug},
-		{"research", research},
-		{"bazel", bazel},
+	entries, err := recipesFS.ReadDir("recipes")
+	if err != nil {
+		t.Fatalf("failed to read recipes directory: %v", err)
 	}
 
-	for _, tc := range cases {
-		t.Run(tc.name, func(t *testing.T) {
+	if len(entries) == 0 {
+		t.Fatal("no recipe files found in recipes/ directory")
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+
+		name := strings.TrimSuffix(entry.Name(), ".yaml")
+		raw, err := recipesFS.ReadFile("recipes/" + entry.Name())
+		if err != nil {
+			t.Fatalf("failed to read recipe %s: %v", name, err)
+		}
+
+		t.Run(name, func(t *testing.T) {
 			var r recipeFile
-			if err := yaml.Unmarshal(tc.raw, &r); err != nil {
-				t.Fatalf("recipe %s: failed to parse YAML: %v", tc.name, err)
+			if err := yaml.Unmarshal(raw, &r); err != nil {
+				t.Fatalf("recipe %s: failed to parse YAML: %v", name, err)
 			}
 
 			// --- required fields ---
 			if strings.TrimSpace(r.Title) == "" {
-				t.Errorf("recipe %s: missing required field 'title'", tc.name)
+				t.Errorf("recipe %s: missing required field 'title'", name)
 			}
 			if strings.TrimSpace(r.Description) == "" {
-				t.Errorf("recipe %s: missing required field 'description'", tc.name)
+				t.Errorf("recipe %s: missing required field 'description'", name)
 			}
 			if strings.TrimSpace(r.Instructions) == "" && strings.TrimSpace(r.Prompt) == "" {
-				t.Errorf("recipe %s: must have at least one of 'instructions' or 'prompt'", tc.name)
+				t.Errorf("recipe %s: must have at least one of 'instructions' or 'prompt'", name)
 			}
 
 			// --- prompt must use block scalar when it contains template variables ---
-			// Inline double-quoted scalars with {{ variable }} break YAML after
-			// rendering if the substituted value contains double quotes.
-			if unsafePromptRe.Match(tc.raw) {
+			if unsafePromptRe.Match(raw) {
 				t.Errorf(
 					"recipe %s: prompt field uses unsafe inline double-quoted format "+
 						"containing a template variable (e.g. prompt: \"{{ var }}\"). "+
 						"Use block scalar format instead:\n  prompt: |\n    {{ var }}",
-					tc.name,
+					name,
 				)
 			}
 
 			// --- block scalar template variables must use indent filter ---
-			// A bare {{ var }} inside a block scalar produces multi-document
-			// YAML when the substituted value is multi-line, because MiniJinja
-			// doesn't auto-indent subsequent lines.
-			if matches := bareTemplateVarInBlockRe.FindAll(tc.raw, -1); len(matches) > 0 {
+			if matches := bareTemplateVarInBlockRe.FindAll(raw, -1); len(matches) > 0 {
 				for _, m := range matches {
 					t.Errorf(
 						"recipe %s: bare template variable %q in block scalar will break "+
 							"YAML when the value is multi-line. Use the indent filter:\n"+
 							"  {{ var | indent(2) }}",
-						tc.name, strings.TrimSpace(string(m)),
+						name, strings.TrimSpace(string(m)),
 					)
 				}
 			}
 
 			// --- parameter definitions ---
 			for i, p := range r.Parameters {
-				loc := fmt.Sprintf("recipe %s parameter[%d]", tc.name, i)
+				loc := fmt.Sprintf("recipe %s parameter[%d]", name, i)
 				if strings.TrimSpace(p.Key) == "" {
 					t.Errorf("%s: missing 'key'", loc)
 				}
@@ -142,7 +138,7 @@ func TestRecipeYAML(t *testing.T) {
 					if !paramKeys[key] {
 						t.Errorf(
 							"recipe %s: template variable '{{ %s }}' used but not declared in parameters",
-							tc.name, key,
+							name, key,
 						)
 					}
 				}

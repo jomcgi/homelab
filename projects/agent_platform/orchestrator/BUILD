@@ -104,6 +104,7 @@ go_test(
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
+        "@in_gopkg_yaml_v3//:yaml_v3",
     ],
 )
 
