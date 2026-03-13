@@ -134,6 +134,26 @@ func TestLoadAgentsConfig(t *testing.T) {
 	}
 }
 
+func TestLoadAgentsConfig_ModelField(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "agents.json")
+	data := `{"agents":[{"id":"deep-plan","label":"Deep Plan","model":"claude-opus-4-6","recipe":{"version":"1.0.0","title":"Deep Plan"}}]}`
+	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	agents, recipes := loadAgentsConfig(path, slog.Default())
+	if len(agents) != 1 {
+		t.Fatalf("expected 1 agent, got %d", len(agents))
+	}
+	if agents[0].Model != "claude-opus-4-6" {
+		t.Errorf("model = %q, want %q", agents[0].Model, "claude-opus-4-6")
+	}
+	if recipes["deep-plan"] == nil {
+		t.Error("expected deep-plan recipe")
+	}
+}
+
 func TestLoadAgentsConfigMissing(t *testing.T) {
 	agents, recipes := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
 	if agents != nil {
