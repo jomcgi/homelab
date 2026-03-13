@@ -60,6 +60,7 @@ config:
   httpPort: "8080"
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
+  reconcileInterval: "60s"
   # OpenAI-compatible inference endpoint for pipeline planning.
   # The orchestrator proxies POST /infer to this URL.
   inferenceUrl: ""

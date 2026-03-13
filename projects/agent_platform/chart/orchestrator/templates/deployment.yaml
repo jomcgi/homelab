@@ -57,6 +57,8 @@ spec:
           value: {{ .Values.config.jobInactivityTimeout | quote }}
         - name: JOB_MAX_DURATION
           value: {{ .Values.config.jobMaxDuration | quote }}
+        - name: RECONCILE_INTERVAL
+          value: {{ .Values.config.reconcileInterval | quote }}
         {{- if .Values.config.inferenceUrl }}
         - name: INFERENCE_URL
           value: {{ .Values.config.inferenceUrl | quote }}
