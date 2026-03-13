@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,7 +28,7 @@ func TestEnrichPipeline(t *testing.T) {
 		{Agent: "code-fix", Task: "Fix the issue", Condition: "on success"},
 	}
 
-	result, err := enrichPipeline(context.Background(), server.URL, steps)
+	result, err := enrichPipeline(context.Background(), slog.Default(), server.URL, steps)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -58,7 +59,7 @@ func TestEnrichPipeline_NewFormat(t *testing.T) {
 		{Agent: "code-fix", Task: "Fix the issue", Condition: "on success"},
 	}
 
-	result, err := enrichPipeline(context.Background(), server.URL, steps)
+	result, err := enrichPipeline(context.Background(), slog.Default(), server.URL, steps)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}
@@ -75,7 +76,7 @@ func TestEnrichPipeline_NewFormat(t *testing.T) {
 
 func TestEnrichPipeline_InferenceUnavailable(t *testing.T) {
 	// When inference URL is empty, return zero value (graceful degradation).
-	result, err := enrichPipeline(context.Background(), "", nil)
+	result, err := enrichPipeline(context.Background(), slog.Default(), "", nil)
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

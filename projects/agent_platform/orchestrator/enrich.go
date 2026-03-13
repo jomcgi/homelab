@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -24,7 +25,7 @@ type enrichResult struct {
 
 // enrichPipeline calls the inference endpoint to generate titles, summaries,
 // and an overall pipeline summary. Returns zero value on empty URL (graceful degradation).
-func enrichPipeline(ctx context.Context, inferenceURL string, steps []PipelineStep) (enrichResult, error) {
+func enrichPipeline(ctx context.Context, logger *slog.Logger, inferenceURL string, steps []PipelineStep) (enrichResult, error) {
 	if inferenceURL == "" || len(steps) == 0 {
 		return enrichResult{}, nil
 	}
@@ -60,11 +61,13 @@ Return JSON: {"steps": [{"title": "...", "summary": "..."}], "pipeline_summary":
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
+		logger.Warn("pipeline enrichment: inference request failed", "error", err)
 		return enrichResult{}, nil // Graceful degradation — don't block pipeline creation.
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
+		logger.Warn("pipeline enrichment: inference returned non-200", "status", resp.StatusCode)
 		return enrichResult{}, nil
 	}
 
@@ -76,10 +79,12 @@ Return JSON: {"steps": [{"title": "...", "summary": "..."}], "pipeline_summary":
 		} `json:"choices"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&llmResp); err != nil {
+		logger.Warn("pipeline enrichment: failed to decode inference response", "error", err)
 		return enrichResult{}, nil
 	}
 
 	if len(llmResp.Choices) == 0 {
+		logger.Warn("pipeline enrichment: inference returned no choices")
 		return enrichResult{}, nil
 	}
 
@@ -97,8 +102,10 @@ Return JSON: {"steps": [{"title": "...", "summary": "..."}], "pipeline_summary":
 	// Fall back to old format: [{"title": "...", "summary": "..."}]
 	var stepEnrichments []enrichment
 	if err := json.Unmarshal([]byte(content), &stepEnrichments); err != nil {
+		logger.Warn("pipeline enrichment: failed to parse LLM content as JSON", "content", content)
 		return enrichResult{}, nil
 	}
 
+	logger.Warn("pipeline enrichment: LLM used old format, pipeline_summary will be empty")
 	return enrichResult{Steps: stepEnrichments}, nil
 }
