@@ -591,3 +591,62 @@ func TestHandlePipeline_InvalidAgent(t *testing.T) {
 		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestGetJob_IncludesPipelineResult(t *testing.T) {
+	store := newMemStore()
+	now := time.Now().UTC()
+	store.jobs["PIPE01"] = &JobRecord{
+		ID:     "PIPE01",
+		Task:   "plan something",
+		Status: JobSucceeded,
+		Attempts: []Attempt{{
+			Number: 1,
+			Result: &GooseResult{
+				Type:    "pipeline",
+				URL:     "https://gist.github.com/test/123",
+				Summary: "3-step pipeline",
+				Pipeline: []PipelineStep{
+					{Agent: "research", Task: "investigate", Condition: "always"},
+					{Agent: "code-fix", Task: "fix it", Condition: "on success"},
+				},
+			},
+		}},
+		CreatedAt: now,
+		UpdatedAt: now,
+	}
+
+	_, mux := newTestAPI(store)
+
+	req := httptest.NewRequest(http.MethodGet, "/jobs/PIPE01", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var result JobRecord
+	if err := json.NewDecoder(rec.Body).Decode(&result); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if len(result.Attempts) != 1 {
+		t.Fatalf("expected 1 attempt, got %d", len(result.Attempts))
+	}
+	lastAttempt := result.Attempts[0]
+	if lastAttempt.Result == nil {
+		t.Fatal("expected result on attempt")
+	}
+	if lastAttempt.Result.Type != "pipeline" {
+		t.Errorf("type = %q, want pipeline", lastAttempt.Result.Type)
+	}
+	if len(lastAttempt.Result.Pipeline) != 2 {
+		t.Fatalf("expected 2 pipeline steps, got %d", len(lastAttempt.Result.Pipeline))
+	}
+	if lastAttempt.Result.Pipeline[0].Agent != "research" {
+		t.Errorf("step 0 agent = %q, want research", lastAttempt.Result.Pipeline[0].Agent)
+	}
+	if lastAttempt.Result.Pipeline[1].Condition != "on success" {
+		t.Errorf("step 1 condition = %q, want 'on success'", lastAttempt.Result.Pipeline[1].Condition)
+	}
+}
