@@ -16,7 +16,7 @@ const maxOutputBytes = 32 * 1024 // 32KB tail — full output lives in pod logs 
 // Sandbox is the interface for executing agent tasks in an isolated environment.
 // SandboxExecutor satisfies this interface; tests inject a fake implementation.
 type Sandbox interface {
-	Run(ctx context.Context, claimName, task, profile string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error)
+	Run(ctx context.Context, claimName, task, recipe string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error)
 }
 
 // Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
@@ -25,16 +25,18 @@ type Consumer struct {
 	store       Store
 	sandbox     Sandbox
 	maxDuration time.Duration
+	recipes     map[string]map[string]any
 	logger      *slog.Logger
 }
 
 // NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
-func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, maxDuration time.Duration, logger *slog.Logger) *Consumer {
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, maxDuration time.Duration, recipes map[string]map[string]any, logger *slog.Logger) *Consumer {
 	return &Consumer{
 		cons:        cons,
 		store:       store,
 		sandbox:     sandbox,
 		maxDuration: maxDuration,
+		recipes:     recipes,
 		logger:      logger,
 	}
 }
@@ -129,6 +131,18 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 
 	outputBuf := newSyncBuffer(maxOutputBytes)
 
+	// Render recipe for this agent.
+	recipeYAML := ""
+	if job.Profile != "" && c.recipes != nil {
+		if recipe, ok := c.recipes[job.Profile]; ok {
+			var err error
+			recipeYAML, err = renderRecipeYAML(recipe, task)
+			if err != nil {
+				c.logger.Error("failed to render recipe", "agent", job.Profile, "error", err)
+			}
+		}
+	}
+
 	// Run sandbox in a goroutine so we can flush output periodically.
 	type sandboxResult struct {
 		result *ExecResult
@@ -136,7 +150,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	}
 	resultCh := make(chan sandboxResult, 1)
 	go func() {
-		r, err := c.sandbox.Run(jobCtx, claimName, task, job.Profile, cancelFn, outputBuf)
+		r, err := c.sandbox.Run(jobCtx, claimName, task, recipeYAML, cancelFn, outputBuf)
 		resultCh <- sandboxResult{r, err}
 	}()
 
