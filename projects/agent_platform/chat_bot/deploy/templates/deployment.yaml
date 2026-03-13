@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "chat-bot.fullname" . }}
+  labels:
+    {{- include "chat-bot.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      {{- include "chat-bot.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      {{- with .Values.podAnnotations }}
+      annotations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      labels:
+        {{- include "chat-bot.selectorLabels" . | nindent 8 }}
+    spec:
+      {{- if .Values.imagePullSecret.enabled }}
+      imagePullSecrets:
+        - name: ghcr-imagepull-secret
+      {{- end }}
+      serviceAccountName: {{ include "chat-bot.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+      - name: {{ .Chart.Name }}
+        securityContext:
+          {{- toYaml .Values.securityContext | nindent 10 }}
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.service.port }}
+          protocol: TCP
+        env:
+        - name: DISCORD_BOT_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: discord-bot-credentials
+              key: DISCORD_BOT_TOKEN
+        - name: DISCORD_PUBLIC_KEY
+          valueFrom:
+            secretKeyRef:
+              name: discord-bot-credentials
+              key: DISCORD_PUBLIC_KEY
+        - name: DISCORD_APPLICATION_ID
+          valueFrom:
+            secretKeyRef:
+              name: discord-bot-credentials
+              key: DISCORD_APPLICATION_ID
+        - name: GITHUB_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: agent-secrets
+              key: GITHUB_TOKEN
+        - name: OWNER_DISCORD_USER_ID
+          value: {{ .Values.config.ownerDiscordUserId | quote }}
+        - name: ORCHESTRATOR_URL
+          value: {{ .Values.config.orchestratorUrl | quote }}
+        - name: LLAMA_CPP_URL
+          value: {{ .Values.config.llamaCppUrl | quote }}
+        - name: NATS_URL
+          value: {{ .Values.config.natsUrl | quote }}
+        - name: NOTIFICATION_CHANNEL_MAP
+          value: {{ .Values.config.notificationChannelMap | quote }}
+        - name: HTTP_PORT
+          value: {{ .Values.config.httpPort | quote }}
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 5
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: http
+          initialDelaySeconds: 3
+          periodSeconds: 10
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
