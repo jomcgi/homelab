@@ -185,6 +185,7 @@ function StepCard({
   step,
   index,
   agents,
+  onUpdateAgent,
   onUpdateTask,
   onRemove,
   onDragStart,
@@ -277,7 +278,34 @@ function StepCard({
           >
             {ag.icon}
           </span>
-          {ag.label}
+          <select
+            value={step.agent}
+            onChange={(e) => onUpdateAgent(index, e.target.value)}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              fontSize: 12,
+              fontWeight: 500,
+              color: "#374151",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              padding: 0,
+              fontFamily: "inherit",
+              appearance: "none",
+              WebkitAppearance: "none",
+              paddingRight: 14,
+              backgroundImage:
+                "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E\")",
+              backgroundRepeat: "no-repeat",
+              backgroundPosition: "right center",
+            }}
+          >
+            {agents.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.label}
+              </option>
+            ))}
+          </select>
         </span>
         <span
           style={{
@@ -715,6 +743,10 @@ export default function PipelineComposer({ agents, onSubmit }) {
     setPipeline((p) => p.map((s, i) => (i === idx ? { ...s, task } : s)));
   }, []);
 
+  const updateAgent = useCallback((idx, agent) => {
+    setPipeline((p) => p.map((s, i) => (i === idx ? { ...s, agent } : s)));
+  }, []);
+
   const updateCondition = useCallback((idx, condition) => {
     setPipeline((p) => p.map((s, i) => (i === idx ? { ...s, condition } : s)));
   }, []);
@@ -846,6 +878,7 @@ export default function PipelineComposer({ agents, onSubmit }) {
                   step={step}
                   index={idx}
                   agents={agents}
+                  onUpdateAgent={updateAgent}
                   onUpdateTask={updateTask}
                   onRemove={removeStep}
                   onDragStart={handleDragStart}
