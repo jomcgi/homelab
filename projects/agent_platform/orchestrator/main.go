@@ -105,8 +105,9 @@ func main() {
 	}
 
 	agents, recipes := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
+	inferenceURL := envOr("INFERENCE_URL", "")
 
-	api := NewAPI(store, publish, healthCheck, maxRetries, agents, recipes, logger)
+	api := NewAPI(store, publish, healthCheck, maxRetries, agents, recipes, inferenceURL, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)

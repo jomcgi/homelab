@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rand"
 	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -25,12 +26,13 @@ type API struct {
 	defaultMaxRetries int
 	agents            []AgentInfo
 	recipes           map[string]map[string]any
+	inferenceURL      string // upstream LLM endpoint for pipeline inference proxy
 	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, recipes map[string]map[string]any, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, recipes: recipes, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, recipes map[string]map[string]any, inferenceURL string, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, recipes: recipes, inferenceURL: inferenceURL, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -41,6 +43,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /jobs/{id}/cancel", a.handleCancel)
 	mux.HandleFunc("GET /jobs/{id}/output", a.handleOutput)
 	mux.HandleFunc("GET /agents", a.handleAgents)
+	mux.HandleFunc("POST /infer", a.handleInfer)
 	mux.HandleFunc("GET /health", a.handleHealth)
 }
 
@@ -236,6 +239,32 @@ func (a *API) handleAgents(w http.ResponseWriter, _ *http.Request) {
 		stripped[i].Recipe = nil
 	}
 	a.writeJSON(w, http.StatusOK, AgentsResponse{Agents: stripped})
+}
+
+func (a *API) handleInfer(w http.ResponseWriter, r *http.Request) {
+	if a.inferenceURL == "" {
+		a.writeError(w, http.StatusServiceUnavailable, "inference not configured")
+		return
+	}
+
+	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, a.inferenceURL, r.Body)
+	if err != nil {
+		a.writeError(w, http.StatusInternalServerError, "failed to create upstream request")
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		a.logger.Error("inference proxy failed", "error", err)
+		a.writeError(w, http.StatusBadGateway, "inference upstream unreachable")
+		return
+	}
+	defer resp.Body.Close()
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }
 
 func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {

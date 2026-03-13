@@ -57,6 +57,10 @@ spec:
           value: {{ .Values.config.jobInactivityTimeout | quote }}
         - name: JOB_MAX_DURATION
           value: {{ .Values.config.jobMaxDuration | quote }}
+        {{- if .Values.config.inferenceUrl }}
+        - name: INFERENCE_URL
+          value: {{ .Values.config.inferenceUrl | quote }}
+        {{- end }}
         volumeMounts:
         - name: agents-config
           mountPath: /etc/orchestrator

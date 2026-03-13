@@ -25,15 +25,13 @@ export const CONDITION_STYLES = {
 
 // ─── Inference config ────────────────────────────────────────────────────────
 
-// Points at your local llama-cpp instance. The endpoint should accept
-// OpenAI-compatible /v1/chat/completions with response_format for constrained
-// JSON output. Adjust the model string to whatever's loaded.
-export const INFERENCE_URL =
-  import.meta.env.VITE_INFERENCE_URL ||
-  "http://localhost:8080/v1/chat/completions";
+// The UI sends inference requests to the orchestrator's /infer proxy endpoint,
+// which forwards them to the in-cluster llama-cpp service. This avoids CORS
+// issues since the UI and API share the same origin.
+export const INFERENCE_URL = import.meta.env.VITE_INFERENCE_URL || "/infer";
 
 export const INFERENCE_MODEL =
-  import.meta.env.VITE_INFERENCE_MODEL || "qwen3.5-38b";
+  import.meta.env.VITE_INFERENCE_MODEL || "qwen3.5-35b-a3b";
 
 // ─── Dynamic builders (depend on fetched agent list) ─────────────────────────
 
