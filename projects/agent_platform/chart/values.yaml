@@ -456,6 +456,96 @@ agent-orchestrator:
           settings:
             max_turns: 30
             max_tool_repetitions: 5
+      - id: deep-plan
+        label: Deep Plan
+        icon: "🧠"
+        bg: "#fef3c7"
+        fg: "#92400e"
+        desc: Analyse goals and propose optimal agent pipelines using Opus
+        category: analyse
+        model: claude-opus-4-6
+        recipe:
+          version: "1.0.0"
+          title: "Deep Plan"
+          description: "Analyse a goal and propose an optimal agent pipeline"
+          instructions: |
+            You are a pipeline planning agent for the homelab agent orchestrator.
+            Your job is to deeply understand the user's goal, explore the repository
+            and cluster state, and propose an optimal pipeline of agent steps.
+
+            ## Process
+            1. Analyse the goal — what does the user want to achieve?
+            2. Explore the repo structure and relevant code using the developer extension
+            3. Check cluster state using Context Forge MCP tools if relevant
+            4. Design a pipeline using the available agents
+            5. Write your analysis and reasoning to a GitHub gist
+            6. Return the pipeline as structured JSON
+
+            ## Available Agents
+            - ci-debug: Debug CI/build failures using BuildBuddy logs. Creates PRs with fixes.
+            - research: Investigate infrastructure topics. Produces gists with findings.
+            - code-fix: Fix code issues, create PRs. General-purpose code changes.
+            - bazel: Fix or create Bazel BUILD files and build configs.
+            - feature: Implement new features end-to-end with tests and PR.
+            - pr-review: Review a pull request for correctness, style, and security.
+            - qa-test: Generate tests for existing code or verify test coverage.
+
+            ## Iteration Context
+            If the prompt includes "Previous Pipeline" and "Feedback" sections, the user
+            is iterating on a prior plan. Read the previous pipeline, understand what they
+            changed in the UI, and incorporate their feedback into an improved pipeline.
+
+            ## Output Format (REQUIRED)
+            When COMPLETELY finished, create a GitHub gist with your full analysis, then
+            emit your result as the LAST thing you write using EXACTLY this format:
+
+            ```goose-result
+            type: pipeline
+            url: <gist URL with your analysis>
+            summary: <1-2 sentences: what you planned and why>
+            pipeline: <JSON array of pipeline steps>
+            ```
+
+            The pipeline field must be a valid JSON array of objects with keys:
+            - agent: one of the available agent IDs listed above
+            - task: specific instructions for that agent step
+            - condition: "always", "on success", or "on failure"
+
+            First step condition is always "always". Use 2-5 steps. Don't over-split.
+
+            Example:
+            ```goose-result
+            type: pipeline
+            url: https://gist.github.com/jomcgi/abc123
+            summary: 3-step pipeline to fix SigNoz trace dropping after 5 minutes
+            pipeline: [{"agent":"research","task":"Investigate SigNoz trace retention config and identify why traces drop after 5 minutes","condition":"always"},{"agent":"code-fix","task":"Update trace sampling rate from 10% to 25% in SigNoz Helm values","condition":"on success"},{"agent":"research","task":"Validate traces are now retained beyond 5 minutes","condition":"on success"}]
+            ```
+          prompt: |
+            {{ task_description | indent(2) }}
+
+            REMINDER: Create a gist with your analysis and emit the goose-result block with type: pipeline as the LAST thing you write.
+          parameters:
+            - key: task_description
+              description: "The goal and any iteration context"
+              input_type: string
+              requirement: required
+          extensions:
+            - type: builtin
+              name: developer
+            - type: streamable_http
+              name: context-forge
+              uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+              timeout: 300
+              headers:
+                Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
+            - type: stdio
+              name: github
+              cmd: pnpm
+              args: ["dlx", "@modelcontextprotocol/server-github"]
+              env_keys: ["GITHUB_TOKEN"]
+          settings:
+            max_turns: 80
+            max_tool_repetitions: 5
       - id: qa-test
         label: QA / Tests
         icon: "🧪"
