@@ -76,7 +76,7 @@ func NewSandboxExecutor(config *rest.Config, namespace, template string, inactiv
 // Run creates a SandboxClaim, waits for the pod, dispatches the task via HTTP,
 // and polls for completion. The cancelFn is checked before each phase to
 // support cooperative cancellation.
-func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipe string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
+func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipe, model string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
 	s.logger.Info("creating sandbox claim", "claim", claimName, "namespace", s.namespace)
 	if err := s.createClaim(ctx, claimName); err != nil {
 		return nil, fmt.Errorf("creating claim: %w", err)
@@ -112,7 +112,7 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipe strin
 	baseURL := fmt.Sprintf("http://%s:8081", fqdn)
 	s.logger.Info("resolved runner URL", "url", baseURL)
 
-	if err := s.dispatchTask(ctx, baseURL, task, recipe); err != nil {
+	if err := s.dispatchTask(ctx, baseURL, task, recipe, model); err != nil {
 		return nil, fmt.Errorf("dispatching task: %w", err)
 	}
 
@@ -256,14 +256,16 @@ func (s *SandboxExecutor) waitPodRunning(ctx context.Context, podName string) er
 	}
 }
 
-func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, recipe string) error {
+func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, recipe, model string) error {
 	payload := struct {
 		Task              string `json:"task"`
 		Recipe            string `json:"recipe,omitempty"`
+		Model             string `json:"model,omitempty"`
 		InactivityTimeout int    `json:"inactivity_timeout,omitempty"`
 	}{
 		Task:              task,
 		Recipe:            recipe,
+		Model:             model,
 		InactivityTimeout: int(s.inactivityTimeout.Seconds()),
 	}
 	body, err := json.Marshal(payload)

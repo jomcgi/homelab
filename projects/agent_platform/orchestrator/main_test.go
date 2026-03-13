@@ -116,7 +116,7 @@ func TestLoadAgentsConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	agents, recipes := loadAgentsConfig(path, slog.Default())
+	agents, recipes, models := loadAgentsConfig(path, slog.Default())
 	if len(agents) != 1 {
 		t.Fatalf("expected 1 agent, got %d", len(agents))
 	}
@@ -132,6 +132,9 @@ func TestLoadAgentsConfig(t *testing.T) {
 	if recipes["ci-debug"]["version"] != "1.0" {
 		t.Fatalf("expected recipe version 1.0, got %v", recipes["ci-debug"]["version"])
 	}
+	if len(models) != 0 {
+		t.Fatalf("expected 0 models (no model set), got %d", len(models))
+	}
 }
 
 func TestLoadAgentsConfig_ModelField(t *testing.T) {
@@ -142,7 +145,7 @@ func TestLoadAgentsConfig_ModelField(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	agents, recipes := loadAgentsConfig(path, slog.Default())
+	agents, recipes, models := loadAgentsConfig(path, slog.Default())
 	if len(agents) != 1 {
 		t.Fatalf("expected 1 agent, got %d", len(agents))
 	}
@@ -152,15 +155,21 @@ func TestLoadAgentsConfig_ModelField(t *testing.T) {
 	if recipes["deep-plan"] == nil {
 		t.Error("expected deep-plan recipe")
 	}
+	if models["deep-plan"] != "claude-opus-4-6" {
+		t.Errorf("models[deep-plan] = %q, want %q", models["deep-plan"], "claude-opus-4-6")
+	}
 }
 
 func TestLoadAgentsConfigMissing(t *testing.T) {
-	agents, recipes := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
+	agents, recipes, models := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
 	if agents != nil {
 		t.Fatalf("expected nil agents, got %v", agents)
 	}
 	if recipes != nil {
 		t.Fatalf("expected nil recipes, got %v", recipes)
+	}
+	if models != nil {
+		t.Fatalf("expected nil models, got %v", models)
 	}
 }
 
@@ -172,11 +181,14 @@ func TestLoadAgentsConfigInvalid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	agents, recipes := loadAgentsConfig(path, slog.Default())
+	agents, recipes, models := loadAgentsConfig(path, slog.Default())
 	if agents != nil {
 		t.Fatalf("expected nil agents on invalid JSON, got %v", agents)
 	}
 	if recipes != nil {
 		t.Fatalf("expected nil recipes on invalid JSON, got %v", recipes)
+	}
+	if models != nil {
+		t.Fatalf("expected nil models on invalid JSON, got %v", models)
 	}
 }
