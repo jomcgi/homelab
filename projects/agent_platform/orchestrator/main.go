@@ -47,6 +47,11 @@ func main() {
 		logger.Error("invalid JOB_MAX_DURATION", "error", err)
 		os.Exit(1)
 	}
+	reconcileInterval, err := time.ParseDuration(envOr("RECONCILE_INTERVAL", "60s"))
+	if err != nil {
+		logger.Error("invalid RECONCILE_INTERVAL", "error", err)
+		os.Exit(1)
+	}
 
 	// Connect to NATS.
 	nc, err := nats.Connect(natsURL,
@@ -118,12 +123,15 @@ func main() {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	// Reconcile orphaned jobs before starting the consumer.
-	// After a restart, jobs left in RUNNING state may still have active
-	// runners (HTTP) or may be truly orphaned. Check runner status first,
-	// then reset stale jobs for retry.
+	// Reconcile orphaned jobs before starting the consumer, then
+	// continue reconciling periodically. After a restart, the initial
+	// pass may find runners still active ("running") and leave them
+	// alone. The periodic loop catches those jobs once the runner
+	// finishes — without it, completed jobs stay stuck in RUNNING
+	// forever because the consumer only processes PENDING jobs.
 	if sandbox != nil {
 		reconcileOrphanedJobs(ctx, store, sandbox.dynClient, sandboxNamespace, sandbox.CheckRunnerForClaim, sandbox.FetchOutputForClaim, logger)
+		go runPeriodicReconcile(ctx, reconcileInterval, store, sandbox, sandboxNamespace, logger)
 	}
 
 	// Start consumer if sandbox is available.
@@ -260,4 +268,22 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// runPeriodicReconcile runs reconcileOrphanedJobs on a ticker until ctx is
+// cancelled. This catches jobs whose runners finish after the startup
+// reconciliation pass — without it, those jobs stay RUNNING forever.
+func runPeriodicReconcile(ctx context.Context, interval time.Duration, store Store, sandbox *SandboxExecutor, namespace string, logger *slog.Logger) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	logger.Info("periodic reconciler started", "interval", interval)
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			reconcileOrphanedJobs(ctx, store, sandbox.dynClient, namespace, sandbox.CheckRunnerForClaim, sandbox.FetchOutputForClaim, logger)
+		}
+	}
 }

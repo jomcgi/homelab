@@ -330,6 +330,62 @@ func TestReconcileOrphanedJobs_FailedRunnerRetries(t *testing.T) {
 	}
 }
 
+// TestReconcileOrphanedJobs_PeriodicCatchesCompletedJob simulates the bug
+// where a runner finishes after the initial reconciliation pass. The first
+// pass sees "running" and leaves the job alone; the second pass (periodic)
+// sees "done" and correctly marks it SUCCEEDED.
+func TestReconcileOrphanedJobs_PeriodicCatchesCompletedJob(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-late-finish",
+		Task:       "task that finishes after first reconcile",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-1 * time.Hour),
+		MaxRetries: 2,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-late-finish-1",
+			StartedAt:        time.Now().Add(-1 * time.Hour),
+		}},
+	})
+
+	callCount := 0
+	// First call: runner is still going. Second call: runner finished.
+	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
+		callCount++
+		if callCount == 1 {
+			return "running", 0, nil
+		}
+		return "done", 0, nil
+	}
+
+	fetchOutput := func(_ context.Context, claimName string) (string, error) {
+		return "task completed successfully\n", nil
+	}
+
+	// First pass: should leave job as RUNNING.
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+
+	job, _ := store.Get(ctx, "job-late-finish")
+	if job.Status != JobRunning {
+		t.Fatalf("after first pass: status = %s, want RUNNING", job.Status)
+	}
+
+	// Second pass (simulates periodic tick): should mark SUCCEEDED.
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+
+	job, _ = store.Get(ctx, "job-late-finish")
+	if job.Status != JobSucceeded {
+		t.Errorf("after second pass: status = %s, want SUCCEEDED", job.Status)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	if last.Output != "task completed successfully\n" {
+		t.Errorf("output = %q, want task output", last.Output)
+	}
+}
+
 func TestReconcileOrphanedJobs_RunnerUnreachableFallsBack(t *testing.T) {
 	store := newMemStore()
 	ctx := context.Background()
