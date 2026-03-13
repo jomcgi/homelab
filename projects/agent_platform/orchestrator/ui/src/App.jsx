@@ -1033,12 +1033,13 @@ function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
           cursor: "pointer",
         }}
       >
+        <Dot status={overallStatus} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {pipelineSummary && (
             <p
               style={{
-                fontSize: 12,
-                color: "#6b7280",
+                fontSize: 13,
+                color: "#374151",
                 margin: "0 0 4px",
                 overflow: "hidden",
                 textOverflow: "ellipsis",
