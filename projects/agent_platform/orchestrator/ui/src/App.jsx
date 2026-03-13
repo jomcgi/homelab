@@ -1283,6 +1283,12 @@ export default function App() {
 
   // ── Deep Plan ───────────────────────────────────────────────────────────
   const handleDeepPlan = useCallback(async (prompt, currentPipeline) => {
+    // Reset state before the async gap to prevent polling the old job ID
+    setDeepPlanJobId(null);
+    setDeepPlanStatus("running");
+    setAnalysisUrl(null);
+    setDeepPlanResult(null);
+
     try {
       let task = prompt;
       if (currentPipeline?.length > 0) {
@@ -1296,20 +1302,28 @@ export default function App() {
         source: "dashboard",
       });
       setDeepPlanJobId(result.id);
-      setDeepPlanStatus("running");
-      setAnalysisUrl(null);
-      setDeepPlanResult(null);
     } catch (err) {
+      setAnalysisUrl(null);
       notify("Deep Plan failed: " + err.message);
       setDeepPlanStatus("failed");
     }
   }, []);
 
-  // Poll for deep plan job completion
+  // Poll for deep plan job completion (max 10 minutes)
   useEffect(() => {
     if (!deepPlanJobId || deepPlanStatus !== "running") return;
 
+    let polls = 0;
+    const MAX_POLLS = 120; // 10 min at 5s intervals
+
     const poll = async () => {
+      polls++;
+      if (polls > MAX_POLLS) {
+        setDeepPlanStatus("failed");
+        notify("Deep Plan timed out");
+        return;
+      }
+
       try {
         const job = await getJob(deepPlanJobId);
         if (job.status === "SUCCEEDED") {

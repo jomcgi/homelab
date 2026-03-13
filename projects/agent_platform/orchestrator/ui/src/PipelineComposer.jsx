@@ -847,12 +847,18 @@ export default function PipelineComposer({
   const [submitting, setSubmitting] = useState(false);
   const [composerKey, setComposerKey] = useState(0);
   const dragRef = useRef(null);
+  const appliedResultRef = useRef(null);
 
   const mentionCats = useMemo(() => buildMentionCats(agents), [agents]);
 
-  // When a deep plan result arrives, populate the pipeline
+  // When a deep plan result arrives, populate the pipeline (only once per result)
   useEffect(() => {
-    if (deepPlanResult && deepPlanResult.length > 0) {
+    if (
+      deepPlanResult &&
+      deepPlanResult.length > 0 &&
+      deepPlanResult !== appliedResultRef.current
+    ) {
+      appliedResultRef.current = deepPlanResult;
       setPipeline(deepPlanResult);
       setInferSource("deep-plan");
     }
