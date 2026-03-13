@@ -365,29 +365,50 @@ function StepCard({
 
 function Composer({ onInfer, inferring, mentionCats }) {
   const editorRef = useRef(null);
+  const containerRef = useRef(null);
   const [focused, setFocused] = useState(false);
   const [hasText, setHasText] = useState(false);
-  const [ddState, setDdState] = useState({ mode: "closed", sel: 0 });
-  const atRef = useRef({ node: null, offset: 0 });
+  const [ddState, setDdState] = useState({ mode: "closed", sel: 0, query: "" });
+  const [ddPos, setDdPos] = useState({ left: 0, top: 0 });
+  const atRef = useRef({ node: null, offset: 0, atIndex: 0 });
+
+  // Flat list of all agents for query filtering
+  const allAgents = useMemo(() => {
+    const result = [];
+    for (const [catKey, cat] of Object.entries(mentionCats)) {
+      for (const item of cat.items) {
+        result.push({
+          catKey,
+          id: item.id,
+          meta: item.meta,
+          icon: cat.icon,
+          bg: cat.bg,
+          fg: cat.fg,
+        });
+      }
+    }
+    return result;
+  }, [mentionCats]);
 
   const closeDd = useCallback(() => {
-    setDdState({ mode: "closed", sel: 0 });
-    atRef.current = { node: null, offset: 0 };
+    setDdState({ mode: "closed", sel: 0, query: "" });
+    atRef.current = { node: null, offset: 0, atIndex: 0 };
   }, []);
 
   const insertMention = useCallback(
     (catKey, item) => {
       const cat = mentionCats[catKey];
-      const { node, offset } = atRef.current;
+      const { node, atIndex } = atRef.current;
       if (!node) {
         closeDd();
         return;
       }
 
       const sel = window.getSelection();
+      const curRange = sel.getRangeAt(0);
       const range = document.createRange();
-      range.setStart(node, offset - 1);
-      range.setEndAfter(node);
+      range.setStart(node, atIndex);
+      range.setEnd(curRange.startContainer, curRange.startOffset);
       range.deleteContents();
 
       const pill = document.createElement("span");
@@ -439,16 +460,43 @@ function Composer({ onInfer, inferring, mentionCats }) {
     if (node.nodeType === 3) {
       const txt = node.textContent.substring(0, off);
       const ai = txt.lastIndexOf("@");
-      if (ai !== -1 && txt.slice(ai) === "@") {
-        atRef.current = { node, offset: off };
-        setDdState({ mode: "cats", sel: 0 });
-      } else if (ddState.mode !== "closed") {
-        if (ai === -1) closeDd();
+      if (ai !== -1 && /^\w*$/.test(txt.slice(ai + 1))) {
+        const query = txt.slice(ai + 1);
+        atRef.current = { node, offset: off, atIndex: ai };
+        // Position dropdown near the @ character
+        const caretRange = document.createRange();
+        caretRange.setStart(node, ai);
+        caretRange.setEnd(node, ai);
+        const rect = caretRange.getBoundingClientRect();
+        const containerRect = containerRef.current?.getBoundingClientRect();
+        if (containerRect) {
+          setDdPos({
+            left: rect.left - containerRect.left,
+            top: rect.bottom - containerRect.top + 4,
+          });
+        }
+        if (ddState.mode === "closed") {
+          setDdState({ mode: "cats", sel: 0, query });
+        } else {
+          setDdState((s) => ({ ...s, sel: 0, query }));
+        }
+      } else {
+        if (ddState.mode !== "closed") closeDd();
       }
     } else if (ddState.mode !== "closed") {
       closeDd();
     }
   }, [ddState.mode, closeDd]);
+
+  // Compute filtered agents for query mode
+  const query = ddState.query || "";
+  const filteredAgents = useMemo(() => {
+    if (!query) return allAgents;
+    const q = query.toLowerCase();
+    return allAgents.filter(
+      (a) => a.id.toLowerCase().includes(q) || a.meta.toLowerCase().includes(q),
+    );
+  }, [query, allAgents]);
 
   const handleKeyDown = useCallback(
     (e) => {
@@ -461,40 +509,69 @@ function Composer({ onInfer, inferring, mentionCats }) {
         return;
       }
 
-      const cats = Object.keys(mentionCats);
-      const items =
-        ddState.mode === "cats" ? cats : mentionCats[ddState.mode]?.items || [];
+      let itemCount;
+      if (query) {
+        itemCount = filteredAgents.length;
+      } else if (ddState.mode === "cats") {
+        itemCount = Object.keys(mentionCats).length;
+      } else {
+        itemCount = (mentionCats[ddState.mode]?.items || []).length;
+      }
+      if (itemCount === 0) return;
 
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setDdState((s) => ({ ...s, sel: (s.sel + 1) % items.length }));
+        setDdState((s) => ({ ...s, sel: (s.sel + 1) % itemCount }));
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         setDdState((s) => ({
           ...s,
-          sel: (s.sel - 1 + items.length) % items.length,
+          sel: (s.sel - 1 + itemCount) % itemCount,
         }));
       } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
-        if (ddState.mode === "cats") {
-          setDdState({ mode: cats[ddState.sel], sel: 0 });
+        if (query) {
+          const selected = filteredAgents[ddState.sel];
+          if (selected) insertMention(selected.catKey, selected);
+        } else if (ddState.mode === "cats") {
+          const cats = Object.keys(mentionCats);
+          setDdState({ mode: cats[ddState.sel], sel: 0, query: "" });
         } else {
+          const items = mentionCats[ddState.mode]?.items || [];
           insertMention(ddState.mode, items[ddState.sel]);
         }
       } else if (e.key === "Escape") {
-        ddState.mode !== "cats"
-          ? setDdState({ mode: "cats", sel: 0 })
-          : closeDd();
-      } else if (e.key === "Backspace") {
-        closeDd();
+        e.preventDefault();
+        if (!query && ddState.mode !== "cats") {
+          setDdState({ mode: "cats", sel: 0, query: "" });
+        } else {
+          closeDd();
+        }
       }
     },
-    [ddState, onInfer, insertMention, closeDd, mentionCats],
+    [
+      ddState,
+      query,
+      filteredAgents,
+      onInfer,
+      insertMention,
+      closeDd,
+      mentionCats,
+    ],
   );
 
   // ── Dropdown render ──────────────────────────────────────────────────────
-  const ddItems =
-    ddState.mode === "cats"
+  const ddItems = query
+    ? filteredAgents.map((a) => ({
+        key: a.id,
+        catKey: a.catKey,
+        icon: a.icon,
+        bg: a.bg,
+        fg: a.fg,
+        label: a.id,
+        meta: a.meta,
+      }))
+    : ddState.mode === "cats"
       ? Object.entries(mentionCats).map(([k, cat]) => ({
           key: k,
           icon: cat.icon,
@@ -505,6 +582,7 @@ function Composer({ onInfer, inferring, mentionCats }) {
         }))
       : (mentionCats[ddState.mode]?.items || []).map((item) => ({
           key: item.id,
+          catKey: ddState.mode,
           icon: mentionCats[ddState.mode].icon,
           bg: mentionCats[ddState.mode].bg,
           fg: mentionCats[ddState.mode].fg,
@@ -513,7 +591,7 @@ function Composer({ onInfer, inferring, mentionCats }) {
         }));
 
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={containerRef} style={{ position: "relative" }}>
       <div
         style={{
           borderRadius: 12,
@@ -598,13 +676,12 @@ function Composer({ onInfer, inferring, mentionCats }) {
       </div>
 
       {/* Dropdown */}
-      {ddState.mode !== "closed" && (
+      {ddState.mode !== "closed" && ddItems.length > 0 && (
         <div
           style={{
             position: "absolute",
-            left: 0,
-            top: "100%",
-            marginTop: 6,
+            left: ddPos.left,
+            top: ddPos.top,
             width: 230,
             background: "#fff",
             border: "0.5px solid #e5e7eb",
@@ -615,9 +692,9 @@ function Composer({ onInfer, inferring, mentionCats }) {
             padding: "4px 0",
           }}
         >
-          {ddState.mode !== "cats" && (
+          {!query && ddState.mode !== "cats" && (
             <div
-              onClick={() => setDdState({ mode: "cats", sel: 0 })}
+              onClick={() => setDdState({ mode: "cats", sel: 0, query: "" })}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -641,13 +718,14 @@ function Composer({ onInfer, inferring, mentionCats }) {
               key={item.key}
               onMouseDown={(e) => {
                 e.preventDefault();
-                if (ddState.mode === "cats") {
-                  setDdState({ mode: item.key, sel: 0 });
+                if (item.chevron) {
+                  setDdState({ mode: item.key, sel: 0, query: "" });
                 } else {
-                  insertMention(
-                    ddState.mode,
-                    mentionCats[ddState.mode].items[i],
-                  );
+                  const catKey = item.catKey || ddState.mode;
+                  insertMention(catKey, {
+                    id: item.key,
+                    meta: item.meta || "",
+                  });
                 }
               }}
               style={{
