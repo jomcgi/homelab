@@ -46,7 +46,7 @@ func TestReconcileOrphanedJobs_ResetsRunningJobs(t *testing.T) {
 		CreatedAt: time.Now(),
 	})
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
 
 	// Both orphaned jobs should be reset to PENDING.
 	// NATS will redeliver the messages automatically after AckWait expires.
@@ -91,7 +91,7 @@ func TestReconcileOrphanedJobs_ExhaustedRetriesMarksFailed(t *testing.T) {
 		},
 	})
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
 
 	job, _ := store.Get(ctx, "job-exhausted")
 	if job.Status != JobFailed {
@@ -110,7 +110,7 @@ func TestReconcileOrphanedJobs_NoRunningJobs(t *testing.T) {
 	})
 
 	// Should be a no-op.
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", nil, nil, slog.Default())
 }
 
 func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
@@ -135,7 +135,7 @@ func TestReconcileOrphanedJobs_ReAttachRunning(t *testing.T) {
 		return "running", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
 
 	job, err := store.Get(ctx, "job-still-running")
 	if err != nil {
@@ -173,7 +173,7 @@ func TestReconcileOrphanedJobs_CollectsDone(t *testing.T) {
 		return "done", 0, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
 
 	job, err := store.Get(ctx, "job-done-unnoticed")
 	if err != nil {
@@ -188,6 +188,103 @@ func TestReconcileOrphanedJobs_CollectsDone(t *testing.T) {
 	}
 	if last.ExitCode == nil || *last.ExitCode != 0 {
 		t.Errorf("exit code = %v, want 0", last.ExitCode)
+	}
+}
+
+func TestReconcileOrphanedJobs_CollectsDoneWithOutput(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-done-with-output",
+		Task:       "research task",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-1 * time.Hour),
+		MaxRetries: 2,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-done-with-output-1",
+			StartedAt:        time.Now().Add(-1 * time.Hour),
+			Output:           "partial output from periodic flush",
+		}},
+	})
+
+	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
+		return "done", 0, nil
+	}
+
+	// Mock output fetcher that returns the full runner output including goose-result.
+	fetchOutput := func(_ context.Context, claimName string) (string, error) {
+		return "Research complete.\n\n```goose-result\ntype: gist\nurl: https://gist.github.com/test/abc123\nsummary: Researched Seattle activities\n```\n", nil
+	}
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+
+	job, err := store.Get(ctx, "job-done-with-output")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	if job.Status != JobSucceeded {
+		t.Errorf("status = %s, want SUCCEEDED", job.Status)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	// Output should be replaced with the full runner output (after cleanOutput).
+	if last.Output == "partial output from periodic flush" {
+		t.Error("output should be replaced with full runner output, still has partial flush")
+	}
+	// Result should be parsed from the goose-result block.
+	if last.Result == nil {
+		t.Fatal("result should be parsed from goose-result block")
+	}
+	if last.Result.Type != "gist" {
+		t.Errorf("result.Type = %q, want %q", last.Result.Type, "gist")
+	}
+	if last.Result.URL != "https://gist.github.com/test/abc123" {
+		t.Errorf("result.URL = %q, want gist URL", last.Result.URL)
+	}
+	if last.Result.Summary != "Researched Seattle activities" {
+		t.Errorf("result.Summary = %q, want summary", last.Result.Summary)
+	}
+}
+
+func TestReconcileOrphanedJobs_FailedWithOutput(t *testing.T) {
+	store := newMemStore()
+	ctx := context.Background()
+
+	store.Put(ctx, &JobRecord{
+		ID:         "job-failed-with-output",
+		Task:       "failing task",
+		Status:     JobRunning,
+		CreatedAt:  time.Now().Add(-1 * time.Hour),
+		MaxRetries: 3,
+		Attempts: []Attempt{{
+			Number:           1,
+			SandboxClaimName: "orch-job-failed-with-output-1",
+			StartedAt:        time.Now().Add(-1 * time.Hour),
+		}},
+	})
+
+	checkRunner := func(_ context.Context, claimName string) (string, int, error) {
+		return "failed", 1, nil
+	}
+
+	fetchOutput := func(_ context.Context, claimName string) (string, error) {
+		return "Error: something went wrong\n", nil
+	}
+
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, fetchOutput, slog.Default())
+
+	job, err := store.Get(ctx, "job-failed-with-output")
+	if err != nil {
+		t.Fatalf("Get: %v", err)
+	}
+	// Should be reset to PENDING for retry.
+	if job.Status != JobPending {
+		t.Errorf("status = %s, want PENDING", job.Status)
+	}
+	last := job.Attempts[len(job.Attempts)-1]
+	if last.Output != "Error: something went wrong" {
+		t.Errorf("output = %q, want error message", last.Output)
 	}
 }
 
@@ -213,7 +310,7 @@ func TestReconcileOrphanedJobs_FailedRunnerRetries(t *testing.T) {
 		return "failed", 1, nil
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
 
 	job, err := store.Get(ctx, "job-failed-runner")
 	if err != nil {
@@ -255,7 +352,7 @@ func TestReconcileOrphanedJobs_RunnerUnreachableFallsBack(t *testing.T) {
 		return "", -1, fmt.Errorf("connection refused")
 	}
 
-	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, slog.Default())
+	reconcileOrphanedJobs(ctx, store, nil, "goose-sandboxes", checkRunner, nil, slog.Default())
 
 	job, err := store.Get(ctx, "job-unreachable")
 	if err != nil {
