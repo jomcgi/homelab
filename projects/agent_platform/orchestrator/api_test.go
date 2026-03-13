@@ -592,6 +592,56 @@ func TestHandlePipeline_InvalidAgent(t *testing.T) {
 	}
 }
 
+// TestHandlePipeline_WithCritic verifies that the critic agent can be used in a
+// pipeline call. This is a regression test: critic was missing from the
+// orchestrator subchart's agentsConfig, causing POST /pipeline to return 400
+// "unknown agent: critic".
+func TestHandlePipeline_WithCritic(t *testing.T) {
+	store := newMemStore()
+	logger := slog.Default()
+	recipes := map[string]map[string]any{
+		"code-fix": {"version": "1.0.0"},
+		"critic":   {"version": "1.0.0", "title": "Critic"},
+	}
+	var published []string
+	publish := func(id string) error {
+		published = append(published, id)
+		return nil
+	}
+	api := NewAPI(store, publish, nil, 2, nil, recipes, "", logger)
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+
+	body := `{"steps":[{"agent":"code-fix","task":"fix the bug","condition":"always"},{"agent":"critic","task":"review the fix","condition":"on success"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/pipeline", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s — critic agent not registered in recipes map", rec.Code, rec.Body.String())
+	}
+
+	var resp PipelineResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if len(resp.Jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(resp.Jobs))
+	}
+	// First step (code-fix) should be PENDING, critic step should be BLOCKED.
+	if resp.Jobs[0].Status != JobPending {
+		t.Fatalf("step 0 (code-fix): expected PENDING, got %s", resp.Jobs[0].Status)
+	}
+	if resp.Jobs[1].Status != JobBlocked {
+		t.Fatalf("step 1 (critic): expected BLOCKED, got %s", resp.Jobs[1].Status)
+	}
+	// Verify critic step stored with correct profile.
+	job1, _ := store.Get(context.Background(), resp.Jobs[1].ID)
+	if job1.Profile != "critic" {
+		t.Fatalf("critic step profile: expected 'critic', got %q", job1.Profile)
+	}
+}
+
 func TestGetJob_IncludesPipelineResult(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
