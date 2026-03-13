@@ -78,6 +78,19 @@ func (m *memStore) List(_ context.Context, statusFilter, tagFilter []string, lim
 	return all[offset:end], total, nil
 }
 
+func (m *memStore) ListByPipeline(_ context.Context, pipelineID string) ([]JobRecord, error) {
+	var jobs []JobRecord
+	for _, job := range m.jobs {
+		if job.PipelineID == pipelineID {
+			jobs = append(jobs, *job)
+		}
+	}
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].StepIndex < jobs[j].StepIndex
+	})
+	return jobs, nil
+}
+
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
 	api := NewAPI(store, nil, nil, 2, nil, nil, "", logger)
@@ -413,6 +426,26 @@ func TestHandleAgentsEmpty(t *testing.T) {
 
 	if resp.Agents == nil || len(resp.Agents) != 0 {
 		t.Fatalf("expected empty agents array, got %v", resp.Agents)
+	}
+}
+
+func TestMemStore_ListByPipeline(t *testing.T) {
+	store := newMemStore()
+	now := time.Now().UTC()
+	store.jobs["STEP0"] = &JobRecord{ID: "STEP0", Task: "a", Status: JobPending, PipelineID: "PIPE1", StepIndex: 0, CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["STEP1"] = &JobRecord{ID: "STEP1", Task: "b", Status: JobBlocked, PipelineID: "PIPE1", StepIndex: 1, CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["OTHER"] = &JobRecord{ID: "OTHER", Task: "c", Status: JobPending, CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+
+	jobs, err := store.ListByPipeline(context.Background(), "PIPE1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(jobs))
+	}
+	// Should be sorted by step_index ascending.
+	if jobs[0].StepIndex != 0 || jobs[1].StepIndex != 1 {
+		t.Fatalf("expected step indices 0,1 got %d,%d", jobs[0].StepIndex, jobs[1].StepIndex)
 	}
 }
 

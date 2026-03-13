@@ -20,6 +20,7 @@ type Store interface {
 	Get(ctx context.Context, id string) (*JobRecord, error)
 	Delete(ctx context.Context, id string) error
 	List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error)
+	ListByPipeline(ctx context.Context, pipelineID string) ([]JobRecord, error)
 }
 
 // JobStore implements Store using a NATS JetStream KeyValue bucket.
@@ -115,6 +116,37 @@ func (s *JobStore) List(ctx context.Context, statusFilter, tagFilter []string, l
 		end = total
 	}
 	return all[offset:end], total, nil
+}
+
+// ListByPipeline returns all jobs in a pipeline, sorted by step_index ascending.
+func (s *JobStore) ListByPipeline(ctx context.Context, pipelineID string) ([]JobRecord, error) {
+	lister, err := s.kv.ListKeys(ctx)
+	if err != nil {
+		if err == jetstream.ErrNoKeysFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var jobs []JobRecord
+	for key := range lister.Keys() {
+		entry, err := s.kv.Get(ctx, key)
+		if err != nil {
+			continue
+		}
+		var job JobRecord
+		if err := json.Unmarshal(entry.Value(), &job); err != nil {
+			continue
+		}
+		if job.PipelineID == pipelineID {
+			jobs = append(jobs, job)
+		}
+	}
+
+	sort.Slice(jobs, func(i, j int) bool {
+		return jobs[i].StepIndex < jobs[j].StepIndex
+	})
+	return jobs, nil
 }
 
 func hasAllTags(jobTags, required []string) bool {
