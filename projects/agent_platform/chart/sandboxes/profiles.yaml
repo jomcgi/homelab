@@ -1,42 +1,28 @@
 # Profile definitions for Goose sandbox agents.
 # This file documents available profiles and their tool scoping.
-# It is not consumed by Helm — it serves as reference for the setup script
-# (projects/agent_platform/sandboxes/setup-mcp-profiles.sh) and for humans.
+# It is not consumed by Helm — it serves as reference for humans.
+#
+# In-cluster agents access Context Forge via ClusterIP without auth (ADR 006).
+# All registered MCP tools are available to every profile.
 #
 # To add a new profile:
 #   1. Add entry here
-#   2. Create recipe in charts/goose-agent/image/recipes/<name>.yaml
-#   3. Add token_env to values.yaml profileTokens section
-#   4. Run projects/agent_platform/sandboxes/setup-mcp-profiles.sh to provision team + token
-#   5. Add profile name to validProfiles in bazel/tools/agent-run/main.go
+#   2. Create recipe in goose_agent/image/recipes/<name>.yaml
+#   3. Add profile name to validProfiles in bazel/tools/agent-run/main.go
 
 profiles:
   ci-debug:
     description: "BuildBuddy tools only — for CI failure investigation"
-    teams: ["ci-debug"]
-    tools: ["buildbuddy-mcp"]
-    token_env: CI_DEBUG_MCP_TOKEN
     recipe: ci-debug.yaml
 
   code-fix:
     description: "No cluster tools — pure code changes"
-    teams: []
-    tools: []
-    token_env: null
     recipe: code-fix.yaml
 
   research:
     description: "Read-only cluster investigation — no code changes"
-    teams: ["ci-debug"]
-    tools: ["buildbuddy-mcp"]
-    token_env: CI_DEBUG_MCP_TOKEN
     recipe: research.yaml
-    # TODO: Provision a broader-scoped token (K8s, ArgoCD, SigNoz, BuildBuddy)
-    # once a "research" team is created in Context Forge.
 
   bazel:
     description: "BuildBuddy tools — for build system fixes"
-    teams: ["ci-debug"]
-    tools: ["buildbuddy-mcp"]
-    token_env: CI_DEBUG_MCP_TOKEN
     recipe: bazel.yaml

@@ -49,11 +49,6 @@ secrets:
     onePasswordItem: ""
     vault: ""
     secretName: "agent-secrets"
-  mcpTokens:
-    onePasswordItem: ""
-    vault: ""
-    secretName: "goose-mcp-tokens"
-    key: "CI_DEBUG_MCP_TOKEN"
 
 # Namespace that agent-orchestrator runs in — used in NetworkPolicy ingress rule.
 # When empty, uses podSelector (same namespace). Set when orchestrator is in a

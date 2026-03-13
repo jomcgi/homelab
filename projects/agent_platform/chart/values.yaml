@@ -156,10 +156,8 @@ agent-orchestrator:
               name: developer
             - type: streamable_http
               name: context-forge
-              uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+              uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
               timeout: 300
-              headers:
-                Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
             - type: stdio
               name: github
               cmd: pnpm
@@ -219,10 +217,8 @@ agent-orchestrator:
               name: developer
             - type: streamable_http
               name: context-forge
-              uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+              uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
               timeout: 300
-              headers:
-                Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
             - type: stdio
               name: github
               cmd: pnpm
@@ -328,10 +324,8 @@ agent-orchestrator:
               name: developer
             - type: streamable_http
               name: context-forge
-              uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+              uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
               timeout: 300
-              headers:
-                Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
             - type: stdio
               name: github
               cmd: pnpm
@@ -387,10 +381,8 @@ agent-orchestrator:
               name: developer
             - type: streamable_http
               name: context-forge
-              uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
+              uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
               timeout: 300
-              headers:
-                Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
             - type: stdio
               name: github
               cmd: pnpm
@@ -577,11 +569,6 @@ goose-sandboxes:
       onePasswordItem: ""
       vault: ""
       secretName: "agent-secrets"
-    mcpTokens:
-      onePasswordItem: ""
-      vault: ""
-      secretName: "goose-mcp-tokens"
-      key: "CI_DEBUG_MCP_TOKEN"
   orchestratorNamespace: ""
   agents: {}
 

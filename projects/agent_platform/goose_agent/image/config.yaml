@@ -5,6 +5,7 @@
 # Extensions configured:
 #   - developer (builtin): filesystem, shell, editor scoped to /workspace
 #   - context-forge (remote): SigNoz observability, ArgoCD, Kubernetes via MCP gateway
+#     In-cluster access via ClusterIP — no auth required (see ADR 006).
 #   - github (stdio): PR creation, issue reading via official GitHub MCP server
 extensions:
   developer:
@@ -18,9 +19,7 @@ extensions:
     name: context-forge
     timeout: 300
     type: streamable_http
-    uri: http://context-forge.mcp-gateway.svc.cluster.local:8000/mcp
-    headers:
-      Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
+    uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
   github:
     enabled: true
     name: github
