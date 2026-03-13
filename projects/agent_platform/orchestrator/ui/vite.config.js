@@ -9,6 +9,8 @@ export default defineConfig({
   },
   server: {
     proxy: {
+      "/agents": "http://localhost:8080",
+      "/infer": "http://localhost:8080",
       "/jobs": "http://localhost:8080",
       "/health": "http://localhost:8080",
       "/stats": "http://localhost:8080",

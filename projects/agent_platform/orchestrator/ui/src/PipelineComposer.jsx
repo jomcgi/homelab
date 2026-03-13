@@ -678,7 +678,7 @@ function Composer({ onInfer, inferring, mentionCats }) {
               >
                 {item.icon}
               </span>
-              <span>{item.label}</span>
+              <span style={{ whiteSpace: "nowrap" }}>{item.label}</span>
               {item.meta && (
                 <span
                   style={{
