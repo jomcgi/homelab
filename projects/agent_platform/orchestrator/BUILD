@@ -30,6 +30,7 @@ go_library(
     srcs = [
         "api.go",
         "consumer.go",
+        "enrich.go",
         "main.go",
         "model.go",
         "recipe.go",
@@ -88,6 +89,7 @@ go_test(
     srcs = [
         "api_test.go",
         "consumer_test.go",
+        "enrich_test.go",
         "main_test.go",
         "recipe_test.go",
         "reconcile_test.go",
