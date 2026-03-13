@@ -61,6 +61,18 @@ function resolveAgent(agentId, agents) {
   );
 }
 
+/**
+ * Derive a 1-sentence summary from pipeline job steps when pipeline_summary is
+ * absent (e.g. older pipelines or when inference is unavailable). Joins the
+ * LLM-generated title (or raw task) for each step with " → " separators.
+ */
+function derivePipelineSummary(jobs) {
+  return jobs
+    .map((j) => j.title || j.task || j.profile)
+    .filter(Boolean)
+    .join(" → ");
+}
+
 /** Group jobs by pipeline_id. Non-pipeline jobs get their own group. */
 function groupJobs(jobs) {
   const pipelines = new Map();
@@ -1035,21 +1047,20 @@ function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
       >
         <Dot status={overallStatus} />
         <div style={{ flex: 1, minWidth: 0 }}>
-          {pipelineSummary && (
-            <p
-              style={{
-                fontSize: 13,
-                color: "#374151",
-                margin: "0 0 4px",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {pipelineSummary}
-            </p>
-          )}
           <PipelineFlow jobs={pipelineJobs} agents={agents} />
+          <p
+            style={{
+              fontSize: 11.5,
+              color: "#9ca3af",
+              margin: "3px 0 0",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              lineHeight: 1.4,
+            }}
+          >
+            {pipelineSummary || derivePipelineSummary(pipelineJobs)}
+          </p>
         </div>
         <div
           style={{
