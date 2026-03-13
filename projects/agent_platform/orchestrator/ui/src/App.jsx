@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { listJobs, listAgents, submitPipeline, cancelJob } from "./api.js";
 import PipelineComposer from "./PipelineComposer.jsx";
+import { CONDITION_STYLES } from "./pipeline-config.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,31 @@ function elapsed(start, end) {
 function getResult(job) {
   if (!job.attempts?.length) return null;
   return job.attempts[job.attempts.length - 1].result || null;
+}
+
+/** Try to parse a job's task as a pipeline spec. */
+function parsePipeline(task) {
+  if (!task || !task.startsWith("{")) return null;
+  try {
+    const parsed = JSON.parse(task);
+    if (Array.isArray(parsed.steps) && parsed.steps.length > 0) return parsed;
+  } catch {
+    /* not pipeline JSON */
+  }
+  return null;
+}
+
+/** Resolve agent metadata, falling back to a neutral default. */
+function resolveAgent(agentId, agents) {
+  return (
+    agents.find((a) => a.id === agentId) || {
+      id: agentId,
+      label: agentId,
+      icon: "◆",
+      bg: "#f3f4f6",
+      fg: "#6b7280",
+    }
+  );
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
@@ -146,9 +172,238 @@ function ResultPill({ result }) {
   );
 }
 
+// ─── Pipeline flow (compact, inline) ─────────────────────────────────────────
+
+function PipelineFlow({ steps, agents }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 0,
+        overflow: "hidden",
+        minWidth: 0,
+      }}
+    >
+      {steps.map((step, i) => {
+        const ag = resolveAgent(step.agent, agents);
+        const cond = i > 0 ? step.condition || "always" : null;
+        const condStyle = cond
+          ? CONDITION_STYLES[cond] || CONDITION_STYLES["always"]
+          : null;
+        return (
+          <div
+            key={i}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0,
+              minWidth: 0,
+              flexShrink: i === steps.length - 1 ? 1 : 0,
+            }}
+          >
+            {/* Connector line + condition dot */}
+            {i > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0,
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    width: 12,
+                    height: 1,
+                    background: condStyle?.border || "#e5e7eb",
+                  }}
+                />
+                {cond !== "always" && (
+                  <div
+                    title={cond}
+                    style={{
+                      width: 5,
+                      height: 5,
+                      borderRadius: "50%",
+                      background: condStyle?.border || "#e5e7eb",
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
+                <div
+                  style={{
+                    width: 8,
+                    height: 1,
+                    background: condStyle?.border || "#e5e7eb",
+                  }}
+                />
+              </div>
+            )}
+            {/* Agent pill */}
+            <div
+              title={`${ag.label}: ${step.task}`}
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 4,
+                padding: "3px 8px 3px 5px",
+                borderRadius: 6,
+                background: ag.bg,
+                flexShrink: 0,
+                maxWidth: 120,
+              }}
+            >
+              <span style={{ fontSize: 10, lineHeight: 1, flexShrink: 0 }}>
+                {ag.icon}
+              </span>
+              <span
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  color: ag.fg,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {ag.label}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Pipeline detail (expanded view) ─────────────────────────────────────────
+
+function PipelineDetail({ steps, agents }) {
+  return (
+    <div
+      style={{
+        padding: "12px 20px 16px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 0,
+      }}
+    >
+      {steps.map((step, i) => {
+        const ag = resolveAgent(step.agent, agents);
+        const cond = step.condition || "always";
+        const condStyle = CONDITION_STYLES[cond] || CONDITION_STYLES["always"];
+        return (
+          <div key={i}>
+            {/* Vertical connector */}
+            {i > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  paddingLeft: 14,
+                }}
+              >
+                <div
+                  style={{
+                    width: 1,
+                    height: 20,
+                    background: condStyle.border || "#e5e7eb",
+                    flexShrink: 0,
+                  }}
+                />
+                {cond !== "always" && (
+                  <span
+                    style={{
+                      fontSize: 9,
+                      fontWeight: 500,
+                      color: condStyle.color,
+                      padding: "1px 6px",
+                      borderRadius: 8,
+                      border: `1px solid ${condStyle.border}`,
+                      background: condStyle.bg,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    {cond}
+                  </span>
+                )}
+              </div>
+            )}
+            {/* Step card */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                padding: "8px 12px",
+                background: "#fafafa",
+                borderRadius: 8,
+                border: "1px solid #f0f0f0",
+              }}
+            >
+              <span
+                style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 6,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: 11,
+                  background: ag.bg,
+                  color: ag.fg,
+                  flexShrink: 0,
+                  marginTop: 1,
+                }}
+              >
+                {ag.icon}
+              </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    color: "#374151",
+                    marginBottom: 2,
+                  }}
+                >
+                  {ag.label}
+                </div>
+                <div
+                  style={{
+                    fontSize: 11.5,
+                    color: "#9ca3af",
+                    lineHeight: 1.5,
+                  }}
+                >
+                  {step.task || "(no task)"}
+                </div>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  color: "#d1d5db",
+                  fontFamily: "monospace",
+                  flexShrink: 0,
+                  marginTop: 2,
+                }}
+              >
+                {i + 1}
+              </span>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ─── Job row ──────────────────────────────────────────────────────────────────
 
-function JobRow({ job, onCancel, isMobile }) {
+function JobRow({ job, agents, onCancel, isMobile }) {
   const [open, setOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const canCancel = job.status === "PENDING" || job.status === "RUNNING";
@@ -156,7 +411,8 @@ function JobRow({ job, onCancel, isMobile }) {
   const attempt = job.attempts?.[job.attempts.length - 1];
   const summary = result?.summary || job.failure_summary;
   const hasOutput = attempt?.output || job.status === "PENDING";
-  const isExpandable = summary || hasOutput;
+  const pipeline = parsePipeline(job.task);
+  const isExpandable = pipeline || summary || hasOutput;
 
   return (
     <div
@@ -168,29 +424,35 @@ function JobRow({ job, onCancel, isMobile }) {
     >
       {/* Main row */}
       <div
+        onClick={isExpandable ? () => setOpen((o) => !o) : undefined}
         style={{
           display: "flex",
           alignItems: "center",
           gap: 12,
           padding: "10px 4px",
+          cursor: isExpandable ? "pointer" : "default",
         }}
       >
         <Dot status={job.status} />
 
-        {/* Task title only */}
+        {/* Task title or pipeline flow */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <p
-            style={{
-              fontSize: 13,
-              color: "#374151",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              margin: 0,
-            }}
-          >
-            {job.task}
-          </p>
+          {pipeline ? (
+            <PipelineFlow steps={pipeline.steps} agents={agents} />
+          ) : (
+            <p
+              style={{
+                fontSize: 13,
+                color: "#374151",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                margin: 0,
+              }}
+            >
+              {job.task}
+            </p>
+          )}
         </div>
 
         {/* Right-side metadata */}
@@ -230,7 +492,10 @@ function JobRow({ job, onCancel, isMobile }) {
 
           {isExpandable && (
             <button
-              onClick={() => setOpen((o) => !o)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpen((o) => !o);
+              }}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -253,7 +518,10 @@ function JobRow({ job, onCancel, isMobile }) {
 
           {canCancel && (
             <button
-              onClick={() => onCancel(job.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onCancel(job.id);
+              }}
               style={{
                 fontSize: 11,
                 color: "#f87171",
@@ -273,9 +541,14 @@ function JobRow({ job, onCancel, isMobile }) {
         </div>
       </div>
 
-      {/* Level 1: Summary */}
+      {/* Expanded content */}
       {open && (
         <div style={{ borderTop: "1px solid #f3f4f6" }}>
+          {/* Pipeline step detail */}
+          {pipeline && (
+            <PipelineDetail steps={pipeline.steps} agents={agents} />
+          )}
+
           {summary && (
             <p
               style={{
@@ -284,13 +557,14 @@ function JobRow({ job, onCancel, isMobile }) {
                 color: job.failure_summary ? "#f87171" : "#6b7280",
                 lineHeight: 1.5,
                 margin: 0,
+                borderTop: pipeline ? "1px solid #f3f4f6" : "none",
               }}
             >
               {summary}
             </p>
           )}
 
-          {/* Level 2: Output toggle */}
+          {/* Output toggle */}
           {hasOutput && (
             <>
               <button
@@ -305,7 +579,7 @@ function JobRow({ job, onCancel, isMobile }) {
                   color: "#9ca3af",
                   background: outputOpen ? "#f9fafb" : "transparent",
                   border: "none",
-                  borderTop: summary ? "1px solid #f3f4f6" : "none",
+                  borderTop: summary || pipeline ? "1px solid #f3f4f6" : "none",
                   cursor: "pointer",
                   outline: "none",
                   transition: "color 0.15s, background 0.15s",
@@ -408,7 +682,7 @@ function JobRow({ job, onCancel, isMobile }) {
 
 // ─── Job list with filter + search ───────────────────────────────────────────
 
-function JobList({ jobs, onCancel, isMobile }) {
+function JobList({ jobs, agents, onCancel, isMobile }) {
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -486,6 +760,7 @@ function JobList({ jobs, onCancel, isMobile }) {
             <JobRow
               key={job.id}
               job={job}
+              agents={agents}
               onCancel={onCancel}
               isMobile={isMobile}
             />
@@ -604,7 +879,12 @@ export default function App() {
 
         {jobs.length > 0 && (
           <div style={{ marginTop: 32 }}>
-            <JobList jobs={jobs} onCancel={handleCancel} isMobile={isMobile} />
+            <JobList
+              jobs={jobs}
+              agents={agents}
+              onCancel={handleCancel}
+              isMobile={isMobile}
+            />
           </div>
         )}
       </div>
