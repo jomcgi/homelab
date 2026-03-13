@@ -5,6 +5,9 @@ metadata:
   namespace: {{ .Release.Namespace }}
 spec:
   podTemplate:
+    metadata:
+      annotations:
+        checksum/image: {{ .Values.sandboxTemplate.image.tag | sha256sum | trunc 16 | quote }}
     spec:
       serviceAccountName: goose-agent
       securityContext:
