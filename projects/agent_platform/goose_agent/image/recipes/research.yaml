@@ -49,5 +49,5 @@ extensions:
     args: ["dlx", "@modelcontextprotocol/server-github"]
     env_keys: ["GITHUB_TOKEN"]
 settings:
-  max_turns: 30
-  max_tool_repetitions: 5
+  max_turns: 60
+  max_tool_repetitions: 15
