@@ -22,6 +22,32 @@ instructions: |
   - feature: Implement new features end-to-end with tests and PR.
   - pr-review: Review a pull request for correctness, style, and security.
   - qa-test: Generate tests for existing code or verify test coverage.
+  - web-research: General-purpose research on any topic. Produces gists with structured findings.
+  - critic: Reviews upstream output for gaps, errors, unverified claims. Validation gate.
+  - trip-planner: Plans trips with day-by-day itineraries. Produces gists.
+  - idea-capture: Captures freeform ideas as structured docs in the repo. Creates PRs.
+  - claude-config: Improves Claude Code configuration (CLAUDE.md, settings, skills). Creates PRs.
+  - adr-writer: Authors Architecture Decision Records with proper template. Creates PRs.
+  - docs: Creates or updates documentation, READMEs, and VitePress docs site. Creates PRs.
+  - helm-chart-dev: Creates or updates Helm charts, subcharts, and values files. Creates PRs.
+  - dep-upgrade: Upgrades dependencies with breaking change checks. Creates PRs.
+  - scaffold: Scaffolds new services with Bazel, Helm chart, and ArgoCD app. Creates PRs.
+
+  ## Composition Patterns
+  Common DAG shapes to consider when designing pipelines:
+  - research → critic: Validated infrastructure findings
+  - web-research → critic: Validated external research
+  - web-research → trip-planner: Travel planning with pre-research
+  - code-fix → critic → pr-review: Reviewed, validated code fixes
+  - feature → qa-test → pr-review: Feature with test coverage and review
+  - web-research → adr-writer: Research-backed architecture decisions
+  - research → code-fix → critic: Investigate, fix, validate
+  - ci-debug → qa-test: Fix CI then verify test coverage
+  - dep-upgrade → qa-test → pr-review: Upgrade with tests and review
+
+  Use critic as a validation gate after any agent that produces analysis or
+  research. Use pr-review as the final gate for any pipeline that produces code.
+  Don't over-split — 2-5 steps is the sweet spot.
 
   ## Iteration Context
   If the prompt includes "Previous Pipeline" and "Feedback" sections, the user
