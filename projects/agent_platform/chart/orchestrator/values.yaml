@@ -133,6 +133,7 @@ agentsConfig:
         settings:
           max_turns: 50
           max_tool_repetitions: 5
+          model: claude-sonnet-4-6
     - id: research
       label: Research
       icon: "🔍"
@@ -196,6 +197,7 @@ agentsConfig:
         settings:
           max_turns: 30
           max_tool_repetitions: 5
+          model: claude-sonnet-4-6
     - id: code-fix
       label: Code Fix
       icon: "🔧"
@@ -247,6 +249,7 @@ agentsConfig:
         settings:
           max_turns: 50
           max_tool_repetitions: 5
+          model: claude-sonnet-4-6
     - id: bazel
       label: Bazel
       icon: "⚙"
@@ -305,6 +308,7 @@ agentsConfig:
         settings:
           max_turns: 50
           max_tool_repetitions: 5
+          model: claude-sonnet-4-6
     - id: feature
       label: Feature
       icon: "🚀"
@@ -364,6 +368,7 @@ agentsConfig:
         settings:
           max_turns: 50
           max_tool_repetitions: 5
+          model: claude-sonnet-4-6
     - id: pr-review
       label: PR Review
       icon: "👁"
@@ -421,6 +426,7 @@ agentsConfig:
         settings:
           max_turns: 30
           max_tool_repetitions: 5
+          model: claude-opus-4-6
     - id: qa-test
       label: QA / Tests
       icon: "🧪"
@@ -480,6 +486,7 @@ agentsConfig:
         settings:
           max_turns: 50
           max_tool_repetitions: 5
+          model: claude-sonnet-4-6
 
 httpRoute:
   enabled: false
