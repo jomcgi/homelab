@@ -686,7 +686,7 @@ function PipelineDetail({ steps, jobs, agents }) {
 
 // ─── Job row ──────────────────────────────────────────────────────────────────
 
-function JobRow({ job, agents, onCancel, isMobile }) {
+function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
   const [open, setOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const canCancel = job.status === "PENDING" || job.status === "RUNNING";
@@ -743,6 +743,38 @@ function JobRow({ job, agents, onCancel, isMobile }) {
           }}
         >
           <ResultPill result={result} />
+
+          {onApplyPipeline &&
+            result?.pipeline?.length > 0 &&
+            job.status === "SUCCEEDED" && (
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApplyPipeline(result.pipeline, result.url);
+                }}
+                style={{
+                  fontSize: 11,
+                  fontWeight: 500,
+                  padding: "2px 8px",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  borderRadius: 4,
+                  border: "none",
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  flexShrink: 0,
+                  transition: "background 0.15s",
+                }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "#4338ca")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "#4f46e5")
+                }
+              >
+                Apply pipeline
+              </button>
+            )}
 
           {job.profile && !isMobile && (
             <span
@@ -1094,7 +1126,7 @@ function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
 
 // ─── Job list with filter + search ───────────────────────────────────────────
 
-function JobList({ jobs, agents, onCancel, isMobile }) {
+function JobList({ jobs, agents, onCancel, onApplyPipeline, isMobile }) {
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -1188,6 +1220,7 @@ function JobList({ jobs, agents, onCancel, isMobile }) {
                 job={group.job}
                 agents={agents}
                 onCancel={onCancel}
+                onApplyPipeline={onApplyPipeline}
                 isMobile={isMobile}
               />
             ),
@@ -1280,29 +1313,13 @@ export default function App() {
     [fetchJobs],
   );
 
-  // Hydrate deep plan state from job list on load. If the user refreshes the
-  // page (or the deep plan was submitted from another tab), the in-memory
-  // deepPlanJobId is lost. Scan the already-fetched job list for the most
-  // recent successful deep-plan job and restore its result so the "Apply
-  // pipeline" button appears without re-running the plan.
-  useEffect(() => {
-    // Only hydrate when no deep plan is active (avoid overwriting in-flight state)
-    if (deepPlanStatus) return;
-    if (!jobs.length) return;
-
-    const recent = jobs.find(
-      (j) => j.profile === "deep-plan" && j.status === "SUCCEEDED",
-    );
-    if (!recent) return;
-
-    const result = getResult(recent);
-    if (result?.pipeline?.length > 0) {
-      setDeepPlanJobId(recent.id);
-      setDeepPlanResult(result.pipeline);
-      setDeepPlanStatus("done");
-      setAnalysisUrl(result.url || null);
-    }
-  }, [jobs, deepPlanStatus]);
+  // Apply a pipeline result from any deep-plan job in the job list.
+  // Called from the inline "Apply pipeline" button on JobRow.
+  const handleApplyPipeline = useCallback((pipeline, url) => {
+    setDeepPlanResult(pipeline);
+    setDeepPlanStatus("done");
+    setAnalysisUrl(url || null);
+  }, []);
 
   // ── Deep Plan ───────────────────────────────────────────────────────────
   const handleDeepPlan = useCallback(async (prompt, currentPipeline) => {
@@ -1408,7 +1425,6 @@ export default function App() {
           onSubmit={handlePipelineSubmit}
           onDeepPlan={handleDeepPlan}
           deepPlanStatus={deepPlanStatus}
-          analysisUrl={analysisUrl}
           deepPlanResult={deepPlanResult}
         />
 
@@ -1418,6 +1434,7 @@ export default function App() {
               jobs={jobs}
               agents={agents}
               onCancel={handleCancel}
+              onApplyPipeline={handleApplyPipeline}
               isMobile={isMobile}
             />
           </div>

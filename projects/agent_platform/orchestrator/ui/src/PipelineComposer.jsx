@@ -838,7 +838,6 @@ export default function PipelineComposer({
   onSubmit,
   onDeepPlan,
   deepPlanStatus,
-  analysisUrl,
   deepPlanResult,
 }) {
   const [pipeline, setPipeline] = useState([]);
@@ -847,14 +846,20 @@ export default function PipelineComposer({
   const [submitting, setSubmitting] = useState(false);
   const [composerKey, setComposerKey] = useState(0);
   const dragRef = useRef(null);
+  const appliedPlanRef = useRef(null); // Track which result we already applied
 
   const mentionCats = useMemo(() => buildMentionCats(agents), [agents]);
 
-  // Apply deep plan result to the pipeline (called explicitly by user)
-  const applyDeepPlan = useCallback(() => {
-    if (deepPlanResult?.length > 0) {
+  // Auto-apply deep plan result when it arrives (from inline button or polling).
+  // Only applies once per unique result to avoid overwriting user edits.
+  useEffect(() => {
+    if (
+      deepPlanResult?.length > 0 &&
+      deepPlanResult !== appliedPlanRef.current
+    ) {
       setPipeline(deepPlanResult);
       setInferSource("deep-plan");
+      appliedPlanRef.current = deepPlanResult;
     }
   }, [deepPlanResult]);
 
@@ -972,217 +977,170 @@ export default function PipelineComposer({
       />
 
       {/* Phase 2: Pipeline editor (always visible) */}
-      <div style={{ marginTop: 24 }}>
-        <Label>
-          Agent pipeline
-          {inferSource && (
-            <span
+      {/* Pipeline section — only visible when there are steps or an active inference */}
+      {(pipeline.length > 0 || inferring || deepPlanStatus === "running") && (
+        <div style={{ marginTop: 24 }}>
+          <Label>
+            Agent pipeline
+            {inferSource && (
+              <span
+                style={{
+                  fontWeight: 400,
+                  textTransform: "none",
+                  letterSpacing: 0,
+                  fontSize: 10,
+                  marginLeft: 4,
+                  opacity: 0.6,
+                }}
+              >
+                ·{" "}
+                {inferSource === "deep-plan"
+                  ? "deep plan"
+                  : inferSource === "inferred"
+                    ? "inferred from prompt"
+                    : "build manually"}
+              </span>
+            )}
+          </Label>
+
+          {pipeline.length === 0 ? (
+            <div
               style={{
-                fontWeight: 400,
-                textTransform: "none",
-                letterSpacing: 0,
-                fontSize: 10,
-                marginLeft: 4,
-                opacity: 0.6,
+                padding: 24,
+                textAlign: "center",
+                fontSize: 12.5,
+                color: "#d1d5db",
+                background: "#f9fafb",
+                borderRadius: 12,
+                border: "0.5px dashed #e5e7eb",
               }}
             >
-              ·{" "}
-              {inferSource === "deep-plan"
-                ? "deep plan"
-                : inferSource === "inferred"
-                  ? "inferred from prompt"
-                  : "build manually"}
-            </span>
+              {deepPlanStatus === "running"
+                ? "Deep Plan is analyzing your goal..."
+                : inferring
+                  ? "Inferring pipeline from prompt…"
+                  : "Write a task above and infer, or add agents manually below"}
+            </div>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: 0,
+              }}
+            >
+              {pipeline.map((step, idx) => (
+                <div key={idx} style={{ width: "100%" }}>
+                  {idx > 0 && (
+                    <Connector
+                      condition={step.condition}
+                      onChange={(c) => updateCondition(idx, c)}
+                    />
+                  )}
+                  <StepCard
+                    step={step}
+                    index={idx}
+                    agents={agents}
+                    onUpdateAgent={updateAgent}
+                    onUpdateTask={updateTask}
+                    onRemove={removeStep}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    isDragging={dragRef.current === idx}
+                  />
+                </div>
+              ))}
+            </div>
           )}
-        </Label>
 
-        {/* Deep Plan result actions */}
-        {deepPlanStatus === "done" && deepPlanResult?.length > 0 && (
+          {/* Actions row */}
           <div
             style={{
               display: "flex",
               alignItems: "center",
               gap: 8,
-              marginBottom: 10,
-              padding: "8px 12px",
-              background: "#f0f0ff",
-              borderRadius: 8,
-              border: "0.5px solid #e0e0ff",
+              marginTop: 12,
+              padding: "0 4px",
             }}
           >
-            <span style={{ fontSize: 11.5, color: "#4f46e5", fontWeight: 500 }}>
-              Deep Plan ready
-            </span>
-            {analysisUrl && (
-              <a
-                href={analysisUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 11,
-                  color: "#6b7280",
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 4,
-                  padding: "1px 6px",
-                  textDecoration: "none",
-                  transition: "color 0.15s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.color = "#1f2937")}
-                onMouseLeave={(e) => (e.currentTarget.style.color = "#6b7280")}
-              >
-                <svg
-                  width={10}
-                  height={10}
-                  viewBox="0 0 24 24"
-                  fill="currentColor"
-                >
-                  <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844a9.59 9.59 0 0 1 2.504.337c1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.017C22 6.484 17.522 2 12 2z" />
-                </svg>
-                Analysis
-              </a>
-            )}
-            <button
-              onClick={applyDeepPlan}
+            <select
+              value=""
+              onChange={(e) => {
+                if (e.target.value) addStep(e.target.value);
+                e.target.value = "";
+              }}
               style={{
-                marginLeft: "auto",
-                fontSize: 11,
-                fontWeight: 500,
-                padding: "3px 10px",
-                background: "#4f46e5",
-                color: "#fff",
-                borderRadius: 5,
-                border: "none",
+                fontSize: 11.5,
+                color: "#9ca3af",
+                background: "#f9fafb",
+                border: "0.5px solid #e5e7eb",
+                borderRadius: 7,
+                padding: "5px 8px",
                 cursor: "pointer",
                 fontFamily: "inherit",
-                transition: "background 0.15s",
-              }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.background = "#6366f1")
-              }
-              onMouseLeave={(e) =>
-                (e.currentTarget.style.background = "#4f46e5")
-              }
-            >
-              Apply pipeline
-            </button>
-          </div>
-        )}
-
-        {pipeline.length === 0 ? (
-          <div
-            style={{
-              padding: 24,
-              textAlign: "center",
-              fontSize: 12.5,
-              color: "#d1d5db",
-              background: "#f9fafb",
-              borderRadius: 12,
-              border: "0.5px dashed #e5e7eb",
-            }}
-          >
-            {deepPlanStatus === "running"
-              ? "Deep Plan is analyzing your goal..."
-              : inferring
-                ? "Inferring pipeline from prompt…"
-                : "Write a task above and infer, or add agents manually below"}
-          </div>
-        ) : (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 0,
-            }}
-          >
-            {pipeline.map((step, idx) => (
-              <div key={idx} style={{ width: "100%" }}>
-                {idx > 0 && (
-                  <Connector
-                    condition={step.condition}
-                    onChange={(c) => updateCondition(idx, c)}
-                  />
-                )}
-                <StepCard
-                  step={step}
-                  index={idx}
-                  agents={agents}
-                  onUpdateAgent={updateAgent}
-                  onUpdateTask={updateTask}
-                  onRemove={removeStep}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  isDragging={dragRef.current === idx}
-                />
-              </div>
-            ))}
-          </div>
-        )}
-
-        {/* Actions row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginTop: 12,
-            padding: "0 4px",
-          }}
-        >
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) addStep(e.target.value);
-              e.target.value = "";
-            }}
-            style={{
-              fontSize: 11.5,
-              color: "#9ca3af",
-              background: "#f9fafb",
-              border: "0.5px solid #e5e7eb",
-              borderRadius: 7,
-              padding: "5px 8px",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              outline: "none",
-            }}
-          >
-            <option value="">+ add step</option>
-            {agents.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.id}
-              </option>
-            ))}
-          </select>
-
-          {pipeline.length > 0 && (
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              style={{
-                marginLeft: "auto",
-                fontSize: 12,
-                fontWeight: 500,
-                padding: "6px 16px",
-                background: "#111827",
-                color: "#fff",
-                borderRadius: 8,
-                border: "none",
-                cursor: submitting ? "not-allowed" : "pointer",
-                opacity: submitting ? 0.5 : 1,
-                transition: "opacity 0.15s",
-                fontFamily: "inherit",
+                outline: "none",
               }}
             >
-              {submitting ? "Submitting…" : "Submit to orchestrator"}
-            </button>
-          )}
+              <option value="">+ add step</option>
+              {agents.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.id}
+                </option>
+              ))}
+            </select>
+
+            {pipeline.length > 0 && (
+              <>
+                <button
+                  onClick={() => {
+                    setPipeline([]);
+                    setInferSource(null);
+                  }}
+                  style={{
+                    marginLeft: "auto",
+                    fontSize: 11,
+                    color: "#9ca3af",
+                    background: "none",
+                    border: "none",
+                    cursor: "pointer",
+                    fontFamily: "inherit",
+                    transition: "color 0.15s",
+                  }}
+                  onMouseEnter={(e) =>
+                    (e.currentTarget.style.color = "#ef4444")
+                  }
+                  onMouseLeave={(e) =>
+                    (e.currentTarget.style.color = "#9ca3af")
+                  }
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={submitting}
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 500,
+                    padding: "6px 16px",
+                    background: "#111827",
+                    color: "#fff",
+                    borderRadius: 8,
+                    border: "none",
+                    cursor: submitting ? "not-allowed" : "pointer",
+                    opacity: submitting ? 0.5 : 1,
+                    transition: "opacity 0.15s",
+                    fontFamily: "inherit",
+                  }}
+                >
+                  {submitting ? "Submitting…" : "Submit to orchestrator"}
+                </button>
+              </>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
