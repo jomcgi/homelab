@@ -80,7 +80,7 @@ func (m *memStore) List(_ context.Context, statusFilter, tagFilter []string, lim
 
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, nil, nil, logger)
+	api := NewAPI(store, nil, nil, 2, nil, nil, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	return api, mux
@@ -118,7 +118,7 @@ func TestHandleSubmit_WithProfile(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
 	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
-	api := NewAPI(store, nil, nil, 2, nil, recipes, logger)
+	api := NewAPI(store, nil, nil, 2, nil, recipes, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
@@ -366,7 +366,7 @@ func TestHandleAgents(t *testing.T) {
 		{ID: "code-fix", Label: "Code Fix", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Fix code", Category: "action"},
 	}
 	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
-	api := NewAPI(newMemStore(), nil, nil, 2, agents, recipes, logger)
+	api := NewAPI(newMemStore(), nil, nil, 2, agents, recipes, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 

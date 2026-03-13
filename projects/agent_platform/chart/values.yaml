@@ -107,6 +107,7 @@ agent-orchestrator:
     httpPort: "8080"
     jobInactivityTimeout: "10m"
     jobMaxDuration: "168h"
+    inferenceUrl: ""
   agentsConfig:
     agents:
       - id: ci-debug

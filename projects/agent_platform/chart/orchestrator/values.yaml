@@ -60,6 +60,9 @@ config:
   httpPort: "8080"
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
+  # OpenAI-compatible inference endpoint for pipeline planning.
+  # The orchestrator proxies POST /infer to this URL.
+  inferenceUrl: ""
 
 # Pipeline composer agent registry. Served via GET /agents so the frontend
 # discovers available agents without hardcoding. Each agent maps to a goose
