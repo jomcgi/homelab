@@ -23,7 +23,7 @@ pkg_tar(
 
 apko_image(
     name = "image",
-    config = "image/apko.yaml",
+    config = "//projects/agent_platform/chat_bot/image:apko.yaml",
     contents = "@chat_bot_lock//:contents",
     repository = "ghcr.io/jomcgi/homelab/projects/agent-platform/chat-bot",
     tars = [
