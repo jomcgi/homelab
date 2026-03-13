@@ -25,14 +25,14 @@ type API struct {
 	healthCheck       func() error             // checks backing store connectivity
 	defaultMaxRetries int
 	agents            []AgentInfo
-	recipes           map[string]map[string]any
+	recipePaths       map[string]string
 	inferenceURL      string // upstream LLM endpoint for pipeline inference proxy
 	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, recipes map[string]map[string]any, inferenceURL string, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, recipes: recipes, inferenceURL: inferenceURL, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, recipePaths map[string]string, inferenceURL string, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, recipePaths: recipePaths, inferenceURL: inferenceURL, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -59,7 +59,7 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.Profile != "" {
-		if _, ok := a.recipes[req.Profile]; !ok {
+		if _, ok := a.recipePaths[req.Profile]; !ok {
 			a.writeError(w, http.StatusBadRequest, "unknown agent: "+req.Profile)
 			return
 		}
@@ -246,13 +246,7 @@ func (a *API) handleAgents(w http.ResponseWriter, _ *http.Request) {
 	if agents == nil {
 		agents = []AgentInfo{}
 	}
-	// Strip recipe content from response — frontend only needs UI metadata.
-	stripped := make([]AgentInfo, len(agents))
-	for i, ag := range agents {
-		stripped[i] = ag
-		stripped[i].Recipe = nil
-	}
-	a.writeJSON(w, http.StatusOK, AgentsResponse{Agents: stripped})
+	a.writeJSON(w, http.StatusOK, AgentsResponse{Agents: agents})
 }
 
 func (a *API) handleInfer(w http.ResponseWriter, r *http.Request) {
@@ -308,7 +302,7 @@ func (a *API) handlePipeline(w http.ResponseWriter, r *http.Request) {
 
 	// Validate all agents exist.
 	for _, step := range req.Steps {
-		if _, ok := a.recipes[step.Agent]; !ok {
+		if _, ok := a.recipePaths[step.Agent]; !ok {
 			a.writeError(w, http.StatusBadRequest, "unknown agent: "+step.Agent)
 			return
 		}

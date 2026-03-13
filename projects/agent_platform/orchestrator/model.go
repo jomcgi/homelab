@@ -17,15 +17,14 @@ const (
 
 // AgentInfo describes an available agent for the pipeline composer UI.
 type AgentInfo struct {
-	ID          string         `json:"id"`
-	Label       string         `json:"label"`
-	Icon        string         `json:"icon"`
-	Background  string         `json:"bg"`
-	Foreground  string         `json:"fg"`
-	Description string         `json:"desc"`
-	Category    string         `json:"category"`
-	Model       string         `json:"model,omitempty"`
-	Recipe      map[string]any `json:"recipe,omitempty"`
+	ID          string `json:"id"`
+	Label       string `json:"label"`
+	Icon        string `json:"icon"`
+	Background  string `json:"bg"`
+	Foreground  string `json:"fg"`
+	Description string `json:"desc"`
+	Category    string `json:"category"`
+	RecipePath  string `json:"recipePath,omitempty"`
 }
 
 // AgentsResponse is returned by GET /agents.

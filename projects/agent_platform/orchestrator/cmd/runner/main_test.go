@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"time"
@@ -218,10 +217,7 @@ func TestHandleRun_RejectsWhileRunning(t *testing.T) {
 }
 
 func TestBuildGooseCmd_NoRecipe(t *testing.T) {
-	args, cleanup := buildGooseCmd(RunRequest{Task: "fix the bug"})
-	if cleanup != nil {
-		t.Fatal("expected nil cleanup for no-recipe mode")
-	}
+	args := buildGooseCmd(RunRequest{Task: "fix the bug"})
 
 	expected := []string{"goose", "run", "--text", "fix the bug"}
 	if len(args) != len(expected) {
@@ -234,16 +230,12 @@ func TestBuildGooseCmd_NoRecipe(t *testing.T) {
 	}
 }
 
-func TestBuildGooseCmd_WithRecipe(t *testing.T) {
-	recipeYAML := "version: '1.0.0'\ntitle: Test\n"
+func TestBuildGooseCmd_WithRecipePath(t *testing.T) {
+	recipePath := "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"
 	task := "do it"
-	args, cleanup := buildGooseCmd(RunRequest{Task: task, Recipe: recipeYAML})
-	if cleanup == nil {
-		t.Fatal("expected cleanup function for temp file")
-	}
-	defer cleanup()
+	args := buildGooseCmd(RunRequest{Task: task, RecipePath: recipePath})
 
-	// Expected: goose run --recipe <file> --params task_description=<task> --no-profile
+	// Expected: goose run --recipe <path> --params task_description=<task> --no-profile
 	if len(args) != 7 {
 		t.Fatalf("expected 7 args, got %d: %v", len(args), args)
 	}
@@ -252,6 +244,9 @@ func TestBuildGooseCmd_WithRecipe(t *testing.T) {
 	}
 	if args[2] != "--recipe" {
 		t.Fatalf("expected --recipe at args[2], got %s", args[2])
+	}
+	if args[3] != recipePath {
+		t.Fatalf("expected recipe path %q at args[3], got %q", recipePath, args[3])
 	}
 	if args[4] != "--params" {
 		t.Fatalf("expected --params at args[4], got %s", args[4])
@@ -263,93 +258,16 @@ func TestBuildGooseCmd_WithRecipe(t *testing.T) {
 	if args[6] != "--no-profile" {
 		t.Fatalf("expected --no-profile at args[6], got %s", args[6])
 	}
-
-	// Verify temp file exists and contains recipe content.
-	content, err := os.ReadFile(args[3])
-	if err != nil {
-		t.Fatalf("failed to read temp recipe: %v", err)
-	}
-	if string(content) != recipeYAML {
-		t.Fatalf("expected recipe content %q, got %q", recipeYAML, string(content))
-	}
-}
-
-func TestBuildGooseCmd_RecipeTempFilePreservesTemplateVars(t *testing.T) {
-	recipeYAML := "prompt: '{{ task_description | indent(2) }}'\n"
-	args, cleanup := buildGooseCmd(RunRequest{
-		Task:   "fix the auth bug",
-		Recipe: recipeYAML,
-	})
-	if cleanup != nil {
-		defer cleanup()
-	}
-
-	// Read temp file and verify template variables are preserved (not substituted).
-	content, err := os.ReadFile(args[3])
-	if err != nil {
-		t.Fatalf("failed to read temp recipe: %v", err)
-	}
-	if !strings.Contains(string(content), "task_description") {
-		t.Fatal("template variable should be preserved in temp file for goose to handle")
-	}
-}
-
-func TestBuildGooseCmd_WithModel(t *testing.T) {
-	args, cleanup := buildGooseCmd(RunRequest{Task: "plan a pipeline", Model: "claude-opus-4-6"})
-	if cleanup != nil {
-		defer cleanup()
-	}
-
-	expected := []string{"goose", "run", "--text", "plan a pipeline", "--model", "claude-opus-4-6"}
-	if len(args) != len(expected) {
-		t.Fatalf("expected %v, got %v", expected, args)
-	}
-	for i := range expected {
-		if args[i] != expected[i] {
-			t.Fatalf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
-		}
-	}
-}
-
-func TestBuildGooseCmd_WithRecipeAndModel(t *testing.T) {
-	args, cleanup := buildGooseCmd(RunRequest{
-		Task:   "plan it",
-		Recipe: "version: '1.0.0'\ntitle: Test\n",
-		Model:  "claude-opus-4-6",
-	})
-	if cleanup != nil {
-		defer cleanup()
-	}
-
-	// Should have: goose run --recipe <file> --params ... --no-profile --model claude-opus-4-6
-	if len(args) != 9 {
-		t.Fatalf("expected 9 args, got %d: %v", len(args), args)
-	}
-	if args[7] != "--model" || args[8] != "claude-opus-4-6" {
-		t.Fatalf("expected --model claude-opus-4-6 at end, got %s %s", args[7], args[8])
-	}
-}
-
-func TestBuildGooseCmd_EmptyModelOmitted(t *testing.T) {
-	args, _ := buildGooseCmd(RunRequest{Task: "fix it"})
-	for _, arg := range args {
-		if arg == "--model" {
-			t.Fatal("--model should not appear when model is empty")
-		}
-	}
 }
 
 func TestBuildGooseCmd_YAMLHostileTask(t *testing.T) {
 	// YAML-special characters in the task are safe because they're passed via
 	// --params (CLI arg), not embedded in the recipe YAML.
 	hostileTask := `Fix the "auth" bug. Check: key: value. Don't break it.`
-	args, cleanup := buildGooseCmd(RunRequest{
-		Task:   hostileTask,
-		Recipe: "version: '1.0.0'\ntitle: Test\n",
+	args := buildGooseCmd(RunRequest{
+		Task:       hostileTask,
+		RecipePath: "recipes/test.yaml",
 	})
-	if cleanup != nil {
-		defer cleanup()
-	}
 
 	// Find --params value.
 	for i, arg := range args {

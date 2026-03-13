@@ -130,8 +130,8 @@ func TestHandleSubmit(t *testing.T) {
 func TestHandleSubmit_WithProfile(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
-	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
-	api := NewAPI(store, nil, nil, 2, nil, recipes, "", logger)
+	recipePaths := map[string]string{"ci-debug": "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"}
+	api := NewAPI(store, nil, nil, 2, nil, recipePaths, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
@@ -375,11 +375,11 @@ func TestHandleOutput(t *testing.T) {
 func TestHandleAgents(t *testing.T) {
 	logger := slog.Default()
 	agents := []AgentInfo{
-		{ID: "ci-debug", Label: "CI Debug", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Debug CI", Category: "analyse", Recipe: map[string]any{"version": "1.0.0"}},
+		{ID: "ci-debug", Label: "CI Debug", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Debug CI", Category: "analyse"},
 		{ID: "code-fix", Label: "Code Fix", Icon: "gear", Background: "#dbeafe", Foreground: "#1e40af", Description: "Fix code", Category: "action"},
 	}
-	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
-	api := NewAPI(newMemStore(), nil, nil, 2, agents, recipes, "", logger)
+	recipePaths := map[string]string{"ci-debug": "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"}
+	api := NewAPI(newMemStore(), nil, nil, 2, agents, recipePaths, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
@@ -401,10 +401,6 @@ func TestHandleAgents(t *testing.T) {
 	}
 	if resp.Agents[0].ID != "ci-debug" {
 		t.Fatalf("expected first agent ci-debug, got %s", resp.Agents[0].ID)
-	}
-	// Recipe should be stripped from response
-	if resp.Agents[0].Recipe != nil {
-		t.Fatal("expected recipe to be stripped from response")
 	}
 }
 
@@ -464,16 +460,16 @@ func TestHandleHealth(t *testing.T) {
 func TestHandlePipeline(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
-	recipes := map[string]map[string]any{
-		"ci-debug": {"version": "1.0.0"},
-		"code-fix": {"version": "1.0.0"},
+	recipePaths := map[string]string{
+		"ci-debug": "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml",
+		"code-fix": "projects/agent_platform/goose_agent/image/recipes/code-fix.yaml",
 	}
 	var published []string
 	publish := func(id string) error {
 		published = append(published, id)
 		return nil
 	}
-	api := NewAPI(store, publish, nil, 2, nil, recipes, "", logger)
+	api := NewAPI(store, publish, nil, 2, nil, recipePaths, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
@@ -577,8 +573,8 @@ func TestHandleCancel_ForwardCascade(t *testing.T) {
 func TestHandlePipeline_InvalidAgent(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
-	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
-	api := NewAPI(store, nil, nil, 2, nil, recipes, "", logger)
+	recipePaths := map[string]string{"ci-debug": "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"}
+	api := NewAPI(store, nil, nil, 2, nil, recipePaths, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 

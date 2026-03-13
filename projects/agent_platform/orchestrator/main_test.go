@@ -111,65 +111,57 @@ func TestLoadAgentsConfig(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agents.json")
 
-	data := `{"agents":[{"id":"ci-debug","label":"CI Debug","icon":"gear","bg":"#dbeafe","fg":"#1e40af","desc":"Debug CI","category":"tool","recipe":{"version":"1.0","steps":[{"name":"debug"}]}}]}`
+	data := `{"agents":[{"id":"ci-debug","label":"CI Debug","icon":"gear","bg":"#dbeafe","fg":"#1e40af","desc":"Debug CI","category":"tool","recipePath":"projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"}]}`
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	agents, recipes, models := loadAgentsConfig(path, slog.Default())
+	agents, recipePaths := loadAgentsConfig(path, slog.Default())
 	if len(agents) != 1 {
 		t.Fatalf("expected 1 agent, got %d", len(agents))
 	}
 	if agents[0].ID != "ci-debug" {
 		t.Fatalf("expected ci-debug, got %s", agents[0].ID)
 	}
-	if len(recipes) != 1 {
-		t.Fatalf("expected 1 recipe, got %d", len(recipes))
+	if len(recipePaths) != 1 {
+		t.Fatalf("expected 1 recipe path, got %d", len(recipePaths))
 	}
-	if _, ok := recipes["ci-debug"]; !ok {
-		t.Fatal("expected recipe for ci-debug")
+	if _, ok := recipePaths["ci-debug"]; !ok {
+		t.Fatal("expected recipe path for ci-debug")
 	}
-	if recipes["ci-debug"]["version"] != "1.0" {
-		t.Fatalf("expected recipe version 1.0, got %v", recipes["ci-debug"]["version"])
-	}
-	if len(models) != 0 {
-		t.Fatalf("expected 0 models (no model set), got %d", len(models))
+	expected := "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"
+	if recipePaths["ci-debug"] != expected {
+		t.Fatalf("expected recipe path %q, got %q", expected, recipePaths["ci-debug"])
 	}
 }
 
-func TestLoadAgentsConfig_ModelField(t *testing.T) {
+func TestLoadAgentsConfig_RecipePathField(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "agents.json")
-	data := `{"agents":[{"id":"deep-plan","label":"Deep Plan","model":"claude-opus-4-6","recipe":{"version":"1.0.0","title":"Deep Plan"}}]}`
+	data := `{"agents":[{"id":"deep-plan","label":"Deep Plan","recipePath":"projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml"}]}`
 	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	agents, recipes, models := loadAgentsConfig(path, slog.Default())
+	agents, recipePaths := loadAgentsConfig(path, slog.Default())
 	if len(agents) != 1 {
 		t.Fatalf("expected 1 agent, got %d", len(agents))
 	}
-	if agents[0].Model != "claude-opus-4-6" {
-		t.Errorf("model = %q, want %q", agents[0].Model, "claude-opus-4-6")
+	if agents[0].RecipePath != "projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml" {
+		t.Errorf("recipePath = %q, want deep-plan recipe path", agents[0].RecipePath)
 	}
-	if recipes["deep-plan"] == nil {
-		t.Error("expected deep-plan recipe")
-	}
-	if models["deep-plan"] != "claude-opus-4-6" {
-		t.Errorf("models[deep-plan] = %q, want %q", models["deep-plan"], "claude-opus-4-6")
+	if recipePaths["deep-plan"] != "projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml" {
+		t.Errorf("recipePaths[deep-plan] = %q", recipePaths["deep-plan"])
 	}
 }
 
 func TestLoadAgentsConfigMissing(t *testing.T) {
-	agents, recipes, models := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
+	agents, recipePaths := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
 	if agents != nil {
 		t.Fatalf("expected nil agents, got %v", agents)
 	}
-	if recipes != nil {
-		t.Fatalf("expected nil recipes, got %v", recipes)
-	}
-	if models != nil {
-		t.Fatalf("expected nil models, got %v", models)
+	if recipePaths != nil {
+		t.Fatalf("expected nil recipePaths, got %v", recipePaths)
 	}
 }
 
@@ -181,14 +173,11 @@ func TestLoadAgentsConfigInvalid(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	agents, recipes, models := loadAgentsConfig(path, slog.Default())
+	agents, recipePaths := loadAgentsConfig(path, slog.Default())
 	if agents != nil {
 		t.Fatalf("expected nil agents on invalid JSON, got %v", agents)
 	}
-	if recipes != nil {
-		t.Fatalf("expected nil recipes on invalid JSON, got %v", recipes)
-	}
-	if models != nil {
-		t.Fatalf("expected nil models on invalid JSON, got %v", models)
+	if recipePaths != nil {
+		t.Fatalf("expected nil recipePaths on invalid JSON, got %v", recipePaths)
 	}
 }
