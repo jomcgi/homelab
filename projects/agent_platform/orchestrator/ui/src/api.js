@@ -56,13 +56,11 @@ export async function listAgents() {
 }
 
 export async function submitPipeline(spec) {
-  // The orchestrator agent receives the full pipeline spec as a
-  // structured job. It refines prompts for each step and dispatches
-  // the chain as linked jobs with parent/child relationships.
-  return submitJob({
-    task: JSON.stringify(spec),
-    profile: "",
-    source: "pipeline-composer",
-    metadata: { type: "pipeline", version: 1 },
+  const res = await fetch(`${API}/pipeline`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(spec),
   });
+  if (!res.ok) throw new Error(await res.text());
+  return res.json(); // { pipeline_id, jobs }
 }
