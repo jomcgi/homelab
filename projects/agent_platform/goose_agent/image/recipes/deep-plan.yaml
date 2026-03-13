@@ -101,5 +101,6 @@ extensions:
     args: ["dlx", "@modelcontextprotocol/server-github"]
     env_keys: ["GITHUB_TOKEN"]
 settings:
+  goose_model: claude-opus-4-6
   max_turns: 80
   max_tool_repetitions: 5
