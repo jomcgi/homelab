@@ -61,7 +61,7 @@ func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipe string, c
 // --- Helpers ---
 
 func newTestConsumer(store Store, sandbox Sandbox) *Consumer {
-	return NewConsumer(nil, store, sandbox, 5*time.Minute, nil, slog.Default())
+	return NewConsumer(nil, store, sandbox, nil, 5*time.Minute, nil, slog.Default())
 }
 
 func pendingJob(id string) *JobRecord {
