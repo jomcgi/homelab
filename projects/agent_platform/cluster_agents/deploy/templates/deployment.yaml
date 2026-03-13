@@ -73,6 +73,8 @@ spec:
           value: {{ .Values.config.prFixInterval | quote }}
         - name: PR_FIX_STALE_THRESHOLD
           value: {{ .Values.config.prFixStaleThreshold | quote }}
+        - name: NATS_URL
+          value: {{ .Values.config.natsUrl | quote }}
         livenessProbe:
           httpGet:
             path: /health

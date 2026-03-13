@@ -10,6 +10,7 @@ go_library(
         "github_client.go",
         "main.go",
         "model.go",
+        "notification.go",
         "patrol.go",
         "pr_fix_agent.go",
         "readme_freshness_agent.go",
@@ -19,6 +20,9 @@ go_library(
     ],
     importpath = "github.com/jomcgi/homelab/projects/agent_platform/cluster_agents",
     visibility = ["//visibility:private"],
+    deps = [
+        "@com_github_nats_io_nats_go//:nats_go",
+    ],
 )
 
 go_binary(
