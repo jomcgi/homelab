@@ -1001,7 +1001,6 @@ function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
           cursor: "pointer",
         }}
       >
-        <Dot status={overallStatus} />
         <div style={{ flex: 1, minWidth: 0 }}>
           {pipelineSummary && (
             <p
