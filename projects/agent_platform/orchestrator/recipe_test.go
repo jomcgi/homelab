@@ -34,8 +34,15 @@ func TestRenderRecipe_IndentFilter(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(rendered, "  line1\n  line2") {
-		t.Fatalf("expected indented lines, got:\n%s", rendered)
+
+	// Parse the rendered YAML and verify the prompt value has indented lines.
+	var parsed map[string]any
+	if err := yaml.Unmarshal([]byte(rendered), &parsed); err != nil {
+		t.Fatalf("rendered YAML is invalid:\n%s\nparse error: %v", rendered, err)
+	}
+	prompt, _ := parsed["prompt"].(string)
+	if !strings.Contains(prompt, "  line1\n  line2") {
+		t.Fatalf("expected indented lines in prompt value, got:\n%s", prompt)
 	}
 }
 
