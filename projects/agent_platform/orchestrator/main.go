@@ -109,10 +109,10 @@ func main() {
 		return err
 	}
 
-	agents, recipes, models := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
+	agents, recipePaths := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
 	inferenceURL := envOr("INFERENCE_URL", "")
 
-	api := NewAPI(store, publish, healthCheck, maxRetries, agents, recipes, inferenceURL, logger)
+	api := NewAPI(store, publish, healthCheck, maxRetries, agents, recipePaths, inferenceURL, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)
@@ -136,7 +136,7 @@ func main() {
 
 	// Start consumer if sandbox is available.
 	if sandbox != nil {
-		consumer := NewConsumer(cons, store, sandbox, publish, maxDuration, recipes, models, logger)
+		consumer := NewConsumer(cons, store, sandbox, publish, maxDuration, recipePaths, logger)
 		go consumer.Run(ctx)
 	} else {
 		logger.Info("running in API-only mode (no sandbox executor)")
@@ -232,35 +232,31 @@ func setupJetStream(ctx context.Context, js jetStreamSetup, maxConcurrent int, l
 
 // loadAgentsConfig reads the agents JSON config file mounted from a ConfigMap.
 // Returns nil values if the file doesn't exist or is invalid.
-func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, map[string]map[string]any, map[string]string) {
+func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, map[string]string) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
 			logger.Info("no agents config file, pipeline composer will show empty agent list", "path", path)
-			return nil, nil, nil
+			return nil, nil
 		}
 		logger.Error("failed to read agents config", "path", path, "error", err)
-		return nil, nil, nil
+		return nil, nil
 	}
 	var cfg struct {
 		Agents []AgentInfo `json:"agents"`
 	}
 	if err := json.Unmarshal(data, &cfg); err != nil {
 		logger.Error("failed to parse agents config", "path", path, "error", err)
-		return nil, nil, nil
+		return nil, nil
 	}
-	recipes := make(map[string]map[string]any, len(cfg.Agents))
-	models := make(map[string]string)
+	recipePaths := make(map[string]string, len(cfg.Agents))
 	for _, a := range cfg.Agents {
-		if a.Recipe != nil {
-			recipes[a.ID] = a.Recipe
-		}
-		if a.Model != "" {
-			models[a.ID] = a.Model
+		if a.RecipePath != "" {
+			recipePaths[a.ID] = a.RecipePath
 		}
 	}
-	logger.Info("loaded agents config", "path", path, "agents", len(cfg.Agents), "recipes", len(recipes))
-	return cfg.Agents, recipes, models
+	logger.Info("loaded agents config", "path", path, "agents", len(cfg.Agents), "recipePaths", len(recipePaths))
+	return cfg.Agents, recipePaths
 }
 
 func envOr(key, fallback string) string {

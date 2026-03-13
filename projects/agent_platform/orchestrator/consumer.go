@@ -16,7 +16,7 @@ const maxOutputBytes = 32 * 1024 // 32KB tail — full output lives in pod logs 
 // Sandbox is the interface for executing agent tasks in an isolated environment.
 // SandboxExecutor satisfies this interface; tests inject a fake implementation.
 type Sandbox interface {
-	Run(ctx context.Context, claimName, task, recipe, model string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error)
+	Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error)
 }
 
 // Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
@@ -26,21 +26,19 @@ type Consumer struct {
 	sandbox     Sandbox
 	publish     func(jobID string) error
 	maxDuration time.Duration
-	recipes     map[string]map[string]any
-	models      map[string]string
+	recipePaths map[string]string
 	logger      *slog.Logger
 }
 
 // NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
-func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, publish func(jobID string) error, maxDuration time.Duration, recipes map[string]map[string]any, models map[string]string, logger *slog.Logger) *Consumer {
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, publish func(jobID string) error, maxDuration time.Duration, recipePaths map[string]string, logger *slog.Logger) *Consumer {
 	return &Consumer{
 		cons:        cons,
 		store:       store,
 		sandbox:     sandbox,
 		publish:     publish,
 		maxDuration: maxDuration,
-		recipes:     recipes,
-		models:      models,
+		recipePaths: recipePaths,
 		logger:      logger,
 	}
 }
@@ -135,22 +133,10 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 
 	outputBuf := newSyncBuffer(maxOutputBytes)
 
-	// Render recipe for this agent.
-	recipeYAML := ""
-	if job.Profile != "" && c.recipes != nil {
-		if recipe, ok := c.recipes[job.Profile]; ok {
-			var err error
-			recipeYAML, err = renderRecipeYAML(recipe)
-			if err != nil {
-				c.logger.Error("failed to render recipe", "agent", job.Profile, "error", err)
-			}
-		}
-	}
-
-	// Look up model for this agent.
-	model := ""
-	if job.Profile != "" && c.models != nil {
-		model = c.models[job.Profile]
+	// Look up recipe path for this agent.
+	recipePath := ""
+	if job.Profile != "" && c.recipePaths != nil {
+		recipePath = c.recipePaths[job.Profile]
 	}
 
 	// Run sandbox in a goroutine so we can flush output periodically.
@@ -160,7 +146,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	}
 	resultCh := make(chan sandboxResult, 1)
 	go func() {
-		r, err := c.sandbox.Run(jobCtx, claimName, task, recipeYAML, model, cancelFn, outputBuf)
+		r, err := c.sandbox.Run(jobCtx, claimName, task, recipePath, cancelFn, outputBuf)
 		resultCh <- sandboxResult{r, err}
 	}()
 

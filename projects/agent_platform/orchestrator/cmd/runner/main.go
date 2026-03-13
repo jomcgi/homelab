@@ -57,8 +57,7 @@ const maxOutputBytes = 50 * 1024 * 1024 // 50MB
 // RunRequest is the JSON body for POST /run.
 type RunRequest struct {
 	Task              string `json:"task"`
-	Recipe            string `json:"recipe,omitempty"`
-	Model             string `json:"model,omitempty"`
+	RecipePath        string `json:"recipe_path,omitempty"`
 	InactivityTimeout int    `json:"inactivity_timeout,omitempty"` // seconds
 }
 
@@ -181,38 +180,18 @@ func (r *runner) handleRun(w http.ResponseWriter, req *http.Request) {
 }
 
 // buildGooseCmd constructs the goose command arguments.
-// When a recipe is provided, it writes it to a temp file and passes the task
-// via --params so goose's MiniJinja engine handles template substitution.
-// The caller must call the returned cleanup function when done.
-func buildGooseCmd(body RunRequest) ([]string, func()) {
-	var args []string
-	var cleanup func()
-
-	if body.Recipe != "" {
-		f, err := os.CreateTemp("", "goose-recipe-*.yaml")
-		if err != nil {
-			log.Printf("failed to create temp recipe file: %v", err)
-			args = []string{"goose", "run", "--text", body.Task}
-		} else {
-			f.WriteString(body.Recipe)
-			f.Close()
-			cleanup = func() { os.Remove(f.Name()) }
-			args = []string{
-				"goose", "run",
-				"--recipe", f.Name(),
-				"--params", "task_description=" + body.Task,
-				"--no-profile",
-			}
+// When a recipe path is provided, it passes it directly to goose along with
+// the task via --params so goose's MiniJinja engine handles template substitution.
+func buildGooseCmd(body RunRequest) []string {
+	if body.RecipePath != "" {
+		return []string{
+			"goose", "run",
+			"--recipe", body.RecipePath,
+			"--params", "task_description=" + body.Task,
+			"--no-profile",
 		}
-	} else {
-		args = []string{"goose", "run", "--text", body.Task}
 	}
-
-	if body.Model != "" {
-		args = append(args, "--model", body.Model)
-	}
-
-	return args, cleanup
+	return []string{"goose", "run", "--text", body.Task}
 }
 
 // runGoose spawns the goose process, captures output, and manages the
@@ -220,10 +199,7 @@ func buildGooseCmd(body RunRequest) ([]string, func()) {
 func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body RunRequest, inactivityTimeout time.Duration) {
 	defer cancel()
 
-	args, cleanup := buildGooseCmd(body)
-	if cleanup != nil {
-		defer cleanup()
-	}
+	args := buildGooseCmd(body)
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = workDir
 
