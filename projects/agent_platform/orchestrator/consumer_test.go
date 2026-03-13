@@ -521,3 +521,7 @@ func (e *errOnPutStore) Delete(ctx context.Context, id string) error {
 func (e *errOnPutStore) List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error) {
 	return e.inner.List(ctx, statusFilter, tagFilter, limit, offset)
 }
+
+func (e *errOnPutStore) ListByPipeline(ctx context.Context, pipelineID string) ([]JobRecord, error) {
+	return e.inner.ListByPipeline(ctx, pipelineID)
+}
