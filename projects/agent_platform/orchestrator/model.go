@@ -75,9 +75,10 @@ type Attempt struct {
 
 // GooseResult is a structured result parsed from the agent's output.
 type GooseResult struct {
-	Type    string `json:"type"`
-	URL     string `json:"url"`
-	Summary string `json:"summary"`
+	Type     string         `json:"type"`
+	URL      string         `json:"url"`
+	Summary  string         `json:"summary"`
+	Pipeline []PipelineStep `json:"pipeline,omitempty"`
 }
 
 // SubmitRequest is the JSON body for POST /jobs.

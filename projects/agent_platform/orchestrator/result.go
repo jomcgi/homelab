@@ -1,6 +1,9 @@
 package main
 
-import "strings"
+import (
+	"encoding/json"
+	"strings"
+)
 
 // parseGooseResult extracts a structured result from the agent's raw output.
 // It looks for the last ```goose-result fenced block and parses key: value
@@ -34,6 +37,11 @@ func parseGooseResult(raw string) *GooseResult {
 			result.URL = strings.TrimSpace(val)
 		case "summary":
 			result.Summary = strings.TrimSpace(val)
+		case "pipeline":
+			var steps []PipelineStep
+			if err := json.Unmarshal([]byte(strings.TrimSpace(val)), &steps); err == nil {
+				result.Pipeline = steps
+			}
 		}
 	}
 	return result
