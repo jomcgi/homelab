@@ -294,6 +294,51 @@ func TestBuildGooseCmd_RecipeTempFilePreservesTemplateVars(t *testing.T) {
 	}
 }
 
+func TestBuildGooseCmd_WithModel(t *testing.T) {
+	args, cleanup := buildGooseCmd(RunRequest{Task: "plan a pipeline", Model: "claude-opus-4-6"})
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	expected := []string{"goose", "run", "--text", "plan a pipeline", "--model", "claude-opus-4-6"}
+	if len(args) != len(expected) {
+		t.Fatalf("expected %v, got %v", expected, args)
+	}
+	for i := range expected {
+		if args[i] != expected[i] {
+			t.Fatalf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
+		}
+	}
+}
+
+func TestBuildGooseCmd_WithRecipeAndModel(t *testing.T) {
+	args, cleanup := buildGooseCmd(RunRequest{
+		Task:   "plan it",
+		Recipe: "version: '1.0.0'\ntitle: Test\n",
+		Model:  "claude-opus-4-6",
+	})
+	if cleanup != nil {
+		defer cleanup()
+	}
+
+	// Should have: goose run --recipe <file> --params ... --no-profile --model claude-opus-4-6
+	if len(args) != 9 {
+		t.Fatalf("expected 9 args, got %d: %v", len(args), args)
+	}
+	if args[7] != "--model" || args[8] != "claude-opus-4-6" {
+		t.Fatalf("expected --model claude-opus-4-6 at end, got %s %s", args[7], args[8])
+	}
+}
+
+func TestBuildGooseCmd_EmptyModelOmitted(t *testing.T) {
+	args, _ := buildGooseCmd(RunRequest{Task: "fix it"})
+	for _, arg := range args {
+		if arg == "--model" {
+			t.Fatal("--model should not appear when model is empty")
+		}
+	}
+}
+
 func TestBuildGooseCmd_YAMLHostileTask(t *testing.T) {
 	// YAML-special characters in the task are safe because they're passed via
 	// --params (CLI arg), not embedded in the recipe YAML.

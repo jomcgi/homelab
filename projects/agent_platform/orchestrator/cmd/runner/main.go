@@ -58,6 +58,7 @@ const maxOutputBytes = 50 * 1024 * 1024 // 50MB
 type RunRequest struct {
 	Task              string `json:"task"`
 	Recipe            string `json:"recipe,omitempty"`
+	Model             string `json:"model,omitempty"`
 	InactivityTimeout int    `json:"inactivity_timeout,omitempty"` // seconds
 }
 
@@ -184,23 +185,34 @@ func (r *runner) handleRun(w http.ResponseWriter, req *http.Request) {
 // via --params so goose's MiniJinja engine handles template substitution.
 // The caller must call the returned cleanup function when done.
 func buildGooseCmd(body RunRequest) ([]string, func()) {
+	var args []string
+	var cleanup func()
+
 	if body.Recipe != "" {
 		f, err := os.CreateTemp("", "goose-recipe-*.yaml")
 		if err != nil {
 			log.Printf("failed to create temp recipe file: %v", err)
-			return []string{"goose", "run", "--text", body.Task}, nil
+			args = []string{"goose", "run", "--text", body.Task}
+		} else {
+			f.WriteString(body.Recipe)
+			f.Close()
+			cleanup = func() { os.Remove(f.Name()) }
+			args = []string{
+				"goose", "run",
+				"--recipe", f.Name(),
+				"--params", "task_description=" + body.Task,
+				"--no-profile",
+			}
 		}
-		f.WriteString(body.Recipe)
-		f.Close()
-		cleanup := func() { os.Remove(f.Name()) }
-		return []string{
-			"goose", "run",
-			"--recipe", f.Name(),
-			"--params", "task_description=" + body.Task,
-			"--no-profile",
-		}, cleanup
+	} else {
+		args = []string{"goose", "run", "--text", body.Task}
 	}
-	return []string{"goose", "run", "--text", body.Task}, nil
+
+	if body.Model != "" {
+		args = append(args, "--model", body.Model)
+	}
+
+	return args, cleanup
 }
 
 // runGoose spawns the goose process, captures output, and manages the
