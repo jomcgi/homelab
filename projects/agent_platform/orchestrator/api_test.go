@@ -460,3 +460,106 @@ func TestHandleHealth(t *testing.T) {
 		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestHandlePipeline(t *testing.T) {
+	store := newMemStore()
+	logger := slog.Default()
+	recipes := map[string]map[string]any{
+		"ci-debug": {"version": "1.0.0"},
+		"code-fix": {"version": "1.0.0"},
+	}
+	var published []string
+	publish := func(id string) error {
+		published = append(published, id)
+		return nil
+	}
+	api := NewAPI(store, publish, nil, 2, nil, recipes, "", logger)
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+
+	body := `{"steps":[{"agent":"ci-debug","task":"debug CI","condition":"always"},{"agent":"code-fix","task":"fix it","condition":"on success"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/pipeline", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", rec.Code, rec.Body.String())
+	}
+
+	var resp PipelineResponse
+	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if resp.PipelineID == "" {
+		t.Fatal("expected non-empty pipeline_id")
+	}
+	if len(resp.Jobs) != 2 {
+		t.Fatalf("expected 2 jobs, got %d", len(resp.Jobs))
+	}
+
+	// First job should be PENDING (dispatched).
+	if resp.Jobs[0].Status != JobPending {
+		t.Fatalf("step 0: expected PENDING, got %s", resp.Jobs[0].Status)
+	}
+	// Second job should be BLOCKED.
+	if resp.Jobs[1].Status != JobBlocked {
+		t.Fatalf("step 1: expected BLOCKED, got %s", resp.Jobs[1].Status)
+	}
+
+	// Only first job should be published to NATS.
+	if len(published) != 1 {
+		t.Fatalf("expected 1 published job, got %d", len(published))
+	}
+
+	// Verify stored jobs have pipeline fields.
+	job0, _ := store.Get(context.Background(), resp.Jobs[0].ID)
+	if job0.PipelineID != resp.PipelineID {
+		t.Fatalf("job0 pipeline_id mismatch")
+	}
+	if job0.StepIndex != 0 {
+		t.Fatalf("job0 step_index: expected 0, got %d", job0.StepIndex)
+	}
+	if job0.Profile != "ci-debug" {
+		t.Fatalf("job0 profile: expected ci-debug, got %q", job0.Profile)
+	}
+
+	job1, _ := store.Get(context.Background(), resp.Jobs[1].ID)
+	if job1.StepCondition != "on success" {
+		t.Fatalf("job1 condition: expected 'on success', got %q", job1.StepCondition)
+	}
+}
+
+func TestHandlePipeline_EmptySteps(t *testing.T) {
+	store := newMemStore()
+	logger := slog.Default()
+	api := NewAPI(store, nil, nil, 2, nil, nil, "", logger)
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+
+	body := `{"steps":[]}`
+	req := httptest.NewRequest(http.MethodPost, "/pipeline", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandlePipeline_InvalidAgent(t *testing.T) {
+	store := newMemStore()
+	logger := slog.Default()
+	recipes := map[string]map[string]any{"ci-debug": {"version": "1.0.0"}}
+	api := NewAPI(store, nil, nil, 2, nil, recipes, "", logger)
+	mux := http.NewServeMux()
+	api.RegisterRoutes(mux)
+
+	body := `{"steps":[{"agent":"nonexistent","task":"test","condition":"always"}]}`
+	req := httptest.NewRequest(http.MethodPost, "/pipeline", bytes.NewBufferString(body))
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+	}
+}
