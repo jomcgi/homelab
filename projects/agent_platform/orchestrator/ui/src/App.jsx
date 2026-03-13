@@ -1,5 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import { listJobs, listAgents, submitPipeline, cancelJob } from "./api.js";
+import {
+  listJobs,
+  listAgents,
+  submitPipeline,
+  cancelJob,
+  submitJob,
+  getJob,
+} from "./api.js";
 import PipelineComposer from "./PipelineComposer.jsx";
 import { CONDITION_STYLES } from "./pipeline-config.js";
 
@@ -1203,6 +1210,12 @@ export default function App() {
   );
   const isMobile = windowWidth < 640;
 
+  // Deep Plan state
+  const [deepPlanJobId, setDeepPlanJobId] = useState(null);
+  const [deepPlanStatus, setDeepPlanStatus] = useState(null); // null | "running" | "done" | "failed"
+  const [analysisUrl, setAnalysisUrl] = useState(null);
+  const [deepPlanResult, setDeepPlanResult] = useState(null);
+
   const notify = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -1268,6 +1281,63 @@ export default function App() {
     [fetchJobs],
   );
 
+  // ── Deep Plan ───────────────────────────────────────────────────────────
+  const handleDeepPlan = useCallback(async (prompt, currentPipeline) => {
+    try {
+      let task = prompt;
+      if (currentPipeline?.length > 0) {
+        task = `## Goal\n${prompt}\n\n## Previous Pipeline\n${JSON.stringify(currentPipeline, null, 2)}\n\nPlease refine this pipeline based on the goal above.`;
+      }
+
+      const result = await submitJob({
+        task,
+        profile: "deep-plan",
+        tags: "deep-plan",
+        source: "dashboard",
+      });
+      setDeepPlanJobId(result.id);
+      setDeepPlanStatus("running");
+      setAnalysisUrl(null);
+      setDeepPlanResult(null);
+    } catch (err) {
+      notify("Deep Plan failed: " + err.message);
+      setDeepPlanStatus("failed");
+    }
+  }, []);
+
+  // Poll for deep plan job completion
+  useEffect(() => {
+    if (!deepPlanJobId || deepPlanStatus !== "running") return;
+
+    const poll = async () => {
+      try {
+        const job = await getJob(deepPlanJobId);
+        if (job.status === "SUCCEEDED") {
+          const result = getResult(job);
+          if (result?.pipeline) {
+            setDeepPlanResult(result.pipeline);
+            setDeepPlanStatus("done");
+            setAnalysisUrl(result.url || null);
+            notify("Deep Plan complete");
+          } else {
+            setDeepPlanStatus("done");
+            setAnalysisUrl(result?.url || null);
+            notify("Deep Plan complete (no pipeline returned)");
+          }
+        } else if (job.status === "FAILED" || job.status === "CANCELLED") {
+          setDeepPlanStatus("failed");
+          notify("Deep Plan " + job.status.toLowerCase());
+        }
+      } catch {
+        // Retry on next poll
+      }
+    };
+
+    const id = setInterval(poll, POLL_INTERVAL);
+    poll(); // Immediate first check
+    return () => clearInterval(id);
+  }, [deepPlanJobId, deepPlanStatus]);
+
   return (
     <div
       style={{
@@ -1296,7 +1366,14 @@ export default function App() {
           padding: isMobile ? "32px 16px 96px" : "64px 32px 96px",
         }}
       >
-        <PipelineComposer agents={agents} onSubmit={handlePipelineSubmit} />
+        <PipelineComposer
+          agents={agents}
+          onSubmit={handlePipelineSubmit}
+          onDeepPlan={handleDeepPlan}
+          deepPlanStatus={deepPlanStatus}
+          analysisUrl={analysisUrl}
+          deepPlanResult={deepPlanResult}
+        />
 
         {jobs.length > 0 && (
           <div style={{ marginTop: 32 }}>
