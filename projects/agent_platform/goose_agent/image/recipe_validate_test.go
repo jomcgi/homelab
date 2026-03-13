@@ -127,6 +127,21 @@ func TestRecipeYAML(t *testing.T) {
 				}
 			}
 
+			// --- instructions must contain the goose-result output format ---
+			// The orchestrator's parseGooseResult function expects a fenced
+			// ```goose-result block with type, url, and summary fields.
+			// Without this block, job results are nil and the UI shows raw output.
+			if r.Instructions != "" {
+				if !strings.Contains(r.Instructions, "```goose-result") {
+					t.Errorf("recipe %s: instructions missing ```goose-result output format block", name)
+				}
+				for _, field := range []string{"type:", "url:", "summary:"} {
+					if !strings.Contains(r.Instructions, field) {
+						t.Errorf("recipe %s: instructions missing required result field %q in goose-result block", name, field)
+					}
+				}
+			}
+
 			// --- template variables in prompt/instructions must be declared as parameters ---
 			paramKeys := make(map[string]bool)
 			for _, p := range r.Parameters {
