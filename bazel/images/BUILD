@@ -42,6 +42,7 @@ multirun(
         "//bazel/tools/hf2oci:image.push",
         "//bazel/tools/image:image.push",
         "//projects/agent_platform/chart:chart.push",
+        "//projects/agent_platform/chat_bot/deploy:chart.push",
         "//projects/agent_platform/chat_bot:image.push",
         "//projects/agent_platform/cluster_agents/deploy:chart.push",
         "//projects/agent_platform/cluster_agents:image.push",
