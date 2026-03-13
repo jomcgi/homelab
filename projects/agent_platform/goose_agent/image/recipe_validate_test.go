@@ -50,6 +50,140 @@ var unsafePromptRe = regexp.MustCompile(`(?m)^\s*prompt:\s*"[^"]*\{\{[^"]*`)
 // The fix is to use the indent filter: `{{ var | indent(2) }}`.
 var bareTemplateVarInBlockRe = regexp.MustCompile(`(?m)^\s+\{\{\s*[a-zA-Z_]\w*\s*\}\}\s*$`)
 
+// Goose recipe field allowlists — derived from the official goose recipe
+// reference (https://github.com/block/goose CONTRIBUTING_RECIPES.md and
+// documentation/docs/guides/recipes/recipe-reference.md). Unknown fields
+// cause serde_yaml "did not find expected key" errors at runtime because
+// goose deserializes recipes into typed Rust structs.
+var (
+	// Top-level recipe fields.
+	recipeTopLevelFields = map[string]bool{
+		"version": true, "title": true, "description": true,
+		"instructions": true, "prompt": true,
+		"parameters": true, "extensions": true, "settings": true,
+		"activities": true, "author": true, "retry": true, "response": true,
+	}
+
+	// Fields shared by all extension types.
+	extensionCommonFields = map[string]bool{
+		"type": true, "name": true, "timeout": true,
+		"bundled": true, "display_name": true, "description": true,
+		"available_tools": true, "enabled": true,
+	}
+
+	// Additional fields allowed per extension type.
+	extensionTypeFields = map[string]map[string]bool{
+		"builtin": {},
+		"stdio": {
+			"cmd": true, "args": true, "env_keys": true, "envs": true,
+		},
+		"streamable_http": {
+			"uri": true,
+		},
+		"sse": {
+			"uri": true,
+		},
+	}
+
+	// Parameter object fields.
+	parameterFields = map[string]bool{
+		"key": true, "input_type": true, "requirement": true,
+		"description": true, "default": true, "value": true,
+	}
+)
+
+// checkFields reports an error for each key in got that isn't in the allowed set.
+func checkFields(t *testing.T, context string, got map[string]any, allowed map[string]bool) {
+	t.Helper()
+	for k := range got {
+		if !allowed[k] {
+			t.Errorf("%s: unknown field %q (not in goose recipe schema)", context, k)
+		}
+	}
+}
+
+// TestRecipeSchemaFields validates that every field in every recipe file is a
+// known goose recipe field. This catches errors like adding an unsupported
+// "headers" key to a streamable_http extension, which goose's serde_yaml
+// rejects at runtime with "did not find expected key".
+func TestRecipeSchemaFields(t *testing.T) {
+	entries, err := recipesFS.ReadDir("recipes")
+	if err != nil {
+		t.Fatalf("failed to read recipes directory: %v", err)
+	}
+
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+
+		name := strings.TrimSuffix(entry.Name(), ".yaml")
+		raw, err := recipesFS.ReadFile("recipes/" + entry.Name())
+		if err != nil {
+			t.Fatalf("failed to read recipe %s: %v", name, err)
+		}
+
+		t.Run(name, func(t *testing.T) {
+			var recipe map[string]any
+			if err := yaml.Unmarshal(raw, &recipe); err != nil {
+				t.Fatalf("failed to parse YAML: %v", err)
+			}
+
+			// Top-level fields.
+			checkFields(t, name, recipe, recipeTopLevelFields)
+
+			// Extensions.
+			if exts, ok := recipe["extensions"]; ok {
+				extSlice, ok := exts.([]any)
+				if !ok {
+					t.Fatalf("%s: extensions is not an array", name)
+				}
+				for i, ext := range extSlice {
+					extMap, ok := ext.(map[string]any)
+					if !ok {
+						t.Errorf("%s: extensions[%d] is not a map", name, i)
+						continue
+					}
+
+					// Build the full allowed set: common + type-specific.
+					allowed := make(map[string]bool)
+					for k, v := range extensionCommonFields {
+						allowed[k] = v
+					}
+					extType, _ := extMap["type"].(string)
+					if typeSpecific, ok := extensionTypeFields[extType]; ok {
+						for k, v := range typeSpecific {
+							allowed[k] = v
+						}
+					} else if extType != "" {
+						t.Errorf("%s: extensions[%d]: unknown extension type %q", name, i, extType)
+					}
+
+					loc := fmt.Sprintf("%s extensions[%d] (type=%s, name=%v)", name, i, extType, extMap["name"])
+					checkFields(t, loc, extMap, allowed)
+				}
+			}
+
+			// Parameters.
+			if params, ok := recipe["parameters"]; ok {
+				paramSlice, ok := params.([]any)
+				if !ok {
+					t.Fatalf("%s: parameters is not an array", name)
+				}
+				for i, param := range paramSlice {
+					paramMap, ok := param.(map[string]any)
+					if !ok {
+						t.Errorf("%s: parameters[%d] is not a map", name, i)
+						continue
+					}
+					loc := fmt.Sprintf("%s parameters[%d] (key=%v)", name, i, paramMap["key"])
+					checkFields(t, loc, paramMap, parameterFields)
+				}
+			}
+		})
+	}
+}
+
 func TestRecipeYAML(t *testing.T) {
 	entries, err := recipesFS.ReadDir("recipes")
 	if err != nil {
