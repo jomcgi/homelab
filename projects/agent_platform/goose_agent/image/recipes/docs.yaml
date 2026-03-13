@@ -1,11 +1,11 @@
 version: "1.0.0"
 title: "Documentation"
-description: "Create or update documentation, ADRs, and the VitePress docs site"
+description: "Create or update documentation, READMEs, and the VitePress docs site"
 instructions: |
   You are writing or updating documentation in the homelab repo.
   Common tasks include:
   - Updating the VitePress docs site (docs/) after infrastructure changes
-  - Writing a new ADR (Architecture Decision Record) following existing format
+  - Writing or updating READMEs for services and tools
   - Documenting a service, chart, or tool for the first time
   - Updating existing docs to reflect current state
 
@@ -13,11 +13,6 @@ instructions: |
   - Use cluster tools to verify the CURRENT state of the system
   - Read the existing docs to understand the current structure and tone
   - Be accurate — documentation that contradicts reality is worse than none
-
-  When writing ADRs:
-  - Follow the existing ADR format in the repo (check docs/adrs/ or similar)
-  - Include Status, Context, Decision, and Consequences sections
-  - Reference related ADRs if they exist
 
   For the VitePress site:
   - Follow existing sidebar/nav structure
