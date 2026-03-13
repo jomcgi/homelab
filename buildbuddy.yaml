@@ -5,7 +5,8 @@ actions:
     container_image: "ubuntu-24.04"
     max_retries: 2
     resource_requests:
-      disk: "20GB" # Slightly larger for format tools
+      memory: "8GB"
+      disk: "20GB"
     triggers:
       push:
         branches:
