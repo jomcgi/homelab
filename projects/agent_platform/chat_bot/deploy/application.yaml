@@ -1,0 +1,28 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: chat-bot
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: ghcr.io/jomcgi/homelab/charts
+    chart: chat-bot
+    targetRevision: 0.1.0
+    helm:
+      releaseName: chat-bot
+      valuesObject:
+        imagePullSecret:
+          enabled: true
+        config:
+          ownerDiscordUserId: ""
+          notificationChannelMap: ""
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: chat-bot
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
