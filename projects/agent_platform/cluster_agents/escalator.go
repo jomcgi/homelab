@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -29,8 +30,9 @@ type orchestratorListResponse struct {
 }
 
 type orchestratorJob struct {
-	ID     string `json:"id"`
-	Status string `json:"status"`
+	ID        string `json:"id"`
+	Status    string `json:"status"`
+	CommitSHA string `json:"commit_sha"`
 }
 
 type Escalator struct {
@@ -154,6 +156,9 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ta
 	if profile, ok := action.Payload["profile"].(string); ok && profile != "" {
 		jobReq["profile"] = profile
 	}
+	if commitRange, ok := action.Finding.Data["commit_range"].(string); ok && commitRange != "" {
+		jobReq["commit_sha"] = headSHA(commitRange)
+	}
 
 	body, _ := json.Marshal(jobReq)
 
@@ -185,4 +190,13 @@ func ruleIDFromFinding(f Finding) string {
 		return fmt.Sprintf("%v", id)
 	}
 	return f.Fingerprint
+}
+
+// headSHA returns the head (latest) commit SHA from a commit range.
+// For a plain SHA it returns the SHA unchanged; for "old..new" it returns "new".
+func headSHA(commitRange string) string {
+	if idx := strings.LastIndex(commitRange, ".."); idx >= 0 {
+		return commitRange[idx+2:]
+	}
+	return commitRange
 }

@@ -33,7 +33,6 @@ type ghHead struct {
 type ghPullRequest struct {
 	Number    int       `json:"number"`
 	Head      ghHead    `json:"head"`
-	PushedAt  time.Time `json:"pushed_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
@@ -169,7 +168,7 @@ func (g *GitHubClient) OpenPRsWithFailingChecks(ctx context.Context, staleThresh
 	var failing []ghPullRequest
 
 	for _, pr := range prs {
-		if pr.PushedAt.After(cutoff) {
+		if pr.UpdatedAt.After(cutoff) {
 			continue
 		}
 

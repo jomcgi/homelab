@@ -113,8 +113,8 @@ func TestGitHubClient_LatestNonBotCommit_APIError(t *testing.T) {
 
 func TestGitHubClient_OpenPRsWithFailingChecks(t *testing.T) {
 	now := time.Now()
-	stalePushedAt := now.Add(-2 * time.Hour)
-	freshPushedAt := now.Add(-10 * time.Minute)
+	staleUpdatedAt := now.Add(-2 * time.Hour)
+	freshUpdatedAt := now.Add(-10 * time.Minute)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -123,14 +123,12 @@ func TestGitHubClient_OpenPRsWithFailingChecks(t *testing.T) {
 				{
 					Number:    42,
 					Head:      ghHead{Ref: "fix/stale-branch", SHA: "sha42"},
-					PushedAt:  stalePushedAt,
-					UpdatedAt: stalePushedAt,
+					UpdatedAt: staleUpdatedAt,
 				},
 				{
 					Number:    43,
 					Head:      ghHead{Ref: "feat/fresh-branch", SHA: "sha43"},
-					PushedAt:  freshPushedAt,
-					UpdatedAt: freshPushedAt,
+					UpdatedAt: freshUpdatedAt,
 				},
 			}
 			json.NewEncoder(w).Encode(prs)
@@ -166,7 +164,7 @@ func TestGitHubClient_OpenPRsWithFailingChecks(t *testing.T) {
 
 func TestGitHubClient_OpenPRsWithFailingChecks_AllPassing(t *testing.T) {
 	now := time.Now()
-	stalePushedAt := now.Add(-2 * time.Hour)
+	staleUpdatedAt := now.Add(-2 * time.Hour)
 
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
@@ -175,8 +173,7 @@ func TestGitHubClient_OpenPRsWithFailingChecks_AllPassing(t *testing.T) {
 				{
 					Number:    42,
 					Head:      ghHead{Ref: "fix/stale-branch", SHA: "sha42"},
-					PushedAt:  stalePushedAt,
-					UpdatedAt: stalePushedAt,
+					UpdatedAt: staleUpdatedAt,
 				},
 			}
 			json.NewEncoder(w).Encode(prs)

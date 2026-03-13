@@ -22,7 +22,7 @@ func TestGitActivityGate_NewCommits(t *testing.T) {
 		}
 		resp := orchestratorListResponse{
 			Jobs: []orchestratorJob{
-				{ID: "job-1", Status: "SUCCEEDED"},
+				{ID: "job-1", Status: "SUCCEEDED", CommitSHA: "old123"},
 			},
 			Total: 1,
 		}
@@ -58,8 +58,8 @@ func TestGitActivityGate_NewCommits(t *testing.T) {
 	if !hasActivity {
 		t.Error("expected hasActivity=true")
 	}
-	if commitRange == "" {
-		t.Error("expected non-empty commitRange")
+	if commitRange != "old123..new456" {
+		t.Errorf("expected commitRange=old123..new456, got %s", commitRange)
 	}
 }
 
