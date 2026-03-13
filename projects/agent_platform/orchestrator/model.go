@@ -24,6 +24,7 @@ type AgentInfo struct {
 	Foreground  string         `json:"fg"`
 	Description string         `json:"desc"`
 	Category    string         `json:"category"`
+	Model       string         `json:"model,omitempty"`
 	Recipe      map[string]any `json:"recipe,omitempty"`
 }
 
