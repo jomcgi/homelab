@@ -216,6 +216,71 @@ func TestHandleRun_RejectsWhileRunning(t *testing.T) {
 	}
 }
 
+func TestHandleRun_AcceptsAfterCompletion(t *testing.T) {
+	r := newTestRunner()
+
+	// Simulate a completed session.
+	r.mu.Lock()
+	r.state = StateDone
+	code := 0
+	r.exitCode = &code
+	now := time.Now()
+	r.startedAt = &now
+	r.output = []byte("previous output")
+	r.mu.Unlock()
+
+	// POST /run should be accepted (not 409 Conflict).
+	body := `{"task":"second task"}`
+	req := httptest.NewRequest("POST", "/run", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	r.handleRun(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Previous output should be cleared.
+	r.mu.RLock()
+	if len(r.output) != 0 {
+		t.Errorf("expected output to be cleared, got %d bytes", len(r.output))
+	}
+	r.mu.RUnlock()
+}
+
+func TestHandleRun_AcceptsAfterFailure(t *testing.T) {
+	r := newTestRunner()
+
+	// Simulate a failed session.
+	r.mu.Lock()
+	r.state = StateFailed
+	code := 1
+	r.exitCode = &code
+	now := time.Now()
+	r.startedAt = &now
+	r.output = []byte("error output")
+	r.mu.Unlock()
+
+	// POST /run should be accepted (not 409 Conflict).
+	body := `{"task":"retry task"}`
+	req := httptest.NewRequest("POST", "/run", strings.NewReader(body))
+	w := httptest.NewRecorder()
+	r.handleRun(w, req)
+
+	if w.Code != http.StatusAccepted {
+		t.Fatalf("expected 202, got %d: %s", w.Code, w.Body.String())
+	}
+
+	// Previous state should be fully reset.
+	r.mu.RLock()
+	if r.exitCode != nil {
+		t.Errorf("expected exitCode to be nil, got %d", *r.exitCode)
+	}
+	if len(r.output) != 0 {
+		t.Errorf("expected output to be cleared, got %d bytes", len(r.output))
+	}
+	r.mu.RUnlock()
+}
+
 func TestBuildGooseCmd_NoRecipe(t *testing.T) {
 	args := buildGooseCmd(RunRequest{Task: "fix the bug"})
 
