@@ -24,7 +24,7 @@ flowchart LR
 
 ## Data Collected
 
-- Route names, descriptions, and difficulty ratings
+- Route names and descriptions
 - GPS coordinates
 - Distance, elevation gain, and estimated duration
 - Weather forecasts for route locations
@@ -45,7 +45,6 @@ Environment variables:
 
 | Variable                          | Description                | Default                           |
 | --------------------------------- | -------------------------- | --------------------------------- |
-| `LOG_LEVEL`                       | Logging verbosity          | `INFO`                            |
 | `CLOUDFLARE_S3_ENDPOINT`          | Cloudflare R2 endpoint URL | *(required for update_forecast)*  |
 | `CLOUDFLARE_S3_ACCESS_KEY_ID`     | R2 access key ID           | *(required for update_forecast)*  |
 | `CLOUDFLARE_S3_ACCESS_KEY_SECRET` | R2 access key secret       | *(required for update_forecast)*  |
