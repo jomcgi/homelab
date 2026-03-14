@@ -1,6 +1,7 @@
 # gazelle:semgrep disabled
 # gazelle:exclude golang
 # gazelle:exclude python
+# gazelle:exclude yaml
 
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 
@@ -19,6 +20,14 @@ filegroup(
 filegroup(
     name = "dockerfile_rules",
     srcs = glob(["dockerfile/*.yaml"]),
+)
+
+filegroup(
+    name = "yaml_rules",
+    srcs = glob(
+        ["yaml/*.yaml"],
+        allow_empty = True,
+    ),
 )
 
 filegroup(
@@ -79,6 +88,14 @@ filegroup(
         "@semgrep_pro_rules_kubernetes//:rules",
         "@semgrep_pro_rules_python//:rules",
     ],
+)
+
+semgrep_test(
+    name = "yaml_rules_test",
+    srcs = ["//bazel/semgrep/tests:yaml_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":yaml_rules"],
+    tags = ["semgrep"],
 )
 
 semgrep_test(

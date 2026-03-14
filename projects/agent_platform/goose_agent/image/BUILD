@@ -2,6 +2,7 @@ load("@aspect_bazel_lib//lib:tar.bzl", "tar")
 load("@aspect_bazel_lib//lib:transitions.bzl", "platform_transition_filegroup")
 load("@rules_go//go:def.bzl", "go_test")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
 
 filegroup(
@@ -109,4 +110,14 @@ go_test(
     srcs = ["recipe_validate_test.go"],
     embedsrcs = glob(["recipes/*.yaml"]),
     deps = ["@in_gopkg_yaml_v3//:yaml_v3"],
+)
+
+# Enforce Goose recipe schema rules on all recipe YAML files and the base config.
+# Catches unsupported extension fields (e.g. headers: in streamable_http) that
+# Goose's serde_yaml rejects at runtime with "Invalid recipe: did not find expected key".
+semgrep_test(
+    name = "recipes_semgrep_test",
+    srcs = glob(["recipes/*.yaml"]) + ["config.yaml"],
+    rules = ["//bazel/semgrep/rules:yaml_rules"],
+    tags = ["semgrep"],
 )
