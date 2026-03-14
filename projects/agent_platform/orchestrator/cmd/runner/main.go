@@ -16,6 +16,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -194,6 +195,71 @@ func (r *runner) handleRun(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprint(w, `{"status":"accepted"}`)
 }
 
+// parsedStep is the raw step from the goose-result pipeline JSON.
+type parsedStep struct {
+	Agent     string `json:"agent"`
+	Task      string `json:"task"`
+	Condition string `json:"condition"`
+}
+
+// parsePlanFromOutput extracts pipeline steps from a goose-result block.
+// Returns empty slice (not error) if the result type is not "pipeline".
+func parsePlanFromOutput(output string) ([]parsedStep, error) {
+	const startMarker = "```goose-result\n"
+	const endMarker = "\n```"
+
+	lastStart := strings.LastIndex(output, startMarker)
+	if lastStart == -1 {
+		return nil, nil
+	}
+	content := output[lastStart+len(startMarker):]
+	endIdx := strings.Index(content, endMarker)
+	if endIdx == -1 {
+		return nil, nil
+	}
+	content = content[:endIdx]
+
+	var resultType string
+	var pipelineJSON string
+	for _, line := range strings.Split(content, "\n") {
+		key, val, ok := strings.Cut(line, ": ")
+		if !ok {
+			continue
+		}
+		switch strings.TrimSpace(key) {
+		case "type":
+			resultType = strings.TrimSpace(val)
+		case "pipeline":
+			pipelineJSON = strings.TrimSpace(val)
+		}
+	}
+
+	if resultType != "pipeline" || pipelineJSON == "" {
+		return nil, nil
+	}
+
+	var steps []parsedStep
+	if err := json.Unmarshal([]byte(pipelineJSON), &steps); err != nil {
+		return nil, fmt.Errorf("parsing pipeline JSON: %w", err)
+	}
+	return steps, nil
+}
+
+// buildGooseCmdFromFile constructs goose command arguments using a recipe file
+// path directly (no temp file needed). Used for autonomous pipeline execution.
+func buildGooseCmdFromFile(recipePath, task, model string) []string {
+	args := []string{
+		"goose", "run",
+		"--recipe", recipePath,
+		"--params", "task_description=" + task,
+		"--no-profile",
+	}
+	if model != "" {
+		args = append(args, "--model", model)
+	}
+	return args
+}
+
 // buildGooseCmd constructs the goose command arguments.
 // When a recipe path is provided, it passes it directly to goose along with
 // the task via --params so goose's MiniJinja engine handles template substitution.
@@ -209,12 +275,10 @@ func buildGooseCmd(body RunRequest) []string {
 	return []string{"goose", "run", "--text", body.Task}
 }
 
-// runGoose spawns the goose process, captures output, and manages the
-// inactivity watchdog. It runs in a background goroutine.
-func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body RunRequest, inactivityTimeout time.Duration) {
-	defer cancel()
-
-	args := buildGooseCmd(body)
+// runSession spawns a single goose process with the given args, captures output,
+// and manages the inactivity watchdog. Returns the exit code and any error.
+// Output is appended to r.output (accumulates across sessions).
+func (r *runner) runSession(ctx context.Context, args []string, inactivityTimeout time.Duration) (int, error) {
 	cmd := exec.CommandContext(ctx, args[0], args[1:]...)
 	cmd.Dir = workDir
 
@@ -224,15 +288,13 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 	cmd.Stderr = pw
 
 	if err := cmd.Start(); err != nil {
-		log.Printf("failed to start goose: %v", err)
+		msg := fmt.Sprintf("failed to start goose: %v\n", err)
+		log.Print(msg)
 		r.mu.Lock()
-		r.state = StateFailed
-		code := -1
-		r.exitCode = &code
-		r.output = []byte(fmt.Sprintf("failed to start goose: %v\n", err))
+		r.output = append(r.output, []byte(msg)...)
 		r.mu.Unlock()
 		pw.Close()
-		return
+		return -1, err
 	}
 
 	r.mu.Lock()
@@ -242,7 +304,6 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 	log.Printf("goose started: pid=%d args=%v", cmd.Process.Pid, args)
 
 	// Read output in a goroutine, feeding both stdout and the in-memory buffer.
-	// Track last activity time for the inactivity watchdog.
 	lastActivity := time.Now()
 	var lastActivityMu sync.Mutex
 
@@ -253,10 +314,8 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		for {
 			n, err := pr.Read(buf)
 			if n > 0 {
-				// Write to stdout for pod logs.
 				os.Stdout.Write(buf[:n])
 
-				// Append to in-memory buffer, capping at maxOutputBytes.
 				r.mu.Lock()
 				r.output = append(r.output, buf[:n]...)
 				if len(r.output) > maxOutputBytes {
@@ -274,7 +333,10 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		}
 	}()
 
-	// Inactivity watchdog: periodically check if goose has gone quiet.
+	// Inactivity watchdog.
+	sessionCtx, sessionCancel := context.WithCancel(ctx)
+	defer sessionCancel()
+
 	watchdogDone := make(chan struct{})
 	go func() {
 		defer close(watchdogDone)
@@ -282,7 +344,7 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		defer ticker.Stop()
 		for {
 			select {
-			case <-ctx.Done():
+			case <-sessionCtx.Done():
 				return
 			case <-ticker.C:
 				lastActivityMu.Lock()
@@ -300,25 +362,184 @@ func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body R
 		}
 	}()
 
-	// Wait for goose to exit.
 	err := cmd.Wait()
 	pw.Close()
 	<-doneCh
-	cancel() // Stop watchdog.
+	sessionCancel()
 	<-watchdogDone
 
-	r.mu.Lock()
-	code := cmd.ProcessState.ExitCode()
-	r.exitCode = &code
-	if err != nil {
-		r.state = StateFailed
+	exitCode := cmd.ProcessState.ExitCode()
+	log.Printf("goose exited: pid=%d exit_code=%d", cmd.Process.Pid, exitCode)
+	return exitCode, err
+}
+
+// runGoose spawns the goose process, captures output, and manages the
+// inactivity watchdog. It runs in a background goroutine.
+//
+// When DEEP_PLAN_RECIPE is set, it runs the deep-plan session first, parses
+// the output for a pipeline, then executes each step sequentially.
+func (r *runner) runGoose(ctx context.Context, cancel context.CancelFunc, body RunRequest, inactivityTimeout time.Duration) {
+	defer cancel()
+
+	deepPlanRecipe := os.Getenv("DEEP_PLAN_RECIPE")
+
+	// Determine initial session args.
+	var args []string
+	if deepPlanRecipe != "" {
+		// Autonomous mode: use deep-plan recipe from disk.
+		args = buildGooseCmdFromFile(deepPlanRecipe, body.Task, "")
 	} else {
+		args = buildGooseCmd(body)
+	}
+
+	// Run the initial session.
+	exitCode, err := r.runSession(ctx, args, inactivityTimeout)
+
+	// If not in autonomous mode or the session failed, finalize and return.
+	if deepPlanRecipe == "" || err != nil {
+		r.mu.Lock()
+		r.exitCode = &exitCode
+		if err != nil {
+			r.state = StateFailed
+		} else {
+			r.state = StateDone
+		}
+		finalState := r.state
+		r.mu.Unlock()
+		log.Printf("goose session finished: exit_code=%d state=%s", exitCode, finalState)
+		return
+	}
+
+	// Autonomous mode: parse the plan from deep-plan output.
+	r.mu.RLock()
+	outputSnapshot := string(r.output)
+	r.mu.RUnlock()
+
+	steps, parseErr := parsePlanFromOutput(outputSnapshot)
+	if parseErr != nil {
+		log.Printf("failed to parse plan from output: %v", parseErr)
+		r.mu.Lock()
+		r.exitCode = &exitCode
 		r.state = StateDone
+		r.mu.Unlock()
+		return
+	}
+
+	if len(steps) == 0 {
+		// No pipeline produced — single session mode, complete normally.
+		log.Printf("deep-plan produced no pipeline, completing as single session")
+		r.mu.Lock()
+		r.exitCode = &exitCode
+		r.state = StateDone
+		r.mu.Unlock()
+		return
+	}
+
+	// Build plan steps and expose via status.
+	recipesDir := os.Getenv("RECIPES_DIR")
+	if recipesDir == "" {
+		log.Printf("RECIPES_DIR not set, cannot execute pipeline steps")
+		r.mu.Lock()
+		r.exitCode = &exitCode
+		r.state = StateFailed
+		r.mu.Unlock()
+		return
+	}
+	planSteps := make([]PlanStep, len(steps))
+	for i, s := range steps {
+		planSteps[i] = PlanStep{
+			Agent:       s.Agent,
+			Description: s.Task,
+			Status:      "pending",
+		}
+	}
+
+	r.mu.Lock()
+	r.plan = planSteps
+	r.currentStep = 0
+	r.mu.Unlock()
+
+	log.Printf("deep-plan produced %d pipeline steps, executing sequentially", len(steps))
+
+	// Execute each step sequentially.
+	var lastExitCode int
+	var lastErr error
+	for i, step := range steps {
+		// Check context cancellation.
+		if ctx.Err() != nil {
+			r.mu.Lock()
+			r.plan[i].Status = "skipped"
+			r.mu.Unlock()
+			continue
+		}
+
+		// Evaluate condition.
+		if i > 0 && step.Condition == "on success" && lastErr != nil {
+			log.Printf("skipping step %d (%s): previous step failed", i, step.Agent)
+			r.mu.Lock()
+			r.plan[i].Status = "skipped"
+			r.mu.Unlock()
+			continue
+		}
+
+		// Load recipe from disk.
+		recipePath := filepath.Join(recipesDir, step.Agent+".yaml")
+		if _, statErr := os.Stat(recipePath); statErr != nil {
+			log.Printf("recipe not found for step %d (%s): %v", i, step.Agent, statErr)
+			r.mu.Lock()
+			r.plan[i].Status = "failed"
+			r.mu.Unlock()
+			lastErr = statErr
+			continue
+		}
+
+		// Update status to running.
+		r.mu.Lock()
+		r.plan[i].Status = "running"
+		r.currentStep = i
+		r.mu.Unlock()
+
+		// Add separator in output.
+		separator := fmt.Sprintf("\n--- pipeline step %d: %s ---\n", i, step.Agent)
+		r.mu.Lock()
+		r.output = append(r.output, []byte(separator)...)
+		r.mu.Unlock()
+
+		stepArgs := buildGooseCmdFromFile(recipePath, step.Task, "")
+		lastExitCode, lastErr = r.runSession(ctx, stepArgs, inactivityTimeout)
+
+		// Update status based on result.
+		r.mu.Lock()
+		if lastErr != nil {
+			r.plan[i].Status = "failed"
+		} else {
+			r.plan[i].Status = "completed"
+		}
+		r.mu.Unlock()
+
+		log.Printf("pipeline step %d (%s) finished: exit_code=%d", i, step.Agent, lastExitCode)
+	}
+
+	// Finalize state.
+	r.mu.Lock()
+	r.exitCode = &lastExitCode
+	// Check if any step failed.
+	allSucceeded := true
+	for _, ps := range r.plan {
+		if ps.Status == "failed" {
+			allSucceeded = false
+			break
+		}
+	}
+	if allSucceeded {
+		r.state = StateDone
+	} else {
+		r.state = StateFailed
 	}
 	finalState := r.state
 	r.mu.Unlock()
 
-	log.Printf("goose exited: pid=%d exit_code=%d state=%s", cmd.Process.Pid, code, finalState)
+	log.Printf("pipeline finished: state=%s", finalState)
 }
 
 func main() {
