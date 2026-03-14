@@ -34,7 +34,6 @@ go_library(
         "enrich.go",
         "main.go",
         "model.go",
-        "recipe.go",
         "reconcile.go",
         "result.go",
         "sandbox.go",
@@ -48,7 +47,6 @@ go_library(
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
         "@com_github_oklog_ulid_v2//:ulid",
-        "@in_gopkg_yaml_v3//:yaml_v3",
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
@@ -94,7 +92,6 @@ go_test(
         "consumer_test.go",
         "enrich_test.go",
         "main_test.go",
-        "recipe_test.go",
         "reconcile_test.go",
         "result_test.go",
         "sandbox_test.go",
@@ -107,7 +104,6 @@ go_test(
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
-        "@in_gopkg_yaml_v3//:yaml_v3",
     ],
 )
 
