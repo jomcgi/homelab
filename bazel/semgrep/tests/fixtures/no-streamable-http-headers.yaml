@@ -2,7 +2,6 @@
 # Goose recipes must not include 'headers:' in streamable_http extensions —
 # Goose's serde_yaml rejects unknown fields with "Invalid recipe: did not find expected key".
 ---
-
 # ruleid: no-streamable-http-headers
 extensions:
   - type: streamable_http
@@ -13,7 +12,6 @@ extensions:
       Authorization: "Bearer ${CI_DEBUG_MCP_TOKEN}"
 
 ---
-
 # ruleid: no-streamable-http-headers
 extensions:
   - type: streamable_http
@@ -24,7 +22,6 @@ extensions:
     timeout: 60
 
 ---
-
 # ok: no-streamable-http-headers — env_keys is the correct pattern
 extensions:
   - type: streamable_http
@@ -35,7 +32,6 @@ extensions:
       - MY_API_TOKEN
 
 ---
-
 # ok: no-streamable-http-headers — in-cluster access with no auth
 extensions:
   - type: streamable_http
@@ -44,7 +40,6 @@ extensions:
     timeout: 300
 
 ---
-
 # ok: no-streamable-http-headers — headers in stdio type is a different rule
 extensions:
   - type: stdio
