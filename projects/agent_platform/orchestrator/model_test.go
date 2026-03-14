@@ -222,9 +222,9 @@ func TestJobRecord_PipelineFields(t *testing.T) {
 // TestPipelineStep_RoundTrip verifies PipelineStep JSON round-trip.
 func TestPipelineStep_RoundTrip(t *testing.T) {
 	cases := []struct {
-		name      string
-		step      PipelineStep
-		wantCond  string
+		name     string
+		step     PipelineStep
+		wantCond string
 	}{
 		{"always", PipelineStep{Agent: "ci-debug", Task: "debug", Condition: "always"}, "always"},
 		{"on success", PipelineStep{Agent: "code-fix", Task: "fix", Condition: "on success"}, "on success"},
