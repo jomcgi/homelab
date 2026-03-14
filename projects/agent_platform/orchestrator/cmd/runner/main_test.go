@@ -227,6 +227,10 @@ func TestHandleRun_AcceptsAfterCompletion(t *testing.T) {
 	now := time.Now()
 	r.startedAt = &now
 	r.output = []byte("previous output")
+	r.plan = []PlanStep{
+		{Agent: "test", Description: "test step", Status: "completed"},
+	}
+	r.currentStep = 1
 	r.mu.Unlock()
 
 	// POST /run should be accepted (not 409 Conflict).
@@ -243,6 +247,12 @@ func TestHandleRun_AcceptsAfterCompletion(t *testing.T) {
 	r.mu.RLock()
 	if len(r.output) != 0 {
 		t.Errorf("expected output to be cleared, got %d bytes", len(r.output))
+	}
+	if len(r.plan) != 0 {
+		t.Errorf("expected plan to be cleared, got %d steps", len(r.plan))
+	}
+	if r.currentStep != 0 {
+		t.Errorf("expected currentStep to be 0, got %d", r.currentStep)
 	}
 	r.mu.RUnlock()
 }
@@ -279,6 +289,39 @@ func TestHandleRun_AcceptsAfterFailure(t *testing.T) {
 		t.Errorf("expected output to be cleared, got %d bytes", len(r.output))
 	}
 	r.mu.RUnlock()
+}
+
+func TestHandleStatus_IncludesPlan(t *testing.T) {
+	r := newTestRunner()
+
+	r.mu.Lock()
+	r.state = StateRunning
+	r.plan = []PlanStep{
+		{Agent: "research", Description: "investigate", Status: "completed"},
+		{Agent: "code-fix", Description: "fix it", Status: "running"},
+		{Agent: "critic", Description: "review", Status: "pending"},
+	}
+	r.currentStep = 1
+	r.mu.Unlock()
+
+	req := httptest.NewRequest("GET", "/status", nil)
+	w := httptest.NewRecorder()
+	r.handleStatus(w, req)
+
+	var resp StatusResponse
+	if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+
+	if len(resp.Plan) != 3 {
+		t.Fatalf("expected 3 plan steps, got %d", len(resp.Plan))
+	}
+	if resp.CurrentStep != 1 {
+		t.Errorf("expected current_step=1, got %d", resp.CurrentStep)
+	}
+	if resp.Plan[0].Status != "completed" {
+		t.Errorf("expected step 0 completed, got %s", resp.Plan[0].Status)
+	}
 }
 
 func TestBuildGooseCmd_NoRecipe(t *testing.T) {

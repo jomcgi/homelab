@@ -61,23 +61,34 @@ type RunRequest struct {
 	InactivityTimeout int    `json:"inactivity_timeout,omitempty"` // seconds
 }
 
+// PlanStep represents one step in the autonomous pipeline plan.
+type PlanStep struct {
+	Agent       string `json:"agent"`
+	Description string `json:"description"`
+	Status      string `json:"status"` // pending, running, completed, failed, skipped
+}
+
 // StatusResponse is returned by GET /status.
 type StatusResponse struct {
-	State     State      `json:"state"`
-	PID       int        `json:"pid,omitempty"`
-	ExitCode  *int       `json:"exit_code,omitempty"`
-	StartedAt *time.Time `json:"started_at,omitempty"`
+	State       State      `json:"state"`
+	PID         int        `json:"pid,omitempty"`
+	ExitCode    *int       `json:"exit_code,omitempty"`
+	StartedAt   *time.Time `json:"started_at,omitempty"`
+	Plan        []PlanStep `json:"plan,omitempty"`
+	CurrentStep int        `json:"current_step"`
 }
 
 // runner holds all mutable state for the running goose process.
 type runner struct {
-	mu        sync.RWMutex
-	state     State
-	pid       int
-	exitCode  *int
-	startedAt *time.Time
-	output    []byte
-	cancel    context.CancelFunc
+	mu          sync.RWMutex
+	state       State
+	pid         int
+	exitCode    *int
+	startedAt   *time.Time
+	output      []byte
+	cancel      context.CancelFunc
+	plan        []PlanStep
+	currentStep int
 }
 
 func newRunner() *runner {
@@ -95,10 +106,12 @@ func (r *runner) handleHealth(w http.ResponseWriter, _ *http.Request) {
 func (r *runner) handleStatus(w http.ResponseWriter, _ *http.Request) {
 	r.mu.RLock()
 	resp := StatusResponse{
-		State:     r.state,
-		PID:       r.pid,
-		ExitCode:  r.exitCode,
-		StartedAt: r.startedAt,
+		State:       r.state,
+		PID:         r.pid,
+		ExitCode:    r.exitCode,
+		StartedAt:   r.startedAt,
+		Plan:        r.plan,
+		CurrentStep: r.currentStep,
 	}
 	r.mu.RUnlock()
 
@@ -158,6 +171,8 @@ func (r *runner) handleRun(w http.ResponseWriter, req *http.Request) {
 	r.exitCode = nil
 	r.startedAt = &now
 	r.output = nil
+	r.plan = nil
+	r.currentStep = 0
 
 	// Cancel any previous context (shouldn't be running, but be safe).
 	if r.cancel != nil {
