@@ -595,16 +595,16 @@ func TestHandlePipeline_InvalidAgent(t *testing.T) {
 func TestHandlePipeline_WithCritic(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
-	recipes := map[string]map[string]any{
-		"code-fix": {"version": "1.0.0"},
-		"critic":   {"version": "1.0.0", "title": "Critic"},
+	recipePaths := map[string]string{
+		"code-fix": "projects/agent_platform/goose_agent/image/recipes/code-fix.yaml",
+		"critic":   "projects/agent_platform/goose_agent/image/recipes/critic.yaml",
 	}
 	var published []string
 	publish := func(id string) error {
 		published = append(published, id)
 		return nil
 	}
-	api := NewAPI(store, publish, nil, 2, nil, recipes, "", logger)
+	api := NewAPI(store, publish, nil, 2, nil, recipePaths, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
