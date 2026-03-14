@@ -10,7 +10,7 @@ SEMGREP_PRO_DIGESTS = {
     "engine_osx_arm64": "sha256:dc7cb3733b5e497f7dbc154c950ae7dbb182bec76a6eb4baaba0abfae313b6b1",
     "engine_osx_x86_64": "sha256:714811ce2382b207496cbfe1092e1b079d165139e6a4088e7d95180cf6eda7bb",
     "rules_golang": "sha256:30ea669247fb6cf1b46730ea4442ecc80a4e8437506621dfcbe3dadd79c24ee7",
-    "rules_python": "sha256:86bb896fe81bd0365c8910e36ec983b5d7fe167945bff720902ab047a89212e4",
+    "rules_python": "sha256:1a8001391949d55256822d73f7e5a2165d4b206ccfd63fde492c9b5f63220a15",
     "rules_javascript": "sha256:6e2afb768bec6b7712d35b8c03bae31c1d1c3af23faa53132821588e8ee904ee",
     "rules_kubernetes": "sha256:eaeeeff194bad2f8ab7433a172e6968b853a2cf3be358563b1134f0b4a447602",
     "rules_sca_golang": "sha256:846714e5d936c1d53b69c63c25537ddb2d7615c53b9833b57bb99713b73595f0",
