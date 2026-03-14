@@ -368,6 +368,110 @@ func TestBuildGooseCmd_WithRecipePath(t *testing.T) {
 	}
 }
 
+func TestParsePlanFromOutput(t *testing.T) {
+	output := `Some analysis text here...
+
+` + "```goose-result\n" +
+		`type: pipeline
+url: https://gist.github.com/jomcgi/abc123
+summary: 3-step pipeline to fix auth
+pipeline: [{"agent":"research","task":"investigate","condition":"always"},{"agent":"code-fix","task":"fix it","condition":"on success"}]
+` + "```\n"
+
+	steps, err := parsePlanFromOutput(output)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(steps) != 2 {
+		t.Fatalf("expected 2 steps, got %d", len(steps))
+	}
+	if steps[0].Agent != "research" {
+		t.Errorf("step 0 agent: got %q, want %q", steps[0].Agent, "research")
+	}
+	if steps[0].Task != "investigate" {
+		t.Errorf("step 0 task: got %q, want %q", steps[0].Task, "investigate")
+	}
+	if steps[0].Condition != "always" {
+		t.Errorf("step 0 condition: got %q, want %q", steps[0].Condition, "always")
+	}
+	if steps[1].Agent != "code-fix" {
+		t.Errorf("step 1 agent: got %q, want %q", steps[1].Agent, "code-fix")
+	}
+	if steps[1].Condition != "on success" {
+		t.Errorf("step 1 condition: got %q, want %q", steps[1].Condition, "on success")
+	}
+}
+
+func TestParsePlanFromOutput_NoPipeline(t *testing.T) {
+	output := "```goose-result\ntype: report\nsummary: just a report\n```\n"
+	steps, err := parsePlanFromOutput(output)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(steps) != 0 {
+		t.Errorf("expected 0 steps for non-pipeline result, got %d", len(steps))
+	}
+}
+
+func TestParsePlanFromOutput_NoBlock(t *testing.T) {
+	output := "just some regular output with no goose-result block"
+	steps, err := parsePlanFromOutput(output)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(steps) != 0 {
+		t.Errorf("expected 0 steps, got %d", len(steps))
+	}
+}
+
+func TestParsePlanFromOutput_InvalidJSON(t *testing.T) {
+	output := "```goose-result\ntype: pipeline\npipeline: not-valid-json\n```\n"
+	_, err := parsePlanFromOutput(output)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+func TestParsePlanFromOutput_UsesLastBlock(t *testing.T) {
+	// If there are multiple goose-result blocks, use the last one.
+	output := "```goose-result\ntype: report\nsummary: first\n```\n" +
+		"some more output\n" +
+		"```goose-result\ntype: pipeline\npipeline: [{\"agent\":\"final\",\"task\":\"do it\",\"condition\":\"always\"}]\n```\n"
+	steps, err := parsePlanFromOutput(output)
+	if err != nil {
+		t.Fatalf("parse error: %v", err)
+	}
+	if len(steps) != 1 {
+		t.Fatalf("expected 1 step, got %d", len(steps))
+	}
+	if steps[0].Agent != "final" {
+		t.Errorf("expected agent 'final', got %q", steps[0].Agent)
+	}
+}
+
+func TestBuildGooseCmdFromFile(t *testing.T) {
+	args := buildGooseCmdFromFile("/recipes/deep-plan.yaml", "fix the bug", "")
+	expected := []string{"goose", "run", "--recipe", "/recipes/deep-plan.yaml", "--params", "task_description=fix the bug", "--no-profile"}
+	if len(args) != len(expected) {
+		t.Fatalf("expected %v, got %v", expected, args)
+	}
+	for i := range expected {
+		if args[i] != expected[i] {
+			t.Errorf("arg[%d]: expected %q, got %q", i, expected[i], args[i])
+		}
+	}
+}
+
+func TestBuildGooseCmdFromFile_WithModel(t *testing.T) {
+	args := buildGooseCmdFromFile("/recipes/deep-plan.yaml", "fix it", "claude-opus-4-6")
+	if len(args) != 9 {
+		t.Fatalf("expected 9 args, got %d: %v", len(args), args)
+	}
+	if args[7] != "--model" || args[8] != "claude-opus-4-6" {
+		t.Errorf("expected --model claude-opus-4-6 at end, got %s %s", args[7], args[8])
+	}
+}
+
 func TestBuildGooseCmd_YAMLHostileTask(t *testing.T) {
 	// YAML-special characters in the task are safe because they're passed via
 	// --params (CLI arg), not embedded in the recipe YAML.
