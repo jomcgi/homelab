@@ -21,7 +21,7 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: agent-platform
-  # Ignore OTel fields injected by Kyverno mutation policy.
+  # Ignore fields injected by Kyverno/Linkerd mutation policies.
   # IMPORTANT: Do NOT ignore the entire env array — that prevents ArgoCD from
   # syncing new env vars added by the Helm chart (e.g. INFERENCE_URL).
   ignoreDifferences:
@@ -29,6 +29,8 @@ spec:
       kind: Deployment
       jqPathExpressions:
         - .spec.template.metadata.annotations."otel.injected-by"
+        - .spec.template.metadata.annotations."linkerd.io/inject"
+        - .spec.template.metadata.annotations."linkerd.io/injected-by"
   syncPolicy:
     automated:
       prune: true
