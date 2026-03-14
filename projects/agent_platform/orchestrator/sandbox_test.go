@@ -1,9 +1,348 @@
 package main
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"testing"
+	"time"
 )
+
+// newTestSandbox creates a minimal SandboxExecutor suitable for testing HTTP
+// methods. Kubernetes-dependent fields are left nil; only the HTTP client,
+// inactivity timeout, and logger are set.
+func newTestSandbox() *SandboxExecutor {
+	return &SandboxExecutor{
+		httpClient:        &http.Client{Timeout: 5 * time.Second},
+		inactivityTimeout: 30 * time.Minute,
+		logger:            slog.Default(),
+	}
+}
+
+// ---- pollStatus tests -------------------------------------------------------
+
+func TestPollStatus_Done(t *testing.T) {
+	exitCode := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/status" || r.Method != http.MethodGet {
+			t.Errorf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+		json.NewEncoder(w).Encode(map[string]any{
+			"state":     "done",
+			"exit_code": exitCode,
+		})
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	state, code, err := s.pollStatus(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state != "done" {
+		t.Errorf("state = %q, want %q", state, "done")
+	}
+	if code != exitCode {
+		t.Errorf("exit_code = %d, want %d", code, exitCode)
+	}
+}
+
+func TestPollStatus_Running_NoExitCode(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{"state": "running"})
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	state, code, err := s.pollStatus(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state != "running" {
+		t.Errorf("state = %q, want %q", state, "running")
+	}
+	// nil exit_code in the JSON should be represented as -1.
+	if code != -1 {
+		t.Errorf("exit_code = %d, want -1 (nil)", code)
+	}
+}
+
+func TestPollStatus_Failed(t *testing.T) {
+	exitCode := 1
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"state":     "failed",
+			"exit_code": exitCode,
+		})
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	state, code, err := s.pollStatus(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state != "failed" {
+		t.Errorf("state = %q, want %q", state, "failed")
+	}
+	if code != exitCode {
+		t.Errorf("exit_code = %d, want %d", code, exitCode)
+	}
+}
+
+func TestPollStatus_ServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	_, _, err := s.pollStatus(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for 500 response, got nil")
+	}
+}
+
+func TestPollStatus_BadJSON(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		fmt.Fprint(w, "not json at all")
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	_, _, err := s.pollStatus(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error for invalid JSON, got nil")
+	}
+}
+
+// ---- pollOutput tests -------------------------------------------------------
+
+func TestPollOutput_ReturnsBodyAndParsesOffsetHeader(t *testing.T) {
+	outputData := []byte("hello from goose\n")
+	newOffset := 42
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/output" {
+			t.Errorf("unexpected path: %s", r.URL.Path)
+		}
+		// Verify the client sent the current offset as a query param.
+		if got := r.URL.Query().Get("offset"); got != "0" {
+			t.Errorf("offset param = %q, want %q", got, "0")
+		}
+		w.Header().Set("X-Output-Offset", strconv.Itoa(newOffset))
+		w.WriteHeader(http.StatusOK)
+		w.Write(outputData)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	buf := newSyncBuffer(0)
+	gotOffset, err := s.pollOutput(context.Background(), srv.URL, 0, buf)
+	if err != nil {
+		t.Fatalf("pollOutput: %v", err)
+	}
+	if gotOffset != newOffset {
+		t.Errorf("offset = %d, want %d", gotOffset, newOffset)
+	}
+	if buf.String() != string(outputData) {
+		t.Errorf("buffer = %q, want %q", buf.String(), string(outputData))
+	}
+}
+
+func TestPollOutput_NoOffsetHeader_KeepsOriginalOffset(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// No X-Output-Offset header — simulate old runner.
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("some data"))
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	buf := newSyncBuffer(0)
+	originalOffset := 17
+	gotOffset, err := s.pollOutput(context.Background(), srv.URL, originalOffset, buf)
+	if err != nil {
+		t.Fatalf("pollOutput: %v", err)
+	}
+	// Without the header the offset should remain unchanged.
+	if gotOffset != originalOffset {
+		t.Errorf("offset = %d, want %d (unchanged)", gotOffset, originalOffset)
+	}
+}
+
+func TestPollOutput_EmptyBody_NoWrite(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("X-Output-Offset", "5")
+		w.WriteHeader(http.StatusOK)
+		// Deliberately empty body.
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	buf := newSyncBuffer(0)
+	gotOffset, err := s.pollOutput(context.Background(), srv.URL, 0, buf)
+	if err != nil {
+		t.Fatalf("pollOutput: %v", err)
+	}
+	if gotOffset != 5 {
+		t.Errorf("offset = %d, want 5", gotOffset)
+	}
+	if buf.Len() != 0 {
+		t.Errorf("buffer should be empty, got %d bytes", buf.Len())
+	}
+}
+
+func TestPollOutput_ServerError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "service unavailable", http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	buf := newSyncBuffer(0)
+	originalOffset := 10
+	gotOffset, err := s.pollOutput(context.Background(), srv.URL, originalOffset, buf)
+	if err == nil {
+		t.Fatal("expected error for non-200 response, got nil")
+	}
+	// Offset should remain unchanged on error.
+	if gotOffset != originalOffset {
+		t.Errorf("offset on error = %d, want original %d", gotOffset, originalOffset)
+	}
+}
+
+func TestPollOutput_SendsOffsetAsQueryParam(t *testing.T) {
+	var receivedOffset string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedOffset = r.URL.Query().Get("offset")
+		w.Header().Set("X-Output-Offset", "100")
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	buf := newSyncBuffer(0)
+	s.pollOutput(context.Background(), srv.URL, 55, buf)
+	if receivedOffset != "55" {
+		t.Errorf("server received offset = %q, want %q", receivedOffset, "55")
+	}
+}
+
+// ---- dispatchTask tests -----------------------------------------------------
+
+func TestDispatchTask_Success(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/run" {
+			t.Errorf("unexpected %s %s", r.Method, r.URL.Path)
+		}
+		if ct := r.Header.Get("Content-Type"); ct != "application/json" {
+			t.Errorf("Content-Type = %q, want application/json", ct)
+		}
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	if err := s.dispatchTask(context.Background(), srv.URL, "fix the bug", "/recipes/fix.yaml"); err != nil {
+		t.Fatalf("dispatchTask: %v", err)
+	}
+}
+
+func TestDispatchTask_PayloadContainsTaskAndRecipePath(t *testing.T) {
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+
+	task := "run some tests"
+	recipePath := "/opt/recipes/test.yaml"
+	s := newTestSandbox()
+	s.dispatchTask(context.Background(), srv.URL, task, recipePath)
+
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("bad JSON payload: %v", err)
+	}
+	if payload["task"] != task {
+		t.Errorf("payload.task = %v, want %q", payload["task"], task)
+	}
+	if payload["recipe_path"] != recipePath {
+		t.Errorf("payload.recipe_path = %v, want %q", payload["recipe_path"], recipePath)
+	}
+}
+
+func TestDispatchTask_EmptyRecipePath_OmittedFromPayload(t *testing.T) {
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	s.dispatchTask(context.Background(), srv.URL, "task without recipe", "")
+
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("bad JSON payload: %v", err)
+	}
+	if _, ok := payload["recipe_path"]; ok {
+		t.Error("recipe_path should be omitted when empty (omitempty)")
+	}
+}
+
+func TestDispatchTask_InactivityTimeoutInPayload(t *testing.T) {
+	var body []byte
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ = io.ReadAll(r.Body)
+		w.WriteHeader(http.StatusAccepted)
+	}))
+	defer srv.Close()
+
+	timeout := 45 * time.Minute
+	s := &SandboxExecutor{
+		httpClient:        &http.Client{Timeout: 5 * time.Second},
+		inactivityTimeout: timeout,
+		logger:            slog.Default(),
+	}
+	s.dispatchTask(context.Background(), srv.URL, "long task", "")
+
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		t.Fatalf("bad JSON payload: %v", err)
+	}
+	// inactivity_timeout should be seconds.
+	got, ok := payload["inactivity_timeout"].(float64)
+	if !ok {
+		t.Fatalf("inactivity_timeout missing or wrong type in payload: %v", payload)
+	}
+	want := timeout.Seconds()
+	if got != want {
+		t.Errorf("inactivity_timeout = %v, want %v", got, want)
+	}
+}
+
+func TestDispatchTask_NonAcceptedResponse_ReturnsError(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "too many requests", http.StatusTooManyRequests)
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	if err := s.dispatchTask(context.Background(), srv.URL, "task", ""); err == nil {
+		t.Fatal("expected error for non-202 response, got nil")
+	}
+}
+
+// ---- RunnerBaseURL (legacy trivial test kept for regression) ----------------
 
 func TestRunnerBaseURL(t *testing.T) {
 	fqdn := "goose-sandbox-abc123.goose-sandboxes.svc.cluster.local"
