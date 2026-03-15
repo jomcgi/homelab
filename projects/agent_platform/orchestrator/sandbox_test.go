@@ -345,10 +345,123 @@ func TestDispatchTask_NonAcceptedResponse_ReturnsError(t *testing.T) {
 // ---- RunnerBaseURL (legacy trivial test kept for regression) ----------------
 
 func TestRunnerBaseURL(t *testing.T) {
+	// nosemgrep: golang.no-hardcoded-k8s-service-url
 	fqdn := "goose-sandbox-abc123.goose-sandboxes.svc.cluster.local"
 	url := fmt.Sprintf("http://%s:8081", fqdn)
+	// nosemgrep: golang.no-hardcoded-k8s-service-url
 	expected := "http://goose-sandbox-abc123.goose-sandboxes.svc.cluster.local:8081"
 	if url != expected {
 		t.Errorf("url = %q, want %q", url, expected)
+	}
+}
+
+func TestPollStatusWithPlan(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"state":        "running",
+			"current_step": 1,
+			"plan": []map[string]string{
+				{"agent": "research", "description": "investigate", "status": "completed"},
+				{"agent": "code-fix", "description": "fix", "status": "running"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	executor := &SandboxExecutor{
+		httpClient: srv.Client(),
+		logger:     slog.Default(),
+	}
+
+	state, exitCode, plan, err := executor.pollStatusWithPlan(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state != "running" {
+		t.Errorf("state: got %q, want %q", state, "running")
+	}
+	if exitCode != -1 {
+		t.Errorf("exitCode: got %d, want -1", exitCode)
+	}
+	if len(plan) != 2 {
+		t.Fatalf("expected 2 plan steps, got %d", len(plan))
+	}
+	if plan[0].Agent != "research" {
+		t.Errorf("plan[0].Agent: got %q, want %q", plan[0].Agent, "research")
+	}
+	if plan[0].Description != "investigate" {
+		t.Errorf("plan[0].Description: got %q, want %q", plan[0].Description, "investigate")
+	}
+	if plan[0].Status != "completed" {
+		t.Errorf("plan[0].Status: got %q, want %q", plan[0].Status, "completed")
+	}
+	if plan[1].Agent != "code-fix" {
+		t.Errorf("plan[1].Agent: got %q, want %q", plan[1].Agent, "code-fix")
+	}
+	if plan[1].Status != "running" {
+		t.Errorf("plan[1].Status: got %q, want %q", plan[1].Status, "running")
+	}
+}
+
+func TestPollStatusWithPlanDone(t *testing.T) {
+	exitCode := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"state":        "done",
+			"exit_code":    exitCode,
+			"current_step": 2,
+			"plan": []map[string]string{
+				{"agent": "research", "description": "investigate", "status": "completed"},
+				{"agent": "code-fix", "description": "fix", "status": "completed"},
+			},
+		})
+	}))
+	defer srv.Close()
+
+	executor := &SandboxExecutor{
+		httpClient: srv.Client(),
+		logger:     slog.Default(),
+	}
+
+	state, ec, plan, err := executor.pollStatusWithPlan(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state != "done" {
+		t.Errorf("state: got %q, want %q", state, "done")
+	}
+	if ec != 0 {
+		t.Errorf("exitCode: got %d, want 0", ec)
+	}
+	if len(plan) != 2 {
+		t.Fatalf("expected 2 plan steps, got %d", len(plan))
+	}
+}
+
+func TestPollStatusWithPlanNoPlan(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		json.NewEncoder(w).Encode(map[string]any{
+			"state": "running",
+		})
+	}))
+	defer srv.Close()
+
+	executor := &SandboxExecutor{
+		httpClient: srv.Client(),
+		logger:     slog.Default(),
+	}
+
+	state, exitCode, plan, err := executor.pollStatusWithPlan(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if state != "running" {
+		t.Errorf("state: got %q, want %q", state, "running")
+	}
+	if exitCode != -1 {
+		t.Errorf("exitCode: got %d, want -1", exitCode)
+	}
+	if len(plan) != 0 {
+		t.Errorf("expected empty plan, got %d steps", len(plan))
 	}
 }

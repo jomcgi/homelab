@@ -193,6 +193,17 @@ loop:
 		output = cleanOutput(output)
 		job.Attempts[idx].Output = output
 		job.Attempts[idx].Result = parseGooseResult(output)
+		if len(result.Plan) > 0 {
+			job.Plan = result.Plan
+			// Derive current step from plan statuses.
+			for i, step := range result.Plan {
+				if step.Status == "running" || step.Status == "pending" {
+					job.CurrentStep = i
+					break
+				}
+				job.CurrentStep = i
+			}
+		}
 	} else if execErr != nil {
 		job.Attempts[idx].Output = execErr.Error()
 	}

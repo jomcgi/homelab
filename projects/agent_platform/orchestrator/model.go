@@ -57,6 +57,10 @@ type JobRecord struct {
 	DebugMode      bool   `json:"debug_mode,omitempty"`
 	FailureSummary string `json:"failure_summary,omitempty"`
 
+	// Autonomous plan fields.
+	Plan        []PlanStep `json:"plan,omitempty"`
+	CurrentStep int        `json:"current_step"`
+
 	Attempts []Attempt `json:"attempts"`
 }
 
@@ -94,6 +98,13 @@ type SubmitResponse struct {
 	ID        string    `json:"id"`
 	Status    JobStatus `json:"status"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// PlanStep represents one step in an autonomous pipeline plan.
+type PlanStep struct {
+	Agent       string `json:"agent"`
+	Description string `json:"description"`
+	Status      string `json:"status"` // pending, running, completed, failed, skipped
 }
 
 // PipelineStep describes one step in a pipeline submission.

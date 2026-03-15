@@ -49,6 +49,7 @@ type ExecResult struct {
 	ClaimName string
 	ExitCode  int
 	Output    string
+	Plan      []PlanStep
 }
 
 // NewSandboxExecutor creates a SandboxExecutor from the given Kubernetes config.
@@ -311,8 +312,8 @@ func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName 
 		} else {
 			offset = newOffset
 		}
-		// Check status
-		state, exitCode, err := s.pollStatus(ctx, baseURL)
+		// Check status (with plan progress)
+		state, exitCode, plan, err := s.pollStatusWithPlan(ctx, baseURL)
 		if err != nil {
 			s.logger.Warn("poll status error", "error", err)
 			continue
@@ -326,6 +327,7 @@ func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName 
 				ClaimName: claimName,
 				ExitCode:  exitCode,
 				Output:    outputBuf.String(),
+				Plan:      plan,
 			}, nil
 		}
 	}
@@ -389,6 +391,36 @@ func (s *SandboxExecutor) pollStatus(ctx context.Context, baseURL string) (state
 		exitCode = *status.ExitCode
 	}
 	return status.State, exitCode, nil
+}
+
+// pollStatusWithPlan checks the runner's current state including plan progress.
+func (s *SandboxExecutor) pollStatusWithPlan(ctx context.Context, baseURL string) (state string, exitCode int, plan []PlanStep, err error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", baseURL+"/status", nil)
+	if err != nil {
+		return "", -1, nil, err
+	}
+	resp, err := s.httpClient.Do(req)
+	if err != nil {
+		return "", -1, nil, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return "", -1, nil, fmt.Errorf("GET /status returned %d: %s", resp.StatusCode, string(body))
+	}
+	var status struct {
+		State    string     `json:"state"`
+		ExitCode *int       `json:"exit_code"`
+		Plan     []PlanStep `json:"plan,omitempty"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
+		return "", -1, nil, err
+	}
+	exitCode = -1
+	if status.ExitCode != nil {
+		exitCode = *status.ExitCode
+	}
+	return status.State, exitCode, status.Plan, nil
 }
 
 // PollRunnerStatus checks a runner's HTTP status at the given service FQDN.
