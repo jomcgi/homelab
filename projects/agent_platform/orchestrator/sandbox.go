@@ -77,7 +77,7 @@ func NewSandboxExecutor(config *rest.Config, namespace, template string, inactiv
 // Run creates a SandboxClaim, waits for the pod, dispatches the task via HTTP,
 // and polls for completion. The cancelFn is checked before each phase to
 // support cooperative cancellation.
-func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
+func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, outputBuf *syncBuffer, planBuf *planTracker) (*ExecResult, error) {
 	s.logger.Info("creating sandbox claim", "claim", claimName, "namespace", s.namespace)
 	if err := s.createClaim(ctx, claimName); err != nil {
 		return nil, fmt.Errorf("creating claim: %w", err)
@@ -117,7 +117,7 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipePath s
 		return nil, fmt.Errorf("dispatching task: %w", err)
 	}
 
-	return s.pollUntilDone(ctx, baseURL, claimName, cancelFn, outputBuf)
+	return s.pollUntilDone(ctx, baseURL, claimName, cancelFn, outputBuf, planBuf)
 }
 
 func (s *SandboxExecutor) createClaim(ctx context.Context, claimName string) error {
@@ -288,7 +288,7 @@ func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, recip
 	return nil
 }
 
-func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error) {
+func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName string, cancelFn func() bool, outputBuf *syncBuffer, planBuf *planTracker) (*ExecResult, error) {
 	offset := 0
 	// Short initial wait, then poll every 30 seconds.
 	timer := time.NewTimer(5 * time.Second)
@@ -317,6 +317,18 @@ func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName 
 		if err != nil {
 			s.logger.Warn("poll status error", "error", err)
 			continue
+		}
+		// Update plan tracker for real-time progress.
+		if planBuf != nil && len(plan) > 0 {
+			currentStep := 0
+			for i, step := range plan {
+				if step.Status == "running" || step.Status == "pending" {
+					currentStep = i
+					break
+				}
+				currentStep = i
+			}
+			planBuf.Update(plan, currentStep)
 		}
 		if state == "done" || state == "failed" {
 			// Final output drain

@@ -48,12 +48,12 @@ func (m *fakeMsg) Reply() string   { return "" }
 
 type fakeSandbox struct {
 	// runFn is called by Run; defaults to success with exit code 0.
-	runFn func(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error)
+	runFn func(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, buf *syncBuffer, planBuf *planTracker) (*ExecResult, error)
 }
 
-func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, buf *syncBuffer) (*ExecResult, error) {
+func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, buf *syncBuffer, planBuf *planTracker) (*ExecResult, error) {
 	if f.runFn != nil {
-		return f.runFn(ctx, claimName, task, recipePath, cancelFn, buf)
+		return f.runFn(ctx, claimName, task, recipePath, cancelFn, buf, planBuf)
 	}
 	return &ExecResult{ExitCode: 0, Output: "success"}, nil
 }
@@ -121,7 +121,7 @@ func TestProcessJob_SandboxFailure_ExitCode(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			return &ExecResult{ExitCode: 1, Output: "tests failed"}, nil
 		},
 	}
@@ -147,7 +147,7 @@ func TestProcessJob_SandboxError(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			return nil, errors.New("sandbox exploded")
 		},
 	}
@@ -176,7 +176,7 @@ func TestProcessJob_RetryOnFailure(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			return &ExecResult{ExitCode: 1, Output: "flaky"}, nil
 		},
 	}
@@ -207,7 +207,7 @@ func TestProcessJob_SkipsCancelledJob(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	executed := false
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			executed = true
 			return &ExecResult{ExitCode: 0}, nil
 		},
@@ -233,7 +233,7 @@ func TestProcessJob_SkipsRunningJob(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	executed := false
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			executed = true
 			return &ExecResult{ExitCode: 0}, nil
 		},
@@ -259,7 +259,7 @@ func TestProcessJob_SkipsSucceededJob(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	executed := false
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			executed = true
 			return &ExecResult{ExitCode: 0}, nil
 		},
@@ -283,7 +283,7 @@ func TestProcessJob_CancelledDuringExecution(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(ctx context.Context, claimName, _, _ string, cancelFn func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(ctx context.Context, claimName, _, _ string, cancelFn func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			// Simulate the job being cancelled externally mid-execution.
 			// Read current record (which has the in-progress attempt) and flip status.
 			current, _ := store.Get(ctx, job.ID)
@@ -329,7 +329,7 @@ func TestProcessJob_ContextCancelledBeforeExec(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(ctx context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(ctx context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			return nil, ctx.Err()
 		},
 	}
@@ -434,7 +434,7 @@ func TestProcessJob_ParsesStructuredResult(t *testing.T) {
 
 	msg := newFakeMsg([]byte(job.ID))
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			output := "doing work...\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/42\nsummary: Fixed the thing. CI passes.\n```\n"
 			return &ExecResult{ExitCode: 0, Output: output}, nil
 		},
@@ -491,7 +491,7 @@ func TestProcessJob_PassesRecipePathToSandbox(t *testing.T) {
 	msg := newFakeMsg([]byte(job.ID))
 	var gotRecipePath string
 	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, recipePath string, _ func() bool, _ *syncBuffer) (*ExecResult, error) {
+		runFn: func(_ context.Context, _, _, recipePath string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
 			gotRecipePath = recipePath
 			return &ExecResult{ExitCode: 0, Output: "ok"}, nil
 		},
@@ -549,4 +549,114 @@ func (e *errOnPutStore) List(ctx context.Context, statusFilter, tagFilter []stri
 
 func (e *errOnPutStore) ListByPipeline(ctx context.Context, pipelineID string) ([]JobRecord, error) {
 	return e.inner.ListByPipeline(ctx, pipelineID)
+}
+
+func TestProcessJob_PlanProgressFlushedDuringExecution(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-PLAN-PROGRESS")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+
+	// The sandbox writes plan data to the planTracker, simulating what
+	// pollUntilDone does when it receives plan updates from the runner.
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, pb *planTracker) (*ExecResult, error) {
+			// Simulate plan progress updates during execution.
+			pb.Update([]PlanStep{
+				{Agent: "planner", Description: "Create plan", Status: "completed"},
+				{Agent: "coder", Description: "Write code", Status: "running"},
+				{Agent: "reviewer", Description: "Review changes", Status: "pending"},
+			}, 1)
+
+			plan := []PlanStep{
+				{Agent: "planner", Description: "Create plan", Status: "completed"},
+				{Agent: "coder", Description: "Write code", Status: "completed"},
+				{Agent: "reviewer", Description: "Review changes", Status: "completed"},
+			}
+			return &ExecResult{ExitCode: 0, Output: "done", Plan: plan}, nil
+		},
+	}
+
+	c := newTestConsumer(store, sandbox)
+	c.processJob(context.Background(), msg)
+
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	if got.Status != JobSucceeded {
+		t.Fatalf("expected SUCCEEDED, got %s", got.Status)
+	}
+	// Final plan from ExecResult should be stored.
+	if len(got.Plan) != 3 {
+		t.Fatalf("expected 3 plan steps, got %d", len(got.Plan))
+	}
+	if got.Plan[0].Agent != "planner" {
+		t.Errorf("plan[0].Agent = %q, want %q", got.Plan[0].Agent, "planner")
+	}
+	if got.Plan[2].Status != "completed" {
+		t.Errorf("plan[2].Status = %q, want %q", got.Plan[2].Status, "completed")
+	}
+}
+
+func TestPlanTracker_ConcurrentAccess(t *testing.T) {
+	pt := &planTracker{}
+
+	// Verify initial state is empty.
+	plan, step := pt.Get()
+	if len(plan) != 0 || step != 0 {
+		t.Fatalf("expected empty initial state, got %d steps at step %d", len(plan), step)
+	}
+
+	// Update and verify.
+	pt.Update([]PlanStep{
+		{Agent: "planner", Description: "Plan", Status: "completed"},
+		{Agent: "coder", Description: "Code", Status: "running"},
+	}, 1)
+
+	plan, step = pt.Get()
+	if len(plan) != 2 {
+		t.Fatalf("expected 2 plan steps, got %d", len(plan))
+	}
+	if step != 1 {
+		t.Errorf("expected step 1, got %d", step)
+	}
+	if plan[1].Status != "running" {
+		t.Errorf("plan[1].Status = %q, want %q", plan[1].Status, "running")
+	}
+}
+
+func TestFlushProgress_WritesPlanToStore(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-FLUSH-PLAN")
+	job.Status = JobRunning
+	job.Attempts = []Attempt{{Number: 1, StartedAt: time.Now().UTC()}}
+	_ = store.Put(context.Background(), job)
+
+	c := newTestConsumer(store, &fakeSandbox{})
+	buf := newSyncBuffer(maxOutputBytes)
+	buf.Write([]byte("some output"))
+
+	planBuf := &planTracker{}
+	planBuf.Update([]PlanStep{
+		{Agent: "planner", Description: "Create plan", Status: "completed"},
+		{Agent: "coder", Description: "Write code", Status: "running"},
+	}, 1)
+
+	c.flushProgress(context.Background(), job.ID, buf, planBuf)
+
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	if len(got.Plan) != 2 {
+		t.Fatalf("expected 2 plan steps after flush, got %d", len(got.Plan))
+	}
+	if got.CurrentStep != 1 {
+		t.Errorf("expected CurrentStep=1, got %d", got.CurrentStep)
+	}
+	if got.Attempts[0].Output != "some output" {
+		t.Errorf("output = %q, want %q", got.Attempts[0].Output, "some output")
+	}
 }

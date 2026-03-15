@@ -13,10 +13,32 @@ import (
 
 const maxOutputBytes = 32 * 1024 // 32KB tail — full output lives in pod logs / SigNoz
 
+// planTracker is a thread-safe container for plan progress updates.
+// The sandbox writes plan data during polling, and the consumer reads
+// it during the periodic ticker loop to flush progress to the KV store.
+type planTracker struct {
+	mu   sync.RWMutex
+	plan []PlanStep
+	step int
+}
+
+func (p *planTracker) Update(plan []PlanStep, step int) {
+	p.mu.Lock()
+	p.plan = plan
+	p.step = step
+	p.mu.Unlock()
+}
+
+func (p *planTracker) Get() ([]PlanStep, int) {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.plan, p.step
+}
+
 // Sandbox is the interface for executing agent tasks in an isolated environment.
 // SandboxExecutor satisfies this interface; tests inject a fake implementation.
 type Sandbox interface {
-	Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, outputBuf *syncBuffer) (*ExecResult, error)
+	Run(ctx context.Context, claimName, task, recipePath string, cancelFn func() bool, outputBuf *syncBuffer, planBuf *planTracker) (*ExecResult, error)
 }
 
 // Consumer pulls jobs from a NATS JetStream consumer and executes them in sandboxes.
@@ -132,6 +154,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	}
 
 	outputBuf := newSyncBuffer(maxOutputBytes)
+	planBuf := &planTracker{}
 
 	// Look up recipe path for this agent.
 	recipePath := ""
@@ -146,7 +169,7 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	}
 	resultCh := make(chan sandboxResult, 1)
 	go func() {
-		r, err := c.sandbox.Run(jobCtx, claimName, task, recipePath, cancelFn, outputBuf)
+		r, err := c.sandbox.Run(jobCtx, claimName, task, recipePath, cancelFn, outputBuf, planBuf)
 		resultCh <- sandboxResult{r, err}
 	}()
 
@@ -164,7 +187,7 @@ loop:
 			break loop
 		case <-ticker.C:
 			_ = msg.InProgress()
-			c.flushOutput(jobCtx, jobID, outputBuf)
+			c.flushProgress(jobCtx, jobID, outputBuf, planBuf)
 		}
 	}
 
@@ -281,7 +304,7 @@ Original task:
 %s`, attemptNum, prev.Number, exitCode, prevOutput, job.Task)
 }
 
-func (c *Consumer) flushOutput(ctx context.Context, jobID string, buf *syncBuffer) {
+func (c *Consumer) flushProgress(ctx context.Context, jobID string, buf *syncBuffer, planBuf *planTracker) {
 	// Re-read from KV to avoid overwriting status changes (e.g. cancellation).
 	current, err := c.store.Get(ctx, jobID)
 	if err != nil || len(current.Attempts) == 0 {
@@ -295,8 +318,15 @@ func (c *Consumer) flushOutput(ctx context.Context, jobID string, buf *syncBuffe
 	last := &current.Attempts[len(current.Attempts)-1]
 	last.Output = output
 	last.Truncated = truncated
+
+	// Flush plan progress if available.
+	if plan, step := planBuf.Get(); len(plan) > 0 {
+		current.Plan = plan
+		current.CurrentStep = step
+	}
+
 	if err := c.store.Put(ctx, current); err != nil {
-		c.logger.Warn("failed to flush output", "jobID", jobID, "error", err)
+		c.logger.Warn("failed to flush progress", "jobID", jobID, "error", err)
 	}
 }
 
