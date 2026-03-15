@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/json"
 	"strings"
 )
 
@@ -37,11 +36,6 @@ func parseGooseResult(raw string) *GooseResult {
 			result.URL = strings.TrimSpace(val)
 		case "summary":
 			result.Summary = strings.TrimSpace(val)
-		case "pipeline":
-			var steps []PipelineStep
-			if err := json.Unmarshal([]byte(strings.TrimSpace(val)), &steps); err == nil {
-				result.Pipeline = steps
-			}
 		}
 	}
 	return result

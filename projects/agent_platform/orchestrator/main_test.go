@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"os"
-	"path/filepath"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -106,78 +104,3 @@ type fakeKV struct{ jetstream.KeyValue }
 
 // fakeConsumer satisfies jetstream.Consumer with minimal stubs.
 type fakeConsumer struct{ jetstream.Consumer }
-
-func TestLoadAgentsConfig(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "agents.json")
-
-	data := `{"agents":[{"id":"ci-debug","label":"CI Debug","icon":"gear","bg":"#dbeafe","fg":"#1e40af","desc":"Debug CI","category":"tool","recipePath":"projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"}]}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	agents, recipePaths := loadAgentsConfig(path, slog.Default())
-	if len(agents) != 1 {
-		t.Fatalf("expected 1 agent, got %d", len(agents))
-	}
-	if agents[0].ID != "ci-debug" {
-		t.Fatalf("expected ci-debug, got %s", agents[0].ID)
-	}
-	if len(recipePaths) != 1 {
-		t.Fatalf("expected 1 recipe path, got %d", len(recipePaths))
-	}
-	if _, ok := recipePaths["ci-debug"]; !ok {
-		t.Fatal("expected recipe path for ci-debug")
-	}
-	expected := "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"
-	if recipePaths["ci-debug"] != expected {
-		t.Fatalf("expected recipe path %q, got %q", expected, recipePaths["ci-debug"])
-	}
-}
-
-func TestLoadAgentsConfig_RecipePathField(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "agents.json")
-	data := `{"agents":[{"id":"deep-plan","label":"Deep Plan","recipePath":"projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml"}]}`
-	if err := os.WriteFile(path, []byte(data), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	agents, recipePaths := loadAgentsConfig(path, slog.Default())
-	if len(agents) != 1 {
-		t.Fatalf("expected 1 agent, got %d", len(agents))
-	}
-	if agents[0].RecipePath != "projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml" {
-		t.Errorf("recipePath = %q, want deep-plan recipe path", agents[0].RecipePath)
-	}
-	if recipePaths["deep-plan"] != "projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml" {
-		t.Errorf("recipePaths[deep-plan] = %q", recipePaths["deep-plan"])
-	}
-}
-
-func TestLoadAgentsConfigMissing(t *testing.T) {
-	agents, recipePaths := loadAgentsConfig("/nonexistent/agents.json", slog.Default())
-	if agents != nil {
-		t.Fatalf("expected nil agents, got %v", agents)
-	}
-	if recipePaths != nil {
-		t.Fatalf("expected nil recipePaths, got %v", recipePaths)
-	}
-}
-
-func TestLoadAgentsConfigInvalid(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "agents.json")
-
-	if err := os.WriteFile(path, []byte("not json"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	agents, recipePaths := loadAgentsConfig(path, slog.Default())
-	if agents != nil {
-		t.Fatalf("expected nil agents on invalid JSON, got %v", agents)
-	}
-	if recipePaths != nil {
-		t.Fatalf("expected nil recipePaths on invalid JSON, got %v", recipePaths)
-	}
-}
