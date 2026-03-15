@@ -11,26 +11,7 @@ const (
 	JobSucceeded JobStatus = "SUCCEEDED"
 	JobFailed    JobStatus = "FAILED"
 	JobCancelled JobStatus = "CANCELLED"
-	JobBlocked   JobStatus = "BLOCKED"
-	JobSkipped   JobStatus = "SKIPPED"
 )
-
-// AgentInfo describes an available agent for the pipeline composer UI.
-type AgentInfo struct {
-	ID          string `json:"id"`
-	Label       string `json:"label"`
-	Icon        string `json:"icon"`
-	Background  string `json:"bg"`
-	Foreground  string `json:"fg"`
-	Description string `json:"desc"`
-	Category    string `json:"category"`
-	RecipePath  string `json:"recipePath,omitempty"`
-}
-
-// AgentsResponse is returned by GET /agents.
-type AgentsResponse struct {
-	Agents []AgentInfo `json:"agents"`
-}
 
 // JobRecord is the primary data model persisted in the NATS KV store.
 type JobRecord struct {
@@ -43,14 +24,6 @@ type JobRecord struct {
 	MaxRetries int       `json:"max_retries"`
 	Source     string    `json:"source"`
 	Tags       []string  `json:"tags,omitempty"`
-
-	// Pipeline execution fields.
-	PipelineID      string `json:"pipeline_id,omitempty"`      // shared ULID grouping linked jobs
-	StepIndex       int    `json:"step_index"`                 // 0-based position in pipeline
-	StepCondition   string `json:"step_condition,omitempty"`   // "always" | "on success" | "on failure"
-	Title           string `json:"title,omitempty"`            // LLM-generated short title
-	Summary         string `json:"summary,omitempty"`          // LLM-generated 1-2 sentence summary
-	PipelineSummary string `json:"pipeline_summary,omitempty"` // LLM-generated overall pipeline summary
 
 	// Reserved for webhook/DLQ integration.
 	GithubIssue    int    `json:"github_issue,omitempty"`
@@ -78,10 +51,9 @@ type Attempt struct {
 
 // GooseResult is a structured result parsed from the agent's output.
 type GooseResult struct {
-	Type     string         `json:"type"`
-	URL      string         `json:"url"`
-	Summary  string         `json:"summary"`
-	Pipeline []PipelineStep `json:"pipeline,omitempty"`
+	Type    string `json:"type"`
+	URL     string `json:"url"`
+	Summary string `json:"summary"`
 }
 
 // SubmitRequest is the JSON body for POST /jobs.
@@ -105,24 +77,6 @@ type PlanStep struct {
 	Agent       string `json:"agent"`
 	Description string `json:"description"`
 	Status      string `json:"status"` // pending, running, completed, failed, skipped
-}
-
-// PipelineStep describes one step in a pipeline submission.
-type PipelineStep struct {
-	Agent     string `json:"agent"`
-	Task      string `json:"task"`
-	Condition string `json:"condition"` // "always" | "on success" | "on failure"
-}
-
-// PipelineRequest is the JSON body for POST /pipeline.
-type PipelineRequest struct {
-	Steps []PipelineStep `json:"steps"`
-}
-
-// PipelineResponse is returned after a pipeline is created.
-type PipelineResponse struct {
-	PipelineID string           `json:"pipeline_id"`
-	Jobs       []SubmitResponse `json:"jobs"`
 }
 
 // ListResponse is returned by GET /jobs.

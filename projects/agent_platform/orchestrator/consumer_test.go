@@ -61,7 +61,7 @@ func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipePath strin
 // --- Helpers ---
 
 func newTestConsumer(store Store, sandbox Sandbox) *Consumer {
-	return NewConsumer(nil, store, sandbox, nil, 5*time.Minute, nil, slog.Default())
+	return NewConsumer(nil, store, sandbox, nil, 5*time.Minute, slog.Default())
 }
 
 func pendingJob(id string) *JobRecord {
@@ -482,31 +482,6 @@ func TestProcessJob_NoStructuredResult(t *testing.T) {
 	}
 }
 
-func TestProcessJob_PassesRecipePathToSandbox(t *testing.T) {
-	store := newMemStore()
-	job := pendingJob("JOB-RECIPE-PATH")
-	job.Profile = "ci-debug"
-	_ = store.Put(context.Background(), job)
-
-	msg := newFakeMsg([]byte(job.ID))
-	var gotRecipePath string
-	sandbox := &fakeSandbox{
-		runFn: func(_ context.Context, _, _, recipePath string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
-			gotRecipePath = recipePath
-			return &ExecResult{ExitCode: 0, Output: "ok"}, nil
-		},
-	}
-
-	recipePaths := map[string]string{"ci-debug": "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"}
-	c := NewConsumer(nil, store, sandbox, nil, 5*time.Minute, recipePaths, slog.Default())
-	c.processJob(context.Background(), msg)
-
-	expected := "projects/agent_platform/goose_agent/image/recipes/ci-debug.yaml"
-	if gotRecipePath != expected {
-		t.Errorf("recipePath = %q, want %q", gotRecipePath, expected)
-	}
-}
-
 func contains(s, substr string) bool {
 	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
 }
@@ -545,10 +520,6 @@ func (e *errOnPutStore) Delete(ctx context.Context, id string) error {
 
 func (e *errOnPutStore) List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error) {
 	return e.inner.List(ctx, statusFilter, tagFilter, limit, offset)
-}
-
-func (e *errOnPutStore) ListByPipeline(ctx context.Context, pipelineID string) ([]JobRecord, error) {
-	return e.inner.ListByPipeline(ctx, pipelineID)
 }
 
 func TestProcessJob_PlanProgressFlushedDuringExecution(t *testing.T) {

@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"encoding/json"
-	"io"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -24,15 +23,12 @@ type API struct {
 	publish           func(jobID string) error // publishes job ID to JetStream, nil = no-op
 	healthCheck       func() error             // checks backing store connectivity
 	defaultMaxRetries int
-	agents            []AgentInfo
-	recipePaths       map[string]string
-	inferenceURL      string // upstream LLM endpoint for pipeline inference proxy
 	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, agents []AgentInfo, recipePaths map[string]string, inferenceURL string, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, agents: agents, recipePaths: recipePaths, inferenceURL: inferenceURL, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -42,9 +38,6 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /jobs/{id}", a.handleGet)
 	mux.HandleFunc("POST /jobs/{id}/cancel", a.handleCancel)
 	mux.HandleFunc("GET /jobs/{id}/output", a.handleOutput)
-	mux.HandleFunc("GET /agents", a.handleAgents)
-	mux.HandleFunc("POST /infer", a.handleInfer)
-	mux.HandleFunc("POST /pipeline", a.handlePipeline)
 	mux.HandleFunc("GET /health", a.handleHealth)
 }
 
@@ -57,12 +50,6 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	if strings.TrimSpace(req.Task) == "" {
 		a.writeError(w, http.StatusBadRequest, "task is required")
 		return
-	}
-	if req.Profile != "" {
-		if _, ok := a.recipePaths[req.Profile]; !ok {
-			a.writeError(w, http.StatusBadRequest, "unknown agent: "+req.Profile)
-			return
-		}
 	}
 
 	maxRetries := a.defaultMaxRetries
@@ -190,7 +177,7 @@ func (a *API) handleCancel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if job.Status != JobPending && job.Status != JobRunning && job.Status != JobBlocked {
+	if job.Status != JobPending && job.Status != JobRunning {
 		a.writeError(w, http.StatusConflict, "job cannot be cancelled in status "+string(job.Status))
 		return
 	}
@@ -200,19 +187,6 @@ func (a *API) handleCancel(w http.ResponseWriter, r *http.Request) {
 		a.logger.Error("failed to update job", "id", id, "error", err)
 		a.writeError(w, http.StatusInternalServerError, "failed to update job")
 		return
-	}
-
-	// Forward cascade: cancel all BLOCKED steps after this one in the pipeline.
-	if job.PipelineID != "" {
-		pipelineJobs, err := a.store.ListByPipeline(r.Context(), job.PipelineID)
-		if err == nil {
-			for i := range pipelineJobs {
-				if pipelineJobs[i].StepIndex > job.StepIndex && pipelineJobs[i].Status == JobBlocked {
-					pipelineJobs[i].Status = JobCancelled
-					_ = a.store.Put(r.Context(), &pipelineJobs[i])
-				}
-			}
-		}
 	}
 
 	a.writeJSON(w, http.StatusOK, job)
@@ -241,40 +215,6 @@ func (a *API) handleOutput(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (a *API) handleAgents(w http.ResponseWriter, _ *http.Request) {
-	agents := a.agents
-	if agents == nil {
-		agents = []AgentInfo{}
-	}
-	a.writeJSON(w, http.StatusOK, AgentsResponse{Agents: agents})
-}
-
-func (a *API) handleInfer(w http.ResponseWriter, r *http.Request) {
-	if a.inferenceURL == "" {
-		a.writeError(w, http.StatusServiceUnavailable, "inference not configured")
-		return
-	}
-
-	req, err := http.NewRequestWithContext(r.Context(), http.MethodPost, a.inferenceURL, r.Body)
-	if err != nil {
-		a.writeError(w, http.StatusInternalServerError, "failed to create upstream request")
-		return
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		a.logger.Error("inference proxy failed", "error", err)
-		a.writeError(w, http.StatusBadGateway, "inference upstream unreachable")
-		return
-	}
-	defer resp.Body.Close()
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
-}
-
 func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
 	if a.healthCheck != nil {
 		if err := a.healthCheck(); err != nil {
@@ -283,102 +223,6 @@ func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	a.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
-}
-
-func (a *API) handlePipeline(w http.ResponseWriter, r *http.Request) {
-	var req PipelineRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		a.writeError(w, http.StatusBadRequest, "invalid request body")
-		return
-	}
-	if len(req.Steps) == 0 {
-		a.writeError(w, http.StatusBadRequest, "at least one step is required")
-		return
-	}
-	if len(req.Steps) > 10 {
-		a.writeError(w, http.StatusBadRequest, "maximum 10 steps per pipeline")
-		return
-	}
-
-	// Validate all agents exist.
-	for _, step := range req.Steps {
-		if _, ok := a.recipePaths[step.Agent]; !ok {
-			a.writeError(w, http.StatusBadRequest, "unknown agent: "+step.Agent)
-			return
-		}
-	}
-
-	now := time.Now().UTC()
-	pipelineID, err := ulid.New(ulid.Timestamp(now), rand.Reader)
-	if err != nil {
-		a.writeError(w, http.StatusInternalServerError, "failed to generate pipeline ID")
-		return
-	}
-
-	// LLM enrichment (best-effort).
-	enriched, _ := enrichPipeline(r.Context(), a.logger, a.inferenceURL, req.Steps)
-
-	var jobs []SubmitResponse
-	for i, step := range req.Steps {
-		id, err := ulid.New(ulid.Timestamp(now.Add(time.Duration(i)*time.Millisecond)), rand.Reader)
-		if err != nil {
-			a.writeError(w, http.StatusInternalServerError, "failed to generate job ID")
-			return
-		}
-
-		status := JobBlocked
-		if i == 0 {
-			status = JobPending
-		}
-
-		job := &JobRecord{
-			ID:            id.String(),
-			Task:          step.Task,
-			Profile:       step.Agent,
-			Status:        status,
-			CreatedAt:     now,
-			UpdatedAt:     now,
-			MaxRetries:    a.defaultMaxRetries,
-			Source:        "pipeline",
-			PipelineID:    pipelineID.String(),
-			StepIndex:     i,
-			StepCondition: step.Condition,
-			Attempts:      []Attempt{},
-		}
-
-		// Apply enrichment if available.
-		if i < len(enriched.Steps) {
-			job.Title = enriched.Steps[i].Title
-			job.Summary = enriched.Steps[i].Summary
-		}
-		job.PipelineSummary = enriched.PipelineSummary
-
-		if err := a.store.Put(r.Context(), job); err != nil {
-			a.logger.Error("failed to store pipeline job", "step", i, "error", err)
-			a.writeError(w, http.StatusInternalServerError, "failed to store pipeline job")
-			return
-		}
-
-		// Only publish step 0 to NATS for immediate dispatch.
-		if i == 0 && a.publish != nil {
-			if err := a.publish(job.ID); err != nil {
-				a.logger.Error("failed to publish pipeline job", "id", job.ID, "error", err)
-				a.writeError(w, http.StatusInternalServerError, "failed to enqueue pipeline")
-				return
-			}
-		}
-
-		jobs = append(jobs, SubmitResponse{
-			ID:        job.ID,
-			Status:    job.Status,
-			CreatedAt: job.CreatedAt,
-		})
-	}
-
-	a.writeJSON(w, http.StatusAccepted, PipelineResponse{
-		PipelineID: pipelineID.String(),
-		Jobs:       jobs,
-	})
 }
 
 func (a *API) writeJSON(w http.ResponseWriter, status int, v any) {

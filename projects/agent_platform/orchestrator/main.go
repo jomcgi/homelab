@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
@@ -109,10 +108,7 @@ func main() {
 		return err
 	}
 
-	agents, recipePaths := loadAgentsConfig(envOr("AGENTS_CONFIG_PATH", "/etc/orchestrator/agents.json"), logger)
-	inferenceURL := envOr("INFERENCE_URL", "")
-
-	api := NewAPI(store, publish, healthCheck, maxRetries, agents, recipePaths, inferenceURL, logger)
+	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)
@@ -136,7 +132,7 @@ func main() {
 
 	// Start consumer if sandbox is available.
 	if sandbox != nil {
-		consumer := NewConsumer(cons, store, sandbox, publish, maxDuration, recipePaths, logger)
+		consumer := NewConsumer(cons, store, sandbox, publish, maxDuration, logger)
 		go consumer.Run(ctx)
 	} else {
 		logger.Info("running in API-only mode (no sandbox executor)")
@@ -228,35 +224,6 @@ func setupJetStream(ctx context.Context, js jetStreamSetup, maxConcurrent int, l
 	}
 
 	return nil, nil, fmt.Errorf("JetStream setup failed after %d attempts", maxAttempts)
-}
-
-// loadAgentsConfig reads the agents JSON config file mounted from a ConfigMap.
-// Returns nil values if the file doesn't exist or is invalid.
-func loadAgentsConfig(path string, logger *slog.Logger) ([]AgentInfo, map[string]string) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		if os.IsNotExist(err) {
-			logger.Info("no agents config file, pipeline composer will show empty agent list", "path", path)
-			return nil, nil
-		}
-		logger.Error("failed to read agents config", "path", path, "error", err)
-		return nil, nil
-	}
-	var cfg struct {
-		Agents []AgentInfo `json:"agents"`
-	}
-	if err := json.Unmarshal(data, &cfg); err != nil {
-		logger.Error("failed to parse agents config", "path", path, "error", err)
-		return nil, nil
-	}
-	recipePaths := make(map[string]string, len(cfg.Agents))
-	for _, a := range cfg.Agents {
-		if a.RecipePath != "" {
-			recipePaths[a.ID] = a.RecipePath
-		}
-	}
-	logger.Info("loaded agents config", "path", path, "agents", len(cfg.Agents), "recipePaths", len(recipePaths))
-	return cfg.Agents, recipePaths
 }
 
 func envOr(key, fallback string) string {
