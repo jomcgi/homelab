@@ -9,7 +9,7 @@ spec:
     # Chart from OCI registry (pushed by CI via Bazel helm_push)
     - repoURL: ghcr.io/jomcgi/homelab/charts
       chart: agent-platform
-      targetRevision: 0.23.7
+      targetRevision: 0.24.0
       helm:
         releaseName: agent-platform
         valueFiles:
@@ -23,7 +23,7 @@ spec:
     namespace: agent-platform
   # Ignore fields injected by Kyverno/Linkerd mutation policies.
   # IMPORTANT: Do NOT ignore the entire env array — that prevents ArgoCD from
-  # syncing new env vars added by the Helm chart (e.g. INFERENCE_URL).
+  # syncing new env vars added by the Helm chart.
   ignoreDifferences:
     - group: apps
       kind: Deployment
