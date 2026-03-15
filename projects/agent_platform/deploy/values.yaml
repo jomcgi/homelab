@@ -206,8 +206,6 @@ agent-platform-mcp-servers:
 
 # ── Agent Orchestrator ───────────────────────────────────────────────────────
 agent-orchestrator:
-  config:
-    inferenceUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080/v1/chat/completions"
   imagePullSecret:
     enabled: true
     onepassword:

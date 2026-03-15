@@ -14,7 +14,6 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/agents-config: {{ include (print $.Template.BasePath "/agents-configmap.yaml") . | sha256sum }}
         {{- with .Values.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -59,14 +58,6 @@ spec:
           value: {{ .Values.config.jobMaxDuration | quote }}
         - name: RECONCILE_INTERVAL
           value: {{ .Values.config.reconcileInterval | quote }}
-        {{- if .Values.config.inferenceUrl }}
-        - name: INFERENCE_URL
-          value: {{ .Values.config.inferenceUrl | quote }}
-        {{- end }}
-        volumeMounts:
-        - name: agents-config
-          mountPath: /etc/orchestrator
-          readOnly: true
         livenessProbe:
           httpGet:
             path: /health
@@ -93,7 +84,3 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      volumes:
-      - name: agents-config
-        configMap:
-          name: {{ include "agent-orchestrator.fullname" . }}-agents
