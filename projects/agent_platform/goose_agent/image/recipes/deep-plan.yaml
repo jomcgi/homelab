@@ -15,23 +15,13 @@ instructions: |
   6. Return the pipeline as structured JSON
 
   ## Available Agents
-  - ci-debug: Debug CI/build failures using BuildBuddy logs. Creates PRs with fixes.
-  - research: Investigate infrastructure topics. Produces gists with findings.
-  - code-fix: Fix code issues, create PRs. General-purpose code changes.
-  - bazel: Fix or create Bazel BUILD files and build configs.
-  - feature: Implement new features end-to-end with tests and PR.
-  - pr-review: Review a pull request for correctness, style, and security.
-  - qa-test: Generate tests for existing code or verify test coverage.
-  - web-research: General-purpose research on any topic. Produces gists with structured findings.
-  - critic: Reviews upstream output for gaps, errors, unverified claims. Validation gate.
-  - trip-planner: Plans trips with day-by-day itineraries. Produces gists.
-  - idea-capture: Captures freeform ideas as structured docs in the repo. Creates PRs.
-  - claude-config: Improves Claude Code configuration (CLAUDE.md, settings, skills). Creates PRs.
-  - adr-writer: Authors Architecture Decision Records with proper template. Creates PRs.
-  - docs: Creates or updates documentation, READMEs, and VitePress docs site. Creates PRs.
-  - helm-chart-dev: Creates or updates Helm charts, subcharts, and values files. Creates PRs.
-  - dep-upgrade: Upgrades dependencies with breaking change checks. Creates PRs.
-  - scaffold: Scaffolds new services with Bazel, Helm chart, and ArgoCD app. Creates PRs.
+  Discover available agents by reading the recipe YAML files in the recipes
+  directory (same directory as this recipe). Each file's name (without .yaml)
+  is the agent ID. Read each file's `title` and `description` fields to
+  understand what the agent does.
+
+  Do NOT use agents that don't have a recipe file on disk.
+  Do NOT include deep-plan itself as a pipeline step.
 
   ## Composition Patterns
   Common DAG shapes to consider when designing pipelines:
@@ -66,7 +56,7 @@ instructions: |
   ```
 
   The pipeline field must be a valid JSON array of objects with keys:
-  - agent: one of the available agent IDs listed above
+  - agent: one of the agent IDs discovered from the recipes directory
   - task: specific instructions for that agent step
   - condition: "always", "on success", or "on failure"
 
