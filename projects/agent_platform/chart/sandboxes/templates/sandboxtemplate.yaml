@@ -94,6 +94,10 @@ spec:
                   optional: true
             - name: GOOSE_WORKSPACE
               value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}
+            - name: RECIPES_DIR
+              value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}/projects/agent_platform/goose_agent/image/recipes
+            - name: DEEP_PLAN_RECIPE
+              value: /workspace/{{ .Values.sandboxTemplate.env.repoName }}/projects/agent_platform/goose_agent/image/recipes/deep-plan.yaml
             {{- if .Values.sandboxTemplate.extraEnv }}
             {{- toYaml .Values.sandboxTemplate.extraEnv | nindent 12 }}
             {{- end }}
