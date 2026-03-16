@@ -189,3 +189,28 @@ func TestIsNotFound_NilError(t *testing.T) {
 		t.Error("isNotFound should return false for nil error")
 	}
 }
+
+// TestInternalError_Returns500WithJSONBody verifies that internalError writes a 500 status
+// and a JSON body with "error": "internal server error". All Firestore-error paths in the
+// handlers rely on this contract.
+func TestInternalError_Returns500WithJSONBody(t *testing.T) {
+	w := httptest.NewRecorder()
+	internalError(w, errors.New("something went wrong internally"))
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("status got %d, want %d", w.Code, http.StatusInternalServerError)
+	}
+
+	ct := w.Header().Get("Content-Type")
+	if ct != "application/json" {
+		t.Errorf("Content-Type got %q, want %q", ct, "application/json")
+	}
+
+	var body map[string]string
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("parsing response body: %v", err)
+	}
+	if body["error"] != "internal server error" {
+		t.Errorf("error message got %q, want %q", body["error"], "internal server error")
+	}
+}
