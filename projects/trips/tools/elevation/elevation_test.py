@@ -4,6 +4,7 @@ import sqlite3
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+import pytest_asyncio  # noqa: F401 — needed to register pytest-asyncio plugin
 
 from client import (
     ElevationCache,
