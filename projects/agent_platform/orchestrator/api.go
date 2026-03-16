@@ -84,7 +84,6 @@ func (a *API) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	job := &JobRecord{
 		ID:         id.String(),
 		Task:       req.Task,
-		Profile:    req.Profile,
 		Status:     JobPending,
 		CreatedAt:  now,
 		UpdatedAt:  now,

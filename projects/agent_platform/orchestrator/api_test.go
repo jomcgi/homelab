@@ -114,38 +114,7 @@ func TestHandleSubmit(t *testing.T) {
 	}
 }
 
-func TestHandleSubmit_WithProfile(t *testing.T) {
-	store := newMemStore()
-	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, "", logger)
-	mux := http.NewServeMux()
-	api.RegisterRoutes(mux)
-
-	body := `{"task":"fix the build","profile":"ci-debug"}`
-	req := httptest.NewRequest(http.MethodPost, "/jobs", bytes.NewBufferString(body))
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusAccepted {
-		t.Fatalf("expected 202, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var resp SubmitResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode response: %v", err)
-	}
-
-	// Verify profile was stored on the job record.
-	job, err := store.Get(context.Background(), resp.ID)
-	if err != nil {
-		t.Fatalf("get job: %v", err)
-	}
-	if job.Profile != "ci-debug" {
-		t.Fatalf("expected profile ci-debug, got %q", job.Profile)
-	}
-}
-
-func TestHandleSubmit_NoProfile(t *testing.T) {
+func TestHandleSubmit_DefaultSource(t *testing.T) {
 	store := newMemStore()
 	_, mux := newTestAPI(store)
 
@@ -163,13 +132,12 @@ func TestHandleSubmit_NoProfile(t *testing.T) {
 		t.Fatalf("decode response: %v", err)
 	}
 
-	// Verify empty profile preserves default behavior.
 	job, err := store.Get(context.Background(), resp.ID)
 	if err != nil {
 		t.Fatalf("get job: %v", err)
 	}
-	if job.Profile != "" {
-		t.Fatalf("expected empty profile, got %q", job.Profile)
+	if job.Source != "api" {
+		t.Fatalf("expected source 'api', got %q", job.Source)
 	}
 }
 
