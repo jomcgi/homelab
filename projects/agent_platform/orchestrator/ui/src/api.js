@@ -8,7 +8,7 @@ export async function listJobs({ status, tags, limit = 20, offset = 0 } = {}) {
   params.set("offset", String(offset));
   const res = await fetch(`${API}/jobs?${params}`);
   if (!res.ok) throw new Error(await res.text());
-  return res.json(); // { jobs, total }
+  return res.json();
 }
 
 export async function getJob(id) {
@@ -17,21 +17,11 @@ export async function getJob(id) {
   return res.json();
 }
 
-export async function submitJob({ task, profile, tags, source = "dashboard" }) {
+export async function submitJob(task) {
   const res = await fetch(`${API}/jobs`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      task,
-      profile: profile || "",
-      tags: tags
-        ? tags
-            .split(",")
-            .map((t) => t.trim())
-            .filter(Boolean)
-        : [],
-      source,
-    }),
+    body: JSON.stringify({ task, source: "dashboard" }),
   });
   if (!res.ok) throw new Error(await res.text());
   return res.json();
@@ -49,18 +39,8 @@ export async function getJobOutput(id) {
   return res.json();
 }
 
-export async function listAgents() {
-  const res = await fetch(`${API}/agents`);
+export async function summarizeJob(id) {
+  const res = await fetch(`${API}/jobs/${id}/summarize`, { method: "POST" });
   if (!res.ok) throw new Error(await res.text());
-  return res.json(); // { agents: AgentInfo[] }
-}
-
-export async function submitPipeline(spec) {
-  const res = await fetch(`${API}/pipeline`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(spec),
-  });
-  if (!res.ok) throw new Error(await res.text());
-  return res.json(); // { pipeline_id, jobs }
+  return res.json();
 }
