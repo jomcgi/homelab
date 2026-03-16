@@ -6,12 +6,6 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-# gazelle:ignore main
-# gazelle:ignore main.GAP_KEY_NAMESPACE
-# gazelle:ignore main.generate_gap_id
-# gazelle:ignore main.parse_kml_coordinates
-# gazelle:ignore main.publish_gap_points
-# gazelle:ignore main.sample_coordinates
 from main import (
     GAP_KEY_NAMESPACE,
     generate_gap_id,
