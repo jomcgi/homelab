@@ -2,7 +2,6 @@
 mcp-stack:
   mcpContextForge:
     config:
-      PLATFORM_ADMIN_EMAIL: "joe@jomcgi.dev"
       MCPGATEWAY_UI_ENABLED: "true"
       MCPGATEWAY_CATALOG_ENABLED: "true"
       MCPGATEWAY_TOOL_CANCELLATION_ENABLED: "true"
