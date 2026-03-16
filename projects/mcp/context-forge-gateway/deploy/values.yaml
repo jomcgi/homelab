@@ -3,6 +3,7 @@ mcp-stack:
   mcpContextForge:
     config:
       PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
+      MCPGATEWAY_UI_ENABLED: "true"
     probes:
       startup:
         type: exec
