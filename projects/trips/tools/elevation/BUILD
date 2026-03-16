@@ -32,9 +32,8 @@ py_test(
     srcs = ["elevation_test.py"],
     imports = ["."],
     deps = [
-        ":elevation",
+        "//projects/trips/tools/elevation",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
