@@ -1,6 +1,7 @@
 """Tests for Trips API service."""
 
 import json
+import os
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
@@ -722,3 +723,543 @@ class TestJetStreamReplay:
         await state.replay_stream()
 
         assert "null_island" not in state.points
+
+
+class TestConnectionManagerAdditional:
+    """Additional coverage for ConnectionManager viewer count and edge cases."""
+
+    @pytest.fixture
+    def manager(self):
+        return ConnectionManager()
+
+    @pytest.mark.asyncio
+    async def test_broadcast_viewer_count_sends_correct_message(self, manager):
+        """broadcast_viewer_count sends a viewer_count message with the current count."""
+        mock_ws = AsyncMock(spec=WebSocket)
+        manager.active_connections = [mock_ws]
+
+        await manager.broadcast_viewer_count()
+
+        mock_ws.send_json.assert_called_once_with({"type": "viewer_count", "count": 1})
+
+    @pytest.mark.asyncio
+    async def test_broadcast_viewer_count_empty_connections(self, manager):
+        """broadcast_viewer_count with no connections should not raise."""
+        await manager.broadcast_viewer_count()  # Should not raise
+        assert manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_connect_broadcasts_viewer_count_to_new_connection(self, manager):
+        """connect() broadcasts viewer_count after adding the connection."""
+        mock_ws = AsyncMock(spec=WebSocket)
+
+        await manager.connect(mock_ws)
+
+        # The newly connected ws is in active_connections and receives the viewer_count
+        mock_ws.send_json.assert_called_once_with({"type": "viewer_count", "count": 1})
+
+    @pytest.mark.asyncio
+    async def test_disconnect_broadcasts_viewer_count_to_remaining(self, manager):
+        """disconnect() broadcasts updated viewer_count to remaining connections."""
+        mock_ws1 = AsyncMock(spec=WebSocket)
+        mock_ws2 = AsyncMock(spec=WebSocket)
+        manager.active_connections = [mock_ws1, mock_ws2]
+
+        await manager.disconnect(mock_ws1)
+
+        # mock_ws1 is removed; mock_ws2 should receive the updated count of 1
+        mock_ws2.send_json.assert_called_once_with({"type": "viewer_count", "count": 1})
+        assert mock_ws1 not in manager.active_connections
+
+    @pytest.mark.asyncio
+    async def test_broadcast_empty_connections_list(self, manager):
+        """broadcast() with no connections should succeed without error."""
+        await manager.broadcast({"type": "test", "data": "value"})
+        assert manager.active_connections == []
+
+    @pytest.mark.asyncio
+    async def test_broadcast_viewer_count_reflects_multiple_connections(self, manager):
+        """broadcast_viewer_count count matches active_connections length."""
+        mock_ws1 = AsyncMock(spec=WebSocket)
+        mock_ws2 = AsyncMock(spec=WebSocket)
+        mock_ws3 = AsyncMock(spec=WebSocket)
+        manager.active_connections = [mock_ws1, mock_ws2, mock_ws3]
+
+        await manager.broadcast_viewer_count()
+
+        for ws in [mock_ws1, mock_ws2, mock_ws3]:
+            ws.send_json.assert_called_once_with({"type": "viewer_count", "count": 3})
+
+
+class TestTripsStateAdditional:
+    """Additional coverage for TripsState: close, connect, pagination, stats."""
+
+    @pytest.fixture
+    def state(self):
+        return TripsState()
+
+    def test_get_points_with_limit_and_offset(self, state):
+        """get_points with both limit and offset applies both constraints."""
+        for i in range(10):
+            state.points[f"p{i}"] = TripPoint(
+                id=f"p{i}",
+                lat=45.0 + i,
+                lng=-122.0,
+                timestamp=f"2024-01-15T{10 + i:02d}:00:00Z",
+            )
+
+        points = state.get_points(limit=3, offset=2)
+
+        assert len(points) == 3
+        assert points[0].id == "p2"
+        assert points[1].id == "p3"
+        assert points[2].id == "p4"
+
+    def test_get_points_offset_beyond_length(self, state):
+        """get_points with offset beyond total count returns empty list."""
+        for i in range(3):
+            state.points[f"p{i}"] = TripPoint(
+                id=f"p{i}",
+                lat=45.0 + i,
+                lng=-122.0,
+                timestamp=f"2024-01-15T{10 + i:02d}:00:00Z",
+            )
+
+        points = state.get_points(offset=10)
+        assert points == []
+
+    def test_get_stats_with_connected_clients(self, state):
+        """get_stats should reflect the number of active WebSocket connections."""
+        state.points = {
+            "p1": TripPoint(
+                id="p1", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+            )
+        }
+        mock_ws1 = MagicMock()
+        mock_ws2 = MagicMock()
+        state.manager.active_connections = [mock_ws1, mock_ws2]
+
+        stats = state.get_stats()
+
+        assert stats["total_points"] == 1
+        assert stats["connected_clients"] == 2
+
+    @pytest.mark.asyncio
+    async def test_process_message_tombstone_for_nonexistent_point(self, state):
+        """Tombstone for a point not in cache should return None (no error)."""
+        data = json.dumps({"id": "does_not_exist", "deleted": True}).encode()
+
+        result = await state._process_message(data)
+
+        assert result is None
+        assert "does_not_exist" not in state.points
+
+    @pytest.mark.asyncio
+    async def test_close_with_subscription_and_nc(self, state):
+        """close() should call unsubscribe() on subscription and close() on nc."""
+        mock_sub = AsyncMock()
+        mock_nc = AsyncMock()
+        state.subscription = mock_sub
+        state.nc = mock_nc
+
+        await state.close()
+
+        mock_sub.unsubscribe.assert_called_once()
+        mock_nc.close.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_close_when_not_connected(self, state):
+        """close() should handle None subscription and nc without raising."""
+        assert state.subscription is None
+        assert state.nc is None
+
+        await state.close()  # Should not raise
+
+    @pytest.mark.asyncio
+    async def test_connect_sets_ready_true(self, state):
+        """connect() should set self.ready = True after successful startup."""
+        mock_nc = AsyncMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream.return_value = mock_js
+
+        with patch("nats.connect", return_value=mock_nc):
+            state.replay_stream = AsyncMock()
+            state.subscribe_live = AsyncMock()
+
+            await state.connect()
+
+        assert state.ready is True
+        state.replay_stream.assert_called_once()
+        state.subscribe_live.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_connect_stores_nats_connection(self, state):
+        """connect() should store the NATS connection in self.nc and self.js."""
+        mock_nc = AsyncMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream.return_value = mock_js
+
+        with patch("nats.connect", return_value=mock_nc):
+            state.replay_stream = AsyncMock()
+            state.subscribe_live = AsyncMock()
+
+            await state.connect()
+
+        assert state.nc is mock_nc
+        assert state.js is mock_js
+
+
+class TestJetStreamReplayAdditional:
+    """Additional coverage for replay_stream, subscribe_live, _process_subscription."""
+
+    @pytest.fixture
+    def state(self):
+        return TripsState()
+
+    def _make_msg(self, data: dict):
+        """Build a mock NATS message with .data bytes."""
+        msg = MagicMock()
+        msg.data = json.dumps(data).encode()
+        msg.ack = AsyncMock()
+        return msg
+
+    @pytest.mark.asyncio
+    async def test_replay_stream_handles_generic_exception(self, state):
+        """replay_stream should catch non-NotFoundError exceptions and leave cache empty."""
+        state.js = AsyncMock()
+        state.js.pull_subscribe = AsyncMock(
+            side_effect=RuntimeError("Unexpected NATS error")
+        )
+
+        await state.replay_stream()  # Should not raise
+
+        assert state.points == {}
+
+    @pytest.mark.asyncio
+    async def test_subscribe_live_handles_subscribe_exception(self, state):
+        """subscribe_live should log and return gracefully if js.subscribe raises."""
+        state.js = AsyncMock()
+        state.js.subscribe = AsyncMock(side_effect=RuntimeError("Subscribe failed"))
+
+        await state.subscribe_live()  # Should not raise
+
+        assert state.subscription is None
+
+    @pytest.mark.asyncio
+    async def test_subscribe_live_uses_hostname_env_var(self, state):
+        """subscribe_live should derive the durable consumer name from HOSTNAME."""
+        mock_sub = MagicMock()
+        mock_sub.messages = AsyncMock()
+        state.js = AsyncMock()
+        state.js.subscribe = AsyncMock(return_value=mock_sub)
+
+        with patch.dict(os.environ, {"HOSTNAME": "trips-pod-xyz789"}):
+            await state.subscribe_live()
+
+        call_kwargs = state.js.subscribe.call_args[1]
+        assert call_kwargs.get("durable") == "trips-api-live-trips-pod-xyz789"
+
+    @pytest.mark.asyncio
+    async def test_subscribe_live_inactive_threshold_set(self, state):
+        """subscribe_live should set inactive_threshold in consumer config."""
+        import nats
+
+        mock_sub = MagicMock()
+        state.js = AsyncMock()
+        state.js.subscribe = AsyncMock(return_value=mock_sub)
+
+        await state.subscribe_live()
+
+        call_kwargs = state.js.subscribe.call_args[1]
+        config = call_kwargs.get("config")
+        assert config is not None
+        assert config.inactive_threshold == 3600.0
+
+    @pytest.mark.asyncio
+    async def test_process_subscription_no_broadcast_for_none_point(self, state):
+        """_process_subscription should not broadcast when _process_message returns None."""
+        # Null island coords → _process_message returns None
+        msg = self._make_msg(
+            {
+                "id": "null_island",
+                "lat": 0.0,
+                "lng": 0.0,
+                "timestamp": "2024-01-15T10:00:00Z",
+            }
+        )
+
+        async def one_message():
+            yield msg
+
+        mock_sub = MagicMock()
+        mock_sub.messages = one_message()
+        state.subscription = mock_sub
+        state.manager.broadcast = AsyncMock()
+
+        await state._process_subscription()
+
+        msg.ack.assert_called_once()
+        state.manager.broadcast.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_subscription_continues_after_bad_message(self, state):
+        """Messages with invalid JSON are skipped; subsequent valid messages are processed."""
+        invalid_msg = MagicMock()
+        invalid_msg.data = b"not valid json {{{"
+        invalid_msg.ack = AsyncMock()
+
+        valid_msg = self._make_msg(
+            {
+                "id": "good_point",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2024-01-15T10:00:00Z",
+            }
+        )
+
+        async def two_messages():
+            yield invalid_msg
+            yield valid_msg
+
+        mock_sub = MagicMock()
+        mock_sub.messages = two_messages()
+        state.subscription = mock_sub
+        state.manager.broadcast = AsyncMock()
+
+        await state._process_subscription()
+
+        # Both messages are acked (invalid JSON returns None from _process_message)
+        invalid_msg.ack.assert_called_once()
+        valid_msg.ack.assert_called_once()
+
+        # Only the valid point is broadcast
+        state.manager.broadcast.assert_called_once()
+        broadcast_call = state.manager.broadcast.call_args[0][0]
+        assert broadcast_call["type"] == "new_point"
+        assert broadcast_call["point"]["id"] == "good_point"
+
+    @pytest.mark.asyncio
+    async def test_process_subscription_exception_in_ack_does_not_stop_loop(self, state):
+        """If msg.ack() raises, the error is logged and processing continues."""
+        failing_msg = self._make_msg(
+            {
+                "id": "ack_fails",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2024-01-15T10:00:00Z",
+            }
+        )
+        failing_msg.ack = AsyncMock(side_effect=RuntimeError("ACK error"))
+
+        valid_msg = self._make_msg(
+            {
+                "id": "ack_succeeds",
+                "lat": 46.0,
+                "lng": -123.0,
+                "timestamp": "2024-01-15T11:00:00Z",
+            }
+        )
+
+        async def two_messages():
+            yield failing_msg
+            yield valid_msg
+
+        mock_sub = MagicMock()
+        mock_sub.messages = two_messages()
+        state.subscription = mock_sub
+        state.manager.broadcast = AsyncMock()
+
+        await state._process_subscription()
+
+        # Despite the ack failure, the second message was still processed
+        valid_msg.ack.assert_called_once()
+        # The second broadcast should have the valid point
+        last_call = state.manager.broadcast.call_args_list[-1][0][0]
+        assert last_call["type"] == "new_point"
+        assert last_call["point"]["id"] == "ack_succeeds"
+
+
+class TestWebSocketEndpoint:
+    """Tests for the WebSocket /ws/live endpoint."""
+
+    def test_websocket_receives_connected_message(self):
+        """Connecting via WebSocket should yield a 'connected' message with cached point count."""
+        real_manager = ConnectionManager()
+        with patch.object(trips_main, "state") as mock_state:
+            mock_state.points = {"p1": MagicMock(), "p2": MagicMock()}
+            mock_state.manager = real_manager
+
+            client = TestClient(app, raise_server_exceptions=False)
+            with client.websocket_connect("/ws/live") as ws:
+                # First: viewer_count broadcast from connect()
+                viewer_msg = ws.receive_json()
+                assert viewer_msg["type"] == "viewer_count"
+                assert viewer_msg["count"] == 1
+
+                # Second: the endpoint sends the "connected" message
+                connected_msg = ws.receive_json()
+                assert connected_msg["type"] == "connected"
+                assert connected_msg["cached_points"] == 2
+
+    def test_websocket_ping_pong_keepalive(self):
+        """Sending 'ping' over the WebSocket should receive 'pong' in response."""
+        real_manager = ConnectionManager()
+        with patch.object(trips_main, "state") as mock_state:
+            mock_state.points = {}
+            mock_state.manager = real_manager
+
+            client = TestClient(app, raise_server_exceptions=False)
+            with client.websocket_connect("/ws/live") as ws:
+                ws.receive_json()  # viewer_count
+                ws.receive_json()  # connected
+
+                ws.send_text("ping")
+                response = ws.receive_text()
+                assert response == "pong"
+
+    def test_websocket_non_ping_message_ignored(self):
+        """Non-ping text messages should not cause an error and receive no response."""
+        real_manager = ConnectionManager()
+        with patch.object(trips_main, "state") as mock_state:
+            mock_state.points = {}
+            mock_state.manager = real_manager
+
+            client = TestClient(app, raise_server_exceptions=False)
+            with client.websocket_connect("/ws/live") as ws:
+                ws.receive_json()  # viewer_count
+                ws.receive_json()  # connected
+
+                # Send a non-ping message — the loop continues without sending a response
+                ws.send_text("hello")
+                # Send ping immediately after to verify the loop is still alive
+                ws.send_text("ping")
+                response = ws.receive_text()
+                assert response == "pong"
+
+    def test_websocket_disconnect_removes_from_active_connections(self):
+        """After the WebSocket closes, the connection should be removed from active_connections."""
+        real_manager = ConnectionManager()
+        with patch.object(trips_main, "state") as mock_state:
+            mock_state.points = {}
+            mock_state.manager = real_manager
+
+            client = TestClient(app, raise_server_exceptions=False)
+            with client.websocket_connect("/ws/live") as ws:
+                ws.receive_json()  # viewer_count
+                ws.receive_json()  # connected
+                assert len(real_manager.active_connections) == 1
+
+        # Connection should be cleaned up after the context exits
+        assert len(real_manager.active_connections) == 0
+
+    def test_websocket_cached_points_count_zero_when_empty(self):
+        """connected message should report cached_points=0 when state.points is empty."""
+        real_manager = ConnectionManager()
+        with patch.object(trips_main, "state") as mock_state:
+            mock_state.points = {}
+            mock_state.manager = real_manager
+
+            client = TestClient(app, raise_server_exceptions=False)
+            with client.websocket_connect("/ws/live") as ws:
+                ws.receive_json()  # viewer_count
+                connected_msg = ws.receive_json()
+                assert connected_msg["cached_points"] == 0
+
+
+class TestRequireApiKeyAdditional:
+    """Additional direct tests for the require_api_key dependency."""
+
+    @pytest.mark.asyncio
+    async def test_require_api_key_returns_key_when_valid(self):
+        """require_api_key should return the provided key when it matches TRIP_API_KEY."""
+        with patch.object(trips_main, "TRIP_API_KEY", "my-secret-key"):
+            result = await require_api_key(api_key="my-secret-key")
+        assert result == "my-secret-key"
+
+    @pytest.mark.asyncio
+    async def test_require_api_key_raises_when_key_is_none(self):
+        """require_api_key raises 401 when no key is provided but auth is configured."""
+        with patch.object(trips_main, "TRIP_API_KEY", "configured-key"):
+            with pytest.raises(HTTPException) as exc_info:
+                await require_api_key(api_key=None)
+        assert exc_info.value.status_code == 401
+
+    @pytest.mark.asyncio
+    async def test_require_api_key_raises_when_key_empty_string(self):
+        """require_api_key raises 401 when empty string key is sent but auth is configured."""
+        with patch.object(trips_main, "TRIP_API_KEY", "configured-key"):
+            with pytest.raises(HTTPException) as exc_info:
+                await require_api_key(api_key="")
+        assert exc_info.value.status_code == 401
+
+
+class TestTripPointAdditional:
+    """Additional coverage for TripPoint model defaults and edge cases."""
+
+    def test_default_source_is_gopro(self):
+        """TripPoint source field defaults to 'gopro'."""
+        point = TripPoint(
+            id="test", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+        )
+        assert point.source == "gopro"
+
+    def test_default_tags_is_car(self):
+        """TripPoint tags field defaults to ['car']."""
+        point = TripPoint(
+            id="test", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+        )
+        assert point.tags == ["car"]
+
+    def test_all_optional_fields_default_to_none(self):
+        """All optional fields on TripPoint default to None."""
+        point = TripPoint(
+            id="test", lat=45.0, lng=-122.0, timestamp="2024-01-15T10:00:00Z"
+        )
+        assert point.image is None
+        assert point.elevation is None
+        assert point.light_value is None
+        assert point.iso is None
+        assert point.shutter_speed is None
+        assert point.aperture is None
+        assert point.focal_length_35mm is None
+
+    def test_gap_source_and_no_image(self):
+        """A gap point has source='gap' and no image."""
+        point = TripPoint(
+            id="gap1",
+            lat=62.0,
+            lng=-135.0,
+            timestamp="2024-06-01T08:00:00Z",
+            source="gap",
+            image=None,
+        )
+        assert point.source == "gap"
+        assert point.image is None
+
+    def test_multiple_tags(self):
+        """TripPoint can store multiple tags."""
+        point = TripPoint(
+            id="tagged",
+            lat=45.0,
+            lng=-122.0,
+            timestamp="2024-01-15T10:00:00Z",
+            tags=["hike", "mountain", "wildlife"],
+        )
+        assert point.tags == ["hike", "mountain", "wildlife"]
+
+    def test_model_dump_includes_all_fields(self):
+        """model_dump() should include all fields including optional ones set to None."""
+        point = TripPoint(
+            id="dump_test",
+            lat=45.0,
+            lng=-122.0,
+            timestamp="2024-01-15T10:00:00Z",
+        )
+        dumped = point.model_dump()
+        assert "id" in dumped
+        assert "lat" in dumped
+        assert "lng" in dumped
+        assert "timestamp" in dumped
+        assert "image" in dumped
+        assert "elevation" in dumped
+        assert "iso" in dumped
