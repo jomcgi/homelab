@@ -66,6 +66,25 @@ semgrep_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
+py_test(
+    name = "ais_parsing_test",
+    srcs = ["ais_parsing_test.py"],
+    imports = ["."],
+    deps = [
+        ":ais-ingest",
+        "@pip//fastapi",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "ais_parsing_test_semgrep_test",
+    srcs = ["ais_parsing_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
 semgrep_target_test(
     name = "main_semgrep_test",
     lockfiles = ["//bazel/requirements:all.txt"],
