@@ -4,6 +4,8 @@ mcp-stack:
     config:
       PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
       MCPGATEWAY_UI_ENABLED: "true"
+      MCPGATEWAY_CATALOG_ENABLED: "true"
+      MCPGATEWAY_TOOL_CANCELLATION_ENABLED: "true"
     probes:
       startup:
         type: exec
