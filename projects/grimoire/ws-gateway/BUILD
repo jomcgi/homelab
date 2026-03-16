@@ -29,10 +29,10 @@ go_test(
         "main_test.go",
         "redis_test.go",
     ],
+    embed = [":ws-gateway_lib"],
     deps = [
         "@com_github_redis_go_redis_v9//:go-redis",
     ],
-    embed = [":ws-gateway_lib"],
 )
 
 go_binary(
