@@ -22,11 +22,9 @@ func newBoundConfig(t *testing.T, args []string, env map[string]string) Config {
 		"REGISTRY_PUSH_SECRET", "SYNC_NODE_SELECTOR",
 		"SYNC_MEMORY_REQUEST", "SYNC_MEMORY_LIMIT", "SYNC_MAX_PARALLEL",
 	}
-	originals := make(map[string]string, len(envKeys))
 	for _, k := range envKeys {
-		originals[k] = t.Setenv(k, "") // clears key; t.Cleanup restores it
+		t.Setenv(k, "") // clears key; t.Cleanup restores it automatically
 	}
-	_ = originals // t.Setenv registers cleanup automatically
 
 	// Apply test-specific env overrides.
 	for k, v := range env {
