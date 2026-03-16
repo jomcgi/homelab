@@ -21,7 +21,7 @@
           },
           {
             "type": "command",
-            "command": "bazel/tools/hooks/prefer-buildbuddy-mcp.sh",
+            "command": "bazel/tools/hooks/prefer-bb-remote.sh",
             "timeout": 5
           }
         ]
