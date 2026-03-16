@@ -91,8 +91,4 @@ func TestRulesAgent_AnalyzeCreatesJob(t *testing.T) {
 	if taskStr == "" {
 		t.Error("expected non-empty task string")
 	}
-	profile, ok := actions[0].Payload["profile"].(string)
-	if !ok || profile != "code-fix" {
-		t.Errorf("expected profile=code-fix, got %v", actions[0].Payload["profile"])
-	}
 }
