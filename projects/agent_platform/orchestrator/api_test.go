@@ -80,7 +80,7 @@ func (m *memStore) List(_ context.Context, statusFilter, tagFilter []string, lim
 
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, logger)
+	api := NewAPI(store, nil, nil, 2, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	return api, mux
@@ -117,7 +117,7 @@ func TestHandleSubmit(t *testing.T) {
 func TestHandleSubmit_WithProfile(t *testing.T) {
 	store := newMemStore()
 	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, logger)
+	api := NewAPI(store, nil, nil, 2, "", logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 
