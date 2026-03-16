@@ -707,8 +707,26 @@ class TestPositionCountCaching:
 
             now = datetime.now(timezone.utc).isoformat()
             positions = [
-                ({"mmsi": "111111111", "lat": 51.5, "lon": -0.1, "speed": 5.0, "timestamp": now}, now),
-                ({"mmsi": "222222222", "lat": 52.5, "lon": -1.1, "speed": 5.0, "timestamp": now}, now),
+                (
+                    {
+                        "mmsi": "111111111",
+                        "lat": 51.5,
+                        "lon": -0.1,
+                        "speed": 5.0,
+                        "timestamp": now,
+                    },
+                    now,
+                ),
+                (
+                    {
+                        "mmsi": "222222222",
+                        "lat": 52.5,
+                        "lon": -1.1,
+                        "speed": 5.0,
+                        "timestamp": now,
+                    },
+                    now,
+                ),
             ]
             await db.insert_positions_batch(positions)
             await db.commit()
@@ -761,8 +779,26 @@ class TestPositionCountCaching:
         recent_ts = now.isoformat()
 
         positions = [
-            ({"mmsi": "111111111", "lat": 51.5, "lon": -0.1, "speed": 0.0, "timestamp": old_ts}, old_ts),
-            ({"mmsi": "222222222", "lat": 52.5, "lon": -1.1, "speed": 5.0, "timestamp": recent_ts}, recent_ts),
+            (
+                {
+                    "mmsi": "111111111",
+                    "lat": 51.5,
+                    "lon": -0.1,
+                    "speed": 0.0,
+                    "timestamp": old_ts,
+                },
+                old_ts,
+            ),
+            (
+                {
+                    "mmsi": "222222222",
+                    "lat": 52.5,
+                    "lon": -1.1,
+                    "speed": 5.0,
+                    "timestamp": recent_ts,
+                },
+                recent_ts,
+            ),
         ]
         await test_db.insert_positions_batch(positions)
         await test_db.commit()
@@ -809,7 +845,9 @@ class TestCacheClearingOnReconnect:
 
         # Manually add a cache entry to simulate leftover state.
         now = datetime.now(timezone.utc).isoformat()
-        db.update_cache("123456789", {"lat": 51.5, "lon": -0.1, "speed": 5.0, "timestamp": now}, now)
+        db.update_cache(
+            "123456789", {"lat": 51.5, "lon": -0.1, "speed": 5.0, "timestamp": now}, now
+        )
         assert db.get_cache_size() == 1
 
         # Reconnect to a fresh :memory: database — cache must be cleared then
