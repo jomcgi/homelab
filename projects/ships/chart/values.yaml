@@ -170,7 +170,7 @@ frontend:
   replicas: 1
 
   # Directory containing built frontend assets
-  publicDir: /app/public/projects/ships/frontend/web/dist
+  publicDir: /app/public
 
   # Service configuration
   service:
