@@ -19,9 +19,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	signozURL := envOr("SIGNOZ_URL", "http://signoz.signoz.svc.cluster.local:8080")
+	signozURL := os.Getenv("SIGNOZ_URL")
 	signozToken := os.Getenv("SIGNOZ_API_KEY")
-	orchestratorURL := envOr("ORCHESTRATOR_URL", "http://agent-platform-agent-orchestrator.agent-platform.svc.cluster.local:8080")
+	orchestratorURL := os.Getenv("ORCHESTRATOR_URL")
 	httpPort := envOr("HTTP_PORT", "8080")
 	patrolInterval := envDurationOr("PATROL_INTERVAL", 1*time.Hour)
 
