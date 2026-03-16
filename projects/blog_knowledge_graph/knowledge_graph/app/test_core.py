@@ -219,13 +219,19 @@ class TestScraperSettingsOverrides:
         assert ScraperSettings(s3_bucket="my-bucket").s3_bucket == "my-bucket"
 
     def test_rate_limit_override(self):
-        assert ScraperSettings(default_rate_limit_seconds=5.0).default_rate_limit_seconds == 5.0
+        assert (
+            ScraperSettings(default_rate_limit_seconds=5.0).default_rate_limit_seconds
+            == 5.0
+        )
 
     def test_retry_attempts_override(self):
         assert ScraperSettings(retry_attempts=5).retry_attempts == 5
 
     def test_notify_mode_override(self):
-        assert ScraperSettings(slack_notify_mode="on_new_content").slack_notify_mode == "on_new_content"
+        assert (
+            ScraperSettings(slack_notify_mode="on_new_content").slack_notify_mode
+            == "on_new_content"
+        )
 
 
 class TestScraperSettingsEnvVars:
@@ -375,7 +381,9 @@ class TestSplitByHeaders:
         assert sections[0][0] == "### Sub"
 
     def test_multiple_headers_split_correctly(self):
-        content = "# First\n\nBody one.\n\n## Second\n\nBody two.\n\n### Third\n\nBody three."
+        content = (
+            "# First\n\nBody one.\n\n## Second\n\nBody two.\n\n### Third\n\nBody three."
+        )
         sections = _split_by_headers(content)
         assert len(sections) == 3
         assert sections[0][0] == "# First"
@@ -638,9 +646,7 @@ def _make_ollama_mock(return_data: dict):
     return mock_cls, mock_client
 
 
-_OLLAMA_PATH = (
-    "projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama.httpx.AsyncClient"
-)
+_OLLAMA_PATH = "projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama.httpx.AsyncClient"
 
 
 class TestOllamaEmbedderInit:
@@ -797,9 +803,7 @@ def _make_gemini_mock(return_data: dict):
     return mock_cls, mock_client
 
 
-_GEMINI_PATH = (
-    "projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini.httpx.AsyncClient"
-)
+_GEMINI_PATH = "projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini.httpx.AsyncClient"
 
 
 class TestGeminiEmbedderInit:
@@ -834,9 +838,7 @@ class TestGeminiEmbedderEmbed:
 
     @pytest.mark.asyncio
     async def test_embed_uses_batch_endpoint(self, gemini):
-        mock_cls, mock_client = _make_gemini_mock(
-            {"embeddings": [{"values": [0.1]}]}
-        )
+        mock_cls, mock_client = _make_gemini_mock({"embeddings": [{"values": [0.1]}]})
         with patch(_GEMINI_PATH, mock_cls):
             await gemini.embed(["text"])
         url = mock_client.post.call_args.args[0]
@@ -844,9 +846,7 @@ class TestGeminiEmbedderEmbed:
 
     @pytest.mark.asyncio
     async def test_embed_sends_api_key_as_query_param(self, gemini):
-        mock_cls, mock_client = _make_gemini_mock(
-            {"embeddings": [{"values": [0.1]}]}
-        )
+        mock_cls, mock_client = _make_gemini_mock({"embeddings": [{"values": [0.1]}]})
         with patch(_GEMINI_PATH, mock_cls):
             await gemini.embed(["text"])
         params = mock_client.post.call_args.kwargs.get("params", {})
@@ -854,9 +854,7 @@ class TestGeminiEmbedderEmbed:
 
     @pytest.mark.asyncio
     async def test_embed_uses_retrieval_document_task_type(self, gemini):
-        mock_cls, mock_client = _make_gemini_mock(
-            {"embeddings": [{"values": [0.1]}]}
-        )
+        mock_cls, mock_client = _make_gemini_mock({"embeddings": [{"values": [0.1]}]})
         with patch(_GEMINI_PATH, mock_cls):
             await gemini.embed(["text"])
         payload = mock_client.post.call_args.kwargs.get("json", {})
@@ -864,9 +862,7 @@ class TestGeminiEmbedderEmbed:
 
     @pytest.mark.asyncio
     async def test_embed_includes_model_in_each_request(self, gemini):
-        mock_cls, mock_client = _make_gemini_mock(
-            {"embeddings": [{"values": [0.1]}]}
-        )
+        mock_cls, mock_client = _make_gemini_mock({"embeddings": [{"values": [0.1]}]})
         with patch(_GEMINI_PATH, mock_cls):
             await gemini.embed(["text"])
         payload = mock_client.post.call_args.kwargs.get("json", {})

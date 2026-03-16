@@ -195,17 +195,14 @@ py_test(
     name = "test_core",
     srcs = ["test_core.py"],
     deps = [
-        ":chunker",
-        ":config",
-        ":models",
-        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:base",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:config",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:models",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders",
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
         "@pip//httpx",
-        "@pip//pydantic",
-        "@pip//pydantic_settings",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
@@ -272,5 +269,11 @@ semgrep_test(
 semgrep_test(
     name = "telemetry_semgrep_test",
     srcs = ["telemetry.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "test_core_semgrep_test",
+    srcs = ["test_core.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
