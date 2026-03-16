@@ -331,3 +331,99 @@ class TestCORSConfiguration:
         )
         # Should allow the configured origin
         assert response.status_code in [200, 204]
+
+
+class TestReadyEndpointReasons:
+    """Tests for /ready endpoint reason field."""
+
+    @pytest.mark.asyncio
+    async def test_ready_reason_catching_up_when_replay_incomplete(
+        self, test_client: AsyncClient
+    ):
+        """Returns reason='catching_up' when replay is still in progress."""
+        from projects.ships.backend.main import service
+
+        original_ready = service.ready
+        original_replay = service.replay_complete
+        service.ready = False
+        service.replay_complete = False
+
+        try:
+            response = await test_client.get("/ready")
+            assert response.status_code == 503
+            assert response.json()["reason"] == "catching_up"
+        finally:
+            service.ready = original_ready
+            service.replay_complete = original_replay
+
+    @pytest.mark.asyncio
+    async def test_ready_reason_starting_when_replay_complete_but_not_ready(
+        self, test_client: AsyncClient
+    ):
+        """Returns reason='starting' when replay is done but service is not yet ready."""
+        from projects.ships.backend.main import service
+
+        original_ready = service.ready
+        original_replay = service.replay_complete
+        service.ready = False
+        service.replay_complete = True
+
+        try:
+            response = await test_client.get("/ready")
+            assert response.status_code == 503
+            assert response.json()["reason"] == "starting"
+        finally:
+            service.ready = original_ready
+            service.replay_complete = original_replay
+
+
+class TestTrackSinceFormats:
+    """Tests for /api/vessels/{mmsi}/track since parameter format parsing."""
+
+    @pytest.mark.asyncio
+    async def test_track_with_since_minutes(self, test_client: AsyncClient):
+        """Track endpoint accepts 'since=30m' (minutes) format."""
+        response = await test_client.get("/api/vessels/123456789/track?since=30m")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mmsi"] == "123456789"
+        assert "track" in data
+
+    @pytest.mark.asyncio
+    async def test_track_with_since_days(self, test_client: AsyncClient):
+        """Track endpoint accepts 'since=2d' (days) format."""
+        response = await test_client.get("/api/vessels/123456789/track?since=2d")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["mmsi"] == "123456789"
+        assert "track" in data
+
+    @pytest.mark.asyncio
+    async def test_track_with_invalid_since_returns_200(self, test_client: AsyncClient):
+        """Track with unparseable 'since' value returns 200 (filter silently ignored)."""
+        response = await test_client.get(
+            "/api/vessels/123456789/track?since=not-a-duration"
+        )
+        assert response.status_code == 200
+        data = response.json()
+        assert "track" in data
+
+    @pytest.mark.asyncio
+    async def test_track_limit_min_boundary(self, test_client: AsyncClient):
+        """Track endpoint accepts limit=1 (minimum allowed value)."""
+        response = await test_client.get("/api/vessels/123456789/track?limit=1")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_track_limit_max_boundary(self, test_client: AsyncClient):
+        """Track endpoint accepts limit=10000 (maximum allowed value)."""
+        response = await test_client.get("/api/vessels/123456789/track?limit=10000")
+        assert response.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_track_limit_out_of_range_returns_422(
+        self, test_client: AsyncClient
+    ):
+        """Track endpoint rejects limit=0 with 422 Unprocessable Entity."""
+        response = await test_client.get("/api/vessels/123456789/track?limit=0")
+        assert response.status_code == 422

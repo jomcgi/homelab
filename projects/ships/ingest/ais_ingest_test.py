@@ -509,3 +509,235 @@ class TestMetricsEndpoint:
             data = response.json()
             assert data["messages_published"] == 500
             assert data["last_message_time"] == "2024-01-15T12:00:00Z"
+
+
+class TestConnectNatsEdgeCases:
+    """Tests for connect_nats stream creation edge cases."""
+
+    @pytest.fixture
+    def service(self):
+        return AISIngestService()
+
+    @pytest.mark.asyncio
+    async def test_connect_nats_stream_already_in_use_calls_update_stream(
+        self, service
+    ):
+        """When the stream already exists with different config, update_stream is called."""
+        import nats as nats_module
+        import nats.js.errors
+
+        class _AlreadyInUseError(nats.js.errors.BadRequestError):
+            def __str__(self):
+                return "stream name already in use"
+
+        mock_nc = MagicMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream.return_value = mock_js
+        mock_js.add_stream.side_effect = _AlreadyInUseError()
+
+        with patch.object(nats_module, "connect", AsyncMock(return_value=mock_nc)):
+            await service.connect_nats()
+
+        mock_js.update_stream.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_connect_nats_update_stream_uses_same_config(self, service):
+        """update_stream receives a StreamConfig with name='ais'."""
+        import nats as nats_module
+        import nats.js.errors
+
+        class _AlreadyInUseError(nats.js.errors.BadRequestError):
+            def __str__(self):
+                return "stream name already in use"
+
+        mock_nc = MagicMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream.return_value = mock_js
+        mock_js.add_stream.side_effect = _AlreadyInUseError()
+
+        with patch.object(nats_module, "connect", AsyncMock(return_value=mock_nc)):
+            await service.connect_nats()
+
+        stream_config = mock_js.update_stream.call_args[0][0]
+        assert stream_config.name == "ais"
+        assert "ais.>" in stream_config.subjects
+
+    @pytest.mark.asyncio
+    async def test_connect_nats_other_bad_request_error_reraises(self, service):
+        """BadRequestError not containing 'already in use' should propagate."""
+        import nats as nats_module
+        import nats.js.errors
+
+        class _OtherBadRequest(nats.js.errors.BadRequestError):
+            def __str__(self):
+                return "nats: bad request: some other error"
+
+        mock_nc = MagicMock()
+        mock_js = AsyncMock()
+        mock_nc.jetstream.return_value = mock_js
+        mock_js.add_stream.side_effect = _OtherBadRequest()
+
+        with patch.object(nats_module, "connect", AsyncMock(return_value=mock_nc)):
+            with pytest.raises(nats.js.errors.BadRequestError):
+                await service.connect_nats()
+
+
+class TestProcessMessageEdgeCases:
+    """Tests for process_message handling of unusual inputs."""
+
+    @pytest.fixture
+    def service(self):
+        return AISIngestService()
+
+    @pytest.mark.asyncio
+    async def test_process_message_unknown_type_no_publish(self, service):
+        """Unknown MessageType should be silently ignored without publishing."""
+        service.js = AsyncMock()
+
+        message = json.dumps(
+            {
+                "MessageType": "UnknownType",
+                "MetaData": {"MMSI": "123456789", "time_utc": "2024-01-15T10:00:00Z"},
+                "Message": {},
+            }
+        )
+
+        await service.process_message(message)
+
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_message_empty_position_report_skipped(self, service):
+        """PositionReport with no PositionReport key in Message is skipped."""
+        service.js = AsyncMock()
+
+        message = json.dumps(
+            {
+                "MessageType": "PositionReport",
+                "MetaData": {"MMSI": "123456789", "time_utc": "2024-01-15T10:00:00Z"},
+                "Message": {},  # No PositionReport key
+            }
+        )
+
+        await service.process_message(message)
+
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_message_empty_static_data_skipped(self, service):
+        """ShipStaticData with no ShipStaticData key in Message is skipped."""
+        service.js = AsyncMock()
+
+        message = json.dumps(
+            {
+                "MessageType": "ShipStaticData",
+                "MetaData": {"MMSI": "123456789", "time_utc": "2024-01-15T10:00:00Z"},
+                "Message": {},  # No ShipStaticData key
+            }
+        )
+
+        await service.process_message(message)
+
+        service.js.publish.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_process_static_data_uses_metadata_ship_name_fallback(
+        self, service
+    ):
+        """When static Name is empty, ShipName from MetaData is used as fallback."""
+        service.js = AsyncMock()
+
+        message = json.dumps(
+            {
+                "MessageType": "ShipStaticData",
+                "MetaData": {
+                    "MMSI": "123456789",
+                    "time_utc": "2024-01-15T10:00:00Z",
+                    "ShipName": "FALLBACK NAME",
+                },
+                "Message": {
+                    "ShipStaticData": {
+                        "ImoNumber": 1234567,
+                        "CallSign": "CALL1",
+                        "Name": "",  # Empty — should fall back to MetaData.ShipName
+                        "Type": 70,
+                        "Dimension": {},
+                        "Destination": "PORT",
+                        "Eta": None,
+                        "MaximumStaticDraught": 5.0,
+                    }
+                },
+            }
+        )
+
+        await service.process_message(message)
+
+        service.js.publish.assert_called_once()
+        payload = json.loads(service.js.publish.call_args[0][1])
+        assert payload["name"] == "FALLBACK NAME"
+
+    @pytest.mark.asyncio
+    async def test_publish_static_dedup_header_format(self, service):
+        """publish_static uses 'static-{mmsi}-{timestamp}' as Nats-Msg-Id."""
+        service.js = AsyncMock()
+
+        data = {
+            "mmsi": "123456789",
+            "name": "Test Vessel",
+            "timestamp": "2024-01-15T10:00:00Z",
+        }
+
+        await service.publish_static("123456789", data)
+
+        headers = service.js.publish.call_args[1]["headers"]
+        assert headers["Nats-Msg-Id"] == "static-123456789-2024-01-15T10:00:00Z"
+
+    @pytest.mark.asyncio
+    async def test_process_position_includes_all_ais_fields(self, service):
+        """Position report payload includes heading, nav_status, rate_of_turn, accuracy."""
+        service.js = AsyncMock()
+
+        message = json.dumps(
+            {
+                "MessageType": "PositionReport",
+                "MetaData": {
+                    "MMSI": "987654321",
+                    "time_utc": "2024-03-01T12:00:00Z",
+                    "ShipName": "FULL VESSEL",
+                },
+                "Message": {
+                    "PositionReport": {
+                        "Latitude": 49.0,
+                        "Longitude": -124.0,
+                        "Sog": 8.0,
+                        "Cog": 90.0,
+                        "TrueHeading": 88,
+                        "NavigationalStatus": 0,
+                        "RateOfTurn": 5,
+                        "PositionAccuracy": True,
+                    }
+                },
+            }
+        )
+
+        await service.process_message(message)
+
+        payload = json.loads(service.js.publish.call_args[0][1])
+        assert payload["heading"] == 88
+        assert payload["nav_status"] == 0
+        assert payload["rate_of_turn"] == 5
+        assert payload["position_accuracy"] is True
+        assert payload["ship_name"] == "FULL VESSEL"
+        assert payload["course"] == 90.0
+
+    @pytest.mark.asyncio
+    async def test_publish_position_without_timestamp_has_empty_msg_id(self, service):
+        """publish_position with no timestamp uses empty string in Nats-Msg-Id."""
+        service.js = AsyncMock()
+
+        data = {"mmsi": "123456789", "lat": 48.5, "lon": -123.4}
+
+        await service.publish_position("123456789", data)
+
+        headers = service.js.publish.call_args[1]["headers"]
+        assert headers["Nats-Msg-Id"] == "123456789-"
