@@ -190,13 +190,17 @@ class Database:
             await self.db.execute(idx_sql)
         await self.db.commit()
 
-        # Separate read-only connection so API reads don't block writes
-        self._read_db = await aiosqlite.connect(
-            f"file:{self.db_path}?mode=ro", uri=True
-        )
-        self._read_db.row_factory = aiosqlite.Row
-        await self._read_db.execute("PRAGMA mmap_size=268435456")
-        await self._read_db.execute("PRAGMA cache_size=-512000")
+        # Separate read-only connection so API reads don't block writes.
+        # Skip for in-memory DBs (used in tests) since :memory: is connection-scoped.
+        if self.db_path != ":memory:":
+            self._read_db = await aiosqlite.connect(
+                f"file:{self.db_path}?mode=ro", uri=True
+            )
+            self._read_db.row_factory = aiosqlite.Row
+            await self._read_db.execute("PRAGMA mmap_size=268435456")
+            await self._read_db.execute("PRAGMA cache_size=-512000")
+        else:
+            self._read_db = self.db
 
         logger.info(f"Database initialized at {self.db_path}")
 
@@ -226,7 +230,7 @@ class Database:
 
     async def close(self) -> None:
         """Close database connections."""
-        if self._read_db:
+        if self._read_db and self._read_db is not self.db:
             await self._read_db.close()
         if self.db:
             await self.db.close()

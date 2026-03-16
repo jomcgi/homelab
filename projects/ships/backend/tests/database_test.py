@@ -586,7 +586,7 @@ class TestCounts:
         await test_db.insert_positions_batch(positions)
         await test_db.commit()
 
-        count = await test_db.get_vessel_count()
+        count = test_db.get_vessel_count()
         assert count == len(multiple_vessels_data)
 
     @pytest.mark.asyncio
@@ -598,5 +598,5 @@ class TestCounts:
         await test_db.insert_positions_batch(positions)
         await test_db.commit()
 
-        count = await test_db.get_position_count()
+        count = test_db.get_position_count()
         assert count == len(multiple_vessels_data)
