@@ -13,7 +13,10 @@ go_library(
 
 go_test(
     name = "xstate_test",
-    srcs = ["convert_test.go"],
+    srcs = [
+        "convert_extra_test.go",
+        "convert_test.go",
+    ],
     deps = [
         ":xstate",
         "//projects/sextant/pkg/schema",
