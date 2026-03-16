@@ -19,9 +19,9 @@ func main() {
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	signozURL := envOr("SIGNOZ_URL", "")
+	signozURL := os.Getenv("SIGNOZ_URL")
 	signozToken := os.Getenv("SIGNOZ_API_KEY")
-	orchestratorURL := envOr("ORCHESTRATOR_URL", "")
+	orchestratorURL := os.Getenv("ORCHESTRATOR_URL")
 	httpPort := envOr("HTTP_PORT", "8080")
 	patrolInterval := envDurationOr("PATROL_INTERVAL", 1*time.Hour)
 
@@ -52,7 +52,7 @@ func main() {
 		NewTestCoverageAgent(gate, escalator, testCoverageInterval),
 		NewReadmeFreshnessAgent(gate, escalator, readmeFreshnessInterval),
 		NewRulesAgent(gate, escalator, rulesInterval),
-		NewPRFixAgent(githubClient, orchestrator, escalator, prFixInterval, prFixStaleThreshold),
+		NewPRFixAgent(githubClient, escalator, prFixInterval, prFixStaleThreshold),
 	}
 
 	runner := NewRunner(agents)
