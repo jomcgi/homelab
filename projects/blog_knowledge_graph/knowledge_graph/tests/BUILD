@@ -13,6 +13,11 @@ load("//bazel/tools/pytest:defs.bzl", "py_test")
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor //projects/blog_knowledge_graph/knowledge_graph/app/extractors:feed_extractor
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.mcp_main //projects/blog_knowledge_graph/knowledge_graph/app:mcp_main
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.scraper_main //projects/blog_knowledge_graph/knowledge_graph/app:scraper_main
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.telemetry //projects/blog_knowledge_graph/knowledge_graph/app:telemetry
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedder_main //projects/blog_knowledge_graph/knowledge_graph/app:embedder_main
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.base //projects/blog_knowledge_graph/knowledge_graph/app/embedders:base
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.gemini //projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini
+# gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.embedders.ollama //projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama
 
 py_library(
     name = "conftest",
@@ -114,6 +119,56 @@ py_test(
     ],
 )
 
+py_test(
+    name = "config_test",
+    srcs = ["config_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:config",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "telemetry_test",
+    srcs = ["telemetry_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:telemetry",
+        "@pip//opentelemetry_api",
+        "@pip//opentelemetry_sdk",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "embedders_test",
+    srcs = ["embedders_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:base",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
+)
+
+py_test(
+    name = "embedder_main_test",
+    srcs = ["embedder_main_test.py"],
+    deps = [
+        ":conftest",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:config",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:embedder_main",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:telemetry",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
+        "@pip//pytest",
+    ],
+)
+
 py_library(
     name = "tests",
     srcs = ["__init__.py"],
@@ -177,5 +232,29 @@ semgrep_test(
 semgrep_test(
     name = "storage_test_semgrep_test",
     srcs = ["storage_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "config_test_semgrep_test",
+    srcs = ["config_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "telemetry_test_semgrep_test",
+    srcs = ["telemetry_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "embedders_test_semgrep_test",
+    srcs = ["embedders_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+semgrep_test(
+    name = "embedder_main_test_semgrep_test",
+    srcs = ["embedder_main_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
