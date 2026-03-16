@@ -75,6 +75,9 @@ func TestEscalator_SubmitsJobWhenNoActiveJob(t *testing.T) {
 			Title:       "Pod OOMKilled",
 			Data:        map[string]any{"rule_id": "42"},
 		},
+		Payload: map[string]any{
+			"task": "Investigate Pod OOMKilled alert",
+		},
 	}}
 
 	esc.Execute(context.Background(), actions)
@@ -83,17 +86,17 @@ func TestEscalator_SubmitsJobWhenNoActiveJob(t *testing.T) {
 		t.Fatal("expected orchestrator job to be submitted")
 	}
 	source, ok := received["source"].(string)
-	if !ok || source != "patrol:42" {
-		t.Errorf("expected source patrol:42, got %v", received["source"])
+	if !ok || source != "patrol.alert.42" {
+		t.Errorf("expected source patrol.alert.42, got %v", received["source"])
 	}
 	tags, ok := received["tags"].([]any)
 	if !ok || len(tags) != 1 || tags[0] != "alert:42" {
 		t.Errorf("expected tags [alert:42], got %v", received["tags"])
 	}
-	// Patrol jobs should default to research profile.
-	profile, ok := received["profile"].(string)
-	if !ok || profile != "research" {
-		t.Errorf("expected profile research, got %v", received["profile"])
+	// Patrol jobs should include a non-empty task.
+	task, ok := received["task"].(string)
+	if !ok || task == "" {
+		t.Errorf("expected non-empty task, got %v", received["task"])
 	}
 }
 
@@ -122,8 +125,7 @@ func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
 			Title:       "New commits for test coverage review",
 		},
 		Payload: map[string]any{
-			"task":    "Custom task prompt here",
-			"profile": "code-fix",
+			"task": "Custom task prompt here",
 		},
 	}}
 
@@ -145,11 +147,6 @@ func TestEscalator_UsesPayloadTaskWhenPresent(t *testing.T) {
 	source, ok := received["source"].(string)
 	if !ok || source != "improvement:test-coverage" {
 		t.Errorf("expected source improvement:test-coverage, got %v", received["source"])
-	}
-	// Profile should be passed through.
-	profile, ok := received["profile"].(string)
-	if !ok || profile != "code-fix" {
-		t.Errorf("expected profile code-fix, got %v", received["profile"])
 	}
 }
 
@@ -184,8 +181,7 @@ func TestEscalator_ResubmitsAfterJobSucceeds(t *testing.T) {
 			Title:       "New sweep after previous job completed",
 		},
 		Payload: map[string]any{
-			"task":    "Re-run test coverage analysis",
-			"profile": "code-fix",
+			"task": "Re-run test coverage analysis",
 		},
 	}}
 
@@ -247,8 +243,7 @@ func TestEscalator_IncludesSHATagWhenLatestSHASet(t *testing.T) {
 			},
 		},
 		Payload: map[string]any{
-			"task":    "Check test coverage",
-			"profile": "code-fix",
+			"task": "Check test coverage",
 		},
 	}}
 

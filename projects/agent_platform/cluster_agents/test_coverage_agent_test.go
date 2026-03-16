@@ -135,8 +135,4 @@ func TestTestCoverageAgent_AnalyzeCreatesJob(t *testing.T) {
 	if !strings.Contains(taskStr, "abc123..def456") {
 		t.Errorf("expected task to contain commit range abc123..def456, got: %s", taskStr)
 	}
-	profile, ok := actions[0].Payload["profile"].(string)
-	if !ok || profile != "code-fix" {
-		t.Errorf("expected profile=code-fix, got %v", actions[0].Payload["profile"])
-	}
 }
