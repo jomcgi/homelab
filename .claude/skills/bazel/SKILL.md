@@ -13,7 +13,7 @@ Locally, use:
 
 - **`format`** — standalone formatter (no Bazel required), runs as a pre-commit hook
 - **`gh pr checks`** — monitor CI results
-- **`/buildbuddy`** — debug CI failures via MCP tools
+- **`/buildbuddy`** — debug CI failures via `bb` CLI
 
 ## Local Commands
 
@@ -58,10 +58,10 @@ BUILD files are still written locally — they define what CI builds.
 ### Querying Build Graph
 
 ```bash
-# These still work locally via bb CLI
-bazel query //charts/todo/...
-bazel query "rdeps(//..., //charts/todo/image:image)"
-bazel query "deps(//charts/todo/image:image)"
+# Run on BuildBuddy cloud runners (no local bazel server)
+bb remote query //charts/todo/...
+bb remote query "rdeps(//..., //charts/todo/image:image)"
+bb remote query "deps(//charts/todo/image:image)"
 ```
 
 ### Gazelle (BUILD File Generation)
@@ -85,22 +85,19 @@ For apko.yaml structure, BUILD.bazel patterns, and package reference, see the `c
 format
 
 # Update a single lock
-bazel run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
+bb remote run @rules_apko//apko -- lock charts/<service>/image/apko.yaml
 ```
 
 ## Debugging CI Failures
 
-Use the `/buildbuddy` skill or MCP tools directly:
+Use the `/buildbuddy` skill or the `bb` CLI directly:
 
 1. Get invocation ID: `gh pr checks --json link | jq -r '.[] | select(.link | contains("buildbuddy")) | .link'`
-2. Load tools: `ToolSearch` with `+buildbuddy`
-3. Investigate: `buildbuddy-mcp-get-invocation` → `buildbuddy-mcp-get-log` → `buildbuddy-mcp-get-target`
+2. View invocation: `bb view <invocation_id>`
+3. Get logs: `bb print --invocation_id=<id>`
+4. AI diagnosis: `bb ask "why did this fail?" --invocation_id=<id>`
 
-> **Important:** BuildBuddy `get-invocation` requires full 40-char commit SHAs. Always `git rev-parse` short SHAs first.
-
-## Cluster Inspection
-
-Use MCP tools (`ToolSearch` with `+kubernetes`, `+argocd`) — not `//bazel/tools/cluster:*` targets (those wrap kubectl commands blocked by PreToolUse hooks).
+> **Important:** Always `git rev-parse` short SHAs to full 40-char before using with BuildBuddy.
 
 ## Workflow Integration
 
