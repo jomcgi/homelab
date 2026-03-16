@@ -51,36 +51,6 @@ agent-platform-mcp-servers:
         enabled: true
         url: "http://signoz-mcp.agent-platform.svc.cluster.local:8000/health"
 
-    - name: buildbuddy-mcp
-      image:
-        repository: ghcr.io/jomcgi/homelab/projects/agent_platform/buildbuddy_mcp
-        tag: main
-      port: 8000
-      podAnnotations:
-        instrumentation.opentelemetry.io/inject-python: "python"
-      writableTmp: true
-      env:
-        - name: BUILDBUDDY_URL
-          value: "https://app.buildbuddy.io"
-      secret:
-        name: buildbuddy-mcp
-        itemPath: "vaults/k8s-homelab/items/buildbuddy-mcp"
-      resources:
-        requests:
-          cpu: 10m
-          memory: 64Mi
-        limits:
-          cpu: 100m
-          memory: 128Mi
-      translate:
-        enabled: false
-      registration:
-        enabled: true
-        transport: "STREAMABLEHTTP"
-      alert:
-        enabled: true
-        url: "http://buildbuddy-mcp.agent-platform.svc.cluster.local:8000/health"
-
     - name: kubernetes-mcp
       image:
         repository: ghcr.io/containers/kubernetes-mcp-server
