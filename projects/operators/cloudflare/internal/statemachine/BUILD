@@ -28,13 +28,18 @@ go_library(
 
 go_test(
     name = "statemachine_test",
-    srcs = ["cloudflare_tunnel_statemachine_test.go"],
+    srcs = [
+        "cloudflare_tunnel_metrics_observability_test.go",
+        "cloudflare_tunnel_statemachine_test.go",
+    ],
     embed = [":statemachine"],
     deps = [
         "//projects/operators/cloudflare/api/v1:api",
         "@com_github_go_logr_logr//:logr",
         "@com_github_onsi_ginkgo_v2//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
+        "@com_github_prometheus_client_golang//prometheus",
+        "@com_github_prometheus_client_golang//prometheus/testutil",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
     ],
 )
