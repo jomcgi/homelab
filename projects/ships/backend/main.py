@@ -157,8 +157,11 @@ class Database:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.db: aiosqlite.Connection | None = None
+        self._read_db: aiosqlite.Connection | None = None
         # In-memory cache for deduplication - avoids DB reads per message
         self._position_cache: dict[str, CachedPosition] = {}
+        # Cached position count to avoid full table scans
+        self._position_count: int = 0
 
     async def connect(self) -> None:
         """Connect to database and initialize schema."""
@@ -186,10 +189,23 @@ class Database:
         for idx_sql in INDEXES:
             await self.db.execute(idx_sql)
         await self.db.commit()
+
+        # Separate read-only connection so API reads don't block writes
+        self._read_db = await aiosqlite.connect(
+            f"file:{self.db_path}?mode=ro", uri=True
+        )
+        self._read_db.row_factory = aiosqlite.Row
+        await self._read_db.execute("PRAGMA mmap_size=268435456")
+        await self._read_db.execute("PRAGMA cache_size=-512000")
+
         logger.info(f"Database initialized at {self.db_path}")
 
         # Load existing positions into memory cache
         await self._load_position_cache()
+        # Initialize position count from DB
+        cursor = await self._read_db.execute("SELECT COUNT(*) FROM positions")
+        row = await cursor.fetchone()
+        self._position_count = row[0] if row else 0
 
     async def _load_position_cache(self) -> None:
         """Load latest positions from DB into memory cache."""
@@ -209,7 +225,9 @@ class Database:
         logger.info(f"Loaded {len(self._position_cache)} positions into memory cache")
 
     async def close(self) -> None:
-        """Close database connection."""
+        """Close database connections."""
+        if self._read_db:
+            await self._read_db.close()
         if self.db:
             await self.db.close()
 
@@ -393,6 +411,7 @@ class Database:
             latest_rows,
         )
 
+        self._position_count += len(positions)
         return len(positions)
 
     async def upsert_vessels_batch(self, vessels: list[dict]) -> None:
@@ -476,6 +495,7 @@ class Database:
             await asyncio.sleep(0.1)
 
         if total_deleted > 0:
+            self._position_count = max(0, self._position_count - total_deleted)
             logger.info(
                 f"Cleaned up {total_deleted} positions older than "
                 f"{POSITION_RETENTION_DAYS} days"
@@ -485,14 +505,13 @@ class Database:
 
     async def get_latest_positions(self) -> list[dict]:
         """Get latest position for each vessel using cache table."""
-        cursor = await self.db.execute(
+        cursor = await self._read_db.execute(
             """
             SELECT lp.*, v.imo, v.call_sign, v.ship_type, v.destination,
                    v.dimension_a, v.dimension_b, v.dimension_c, v.dimension_d,
                    v.draught, v.eta
             FROM latest_positions lp
             LEFT JOIN vessels v ON lp.mmsi = v.mmsi
-            ORDER BY lp.timestamp DESC
             """
         )
         rows = await cursor.fetchall()
@@ -500,7 +519,7 @@ class Database:
 
     async def get_vessel(self, mmsi: str) -> dict | None:
         """Get vessel with latest position and analytics."""
-        cursor = await self.db.execute(
+        cursor = await self._read_db.execute(
             """
             SELECT lp.*, v.imo, v.call_sign, v.ship_type, v.destination,
                    v.dimension_a, v.dimension_b, v.dimension_c, v.dimension_d,
@@ -546,7 +565,7 @@ class Database:
         """Get position history for a vessel."""
         if since:
             since_time = (datetime.now(timezone.utc) - since).isoformat()
-            cursor = await self.db.execute(
+            cursor = await self._read_db.execute(
                 """
                 SELECT lat, lon, speed, course, heading, nav_status, timestamp
                 FROM positions
@@ -557,7 +576,7 @@ class Database:
                 (mmsi, since_time, limit),
             )
         else:
-            cursor = await self.db.execute(
+            cursor = await self._read_db.execute(
                 """
                 SELECT lat, lon, speed, course, heading, nav_status, timestamp
                 FROM positions
@@ -570,17 +589,13 @@ class Database:
         rows = await cursor.fetchall()
         return [dict(row) for row in rows]
 
-    async def get_vessel_count(self) -> int:
-        """Get count of unique vessels."""
-        cursor = await self.db.execute("SELECT COUNT(*) FROM latest_positions")
-        row = await cursor.fetchone()
-        return row[0] if row else 0
+    def get_vessel_count(self) -> int:
+        """Get count of unique vessels from in-memory cache."""
+        return len(self._position_cache)
 
-    async def get_position_count(self) -> int:
-        """Get total position count."""
-        cursor = await self.db.execute("SELECT COUNT(*) FROM positions")
-        row = await cursor.fetchone()
-        return row[0] if row else 0
+    def get_position_count(self) -> int:
+        """Get total position count from cached counter."""
+        return self._position_count
 
     def get_cache_size(self) -> int:
         """Get current size of in-memory position cache."""
@@ -771,8 +786,8 @@ class ShipsAPIService:
                     if not self.replay_complete:
                         info = await psub.consumer_info()
                         if info.num_pending <= CATCHUP_PENDING_THRESHOLD:
-                            vessel_count = await self.db.get_vessel_count()
-                            position_count = await self.db.get_position_count()
+                            vessel_count = self.db.get_vessel_count()
+                            position_count = self.db.get_position_count()
                             logger.info(
                                 f"Catchup complete. {position_count} positions "
                                 f"for {vessel_count} vessels"
@@ -785,8 +800,8 @@ class ShipsAPIService:
                     if not self.replay_complete:
                         info = await psub.consumer_info()
                         if info.num_pending <= CATCHUP_PENDING_THRESHOLD:
-                            vessel_count = await self.db.get_vessel_count()
-                            position_count = await self.db.get_position_count()
+                            vessel_count = self.db.get_vessel_count()
+                            position_count = self.db.get_position_count()
                             logger.info(
                                 f"Catchup complete. {position_count} positions "
                                 f"for {vessel_count} vessels"
@@ -935,7 +950,7 @@ app.add_middleware(
 @app.get("/health")
 async def health():
     """Liveness probe - returns 200 if the service is alive."""
-    vessel_count = await service.db.get_vessel_count()
+    vessel_count = service.db.get_vessel_count()
     return {
         "status": "alive",
         "nats_connected": service.nc is not None and service.nc.is_connected,
@@ -949,7 +964,7 @@ async def health():
 @app.get("/ready")
 async def ready(response: Response):
     """Readiness probe - returns 200 only when ready to serve traffic."""
-    vessel_count = await service.db.get_vessel_count()
+    vessel_count = service.db.get_vessel_count()
     if not service.ready:
         response.status_code = 503
         return {
@@ -1015,8 +1030,8 @@ async def get_vessel_track(
 @app.get("/api/stats")
 async def get_stats():
     """Get service statistics."""
-    vessel_count = await service.db.get_vessel_count()
-    position_count = await service.db.get_position_count()
+    vessel_count = service.db.get_vessel_count()
+    position_count = service.db.get_position_count()
     client_count = await service.ws_manager.client_count()
     return {
         "vessel_count": vessel_count,
