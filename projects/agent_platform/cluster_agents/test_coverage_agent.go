@@ -56,24 +56,15 @@ func (a *TestCoverageAgent) Analyze(_ context.Context, findings []Finding) ([]Ac
 
 	commitRange, _ := findings[0].Data["commit_range"].(string)
 
-	task := fmt.Sprintf(`Review files changed in commits %s on main. For each Go or Python source file that was modified and lacks a corresponding _test file, write tests that cover the key behaviors.
-
-Before starting:
-- Check `+"`gh pr list --search \"test\"`"+` for existing test coverage PRs
-- Check `+"`gh issue list --search \"test\"`"+` for related issues
-- Skip files in generated code (zz_generated.*, *_types.go deepcopy)
-
-Create one PR per project. Use conventional commit format:
-test(<project>): add coverage for <description>`, commitRange)
+	task := fmt.Sprintf("New commits landed on main (%s). Review changed Go and Python "+
+		"files that lack test coverage and create PRs adding tests.\n\n"+
+		"One PR per project, monitored and auto-merged.", commitRange)
 
 	return []Action{
 		{
 			Type:    ActionOrchestratorJob,
 			Finding: findings[0],
-			Payload: map[string]any{
-				"task":    task,
-				"profile": "code-fix",
-			},
+			Payload: map[string]any{"task": task},
 		},
 	}, nil
 }

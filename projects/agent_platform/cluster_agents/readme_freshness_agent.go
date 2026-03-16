@@ -54,30 +54,15 @@ func (a *ReadmeFreshnessAgent) Analyze(_ context.Context, findings []Finding) ([
 		return nil, nil
 	}
 
-	task := `For each projects/*/README.md, compare the README content against the actual project structure:
-- Files and directories that exist vs what's documented
-- Chart.yaml fields (appVersion, description) vs README claims
-- deploy/ config (application.yaml, values.yaml) vs documented setup
-- Available commands and endpoints vs what the code actually exposes
-
-Update any README where the documented structure no longer matches reality.
-Do not add content that wasn't there before — only fix inaccuracies.
-
-Before starting:
-- Check ` + "`gh pr list --search \"README\"`" + ` for existing README PRs
-- Check ` + "`gh issue list --search \"README\"`" + ` for related issues
-
-Create one PR per project. Use conventional commit format:
-docs(<project>): update README to match current structure`
+	task := "New commits landed on main. Audit all projects/*/README.md files for accuracy " +
+		"against the actual project structure, configs, and code.\n\n" +
+		"Fix any inaccuracies. One PR per project, monitored and auto-merged."
 
 	return []Action{
 		{
 			Type:    ActionOrchestratorJob,
 			Finding: findings[0],
-			Payload: map[string]any{
-				"task":    task,
-				"profile": "code-fix",
-			},
+			Payload: map[string]any{"task": task},
 		},
 	}, nil
 }

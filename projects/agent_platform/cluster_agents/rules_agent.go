@@ -56,32 +56,15 @@ func (a *RulesAgent) Analyze(_ context.Context, findings []Finding) ([]Action, e
 
 	commitRange, _ := findings[0].Data["commit_range"].(string)
 
-	task := fmt.Sprintf(`Review PRs merged to main in commits %s. For each merged PR:
-
-1. If it's a bug fix (fix: prefix), analyze the diff for patterns that could
-   be caught statically. Propose a semgrep rule in bazel/semgrep/rules/ with
-   a test case. Check existing rules to avoid duplicates.
-
-2. If it reveals an agent anti-pattern or a common mistake, propose additions
-   to .claude/CLAUDE.md or .claude/settings.json hooks to prevent recurrence.
-
-Before starting:
-- Check `+"`gh pr list --search \"semgrep OR rule OR hook\"`"+` for existing work
-- Check `+"`gh issue list`"+` for related issues
-- Review existing rules in bazel/semgrep/rules/ and .claude/settings.json
-
-Create one PR per rule/config change. Use conventional commit format:
-- build(semgrep): add rule for <pattern>
-- ci(claude): add hook to prevent <behavior>`, commitRange)
+	task := fmt.Sprintf("New commits landed on main (%s). Review merged PRs for patterns "+
+		"that could be caught statically (semgrep rules) or prevented by Claude hooks.\n\n"+
+		"One PR per rule or config change, monitored and auto-merged.", commitRange)
 
 	return []Action{
 		{
 			Type:    ActionOrchestratorJob,
 			Finding: findings[0],
-			Payload: map[string]any{
-				"task":    task,
-				"profile": "code-fix",
-			},
+			Payload: map[string]any{"task": task},
 		},
 	}, nil
 }

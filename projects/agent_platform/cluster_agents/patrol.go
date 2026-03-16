@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"time"
 )
@@ -42,9 +43,21 @@ func (p *PatrolAgent) Analyze(_ context.Context, findings []Finding) ([]Action, 
 
 	actions := make([]Action, 0, len(findings))
 	for _, f := range findings {
+		ruleID := f.Fingerprint
+		if id, ok := f.Data["rule_id"]; ok {
+			ruleID = fmt.Sprintf("%v", id)
+		}
+
+		task := fmt.Sprintf("SigNoz alert %q is firing (severity: %s, rule: %s).\n\n"+
+			"Investigate the root cause. If a GitOps change can fix it, create and merge a PR.\n"+
+			"If it requires manual intervention, create a GitHub issue with your findings.\n\n"+
+			"Details: %s",
+			f.Title, f.Severity, ruleID, f.Detail)
+
 		actions = append(actions, Action{
 			Type:    ActionOrchestratorJob,
 			Finding: f,
+			Payload: map[string]any{"task": task},
 		})
 	}
 	return actions, nil
