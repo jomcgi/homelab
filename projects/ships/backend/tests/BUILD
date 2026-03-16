@@ -91,3 +91,22 @@ py_test(
         "@pip//pytest_asyncio",  # keep
     ],
 )
+
+semgrep_test(
+    name = "vessel_tracking_test_semgrep_test",
+    srcs = ["vessel_tracking_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "vessel_tracking_test",
+    srcs = ["vessel_tracking_test.py"],
+    imports = [".."],
+    deps = [
+        ":conftest",
+        "//projects/ships/backend:ships-api",
+        "@pip//fastapi",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",  # keep
+    ],
+)
