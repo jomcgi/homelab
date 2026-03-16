@@ -20,3 +20,6 @@ dependencies:
   - name: mcp-stack
     repository: "oci://ghcr.io/jomcgi/homelab/charts"
     version: "1.0.0-RC-1"
+  - name: homelab-library
+    version: "0.1.0"
+    repository: "file://../../../shared/helm/homelab-library/chart"
