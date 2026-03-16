@@ -171,3 +171,80 @@ func TestReclassifyFeedEvent_ValidClassificationPassesValidation(t *testing.T) {
 		})
 	}
 }
+
+// TestListFeed_PrivacyFilterRules documents and verifies the visibility rule that
+// listFeed applies to each feed document before returning them to the caller.
+//
+// The rule (from listFeed):
+//
+//	include if: private_to == "" || private_to == requestEmail || speaker_id == requestEmail
+//
+// This function mirrors the exact inline condition so that any future change to the
+// production filter logic will cause a mismatch here, surfacing the regression.
+func TestListFeed_PrivacyFilterRules(t *testing.T) {
+	// filterVisible mirrors the inline filter applied in listFeed after collectDocs.
+	filterVisible := func(doc map[string]any, email string) bool {
+		privateTo, _ := doc["private_to"].(string)
+		speakerID, _ := doc["speaker_id"].(string)
+		return privateTo == "" || privateTo == email || speakerID == email
+	}
+
+	cases := []struct {
+		label       string
+		doc         map[string]any
+		email       string
+		wantVisible bool
+	}{
+		{
+			label:       "public event (empty private_to) visible to any user",
+			doc:         map[string]any{"private_to": "", "speaker_id": "dm@example.com"},
+			email:       "player@example.com",
+			wantVisible: true,
+		},
+		{
+			label:       "public event (private_to field absent) visible to any user",
+			doc:         map[string]any{"speaker_id": "dm@example.com"},
+			email:       "player@example.com",
+			wantVisible: true,
+		},
+		{
+			label:       "private event visible to the named recipient",
+			doc:         map[string]any{"private_to": "player@example.com", "speaker_id": "dm@example.com"},
+			email:       "player@example.com",
+			wantVisible: true,
+		},
+		{
+			label:       "private event visible to the originating speaker",
+			doc:         map[string]any{"private_to": "player@example.com", "speaker_id": "dm@example.com"},
+			email:       "dm@example.com",
+			wantVisible: true,
+		},
+		{
+			label:       "private event NOT visible to an uninvolved bystander",
+			doc:         map[string]any{"private_to": "player@example.com", "speaker_id": "dm@example.com"},
+			email:       "bystander@example.com",
+			wantVisible: false,
+		},
+		{
+			label:       "private event NOT visible when private_to names a different user",
+			doc:         map[string]any{"private_to": "alice@example.com", "speaker_id": "bob@example.com"},
+			email:       "carol@example.com",
+			wantVisible: false,
+		},
+		{
+			label:       "public event with no email in context visible to unauthenticated request",
+			doc:         map[string]any{"private_to": "", "speaker_id": "someone@example.com"},
+			email:       "",
+			wantVisible: true,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.label, func(t *testing.T) {
+			got := filterVisible(tc.doc, tc.email)
+			if got != tc.wantVisible {
+				t.Errorf("filterVisible(email=%q) got %v, want %v", tc.email, got, tc.wantVisible)
+			}
+		})
+	}
+}

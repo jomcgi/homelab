@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // TestRedisChannel_Value verifies the broadcast channel name matches the expected constant.
@@ -104,5 +107,72 @@ func TestSubscribe_ExitsOnCancelledContext(t *testing.T) {
 
 	if called {
 		t.Error("handler should not have been called when context was cancelled at entry")
+	}
+}
+
+// newRelayWithRealClient builds a RedisRelay backed by a real (but unreachable) Redis
+// client. Port 1 is reserved and will always refuse connections, so no live server is
+// required. The caller must call relay.client.Close() when done.
+func newRelayWithRealClient(ctx context.Context, cancel context.CancelFunc) *RedisRelay {
+	return &RedisRelay{
+		client: redis.NewClient(&redis.Options{
+			Addr: "127.0.0.1:1", // port 1 is always unreachable
+		}),
+		ctx:    ctx,
+		cancel: cancel,
+	}
+}
+
+// TestRedisRelay_Publish_CancelledContextReturnsError verifies that Publish propagates
+// an error when the relay context has been cancelled. The Redis client cannot execute
+// the command because it cannot acquire a pool connection with a done context.
+func TestRedisRelay_Publish_CancelledContextReturnsError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before Publish
+
+	relay := newRelayWithRealClient(ctx, cancel)
+	defer relay.client.Close() //nolint:errcheck
+
+	err := relay.Publish([]byte(`{"type":"test","data":{}}`))
+	if err == nil {
+		t.Fatal("Publish with a cancelled context should return an error, got nil")
+	}
+	if !errors.Is(err, context.Canceled) {
+		t.Errorf("Publish error should be context.Canceled, got %v", err)
+	}
+}
+
+// TestRedisRelay_Ping_CancelledContextReturnsError verifies that Ping propagates an
+// error when the relay context is cancelled. This covers the health-check path used
+// by the /readyz endpoint.
+func TestRedisRelay_Ping_CancelledContextReturnsError(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel before Ping
+
+	relay := newRelayWithRealClient(ctx, cancel)
+	defer relay.client.Close() //nolint:errcheck
+
+	if err := relay.Ping(); err == nil {
+		t.Fatal("Ping with a cancelled context should return an error, got nil")
+	}
+}
+
+// TestRedisRelay_Close_CancelsContextAndClosesClient verifies that Close both cancels
+// the relay context and closes the underlying Redis client cleanly.
+func TestRedisRelay_Close_CancelsContextAndClosesClient(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+
+	relay := newRelayWithRealClient(ctx, cancel)
+
+	if relay.ctx.Err() != nil {
+		t.Fatal("context should not be cancelled before Close")
+	}
+
+	if err := relay.Close(); err != nil {
+		t.Errorf("Close returned unexpected error: %v", err)
+	}
+
+	if relay.ctx.Err() == nil {
+		t.Error("Close should cancel the relay context, but ctx.Err() is still nil")
 	}
 }

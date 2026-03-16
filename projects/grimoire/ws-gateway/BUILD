@@ -29,6 +29,9 @@ go_test(
         "main_test.go",
         "redis_test.go",
     ],
+    deps = [
+        "@com_github_redis_go_redis_v9//:go-redis",
+    ],
     embed = [":ws-gateway_lib"],
 )
 
