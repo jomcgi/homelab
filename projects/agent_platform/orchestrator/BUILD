@@ -72,6 +72,7 @@ go_test(
         "model_test.go",
         "reconcile_test.go",
         "result_test.go",
+        "sandbox_k8s_test.go",
         "sandbox_test.go",
         "ui_test.go",
         "watchdog_test.go",
@@ -80,6 +81,13 @@ go_test(
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_client_go//dynamic/fake",
+        "@io_k8s_client_go//kubernetes/fake",
     ],
 )
 
@@ -93,6 +101,7 @@ go_test(
         "model_test.go",
         "reconcile_test.go",
         "result_test.go",
+        "sandbox_k8s_test.go",
         "sandbox_test.go",
         "store_test.go",
         "ui_test.go",
@@ -103,6 +112,13 @@ go_test(
     deps = [
         "@com_github_nats_io_nats_go//:nats_go",
         "@com_github_nats_io_nats_go//jetstream",
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1/unstructured",
+        "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/runtime/schema",
+        "@io_k8s_client_go//dynamic/fake",
+        "@io_k8s_client_go//kubernetes/fake",
     ],
 )
 

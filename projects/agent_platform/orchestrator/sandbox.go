@@ -12,6 +12,7 @@ import (
 	"time"
 
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -98,7 +99,7 @@ func (s *SandboxExecutor) Run(ctx context.Context, claimName, task, recipePath s
 		return nil, fmt.Errorf("cancelled before pod ready")
 	}
 
-	if err := s.waitPodRunning(ctx, podName); err != nil {
+	if err := s.waitPodRunning(ctx, sandboxName, podName); err != nil {
 		return nil, fmt.Errorf("waiting for pod running: %w", err)
 	}
 
@@ -225,28 +226,38 @@ func (s *SandboxExecutor) resolveSandboxServiceFQDN(ctx context.Context, sandbox
 	return fqdn, nil
 }
 
-func (s *SandboxExecutor) waitPodRunning(ctx context.Context, podName string) error {
-	s.logger.Info("waiting for pod to be ready", "pod", podName)
+func (s *SandboxExecutor) waitPodRunning(ctx context.Context, sandboxName, podName string) error {
+	s.logger.Info("waiting for pod to be ready", "pod", podName, "sandbox", sandboxName)
 
 	ctx, cancel := context.WithTimeout(ctx, 5*time.Minute)
 	defer cancel()
 
 	for {
 		pod, err := s.clientset.CoreV1().Pods(s.namespace).Get(ctx, podName, metav1.GetOptions{})
-		if err != nil {
-			return err
-		}
-
-		switch pod.Status.Phase {
-		case corev1.PodRunning:
-			for _, cs := range pod.Status.ContainerStatuses {
-				if cs.Name == "goose" && cs.Ready {
-					s.logger.Info("pod is ready", "pod", podName)
-					return nil
-				}
+		if apierrors.IsNotFound(err) {
+			// Pod may not exist yet — the sandbox controller might still be
+			// provisioning it. Re-resolve in case the annotation was set since
+			// our initial lookup (e.g. the fallback returned the sandbox name
+			// but a pool pod has since been bound).
+			resolved, resolveErr := s.resolvePodName(ctx, sandboxName)
+			if resolveErr == nil && resolved != podName {
+				s.logger.Info("pod name re-resolved", "old", podName, "new", resolved)
+				podName = resolved
 			}
-		case corev1.PodFailed:
-			return fmt.Errorf("pod failed: %s", pod.Status.Message)
+		} else if err != nil {
+			return err
+		} else {
+			switch pod.Status.Phase {
+			case corev1.PodRunning:
+				for _, cs := range pod.Status.ContainerStatuses {
+					if cs.Name == "goose" && cs.Ready {
+						s.logger.Info("pod is ready", "pod", podName)
+						return nil
+					}
+				}
+			case corev1.PodFailed:
+				return fmt.Errorf("pod failed: %s", pod.Status.Message)
+			}
 		}
 
 		select {
