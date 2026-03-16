@@ -34,11 +34,22 @@ semgrep_target_test(
     target = ":main",
 )
 
+# gazelle:resolve py main //projects/trips/tools/publish-gap-route:publish-gap-route
+# gazelle:resolve py main.GAP_KEY_NAMESPACE //projects/trips/tools/publish-gap-route:publish-gap-route
+# gazelle:resolve py main.generate_gap_id //projects/trips/tools/publish-gap-route:publish-gap-route
+# gazelle:resolve py main.parse_kml_coordinates //projects/trips/tools/publish-gap-route:publish-gap-route
+# gazelle:resolve py main.publish_gap_points //projects/trips/tools/publish-gap-route:publish-gap-route
+# gazelle:resolve py main.sample_coordinates //projects/trips/tools/publish-gap-route:publish-gap-route
 py_test(
     name = "gap_route_test",
     srcs = ["gap_route_test.py"],
     imports = ["."],
-    deps = ["@pip//pytest"],
+    deps = [
+        ":publish-gap-route",
+        "@pip//defusedxml",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
 )
 
 semgrep_test(
