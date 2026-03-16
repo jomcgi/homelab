@@ -45,10 +45,8 @@ py_test(
     srcs = ["gap_route_test.py"],
     imports = ["."],
     deps = [
-        ":publish-gap-route",
-        "@pip//defusedxml",
+        "//projects/trips/tools/publish-gap-route",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 
