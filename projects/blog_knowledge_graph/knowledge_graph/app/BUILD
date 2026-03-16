@@ -1,6 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app //projects/blog_knowledge_graph/knowledge_graph/app:app
 # gazelle:resolve py projects.blog_knowledge_graph.knowledge_graph.app.models //projects/blog_knowledge_graph/knowledge_graph/app:models
@@ -188,6 +189,24 @@ py_venv_binary(
     name = "mcp",
     main = "mcp_main.py",
     visibility = ["//:__subpackages__"],
+)
+
+py_test(
+    name = "test_core",
+    srcs = ["test_core.py"],
+    deps = [
+        ":chunker",
+        ":config",
+        ":models",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:base",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
+        "@pip//httpx",
+        "@pip//pydantic",
+        "@pip//pydantic_settings",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
 )
 
 semgrep_test(
