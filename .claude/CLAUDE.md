@@ -111,7 +111,7 @@ Breaking changes: add `!` after type/scope — `feat!: redesign auth token forma
 | **K8s metrics**      | `kubernetes-mcp-pods-top`, `kubernetes-mcp-nodes-top`                                                     |
 | **ArgoCD apps**      | `argocd-mcp-list-applications`, `argocd-mcp-get-application`, `argocd-mcp-sync-application`               |
 | **ArgoCD resources** | `argocd-mcp-get-application-resource-tree`, `argocd-mcp-get-application-managed-resources`                |
-| **BuildBuddy CI**    | `buildbuddy-mcp-get-invocation`, `buildbuddy-mcp-get-log`, `buildbuddy-mcp-get-target`                    |
+| **BuildBuddy CI**    | Use `bb` CLI directly (`bb view`, `bb print`, `bb ask`) — see `/buildbuddy` skill                         |
 | **Logs**             | `signoz-search-logs`, `signoz-search-logs-by-service`, `signoz-get-error-logs`                            |
 | **Traces**           | `signoz-search-traces-by-service`, `signoz-aggregate-traces`, `signoz-get-trace-details`                  |
 | **Metrics**          | `signoz-search-metric-by-text`, `signoz-list-metric-keys`                                                 |
@@ -156,7 +156,7 @@ Runs on every push/PR:
 - **Format check** — standalone formatters + gazelle, auto-commits fixes on PR branches (as `ci-format-bot`)
 - **Test and push** — `bazel test //...`, pushes images on main branch
 
-Debug CI failures: use `/buildbuddy` skill or reproduce locally with `bazel test //... --config=ci`
+Debug CI failures: use `/buildbuddy` skill or reproduce with `bb remote test //... --config=ci`
 
 Static sites deploy via `bazel run //projects/websites:push_all_pages` on main branch (BuildBuddy CI).
 
