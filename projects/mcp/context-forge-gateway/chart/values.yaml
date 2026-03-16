@@ -14,7 +14,6 @@ mcp-stack:
       enabled: false
     config:
       GUNICORN_WORKERS: "2"
-      PLATFORM_ADMIN_EMAIL: "admin@jomcgi.dev"
       MCPGATEWAY_UI_ENABLED: "false"
       MCPGATEWAY_A2A_ENABLED: "false"
       LLMCHAT_ENABLED: "false"
@@ -83,7 +82,7 @@ mcp-stack:
   mcpFastTimeServer:
     enabled: false
 
-# 1Password secret — provides JWT_SECRET_KEY, AUTH_ENCRYPTION_SECRET
+# 1Password secret — provides JWT_SECRET_KEY, AUTH_ENCRYPTION_SECRET, PLATFORM_ADMIN_EMAIL
 secret:
   name: context-forge
   itemPath: ""

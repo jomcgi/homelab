@@ -2,7 +2,7 @@ apiVersion: v2
 name: context-forge
 description: MCP gateway aggregating observability and infrastructure tools
 type: application
-version: 2.0.0
+version: 2.0.1
 appVersion: "1.0.0-RC1"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
