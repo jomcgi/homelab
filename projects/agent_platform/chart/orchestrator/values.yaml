@@ -61,6 +61,7 @@ config:
   jobInactivityTimeout: "10m"
   jobMaxDuration: "168h"
   reconcileInterval: "60s"
+  inferenceUrl: ""
 
 httpRoute:
   enabled: false

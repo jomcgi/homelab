@@ -180,6 +180,8 @@ agent-orchestrator:
     enabled: true
     onepassword:
       itemPath: "vaults/k8s-homelab/items/ghcr-read-permissions"
+  config:
+    inferenceUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   podAnnotations:
     linkerd.io/inject: enabled
     instrumentation.opentelemetry.io/inject-go: "go"

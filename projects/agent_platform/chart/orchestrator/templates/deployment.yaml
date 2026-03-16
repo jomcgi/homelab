@@ -58,6 +58,8 @@ spec:
           value: {{ .Values.config.jobMaxDuration | quote }}
         - name: RECONCILE_INTERVAL
           value: {{ .Values.config.reconcileInterval | quote }}
+        - name: INFERENCE_URL
+          value: {{ .Values.config.inferenceUrl | quote }}
         livenessProbe:
           httpGet:
             path: /health
