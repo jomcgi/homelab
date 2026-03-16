@@ -24,6 +24,12 @@ spec:
     syncOptions:
       - CreateNamespace=false
       - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
   # Ignore fields that K3s manages
   ignoreDifferences:
     - group: ""
@@ -33,9 +39,3 @@ spec:
         - /data/NodeHosts
         - /metadata/annotations
         - /metadata/labels
-    retry:
-      limit: 5
-      backoff:
-        duration: 5s
-        factor: 2
-        maxDuration: 3m
