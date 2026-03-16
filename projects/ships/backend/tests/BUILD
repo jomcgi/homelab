@@ -86,6 +86,7 @@ py_test(
         ":conftest",
         "//projects/ships/backend:ships-api",
         "@pip//fastapi",
+        "@pip//nats_py",
         "@pip//pytest",
         "@pip//pytest_asyncio",  # keep
     ],

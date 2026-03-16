@@ -641,9 +641,7 @@ class TestProcessMessageEdgeCases:
         service.js.publish.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_process_static_data_uses_metadata_ship_name_fallback(
-        self, service
-    ):
+    async def test_process_static_data_uses_metadata_ship_name_fallback(self, service):
         """When static Name is empty, ShipName from MetaData is used as fallback."""
         service.js = AsyncMock()
 
