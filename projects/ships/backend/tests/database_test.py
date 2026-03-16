@@ -8,10 +8,17 @@ Tests cover:
 - Track retrieval
 - Position cleanup
 - In-memory cache operations
+- Read-only DB connection separation
+- Position count caching lifecycle
+- Cache clearing on reconnect
+- Close handles both connections
 """
 
 import asyncio
+import os
+import tempfile
 from datetime import datetime, timedelta, timezone
+from unittest.mock import AsyncMock
 
 import pytest
 import pytest_asyncio
@@ -600,3 +607,282 @@ class TestCounts:
 
         count = test_db.get_position_count()
         assert count == len(multiple_vessels_data)
+
+
+class TestReadConnectionSeparation:
+    """Tests for read-only DB connection separation introduced in fd80f50..812eb11."""
+
+    @pytest.mark.asyncio
+    async def test_memory_db_read_db_is_same_connection(self):
+        """For :memory: DB, _read_db must be the same object as self.db.
+
+        SQLite :memory: databases are connection-scoped — a second connection
+        would see a completely empty schema, so we reuse the write connection.
+        """
+        db = Database(":memory:")
+        await db.connect()
+        try:
+            assert db._read_db is db.db
+        finally:
+            await db.close()
+
+    @pytest.mark.asyncio
+    async def test_file_db_read_db_is_separate_connection(self):
+        """For a file-based DB, _read_db must be a distinct connection object."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_file = os.path.join(tmpdir, "test.db")
+            db = Database(db_file)
+            await db.connect()
+            try:
+                assert db._read_db is not None
+                assert db._read_db is not db.db
+            finally:
+                await db.close()
+
+    @pytest.mark.asyncio
+    async def test_get_latest_positions_uses_read_db(self, test_db: Database):
+        """get_latest_positions() must issue its query through _read_db."""
+        mock_cursor = AsyncMock()
+        mock_cursor.fetchall = AsyncMock(return_value=[])
+        mock_read_db = AsyncMock()
+        mock_read_db.execute = AsyncMock(return_value=mock_cursor)
+
+        test_db._read_db = mock_read_db
+
+        result = await test_db.get_latest_positions()
+
+        mock_read_db.execute.assert_called_once()
+        assert result == []
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_uses_read_db(self, test_db: Database):
+        """get_vessel() must issue its query through _read_db."""
+        mock_cursor = AsyncMock()
+        mock_cursor.fetchone = AsyncMock(return_value=None)
+        mock_read_db = AsyncMock()
+        mock_read_db.execute = AsyncMock(return_value=mock_cursor)
+
+        test_db._read_db = mock_read_db
+
+        result = await test_db.get_vessel("123456789")
+
+        mock_read_db.execute.assert_called_once()
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_track_uses_read_db(self, test_db: Database):
+        """get_vessel_track() must issue its query through _read_db."""
+        mock_cursor = AsyncMock()
+        mock_cursor.fetchall = AsyncMock(return_value=[])
+        mock_read_db = AsyncMock()
+        mock_read_db.execute = AsyncMock(return_value=mock_cursor)
+
+        test_db._read_db = mock_read_db
+
+        result = await test_db.get_vessel_track("123456789")
+
+        mock_read_db.execute.assert_called_once()
+        assert result == []
+
+
+class TestPositionCountCaching:
+    """Tests for _position_count lifecycle: init, increment, decrement."""
+
+    @pytest.mark.asyncio
+    async def test_position_count_zero_on_empty_db(self, test_db: Database):
+        """_position_count is 0 after connecting to an empty database."""
+        assert test_db.get_position_count() == 0
+
+    @pytest.mark.asyncio
+    async def test_position_count_initialized_from_db_on_connect(self):
+        """connect() reads COUNT(*) from the positions table to seed _position_count.
+
+        After inserting rows, reconnecting must restore the cached count from the
+        real row count — not from the previous in-memory value.
+        """
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_file = os.path.join(tmpdir, "test_count.db")
+            db = Database(db_file)
+            await db.connect()
+
+            now = datetime.now(timezone.utc).isoformat()
+            positions = [
+                ({"mmsi": "111111111", "lat": 51.5, "lon": -0.1, "speed": 5.0, "timestamp": now}, now),
+                ({"mmsi": "222222222", "lat": 52.5, "lon": -1.1, "speed": 5.0, "timestamp": now}, now),
+            ]
+            await db.insert_positions_batch(positions)
+            await db.commit()
+
+            # Corrupt in-memory count to ensure reconnect reloads from DB.
+            db._position_count = 9999
+
+            # Reconnect — must reload count from the 2 rows already on disk.
+            await db.connect()
+            try:
+                assert db.get_position_count() == 2
+            finally:
+                await db.close()
+
+    @pytest.mark.asyncio
+    async def test_insert_positions_increments_count(
+        self, test_db: Database, sample_position_data: dict
+    ):
+        """insert_positions_batch increments _position_count by the number of rows inserted."""
+        assert test_db.get_position_count() == 0
+
+        count = await test_db.insert_positions_batch(
+            [(sample_position_data, sample_position_data["timestamp"])]
+        )
+
+        assert count == 1
+        assert test_db.get_position_count() == 1
+
+    @pytest.mark.asyncio
+    async def test_insert_batch_accumulates_count(
+        self, test_db: Database, multiple_vessels_data: list[dict]
+    ):
+        """Each batch insert adds its size to _position_count cumulatively."""
+        positions = [(v, v["timestamp"]) for v in multiple_vessels_data]
+        await test_db.insert_positions_batch(positions)
+
+        assert test_db.get_position_count() == len(multiple_vessels_data)
+
+        # Insert the same positions again (upsert; count increases by batch size)
+        await test_db.insert_positions_batch(positions)
+
+        assert test_db.get_position_count() == len(multiple_vessels_data) * 2
+
+    @pytest.mark.asyncio
+    async def test_cleanup_decrements_position_count(self, test_db: Database):
+        """cleanup_old_positions decrements _position_count by the number of deleted rows."""
+        now = datetime.now(timezone.utc)
+
+        old_ts = (now - timedelta(days=10)).isoformat()
+        recent_ts = now.isoformat()
+
+        positions = [
+            ({"mmsi": "111111111", "lat": 51.5, "lon": -0.1, "speed": 0.0, "timestamp": old_ts}, old_ts),
+            ({"mmsi": "222222222", "lat": 52.5, "lon": -1.1, "speed": 5.0, "timestamp": recent_ts}, recent_ts),
+        ]
+        await test_db.insert_positions_batch(positions)
+        await test_db.commit()
+
+        assert test_db.get_position_count() == 2
+
+        deleted = await test_db.cleanup_old_positions()
+
+        assert deleted == 1
+        assert test_db.get_position_count() == 1
+
+    @pytest.mark.asyncio
+    async def test_cleanup_count_does_not_go_below_zero(self, test_db: Database):
+        """cleanup_old_positions uses max(0, count - deleted) so count never goes negative."""
+        # Force the in-memory counter below actual DB row count.
+        test_db._position_count = 0
+
+        now = datetime.now(timezone.utc)
+        old_ts = (now - timedelta(days=10)).isoformat()
+
+        # Insert directly to bypass the counter so _position_count stays at 0.
+        await test_db.db.execute(
+            "INSERT INTO positions (mmsi, lat, lon, timestamp) VALUES (?, ?, ?, ?)",
+            ("111111111", 51.5, -0.1, old_ts),
+        )
+        await test_db.db.commit()
+
+        await test_db.cleanup_old_positions()
+
+        assert test_db.get_position_count() >= 0
+
+
+class TestCacheClearingOnReconnect:
+    """Tests that connect() resets in-memory state before reloading from DB."""
+
+    @pytest.mark.asyncio
+    async def test_reconnect_clears_position_cache(self):
+        """connect() resets _position_cache to an empty dict before reloading.
+
+        Any stale entries from a previous session must not survive the reconnect.
+        """
+        db = Database(":memory:")
+        await db.connect()
+
+        # Manually add a cache entry to simulate leftover state.
+        now = datetime.now(timezone.utc).isoformat()
+        db.update_cache("123456789", {"lat": 51.5, "lon": -0.1, "speed": 5.0, "timestamp": now}, now)
+        assert db.get_cache_size() == 1
+
+        # Reconnect to a fresh :memory: database — cache must be cleared then
+        # reloaded from the (empty) DB, so final size should be 0.
+        await db.connect()
+        try:
+            assert db.get_cache_size() == 0
+        finally:
+            await db.close()
+
+    @pytest.mark.asyncio
+    async def test_reconnect_resets_position_count_before_reload(self):
+        """connect() sets _position_count to 0 before counting rows in DB.
+
+        This verifies the explicit reset documented in the connect() comment:
+        'Reset in-memory state (important when reconnecting to a fresh DB)'.
+        The final value comes from the DB row count, not from the prior session.
+        """
+        db = Database(":memory:")
+        await db.connect()
+
+        # Set an artificially high count.
+        db._position_count = 9999
+
+        # Reconnect to a fresh :memory: DB — final count must reflect empty DB (0).
+        await db.connect()
+        try:
+            assert db.get_position_count() == 0
+        finally:
+            await db.close()
+
+
+class TestCloseHandlesBothConnections:
+    """Tests that close() properly tears down both the write and read connections."""
+
+    @pytest.mark.asyncio
+    async def test_close_calls_read_db_close_when_separate(self):
+        """For a file-based DB, close() must explicitly close _read_db."""
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_file = os.path.join(tmpdir, "test_close.db")
+            db = Database(db_file)
+            await db.connect()
+
+            assert db._read_db is not db.db
+
+            # Replace _read_db with a mock that tracks close() calls.
+            mock_read_db = AsyncMock()
+            real_read_db = db._read_db
+            db._read_db = mock_read_db
+
+            # Also mock db.db so we can close cleanly without a real connection.
+            mock_write_db = AsyncMock()
+            db.db = mock_write_db
+
+            await db.close()
+
+            mock_read_db.close.assert_called_once()
+            mock_write_db.close.assert_called_once()
+
+            # Clean up the real read connection we swapped out.
+            await real_read_db.close()
+
+    @pytest.mark.asyncio
+    async def test_close_does_not_double_close_memory_db(self, test_db: Database):
+        """For :memory: DB, _read_db is self.db — close() must close it exactly once."""
+        # Verify precondition: both point to the same object.
+        assert test_db._read_db is test_db.db
+
+        mock_conn = AsyncMock()
+        test_db.db = mock_conn
+        test_db._read_db = mock_conn  # same object
+
+        await test_db.close()
+
+        # The connection should have been closed exactly once.
+        assert mock_conn.close.call_count == 1
