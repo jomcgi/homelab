@@ -35,7 +35,7 @@ func TestSubmitRequest_OptionalFields(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	for _, key := range []string{"profile", "max_retries", "source", "tags"} {
+	for _, key := range []string{"max_retries", "source", "tags"} {
 		if strings.Contains(string(data), `"`+key+`"`) {
 			t.Errorf("expected %q to be omitted when zero, got %s", key, data)
 		}
@@ -47,7 +47,6 @@ func TestSubmitRequest_WithAllFields(t *testing.T) {
 	maxRetries := 3
 	req := SubmitRequest{
 		Task:       "build the image",
-		Profile:    "ci-debug",
 		MaxRetries: &maxRetries,
 		Source:     "discord",
 		Tags:       []string{"ci", "urgent"},
@@ -65,9 +64,6 @@ func TestSubmitRequest_WithAllFields(t *testing.T) {
 
 	if got.Task != req.Task {
 		t.Errorf("Task: got %q, want %q", got.Task, req.Task)
-	}
-	if got.Profile != req.Profile {
-		t.Errorf("Profile: got %q, want %q", got.Profile, req.Profile)
 	}
 	if got.MaxRetries == nil || *got.MaxRetries != 3 {
 		t.Errorf("MaxRetries: got %v, want 3", got.MaxRetries)
