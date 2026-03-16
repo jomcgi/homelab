@@ -1,3 +1,6 @@
+extraLabels:
+  app.kubernetes.io/part-of: yukon-tracker
+
 # Trips application stack
 # Includes: imgproxy, nginx routing, API server
 
