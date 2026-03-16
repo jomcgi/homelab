@@ -165,6 +165,10 @@ class Database:
 
     async def connect(self) -> None:
         """Connect to database and initialize schema."""
+        # Reset in-memory state (important when reconnecting to a fresh DB)
+        self._position_cache.clear()
+        self._position_count = 0
+
         # Ensure directory exists
         Path(self.db_path).parent.mkdir(parents=True, exist_ok=True)
 
