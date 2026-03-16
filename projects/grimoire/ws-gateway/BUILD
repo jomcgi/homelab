@@ -21,7 +21,12 @@ go_library(
 
 go_test(
     name = "ws-gateway_test",
-    srcs = ["hub_test.go"],
+    srcs = [
+        "auth_test.go",
+        "client_test.go",
+        "events_test.go",
+        "hub_test.go",
+    ],
     embed = [":ws-gateway_lib"],
 )
 
