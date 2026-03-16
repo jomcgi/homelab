@@ -90,17 +90,19 @@ func TestWaitPodRunning_ReResolvePodName(t *testing.T) {
 	initialPodName := sandboxName // fallback: sandbox name used as pod name
 	realPodName := "goose-pool-xyz789"
 
-	// The real pod exists, but under a different name than the initial guess.
+	// The real pod exists under a different name than the initial guess.
 	cs := kubefake.NewClientset(readyGoosePod(realPodName, ns, corev1.PodRunning))
 
-	// Sandbox starts without the pod-name annotation — simulate late binding.
-	sandbox := sandboxUnstructured(sandboxName, ns, "")
+	// Sandbox already has the pod-name annotation — simulates the controller
+	// having bound a pool pod. The initial pod name was the fallback (sandbox
+	// name) because resolvePodName ran before the annotation was set. On
+	// NotFound, waitPodRunning re-resolves and should pick up the real name.
 	dynScheme := runtime.NewScheme()
 	dynClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(dynScheme,
 		map[schema.GroupVersionResource]string{
 			sandboxGVR: "SandboxList",
 		},
-		sandbox,
+		sandboxUnstructured(sandboxName, ns, realPodName),
 	)
 
 	s := &SandboxExecutor{
@@ -109,13 +111,6 @@ func TestWaitPodRunning_ReResolvePodName(t *testing.T) {
 		namespace: ns,
 		logger:    slog.Default(),
 	}
-
-	// After 100ms, update the sandbox annotation to point to the real pod.
-	go func() {
-		time.Sleep(100 * time.Millisecond)
-		updated := sandboxUnstructured(sandboxName, ns, realPodName)
-		dynClient.Tracker().Update(sandboxGVR, updated, ns)
-	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
