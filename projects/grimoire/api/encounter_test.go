@@ -22,15 +22,15 @@ func TestValidEncounterTransition_Invalid(t *testing.T) {
 	cases := []struct {
 		from, to string
 	}{
-		{"planned", "completed"},  // must pass through active
-		{"planned", "planned"},    // no self-transitions
-		{"active", "planned"},     // no reverting
-		{"active", "active"},      // no self-transitions
-		{"completed", "active"},   // completed is a terminal state
-		{"completed", "planned"},  // completed is a terminal state
+		{"planned", "completed"}, // must pass through active
+		{"planned", "planned"},   // no self-transitions
+		{"active", "planned"},    // no reverting
+		{"active", "active"},     // no self-transitions
+		{"completed", "active"},  // completed is a terminal state
+		{"completed", "planned"}, // completed is a terminal state
 		{"completed", "completed"},
-		{"", "active"},   // unknown from state
-		{"active", ""},   // unknown to state
+		{"", "active"}, // unknown from state
+		{"active", ""}, // unknown to state
 		{"unknown", "active"},
 	}
 	for _, tc := range cases {
