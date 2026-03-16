@@ -240,9 +240,10 @@ class TestGenerateGapId:
 
     def test_coordinate_precision_five_decimals(self):
         """IDs should differ only at 5 dp boundary."""
-        # These round to the same 5dp value
+        # Both 45.000001 and 45.000003 have a 6th decimal < 5 so both round
+        # to 45.00000 at 5dp — they should produce the same gap ID.
         id1 = generate_gap_id(45.000001, -122.0, "2025-01-01T00:00:00")
-        id2 = generate_gap_id(45.000009, -122.0, "2025-01-01T00:00:00")
+        id2 = generate_gap_id(45.000003, -122.0, "2025-01-01T00:00:00")
         assert id1 == id2
 
 

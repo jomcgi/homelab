@@ -5,6 +5,9 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+# gazelle:ignore client
+# gazelle:ignore client.ElevationCache
+# gazelle:ignore client.ElevationClient
 from client import (
     ElevationCache,
     ElevationClient,
@@ -46,8 +49,8 @@ class TestElevationCacheCoordKey:
     def test_same_key_for_nearby_coords(self, tmp_path):
         """Two coords within ~1 m should map to the same key."""
         cache = ElevationCache(tmp_path / "test.db")
-        # Differ only in the 6th decimal place (~0.1 m)
-        assert cache._coord_key(45.000001) == cache._coord_key(45.000009)
+        # Both have a 6th decimal < 5, so both round to 45.00000 at 5dp.
+        assert cache._coord_key(45.000001) == cache._coord_key(45.000003)
 
 
 class TestElevationCacheGetSet:
@@ -83,8 +86,8 @@ class TestElevationCacheGetSet:
     def test_precision_key_collision(self, cache):
         """Coords that differ only after 5 dp should overwrite each other."""
         cache.set(45.000001, -122.0, 50.0)
-        # 45.000009 rounds to the same key
-        cache.set(45.000009, -122.0, 60.0)
+        # 45.000003 has a 6th decimal < 5 so it rounds to the same key (45.00000)
+        cache.set(45.000003, -122.0, 60.0)
         assert cache.get(45.000001, -122.0) == pytest.approx(60.0)
 
 
