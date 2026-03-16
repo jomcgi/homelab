@@ -1,14 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
-import {
-  listJobs,
-  listAgents,
-  submitPipeline,
-  cancelJob,
-  submitJob,
-  getJob,
-} from "./api.js";
-import PipelineComposer from "./PipelineComposer.jsx";
-import { CONDITION_STYLES } from "./pipeline-config.js";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { listJobs, submitJob, cancelJob, summarizeJob } from "./api.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -20,8 +11,6 @@ const STATUS_META = {
   SUCCEEDED: { color: "#22c55e", label: "done" },
   FAILED: { color: "#ef4444", label: "failed" },
   CANCELLED: { color: "#d1d5db", label: "cancelled" },
-  BLOCKED: { color: "#9ca3af", label: "blocked" },
-  SKIPPED: { color: "#d1d5db", label: "skipped" },
 };
 
 // ─── Utils ────────────────────────────────────────────────────────────────────
@@ -48,68 +37,30 @@ function getResult(job) {
   return job.attempts[job.attempts.length - 1].result || null;
 }
 
-/** Resolve agent metadata, falling back to a neutral default. */
-function resolveAgent(agentId, agents) {
-  return (
-    agents.find((a) => a.id === agentId) || {
-      id: agentId,
-      label: agentId,
-      icon: "◆",
-      bg: "#f3f4f6",
-      fg: "#6b7280",
-    }
-  );
+// ─── Plan colors ──────────────────────────────────────────────────────────────
+
+const PLAN_COLORS = [
+  { bg: "#ede9fe", fg: "#6d28d9" },
+  { bg: "#dbeafe", fg: "#1d4ed8" },
+  { bg: "#d1fae5", fg: "#065f46" },
+  { bg: "#fef3c7", fg: "#92400e" },
+  { bg: "#fce7f3", fg: "#9d174d" },
+  { bg: "#e0e7ff", fg: "#3730a3" },
+];
+
+function agentColor(agent) {
+  let h = 0;
+  for (let i = 0; i < agent.length; i++) h = (h * 31 + agent.charCodeAt(i)) | 0;
+  return PLAN_COLORS[Math.abs(h) % PLAN_COLORS.length];
 }
 
-/**
- * Derive a 1-sentence summary from pipeline job steps when pipeline_summary is
- * absent (e.g. older pipelines or when inference is unavailable). Joins the
- * LLM-generated title (or raw task) for each step with " → " separators.
- */
-function derivePipelineSummary(jobs) {
-  return jobs
-    .map((j) => j.title || j.task || j.profile)
-    .filter(Boolean)
-    .join(" → ");
-}
-
-/** Group jobs by pipeline_id. Non-pipeline jobs get their own group. */
-function groupJobs(jobs) {
-  const pipelines = new Map();
-  const singles = [];
-
-  for (const job of jobs) {
-    if (job.pipeline_id) {
-      if (!pipelines.has(job.pipeline_id)) {
-        pipelines.set(job.pipeline_id, []);
-      }
-      pipelines.get(job.pipeline_id).push(job);
-    } else {
-      singles.push({ type: "single", job });
-    }
-  }
-
-  const groups = [];
-  for (const [pipelineId, pipelineJobs] of pipelines) {
-    // Sort by step_index
-    pipelineJobs.sort((a, b) => a.step_index - b.step_index);
-    groups.push({ type: "pipeline", pipelineId, jobs: pipelineJobs });
-  }
-
-  // Add singles
-  groups.push(...singles);
-
-  // Sort groups by most recent activity (first job's updated_at)
-  groups.sort((a, b) => {
-    const aTime =
-      a.type === "pipeline" ? a.jobs[0].updated_at : a.job.updated_at;
-    const bTime =
-      b.type === "pipeline" ? b.jobs[0].updated_at : b.job.updated_at;
-    return new Date(bTime) - new Date(aTime);
-  });
-
-  return groups;
-}
+const STEP_STATUS_MAP = {
+  completed: "SUCCEEDED",
+  running: "RUNNING",
+  failed: "FAILED",
+  skipped: "CANCELLED",
+  pending: "PENDING",
+};
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -219,23 +170,10 @@ function ResultPill({ result }) {
   );
 }
 
-// ─── Pipeline flow (compact, inline) ─────────────────────────────────────────
+// ─── Pipeline flow (plan steps) ───────────────────────────────────────────────
 
-function PipelineFlow({ steps, jobs, agents }) {
-  // Use real jobs if available, otherwise fall back to parsed steps
-  const items = jobs
-    ? jobs.map((j) => ({
-        agent: j.profile,
-        task: j.title || j.task,
-        condition: j.step_condition || "always",
-        status: j.status,
-      }))
-    : steps.map((s) => ({
-        agent: s.agent,
-        task: s.task,
-        condition: s.condition || "always",
-        status: null,
-      }));
+function PipelineFlow({ plan }) {
+  if (!plan?.length) return null;
 
   return (
     <div
@@ -247,16 +185,10 @@ function PipelineFlow({ steps, jobs, agents }) {
         minWidth: 0,
       }}
     >
-      {items.map((item, i) => {
-        const ag = resolveAgent(item.agent, agents);
-        const cond = i > 0 ? item.condition : null;
-        const condStyle = cond
-          ? CONDITION_STYLES[cond] || CONDITION_STYLES["always"]
-          : null;
-        const isSkipped =
-          item.status === "SKIPPED" || item.status === "CANCELLED";
-        const isBlocked = item.status === "BLOCKED";
-        const isFailed = item.status === "FAILED";
+      {plan.map((step, i) => {
+        const color = agentColor(step.agent);
+        const mappedStatus = STEP_STATUS_MAP[step.status] || "PENDING";
+        const isSkipped = step.status === "skipped";
 
         return (
           <div
@@ -266,88 +198,49 @@ function PipelineFlow({ steps, jobs, agents }) {
               alignItems: "center",
               gap: 0,
               minWidth: 0,
-              flexShrink: i === items.length - 1 ? 1 : 0,
+              flexShrink: i === plan.length - 1 ? 1 : 0,
             }}
           >
             {/* Connector */}
             {i > 0 && (
               <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0,
+                  width: 20,
+                  height: 1,
+                  background: "#e5e7eb",
                   flexShrink: 0,
                 }}
-              >
-                <div
-                  style={{
-                    width: 12,
-                    height: 1,
-                    background: isFailed
-                      ? "#ef4444"
-                      : condStyle?.border || "#e5e7eb",
-                  }}
-                />
-                {cond !== "always" && (
-                  <div
-                    title={cond}
-                    style={{
-                      width: 5,
-                      height: 5,
-                      borderRadius: "50%",
-                      background: condStyle?.border || "#e5e7eb",
-                      flexShrink: 0,
-                    }}
-                  />
-                )}
-                <div
-                  style={{
-                    width: 8,
-                    height: 1,
-                    background: isFailed
-                      ? "#ef4444"
-                      : condStyle?.border || "#e5e7eb",
-                  }}
-                />
-              </div>
+              />
             )}
             {/* Agent pill with status dot */}
             <div
-              title={`${ag.label}: ${item.task}`}
+              title={`${step.agent}: ${step.description}`}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 4,
                 padding: "3px 8px 3px 5px",
                 borderRadius: 6,
-                background: isSkipped
-                  ? "transparent"
-                  : isBlocked
-                    ? "#f9fafb"
-                    : ag.bg,
-                border: isSkipped
-                  ? "1px dashed #d1d5db"
-                  : isBlocked
-                    ? "1px solid #e5e7eb"
-                    : "none",
-                opacity: isSkipped || isBlocked ? 0.6 : 1,
+                background: isSkipped ? "transparent" : color.bg,
+                border: isSkipped ? "1px dashed #d1d5db" : "none",
+                opacity: isSkipped ? 0.6 : 1,
                 flexShrink: 0,
                 maxWidth: 120,
               }}
             >
-              {item.status && <Dot status={item.status} />}
+              <Dot status={mappedStatus} />
               <span
                 style={{
                   fontSize: 11,
                   fontWeight: 500,
-                  color: isSkipped ? "#9ca3af" : ag.fg,
+                  color: isSkipped ? "#9ca3af" : color.fg,
                   whiteSpace: "nowrap",
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   textDecoration: isSkipped ? "line-through" : "none",
                 }}
               >
-                {ag.label}
+                {step.agent}
               </span>
             </div>
           </div>
@@ -357,356 +250,86 @@ function PipelineFlow({ steps, jobs, agents }) {
   );
 }
 
-// ─── Pipeline detail (expanded view) ─────────────────────────────────────────
+// ─── Submit bar ───────────────────────────────────────────────────────────────
 
-function PipelineDetail({ steps, jobs, agents }) {
-  const [openStep, setOpenStep] = useState(null);
-  const [outputOpen, setOutputOpen] = useState(false);
+function SubmitBar({ onSubmit }) {
+  const [task, setTask] = useState("");
+  const [submitting, setSubmitting] = useState(false);
 
-  const items = jobs
-    ? jobs.map((j) => ({
-        agent: j.profile,
-        task: j.task,
-        title: j.title,
-        condition: j.step_condition || "always",
-        status: j.status,
-        summary: j.summary,
-        attempts: j.attempts,
-        failure_summary: j.failure_summary,
-      }))
-    : steps.map((s) => ({
-        agent: s.agent,
-        task: s.task,
-        title: null,
-        condition: s.condition || "always",
-        status: null,
-        summary: null,
-        attempts: null,
-        failure_summary: null,
-      }));
+  const handleSubmit = async () => {
+    const t = task.trim();
+    if (!t || submitting) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(t);
+      setTask("");
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
-    <div
-      style={{
-        padding: "12px 20px 16px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 0,
-      }}
-    >
-      {items.map((item, i) => {
-        const ag = resolveAgent(item.agent, agents);
-        const cond = item.condition;
-        const condStyle = CONDITION_STYLES[cond] || CONDITION_STYLES["always"];
-        const isSkipped =
-          item.status === "SKIPPED" || item.status === "CANCELLED";
-        const isOpen = openStep === i;
-        const hasStatus = !!item.status;
-        const result = getResult({ attempts: item.attempts });
-        const attempt = item.attempts?.[item.attempts.length - 1];
-        const stepSummary = result?.summary || item.failure_summary;
-        const hasOutput =
-          attempt?.output ||
-          item.status === "PENDING" ||
-          item.status === "RUNNING";
-
-        return (
-          <div key={i}>
-            {/* Vertical connector */}
-            {i > 0 && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  paddingLeft: 14,
-                }}
-              >
-                <div
-                  style={{
-                    width: 1,
-                    height: 20,
-                    background: condStyle.border || "#e5e7eb",
-                    flexShrink: 0,
-                  }}
-                />
-                {cond !== "always" && (
-                  <span
-                    style={{
-                      fontSize: 9,
-                      fontWeight: 500,
-                      color: condStyle.color,
-                      padding: "1px 6px",
-                      borderRadius: 8,
-                      border: `1px solid ${condStyle.border}`,
-                      background: condStyle.bg,
-                      lineHeight: 1.4,
-                    }}
-                  >
-                    {cond}
-                  </span>
-                )}
-              </div>
-            )}
-            {/* Step card */}
-            <div
-              onClick={() => {
-                if (hasStatus) {
-                  if (isOpen) {
-                    setOpenStep(null);
-                  } else {
-                    setOpenStep(i);
-                    setOutputOpen(false);
-                  }
-                }
-              }}
-              style={{
-                display: "flex",
-                alignItems: "flex-start",
-                gap: 10,
-                padding: "8px 12px",
-                background: isSkipped
-                  ? "transparent"
-                  : isOpen
-                    ? "#f3f4f6"
-                    : "#fafafa",
-                borderRadius: isOpen ? "8px 8px 0 0" : 8,
-                border: isSkipped ? "1px dashed #e5e7eb" : "1px solid #f0f0f0",
-                opacity: isSkipped ? 0.5 : 1,
-                cursor: hasStatus ? "pointer" : "default",
-                transition: "background 0.15s",
-              }}
-            >
-              <span
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 6,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontSize: 11,
-                  background: ag.bg,
-                  color: ag.fg,
-                  flexShrink: 0,
-                  marginTop: 1,
-                }}
-              >
-                {ag.icon}
-              </span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    marginBottom: 2,
-                  }}
-                >
-                  {item.status && <Dot status={item.status} />}
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 500,
-                      color: "#374151",
-                      textDecoration: isSkipped ? "line-through" : "none",
-                    }}
-                  >
-                    {item.title || ag.label}
-                  </span>
-                  {isSkipped && (
-                    <span
-                      style={{
-                        fontSize: 10,
-                        color: "#9ca3af",
-                        fontStyle: "italic",
-                      }}
-                    >
-                      {item.status === "SKIPPED" ? "Skipped" : "Cancelled"}
-                    </span>
-                  )}
-                  <ResultPill result={result} />
-                </div>
-                <div
-                  style={{ fontSize: 11.5, color: "#9ca3af", lineHeight: 1.5 }}
-                >
-                  {item.summary || item.task || "(no task)"}
-                </div>
-              </div>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                  flexShrink: 0,
-                  marginTop: 2,
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: 10,
-                    color: "#d1d5db",
-                    fontFamily: "monospace",
-                  }}
-                >
-                  {i + 1}
-                </span>
-                {hasStatus && <ChevronDown size={10} open={isOpen} />}
-              </div>
-            </div>
-
-            {/* Expanded step content */}
-            {isOpen && (
-              <div
-                style={{
-                  border: "1px solid #f0f0f0",
-                  borderTop: "none",
-                  borderRadius: "0 0 8px 8px",
-                  overflow: "hidden",
-                }}
-              >
-                {stepSummary && (
-                  <p
-                    style={{
-                      padding: "8px 12px",
-                      fontSize: 11.5,
-                      color: item.failure_summary ? "#f87171" : "#6b7280",
-                      lineHeight: 1.5,
-                      margin: 0,
-                    }}
-                  >
-                    {stepSummary}
-                  </p>
-                )}
-
-                {hasOutput && (
-                  <>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setOutputOpen((o) => !o);
-                      }}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        width: "100%",
-                        padding: "6px 12px",
-                        fontSize: 11,
-                        color: "#9ca3af",
-                        background: outputOpen ? "#f9fafb" : "transparent",
-                        border: "none",
-                        borderTop: stepSummary ? "1px solid #f3f4f6" : "none",
-                        cursor: "pointer",
-                        outline: "none",
-                        fontFamily: "inherit",
-                        transition: "color 0.15s",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.color = "#374151")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.color = "#9ca3af")
-                      }
-                    >
-                      <ChevronDown size={10} open={outputOpen} />
-                      Output
-                      {attempt?.exit_code != null && (
-                        <span
-                          style={{
-                            fontFamily: "monospace",
-                            color:
-                              attempt.exit_code === 0 ? "#22c55e" : "#f87171",
-                          }}
-                        >
-                          exit {attempt.exit_code}
-                        </span>
-                      )}
-                      {item.status === "RUNNING" && (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 4,
-                            color: "#60a5fa",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              width: 5,
-                              height: 5,
-                              borderRadius: "50%",
-                              background: "#60a5fa",
-                              animation:
-                                "ping 1s cubic-bezier(0,0,0.2,1) infinite",
-                            }}
-                          />
-                          live
-                        </span>
-                      )}
-                      {attempt?.started_at && (
-                        <span
-                          style={{
-                            marginLeft: "auto",
-                            fontFamily: "monospace",
-                            color: "#d1d5db",
-                          }}
-                        >
-                          {elapsed(attempt.started_at, attempt.finished_at)}
-                        </span>
-                      )}
-                    </button>
-
-                    {outputOpen && (
-                      <pre
-                        style={{
-                          padding: "12px",
-                          fontSize: 11,
-                          fontFamily: "monospace",
-                          lineHeight: 1.6,
-                          color: "#374151",
-                          whiteSpace: "pre-wrap",
-                          overflow: "auto",
-                          maxHeight: 200,
-                          margin: 0,
-                          borderTop: "1px solid #f3f4f6",
-                        }}
-                      >
-                        {attempt?.output || (
-                          <span
-                            style={{ color: "#d1d5db", fontStyle: "italic" }}
-                          >
-                            {item.status === "PENDING" ||
-                            item.status === "RUNNING"
-                              ? "Waiting for output..."
-                              : "No output"}
-                          </span>
-                        )}
-                      </pre>
-                    )}
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        );
-      })}
+    <div>
+      <textarea
+        value={task}
+        onChange={(e) => setTask(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
+        }}
+        placeholder="Describe a task..."
+        rows={3}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          fontSize: 14,
+          fontFamily: "inherit",
+          border: "1px solid #e5e7eb",
+          borderRadius: 10,
+          resize: "vertical",
+          outline: "none",
+          background: "#fff",
+          color: "#1f2937",
+          lineHeight: 1.5,
+        }}
+      />
+      <div
+        style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}
+      >
+        <button
+          onClick={handleSubmit}
+          disabled={!task.trim() || submitting}
+          style={{
+            padding: "8px 20px",
+            fontSize: 13,
+            fontWeight: 500,
+            background: task.trim() && !submitting ? "#111827" : "#d1d5db",
+            color: "#fff",
+            border: "none",
+            borderRadius: 8,
+            cursor: task.trim() && !submitting ? "pointer" : "default",
+            fontFamily: "inherit",
+            transition: "background 0.15s",
+          }}
+        >
+          {submitting ? "Submitting..." : "Submit"}
+        </button>
+      </div>
     </div>
   );
 }
 
 // ─── Job row ──────────────────────────────────────────────────────────────────
 
-function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
+function JobRow({ job, summary, onCancel, isMobile }) {
   const [open, setOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const canCancel = job.status === "PENDING" || job.status === "RUNNING";
   const result = getResult(job);
   const attempt = job.attempts?.[job.attempts.length - 1];
-  const summary = result?.summary || job.failure_summary;
+  const jobSummary = result?.summary || job.failure_summary;
   const hasOutput = attempt?.output || job.status === "PENDING";
-  const isExpandable = summary || hasOutput;
+  const hasPlan = job.plan?.length > 0;
+  const isExpandable = jobSummary || hasOutput || summary?.summary;
 
   return (
     <div
@@ -729,7 +352,7 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
       >
         <Dot status={job.status} />
 
-        {/* Task title */}
+        {/* Task title + plan flow */}
         <div style={{ flex: 1, minWidth: 0 }}>
           <p
             style={{
@@ -741,8 +364,13 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
               margin: 0,
             }}
           >
-            {job.title || job.task}
+            {summary?.title || job.title || job.task}
           </p>
+          {hasPlan && (
+            <div style={{ marginTop: 4 }}>
+              <PipelineFlow plan={job.plan} />
+            </div>
+          )}
         </div>
 
         {/* Right-side metadata */}
@@ -755,38 +383,6 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
           }}
         >
           <ResultPill result={result} />
-
-          {onApplyPipeline &&
-            result?.pipeline?.length > 0 &&
-            job.status === "SUCCEEDED" && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onApplyPipeline(result.pipeline, result.url);
-                }}
-                style={{
-                  fontSize: 11,
-                  fontWeight: 500,
-                  padding: "2px 8px",
-                  background: "#4f46e5",
-                  color: "#fff",
-                  borderRadius: 4,
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  flexShrink: 0,
-                  transition: "background 0.15s",
-                }}
-                onMouseEnter={(e) =>
-                  (e.currentTarget.style.background = "#4338ca")
-                }
-                onMouseLeave={(e) =>
-                  (e.currentTarget.style.background = "#4f46e5")
-                }
-              >
-                Apply pipeline
-              </button>
-            )}
 
           {job.profile && !isMobile && (
             <span
@@ -866,7 +462,21 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
       {/* Expanded content */}
       {open && (
         <div style={{ borderTop: "1px solid #f3f4f6" }}>
-          {summary && (
+          {summary?.summary && (
+            <p
+              style={{
+                padding: "10px 20px",
+                fontSize: 12,
+                color: "#6b7280",
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              {summary.summary}
+            </p>
+          )}
+
+          {jobSummary && (
             <p
               style={{
                 padding: "10px 20px",
@@ -876,7 +486,7 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
                 margin: 0,
               }}
             >
-              {summary}
+              {jobSummary}
             </p>
           )}
 
@@ -895,7 +505,10 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
                   color: "#9ca3af",
                   background: outputOpen ? "#f9fafb" : "transparent",
                   border: "none",
-                  borderTop: summary ? "1px solid #f3f4f6" : "none",
+                  borderTop:
+                    jobSummary || summary?.summary
+                      ? "1px solid #f3f4f6"
+                      : "none",
                   cursor: "pointer",
                   outline: "none",
                   transition: "color 0.15s, background 0.15s",
@@ -996,154 +609,13 @@ function JobRow({ job, agents, onCancel, onApplyPipeline, isMobile }) {
   );
 }
 
-// ─── Pipeline row (group of pipeline jobs) ───────────────────────────────────
-
-function PipelineRow({ pipelineJobs, agents, onCancel, isMobile }) {
-  const [open, setOpen] = useState(false);
-  const firstJob = pipelineJobs[0];
-  const pipelineSummary = firstJob.pipeline_summary;
-  const hasRunning = pipelineJobs.some((j) => j.status === "RUNNING");
-  const hasFailed = pipelineJobs.some((j) => j.status === "FAILED");
-  const allDone = pipelineJobs.every((j) =>
-    ["SUCCEEDED", "FAILED", "CANCELLED", "SKIPPED"].includes(j.status),
-  );
-
-  // Overall pipeline status
-  const overallStatus = hasRunning
-    ? "RUNNING"
-    : hasFailed
-      ? "FAILED"
-      : allDone
-        ? pipelineJobs.every((j) => j.status === "SUCCEEDED")
-          ? "SUCCEEDED"
-          : "FAILED"
-        : "PENDING";
-
-  const canCancel = pipelineJobs.some(
-    (j) =>
-      j.status === "PENDING" ||
-      j.status === "RUNNING" ||
-      j.status === "BLOCKED",
-  );
-
-  return (
-    <div
-      style={{
-        borderBottom: "1px solid #f3f4f6",
-        transition: "background 0.15s",
-        background: open ? "rgba(249,250,251,0.6)" : "transparent",
-      }}
-    >
-      {/* Compact row */}
-      <div
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          padding: "10px 4px",
-          cursor: "pointer",
-        }}
-      >
-        <Dot status={overallStatus} />
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <PipelineFlow jobs={pipelineJobs} agents={agents} />
-          <p
-            style={{
-              fontSize: 11.5,
-              color: "#9ca3af",
-              margin: "3px 0 0",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              lineHeight: 1.4,
-            }}
-          >
-            {pipelineSummary || derivePipelineSummary(pipelineJobs)}
-          </p>
-        </div>
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              color: "#d1d5db",
-              fontVariantNumeric: "tabular-nums",
-              width: 24,
-              textAlign: "right",
-            }}
-          >
-            {timeAgo(firstJob.updated_at)}
-          </span>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpen((o) => !o);
-            }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              fontSize: 11,
-              color: "#9ca3af",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              padding: "0 0 0 4px",
-              outline: "none",
-            }}
-          >
-            <ChevronDown size={11} open={open} />
-          </button>
-          {canCancel && (
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                // Cancel the first non-terminal job
-                const active = pipelineJobs.find((j) =>
-                  ["PENDING", "RUNNING", "BLOCKED"].includes(j.status),
-                );
-                if (active) onCancel(active.id);
-              }}
-              style={{
-                fontSize: 11,
-                color: "#f87171",
-                background: "none",
-                border: "none",
-                cursor: "pointer",
-                padding: 0,
-                outline: "none",
-              }}
-            >
-              Cancel
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Expanded: per-step detail */}
-      {open && (
-        <div style={{ borderTop: "1px solid #f3f4f6" }}>
-          <PipelineDetail jobs={pipelineJobs} agents={agents} />
-        </div>
-      )}
-    </div>
-  );
-}
-
 // ─── Job list with filter + search ───────────────────────────────────────────
 
-function JobList({ jobs, agents, onCancel, onApplyPipeline, isMobile }) {
+function JobList({ jobs, summaries, onCancel, isMobile }) {
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
 
-  // Filter jobs first, then group
   const filtered = jobs.filter((j) => {
     const matchStatus = status === "all" || j.status === status;
     const matchSearch =
@@ -1152,8 +624,6 @@ function JobList({ jobs, agents, onCancel, onApplyPipeline, isMobile }) {
       (j.title || "").toLowerCase().includes(search.toLowerCase());
     return matchStatus && matchSearch;
   });
-
-  const groups = groupJobs(filtered);
 
   return (
     <div>
@@ -1183,7 +653,6 @@ function JobList({ jobs, agents, onCancel, onApplyPipeline, isMobile }) {
           <option value="all">All</option>
           <option value="RUNNING">Running</option>
           <option value="PENDING">Pending</option>
-          <option value="BLOCKED">Blocked</option>
           <option value="SUCCEEDED">Done</option>
           <option value="FAILED">Failed</option>
           <option value="CANCELLED">Cancelled</option>
@@ -1210,33 +679,22 @@ function JobList({ jobs, agents, onCancel, onApplyPipeline, isMobile }) {
         />
       </div>
 
-      {/* Grouped list */}
+      {/* Job list */}
       <div>
-        {groups.length === 0 ? (
+        {filtered.length === 0 ? (
           <p style={{ fontSize: 12, color: "#d1d5db", padding: "16px 4px" }}>
             No jobs match
           </p>
         ) : (
-          groups.map((group) =>
-            group.type === "pipeline" ? (
-              <PipelineRow
-                key={group.pipelineId}
-                pipelineJobs={group.jobs}
-                agents={agents}
-                onCancel={onCancel}
-                isMobile={isMobile}
-              />
-            ) : (
-              <JobRow
-                key={group.job.id}
-                job={group.job}
-                agents={agents}
-                onCancel={onCancel}
-                onApplyPipeline={onApplyPipeline}
-                isMobile={isMobile}
-              />
-            ),
-          )
+          filtered.map((job) => (
+            <JobRow
+              key={job.id}
+              job={job}
+              summary={summaries.get(job.id)}
+              onCancel={onCancel}
+              isMobile={isMobile}
+            />
+          ))
         )}
       </div>
     </div>
@@ -1247,34 +705,18 @@ function JobList({ jobs, agents, onCancel, onApplyPipeline, isMobile }) {
 
 export default function App() {
   const [jobs, setJobs] = useState([]);
-  const [agents, setAgents] = useState([]);
   const [toast, setToast] = useState(null);
+  const [summaries, setSummaries] = useState(new Map());
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024,
   );
   const isMobile = windowWidth < 640;
-
-  // Deep Plan state
-  const [deepPlanJobId, setDeepPlanJobId] = useState(null);
-  const [deepPlanStatus, setDeepPlanStatus] = useState(null); // null | "running" | "done" | "failed"
-  const [analysisUrl, setAnalysisUrl] = useState(null);
-  const [deepPlanResult, setDeepPlanResult] = useState(null);
+  const pendingSummaries = useRef(new Set());
 
   const notify = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
   };
-
-  // Fetch agent registry on mount
-  useEffect(() => {
-    listAgents()
-      .then((data) => {
-        setAgents(data.agents || []);
-      })
-      .catch(() => {
-        setAgents([]);
-      });
-  }, []);
 
   // Track window width
   useEffect(() => {
@@ -1299,11 +741,34 @@ export default function App() {
     return () => clearInterval(id);
   }, [fetchJobs]);
 
-  const handlePipelineSubmit = useCallback(
-    async (spec) => {
+  // Fetch summaries for jobs with plans
+  useEffect(() => {
+    for (const job of jobs) {
+      if (
+        job.plan?.length > 0 &&
+        !summaries.has(job.id) &&
+        !pendingSummaries.current.has(job.id)
+      ) {
+        pendingSummaries.current.add(job.id);
+        summarizeJob(job.id)
+          .then((result) => {
+            setSummaries((prev) => new Map(prev).set(job.id, result));
+          })
+          .catch(() => {
+            // Summary unavailable — show raw task text
+          })
+          .finally(() => {
+            pendingSummaries.current.delete(job.id);
+          });
+      }
+    }
+  }, [jobs, summaries]);
+
+  const handleSubmit = useCallback(
+    async (task) => {
       try {
-        await submitPipeline(spec);
-        notify(`Pipeline submitted (${spec.steps.length} steps)`);
+        await submitJob(task);
+        notify("Job submitted");
         fetchJobs();
       } catch (err) {
         notify("Submit failed: " + err.message);
@@ -1324,85 +789,6 @@ export default function App() {
     },
     [fetchJobs],
   );
-
-  // Apply a pipeline result from any deep-plan job in the job list.
-  // Called from the inline "Apply pipeline" button on JobRow.
-  const handleApplyPipeline = useCallback((pipeline, url) => {
-    setDeepPlanResult(pipeline);
-    setDeepPlanStatus("done");
-    setAnalysisUrl(url || null);
-  }, []);
-
-  // ── Deep Plan ───────────────────────────────────────────────────────────
-  const handleDeepPlan = useCallback(async (prompt, currentPipeline) => {
-    // Reset state before the async gap to prevent polling the old job ID
-    setDeepPlanJobId(null);
-    setDeepPlanStatus("running");
-    setAnalysisUrl(null);
-    setDeepPlanResult(null);
-
-    try {
-      let task = prompt;
-      if (currentPipeline?.length > 0) {
-        task = `## Goal\n${prompt}\n\n## Previous Pipeline\n${JSON.stringify(currentPipeline, null, 2)}\n\nPlease refine this pipeline based on the goal above.`;
-      }
-
-      const result = await submitJob({
-        task,
-        profile: "deep-plan",
-        tags: "deep-plan",
-        source: "dashboard",
-      });
-      setDeepPlanJobId(result.id);
-    } catch (err) {
-      setAnalysisUrl(null);
-      notify("Deep Plan failed: " + err.message);
-      setDeepPlanStatus("failed");
-    }
-  }, []);
-
-  // Poll for deep plan job completion (max 10 minutes)
-  useEffect(() => {
-    if (!deepPlanJobId || deepPlanStatus !== "running") return;
-
-    let polls = 0;
-    const MAX_POLLS = 120; // 10 min at 5s intervals
-
-    const poll = async () => {
-      polls++;
-      if (polls > MAX_POLLS) {
-        setDeepPlanStatus("failed");
-        notify("Deep Plan timed out");
-        return;
-      }
-
-      try {
-        const job = await getJob(deepPlanJobId);
-        if (job.status === "SUCCEEDED") {
-          const result = getResult(job);
-          if (result?.pipeline) {
-            setDeepPlanResult(result.pipeline);
-            setDeepPlanStatus("done");
-            setAnalysisUrl(result.url || null);
-            notify("Deep Plan complete");
-          } else {
-            setDeepPlanStatus("done");
-            setAnalysisUrl(result?.url || null);
-            notify("Deep Plan complete (no pipeline returned)");
-          }
-        } else if (job.status === "FAILED" || job.status === "CANCELLED") {
-          setDeepPlanStatus("failed");
-          notify("Deep Plan " + job.status.toLowerCase());
-        }
-      } catch {
-        // Retry on next poll
-      }
-    };
-
-    const id = setInterval(poll, POLL_INTERVAL);
-    poll(); // Immediate first check
-    return () => clearInterval(id);
-  }, [deepPlanJobId, deepPlanStatus]);
 
   return (
     <div
@@ -1432,21 +818,14 @@ export default function App() {
           padding: isMobile ? "32px 16px 96px" : "64px 32px 96px",
         }}
       >
-        <PipelineComposer
-          agents={agents}
-          onSubmit={handlePipelineSubmit}
-          onDeepPlan={handleDeepPlan}
-          deepPlanStatus={deepPlanStatus}
-          deepPlanResult={deepPlanResult}
-        />
+        <SubmitBar onSubmit={handleSubmit} />
 
         {jobs.length > 0 && (
           <div style={{ marginTop: 32 }}>
             <JobList
               jobs={jobs}
-              agents={agents}
+              summaries={summaries}
               onCancel={handleCancel}
-              onApplyPipeline={handleApplyPipeline}
               isMobile={isMobile}
             />
           </div>
