@@ -81,7 +81,9 @@ class TestDeduplicationMooringEdgeCases:
         db._position_cache = {}
         return db
 
-    def _cache(self, lat, lon, speed=0.0, timestamp="2024-06-01T10:00:00Z", first_seen=None):
+    def _cache(
+        self, lat, lon, speed=0.0, timestamp="2024-06-01T10:00:00Z", first_seen=None
+    ):
         return CachedPosition(
             lat=lat,
             lon=lon,
