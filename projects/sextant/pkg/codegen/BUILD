@@ -20,7 +20,10 @@ go_library(
 
 go_test(
     name = "codegen_test",
-    srcs = ["generator_test.go"],
+    srcs = [
+        "builddata_test.go",
+        "generator_test.go",
+    ],
     deps = [
         ":codegen",
         "//projects/sextant/pkg/schema",

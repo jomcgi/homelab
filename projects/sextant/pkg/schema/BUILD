@@ -16,6 +16,7 @@ go_test(
     name = "schema_test",
     srcs = [
         "reserved_test.go",
+        "validate_extra_test.go",
         "validate_test.go",
     ],
     deps = [":schema"],
