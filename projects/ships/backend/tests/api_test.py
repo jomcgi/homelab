@@ -421,9 +421,7 @@ class TestTrackSinceFormats:
         assert response.status_code == 200
 
     @pytest.mark.asyncio
-    async def test_track_limit_out_of_range_returns_422(
-        self, test_client: AsyncClient
-    ):
+    async def test_track_limit_out_of_range_returns_422(self, test_client: AsyncClient):
         """Track endpoint rejects limit=0 with 422 Unprocessable Entity."""
         response = await test_client.get("/api/vessels/123456789/track?limit=0")
         assert response.status_code == 422
