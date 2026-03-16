@@ -26,7 +26,13 @@ go_library(
 
 go_test(
     name = "api_test",
-    srcs = ["dice_test.go"],
+    srcs = [
+        "dice_test.go",
+        "encounter_test.go",
+        "firestore_test.go",
+        "middleware_test.go",
+        "session_test.go",
+    ],
     embed = [":api_lib"],
 )
 
