@@ -135,8 +135,6 @@ py_test(
     deps = [
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:telemetry",
-        "@pip//opentelemetry_api",
-        "@pip//opentelemetry_sdk",
         "@pip//pytest",
     ],
 )
@@ -159,10 +157,8 @@ py_test(
     srcs = ["embedder_main_test.py"],
     deps = [
         ":conftest",
-        "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
         "//projects/blog_knowledge_graph/knowledge_graph/app:config",
         "//projects/blog_knowledge_graph/knowledge_graph/app:embedder_main",
-        "//projects/blog_knowledge_graph/knowledge_graph/app:telemetry",
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
         "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
         "@pip//pytest",

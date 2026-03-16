@@ -306,11 +306,15 @@ def ollama():
 
 class TestOllamaEmbedderInit:
     def test_strips_trailing_slash_from_url(self):
-        embedder = OllamaEmbedder(url="http://localhost:11434/", model="nomic-embed-text")
+        embedder = OllamaEmbedder(
+            url="http://localhost:11434/", model="nomic-embed-text"
+        )
         assert not embedder._url.endswith("/")
 
     def test_url_without_slash_unchanged(self):
-        embedder = OllamaEmbedder(url="http://localhost:11434", model="nomic-embed-text")
+        embedder = OllamaEmbedder(
+            url="http://localhost:11434", model="nomic-embed-text"
+        )
         assert embedder._url == "http://localhost:11434"
 
     def test_default_url(self):

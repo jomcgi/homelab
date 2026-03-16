@@ -123,7 +123,9 @@ def _make_mock_embedder(vector_dim=3):
 
 class TestRunEmbeddingPipelineSkip:
     @pytest.mark.asyncio
-    async def test_skips_already_embedded_documents(self, embedder_settings, monkeypatch):
+    async def test_skips_already_embedded_documents(
+        self, embedder_settings, monkeypatch
+    ):
         monkeypatch.setenv("OTEL_ENABLED", "false")
         mock_storage = _make_mock_storage(hashes=["hash1", "hash2"])
         mock_qdrant = _make_mock_qdrant(already_embedded=True)
@@ -150,7 +152,9 @@ class TestRunEmbeddingPipelineSkip:
         mock_embedder.embed.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_no_documents_completes_without_error(self, embedder_settings, monkeypatch):
+    async def test_no_documents_completes_without_error(
+        self, embedder_settings, monkeypatch
+    ):
         monkeypatch.setenv("OTEL_ENABLED", "false")
         mock_storage = _make_mock_storage(hashes=[])
         mock_qdrant = _make_mock_qdrant()
@@ -177,7 +181,9 @@ class TestRunEmbeddingPipelineSkip:
 
 class TestRunEmbeddingPipelineEmbed:
     @pytest.mark.asyncio
-    async def test_embeds_new_document_and_upserts(self, embedder_settings, monkeypatch):
+    async def test_embeds_new_document_and_upserts(
+        self, embedder_settings, monkeypatch
+    ):
         monkeypatch.setenv("OTEL_ENABLED", "false")
         mock_storage = _make_mock_storage(hashes=["newhash"])
         mock_qdrant = _make_mock_qdrant(already_embedded=False)
@@ -206,7 +212,9 @@ class TestRunEmbeddingPipelineEmbed:
         mock_qdrant.upsert_chunks.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_calls_ensure_collection_on_startup(self, embedder_settings, monkeypatch):
+    async def test_calls_ensure_collection_on_startup(
+        self, embedder_settings, monkeypatch
+    ):
         monkeypatch.setenv("OTEL_ENABLED", "false")
         mock_storage = _make_mock_storage(hashes=[])
         mock_qdrant = _make_mock_qdrant()
