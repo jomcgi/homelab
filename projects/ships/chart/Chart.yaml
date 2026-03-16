@@ -13,6 +13,10 @@ keywords:
   - maritime
   - tracking
   - api
+dependencies:
+  - name: homelab-library
+    version: "0.1.0"
+    repository: "file://../../shared/helm/homelab-library/chart"
 annotations:
   org.opencontainers.image.source: "https://github.com/jomcgi/homelab"
   org.opencontainers.image.url: "https://github.com/jomcgi/homelab"
