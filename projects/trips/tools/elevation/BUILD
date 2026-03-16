@@ -34,6 +34,7 @@ py_test(
     deps = [
         "//projects/trips/tools/elevation",
         "@pip//pytest",
+        "@pip//pytest_asyncio",
     ],
 )
 
