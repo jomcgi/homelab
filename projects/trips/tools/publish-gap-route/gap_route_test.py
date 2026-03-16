@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
+import pytest_asyncio  # noqa: F401 — needed to register pytest-asyncio plugin
 
 from main import (
     GAP_KEY_NAMESPACE,
