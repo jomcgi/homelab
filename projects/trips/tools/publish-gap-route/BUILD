@@ -38,12 +38,7 @@ py_test(
     name = "gap_route_test",
     srcs = ["gap_route_test.py"],
     imports = ["."],
-    deps = [
-        ":publish-gap-route",
-        "@pip//defusedxml",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-    ],
+    deps = ["@pip//pytest"],
 )
 
 semgrep_test(
