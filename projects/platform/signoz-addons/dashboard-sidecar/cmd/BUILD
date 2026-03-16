@@ -1,4 +1,4 @@
-load("@rules_go//go:def.bzl", "go_binary", "go_library")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("//bazel/tools/oci:go_image.bzl", "go_image")
 
 go_library(
@@ -23,6 +23,18 @@ go_binary(
     name = "signoz-dashboard-sidecar",
     embed = [":signoz-dashboard-sidecar_lib"],
     visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "signoz-dashboard-sidecar_test",
+    srcs = ["main_test.go"],
+    embed = [":signoz-dashboard-sidecar_lib"],
+    deps = [
+        "@io_k8s_api//core/v1:core",
+        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_client_go//kubernetes/fake",
+    ],
 )
 
 # Container image
