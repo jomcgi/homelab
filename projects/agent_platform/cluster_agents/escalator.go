@@ -120,31 +120,14 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ta
 		return nil
 	}
 
-	var task string
-	if action.Payload != nil {
-		task, _ = action.Payload["task"].(string)
-	}
+	task, _ := action.Payload["task"].(string)
 	if task == "" {
-		// Patrol-style prompt (backwards compat).
-		ruleID := ruleIDFromFinding(action.Finding)
-		task = fmt.Sprintf("SigNoz alert firing: %s\n\n"+
-			"Rule ID: %s\n"+
-			"Severity: %s\n\n"+
-			"Details: %s\n\n"+
-			"Investigate this alert using MCP tools. If a GitOps change can fix it, "+
-			"create a PR. If it requires manual intervention, "+
-			"create a GitHub issue summarizing your findings.",
-			action.Finding.Title, ruleID, action.Finding.Severity,
-			action.Finding.Detail)
-		// Ensure payload exists for profile extraction below.
-		if action.Payload == nil {
-			action.Payload = map[string]any{"profile": "research"}
-		}
+		return fmt.Errorf("action payload missing task")
 	}
 
 	source := action.Finding.Source
 	if source == "" {
-		source = fmt.Sprintf("patrol:%s", ruleIDFromFinding(action.Finding))
+		source = action.Finding.Fingerprint
 	}
 
 	tags := []string{tag}
@@ -156,9 +139,6 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ta
 		"task":   task,
 		"source": source,
 		"tags":   tags,
-	}
-	if profile, ok := action.Payload["profile"].(string); ok && profile != "" {
-		jobReq["profile"] = profile
 	}
 
 	body, _ := json.Marshal(jobReq)
@@ -184,11 +164,4 @@ func (e *Escalator) submitOrchestratorJob(ctx context.Context, action Action, ta
 		"tag", tag,
 	)
 	return nil
-}
-
-func ruleIDFromFinding(f Finding) string {
-	if id, ok := f.Data["rule_id"]; ok {
-		return fmt.Sprintf("%v", id)
-	}
-	return f.Fingerprint
 }
