@@ -27,9 +27,13 @@ go_library(
 go_test(
     name = "api_test",
     srcs = [
+        "campaign_test.go",
+        "character_test.go",
         "dice_test.go",
         "encounter_test.go",
+        "feed_test.go",
         "firestore_test.go",
+        "main_test.go",
         "middleware_test.go",
         "session_test.go",
     ],

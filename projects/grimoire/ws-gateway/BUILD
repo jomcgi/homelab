@@ -26,6 +26,8 @@ go_test(
         "client_test.go",
         "events_test.go",
         "hub_test.go",
+        "main_test.go",
+        "redis_test.go",
     ],
     embed = [":ws-gateway_lib"],
 )
