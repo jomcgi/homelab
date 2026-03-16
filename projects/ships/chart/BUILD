@@ -7,6 +7,7 @@ helm_chart(
         "api.image": "//projects/ships/backend:image.info",
         "frontend.image": "//projects/ships/frontend:image.info",
     },
+    lint = False,
     publish = True,
     visibility = ["//overlays:__subpackages__"],
 )
