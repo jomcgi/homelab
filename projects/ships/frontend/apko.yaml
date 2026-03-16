@@ -40,4 +40,4 @@ paths:
 
 environment:
   PORT: "3000"
-  PUBLIC_DIR: /app/public
+  PUBLIC_DIR: /app/public/projects/ships/frontend/web/dist
