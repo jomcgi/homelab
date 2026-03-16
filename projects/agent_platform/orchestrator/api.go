@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"crypto/rand"
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"strconv"
@@ -23,12 +26,13 @@ type API struct {
 	publish           func(jobID string) error // publishes job ID to JetStream, nil = no-op
 	healthCheck       func() error             // checks backing store connectivity
 	defaultMaxRetries int
+	inferenceURL      string
 	logger            *slog.Logger
 }
 
 // NewAPI creates a new API with the given store, publish function, and logger.
-func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, logger *slog.Logger) *API {
-	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, logger: logger}
+func NewAPI(store Store, publish func(string) error, healthCheck func() error, defaultMaxRetries int, inferenceURL string, logger *slog.Logger) *API {
+	return &API{store: store, publish: publish, healthCheck: healthCheck, defaultMaxRetries: defaultMaxRetries, inferenceURL: inferenceURL, logger: logger}
 }
 
 // RegisterRoutes adds all API routes to the given ServeMux.
@@ -38,6 +42,7 @@ func (a *API) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /jobs/{id}", a.handleGet)
 	mux.HandleFunc("POST /jobs/{id}/cancel", a.handleCancel)
 	mux.HandleFunc("GET /jobs/{id}/output", a.handleOutput)
+	mux.HandleFunc("POST /jobs/{id}/summarize", a.handleSummarize)
 	mux.HandleFunc("GET /health", a.handleHealth)
 }
 
@@ -223,6 +228,116 @@ func (a *API) handleHealth(w http.ResponseWriter, _ *http.Request) {
 		}
 	}
 	a.writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
+}
+
+func (a *API) handleSummarize(w http.ResponseWriter, r *http.Request) {
+	if a.inferenceURL == "" {
+		a.writeError(w, http.StatusServiceUnavailable, "inference not configured")
+		return
+	}
+
+	id := r.PathValue("id")
+	job, err := a.store.Get(r.Context(), id)
+	if err != nil || job == nil {
+		a.writeError(w, http.StatusNotFound, "job not found")
+		return
+	}
+
+	if len(job.Plan) == 0 {
+		a.writeError(w, http.StatusUnprocessableEntity, "job has no plan")
+		return
+	}
+
+	// Build prompt from job task and plan steps.
+	var sb strings.Builder
+	sb.WriteString("Job task: ")
+	sb.WriteString(job.Task)
+	sb.WriteString("\n\nPlan steps:\n")
+	for i, step := range job.Plan {
+		fmt.Fprintf(&sb, "%d. [%s] %s (agent: %s)\n", i+1, step.Status, step.Description, step.Agent)
+	}
+
+	reqBody := map[string]any{
+		"model": "qwen3.5-35b-a3b",
+		"messages": []map[string]string{
+			{"role": "system", "content": "You summarize agent job plans. Respond with JSON containing \"title\" (short, max 10 words) and \"summary\" (1-2 sentences)."},
+			{"role": "user", "content": sb.String()},
+		},
+		"temperature": 0.3,
+		"max_tokens":  256,
+		"response_format": map[string]any{
+			"type": "json_schema",
+			"json_schema": map[string]any{
+				"name":   "summary_response",
+				"strict": true,
+				"schema": map[string]any{
+					"type": "object",
+					"properties": map[string]any{
+						"title":   map[string]string{"type": "string"},
+						"summary": map[string]string{"type": "string"},
+					},
+					"required":             []string{"title", "summary"},
+					"additionalProperties": false,
+				},
+			},
+		},
+	}
+
+	body, err := json.Marshal(reqBody)
+	if err != nil {
+		a.writeError(w, http.StatusInternalServerError, "failed to build request")
+		return
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 30*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, a.inferenceURL+"/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		a.writeError(w, http.StatusInternalServerError, "failed to create request")
+		return
+	}
+	httpReq.Header.Set("Content-Type", "application/json")
+
+	resp, err := http.DefaultClient.Do(httpReq)
+	if err != nil {
+		a.logger.Error("inference request failed", "error", err)
+		a.writeError(w, http.StatusBadGateway, "inference request failed")
+		return
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		a.logger.Error("inference returned non-200", "status", resp.StatusCode)
+		a.writeError(w, http.StatusBadGateway, "inference returned error")
+		return
+	}
+
+	var chatResp struct {
+		Choices []struct {
+			Message struct {
+				Content string `json:"content"`
+			} `json:"message"`
+		} `json:"choices"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
+		a.writeError(w, http.StatusBadGateway, "failed to parse inference response")
+		return
+	}
+
+	if len(chatResp.Choices) == 0 {
+		a.writeError(w, http.StatusBadGateway, "no choices in inference response")
+		return
+	}
+
+	var result SummarizeResponse
+	if err := json.Unmarshal([]byte(chatResp.Choices[0].Message.Content), &result); err != nil {
+		a.logger.Error("failed to parse summary JSON", "content", chatResp.Choices[0].Message.Content, "error", err)
+		a.writeError(w, http.StatusBadGateway, "failed to parse summary")
+		return
+	}
+
+	a.writeJSON(w, http.StatusOK, result)
 }
 
 func (a *API) writeJSON(w http.ResponseWriter, status int, v any) {

@@ -93,3 +93,9 @@ type OutputResponse struct {
 	Truncated bool         `json:"truncated"`
 	Result    *GooseResult `json:"result,omitempty"`
 }
+
+// SummarizeResponse is returned by POST /jobs/{id}/summarize.
+type SummarizeResponse struct {
+	Title   string `json:"title"`
+	Summary string `json:"summary"`
+}

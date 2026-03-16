@@ -108,7 +108,9 @@ func main() {
 		return err
 	}
 
-	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
+	inferenceURL := envOr("INFERENCE_URL", "")
+
+	api := NewAPI(store, publish, healthCheck, maxRetries, inferenceURL, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)
