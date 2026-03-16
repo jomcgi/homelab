@@ -163,22 +163,9 @@ export default function App() {
   // Derive selected vessel from MMSI - always up to date
   const selectedVessel = selectedMmsi ? vessels[selectedMmsi] : null;
 
-  // Refs for websocket handler to access current state
-  const setSelectedMmsiRef = useRef(setSelectedMmsi);
-  setSelectedMmsiRef.current = setSelectedMmsi;
-
+  // Ref for websocket handler to access current selected MMSI
   const selectedMmsiRef = useRef(selectedMmsi);
   selectedMmsiRef.current = selectedMmsi;
-
-  const setSelectedTrackRef = useRef(setSelectedTrack);
-  setSelectedTrackRef.current = setSelectedTrack;
-
-  const updateVessel = useCallback((data) => {
-    setVessels((prev) => ({
-      ...prev,
-      [data.mmsi]: { ...prev[data.mmsi], ...data },
-    }));
-  }, []);
 
   const connectWebSocket = useCallback(() => {
     setConnectionStatus("connecting");
@@ -204,46 +191,60 @@ export default function App() {
           setVessels(vesselMap);
           setStats({ vessels: data.vessels.length });
         } else if (data.type === "positions") {
-          // Batched position updates - process all at once
-          data.positions.forEach((pos) => {
-            updateVessel(pos);
+          // Batch all position updates into a single state update
+          const positions = data.positions;
 
-            // Append to track if this is the selected vessel
-            if (
-              pos.mmsi === selectedMmsiRef.current &&
-              pos.lat != null &&
-              pos.lon != null
-            ) {
-              setSelectedTrackRef.current((prevTrack) => {
+          setVessels((prev) => {
+            const next = { ...prev };
+            for (const pos of positions) {
+              next[pos.mmsi] = { ...prev[pos.mmsi], ...pos };
+            }
+            return next;
+          });
+
+          // Batch track updates for selected vessel
+          const selectedMmsi = selectedMmsiRef.current;
+          if (selectedMmsi) {
+            const trackPoints = positions
+              .filter(
+                (pos) =>
+                  pos.mmsi === selectedMmsi &&
+                  pos.lat != null &&
+                  pos.lon != null,
+              )
+              .map((pos) => ({
+                lat: pos.lat,
+                lon: pos.lon,
+                timestamp: pos.timestamp,
+              }));
+
+            if (trackPoints.length > 0) {
+              setSelectedTrack((prevTrack) => {
                 if (!prevTrack) return prevTrack;
-                const lastPoint = prevTrack[prevTrack.length - 1];
-                if (
-                  lastPoint &&
-                  lastPoint.lat === pos.lat &&
-                  lastPoint.lon === pos.lon
-                ) {
-                  return prevTrack;
-                }
-                return [
-                  ...prevTrack,
-                  { lat: pos.lat, lon: pos.lon, timestamp: pos.timestamp },
-                ];
+                const newPoints = trackPoints.filter((pt) => {
+                  const last = prevTrack[prevTrack.length - 1];
+                  return !last || last.lat !== pt.lat || last.lon !== pt.lon;
+                });
+                return newPoints.length > 0
+                  ? [...prevTrack, ...newPoints]
+                  : prevTrack;
               });
             }
-          });
+          }
         } else if (data.mmsi) {
           // Legacy: single position update
-          updateVessel(data);
+          setVessels((prev) => ({
+            ...prev,
+            [data.mmsi]: { ...prev[data.mmsi], ...data },
+          }));
 
-          // Append to track if this is the selected vessel
           if (
             data.mmsi === selectedMmsiRef.current &&
             data.lat != null &&
             data.lon != null
           ) {
-            setSelectedTrackRef.current((prevTrack) => {
+            setSelectedTrack((prevTrack) => {
               if (!prevTrack) return prevTrack;
-              // Avoid duplicates - check if last point is the same
               const lastPoint = prevTrack[prevTrack.length - 1];
               if (
                 lastPoint &&
@@ -272,7 +273,7 @@ export default function App() {
     ws.current.onerror = () => {
       setConnectionStatus("disconnected");
     };
-  }, [updateVessel]);
+  }, []);
 
   // Initialize map
   useEffect(() => {
@@ -438,7 +439,7 @@ export default function App() {
       const handleVesselClick = (e) => {
         if (e.features && e.features.length > 0) {
           const mmsi = e.features[0].properties.mmsi;
-          setSelectedMmsiRef.current(mmsi);
+          setSelectedMmsi(mmsi);
         }
       };
 
