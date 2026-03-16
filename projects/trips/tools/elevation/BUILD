@@ -28,11 +28,7 @@ py_test(
     name = "elevation_test",
     srcs = ["elevation_test.py"],
     imports = ["."],
-    deps = [
-        ":elevation",
-        "@pip//pytest",
-        "@pip//pytest_asyncio",
-    ],
+    deps = ["@pip//pytest"],
 )
 
 semgrep_test(
