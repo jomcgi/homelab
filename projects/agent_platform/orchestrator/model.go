@@ -59,7 +59,6 @@ type GooseResult struct {
 // SubmitRequest is the JSON body for POST /jobs.
 type SubmitRequest struct {
 	Task       string   `json:"task"`
-	Profile    string   `json:"profile,omitempty"`
 	MaxRetries *int     `json:"max_retries,omitempty"`
 	Source     string   `json:"source,omitempty"`
 	Tags       []string `json:"tags,omitempty"`
