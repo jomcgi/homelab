@@ -30,8 +30,8 @@ import (
 
 var _ = Describe("DNS operations", func() {
 	var (
-		ctx    context.Context
-		client *TunnelClient
+		ctx     context.Context
+		client  *TunnelClient
 		mockAPI *mockCloudflareAPI
 	)
 
