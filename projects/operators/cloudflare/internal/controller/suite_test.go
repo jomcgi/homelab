@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	gatewayv1 "sigs.k8s.io/gateway-api/apis/v1"
 
 	tunnelsv1 "github.com/jomcgi/homelab/projects/operators/cloudflare/api/v1"
 	cfclient "github.com/jomcgi/homelab/projects/operators/cloudflare/internal/cloudflare"
@@ -259,6 +260,9 @@ var _ = BeforeSuite(func() {
 
 	var err error
 	err = tunnelsv1.AddToScheme(scheme.Scheme)
+	Expect(err).NotTo(HaveOccurred())
+
+	err = gatewayv1.Install(scheme.Scheme)
 	Expect(err).NotTo(HaveOccurred())
 
 	// +kubebuilder:scaffold:scheme
