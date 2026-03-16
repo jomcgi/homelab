@@ -69,7 +69,7 @@ type TunnelClientInterface interface {
 
 // TunnelClient wraps the Cloudflare API with rate limiting, circuit breaker, and error handling
 type TunnelClient struct {
-	api            *cloudflare.API
+	api            cloudflareAPI
 	limiter        *rate.Limiter
 	circuitBreaker *gobreaker.CircuitBreaker
 	tracer         trace.Tracer

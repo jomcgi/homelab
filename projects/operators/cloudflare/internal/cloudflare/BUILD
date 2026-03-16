@@ -4,6 +4,7 @@ go_library(
     name = "cloudflare",
     srcs = [
         "access.go",
+        "api_interface.go",
         "client.go",
         "dns.go",
         "routes.go",
@@ -23,11 +24,19 @@ go_library(
 
 go_test(
     name = "cloudflare_test",
-    srcs = ["client_test.go"],
+    srcs = [
+        "access_test.go",
+        "client_test.go",
+        "dns_test.go",
+        "mock_api_test.go",
+        "routes_test.go",
+    ],
     embed = [":cloudflare"],
     deps = [
         "@com_github_cloudflare_cloudflare_go//:cloudflare-go",
         "@com_github_onsi_ginkgo_v2//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
+        "@io_opentelemetry_go_otel//:otel",
+        "@org_golang_x_time//rate",
     ],
 )
