@@ -2,26 +2,20 @@ package main
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
-	"log/slog"
-	"net/http"
-	"net/url"
 	"time"
 )
 
 type PRFixAgent struct {
 	github         *GitHubClient
-	orchestrator   *OrchestratorClient
 	escalator      *Escalator
 	interval       time.Duration
 	staleThreshold time.Duration
 }
 
-func NewPRFixAgent(github *GitHubClient, orchestrator *OrchestratorClient, escalator *Escalator, interval, staleThreshold time.Duration) *PRFixAgent {
+func NewPRFixAgent(github *GitHubClient, escalator *Escalator, interval, staleThreshold time.Duration) *PRFixAgent {
 	return &PRFixAgent{
 		github:         github,
-		orchestrator:   orchestrator,
 		escalator:      escalator,
 		interval:       interval,
 		staleThreshold: staleThreshold,
@@ -39,23 +33,8 @@ func (a *PRFixAgent) Collect(ctx context.Context) ([]Finding, error) {
 
 	var findings []Finding
 	for _, pr := range prs {
-		tag := fmt.Sprintf("improvement:pr-fix:%d", pr.Number)
-
-		active, err := a.hasActiveJob(ctx, tag)
-		if err != nil {
-			slog.Warn("dedup check failed for PR, skipping",
-				"pr", pr.Number,
-				"error", err,
-			)
-			continue
-		}
-		if active {
-			slog.Info("skipping PR with active fix job", "pr", pr.Number)
-			continue
-		}
-
 		findings = append(findings, Finding{
-			Fingerprint: tag,
+			Fingerprint: fmt.Sprintf("improvement:pr-fix:%d", pr.Number),
 			Source:      "improvement:pr-fix",
 			Severity:    SeverityInfo,
 			Title:       fmt.Sprintf("PR #%d has failing CI checks", pr.Number),
@@ -70,36 +49,6 @@ func (a *PRFixAgent) Collect(ctx context.Context) ([]Finding, error) {
 	return findings, nil
 }
 
-func (a *PRFixAgent) hasActiveJob(ctx context.Context, tag string) (bool, error) {
-	u := fmt.Sprintf("%s/jobs?status=%s&tags=%s&limit=1",
-		a.orchestrator.baseURL,
-		url.QueryEscape("PENDING,RUNNING"),
-		url.QueryEscape(tag),
-	)
-
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
-	if err != nil {
-		return false, err
-	}
-
-	resp, err := a.orchestrator.client.Do(req)
-	if err != nil {
-		return false, fmt.Errorf("orchestrator list jobs: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return false, fmt.Errorf("orchestrator returned %d", resp.StatusCode)
-	}
-
-	var result orchestratorListResponse
-	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
-		return false, fmt.Errorf("decode orchestrator response: %w", err)
-	}
-
-	return result.Total > 0, nil
-}
-
 func (a *PRFixAgent) Analyze(_ context.Context, findings []Finding) ([]Action, error) {
 	if len(findings) == 0 {
 		return nil, nil
@@ -110,27 +59,14 @@ func (a *PRFixAgent) Analyze(_ context.Context, findings []Finding) ([]Action, e
 		prNumber, _ := f.Data["pr_number"].(int)
 		branch, _ := f.Data["branch"].(string)
 
-		task := fmt.Sprintf(`PR #%d has failing CI checks on branch %s.
-
-1. Check out the branch
-2. Use BuildBuddy MCP tools to understand the CI failure
-3. Fix the issue
-4. Commit and push (do NOT force push)
-
-Before starting:
-- Run `+"`gh pr view %d --json commits,body`"+` to understand context
-- Check PR comments for any human instructions or "do not auto-fix" labels
-
-Use conventional commit format:
-fix(<scope>): resolve CI failure in PR #%d`, prNumber, branch, prNumber, prNumber)
+		task := fmt.Sprintf("PR #%d on branch %s has failing CI checks.\n\n"+
+			"Diagnose and fix the CI failure. Push the fix (no force push).",
+			prNumber, branch)
 
 		actions = append(actions, Action{
 			Type:    ActionOrchestratorJob,
 			Finding: f,
-			Payload: map[string]any{
-				"task":    task,
-				"profile": "ci-debug",
-			},
+			Payload: map[string]any{"task": task},
 		})
 	}
 

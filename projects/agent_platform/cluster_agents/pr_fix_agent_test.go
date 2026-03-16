@@ -34,18 +34,8 @@ func TestPRFixAgent_CollectFindsFailingPRs(t *testing.T) {
 	}))
 	defer githubServer.Close()
 
-	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := orchestratorListResponse{
-			Jobs:  []orchestratorJob{},
-			Total: 0,
-		}
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer orchestratorServer.Close()
-
 	agent := NewPRFixAgent(
 		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
-		NewOrchestratorClient(orchestratorServer.URL),
 		nil,
 		1*time.Hour,
 		30*time.Minute,
@@ -80,57 +70,8 @@ func TestPRFixAgent_CollectFindsFailingPRs(t *testing.T) {
 	}
 }
 
-func TestPRFixAgent_CollectSkipsPRWithActiveJob(t *testing.T) {
-	githubServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "check-suites") {
-			resp := ghCheckSuitesResponse{
-				CheckSuites: []ghCheckSuite{
-					{Conclusion: "failure"},
-				},
-			}
-			json.NewEncoder(w).Encode(resp)
-			return
-		}
-
-		prs := []ghPullRequest{
-			{
-				Number:    42,
-				Head:      ghHead{Ref: "feat/broken", SHA: "deadbeef"},
-				UpdatedAt: time.Now().Add(-2 * time.Hour),
-			},
-		}
-		json.NewEncoder(w).Encode(prs)
-	}))
-	defer githubServer.Close()
-
-	orchestratorServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := orchestratorListResponse{
-			Jobs:  []orchestratorJob{{ID: "job-123", Status: "RUNNING"}},
-			Total: 1,
-		}
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer orchestratorServer.Close()
-
-	agent := NewPRFixAgent(
-		NewGitHubClient(githubServer.URL, "test-token", "jomcgi/homelab"),
-		NewOrchestratorClient(orchestratorServer.URL),
-		nil,
-		1*time.Hour,
-		30*time.Minute,
-	)
-
-	findings, err := agent.Collect(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(findings) != 0 {
-		t.Errorf("expected 0 findings, got %d", len(findings))
-	}
-}
-
 func TestPRFixAgent_AnalyzeCreatesPerPRActions(t *testing.T) {
-	agent := NewPRFixAgent(nil, nil, nil, 1*time.Hour, 30*time.Minute)
+	agent := NewPRFixAgent(nil, nil, 1*time.Hour, 30*time.Minute)
 
 	findings := []Finding{
 		{
@@ -172,10 +113,6 @@ func TestPRFixAgent_AnalyzeCreatesPerPRActions(t *testing.T) {
 		task, ok := action.Payload["task"].(string)
 		if !ok || task == "" {
 			t.Errorf("action[%d]: expected non-empty task string", i)
-		}
-		profile, ok := action.Payload["profile"].(string)
-		if !ok || profile != "ci-debug" {
-			t.Errorf("action[%d]: expected profile=ci-debug, got %v", i, action.Payload["profile"])
 		}
 	}
 }
