@@ -45,7 +45,12 @@ go_library(
 go_test(
     name = "controller_test",
     srcs = [
+        "cloudflareaccesspolicy_controller_test.go",
         "cloudflaretunnel_controller_test.go",
+        "gateway_controller_test.go",
+        "gatewayclass_controller_test.go",
+        "httproute_controller_test.go",
+        "service_controller_test.go",
         "suite_test.go",
     ],
     embed = [":controller"],
@@ -53,13 +58,16 @@ go_test(
     deps = [
         "//projects/operators/cloudflare/api/v1:api",
         "//projects/operators/cloudflare/internal/cloudflare",
+        "//projects/operators/cloudflare/internal/telemetry",
         "@com_github_cloudflare_cloudflare_go//:cloudflare-go",
         "@com_github_onsi_ginkgo_v2//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
+        "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/api/errors",
         "@io_k8s_apimachinery//pkg/api/meta",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/types",
+        "@io_k8s_apimachinery//pkg/util/intstr",
         "@io_k8s_client_go//kubernetes/scheme",
         "@io_k8s_client_go//rest",
         "@io_k8s_sigs_controller_runtime//pkg/client",
@@ -67,5 +75,7 @@ go_test(
         "@io_k8s_sigs_controller_runtime//pkg/log",
         "@io_k8s_sigs_controller_runtime//pkg/log/zap",
         "@io_k8s_sigs_controller_runtime//pkg/reconcile",
+        "@io_k8s_sigs_gateway_api//apis/v1:apis",
+        "@io_k8s_utils//ptr",
     ],
 )
