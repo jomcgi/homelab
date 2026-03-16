@@ -1,4 +1,5 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
+load("@rules_pkg//pkg:mappings.bzl", "REMOVE_BASE_DIRECTORY", "pkg_files")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
@@ -12,15 +13,21 @@ pkg_tar(
     package_dir = "app",
 )
 
-# Package the pre-built website dist
-# Built during CI by //projects/ships/frontend/web:build (vite build)
+# Map the Vite build output (TreeArtifact) to flat paths under app/public.
+# pkg_tar's strip_prefix doesn't work with TreeArtifacts from js_run_binary,
+# so we use pkg_files with REMOVE_BASE_DIRECTORY to strip the directory structure.
+pkg_files(
+    name = "dist_files",
+    srcs = ["//projects/ships/frontend/web:dist"],
+    renames = {"//projects/ships/frontend/web:dist": REMOVE_BASE_DIRECTORY},
+    prefix = "app/public",
+)
+
 pkg_tar(
     name = "dist_tar",
-    srcs = ["//projects/ships/frontend/web:dist"],
+    deps = [":dist_files"],
     mode = "0644",
     owner = "65532.65532",
-    package_dir = "app/public",
-    strip_prefix = "projects/ships/frontend/web/dist",
 )
 
 apko_image(
