@@ -6,11 +6,11 @@ import "testing"
 // all expected session state transitions.
 func TestValidSessionTransitions_AllowedPaths(t *testing.T) {
 	allowed := []struct{ from, to string }{
-		{"planning", "active"},   // start
-		{"active", "paused"},     // pause
-		{"active", "completed"},  // end directly from active
-		{"paused", "active"},     // resume
-		{"paused", "completed"},  // end from paused
+		{"planning", "active"},  // start
+		{"active", "paused"},    // pause
+		{"active", "completed"}, // end directly from active
+		{"paused", "active"},    // resume
+		{"paused", "completed"}, // end from paused
 	}
 	for _, tc := range allowed {
 		states, ok := validTransitions[tc.from]
@@ -28,12 +28,12 @@ func TestValidSessionTransitions_AllowedPaths(t *testing.T) {
 // all disallowed session state transitions.
 func TestValidSessionTransitions_ForbiddenPaths(t *testing.T) {
 	forbidden := []struct{ from, to string }{
-		{"planning", "completed"},  // must pass through active
-		{"planning", "paused"},     // cannot jump directly to paused
-		{"active", "planning"},     // no reverting back to planning
-		{"completed", "active"},    // completed is a terminal state
-		{"completed", "planning"},  // terminal state
-		{"completed", "paused"},    // terminal state
+		{"planning", "completed"}, // must pass through active
+		{"planning", "paused"},    // cannot jump directly to paused
+		{"active", "planning"},    // no reverting back to planning
+		{"completed", "active"},   // completed is a terminal state
+		{"completed", "planning"}, // terminal state
+		{"completed", "paused"},   // terminal state
 	}
 	for _, tc := range forbidden {
 		states, ok := validTransitions[tc.from]
