@@ -114,9 +114,7 @@ func TestWaitPodRunning_ReResolvePodName(t *testing.T) {
 	go func() {
 		time.Sleep(100 * time.Millisecond)
 		updated := sandboxUnstructured(sandboxName, ns, realPodName)
-		dynClient.Resource(sandboxGVR).Namespace(ns).Update(
-			context.Background(), updated, metav1.UpdateOptions{},
-		)
+		dynClient.Tracker().Update(sandboxGVR, updated, ns)
 	}()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
