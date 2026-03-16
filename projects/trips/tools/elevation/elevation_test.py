@@ -5,9 +5,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-# gazelle:ignore client
-# gazelle:ignore client.ElevationCache
-# gazelle:ignore client.ElevationClient
 from client import (
     ElevationCache,
     ElevationClient,
