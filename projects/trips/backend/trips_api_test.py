@@ -1039,7 +1039,9 @@ class TestJetStreamReplayAdditional:
         assert broadcast_call["point"]["id"] == "good_point"
 
     @pytest.mark.asyncio
-    async def test_process_subscription_exception_in_ack_does_not_stop_loop(self, state):
+    async def test_process_subscription_exception_in_ack_does_not_stop_loop(
+        self, state
+    ):
         """If msg.ack() raises, the error is logged and processing continues."""
         failing_msg = self._make_msg(
             {
