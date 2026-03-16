@@ -8,7 +8,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from main import CaptureQueue, CaptureRecord, DownloadStatus, GracefulShutdown, PerfStats
+from main import (
+    CaptureQueue,
+    CaptureRecord,
+    DownloadStatus,
+    GracefulShutdown,
+    PerfStats,
+)
 
 
 # ---------------------------------------------------------------------------
