@@ -38,6 +38,7 @@ go_test(
         "cleanup_test.go",
         "job_builder_test.go",
         "job_result_test.go",
+        "pod_ungater_test.go",
     ],
     embed = [":controller"],
     deps = [
@@ -51,6 +52,7 @@ go_test(
         "@io_k8s_apimachinery//pkg/api/resource",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
         "@io_k8s_apimachinery//pkg/runtime",
+        "@io_k8s_apimachinery//pkg/types",
         "@io_k8s_sigs_controller_runtime//pkg/client/fake",
     ],
 )
