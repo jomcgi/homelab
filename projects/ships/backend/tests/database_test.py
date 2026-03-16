@@ -924,3 +924,89 @@ class TestCloseHandlesBothConnections:
 
         # The connection should have been closed exactly once.
         assert mock_conn.close.call_count == 1
+
+
+class TestEmptyBatchOperations:
+    """Tests for batch operations with empty input."""
+
+    @pytest.mark.asyncio
+    async def test_insert_positions_batch_empty_returns_zero(self, test_db: Database):
+        """Inserting an empty batch returns 0 and does not modify the DB."""
+        count = await test_db.insert_positions_batch([])
+        assert count == 0
+
+        cursor = await test_db.db.execute("SELECT COUNT(*) FROM positions")
+        row = await cursor.fetchone()
+        assert row[0] == 0
+
+    @pytest.mark.asyncio
+    async def test_upsert_vessels_batch_empty_no_error(self, test_db: Database):
+        """Upserting an empty vessel list completes without error."""
+        await test_db.upsert_vessels_batch([])  # Should not raise
+
+        cursor = await test_db.db.execute("SELECT COUNT(*) FROM vessels")
+        row = await cursor.fetchone()
+        assert row[0] == 0
+
+
+class TestGetVesselAnalyticsEdgeCases:
+    """Tests for edge cases in get_vessel analytics computation."""
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_no_first_seen_skips_analytics(
+        self, test_db: Database, sample_position_data: dict
+    ):
+        """get_vessel returns no time analytics when first_seen_at_location is None."""
+        # Insert with first_seen=None
+        positions = [(sample_position_data, None)]
+        await test_db.insert_positions_batch(positions)
+        await test_db.commit()
+
+        vessel = await test_db.get_vessel(sample_position_data["mmsi"])
+
+        assert vessel is not None
+        # No first_seen means no time-at-location analytics
+        assert vessel.get("time_at_location_seconds") is None
+        assert vessel.get("time_at_location_hours") is None
+        assert vessel.get("is_moored") is None
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_invalid_first_seen_returns_none_analytics(
+        self, test_db: Database, sample_position_data: dict
+    ):
+        """get_vessel with an unparseable first_seen timestamp returns None analytics."""
+        positions = [(sample_position_data, "not-a-valid-timestamp")]
+        await test_db.insert_positions_batch(positions)
+        await test_db.commit()
+
+        vessel = await test_db.get_vessel(sample_position_data["mmsi"])
+
+        assert vessel is not None
+        assert vessel.get("time_at_location_seconds") is None
+        assert vessel.get("time_at_location_hours") is None
+        assert vessel.get("is_moored") is None
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_not_moored_when_recently_arrived(
+        self, test_db: Database, sample_position_data: dict
+    ):
+        """get_vessel returns is_moored=False when time at location < 1h threshold."""
+        # first_seen 10 minutes ago
+        recent_first_seen = (
+            datetime.now(timezone.utc) - timedelta(minutes=10)
+        ).isoformat()
+        positions = [(sample_position_data, recent_first_seen)]
+        await test_db.insert_positions_batch(positions)
+        await test_db.commit()
+
+        vessel = await test_db.get_vessel(sample_position_data["mmsi"])
+
+        assert vessel is not None
+        assert vessel["is_moored"] is False
+        assert vessel["time_at_location_hours"] < 1.0
+
+    @pytest.mark.asyncio
+    async def test_get_vessel_returns_none_for_unknown_mmsi(self, test_db: Database):
+        """get_vessel returns None when the MMSI has no latest_position entry."""
+        vessel = await test_db.get_vessel("000000000")
+        assert vessel is None
