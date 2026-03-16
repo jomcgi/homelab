@@ -127,18 +127,42 @@ resources:
 
 The user needs to:
 
-1. **Create the Helm chart** at `charts/{service}/`:
+1. **Create the Helm chart** at `projects/{service}/chart/`:
 
    ```
-   charts/{service}/
-   ├── Chart.yaml
+   projects/{service}/chart/
+   ├── Chart.yaml          # Must include homelab-library dependency (see below)
    ├── values.yaml
    ├── templates/
    │   ├── deployment.yaml
    │   ├── service.yaml
-   │   └── _helpers.tpl
+   │   ├── serviceaccount.yaml   # One-liner: {{- include "homelab.serviceaccount" . }}
+   │   ├── image-pull-secret.yaml # One-liner: {{- include "homelab.imagepullsecret" . }}
+   │   └── _helpers.tpl          # Thin aliases to homelab-library (see below)
    └── CLAUDE.md (optional)
    ```
+
+   **Chart.yaml must include the homelab-library dependency:**
+
+   ```yaml
+   dependencies:
+     - name: homelab-library
+       version: "0.1.0"
+       repository: "file://../../shared/helm/homelab-library/chart"
+   ```
+
+   **`_helpers.tpl` should use thin aliases** (replace `{service}` with chart name):
+
+   ```yaml
+   {{- define "{service}.name" -}}{{ include "homelab.name" . }}{{- end }}
+   {{- define "{service}.fullname" -}}{{ include "homelab.fullname" . }}{{- end }}
+   {{- define "{service}.chart" -}}{{ include "homelab.chart" . }}{{- end }}
+   {{- define "{service}.labels" -}}{{ include "homelab.labels" . }}{{- end }}
+   {{- define "{service}.selectorLabels" -}}{{ include "homelab.selectorLabels" . }}{{- end }}
+   {{- define "{service}.serviceAccountName" -}}{{ include "homelab.serviceAccountName" . }}{{- end }}
+   ```
+
+   **Run `helm dependency update projects/{service}/chart/`** after creating Chart.yaml.
 
 2. **Customize values.yaml** with service-specific overrides
 
