@@ -6,5 +6,5 @@ frontend:
     repository: ghcr.io/jomcgi/homelab/projects/grimoire/frontend
 wsGateway:
   image:
-    tag: main@sha256:c2e00d337dcf83ec3ec07bc2ab3b85971475ebb1682522acf92f91fd8d452f03
+    tag: latest@sha256:7e5f22f639308e7715d067bb4b836c96f60534131959082c0a5ad9ea27a055f1
     repository: ghcr.io/jomcgi/homelab/projects/grimoire/ws-gateway
