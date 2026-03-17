@@ -156,3 +156,47 @@ func TestResolveResult_CacheMiss(t *testing.T) {
 	assert.False(t, r.Cached)
 	assert.Equal(t, "safetensors", r.Format)
 }
+
+func TestPermanentError_Error(t *testing.T) {
+	inner := errors.New("model not found on HuggingFace")
+	pe := &PermanentError{Err: inner}
+	assert.Equal(t, "model not found on HuggingFace", pe.Error())
+}
+
+func TestPermanentError_Unwrap(t *testing.T) {
+	inner := errors.New("unsupported format")
+	pe := &PermanentError{Err: inner}
+	assert.Equal(t, inner, pe.Unwrap())
+	// errors.Is traverses the Unwrap chain, so it should find the inner error.
+	assert.True(t, errors.Is(pe, inner))
+}
+
+func TestPermanentError_ErrorMatchesInner(t *testing.T) {
+	// Verify Error() delegates to the inner error's message.
+	inner := fmt.Errorf("repo %q returned 404", "org/model")
+	pe := &PermanentError{Err: inner}
+	assert.Equal(t, inner.Error(), pe.Error())
+}
+
+func TestIsPermanentError_DirectPermanentError(t *testing.T) {
+	pe := &PermanentError{Err: errors.New("bad model")}
+	assert.True(t, IsPermanentError(pe))
+}
+
+func TestIsPermanentError_RegularError(t *testing.T) {
+	err := errors.New("transient network error")
+	assert.False(t, IsPermanentError(err))
+}
+
+func TestIsPermanentError_Nil(t *testing.T) {
+	assert.False(t, IsPermanentError(nil))
+}
+
+func TestIsPermanentError_WrappedDoesNotMatch(t *testing.T) {
+	// IsPermanentError uses a direct type assertion, not errors.As.
+	// A PermanentError wrapped inside another error should return false.
+	pe := &PermanentError{Err: errors.New("404")}
+	wrapped := fmt.Errorf("controller: %w", pe)
+	assert.False(t, IsPermanentError(wrapped),
+		"IsPermanentError does not traverse the error chain")
+}

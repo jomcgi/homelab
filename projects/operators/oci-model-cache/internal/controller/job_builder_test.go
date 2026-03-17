@@ -377,3 +377,182 @@ func findMount(mounts []corev1.VolumeMount, name string) *corev1.VolumeMount {
 	}
 	return nil
 }
+
+// --- isJobComplete, isJobFailed, jobFailureReason ---
+
+func TestIsJobComplete(t *testing.T) {
+	tests := []struct {
+		name     string
+		job      *batchv1.Job
+		expected bool
+	}{
+		{
+			name:     "no conditions returns false",
+			job:      &batchv1.Job{},
+			expected: false,
+		},
+		{
+			name: "Complete condition with ConditionTrue returns true",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Complete condition with ConditionFalse returns false",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobComplete, Status: corev1.ConditionFalse},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Failed condition does not satisfy isJobComplete",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "multiple conditions — Complete True among them returns true",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobSuspended, Status: corev1.ConditionFalse},
+						{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			expected: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, isJobComplete(tc.job))
+		})
+	}
+}
+
+func TestIsJobFailed(t *testing.T) {
+	tests := []struct {
+		name     string
+		job      *batchv1.Job
+		expected bool
+	}{
+		{
+			name:     "no conditions returns false",
+			job:      &batchv1.Job{},
+			expected: false,
+		},
+		{
+			name: "Failed condition with ConditionTrue returns true",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			expected: true,
+		},
+		{
+			name: "Failed condition with ConditionFalse returns false",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobFailed, Status: corev1.ConditionFalse},
+					},
+				},
+			},
+			expected: false,
+		},
+		{
+			name: "Complete condition does not satisfy isJobFailed",
+			job: &batchv1.Job{
+				Status: batchv1.JobStatus{
+					Conditions: []batchv1.JobCondition{
+						{Type: batchv1.JobComplete, Status: corev1.ConditionTrue},
+					},
+				},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, isJobFailed(tc.job))
+		})
+	}
+}
+
+func TestJobFailureReason(t *testing.T) {
+	t.Run("returns message from Failed condition with ConditionTrue", func(t *testing.T) {
+		job := &batchv1.Job{
+			Status: batchv1.JobStatus{
+				Conditions: []batchv1.JobCondition{
+					{
+						Type:    batchv1.JobFailed,
+						Status:  corev1.ConditionTrue,
+						Message: "BackoffLimitExceeded",
+					},
+				},
+			},
+		}
+		assert.Equal(t, "BackoffLimitExceeded", jobFailureReason(job))
+	})
+
+	t.Run("returns unknown failure when no conditions", func(t *testing.T) {
+		assert.Equal(t, "unknown failure", jobFailureReason(&batchv1.Job{}))
+	})
+
+	t.Run("returns unknown failure when Failed condition is False", func(t *testing.T) {
+		job := &batchv1.Job{
+			Status: batchv1.JobStatus{
+				Conditions: []batchv1.JobCondition{
+					{
+						Type:    batchv1.JobFailed,
+						Status:  corev1.ConditionFalse,
+						Message: "transient failure",
+					},
+				},
+			},
+		}
+		assert.Equal(t, "unknown failure", jobFailureReason(job))
+	})
+
+	t.Run("returns unknown failure when only Complete condition present", func(t *testing.T) {
+		job := &batchv1.Job{
+			Status: batchv1.JobStatus{
+				Conditions: []batchv1.JobCondition{
+					{Type: batchv1.JobComplete, Status: corev1.ConditionTrue, Message: "done"},
+				},
+			},
+		}
+		assert.Equal(t, "unknown failure", jobFailureReason(job))
+	})
+
+	t.Run("returns empty message when Failed condition has no message", func(t *testing.T) {
+		job := &batchv1.Job{
+			Status: batchv1.JobStatus{
+				Conditions: []batchv1.JobCondition{
+					{Type: batchv1.JobFailed, Status: corev1.ConditionTrue},
+				},
+			},
+		}
+		// The function returns c.Message, which is empty string here.
+		assert.Equal(t, "", jobFailureReason(job))
+	})
+}
