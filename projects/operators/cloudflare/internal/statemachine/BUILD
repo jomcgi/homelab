@@ -31,6 +31,7 @@ go_test(
     srcs = [
         "cloudflare_tunnel_calculator_status_transitions_visit_test.go",
         "cloudflare_tunnel_comprehensive_test.go",
+        "cloudflare_tunnel_coverage_gaps_test.go",
         "cloudflare_tunnel_metrics_test.go",
         "cloudflare_tunnel_observability_test.go",
         "cloudflare_tunnel_statemachine_test.go",
