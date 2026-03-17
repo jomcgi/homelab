@@ -572,34 +572,42 @@ func (v *countingVisitor) VisitPending(_ CloudflareTunnelPending) struct{} {
 	v.pending++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitCreatingTunnel(_ CloudflareTunnelCreatingTunnel) struct{} {
 	v.creatingTunnel++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitCreatingSecret(_ CloudflareTunnelCreatingSecret) struct{} {
 	v.creatingSecret++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitConfiguringIngress(_ CloudflareTunnelConfiguringIngress) struct{} {
 	v.configuringIngress++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitReady(_ CloudflareTunnelReady) struct{} {
 	v.ready++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitFailed(_ CloudflareTunnelFailed) struct{} {
 	v.failed++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitDeletingTunnel(_ CloudflareTunnelDeletingTunnel) struct{} {
 	v.deletingTunnel++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitDeleted(_ CloudflareTunnelDeleted) struct{} {
 	v.deleted++
 	return struct{}{}
 }
+
 func (v *countingVisitor) VisitUnknown(_ CloudflareTunnelUnknown) struct{} {
 	v.unknown++
 	return struct{}{}
