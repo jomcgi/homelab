@@ -26,9 +26,9 @@ import (
 // exact string value documented in its comment.
 func TestConditionTypeValues(t *testing.T) {
 	tests := []struct {
-		name  string
-		got   string
-		want  string
+		name string
+		got  string
+		want string
 	}{
 		{"TypeReady", TypeReady, "Ready"},
 		{"TypeProgressing", TypeProgressing, "Progressing"},
