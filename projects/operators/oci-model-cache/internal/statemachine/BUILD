@@ -29,6 +29,8 @@ go_library(
 go_test(
     name = "statemachine_test",
     srcs = [
+        "model_cache_metrics_test.go",
+        "model_cache_observability_test.go",
         "model_cache_statemachine_test.go",
         "statemachine_test.go",
     ],
