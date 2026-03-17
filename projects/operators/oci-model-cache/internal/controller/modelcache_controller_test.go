@@ -243,8 +243,8 @@ func TestReconcile_Syncing_JobRunning(t *testing.T) {
 // in Failed state resets it via Status().Update() (not SSA).
 func TestReconcile_Failed_SpecChanged_ResetsToPending(t *testing.T) {
 	mc := makeTestMC("llama", sm.PhaseFailed)
-	mc.Generation = 2                 // spec changed
-	mc.Status.ObservedGeneration = 1  // previous generation
+	mc.Generation = 2                // spec changed
+	mc.Status.ObservedGeneration = 1 // previous generation
 	mc.Status.ErrorMessage = "old error"
 	mc.Status.LastState = sm.PhasePending
 	mc.Status.Permanent = true // even permanent failures reset on spec change
