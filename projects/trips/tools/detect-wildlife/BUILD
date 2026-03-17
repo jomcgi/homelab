@@ -54,7 +54,6 @@ py_test(
     deps = [
         "//projects/trips/tools/detect-wildlife",
         "@pip//pytest",
-        "@pip//pytest_asyncio",
     ],
 )
 

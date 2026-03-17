@@ -84,10 +84,34 @@ class TestDateFiltering:
 
     def _make_points(self):
         return [
-            {"id": "p1", "timestamp": "2025-01-15T10:00:00", "source": "gap", "lat": 45.0, "lng": -122.0},
-            {"id": "p2", "timestamp": "2025-01-15T11:00:00", "source": "gap", "lat": 45.1, "lng": -122.1},
-            {"id": "p3", "timestamp": "2025-01-16T10:00:00", "source": "gap", "lat": 46.0, "lng": -123.0},
-            {"id": "p4", "timestamp": "2025-01-15T10:30:00", "source": "manual", "lat": 45.5, "lng": -122.5},
+            {
+                "id": "p1",
+                "timestamp": "2025-01-15T10:00:00",
+                "source": "gap",
+                "lat": 45.0,
+                "lng": -122.0,
+            },
+            {
+                "id": "p2",
+                "timestamp": "2025-01-15T11:00:00",
+                "source": "gap",
+                "lat": 45.1,
+                "lng": -122.1,
+            },
+            {
+                "id": "p3",
+                "timestamp": "2025-01-16T10:00:00",
+                "source": "gap",
+                "lat": 46.0,
+                "lng": -123.0,
+            },
+            {
+                "id": "p4",
+                "timestamp": "2025-01-15T10:30:00",
+                "source": "manual",
+                "lat": 45.5,
+                "lng": -122.5,
+            },
         ]
 
     def test_filter_by_date_and_source(self):
@@ -96,7 +120,8 @@ class TestDateFiltering:
         date = "2025-01-15"
         source = "gap"
         result = [
-            p for p in points
+            p
+            for p in points
             if p["timestamp"].startswith(date) and p["source"] == source
         ]
         assert len(result) == 2
@@ -106,7 +131,8 @@ class TestDateFiltering:
     def test_filter_no_match_returns_empty(self):
         points = self._make_points()
         result = [
-            p for p in points
+            p
+            for p in points
             if p["timestamp"].startswith("2025-02-01") and p["source"] == "gap"
         ]
         assert result == []
@@ -114,7 +140,8 @@ class TestDateFiltering:
     def test_filter_different_date_excludes_other_dates(self):
         points = self._make_points()
         result = [
-            p for p in points
+            p
+            for p in points
             if p["timestamp"].startswith("2025-01-16") and p["source"] == "gap"
         ]
         assert len(result) == 1
@@ -123,7 +150,8 @@ class TestDateFiltering:
     def test_filter_by_source_excludes_other_sources(self):
         points = self._make_points()
         result = [
-            p for p in points
+            p
+            for p in points
             if p["timestamp"].startswith("2025-01-15") and p["source"] == "manual"
         ]
         assert len(result) == 1
@@ -140,10 +168,34 @@ class TestGapListingLogic:
 
     def _make_gap_points(self):
         return [
-            {"id": "g1", "timestamp": "2025-01-15T10:00:00", "source": "gap", "lat": 45.0, "lng": -122.0},
-            {"id": "g2", "timestamp": "2025-01-15T10:01:00", "source": "gap", "lat": 45.1, "lng": -122.1},
-            {"id": "g3", "timestamp": "2025-01-16T09:00:00", "source": "gap", "lat": 46.0, "lng": -123.0},
-            {"id": "m1", "timestamp": "2025-01-15T11:00:00", "source": "manual", "lat": 45.5, "lng": -122.5},
+            {
+                "id": "g1",
+                "timestamp": "2025-01-15T10:00:00",
+                "source": "gap",
+                "lat": 45.0,
+                "lng": -122.0,
+            },
+            {
+                "id": "g2",
+                "timestamp": "2025-01-15T10:01:00",
+                "source": "gap",
+                "lat": 45.1,
+                "lng": -122.1,
+            },
+            {
+                "id": "g3",
+                "timestamp": "2025-01-16T09:00:00",
+                "source": "gap",
+                "lat": 46.0,
+                "lng": -123.0,
+            },
+            {
+                "id": "m1",
+                "timestamp": "2025-01-15T11:00:00",
+                "source": "manual",
+                "lat": 45.5,
+                "lng": -122.5,
+            },
         ]
 
     def test_filters_only_gap_source(self):
@@ -176,7 +228,13 @@ class TestGapListingLogic:
 
     def test_no_gap_points_in_dataset(self):
         points = [
-            {"id": "m1", "timestamp": "2025-01-15T11:00:00", "source": "manual", "lat": 45.0, "lng": -122.0},
+            {
+                "id": "m1",
+                "timestamp": "2025-01-15T11:00:00",
+                "source": "manual",
+                "lat": 45.0,
+                "lng": -122.0,
+            },
         ]
         gaps = [p for p in points if p["source"] == "gap"]
         assert gaps == []

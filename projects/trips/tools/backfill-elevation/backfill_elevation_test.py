@@ -197,9 +197,13 @@ class TestPublishPoint:
     async def test_publishes_to_trips_point_subject(self):
         mock_js = AsyncMock()
         point = TripPoint(
-            id="p1", lat=45.0, lng=-122.0,
-            timestamp="2025-01-01T00:00:00", image=None,
-            source="gopro", tags=[],
+            id="p1",
+            lat=45.0,
+            lng=-122.0,
+            timestamp="2025-01-01T00:00:00",
+            image=None,
+            source="gopro",
+            tags=[],
         )
         await publish_point(mock_js, point)
         subject = mock_js.publish.call_args[0][0]
@@ -209,9 +213,13 @@ class TestPublishPoint:
     async def test_payload_is_json_bytes(self):
         mock_js = AsyncMock()
         point = TripPoint(
-            id="p1", lat=45.0, lng=-122.0,
-            timestamp="2025-01-01T00:00:00", image=None,
-            source="gopro", tags=[],
+            id="p1",
+            lat=45.0,
+            lng=-122.0,
+            timestamp="2025-01-01T00:00:00",
+            image=None,
+            source="gopro",
+            tags=[],
         )
         await publish_point(mock_js, point)
         raw = mock_js.publish.call_args[0][1]
@@ -223,10 +231,14 @@ class TestPublishPoint:
     async def test_payload_matches_to_dict(self):
         mock_js = AsyncMock()
         point = TripPoint(
-            id="abc", lat=51.5, lng=-0.1,
+            id="abc",
+            lat=51.5,
+            lng=-0.1,
             timestamp="2025-06-01T12:00:00",
-            image="img.jpg", source="manual",
-            tags=["x"], elevation=100.0,
+            image="img.jpg",
+            source="manual",
+            tags=["x"],
+            elevation=100.0,
         )
         await publish_point(mock_js, point)
         raw = mock_js.publish.call_args[0][1]
@@ -237,9 +249,14 @@ class TestPublishPoint:
     async def test_elevation_in_payload_when_set(self):
         mock_js = AsyncMock()
         point = TripPoint(
-            id="p2", lat=45.0, lng=-122.0,
-            timestamp="2025-01-01T00:00:00", image=None,
-            source="gopro", tags=[], elevation=250.0,
+            id="p2",
+            lat=45.0,
+            lng=-122.0,
+            timestamp="2025-01-01T00:00:00",
+            image=None,
+            source="gopro",
+            tags=[],
+            elevation=250.0,
         )
         await publish_point(mock_js, point)
         raw = mock_js.publish.call_args[0][1]
@@ -250,9 +267,14 @@ class TestPublishPoint:
     async def test_elevation_absent_from_payload_when_none(self):
         mock_js = AsyncMock()
         point = TripPoint(
-            id="p3", lat=45.0, lng=-122.0,
-            timestamp="2025-01-01T00:00:00", image=None,
-            source="gopro", tags=[], elevation=None,
+            id="p3",
+            lat=45.0,
+            lng=-122.0,
+            timestamp="2025-01-01T00:00:00",
+            image=None,
+            source="gopro",
+            tags=[],
+            elevation=None,
         )
         await publish_point(mock_js, point)
         raw = mock_js.publish.call_args[0][1]
@@ -302,8 +324,16 @@ class TestReplayStream:
 
     @pytest.mark.asyncio
     async def test_single_point_returned(self):
-        data = [{"id": "p1", "lat": 45.0, "lng": -122.0, "timestamp": "2025-01-01T00:00:00",
-                 "source": "gopro", "tags": []}]
+        data = [
+            {
+                "id": "p1",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            }
+        ]
         mock_js = self._make_js([data])
         result = await replay_stream(mock_js)
         assert len(result) == 1
@@ -313,10 +343,24 @@ class TestReplayStream:
     async def test_duplicate_id_uses_latest_message(self):
         """Later messages with the same ID replace earlier ones (last-write-wins)."""
         batch = [
-            {"id": "p1", "lat": 45.0, "lng": -122.0, "timestamp": "2025-01-01T00:00:00",
-             "source": "gopro", "tags": [], "elevation": 100.0},
-            {"id": "p1", "lat": 46.0, "lng": -123.0, "timestamp": "2025-01-01T00:00:00",
-             "source": "gopro", "tags": [], "elevation": 200.0},
+            {
+                "id": "p1",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+                "elevation": 100.0,
+            },
+            {
+                "id": "p1",
+                "lat": 46.0,
+                "lng": -123.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+                "elevation": 200.0,
+            },
         ]
         mock_js = self._make_js([batch])
         result = await replay_stream(mock_js)
@@ -326,8 +370,14 @@ class TestReplayStream:
     @pytest.mark.asyncio
     async def test_tombstone_removes_point(self):
         batch = [
-            {"id": "p1", "lat": 45.0, "lng": -122.0, "timestamp": "2025-01-01T00:00:00",
-             "source": "gopro", "tags": []},
+            {
+                "id": "p1",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            },
             {"id": "p1", "deleted": True},
         ]
         mock_js = self._make_js([batch])
@@ -337,8 +387,14 @@ class TestReplayStream:
     @pytest.mark.asyncio
     async def test_tombstone_for_unknown_id_is_ignored(self):
         batch = [
-            {"id": "p1", "lat": 45.0, "lng": -122.0, "timestamp": "2025-01-01T00:00:00",
-             "source": "gopro", "tags": []},
+            {
+                "id": "p1",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            },
             {"id": "unknown", "deleted": True},
         ]
         mock_js = self._make_js([batch])
@@ -349,8 +405,15 @@ class TestReplayStream:
     @pytest.mark.asyncio
     async def test_point_without_id_is_ignored(self):
         """Messages with empty id should not be stored."""
-        batch = [{"lat": 45.0, "lng": -122.0, "timestamp": "2025-01-01T00:00:00",
-                  "source": "gopro", "tags": []}]
+        batch = [
+            {
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            }
+        ]
         mock_js = self._make_js([batch])
         result = await replay_stream(mock_js)
         assert result == []
@@ -358,8 +421,14 @@ class TestReplayStream:
     @pytest.mark.asyncio
     async def test_multiple_points_all_returned(self):
         batch = [
-            {"id": f"p{i}", "lat": 45.0 + i, "lng": -122.0,
-             "timestamp": "2025-01-01T00:00:00", "source": "gopro", "tags": []}
+            {
+                "id": f"p{i}",
+                "lat": 45.0 + i,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            }
             for i in range(5)
         ]
         mock_js = self._make_js([batch])
@@ -387,10 +456,16 @@ class TestReplayStream:
         bad_msg = MagicMock()
         bad_msg.data = b"this is not json {"
         good_msg = MagicMock()
-        good_msg.data = json.dumps({
-            "id": "p1", "lat": 45.0, "lng": -122.0,
-            "timestamp": "2025-01-01T00:00:00", "source": "gopro", "tags": []
-        }).encode()
+        good_msg.data = json.dumps(
+            {
+                "id": "p1",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            }
+        ).encode()
 
         mock_consumer.fetch = AsyncMock(
             side_effect=[[bad_msg, good_msg], nats.errors.TimeoutError()]
@@ -407,12 +482,24 @@ class TestReplayStream:
     async def test_multi_batch_processing(self):
         """Points delivered across multiple fetch calls are all collected."""
         batch1 = [
-            {"id": "p1", "lat": 45.0, "lng": -122.0, "timestamp": "2025-01-01T00:00:00",
-             "source": "gopro", "tags": []},
+            {
+                "id": "p1",
+                "lat": 45.0,
+                "lng": -122.0,
+                "timestamp": "2025-01-01T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            },
         ]
         batch2 = [
-            {"id": "p2", "lat": 46.0, "lng": -123.0, "timestamp": "2025-01-02T00:00:00",
-             "source": "gopro", "tags": []},
+            {
+                "id": "p2",
+                "lat": 46.0,
+                "lng": -123.0,
+                "timestamp": "2025-01-02T00:00:00",
+                "source": "gopro",
+                "tags": [],
+            },
         ]
         mock_js = self._make_js([batch1, batch2])
         result = await replay_stream(mock_js)
@@ -437,27 +524,85 @@ class TestRunBackfillFiltering:
 
     def test_force_mode_includes_points_with_elevation(self):
         points = [
-            TripPoint("p1", 45.0, -122.0, "2025-01-01T00:00:00", None, "gopro", [], elevation=100.0),
-            TripPoint("p2", 46.0, -123.0, "2025-01-02T00:00:00", None, "gopro", [], elevation=None),
+            TripPoint(
+                "p1",
+                45.0,
+                -122.0,
+                "2025-01-01T00:00:00",
+                None,
+                "gopro",
+                [],
+                elevation=100.0,
+            ),
+            TripPoint(
+                "p2",
+                46.0,
+                -123.0,
+                "2025-01-02T00:00:00",
+                None,
+                "gopro",
+                [],
+                elevation=None,
+            ),
         ]
         force = True
-        needs_elevation = points if force else [p for p in points if p.elevation is None]
+        needs_elevation = (
+            points if force else [p for p in points if p.elevation is None]
+        )
         assert len(needs_elevation) == 2
 
     def test_no_force_skips_points_with_elevation(self):
         points = [
-            TripPoint("p1", 45.0, -122.0, "2025-01-01T00:00:00", None, "gopro", [], elevation=100.0),
-            TripPoint("p2", 46.0, -123.0, "2025-01-02T00:00:00", None, "gopro", [], elevation=None),
+            TripPoint(
+                "p1",
+                45.0,
+                -122.0,
+                "2025-01-01T00:00:00",
+                None,
+                "gopro",
+                [],
+                elevation=100.0,
+            ),
+            TripPoint(
+                "p2",
+                46.0,
+                -123.0,
+                "2025-01-02T00:00:00",
+                None,
+                "gopro",
+                [],
+                elevation=None,
+            ),
         ]
         force = False
-        needs_elevation = points if force else [p for p in points if p.elevation is None]
+        needs_elevation = (
+            points if force else [p for p in points if p.elevation is None]
+        )
         assert len(needs_elevation) == 1
         assert needs_elevation[0].id == "p2"
 
     def test_all_points_have_elevation_returns_empty_without_force(self):
         points = [
-            TripPoint("p1", 45.0, -122.0, "2025-01-01T00:00:00", None, "gopro", [], elevation=100.0),
-            TripPoint("p2", 46.0, -123.0, "2025-01-02T00:00:00", None, "gopro", [], elevation=200.0),
+            TripPoint(
+                "p1",
+                45.0,
+                -122.0,
+                "2025-01-01T00:00:00",
+                None,
+                "gopro",
+                [],
+                elevation=100.0,
+            ),
+            TripPoint(
+                "p2",
+                46.0,
+                -123.0,
+                "2025-01-02T00:00:00",
+                None,
+                "gopro",
+                [],
+                elevation=200.0,
+            ),
         ]
         needs_elevation = [p for p in points if p.elevation is None]
         assert needs_elevation == []
