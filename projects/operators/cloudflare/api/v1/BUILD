@@ -27,7 +27,10 @@ go_library(
 
 go_test(
     name = "api_test",
-    srcs = ["cloudflaretunnel_webhook_test.go"],
+    srcs = [
+        "cloudflaretunnel_webhook_test.go",
+        "conditions_test.go",
+    ],
     embed = [":api"],
     deps = ["@io_k8s_apimachinery//pkg/apis/meta/v1:meta"],
 )
