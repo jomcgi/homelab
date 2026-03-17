@@ -16,8 +16,12 @@ go_test(
     name = "schema_test",
     srcs = [
         "reserved_test.go",
+        "types_test.go",
         "validate_extra_test.go",
         "validate_test.go",
     ],
-    deps = [":schema"],
+    deps = [
+        ":schema",
+        "@in_gopkg_yaml_v3//:yaml_v3",
+    ],
 )
