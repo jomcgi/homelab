@@ -27,7 +27,6 @@ import (
 )
 
 var _ = Describe("Observability", func() {
-
 	// Helper states backed by real resources.
 	var (
 		ctx  context.Context
