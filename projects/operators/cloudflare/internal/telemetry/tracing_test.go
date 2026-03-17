@@ -31,7 +31,6 @@ func TestTelemetry(t *testing.T) {
 }
 
 var _ = Describe("Tracing", func() {
-
 	// cleanEnv removes all OTEL env vars that InitializeTracing reads so that
 	// each test starts from a known state.
 	BeforeEach(func() {
@@ -48,7 +47,6 @@ var _ = Describe("Tracing", func() {
 	// ==========================================================================
 
 	Describe("InitializeTracing", func() {
-
 		Context("when OTEL_SDK_DISABLED=true", func() {
 			BeforeEach(func() {
 				GinkgoT().Setenv("OTEL_SDK_DISABLED", "true")

@@ -43,7 +43,6 @@ func newMetricsTunnel(namespace, name, phase string) *v1.CloudflareTunnel {
 }
 
 var _ = Describe("Metrics", func() {
-
 	// ==========================================================================
 	// RecordReconcile
 	// ==========================================================================
