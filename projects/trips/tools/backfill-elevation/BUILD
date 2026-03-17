@@ -1,6 +1,7 @@
 load("@aspect_rules_py//py:defs.bzl", "py_library")
 load("@aspect_rules_py//py/private/py_venv:defs.bzl", "py_venv_binary")
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_target_test", "semgrep_test")
+load("//bazel/tools/pytest:defs.bzl", "py_test")
 
 py_venv_binary(
     name = "main",
@@ -42,4 +43,26 @@ semgrep_target_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
     sca_rules = ["//bazel/semgrep/rules:sca_python_rules"],
     target = ":main",
+)
+
+# gazelle:resolve py main //projects/trips/tools/backfill-elevation:backfill-elevation
+# gazelle:resolve py main.TripPoint //projects/trips/tools/backfill-elevation:backfill-elevation
+# gazelle:resolve py main.publish_point //projects/trips/tools/backfill-elevation:backfill-elevation
+# gazelle:resolve py main.replay_stream //projects/trips/tools/backfill-elevation:backfill-elevation
+py_test(
+    name = "backfill_elevation_test",
+    srcs = ["backfill_elevation_test.py"],
+    imports = ["."],
+    deps = [
+        "//projects/trips/tools/backfill-elevation",
+        "@pip//nats_py",
+        "@pip//pytest",
+        "@pip//pytest_asyncio",
+    ],
+)
+
+semgrep_test(
+    name = "backfill_elevation_test_semgrep_test",
+    srcs = ["backfill_elevation_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
 )
