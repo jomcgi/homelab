@@ -29,6 +29,7 @@ go_library(
 go_test(
     name = "statemachine_test",
     srcs = [
+        "cloudflare_tunnel_comprehensive_test.go",
         "cloudflare_tunnel_metrics_test.go",
         "cloudflare_tunnel_observability_test.go",
         "cloudflare_tunnel_statemachine_test.go",
@@ -41,6 +42,7 @@ go_test(
         "@com_github_onsi_gomega//:gomega",
         "@com_github_prometheus_client_golang//prometheus/testutil",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
+        "@io_k8s_sigs_controller_runtime//pkg/client",
         "@io_opentelemetry_go_otel//:otel",
     ],
 )
