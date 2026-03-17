@@ -28,11 +28,17 @@ go_library(
 
 go_test(
     name = "statemachine_test",
-    srcs = ["statemachine_test.go"],
+    srcs = [
+        "model_cache_statemachine_test.go",
+        "statemachine_test.go",
+    ],
     embed = [":statemachine"],
     deps = [
         "//projects/operators/oci-model-cache/api/v1alpha1:api",
+        "@com_github_go_logr_logr//:logr",
         "@com_github_go_logr_logr//testr",
+        "@com_github_onsi_ginkgo_v2//:ginkgo",
+        "@com_github_onsi_gomega//:gomega",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
     ],
 )
