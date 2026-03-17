@@ -32,6 +32,7 @@ go_test(
         "model_cache_metrics_test.go",
         "model_cache_observability_test.go",
         "model_cache_statemachine_test.go",
+        "model_cache_status_test.go",
         "statemachine_test.go",
     ],
     embed = [":statemachine"],
@@ -41,6 +42,8 @@ go_test(
         "@com_github_go_logr_logr//testr",
         "@com_github_onsi_ginkgo_v2//:ginkgo",
         "@com_github_onsi_gomega//:gomega",
+        "@com_github_stretchr_testify//assert",
+        "@com_github_stretchr_testify//require",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
     ],
 )
