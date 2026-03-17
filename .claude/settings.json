@@ -33,6 +33,11 @@
             "type": "command",
             "command": "bazel/tools/git/check-plan-worktree.sh",
             "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-chart-version-sync.sh",
+            "timeout": 5
           }
         ]
       }
