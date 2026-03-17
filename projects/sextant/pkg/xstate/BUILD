@@ -16,6 +16,7 @@ go_test(
     srcs = [
         "convert_extra_test.go",
         "convert_test.go",
+        "types_test.go",
     ],
     deps = [
         ":xstate",
