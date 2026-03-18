@@ -151,7 +151,7 @@ Changes auto-save after 500ms of inactivity.
 
 The internal scheduler automatically triggers:
 
-- **Daily reset** (midnight PST, Monday-Friday) - Archives current day, clears daily tasks
+- **Daily reset** (midnight PST, Sunday-Friday) - Archives current day, clears daily tasks
 - **Weekly reset** (Saturday midnight PST) - Archives current day, clears both weekly and daily tasks
 
 ## API Reference
