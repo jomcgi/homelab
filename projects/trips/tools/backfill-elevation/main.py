@@ -127,7 +127,7 @@ async def replay_stream(js) -> list[TripPoint]:
 
         await consumer.unsubscribe()
 
-    except nats.js.errors.StreamNotFoundError:
+    except nats.js.errors.NotFoundError:
         console.print("[red]Error: Stream 'trips' not found")
         return []
 
