@@ -1,6 +1,7 @@
 # gazelle:semgrep disabled
 # gazelle:exclude golang
 # gazelle:exclude python
+# gazelle:exclude typescript
 # gazelle:exclude yaml
 
 load("//bazel/semgrep/defs:defs.bzl", "semgrep_test")
@@ -52,8 +53,19 @@ filegroup(
 )
 
 filegroup(
+    name = "typescript_rules",
+    srcs = glob(
+        ["typescript/*.yaml"],
+        allow_empty = True,
+    ),
+)
+
+filegroup(
     name = "javascript_rules",
-    srcs = ["@semgrep_pro_rules_javascript//:rules"],
+    srcs = [
+        ":typescript_rules",
+        "@semgrep_pro_rules_javascript//:rules",
+    ],
 )
 
 filegroup(
@@ -111,6 +123,14 @@ semgrep_test(
     srcs = glob(["python/*.py"]),
     env = {"SEMGREP_TEST_MODE": "1"},
     rules = [":python_rules"],
+    tags = ["semgrep"],
+)
+
+semgrep_test(
+    name = "typescript_rules_test",
+    srcs = ["//bazel/semgrep/tests:typescript_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":typescript_rules"],
     tags = ["semgrep"],
 )
 

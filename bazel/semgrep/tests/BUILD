@@ -13,3 +13,8 @@ filegroup(
     name = "stale_copyright_year_fixtures",
     srcs = ["fixtures/stale-copyright-year.yaml"],
 )
+
+filegroup(
+    name = "typescript_fixtures",
+    srcs = glob(["fixtures/*.ts"]),
+)
