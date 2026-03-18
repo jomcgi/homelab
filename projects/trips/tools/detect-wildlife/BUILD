@@ -62,3 +62,18 @@ semgrep_test(
     srcs = ["wildlife_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+semgrep_test(
+    name = "detect_wildlife_test_semgrep_test",
+    srcs = ["detect_wildlife_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "detect_wildlife_test",
+    srcs = ["detect_wildlife_test.py"],
+    deps = [
+        "//projects/trips/tools/detect-wildlife",
+        "@pip//pytest",
+    ],
+)
