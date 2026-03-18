@@ -39,6 +39,7 @@ go_test(
         "git_activity_gate_test.go",
         "github_client_test.go",
         "main_test.go",
+        "notification_test.go",
         "patrol_test.go",
         "pr_fix_agent_test.go",
         "readme_freshness_agent_test.go",
@@ -47,6 +48,10 @@ go_test(
         "test_coverage_agent_test.go",
     ],
     embed = [":cluster_agents_lib"],
+    deps = [
+        "@com_github_nats_io_nats_go//:nats_go",
+        "@com_github_nats_io_nats_server_v2//server",
+    ],
 )
 
 go_image(
