@@ -246,7 +246,7 @@ Environment-specific overrides live in
 
 ## Deployment
 
-The chart is published to `oci://ghcr.io/jomcgi/homelab/projects/agent_platform/chart`
+The chart is published to `oci://ghcr.io/jomcgi/homelab/charts` (chart name: `agent-platform`)
 by CI on every merge to `main`. The ArgoCD Application in
 `projects/agent_platform/deploy/application.yaml` pulls the chart from the OCI
 registry and overlays environment-specific values from
