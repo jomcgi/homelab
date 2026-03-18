@@ -273,7 +273,22 @@ semgrep_test(
 )
 
 semgrep_test(
-    name = "core_test_semgrep_test",
+    name = "test_core_semgrep_test",
     srcs = ["test_core.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "test_core",
+    srcs = ["test_core.py"],
+    deps = [
+        "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:config",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:models",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:gemini",
+        "//projects/blog_knowledge_graph/knowledge_graph/app/embedders:ollama",
+        "@pip//httpx",
+        "@pip//pytest",
+    ],
 )
