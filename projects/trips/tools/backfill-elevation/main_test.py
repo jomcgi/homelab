@@ -135,7 +135,7 @@ def _make_stream_not_found_error():
     """Build a mock nats StreamNotFoundError class."""
     import nats.js.errors
 
-    return nats.js.errors.StreamNotFoundError
+    return nats.js.errors.NotFoundError
 
 
 def _make_msg(data: dict) -> MagicMock:
@@ -204,7 +204,7 @@ class TestReplayStream:
         import nats.js.errors
 
         js = AsyncMock()
-        js.pull_subscribe = AsyncMock(side_effect=nats.js.errors.StreamNotFoundError)
+        js.pull_subscribe = AsyncMock(side_effect=nats.js.errors.NotFoundError)
 
         points = await replay_stream(js)
         assert points == []
