@@ -8,9 +8,7 @@ Serves GPS waypoints from travel photos via REST API and WebSocket. Points are s
 
 ```mermaid
 flowchart LR
-    Upload[Photo Upload] --> API[Trips API]
-    API --> NATS[NATS JetStream]
-    NATS --> API
+    NATS[NATS JetStream] --> API[Trips API]
     API --> REST[REST Clients]
     API --> WS[WebSocket Clients]
 ```
@@ -74,21 +72,32 @@ MaxAge: 8760h # 365 days
 ### Connection
 
 ```javascript
-const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws");
+const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws/live");
 ```
 
 **Authentication:** None (public read-only endpoint)
 
 ### Message Types
 
-#### Server → Client: New Point
+#### Server → Client: Connected
 
-Sent when a new trip point is added (photo upload).
+Sent immediately upon connection.
 
 ```json
 {
-  "type": "point_added",
-  "data": {
+  "type": "connected",
+  "cached_points": 1523
+}
+```
+
+#### Server → Client: New Point
+
+Sent when a new trip point is added via the upstream pipeline.
+
+```json
+{
+  "type": "new_point",
+  "point": {
     "id": "abc123def456",
     "lat": 49.2827,
     "lng": -123.1207,
@@ -105,6 +114,17 @@ Sent when a new trip point is added (photo upload).
 }
 ```
 
+#### Server → Client: Delete Point
+
+Sent when a trip point is removed (tombstone message received from NATS).
+
+```json
+{
+  "type": "delete_point",
+  "id": "abc123def456"
+}
+```
+
 #### Server → Client: Viewer Count Update
 
 Sent when the number of connected WebSocket clients changes.
@@ -118,51 +138,58 @@ Sent when the number of connected WebSocket clients changes.
 
 #### Client → Server: Ping
 
-Optional heartbeat to keep connection alive.
+Optional heartbeat to keep connection alive. Send the plain text string `"ping"` (not JSON).
 
-```json
-{
-  "type": "ping"
-}
+```
+ping
 ```
 
 #### Server → Client: Pong
 
-Response to client ping.
+Response to client ping. Returns the plain text string `"pong"` (not JSON).
 
-```json
-{
-  "type": "pong"
-}
+```
+pong
 ```
 
 ### Example Client
 
 ```javascript
-const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws");
+const ws = new WebSocket("wss://trips-api.jomcgi.dev/ws/live");
 
 ws.onopen = () => {
   console.log("Connected to trip updates");
 };
 
 ws.onmessage = (event) => {
+  // Pong is a plain text response, not JSON
+  if (event.data === "pong") {
+    console.log("Server alive");
+    return;
+  }
+
   const msg = JSON.parse(event.data);
 
   switch (msg.type) {
-    case "point_added":
-      console.log("New location:", msg.data.lat, msg.data.lng);
+    case "connected":
+      console.log("Ready, cached points:", msg.cached_points);
+      break;
+
+    case "new_point":
+      console.log("New location:", msg.point.lat, msg.point.lng);
       // Update map marker
-      addMarker(msg.data.lat, msg.data.lng);
+      addMarker(msg.point.lat, msg.point.lng);
+      break;
+
+    case "delete_point":
+      console.log("Removed point:", msg.id);
+      removeMarker(msg.id);
       break;
 
     case "viewer_count":
       console.log("Active viewers:", msg.count);
       // Update UI badge
       updateViewerCount(msg.count);
-      break;
-
-    case "pong":
-      console.log("Server alive");
       break;
   }
 };
@@ -176,19 +203,25 @@ ws.onclose = () => {
   // Implement exponential backoff reconnect
 };
 
-// Optional: Send heartbeat every 30s
+// Optional: Send heartbeat every 30s (plain text, not JSON)
 setInterval(() => {
   if (ws.readyState === WebSocket.OPEN) {
-    ws.send(JSON.stringify({ type: "ping" }));
+    ws.send("ping");
   }
 }, 30000);
 ```
 
 ## API Endpoints
 
-### GET /points
+All REST endpoints require authentication via the `X-API-Key` header (when `TRIP_API_KEY` is configured). The WebSocket endpoint is unauthenticated.
+
+### GET /api/points
 
 Get all trip points.
+
+**Headers:**
+
+- `X-API-Key: <API_KEY>` (required when auth is configured)
 
 **Response:**
 
@@ -210,88 +243,70 @@ Get all trip points.
       "aperture": 2.5
     }
   ],
-  "count": 1
+  "total": 1
 }
 ```
 
 **Query parameters:**
 
 - `limit` (optional) - Max points to return (default: all)
-- `since` (optional) - ISO timestamp, only points after this time
-- `source` (optional) - Filter by source (`gopro`, `camera`, `phone`)
+- `offset` (optional) - Number of points to skip (default: 0)
 
 **Examples:**
 
 ```bash
 # Get all points
-curl https://trips-api.jomcgi.dev/points
+curl -H "X-API-Key: $TRIP_API_KEY" https://trips-api.jomcgi.dev/api/points
 
-# Get last 100 points
-curl https://trips-api.jomcgi.dev/points?limit=100
+# Get first 100 points
+curl -H "X-API-Key: $TRIP_API_KEY" https://trips-api.jomcgi.dev/api/points?limit=100
 
-# Get points since 2024-01-01
-curl https://trips-api.jomcgi.dev/points?since=2024-01-01T00:00:00Z
-
-# Get only GoPro photos
-curl https://trips-api.jomcgi.dev/points?source=gopro
+# Paginate: skip first 100, get next 100
+curl -H "X-API-Key: $TRIP_API_KEY" https://trips-api.jomcgi.dev/api/points?limit=100&offset=100
 ```
 
-### POST /upload
+### GET /api/points/{point_id}
 
-Upload geotagged photo.
+Get a single trip point by ID.
 
 **Headers:**
 
-- `Authorization: Bearer <API_KEY>` (required)
-- `X-Image-Source: <source>` (optional, default: `gopro`)
+- `X-API-Key: <API_KEY>` (required when auth is configured)
 
-**Body:** `multipart/form-data` with image file
+**Response:** A single `TripPoint` object, or `404` if not found.
+
+### GET /api/stats
+
+Get trip statistics.
+
+**Headers:**
+
+- `X-API-Key: <API_KEY>` (required when auth is configured)
 
 **Response:**
 
 ```json
 {
-  "id": "abc123def456",
-  "lat": 49.2827,
-  "lng": -123.1207,
-  "timestamp": "2024-01-15T12:00:00Z",
-  "image": "photo.jpg",
-  "source": "gopro",
-  "elevation": 125.5
+  "total_points": 1523,
+  "connected_clients": 3
 }
 ```
 
-**Example:**
-
-```bash
-curl -X POST https://trips-api.jomcgi.dev/upload \
-  -H "Authorization: Bearer $TRIP_API_KEY" \
-  -H "X-Image-Source: gopro" \
-  -F "file=@/path/to/photo.jpg"
-```
-
-**Error responses:**
-
-- `401 Unauthorized` - Missing or invalid API key
-- `400 Bad Request` - Not an image or missing GPS data
-- `413 Payload Too Large` - Image exceeds 10MB
-
 ### GET /health
 
-Health check endpoint.
+Health check endpoint (unauthenticated).
 
 **Response:**
 
 ```json
 {
   "status": "healthy",
-  "nats_connected": true,
-  "points_cached": 1523,
-  "websocket_clients": 3
+  "points": 1523,
+  "connected_clients": 3
 }
 ```
 
-### WS /ws
+### WS /ws/live
 
 WebSocket endpoint for real-time updates (see WebSocket Protocol section above).
 
@@ -371,15 +386,11 @@ async def get_elevation(lat: float, lng: float) -> float:
 
 Environment variables:
 
-| Variable            | Description             | Default                 | Required          |
-| ------------------- | ----------------------- | ----------------------- | ----------------- |
-| `NATS_URL`          | NATS server URL         | `nats://localhost:4222` | Yes               |
-| `NATS_STREAM`       | JetStream stream name   | `trips`                 | No                |
-| `NATS_SUBJECT`      | Subject for trip points | `trips.points`          | No                |
-| `CORS_ORIGINS`      | Allowed CORS origins    | `http://localhost:5173` | No                |
-| `TRIP_API_KEY`      | API key for uploads     | (none)                  | Yes (for uploads) |
-| `ELEVATION_API_URL` | NRCan CDEM API URL      | (see above)             | No                |
-| `MAX_IMAGE_SIZE_MB` | Max upload size         | `10`                    | No                |
+| Variable       | Description          | Default                                      | Required              |
+| -------------- | -------------------- | -------------------------------------------- | --------------------- |
+| `NATS_URL`     | NATS server URL      | `nats://localhost:4222`                      | Yes                   |
+| `CORS_ORIGINS` | Allowed CORS origins | `http://localhost:5173,http://localhost:3000` | No                    |
+| `TRIP_API_KEY` | API key for REST API | (none)                                       | No (disables auth if empty) |
 
 ## Running Locally
 
@@ -394,7 +405,7 @@ bazel run //services/trips_api
 
 # Test endpoints
 curl http://localhost:8000/health
-curl http://localhost:8000/points
+curl http://localhost:8000/api/points
 ```
 
 ## Deployment
