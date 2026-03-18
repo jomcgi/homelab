@@ -2,7 +2,7 @@
 
 frontend:
   image:
-    tag: main@sha256:ec80a3594c89a9a2b362d93eede834f37e864a0335a7045d2858d14b5429a282
+    tag: latest@sha256:8a7c5677e3e934d5a388eee72a0a56ac8f302e589e1652efcddaf07dcbec057b
     repository: ghcr.io/jomcgi/homelab/projects/grimoire/frontend
 wsGateway:
   image:
