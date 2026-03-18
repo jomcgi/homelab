@@ -194,6 +194,7 @@ py_venv_binary(
 py_test(
     name = "test_core",
     srcs = ["test_core.py"],
+    imports = ["."],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
         "//projects/blog_knowledge_graph/knowledge_graph/app:config",
