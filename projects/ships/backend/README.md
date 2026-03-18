@@ -422,8 +422,8 @@ Deployed via ArgoCD to Kubernetes cluster.
 
 **Resources:**
 
-- Helm chart: `/charts/ships-api/`
-- Overlay: `/overlays/prod/ships-api/`
+- Helm chart: `projects/ships/chart/`
+- Overlay: `projects/ships/deploy/`
 - Service URL: https://ships-api.jomcgi.dev
 
 **Persistent storage:**
