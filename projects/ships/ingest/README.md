@@ -35,12 +35,12 @@ Environment variables:
 
 ```bash
 export AISSTREAM_API_KEY="your-key"
-bazel run //services/ais_ingest
+bazel run //projects/ships/ingest:main
 ```
 
 ## NATS Stream
 
-Messages are published to `ais.positions` subject with 24-hour retention. Message format:
+Position reports are published to `ais.position.{mmsi}` and static vessel data to `ais.static.{mmsi}`, both with 24-hour retention. Message format:
 
 ```json
 {

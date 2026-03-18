@@ -106,7 +106,7 @@ DEDUP_SPEED_THRESHOLD: 0.5 # Knots
 
 ## API Endpoints
 
-### GET /vessels
+### GET /api/vessels
 
 List all known vessels.
 
@@ -121,10 +121,10 @@ List all known vessels.
       "callsign": "CG1234",
       "ship_type": 70,
       "ship_type_name": "Cargo",
-      "to_bow": 100,
-      "to_stern": 20,
-      "to_port": 10,
-      "to_starboard": 10,
+      "dimension_a": 100,
+      "dimension_b": 20,
+      "dimension_c": 10,
+      "dimension_d": 10,
       "last_seen": "2024-01-15T12:00:00Z",
       "current_position": {
         "lat": 49.2827,
@@ -149,16 +149,16 @@ List all known vessels.
 
 ```bash
 # Get all vessels
-curl https://ships-api.jomcgi.dev/vessels
+curl https://ships-api.jomcgi.dev/api/vessels
 
 # Get vessels seen in last hour
-curl https://ships-api.jomcgi.dev/vessels?active_since=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
+curl https://ships-api.jomcgi.dev/api/vessels?active_since=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
 
 # Get top 50 vessels
-curl https://ships-api.jomcgi.dev/vessels?limit=50
+curl https://ships-api.jomcgi.dev/api/vessels?limit=50
 ```
 
-### GET /vessels/{mmsi}
+### GET /api/vessels/{mmsi}
 
 Get vessel details and current position.
 
@@ -173,10 +173,10 @@ Get vessel details and current position.
   "ship_type": 70,
   "ship_type_name": "Cargo",
   "dimensions": {
-    "to_bow": 100,
-    "to_stern": 20,
-    "to_port": 10,
-    "to_starboard": 10,
+    "dimension_a": 100,
+    "dimension_b": 20,
+    "dimension_c": 10,
+    "dimension_d": 10,
     "length": 120,
     "width": 20
   },
@@ -198,14 +198,14 @@ Get vessel details and current position.
 **Example:**
 
 ```bash
-curl https://ships-api.jomcgi.dev/vessels/316001234
+curl https://ships-api.jomcgi.dev/api/vessels/316001234
 ```
 
 **Error responses:**
 
 - `404 Not Found` - MMSI not in database
 
-### GET /positions/{mmsi}
+### GET /api/vessels/{mmsi}/track
 
 Get position history for a vessel.
 
@@ -214,7 +214,7 @@ Get position history for a vessel.
 ```json
 {
   "mmsi": 316001234,
-  "positions": [
+  "track": [
     {
       "lat": 49.2827,
       "lng": -123.1207,
@@ -225,77 +225,29 @@ Get position history for a vessel.
       "timestamp": "2024-01-15T12:00:00Z"
     }
   ],
-  "count": 1,
-  "retention_days": 7
+  "count": 1
 }
 ```
 
 **Query parameters:**
 
 - `limit` (optional) - Max positions to return (default: 1000)
-- `since` (optional) - ISO timestamp, only positions after this time
-- `until` (optional) - ISO timestamp, only positions before this time
+- `since` (optional) - Duration like `1h`, `30m`, `2d`
 
 **Examples:**
 
 ```bash
 # Get all positions (last 7 days)
-curl https://ships-api.jomcgi.dev/positions/316001234
+curl https://ships-api.jomcgi.dev/api/vessels/316001234/track
 
 # Get positions from last hour
-curl https://ships-api.jomcgi.dev/positions/316001234?since=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
-
-# Get positions in time range
-curl "https://ships-api.jomcgi.dev/positions/316001234?since=2024-01-15T00:00:00Z&until=2024-01-15T12:00:00Z"
+curl https://ships-api.jomcgi.dev/api/vessels/316001234/track?since=1h
 
 # Get last 100 positions
-curl https://ships-api.jomcgi.dev/positions/316001234?limit=100
+curl https://ships-api.jomcgi.dev/api/vessels/316001234/track?limit=100
 ```
 
-### GET /vessels/bbox
-
-Get vessels within a bounding box.
-
-**Query parameters:**
-
-- `north` (required) - Northern latitude
-- `south` (required) - Southern latitude
-- `east` (required) - Eastern longitude
-- `west` (required) - Western longitude
-
-**Response:**
-
-```json
-{
-  "vessels": [
-    {
-      "mmsi": 316001234,
-      "name": "VESSEL NAME",
-      "lat": 49.2827,
-      "lng": -123.1207,
-      "speed": 12.5,
-      "course": 180.0,
-      "timestamp": "2024-01-15T12:00:00Z"
-    }
-  ],
-  "count": 1,
-  "bbox": {
-    "north": 50.0,
-    "south": 48.0,
-    "east": -122.0,
-    "west": -124.0
-  }
-}
-```
-
-**Example:**
-
-```bash
-# Get vessels in Vancouver area
-curl "https://ships-api.jomcgi.dev/vessels/bbox?north=49.5&south=49.0&east=-123.0&west=-123.5"
-```
-
-### WS /ws
+### WS /ws/live
 
 WebSocket endpoint for real-time position updates.
 
@@ -320,7 +272,7 @@ WebSocket endpoint for real-time position updates.
 **Example client:**
 
 ```javascript
-const ws = new WebSocket("wss://ships-api.jomcgi.dev/ws");
+const ws = new WebSocket("wss://ships-api.jomcgi.dev/ws/live");
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
@@ -361,10 +313,10 @@ Vessel metadata from AIS Type 5 messages.
 | `callsign`     | TEXT      | Radio callsign               |
 | `imo`          | INTEGER   | IMO number                   |
 | `ship_type`    | INTEGER   | AIS ship type code           |
-| `to_bow`       | INTEGER   | Meters to bow                |
-| `to_stern`     | INTEGER   | Meters to stern              |
-| `to_port`      | INTEGER   | Meters to port               |
-| `to_starboard` | INTEGER   | Meters to starboard          |
+| `dimension_a`  | INTEGER   | Meters to bow                |
+| `dimension_b`  | INTEGER   | Meters to stern              |
+| `dimension_c`  | INTEGER   | Meters to port               |
+| `dimension_d`  | INTEGER   | Meters to starboard          |
 | `first_seen`   | TIMESTAMP | First AIS message received   |
 | `last_seen`    | TIMESTAMP | Most recent AIS message      |
 
@@ -457,11 +409,11 @@ docker run -d --name nats -p 4222:4222 nats:latest -js
 # Run service
 export NATS_URL=nats://localhost:4222
 export DB_PATH=/tmp/ships.db
-bazel run //services/ships_api
+bazel run //projects/ships/backend:main
 
 # Test endpoints
 curl http://localhost:8000/health
-curl http://localhost:8000/vessels
+curl http://localhost:8000/api/vessels
 ```
 
 ## Deployment
