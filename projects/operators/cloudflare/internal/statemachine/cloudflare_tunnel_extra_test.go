@@ -138,8 +138,8 @@ var _ = Describe("SSAPatch patch type", func() {
 		patch, err := SSAPatch(s)
 		Expect(err).NotTo(HaveOccurred())
 
-		// Server-Side Apply patches must carry the "apply" patch type
-		Expect(string(patch.Type())).To(Equal("apply"))
+		// Server-Side Apply patches carry the "application/apply-patch+yaml" patch type
+		Expect(string(patch.Type())).To(Equal("application/apply-patch+yaml"))
 	})
 
 	It("does not include ManagedFields in the patch JSON", func() {
