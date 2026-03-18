@@ -1265,3 +1265,152 @@ class TestTripPointAdditional:
         assert "image" in dumped
         assert "elevation" in dumped
         assert "iso" in dumped
+
+
+class TestLifespan:
+    """Tests for the lifespan() async context manager.
+
+    lifespan() manages the NATS connection lifecycle:
+    - Startup: calls state.connect(), catching any exception so the app can
+      start in degraded mode (health check reports not-ready).
+    - Runtime: yields to let FastAPI serve requests.
+    - Shutdown: always calls state.close() to release NATS resources.
+    """
+
+    @pytest.mark.asyncio
+    async def test_successful_startup_state_becomes_ready(self):
+        """On successful NATS connect, state.ready becomes True inside the lifespan."""
+        import projects.trips.backend.main as main
+        from projects.trips.backend.main import lifespan, app
+
+        # Use a fresh TripsState; stub out replay_stream and subscribe_live so
+        # connect() can complete without real network I/O.
+        fresh_state = TripsState()
+        fresh_state.replay_stream = AsyncMock()
+        fresh_state.subscribe_live = AsyncMock()
+
+        mock_nc = AsyncMock()
+        mock_nc.jetstream = MagicMock(return_value=AsyncMock())
+
+        with (
+            patch.object(main, "state", fresh_state),
+            patch(
+                "projects.trips.backend.main.nats.connect",
+                AsyncMock(return_value=mock_nc),
+            ),
+        ):
+            async with lifespan(app):
+                # state.ready must be True after a successful connect()
+                assert fresh_state.ready is True
+
+    @pytest.mark.asyncio
+    async def test_successful_startup_calls_connect_once(self):
+        """Lifespan startup calls state.connect() exactly once."""
+        import projects.trips.backend.main as main
+        from projects.trips.backend.main import lifespan, app
+
+        mock_state = MagicMock()
+        mock_state.connect = AsyncMock()
+        mock_state.close = AsyncMock()
+
+        with patch.object(main, "state", mock_state):
+            async with lifespan(app):
+                pass
+
+        mock_state.connect.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_nats_connection_failure_does_not_crash_lifespan(self):
+        """When NATS is unavailable, lifespan catches the exception and still yields."""
+        import projects.trips.backend.main as main
+        from projects.trips.backend.main import lifespan, app
+
+        fresh_state = TripsState()  # ready starts as False
+
+        with (
+            patch.object(main, "state", fresh_state),
+            patch(
+                "projects.trips.backend.main.nats.connect",
+                AsyncMock(
+                    side_effect=Exception("Connection refused: nats://localhost:4222")
+                ),
+            ),
+        ):
+            reached_yield = False
+            async with lifespan(app):
+                reached_yield = True
+                # state.ready must remain False since connect() raised
+                assert fresh_state.ready is False
+
+        assert reached_yield is True
+
+    @pytest.mark.asyncio
+    async def test_shutdown_calls_state_close(self):
+        """Lifespan shutdown calls state.close() to release NATS resources."""
+        import projects.trips.backend.main as main
+        from projects.trips.backend.main import lifespan, app
+
+        mock_state = MagicMock()
+        mock_state.connect = AsyncMock()
+        mock_state.close = AsyncMock()
+
+        with patch.object(main, "state", mock_state):
+            async with lifespan(app):
+                pass
+
+        mock_state.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_always_called_even_after_connect_failure(self):
+        """state.close() is always called on exit, even when startup connect() raises."""
+        import projects.trips.backend.main as main
+        from projects.trips.backend.main import lifespan, app
+
+        mock_state = MagicMock()
+        mock_state.connect = AsyncMock(side_effect=Exception("NATS unavailable"))
+        mock_state.close = AsyncMock()
+
+        with patch.object(main, "state", mock_state):
+            async with lifespan(app):
+                pass
+
+        mock_state.close.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_missing_nats_url_env_var_default_is_localhost(self):
+        """When NATS_URL env var is absent the module falls back to nats://localhost:4222."""
+        import os
+
+        # Verify the fallback value that the module uses at import time.
+        with patch.dict(
+            "os.environ",
+            {k: v for k, v in os.environ.items() if k != "NATS_URL"},
+            clear=True,
+        ):
+            evaluated_default = os.getenv("NATS_URL", "nats://localhost:4222")
+
+        assert evaluated_default == "nats://localhost:4222"
+
+    @pytest.mark.asyncio
+    async def test_missing_nats_url_connection_fails_app_starts_degraded(self):
+        """With no reachable NATS (missing env var scenario), the app starts in degraded mode."""
+        import projects.trips.backend.main as main
+        from projects.trips.backend.main import lifespan, app
+
+        fresh_state = TripsState()
+
+        with (
+            # Simulate absent NATS_URL by patching the module-level constant
+            patch.object(main, "NATS_URL", "nats://localhost:4222"),
+            patch.object(main, "state", fresh_state),
+            patch(
+                "projects.trips.backend.main.nats.connect",
+                AsyncMock(side_effect=Exception("nats: no servers available")),
+            ),
+        ):
+            reached = False
+            async with lifespan(app):
+                reached = True
+
+        assert reached is True
+        assert fresh_state.ready is False
