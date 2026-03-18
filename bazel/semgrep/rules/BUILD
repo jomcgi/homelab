@@ -113,3 +113,19 @@ semgrep_test(
     rules = [":python_rules"],
     tags = ["semgrep"],
 )
+
+# stale-copyright-year uses languages: [generic] so its fixture is a YAML file.
+# This test wires the rule to its annotation fixture independently of
+# golang_rules_test (which only scans *.go sources).
+filegroup(
+    name = "stale_copyright_year_rule",
+    srcs = ["golang/stale-copyright-year.yaml"],
+)
+
+semgrep_test(
+    name = "stale_copyright_year_test",
+    srcs = ["//bazel/semgrep/tests:stale_copyright_year_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":stale_copyright_year_rule"],
+    tags = ["semgrep"],
+)
