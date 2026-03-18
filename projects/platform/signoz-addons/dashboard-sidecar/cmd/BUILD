@@ -47,7 +47,7 @@ go_image(
 go_test(
     name = "cmd_test",
     srcs = ["main_test.go"],
-    embed = [":signoz-dashboard-sidecar_lib"],
+    embed = [":cmd_lib"],
     deps = [
         "@io_k8s_api//core/v1:core",
         "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
