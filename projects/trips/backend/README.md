@@ -401,7 +401,7 @@ docker run -d --name nats -p 4222:4222 nats:latest -js
 # Run service
 export NATS_URL=nats://localhost:4222
 export TRIP_API_KEY=test-key
-bazel run //services/trips_api
+bazel run //projects/trips/backend:main
 
 # Test endpoints
 curl http://localhost:8000/health
@@ -414,8 +414,8 @@ Deployed via ArgoCD to Kubernetes cluster.
 
 **Resources:**
 
-- Helm chart: `/charts/trips-api/`
-- Overlay: `/overlays/prod/trips-api/`
+- Helm chart: `projects/trips/chart/`
+- Overlay: `projects/trips/deploy/`
 - Service URL: https://trips-api.jomcgi.dev
 
 **Dependencies:**
