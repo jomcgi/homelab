@@ -178,7 +178,14 @@ class TestReplayStream:
     @pytest.mark.asyncio
     async def test_tombstone_removes_point(self):
         msg1 = _make_msg(
-            {"id": "abc", "lat": 49.0, "lng": -123.0, "timestamp": "t", "source": "gopro", "tags": []}
+            {
+                "id": "abc",
+                "lat": 49.0,
+                "lng": -123.0,
+                "timestamp": "t",
+                "source": "gopro",
+                "tags": [],
+            }
         )
         msg2 = _make_msg({"id": "abc", "deleted": True})
         consumer = self._make_consumer([[msg1, msg2]])
@@ -223,8 +230,30 @@ class TestReplayStream:
 
     @pytest.mark.asyncio
     async def test_multiple_batches_accumulated(self):
-        msgs_1 = [_make_msg({"id": "a", "lat": 49.0, "lng": -123.0, "timestamp": "t1", "source": "gopro", "tags": []})]
-        msgs_2 = [_make_msg({"id": "b", "lat": 50.0, "lng": -124.0, "timestamp": "t2", "source": "gopro", "tags": []})]
+        msgs_1 = [
+            _make_msg(
+                {
+                    "id": "a",
+                    "lat": 49.0,
+                    "lng": -123.0,
+                    "timestamp": "t1",
+                    "source": "gopro",
+                    "tags": [],
+                }
+            )
+        ]
+        msgs_2 = [
+            _make_msg(
+                {
+                    "id": "b",
+                    "lat": 50.0,
+                    "lng": -124.0,
+                    "timestamp": "t2",
+                    "source": "gopro",
+                    "tags": [],
+                }
+            )
+        ]
         consumer = self._make_consumer([msgs_1, msgs_2])
         js = AsyncMock()
         js.pull_subscribe = AsyncMock(return_value=consumer)
@@ -237,8 +266,26 @@ class TestReplayStream:
     @pytest.mark.asyncio
     async def test_duplicate_id_latest_wins(self):
         """Later messages for the same ID should overwrite earlier ones."""
-        msg1 = _make_msg({"id": "abc", "lat": 49.0, "lng": -123.0, "timestamp": "t1", "source": "gopro", "tags": []})
-        msg2 = _make_msg({"id": "abc", "lat": 50.0, "lng": -124.0, "timestamp": "t2", "source": "gopro", "tags": []})
+        msg1 = _make_msg(
+            {
+                "id": "abc",
+                "lat": 49.0,
+                "lng": -123.0,
+                "timestamp": "t1",
+                "source": "gopro",
+                "tags": [],
+            }
+        )
+        msg2 = _make_msg(
+            {
+                "id": "abc",
+                "lat": 50.0,
+                "lng": -124.0,
+                "timestamp": "t2",
+                "source": "gopro",
+                "tags": [],
+            }
+        )
         consumer = self._make_consumer([[msg1, msg2]])
         js = AsyncMock()
         js.pull_subscribe = AsyncMock(return_value=consumer)
@@ -298,7 +345,14 @@ class TestPublishPoint:
     async def test_elevation_included_when_present(self):
         js = AsyncMock()
         point = TripPoint(
-            id="abc", lat=49.0, lng=-123.0, timestamp="t", image=None, source="gopro", tags=[], elevation=55.5
+            id="abc",
+            lat=49.0,
+            lng=-123.0,
+            timestamp="t",
+            image=None,
+            source="gopro",
+            tags=[],
+            elevation=55.5,
         )
         await publish_point(js, point)
 
@@ -310,7 +364,14 @@ class TestPublishPoint:
     async def test_elevation_omitted_when_none(self):
         js = AsyncMock()
         point = TripPoint(
-            id="abc", lat=49.0, lng=-123.0, timestamp="t", image=None, source="gopro", tags=[], elevation=None
+            id="abc",
+            lat=49.0,
+            lng=-123.0,
+            timestamp="t",
+            image=None,
+            source="gopro",
+            tags=[],
+            elevation=None,
         )
         await publish_point(js, point)
 

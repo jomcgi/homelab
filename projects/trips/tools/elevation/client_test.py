@@ -292,7 +292,9 @@ class TestElevationClientGetElevations:
         client._session = MagicMock()
 
         calls = []
-        await client.get_elevations([(49.0, -123.0)], progress_callback=lambda c, t: calls.append((c, t)))
+        await client.get_elevations(
+            [(49.0, -123.0)], progress_callback=lambda c, t: calls.append((c, t))
+        )
         assert len(calls) == 1
         assert calls[0] == (1, 1)
 
