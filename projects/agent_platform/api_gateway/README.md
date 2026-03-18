@@ -11,13 +11,13 @@ flowchart LR
     CF[Cloudflare] --> GW[API Gateway]
     GW -->|/trips/*| Trips[trips-api]
     GW -->|/stargazer/*| Star[stargazer-api]
-    GW -->|/status| Status[cluster-info]
+    GW -->|/cluster-info| Status[cluster-info]
 ```
 
 ## Key Features
 
 - **Path-based routing** - Route to backends by URL prefix
-- **Cluster status** - `/status` endpoint with node/pod health
+- **Cluster status** - `/cluster-info` endpoint with node/pod health (legacy: `/status.json`)
 - **CDN caching** - Stale-while-revalidate for resilience during outages
 
 ## Configuration

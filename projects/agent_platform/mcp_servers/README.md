@@ -19,7 +19,7 @@ The chart iterates over a `servers` array in values.yaml. Each entry generates:
 
 ### 1. Add the server entry
 
-Add an entry to the `servers` array in `overlays/prod/mcp-servers/values.yaml`:
+Add an entry to the `servers` array in `projects/agent_platform/deploy/values.yaml` under `agent-platform-mcp-servers.servers`:
 
 ```yaml
 - name: my-mcp-server
@@ -112,4 +112,4 @@ HTTPCheck alerts use these defaults (overridable per server):
 | `frequency`  | `2m0s`                | Check frequency                    |
 | `matchType`  | `5`                   | Consecutive failures before firing |
 | `severity`   | `critical`            | Alert severity                     |
-| `channels`   | `[pagerduty-homelab]` | Notification channels              |
+| `channels`   | `[]`                  | Notification channels              |
