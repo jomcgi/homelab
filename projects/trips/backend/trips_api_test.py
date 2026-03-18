@@ -896,8 +896,8 @@ class TestTripsStateAdditional:
     async def test_connect_stores_nats_connection(self, state):
         """connect() should store the NATS connection in self.nc and self.js."""
         mock_nc = AsyncMock()
-        mock_js = AsyncMock()
-        mock_nc.jetstream.return_value = mock_js
+        mock_js = MagicMock()
+        mock_nc.jetstream = MagicMock(return_value=mock_js)
 
         with patch("nats.connect", return_value=mock_nc):
             state.replay_stream = AsyncMock()
