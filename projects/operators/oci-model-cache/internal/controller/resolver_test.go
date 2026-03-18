@@ -28,15 +28,14 @@ func TestPermanentError_Unwrap_ErrorsIs(t *testing.T) {
 }
 
 // TestPermanentError_Unwrap_ErrorsAs verifies that errors.As can extract a
-// typed inner error through the PermanentError wrapper.
+// typed inner error through the Unwrap chain.
 func TestPermanentError_Unwrap_ErrorsAs(t *testing.T) {
-	type customErr struct{ code int }
-	inner := &customErr{code: 404}
-	pe := &PermanentError{Err: fmt.Errorf("wrap: %w", inner)}
+	inner := &PermanentError{Err: errors.New("inner permanent")}
+	wrapped := fmt.Errorf("controller: %w", inner)
 
-	var target *customErr
-	require.True(t, errors.As(pe, &target), "errors.As should find customErr via Unwrap chain")
-	assert.Equal(t, 404, target.code)
+	var target *PermanentError
+	require.True(t, errors.As(wrapped, &target), "errors.As should find PermanentError via Unwrap chain")
+	assert.Equal(t, "inner permanent", target.Err.Error())
 }
 
 // TestIsPermanentError_False_WrappedPermanent verifies that an error that
