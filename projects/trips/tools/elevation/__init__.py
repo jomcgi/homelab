@@ -7,6 +7,6 @@ Fetches elevation data from Natural Resources Canada's Canadian Digital Elevatio
 - Includes SQLite caching (elevation doesn't change)
 """
 
-from .client import ElevationClient, fetch_elevation, batch_fetch_elevation
+from .client import ElevationCache, ElevationClient, fetch_elevation, batch_fetch_elevation
 
-__all__ = ["ElevationClient", "fetch_elevation", "batch_fetch_elevation"]
+__all__ = ["ElevationCache", "ElevationClient", "fetch_elevation", "batch_fetch_elevation"]
