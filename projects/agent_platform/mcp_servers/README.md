@@ -47,7 +47,7 @@ Add an entry to the `servers` array in `projects/agent_platform/deploy/values.ya
     transport: "STREAMABLEHTTP"
   alert:
     enabled: true
-    url: "http://my-mcp-server.mcp-servers.svc.cluster.local:8000/health"
+    url: "http://my-mcp-server.agent-platform.svc.cluster.local:8000/health"
 ```
 
 ### 2. Create the 1Password item
@@ -67,7 +67,7 @@ The chart auto-generates the ImageUpdater resource with the correct `servers[N]`
 
 ```yaml
 imageUpdater:
-  writeBackTarget: "helmvalues:../../overlays/prod/mcp-servers/values.yaml"
+  writeBackTarget: "helmvalues:projects/agent_platform/deploy/values.yaml"
 ```
 
 For third-party images (e.g., `docker.io/signoz/signoz-mcp-server`), skip the image updater and pin to a specific version tag.
@@ -75,8 +75,8 @@ For third-party images (e.g., `docker.io/signoz/signoz-mcp-server`), skip the im
 ### 4. Render and verify
 
 ```bash
-helm template mcp-servers charts/mcp-servers/ \
-  -f overlays/prod/mcp-servers/values.yaml
+helm template agent-platform-mcp-servers projects/agent_platform/mcp_servers/ \
+  -f projects/agent_platform/deploy/values.yaml
 ```
 
 ## Native HTTP vs translate sidecar
