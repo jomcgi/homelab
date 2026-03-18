@@ -43,3 +43,18 @@ semgrep_test(
     srcs = ["elevation_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
+
+semgrep_test(
+    name = "client_test_semgrep_test",
+    srcs = ["client_test.py"],
+    rules = ["//bazel/semgrep/rules:python_rules"],
+)
+
+py_test(
+    name = "client_test",
+    srcs = ["client_test.py"],
+    deps = [
+        "//projects/trips/tools/elevation",
+        "@pip//pytest",
+    ],
+)

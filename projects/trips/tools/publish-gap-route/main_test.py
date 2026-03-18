@@ -276,9 +276,7 @@ class TestPublishGapPoints:
         await publish_gap_points(js, coords, start)
 
         calls = js.publish.call_args_list
-        timestamps = [
-            json.loads(call[0][1].decode())["timestamp"] for call in calls
-        ]
+        timestamps = [json.loads(call[0][1].decode())["timestamp"] for call in calls]
 
         t0 = datetime.fromisoformat(timestamps[0])
         t1 = datetime.fromisoformat(timestamps[1])
@@ -315,15 +313,13 @@ class TestPublishGapPoints:
         js1 = AsyncMock()
         await publish_gap_points(js1, coords, start)
         ids1 = [
-            json.loads(call[0][1].decode())["id"]
-            for call in js1.publish.call_args_list
+            json.loads(call[0][1].decode())["id"] for call in js1.publish.call_args_list
         ]
 
         js2 = AsyncMock()
         await publish_gap_points(js2, coords, start)
         ids2 = [
-            json.loads(call[0][1].decode())["id"]
-            for call in js2.publish.call_args_list
+            json.loads(call[0][1].decode())["id"] for call in js2.publish.call_args_list
         ]
 
         assert ids1 == ids2

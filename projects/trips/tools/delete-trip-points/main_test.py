@@ -72,9 +72,27 @@ class TestByDateFiltering:
 
     def test_filters_by_date_and_source(self):
         points = [
-            {"id": "1", "lat": 49.0, "lng": -123.0, "timestamp": "2025-07-01T10:00:00", "source": "gap"},
-            {"id": "2", "lat": 50.0, "lng": -124.0, "timestamp": "2025-07-01T11:00:00", "source": "gopro"},
-            {"id": "3", "lat": 51.0, "lng": -125.0, "timestamp": "2025-07-02T10:00:00", "source": "gap"},
+            {
+                "id": "1",
+                "lat": 49.0,
+                "lng": -123.0,
+                "timestamp": "2025-07-01T10:00:00",
+                "source": "gap",
+            },
+            {
+                "id": "2",
+                "lat": 50.0,
+                "lng": -124.0,
+                "timestamp": "2025-07-01T11:00:00",
+                "source": "gopro",
+            },
+            {
+                "id": "3",
+                "lat": 51.0,
+                "lng": -125.0,
+                "timestamp": "2025-07-02T10:00:00",
+                "source": "gap",
+            },
         ]
         result = self._filter_points(points, "2025-07-01", "gap")
         assert len(result) == 1
