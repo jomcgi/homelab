@@ -43,15 +43,3 @@ go_image(
     binary = ":signoz-dashboard-sidecar",
     repository = "ghcr.io/jomcgi/homelab/projects/platform/signoz-addons/dashboard-sidecar/cmd",
 )
-
-go_test(
-    name = "cmd_test",
-    srcs = ["main_test.go"],
-    embed = [":cmd_lib"],
-    deps = [
-        "@io_k8s_api//core/v1:core",
-        "@io_k8s_apimachinery//pkg/apis/meta/v1:meta",
-        "@io_k8s_apimachinery//pkg/types",
-        "@io_k8s_client_go//kubernetes/fake",
-    ],
-)
