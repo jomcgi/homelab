@@ -441,9 +441,7 @@ class TestReplayStream:
         import nats.js.errors
 
         mock_js = AsyncMock()
-        mock_js.pull_subscribe = AsyncMock(
-            side_effect=nats.js.errors.NotFoundError()
-        )
+        mock_js.pull_subscribe = AsyncMock(side_effect=nats.js.errors.NotFoundError())
         result = await replay_stream(mock_js)
         assert result == []
 
