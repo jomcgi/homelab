@@ -97,13 +97,20 @@ func TestWaitPodRunning_ReResolvePodName(t *testing.T) {
 	// having bound a pool pod. The initial pod name was the fallback (sandbox
 	// name) because resolvePodName ran before the annotation was set. On
 	// NotFound, waitPodRunning re-resolves and should pick up the real name.
+	//
+	// Use Tracker().Create() with an explicit GVR instead of passing objects
+	// to the constructor — the constructor's Add() path uses
+	// UnsafeGuessKindToResource which can mis-index unstructured CRDs.
 	dynScheme := runtime.NewScheme()
 	dynClient := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(dynScheme,
 		map[schema.GroupVersionResource]string{
 			sandboxGVR: "SandboxList",
 		},
-		sandboxUnstructured(sandboxName, ns, realPodName),
 	)
+	if err := dynClient.Tracker().Create(sandboxGVR,
+		sandboxUnstructured(sandboxName, ns, realPodName), ns); err != nil {
+		t.Fatalf("setup: create sandbox in tracker: %v", err)
+	}
 
 	s := &SandboxExecutor{
 		clientset: cs,
