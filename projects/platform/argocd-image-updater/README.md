@@ -42,5 +42,6 @@ Authentication uses a GitHub token stored in a Kubernetes Secret (sourced from 1
 | `argocd-image-updater.authScripts.enabled`     | Enable Git credential helper scripts | `true`                                     |
 | `argocd-image-updater.env`                     | Environment variables (GitHub token) | Secret ref to `argocd-image-updater-token` |
 | `argocd-image-updater.metrics.enabled`         | Enable Prometheus metrics            | `true`                                     |
-| `argocd-image-updater.resources.limits.memory` | Memory limit                         | `1Gi`                                      |
-| `argocd-image-updater.resources.requests.cpu`  | CPU request                          | `500m`                                     |
+| `argocd-image-updater.resources.limits.memory`    | Memory limit                         | `1Gi`                                      |
+| `argocd-image-updater.resources.requests.cpu`     | CPU request                          | `500m`                                     |
+| `argocd-image-updater.resources.requests.memory`  | Memory request                       | `1Gi`                                      |

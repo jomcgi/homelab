@@ -20,7 +20,7 @@ See `values.yaml` for all configuration options.
 ### Key Settings
 
 - **DNS Forwarders:** By default uses Cloudflare (1.1.1.1) and Google (8.8.8.8)
-- **Cache TTL:** 30 seconds
+- **Cache TTL:** 300 seconds (5 minutes)
 - **Max Concurrent:** 1000 concurrent DNS requests
 - **Prometheus:** Metrics exposed on `:9153/metrics`
 
@@ -35,7 +35,7 @@ forwarders:
   - 8.8.8.8 # Google
 
 # Increase cache TTL
-cacheTTL: 60
+cacheTTL: 300
 ```
 
 ## ArgoCD Integration
