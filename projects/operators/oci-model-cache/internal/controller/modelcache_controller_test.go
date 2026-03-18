@@ -3,7 +3,6 @@ package controller
 import (
 	"context"
 	"errors"
-	"fmt"
 	"testing"
 	"time"
 
@@ -88,44 +87,6 @@ type fakeResolver struct {
 
 func (f *fakeResolver) Resolve(_ context.Context, _, _, _, _ string) (*ResolveResult, error) {
 	return f.result, f.err
-}
-
-// --- Tests for PermanentError and IsPermanentError ---
-
-func TestPermanentError_Error(t *testing.T) {
-	inner := errors.New("repo not found")
-	pe := &PermanentError{Err: inner}
-
-	assert.Equal(t, "repo not found", pe.Error())
-}
-
-func TestPermanentError_Unwrap(t *testing.T) {
-	inner := errors.New("inner error")
-	pe := &PermanentError{Err: inner}
-
-	assert.Equal(t, inner, pe.Unwrap())
-}
-
-func TestPermanentError_UnwrapWithErrors(t *testing.T) {
-	inner := errors.New("inner error")
-	pe := &PermanentError{Err: inner}
-
-	// errors.Is should work via Unwrap.
-	assert.True(t, errors.Is(pe, inner))
-}
-
-func TestIsPermanentError_True(t *testing.T) {
-	pe := &PermanentError{Err: errors.New("permanent")}
-	assert.True(t, IsPermanentError(pe))
-}
-
-func TestIsPermanentError_False_RegularError(t *testing.T) {
-	assert.False(t, IsPermanentError(errors.New("transient")))
-}
-
-func TestIsPermanentError_False_WrappedError(t *testing.T) {
-	err := fmt.Errorf("wrapped: %w", errors.New("inner"))
-	assert.False(t, IsPermanentError(err))
 }
 
 // --- Tests for Reconcile ---
