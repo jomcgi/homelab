@@ -202,10 +202,10 @@ run_git_test() {
 	local stderr_out
 	local got_exit=0
 	stderr_out=$(
-		GIT_STUB_TOPLEVEL="$toplevel" \
-			GIT_STUB_STATUS="$stub_status" \
-			GIT_STUB_DIFF="$stub_diff" \
-			printf '%s' "$input_json" | bash "$HOOK" 2>&1 >/dev/null
+		export GIT_STUB_TOPLEVEL="$toplevel"
+		export GIT_STUB_STATUS="$stub_status"
+		export GIT_STUB_DIFF="$stub_diff"
+		printf '%s' "$input_json" | bash "$HOOK" 2>&1 >/dev/null
 	) || got_exit=$?
 
 	local ok=true
