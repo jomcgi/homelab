@@ -442,7 +442,7 @@ class TestReplayStream:
 
         mock_js = AsyncMock()
         mock_js.pull_subscribe = AsyncMock(
-            side_effect=nats.js.errors.StreamNotFoundError()
+            side_effect=nats.js.errors.NotFoundError()
         )
         result = await replay_stream(mock_js)
         assert result == []
@@ -510,7 +510,7 @@ class TestReplayStream:
     async def test_consumer_unsubscribed_after_replay(self):
         mock_js = self._make_js([[]])
         await replay_stream(mock_js)
-        consumer = await mock_js.pull_subscribe.return_value
+        consumer = mock_js.pull_subscribe.return_value
         consumer.unsubscribe.assert_called_once()
 
 
