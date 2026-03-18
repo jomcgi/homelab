@@ -192,9 +192,8 @@ py_venv_binary(
 )
 
 py_test(
-    name = "test_core",
+    name = "core_test",
     srcs = ["test_core.py"],
-    imports = ["."],
     deps = [
         "//projects/blog_knowledge_graph/knowledge_graph/app:chunker",
         "//projects/blog_knowledge_graph/knowledge_graph/app:config",
@@ -274,7 +273,7 @@ semgrep_test(
 )
 
 semgrep_test(
-    name = "test_core_semgrep_test",
+    name = "core_test_semgrep_test",
     srcs = ["test_core.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
