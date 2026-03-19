@@ -273,10 +273,3 @@ semgrep_test(
     srcs = ["telemetry.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
-
-semgrep_test(
-    name = "test_core_semgrep_test",
-    srcs = ["test_core.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
