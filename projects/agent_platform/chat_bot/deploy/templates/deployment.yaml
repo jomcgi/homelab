@@ -77,6 +77,7 @@ spec:
             secretKeyRef:
               name: discord-bot
               key: NOTIFICATION_CHANNEL_MAP
+              optional: true
         - name: HTTP_PORT
           value: {{ .Values.config.httpPort | quote }}
         livenessProbe:
