@@ -16,6 +16,8 @@ py_test(
     deps = [
         ":conftest",
         "//projects/agent_platform/orchestrator/mcp/app",
+        "@pip//httpx",
+        "@pip//pydantic",
         "@pip//pytest",
     ],
 )

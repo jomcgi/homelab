@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 import pytest
+from pydantic import ValidationError
 
+import projects.agent_platform.orchestrator.mcp.app.main as _mod
 from projects.agent_platform.orchestrator.mcp.app.main import (
     Settings,
+    _request,
     cancel_job,
     configure,
     get_job,
@@ -22,6 +26,98 @@ _PATCH = "projects.agent_platform.orchestrator.mcp.app.main._request"
 @pytest.fixture(autouse=True)
 def _configure_client():
     configure(Settings(url="http://orchestrator.test:8080"))
+
+
+class TestSettings:
+    def test_default_port(self):
+        s = Settings(url="http://orchestrator.test:8080")
+        assert s.port == 8000
+
+    def test_custom_port(self):
+        s = Settings(url="http://orchestrator.test:8080", port=9090)
+        assert s.port == 9090
+
+    def test_requires_url(self):
+        with pytest.raises(ValidationError):
+            Settings()
+
+    def test_env_prefix(self):
+        assert Settings.model_config["env_prefix"] == "ORCHESTRATOR_"
+
+
+class TestConfigure:
+    def test_sets_async_client(self):
+        settings = Settings(url="http://orchestrator.test:8080")
+        configure(settings)
+        assert isinstance(_mod._client, httpx.AsyncClient)
+
+    def test_client_uses_base_url(self):
+        settings = Settings(url="http://orch.example.com:9000")
+        configure(settings)
+        assert str(_mod._client.base_url) == "http://orch.example.com:9000"
+
+    def test_replaces_existing_client(self):
+        configure(Settings(url="http://first.test"))
+        first = _mod._client
+        configure(Settings(url="http://second.test"))
+        assert _mod._client is not first
+
+
+class TestRequest:
+    async def test_success_returns_json(self):
+        mock_resp = MagicMock()
+        mock_resp.is_success = True
+        mock_resp.json.return_value = {"id": "01ABC", "status": "PENDING"}
+        with patch.object(
+            _mod._client, "request", new_callable=AsyncMock, return_value=mock_resp
+        ):
+            result = await _request("GET", "/jobs/01ABC")
+        assert result == {"id": "01ABC", "status": "PENDING"}
+
+    async def test_http_error_returns_error_dict(self):
+        mock_resp = MagicMock()
+        mock_resp.is_success = False
+        mock_resp.status_code = 500
+        mock_resp.text = "Internal Server Error"
+        with patch.object(
+            _mod._client, "request", new_callable=AsyncMock, return_value=mock_resp
+        ):
+            result = await _request("GET", "/jobs")
+        assert "error" in result
+        assert "500" in result["error"]
+
+    async def test_http_404_returns_error_dict(self):
+        mock_resp = MagicMock()
+        mock_resp.is_success = False
+        mock_resp.status_code = 404
+        mock_resp.text = "Not Found"
+        with patch.object(
+            _mod._client, "request", new_callable=AsyncMock, return_value=mock_resp
+        ):
+            result = await _request("GET", "/jobs/missing")
+        assert "error" in result
+        assert "404" in result["error"]
+
+    async def test_exception_returns_error_dict(self):
+        with patch.object(
+            _mod._client,
+            "request",
+            new_callable=AsyncMock,
+            side_effect=Exception("Connection refused"),
+        ):
+            result = await _request("GET", "/jobs")
+        assert "error" in result
+        assert "Connection refused" in result["error"]
+
+    async def test_passes_kwargs_to_client(self):
+        mock_resp = MagicMock()
+        mock_resp.is_success = True
+        mock_resp.json.return_value = {}
+        with patch.object(
+            _mod._client, "request", new_callable=AsyncMock, return_value=mock_resp
+        ) as mock_req:
+            await _request("POST", "/jobs", json={"task": "test"})
+        mock_req.assert_called_once_with("POST", "/jobs", json={"task": "test"})
 
 
 class TestSubmitJob:
@@ -63,6 +159,23 @@ class TestSubmitJob:
             },
         )
         assert result["status"] == "PENDING"
+
+    async def test_max_retries_zero_is_included(self):
+        """max_retries=0 is not None and must be included in the request body."""
+        expected = {"id": "01ABC", "status": "PENDING", "created_at": "2026-03-07T00:00:00Z"}
+        with patch(_PATCH, new_callable=AsyncMock, return_value=expected) as mock_req:
+            await submit_job(task="No retries", max_retries=0)
+        body = mock_req.call_args[1]["json"]
+        assert "max_retries" in body
+        assert body["max_retries"] == 0
+
+    async def test_none_optional_params_excluded(self):
+        """None optional params must not appear in the JSON body."""
+        expected = {"id": "01ABC", "status": "PENDING", "created_at": "2026-03-07T00:00:00Z"}
+        with patch(_PATCH, new_callable=AsyncMock, return_value=expected) as mock_req:
+            await submit_job(task="Only task")
+        body = mock_req.call_args[1]["json"]
+        assert list(body.keys()) == ["task"]
 
     async def test_http_error_returns_error_dict(self):
         with patch(
@@ -106,6 +219,20 @@ class TestListJobs:
             "GET", "/jobs", params={"status": "FAILED", "limit": "5", "offset": "0"}
         )
 
+    async def test_limit_and_offset_converted_to_strings(self):
+        """Numeric limit/offset must be sent as strings in query params."""
+        expected = {"jobs": [], "total": 0}
+        with patch(_PATCH, new_callable=AsyncMock, return_value=expected) as mock_req:
+            await list_jobs(limit=100, offset=50)
+        params = mock_req.call_args[1]["params"]
+        assert params["limit"] == "100"
+        assert params["offset"] == "50"
+
+    async def test_error_propagated(self):
+        with patch(_PATCH, new_callable=AsyncMock, return_value={"error": "API error: 503"}):
+            result = await list_jobs()
+        assert "error" in result
+
 
 class TestGetJob:
     async def test_returns_job_record(self):
@@ -120,6 +247,16 @@ class TestGetJob:
         mock_req.assert_called_once_with("GET", "/jobs/01ABC")
         assert result["id"] == "01ABC"
         assert result["status"] == "RUNNING"
+
+    async def test_includes_attempts(self):
+        expected = {
+            "id": "01ABC",
+            "status": "SUCCEEDED",
+            "attempts": [{"number": 1, "exit_code": 0}, {"number": 2, "exit_code": 0}],
+        }
+        with patch(_PATCH, new_callable=AsyncMock, return_value=expected):
+            result = await get_job(job_id="01ABC")
+        assert len(result["attempts"]) == 2
 
     async def test_not_found_returns_error(self):
         with patch(
@@ -148,6 +285,12 @@ class TestCancelJob:
             result = await cancel_job(job_id="01ABC")
         assert "error" in result
 
+    async def test_uses_post_method(self):
+        """Cancel must use POST (not DELETE or PATCH)."""
+        with patch(_PATCH, new_callable=AsyncMock, return_value={"status": "CANCELLED"}) as mock_req:
+            await cancel_job(job_id="XYZ")
+        assert mock_req.call_args[0][0] == "POST"
+
 
 class TestGetJobOutput:
     async def test_returns_output(self):
@@ -157,6 +300,13 @@ class TestGetJobOutput:
         mock_req.assert_called_once_with("GET", "/jobs/01ABC/output")
         assert result["output"] == "Done!"
         assert result["truncated"] is False
+
+    async def test_truncated_flag_true(self):
+        """Large outputs have truncated=True to signal 32KB trim."""
+        expected = {"attempt": 1, "exit_code": 1, "output": "A" * 100, "truncated": True}
+        with patch(_PATCH, new_callable=AsyncMock, return_value=expected):
+            result = await get_job_output(job_id="01ABC")
+        assert result["truncated"] is True
 
     async def test_no_output_returns_error(self):
         with patch(
