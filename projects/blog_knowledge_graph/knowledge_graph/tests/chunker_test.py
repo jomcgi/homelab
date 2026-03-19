@@ -4,6 +4,7 @@ from projects.blog_knowledge_graph.knowledge_graph.app.chunker import (
     chunk_markdown,
     _estimate_tokens,
     _split_by_headers,
+    _split_paragraphs,
 )
 
 
@@ -134,3 +135,134 @@ class TestChunkMarkdown:
         assert chunks[0]["title"] == "My Post"
         assert chunks[0]["author"] == "Author"
         assert chunks[0]["published_at"] == "2025-01-15"
+
+    def test_empty_content_returns_no_chunks(self):
+        """chunk_markdown on empty string returns an empty list."""
+        chunks = chunk_markdown(
+            content="",
+            content_hash="abc",
+            source_url="https://example.com",
+            source_type="html",
+            title="Empty",
+        )
+        assert chunks == []
+
+    def test_section_header_stored_in_chunk(self):
+        """Each chunk carries the section_header from the markdown heading."""
+        content = "## Overview\n\nSome overview text."
+        chunks = chunk_markdown(
+            content=content,
+            content_hash="h1",
+            source_url="https://example.com",
+            source_type="html",
+            title="T",
+        )
+        assert len(chunks) >= 1
+        assert chunks[0]["section_header"] == "## Overview"
+
+    def test_content_without_any_headers(self):
+        """Content with no headers is treated as a single unlabelled section."""
+        content = "Just plain prose with no headings at all."
+        chunks = chunk_markdown(
+            content=content,
+            content_hash="nohdr",
+            source_url="https://example.com",
+            source_type="html",
+            title="T",
+        )
+        assert len(chunks) == 1
+        assert chunks[0]["section_header"] == ""
+        assert "plain prose" in chunks[0]["chunk_text"]
+
+    def test_large_section_splits_into_multiple_chunks(self):
+        """A section whose body exceeds max_tokens is split at paragraph boundaries."""
+        # Build a body with two well-separated paragraphs, each > 30 tokens
+        para1 = "Alpha " * 40  # ~52 tokens
+        para2 = "Beta " * 40  # ~52 tokens
+        content = f"# Big Section\n\n{para1}\n\n{para2}"
+        chunks = chunk_markdown(
+            content=content,
+            content_hash="big",
+            source_url="https://example.com",
+            source_type="html",
+            title="T",
+            max_tokens=60,
+            min_tokens=1,
+        )
+        # Both paragraphs together exceed max_tokens=60, so they should end up
+        # in separate chunks.
+        assert len(chunks) >= 2
+
+    def test_author_none_by_default(self):
+        """author defaults to None when not provided."""
+        chunks = chunk_markdown(
+            content="# H\n\nText.",
+            content_hash="x",
+            source_url="https://example.com",
+            source_type="html",
+            title="T",
+        )
+        assert chunks[0]["author"] is None
+
+    def test_published_at_none_by_default(self):
+        """published_at defaults to None when not provided."""
+        chunks = chunk_markdown(
+            content="# H\n\nText.",
+            content_hash="x",
+            source_url="https://example.com",
+            source_type="html",
+            title="T",
+        )
+        assert chunks[0]["published_at"] is None
+
+
+class TestSplitParagraphs:
+    """Direct tests for the _split_paragraphs helper."""
+
+    def test_empty_text_returns_empty_list(self):
+        result = _split_paragraphs("", max_tokens=512)
+        assert result == []
+
+    def test_single_paragraph_under_limit(self):
+        result = _split_paragraphs("Hello world.", max_tokens=512)
+        assert len(result) == 1
+        assert "Hello world." in result[0]
+
+    def test_two_paragraphs_under_limit_kept_together(self):
+        text = "First paragraph.\n\nSecond paragraph."
+        result = _split_paragraphs(text, max_tokens=512)
+        assert len(result) == 1
+        assert "First paragraph." in result[0]
+        assert "Second paragraph." in result[0]
+
+    def test_two_large_paragraphs_split(self):
+        """Two paragraphs that together exceed max_tokens become separate chunks."""
+        para1 = "Word " * 50  # ~65 tokens
+        para2 = "Thing " * 50  # ~65 tokens
+        text = f"{para1}\n\n{para2}"
+        result = _split_paragraphs(text, max_tokens=70)
+        assert len(result) >= 2
+
+    def test_code_block_kept_as_single_part(self):
+        """A fenced code block is emitted as a single atomic paragraph."""
+        text = "Intro text.\n\n```python\ndef foo():\n    pass\n```\n\nAfter."
+        result = _split_paragraphs(text, max_tokens=512)
+        # The code block must not be split
+        code_results = [r for r in result if "def foo" in r]
+        assert len(code_results) == 1
+        assert "pass" in code_results[0]
+
+    def test_unclosed_code_block_treated_as_single_part(self):
+        """An unclosed ``` block is kept together rather than discarded."""
+        text = "Preamble.\n\n```bash\necho hello\nno closing fence"
+        result = _split_paragraphs(text, max_tokens=512)
+        # All content should appear somewhere in the output
+        combined = "\n".join(result)
+        assert "echo hello" in combined
+
+    def test_blank_lines_do_not_create_empty_chunks(self):
+        """Multiple consecutive blank lines produce no spurious empty chunks."""
+        text = "Para one.\n\n\n\nPara two."
+        result = _split_paragraphs(text, max_tokens=512)
+        for chunk in result:
+            assert chunk.strip() != ""
