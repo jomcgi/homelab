@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -858,4 +859,187 @@ func TestResetWeeklyRebuildsSite(t *testing.T) {
 	if _, err := os.Stat(pubIndex); err != nil {
 		t.Errorf("public/index.html not found after resetWeekly: %v", err)
 	}
+}
+
+// --- handleHealthz ---
+
+// TestHandleHealthzReturns200 verifies the /healthz endpoint returns HTTP 200.
+func TestHandleHealthzReturns200(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "/healthz", nil)
+	w := httptest.NewRecorder()
+	handleHealthz(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+// TestHandleHealthzPostAlsoReturns200 verifies any HTTP method is accepted by /healthz.
+// The handler unconditionally writes 200, so method doesn't matter.
+func TestHandleHealthzPostAlsoReturns200(t *testing.T) {
+	req := httptest.NewRequest(http.MethodPost, "/healthz", nil)
+	w := httptest.NewRecorder()
+	handleHealthz(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+}
+
+// --- handleRoot ---
+
+// TestHandleRootServesEditHTML verifies that GET / serves the contents of edit.html.
+func TestHandleRootServesEditHTML(t *testing.T) {
+	_, static := setupDirs(t)
+
+	editContent := "<html><body>admin edit page</body></html>"
+	if err := os.WriteFile(filepath.Join(static, "edit.html"), []byte(editContent), 0o644); err != nil {
+		t.Fatalf("write edit.html: %v", err)
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	w := httptest.NewRecorder()
+	handleRoot(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+	if !strings.Contains(w.Body.String(), "admin edit page") {
+		t.Errorf("expected edit.html body in response, got: %s", w.Body.String())
+	}
+}
+
+// TestHandleRootReturns404ForSubpath verifies that any path other than "/"
+// results in a 404 Not Found response.
+func TestHandleRootReturns404ForSubpath(t *testing.T) {
+	_, _ = setupDirs(t)
+
+	for _, path := range []string{"/other", "/api/todo", "/healthz"} {
+		req := httptest.NewRequest(http.MethodGet, path, nil)
+		w := httptest.NewRecorder()
+		handleRoot(w, req)
+
+		if w.Code != http.StatusNotFound {
+			t.Errorf("path %s: expected 404, got %d", path, w.Code)
+		}
+	}
+}
+
+// --- runSchedulerLoop ---
+
+// TestSchedulerLoopCallsWeeklyOnSaturday verifies that runSchedulerLoop invokes
+// weeklyFn (not dailyFn) when nowFn reports the current time as a Saturday.
+func TestSchedulerLoopCallsWeeklyOnSaturday(t *testing.T) {
+	// Saturday: 2026-03-21 is a known Saturday.
+	saturday := time.Date(2026, 3, 21, 0, 0, 1, 0, time.UTC)
+
+	weeklyCalled := make(chan struct{}, 1)
+	// block keeps the goroutine parked after its first reset call so the loop
+	// doesn't spin indefinitely with the no-op sleepFn.
+	block := make(chan struct{})
+
+	weeklyFn := func() error {
+		weeklyCalled <- struct{}{}
+		<-block
+		return nil
+	}
+	dailyFn := func() error {
+		t.Error("dailyFn should not be called on Saturday")
+		<-block
+		return nil
+	}
+
+	go runSchedulerLoop(
+		time.UTC,
+		func() time.Time { return saturday },
+		func(time.Duration) {}, // no-op: skip the ~24h midnight sleep
+		weeklyFn,
+		dailyFn,
+	)
+
+	select {
+	case <-weeklyCalled:
+		// success — weekly reset was triggered
+	case <-time.After(2 * time.Second):
+		t.Fatal("runSchedulerLoop did not call weeklyFn within timeout")
+	}
+
+	close(block) // release the blocked goroutine so it can exit
+}
+
+// TestSchedulerLoopCallsDailyOnNonSaturday verifies that runSchedulerLoop invokes
+// dailyFn (not weeklyFn) when nowFn reports the current time as a non-Saturday.
+func TestSchedulerLoopCallsDailyOnNonSaturday(t *testing.T) {
+	// Wednesday: 2026-03-18 is a known Wednesday.
+	wednesday := time.Date(2026, 3, 18, 0, 0, 1, 0, time.UTC)
+
+	dailyCalled := make(chan struct{}, 1)
+	block := make(chan struct{})
+
+	weeklyFn := func() error {
+		t.Error("weeklyFn should not be called on a non-Saturday")
+		<-block
+		return nil
+	}
+	dailyFn := func() error {
+		dailyCalled <- struct{}{}
+		<-block
+		return nil
+	}
+
+	go runSchedulerLoop(
+		time.UTC,
+		func() time.Time { return wednesday },
+		func(time.Duration) {}, // no-op
+		weeklyFn,
+		dailyFn,
+	)
+
+	select {
+	case <-dailyCalled:
+		// success — daily reset was triggered
+	case <-time.After(2 * time.Second):
+		t.Fatal("runSchedulerLoop did not call dailyFn within timeout")
+	}
+
+	close(block)
+}
+
+// TestSchedulerLoopLogsResetErrorAndContinues verifies that when a reset function
+// returns an error, the scheduler logs the failure and continues (does not crash).
+// We confirm it by checking that a second tick also fires correctly.
+func TestSchedulerLoopLogsResetErrorAndContinues(t *testing.T) {
+	// Use a Wednesday so dailyFn is called each tick.
+	wednesday := time.Date(2026, 3, 18, 0, 0, 1, 0, time.UTC)
+
+	callCount := 0
+	secondCall := make(chan struct{}, 1)
+	block := make(chan struct{})
+
+	dailyFn := func() error {
+		callCount++
+		if callCount == 1 {
+			return errors.New("simulated reset failure")
+		}
+		secondCall <- struct{}{}
+		<-block
+		return nil
+	}
+
+	go runSchedulerLoop(
+		time.UTC,
+		func() time.Time { return wednesday },
+		func(time.Duration) {}, // no-op sleep: loop continues immediately
+		func() error { return nil },
+		dailyFn,
+	)
+
+	select {
+	case <-secondCall:
+		// scheduler continued after the first error
+	case <-time.After(2 * time.Second):
+		t.Fatal("scheduler stopped after reset error instead of continuing")
+	}
+
+	close(block)
 }

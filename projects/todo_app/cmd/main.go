@@ -75,32 +75,42 @@ func startScheduler() {
 		log.Printf("Failed to load timezone, using UTC: %v", err)
 		loc = time.UTC
 	}
+	go runSchedulerLoop(loc, time.Now, time.Sleep, resetWeekly, resetDaily)
+}
 
-	go func() {
-		for {
-			now := time.Now().In(loc)
+// runSchedulerLoop is the inner scheduler loop, extracted for testability.
+// nowFn and sleepFn are injectable so tests can control timing without waiting
+// for real midnight. weeklyFn and dailyFn are the reset operations to call.
+func runSchedulerLoop(
+	loc *time.Location,
+	nowFn func() time.Time,
+	sleepFn func(time.Duration),
+	weeklyFn func() error,
+	dailyFn func() error,
+) {
+	for {
+		now := nowFn().In(loc)
 
-			// Calculate next midnight
-			next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, loc)
-			sleepDuration := time.Until(next)
-			log.Printf("Scheduler: next reset at %s (sleeping %s)", next.Format(time.RFC3339), sleepDuration)
-			time.Sleep(sleepDuration)
+		// Calculate next midnight
+		next := time.Date(now.Year(), now.Month(), now.Day()+1, 0, 0, 0, 0, loc)
+		sleepDuration := time.Until(next)
+		log.Printf("Scheduler: next reset at %s (sleeping %s)", next.Format(time.RFC3339), sleepDuration)
+		sleepFn(sleepDuration)
 
-			// Saturday midnight = end of Friday = weekly reset
-			resetTime := time.Now().In(loc)
-			if resetTime.Weekday() == time.Saturday {
-				log.Println("Scheduler: triggering weekly reset")
-				if err := resetWeekly(); err != nil {
-					log.Printf("Scheduler: weekly reset failed: %v", err)
-				}
-			} else {
-				log.Println("Scheduler: triggering daily reset")
-				if err := resetDaily(); err != nil {
-					log.Printf("Scheduler: daily reset failed: %v", err)
-				}
+		// Saturday midnight = end of Friday = weekly reset
+		resetTime := nowFn().In(loc)
+		if resetTime.Weekday() == time.Saturday {
+			log.Println("Scheduler: triggering weekly reset")
+			if err := weeklyFn(); err != nil {
+				log.Printf("Scheduler: weekly reset failed: %v", err)
+			}
+		} else {
+			log.Println("Scheduler: triggering daily reset")
+			if err := dailyFn(); err != nil {
+				log.Printf("Scheduler: daily reset failed: %v", err)
 			}
 		}
-	}()
+	}
 }
 
 func main() {
@@ -121,21 +131,27 @@ func main() {
 	http.HandleFunc("/api/dates", handleDates)
 
 	// Health
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
+	http.HandleFunc("/healthz", handleHealthz)
 
 	// Serve edit UI at root for admin service
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/" {
-			http.ServeFile(w, r, filepath.Join(staticDir, "edit.html"))
-			return
-		}
-		http.NotFound(w, r)
-	})
+	http.HandleFunc("/", handleRoot)
 
 	log.Printf("Starting server on %s", listenAddr)
 	log.Fatal(http.ListenAndServe(listenAddr, nil))
+}
+
+// handleHealthz responds with 200 OK for liveness/readiness probes.
+func handleHealthz(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+// handleRoot serves edit.html for the admin UI at "/" and 404s for all other paths.
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Path == "/" {
+		http.ServeFile(w, r, filepath.Join(staticDir, "edit.html"))
+		return
+	}
+	http.NotFound(w, r)
 }
 
 func handleTodo(w http.ResponseWriter, r *http.Request) {
