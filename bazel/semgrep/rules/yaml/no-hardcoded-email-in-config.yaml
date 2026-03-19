@@ -9,4 +9,5 @@ rules:
       the value and inject it via a secret reference instead.
     metadata:
       category: security
-    pattern-regex: '[A-Z_]*_EMAIL:\s*["\']?[^@\s"'']+@[^@\s"'']+["\']?'
+    pattern-regex: |-
+      [A-Z_]*_EMAIL:\s*["']?[^@\s"']+@[^@\s"']+["']?
