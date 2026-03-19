@@ -12,6 +12,10 @@ argocd_app(
     chart_files = ":chart",
     namespace = "linkerd",
     release_name = "linkerd",
+    # Upstream chart; containers don't mount /tmp
+    semgrep_exclude_rules = [
+        "require-tmp-emptydir",
+    ],
     tags = [
         "helm",
         "template",

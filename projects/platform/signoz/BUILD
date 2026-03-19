@@ -14,6 +14,7 @@ argocd_app(
     release_name = "signoz",
     # Many subcomponents (clickhouse, alertmanager, otel collectors); fixing all via values is fragile
     semgrep_exclude_rules = [
+        "require-tmp-emptydir",
         "yaml.kubernetes.security.allow-privilege-escalation.allow-privilege-escalation",
         "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
         "yaml.kubernetes.security.run-as-non-root.run-as-non-root",
