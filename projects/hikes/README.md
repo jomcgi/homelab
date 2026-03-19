@@ -50,7 +50,6 @@ A static Cloudflare Pages app (`public/` directory) served from the `jomcgi-hike
 - Duration, distance, and ascent preferences
 - Available dates and preferred start/finish times
 - Weather thresholds (cloud cover, precipitation, wind speed, temperature)
-- Daylight hours (7 am–7 pm UK time)
 
 User preferences are persisted to `localStorage`. The app has no server-side component.
 
