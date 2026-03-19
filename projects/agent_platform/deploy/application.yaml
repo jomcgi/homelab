@@ -29,7 +29,6 @@ spec:
       kind: Deployment
       jqPathExpressions:
         - .spec.template.metadata.annotations."otel.injected-by"
-        - .spec.template.metadata.annotations."linkerd.io/inject"
         - .spec.template.metadata.annotations."linkerd.io/injected-by"
   syncPolicy:
     automated:
