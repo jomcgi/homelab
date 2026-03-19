@@ -93,6 +93,14 @@ filegroup(
 )
 
 filegroup(
+    name = "generic_rules",
+    srcs = glob(
+        ["generic/*.yaml"],
+        allow_empty = True,
+    ),
+)
+
+filegroup(
     name = "all_rules",
     srcs = glob(["**/*.yaml"]) + [
         "@semgrep_pro_rules_golang//:rules",
@@ -131,6 +139,14 @@ semgrep_test(
     srcs = ["//bazel/semgrep/tests:typescript_fixtures"],
     env = {"SEMGREP_TEST_MODE": "1"},
     rules = [":typescript_rules"],
+    tags = ["semgrep"],
+)
+
+semgrep_test(
+    name = "generic_rules_test",
+    srcs = ["//bazel/semgrep/tests:no_stale_repo_paths_fixtures"],
+    env = {"SEMGREP_TEST_MODE": "1"},
+    rules = [":generic_rules"],
     tags = ["semgrep"],
 )
 
