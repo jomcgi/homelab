@@ -359,3 +359,65 @@ class TestSlackNotifierErrorHandling:
         call_kwargs = mock_client.post.call_args
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert payload["text"] == "custom message content"
+
+    @pytest.mark.asyncio
+    async def test_post_timeout_exception_is_swallowed_and_logged(self, caplog):
+        """httpx.TimeoutException during HTTP post is caught and logged, not propagated."""
+        import httpx
+
+        with patch(_NOTIF_PATH) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(
+                return_value=mock_client
+            )
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post.side_effect = httpx.TimeoutException("timed out")
+
+            notifier = SlackNotifier("https://hooks.slack.com/test")
+            with caplog.at_level(logging.ERROR):
+                # Must not raise — timeout is swallowed by the bare except
+                await notifier._post("test message")
+
+        assert any(
+            "Failed to send Slack notification" in r.message for r in caplog.records
+        )
+
+
+class TestSlackNotifierBatchEdgeCases:
+    """Edge-case tests for notify_batch message content."""
+
+    @pytest.mark.asyncio
+    async def test_batch_with_new_item_having_empty_title(self):
+        """notify_batch includes an item with an empty title string in the listing."""
+        with patch(_NOTIF_PATH) as mock_client_cls:
+            mock_client = AsyncMock()
+            mock_client_cls.return_value.__aenter__ = AsyncMock(
+                return_value=mock_client
+            )
+            mock_client_cls.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_response = AsyncMock()
+            mock_response.raise_for_status = AsyncMock()
+            mock_client.post.return_value = mock_response
+
+            notifier = SlackNotifier("https://hooks.slack.com/test")
+            results = [
+                ScrapeResult(
+                    url="https://example.com/untitled",
+                    content_hash="h1",
+                    is_new=True,
+                    title="",  # empty title
+                    error=None,
+                ),
+            ]
+            await notifier.notify_batch(results)
+
+        call_kwargs = mock_client.post.call_args
+        payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
+        text = payload["text"]
+        # The new content section must still appear and list the item (with empty title)
+        assert "New content:" in text
+        assert "New: 1" in text
+        # The line for the empty-title item is "- " (dash + space + empty string)
+        listed = [line for line in text.split("\n") if line.startswith("- ")]
+        assert len(listed) == 1
+        assert listed[0] == "- "

@@ -481,3 +481,70 @@ class TestFetchWithRetryAdditional:
             )
 
         assert client.get.call_count == 3
+
+    @pytest.mark.asyncio
+    async def test_read_error_is_not_retried_and_propagates(self):
+        """httpx.ReadError is NOT in the caught exception types, so it propagates immediately."""
+        client = AsyncMock()
+        client.get.side_effect = httpx.ReadError("connection reset")
+
+        # ReadError is not in (httpx.TimeoutException, httpx.ConnectError),
+        # so it should propagate on the first attempt without retrying.
+        with pytest.raises(httpx.ReadError):
+            await fetch_with_retry(
+                client, "https://example.com", max_attempts=3, base_delay=0.01
+            )
+
+        # Only one attempt should have been made — no retries for ReadError
+        assert client.get.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_exponential_backoff_delays_increase(self):
+        """Delays between retries grow exponentially: base*2^0, base*2^1, ..."""
+        delays_recorded: list[float] = []
+
+        async def fake_sleep(delay: float) -> None:
+            delays_recorded.append(delay)
+
+        client = AsyncMock()
+        client.get.side_effect = httpx.TimeoutException("timeout")
+
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.extractors.base.asyncio.sleep",
+            side_effect=fake_sleep,
+        ):
+            with pytest.raises(httpx.TimeoutException):
+                await fetch_with_retry(
+                    client, "https://example.com", max_attempts=3, base_delay=2.0
+                )
+
+        # For max_attempts=3, there should be 2 sleeps (after attempt 0 and attempt 1)
+        assert len(delays_recorded) == 2
+        # base_delay * 2^0 = 2.0, base_delay * 2^1 = 4.0
+        assert delays_recorded[0] == pytest.approx(2.0)
+        assert delays_recorded[1] == pytest.approx(4.0)
+        # Each delay must be strictly larger than the previous
+        assert delays_recorded[1] > delays_recorded[0]
+
+
+class TestRateLimiterConcurrent:
+    """Concurrency tests for RateLimiter."""
+
+    @pytest.mark.asyncio
+    async def test_concurrent_calls_to_same_domain_are_serialized(self):
+        """Two concurrent acquires for the same domain must be serialized, not parallel."""
+        limiter = RateLimiter(default_delay=0.05)
+        times: list[float] = []
+
+        async def acquire_and_record() -> None:
+            await limiter.acquire("https://example.com/page")
+            times.append(asyncio.get_event_loop().time())
+
+        # Run two acquires concurrently — the lock ensures they are serialized
+        await asyncio.gather(acquire_and_record(), acquire_and_record())
+
+        # Both timestamps should be recorded
+        assert len(times) == 2
+        # The second acquire must complete at least `default_delay` after the first
+        # (because it had to wait inside the lock)
+        assert abs(times[1] - times[0]) >= 0.04  # allow small timing tolerance
