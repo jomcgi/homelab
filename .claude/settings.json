@@ -1,63 +1,4 @@
 {
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bazel/tools/git/check-stale-pr.sh",
-            "timeout": 10
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/prefer-k8s-mcp.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/prefer-argocd-mcp.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/prefer-bb-remote.sh",
-            "timeout": 5
-          }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bazel/tools/git/check-plan-worktree.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/check-chart-version-sync.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/check-copyright-year.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/check-stale-repo-paths.sh",
-            "timeout": 5
-          },
-          {
-            "type": "command",
-            "command": "bazel/tools/hooks/check-hardcoded-svc-url.sh",
-            "timeout": 5
-          }
-        ]
-      }
-    ]
-  },
   "cleanupPeriodDays": 60,
   "env": {
     "CLAUDE_CODE_ENABLE_TELEMETRY": "1"
@@ -171,10 +112,70 @@
     ],
     "additionalDirectories": ["/tmp/claude-worktrees"]
   },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bazel/tools/git/check-stale-pr.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/prefer-k8s-mcp.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/prefer-argocd-mcp.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/prefer-bb-remote.sh",
+            "timeout": 5
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bazel/tools/git/check-plan-worktree.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-chart-version-sync.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-copyright-year.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-stale-repo-paths.sh",
+            "timeout": 5
+          },
+          {
+            "type": "command",
+            "command": "bazel/tools/hooks/check-hardcoded-svc-url.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
     "frontend-design@claude-plugins-official": true,
     "github@claude-plugins-official": true,
     "playwright@claude-plugins-official": true,
-    "coderabbit@claude-plugins-official": true
+    "coderabbit@claude-plugins-official": true,
+    "impeccable@impeccable": true
   }
 }
