@@ -112,50 +112,43 @@ List all known vessels.
 
 **Response:**
 
+Returns a flat list of vessels joined with their latest positions. Each entry contains columns from both `latest_positions` and `vessels` tables:
+
 ```json
 {
+  "count": 1,
   "vessels": [
     {
-      "mmsi": 316001234,
-      "name": "VESSEL NAME",
-      "callsign": "CG1234",
+      "mmsi": "316001234",
+      "lat": 49.2827,
+      "lon": -123.1207,
+      "speed": 12.5,
+      "course": 180.0,
+      "heading": 182,
+      "nav_status": 0,
+      "ship_name": "VESSEL NAME",
+      "timestamp": "2024-01-15T12:00:00Z",
+      "first_seen_at_location": "2024-01-15T10:00:00Z",
+      "imo": "9123456",
+      "call_sign": "CG1234",
       "ship_type": 70,
-      "ship_type_name": "Cargo",
+      "destination": "VANCOUVER",
       "dimension_a": 100,
       "dimension_b": 20,
       "dimension_c": 10,
       "dimension_d": 10,
-      "last_seen": "2024-01-15T12:00:00Z",
-      "current_position": {
-        "lat": 49.2827,
-        "lng": -123.1207,
-        "speed": 12.5,
-        "course": 180.0,
-        "heading": 182,
-        "timestamp": "2024-01-15T12:00:00Z"
-      }
+      "draught": 5.5,
+      "eta": "01-15 18:00"
     }
-  ],
-  "count": 1
+  ]
 }
 ```
-
-**Query parameters:**
-
-- `limit` (optional) - Max vessels to return (default: 100)
-- `active_since` (optional) - ISO timestamp, only vessels seen since this time
 
 **Examples:**
 
 ```bash
 # Get all vessels
 curl https://ships-api.jomcgi.dev/api/vessels
-
-# Get vessels seen in last hour
-curl https://ships-api.jomcgi.dev/api/vessels?active_since=$(date -u -d '1 hour ago' +%Y-%m-%dT%H:%M:%SZ)
-
-# Get top 50 vessels
-curl https://ships-api.jomcgi.dev/api/vessels?limit=50
 ```
 
 ### GET /api/vessels/{mmsi}
@@ -164,34 +157,33 @@ Get vessel details and current position.
 
 **Response:**
 
+Same flat structure as the vessels list, with additional computed fields for the single vessel:
+
 ```json
 {
-  "mmsi": 316001234,
-  "name": "VESSEL NAME",
-  "callsign": "CG1234",
-  "imo": 9123456,
+  "mmsi": "316001234",
+  "lat": 49.2827,
+  "lon": -123.1207,
+  "speed": 12.5,
+  "course": 180.0,
+  "heading": 182,
+  "nav_status": 0,
+  "ship_name": "VESSEL NAME",
+  "timestamp": "2024-01-15T12:00:00Z",
+  "first_seen_at_location": "2024-01-15T10:00:00Z",
+  "imo": "9123456",
+  "call_sign": "CG1234",
   "ship_type": 70,
-  "ship_type_name": "Cargo",
-  "dimensions": {
-    "dimension_a": 100,
-    "dimension_b": 20,
-    "dimension_c": 10,
-    "dimension_d": 10,
-    "length": 120,
-    "width": 20
-  },
-  "current_position": {
-    "lat": 49.2827,
-    "lng": -123.1207,
-    "speed": 12.5,
-    "course": 180.0,
-    "heading": 182,
-    "nav_status": 0,
-    "nav_status_name": "Under way using engine",
-    "timestamp": "2024-01-15T12:00:00Z"
-  },
-  "first_seen": "2024-01-10T08:00:00Z",
-  "last_seen": "2024-01-15T12:00:00Z"
+  "destination": "VANCOUVER",
+  "dimension_a": 100,
+  "dimension_b": 20,
+  "dimension_c": 10,
+  "dimension_d": 10,
+  "draught": 5.5,
+  "eta": "01-15 18:00",
+  "time_at_location_seconds": 7200,
+  "time_at_location_hours": 2.0,
+  "is_moored": false
 }
 ```
 
@@ -217,7 +209,7 @@ Get position history for a vessel.
   "track": [
     {
       "lat": 49.2827,
-      "lng": -123.1207,
+      "lon": -123.1207,
       "speed": 12.5,
       "course": 180.0,
       "heading": 182,
@@ -253,19 +245,24 @@ WebSocket endpoint for real-time position updates.
 
 **Message format:**
 
+Broadcasts a batched positions message with the latest position per vessel:
+
 ```json
 {
-  "type": "position_update",
-  "data": {
-    "mmsi": 316001234,
-    "name": "VESSEL NAME",
-    "lat": 49.2827,
-    "lng": -123.1207,
-    "speed": 12.5,
-    "course": 180.0,
-    "heading": 182,
-    "timestamp": "2024-01-15T12:00:00Z"
-  }
+  "type": "positions",
+  "positions": [
+    {
+      "mmsi": "316001234",
+      "lat": 49.2827,
+      "lon": -123.1207,
+      "speed": 12.5,
+      "course": 180.0,
+      "heading": 182,
+      "nav_status": 0,
+      "ship_name": "VESSEL NAME",
+      "timestamp": "2024-01-15T12:00:00Z"
+    }
+  ]
 }
 ```
 
@@ -276,9 +273,11 @@ const ws = new WebSocket("wss://ships-api.jomcgi.dev/ws/live");
 
 ws.onmessage = (event) => {
   const msg = JSON.parse(event.data);
-  if (msg.type === "position_update") {
-    console.log(`${msg.data.name} at ${msg.data.lat}, ${msg.data.lng}`);
-    updateMapMarker(msg.data);
+  if (msg.type === "positions") {
+    msg.positions.forEach((pos) => {
+      console.log(`${pos.ship_name} at ${pos.lat}, ${pos.lon}`);
+      updateMapMarker(pos);
+    });
   }
 };
 ```
@@ -291,12 +290,12 @@ Health check endpoint.
 
 ```json
 {
-  "status": "healthy",
+  "status": "alive",
   "nats_connected": true,
-  "database_size_mb": 124.5,
-  "vessels_tracked": 523,
-  "positions_stored": 18392,
-  "websocket_clients": 2
+  "vessel_count": 523,
+  "cache_size": 523,
+  "caught_up": true,
+  "messages_processed": 18392
 }
 ```
 
@@ -306,39 +305,45 @@ Health check endpoint.
 
 Vessel metadata from AIS Type 5 messages.
 
-| Column         | Type      | Description                  |
-| -------------- | --------- | ---------------------------- |
-| `mmsi`         | INTEGER   | Primary key, MMSI identifier |
-| `name`         | TEXT      | Vessel name                  |
-| `callsign`     | TEXT      | Radio callsign               |
-| `imo`          | INTEGER   | IMO number                   |
-| `ship_type`    | INTEGER   | AIS ship type code           |
-| `dimension_a`  | INTEGER   | Meters to bow                |
-| `dimension_b`  | INTEGER   | Meters to stern              |
-| `dimension_c`  | INTEGER   | Meters to port               |
-| `dimension_d`  | INTEGER   | Meters to starboard          |
-| `first_seen`   | TIMESTAMP | First AIS message received   |
-| `last_seen`    | TIMESTAMP | Most recent AIS message      |
+| Column         | Type | Description                  |
+| -------------- | ---- | ---------------------------- |
+| `mmsi`         | TEXT | Primary key, MMSI identifier |
+| `imo`          | TEXT | IMO number                   |
+| `call_sign`    | TEXT | Radio callsign               |
+| `name`         | TEXT | Vessel name                  |
+| `ship_type`    | INTEGER | AIS ship type code        |
+| `dimension_a`  | INTEGER | Meters to bow             |
+| `dimension_b`  | INTEGER | Meters to stern           |
+| `dimension_c`  | INTEGER | Meters to port            |
+| `dimension_d`  | INTEGER | Meters to starboard       |
+| `destination`  | TEXT | Destination port             |
+| `eta`          | TEXT | Estimated time of arrival    |
+| `draught`      | REAL | Vessel draught (meters)      |
+| `created_at`   | TEXT | First AIS message received   |
+| `updated_at`   | TEXT | Most recent AIS message      |
 
 ### positions
 
 Position history from AIS Type 1/2/3 messages.
 
-| Column       | Type      | Description                  |
-| ------------ | --------- | ---------------------------- |
-| `id`         | INTEGER   | Primary key, auto-increment  |
-| `mmsi`       | INTEGER   | Foreign key to vessels       |
-| `lat`        | REAL      | Latitude                     |
-| `lng`        | REAL      | Longitude                    |
-| `speed`      | REAL      | Speed over ground (knots)    |
-| `course`     | REAL      | Course over ground (degrees) |
-| `heading`    | INTEGER   | True heading (degrees)       |
-| `nav_status` | INTEGER   | Navigational status code     |
-| `timestamp`  | TIMESTAMP | Position timestamp           |
+| Column               | Type    | Description                  |
+| -------------------- | ------- | ---------------------------- |
+| `id`                 | INTEGER | Primary key, auto-increment  |
+| `mmsi`               | TEXT    | Foreign key to vessels       |
+| `lat`                | REAL    | Latitude                     |
+| `lon`                | REAL    | Longitude                    |
+| `speed`              | REAL    | Speed over ground (knots)    |
+| `course`             | REAL    | Course over ground (degrees) |
+| `heading`            | INTEGER | True heading (degrees)       |
+| `nav_status`         | INTEGER | Navigational status code     |
+| `rate_of_turn`       | INTEGER | Rate of turn                 |
+| `position_accuracy`  | INTEGER | Position accuracy flag       |
+| `ship_name`          | TEXT    | Vessel name from position msg|
+| `timestamp`          | TEXT    | Position timestamp           |
+| `received_at`        | TEXT    | When message was received    |
 
 **Indexes:**
 
-- `idx_positions_mmsi` - Fast lookups by vessel
 - `idx_positions_timestamp` - Time range queries
 - `idx_positions_mmsi_timestamp` - Composite for history queries
 
@@ -346,18 +351,21 @@ Position history from AIS Type 1/2/3 messages.
 
 Materialized view of current vessel positions.
 
-| Column       | Type      | Description       |
-| ------------ | --------- | ----------------- |
-| `mmsi`       | INTEGER   | Primary key       |
-| `lat`        | REAL      | Current latitude  |
-| `lng`        | REAL      | Current longitude |
-| `speed`      | REAL      | Current speed     |
-| `course`     | REAL      | Current course    |
-| `heading`    | INTEGER   | Current heading   |
-| `nav_status` | INTEGER   | Current status    |
-| `timestamp`  | TIMESTAMP | Last update time  |
+| Column                   | Type    | Description                    |
+| ------------------------ | ------- | ------------------------------ |
+| `mmsi`                   | TEXT    | Primary key                    |
+| `lat`                    | REAL    | Current latitude               |
+| `lon`                    | REAL    | Current longitude              |
+| `speed`                  | REAL    | Current speed                  |
+| `course`                 | REAL    | Current course                 |
+| `heading`                | INTEGER | Current heading                |
+| `nav_status`             | INTEGER | Current status                 |
+| `ship_name`              | TEXT    | Vessel name                    |
+| `timestamp`              | TEXT    | Last position timestamp        |
+| `first_seen_at_location` | TEXT    | When arrived at current position|
+| `updated_at`             | TEXT    | Last update time               |
 
-**Updated via trigger on positions table.**
+**Updated via batch upsert whenever new positions are processed.**
 
 ## Data Retention
 
@@ -378,10 +386,7 @@ POSITION_RETENTION_DAYS: 7
 **Manual cleanup:**
 
 ```bash
-# Via API (requires admin auth)
-curl -X POST https://ships-api.jomcgi.dev/admin/cleanup
-
-# Via database
+# Via database directly
 sqlite3 ships.db "DELETE FROM positions WHERE timestamp < datetime('now', '-7 days')"
 ```
 
@@ -392,9 +397,7 @@ Environment variables:
 | Variable                  | Description                         | Default                 | Required |
 | ------------------------- | ----------------------------------- | ----------------------- | -------- |
 | `NATS_URL`                | NATS server URL                     | `nats://localhost:4222` | Yes      |
-| `NATS_STREAM`             | JetStream stream name               | `ships`                 | No       |
-| `NATS_SUBJECT`            | Subject for AIS messages            | `ships.ais`             | No       |
-| `CORS_ORIGINS`            | Allowed CORS origins                | `http://localhost:3000` | No       |
+| `CORS_ORIGINS`            | Allowed CORS origins (comma-sep)    | `http://localhost:3000` | No       |
 | `DB_PATH`                 | SQLite database path                | `/tmp/ships.db`         | No       |
 | `POSITION_RETENTION_DAYS` | Days to keep positions              | `7`                     | No       |
 | `DEDUP_DISTANCE_METERS`   | Deduplication threshold             | `100`                   | No       |
@@ -433,16 +436,22 @@ Deployed via ArgoCD to Kubernetes cluster.
 
 ## Observability
 
-### Metrics
+### Stats
 
-Exposed at `/metrics` (Prometheus format):
+Exposed at `/api/stats`:
 
-- `ships_vessels_tracked` - Total unique vessels in database
-- `ships_positions_stored` - Total positions in database
-- `ships_positions_deduped` - Positions skipped (deduplication)
-- `ships_websocket_connections` - Active WebSocket connections
-- `ships_nats_messages_total` - NATS messages processed
-- `ships_database_size_bytes` - SQLite file size
+```json
+{
+  "vessel_count": 523,
+  "position_count": 18392,
+  "cache_size": 523,
+  "messages_received": 50000,
+  "messages_deduplicated": 31608,
+  "connected_clients": 2,
+  "replay_complete": true,
+  "retention_days": 7
+}
+```
 
 ### Traces
 
@@ -450,25 +459,17 @@ Instrumented with OpenTelemetry (auto-injected by Kyverno):
 
 - HTTP request traces
 - NATS message processing
-- SQLite queries
 - WebSocket connections
 
 View in SigNoz: https://signoz.jomcgi.dev
 
 ### Logs
 
-Structured JSON logs via `logging.structlog`:
+Standard Python logging with f-string messages:
 
-```json
-{
-  "timestamp": "2024-01-15T12:00:00Z",
-  "level": "info",
-  "event": "position_update",
-  "mmsi": 316001234,
-  "lat": 49.2827,
-  "lng": -123.1207,
-  "deduped": false
-}
+```
+2024-01-15 12:00:00 - ships_api - INFO - Catchup complete. 18392 positions loaded.
+2024-01-15 12:00:01 - ships_api - INFO - WebSocket client connected. Total: 1
 ```
 
 ## Ship Type Codes
