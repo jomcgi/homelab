@@ -80,7 +80,7 @@ func (m *memStore) List(_ context.Context, statusFilter, tagFilter []string, lim
 
 func newTestAPI(store Store) (*API, *http.ServeMux) {
 	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, "", logger)
+	api := NewAPI(store, nil, nil, 2, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	return api, mux
@@ -310,93 +310,6 @@ func TestHandleOutput(t *testing.T) {
 	}
 	if resp.ExitCode == nil || *resp.ExitCode != 0 {
 		t.Fatalf("expected exit code 0, got %v", resp.ExitCode)
-	}
-}
-
-func TestHandleSummarize_NoInference(t *testing.T) {
-	store := newMemStore()
-	now := time.Now().UTC()
-	store.jobs["SUM1"] = &JobRecord{
-		ID: "SUM1", Task: "deploy service", Status: JobSucceeded,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
-		Plan: []PlanStep{{Agent: "planner", Description: "analyze repo", Status: "completed"}},
-	}
-
-	_, mux := newTestAPI(store) // inferenceURL is ""
-
-	req := httptest.NewRequest(http.MethodPost, "/jobs/SUM1/summarize", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Fatalf("expected 503, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestHandleSummarize_NoPlan(t *testing.T) {
-	store := newMemStore()
-	now := time.Now().UTC()
-	store.jobs["SUM2"] = &JobRecord{
-		ID: "SUM2", Task: "simple job", Status: JobSucceeded,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
-	}
-
-	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, "http://fake-llm:8080", logger)
-	mux := http.NewServeMux()
-	api.RegisterRoutes(mux)
-
-	req := httptest.NewRequest(http.MethodPost, "/jobs/SUM2/summarize", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusUnprocessableEntity {
-		t.Fatalf("expected 422, got %d: %s", rec.Code, rec.Body.String())
-	}
-}
-
-func TestHandleSummarize_Success(t *testing.T) {
-	store := newMemStore()
-	now := time.Now().UTC()
-	store.jobs["SUM3"] = &JobRecord{
-		ID: "SUM3", Task: "deploy auth service", Status: JobSucceeded,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
-		Plan: []PlanStep{
-			{Agent: "planner", Description: "analyze requirements", Status: "completed"},
-			{Agent: "coder", Description: "implement changes", Status: "completed"},
-		},
-	}
-
-	// Mock LLM server
-	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]any{
-			"choices": []map[string]any{
-				{"message": map[string]string{"content": `{"title":"Deploy auth service","summary":"Analyzed requirements and implemented auth service deployment."}`}},
-			},
-		})
-	}))
-	defer llm.Close()
-
-	logger := slog.Default()
-	api := NewAPI(store, nil, nil, 2, llm.URL, logger)
-	mux := http.NewServeMux()
-	api.RegisterRoutes(mux)
-
-	req := httptest.NewRequest(http.MethodPost, "/jobs/SUM3/summarize", nil)
-	rec := httptest.NewRecorder()
-	mux.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
-	}
-
-	var resp SummarizeResponse
-	if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
-		t.Fatalf("decode: %v", err)
-	}
-	if resp.Title != "Deploy auth service" {
-		t.Fatalf("expected title 'Deploy auth service', got %q", resp.Title)
 	}
 }
 
