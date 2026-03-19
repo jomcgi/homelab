@@ -18,3 +18,10 @@ filegroup(
     name = "typescript_fixtures",
     srcs = glob(["fixtures/*.ts"]),
 )
+
+# Fixture for the no-stale-repo-paths rule (languages: generic).
+# Referenced by //bazel/semgrep/rules:generic_rules_test.
+filegroup(
+    name = "no_stale_repo_paths_fixtures",
+    srcs = ["fixtures/no-stale-repo-paths.md"],
+)
