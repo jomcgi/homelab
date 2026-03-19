@@ -38,11 +38,6 @@ extensions:
     name: context-forge
     uri: http://context-forge-gateway-mcp-stack-mcpgateway.mcp.svc.cluster.local:80/mcp/
     timeout: 300
-  - type: stdio
-    name: github
-    cmd: pnpm
-    args: ["dlx", "@modelcontextprotocol/server-github"]
-    env_keys: ["GITHUB_TOKEN"]
 settings:
   max_turns: 50
   max_tool_repetitions: 5
