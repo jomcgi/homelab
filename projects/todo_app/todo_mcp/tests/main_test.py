@@ -232,7 +232,9 @@ class TestSetTasks:
                 {"task": "Done task 3", "done": True},
             ],
         }
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"status": "ok"}) as mock_req:
+        with patch(
+            _PATCH, new_callable=AsyncMock, return_value={"status": "ok"}
+        ) as mock_req:
             await set_tasks(
                 weekly_task="Finished goal",
                 weekly_done=True,
@@ -247,7 +249,9 @@ class TestSetTasks:
 
     async def test_sends_empty_slots(self):
         """Empty string task slots are preserved in the payload."""
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"status": "ok"}) as mock_req:
+        with patch(
+            _PATCH, new_callable=AsyncMock, return_value={"status": "ok"}
+        ) as mock_req:
             await set_tasks(
                 weekly_task="Focus",
                 weekly_done=False,
@@ -263,7 +267,11 @@ class TestSetTasks:
         assert body["daily"][2]["task"] == ""
 
     async def test_http_error_returns_error_dict(self):
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"error": "Todo API error: 422"}):
+        with patch(
+            _PATCH,
+            new_callable=AsyncMock,
+            return_value={"error": "Todo API error: 422"},
+        ):
             result = await set_tasks(
                 weekly_task="x",
                 weekly_done=False,
@@ -278,7 +286,9 @@ class TestSetTasks:
 
     async def test_uses_put_method(self):
         """set_tasks must use PUT (not POST or PATCH)."""
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"status": "ok"}) as mock_req:
+        with patch(
+            _PATCH, new_callable=AsyncMock, return_value={"status": "ok"}
+        ) as mock_req:
             await set_tasks(
                 weekly_task="x",
                 weekly_done=False,
@@ -304,7 +314,11 @@ class TestResetDaily:
         assert result["status"] == "ok"
 
     async def test_error_returns_error_dict(self):
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"error": "Todo API error: 500"}):
+        with patch(
+            _PATCH,
+            new_callable=AsyncMock,
+            return_value={"error": "Todo API error: 500"},
+        ):
             result = await reset_daily()
         assert "error" in result
 
@@ -321,6 +335,10 @@ class TestResetWeekly:
         assert result["status"] == "ok"
 
     async def test_error_returns_error_dict(self):
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"error": "Todo API error: 500"}):
+        with patch(
+            _PATCH,
+            new_callable=AsyncMock,
+            return_value={"error": "Todo API error: 500"},
+        ):
             result = await reset_weekly()
         assert "error" in result
