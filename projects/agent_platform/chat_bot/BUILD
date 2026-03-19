@@ -27,13 +27,13 @@ pkg_tar(
 
 node_modules_tar(
     name = "node_modules_tar",
+    package_dir = "/app/node_modules",
     deps = [
         ":node_modules/@chat-adapter/discord",
         ":node_modules/chat",
         ":node_modules/nats",
         ":node_modules/tsx",
     ],
-    package_dir = "/app/node_modules",
 )
 
 apko_image(
