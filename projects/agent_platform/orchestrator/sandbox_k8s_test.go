@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -719,6 +720,81 @@ func TestPollUntilDone_CancelFn(t *testing.T) {
 	const want = "cancelled during execution"
 	if err.Error() != want {
 		t.Errorf("error = %q, want %q", err.Error(), want)
+	}
+}
+
+// TestPollUntilDone_ConsecutiveErrors verifies that persistent status poll
+// failures cause pollUntilDone to give up after maxPollErrors consecutive errors
+// instead of retrying forever.
+// NOTE: pollUntilDone has a 5-second initial timer, so this test takes ~5s.
+func TestPollUntilDone_ConsecutiveErrors(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/output":
+			w.WriteHeader(http.StatusOK)
+		case "/status":
+			http.Error(w, "sandbox gone", http.StatusServiceUnavailable)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	s.maxPollErrors = 1 // give up after first failure
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	_, err := s.pollUntilDone(ctx, srv.URL, "claim-errors",
+		func() bool { return false }, newSyncBuffer(0), nil)
+	if err == nil {
+		t.Fatal("expected error from consecutive poll failures, got nil")
+	}
+	if !strings.Contains(err.Error(), "consecutive poll failures") {
+		t.Errorf("error = %q, want substring %q", err.Error(), "consecutive poll failures")
+	}
+}
+
+// TestPollUntilDone_ErrorCounterResets verifies that a successful status poll
+// resets the consecutive error counter, allowing transient errors to recover.
+// NOTE: pollUntilDone has a 5-second initial timer, so this test takes ~5s.
+func TestPollUntilDone_ErrorCounterResets(t *testing.T) {
+	callCount := 0
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/output":
+			w.WriteHeader(http.StatusOK)
+		case "/status":
+			callCount++
+			// First call fails, second succeeds with "done".
+			if callCount == 1 {
+				http.Error(w, "transient error", http.StatusServiceUnavailable)
+				return
+			}
+			json.NewEncoder(w).Encode(map[string]any{
+				"state":     "done",
+				"exit_code": 0,
+			})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	s := newTestSandbox()
+	s.maxPollErrors = 2 // would fail at 2, but the error resets after success
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	result, err := s.pollUntilDone(ctx, srv.URL, "claim-reset",
+		func() bool { return false }, newSyncBuffer(0), nil)
+	if err != nil {
+		t.Fatalf("pollUntilDone: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Errorf("ExitCode = %d, want 0", result.ExitCode)
 	}
 }
 

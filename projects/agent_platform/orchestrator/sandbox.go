@@ -41,6 +41,7 @@ type SandboxExecutor struct {
 	namespace         string
 	template          string
 	inactivityTimeout time.Duration
+	maxPollErrors     int // consecutive poll failures before giving up (default 10 ≈ 5 min)
 	logger            *slog.Logger
 	httpClient        *http.Client
 }
@@ -70,6 +71,7 @@ func NewSandboxExecutor(config *rest.Config, namespace, template string, inactiv
 		namespace:         namespace,
 		template:          template,
 		inactivityTimeout: inactivityTimeout,
+		maxPollErrors:     10,
 		logger:            logger,
 		httpClient:        &http.Client{Timeout: 30 * time.Second},
 	}, nil
@@ -301,6 +303,11 @@ func (s *SandboxExecutor) dispatchTask(ctx context.Context, baseURL, task, recip
 
 func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName string, cancelFn func() bool, outputBuf *syncBuffer, planBuf *planTracker) (*ExecResult, error) {
 	offset := 0
+	consecutiveErrors := 0
+	maxErrors := s.maxPollErrors
+	if maxErrors <= 0 {
+		maxErrors = 10
+	}
 	// Short initial wait, then poll every 30 seconds.
 	timer := time.NewTimer(5 * time.Second)
 	defer timer.Stop()
@@ -326,9 +333,14 @@ func (s *SandboxExecutor) pollUntilDone(ctx context.Context, baseURL, claimName 
 		// Check status (with plan progress)
 		state, exitCode, plan, err := s.pollStatusWithPlan(ctx, baseURL)
 		if err != nil {
-			s.logger.Warn("poll status error", "error", err)
+			consecutiveErrors++
+			s.logger.Warn("poll status error", "error", err, "consecutive", consecutiveErrors)
+			if consecutiveErrors >= maxErrors {
+				return nil, fmt.Errorf("sandbox unreachable after %d consecutive poll failures: %w", maxErrors, err)
+			}
 			continue
 		}
+		consecutiveErrors = 0
 		// Update plan tracker for real-time progress.
 		if planBuf != nil && len(plan) > 0 {
 			currentStep := 0
