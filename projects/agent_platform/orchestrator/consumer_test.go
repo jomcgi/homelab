@@ -683,3 +683,294 @@ func TestFlushProgress_WritesPlanToStore(t *testing.T) {
 		t.Errorf("output = %q, want %q", got.Attempts[0].Output, "some output")
 	}
 }
+
+// --- failGetStore: Store that always returns an error on Get ---
+
+// failGetStore wraps a Store and always returns an error for Get operations,
+// simulating KV store unavailability after an LLM response.
+type failGetStore struct {
+	inner Store
+}
+
+func (f *failGetStore) Get(_ context.Context, _ string) (*JobRecord, error) {
+	return nil, errors.New("store unavailable")
+}
+
+func (f *failGetStore) Put(ctx context.Context, job *JobRecord) error {
+	return f.inner.Put(ctx, job)
+}
+
+func (f *failGetStore) Delete(ctx context.Context, id string) error {
+	return f.inner.Delete(ctx, id)
+}
+
+func (f *failGetStore) List(ctx context.Context, statusFilter, tagFilter []string, limit, offset int) ([]JobRecord, int, error) {
+	return f.inner.List(ctx, statusFilter, tagFilter, limit, offset)
+}
+
+// --- summarizeAndStore error path tests ---
+
+// TestSummarizeAndStore_StoreGetFailure verifies that summarizeAndStore handles
+// a store.Get failure gracefully (logs warning, no panic) after a successful LLM call.
+func TestSummarizeAndStore_StoreGetFailure(t *testing.T) {
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chatResponse(`{"title":"Deploy Service","summary":"Deploys the auth service."}`)))
+	}))
+	defer llm.Close()
+
+	fgs := &failGetStore{inner: newMemStore()}
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, fgs, &fakeSandbox{}, nil, summarizer, 5*time.Minute, slog.Default())
+
+	plan := []PlanStep{{Agent: "planner", Description: "Create plan", Status: "completed"}}
+	// Must not panic; logs a warning and returns.
+	c.summarizeAndStore(context.Background(), "JOB-GET-FAIL", "deploy auth", plan, slog.Default())
+}
+
+// TestSummarizeAndStore_StorePutFailure verifies that summarizeAndStore handles
+// a store.Put failure gracefully (logs warning, no panic) after Get succeeds.
+func TestSummarizeAndStore_StorePutFailure(t *testing.T) {
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chatResponse(`{"title":"Deploy Service","summary":"Deploys the auth service."}`)))
+	}))
+	defer llm.Close()
+
+	store := newMemStore()
+	job := pendingJob("JOB-PUT-FAIL")
+	_ = store.Put(context.Background(), job)
+
+	// failAfter: 0 causes every Put call to fail immediately.
+	callCount := 0
+	failStore := &errOnPutStore{inner: store, failAfter: 0, callCount: &callCount}
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, failStore, &fakeSandbox{}, nil, summarizer, 5*time.Minute, slog.Default())
+
+	plan := []PlanStep{{Agent: "planner", Description: "Create plan", Status: "completed"}}
+	// Must not panic; logs a warning and returns.
+	c.summarizeAndStore(context.Background(), job.ID, job.Task, plan, slog.Default())
+}
+
+// TestSummarizeAndStore_EmptyTitleAndSummary verifies that summarizeAndStore exits
+// early without touching the store when the LLM returns empty title and summary.
+func TestSummarizeAndStore_EmptyTitleAndSummary(t *testing.T) {
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chatResponse(`{"title":"","summary":""}`)))
+	}))
+	defer llm.Close()
+
+	store := newMemStore()
+	job := pendingJob("JOB-EMPTY-SUMMARY")
+	job.Title = "Original Title"
+	_ = store.Put(context.Background(), job)
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, store, &fakeSandbox{}, nil, summarizer, 5*time.Minute, slog.Default())
+
+	plan := []PlanStep{{Agent: "planner", Description: "Create plan", Status: "completed"}}
+	c.summarizeAndStore(context.Background(), job.ID, job.Task, plan, slog.Default())
+
+	// Title must remain unchanged — empty result must not clobber existing value.
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	if got.Title != "Original Title" {
+		t.Errorf("title modified by empty-result summarize: got %q, want %q", got.Title, "Original Title")
+	}
+	if got.Summary != "" {
+		t.Errorf("summary should remain empty, got %q", got.Summary)
+	}
+}
+
+// --- summarizeAndStoreOnJob direct test ---
+
+// TestSummarizeAndStoreOnJob_SetsFields verifies that summarizeAndStoreOnJob
+// mutates the job record with the title and summary returned by the LLM.
+func TestSummarizeAndStoreOnJob_SetsFields(t *testing.T) {
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chatResponse(`{"title":"Deploy Auth","summary":"The auth service was deployed."}`)))
+	}))
+	defer llm.Close()
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, newMemStore(), &fakeSandbox{}, nil, summarizer, 5*time.Minute, slog.Default())
+
+	job := &JobRecord{
+		ID:   "JOB-ON-JOB",
+		Task: "deploy auth service",
+		Plan: []PlanStep{
+			{Agent: "k8s", Description: "Apply deployment", Status: "completed"},
+			{Agent: "config", Description: "Update config", Status: "completed"},
+		},
+	}
+	c.summarizeAndStoreOnJob(context.Background(), job, slog.Default())
+
+	if job.Title != "Deploy Auth" {
+		t.Errorf("job.Title = %q, want %q", job.Title, "Deploy Auth")
+	}
+	if job.Summary != "The auth service was deployed." {
+		t.Errorf("job.Summary = %q, want %q", job.Summary, "The auth service was deployed.")
+	}
+}
+
+// TestSummarizeAndStoreOnJob_LLMError verifies that summarizeAndStoreOnJob leaves
+// the job fields unchanged when the LLM call returns an error.
+func TestSummarizeAndStoreOnJob_LLMError(t *testing.T) {
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer llm.Close()
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, newMemStore(), &fakeSandbox{}, nil, summarizer, 5*time.Minute, slog.Default())
+
+	job := &JobRecord{
+		ID:    "JOB-ON-JOB-ERR",
+		Task:  "deploy auth service",
+		Title: "Existing Title",
+		Plan:  []PlanStep{{Agent: "k8s", Description: "Apply deployment", Status: "completed"}},
+	}
+	c.summarizeAndStoreOnJob(context.Background(), job, slog.Default())
+
+	// Title and Summary must be unchanged on error.
+	if job.Title != "Existing Title" {
+		t.Errorf("job.Title modified on LLM error: got %q, want %q", job.Title, "Existing Title")
+	}
+	if job.Summary != "" {
+		t.Errorf("job.Summary set on LLM error: got %q", job.Summary)
+	}
+}
+
+// --- Terminal state summarization via processJob ---
+
+// TestProcessJob_SuccessWithPlan_SetsSummary verifies that when a job succeeds
+// and its ExecResult contains plan steps, the summary is written to the store.
+func TestProcessJob_SuccessWithPlan_SetsSummary(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-SUCCESS-PLAN-SUMMARY")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	plan := []PlanStep{
+		{Agent: "planner", Description: "Create plan", Status: "completed"},
+		{Agent: "coder", Description: "Write code", Status: "completed"},
+	}
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
+			return &ExecResult{ExitCode: 0, Output: "all done", Plan: plan}, nil
+		},
+	}
+
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chatResponse(`{"title":"Tests Passed","summary":"All plan steps completed successfully."}`)))
+	}))
+	defer llm.Close()
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, store, sandbox, nil, summarizer, 5*time.Minute, slog.Default())
+	c.processJob(context.Background(), msg)
+
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	if got.Status != JobSucceeded {
+		t.Fatalf("expected SUCCEEDED, got %s", got.Status)
+	}
+	if got.Summary == "" {
+		t.Error("expected Summary to be set on succeeded job with plan steps")
+	}
+	if got.Title == "" {
+		t.Error("expected Title to be set on succeeded job with plan steps")
+	}
+}
+
+// TestProcessJob_FailedWithPlan_SetsSummary verifies that when a job fails
+// with no retries remaining and its ExecResult contains plan steps, the summary
+// is written to the store.
+func TestProcessJob_FailedWithPlan_SetsSummary(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-FAILED-PLAN-SUMMARY")
+	job.MaxRetries = 0
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	plan := []PlanStep{
+		{Agent: "planner", Description: "Create plan", Status: "completed"},
+		{Agent: "coder", Description: "Write code", Status: "failed"},
+	}
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
+			return &ExecResult{ExitCode: 1, Output: "build failed", Plan: plan}, nil
+		},
+	}
+
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(chatResponse(`{"title":"Build Failed","summary":"Code step failed during plan execution."}`)))
+	}))
+	defer llm.Close()
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	c := NewConsumer(nil, store, sandbox, nil, summarizer, 5*time.Minute, slog.Default())
+	c.processJob(context.Background(), msg)
+
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	if got.Status != JobFailed {
+		t.Fatalf("expected FAILED, got %s", got.Status)
+	}
+	if got.Summary == "" {
+		t.Error("expected Summary to be set on failed job with plan steps")
+	}
+	if got.Title == "" {
+		t.Error("expected Title to be set on failed job with plan steps")
+	}
+}
+
+// TestProcessJob_NilSummarizer_WithPlanSteps_NoPanic verifies that processJob
+// completes without panicking when the summarizer is nil and the job has plan steps.
+// SummarizePlan is nil-safe, so no crash should occur at the terminal state trigger.
+func TestProcessJob_NilSummarizer_WithPlanSteps_NoPanic(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-NIL-SUM-PLAN")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	plan := []PlanStep{
+		{Agent: "planner", Description: "Create plan", Status: "completed"},
+		{Agent: "coder", Description: "Write code", Status: "completed"},
+	}
+	sandbox := &fakeSandbox{
+		runFn: func(_ context.Context, _, _, _ string, _ func() bool, _ *syncBuffer, _ *planTracker) (*ExecResult, error) {
+			return &ExecResult{ExitCode: 0, Output: "success", Plan: plan}, nil
+		},
+	}
+
+	// nil summarizer — summarizeAndStoreOnJob must not panic with plan steps.
+	c := NewConsumer(nil, store, sandbox, nil, nil, 5*time.Minute, slog.Default())
+	c.processJob(context.Background(), msg)
+
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	if got.Status != JobSucceeded {
+		t.Fatalf("expected SUCCEEDED, got %s", got.Status)
+	}
+	// No panic is the primary assertion; title and summary must remain empty.
+	if got.Title != "" {
+		t.Errorf("expected no title with nil summarizer, got %q", got.Title)
+	}
+	if got.Summary != "" {
+		t.Errorf("expected no summary with nil summarizer, got %q", got.Summary)
+	}
+}
