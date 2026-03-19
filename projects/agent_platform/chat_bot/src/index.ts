@@ -186,9 +186,30 @@ async function main(): Promise<void> {
       console.error("Notification subscription error:", err);
     });
 
-  // Initialize the bot (connects to Discord Gateway)
+  // Initialize the bot (sets up HTTP interactions)
   await bot.initialize();
   console.log("Chat bot initialized");
+
+  // Start Gateway WebSocket for receiving messages and mentions.
+  // Without this, only slash commands/button clicks work (HTTP interactions).
+  const abortController = new AbortController();
+  const gatewayLoop = async () => {
+    while (!abortController.signal.aborted) {
+      try {
+        console.log("Starting Discord Gateway listener...");
+        await discord.startGatewayListener(
+          { waitUntil: (task) => task },
+          24 * 60 * 60 * 1000, // 24 hours
+          abortController.signal,
+        );
+      } catch (err) {
+        if (abortController.signal.aborted) break;
+        console.error("Gateway listener error, reconnecting in 5s:", err);
+        await new Promise((r) => setTimeout(r, 5000));
+      }
+    }
+  };
+  gatewayLoop();
 
   // Start HTTP health check server
   const port = parseInt(config.httpPort, 10);
@@ -204,6 +225,7 @@ async function main(): Promise<void> {
   // Graceful shutdown
   const shutdown = async (signal: string) => {
     console.log(`Received ${signal}, shutting down...`);
+    abortController.abort();
     server.close();
     await bot.shutdown();
     await nats.close();
