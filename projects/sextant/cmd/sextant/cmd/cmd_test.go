@@ -345,3 +345,47 @@ func TestGenerateCmd_RequiresExactlyOneArg(t *testing.T) {
 		t.Errorf("expected no error with 1 arg, got: %v", err)
 	}
 }
+
+// TestRunGenerate_AutoDerivesAPIPathFromModule verifies the code path (lines
+// 73-75 in generate.go) that constructs the API import path as
+// "<module>/api/<version>" when --module is set but --api is omitted.
+func TestRunGenerate_AutoDerivesAPIPathFromModule(t *testing.T) {
+	defer resetGenerateFlags()
+
+	outDir := t.TempDir()
+	generateOutputDir = outDir
+	generatePackage = "testpkg"
+	generateModule = "github.com/example/myoperator"
+	generateAPIImportPath = "" // intentionally empty — should be auto-derived
+
+	filePath := writeYAMLFile(t, validStateMachineYAML)
+	err := runGenerate(&cobra.Command{}, []string{filePath})
+	if err != nil {
+		t.Fatalf("expected no error when module is set and --api is omitted, got: %v", err)
+	}
+
+	// Generated files must exist, confirming code generation ran successfully.
+	entries, err := os.ReadDir(outDir)
+	if err != nil {
+		t.Fatalf("failed to read output dir: %v", err)
+	}
+	if len(entries) == 0 {
+		t.Error("expected generated files in output directory, found none")
+	}
+}
+
+// TestRunValidate_OutputFileWriteError verifies that runValidate returns an
+// error when --xstate and --output are set but the output path is not writable
+// (e.g., the parent directory does not exist).
+func TestRunValidate_OutputFileWriteError(t *testing.T) {
+	defer resetValidateFlags()
+
+	validateOutputXState = true
+	validateOutputPath = filepath.Join(t.TempDir(), "nonexistent-dir", "out.json")
+
+	filePath := writeYAMLFile(t, validStateMachineYAML)
+	err := runValidate(&cobra.Command{}, []string{filePath})
+	if err == nil {
+		t.Fatal("expected error when output file path is unwritable, got nil")
+	}
+}
