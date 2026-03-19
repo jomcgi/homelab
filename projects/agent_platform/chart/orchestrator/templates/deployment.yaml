@@ -60,6 +60,8 @@ spec:
           value: {{ .Values.config.reconcileInterval | quote }}
         - name: INFERENCE_URL
           value: {{ .Values.config.inferenceUrl | quote }}
+        - name: INFERENCE_MODEL
+          value: {{ .Values.config.inferenceModel | quote }}
         livenessProbe:
           httpGet:
             path: /health
