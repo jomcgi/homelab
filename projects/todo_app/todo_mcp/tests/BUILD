@@ -16,6 +16,8 @@ py_test(
     deps = [
         ":conftest",
         "//projects/todo_app/todo_mcp/app",
+        "@pip//httpx",
+        "@pip//pydantic",
         "@pip//pytest",
     ],
 )
