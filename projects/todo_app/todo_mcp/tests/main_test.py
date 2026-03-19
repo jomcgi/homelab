@@ -43,6 +43,22 @@ class TestSettings:
     def test_env_prefix(self):
         assert Settings.model_config["env_prefix"] == "TODO_"
 
+    def test_url_from_env_var(self, monkeypatch):
+        """TODO_URL env var should be read when Settings() is instantiated without
+        an explicit url argument, confirming the env_prefix is actually applied."""
+        monkeypatch.setenv("TODO_URL", "http://from-env.test:9000")
+        monkeypatch.delenv("TODO_PORT", raising=False)
+        s = Settings()
+        assert s.url == "http://from-env.test:9000"
+
+    def test_port_from_env_var(self, monkeypatch):
+        """TODO_PORT env var should override the default port (8000) when
+        Settings() is instantiated without an explicit port argument."""
+        monkeypatch.setenv("TODO_URL", "http://test.local:8080")
+        monkeypatch.setenv("TODO_PORT", "7777")
+        s = Settings()
+        assert s.port == 7777
+
 
 class TestConfigure:
     def test_sets_async_client(self):

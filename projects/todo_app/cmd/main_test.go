@@ -1043,3 +1043,92 @@ func TestSchedulerLoopLogsResetErrorAndContinues(t *testing.T) {
 
 	close(block)
 }
+
+// --- handleResetDaily error path ---
+
+// TestHandleResetDailyInternalServerError verifies that handleResetDaily returns
+// HTTP 500 when the underlying resetDaily() call fails. This covers the error
+// branch in the handler that the happy-path test cannot reach.
+// We trigger the failure by writing corrupt JSON to data.json so loadData (the
+// first step of resetDaily) returns an error.
+func TestHandleResetDailyInternalServerError(t *testing.T) {
+	dir, _ := setupDirs(t)
+	setupCorruptData(t, dir)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/reset/daily", nil)
+	w := httptest.NewRecorder()
+	handleResetDaily(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 when resetDaily fails, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- handleResetWeekly error path ---
+
+// TestHandleResetWeeklyInternalServerError verifies that handleResetWeekly returns
+// HTTP 500 when the underlying resetWeekly() call fails. Mirrors the daily-reset
+// test: corrupt data.json makes loadData error which propagates to the handler.
+func TestHandleResetWeeklyInternalServerError(t *testing.T) {
+	dir, _ := setupDirs(t)
+	setupCorruptData(t, dir)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/reset/weekly", nil)
+	w := httptest.NewRecorder()
+	handleResetWeekly(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 when resetWeekly fails, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- handleTodo PUT saveData error path ---
+
+// TestHandleTodoPutSaveDataFailsReturns500 verifies that handleTodo (PUT) returns
+// HTTP 500 when saveData fails. We trigger the failure by pointing dataDir at a
+// path whose parent directory does not exist, so os.WriteFile cannot create the
+// file regardless of the process's privilege level.
+func TestHandleTodoPutSaveDataFailsReturns500(t *testing.T) {
+	_, _ = setupDirs(t) // sets staticDir; we override dataDir below
+
+	// Override dataDir with a path that cannot be written to.
+	origDataDir := dataDir
+	dataDir = filepath.Join(t.TempDir(), "nonexistent-subdir")
+	t.Cleanup(func() { dataDir = origDataDir })
+
+	payload := TodoData{
+		Weekly: Task{Task: "test task", Done: false},
+		Daily:  []Task{{Task: "d1", Done: false}, {}, {}},
+	}
+	b, _ := json.Marshal(payload)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/todo", strings.NewReader(string(b)))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	handleTodo(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 when saveData fails, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+// --- startScheduler ---
+
+// TestStartScheduler_DoesNotBlock verifies that startScheduler() returns promptly
+// to the caller after spawning its internal goroutine. The goroutine itself waits
+// until midnight before acting, so the test completes long before any reset
+// function would be invoked.
+func TestStartScheduler_DoesNotBlock(t *testing.T) {
+	done := make(chan struct{})
+	go func() {
+		startScheduler()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		// success: startScheduler returned without blocking
+	case <-time.After(2 * time.Second):
+		t.Fatal("startScheduler blocked for more than 2 seconds; expected it to return immediately after spawning a goroutine")
+	}
+}
