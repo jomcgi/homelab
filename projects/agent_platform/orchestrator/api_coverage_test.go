@@ -231,17 +231,25 @@ func TestHandleList_TagFilter(t *testing.T) {
 	now := time.Now().UTC()
 
 	// JOB-TAG-A has both "ci" and "urgent" — should match.
-	store.jobs["JOB-TAG-A"] = &JobRecord{ID: "JOB-TAG-A", Task: "a", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}, Tags: []string{"ci", "urgent"}}
+	store.jobs["JOB-TAG-A"] = &JobRecord{
+		ID: "JOB-TAG-A", Task: "a", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}, Tags: []string{"ci", "urgent"},
+	}
 	// JOB-TAG-B has only "ci" — should NOT match.
-	store.jobs["JOB-TAG-B"] = &JobRecord{ID: "JOB-TAG-B", Task: "b", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}, Tags: []string{"ci"}}
+	store.jobs["JOB-TAG-B"] = &JobRecord{
+		ID: "JOB-TAG-B", Task: "b", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}, Tags: []string{"ci"},
+	}
 	// JOB-TAG-C has only "urgent" — should NOT match.
-	store.jobs["JOB-TAG-C"] = &JobRecord{ID: "JOB-TAG-C", Task: "c", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}, Tags: []string{"urgent"}}
+	store.jobs["JOB-TAG-C"] = &JobRecord{
+		ID: "JOB-TAG-C", Task: "c", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}, Tags: []string{"urgent"},
+	}
 	// JOB-TAG-D has no tags — should NOT match.
-	store.jobs["JOB-TAG-D"] = &JobRecord{ID: "JOB-TAG-D", Task: "d", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["JOB-TAG-D"] = &JobRecord{
+		ID: "JOB-TAG-D", Task: "d", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
@@ -271,8 +279,10 @@ func TestHandleList_Pagination(t *testing.T) {
 	now := time.Now().UTC()
 	// 5 jobs with reverse-sortable keys (Z > Y > X > W > V).
 	for _, id := range []string{"JOB-P-Z", "JOB-P-Y", "JOB-P-X", "JOB-P-W", "JOB-P-V"} {
-		store.jobs[id] = &JobRecord{ID: id, Task: id, Status: JobPending,
-			CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+		store.jobs[id] = &JobRecord{
+			ID: id, Task: id, Status: JobPending,
+			CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+		}
 	}
 
 	_, mux := newTestAPI(store)
@@ -329,8 +339,10 @@ func TestHandleList_LimitClamped(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
 	for _, id := range []string{"JOB-L-A", "JOB-L-B", "JOB-L-C"} {
-		store.jobs[id] = &JobRecord{ID: id, Task: id, Status: JobPending,
-			CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+		store.jobs[id] = &JobRecord{
+			ID: id, Task: id, Status: JobPending,
+			CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+		}
 	}
 
 	_, mux := newTestAPI(store)
@@ -355,8 +367,10 @@ func TestHandleList_LimitClamped(t *testing.T) {
 func TestHandleList_InvalidLimitIsIgnored(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
-	store.jobs["JOB-INV"] = &JobRecord{ID: "JOB-INV", Task: "t", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["JOB-INV"] = &JobRecord{
+		ID: "JOB-INV", Task: "t", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
@@ -380,8 +394,10 @@ func TestHandleList_InvalidLimitIsIgnored(t *testing.T) {
 func TestHandleList_NegativeOffsetIsIgnored(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
-	store.jobs["JOB-OFF"] = &JobRecord{ID: "JOB-OFF", Task: "t", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["JOB-OFF"] = &JobRecord{
+		ID: "JOB-OFF", Task: "t", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
@@ -405,8 +421,10 @@ func TestHandleList_NegativeOffsetIsIgnored(t *testing.T) {
 func TestHandleCancel_RunningJob(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
-	store.jobs["RUNNING1"] = &JobRecord{ID: "RUNNING1", Task: "test", Status: JobRunning,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["RUNNING1"] = &JobRecord{
+		ID: "RUNNING1", Task: "test", Status: JobRunning,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
@@ -431,8 +449,10 @@ func TestHandleCancel_RunningJob(t *testing.T) {
 func TestHandleCancel_FailedJob(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
-	store.jobs["FAILED1"] = &JobRecord{ID: "FAILED1", Task: "test", Status: JobFailed,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["FAILED1"] = &JobRecord{
+		ID: "FAILED1", Task: "test", Status: JobFailed,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
@@ -450,8 +470,10 @@ func TestHandleCancel_FailedJob(t *testing.T) {
 func TestHandleCancel_CancelledJob(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
-	store.jobs["CANCELLED1"] = &JobRecord{ID: "CANCELLED1", Task: "test", Status: JobCancelled,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["CANCELLED1"] = &JobRecord{
+		ID: "CANCELLED1", Task: "test", Status: JobCancelled,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
@@ -485,8 +507,10 @@ func TestHandleCancel_NotFound(t *testing.T) {
 func TestHandleOutput_NoAttempts(t *testing.T) {
 	store := newMemStore()
 	now := time.Now().UTC()
-	store.jobs["NOATTEMPTS"] = &JobRecord{ID: "NOATTEMPTS", Task: "test", Status: JobPending,
-		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{}}
+	store.jobs["NOATTEMPTS"] = &JobRecord{
+		ID: "NOATTEMPTS", Task: "test", Status: JobPending,
+		CreatedAt: now, UpdatedAt: now, Attempts: []Attempt{},
+	}
 
 	_, mux := newTestAPI(store)
 
