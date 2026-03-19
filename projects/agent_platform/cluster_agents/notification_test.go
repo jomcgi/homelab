@@ -147,3 +147,230 @@ func TestNotify_MarshalFailureReturnsError(t *testing.T) {
 		t.Fatal("Notify returned nil; want an error when marshalling an unmarshalable value")
 	}
 }
+
+// TestNotify_NilMetadata verifies that a NotificationMessage with nil Metadata
+// is serialised correctly. Because Metadata is tagged with omitempty, the JSON
+// payload must NOT contain a "metadata" key when Metadata is nil, and the
+// message must still be delivered to subscribers.
+func TestNotify_NilMetadata(t *testing.T) {
+	s := startTestNATSServer(t)
+	defer s.Shutdown()
+
+	nc, err := nats.Connect(s.ClientURL())
+	if err != nil {
+		t.Fatalf("failed to connect to test NATS server: %v", err)
+	}
+	defer nc.Close()
+
+	const channel = "general"
+	expectedSubject := "notifications.discord." + channel
+
+	received := make(chan *nats.Msg, 1)
+	sub, err := nc.Subscribe(expectedSubject, func(m *nats.Msg) {
+		received <- m
+	})
+	if err != nil {
+		t.Fatalf("failed to subscribe to %s: %v", expectedSubject, err)
+	}
+	defer sub.Unsubscribe() //nolint:errcheck
+
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("nats flush: %v", err)
+	}
+
+	p := NewNotificationPublisher(nc)
+
+	msg := NotificationMessage{
+		Title:    "nil metadata test",
+		Body:     "metadata field should be absent",
+		Severity: "info",
+		Source:   "patrol",
+		Metadata: nil,
+	}
+
+	if err := p.Notify(context.Background(), channel, msg); err != nil {
+		t.Fatalf("Notify returned unexpected error: %v", err)
+	}
+
+	select {
+	case m := <-received:
+		// Verify the "metadata" key is absent from the JSON payload (omitempty).
+		var raw map[string]json.RawMessage
+		if err := json.Unmarshal(m.Data, &raw); err != nil {
+			t.Fatalf("payload is not valid JSON: %v", err)
+		}
+		if _, ok := raw["metadata"]; ok {
+			t.Error("JSON payload contains \"metadata\" key; want it absent when Metadata is nil (omitempty)")
+		}
+
+		// Verify the remaining fields round-trip correctly.
+		var got NotificationMessage
+		if err := json.Unmarshal(m.Data, &got); err != nil {
+			t.Fatalf("failed to unmarshal payload into NotificationMessage: %v", err)
+		}
+		if got.Title != msg.Title {
+			t.Errorf("Title: got %q, want %q", got.Title, msg.Title)
+		}
+
+	case <-time.After(3 * time.Second):
+		t.Fatal("timed out waiting for NATS message")
+	}
+}
+
+// TestNotify_ChannelUsedInSubject is a table-driven test that verifies the
+// subject produced by Notify is always "notifications.discord.<channel>" for a
+// range of channel values, including those containing dots and digits.
+func TestNotify_ChannelUsedInSubject(t *testing.T) {
+	cases := []struct {
+		channel string
+	}{
+		{"general"},
+		{"ops"},
+		{"channel.with.dots"},
+		{"123numeric"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.channel, func(t *testing.T) {
+			s := startTestNATSServer(t)
+			defer s.Shutdown()
+
+			nc, err := nats.Connect(s.ClientURL())
+			if err != nil {
+				t.Fatalf("failed to connect to test NATS server: %v", err)
+			}
+			defer nc.Close()
+
+			expectedSubject := "notifications.discord." + tc.channel
+
+			received := make(chan *nats.Msg, 1)
+			sub, err := nc.Subscribe(expectedSubject, func(m *nats.Msg) {
+				received <- m
+			})
+			if err != nil {
+				t.Fatalf("failed to subscribe to %s: %v", expectedSubject, err)
+			}
+			defer sub.Unsubscribe() //nolint:errcheck
+
+			if err := nc.Flush(); err != nil {
+				t.Fatalf("nats flush: %v", err)
+			}
+
+			p := NewNotificationPublisher(nc)
+
+			msg := NotificationMessage{
+				Title:    "channel routing test",
+				Severity: "info",
+				Source:   "patrol",
+			}
+
+			if err := p.Notify(context.Background(), tc.channel, msg); err != nil {
+				t.Fatalf("Notify returned unexpected error: %v", err)
+			}
+
+			select {
+			case m := <-received:
+				if m.Subject != expectedSubject {
+					t.Errorf("got subject %q, want %q", m.Subject, expectedSubject)
+				}
+			case <-time.After(3 * time.Second):
+				t.Fatalf("timed out waiting for message on subject %q", expectedSubject)
+			}
+		})
+	}
+}
+
+// TestNotify_DisconnectedConnection_ReturnsError verifies that Notify returns a
+// non-nil error when the underlying NATS connection has been closed before the
+// call. The embedded server is started and a connection is established, then
+// the connection is explicitly closed so that the subsequent Publish call fails.
+func TestNotify_DisconnectedConnection_ReturnsError(t *testing.T) {
+	s := startTestNATSServer(t)
+	defer s.Shutdown()
+
+	nc, err := nats.Connect(s.ClientURL())
+	if err != nil {
+		t.Fatalf("failed to connect to test NATS server: %v", err)
+	}
+
+	// Close the connection before calling Notify so that Publish will fail.
+	nc.Close()
+
+	p := NewNotificationPublisher(nc)
+
+	msg := NotificationMessage{
+		Title:    "should fail",
+		Severity: "info",
+		Source:   "patrol",
+	}
+
+	err = p.Notify(context.Background(), "alerts", msg)
+	if err == nil {
+		t.Fatal("Notify returned nil; want an error when the NATS connection is closed")
+	}
+}
+
+// TestNotify_MultipleMessages_DeliveredInOrder sends three distinct messages to
+// the same channel and verifies that all three arrive at the subscriber in the
+// same order they were published.
+func TestNotify_MultipleMessages_DeliveredInOrder(t *testing.T) {
+	s := startTestNATSServer(t)
+	defer s.Shutdown()
+
+	nc, err := nats.Connect(s.ClientURL())
+	if err != nil {
+		t.Fatalf("failed to connect to test NATS server: %v", err)
+	}
+	defer nc.Close()
+
+	const channel = "ops"
+	expectedSubject := "notifications.discord." + channel
+
+	received := make(chan *nats.Msg, 10)
+	sub, err := nc.Subscribe(expectedSubject, func(m *nats.Msg) {
+		received <- m
+	})
+	if err != nil {
+		t.Fatalf("failed to subscribe to %s: %v", expectedSubject, err)
+	}
+	defer sub.Unsubscribe() //nolint:errcheck
+
+	if err := nc.Flush(); err != nil {
+		t.Fatalf("nats flush: %v", err)
+	}
+
+	p := NewNotificationPublisher(nc)
+
+	messages := []NotificationMessage{
+		{Title: "first", Body: "message 1", Severity: "info", Source: "patrol"},
+		{Title: "second", Body: "message 2", Severity: "warning", Source: "patrol"},
+		{Title: "third", Body: "message 3", Severity: "critical", Source: "patrol"},
+	}
+
+	for i, msg := range messages {
+		if err := p.Notify(context.Background(), channel, msg); err != nil {
+			t.Fatalf("Notify[%d] returned unexpected error: %v", i, err)
+		}
+	}
+
+	for i, want := range messages {
+		select {
+		case m := <-received:
+			var got NotificationMessage
+			if err := json.Unmarshal(m.Data, &got); err != nil {
+				t.Fatalf("message[%d] payload is not valid JSON: %v", i, err)
+			}
+			if got.Title != want.Title {
+				t.Errorf("message[%d] Title: got %q, want %q", i, got.Title, want.Title)
+			}
+			if got.Body != want.Body {
+				t.Errorf("message[%d] Body: got %q, want %q", i, got.Body, want.Body)
+			}
+			if got.Severity != want.Severity {
+				t.Errorf("message[%d] Severity: got %q, want %q", i, got.Severity, want.Severity)
+			}
+		case <-time.After(3 * time.Second):
+			t.Fatalf("timed out waiting for message[%d]", i)
+		}
+	}
+}
