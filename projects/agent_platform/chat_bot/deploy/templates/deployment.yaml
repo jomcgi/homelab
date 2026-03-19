@@ -92,8 +92,14 @@ spec:
             port: http
           initialDelaySeconds: 3
           periodSeconds: 10
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
         resources:
           {{- toYaml .Values.resources | nindent 10 }}
+      volumes:
+      - name: tmp
+        emptyDir: {}
       {{- with .Values.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}
