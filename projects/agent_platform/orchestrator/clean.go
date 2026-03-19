@@ -5,6 +5,9 @@ import (
 	"strings"
 )
 
+// multiBlankRE matches runs of 3+ consecutive newlines (2+ blank lines).
+var multiBlankRE = regexp.MustCompile(`\n{3,}`)
+
 // ansiRE matches ANSI escape sequences (CSI codes like colors, cursor movement).
 var ansiRE = regexp.MustCompile(`\x1b\[[0-9;]*[a-zA-Z]`)
 
@@ -120,6 +123,10 @@ func cleanOutput(raw string) string {
 		}
 		s = s[:idx] + s[after:]
 	}
+
+	// Collapse runs of 3+ newlines (left behind after stripping banners/preambles)
+	// down to a single blank line so the UI doesn't show large whitespace gaps.
+	s = multiBlankRE.ReplaceAllString(s, "\n\n")
 
 	s = strings.TrimLeft(s, "\n")
 	s = strings.TrimRight(s, "\n")
