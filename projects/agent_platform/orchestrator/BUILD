@@ -67,10 +67,13 @@ go_binary(
 go_test(
     name = "orchestrator_unit_test",
     srcs = [
+        "api_coverage_test.go",
         "api_test.go",
         "clean_test.go",
+        "consumer_coverage_test.go",
         "consumer_test.go",
         "model_test.go",
+        "reconcile_helpers_test.go",
         "reconcile_test.go",
         "result_test.go",
         "sandbox_k8s_test.go",
@@ -96,11 +99,14 @@ go_test(
 go_test(
     name = "orchestrator_test",
     srcs = [
+        "api_coverage_test.go",
         "api_test.go",
         "clean_test.go",
+        "consumer_coverage_test.go",
         "consumer_test.go",
         "main_test.go",
         "model_test.go",
+        "reconcile_helpers_test.go",
         "reconcile_test.go",
         "result_test.go",
         "sandbox_k8s_test.go",
