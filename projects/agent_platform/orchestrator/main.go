@@ -109,8 +109,15 @@ func main() {
 	}
 
 	inferenceURL := envOr("INFERENCE_URL", "")
+	inferenceModel := envOr("INFERENCE_MODEL", "qwen3.5-35b-a3b")
 
-	api := NewAPI(store, publish, healthCheck, maxRetries, inferenceURL, logger)
+	var summarizer *Summarizer
+	if inferenceURL != "" {
+		summarizer = NewSummarizer(inferenceURL, inferenceModel, logger)
+		logger.Info("summarizer enabled", "url", inferenceURL, "model", inferenceModel)
+	}
+
+	api := NewAPI(store, publish, healthCheck, maxRetries, logger)
 	mux := http.NewServeMux()
 	api.RegisterRoutes(mux)
 	registerUI(mux)
@@ -134,7 +141,7 @@ func main() {
 
 	// Start consumer if sandbox is available.
 	if sandbox != nil {
-		consumer := NewConsumer(cons, store, sandbox, publish, nil, maxDuration, logger)
+		consumer := NewConsumer(cons, store, sandbox, publish, summarizer, maxDuration, logger)
 		go consumer.Run(ctx)
 	} else {
 		logger.Info("running in API-only mode (no sandbox executor)")
