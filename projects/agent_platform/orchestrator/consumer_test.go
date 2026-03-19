@@ -679,8 +679,8 @@ func TestFlushProgress_WritesPlanToStore(t *testing.T) {
 	if got.CurrentStep != 1 {
 		t.Errorf("expected CurrentStep=1, got %d", got.CurrentStep)
 	}
-	if got.Attempts[0].Output != "some output" {
-		t.Errorf("output = %q, want %q", got.Attempts[0].Output, "some output")
+	if got.Attempts[0].Output != "some output\n" {
+		t.Errorf("output = %q, want %q", got.Attempts[0].Output, "some output\n")
 	}
 }
 
