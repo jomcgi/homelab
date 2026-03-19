@@ -2,6 +2,54 @@ package main
 
 import "testing"
 
+// TestIsBannerLine verifies each of the three Goose ASCII art banner patterns
+// is detected correctly, along with non-matching inputs and whitespace edge cases.
+func TestIsBannerLine(t *testing.T) {
+	cases := []struct {
+		name string
+		line string
+		want bool
+	}{
+		// Each pattern matches positively.
+		{"duck head pattern", "  __( O)>  new session", true},
+		{"backslash wings pattern", " \\___) 20260312_1", true},
+		{"feet pattern", "   L L   goose is ready", true},
+
+		// Exact pattern strings (no surrounding content).
+		{"duck head exact", "__( O)>", true},
+		{"backslash exact", "\\___", true},
+		{"feet exact", "L L", true},
+
+		// Leading and trailing whitespace must not affect the result (TrimSpace is applied).
+		{"duck head with extra whitespace", "      __( O)>      ", true},
+		{"backslash with surrounding spaces", "   \\___   ", true},
+		{"feet with surrounding spaces", "   L L   ", true},
+
+		// Real banner lines as they appear in goose output.
+		{"real duck head line", "    __( O)>  blah", true},
+		{"real backslash line", "   \\____)\t20260318_1 · /workspace/homelab", true},
+		{"real feet line", "     L L     goose is ready", true},
+
+		// Non-banner lines must return false.
+		{"empty string", "", false},
+		{"whitespace only", "    \t    ", false},
+		{"regular output line", "Let me look at the code", false},
+		{"agent task output", "I will investigate the traces now.", false},
+		{"url line", "https://github.com/jomcgi/homelab/pull/42", false},
+		{"partial duck no parens", "__O", false},
+		{"lowercase l l not uppercase L L", "l l goose feet", false},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := isBannerLine(tc.line)
+			if got != tc.want {
+				t.Errorf("isBannerLine(%q) = %v, want %v", tc.line, got, tc.want)
+			}
+		})
+	}
+}
+
 func TestCleanOutput_StripsBanner(t *testing.T) {
 	raw := "  \\___)\t20260312_1 · /workspace/homelab\n   L L\tgoose is ready\nActual output here\n"
 	got := cleanOutput(raw)

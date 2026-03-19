@@ -77,7 +77,7 @@ func TestSubmitRequest_WithAllFields(t *testing.T) {
 }
 
 // TestJobRecord_RoundTrip verifies JobRecord JSON serialisation round-trips correctly,
-// including plan fields.
+// including plan fields and LLM-generated title/summary fields.
 func TestJobRecord_RoundTrip(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Second)
 	job := JobRecord{
@@ -89,6 +89,8 @@ func TestJobRecord_RoundTrip(t *testing.T) {
 		UpdatedAt: now,
 		Source:    "discord",
 		Tags:      []string{"ci", "urgent"},
+		Title:     "Investigate Distributed Traces",
+		Summary:   "Investigates distributed tracing issues in the monitoring stack.",
 		Plan: []PlanStep{
 			{Agent: "research", Description: "investigate", Status: "pending"},
 			{Agent: "code-fix", Description: "fix it", Status: "pending"},
@@ -121,6 +123,12 @@ func TestJobRecord_RoundTrip(t *testing.T) {
 	if got.Plan[0].Agent != "research" {
 		t.Errorf("Plan[0].Agent: got %q, want 'research'", got.Plan[0].Agent)
 	}
+	if got.Title != job.Title {
+		t.Errorf("Title: got %q, want %q", got.Title, job.Title)
+	}
+	if got.Summary != job.Summary {
+		t.Errorf("Summary: got %q, want %q", got.Summary, job.Summary)
+	}
 }
 
 // TestJobRecord_OptionalFieldsOmitted verifies omitempty fields are absent when zero.
@@ -139,7 +147,7 @@ func TestJobRecord_OptionalFieldsOmitted(t *testing.T) {
 		t.Fatalf("marshal: %v", err)
 	}
 
-	for _, key := range []string{"profile", "github_issue", "debug_mode", "failure_summary", "plan", "tags"} {
+	for _, key := range []string{"profile", "github_issue", "debug_mode", "failure_summary", "plan", "tags", "title", "summary"} {
 		if strings.Contains(string(data), `"`+key+`"`) {
 			t.Errorf("expected %q to be omitted when zero, got %s", key, data)
 		}
