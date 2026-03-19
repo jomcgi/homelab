@@ -550,6 +550,7 @@ class TestRateLimiterConcurrent:
         # (because it had to wait inside the lock)
         assert abs(times[1] - times[0]) >= 0.04  # allow small timing tolerance
 
+
 class TestExtractorProtocol:
     """The Extractor Protocol is runtime_checkable."""
 
