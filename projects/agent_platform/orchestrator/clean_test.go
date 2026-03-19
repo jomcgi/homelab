@@ -61,3 +61,12 @@ func TestCleanOutput_TrimsLeadingNewlinesAfterBanner(t *testing.T) {
 		t.Errorf("cleanOutput() = %q, want %q", got, want)
 	}
 }
+
+func TestCleanOutput_MultipleBanners(t *testing.T) {
+	raw := "   L L\tgoose is ready\nStep 0 output\n\n--- pipeline step 0: research ---\n  __( O)>  blah\n \\____)\t20260318_1\n   L L\tgoose is ready\nStep 1 output\n"
+	got := cleanOutput(raw)
+	want := "Step 0 output\n\n--- pipeline step 0: research ---\nStep 1 output\n"
+	if got != want {
+		t.Errorf("cleanOutput() = %q, want %q", got, want)
+	}
+}
