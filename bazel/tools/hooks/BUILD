@@ -39,3 +39,9 @@ sh_test(
     srcs = ["check-stale-repo-paths_test.sh"],
     data = [":check-stale-repo-paths.sh"],
 )
+
+sh_test(
+    name = "check_hardcoded_svc_url_test",
+    srcs = ["check-hardcoded-svc-url_test.sh"],
+    data = [":check-hardcoded-svc-url.sh"],
+)
