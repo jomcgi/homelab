@@ -16,6 +16,7 @@ go_binary(
 go_test(
     name = "cmd_test",
     srcs = [
+        "extra_test.go",
         "git_commit_test.go",
         "main_test.go",
     ],
