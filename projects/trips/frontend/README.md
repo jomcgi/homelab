@@ -30,9 +30,9 @@ The app connects to the trips API (`trips.jomcgi.dev/api`) for photo and route d
 
 ## Deployment
 
-Deployed to Cloudflare Pages via GitHub Actions. See `.github/workflows/cf-pages-deploy-trips.yaml`.
+Deployed to Cloudflare Pages via Bazel `wrangler_pages` in BuildBuddy CI. The `push_all_pages` target runs on every push to main.
 
 ## Related
 
-- `services/trips_api/` - Backend API serving photo data
-- `scripts/publish-trip-images/` - CLI for uploading trip photos
+- `projects/trips/backend/` - Backend API serving photo data
+- `projects/trips/tools/publish-trip-images/` - CLI for uploading trip photos
