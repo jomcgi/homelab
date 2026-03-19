@@ -194,11 +194,17 @@ async function main(): Promise<void> {
     while (!abortController.signal.aborted) {
       try {
         console.log("Starting Discord Gateway listener...");
+        let gatewayTask: Promise<unknown> | undefined;
         await discord.startGatewayListener(
-          { waitUntil: (task) => task },
+          {
+            waitUntil: (task: Promise<unknown>) => {
+              gatewayTask = task;
+            },
+          },
           24 * 60 * 60 * 1000, // 24 hours
           abortController.signal,
         );
+        if (gatewayTask) await gatewayTask;
       } catch (err) {
         if (abortController.signal.aborted) break;
         console.error("Gateway listener error, reconnecting in 5s:", err);
