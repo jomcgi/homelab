@@ -39,6 +39,7 @@ go_test(
         "git_activity_gate_test.go",
         "github_client_test.go",
         "main_test.go",
+        "model_test.go",
         "notification_test.go",
         "patrol_test.go",
         "pr_fix_agent_test.go",
