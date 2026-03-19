@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { listJobs, submitJob, cancelJob, summarizeJob } from "./api.js";
+import { useState, useEffect, useCallback } from "react";
+import { listJobs, submitJob, cancelJob } from "./api.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -320,7 +320,7 @@ function SubmitBar({ onSubmit }) {
 
 // ─── Job row ──────────────────────────────────────────────────────────────────
 
-function JobRow({ job, summary, onCancel, isMobile }) {
+function JobRow({ job, onCancel, isMobile }) {
   const [open, setOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
   const canCancel = job.status === "PENDING" || job.status === "RUNNING";
@@ -329,7 +329,7 @@ function JobRow({ job, summary, onCancel, isMobile }) {
   const jobSummary = result?.summary || job.failure_summary;
   const hasOutput = attempt?.output || job.status === "PENDING";
   const hasPlan = job.plan?.length > 0;
-  const isExpandable = jobSummary || hasOutput || summary?.summary;
+  const isExpandable = jobSummary || hasOutput || job.summary;
 
   return (
     <div
@@ -364,7 +364,7 @@ function JobRow({ job, summary, onCancel, isMobile }) {
               margin: 0,
             }}
           >
-            {summary?.title || job.title || job.task}
+            {job.title || job.task}
           </p>
           {hasPlan && (
             <div style={{ marginTop: 4 }}>
@@ -462,7 +462,7 @@ function JobRow({ job, summary, onCancel, isMobile }) {
       {/* Expanded content */}
       {open && (
         <div style={{ borderTop: "1px solid #f3f4f6" }}>
-          {summary?.summary && (
+          {job.summary && (
             <p
               style={{
                 padding: "10px 20px",
@@ -472,7 +472,7 @@ function JobRow({ job, summary, onCancel, isMobile }) {
                 margin: 0,
               }}
             >
-              {summary.summary}
+              {job.summary}
             </p>
           )}
 
@@ -506,9 +506,7 @@ function JobRow({ job, summary, onCancel, isMobile }) {
                   background: outputOpen ? "#f9fafb" : "transparent",
                   border: "none",
                   borderTop:
-                    jobSummary || summary?.summary
-                      ? "1px solid #f3f4f6"
-                      : "none",
+                    jobSummary || job.summary ? "1px solid #f3f4f6" : "none",
                   cursor: "pointer",
                   outline: "none",
                   transition: "color 0.15s, background 0.15s",
@@ -611,7 +609,7 @@ function JobRow({ job, summary, onCancel, isMobile }) {
 
 // ─── Job list with filter + search ───────────────────────────────────────────
 
-function JobList({ jobs, summaries, onCancel, isMobile }) {
+function JobList({ jobs, onCancel, isMobile }) {
   const [status, setStatus] = useState("all");
   const [search, setSearch] = useState("");
   const [searchFocused, setSearchFocused] = useState(false);
@@ -690,7 +688,6 @@ function JobList({ jobs, summaries, onCancel, isMobile }) {
             <JobRow
               key={job.id}
               job={job}
-              summary={summaries.get(job.id)}
               onCancel={onCancel}
               isMobile={isMobile}
             />
@@ -706,13 +703,10 @@ function JobList({ jobs, summaries, onCancel, isMobile }) {
 export default function App() {
   const [jobs, setJobs] = useState([]);
   const [toast, setToast] = useState(null);
-  const [summaries, setSummaries] = useState(new Map());
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== "undefined" ? window.innerWidth : 1024,
   );
   const isMobile = windowWidth < 640;
-  const pendingSummaries = useRef(new Set());
-
   const notify = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(null), 2500);
@@ -740,29 +734,6 @@ export default function App() {
     const id = setInterval(fetchJobs, POLL_INTERVAL);
     return () => clearInterval(id);
   }, [fetchJobs]);
-
-  // Fetch summaries for jobs with plans
-  useEffect(() => {
-    for (const job of jobs) {
-      if (
-        job.plan?.length > 0 &&
-        !summaries.has(job.id) &&
-        !pendingSummaries.current.has(job.id)
-      ) {
-        pendingSummaries.current.add(job.id);
-        summarizeJob(job.id)
-          .then((result) => {
-            setSummaries((prev) => new Map(prev).set(job.id, result));
-          })
-          .catch(() => {
-            // Summary unavailable — show raw task text
-          })
-          .finally(() => {
-            pendingSummaries.current.delete(job.id);
-          });
-      }
-    }
-  }, [jobs, summaries]);
 
   const handleSubmit = useCallback(
     async (task) => {
@@ -822,12 +793,7 @@ export default function App() {
 
         {jobs.length > 0 && (
           <div style={{ marginTop: 32 }}>
-            <JobList
-              jobs={jobs}
-              summaries={summaries}
-              onCancel={handleCancel}
-              isMobile={isMobile}
-            />
+            <JobList jobs={jobs} onCancel={handleCancel} isMobile={isMobile} />
           </div>
         )}
       </div>
