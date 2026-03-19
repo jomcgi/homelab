@@ -101,6 +101,7 @@ py_test(
     srcs = ["scraper_main_test.py"],
     deps = [
         ":conftest",
+        "//projects/blog_knowledge_graph/knowledge_graph/app:models",
         "//projects/blog_knowledge_graph/knowledge_graph/app:scraper_main",  # keep
         "@pip//httpx",
         "@pip//pytest",
