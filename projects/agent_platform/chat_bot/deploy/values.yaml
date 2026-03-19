@@ -55,7 +55,7 @@ config:
 secrets:
   discordCredentials:
     onepassword:
-      itemPath: "vaults/k8s-homelab/items/discord-bot-credentials"
+      itemPath: "vaults/k8s-homelab/items/discord-bot"
   githubToken:
     onepassword:
       itemPath: "vaults/k8s-homelab/items/agent-secrets"
