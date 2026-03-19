@@ -1,5 +1,9 @@
+load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_pkg//pkg:tar.bzl", "pkg_tar")
+load("//bazel/tools/js:node_modules_tar.bzl", "node_modules_tar")
 load("//bazel/tools/oci:apko_image.bzl", "apko_image")
+
+npm_link_all_packages(name = "node_modules")
 
 pkg_tar(
     name = "src_tar",
@@ -21,6 +25,17 @@ pkg_tar(
     package_dir = "app",
 )
 
+node_modules_tar(
+    name = "node_modules_tar",
+    deps = [
+        ":node_modules/@chat-adapter/discord",
+        ":node_modules/chat",
+        ":node_modules/nats",
+        ":node_modules/tsx",
+    ],
+    package_dir = "/app/node_modules",
+)
+
 apko_image(
     name = "image",
     config = "//projects/agent_platform/chat_bot/image:apko.yaml",
@@ -29,5 +44,6 @@ apko_image(
     tars = [
         ":src_tar",
         ":config_tar",
+        ":node_modules_tar",
     ],
 )
