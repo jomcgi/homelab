@@ -81,6 +81,7 @@ py_test(
         ":conftest",
         "//projects/blog_knowledge_graph/knowledge_graph/app:models",
         "//projects/blog_knowledge_graph/knowledge_graph/app:notifications",
+        "@pip//httpx",
         "@pip//pytest",
     ],
 )
