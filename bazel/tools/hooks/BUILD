@@ -33,3 +33,9 @@ sh_test(
     srcs = ["check-chart-version-sync_test.sh"],
     data = [":check-chart-version-sync.sh"],
 )
+
+sh_test(
+    name = "check_stale_repo_paths_test",
+    srcs = ["check-stale-repo-paths_test.sh"],
+    data = [":check-stale-repo-paths.sh"],
+)
