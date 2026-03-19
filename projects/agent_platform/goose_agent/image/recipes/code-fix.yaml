@@ -33,11 +33,6 @@ parameters:
 extensions:
   - type: builtin
     name: developer
-  - type: stdio
-    name: github
-    cmd: pnpm
-    args: ["dlx", "@modelcontextprotocol/server-github"]
-    env_keys: ["GITHUB_TOKEN"]
 settings:
   max_turns: 50
   max_tool_repetitions: 5
