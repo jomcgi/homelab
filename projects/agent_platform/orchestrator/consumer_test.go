@@ -111,7 +111,7 @@ func TestProcessJob_HappyPath(t *testing.T) {
 	if len(got.Attempts) != 1 {
 		t.Fatalf("expected 1 attempt, got %d", len(got.Attempts))
 	}
-	if got.Attempts[0].Output != "success" {
+	if got.Attempts[0].Output != "success\n" {
 		t.Errorf("unexpected output: %q", got.Attempts[0].Output)
 	}
 }
