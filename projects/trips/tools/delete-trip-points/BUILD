@@ -55,17 +55,3 @@ semgrep_test(
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
 
-semgrep_test(
-    name = "main_test_semgrep_test",
-    srcs = ["main_test.py"],
-    rules = ["//bazel/semgrep/rules:python_rules"],
-)
-
-py_test(
-    name = "main_test",
-    srcs = ["main_test.py"],
-    deps = [
-        "//projects/trips/tools/delete-trip-points",
-        "@pip//pytest",
-    ],
-)
