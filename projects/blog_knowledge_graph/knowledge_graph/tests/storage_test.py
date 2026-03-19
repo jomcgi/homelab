@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -128,6 +128,29 @@ class TestStore:
         body = content_call[0].kwargs.get("Body") or content_call[0][1].get("Body")
         assert body == content_str.encode("utf-8")
 
+    def test_store_with_timezone_aware_published_at(self, storage, mock_boto3):
+        """store() serialises a timezone-aware datetime using isoformat(), preserving tz offset."""
+        aware_dt = datetime(2025, 6, 15, 12, 30, 0, tzinfo=timezone.utc)
+        doc = Document(
+            source_type="html",
+            source_url="https://example.com/tz-article",
+            title="TZ Article",
+            author=None,
+            published_at=aware_dt,
+            content="# TZ content",
+        )
+        storage.store(doc)
+
+        calls = mock_boto3.put_object.call_args_list
+        meta_call = [c for c in calls if "meta.json" in str(c)]
+        meta_body = meta_call[0].kwargs.get("Body") or meta_call[0][1].get("Body")
+        meta_dict = json.loads(meta_body.decode("utf-8"))
+
+        # The stored value must be the ISO 8601 representation of the aware datetime
+        assert meta_dict["published_at"] == aware_dt.isoformat()
+        # Sanity-check: the UTC offset should appear in the stored string
+        assert "+00:00" in meta_dict["published_at"]
+
 
 class TestGetContent:
     def test_returns_content(self, storage, mock_boto3):
@@ -239,6 +262,36 @@ class TestListAllHashes:
 
         result = storage.list_all_hashes()
         assert result == ["aaa", "mmm", "zzz"]
+
+    def test_multi_page_paginator_aggregates_all_hashes(self, storage, mock_boto3):
+        """list_all_hashes collects hashes from every page returned by the paginator."""
+        paginator = MagicMock()
+        mock_boto3.get_paginator.return_value = paginator
+        # Simulate two separate pages of results
+        paginator.paginate.return_value = [
+            {
+                "Contents": [
+                    {"Key": "sources/hash_page1_a/content.md"},
+                    {"Key": "sources/hash_page1_a/meta.json"},
+                    {"Key": "sources/hash_page1_b/content.md"},
+                ]
+            },
+            {
+                "Contents": [
+                    {"Key": "sources/hash_page2_a/content.md"},
+                    {"Key": "sources/hash_page2_a/meta.json"},
+                ]
+            },
+        ]
+
+        result = storage.list_all_hashes()
+
+        # All unique hashes across both pages must appear
+        assert sorted(result) == [
+            "hash_page1_a",
+            "hash_page1_b",
+            "hash_page2_a",
+        ]
 
 
 class TestS3StorageInit:
