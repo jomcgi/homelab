@@ -55,9 +55,16 @@ genrule(
                 TARGET_DIR="tmp/app/node_modules/$$PACKAGE_NAME"
             fi
 
-            # Skip if already copied
+            # When duplicate packages exist (different versions), keep the newer one.
+            # pnpm isolates versions but our flat node_modules can only have one.
             if [ -d "$$TARGET_DIR" ]; then
-                continue
+                EXISTING_VER=$$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$$TARGET_DIR/package.json" 2>/dev/null | head -1 | cut -d'"' -f4 || echo "0.0.0")
+                NEW_VER=$$(grep -o '"version"[[:space:]]*:[[:space:]]*"[^"]*"' "$$pkg" | head -1 | cut -d'"' -f4 || echo "0.0.0")
+                HIGHER=$$(printf '%s\n%s' "$$EXISTING_VER" "$$NEW_VER" | sort -V | tail -1)
+                if [ "$$HIGHER" = "$$EXISTING_VER" ]; then
+                    continue
+                fi
+                rm -rf "$$TARGET_DIR"
             fi
 
             mkdir -p "$$(dirname "$$TARGET_DIR")"
