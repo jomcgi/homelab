@@ -43,4 +43,3 @@ semgrep_test(
     srcs = ["elevation_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
-
