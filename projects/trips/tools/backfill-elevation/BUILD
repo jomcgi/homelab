@@ -68,4 +68,3 @@ semgrep_test(
     srcs = ["backfill_elevation_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
-

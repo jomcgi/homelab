@@ -54,4 +54,3 @@ semgrep_test(
     srcs = ["delete_trip_points_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
-

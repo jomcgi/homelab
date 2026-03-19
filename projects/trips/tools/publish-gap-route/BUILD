@@ -56,4 +56,3 @@ semgrep_test(
     srcs = ["gap_route_test.py"],
     rules = ["//bazel/semgrep/rules:python_rules"],
 )
-
