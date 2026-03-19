@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import Markdown from "react-markdown";
 import { listJobs, submitJob, cancelJob } from "./api.js";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -61,6 +62,24 @@ const STEP_STATUS_MAP = {
   skipped: "CANCELLED",
   pending: "PENDING",
 };
+
+// ─── Output parsing ──────────────────────────────────────────────────────────
+
+const STEP_SEPARATOR = /\n--- pipeline step (\d+): (.+?) ---\n/;
+
+function parseStepOutput(output) {
+  if (!output) return [];
+  const parts = output.split(STEP_SEPARATOR);
+  const steps = [];
+  for (let i = 1; i + 2 < parts.length; i += 3) {
+    steps.push({
+      index: parseInt(parts[i], 10),
+      agent: parts[i + 1],
+      content: parts[i + 2].trim(),
+    });
+  }
+  return steps;
+}
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
 
@@ -172,7 +191,7 @@ function ResultPill({ result }) {
 
 // ─── Pipeline flow (plan steps) ───────────────────────────────────────────────
 
-function PipelineFlow({ plan }) {
+function PipelineFlow({ plan, activeStep, onStepClick }) {
   if (!plan?.length) return null;
 
   return (
@@ -215,6 +234,10 @@ function PipelineFlow({ plan }) {
             {/* Agent pill with status dot */}
             <div
               title={`${step.agent}: ${step.description}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStepClick?.(i);
+              }}
               style={{
                 display: "inline-flex",
                 alignItems: "center",
@@ -226,6 +249,9 @@ function PipelineFlow({ plan }) {
                 opacity: isSkipped ? 0.6 : 1,
                 flexShrink: 0,
                 maxWidth: 120,
+                cursor: onStepClick ? "pointer" : "default",
+                outline: activeStep === i ? `2px solid ${color.fg}` : "none",
+                outlineOffset: 1,
               }}
             >
               <Dot status={mappedStatus} />
@@ -246,6 +272,68 @@ function PipelineFlow({ plan }) {
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ─── Step accordion ──────────────────────────────────────────────────────────
+
+function StepAccordion({ step, plan, isOpen, onToggle, stepRef }) {
+  const planStep = plan?.[step.index];
+  const mappedStatus = planStep
+    ? STEP_STATUS_MAP[planStep.status] || "PENDING"
+    : "SUCCEEDED";
+  const color = agentColor(step.agent);
+
+  return (
+    <div ref={stepRef} style={{ borderTop: "1px solid #f3f4f6" }}>
+      <button
+        onClick={onToggle}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          width: "100%",
+          padding: "8px 20px",
+          fontSize: 11,
+          color: "#9ca3af",
+          background: isOpen ? "#f9fafb" : "transparent",
+          border: "none",
+          cursor: "pointer",
+          outline: "none",
+          transition: "color 0.15s, background 0.15s",
+          fontFamily: "inherit",
+        }}
+        onMouseEnter={(e) => (e.currentTarget.style.color = "#374151")}
+        onMouseLeave={(e) => (e.currentTarget.style.color = "#9ca3af")}
+      >
+        <ChevronDown size={10} open={isOpen} />
+        <Dot status={mappedStatus} />
+        <span style={{ fontWeight: 500, color: color.fg }}>{step.agent}</span>
+      </button>
+
+      {isOpen && (
+        <div
+          style={{
+            padding: "12px 20px",
+            fontSize: 12,
+            lineHeight: 1.6,
+            color: "#374151",
+            overflow: "auto",
+            maxHeight: 400,
+            borderTop: "1px solid #f3f4f6",
+          }}
+          className="step-markdown"
+        >
+          {step.content ? (
+            <Markdown>{step.content}</Markdown>
+          ) : (
+            <span style={{ color: "#d1d5db", fontStyle: "italic" }}>
+              No output
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -323,6 +411,8 @@ function SubmitBar({ onSubmit }) {
 function JobRow({ job, onCancel, isMobile }) {
   const [open, setOpen] = useState(false);
   const [outputOpen, setOutputOpen] = useState(false);
+  const [activeStep, setActiveStep] = useState(null);
+  const stepRefs = useRef({});
   const canCancel = job.status === "PENDING" || job.status === "RUNNING";
   const result = getResult(job);
   const attempt = job.attempts?.[job.attempts.length - 1];
@@ -330,6 +420,21 @@ function JobRow({ job, onCancel, isMobile }) {
   const hasOutput = attempt?.output || job.status === "PENDING";
   const hasPlan = job.plan?.length > 0;
   const isExpandable = jobSummary || hasOutput || job.summary;
+  const stepOutput = useMemo(
+    () => (hasPlan ? parseStepOutput(attempt?.output) : []),
+    [hasPlan, attempt?.output],
+  );
+
+  const handleStepClick = useCallback((i) => {
+    setOpen(true);
+    setActiveStep((prev) => (prev === i ? null : i));
+    setTimeout(() => {
+      stepRefs.current[i]?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+      });
+    }, 50);
+  }, []);
 
   return (
     <div
@@ -368,7 +473,11 @@ function JobRow({ job, onCancel, isMobile }) {
           </p>
           {hasPlan && (
             <div style={{ marginTop: 4 }}>
-              <PipelineFlow plan={job.plan} />
+              <PipelineFlow
+                plan={job.plan}
+                activeStep={activeStep}
+                onStepClick={handleStepClick}
+              />
             </div>
           )}
         </div>
@@ -490,8 +599,28 @@ function JobRow({ job, onCancel, isMobile }) {
             </p>
           )}
 
-          {/* Output toggle */}
-          {hasOutput && (
+          {/* Per-step output (pipeline jobs) */}
+          {hasPlan && stepOutput.length > 0 && (
+            <div>
+              {stepOutput.map((step) => (
+                <StepAccordion
+                  key={step.index}
+                  step={step}
+                  plan={job.plan}
+                  isOpen={activeStep === step.index}
+                  onToggle={() =>
+                    setActiveStep((prev) =>
+                      prev === step.index ? null : step.index,
+                    )
+                  }
+                  stepRef={(el) => (stepRefs.current[step.index] = el)}
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Fallback: single output for non-pipeline jobs */}
+          {!hasPlan && hasOutput && (
             <>
               <button
                 onClick={() => setOutputOpen((o) => !o)}
@@ -527,77 +656,23 @@ function JobRow({ job, onCancel, isMobile }) {
                     exit {attempt.exit_code}
                   </span>
                 )}
-                {job.status === "RUNNING" && (
-                  <span
-                    style={{
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: 4,
-                      color: "#60a5fa",
-                    }}
-                  >
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        width: 5,
-                        height: 5,
-                        borderRadius: "50%",
-                        background: "#60a5fa",
-                        animation: "ping 1s cubic-bezier(0,0,0.2,1) infinite",
-                      }}
-                    />
-                    live
-                  </span>
-                )}
-                {attempt?.started_at && (
-                  <span
-                    style={{
-                      marginLeft: "auto",
-                      fontFamily: "monospace",
-                      color: "#d1d5db",
-                    }}
-                  >
-                    {elapsed(attempt.started_at, attempt.finished_at)}
-                  </span>
-                )}
               </button>
 
               {outputOpen && (
-                <pre
+                <div
                   style={{
-                    padding: "16px 20px",
+                    padding: "12px 20px",
                     fontSize: 12,
-                    fontFamily: "monospace",
                     lineHeight: 1.6,
                     color: "#374151",
-                    whiteSpace: "pre-wrap",
                     overflow: "auto",
-                    maxHeight: 260,
-                    margin: 0,
+                    maxHeight: 400,
                     borderTop: "1px solid #f3f4f6",
                   }}
+                  className="step-markdown"
                 >
-                  {attempt?.output ||
-                    (job.status === "PENDING" ? (
-                      <span
-                        style={{
-                          color: "#d1d5db",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        Waiting for sandbox...
-                      </span>
-                    ) : (
-                      <span
-                        style={{
-                          color: "#d1d5db",
-                          fontStyle: "italic",
-                        }}
-                      >
-                        No output
-                      </span>
-                    ))}
-                </pre>
+                  <Markdown>{attempt?.output || ""}</Markdown>
+                </div>
               )}
             </>
           )}
@@ -780,6 +855,29 @@ export default function App() {
         * { box-sizing: border-box; }
         body { margin: 0; }
         ::placeholder { color: #d1d5db; }
+        .step-markdown h1, .step-markdown h2, .step-markdown h3 {
+          font-size: 13px;
+          font-weight: 600;
+          margin: 8px 0 4px;
+          color: #1f2937;
+        }
+        .step-markdown p { margin: 4px 0; }
+        .step-markdown ul, .step-markdown ol { margin: 4px 0; padding-left: 20px; }
+        .step-markdown code {
+          font-family: monospace;
+          font-size: 11px;
+          background: #f3f4f6;
+          padding: 1px 4px;
+          border-radius: 3px;
+        }
+        .step-markdown pre {
+          background: #f3f4f6;
+          padding: 8px 12px;
+          border-radius: 6px;
+          overflow-x: auto;
+          margin: 4px 0;
+        }
+        .step-markdown pre code { background: none; padding: 0; }
       `}</style>
 
       <div
