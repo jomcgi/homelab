@@ -206,7 +206,7 @@ type ChannelStateStore map[string]ChannelState
 // Sidecar manages dashboard, alert, and channel synchronization.
 type Sidecar struct {
 	config     Config
-	clientset  *kubernetes.Clientset
+	clientset  kubernetes.Interface
 	httpClient *http.Client
 	logger     *slog.Logger
 
