@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log/slog"
+	"net/http"
+	"net/http/httptest"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -61,7 +64,7 @@ func (f *fakeSandbox) Run(ctx context.Context, claimName, task, recipePath strin
 // --- Helpers ---
 
 func newTestConsumer(store Store, sandbox Sandbox) *Consumer {
-	return NewConsumer(nil, store, sandbox, nil, 5*time.Minute, slog.Default())
+	return NewConsumer(nil, store, sandbox, nil, nil, 5*time.Minute, slog.Default())
 }
 
 func pendingJob(id string) *JobRecord {
@@ -595,6 +598,55 @@ func TestPlanTracker_ConcurrentAccess(t *testing.T) {
 	}
 	if plan[1].Status != "running" {
 		t.Errorf("plan[1].Status = %q, want %q", plan[1].Status, "running")
+	}
+}
+
+func TestProcessJob_SummarizesOnSubmit(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-SUMMARIZE")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+
+	llm := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]any{
+			"choices": []map[string]any{
+				{"message": map[string]string{"content": `{"title":"Run Tests"}`}},
+			},
+		})
+	}))
+	defer llm.Close()
+
+	summarizer := NewSummarizer(llm.URL, "test-model", slog.Default())
+	sandbox := &fakeSandbox{}
+
+	c := NewConsumer(nil, store, sandbox, nil, summarizer, 5*time.Minute, slog.Default())
+	c.processJob(context.Background(), msg)
+
+	got, _ := store.Get(context.Background(), job.ID)
+	if got.Title != "Run Tests" {
+		t.Errorf("expected title 'Run Tests', got %q", got.Title)
+	}
+}
+
+func TestProcessJob_NilSummarizerStillWorks(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-NIL-SUMMARIZER")
+	_ = store.Put(context.Background(), job)
+
+	msg := newFakeMsg([]byte(job.ID))
+	sandbox := &fakeSandbox{}
+
+	c := NewConsumer(nil, store, sandbox, nil, nil, 5*time.Minute, slog.Default())
+	c.processJob(context.Background(), msg)
+
+	got, _ := store.Get(context.Background(), job.ID)
+	if got.Status != JobSucceeded {
+		t.Errorf("expected SUCCEEDED, got %s", got.Status)
+	}
+	if got.Title != "" {
+		t.Errorf("expected empty title with nil summarizer, got %q", got.Title)
 	}
 }
 

@@ -134,7 +134,7 @@ func main() {
 
 	// Start consumer if sandbox is available.
 	if sandbox != nil {
-		consumer := NewConsumer(cons, store, sandbox, publish, maxDuration, logger)
+		consumer := NewConsumer(cons, store, sandbox, publish, nil, maxDuration, logger)
 		go consumer.Run(ctx)
 	} else {
 		logger.Info("running in API-only mode (no sandbox executor)")
