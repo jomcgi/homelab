@@ -245,7 +245,11 @@ class TestHTMLExtractorEdgeCases:
             ),
             patch(
                 "projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor.trafilatura.bare_extraction",
-                return_value={"title": "Article Title", "author": "Jane Doe", "date": "2025-01-15"},
+                return_value={
+                    "title": "Article Title",
+                    "author": "Jane Doe",
+                    "date": "2025-01-15",
+                },
             ),
         ):
             ext = HTMLExtractor()
@@ -377,7 +381,10 @@ class TestFeedExtractorEdgeCases:
 
         with patch(
             "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.trafilatura.extract",
-            side_effect=["Summary content from feed.", None],  # page fail → summary used
+            side_effect=[
+                "Summary content from feed.",
+                None,
+            ],  # page fail → summary used
         ):
             ext = FeedExtractor()
             docs = await ext.extract("https://example.com/feed.xml", client)
@@ -459,9 +466,7 @@ class TestFetchWithRetryAdditional:
         client = AsyncMock()
         client.get.side_effect = [httpx.ConnectError("refused"), ok_response]
 
-        result = await fetch_with_retry(
-            client, "https://example.com", base_delay=0.01
-        )
+        result = await fetch_with_retry(client, "https://example.com", base_delay=0.01)
         assert result == ok_response
 
     @pytest.mark.asyncio

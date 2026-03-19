@@ -193,7 +193,9 @@ class TestUpsertChunks:
             )
             await qdrant.upsert_chunks([chunk], [[0.5, 0.6]])
 
-        payload = mock_client.put.call_args.kwargs.get("json") or mock_client.put.call_args[1].get("json")
+        payload = mock_client.put.call_args.kwargs.get(
+            "json"
+        ) or mock_client.put.call_args[1].get("json")
         point_payload = payload["points"][0]["payload"]
         assert point_payload["source_type"] == "rss"
         assert point_payload["source_url"] == "https://blog.example.com/post"
@@ -218,7 +220,9 @@ class TestUpsertChunks:
 
             await qdrant.upsert_chunks([], [])
 
-        payload = mock_client.put.call_args.kwargs.get("json") or mock_client.put.call_args[1].get("json")
+        payload = mock_client.put.call_args.kwargs.get(
+            "json"
+        ) or mock_client.put.call_args[1].get("json")
         assert payload["points"] == []
 
 
@@ -285,7 +289,9 @@ class TestSearch:
 
             await qdrant.search([0.5], limit=10)
 
-        call_json = mock_client.post.call_args.kwargs.get("json") or mock_client.post.call_args[1].get("json")
+        call_json = mock_client.post.call_args.kwargs.get(
+            "json"
+        ) or mock_client.post.call_args[1].get("json")
         assert call_json["limit"] == 10
 
     @pytest.mark.asyncio
@@ -303,7 +309,9 @@ class TestSearch:
 
             await qdrant.search([0.5])
 
-        call_json = mock_client.post.call_args.kwargs.get("json") or mock_client.post.call_args[1].get("json")
+        call_json = mock_client.post.call_args.kwargs.get(
+            "json"
+        ) or mock_client.post.call_args[1].get("json")
         assert call_json["with_payload"] is True
 
     @pytest.mark.asyncio
@@ -379,7 +387,9 @@ class TestHasContentHash:
 
             await qdrant.has_content_hash("targethash")
 
-        call_json = mock_client.post.call_args.kwargs.get("json") or mock_client.post.call_args[1].get("json")
+        call_json = mock_client.post.call_args.kwargs.get(
+            "json"
+        ) or mock_client.post.call_args[1].get("json")
         must_clause = call_json["filter"]["must"][0]
         assert must_clause["key"] == "content_hash"
         assert must_clause["match"]["value"] == "targethash"

@@ -444,9 +444,7 @@ class TestStatusEndpoint:
             async with AsyncClient(
                 transport=transport, base_url="http://test"
             ) as client:
-                response = await client.get(
-                    "/status/https://example.com/article"
-                )
+                response = await client.get("/status/https://example.com/article")
 
         assert response.status_code == 200
         data = response.json()
@@ -469,9 +467,7 @@ class TestStatusEndpoint:
             async with AsyncClient(
                 transport=transport, base_url="http://test"
             ) as client:
-                response = await client.get(
-                    "/status/https://example.com/not-here"
-                )
+                response = await client.get("/status/https://example.com/not-here")
 
         assert response.status_code == 200
         assert response.json()["scraped"] is False
@@ -488,8 +484,6 @@ class TestStatusEndpoint:
             async with AsyncClient(
                 transport=transport, base_url="http://test"
             ) as client:
-                response = await client.get(
-                    "/status/https://example.com/article"
-                )
+                response = await client.get("/status/https://example.com/article")
 
         assert response.json()["scraped"] is False
