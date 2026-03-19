@@ -98,6 +98,15 @@ func TestCleanOutput_StripsMultipleRecipes(t *testing.T) {
 	}
 }
 
+func TestCleanOutput_CollapsesMultipleBlankLines(t *testing.T) {
+	raw := "First paragraph\n\n\n\n\nSecond paragraph\n"
+	got := cleanOutput(raw)
+	want := "First paragraph\n\nSecond paragraph\n"
+	if got != want {
+		t.Errorf("cleanOutput() = %q, want %q", got, want)
+	}
+}
+
 func TestCleanOutput_StripsMultipleGooseResults(t *testing.T) {
 	raw := "Step 0\n```goose-result\ntype: gist\nurl: https://gist.github.com/abc\nsummary: Research\n```\n\n--- pipeline step 0: research ---\nStep 1\n```goose-result\ntype: pr\nurl: https://github.com/jomcgi/homelab/pull/1\nsummary: Fix\n```\n"
 	got := cleanOutput(raw)
