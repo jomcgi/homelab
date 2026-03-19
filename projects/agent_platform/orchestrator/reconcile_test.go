@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 	"time"
 )
@@ -422,5 +423,64 @@ func TestReconcileOrphanedJobs_RunnerUnreachableFallsBack(t *testing.T) {
 	last := job.Attempts[len(job.Attempts)-1]
 	if last.ExitCode == nil || *last.ExitCode != -1 {
 		t.Errorf("exit code = %v, want -1", last.ExitCode)
+	}
+}
+
+// TestParseGooseResult_OnRawOutputBeforeClean documents and verifies the
+// intentional call ordering in both reconcile.go and consumer.go:
+//
+//	last.Result = parseGooseResult(output)   // called FIRST on raw output
+//	output = cleanOutput(output)             // called SECOND, strips the block
+//
+// This ordering is critical: cleanOutput removes the ```goose-result``` fenced
+// block so it does not appear in the UI display, but parseGooseResult must run
+// first to extract the structured result. If the ordering were reversed the
+// result would always be nil because cleanOutput strips the block.
+func TestParseGooseResult_OnRawOutputBeforeClean(t *testing.T) {
+	// Simulate raw runner output: ANSI escape codes + Goose banner + useful
+	// agent output + a structured goose-result block. This is exactly what
+	// arrives from the runner before any cleaning is applied.
+	raw := "\x1b[1m  __( O)>  new session\x1b[0m\n" +
+		" \\___)\t20260319_1 · /workspace/homelab\n" +
+		"   L L\tgoose is ready\n" +
+		"\x1b[36mI investigated the traces and found the issue.\x1b[0m\n" +
+		"```goose-result\n" +
+		"type: pr\n" +
+		"url: https://github.com/jomcgi/homelab/pull/99\n" +
+		"summary: Fixed the trace sampling configuration.\n" +
+		"```\n"
+
+	// parseGooseResult must successfully extract the result from the raw
+	// (unclean) output — banner lines and ANSI codes do not interfere.
+	result := parseGooseResult(raw)
+	if result == nil {
+		t.Fatal("parseGooseResult must find the result block in raw (pre-clean) output")
+	}
+	if result.Type != "pr" {
+		t.Errorf("result.Type = %q, want %q", result.Type, "pr")
+	}
+	if result.URL != "https://github.com/jomcgi/homelab/pull/99" {
+		t.Errorf("result.URL = %q, want PR URL", result.URL)
+	}
+	if result.Summary != "Fixed the trace sampling configuration." {
+		t.Errorf("result.Summary = %q", result.Summary)
+	}
+
+	// After cleanOutput the goose-result block is removed from display output,
+	// confirming that parseGooseResult must precede cleanOutput to preserve the result.
+	cleaned := cleanOutput(raw)
+	if strings.Contains(cleaned, "goose-result") {
+		t.Error("cleanOutput must strip the goose-result block from display output")
+	}
+	// Banner and ANSI are also removed by cleanOutput.
+	if strings.Contains(cleaned, "goose is ready") {
+		t.Error("cleanOutput must strip the Goose startup banner")
+	}
+	if strings.Contains(cleaned, "\x1b[") {
+		t.Error("cleanOutput must strip ANSI escape codes")
+	}
+	// Useful agent output is preserved after cleaning.
+	if !strings.Contains(cleaned, "I investigated the traces") {
+		t.Errorf("cleanOutput must preserve useful agent output; got: %q", cleaned)
 	}
 }

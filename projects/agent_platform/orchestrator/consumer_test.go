@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -972,5 +973,57 @@ func TestProcessJob_NilSummarizer_WithPlanSteps_NoPanic(t *testing.T) {
 	}
 	if got.Summary != "" {
 		t.Errorf("expected no summary with nil summarizer, got %q", got.Summary)
+	}
+}
+
+// TestFlushProgress_StripsANSIAndBanner verifies that flushProgress runs the
+// buffered output through cleanOutput before persisting it, so the stored
+// attempt output is free of ANSI escape codes and Goose startup banners.
+func TestFlushProgress_StripsANSIAndBanner(t *testing.T) {
+	store := newMemStore()
+	job := pendingJob("JOB-FLUSH-CLEAN")
+	job.Status = JobRunning
+	job.Attempts = []Attempt{{Number: 1, StartedAt: time.Now().UTC()}}
+	_ = store.Put(context.Background(), job)
+
+	c := newTestConsumer(store, &fakeSandbox{})
+	buf := newSyncBuffer(maxOutputBytes)
+
+	// Write raw output containing ANSI escape codes and a Goose startup banner.
+	// This simulates what arrives in the syncBuffer from the sandbox runner
+	// before any cleaning has been applied.
+	rawOutput := "\x1b[1m  __( O)>  new session\x1b[0m\n" +
+		" \\___)\t20260319_1 · /workspace/homelab\n" +
+		"   L L\tgoose is ready\n" +
+		"\x1b[36mI have started working on the task.\x1b[0m\n" +
+		"Running tests...\n"
+	buf.Write([]byte(rawOutput))
+
+	planBuf := &planTracker{} // no plan progress
+	c.flushProgress(context.Background(), job.ID, buf, planBuf)
+
+	got, err := store.Get(context.Background(), job.ID)
+	if err != nil {
+		t.Fatalf("store.Get: %v", err)
+	}
+	output := got.Attempts[0].Output
+
+	// ANSI escape codes must be stripped from the stored output.
+	if strings.Contains(output, "\x1b[") {
+		t.Errorf("stored output still contains ANSI escape codes: %q", output)
+	}
+	// Goose startup banner must be stripped.
+	if strings.Contains(output, "goose is ready") {
+		t.Errorf("stored output still contains Goose banner text: %q", output)
+	}
+	if strings.Contains(output, "__( O)>") {
+		t.Errorf("stored output still contains Goose banner art: %q", output)
+	}
+	// Useful agent output must be preserved.
+	if !strings.Contains(output, "I have started working on the task.") {
+		t.Errorf("stored output is missing useful content: %q", output)
+	}
+	if !strings.Contains(output, "Running tests...") {
+		t.Errorf("stored output is missing task output: %q", output)
 	}
 }
