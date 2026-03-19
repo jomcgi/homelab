@@ -750,3 +750,45 @@ func TestExecute_Generate_DefaultsPackageFromDirName(t *testing.T) {
 		t.Error("expected at least one generated file to contain 'package mynamedpkg'")
 	}
 }
+
+// ---- --help flag tests ----
+//
+// Cobra returns nil (not an error) when --help is passed, because help output
+// is informational. These tests verify that the --help flag is handled
+// gracefully at the root level and for each subcommand.
+
+// TestExecute_HelpFlag verifies that Execute() with --help returns nil.
+// Cobra treats --help as a special built-in flag that prints usage and exits
+// successfully (exit code 0), not as an error.
+func TestExecute_HelpFlag(t *testing.T) {
+	setRootArgs(t, []string{"--help"})
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("expected no error with --help, got: %v", err)
+	}
+}
+
+// TestExecute_Validate_HelpFlag verifies that 'validate --help' returns nil.
+// This exercises the subcommand help path for the validate command.
+func TestExecute_Validate_HelpFlag(t *testing.T) {
+	defer resetValidateFlags()
+	setRootArgs(t, []string{"validate", "--help"})
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("expected no error with 'validate --help', got: %v", err)
+	}
+}
+
+// TestExecute_Generate_HelpFlag verifies that 'generate --help' returns nil.
+// This exercises the subcommand help path for the generate command.
+func TestExecute_Generate_HelpFlag(t *testing.T) {
+	defer resetGenerateFlags()
+	setRootArgs(t, []string{"generate", "--help"})
+
+	err := Execute()
+	if err != nil {
+		t.Fatalf("expected no error with 'generate --help', got: %v", err)
+	}
+}
