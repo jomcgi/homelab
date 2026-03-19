@@ -202,7 +202,7 @@ function PipelineFlow({ plan, activeStep, onStepClick }) {
         gap: 0,
         overflowX: "auto",
         minWidth: 0,
-        paddingBottom: 2,
+        padding: 3,
       }}
     >
       {plan.map((step, i) => {
