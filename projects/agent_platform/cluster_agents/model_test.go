@@ -244,14 +244,16 @@ type mockAgent struct {
 	interval time.Duration
 }
 
-func (m *mockAgent) Name() string { return m.name }
+func (m *mockAgent) Name() string            { return m.name }
 func (m *mockAgent) Interval() time.Duration { return m.interval }
 func (m *mockAgent) Collect(_ context.Context) ([]Finding, error) {
 	return nil, nil
 }
+
 func (m *mockAgent) Analyze(_ context.Context, _ []Finding) ([]Action, error) {
 	return nil, nil
 }
+
 func (m *mockAgent) Execute(_ context.Context, _ []Action) error {
 	return nil
 }
