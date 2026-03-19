@@ -470,7 +470,7 @@ func gitCommit(msg string) error {
 		cmd.Stderr = os.Stderr
 		if err := cmd.Run(); err != nil {
 			// Ignore "nothing to commit"
-			if strings.Contains(err.Error(), "exit status 1") && args[2] == "commit" {
+			if strings.Contains(err.Error(), "exit status 1") && args[3] == "commit" {
 				continue
 			}
 			return err
