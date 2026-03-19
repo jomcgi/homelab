@@ -12,6 +12,10 @@ argocd_app(
     chart_files = ":chart",
     namespace = "argocd",
     release_name = "argocd-image-updater",
+    # Upstream chart; containers don't mount /tmp
+    semgrep_exclude_rules = [
+        "require-tmp-emptydir",
+    ],
     tags = [
         "helm",
         "template",

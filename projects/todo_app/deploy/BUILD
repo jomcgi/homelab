@@ -18,6 +18,7 @@ argocd_app(
     release_name = "todo",
     # git-clone init container needs root, nginx needs writable FS
     semgrep_exclude_rules = [
+        "require-tmp-emptydir",
         "yaml.kubernetes.security.writable-filesystem-container.writable-filesystem-container",
         "yaml.kubernetes.security.run-as-non-root.run-as-non-root",
     ],
