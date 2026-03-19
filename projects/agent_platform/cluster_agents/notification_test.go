@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	natsserver "github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
 )
 
 // startTestNATSServer starts an embedded NATS server on a random port and
