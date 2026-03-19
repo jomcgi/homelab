@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 from projects.blog_knowledge_graph.knowledge_graph.app.extractors.base import (
+    Extractor,
     RateLimiter,
     fetch_with_retry,
 )
@@ -548,3 +549,433 @@ class TestRateLimiterConcurrent:
         # The second acquire must complete at least `default_delay` after the first
         # (because it had to wait inside the lock)
         assert abs(times[1] - times[0]) >= 0.04  # allow small timing tolerance
+
+class TestExtractorProtocol:
+    """The Extractor Protocol is runtime_checkable."""
+
+    def test_html_extractor_satisfies_extractor_protocol(self):
+        """HTMLExtractor implements the Extractor Protocol."""
+        assert isinstance(HTMLExtractor(), Extractor)
+
+    def test_feed_extractor_satisfies_extractor_protocol(self):
+        """FeedExtractor implements the Extractor Protocol."""
+        assert isinstance(FeedExtractor(), Extractor)
+
+    def test_plain_object_does_not_satisfy_protocol(self):
+        """An object without can_handle/extract does not implement Extractor."""
+        assert not isinstance(object(), Extractor)
+
+
+class TestFetchWithRetryLastAttempt:
+    """fetch_with_retry on the final attempt should raise, not silently pass."""
+
+    @pytest.mark.asyncio
+    async def test_5xx_on_last_attempt_raises_http_status_error(self):
+        """When all attempts return 5xx the final raise_for_status is called."""
+        fail_response = MagicMock()
+        fail_response.status_code = 503
+        fail_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "503 Service Unavailable",
+                request=MagicMock(),
+                response=fail_response,
+            )
+        )
+
+        client = AsyncMock()
+        client.get.return_value = fail_response  # Every attempt returns 503
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await fetch_with_retry(
+                client, "https://example.com", max_attempts=2, base_delay=0.01
+            )
+
+        # 2 attempts made: first retried, second raised
+        assert client.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_429_on_last_attempt_raises_http_status_error(self):
+        """When all attempts return 429 the final raise_for_status is called."""
+        fail_response = MagicMock()
+        fail_response.status_code = 429
+        fail_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "429 Too Many Requests",
+                request=MagicMock(),
+                response=fail_response,
+            )
+        )
+
+        client = AsyncMock()
+        client.get.return_value = fail_response
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await fetch_with_retry(
+                client, "https://example.com", max_attempts=2, base_delay=0.01
+            )
+
+        assert client.get.call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_4xx_non_429_raises_immediately(self):
+        """A 403 is NOT a retryable status — it raises on the first attempt."""
+        fail_response = MagicMock()
+        fail_response.status_code = 403
+        fail_response.raise_for_status = MagicMock(
+            side_effect=httpx.HTTPStatusError(
+                "403 Forbidden",
+                request=MagicMock(),
+                response=fail_response,
+            )
+        )
+
+        client = AsyncMock()
+        client.get.return_value = fail_response
+
+        with pytest.raises(httpx.HTTPStatusError):
+            await fetch_with_retry(
+                client, "https://example.com", max_attempts=3, base_delay=0.01
+            )
+
+        # 403 is not retried — only one attempt
+        assert client.get.call_count == 1
+
+
+class TestFeedExtractorAdditional:
+    """Additional FeedExtractor coverage."""
+
+    @pytest.mark.asyncio
+    async def test_bozo_feed_with_entries_still_processes(self):
+        """bozo=True doesn't abort when feed.entries is non-empty."""
+        # feedparser sets bozo=True for slightly malformed XML but still parses entries
+        rss = """<?xml version="1.0"?>
+        <rss version="2.0">
+        <channel>
+            <title>Slightly Malformed Feed</title>
+            <item>
+                <title>Valid Entry</title>
+                <link>https://example.com/entry</link>
+                <description>Entry description content with enough text.</description>
+            </item>
+        </channel>
+        </rss>
+        """
+        feed_response = MagicMock()
+        feed_response.status_code = 200
+        feed_response.text = rss
+        feed_response.raise_for_status = MagicMock()
+
+        entry_response = MagicMock()
+        entry_response.status_code = 200
+        entry_response.text = "<html><body><p>Full article.</p></body></html>"
+        entry_response.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        client.get.side_effect = [feed_response, entry_response]
+
+        ext = FeedExtractor()
+
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.feedparser.parse"
+        ) as mock_parse:
+            # Simulate a feed that has bozo=True but still has entries
+            mock_feed = MagicMock()
+            mock_feed.bozo = True
+            mock_feed.bozo_exception = Exception("slight malformation")
+            mock_entry = MagicMock()
+            mock_entry.get = lambda key, default="": {
+                "link": "https://example.com/entry",
+                "title": "Valid Entry",
+                "author": None,
+            }.get(key, default)
+            mock_entry.published_parsed = None
+            mock_feed.entries = [mock_entry]
+            mock_parse.return_value = mock_feed
+
+            with patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.trafilatura.extract",
+                return_value="Full article content.",
+            ):
+                docs = await ext.extract("https://example.com/feed.xml", client)
+
+        # bozo=True but entries present → should not return early with []
+        assert isinstance(docs, list)
+
+    @pytest.mark.asyncio
+    async def test_bozo_feed_without_entries_returns_empty(self):
+        """bozo=True with no entries returns [] immediately."""
+        feed_response = MagicMock()
+        feed_response.status_code = 200
+        feed_response.text = "not valid xml at all"
+        feed_response.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        client.get.return_value = feed_response
+
+        ext = FeedExtractor()
+
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.feedparser.parse"
+        ) as mock_parse:
+            mock_feed = MagicMock()
+            mock_feed.bozo = True
+            mock_feed.bozo_exception = Exception("completely broken")
+            mock_feed.entries = []
+            mock_parse.return_value = mock_feed
+
+            docs = await ext.extract("https://example.com/feed.xml", client)
+
+        assert docs == []
+
+    @pytest.mark.asyncio
+    async def test_entry_content_field_used_as_fallback(self):
+        """When page fetch fails, entry.content[0].value is used over summary."""
+        rss_with_content = """<?xml version="1.0"?>
+        <rss version="2.0">
+        <channel>
+            <title>Feed</title>
+            <item>
+                <title>Rich Content</title>
+                <link>https://example.com/rich</link>
+            </item>
+        </channel>
+        </rss>
+        """
+        feed_response = MagicMock()
+        feed_response.status_code = 200
+        feed_response.text = rss_with_content
+        feed_response.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        # First call = feed, second call = entry page (raises)
+        client.get.side_effect = [
+            feed_response,
+            httpx.ConnectError("refused"),
+        ]
+
+        ext = FeedExtractor()
+
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.feedparser.parse"
+        ) as mock_parse:
+            mock_feed = MagicMock()
+            mock_feed.bozo = False
+            mock_entry = MagicMock()
+            mock_entry.get = lambda key, default="": {
+                "link": "https://example.com/rich",
+                "title": "Rich Content",
+                "author": None,
+            }.get(key, default)
+            mock_entry.published_parsed = None
+            # Simulate entry.content[0].value
+            mock_content_item = MagicMock()
+            mock_content_item.get = lambda k, d="": (
+                "<p>Rich HTML content</p>" if k == "value" else d
+            )
+            mock_entry.content = [mock_content_item]
+            mock_feed.entries = [mock_entry]
+            mock_parse.return_value = mock_feed
+
+            with patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.trafilatura.extract",
+                return_value="Rich content in markdown.",
+            ):
+                docs = await ext.extract("https://example.com/feed.xml", client)
+
+        assert len(docs) == 1
+        assert docs[0]["source_url"] == "https://example.com/rich"
+
+    @pytest.mark.asyncio
+    async def test_published_parsed_overflow_sets_published_at_none(self):
+        """OverflowError during mktime is swallowed and published_at stays None."""
+        rss = """<?xml version="1.0"?>
+        <rss version="2.0">
+        <channel><title>Feed</title>
+            <item><title>Post</title><link>https://example.com/p</link></item>
+        </channel>
+        </rss>
+        """
+        feed_response = MagicMock()
+        feed_response.status_code = 200
+        feed_response.text = rss
+        feed_response.raise_for_status = MagicMock()
+
+        entry_response = MagicMock()
+        entry_response.status_code = 200
+        entry_response.text = "<html><body><p>Content.</p></body></html>"
+        entry_response.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        client.get.side_effect = [feed_response, entry_response]
+
+        ext = FeedExtractor()
+
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.feedparser.parse"
+        ) as mock_parse:
+            mock_feed = MagicMock()
+            mock_feed.bozo = False
+            mock_entry = MagicMock()
+            mock_entry.get = lambda key, default="": {
+                "link": "https://example.com/p",
+                "title": "Post",
+                "author": None,
+            }.get(key, default)
+            # Provide a published_parsed that triggers OverflowError in mktime
+            mock_entry.published_parsed = (9999, 12, 31, 23, 59, 59, 0, 0, 0)
+            mock_feed.entries = [mock_entry]
+            mock_parse.return_value = mock_feed
+
+            with (
+                patch(
+                    "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.mktime",
+                    side_effect=OverflowError("date out of range"),
+                ),
+                patch(
+                    "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.trafilatura.extract",
+                    return_value="Article content.",
+                ),
+            ):
+                docs = await ext.extract("https://example.com/feed.xml", client)
+
+        assert len(docs) == 1
+        assert docs[0]["published_at"] is None
+
+    @pytest.mark.asyncio
+    async def test_multiple_entries_all_processed(self):
+        """All entries in a feed are extracted, not just the first."""
+        rss = """<?xml version="1.0"?>
+        <rss version="2.0">
+        <channel><title>Feed</title>
+            <item><title>Post One</title><link>https://example.com/1</link>
+                  <description>Content one.</description></item>
+            <item><title>Post Two</title><link>https://example.com/2</link>
+                  <description>Content two.</description></item>
+        </channel>
+        </rss>
+        """
+        feed_response = MagicMock()
+        feed_response.status_code = 200
+        feed_response.text = rss
+        feed_response.raise_for_status = MagicMock()
+
+        page1 = MagicMock()
+        page1.status_code = 200
+        page1.text = "<html><body><p>Full article one.</p></body></html>"
+        page1.raise_for_status = MagicMock()
+
+        page2 = MagicMock()
+        page2.status_code = 200
+        page2.text = "<html><body><p>Full article two.</p></body></html>"
+        page2.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        client.get.side_effect = [feed_response, page1, page2]
+
+        ext = FeedExtractor()
+
+        with patch(
+            "projects.blog_knowledge_graph.knowledge_graph.app.extractors.feed_extractor.trafilatura.extract",
+            return_value="Extracted content.",
+        ):
+            docs = await ext.extract("https://example.com/feed.xml", client)
+
+        assert len(docs) == 2
+        urls = {doc["source_url"] for doc in docs}
+        assert "https://example.com/1" in urls
+        assert "https://example.com/2" in urls
+
+
+class TestHTMLExtractorAdditional:
+    """Additional HTMLExtractor coverage."""
+
+    @pytest.mark.asyncio
+    async def test_extract_parses_valid_iso_date_to_datetime(self):
+        """A parseable ISO date string from bare_extraction becomes a datetime."""
+        from datetime import datetime
+
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<html><body><p>Content</p></body></html>"
+        mock_response.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        client.get.return_value = mock_response
+
+        with (
+            patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor.trafilatura.extract",
+                return_value="Article text.",
+            ),
+            patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor.trafilatura.bare_extraction",
+                return_value={
+                    "title": "Post",
+                    "author": "Author",
+                    "date": "2025-06-01",
+                },
+            ),
+        ):
+            ext = HTMLExtractor()
+            docs = await ext.extract("https://example.com/post", client)
+
+        assert len(docs) == 1
+        assert isinstance(docs[0]["published_at"], datetime)
+        assert docs[0]["published_at"].year == 2025
+        assert docs[0]["published_at"].month == 6
+
+    @pytest.mark.asyncio
+    async def test_extract_uses_url_as_source_url(self):
+        """The source_url in the returned document matches the input URL."""
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.text = "<html><body><p>Content</p></body></html>"
+        mock_response.raise_for_status = MagicMock()
+
+        client = AsyncMock()
+        client.get.return_value = mock_response
+
+        with (
+            patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor.trafilatura.extract",
+                return_value="Content.",
+            ),
+            patch(
+                "projects.blog_knowledge_graph.knowledge_graph.app.extractors.html_extractor.trafilatura.bare_extraction",
+                return_value=None,
+            ),
+        ):
+            ext = HTMLExtractor()
+            docs = await ext.extract("https://myblog.example.com/post-123", client)
+
+        assert len(docs) == 1
+        assert docs[0]["source_url"] == "https://myblog.example.com/post-123"
+
+    def test_can_handle_returns_false_for_unknown_type(self):
+        """can_handle is False for any source_type that isn't 'html'."""
+        ext = HTMLExtractor()
+        assert ext.can_handle("https://example.com", "unknown") is False
+        assert ext.can_handle("https://example.com", "") is False
+
+
+class TestRateLimiterAdditional:
+    """Additional RateLimiter edge cases."""
+
+    @pytest.mark.asyncio
+    async def test_acquire_with_no_netloc_does_not_crash(self):
+        """A URL without a recognisable host (empty netloc) is still handled."""
+        limiter = RateLimiter(default_delay=0.0)
+        # This should not raise; it uses "" as the domain key
+        await limiter.acquire("not-a-real-url")
+
+    @pytest.mark.asyncio
+    async def test_zero_delay_does_not_block(self):
+        """RateLimiter with default_delay=0 never waits."""
+        limiter = RateLimiter(default_delay=0.0)
+        import time
+
+        start = time.monotonic()
+        await limiter.acquire("https://example.com/1")
+        await limiter.acquire("https://example.com/2")
+        elapsed = time.monotonic() - start
+        assert elapsed < 0.1
