@@ -162,7 +162,11 @@ class TestSubmitJob:
 
     async def test_max_retries_zero_is_included(self):
         """max_retries=0 is not None and must be included in the request body."""
-        expected = {"id": "01ABC", "status": "PENDING", "created_at": "2026-03-07T00:00:00Z"}
+        expected = {
+            "id": "01ABC",
+            "status": "PENDING",
+            "created_at": "2026-03-07T00:00:00Z",
+        }
         with patch(_PATCH, new_callable=AsyncMock, return_value=expected) as mock_req:
             await submit_job(task="No retries", max_retries=0)
         body = mock_req.call_args[1]["json"]
@@ -171,7 +175,11 @@ class TestSubmitJob:
 
     async def test_none_optional_params_excluded(self):
         """None optional params must not appear in the JSON body."""
-        expected = {"id": "01ABC", "status": "PENDING", "created_at": "2026-03-07T00:00:00Z"}
+        expected = {
+            "id": "01ABC",
+            "status": "PENDING",
+            "created_at": "2026-03-07T00:00:00Z",
+        }
         with patch(_PATCH, new_callable=AsyncMock, return_value=expected) as mock_req:
             await submit_job(task="Only task")
         body = mock_req.call_args[1]["json"]
@@ -229,7 +237,9 @@ class TestListJobs:
         assert params["offset"] == "50"
 
     async def test_error_propagated(self):
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"error": "API error: 503"}):
+        with patch(
+            _PATCH, new_callable=AsyncMock, return_value={"error": "API error: 503"}
+        ):
             result = await list_jobs()
         assert "error" in result
 
@@ -287,7 +297,9 @@ class TestCancelJob:
 
     async def test_uses_post_method(self):
         """Cancel must use POST (not DELETE or PATCH)."""
-        with patch(_PATCH, new_callable=AsyncMock, return_value={"status": "CANCELLED"}) as mock_req:
+        with patch(
+            _PATCH, new_callable=AsyncMock, return_value={"status": "CANCELLED"}
+        ) as mock_req:
             await cancel_job(job_id="XYZ")
         assert mock_req.call_args[0][0] == "POST"
 
@@ -303,7 +315,12 @@ class TestGetJobOutput:
 
     async def test_truncated_flag_true(self):
         """Large outputs have truncated=True to signal 32KB trim."""
-        expected = {"attempt": 1, "exit_code": 1, "output": "A" * 100, "truncated": True}
+        expected = {
+            "attempt": 1,
+            "exit_code": 1,
+            "output": "A" * 100,
+            "truncated": True,
+        }
         with patch(_PATCH, new_callable=AsyncMock, return_value=expected):
             result = await get_job_output(job_id="01ABC")
         assert result["truncated"] is True
