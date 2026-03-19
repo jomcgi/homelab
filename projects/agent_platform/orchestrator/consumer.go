@@ -47,17 +47,19 @@ type Consumer struct {
 	store       Store
 	sandbox     Sandbox
 	publish     func(jobID string) error
+	summarizer  *Summarizer
 	maxDuration time.Duration
 	logger      *slog.Logger
 }
 
 // NewConsumer creates a Consumer that processes jobs from the given JetStream consumer.
-func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, publish func(jobID string) error, maxDuration time.Duration, logger *slog.Logger) *Consumer {
+func NewConsumer(cons jetstream.Consumer, store Store, sandbox Sandbox, publish func(jobID string) error, summarizer *Summarizer, maxDuration time.Duration, logger *slog.Logger) *Consumer {
 	return &Consumer{
 		cons:        cons,
 		store:       store,
 		sandbox:     sandbox,
 		publish:     publish,
+		summarizer:  summarizer,
 		maxDuration: maxDuration,
 		logger:      logger,
 	}
@@ -140,6 +142,16 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 		return
 	}
 
+	// Trigger 1: Generate clean title from raw task.
+	if title, err := c.summarizer.SummarizeTask(jobCtx, job.Task); err != nil {
+		logger.Warn("summarize task failed", "error", err)
+	} else if title != "" {
+		job.Title = title
+		if err := c.store.Put(jobCtx, job); err != nil {
+			logger.Warn("failed to store title", "error", err)
+		}
+	}
+
 	task := c.buildTaskPrompt(job, attemptNum)
 	logger.Info("executing task", "attempt", attemptNum, "claim", claimName)
 
@@ -174,6 +186,9 @@ func (c *Consumer) processJob(ctx context.Context, msg jetstream.Msg) {
 	ticker := time.NewTicker(30 * time.Second)
 	defer ticker.Stop()
 
+	planSummarized := false
+	var lastSummarizedAt time.Time
+
 	var res sandboxResult
 loop:
 	for {
@@ -183,6 +198,19 @@ loop:
 		case <-ticker.C:
 			_ = msg.InProgress()
 			c.flushProgress(jobCtx, jobID, outputBuf, planBuf)
+
+			// Trigger 2: First plan summary (once).
+			if plan, _ := planBuf.Get(); len(plan) > 0 && !planSummarized {
+				planSummarized = true
+				c.summarizeAndStore(jobCtx, jobID, job.Task, plan, logger)
+				lastSummarizedAt = time.Now()
+			}
+
+			// Trigger 3: Periodic summary update (every 5m).
+			if plan, _ := planBuf.Get(); len(plan) > 0 && planSummarized && time.Since(lastSummarizedAt) >= 5*time.Minute {
+				c.summarizeAndStore(jobCtx, jobID, job.Task, plan, logger)
+				lastSummarizedAt = time.Now()
+			}
 		}
 	}
 
@@ -253,6 +281,9 @@ loop:
 	if failed {
 		logger.Info("task failed, retries exhausted", "attempt", attemptNum, "error", execErr)
 		job.Status = JobFailed
+		if len(job.Plan) > 0 {
+			c.summarizeAndStoreOnJob(jobCtx, job, logger)
+		}
 		if err := c.store.Put(jobCtx, job); err != nil {
 			logger.Error("failed to store failed state", "error", err)
 		}
@@ -262,6 +293,9 @@ loop:
 
 	logger.Info("task succeeded", "attempt", attemptNum)
 	job.Status = JobSucceeded
+	if len(job.Plan) > 0 {
+		c.summarizeAndStoreOnJob(jobCtx, job, logger)
+	}
 	if err := c.store.Put(jobCtx, job); err != nil {
 		logger.Error("failed to store succeeded state", "error", err)
 	}
@@ -294,6 +328,47 @@ Last 2000 characters of previous output:
 
 Original task:
 %s`, attemptNum, prev.Number, exitCode, prevOutput, job.Task)
+}
+
+// summarizeAndStore reads the current job from the store, generates a summary, and writes it back.
+func (c *Consumer) summarizeAndStore(ctx context.Context, jobID, task string, plan []PlanStep, logger *slog.Logger) {
+	title, summary, err := c.summarizer.SummarizePlan(ctx, task, plan)
+	if err != nil {
+		logger.Warn("summarize plan failed", "error", err)
+		return
+	}
+	if title == "" && summary == "" {
+		return
+	}
+	current, err := c.store.Get(ctx, jobID)
+	if err != nil {
+		logger.Warn("failed to read job for summary update", "error", err)
+		return
+	}
+	if title != "" {
+		current.Title = title
+	}
+	if summary != "" {
+		current.Summary = summary
+	}
+	if err := c.store.Put(ctx, current); err != nil {
+		logger.Warn("failed to store summary", "error", err)
+	}
+}
+
+// summarizeAndStoreOnJob generates a summary and writes it directly to the provided job record.
+func (c *Consumer) summarizeAndStoreOnJob(ctx context.Context, job *JobRecord, logger *slog.Logger) {
+	title, summary, err := c.summarizer.SummarizePlan(ctx, job.Task, job.Plan)
+	if err != nil {
+		logger.Warn("summarize plan (terminal) failed", "error", err)
+		return
+	}
+	if title != "" {
+		job.Title = title
+	}
+	if summary != "" {
+		job.Summary = summary
+	}
 }
 
 func (c *Consumer) flushProgress(ctx context.Context, jobID string, buf *syncBuffer, planBuf *planTracker) {
