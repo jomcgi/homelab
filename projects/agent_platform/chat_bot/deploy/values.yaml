@@ -47,11 +47,9 @@ resources:
     memory: 256Mi
 
 config:
-  ownerDiscordUserId: ""
   orchestratorUrl: "http://agent-platform-agent-orchestrator.agent-platform.svc.cluster.local:8080"
   llamaCppUrl: "http://llama-cpp.llama-cpp.svc.cluster.local:8080"
   natsUrl: "nats://agent-platform-nats.agent-platform.svc.cluster.local:4222"
-  notificationChannelMap: ""
   httpPort: "8080"
 
 secrets:

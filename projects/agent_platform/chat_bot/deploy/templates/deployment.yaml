@@ -62,7 +62,10 @@ spec:
               name: agent-secrets
               key: GITHUB_TOKEN
         - name: OWNER_DISCORD_USER_ID
-          value: {{ .Values.config.ownerDiscordUserId | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: discord-bot-credentials
+              key: OWNER_DISCORD_USER_ID
         - name: ORCHESTRATOR_URL
           value: {{ .Values.config.orchestratorUrl | quote }}
         - name: LLAMA_CPP_URL
@@ -70,7 +73,10 @@ spec:
         - name: NATS_URL
           value: {{ .Values.config.natsUrl | quote }}
         - name: NOTIFICATION_CHANNEL_MAP
-          value: {{ .Values.config.notificationChannelMap | quote }}
+          valueFrom:
+            secretKeyRef:
+              name: discord-bot-credentials
+              key: NOTIFICATION_CHANNEL_MAP
         - name: HTTP_PORT
           value: {{ .Values.config.httpPort | quote }}
         livenessProbe:

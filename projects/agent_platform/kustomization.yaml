@@ -4,5 +4,6 @@ kind: Kustomization
 resources:
   - ./deploy
   - ./api_gateway/deploy
+  - ./chat_bot/deploy
   - ./cluster_agents/deploy
   - ./llama_cpp/deploy
